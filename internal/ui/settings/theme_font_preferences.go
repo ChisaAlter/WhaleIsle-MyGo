@@ -2,8 +2,11 @@ package settings
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -69,7 +72,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 					})
 				})
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, family.Name).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
+					ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 					if currentLight {
 						ui.Text(c, providerCopy("浅色当前", "Light")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
@@ -99,6 +102,17 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 	themeCustomEditor(c, e, fg, muted)
 }
 
+func themeFamilyTitle(name string) string {
+	parts := strings.SplitN(name, " / ", 2)
+	if len(parts) != 2 {
+		return name
+	}
+	if i18n.Locale() == "en" {
+		return parts[1]
+	}
+	return parts[0]
+}
+
 // themePreviewHalf is one half of a theme card: the seed's own background, its
 // accent dot, two skeleton lines and the scheme chip. A click selects that half.
 func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, muted ui.Color, onPick func()) {
@@ -110,25 +124,27 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 		root = root.Opacity(0.92)
 	}
 	root.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
-			ui.Box(c).Size(10, 10).Shrink(0).Radius(5).Background(chrome.Color(seed.Accent))
-			ui.Box(c).Width(38).Height(6).Shrink(0).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.35))
-			ui.Box(c).Grow(1)
+		// Button.Children lays children out horizontally; the preview needs an
+		// explicit column: dot/skeleton row, hairline, then the scheme chip.
+		ui.Column(c).FillWidth().Grow(1).MinHeight(0).Justify(ui.SpaceBetween).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
+				ui.Box(c).Size(10, 10).Shrink(0).Radius(5).Background(chrome.Color(seed.Accent))
+				ui.Box(c).Width(38).Height(6).Shrink(0).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.35))
+				ui.Box(c).Grow(1)
+				if current {
+					ui.Text(c, "✓").FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(seed.Foreground))
+				}
+			})
+			ui.Box(c).Height(4)
+			ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
+			switchText := providerCopy(map[string]string{"light": "浅色", "dark": "深色"}[scheme], map[string]string{"light": "Light", "dark": "Dark"}[scheme])
 			if current {
-				ui.Text(c, "✓").FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(seed.Foreground))
+				switchText = providerCopy(map[string]string{"light": "浅色（当前模式）", "dark": "深色（当前模式）"}[scheme], map[string]string{"light": "Light (current)", "dark": "Dark (current)"}[scheme])
 			}
-		})
-		ui.Box(c).Height(4)
-		ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
-		ui.Box(c).Height(0)
-		ui.Box(c).Grow(1)
-		switchText := providerCopy(map[string]string{"light": "浅色", "dark": "深色"}[scheme], map[string]string{"light": "Light", "dark": "Dark"}[scheme])
-		if current {
-			switchText = providerCopy(map[string]string{"light": "浅色（当前模式）", "dark": "深色（当前模式）"}[scheme], map[string]string{"light": "Light (current)", "dark": "Dark (current)"}[scheme])
-		}
-		ui.Row(c).Gap(0).Children(func() {
-			ui.Text(c, switchText).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
-				Border(.5, chrome.Color(seed.Foreground).Alpha(.25)).TextColor(chrome.Color(seed.Foreground).Alpha(.85))
+			ui.Row(c).Gap(0).Children(func() {
+				ui.Text(c, switchText).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
+					Border(.5, chrome.Color(seed.Foreground).Alpha(.25)).TextColor(chrome.Color(seed.Foreground).Alpha(.85))
+			})
 		})
 	})
 	if root.Clicked() && !disabled {

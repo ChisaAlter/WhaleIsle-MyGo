@@ -64,3 +64,18 @@ func TestThemeHalfPicksThatScheme(t *testing.T) {
 		t.Fatalf("light preview selected %q, want %q", editor.Draft.Light, families[0].ID)
 	}
 }
+
+func TestThemeFamilyTitleUsesOneLocale(t *testing.T) {
+	i18n.SetLocale("zh")
+	if got := themeFamilyTitle("午夜 / Midnight"); got != "午夜" {
+		t.Fatalf("zh title = %q", got)
+	}
+	i18n.SetLocale(i18n.LocaleEN)
+	if got := themeFamilyTitle("午夜 / Midnight"); got != "Midnight" {
+		t.Fatalf("en title = %q", got)
+	}
+	if got := themeFamilyTitle("DeepSeek"); got != "DeepSeek" {
+		t.Fatalf("plain title = %q", got)
+	}
+	i18n.SetLocale(i18n.DefaultLocale)
+}

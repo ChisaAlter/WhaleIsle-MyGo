@@ -172,3 +172,4 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 | about | 22.3 |
 
 general 已到 11.3；appearance 34.8 仍最高（主题卡片数量/预览内容与参考不同），其余 18-26 主要来自导航列与内容长度差异。
+> 后续（pass35）：appearance 预览半卡改为显式 Column（原 Button 子元素横排导致方案 chip 被挤成竖排），主题名按语言只显示单语（午夜/Midnight），实机截图 settings-live/appearance.png 已更新。
