@@ -35,6 +35,20 @@ func menuSurface(e ui.Element, colors theme.Colors) ui.Element {
 	return chrome.MenuSurface(e, chrome.Color(colors.BG), chrome.Color(colors.Border), menuRadius)
 }
 
+// menuRow is one selectable row inside a popover menu: no frame of its own, a
+// hover/pressed fill and the shared 36 DIP rhythm.
+func menuRow(c *ui.Context, colors theme.Colors) ui.Element {
+	row := ui.Button(c, "").FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).BorderWidth(0).
+		Background(ui.Transparent).AlignItems(ui.Center)
+	if row.Pressed() {
+		return row.Background(chrome.Color(colors.Pressed))
+	}
+	if row.Hovered() {
+		return row.Background(chrome.Color(colors.Hover))
+	}
+	return row
+}
+
 // chevron paints the closed/open marker of a picker chip: ChevronDown at rest,
 // ChevronUp while its popup is open (the reference rotates it 180 degrees).
 func chevron(c *ui.Context, open bool) ui.Element {

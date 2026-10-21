@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/widgets"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
@@ -110,7 +111,8 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		}
 		w, _ := c.Size()
 		ui.PopoverBase(c.Key("plugin-add-menu"), trigger, opened, func(panel ui.Element) {
-			panel.Width(max(0, min(float32(320), w-48))).Padding(4).Gap(2).Role(ui.RoleMenu).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8).Children(func() {
+			panel = chrome.MenuSurface(panel.Width(max(0, min(float32(320), w-48))).Padding(6).Gap(2).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
+			panel.Children(func() {
 				entryWithHint := func(title, description string, enabled bool, hint string, action func()) {
 					row := ui.ButtonBase(c).FillWidth().Height(72).Padding(6, 12).Role(ui.RoleMenuItem).Label(title).Disabled(!enabled)
 					if hint != "" {

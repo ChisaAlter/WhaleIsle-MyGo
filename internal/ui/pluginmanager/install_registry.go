@@ -5,11 +5,22 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
-func registryName(registry, resolved *string) string {
-	key := manager.RegistryKey(registry, resolved)
+func registryRadio(c *ui.Context, label string, selected bool, choose func()) {
+	row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+		Label(label).Justify(ui.Start).Role(ui.RoleRadio).Selected(selected)
+	row.Children(func() {
+		ui.Text(c, label).Grow(1).SingleLine().FontSize(theme.InterfaceSize(13)).TextColor(c.Theme().Text)
+	})
+	if row.Clicked() {
+		choose()
+	}
+}
+
+func registryName(registry, resolved *string) string {	key := manager.RegistryKey(registry, resolved)
 	switch key {
 	case manager.OfficialNPMRegistry:
 		return copyText("npm 官方源", "npm official registry")
@@ -55,13 +66,13 @@ func installRegistryOptions(c *ui.Context, i manager.InstallState, a manager.Act
 				if registry != nil && label != *registry {
 					label += " · " + *registry
 				}
-				if ui.Button(c, label).FillWidth().Justify(ui.Start).Role(ui.RoleRadio).Selected(selected).Clicked() {
+				registryRadio(c, label, selected, func() {
 					a.ChooseRegistry(manager.RegistryChoice{Kind: "offered", Registry: registry})
-				}
+				})
 			}
-			if ui.Button(c, copyText("自定义地址", "Custom address")).FillWidth().Justify(ui.Start).Role(ui.RoleRadio).Selected(i.RegistrySelection.Kind == "custom").Clicked() {
+			registryRadio(c, copyText("自定义地址", "Custom address"), i.RegistrySelection.Kind == "custom", func() {
 				a.ChooseRegistry(manager.RegistryChoice{Kind: "custom", URL: *draft})
-			}
+			})
 			if ui.TextInput(c, draft).FillWidth().Label(copyText("自定义安装源 URL", "Custom registry URL")).Placeholder("https://npm.example.com/").Changed() {
 				a.ChooseRegistry(manager.RegistryChoice{Kind: "custom", URL: *draft})
 			}

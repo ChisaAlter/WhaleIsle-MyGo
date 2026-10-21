@@ -137,10 +137,11 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 			}
 		}
 		ui.PopoverBase(c.Key("caption-git-menu"), trigger, open, func(panel ui.Element) {
-			panel.MinWidth(144).MaxWidth(360).Padding(4).Gap(0).Role(ui.RoleMenu).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8).Children(func() {
+			panel = MenuSurface(panel.MinWidth(144).MaxWidth(360).Padding(6).Gap(0).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
+			panel.Children(func() {
 				for _, action := range captionMenuActions(m) {
 					a := action
-					row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(32).Role(ui.RoleMenuItem).Radius(4)
+					row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(36).Padding(6, 8).Role(ui.RoleMenuItem).Radius(8)
 					if row.Clicked() {
 						*open = false
 					}

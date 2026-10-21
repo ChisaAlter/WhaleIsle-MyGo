@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 )
 
 func inspectorTypeCandidates(rows []session.InspectorRecord, query string) []string {
@@ -103,7 +104,12 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 				} else {
 					p.filterList.Key = func(i int) any { return items[i] }
 					ui.List(c, &p.filterList, len(items), func(i int) {
-						if ui.Button(c, items[i]).FillWidth().Selected(i == p.filterActive).Tooltip(items[i]).Clicked() {
+						row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+							Label(items[i]).Selected(i == p.filterActive).Tooltip(items[i])
+						row.Children(func() {
+							ui.Text(c, items[i]).Grow(1).SingleLine().FontSize(13).TextColor(c.Theme().Text)
+						})
+						if row.Clicked() {
 							p.applyInspectorFilter(items[i])
 							anchor.Focus()
 						}

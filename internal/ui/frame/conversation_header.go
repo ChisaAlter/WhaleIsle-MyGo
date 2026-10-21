@@ -174,7 +174,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 						if snap.Err != "" {
 							ui.Column(c).FillWidth().MinWidth(0).Padding(10, 12).Gap(6).Children(func() {
 								ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
-								if ui.Button(c, archiveText("重试", "Retry schedules")).Disabled(snap.Loading).Clicked() && m.ScheduleStore != nil {
+								if retry := ui.Button(c, archiveText("重试", "Retry schedules")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(snap.Loading); retry.Clicked() && m.ScheduleStore != nil {
 									m.ScheduleStore.Refresh(context.Background(), sessionID)
 								}
 							})

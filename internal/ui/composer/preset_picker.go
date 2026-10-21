@@ -121,8 +121,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(0).Children(func() {
 				for i, o := range options {
 					i, o := i, o
-					row := ui.Button(c, "").Bind(nav.Rows[i]).FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).BorderWidth(0).
-						Background(ui.Transparent).AlignItems(ui.Center)
+					row := menuRow(c, colors).Bind(nav.Rows[i])
 					if row.Hovered() || i == nav.Active {
 						row = row.Background(chrome.Color(colors.Hover))
 						nav.Active = i

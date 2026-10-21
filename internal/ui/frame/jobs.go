@@ -90,7 +90,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 					if s.Error != "" {
 						ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(8).Children(func() {
 							ui.Text(c, s.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
-							if ui.Button(c, archiveText("重新读取任务", "Retry jobs")).AlignSelf(ui.Start).Disabled(s.Loading).Clicked() {
+							if retry := ui.Button(c, archiveText("重新读取任务", "Retry jobs")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).AlignSelf(ui.Start).Disabled(s.Loading); retry.Clicked() {
 								controller.Retry(s.Generation)
 							}
 						})

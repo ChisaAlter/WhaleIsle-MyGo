@@ -313,6 +313,26 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 	}))
 }
 
+// MenuRow is one selectable row of an app popover: no frame of its own, the
+// shared 36 DIP rhythm, a rounded hover/pressed fill and room for leading and
+// trailing glyphs. Callers add a label and children themselves.
+func MenuRow(c *ui.Context, colors theme.Colors) ui.Element {
+	return MenuRowColors(c, Color(colors.Hover), Color(colors.Pressed))
+}
+
+// MenuRowColors is MenuRow for callers that only hold ui.Theme colors.
+func MenuRowColors(c *ui.Context, hover, pressed ui.Color) ui.Element {
+	row := ui.Button(c, "").FillWidth().MinHeight(36).Padding(6, 8).Radius(8).BorderWidth(0).
+		Background(ui.Transparent).AlignItems(ui.Center)
+	if row.Pressed() {
+		return row.Background(pressed)
+	}
+	if row.Hovered() {
+		return row.Background(hover)
+	}
+	return row
+}
+
 // MenuShadow paints the elevation of a menu or floating card on rect: two soft
 // shadows and the hairline the harness draws around overlays. Paint it from a
 // wrapper element's Draw so the shadow is not clipped to the panel.

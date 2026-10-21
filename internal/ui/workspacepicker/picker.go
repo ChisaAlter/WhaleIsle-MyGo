@@ -135,8 +135,10 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 
 func menuRow(c *ui.Context, label, path string, selected bool, icon string, disabled bool, colors theme.Colors) ui.Element {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(6, 8).Radius(12).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
-	if button.Hovered() || button.FocusWithin() {
+	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(36).Padding(6, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
+	if button.Pressed() {
+		button.Background(chrome.Color(colors.Pressed))
+	} else if button.Hovered() || button.FocusWithin() {
 		button.Background(chrome.Color(colors.Hover))
 	}
 	button.Children(func() {

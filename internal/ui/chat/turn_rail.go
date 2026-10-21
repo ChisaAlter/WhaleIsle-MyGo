@@ -126,7 +126,8 @@ func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, muted, accent ui
 		ui.Column(c).Width(260).MaxHeight(320).Gap(2).Padding(4, 4, 4, 4).Children(func() {
 			for _, anchor := range anchors {
 				anchor := anchor
-				item := ui.Button(c, "").Label(i18n.T(i18n.KeyChatTurnRailJump)+" "+itoaFast(anchor.Index)).FillWidth().MinWidth(0).Height(26)
+				item := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+					Label(i18n.T(i18n.KeyChatTurnRailJump)+" "+itoaFast(anchor.Index)).MinHeight(32)
 				item.Children(func() {
 					ui.Text(c, itoaFast(anchor.Index)).Width(20).FontSize(11).TextColor(muted)
 					ui.Text(c, anchor.Preview).FontSize(12).Grow(1).MinWidth(0).SingleLine()

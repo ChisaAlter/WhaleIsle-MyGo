@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/ui/widgets"
+	"whaleisle/internal/ui/chrome"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -131,7 +132,8 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	}
 	width, height := c.Size()
 	ui.PopoverBase(c.Key("caption-branch-picker"), anchor, open, func(panel ui.Element) {
-		panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(4).Gap(0).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8).Role(ui.RoleMenu).Children(func() {
+		panel = chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(6).Gap(2).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
+		panel.Children(func() {
 			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支", "Search branches"))
 			if w.branchesRequest != nil {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
@@ -152,7 +154,13 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 					if b.Unsupported {
 						hint = word("此分支名称含有桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
 					}
-					if ui.Button(c, b.Name).FillWidth().Height(32).Justify(ui.Start).Role(ui.RoleMenuItem).Checked(b.Current).Disabled(w.Operation != nil || b.Current || b.Unsupported).Tooltip(hint).Clicked() {
+					row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+						Label(b.Name).Justify(ui.Start).Role(ui.RoleMenuItem).Checked(b.Current).
+						Disabled(w.Operation != nil || b.Current || b.Unsupported).Tooltip(hint)
+					row.Children(func() {
+						ui.Text(c, b.Name).Grow(1).SingleLine().FontSize(13).TextColor(c.Theme().Text)
+					})
+					if row.Clicked() {
 						*open = false
 						root, name := m.WorkspaceRoot, b.Name
 						beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {

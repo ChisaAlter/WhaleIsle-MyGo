@@ -626,7 +626,7 @@ func corePopover(c *context, anchor *node, open *bool, fn func()) *node {
 // stylePanel gives the panel of a popup the theme's look.
 func stylePanel(c *context, panel *node) {
 	t := c.theme
-	panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).Background(t.Background).Border(1, t.Border)
+	panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(12).Background(t.Background).Border(.5, t.Border.Alpha(.6))
 	panel.Shadow(0, 6, 20, 0, RGBA(0, 0, 0, 0.18))
 }
 
@@ -644,10 +644,10 @@ func coreSelect(c *context, selected *string, options []string) *node {
 	sel.Popup(func(panel *node) {
 		stylePanel(c, panel)
 		for _, opt := range options {
-			item := sel.Item(opt).Padding(t.Space(1.5), t.Space(2.5)).Radius(t.Radius)
+			item := sel.Item(opt).FillWidth().Height(36).Padding(6, 10).Radius(8)
 			switch {
 			case item.Highlighted():
-				item.Background(t.Accent).TextColor(t.AccentText)
+				item.Background(t.SurfaceHover)
 			case opt == *selected:
 				item.Background(t.Surface)
 			}

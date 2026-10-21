@@ -73,8 +73,8 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 				// The shared menu material: its own fill, the elevation hairline
 				// and shadow, faded in over the popover token.
 				progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
-				panel.Width(220).Padding(6).Gap(2).Radius(10).Opacity(progress)
-				chrome.MenuSurface(panel, chrome.Color(colors.Field), chrome.Color(colors.Border), 10)
+				panel.Width(220).Padding(6).Gap(2).Radius(12).Opacity(progress)
+				chrome.MenuSurface(panel, chrome.Color(colors.Field), chrome.Color(colors.Border), 12)
 				panel.Children(func() {
 					workspaceViewOptions(c, m)
 					for _, action := range []struct {
@@ -87,9 +87,15 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 						{i18n.T(i18n.KeySidebarDeleteWorkspace), m.OnDeleteWorkspace},
 						{workspaceText("刷新会话", "Refresh sessions"), m.OnRefresh},
 					} {
-						if action.fn != nil && ui.Button(c, action.label).FillWidth().BorderWidth(0).Background(ui.Transparent).TextColor(fg).Clicked() {
-							*menuOpen = false
-							action.fn()
+						if action.fn != nil {
+							row := chrome.MenuRow(c, colors).Label(action.label)
+							if row.Hovered() || row.Pressed() {
+								row = row.Background(chrome.Color(colors.Hover))
+							}
+							if row.Clicked() {
+								*menuOpen = false
+								action.fn()
+							}
 						}
 					}
 				})
