@@ -150,7 +150,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 		grid := ui.Grid(c.Key("builtin-plugins-loading")).FillWidth().MinWidth(0).Gap(12)
 		grid.Columns(2).Children(func() {
 			for index := 0; index < 4; index++ {
-				ui.Column(c.Key(fmt.Sprintf("builtin-skeleton-%d", index))).FillWidth().MinWidth(0).Height(60).Gap(8).Padding(12, 16).
+				ui.Column(c.Key(fmt.Sprintf("builtin-skeleton-%d", index))).MinWidth(0).Height(60).Gap(8).Padding(12, 16).
 					Radius(12).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center).Children(func() {
 					ui.Box(c).Width(120).Height(10).Shrink(0).Radius(4).Background(ui.RGBA(muted.R, muted.G, muted.B, .1))
 					ui.Box(c).Width(180).Height(8).Shrink(0).Radius(4).Background(ui.RGBA(muted.R, muted.G, muted.B, .1))
@@ -170,7 +170,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			if plugin.ReadOnlyReason != "" {
 				detail = plugin.ReadOnlyReason
 			}
-			card := ui.Column(c.Key("builtin-plugin/" + plugin.Name)).FillWidth().MinWidth(0).Height(60).Gap(2).Padding(12, 16).
+			card := ui.Column(c.Key("builtin-plugin/" + plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16).
 				Radius(12).Background(c.Theme().Surface).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
 			card.Children(func() {
 				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).SingleLine().Ellipsis("…")

@@ -196,3 +196,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - E3 实机补充（pass37）：设置页可切换桌宠开关并持久化；当前直接运行构建未创建 MyGo鲸屿 companion 窗口，且 Companion.Error 为空。设置页已补「便携/测试模式不显示桌面形象」和 Companion 错误展示，避免静默无反应。
 
 - D1 实机补充（pass38）：点「新建自动化任务」后进入新会话，并显示「在会话中描述要定时的任务，Agent 会创建并显示在此页。」；当前 schedule store 无本地 Create RPC，新建确实由会话/Agent 完成。
+
+- 设置·内置插件网格修复（pass39）：卡片在 Grid 单元格里误用 FillWidth，按整行宽布局导致右列被裁切；移除后两列各占一半、长包名省略号收口，新增 TestBuiltinPluginCardsStayInTheirColumns，实机截图 settings-live/plugins.png。
