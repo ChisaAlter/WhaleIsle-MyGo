@@ -24,9 +24,9 @@ func mcpCatalogText(zh, en string) string {
 
 func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) {
 	if a == nil {
-		// The filter row keeps its place before the catalog handshake so the page
-		// does not jump when the catalog arrives; both controls stay disabled.
-		mcpCatalogControlsPlaceholder(c)
+		// Without a catalog there is nothing the filter could match. Hide the
+		// row instead of drawing disabled controls the user cannot use; the
+		// empty state below already explains how to add a server.
 		return
 	}
 	query := a.Snapshot.Query
@@ -109,18 +109,4 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 			ui.Text(c, name).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 	}
-}
-
-// mcpCatalogControlsPlaceholder draws the same filter row with both controls
-// disabled, for the frames before the catalog access exists.
-func mcpCatalogControlsPlaceholder(c *ui.Context) {
-	query := ""
-	labels := []string{mcpCatalogText("全部", "All"), mcpCatalogText("已启用", "Enabled"), mcpCatalogText("已禁用", "Disabled")}
-	current := labels[0]
-	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
-		ui.TextInput(c, &query).Label("MCP search").Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Disabled(true)
-		ui.Box(c).Width(88).Shrink(0).Children(func() {
-			ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Disabled(true)
-		})
-	})
 }

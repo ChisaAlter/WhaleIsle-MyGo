@@ -723,7 +723,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						})
 					} else if row.Source == "bundled" {
 						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, releaseText("示例", "Sample")).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompBundled)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
 						})
 					}
 					if row.Orphan {

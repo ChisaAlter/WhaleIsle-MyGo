@@ -3,6 +3,7 @@ package pluginmanager
 import (
 	"embed"
 	"encoding/base64"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -60,9 +61,38 @@ func packagePreview(c *ui.Context, name string, owner *svgimage.Owner) {
 	if err != nil {
 		return
 	}
-	if !marketui.PluginImage(c, "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString(data), 640, 0, owner) {
-		ui.Text(c, copyText("预览暂不可用。", "Preview unavailable.")).FillWidth().TextColor(c.Theme().TextMuted)
-	}
+	source := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(data)
+	outer := ui.Column(c).Key("plugin-preview/" + name).FillWidth().MinWidth(0).Gap(6)
+	attempt := ui.Local(outer, "attempt", func() int { return 0 })
+	outer.Children(func() {
+		// The image keeps its decode with its element: a new attempt asks for a
+		// new element, and so for a fresh decode, while the skeleton stands in
+		// for the picture — loading or failed — until one arrives.
+		try := ui.Column(c).Key("plugin-preview-try/" + name + "/" + strconv.Itoa(*attempt)).FillWidth().MinWidth(0)
+		try.Children(func() {
+			if marketui.PluginImage(c, source, 640, 0, owner) {
+				return
+			}
+			previewSkeleton(c, func() { *attempt++ })
+		})
+	})
+}
+
+// previewSkeleton stands in for artwork that is still decoding or could not be:
+// the shape of the preview, and a control that asks for it again. Nothing here
+// is a dead end, so an unavailable image never leaves a sentence with no action.
+func previewSkeleton(c *ui.Context, retry func()) {
+	t := c.Theme()
+	ui.Box(c).FillWidth().MinWidth(0).Height(160).Radius(10).
+		Background(t.Surface).Border(.5, t.Border).Children(func() {
+		ui.Column(c).Fill().Center().Gap(10).Children(func() {
+			ui.Box(c).Width(180).Height(12).Radius(6).Background(t.Border.Alpha(.6))
+			ui.Box(c).Width(120).Height(10).Radius(5).Background(t.Border.Alpha(.45))
+			if ui.Button(c, i18n.T(i18n.KeyPluginPreviewRetry)).Clicked() {
+				retry()
+			}
+		})
+	})
 }
 
 func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {

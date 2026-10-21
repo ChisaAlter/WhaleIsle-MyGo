@@ -233,18 +233,34 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 	if title == "" {
 		title = r.ID
 	}
-	ui.Column(c.Key("mcp-server/"+r.ID)).FillWidth().MinWidth(0).Gap(6).Padding(10, 0).Children(func() {
+	row := ui.Column(c.Key("mcp-server/"+r.ID)).FillWidth().MinWidth(0).Gap(6).Padding(10, 0)
+	details := ui.Local(row, "details", func() bool { return false })
+	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Wrap().AlignItems(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(180).Gap(4).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
-					ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-					ui.Text(c, r.Origin).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			// The row's own line is the disclosure target when a catalog can
+			// describe the server: a click, Enter or Space opens what it reports.
+			heading := func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+						ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+					})
+					detail := mcpRowDetail(r)
+					ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(detail)
+					if r.Summary != "" {
+						ui.Text(c, r.Summary).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Summary)
+					}
 				})
-				ui.Text(c, r.Status).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Status)
-				if r.Summary != "" {
-					ui.Text(c, r.Summary).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(r.Summary)
+			}
+			if a.Catalog != nil {
+				head := ui.ButtonBase(c).Grow(1).MinWidth(180).Shrink(1).AlignItems(ui.Start).Cursor(ui.CursorPointer).
+					Role(ui.RoleDisclosure).Expanded(*details).Label(title + " · " + mcpRowDetail(r))
+				head.Children(heading)
+				if head.Clicked() {
+					*details = !*details
 				}
-			})
+			} else {
+				ui.Column(c).Grow(1).MinWidth(180).Children(heading)
+			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Disabled(a.Busy).Clicked() {
 					a.OnTest(r.ID)
@@ -270,10 +286,12 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 		})
 		if a.Catalog != nil {
 			snap := a.Catalog.Snapshot
-			for _, entry := range snap.Rows {
-				if entry.Id == r.ID && entry.Connection != nil && len(entry.Connection.Tools) > 0 {
-					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
-						a.Catalog.OnInspect(r.ID)
+			if !*details {
+				for _, entry := range snap.Rows {
+					if entry.Id == r.ID && entry.Connection != nil && len(entry.Connection.Tools) > 0 {
+						if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
+							a.Catalog.OnInspect(r.ID)
+						}
 					}
 				}
 			}
@@ -298,6 +316,13 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 					message = fmt.Sprintf(providerCopy("测试成功：%d 个工具（%s）", "Test succeeded: %d tools (%s)"), int(diagnostic.Result.ToolCount), mcpTestToolSummary(diagnostic.Result.ToolNames))
 				}
 				mcpEmptyCard(c, message, muted)
+			}
+			if *details {
+				// The dead helpers' home: what the last test said, the inspect
+				// toggle and the registered tools, opened from the row itself.
+				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(0, 0, 4, 0).Children(func() {
+					mcpCatalogDetails(c, a.Catalog, r.ID, fg, muted)
+				})
 			}
 		}
 		if strings.Contains(strings.ToLower(r.Status), "failed") && a.OnRetry != nil && r.Writable {

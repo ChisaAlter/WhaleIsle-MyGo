@@ -1490,24 +1490,3 @@ func rightPane(c *ui.Context, m Model) {
 		})
 	})
 }
-
-func paintRightTab(c *ui.Context, active bool, label string, fg, muted, accent ui.Color, onSelect func()) {
-	color := muted
-	weight := 400
-	if active {
-		color = accent
-		weight = 700
-	}
-	ui.Column(c).Gap(3).Padding(0, 4, 0, 4).Children(func() {
-		b := ui.Button(c, label).FontSize(theme.InterfaceSize(12)).FontWeight(weight).
-			BorderWidth(0).Background(ui.Transparent).TextColor(color).
-			Padding(4, 4, 2, 4)
-		if b.Clicked() && onSelect != nil {
-			onSelect()
-		}
-		if active {
-			ui.Box(c).Height(2).Background(accent).FillWidth()
-		}
-	})
-	_ = fg
-}

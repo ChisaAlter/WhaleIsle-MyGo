@@ -8,10 +8,10 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// TestMCPFilterRowIsAlwaysShown covers task-50: the search box and the 全部
-// dropdown keep their 32×88 geometry whether or not the catalog handshake has
-// landed, and only become interactive once it has.
-func TestMCPFilterRowIsAlwaysShown(t *testing.T) {
+// TestMCPFilterRowAppearsWithTheCatalog covers task-50 (revised by pass 8):
+// the filter row is not drawn before the catalog handshake, because a disabled
+// search box is a dead control; it appears live with the catalog.
+func TestMCPFilterRowAppearsWithTheCatalog(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 
@@ -24,23 +24,13 @@ func TestMCPFilterRowIsAlwaysShown(t *testing.T) {
 		}, 700, 240)
 	}
 
-	// Without a catalog the row still paints, both controls disabled.
+	// Without a catalog the row is absent: the empty state explains the page,
+	// and no disabled control pretends to work.
 	absent := render(t, nil)
 	for _, label := range []string{"MCP search", "MCP filter"} {
-		if _, ok := absent.Find(label); !ok {
-			t.Fatalf("filter control %q is missing before the catalog arrives: %v", label, absent.Texts())
+		if _, ok := absent.Find(label); ok {
+			t.Fatalf("dead filter control %q is drawn before the catalog arrives: %v", label, absent.Texts())
 		}
-	}
-	// The box is 88 DIP; mygo reports the Select label rect including its 16 DIP
-	// chevron gutter, so the assertion allows that gutter and nothing more.
-	if rect, _ := absent.Find("MCP filter"); rect.W < 88 || rect.W > 104 || rect.H != 32 {
-		t.Fatalf("disabled dropdown is %v×%v, want 88(+16 gutter)×32", rect.W, rect.H)
-	}
-	textsBefore := len(absent.Texts())
-	absent.ClickAt(620, 30)
-	absent.Frame()
-	if after := len(absent.Texts()); after != textsBefore {
-		t.Fatalf("the disabled dropdown opened a menu (%d → %d texts)", textsBefore, after)
 	}
 
 	// With a catalog the row is live: typing reports through OnQuery.

@@ -178,53 +178,6 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	})
 }
 
-func historyBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
-	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantHistoryTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		if len(m.History) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyAssistantHistoryEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			return
-		}
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-			limit := 8
-			if len(m.History) < limit {
-				limit = len(m.History)
-			}
-			for i := 0; i < limit; i++ {
-				t := m.History[i]
-				ui.Column(c).Gap(2).Children(func() {
-					head := modeLabel(t.Mode)
-					if t.Source != "" {
-						head += " · " + t.Source
-					}
-					if t.At != "" {
-						head += " · " + t.At
-					}
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, head).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
-						copyBody := t.Response
-						if copyBody == "" {
-							copyBody = t.Prompt
-						}
-						if strings.TrimSpace(copyBody) != "" {
-							if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
-								mygo.Clipboard.WriteText(copyBody)
-							}
-						}
-					})
-					ui.Text(c, clip(t.Prompt, 160)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-					if t.Response != "" {
-						ui.Text(c, clip(t.Response, 240)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
-					}
-					if t.Err != "" {
-						ui.Text(c, t.Err).FontSize(theme.InterfaceSize(11)).TextColor(accent)
-					}
-				})
-			}
-		})
-	})
-}
-
 func statusBlock(c *ui.Context, field, border, fg, muted ui.Color, rows []kv) {
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyAssistantStatusTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)

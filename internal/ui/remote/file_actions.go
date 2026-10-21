@@ -4,7 +4,6 @@ import (
 	"strings"
 	"whaleisle/internal/ui/widgets"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
@@ -18,31 +17,6 @@ type FileActions struct {
 
 func remoteFileActionKey(s remotestore.FileSnapshot) string {
 	return s.BindingID + "\x00" + s.RemoteIdentity
-}
-
-func fileRowActions(c *ui.Context, m Model, item remotestore.DirectoryEntry, s remotestore.FileSnapshot, disabled bool) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	a := &m.FileEditor.Actions
-	if widgets.Button(c, colors, label("复制路径", "Copy path"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
-		mygo.Clipboard.WriteText(item.Path)
-	}
-	if widgets.Button(c, colors, label("复制相对路径", "Copy relative path"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled || s.RootPath == "").Clicked() {
-		p, root := strings.ReplaceAll(item.Path, "\\", "/"), strings.TrimRight(strings.ReplaceAll(s.RootPath, "\\", "/"), "/")
-		relative := p
-		if p == root {
-			relative = "."
-		} else if strings.HasPrefix(p, root+"/") {
-			relative = strings.TrimPrefix(p, root+"/")
-		}
-		mygo.Clipboard.WriteText(relative)
-	}
-	blocked := disabled || s.Dirty() || !s.Bound || !s.Loaded || item.Drive
-	if widgets.Button(c, colors, label("重命名", "Rename"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
-		*a = FileActions{Key: remoteFileActionKey(s), Operation: "rename", Path: item.Path, Name: item.Name, Directory: item.IsDirectory()}
-	}
-	if widgets.Button(c, colors, label("删除", "Delete"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(blocked).Clicked() {
-		*a = FileActions{Key: remoteFileActionKey(s), Operation: "remove", Path: item.Path, Directory: item.IsDirectory()}
-	}
 }
 
 func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, disabled bool) {

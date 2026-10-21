@@ -323,3 +323,19 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | i18n | 删除未渲染的 stub key（frame.right/bottom、remote.market.stub、webview 自述等） |
 
 测试：diffsurface caption fixture 等待预算 5s→15s（全量并发时 git init 偶发超时）；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿。
+## 15. 第九轮：静默无效点击、死视图与最后占位（2026-10-21 上午）
+
+第二轮审计 `docs/review-20261020/wiring-matrix.md` 结论：静态“零赋值且可点”已清零；残留是 **nil-store 静默 return**（用户点了没反应）、**错误被吞**、**零引用死视图**。
+
+| 项 | 修法 |
+| --- | --- |
+| 18 处 nil-store 静默 return（调度保存、远程开关、用量、侧栏重命名/删除/排序/开会话、语音、启动器偏好、分析刷新、无目录引导） | 新增 `notifyUser/pendingToast`，mainView 每帧消费一次弹 toast「尚未连接 Host，请稍后重试」；用户操作必有可见回应 |
+| 错误被吞 | 调度保存失败 → 「保存标题失败：<Host 原因>」；远程工作区/自动允许工具 Update 失败同样提示 |
+| 死视图（10 个零引用符号） | 删除：旧反馈行、paintRightTab、paintSourceActions、paintReferenceButtons、accountDetailsPane（整文件）、assistant historyBlock、reviewCommitPush/confirmReviewedCommit、remote fileRowActions |
+| MCP 行详情 | 之前定义未挂载 → 有 Catalog 时行标题变 disclosure，点开显示上次测试/工具清单；行 meta 用 mcpRowDetail |
+| MCP 筛选 | Catalog 尚未建立时**不再画 disabled 搜索/下拉**（dead control）；有 Catalog 时正常可用 |
+| 启动器「示例」 | 改「内置 / Bundled」 |
+| 插件封面占位 | 改骨架 + 真实重试按钮（attempt 变化触发重新解码） |
+| 主题编辑器状态 | 5 处中英同串改 i18n key |
+
+验证：build；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿。

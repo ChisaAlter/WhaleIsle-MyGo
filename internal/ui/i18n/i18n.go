@@ -2875,3 +2875,25 @@ func Lookup(locale, key string) string {
 	}
 	return key
 }
+
+// Statuses the theme editor and the launcher badge carry register themselves,
+// so their words live with the key rather than in the shared catalog literals.
+const (
+	KeyLauncherCompBundled = "launcher.comp.bundled"
+
+	KeyPluginPreviewRetry = "plugin.preview.retry"
+
+	KeyThemeEditorPreview  = "theme.editor.preview"
+	KeyThemeEditorRestored = "theme.editor.restored"
+	KeyThemeEditorSaved    = "theme.editor.saved"
+	KeyThemeEditorSaving   = "theme.editor.saving"
+)
+
+func init() {
+	Register(KeyLauncherCompBundled, "内置", "Bundled")
+	Register(KeyPluginPreviewRetry, "重试", "Retry")
+	Register(KeyThemeEditorPreview, "预览中，尚未保存", "Preview, not saved")
+	Register(KeyThemeEditorRestored, "已恢复", "Restored")
+	Register(KeyThemeEditorSaved, "已保存", "Saved")
+	Register(KeyThemeEditorSaving, "正在保存…", "Saving…")
+}

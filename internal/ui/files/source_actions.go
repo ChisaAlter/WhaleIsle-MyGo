@@ -6,10 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/widgets/markdown"
@@ -105,53 +102,6 @@ func requestLineNow(m Model, line int) {
 	if m.Editing != nil && *m.Editing && editViewModeOf(m) == EditViewHighlight {
 		setEditViewMode(m, EditViewEdit)
 	}
-}
-
-func paintSourceActions(c *ui.Context, m Model, path string, muted ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	t := selectedTab(m)
-	if t == nil || imageMode(m, path) || (m.PreviewErr != nil && *m.PreviewErr != "") {
-		return
-	}
-	text := previewText(m)
-	ui.Row(c).Padding(2, 12, 4, 12).Gap(6).AlignItems(ui.Center).Children(func() {
-		paintWrapToggle(c, m)
-		if isMarkdown(path) {
-			if ui.Button(c, label("源码", "Source")).FontSize(fonttheme.InterfaceSize(11)).Disabled(!t.RenderedMarkdown).Clicked() {
-				t.RenderedMarkdown = false
-				t.selectionText = ""
-			}
-			if ui.Button(c, label("渲染", "Rendered")).FontSize(fonttheme.InterfaceSize(11)).Disabled(t.RenderedMarkdown).Clicked() {
-				t.RenderedMarkdown = true
-				t.selectionText = ""
-				t.revealLine = 0
-			}
-		}
-		ui.TextInput(c, &t.lineDraft).Width(64).Placeholder(label("行号", "Line"))
-		if widgets.Button(c, colors, label("跳到行", "Go to line"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-			line, err := strconv.Atoi(strings.TrimSpace(t.lineDraft))
-			if err != nil || line < 1 {
-				setFileStatus(m, label("请输入大于零的行号", "Enter a positive line number"))
-			} else {
-				RequestLine(m, line)
-			}
-		}
-		if !t.RenderedMarkdown && t.selectionText == text {
-			if fragment, ok := FormatSelectedLines(path, text, t.selectionStart, t.selectionEnd); ok {
-				if widgets.Button(c, colors, label("复制所选行", "Copy selected lines"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-					mygo.Clipboard.WriteText(fragment)
-				}
-				if widgets.Button(c, colors, label("添加到对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
-					if err := m.OnAddToChat(fragment); err != nil {
-						setFileStatus(m, err.Error())
-					} else {
-						setFileStatus(m, label("所选行已添加到对话草稿", "Selected lines added to the chat draft"))
-					}
-				}
-			}
-		}
-	})
-	_ = muted
 }
 
 func setFileStatus(m Model, text string) {

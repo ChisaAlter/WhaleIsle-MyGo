@@ -97,6 +97,9 @@ import (
 )
 
 type mainState struct {
+	// pendingToast holds at most one message for the next painted frame; see
+	// notifyUser. It is never read from background timers.
+	pendingToast           string
 	voiceDevices           *composerVoiceDevices
 	workspaceOpenInApp     *frame.WorkspaceOpenInAppState
 	svgImages              *nativeSVGImages
@@ -773,6 +776,7 @@ func (s *mainState) phoneConnectURL() string {
 
 func (s *mainState) saveDesktopConfig() {
 	if s.cfgStore == nil {
+		s.notifyUser(s.win, hostNotReadyToast())
 		return
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(s.desktopDraft.port))
@@ -2889,6 +2893,7 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	consumePendingToast(c)
 	state.syncHostAppearance()
 	openInApp := state.observeWorkspaceOpenInApp()
 	defer openInApp.FinishFrame(c)
@@ -3500,6 +3505,7 @@ func mainView(c *ui.Context) {
 				},
 				OnSaveLauncherPrefs: func() {
 					if cfgStore == nil {
+						state.refuseHostAction()
 						return
 					}
 					state.mu.Lock()
@@ -3719,6 +3725,7 @@ func mainView(c *ui.Context) {
 				},
 				OnEnableSkipUserPlugins: func() {
 					if cfgStore == nil {
+						state.refuseHostAction()
 						return
 					}
 					err := cfgStore.UpdatePluginRecovery(func(m map[string]any) {
@@ -3747,6 +3754,7 @@ func mainView(c *ui.Context) {
 				},
 				OnClearPluginRecovery: func() {
 					if cfgStore == nil {
+						state.refuseHostAction()
 						return
 					}
 					err := cfgStore.ClearPluginRecovery()
@@ -4219,6 +4227,7 @@ func mainView(c *ui.Context) {
 						}(),
 						OnAckBonus: func(accountID, orderID string) {
 							if usageStore == nil {
+								state.refuseHostAction()
 								return
 							}
 							sid := ""
@@ -4232,6 +4241,7 @@ func mainView(c *ui.Context) {
 						},
 						OnRefresh: func() {
 							if usageStore == nil {
+								state.refuseHostAction()
 								return
 							}
 							sid := ""
@@ -4296,6 +4306,7 @@ func mainView(c *ui.Context) {
 							client := state.dshClient
 							state.dshMu.Unlock()
 							if client == nil {
+								state.refuseHostAction()
 								return
 							}
 							state.cancelAccountSignIn(client, attemptID, usageStore, sessions)
@@ -4386,6 +4397,7 @@ func mainView(c *ui.Context) {
 							client := state.dshClient
 							state.dshMu.Unlock()
 							if client == nil {
+								state.refuseHostAction()
 								return
 							}
 							go func() {
@@ -5164,11 +5176,13 @@ func mainView(c *ui.Context) {
 					OnOpenSession: state.openScheduleSession,
 					OnSaveTitle: func(id, title string) {
 						if schedStore == nil {
+							state.notifyUser(win, hostNotReadyToast())
 							return
 						}
 						scheduler := schedStore
 						go func() {
 							if err := scheduler.UpdateTitle(context.Background(), sid, id, title); err != nil {
+								state.notifyUser(win, saveFailedToast(resumeText("保存标题", "Save title"), err))
 								return
 							}
 							if win != nil {
@@ -5178,11 +5192,13 @@ func mainView(c *ui.Context) {
 					},
 					OnSavePrompt: func(id, prompt string) {
 						if schedStore == nil {
+							state.notifyUser(win, hostNotReadyToast())
 							return
 						}
 						scheduler := schedStore
 						go func() {
 							if err := scheduler.UpdatePrompt(context.Background(), sid, id, prompt); err != nil {
+								state.notifyUser(win, saveFailedToast(resumeText("保存提示词", "Save prompt"), err))
 								return
 							}
 							if win != nil {
@@ -5378,11 +5394,14 @@ func mainView(c *ui.Context) {
 					},
 					OnToggleWorkspace: func(enabled bool) {
 						if state.cfgStore == nil {
+							state.refuseHostAction()
 							return
 						}
-						_ = state.cfgStore.Update(func(c *config.Config) {
+						if err := state.cfgStore.Update(func(c *config.Config) {
 							c.RemoteWorkspaceEnabled = enabled
-						})
+						}); err != nil {
+							state.notifyUser(win, saveFailedToast(resumeText("远程工作区", "Remote workspace"), err))
+						}
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -6120,6 +6139,7 @@ func mainView(c *ui.Context) {
 					},
 					OnOpenSession: func(id string) {
 						if sessions == nil {
+							state.refuseHostAction()
 							return
 						}
 						state.revokePhoneGit()
@@ -6433,12 +6453,19 @@ func mainView(c *ui.Context) {
 						OnAutoAllowChanged: func(on bool) {
 							state.mu.Lock()
 							state.desktopDraft.autoAllowTools = on
-							if state.cfgStore != nil {
-								_ = state.cfgStore.Update(func(c *config.Config) {
+							missing := state.cfgStore == nil
+							var err error
+							if !missing {
+								err = state.cfgStore.Update(func(c *config.Config) {
 									c.AutoAllowTools = on
 								})
 							}
 							state.mu.Unlock()
+							if missing {
+								state.refuseHostAction()
+							} else if err != nil {
+								state.notifyUser(win, saveFailedToast(resumeText("自动允许工具", "Auto-allow tools"), err))
+							}
 						},
 						ConnectionBanner: connBanner,
 						OnReconnect:      state.requestConnectionReconnect,
@@ -6452,6 +6479,7 @@ func mainView(c *ui.Context) {
 						UsageBalance:   usageBalance,
 						OnOpenUsage: func() {
 							if usageStore == nil {
+								state.refuseHostAction()
 								return
 							}
 							state.mu.Lock()
@@ -6650,6 +6678,7 @@ func mainView(c *ui.Context) {
 						OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
 						OnSelectWorkspace: func(id string) {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							sessions.OpenWorkspacePicker()
@@ -6678,6 +6707,7 @@ func mainView(c *ui.Context) {
 						WorkspaceRenameDraft: &state.workspaceRenameDraft,
 						OnRenameWorkspace: func(title string) {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							id := sessions.WorkspaceID()
@@ -6692,6 +6722,7 @@ func mainView(c *ui.Context) {
 						},
 						OnDeleteWorkspace: func() {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							id := sessions.WorkspaceID()
@@ -6706,6 +6737,7 @@ func mainView(c *ui.Context) {
 						},
 						OnMoveSessionBefore: func(sessionID, beforeSessionID string) {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							sessions.InsertSessionBefore(context.Background(), sessions.WorkspaceID(), sessionID, beforeSessionID)
@@ -6794,6 +6826,7 @@ func mainView(c *ui.Context) {
 						OnInsertComposerVoice: state.insertComposerVoice,
 						OnPickComposerSpeech: func() {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
@@ -6823,6 +6856,7 @@ func mainView(c *ui.Context) {
 						},
 						OnCycleComposerSpeech: func() {
 							if sessions == nil {
+								state.refuseHostAction()
 								return
 							}
 							sessions.CycleSpeechProvider(context.Background())

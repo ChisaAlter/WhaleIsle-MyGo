@@ -1,6 +1,10 @@
 package theme
 
-import "reflect"
+import (
+	"reflect"
+
+	"whaleisle/internal/ui/i18n"
+)
 
 type Editor struct {
 	Draft       Preferences
@@ -31,14 +35,14 @@ func (e *Editor) ApplyPreview() {
 	SetPreferences(e.Draft)
 	RefreshWindows()
 	e.Preview = true
-	e.Status = "预览中，尚未保存 / Preview, not saved"
+	e.Status = i18n.T(i18n.KeyThemeEditorPreview)
 }
 func (e *Editor) Cancel() {
 	e.Draft = e.Saved.Clone()
 	e.Preview = false
 	SetPreferences(e.Saved)
 	RefreshWindows()
-	e.Status = "已恢复 / Restored"
+	e.Status = i18n.T(i18n.KeyThemeEditorRestored)
 }
 func (e *Editor) Save() {
 	if err := e.Draft.Validate(); err != nil {
@@ -62,9 +66,9 @@ func (e *Editor) Save() {
 	SetPreferences(e.Draft)
 	RefreshWindows()
 	e.Preview = false
-	e.Status = "已保存 / Saved"
+	e.Status = i18n.T(i18n.KeyThemeEditorSaved)
 	if pending {
-		e.Status = "正在保存… / Saving…"
+		e.Status = i18n.T(i18n.KeyThemeEditorSaving)
 	}
 }
 
@@ -82,7 +86,7 @@ func (e *Editor) AcceptHost(p Preferences, ownerChanged bool, failure string) {
 	if failure != "" {
 		e.Status = failure
 	} else if e.pendingSave != nil {
-		e.Status = "已保存 / Saved"
+		e.Status = i18n.T(i18n.KeyThemeEditorSaved)
 	}
 	if ownerChanged {
 		e.generalFontEdits = nil
