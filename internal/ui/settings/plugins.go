@@ -91,7 +91,7 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		for _, row := range a.Rows {
 			r := row
 			if r.ReadOnlyReason != "" {
-				ui.Text(c, r.Name+": "+r.ReadOnlyReason).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, r.Name+": "+pluginReasonLabel(r.ReadOnlyReason)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 			if r.Error != "" {
 				ui.Text(c, r.Name+": "+r.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
@@ -168,7 +168,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			plugin := row
 			detail := pluginStatusLabel(plugin)
 			if plugin.ReadOnlyReason != "" {
-				detail = plugin.ReadOnlyReason
+				detail = pluginReasonLabel(plugin.ReadOnlyReason)
 			}
 			card := ui.Column(c.Key("builtin-plugin/" + plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16).
 				Radius(12).Background(c.Theme().Surface).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
@@ -183,8 +183,22 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 }
 // pluginStatusLabel turns a Host status value into its localized wording; the raw
 // value never reaches the card.
-func pluginStatusLabel(row PluginRow) string {
-	if row.Disabled {
+// pluginReasonLabel localizes the Host's read-only reason token. Unknown
+// reasons stay as-is so a new Host reason is never hidden.
+func pluginReasonLabel(reason string) string {
+	switch strings.ToLower(strings.TrimSpace(reason)) {
+	case "management-required":
+		return pluginsText("由桌面宿主管理", "Managed by the desktop host")
+	case "read-only":
+		return pluginsText("只读", "Read-only")
+	case "":
+		return ""
+	default:
+		return reason
+	}
+}
+
+func pluginStatusLabel(row PluginRow) string {	if row.Disabled {
 		return pluginsText("已停用", "Disabled")
 	}
 	switch strings.ToLower(strings.TrimSpace(row.Status)) {

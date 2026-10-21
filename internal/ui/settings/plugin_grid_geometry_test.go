@@ -16,8 +16,8 @@ func TestBuiltinPluginCardsStayInTheirColumns(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 
 	rows := []PluginRow{
-		{Name: "@deepseek-ai/dsh-base"},
-		{Name: "@deepseek-ai/dsh-web-app"},
+		{Name: "@deepseek-ai/dsh-base", ReadOnlyReason: "management-required"},
+		{Name: "@deepseek-ai/dsh-web-app", ReadOnlyReason: "management-required"},
 		{Name: "@deepseek-ai/dsh-experimental-agent-team"},
 		{Name: "@deepseek-ai/dsh-experimental-inspector"},
 	}
@@ -36,5 +36,11 @@ func TestBuiltinPluginCardsStayInTheirColumns(t *testing.T) {
 		if text.X < 16 || text.X+text.W > width-16+0.5 {
 			t.Fatalf("plugin %q escapes the pane: %+v", row.Name, text)
 		}
+	}
+	if tt.HasText("management-required") {
+		t.Fatalf("raw Host reason leaked: %v", tt.Texts())
+	}
+	if !tt.HasText("Managed by the desktop host") {
+		t.Fatalf("localized reason missing: %v", tt.Texts())
 	}
 }

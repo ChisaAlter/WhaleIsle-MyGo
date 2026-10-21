@@ -198,3 +198,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - D1 实机补充（pass38）：点「新建自动化任务」后进入新会话，并显示「在会话中描述要定时的任务，Agent 会创建并显示在此页。」；当前 schedule store 无本地 Create RPC，新建确实由会话/Agent 完成。
 
 - 设置·内置插件网格修复（pass39）：卡片在 Grid 单元格里误用 FillWidth，按整行宽布局导致右列被裁切；移除后两列各占一半、长包名省略号收口，新增 TestBuiltinPluginCardsStayInTheirColumns，实机截图 settings-live/plugins.png。
+
+- 插件状态本地化（pass40）：management-required 不再直接显示，改为「由桌面宿主管理」/Managed by the desktop host；卡片与只读原因列表同时生效。实机 settings-live/plugins.png 已更新。
