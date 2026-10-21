@@ -32,7 +32,7 @@ func TestTChineseAndEnglish(t *testing.T) {
 	if got := T(KeyTrayQuit); got != "退出" {
 		t.Fatalf("zh tray.quit = %q", got)
 	}
-	if got := T(KeyAppName); got != "MyGo鲸屿" {
+	if got := T(KeyAppName); got != "Whale Isle" {
 		t.Fatalf("app.name = %q", got)
 	}
 
