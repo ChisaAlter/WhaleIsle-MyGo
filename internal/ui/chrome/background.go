@@ -176,10 +176,17 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 // bloomCache keeps the radial glows of the ambient gradient, one per colour.
 var bloomCache sync.Map // ui.Color -> *ui.Bitmap
 
+// bloomDensity scales every bloom's own alpha. The pass-6 comparison against
+// evidence/compare/ref-hero-1440.png put the first pass about a tenth too dense:
+// the installed backdrop reads milkier at the top left and paler at the
+// blue-violet lower right, so each bloom lost the same 12% (255 -> 224 of its
+// alpha). Hue, position, count and radius are unchanged.
+const bloomDensity = 224
+
 // bloomBitmap is a soft radial glow of c: its colour at the centre fading to
 // nothing at the rim along a metaball falloff, so the gradient behind it never
 // shows an edge where the bloom ends. Colours without an alpha of their own
-// take half; a colour with one of its own keeps it.
+// take an opaque centre, scaled by bloomDensity like every other bloom.
 func bloomBitmap(c ui.Color) *ui.Bitmap {
 	if bmp, ok := bloomCache.Load(c); ok {
 		return bmp.(*ui.Bitmap)
@@ -187,8 +194,9 @@ func bloomBitmap(c ui.Color) *ui.Bitmap {
 	const n = 96
 	alpha := c.A
 	if alpha == 0 {
-		alpha = 128
+		alpha = 255
 	}
+	alpha = uint8(int(alpha) * bloomDensity / 255)
 	img := image.NewRGBA(image.Rect(0, 0, n, n))
 	for y := 0; y < n; y++ {
 		for x := 0; x < n; x++ {

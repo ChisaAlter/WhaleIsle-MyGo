@@ -24,11 +24,14 @@ func mcpCatalogText(zh, en string) string {
 
 func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) {
 	if a == nil {
+		// The filter row keeps its place before the catalog handshake so the page
+		// does not jump when the catalog arrives; both controls stay disabled.
+		mcpCatalogControlsPlaceholder(c)
 		return
 	}
 	query := a.Snapshot.Query
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
-		if ui.TextInput(c, &query).Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
+		if ui.TextInput(c, &query).Label("MCP search").Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
 		}
 		// One dropdown replaces the three chips the installed build does not have.
@@ -40,7 +43,11 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 				current = labels[index]
 			}
 		}
-		if ui.Select(c, &current, labels).Label("MCP filter").Width(88).Height(32).Changed() && a.OnFilter != nil {
+		filtered := false
+		ui.Box(c).Width(88).Shrink(0).Children(func() {
+			filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Changed()
+		})
+		if filtered && a.OnFilter != nil {
 			for index, label := range labels {
 				if current == label {
 					a.OnFilter(ids[index])
@@ -102,4 +109,18 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 			ui.Text(c, name).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}
 	}
+}
+
+// mcpCatalogControlsPlaceholder draws the same filter row with both controls
+// disabled, for the frames before the catalog access exists.
+func mcpCatalogControlsPlaceholder(c *ui.Context) {
+	query := ""
+	labels := []string{mcpCatalogText("全部", "All"), mcpCatalogText("已启用", "Enabled"), mcpCatalogText("已禁用", "Disabled")}
+	current := labels[0]
+	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
+		ui.TextInput(c, &query).Label("MCP search").Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Disabled(true)
+		ui.Box(c).Width(88).Shrink(0).Children(func() {
+			ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Disabled(true)
+		})
+	})
 }

@@ -1,20 +1,35 @@
 package remote
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strconv"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
+
 	"whaleisle/internal/config"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+)
+
+// The installed build's gateway page: a 56-wide section label, a 260-wide
+// control column and 64 DIP rows. Values mirror config.Defaults(), which the
+// page shows when a caller passes a zero Model (embedded settings tests).
+const (
+	remoteGatewayDefaultRelay         = "ayase.cn:443"
+	remoteGatewayDefaultPort          = 6767
+	remoteGatewayDefaultBind          = "127.0.0.1"
+	remoteGatewayControlWidth float32 = 260
+	remoteGatewayStackWidth   float32 = 480
 )
 
 func settingsView(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	border := chrome.Color(colors.Border)
 	content := func() {
-		ui.Column(c.Key("remote-settings-body")).FillWidth().MinWidth(0).Gap(16).Children(func() {
+		ui.Column(c.Key("remote-settings-body")).FillWidth().MinWidth(0).Gap(0).Children(func() {
 			if m.SettingsPage == "workspace" {
 				ui.Text(c, label("远程工作区", "Remote workspace")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 				ui.Text(c, label("管理远程机器、SSH 配置和端口转发。", "Manage remote machines, SSH settings and port forwards.")).FontSize(theme.InterfaceSize(14)).TextColor(muted)
@@ -32,46 +47,13 @@ func settingsView(c *ui.Context, m Model) {
 				viewMachines(c, m)
 				return
 			}
-			ui.Text(c, label("远程", "Remote")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-			ui.Text(c, label("管理远程连接网关与消息渠道。", "Manage your remote gateway and messaging channels.")).FontSize(theme.InterfaceSize(14)).TextColor(muted)
-			tabs := ui.Row(c.Key("remote-tabs")).FillWidth().Gap(8).Role(ui.RoleTabList)
-			active := m.ActiveTab
-			if active == nil {
-				active = ui.Local(tabs, "active", func() string { return "gateway" })
-			}
-			if *active != "channels" || m.ChannelsContent == nil {
-				*active = "gateway"
-			}
-			tabs.Children(func() {
-				entries := []struct{ id, title string }{{"gateway", label("网关", "Gateway")}}
-				if m.ChannelsContent != nil {
-					entries = append(entries, struct{ id, title string }{"channels", label("消息渠道", "Channels")})
-				}
-				buttons := make([]ui.Element, len(entries))
-				choose := func(index int) { *active = entries[index].id; buttons[index].Focus() }
-				for index, tab := range entries {
-					b := ui.Button(c.Key(tab.id), tab.title).Height(34).BorderWidth(0).Role(ui.RoleTab).Selected(*active == tab.id)
-					buttons[index] = b
-					b.OnShortcut(0, ui.KeyRight, func() { choose((index + 1) % len(entries)) })
-					b.OnShortcut(0, ui.KeyLeft, func() { choose((index + len(entries) - 1) % len(entries)) })
-					b.OnShortcut(0, ui.KeyHome, func() { choose(0) })
-					b.OnShortcut(0, ui.KeyEnd, func() { choose(len(entries) - 1) })
-					if *active == tab.id {
-						b = b.Background(chrome.Color(colors.Field)).TextColor(fg)
-					} else {
-						b = b.Background(ui.Transparent).TextColor(muted)
-					}
-					if b.Clicked() {
-						*active = tab.id
-					}
-				}
+			ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+				ui.Text(c, i18n.T(KeyPass6RemoteTitle)).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
+				ui.Text(c, i18n.T(KeyPass6RemoteIntro)).FillWidth().FontSize(theme.InterfaceSize(12)).
+					FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 			})
-			ui.Box(c).FillWidth().Height(1).Background(chrome.Color(colors.Border))
-			if *active == "channels" {
-				m.ChannelsContent(c)
-				return
-			}
-			gatewaySettingsBody(c, m, fg, muted)
+			ui.Box(c).FillWidth().Height(24)
+			remoteSettingsTabBlock(c, m, fg, muted, border)
 		})
 	}
 	if m.Embedded {
@@ -81,182 +63,196 @@ func settingsView(c *ui.Context, m Model) {
 	ui.Scroll(c).Grow(1).MinHeight(0).Padding(20).Children(content)
 }
 
-func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	if m.OnSaveGateway == nil || m.GatewayEditor == nil {
-		ui.Text(c, label("当前桌面连接未提供网关设置。", "Gateway settings are unavailable on this desktop connection.")).TextColor(muted)
-		return
+// remoteSettingsTabBlock paints the two tabs and decides which body follows.
+// It owns the tab state when the caller passes no ActiveTab pointer, and keeps
+// the gateway tab selected while no channel contribution exists.
+func remoteSettingsTabBlock(c *ui.Context, m Model, fg, muted, border ui.Color) {
+	active := m.ActiveTab
+	tabRow := ui.Row(c.Key("remote-tab-row")).FillWidth().Gap(16).Role(ui.RoleTabList).AlignItems(ui.End)
+	if active == nil {
+		active = ui.Local(tabRow, "active", func() string { return "gateway" })
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
-		ui.Text(c, label("连接状态", "Connection status")).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-		status := m.PhoneRuntime.Status
-		if !m.RemoteEnabled {
-			status = label("已停用", "Disabled")
-		}
-		if status == "" {
-			status = label("未启动", "Stopped")
-		}
-		ui.Text(c, status).FontSize(theme.InterfaceSize(13)).TextColor(muted)
-		if m.PhoneRuntime.Message != "" && !strings.Contains(m.PhoneActionMsg, m.PhoneRuntime.Message) {
-			ui.Text(c, m.PhoneRuntime.Message).TextColor(fg).Selectable()
-		}
-		if m.PhoneActionMsg != "" {
-			ui.Text(c, m.PhoneActionMsg).TextColor(fg)
-		}
-		gatewaySettingsFields(c, m, fg, muted)
-		e := m.GatewayEditor
-		if m.GatewayProtocol == "chisacode-v2" {
-			legacy := ui.Column(c.Key("legacy-remote-settings")).FillWidth().Gap(8)
-			open := ui.Local(legacy, "open", func() bool { return false })
-			legacy.Children(func() {
-				if widgets.Button(c, colors, label("旧版配置", "Legacy configuration"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-					*open = !*open
-				}
-				if *open {
-					ui.Text(c, label("旧版中继令牌不参与当前设备配对。", "Legacy relay tokens are not used for current device pairing.")).FontSize(theme.InterfaceSize(13)).TextColor(muted)
-					if !m.LegacyRelayTokenSet {
-						ui.Text(c, label("没有保存的旧版令牌。", "No legacy token is stored.")).TextColor(muted)
-					}
-					if m.LegacyRelayTokenSet && m.OnSetRelayToken != nil && widgets.Button(c, colors, label("清除旧版令牌", "Clear legacy token"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
-						if err := m.OnSetRelayToken(""); err != nil {
-							e.Error = err.Error()
-						} else {
-							e.Error = ""
-						}
-					}
+	if *active != "channels" || m.ChannelsContent == nil {
+		*active = "gateway"
+	}
+	entries := []struct{ id, title string }{{"gateway", i18n.T(KeyPass6RemoteTabGateway)}}
+	if m.ChannelsContent != nil {
+		entries = append(entries, struct{ id, title string }{"channels", i18n.T(KeyPass6RemoteTabChannels)})
+	}
+	buttons := make([]ui.Element, len(entries))
+	choose := func(index int) { *active = entries[index].id; buttons[index].Focus() }
+	tabRow.Children(func() {
+		for index, tab := range entries {
+			i, entry := index, tab
+			button := ui.Button(c.Key("remote-tab-"+entry.id), "").Label(entry.title).
+				Height(32).Padding(0, 2).BorderWidth(0).Role(ui.RoleTab).
+				Selected(*active == entry.id).Background(ui.Transparent).
+				AlignItems(ui.Center).Justify(ui.Center)
+			color, weight := muted, 400
+			if *active == entry.id {
+				color, weight = fg, 600
+			}
+			button.Children(func() {
+				ui.Text(c, entry.title).FontSize(theme.InterfaceSize(13)).FontWeight(weight).TextColor(color)
+			})
+			// The 2 DIP rule sits on the hairline, as the installed page draws it.
+			button.Draw(func(p *ui.Painter, r ui.Rect) {
+				if *active == entry.id && r.W > 0 && r.H > 0 {
+					p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, fg, 0)
 				}
 			})
-		} else if m.OnSetRelayToken != nil {
-			ui.Text(c, label("中继访问令牌", "Relay access token")).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-			gatewayReadRow(c, label("令牌状态", "Token status"), credLabel(m.HasRemoteRelayToken), fg, muted)
-			ui.TextInput(c, &e.RelayToken).Password().FillWidth().Placeholder(label("输入新的中继令牌", "Enter a new relay token"))
-			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if widgets.Button(c, colors, label("保存令牌", "Save token"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(strings.TrimSpace(e.RelayToken) == "").Clicked() {
-					if err := m.OnSetRelayToken(strings.TrimSpace(e.RelayToken)); err != nil {
-						e.Error = err.Error()
-					} else {
-						e.RelayToken = ""
-						e.Error = ""
-					}
-				}
-				if widgets.Button(c, colors, label("清除令牌", "Clear token"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!m.HasRemoteRelayToken).Clicked() {
-					if err := m.OnSetRelayToken(""); err != nil {
-						e.Error = err.Error()
-					} else {
-						e.RelayToken = ""
-						e.Error = ""
-					}
-				}
-			})
-		}
-		if m.OnRotateToken != nil {
-			ui.Text(c, label("轮换连接令牌", "Rotate connection token")).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-			ui.Text(c, label("重新生成配对连接；已配对设备保持绑定。", "Renew the pairing offer; paired devices remain bound.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if widgets.Button(c, colors, label("轮换令牌", "Rotate token"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(m.PhoneRuntime.DeviceAction.Busy || m.PhoneRuntime.Status == "starting").Clicked() {
-				if err := m.OnRotateToken(); err != nil {
-					e.Error = err.Error()
-				} else {
-					e.Error = ""
-				}
+			button.OnShortcut(0, ui.KeyRight, func() { choose((i + 1) % len(entries)) })
+			button.OnShortcut(0, ui.KeyLeft, func() { choose((i + len(entries) - 1) % len(entries)) })
+			button.OnShortcut(0, ui.KeyHome, func() { choose(0) })
+			button.OnShortcut(0, ui.KeyEnd, func() { choose(len(entries) - 1) })
+			buttons[i] = button
+			if button.Clicked() {
+				*active = entry.id
 			}
 		}
-		if e.Error != "" {
-			ui.Text(c, e.Error).TextColor(fg)
-		}
 	})
+	ui.Box(c).FillWidth().Height(0.5).Background(border)
+	if *active == "channels" {
+		ui.Box(c).FillWidth().Height(12)
+		m.ChannelsContent(c)
+		return
+	}
+	ui.Box(c).FillWidth().Height(8)
+	gatewaySettingsBody(c, m, fg, muted)
 }
-func gatewayReadRow(c *ui.Context, title, value string, fg, muted ui.Color) {
-	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(6, 0).Children(func() {
-		ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-		ui.Text(c, value).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+
+func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	e := m.GatewayEditor
+	if m.OnSaveGateway == nil || e == nil {
+		ui.Text(c, i18n.T(KeyPass6RemoteUnavailable)).FillWidth().FontSize(theme.InterfaceSize(12)).
+			FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+		return
+	}
+	ui.Column(c.Key("gateway-settings")).FillWidth().MinWidth(0).Gap(0).Children(func() {
+		gatewaySettingsFields(c, m, fg, muted)
+		gatewayRefreshRow(c, m, e, fg, muted, colors)
+		if e.Error != "" {
+			ui.Text(c, e.Error).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+				TextColor(fg).Padding(10, 0, 10, 0)
+			return
+		}
+		// The application reports a committed save here; runtime status stays
+		// out of the page, but the last action still has to be visible.
+		if msg := strings.TrimSpace(m.PhoneActionMsg); msg != "" {
+			ui.Text(c, msg).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+				TextColor(muted).Padding(10, 0, 10, 0)
+		}
 	})
 }
 
+// gatewaySettingsFields renders the gateway rows in the installed order. Each
+// row commits only its own field, so an unrelated text draft never rides along
+// with a mode or bind change.
 func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	e := m.GatewayEditor
-	current := config.RemoteGatewayPreferences{Mode: m.RemoteMode, Port: strconv.Itoa(m.RemotePort), BindAddress: m.RemoteBindAddress, RelayEndpoint: m.RemoteRelayEndpoint, RelayTLS: m.RemoteRelayUseTLS}
+	if e == nil {
+		return
+	}
+	current := remoteGatewayCurrent(m)
 	if !e.Open {
 		e.Expected, e.Draft = current, current
+		e.Draft.RelayEndpoint = remoteGatewayRelayDisplay(current.RelayEndpoint)
 	}
 	busy := m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy
-	// Original settings commits one row at a time. An unrelated text draft
-	// must never hitchhike on a mode/bind change or a different row's Save.
 	save := func(next config.RemoteGatewayPreferences) {
 		if err := m.OnSaveGateway(current, next); err != nil {
 			e.Error = err.Error()
 			return
 		}
 		e.Error = ""
+		e.Expected = next
 		if next.RelayEndpoint != current.RelayEndpoint {
-			e.Draft.RelayEndpoint = next.RelayEndpoint
+			e.Draft.RelayEndpoint = remoteGatewayRelayDisplay(next.RelayEndpoint)
 		}
 		if next.Port != current.Port {
 			e.Draft.Port = next.Port
 		}
-		e.Open = e.Draft.RelayEndpoint != next.RelayEndpoint || e.Draft.Port != next.Port
+		e.Open = strings.TrimSpace(e.Draft.RelayEndpoint) != remoteGatewayRelayDisplay(next.RelayEndpoint) ||
+			strings.TrimSpace(e.Draft.Port) != next.Port
 	}
-	gatewaySettingRow(c, label("中继地址", "Relay endpoint"), label("使用中继 host[:port]；留空使用默认地址。", "Relay host[:port]; leave blank to use the default."), fg, muted, func() {
-		if ui.TextInput(c, &e.Draft.RelayEndpoint).Label("Gateway relay endpoint").FillWidth().Disabled(busy).Changed() {
+
+	gatewaySettingRow(c, "gateway-relay", i18n.T(KeyPass6RemoteRelay), i18n.T(KeyPass6RemoteRelayHint), fg, muted, func() {
+		if ui.TextInput(c, &e.Draft.RelayEndpoint).Label(i18n.T(KeyPass6RemoteRelayLabel)).
+			FillWidth().Height(32).Disabled(busy).Changed() {
 			e.Open = true
 		}
-		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			commit := widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave),
+				widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: busy})
+			commit.Label(i18n.T(KeyPass6RemoteSaveRelay))
+			if commit.Clicked() {
 				next := current
-				next.RelayEndpoint = e.Draft.RelayEndpoint
+				next.RelayEndpoint = strings.TrimSpace(e.Draft.RelayEndpoint)
+				if next.RelayEndpoint == "" || next.RelayEndpoint == remoteGatewayDefaultRelay {
+					next.RelayTLS = true
+				}
 				save(next)
 			}
-			if widgets.Button(c, colors, label("使用默认地址", "Use default relay"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
+			reset := widgets.Button(c, colors, i18n.T(KeyPass6RemoteRestoreDefault),
+				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: busy}).Padding(0, 2)
+			if reset.Clicked() {
 				next := current
 				next.RelayEndpoint = ""
+				next.RelayTLS = true
 				save(next)
 			}
 		})
 	})
-	gatewaySettingRow(c, label("连接模式", "Connection mode"), label("选择局域网或中继连接。", "Choose a LAN or relay connection."), fg, muted, func() {
-		mode := current.Mode
-		if ui.Select(c, &mode, []string{"lan", "relay"}).Label("Gateway connection mode").FillWidth().Disabled(busy).Changed() {
-			next := current
-			next.Mode = mode
-			save(next)
+
+	gatewayLegacySection(c, m, e, fg, muted, colors)
+
+	gatewaySettingRow(c, "gateway-mode", i18n.T(KeyPass6RemoteMode), i18n.T(KeyPass6RemoteModeHint), fg, muted, func() {
+		active := -1
+		switch current.Mode {
+		case "lan":
+			active = 0
+		case "relay":
+			active = 1
+		}
+		labels := []string{i18n.T(KeyPass6RemoteModeLAN), i18n.T(KeyPass6RemoteModeServer)}
+		if picked := remoteGatewaySegmented(c, "gateway-mode", labels, active, busy); picked >= 0 {
+			mode := "lan"
+			if picked == 1 {
+				mode = "relay"
+			}
+			if mode != current.Mode {
+				next := current
+				next.Mode = mode
+				save(next)
+			}
 		}
 	})
-	gatewaySettingRow(c, label("端口", "Port"), label("网关监听端口，范围 1024–65535。", "Gateway listen port, from 1024 to 65535."), fg, muted, func() {
-		if ui.TextInput(c, &e.Draft.Port).Label("Gateway port").FillWidth().Disabled(busy).Changed() {
+
+	gatewaySettingRow(c, "gateway-port", i18n.T(KeyPass6RemotePort), i18n.T(KeyPass6RemotePortHint), fg, muted, func() {
+		if ui.TextInput(c, &e.Draft.Port).Label(i18n.T(KeyPass6RemotePortLabel)).
+			FillWidth().Height(32).Disabled(busy).Changed() {
 			e.Open = true
 		}
-		if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
-			next := current
-			next.Port = e.Draft.Port
-			save(next)
-		}
+		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			commit := widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave),
+				widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: busy})
+			commit.Label(i18n.T(KeyPass6RemoteSavePort))
+			if commit.Clicked() {
+				next := current
+				next.Port = strings.TrimSpace(e.Draft.Port)
+				save(next)
+			}
+		})
 	})
-	gatewaySettingRow(c, label("监听范围", "Bind scope"), label("127.0.0.1、0.0.0.0 或本机 IPv4 地址。", "127.0.0.1, 0.0.0.0, or a local IPv4 address."), fg, muted, func() {
-		options := []string{"0.0.0.0", "127.0.0.1"}
-		for _, address := range append(append([]string(nil), m.PhoneRuntime.BindAddresses...), current.BindAddress) {
-			present := false
-			for _, option := range options {
-				if option == address {
-					present = true
-					break
-				}
-			}
-			if !present && address != "" {
-				options = append(options, address)
-			}
-		}
-		bind := current.BindAddress
-		if bind == "" {
-			bind = "0.0.0.0"
-		}
+
+	gatewaySettingRow(c, "gateway-bind", i18n.T(KeyPass6RemoteBind), gatewayBindHint(current.BindAddress, m.PhoneRuntime.BindAddresses), fg, muted, func() {
+		bind := gatewayBindAddress(current.BindAddress)
 		selected := gatewayBindLabel(bind, m.PhoneRuntime.BindAddresses)
-		labels := make([]string, len(options))
-		values := make(map[string]string, len(options))
-		for i, address := range options {
-			labels[i] = gatewayBindLabel(address, m.PhoneRuntime.BindAddresses)
-			values[labels[i]] = address
-		}
-		if ui.Select(c, &selected, labels).Label("Gateway bind address").FillWidth().Disabled(busy).Changed() {
+		labels, values := gatewayBindOptions(bind, m.PhoneRuntime.BindAddresses)
+		if ui.Select(c, &selected, labels).Label(i18n.T(KeyPass6RemoteBindLabel)).
+			FillWidth().Height(32).Disabled(busy).Changed() {
 			if address, ok := values[selected]; ok && address != bind {
 				next := current
 				next.BindAddress = address
@@ -264,16 +260,240 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	})
-	gatewayReadRow(c, label("局域网传输", "LAN transport"), label("局域网连接使用 TLS 加密。", "LAN connections use TLS encryption."), fg, muted)
+
+	gatewaySettingRow(c, "gateway-encryption", i18n.T(KeyPass6RemoteEncryption), i18n.T(KeyPass6RemoteEncryptionHint), fg, muted, nil)
 }
-func gatewaySettingRow(c *ui.Context, title, hint string, fg, muted ui.Color, control func()) {
-	ui.Row(c).FillWidth().MinWidth(0).Gap(24).Wrap().Padding(8, 0).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(200).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-			ui.Text(c, hint).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+
+// gatewayRefreshRow is the last row: the QR code is renewed without touching
+// paired devices, so it is a text action rather than a destructive control.
+func gatewayRefreshRow(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui.Color, colors theme.Colors) {
+	if m.OnRotateToken == nil {
+		return
+	}
+	busy := m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy
+	gatewaySettingRow(c, "gateway-refresh", i18n.T(KeyPass6RemoteRefresh), i18n.T(KeyPass6RemoteRefreshHint), fg, muted, func() {
+		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			refresh := widgets.Button(c, colors, i18n.T(KeyPass6RemoteRefreshAction),
+				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: busy}).Padding(0, 2)
+			if refresh.Clicked() {
+				if err := m.OnRotateToken(); err != nil {
+					e.Error = err.Error()
+				} else {
+					e.Error = ""
+				}
+			}
 		})
-		ui.Column(c).Grow(1).MinWidth(180).Gap(8).Children(control)
 	})
+}
+
+// gatewayLegacySection keeps the old relay credential out of the main flow: a
+// muted section label exists only while such a token is stored, and opening it
+// reveals the one destructive action.
+func gatewayLegacySection(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui.Color, colors theme.Colors) {
+	if !m.LegacyRelayTokenSet {
+		return
+	}
+	anchor := ui.Column(c.Key("gateway-legacy-section")).FillWidth().MinWidth(0).Gap(0)
+	open := ui.Local(anchor, "open", func() bool { return false })
+	anchor.Children(func() {
+		toggle := ui.Button(c.Key("gateway-legacy-toggle"), "").Label(i18n.T(KeyPass6RemoteLegacySection)).
+			FillWidth().Height(34).Padding(8, 0, 8, 56).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center)
+		toggle.Children(func() {
+			ui.Text(c, i18n.T(KeyPass6RemoteLegacySection)).FontSize(theme.InterfaceSize(12)).
+				FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Grow(1).MinWidth(0)
+		})
+		if toggle.Hovered() {
+			toggle.Background(c.Theme().SurfaceHover)
+		}
+		if toggle.Clicked() {
+			*open = !*open
+		}
+		if !*open {
+			return
+		}
+		gatewaySettingRow(c, "gateway-legacy", i18n.T(KeyPass6RemoteLegacyTitle), i18n.T(KeyPass6RemoteLegacyHint), fg, muted, func() {
+			if m.OnSetRelayToken == nil {
+				ui.Text(c, i18n.T(KeyPass6RemoteLegacyNoCallback)).FillWidth().FontSize(theme.InterfaceSize(12)).
+					FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+				return
+			}
+			ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+				clear := widgets.Button(c, colors, i18n.T(KeyPass6RemoteLegacyClear),
+					widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall})
+				if clear.Clicked() {
+					if err := m.OnSetRelayToken(""); err != nil {
+						e.Error = err.Error()
+					} else {
+						e.Error = ""
+					}
+				}
+			})
+		})
+	})
+}
+
+// gatewaySettingRow lays out one gateway setting: the title and its description
+// on the left, a 260 DIP control column on the right, 10 DIP above and below.
+// Under 480 DIPs the control moves below the text instead of squeezing it.
+func gatewaySettingRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) ui.Element {
+	root := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	width := root.Bounds().W
+	root.Draw(func(_ *ui.Painter, r ui.Rect) {
+		if r.W != width {
+			c.Invalidate()
+		}
+	})
+	textColumn := func() {
+		column := ui.Column(c).MinWidth(0).Gap(4)
+		if control != nil && width >= remoteGatewayStackWidth {
+			column.Grow(1)
+		} else {
+			column.FillWidth()
+		}
+		column.Children(func() {
+			ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).
+				FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+			if hint != "" {
+				ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).
+					FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+			}
+		})
+	}
+	controlColumn := func() {
+		if control == nil {
+			return
+		}
+		column := ui.Column(c).MinWidth(0).Gap(6)
+		if width >= remoteGatewayStackWidth {
+			column.Width(remoteGatewayControlWidth).Shrink(0)
+		} else {
+			column.FillWidth()
+		}
+		column.Children(control)
+	}
+	root.Children(func() {
+		if control != nil && width >= remoteGatewayStackWidth {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(24).Padding(10, 0).AlignItems(ui.Start).Children(func() {
+				textColumn()
+				controlColumn()
+			})
+			return
+		}
+		ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(10, 0).Children(func() {
+			textColumn()
+			controlColumn()
+		})
+	})
+	return root
+}
+
+// remoteGatewaySegmented is the installed page's two-part switch: equal
+// segments, transparent except the chosen one, which is filled black. It
+// reports the picked index, or -1 when the frame had no click.
+func remoteGatewaySegmented(c *ui.Context, key string, labels []string, active int, disabled bool) int {
+	const height float32 = 32
+	root := ui.Row(c.Key(key)).Width(remoteGatewayControlWidth).Height(height).Shrink(0).Gap(0).AlignItems(ui.Stretch)
+	picked := -1
+	root.Children(func() {
+		for index, caption := range labels {
+			i, text := index, caption
+			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
+				Width(remoteGatewayControlWidth / 2).Height(height).Padding(0).Radius(8).
+				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+			if disabled {
+				segment = segment.Disabled(true).Opacity(0.5)
+			}
+			labelColor := c.Theme().Text
+			if i == active {
+				segment.Background(labelColor)
+				labelColor = c.Theme().Background
+			}
+			segment.Children(func() {
+				ui.Text(c, text).FontSize(theme.InterfaceSize(13)).TextColor(labelColor)
+			})
+			if segment.Clicked() && !disabled {
+				picked = i
+			}
+		}
+	})
+	return picked
+}
+
+// remoteGatewayCurrent turns the model into the persisted preferences the
+// gateway editor compares against, filling the defaults a zero Model omits.
+func remoteGatewayCurrent(m Model) config.RemoteGatewayPreferences {
+	port := m.RemotePort
+	if port < 1024 || port > 65535 {
+		port = remoteGatewayDefaultPort
+	}
+	return config.RemoteGatewayPreferences{
+		Mode:          m.RemoteMode,
+		Port:          strconv.Itoa(port),
+		BindAddress:   gatewayBindAddress(m.RemoteBindAddress),
+		RelayEndpoint: m.RemoteRelayEndpoint,
+		RelayTLS:      m.RemoteRelayUseTLS,
+	}
+}
+
+// remoteGatewayRelayDisplay is the effective endpoint: the built-in relay is
+// shown even when the stored value is blank, so the field always reads a host.
+func remoteGatewayRelayDisplay(endpoint string) string {
+	if endpoint = strings.TrimSpace(endpoint); endpoint == "" {
+		return remoteGatewayDefaultRelay
+	}
+	return endpoint
+}
+
+func gatewayBindAddress(address string) string {
+	if address = strings.TrimSpace(address); address == "" {
+		return remoteGatewayDefaultBind
+	}
+	return address
+}
+
+// gatewayBindHint describes the chosen scope, in the installed build's words.
+func gatewayBindHint(address string, detected []string) string {
+	address = gatewayBindAddress(address)
+	switch address {
+	case "127.0.0.1":
+		return i18n.T(KeyPass6RemoteBindHintLocal)
+	case "0.0.0.0":
+		return i18n.T(KeyPass6RemoteBindHintLAN)
+	}
+	for _, current := range detected {
+		if current == address {
+			return i18n.T(KeyPass6RemoteBindHintNIC)
+		}
+	}
+	if detected != nil {
+		return i18n.T(KeyPass6RemoteBindHintStale)
+	}
+	return i18n.T(KeyPass6RemoteBindHintNIC)
+}
+
+// gatewayBindOptions lists loopback, the whole LAN and every detected NIC,
+// keeping a saved address selectable even when the scan no longer reports it.
+func gatewayBindOptions(bind string, detected []string) (labels []string, values map[string]string) {
+	options := []string{remoteGatewayDefaultBind, "0.0.0.0"}
+	for _, address := range append(append([]string(nil), detected...), bind) {
+		present := false
+		for _, option := range options {
+			if option == address {
+				present = true
+				break
+			}
+		}
+		if !present && address != "" {
+			options = append(options, address)
+		}
+	}
+	labels = make([]string, len(options))
+	values = make(map[string]string, len(options))
+	for i, address := range options {
+		labels[i] = gatewayBindLabel(address, detected)
+		values[labels[i]] = address
+	}
+	return labels, values
 }
 
 // A detected empty list differs from an unknown scan. Saved per-NIC choices

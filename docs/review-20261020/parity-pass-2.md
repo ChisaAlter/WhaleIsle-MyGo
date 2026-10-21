@@ -164,7 +164,7 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 ### 未查看（本轮不写结论）
 `ref-settings-remote`、`ref-settings-mcp`、`ref-settings-presets`、`ref-settings-usage`、`ref-settings-about` —— 五页本轮**没有逐张看**，故不列差异；远程页在 W9 做过结构改造（机器卡/文件页/配对步骤），但那是对代码而非对参考图。
 
-### 远程（ref-settings-remote）→ 未修（结构完全不同）
+### 远程（ref-settings-remote）→ 已修（task-51）
 参考是**网关配置页**：顶部两个 tab「网关 / 消息渠道」；行内是「中继主机」输入 + 黑色 sm「保存」+ 文字动作「恢复默认」；「旧版配置清理」分节；「连接方式」右侧「局域网」标签 + 黑色「服务器」按钮；「监听端口」输入 + 黑色「保存」；「监听范围」下拉（仅本机）；「传输加密」纯文本行；「刷新配对码」右侧文字动作「刷新」。
 本仓库同页是**机器列表 + 文件浏览 + 配对**（W9 重做过），与参考的信息架构不同：参考没有机器卡，只有网关参数。→ 差异属"页面定位不同"，不是样式差；若要还原，需要把机器管理整体移出设置页。
 
@@ -274,5 +274,16 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 代码 | 未删 `internal/ui/market`、`internal/desktop/market`、`internal/store/market` | 更新检查、安装管线、封面/详情等底层能力 |
 
 测试：`pluginmanager` 新增“无发现 tab / 菜单含插件市场 / 点击只回调 URL 且不改 state / 无回调时无副作用”四条；settings 新增“导航无市场但深链仍解析并渲染”。
+
+验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿。
+## 12. 第六轮：远程网关页、MCP 筛选恒显示、背景浓度（2026-10-21 早晨）
+
+| 项 | 改动 | 证据 |
+| --- | --- | --- |
+| 远程设置 | 按参考网关页重排：头部两行说明；网关/消息渠道下划线 tab；中继主机（默认 ayase.cn:443、保存、恢复默认）；旧版配置清理（仅旧 token 时、可展开清除）；连接方式 局域网/服务器 segmented；监听端口 6767；监听范围 仅本机/局域网/网卡；传输加密只读；刷新配对码；移除主流程的连接状态/中继令牌/轮换令牌大段（回调保留） | ours-settings-remote.png |
+| MCP 筛选 | Catalog=nil 时也渲染搜索框（disabled）+88 宽「全部」下拉（disabled），空态 dashed 卡不变 | ours-settings-mcp.png |
+| 背景 | 5 个 bloom 统一乘 `bloomDensity=224`（−12%），色相/位置/数量不变；全画面平均每通道差 0.38、最大 3，中心对比约 17:1，banding 断言仍过 | pass6-before.png / pass6-after.png |
+
+限制：远程页「旧版配置清理」目前以 `LegacyRelayTokenSet` 为门控；监听范围下拉/segmented 因控件列 260 宽与参考的 95/154 略宽，属布局取舍。
 
 验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿。
