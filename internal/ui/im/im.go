@@ -29,6 +29,7 @@ type Model struct {
 	OnClose          func()
 	OnRefresh        func()
 	OnOpenPluginWeb  func()
+	OnEnablePlugin   func()
 	OnSend           func(channelID, text string)
 }
 
@@ -64,11 +65,16 @@ func View(c *ui.Context, m Model) {
 		if !m.Embedded {
 			ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-				if m.Store != nil && ui.Button(c, "平台接入 / 修复").Disabled(m.PluginDisabled).Clicked() {
+				if m.Store != nil && !m.PluginDisabled && ui.Button(c, "平台接入 / 修复").Clicked() {
 					m.Store.Onboarding.Show("feishu")
 				}
-				if m.Store != nil && ui.Button(c, "AI Office").Disabled(m.PluginDisabled).Clicked() {
+				if m.Store != nil && !m.PluginDisabled && ui.Button(c, "AI Office").Clicked() {
 					m.Store.Office.Show(context.Background())
+				}
+				if m.PluginDisabled && m.OnEnablePlugin != nil {
+					if ui.Button(c, i18n.T(keyIMEnablePlugin)).Clicked() {
+						m.OnEnablePlugin()
+					}
 				}
 				if snap.Loading {
 					ui.Text(c, i18n.T(i18n.KeyIMLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)

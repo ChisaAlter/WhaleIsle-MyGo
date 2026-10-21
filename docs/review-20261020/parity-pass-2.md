@@ -339,3 +339,15 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 | 主题编辑器状态 | 5 处中英同串改 i18n key |
 
 验证：build；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿。
+## 16. 第十轮：把剩余 5 条依赖接成真实动作（2026-10-21 中午）
+
+| 项 | 之前 | 现在 |
+| --- | --- | --- |
+| IM/Office 插件 | 插件被禁用时只剩灰按钮和自述 | IM 页检测到 `dsh-im` 被禁用时显示「启用 dsh-im 插件」：调 `pluginManager/setBundleEnabled`，成功后从本地 `DisabledPlugins` 移除并提示；Office/平台接入随插件真实可用 |
+| WebView2 | 只显示 HostError 文本 | 错误包含 WebView2 时显示「下载 WebView2 运行时」按钮，打开微软 Evergreen 引导器；其它错误不误报 |
+| SSH 隧道 | 已接 Connect/Disconnect/TOFU 提示/known_hosts（复核确认，非占位） | 保持；页面按 readiness 显示真实摘要，探针与主机密钥接受流程均有测试 |
+| 设置 Host 未连接 | 仅置灰 | 保留「Host 未连接；保留上次设置」状态行；所有用户操作失败/未就绪都有 toast（pass 8） |
+| 市场 | 入口隐藏、底层保留 | 插件页 ⌄「插件市场」打开官方站；已安装/更新仍由插件页真实状态驱动 |
+
+新增测试：IM 启用按钮仅在插件禁用时出现且点击回调一次；WebView2 下载按钮只在 WebView2 错误时出现并打开正确 URL。
+验证：build；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿。

@@ -2,6 +2,8 @@
 package webview
 
 import (
+	"strings"
+
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -23,6 +25,7 @@ type Model struct {
 	OnCloseHost   func()
 	OnCopyURL     func(url string)
 	OnReload      func(url string)
+	OnOpenURL     func(url string)
 }
 
 // View paints the plugin web chrome strip; the WebView2 Host covers the body.
@@ -91,6 +94,11 @@ func View(c *ui.Context, m Model) {
 			})
 			if m.HostError != "" {
 				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)"))
+				if m.OnOpenURL != nil && strings.Contains(strings.ToLower(m.HostError), "webview2") {
+					if ui.Button(c, i18n.T(keyWebViewDownloadRuntime)).Clicked() {
+						m.OnOpenURL("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
+					}
+				}
 			}
 		})
 	})

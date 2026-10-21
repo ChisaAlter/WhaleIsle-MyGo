@@ -5278,6 +5278,31 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnEnablePlugin: func() {
+						go func() {
+							ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+							defer cancel()
+							if _, err := callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": "dsh-im", "enabled": true}); err != nil {
+								state.notifyUser(win, saveFailedToast(resumeText("启用 dsh-im", "Enable dsh-im"), err))
+								return
+							}
+							if state.cfgStore != nil {
+								_ = state.cfgStore.Update(func(c *config.Config) {
+									kept := c.DisabledPlugins[:0]
+									for _, name := range c.DisabledPlugins {
+										if name != "dsh-im" {
+											kept = append(kept, name)
+										}
+									}
+									c.DisabledPlugins = kept
+								})
+							}
+							state.notifyUser(win, resumeText("已启用 dsh-im 插件；若页面仍为空请重启应用", "dsh-im enabled; restart the app if the page stays empty"))
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
 					OnSend: func(channelID, text string) {
 						imStore.SendDraft(context.Background(), channelID, text)
 						if win != nil {
@@ -6040,6 +6065,11 @@ func mainView(c *ui.Context) {
 					HostActive:    hostActive,
 					HostURL:       hostURL,
 					HostError:     hostErr,
+					OnOpenURL: func(u string) {
+						if err := mygo.Shell.OpenExternal(u); err != nil {
+							state.notifyUser(win, saveFailedToast(resumeText("打开下载页", "Open the download page"), err))
+						}
+					},
 					OnClose: func() {
 						state.closeWebViewHost()
 						state.mu.Lock()
