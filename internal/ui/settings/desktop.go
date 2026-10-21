@@ -84,9 +84,31 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "linkOpening", providerCopy("链接打开方式", "Open links in"), "", fg, muted)
 	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("繁忙时的发送行为", "Sending while busy"), providerCopy("智能体运行时 Enter 和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为。", "What Enter and Send do while the agent runs; Cmd/Ctrl+Enter uses the other action."), fg, muted)
-	bodyLocalToggle(c, "general-close", providerCopy("关闭窗口时最小化到托盘", "Minimize to tray on close"), providerCopy("关闭时隐藏到托盘；关闭此开关则直接退出并停止本机 Harness 服务。", "Hide to the tray on close; turn this off to quit and stop the local Harness service."), d.Fields.CloseToTray, d.OnSave == nil, fg, muted, nil)
+	if d.Fields.CloseToTray != nil {
+		bodyPreferenceRow(c, "general-close", providerCopy("关闭窗口时", "Closing the window"), providerCopy("点标题栏关闭时：最小化到托盘，或退出并停止本机 Harness 服务。", "On the title-bar close button: minimize to the tray, or quit and stop the local Harness service."), fg, muted, func() {
+			options := []string{providerCopy("最小化到托盘", "Minimize to tray"), providerCopy("直接退出", "Quit")}
+			choice := options[1]
+			if *d.Fields.CloseToTray {
+				choice = options[0]
+			}
+			if ui.Select(c, &choice, options).FillWidth().Disabled(d.OnSave == nil).Label(providerCopy("关闭窗口时", "Closing the window")).Changed() {
+				*d.Fields.CloseToTray = choice == options[0]
+			}
+		})
+	}
 	bodyLocalToggle(c, "general-login", i18n.T(i18n.KeySettingsDesktopOpenAtLogin), "", d.Fields.OpenAtLogin, d.OnSave == nil, fg, muted, nil)
-	bodyLocalToggle(c, "general-autostart", i18n.T(i18n.KeySettingsInterfaceAutoStart), i18n.T(i18n.KeySettingsInterfaceAutoStartDesc), d.AutoStartDesktop, d.OnSave == nil, fg, muted, nil)
+	if d.AutoStartDesktop != nil {
+		bodyPreferenceRow(c, "general-autostart", i18n.T(i18n.KeySettingsInterfaceAutoStart), providerCopy("是：直接打开桌面端；否：先打开启动器，再手动启动桌面端。", "Yes: open the desktop directly; No: open the launcher first and start the desktop manually."), fg, muted, func() {
+			options := []string{providerCopy("直接启动桌面端", "Open the desktop"), providerCopy("先打开启动器", "Open the launcher")}
+			choice := options[1]
+			if *d.AutoStartDesktop {
+				choice = options[0]
+			}
+			if ui.Select(c, &choice, options).FillWidth().Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsInterfaceAutoStart)).Changed() {
+				*d.AutoStartDesktop = choice == options[0]
+			}
+		})
+	}
 	generalCustomInstructions(c, d.Host, fg, muted)
 	bodyHostPreference(c, d.Host, "visual-replies", "enabled", providerCopy("HTML 视觉回复", "HTML visual replies"), "", fg, muted)
 	bodyHostPreference(c, d.Host, "ui-chat", "performanceUsage", providerCopy("性能与用量", "Performance and usage"), "", fg, muted)

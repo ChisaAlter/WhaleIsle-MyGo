@@ -178,3 +178,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 设置面板底色（S1）改善（pass30）：内容区/导航原来用 BG 纯白（实测 255,255,255），改为 raised surface Field（实测 245,246,247，参考 235-240），不再整块纯白，也未采用透明导致内容穿透。截图 settings-live/general.png 已更新。
 
 - S1 面板底色 pass32：Field 叠 3% border，实机 238-240（参考 235-240），平均 234 vs 229.6；纯白问题消除。
+
+- 通用设置 pass33：关闭窗口时（最小化到托盘/直接退出）与启动时（直接启动桌面端/先打开启动器）由开关改为参考式下拉，写回 CloseToTray / AutoStartDesktop 布尔。
