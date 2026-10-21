@@ -203,3 +203,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 
 - 技能 hub 状态本地化（pass41）：installed/conflict/
 ot-installed/update-available 不再原样显示，改为已安装/冲突/未安装/有更新；未知状态保留原值。
+
+- E3 根因证据（pass42）：设置页显示 mygo: failed to load whale-pet://localhost/index.html: navigation failed (COREWEBVIEW2_WEB_ERROR_STATUS 14)；尝试在窗口创建前预注册 whale-pet scheme 未能消除，已移除该临时改动。桌宠在 WebView2 自定义 scheme 加载层失败，不是开关或配置问题。
