@@ -35,7 +35,7 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Padding(16).Children(func() { aboutPane(c, Model{About: a}, c.Theme().Text, c.Theme().TextMuted) })
 	}, 620, 1000)
-	if checks != 1 || reads != 1 || !tt.HasText("synthetic metadata error") || !tt.HasText("synthetic update pending") {
+	if checks != 0 || reads != 1 || !tt.HasText("synthetic metadata error") || !tt.HasText("synthetic update pending") {
 		t.Fatal("initial metadata/check/error receipts missing")
 	}
 	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
@@ -45,11 +45,17 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 		t.Fatal("pending reveal remained enabled")
 	}
 	tt.Frame()
-	if checks != 1 || reads != 1 {
+	if checks != 0 || reads != 1 {
 		t.Fatal("render repeated mount-only I/O")
 	}
 	a.Loading, a.UpdateBusy, a.HomeBusy = false, false, false
 	tt.Frame()
+	if err := tt.Click(i18n.T(i18n.KeySettingsDesktopCheckUpdates)); err != nil {
+		t.Fatal(err)
+	}
+	if checks != 1 {
+		t.Fatal("explicit update check did not fire")
+	}
 	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}

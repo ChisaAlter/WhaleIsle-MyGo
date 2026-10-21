@@ -147,3 +147,13 @@ settings.ModalView → SectionContent → paintMainContent("")
 根因：`settingsSectionModel` 先把 `ActiveSection=remote` 和 SectionContent 装到模型上，但回调执行时又去读**实时**的 `settingsEmbeddedSection`；`OnClose` 已把它清空，于是内容区用 `""` 重画了主聊天，与页面自身的 `ChatList` 同帧复用，触发框架的 ListState 唯一性保护。
 
 修复：构建模型时捕获 section，传给回调使用；新增 `TestEmbeddedSectionContentKeepsTheSectionItWasBuiltFor`。实机复验：设置→远程→返回，进程存活并回到会话（pass16）。
+### 第三轮实机（pass17/18）
+
+| 项 | 结果 | 证据/说明 |
+| --- | --- | --- |
+| B3 终端抽屉 | PASS（实机，PTY 已起） | 「切换终端抽屉」打开 PowerShell 1，提示符 `PS C:\AI\WhaleIsle-MyGo\.devdata\dsh-home\no-workspace>`；关闭/新终端/分栏/最大化菜单真实；`B3-terminal.png`。命令输入受桌面锁屏限制，命令执行仍以 ConPTY 测试为准 |
+| B4 Git 入口 | PARTIAL（实机） | 顶栏「切换分支」「推送」「Git 操作选项」存在；无仓库会话打开分支筛选显示「没有匹配分支」，不伪造分支 |
+| C5 关于页 | PASS（实机，已改） | 参考版打开关于**不弹更新框**；移除了 mount 时自动检查，保留显式「检查更新」按钮；测试改为断言初始不调用、点击后才调用 |
+| C4 插件页 | PASS（实机，已修样式） | 「添加插件」旁的 ⌄ 触发器此前用 PrimaryButton，渲染成独立蓝色方块；改为普通按钮，保持分段按钮观感 |
+
+本轮修复：About 不再自动弹更新对话框；插件页添加按钮分段样式；插件卡可访问名本地化（打开/启用）。

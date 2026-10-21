@@ -375,7 +375,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		artwork(c, muted, border, m.SVGImages, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-				if ui.Button(c, p.Title(i18n.Locale())).Label("Open " + p.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
+				if ui.Button(c, p.Title(i18n.Locale())).Label(copyText("打开 ", "Open ") + p.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
 					a.OpenPackage(p.Name)
 				}
 				packageTags(c, p, muted)
@@ -386,7 +386,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 			}
 		})
 		value := p.Enabled
-		if ui.Switch(c, &value).Label("Enable " + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
+		if ui.Switch(c, &value).Label(copyText("启用 ", "Enable ") + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
 			a.Enable(p.Name, value)
 		}
 		menuLabel := copyText("更多操作", "More actions")
@@ -515,7 +515,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 				a.Remove(pkg.Name)
 			}
 			value := pkg.Enabled
-			if ui.Switch(c, &value).Label("Enable " + pkg.Name).Disabled(s.ActionBusy(pkg.Name) || pkg.SwitchLocked()).Changed() {
+			if ui.Switch(c, &value).Label(copyText("启用 ", "Enable ") + pkg.Name).Disabled(s.ActionBusy(pkg.Name) || pkg.SwitchLocked()).Changed() {
 				a.Enable(pkg.Name, value)
 			}
 		}
@@ -645,7 +645,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 						}
 					})
 					value := r.Enabled
-					if pkg.Enabled && ui.Switch(c, &value).Label("Enable entry "+r.RowID).Disabled(s.ActionBusy(pkg.Name) || s.ActionBusy(r.EntryID) || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
+					if pkg.Enabled && ui.Switch(c, &value).Label(copyText("启用条目 ", "Enable entry ") + r.RowID).Disabled(s.ActionBusy(pkg.Name) || s.ActionBusy(r.EntryID) || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
 						a.EnableRow(r.EntryID, value)
 					}
 				})
@@ -843,7 +843,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 			ui.Row(c.Key("discover-" + e.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
 				artwork(c, muted, border, m.SVGImages, e.Icon)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					if ui.Button(c, e.Label(i18n.Locale())).Label("Open market " + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
+					if ui.Button(c, e.Label(i18n.Locale())).Label(copyText("打开插件市场 ", "Open market ") + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
 						a.OpenEntry(e.Name)
 					}
 					ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)

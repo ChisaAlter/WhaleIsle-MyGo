@@ -100,7 +100,7 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("添加插件", "Add plugin"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !s.ManagementReady()}).Clicked() {
 			a.OpenInstall()
 		}
-		trigger := ui.PrimaryButton(c, "⌄").Label(copyText("选择添加方式", "Choose add method")).Disabled(!s.ManagementReady())
+		trigger := ui.Button(c, "⌄").Label(copyText("选择添加方式", "Choose add method")).Disabled(!s.ManagementReady())
 		opened := ui.Local(trigger, "add-menu", func() bool { return false })
 		if trigger.Clicked() {
 			*opened = !*opened

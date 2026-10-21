@@ -40,12 +40,6 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	a := m.About
 	accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
 	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(520).MinWidth(0).Gap(12)
-	ui.Local(anchor, "initial-update-check", func() bool {
-		if a.OnCheckUpdates != nil {
-			a.OnCheckUpdates()
-		}
-		return true
-	})
 	storage := ui.Local(anchor, "metadata", func() credentials.StorageStatus {
 		if a.ReadCredentialStorage != nil {
 			return a.ReadCredentialStorage()
