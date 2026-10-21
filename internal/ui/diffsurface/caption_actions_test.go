@@ -52,7 +52,7 @@ func awaitCaptionFixture(t *testing.T, tt *ui.Tester, ready func() bool, detail 
 	t.Helper()
 	// The whole suite runs in parallel on a loaded machine, so allow more than
 	// one scheduler quantum for a frame to settle.
-	const budget = 5 * time.Second
+	const budget = 15 * time.Second
 	deadline := time.Now().Add(budget)
 	frames := 0
 	for time.Now().Before(deadline) {

@@ -100,7 +100,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			browse := skillsBrowseButton(c, i18n.T(i18n.KeySurfacesSkillsBrowseHub), muted)
 			if a.HubQuery == nil || a.OnSearchHub == nil {
 				browse = browse.Disabled(true).Opacity(0.5)
-				browse.Tooltip(providerCopy("此构建未接入技能搜索", "Skill search is not wired in this build"))
+				browse.Tooltip(providerCopy("需要连接 Host", "Connect to a Host first"))
 			} else if browse.Clicked() {
 				if a.Hub != nil && a.Hub.OnOpen != nil {
 					a.Hub.OnOpen()

@@ -77,6 +77,21 @@ func (p *SessionInspectorPaneState) selectInspectorRow(row session.InspectorReco
 		p.navigation.Target.ID = ""
 	}
 }
+// applyPendingPick turns a queued inspect request into a pick once the pane has
+// rows to resolve it against: immediately when the record is present, or after
+// the chat projection loads so the "no matching record" notice is only raised
+// once there is something real to search.
+func (p *SessionInspectorPaneState) applyPendingPick(rows []session.InspectorRecord) {
+	if p.pendingPick == nil {
+		return
+	}
+	if inspectorPickRecord(rows, *p.pendingPick) == "" && len(p.navigation.Nodes) == 0 {
+		return
+	}
+	p.navigation.Picked = p.pendingPick
+	p.pendingPick = nil
+}
+
 func (p *SessionInspectorPaneState) consumeInspectorPick(rows []session.InspectorRecord) {
 	target := p.navigation.Picked
 	if target == nil {

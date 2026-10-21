@@ -5162,6 +5162,34 @@ func mainView(c *ui.Context) {
 				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 					SessionLinks:  sessionLinks,
 					OnOpenSession: state.openScheduleSession,
+					OnSaveTitle: func(id, title string) {
+						if schedStore == nil {
+							return
+						}
+						scheduler := schedStore
+						go func() {
+							if err := scheduler.UpdateTitle(context.Background(), sid, id, title); err != nil {
+								return
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
+					OnSavePrompt: func(id, prompt string) {
+						if schedStore == nil {
+							return
+						}
+						scheduler := schedStore
+						go func() {
+							if err := scheduler.UpdatePrompt(context.Background(), sid, id, prompt); err != nil {
+								return
+							}
+							if win != nil {
+								win.Update(func() {})
+							}
+						}()
+					},
 					OnNewTask: func() {
 						state.selectMainPanel("")
 						if sessions != nil {

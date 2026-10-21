@@ -72,14 +72,15 @@ func View(c *ui.Context, m Model) {
 				if snap.Loading {
 					ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
-				// The reference keeps export/settings next to refresh; both are
-				// disabled here because this build has no exporter or dialog yet.
-				export := widgets.Button(c, colors, i18n.T(settingsPass4UsageExport),
-					widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: true})
-				export.Tooltip(i18n.T(settingsPass4UsageExportUnavailable))
-				settings := widgets.Button(c, colors, i18n.T(settingsPass4UsageSettings),
-					widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: true})
-				settings.Tooltip(i18n.T(settingsPass4UsageSettingsUnavailable))
+				// The reference keeps export and refresh next to the title. Export
+				// is a real action once the Host supplies it; the range dialog the
+				// reference's gear opens does not exist in this build, so no second
+				// dead button is drawn.
+				if m.OnExportStats != nil {
+					if widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+						m.OnExportStats("json")
+					}
+				}
 				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.Store.RefreshStats(context.Background(), true)
 					if m.OnRefresh != nil {

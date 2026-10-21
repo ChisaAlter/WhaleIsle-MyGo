@@ -26,6 +26,8 @@ type Model struct {
 }
 
 // View paints the plugin web chrome strip; the WebView2 Host covers the body.
+// It opens that host on the first frame it is shown, so the entry lands on the
+// real plugin page instead of a placeholder describing what could be built.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -33,9 +35,14 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
-	accent := chrome.Color(colors.Accent)
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	root := ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0).Background(bg)
+	autoOpen := ui.Local(root, "auto-open", func() bool { return false })
+	if !m.HostActive && !*autoOpen && m.HostError == "" && m.HarnessOrigin != "" && m.OnOpenHost != nil {
+		*autoOpen = true
+		m.OnOpenHost()
+	}
+	root.Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyWebViewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
 			if m.HostActive && m.HostError != "" {
@@ -70,8 +77,7 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(16, 20, 16, 20).Gap(12).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWebViewNeedWebView2)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
-			ui.Text(c, i18n.T(i18n.KeyWebViewStubBody)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyWebViewNotOpen)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
 			if m.HarnessOrigin != "" {
 				ui.Text(c, i18n.T(i18n.KeyWebViewOrigin)+": "+m.HarnessOrigin).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
@@ -79,16 +85,13 @@ func View(c *ui.Context, m Model) {
 				if m.OnOpenHost != nil && ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).Clicked() {
 					m.OnOpenHost()
 				}
-				if ui.Button(c, i18n.T(i18n.KeyWebViewOpenBrowser)).Clicked() {
-					if m.OnOpenBrowser != nil {
-						m.OnOpenBrowser()
-					}
+				if m.OnOpenBrowser != nil && ui.Button(c, i18n.T(i18n.KeyWebViewOpenBrowser)).Clicked() {
+					m.OnOpenBrowser()
 				}
 			})
 			if m.HostError != "" {
 				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)"))
 			}
-			ui.Text(c, i18n.T(i18n.KeyWebViewFutureNote)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		})
 	})
 }

@@ -121,7 +121,7 @@ func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
 		configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
 		if m.OnOpenConfig == nil {
-			configButton.Tooltip(i18n.T(i18n.KeySurfacesSettingsOpenConfigHint))
+			configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
 		} else if configButton.Clicked() {
 			m.OnOpenConfig()
 		}

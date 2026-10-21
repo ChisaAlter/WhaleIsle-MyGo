@@ -21,6 +21,13 @@ func embeddedView(c *ui.Context, m Model) {
 				ui.Text(c, usageText("用量统计", "Usage statistics")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(fg).Grow(1)
 			})
 			if m.Store != nil {
+				exportDisabled := m.OnExportStats == nil
+				export := widgets.Button(c, colors, usageText("导出", "Export"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall, Disabled: exportDisabled})
+				if exportDisabled {
+					export.Tooltip(usageText("本版本还没有统计导出。", "Exporting statistics is not wired in this build"))
+				} else if export.Clicked() {
+					m.OnExportStats("json")
+				}
 				if widgets.Button(c, colors, usageText("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(m.Store.Stats().Loading).Clicked() {
 					m.Store.RefreshStats(context.Background(), true)
 				}

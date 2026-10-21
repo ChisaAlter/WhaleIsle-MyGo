@@ -71,9 +71,11 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			// installer badge. Nothing is faked: without an installer the badge
 			// explains itself instead of pretending to start a download.
 			ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).AlignItems(ui.Center).Children(func() {
-				versions := []string{emptyDash(a.Version)}
-				picked := versions[0]
-				ui.Select(c, &picked, versions).Width(150).Disabled(true).Label(i18n.T(i18n.KeySettingsAboutCopyVersion))
+				// The version is data, not a choice: it paints as read-only text
+				// instead of a disabled picker with one option.
+				ui.Text(c, emptyDash(a.Version)).Label(i18n.T(i18n.KeySettingsAboutCopyVersion)).
+					Height(28).Padding(0, 10).Radius(8).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .35)).
+					FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Tooltip(a.Version)
 				installLabel := i18n.T(KeyPass4OnlineInstall)
 				// The badge keeps its near-black fill even when the installer is
 				// absent; only the label fades, so it still reads as a badge.

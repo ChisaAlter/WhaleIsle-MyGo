@@ -13,6 +13,7 @@ const (
 	KeyPass4AMCPHintComposition = "surfaces.pass4a.mcp_hint_composition"
 	KeyPass4AMCPEmptyPrimary    = "surfaces.pass4a.mcp_empty_primary"
 	KeyPass4AMCPEmptySecondary  = "surfaces.pass4a.mcp_empty_secondary"
+	KeyPass4AConfigUnavailable  = "surfaces.pass4a.config_unavailable"
 	KeyPass4AGlowSettings       = "surfaces.pass4a.glow_settings"
 	KeyPass4AGlowUnavailable    = "surfaces.pass4a.glow_unavailable"
 )
@@ -25,6 +26,7 @@ func init() {
 	i18n.Register(KeyPass4AMCPHintComposition, "组成配置条目只读。", "Composition entries are read-only.")
 	i18n.Register(KeyPass4AMCPEmptyPrimary, "还没有 MCP 服务器。", "No MCP servers yet.")
 	i18n.Register(KeyPass4AMCPEmptySecondary, "添加一个服务器以连接本地工具或远程服务。", "Add one to reach local tools or a remote service.")
+	i18n.Register(KeyPass4AConfigUnavailable, "当前环境无法打开配置文件", "The configuration file cannot be opened in this environment")
 	i18n.Register(KeyPass4AGlowSettings, "思考炫光设置", "Thinking glow settings")
 	i18n.Register(KeyPass4AGlowUnavailable, "此构建未接入思考炫光设置", "Thinking glow settings are not wired in this build")
 }

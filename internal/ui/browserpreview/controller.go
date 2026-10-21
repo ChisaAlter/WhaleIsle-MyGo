@@ -336,6 +336,16 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				if ui.Button(c, browserChromeLabel("前往", "Go")).Clicked() {
 					b.Navigate(t.Draft)
 				}
+				if b.current() == t {
+					if clicked, err := externalOpenButton(c, t.Draft, mygo.Shell.OpenExternal); clicked {
+						if err != nil {
+							t.Error = err.Error()
+						} else {
+							t.Error = ""
+							t.ActionMessage = browserChromeLabel("已在系统浏览器打开", "Opened in the system browser")
+						}
+					}
+				}
 				if ui.Button(c, browserChromeLabel("系统浏览器打开", "Open in system browser")).Disabled(b.current() != t || NormalizeURL(t.Draft) == "").Tooltip(browserChromeLabel("打开地址栏中的 HTTP(S) 地址；使用系统浏览器自己的登录状态，不传递 Browser 分区 Cookie。", "Open the address bar HTTP(S) URL using the system browser’s own sign-in state. Browser profile cookies are not transferred.")).Clicked() && b.current() == t {
 					if err := openBrowserAddress(t.Draft, desktop.OpenExternal); err != nil {
 						t.Error = err.Error()

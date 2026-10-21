@@ -935,7 +935,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										})
 									} else {
 										chat.View(c, chat.Model{
-											OnInspectToolCall: inspectToolCall,
+											OnInspectToolCall: inspectActionFor(inspectToolCall, m.toolCallInspector()),
 											Inspector:         sessionInspectorChatNavigation(m),
 											GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 											DisableDeveloperTools: m.DisableDeveloperTools,
@@ -1209,7 +1209,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
 					OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
-					TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget,
+					TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget, OnOpenShortcuts: m.OnOpenSettings,
 				})
 			})
 		}
@@ -1336,6 +1336,9 @@ func rightPane(c *ui.Context, m Model) {
 				SystemDark:         m.SystemDark,
 				PromptDraft:        m.AgentsPromptDraft,
 				OnOpenURL:          m.OnOpenCitationURL,
+				OnInterrupt: func(parentID, childID string) {
+					navigation.InterruptChild(context.Background(), parentID, childID, "")
+				},
 				OnOpenDocument:     m.OnOpenAgentDocument,
 				OnClose: func() {
 					if m.RightPaneTab != nil {

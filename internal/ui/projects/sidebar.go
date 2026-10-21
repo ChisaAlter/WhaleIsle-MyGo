@@ -23,6 +23,7 @@ func View(c *ui.Context, m Model) {
 	section := ui.Column(c).FillWidth().MinWidth(0).Padding(8, 0).Gap(4)
 	m.presentation = ui.Local(section, "project-presentation", newProjectPresentation)
 	section.Children(func() {
+		projectFilterControls(c, &m)
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
 			category := ui.Button(c, "").Label("Project").Height(36).Grow(1).MinWidth(0).Padding(0, 4).BorderWidth(0).Background(ui.Transparent)
 			category.Children(func() {

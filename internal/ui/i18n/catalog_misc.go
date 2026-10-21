@@ -1253,7 +1253,7 @@ func init() {
 	Register(KeySettingsWhaleSkillsHint, "她能用的技能；关掉的技能会移出启用目录。", "Skills she can use; disabling moves the directory out of the enabled tree.")
 	Register(KeySettingsWhaleSkillsEmpty, "还没有技能——把含 SKILL.md 的目录放进她的 whale home。", "No skills yet — drop a directory with SKILL.md into her whale home.")
 	Register(KeySettingsWhaleManage, "管理", "Manage")
-	Register(KeySettingsWhaleUnavailable, "Host 尚未提供鲸鱼娘设置。", "This Host has no Whale settings yet.")
+	Register(KeySettingsWhaleUnavailable, "正在读取鲸鱼娘设置…", "Loading Whale settings…")
 	Register(KeySettingsWhaleCancel, "取消", "Cancel")
 	Register(KeySettingsModelsAPIKey, "API 密钥", "API key")
 	Register(KeySettingsModelsAPIKeyPlaceholder, "留空使用环境认证（%s）", "Leave blank to use environment auth (%s)")

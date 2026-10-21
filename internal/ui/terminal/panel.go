@@ -136,6 +136,9 @@ type Model struct {
 	OnRestart  func()
 	// OnClose hides/removes the workspace panel once its last PTY is closed.
 	OnClose      func()
+	// OnOpenShortcuts opens the settings shortcuts page; nil keeps the menu
+	// entry disabled because this build cannot navigate there.
+	OnOpenShortcuts func()
 	OnAddToChat  func(string) error
 	CanAddToChat bool
 	// TargetBinding identifies the painted Host/session for pointer ownership.
@@ -213,7 +216,11 @@ func View(c *ui.Context, m Model) {
 			m.OnRestart()
 		}
 		menu.Separator()
-		menu.Item(i18n.T(i18n.KeySurfacesTerminalShortcuts)).Disabled(true)
+		if m.OnOpenShortcuts == nil {
+			menu.Item(i18n.T(i18n.KeySurfacesTerminalShortcuts)).Disabled(true)
+		} else if menu.Item(i18n.T(i18n.KeySurfacesTerminalShortcuts)).Chosen() {
+			m.OnOpenShortcuts()
+		}
 	})
 	root.Children(func() {
 		if note := strings.TrimSpace(m.ShellsNote); note != "" {

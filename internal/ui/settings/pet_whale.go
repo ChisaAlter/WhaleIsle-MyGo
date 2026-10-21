@@ -31,7 +31,7 @@ type petWhaleState struct {
 
 // petWhaleSection is the Host-driven half of the Whale page: every row edits
 // the dsh-whale catalog through the access callbacks. A nil catalog means the
-// Host has no answer yet, so the page shows one status line instead of
+// Host has not answered yet, so the page shows one loading line instead of
 // controls that would write nowhere.
 func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, fg, muted ui.Color) {
 	anchor := ui.Column(c.Key("pet-whale-section")).FillWidth().MinWidth(0).Gap(4)

@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
+
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/config"
@@ -57,6 +62,16 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 			s.settingsModelsActive = true
 			s.mu.Unlock()
 		}
+	}
+	// The rail action opens the real config file; a missing file is created first
+	// so the editor never opens an empty path.
+	m.OnOpenConfig = func() {
+		path := filepath.Join(paths.UserDataDir(), config.FileName)
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			_ = os.MkdirAll(filepath.Dir(path), 0o755)
+			_ = os.WriteFile(path, []byte("{}\n"), 0o600)
+		}
+		_ = mygo.Shell.OpenPath(path)
 	}
 	if m.About != nil {
 		m.About.HomePath = paths.DshHome()

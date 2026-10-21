@@ -298,3 +298,28 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 **证据**：`ours-pass6b.png`（修后满幅窗口，2160×1380）；修复前的问题截图见用户反馈与 session 记录。
 
 验证：`go build ./cmd/... ./internal/...`；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿；mygo `internal/windows` 编译测试通过。
+## 14. 第八轮：死控件与假数据清理（2026-10-21 上午）
+
+先做了全量只读审计 `docs/review-20261020/dead-ui-audit.md`（646 个 UI 文件；`.Disabled(` 1118 处、`Disabled(true)` 25 处、`== nil` 147 处）。结论：绝大部分是合理的可用性门控；真正的死控件集中在 **回调未接线 / 视图未挂载 / stub 文案**。
+
+已修：
+
+| 项 | 修法 |
+| --- | --- |
+| 设置「打开配置文件」永久灰 | cmd 接 `mygo.Shell.OpenPath(UserDataDir/config.json)`（不存在先写 `{}`），按钮真实可点 |
+| 调度「保存标题 / 提示词」不渲染 | 接 `store.UpdateTitle/UpdatePrompt`，后台执行后刷新 |
+| 子代理「中断」不渲染 | 接 `session.Store.InterruptChild` |
+| 浏览器预览「在外部打开」缺失 | 地址栏右侧 28×28 external-link 按钮，仅有效 URL 出现，调 `mygo.Shell.OpenExternal` |
+| 终端右键「快捷键」永久灰 | 接 `OnOpenShortcuts` → 设置快捷键页 |
+| 项目搜索框从未挂载 | `projects/sidebar.go` 挂回 `projectFilterControls`，输入即过滤 |
+| 工具卡「检查此调用」缺入口 | 门控放宽：轨迹优先、会话日志兜底（按消息 ID 排队定位），dev tools 关闭时隐藏而不是假按钮 |
+| 用量头部 导出/设置 | 导出接 `OnExportStats("json")`；无范围对话框的「设置」按钮删除；进入用量页由 cmd 只触发一次 RefreshStats |
+| 关于版本下拉 | 改只读文本，不再用 disabled Select |
+| 插件「不兼容」 | 灰按钮改纯文本徽标 |
+| IM/Office | 删自述 stub；空态显示“连接 Host 后显示…”+ 真实「打开插件页」按钮 |
+| WebView | 删开发自述；首次挂载真实打开 WebView2 宿主，失败可重试 |
+| 远程 SSH | 删“未实现/无探测”文案，按 readiness 显示真实摘要；探针按钮保留 |
+| 鲸鱼娘未就绪 | 改“正在读取鲸鱼娘设置…”加载态 |
+| i18n | 删除未渲染的 stub key（frame.right/bottom、remote.market.stub、webview 自述等） |
+
+测试：diffsurface caption fixture 等待预算 5s→15s（全量并发时 git init 偶发超时）；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿。

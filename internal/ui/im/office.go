@@ -51,7 +51,24 @@ func officeSettingsView(c *ui.Context, m Model) {
 					ui.Text(c, v.Notice).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				}
 				if !v.Loaded {
-					ui.Text(c, "尚未读取配置。请连接 Host 并刷新；原版插件页面仍可使用。").TextColor(muted)
+					if v.Busy {
+						ui.Text(c, "正在读取 Office 配置…").FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						return
+					}
+					// No state has been read yet: say so plainly and offer the
+					// two real ways forward instead of a plugin fallback note.
+					title, hint := "还没有读取到 Office 配置。", "刷新后重试；也可以打开插件页完成配置。"
+					if !v.Available || !m.HarnessReady {
+						title, hint = "连接 Host 后显示 Office 配置。", "连接到 Host 后刷新；也可以打开插件页完成配置。"
+					}
+					ui.Column(c).FillWidth().Background(chrome.Color(colors.Field)).Border(1, border).Radius(12).Padding(20).Gap(8).Children(func() {
+						ui.Text(c, title).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+						ui.Text(c, hint).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						if m.OnOpenPluginWeb != nil && ui.Button(c, "打开插件页").Clicked() {
+							s.Hide()
+							m.OnOpenPluginWeb()
+						}
+					})
 					return
 				}
 				ui.Text(c, officestore.StateLabel(v.Status)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)

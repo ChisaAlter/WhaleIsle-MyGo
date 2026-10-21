@@ -201,7 +201,8 @@ func View(c *ui.Context, m Model) {
 				}
 				sshSnap.Readiness, sshSnap.Missing = sshremote.Assess(sshSnap)
 				if sshSnap.Active {
-					ui.Text(c, i18n.T(i18n.KeyRemoteSSHStubNote)).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
+					ui.Text(c, i18n.T(i18n.KeyRemoteSSHTitle)).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
+					ui.Text(c, sshWorkspaceSummary(sshSnap.Readiness)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					sshRows := []struct{ label, value string }{
 						{i18n.T(i18n.KeyRemoteSSHStatus), sshReadinessLabel(sshSnap.Readiness)},
 						{i18n.T(i18n.KeyRemoteSSHBind), emptyDash(sshSnap.RemoteBindAddress)},
@@ -340,7 +341,22 @@ func sshReadinessLabel(r sshremote.Readiness) string {
 	case sshremote.ReadinessDisabled:
 		return i18n.T(i18n.KeyRemoteSSHDisabled)
 	default:
-		return i18n.T(i18n.KeyRemoteSSHStubPending)
+		return i18n.T(i18n.KeyRemoteSSHStatusOff)
+	}
+}
+
+// sshWorkspaceSummary describes the SSH workspace from its readiness, so the
+// page never claims a live tunnel that this build does not open.
+func sshWorkspaceSummary(r sshremote.Readiness) string {
+	switch r {
+	case sshremote.ReadinessReady:
+		return i18n.T(i18n.KeyRemoteSSHSummaryReady)
+	case sshremote.ReadinessIncomplete:
+		return i18n.T(i18n.KeyRemoteSSHSummaryIncomplete)
+	case sshremote.ReadinessDisabled:
+		return i18n.T(i18n.KeyRemoteSSHSummaryDisabled)
+	default:
+		return i18n.T(i18n.KeyRemoteSSHSummaryInactive)
 	}
 }
 

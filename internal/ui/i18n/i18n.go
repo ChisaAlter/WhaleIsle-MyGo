@@ -132,8 +132,6 @@ const (
 	KeyComposerChipEditPlaceholder        = "composer.chip_edit_placeholder"
 	KeyComposerChipEditApply              = "composer.chip_edit_apply"
 	KeyComposerChipEditCancel             = "composer.chip_edit_cancel"
-	KeyFrameRightStub                     = "frame.right_stub"
-	KeyFrameBottomStub                    = "frame.bottom_stub"
 	KeyFilesTitle                         = "files.title"
 	KeyFilesNoWorkspace                   = "files.no_workspace"
 	KeyFilesPickFile                      = "files.pick_file"
@@ -498,15 +496,12 @@ const (
 	KeyWebViewOpen                        = "webview.open"
 	KeyWebViewTitle                       = "webview.title"
 	KeyWebViewBack                        = "webview.back"
-	KeyWebViewNeedWebView2                = "webview.need_webview2"
-	KeyWebViewStubBody                    = "webview.stub_body"
+	KeyWebViewNotOpen                     = "webview.not_open"
 	KeyWebViewCopyURL                     = "webview.copy_url"
 	KeyWebViewOpenBrowser                 = "webview.open_browser"
 	KeyWebViewOpenHost                    = "webview.open_host"
 	KeyWebViewCloseHost                   = "webview.close_host"
-	KeyWebViewHostActive                  = "webview.host_active"
 	KeyWebViewOrigin                      = "webview.origin"
-	KeyWebViewFutureNote                  = "webview.future_note"
 	KeyBrowserPreviewOpen                 = "browserpreview.open"
 	KeyBrowserPreviewTitle                = "browserpreview.title"
 	KeyBrowserPreviewBack                 = "browserpreview.back"
@@ -522,7 +517,6 @@ const (
 	KeyRemoteOpen                         = "remote.open"
 	KeyRemoteTitle                        = "remote.title"
 	KeyRemoteBack                         = "remote.back"
-	KeyRemoteStubNote                     = "remote.stub_note"
 	KeyRemoteWorkspaceToggle              = "remote.workspace_toggle"
 	KeyRemoteToggleOn                     = "remote.toggle_on"
 	KeyRemoteToggleOff                    = "remote.toggle_off"
@@ -543,9 +537,13 @@ const (
 	KeyRemoteWorkspaceOff                 = "remote.workspace_off"
 	KeyRemoteSummaryDisabled              = "remote.summary_disabled"
 	KeyRemoteSummaryEnabled               = "remote.summary_enabled"
-	KeyRemoteSSHStubNote                  = "remote.ssh_stub_note"
+	KeyRemoteSSHTitle                     = "remote.ssh_title"
 	KeyRemoteSSHStatus                    = "remote.ssh_status"
-	KeyRemoteSSHStubPending               = "remote.ssh_stub_pending"
+	KeyRemoteSSHSummaryReady              = "remote.ssh_summary_ready"
+	KeyRemoteSSHSummaryIncomplete         = "remote.ssh_summary_incomplete"
+	KeyRemoteSSHSummaryDisabled           = "remote.ssh_summary_disabled"
+	KeyRemoteSSHSummaryInactive           = "remote.ssh_summary_inactive"
+	KeyRemoteSSHStatusOff                 = "remote.ssh_status_off"
 	KeyRemoteSSHReady                     = "remote.ssh_ready"
 	KeyRemoteSSHIncomplete                = "remote.ssh_incomplete"
 	KeyRemoteSSHDisabled                  = "remote.ssh_disabled"
@@ -849,7 +847,6 @@ const (
 	KeyMarketBack                         = "market.back"
 	KeyMarketRefresh                      = "market.refresh"
 	KeyMarketLoading                      = "market.loading"
-	KeyMarketStubNote                     = "market.stub_note"
 	KeyMarketHarnessOverlay               = "market.harness_overlay"
 	KeyMarketPluginDisabled               = "market.plugin_disabled"
 	KeyMarketMux                          = "market.mux"
@@ -1075,8 +1072,6 @@ var zhCN = map[string]string{
 	KeyComposerChipEditPlaceholder:        "@路径 或 /技能",
 	KeyComposerChipEditApply:              "应用",
 	KeyComposerChipEditCancel:             "取消",
-	KeyFrameRightStub:                     "右栏（M7：文件 / Git）",
-	KeyFrameBottomStub:                    "底栏（M7：终端）",
 	KeyFilesTitle:                         "工作区文件",
 	KeyFilesFilter:                        "筛选文件…",
 	KeyFilesFilterEmpty:                   "无匹配文件",
@@ -1567,15 +1562,12 @@ var zhCN = map[string]string{
 	KeyWebViewOpen:                        "插件 Web",
 	KeyWebViewTitle:                       "第三方插件界面",
 	KeyWebViewBack:                        "返回",
-	KeyWebViewNeedWebView2:                "第三方插件需 WebView2",
-	KeyWebViewStubBody:                    "可在本窗口上方覆盖无边框 WebView2 子窗口加载本地 Harness；也可改用系统浏览器。",
+	KeyWebViewNotOpen:                     "插件页面尚未打开。",
 	KeyWebViewOpenBrowser:                 "在浏览器中打开 Harness",
 	KeyWebViewOpenHost:                    "打开内嵌 WebView2",
 	KeyWebViewCloseHost:                   "关闭内嵌 WebView2",
 	KeyWebViewCopyURL:                     "复制链接",
-	KeyWebViewHostActive:                  "WebView2 宿主已覆盖本面板区域（插件插槽）",
 	KeyWebViewOrigin:                      "Harness 地址",
-	KeyWebViewFutureNote:                  "宿主为无边框 Parent 子窗口，随主窗缩放；可用 desktopPlugin 查询参数限定插槽。",
 	KeyBrowserPreviewOpen:                 "浏览器预览",
 	KeyBrowserPreviewTitle:                "浏览器预览",
 	KeyBrowserPreviewBack:                 "返回",
@@ -1591,7 +1583,6 @@ var zhCN = map[string]string{
 	KeyRemoteOpen:                         "远程",
 	KeyRemoteTitle:                        "远程工作区",
 	KeyRemoteBack:                         "返回",
-	KeyRemoteStubNote:                     "原生远程面板 stub：展示 config.json 远程相关开关与 mux 连接态；dsh-remote 插件 RPC 尚未接入。",
 	KeyRemoteWorkspaceToggle:              "远程工作区 (remoteWorkspaceEnabled)",
 	KeyRemoteToggleOn:                     "开启",
 	KeyRemoteToggleOff:                    "关闭",
@@ -1612,9 +1603,13 @@ var zhCN = map[string]string{
 	KeyRemoteWorkspaceOff:                 "remoteWorkspaceEnabled 为关：启动时不会挂载 dsh-remote 覆盖。",
 	KeyRemoteSummaryDisabled:              "远程工作区已关闭",
 	KeyRemoteSummaryEnabled:               "远程工作区",
-	KeyRemoteSSHStubNote:                  "SSH 远程工作区（配置就绪检查；无实时 SSH 隧道）",
+	KeyRemoteSSHTitle:                     "SSH 远程工作区",
 	KeyRemoteSSHStatus:                    "SSH 就绪",
-	KeyRemoteSSHStubPending:               "未实现（无 SSH 探测）",
+	KeyRemoteSSHSummaryReady:              "配置齐全，可以启动配对；可用下方 TCP 探测验证端口。",
+	KeyRemoteSSHSummaryIncomplete:         "配置不完整，请补齐下列项后再启动配对。",
+	KeyRemoteSSHSummaryDisabled:           "SSH 模式已选，但远程工作区或配对未启用。",
+	KeyRemoteSSHSummaryInactive:           "当前连接方式不是 SSH。",
+	KeyRemoteSSHStatusOff:                 "未启用",
 	KeyRemoteSSHReady:                     "配置齐全（可启动配对）",
 	KeyRemoteSSHIncomplete:                "配置不完整",
 	KeyRemoteSSHDisabled:                  "工作区或配对未启用",
@@ -1753,7 +1748,7 @@ var zhCN = map[string]string{
 	KeyIMBack:                             "返回",
 	KeyIMRefresh:                          "刷新",
 	KeyIMLoading:                          "加载中…",
-	KeyIMStubNote:                         "原生 IM：刷新时探测 im/list·im/history·im/send；无响应则查 pluginInventory 中的 dsh-im；历史与本地 userData/im/ 合并。",
+	KeyIMStubNote:                         "连接 Host 后显示 IM 会话。",
 	KeyIMHarnessOverlay:                   "Harness dsh-im 覆盖",
 	KeyIMPluginDisabled:                   "config disabledPlugins 含 dsh-im",
 	KeyIMMux:                              "remote.mux WebSocket",
@@ -1792,7 +1787,6 @@ var zhCN = map[string]string{
 	KeyMarketBack:                         "返回",
 	KeyMarketRefresh:                      "刷新",
 	KeyMarketLoading:                      "加载中…",
-	KeyMarketStubNote:                     "原生插件市场 stub：已安装插件来自 pluginManager/listPlugins；GitHub 安装走 desktop/market.InstallGithubSpec（与 installctrl 相同）。完整浏览仍依赖 harness ui-settings-market 覆盖。",
 	KeyMarketHarnessOverlay:               "market 覆盖",
 	KeyMarketPluginDisabled:               "市场插件已禁用",
 	KeyMarketMux:                          "Mux 连接",
@@ -2008,8 +2002,6 @@ var en = map[string]string{
 	KeyComposerChipEditPlaceholder:        "@path or /skill",
 	KeyComposerChipEditApply:              "Apply",
 	KeyComposerChipEditCancel:             "Cancel",
-	KeyFrameRightStub:                     "Right pane (M7: files / Git)",
-	KeyFrameBottomStub:                    "Bottom pane (M7: terminal)",
 	KeyFilesTitle:                         "Workspace files",
 	KeyFilesFilter:                        "Filter files…",
 	KeyFilesFilterEmpty:                   "No matching files",
@@ -2500,15 +2492,12 @@ var en = map[string]string{
 	KeyWebViewOpen:                        "Plugin web",
 	KeyWebViewTitle:                       "Third-party plugin UI",
 	KeyWebViewBack:                        "Back",
-	KeyWebViewNeedWebView2:                "Third-party plugins need WebView2",
-	KeyWebViewStubBody:                    "Open a borderless WebView2 child over this panel for the local Harness UI, or use the system browser.",
+	KeyWebViewNotOpen:                     "The plugin page is not open yet.",
 	KeyWebViewOpenBrowser:                 "Open Harness in browser",
 	KeyWebViewOpenHost:                    "Open embedded WebView2",
 	KeyWebViewCloseHost:                   "Close embedded WebView2",
 	KeyWebViewCopyURL:                     "Copy URL",
-	KeyWebViewHostActive:                  "WebView2 host covers this panel (plugin slot)",
 	KeyWebViewOrigin:                      "Harness origin",
-	KeyWebViewFutureNote:                  "Host is a frameless Parent child window that tracks the main window; use desktopPlugin to scope slots.",
 	KeyBrowserPreviewOpen:                 "Browser preview",
 	KeyBrowserPreviewTitle:                "Browser preview",
 	KeyBrowserPreviewBack:                 "Back",
@@ -2524,7 +2513,6 @@ var en = map[string]string{
 	KeyRemoteOpen:                         "Remote",
 	KeyRemoteTitle:                        "Remote workspace",
 	KeyRemoteBack:                         "Back",
-	KeyRemoteStubNote:                     "Native remote stub: shows config.json remote flags and mux connectivity; dsh-remote plugin RPC is not wired yet.",
 	KeyRemoteWorkspaceToggle:              "Remote workspace (remoteWorkspaceEnabled)",
 	KeyRemoteToggleOn:                     "Enable",
 	KeyRemoteToggleOff:                    "Disable",
@@ -2545,9 +2533,13 @@ var en = map[string]string{
 	KeyRemoteWorkspaceOff:                 "remoteWorkspaceEnabled is off: the dsh-remote harness overlay is not mounted at startup.",
 	KeyRemoteSummaryDisabled:              "Remote workspace disabled",
 	KeyRemoteSummaryEnabled:               "Remote workspace",
-	KeyRemoteSSHStubNote:                  "SSH remote workspace (config readiness; no live tunnel)",
+	KeyRemoteSSHTitle:                     "SSH remote workspace",
 	KeyRemoteSSHStatus:                    "SSH readiness",
-	KeyRemoteSSHStubPending:               "Not implemented (no SSH probe)",
+	KeyRemoteSSHSummaryReady:              "Configuration is complete; pairing can start. Use the TCP probe below to check the port.",
+	KeyRemoteSSHSummaryIncomplete:         "Configuration is incomplete; fill in the missing items before pairing.",
+	KeyRemoteSSHSummaryDisabled:           "SSH mode is selected, but the remote workspace or pairing is off.",
+	KeyRemoteSSHSummaryInactive:           "The current connection is not SSH.",
+	KeyRemoteSSHStatusOff:                 "Inactive",
 	KeyRemoteSSHReady:                     "Config complete (pairing can start)",
 	KeyRemoteSSHIncomplete:                "Config incomplete",
 	KeyRemoteSSHDisabled:                  "Workspace or pairing disabled",
@@ -2686,7 +2678,7 @@ var en = map[string]string{
 	KeyIMBack:                             "Back",
 	KeyIMRefresh:                          "Refresh",
 	KeyIMLoading:                          "Loading…",
-	KeyIMStubNote:                         "Native IM: Refresh probes im/list·im/history·im/send; falls back to pluginInventory for dsh-im; merges history into userData/im/.",
+	KeyIMStubNote:                         "IM conversations appear after connecting to the Host.",
 	KeyIMHarnessOverlay:                   "Harness dsh-im overlay",
 	KeyIMPluginDisabled:                   "dsh-im in disabledPlugins",
 	KeyIMMux:                              "remote.mux WebSocket",
@@ -2725,7 +2717,6 @@ var en = map[string]string{
 	KeyMarketBack:                         "Back",
 	KeyMarketRefresh:                      "Refresh",
 	KeyMarketLoading:                      "Loading…",
-	KeyMarketStubNote:                     "Native market stub: installed plugins from pluginManager/listPlugins; GitHub installs via desktop/market.InstallGithubSpec (same as installctrl). Full browsing still uses the harness ui-settings-market overlay.",
 	KeyMarketHarnessOverlay:               "Market overlay",
 	KeyMarketPluginDisabled:               "Market plugin disabled",
 	KeyMarketMux:                          "Mux",

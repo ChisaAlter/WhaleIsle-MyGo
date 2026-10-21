@@ -25,7 +25,10 @@ type Model struct {
 	OpenUIParent          uintptr
 	OpenUIWindow          *mygo.Window
 	OpenUIMediaOcclusions []mygo.Rectangle
-	OnInspectToolCall     func(string)
+	// OnInspectToolCall opens the session inspector at the record that carries a
+	// tool call. The message ID and sequence travel with the call ID so the
+	// inspector can select the exact log row instead of guessing.
+	OnInspectToolCall     func(callID, messageID string, seq float64)
 	Inspector             *InspectorNavigation
 	DisableDeveloperTools bool
 	GroupRoom             bool
@@ -293,7 +296,7 @@ func View(c *ui.Context, m Model) {
 							ID: msg.ID, Expanded: m.ThinkingExpanded,
 							OnOpenURL:     m.OnOpenCitationURL,
 							OnOpenFile:    m.OnOpenDeliverable,
-							OnInspectCall: m.OnInspectToolCall,
+							OnInspectCall: inspectCallHandler(m.OnInspectToolCall, msg.ID, msg.Seq),
 							OnOpen: func(path string) {
 								if m.OnOpenImageLightbox != nil {
 									m.OnOpenImageLightbox(path)
@@ -509,4 +512,17 @@ func showMessageCopy(msg session.Message) bool {
 
 func showMessageFeedback(msg session.Message) bool {
 	return msg.Role == "assistant" && !msg.Streaming && msg.Kind != session.MessageKindTool
+}
+
+// inspectCallHandler binds one tool call to the message that carries it. The
+// inspector selects log rows by chat message ID (or sequence), so the call ID
+// alone would not be enough to open the right record. Nil keeps the card's
+// inspect action hidden rather than offering a dead button.
+func inspectCallHandler(inspect func(callID, messageID string, seq float64), messageID string, seq float64) func(string) {
+	if inspect == nil {
+		return nil
+	}
+	return func(callID string) {
+		inspect(callID, messageID, seq)
+	}
 }

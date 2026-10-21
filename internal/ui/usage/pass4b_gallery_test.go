@@ -66,7 +66,7 @@ func TestUsageGalleryEmptyState(t *testing.T) {
 				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, usagePageIcon).Size(16, 16).TextColor(ui.RGB(20, 20, 20))
 					ui.Text(c, i18n.T(settingsPass4UsageTitle)).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(ui.RGB(20, 20, 20)).Grow(1)
-					for _, label := range []string{settingsPass4UsageExport, settingsPass4UsageSettings, settingsPass4UsageRefresh} {
+					for _, label := range []string{settingsPass4UsageExport, settingsPass4UsageRefresh} {
 						ui.Button(c, i18n.T(label)).Height(28).Padding(0, 10).Radius(8).BorderWidth(1)
 					}
 				})

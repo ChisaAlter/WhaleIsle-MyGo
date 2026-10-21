@@ -30,6 +30,9 @@ type SessionInspectorPaneState struct {
 	binding, draft, selected                                string
 	collapsed                                               map[string]bool
 	list                                                    ui.ListState
+	// pendingPick is an inspect request that arrived before this pane rendered
+	// its binding, e.g. a tool card clicked from the transcript.
+	pendingPick *chat.InspectorTarget
 }
 
 func copySessionInspectorPane(to, from *WorkspacePane) {
@@ -44,6 +47,76 @@ func sessionInspectorGuide(c *ui.Context, m Model) {
 	if ui.Button(c, paneLabel("会话日志 · 检查当前会话原始事件", "Session Log · Inspect this session's raw events")).Clicked() && m.RightPaneTab != nil {
 		*m.RightPaneTab = "session-inspector-log"
 	}
+}
+
+// inspectActionFor keeps the card's inspect action available in every layout: the
+// trajectory target when the chat view tabs expose it, otherwise the session log
+// at the record that carries the call. Both are real destinations; neither
+// invents a selection.
+func inspectActionFor(trajectory func(callID string), inspector func(callID, messageID string, seq float64)) func(callID, messageID string, seq float64) {
+	if trajectory != nil {
+		return func(callID string, _ string, _ float64) { trajectory(callID) }
+	}
+	return inspector
+}
+
+// toolCallInspector is the transcript's per-call inspect action. With developer
+// tools disabled there is no inspector seat, so the card keeps its inspect action
+// hidden instead of offering a button that opens nothing.
+func (m Model) toolCallInspector() func(callID, messageID string, seq float64) {
+	if m.DisableDeveloperTools || m.RightPaneTab == nil || m.Sizes == nil || m.Store == nil {
+		return nil
+	}
+	return func(_, messageID string, seq float64) {
+		m.inspectToolCall(messageID, seq)
+	}
+}
+
+// inspectToolCall routes the right dock to the session log and asks the inspector
+// to select the record that carries the call. The log keys chat rows by message
+// ID, so the owning message identifies the row; seq stays as the fallback anchor
+// for records without an ID. A call outside the loaded window produces the
+// inspector's own "no matching record" notice rather than a fake selection.
+func (m Model) inspectToolCall(messageID string, seq float64) {
+	if m.RightPaneTab == nil || m.Sizes == nil {
+		return
+	}
+	*m.RightPaneTab = "session-inspector-log"
+	m.RightPaneOpen = true
+	prepareWorkspace(m)
+	target := chat.InspectorTarget{ID: messageID, Seq: seq}
+	for _, pane := range inspectorPaneStates(m.Sizes.Workspace) {
+		pane.Mode = "chat-node"
+		pane.pendingPick = &target
+	}
+}
+
+// inspectorPaneStates lists every mounted session-log pane, creating its state so
+// a request can be queued before the pane first renders.
+func inspectorPaneStates(w *WorkspacePanes) []*SessionInspectorPaneState {
+	if w == nil || w.Root == nil {
+		return nil
+	}
+	var out []*SessionInspectorPaneState
+	var visit func(*WorkspacePane)
+	visit = func(n *WorkspacePane) {
+		if n == nil {
+			return
+		}
+		if n.Kind == "session-inspector-log" {
+			if n.Inspector == nil {
+				n.Inspector = &SessionInspectorPaneState{}
+			}
+			out = append(out, n.Inspector)
+		}
+		for _, tab := range n.DockTabs {
+			visit(tab)
+		}
+		visit(n.First)
+		visit(n.Second)
+	}
+	visit(w.Root)
+	return out
 }
 func inspectorVisibleRows(rows []session.InspectorRecord, filter string, folded map[string]bool) []session.InspectorRecord {
 	byKey := map[string]session.InspectorRecord{}
@@ -170,6 +243,10 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 	if state.HistoryPageErr != "" {
 		ui.Text(c, state.HistoryPageErr)
 	}
+	// A pending inspect request (a tool card clicked before this pane had rows)
+	// turns into a pick once the chat projection exists, so the selection is the
+	// real record rather than an invented one.
+	p.applyPendingPick(rows)
 	p.consumeInspectorPick(rows)
 	if p.navigation.Notice != "" {
 		ui.Text(c, p.navigation.Notice)

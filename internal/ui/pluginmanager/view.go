@@ -912,7 +912,7 @@ func marketInstall(c *ui.Context, e manager.MarketEntry, s manager.State, a mana
 	}
 	version := e.DefaultVersion
 	if version == "" {
-		ui.Button(c, copyText("不兼容", "Incompatible")).Disabled(true)
+		ui.Text(c, copyText("不兼容", "Incompatible")).FontSize(theme.InterfaceSize(11)).Padding(1, 6).Radius(4).Border(.5, c.Theme().TextMuted).TextColor(c.Theme().TextMuted)
 		return
 	}
 	label := copyText("安装", "Install")
