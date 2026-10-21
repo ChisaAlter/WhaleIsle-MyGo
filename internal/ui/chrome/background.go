@@ -136,6 +136,13 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	}
 	return func(painter *ui.Painter, r ui.Rect) {
 		colors := p.Colors
+		if p.Preset == "dune" {
+			// Dune is a fixed product palette; theme colors must not leak the
+			// accent blue into its grey-green wash.
+			colors = wallpapers.PresetColors("dune")
+		} else if colors == [7]string{} && p.Preset != "" {
+			colors = wallpapers.PresetColors(p.Preset)
+		}
 		resolved := [7]ui.Color{painter.Theme().Background, painter.Theme().Surface, painter.Theme().Accent, ui.Hex("#a78bfa"), ui.Hex("#38bdf8"), ui.Hex("#f472b6"), ui.Hex("#34d399")}
 		for i := range colors {
 			if colors[i] != "" {
@@ -169,6 +176,11 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 		}
 		if !reduced {
 			painter.AnimationFrame()
+		}
+		// The installed sheet dims its gradient with bg-mask-1 so the pale
+		// dune wash stays behind the chrome instead of washing the window out.
+		if !painter.Theme().Dark {
+			painter.Fill(r, ui.RGBA(0, 0, 0, .22), 0)
 		}
 	}
 }

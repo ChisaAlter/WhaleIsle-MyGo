@@ -24,7 +24,7 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 	// A fresh profile starts on the product's dark appearance with the default
 	// aurora background, matching the shipped Electron first-run look. Saved
 	// profiles keep whatever they already stored.
-	if s.cfgStore.IsFirstRun() {
+	if !s.cfgStore.HasWallpaperBackground() || s.cfgStore.IsFirstRun() {
 		p = theme.FirstRunAppearance()
 	}
 	g := settings.NewWallpaperEditor(p, filepath.Join(paths.UserDataDir(), "wallpapers"), func(p wallpapers.Preferences) error {

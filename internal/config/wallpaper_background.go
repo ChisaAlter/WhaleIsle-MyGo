@@ -7,6 +7,15 @@ import (
 
 const backgroundKey = "goWallpaperBackground"
 
+// HasWallpaperBackground reports whether the profile has saved appearance values,
+// so a fresh profile can take the product default without overriding an explicit
+// "none" effect.
+func (s *Store) HasWallpaperBackground() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.raw[backgroundKey]) > 0
+}
+
 func (s *Store) WallpaperBackground() (wallpapers.Preferences, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
