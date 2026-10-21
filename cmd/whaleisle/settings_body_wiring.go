@@ -82,7 +82,10 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		win := s.win
 		s.mu.Unlock()
 		m.About.UpdateBusy = releases.busy || checking
-		m.About.UpdateStatus = strings.TrimSpace(releases.status + " " + releases.err)
+		// Keep the raw catalog error out of the About page. It is usually an HTTP
+		// status from a dev feed and reads as an internal failure to the user;
+		// the friendly status already says the lookup failed and the list was kept.
+		m.About.UpdateStatus = strings.TrimSpace(releases.status)
 		m.About.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", false) }
 	}
 	var cfg config.Config

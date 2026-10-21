@@ -157,3 +157,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 | C4 插件页 | PASS（实机，已修样式） | 「添加插件」旁的 ⌄ 触发器此前用 PrimaryButton，渲染成独立蓝色方块；改为普通按钮，保持分段按钮观感 |
 
 本轮修复：About 不再自动弹更新对话框；插件页添加按钮分段样式；插件卡可访问名本地化（打开/启用）。
+- G2 证据补齐：12 个设置页的实机同源截图已存 docs/review-20261020/evidence/acceptance/settings-live/（general/appearance/interface/models/plugins/skills/mcp/remote/presets/usage/pet/about）。
+- C5 关于页：更新目录 404 时只显示「目录读取失败；已保留此前列表和下载。」，不再把 MyGo release catalog HTTP 404 拼到产品文案里。
