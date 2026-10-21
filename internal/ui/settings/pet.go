@@ -16,7 +16,13 @@ import (
 type PetSettingsAccess struct {
 	AssistantEnabled   bool
 	AssistantAvailable bool
-	Busy               bool
+	// DesktopUnavailable is true in portable/QA runs: the pet preference is
+	// stored, but the companion window is intentionally not created.
+	DesktopUnavailable bool
+	// DesktopError is the Companion's last window/asset error, shown instead of
+	// silently doing nothing when the toggle is on.
+	DesktopError string
+	Busy         bool
 	Err                string
 	OnSetAssistant     func(bool)
 	RenderAssistant    func(*ui.Context)
@@ -72,6 +78,12 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			return
 		}
 		disabled := p.Store == nil && (a == nil || a.OnSave == nil)
+		if a != nil && a.DesktopUnavailable {
+			ui.Text(c, providerCopy("当前为便携/测试模式，桌面形象不会显示；安装版可用。", "Portable/QA mode does not show the desktop character; the installed build does.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		}
+		if a != nil && a.DesktopError != "" {
+			ui.Text(c, a.DesktopError).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(ui.RGB(220, 38, 38))
+		}
 		if a != nil && a.Busy {
 			disabled = true
 			ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)

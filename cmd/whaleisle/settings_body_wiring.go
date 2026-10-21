@@ -102,10 +102,14 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	s.mu.Lock()
 	ep, ready := s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
 	petSaveErr := s.desktopSaveErr
+	desktopErr := ""
+	if s.desktopPet != nil {
+		desktopErr = s.desktopPet.Error
+	}
 	s.mu.Unlock()
 	petSettings := &settings.PetSettingsAccess{
 		Err: petSaveErr,
-		Store: m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil,
+		Store: m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil, DesktopUnavailable: isolatedDesktopRun(), DesktopError: desktopErr,
 		OnSetAssistant: func(v bool) { s.setAssistantFlag(&v, nil) },
 		RenderAssistant: func(c *ui.Context) {
 			assistant.WhaleSettingsSection(c, assistant.Model{Mode: assiststore.ModeWhale,

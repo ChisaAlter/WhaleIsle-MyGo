@@ -27,7 +27,7 @@
 | D3 | 代理 | Agent 预设选择/说明 | 生效、说明可读 | PASS（代码级） | 管理器由 session store 构造（main.go session.NewAgentPresetManager）；点卡片 = settings/agent_presets.go 内 a.Manager.SaveDefault(row.ID)（已常驻 BFF）；说明来自 Host 行（Name/Description），本轮把卡片重排为参考样式且 guide 仍走真实文本 |
 | E1 | 鲸鱼娘 | 设置页读写 | 名字/称呼/人设/记忆/技能生效 | PASS（代码级） | 数据层 internal/desktop/whale（catalog/settings.update/memory.replace/memory.clear/skills.toggle，11 条 httptest）；设置页 settings/pet_whale.go （名字·称呼失焦 Patch、IM、人设行内编辑、记忆对话框、技能 44×24 开关）已有 tester 断言；cmd 接线 settings_body_wiring.go:115 对齐七个回调 |
 | E2 | 鲸鱼娘 | 打开聊天并发送 | 真实会话 | BLOCKED | 依赖模型 |
-| E3 | 桌宠 | 显示/拖动/喂食/互动 | 窗口与状态正确 | PENDING | |
+| E3 | 桌宠 | 显示/拖动/喂食/互动 | 窗口与状态正确 | FAIL（实机，开发运行） | 「在桌面显示鲸鱼娘」可切到 On 且写入 config `mygoDesktopPet.enabled=true`，但进程没有第二个 companion 窗口，Companion.Error 为空；需安装版/非便携模式复验 |
 | F1 | 远程 | 网关设置/配对码/SSH | 保存、刷新、TOFU 提示 | PASS（代码级） | 网关：`settings_body.go` 单字段提交（中继/模式/端口各只提交本字段，`pass6_remote_test.go` 四例）+ `config/remote_gateway_test.go` 校验与 stale 拒绝；配对码刷新：页面「刷新」→ `OnRotateToken`（`main.go:5379`）→ `phoneremote.DeviceAction("rotate")` → 原运行时 `rotateToken`，`pass6_remote_test.go` 断言调用/错误上屏，异步 DeviceAction 的 Busy/Error/Message 也在设置页显示（`pass9_acceptance_test.go:TestGatewayRefreshShowsRuntimeActionState`）；**不假装已连接**：`pass9_acceptance_test.go:TestPhoneOfferRequiresLiveRelay` 证明 relayConnected=false 时隐藏复制/打开按钮并显示「无可用配对码」；SSH：`sshremote/known_hosts_test.go` 覆盖 TOFU/未知主机/密钥变更拒绝，`cmd/whaleisle/ssh_connect_operation_test.go` 覆盖指纹提示→Accept→重试，本地转发 `forward.go` + `tunnel_loopback_test.go`，`main.go:5573-5627` 接线。真机配对/公网中继 = BLOCKED（无手机、无 relay、无 dshd-remote 组件） |
 | F2 | IM | 启用 dsh-im/查看渠道 | 插件启用、渠道真实 | BLOCKED（依赖 dsh-im 安装） | 代码级已验：`im/enable_plugin_test.go` + `main.go:5317`（pluginManager/setBundleEnabled 后刷新）；渠道/历史来自 `im/list`·`im/history`·`pluginInventory` 真实 RPC（`store/im/store_test.go`）；发送状态本轮改为真实结果：pending→sent/failed/local，失败消息不再显示成已送达（`store/im` 新增状态断言 + `ui/im/pass9_acceptance_test.go`）；空态按真实能力区分「连接 Host」与「IM 插件未就绪」。实机渠道/收发 BLOCKED：dsh-im 未安装 |
 | F3 | Office | 打开 Office 配置 | 真实配置或明确依赖 | BLOCKED（依赖 dsh-im/Office 服务） | 代码级已验：`officeSettingsView` 读 `store/office` 快照（pluginrpc），配置校验/Review/Confirm 全程真实 RPC（`store/office/office_test.go`）；空态按 `HarnessReady`/`v.Available` 区分「连接 Host」「dsh-im 插件未就绪」「未读取到配置」，不再出现「原版插件页面仍可使用」；`im/office_test.go` 覆盖依赖文案与「打开插件页」。实机 Office 连接 BLOCKED：需 dsh-im 插件与 Office 服务端 |
@@ -182,3 +182,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 通用设置 pass33：关闭窗口时（最小化到托盘/直接退出）与启动时（直接启动桌面端/先打开启动器）由开关改为参考式下拉，写回 CloseToTray / AutoStartDesktop 布尔。
 
 - C2 实机复验（pass35）：关闭「显示代码工作视图」→ Host profile cordis.patch.yml 写入 enabled: false → 重启应用 → UIA ToggleState=Off；再打开恢复 enabled: true。设置持久化链路真实通过。
+
+- E3 实机补充（pass37）：设置页可切换桌宠开关并持久化；当前直接运行构建未创建 MyGo鲸屿 companion 窗口，且 Companion.Error 为空。设置页已补「便携/测试模式不显示桌面形象」和 Companion 错误展示，避免静默无反应。
