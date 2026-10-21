@@ -153,3 +153,5 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 > 后续修复（pass21）：6.3 的 S6 appearance 主题网格溢出已修——卡片 .FillWidth() 在 Grid 单元格里按整行宽度布局，导致第二列重叠/第三列被裁切；移除后两列各占一半，新增几何测试。实机截图 evidence/acceptance/settings-live/appearance.png 已更新。
 
 > 后续（pass30）：S1 面板不再纯白——内容/导航底从 BG 改为 raised surface Field，面板平均 240.6（参考 229.6），单点 245 vs 参考 235-240；未改为透明（透明会让聊天内容穿透）。
+
+> 后续（pass32）：S1 面板底 Field 再叠 3% border 后，实机单点 238/239/240（参考 235/237/238），面板平均 234.0/235.2/236.4（参考 229.6/232.6/232.7）；纯白 255 问题已消除。

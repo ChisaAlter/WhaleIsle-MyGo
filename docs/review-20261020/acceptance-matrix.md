@@ -176,3 +176,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 通用设置实机复验（pass28）：权限「工作区内修改」、语言「中文」、工作详情「简洁」、收起时机「回答结束后」、链接「应用内侧栏」、繁忙发送「排队发送」均显示本地化文案；账号/高级移动到页尾，主行顺序与参考一致。截图 settings-live/general.png。
 
 - 设置面板底色（S1）改善（pass30）：内容区/导航原来用 BG 纯白（实测 255,255,255），改为 raised surface Field（实测 245,246,247，参考 235-240），不再整块纯白，也未采用透明导致内容穿透。截图 settings-live/general.png 已更新。
+
+- S1 面板底色 pass32：Field 叠 3% border，实机 238-240（参考 235-240），平均 234 vs 229.6；纯白问题消除。
