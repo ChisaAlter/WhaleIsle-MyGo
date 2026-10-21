@@ -229,6 +229,7 @@ func View(c *ui.Context, m Model) {
 						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 							Background(ui.Transparent).BorderWidth(0).
 							Padding(7, 8, 7, 8).AlignItems(ui.Center)
+						row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 						row.Children(func() {
 							ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 								if drawIcon != nil {
