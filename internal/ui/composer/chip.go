@@ -41,6 +41,7 @@ func menuSurface(c *ui.Context, e ui.Element, colors theme.Colors) ui.Element {
 func menuRow(c *ui.Context, colors theme.Colors) ui.Element {
 	row := ui.Button(c, "").FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).BorderWidth(0).
 		Background(ui.Transparent).AlignItems(ui.Center)
+	row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 	if row.Pressed() {
 		return row.Background(chrome.Color(colors.Pressed))
 	}
