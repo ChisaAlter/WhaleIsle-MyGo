@@ -98,3 +98,55 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 ```
 
 （本轮验收未改动代码，以上仅确认基线仍绿。）
+
+---
+
+## 6. 设置页实机同源复验（Pass 11 补充，12 页 × 1440×920）
+
+证据：`docs/review-20261020/evidence/acceptance/settings-live/{general,appearance,interface,models,plugins,skills,mcp,remote,presets,usage,pet,about}.png`（2160×1380 = 1440×920 DIP @150%），参考 `ref-settings-*-1440.png`。
+
+### 6.1 逐页像素差（把 ours 双三次缩放到 1440×920 后按 6×4 网格统计）
+
+| 页 | 平均每通道差 | 最大格 | 最大格位置 |
+|---|---|---|---|
+| general | 24.4 | 36.7 | row1 col0（左导航） |
+| appearance | **39.4** | **91.6** | **row3 col3（右下预览区）** |
+| interface | 25.8 | 40.0 | row1 col0 |
+| models | 22.8 | 41.2 | row1 col0 |
+| plugins | 24.0 | 42.0 | row1 col0 |
+| skills | 25.3 | 42.6 | row1 col0 |
+| mcp | 23.2 | 37.7 | row1 col0 |
+| remote | 25.5 | 42.2 | row1 col0 |
+| presets | 23.2 | 34.7 | row1 col0 |
+| usage | 23.1 | 36.7 | row1 col0 |
+| pet | 24.7 | 39.3 | row0 col0 |
+| about | 23.8 | 38.9 | row1 col0 |
+
+**读法**：12 页里 11 页最差格都落在 `row1 col0` —— 设置窗的**左导航列**；平均差集中在 23–26 的窄带内，说明这是**一套系统性差异**而不是 12 个独立问题。`appearance` 是唯一例外（39.4 / 91.6 在右下预览卡），需要单独看。
+
+### 6.2 已实测确认的几何（不受系统性差异影响）
+
+用白色面板边界实测（ours 除以 1.5 换算 DIP）：
+
+| 项 | 参考 | ours | 结论 |
+|---|---|---|---|
+| 面板 x | 322…1118 | 321…1119 | **PASS**（±1 DIP） |
+| 面板 y | 62…860 | 61…859 | **PASS**（±1 DIP） |
+| 面板尺寸 | ~796×798 | 798×799 | **PASS**（±2 DIP） |
+
+**结论：设置窗的位置与尺寸已经对齐，不是布局问题。**
+
+### 6.3 系统性 DIFF（每页都有，已开 general 一对图确认）
+
+- **DIFF-S1 面板材质不透明**：参考面板是半透明玻璃，被壁纸染色，横扫描线**找不到任何 ≥246 的纯白像素**；ours 是近实白（整条扫描线 ≥246）。→ 需要设置窗把面板底色从 `theme.BG` 换成 `chrome.MaterialFill/SurfaceFill` 的玻璃板（`internal/ui/settings` 域的改动，本任务写入域只到 chrome/theme，**未改**）。
+- **DIFF-S2 左导航样式与条目**：参考**无选中胶囊底色**、行距 ~42 DIP、13 项（含「市场」）；ours 有选中胶囊、行距 ~48 DIP、12 项（**缺「市场」**），且同义项命名不同：插件/内置插件、界面/界面设置、用量/用量统计、桌宠/鲸鱼娘。→ 导航条目属 settings 内容层。
+- **DIFF-S3 标题与行距**：参考标题「设置」；ours「Harness 设置」。参考表单行距更紧（同一屏放 10 行，ours 放 8 行 + 折叠项）。
+- **DIFF-S4 英文泄漏（general 页实拍）**：表单顶部出现 `settings document opened`；下拉值为 `workspace-write`、`zh`、`completion`、`sidebar`；另有红字「还没有配置 API Key / 当前模型线路需要可用的 API …」（中英混排）。→ 属设置页文案/取值格式化。
+- **DIFF-S5 表单标签集与顺序**（general）：参考 权限/语言/字号大小/工作步骤展示/工作步骤收起时机/显示代码工作视图/快捷键/网页链接默认打开方式/繁忙时的发送行为/关闭窗口时；ours 账号/高级/新任务默认权限/界面语言/字号大小/工作详情/工作详情收起时机/开发者工具/键盘快捷键/链接打开方式。→ 内容层差异（含参考有、ours 无的「繁忙时的发送行为」「关闭窗口时」）。
+- **DIFF-S6 appearance 页主题网格溢出**（最大格 91.6，已开图）：`主题` 区的主题卡按 3 列排（DeepSeek/Midnight、Celadon/Violet、Amber/Paper …），但可视宽度只够 2 列，**第 2 列右侧被面板边界裁切、第 3 列完全看不到**（150% 下裁切在设备像素 ~1530 ≈ 1020 DIP，而面板右边界为 1119 DIP）。同一页另见选中导航项「外观」带**亮蓝焦点环**；参考帧无该环，但参考帧可能是鼠标态，**焦点环属状态差异，不作为样式差异下结论**。
+
+### 6.4 本轮结论
+
+- **几何/网格：PASS**（6.2）。
+- **12 页全部 DIFF**，但 11 页同源（DIFF-S1..S5），appearance 另有 DIFF-S6。
+- **未改代码**：能定性修的两条（面板材质 DIFF-S1、导航/行距 DIFF-S2）落在 `internal/ui/settings` 内容与结构层，不在「chrome/theme/设置样式常量」可安全改动的范围；其余是文案与取值格式化（DIFF-S4/S5）与主题网格溢出（S6），同样属 settings 域。建议由 settings 域 owner 处理，我可以在其完成换壳后复验。

@@ -180,8 +180,57 @@ func bodyHostDisabled(a *BodySettingsAccess) bool {
 	return a == nil || a.OnChange == nil || !a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading || a.Snapshot.Saving
 }
 
-func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, title, hint string, fg, muted ui.Color) bool {
-	field, value, found := bodyHostValue(a, namespace, key)
+// hostEnumLabel turns the Host's stored enum token into the reference's visible
+// option copy. Unknown tokens stay as-is so a new Host option is never hidden.
+func hostEnumLabel(value string) string {
+	switch value {
+	case "workspace-write":
+		return providerCopy("工作区内修改", "Workspace write")
+	case "danger-full-access":
+		return providerCopy("完全访问", "Full access")
+	case "read-only":
+		return providerCopy("只读", "Read only")
+	case "normal", "standard":
+		return providerCopy("标准", "Standard")
+	case "detailed":
+		return providerCopy("详细", "Detailed")
+	case "compact":
+		return providerCopy("简洁", "Compact")
+	case "verbose":
+		return providerCopy("完整", "Verbose")
+	case "expanded":
+		return providerCopy("展开", "Expanded")
+	case "completion":
+		return providerCopy("回答结束后", "After the answer")
+	case "next-input":
+		return providerCopy("输入下一条后", "After the next input")
+	case "immediate":
+		return providerCopy("立即", "Immediately")
+	case "sidebar":
+		return providerCopy("应用内侧栏", "In-app sidebar")
+	case "new-tab":
+		return providerCopy("新标签页", "New tab")
+	case "system":
+		return providerCopy("系统默认", "System default")
+	case "zh":
+		return "中文"
+	case "en":
+		return "English"
+	default:
+		return value
+	}
+}
+
+func hostEnumIndex(labels []string, selected string) int {
+	for i, label := range labels {
+		if label == selected {
+			return i
+		}
+	}
+	return -1
+}
+
+func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, title, hint string, fg, muted ui.Color) bool {	field, value, found := bodyHostValue(a, namespace, key)
 	if !found {
 		return false
 	}
@@ -213,8 +262,15 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 					}
 				}
 			}
-			if ui.Select(c, &value, options).Label(title).FillWidth().Height(32).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
-				a.OnChange(namespace, key, value)
+			labels := make([]string, len(options))
+			for i := range options {
+				labels[i] = hostEnumLabel(options[i])
+			}
+			display := hostEnumLabel(value)
+			if ui.Select(c, &display, labels).Label(title).FillWidth().Height(32).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
+				if index := hostEnumIndex(labels, display); index >= 0 {
+					a.OnChange(namespace, key, options[index])
+				}
 			}
 		default:
 			anchor := ui.Column(c.Key(fmt.Sprintf("draft-%d-%s-%s", a.Owner, namespace, key))).FillWidth().Gap(4)

@@ -159,3 +159,10 @@ settings.ModalView → SectionContent → paintMainContent("")
 本轮修复：About 不再自动弹更新对话框；插件页添加按钮分段样式；插件卡可访问名本地化（打开/启用）。
 - G2 证据补齐：12 个设置页的实机同源截图已存 docs/review-20261020/evidence/acceptance/settings-live/（general/appearance/interface/models/plugins/skills/mcp/remote/presets/usage/pet/about）。
 - C5 关于页：更新目录 404 时只显示「目录读取失败；已保留此前列表和下载。」，不再把 MyGo release catalog HTTP 404 拼到产品文案里。
+
+### 设置页文案/格式化修正（pass20）
+
+- 设置标题改为「设置」/「Settings」（原「Harness 设置」）。
+- 去掉表单顶部的内部状态 `settings document opened`（只保留真实保存/错误反馈）。
+- Host 枚举值不再显示裸 token：`workspace-write→工作区内修改`、`completion→回答结束后`、`sidebar→应用内侧栏`、`completed/standard→标准` 等；未知值仍原样显示。下拉选中后映射回 Host 原始值再提交。
+- 视觉验收已确认 12 页设置面板几何在 ±2 DIP 内；剩余系统性差异（玻璃底、导航行距/胶囊、appearance 主题网格溢出、缺失的关闭窗口/繁忙发送项）已记录在 `visual-acceptance.md` 第 6 节。
