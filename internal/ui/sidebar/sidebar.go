@@ -346,11 +346,8 @@ func View(c *ui.Context, m Model) {
 				// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
 				// to workspaces and sessions.
 
-				// The expanded rail pins one settings/account seat; its menu
-				// keeps contact, account details and sign-out.
-				if m.Collapsed {
-					accountRow(c, m, colors, muted, true)
-				}
+				// The collapsed rail keeps only the settings gear at its foot,
+				// as the installed build does; the account lives in settings.
 				if m.OnOpenSettings != nil {
 					settingsConnectionTrigger(c, m, colors, m.Collapsed)
 				}

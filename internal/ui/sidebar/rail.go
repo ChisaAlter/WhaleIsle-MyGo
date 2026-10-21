@@ -30,7 +30,7 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 	toggle.Children(func() {
 		if !toggle.Hovered() && !toggle.Focused() {
 			if mark := chrome.BrandAvatar(); mark != nil {
-				ui.Image(c, mark).Size(24, 24).Fit(ui.Contain)
+				ui.Image(c, mark).Size(38, 38).Fit(ui.Contain)
 				return
 			}
 		}
