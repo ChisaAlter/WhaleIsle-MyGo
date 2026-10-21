@@ -150,3 +150,4 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 - **几何/网格：PASS**（6.2）。
 - **12 页全部 DIFF**，但 11 页同源（DIFF-S1..S5），appearance 另有 DIFF-S6。
 - **未改代码**：能定性修的两条（面板材质 DIFF-S1、导航/行距 DIFF-S2）落在 `internal/ui/settings` 内容与结构层，不在「chrome/theme/设置样式常量」可安全改动的范围；其余是文案与取值格式化（DIFF-S4/S5）与主题网格溢出（S6），同样属 settings 域。建议由 settings 域 owner 处理，我可以在其完成换壳后复验。
+> 后续修复（pass21）：6.3 的 S6 appearance 主题网格溢出已修——卡片 .FillWidth() 在 Grid 单元格里按整行宽度布局，导致第二列重叠/第三列被裁切；移除后两列各占一半，新增几何测试。实机截图 evidence/acceptance/settings-live/appearance.png 已更新。

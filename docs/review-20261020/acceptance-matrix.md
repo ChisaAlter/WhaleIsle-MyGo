@@ -166,3 +166,6 @@ settings.ModalView → SectionContent → paintMainContent("")
 - 去掉表单顶部的内部状态 `settings document opened`（只保留真实保存/错误反馈）。
 - Host 枚举值不再显示裸 token：`workspace-write→工作区内修改`、`completion→回答结束后`、`sidebar→应用内侧栏`、`completed/standard→标准` 等；未知值仍原样显示。下拉选中后映射回 Host 原始值再提交。
 - 视觉验收已确认 12 页设置面板几何在 ±2 DIP 内；剩余系统性差异（玻璃底、导航行距/胶囊、appearance 主题网格溢出、缺失的关闭窗口/繁忙发送项）已记录在 `visual-acceptance.md` 第 6 节。
+- 外观主题网格溢出已修（pass21）：卡片在 Grid 里误用 FillWidth 导致每张卡按整行宽度布局、互相重叠并被面板裁切；移除卡片 FillWidth 后两列各占 50%，新增 TestThemeGridStaysInsideThePane 断言两半都在面板内。实机截图已更新 settings-live/appearance.png。
+
+- 设置导航标签对齐参考：通用设置 / 界面设置 / 内置插件 / 鲸鱼娘 / 用量统计（英文 General settings / Interface settings / Built-in plugins / Whale / Usage stats），行高收到 38 + 4 间距，新增 TestSettingsSectionLabelsMatchTheReference。

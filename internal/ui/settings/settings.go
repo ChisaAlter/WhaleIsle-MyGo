@@ -205,7 +205,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 					fill = hover
 				}
 				label := sectionLabel(entry.id)
-				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(40).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(9, 16, 9, 12).Gap(8).AlignItems(ui.Center)
+				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(38).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(8, 16, 8, 12).Gap(8).AlignItems(ui.Center)
 				button.Children(func() {
 					ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(fg)
 					weight := 400

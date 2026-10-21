@@ -55,7 +55,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 			family := f
 			currentLight := e.Draft.Light == family.ID
 			currentDark := e.Draft.Dark == family.ID
-			card := ui.Column(c.Key("theme-card-"+family.ID)).FillWidth().MinWidth(0).Gap(0).Radius(10).Clip().Border(.5, border)
+			card := ui.Column(c.Key("theme-card-"+family.ID)).MinWidth(0).Gap(0).Radius(10).Clip().Border(.5, border)
 			if currentLight || currentDark {
 				card.Border(1.5, fg)
 			}
@@ -104,7 +104,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, muted ui.Color, onPick func()) {
 	root := ui.Button(c.Key("theme-half-"+family.ID+"-"+scheme), "").
 		Label(family.Name + " " + scheme).
-		FillWidth().Grow(1).MinWidth(0).Height(92).Padding(12).
+		Basis(0).Grow(1).MinWidth(0).Height(92).Padding(12).
 		Background(chrome.Color(seed.Background)).BorderWidth(0).Disabled(disabled)
 	if root.Hovered() && !disabled {
 		root = root.Opacity(0.92)
