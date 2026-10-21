@@ -928,6 +928,17 @@ func (rt *engine) updateCursor() {
 			}
 		}
 	}
+	// The product shows not-allowed over a disabled control instead of the
+	// arrow: disabled elements take no hover, so this reads the hit chain.
+	if c == CursorDefault && rt.pointerIn {
+		for _, id := range rt.hitChain(rt.pointerX, rt.pointerY) {
+			s := rt.states[id]
+			if s != nil && s.flags&flagDisabled != 0 && s.flags&flagClickable != 0 {
+				c = CursorNotAllowed
+				break
+			}
+		}
+	}
 	if c != rt.cursor {
 		rt.cursor = c
 		rt.host.setCursor(c)
