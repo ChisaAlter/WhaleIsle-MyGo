@@ -246,6 +246,7 @@ type menuState struct {
 	// goes up, as on Windows, on the text releaseText.
 	release, releaseText uint64
 	pending              *shownMenu
+	overlay              *shownMenu
 	chosen               uint64
 	choice               int
 	label                string
@@ -421,21 +422,109 @@ func (rt *engine) resolveMenu() {
 	}
 }
 
-// showMenu hands the menu built in the frame to the host, which shows it
-// after the event being handled.
+// showMenu keeps the built menu for the next frame, which draws it as an app
+// overlay.
 func (rt *engine) showMenu() {
 	p := rt.menu.pending
 	if p == nil {
 		return
 	}
 	rt.menu.pending = nil
-	rt.host.popupMenu(p.menu, p.x, p.y, func(id int) { rt.menuChosen(p, id) })
+	if h, ok := rt.host.(*headless); ok {
+		// Tests keep the native-menu simulation: its item model is what the
+		// Tester drives, while the real window draws the app overlay below.
+		h.popupMenu(p.menu, p.x, p.y, func(id int) { rt.menuChosen(p, id) })
+		return
+	}
+	rt.menu.overlay = p
+	rt.requestFrame()
+}
+
+// buildMenuOverlay draws the pending menu over the window. The panel is
+// placed from the anchor in DIPs and kept inside the window, so a menu at the
+// bottom edge opens upward.
+func (rt *engine) buildMenuOverlay(c *context) {
+	p := rt.menu.overlay
+	if p == nil || len(p.menu.Items) == 0 {
+		return
+	}
+	t := c.theme
+	panelHeight := float32(8)
+	for _, item := range p.menu.Items {
+		if item.Type == platform.MenuItemSeparator {
+			panelHeight += 9
+		} else {
+			panelHeight += 34
+		}
+	}
+	coreOverlay(c, func() {
+		back := coreBox(c).Absolute().Left(0).Top(0).Right(0).Bottom(0)
+		back.flags |= flagClickable
+		if back.Clicked() {
+			rt.menu.overlay = nil
+			rt.requestFrame()
+		}
+		left := p.x
+		if left < 8 {
+			left = 8
+		}
+		// A button menu opens above the button's box; a context menu opens at
+		// the pointer. p.y is the bottom edge for a button menu.
+		lift := float32(0)
+		if p.button {
+			lift = 34
+		}
+		top := p.y - lift - panelHeight - 4
+		if top < 8 {
+			top = p.y + 4
+		}
+		panel := coreBox(c).Role(RoleMenu).Absolute().Left(left).Top(top).Width(220).Padding(4).Gap(0).Radius(12).
+			Background(t.Background).Border(.5, t.Border)
+		panel.flags |= flagClickable
+		panel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
+		if panel.OverlayShortcut(0, KeyEscape) {
+			rt.menu.overlay = nil
+			rt.requestFrame()
+		}
+		panel.Children(func() {
+			for _, item := range p.menu.Items {
+				if !item.Visible {
+					continue
+				}
+				if item.Type == platform.MenuItemSeparator {
+					coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
+					continue
+				}
+				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Radius(8).
+					BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
+				if !item.Enabled {
+					row.Disabled(true)
+				}
+				if row.Hovered() && item.Enabled {
+					row.Background(t.SurfaceHover)
+				}
+				row.Children(func() {
+					coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(t.Text)
+					if item.Accelerator != "" {
+						coreText(c, item.Accelerator).Shrink(0).FontSize(11).TextColor(t.TextMuted)
+					}
+				})
+				if item.Enabled && row.Clicked() {
+					rt.menu.overlay = nil
+					rt.menuChosen(p, item.ID)
+				}
+			}
+		})
+	})
 }
 
 // menuChosen takes the item id chosen from the menu p: the next frame
 // reports it to ContextMenu's function, or the text input does the
 // command.
 func (rt *engine) menuChosen(p *shownMenu, id int) {
+	if h, ok := rt.host.(*headless); ok {
+		h.menu, h.chosen = nil, nil
+	}
 	if id < 1 || id > len(p.labels) {
 		return
 	}

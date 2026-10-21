@@ -396,7 +396,11 @@ func (t *Tester) ChooseMenuItem(path ...string) error {
 }
 
 // CloseMenu closes the context menu shown without choosing an item.
-func (t *Tester) CloseMenu() { t.h.menu, t.h.chosen = nil, nil }
+func (t *Tester) CloseMenu() {
+	t.h.menu, t.h.chosen = nil, nil
+	t.rt.menu.overlay = nil
+	t.settle()
+}
 
 // Press presses (x, y) without releasing; Release releases it.
 func (t *Tester) Press(x, y float32) {

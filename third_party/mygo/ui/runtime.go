@@ -409,6 +409,7 @@ func (rt *engine) runFrame() {
 			return
 		}
 		rt.buildToasts(&rt.c)
+		rt.buildMenuOverlay(&rt.c)
 		if ov := rt.c.overlay; ov != nil {
 			rt.c.root.add(ov)
 		}
