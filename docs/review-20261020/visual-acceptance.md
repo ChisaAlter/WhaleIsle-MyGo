@@ -155,3 +155,20 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 > 后续（pass30）：S1 面板不再纯白——内容/导航底从 BG 改为 raised surface Field，面板平均 240.6（参考 229.6），单点 245 vs 参考 235-240；未改为透明（透明会让聊天内容穿透）。
 
 > 后续（pass32）：S1 面板底 Field 再叠 3% border 后，实机单点 238/239/240（参考 235/237/238），面板平均 234.0/235.2/236.4（参考 229.6/232.6/232.7）；纯白 255 问题已消除。
+
+## 7. 面板区域 MAE（pass33，ours 缩放到 1440×920，面板 crop x330-1110 / y70-858）
+
+| 页 | MAE |
+| --- | --- |
+| general | 11.3 |
+| appearance | 34.8 |
+| interface | 25.3 |
+| models | 18.6 |
+| mcp | 21.2 |
+| remote | 25.5 |
+| presets | 22.9 |
+| usage | 21.1 |
+| pet | 24.4 |
+| about | 22.3 |
+
+general 已到 11.3；appearance 34.8 仍最高（主题卡片数量/预览内容与参考不同），其余 18-26 主要来自导航列与内容长度差异。
