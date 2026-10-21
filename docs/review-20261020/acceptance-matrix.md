@@ -194,3 +194,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 - C2 实机复验（pass35）：关闭「显示代码工作视图」→ Host profile cordis.patch.yml 写入 enabled: false → 重启应用 → UIA ToggleState=Off；再打开恢复 enabled: true。设置持久化链路真实通过。
 
 - E3 实机补充（pass37）：设置页可切换桌宠开关并持久化；当前直接运行构建未创建 MyGo鲸屿 companion 窗口，且 Companion.Error 为空。设置页已补「便携/测试模式不显示桌面形象」和 Companion 错误展示，避免静默无反应。
+
+- D1 实机补充（pass38）：点「新建自动化任务」后进入新会话，并显示「在会话中描述要定时的任务，Agent 会创建并显示在此页。」；当前 schedule store 无本地 Create RPC，新建确实由会话/Agent 完成。

@@ -5244,6 +5244,10 @@ func mainView(c *ui.Context) {
 						if sessions != nil {
 							sessions.CreateSession(context.Background())
 						}
+						// The schedule service has no local create RPC: the
+						// reference flow is to describe the task to the agent.
+						// Say so instead of dropping the user on an empty hero.
+						state.notifyUser(win, resumeText("在会话中描述要定时的任务，Agent 会创建并显示在此页。", "Describe the task in the conversation; the agent creates it and it appears here."))
 					},
 					OnClose: func() {
 						state.mu.Lock()
