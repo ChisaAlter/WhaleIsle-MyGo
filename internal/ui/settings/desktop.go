@@ -60,7 +60,17 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	generalPermissionPreference(c, d.Host, fg, muted)
 	if d.Fields.Locale != nil {
 		bodyPreferenceRow(c, "general-language", i18n.T(i18n.KeySettingsDesktopLocale), providerCopy("选择界面使用的语言。", "Choose the interface language."), fg, muted, func() {
-			ui.Select(c, d.Fields.Locale, []string{"zh", "en"}).FillWidth().Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsDesktopLocale))
+			lang := "中文"
+			if *d.Fields.Locale == "en" {
+				lang = "English"
+			}
+			if ui.Select(c, &lang, []string{"中文", "English"}).FillWidth().Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsDesktopLocale)).Changed() {
+				if lang == "English" {
+					*d.Fields.Locale = "en"
+				} else {
+					*d.Fields.Locale = "zh"
+				}
+			}
 		})
 	}
 	if d.Preferences != nil {

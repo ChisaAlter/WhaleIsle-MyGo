@@ -82,7 +82,10 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	options, values := []string{}, map[string]string{}
 	selected := value
 	for _, option := range defaults.Options {
-		label := option.Name
+		label := hostEnumLabel(option.Value)
+		if label == option.Value && option.Name != "" {
+			label = option.Name
+		}
 		if label == "" {
 			label = option.Value
 		}

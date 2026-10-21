@@ -237,12 +237,18 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			m.SectionContent(c)
 			return
 		}
-		if active == SectionGeneral {
-			generalNavigation(c, m, snap, fg, muted)
-		}
 		if m.DesktopActive && m.Desktop != nil {
 			desktopPane(c, m, fg, muted)
+			if active == SectionGeneral {
+				// The reference keeps its General rows (permission, language,
+				// font, work detail, shortcuts, links, busy/close) at the top;
+				// the account shortcut and the namespace browser sit last.
+				generalNavigation(c, m, snap, fg, muted)
+			}
 			return
+		}
+		if active == SectionGeneral {
+			generalNavigation(c, m, snap, fg, muted)
 		}
 		if m.AccountActive && m.Account != nil {
 			accountPane(c, m, fg, muted)

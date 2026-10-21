@@ -172,3 +172,5 @@ settings.ModalView → SectionContent → paintMainContent("")
 
 - G1 首屏证据补齐：evidence/acceptance/G1-first-screen.png（2160×1380，无第三方窗口遮挡；终端抽屉关闭后的 hero 空态）。
 - 通用设置文案对齐参考：显示代码工作视图（轨迹/代码差异/预设切换）、繁忙时的发送行为、关闭窗口时最小化到托盘（并说明关闭即退出并停止 Harness）。
+
+- 通用设置实机复验（pass28）：权限「工作区内修改」、语言「中文」、工作详情「简洁」、收起时机「回答结束后」、链接「应用内侧栏」、繁忙发送「排队发送」均显示本地化文案；账号/高级移动到页尾，主行顺序与参考一致。截图 settings-live/general.png。

@@ -208,6 +208,10 @@ func hostEnumLabel(value string) string {
 		return providerCopy("立即", "Immediately")
 	case "sidebar":
 		return providerCopy("应用内侧栏", "In-app sidebar")
+	case "queue":
+		return providerCopy("排队发送", "Queue")
+	case "steer":
+		return providerCopy("引导运行", "Steer")
 	case "new-tab":
 		return providerCopy("新标签页", "New tab")
 	case "system":
@@ -261,6 +265,11 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 						}
 					}
 				}
+			}
+			if value == "" && len(options) > 0 {
+				// An unset Host preference still shows the first option the Host
+				// would use, instead of an empty select box.
+				value = options[0]
 			}
 			labels := make([]string, len(options))
 			for i := range options {
