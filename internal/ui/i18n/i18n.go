@@ -623,6 +623,7 @@ const (
 	KeyUpdateDownloadTitle                = "update.download_title"
 	KeySettingsAccountNav                 = "settings.account.nav"
 	KeySettingsAccountTitle               = "settings.account.title"
+	KeySettingsAccountSeat                = "settings.account.seat"
 	KeySettingsAccountHint                = "settings.account.hint"
 	KeySettingsAccountStub                = "settings.account.stub"
 	KeySettingsAccountCredHint            = "settings.account.cred_hint"
@@ -1093,6 +1094,7 @@ var zhCN = map[string]string{
 	KeyUpdateDownloadTitle:                "更新安装",
 	KeySettingsAccountNav:                 "账号与登录",
 	KeySettingsAccountTitle:               "账号与登录",
+	KeySettingsAccountSeat:                "设置与账号",
 	KeySettingsAccountHint:                "Harness 账号状态（account/getState、getProfile、getBalance）。",
 	KeySettingsAccountStub:                "未连接 Harness 时显示占位；连接后点刷新拉取账号摘要。",
 	KeySettingsAccountCredHint:            "API Key 等密钥请到左侧「凭据」页编辑。",
@@ -2023,6 +2025,7 @@ var en = map[string]string{
 	KeyUpdateDownloadTitle:                "Update install",
 	KeySettingsAccountNav:                 "Account & login",
 	KeySettingsAccountTitle:               "Account & login",
+	KeySettingsAccountSeat:                "Settings & account",
 	KeySettingsAccountHint:                "Harness account state (account/getState, getProfile, getBalance).",
 	KeySettingsAccountStub:                "Stub while Harness is disconnected; refresh after connect for a summary.",
 	KeySettingsAccountCredHint:            "Edit API keys on the Credentials page in the left nav.",

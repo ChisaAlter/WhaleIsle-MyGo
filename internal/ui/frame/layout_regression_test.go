@@ -71,22 +71,14 @@ func TestTerminalStaysInsideCenterAndSidebarKeepsFullHeight(t *testing.T) {
 	if term.X < 281 || term.X+term.W > 880 {
 		t.Fatalf("terminal bounds=%+v, want inside center x281..880", term)
 	}
-	settings, ok := tt.Find(i18n.T(i18n.KeySettingsOpen))
+	settings, ok := tt.Find(i18n.T(i18n.KeySettingsAccountSeat))
 	if !ok {
 		t.Fatal("sidebar settings missing")
 	}
-	// The bottom seat is the account row (SidebarRoot footArea: settings, then the
-	// account trigger); it must still reach the viewport's foot with the terminal
-	// drawer open, which is what proves the sidebar keeps its full height.
-	account, ok := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
-	if !ok {
-		t.Fatal("sidebar account seat missing")
-	}
-	if account.Y <= settings.Y+settings.H {
-		t.Fatalf("account seat=%+v must sit below settings=%+v", account, settings)
-	}
-	if account.Y+account.H < 788 {
-		t.Fatalf("sidebar bottom seat=%+v, terminal must not shorten sidebar", account)
+	// The merged settings/account seat must still reach the viewport's foot
+	// with the terminal drawer open, which proves the sidebar keeps its height.
+	if settings.Y+settings.H < 788 {
+		t.Fatalf("sidebar bottom seat=%+v, terminal must not shorten sidebar", settings)
 	}
 }
 
@@ -371,7 +363,7 @@ func TestTerminalToggleDoesNotStealFocusFromSidebar(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) {
 				View(c, Model{Store: session.New(), Sizes: &sizes, Draft: &draft, UseComposerTextInput: native, ComposerTextInput: client, OnOpenSettings: func() {}})
 			}, 1200, 800)
-			label := i18n.T(i18n.KeySettingsOpen)
+			label := i18n.T(i18n.KeySettingsAccountSeat)
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}

@@ -111,9 +111,36 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		}
 	}
 	row.Children(func() {
-		button := ui.Button(c, "").FillWidth().Height(42).Padding(0, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Label(i18n.T(i18n.KeySettingsOpen)).Tooltip(i18n.T(i18n.KeySettingsOpen)).Disabled(m.OnOpenSettings == nil)
+		combined := !compact && m.OnOpenSettings != nil
+		seatLabel := i18n.T(i18n.KeySettingsOpen)
+		if combined {
+			seatLabel = i18n.T(i18n.KeySettingsAccountSeat)
+		}
+		button := ui.Button(c, "").FillWidth().Height(42).Padding(0, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Label(seatLabel).Tooltip(seatLabel).Disabled(m.OnOpenSettings == nil)
 		if compact {
 			button.Size(36, 36).Absolute().Bottom(0).Padding(0)
+		}
+		if combined {
+			// The reference pins one settings/account seat whose menu keeps
+			// settings, contact, account details and sign-out.
+			button.Menu(func(menu *ui.Menu) {
+				if m.OnOpenSettings != nil && menu.Item(i18n.T(i18n.KeySettingsOpen)).Chosen() {
+					m.OnOpenSettings()
+				}
+				if m.OnContactAccount != nil && menu.Item(workspaceText("联系我们", "Contact us")).Chosen() {
+					m.OnContactAccount()
+				}
+				openAccount := m.Account.OnOpen
+				if openAccount == nil {
+					openAccount = m.OnOpenSettings
+				}
+				if openAccount != nil && menu.Item(i18n.T(i18n.KeySettingsAccountTitle)).Chosen() {
+					openAccount()
+				}
+				if m.Account.OnSignOut != nil && menu.Item(i18n.T(i18n.KeySettingsAccountSignOut)).Chosen() {
+					m.Account.OnSignOut()
+				}
+			})
 		}
 		if button.Hovered() {
 			button.Background(chrome.Color(colors.Hover))
@@ -122,14 +149,14 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 			ui.Row(c).Fill().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, settingsGear).Size(20, 20).TextColor(chrome.Color(colors.FG))
 				if !compact {
-					label := ui.Text(c, i18n.T(i18n.KeySettingsOpen)).Grow(1).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG))
+					label := ui.Text(c, seatLabel).Grow(1).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG))
 					if status != "" {
 						label.Margin(0, 44, 0, 0)
 					}
 				}
 			})
 		})
-		if button.Clicked() && m.OnOpenSettings != nil {
+		if !combined && button.Clicked() && m.OnOpenSettings != nil {
 			m.OnOpenSettings()
 		}
 		if status == "" {

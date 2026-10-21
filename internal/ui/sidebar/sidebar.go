@@ -345,19 +345,13 @@ func View(c *ui.Context, m Model) {
 				// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
 				// to workspaces and sessions.
 
-				if !m.Collapsed && m.OnContactAccount != nil && ui.Button(c, "联系与反馈 / Contact us").FillWidth().Height(32).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
-					m.OnContactAccount()
-				}
-				// The rail stacks the account control above the settings seat,
-				// which pins itself to the bottom of its own box.
+				// The expanded rail pins one settings/account seat; its menu
+				// keeps contact, account details and sign-out.
 				if m.Collapsed {
 					accountRow(c, m, colors, muted, true)
 				}
 				if m.OnOpenSettings != nil {
 					settingsConnectionTrigger(c, m, colors, m.Collapsed)
-				}
-				if !m.Collapsed {
-					accountRow(c, m, colors, muted, false)
 				}
 			})
 		})

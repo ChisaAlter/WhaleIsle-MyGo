@@ -68,14 +68,10 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	if !tt.HasText(i18n.T(i18n.KeySidebarWorkspaceSection)) {
 		t.Fatalf("expanded sidebar lost the workspace section; texts=%q", tt.Texts())
 	}
-	// The foot keeps the settings row and the account row inside the window.
-	settings, ok := tt.Find(i18n.T(i18n.KeySettingsOpen))
-	if !ok || settings.Y+settings.H > 613 {
-		t.Fatalf("settings foot = %+v, want it inside the 613-DIP window", settings)
-	}
-	account, ok := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
-	if !ok || account.Y <= settings.Y+settings.H || account.Y+account.H > 613 {
-		t.Fatalf("account foot = %+v after settings = %+v", account, settings)
+	// The foot is the single settings/account seat inside the window.
+	seat, ok := tt.Find(i18n.T(i18n.KeySettingsAccountSeat))
+	if !ok || seat.Y+seat.H > 613 {
+		t.Fatalf("settings foot = %+v, want it inside the 613-DIP window", seat)
 	}
 }
 
