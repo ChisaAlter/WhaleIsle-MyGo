@@ -197,7 +197,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	active := activeSection(m, snap)
 	ui.Column(c).Key("settings-rail").Width(180).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
-		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Children(func() {
+		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(8).Children(func() {
 			for _, entry := range primaryNavigation(m, snap) {
 				selected := entry.id == active
 				fill := ui.Transparent
