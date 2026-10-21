@@ -287,3 +287,14 @@ ours-hero-1440.png                   原生 hero（1440 物理 / 960 DIP 缩放�
 限制：远程页「旧版配置清理」目前以 `LegacyRelayTokenSet` 为门控；监听范围下拉/segmented 因控件列 260 宽与参考的 95/154 略宽，属布局取舍。
 
 验证：`go build ./cmd/... ./internal/...`；`go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 全绿。
+## 13. 第七轮：150% DPI 下透明窗口只画左上角（2026-10-21 上午）
+
+**症状**（用户截图确认）：150% 缩放下主窗口 2160×1380 物理像素，但应用只把 1440×920 画在左上角；右侧/下方是透明但会挡住点击的空白，dune 渐变彩球直接露在应用范围之外。
+
+**根因**：`third_party/mygo/internal/windows/surface.go` 的 `surface.Size()` 返回的是 DIP（`toDIP`），而 `ui` 运行时约定 surface 上报**设备像素**（`windowHost.pixels() == true`，运行时再除以 scale 得到 DIP）。150% 下被除了两次：1440 DIP 的窗口先算成 1440 DIP，运行时再除 1.5 → 960 DIP 布局；绘制按 1.5 放大成 1440×920 场景，塞进 2160×1380 的客户区。100% 缩放时两者相等，所以一直没暴露。
+
+**修法**：`surface.Size()` 直接返回 `GetClientRect` 的设备像素 + `dpi/96`，与 macOS backing bounds / GTK allocation 的契约一致。探针窗口验证：修前 `ctx=960×613, client=2160×1379, dpi=144`，修后 `ctx=1440×919, client=2160×1379, dpi=144`；主窗口 2160×1380 截图满幅、无透明边。
+
+**证据**：`ours-pass6b.png`（修后满幅窗口，2160×1380）；修复前的问题截图见用户反馈与 session 记录。
+
+验证：`go build ./cmd/... ./internal/...`；全量 `go test ./internal/ui/... ./internal/store/... ./internal/desktop/whale ./cmd/whaleisle` 绿；mygo `internal/windows` 编译测试通过。

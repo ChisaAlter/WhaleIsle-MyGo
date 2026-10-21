@@ -203,7 +203,13 @@ func (s *surface) freeComp() {
 func (s *surface) Size() (float64, float64, float64) {
 	var r rect
 	procGetClientRect.Call(s.hwnd, uintptr(unsafe.Pointer(&r)))
-	return s.toDIP(r.Right - r.Left), s.toDIP(r.Bottom - r.Top), float64(s.dpi()) / 96
+	// A surface reports the window in device pixels, as the macOS backing
+	// bounds and the GTK allocation do; the runtime divides that by scale to
+	// get the DIPs a view lays out in and multiplies it back when painting.
+	// Returning DIPs here divided a 150% window twice: context 960x613 for a
+	// 1440x920 DIP window, so the frame painted a 1440x920 scene into a
+	// 2160x1380 client and left the rest transparent and unclickable.
+	return float64(r.Right - r.Left), float64(r.Bottom - r.Top), float64(s.dpi()) / 96
 }
 
 func (s *surface) RequestFrame() { procInvalidateRectW.Call(s.hwnd, 0, 0) }
