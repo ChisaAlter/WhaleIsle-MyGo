@@ -9,8 +9,8 @@ const (
 	// tooltipDelay is how long the pointer rests on an element before its
 	// tip shows, and tooltipWarm how soon after a tip goes another shows at
 	// once, as the pointer moves along a toolbar: Base UI's.
-	tooltipDelay = 600 * time.Millisecond
-	tooltipWarm  = 400 * time.Millisecond
+	tooltipDelay = 700 * time.Millisecond
+	tooltipWarm  = 300 * time.Millisecond
 )
 
 // tooltips is which element's tip shows, which the frame decides once

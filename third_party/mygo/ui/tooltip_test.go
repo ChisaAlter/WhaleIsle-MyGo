@@ -28,9 +28,9 @@ func TestTooltipBase(t *testing.T) {
 	tick := ticker(tt, now)
 	s, _ := tt.Find("save")
 	tt.Move(s.X+s.W/2, s.Y+s.H/2)
-	tick(500 * time.Millisecond)
+	tick(600 * time.Millisecond)
 	if tt.HasText("Saves the file") || tip != nil {
-		t.Fatal("the tip shows before the pointer rested 0.6 seconds")
+		t.Fatal("the tip shows before the pointer rested 0.7 seconds")
 	}
 	tick(150 * time.Millisecond)
 	if !tt.HasText("Saves the file") || tip == nil {
