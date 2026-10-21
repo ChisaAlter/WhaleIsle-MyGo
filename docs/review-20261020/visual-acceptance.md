@@ -173,3 +173,9 @@ go test ./internal/ui/chrome ./internal/ui/theme ./internal/ui/frame
 
 general 已到 11.3；appearance 34.8 仍最高（主题卡片数量/预览内容与参考不同），其余 18-26 主要来自导航列与内容长度差异。
 > 后续（pass35）：appearance 预览半卡改为显式 Column（原 Button 子元素横排导致方案 chip 被挤成竖排），主题名按语言只显示单语（午夜/Midnight），实机截图 settings-live/appearance.png 已更新。
+
+### 弹出菜单（权限/模型）样式修正
+
+- 权限选择器：行按钮原先继承了 MyGo Button 的 1 DIP 边框，每一项都画成一个独立方框；现在行 `BorderWidth(0)`、行距 0，只在悬停/选中时铺 `Hover` 底，菜单面板圆角 12、最小宽 240，底部提示与列表之间加分隔线。
+- 模型选择器：同样的行边框已去掉；空态的“重新加载”改为无边框强调文字按钮，不再是一个描边方块。
+- 触发 chip 保持透明，仅悬停/展开时铺 `Hover`，与参考一致。

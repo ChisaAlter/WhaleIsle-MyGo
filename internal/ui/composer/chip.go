@@ -25,8 +25,8 @@ const chipHeight = float32(28)
 // Menu surfaces share one set of metrics so the permission/model picks, the
 // context panel and the `/` `@` menus read as one family.
 const (
-	menuRowHeight = float32(34)
-	menuRadius    = float32(10)
+	menuRowHeight = float32(36)
+	menuRadius    = float32(12)
 )
 
 // menuSurface gives a popup the shared menu material: sampled glass fill, the

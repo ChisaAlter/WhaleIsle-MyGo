@@ -85,8 +85,12 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 			if m.Snapshot.ModelsErr != "" {
 				ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).MaxLines(3).TextColor(muted)
 			}
-			if m.OnRetryModels != nil && ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(12).Clicked() {
-				m.OnRetryModels()
+			if m.OnRetryModels != nil {
+				reload := ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(12).Height(28).Padding(0, 8).Radius(8).
+					BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(colors.Accent)).AlignSelf(ui.Start)
+				if reload.Clicked() {
+					m.OnRetryModels()
+				}
 			}
 		})
 	})

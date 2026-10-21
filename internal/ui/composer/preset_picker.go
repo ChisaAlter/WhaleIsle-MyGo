@@ -108,7 +108,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(panel.Padding(4).Gap(2).MinWidth(200).MaxWidthPercent(100), colors)
+		panel = menuSurface(panel.Padding(6).Gap(2).MinWidth(240).MaxWidthPercent(100), colors)
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.Rows[nav.Active].RequestFocus(c)
@@ -118,10 +118,10 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			nav.Rows[nav.Active].RequestFocus(c)
 		}
 		panel.Children(func() {
-			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(2).Children(func() {
+			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(0).Children(func() {
 				for i, o := range options {
 					i, o := i, o
-					row := ui.Button(c, "").Bind(nav.Rows[i]).FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).
+					row := ui.Button(c, "").Bind(nav.Rows[i]).FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).BorderWidth(0).
 						Background(ui.Transparent).AlignItems(ui.Center)
 					if row.Hovered() || i == nav.Active {
 						row = row.Background(chrome.Color(colors.Hover))
@@ -148,7 +148,8 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 					}
 				}
 			})
-			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(11).
+			ui.Box(c).FillWidth().Height(1).Shrink(0).Margin(4, 6).Background(chrome.Color(colors.Caption).Alpha(.35))
+			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(10).
 				TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
 		})
 		// The current row takes the focus once as the popup opens, so the arrows

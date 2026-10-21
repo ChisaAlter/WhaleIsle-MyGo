@@ -346,7 +346,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 							ui.Text(c, g.Name).FontSize(11).Bold().TextColor(muted)
 							for _, choice := range g.Choices {
 								selected := choice.Label == m.Snapshot.SelectedModel
-								button := ui.Button(c, "").Label("Choose model " + choice.Label).FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
+								button := ui.Button(c, "").Label("Choose model " + choice.Label).FillWidth().MinHeight(34).Padding(6, 8).Radius(8).BorderWidth(0).
 									Background(ui.Transparent).Disabled(m.Snapshot.ModelSelectionBusy)
 								if button.Hovered() || (len(m.Snapshot.ModelLabels) > 4 && index == state.Active) {
 									button = button.Background(chrome.Color(colors.Hover))
