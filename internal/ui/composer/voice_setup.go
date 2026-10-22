@@ -2,6 +2,7 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -21,7 +22,7 @@ func paintVoiceSetup(c *ui.Context, m Model) {
 			title = i18n.T(i18n.KeyComposerVoicePrepare)
 			body = i18n.T(i18n.KeyComposerVoicePrepareBody)
 		}
-		panel.Width(440).MaxWidthPercent(92).Padding(20).Background(c.Theme().Background).Children(func() {
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 440, 20).Children(func() {
 			ui.Column(c).FillWidth().Gap(16).Children(func() {
 				ui.Text(c, title).FontSize(17).Bold()
 				ui.Text(c, body).FontSize(13)

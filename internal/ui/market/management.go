@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	marketstore "whaleisle/internal/store/market"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -70,8 +71,8 @@ func confirmationView(c *ui.Context, m Model, fg, accent ui.Color) {
 		open := true
 		w, h := c.Size()
 		ui.DialogBase(c.Key("market-confirm-dialog"), &open, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-			panel.Role(ui.RoleAlertDialog).Label(marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(12).Padding(20).Gap(16).Children(func() {
+			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(float32(560), w-32)), 20).
+				Role(ui.RoleAlertDialog).Label(marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).MaxHeight(max(0, h-48)).Gap(16).Children(func() {
 				ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).Bold().TextColor(accent)
 				ui.Scroll(c).FillWidth().MaxHeight(max(0, h-200)).MinHeight(0).Children(func() {
 					ui.Text(c, description).FillWidth().MinWidth(0).Selectable().TextColor(fg)

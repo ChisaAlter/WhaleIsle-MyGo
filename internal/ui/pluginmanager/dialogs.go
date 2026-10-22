@@ -18,8 +18,8 @@ func confirmationDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 	w, h := c.Size()
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.DialogBase(c.Key("plugin-manager-confirm"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Role(ui.RoleAlertDialog).Label(copyText("确认插件操作", "Confirm plugin operation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Padding(20).Gap(16).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel, colors, max(0, min(float32(560), w-32)), 20).
+			Role(ui.RoleAlertDialog).Label(copyText("确认插件操作", "Confirm plugin operation")).MaxHeight(max(0, h-48)).Gap(16).Children(func() {
 			ui.Text(c, copyText("确认插件操作", "Confirm plugin operation")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-200)).MinHeight(0).Children(func() {
 				ui.Text(c, s.Confirmation.Description).FillWidth().Selectable().TextColor(chrome.Color(colors.FG))

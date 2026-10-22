@@ -15,7 +15,7 @@
 | settings | 通用确认、默认权限确认 |
 | terminal | 关闭运行中的终端 |
 | remote | 新建/重命名/删除、关闭未保存文件 |
-| composer | slash 权限确认 |
+| composer | slash 权限确认、语音设置 |\n| pluginmanager | 插件操作确认 |\n| market | 市场操作确认 |
 
 表面：28px 圆角、玻璃 + 实色打底、0.5px 发丝边、菜单阴影、遮罩淡入。
 
