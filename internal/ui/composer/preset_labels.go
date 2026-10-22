@@ -22,11 +22,14 @@ func builtinPresetName(id string) (string, bool) {
 	return "", false
 }
 
-// presetDisplayName localizes the built-in agent preset ids; a name it does not
+// PresetDisplayName localizes the built-in agent preset ids; a name it does not
 // know passes through unchanged.
-func presetDisplayName(label string) string {
+func PresetDisplayName(label string) string {
 	if localized, ok := builtinPresetName(label); ok {
 		return localized
 	}
 	return strings.TrimSpace(label)
 }
+
+// presetDisplayName is the package-local alias used by the composer.
+func presetDisplayName(label string) string { return PresetDisplayName(label) }

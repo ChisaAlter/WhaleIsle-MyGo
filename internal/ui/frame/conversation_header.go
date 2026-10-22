@@ -11,6 +11,7 @@ import (
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/i18n"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
@@ -58,6 +59,7 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 					preset = strings.TrimSpace(*m.AgentPresetPick)
 				}
 				if preset != "" {
+					preset = composer.PresetDisplayName(preset)
 					ui.Row(c).Key("conversation-active-preset").Label("Conversation agent preset").Tooltip(preset).Height(22).MaxWidth(180).MinWidth(14).Shrink(0).Gap(4).AlignItems(ui.Center).Padding(0, 2, 0, 0).Children(func() {
 						ui.Icon(c, conversationHeaderIcons["AgentPresetOutline"]).Width(14).Height(14).Shrink(0).TextColor(muted).Opacity(0.7)
 						if !compact {
