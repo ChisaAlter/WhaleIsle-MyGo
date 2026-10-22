@@ -24,9 +24,16 @@ func ContextInjectionView(c *ui.Context, msg session.Message, scope string, fg, 
 		if v.Form != "" {
 			title += " · " + v.Form
 		}
-		if ui.Button(c, title).Label("Context details " + msg.ID).FillWidth().Clicked() {
-			*open = !*open
+		marker := "▸"
+		if *open {
+			marker = "▾"
 		}
+		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
+			if ui.Button(c, marker+" "+title).Label("Context details "+msg.ID).Shrink(1).MinWidth(0).
+				FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
+				*open = !*open
+			}
+		})
 		if !*open {
 			return
 		}
