@@ -81,6 +81,14 @@ func (s *mainState) runMarketCatalogInstall(target marketstore.InstallTarget) {
 	s.dshMu.Lock()
 	s.mu.Lock()
 	if s.market == nil || s.marketWorker != nil || s.launcherImportBusy {
+		switch {
+		case s.market == nil:
+			s.marketInstallMsg = marketMessage("运行时未连接，无法安装。", "The runtime is not connected; installation is unavailable.")
+		case s.launcherImportBusy:
+			s.marketInstallMsg = marketMessage("安装器正忙，请稍后重试。", "The installer is busy; try again in a moment.")
+		default:
+			s.marketInstallMsg = marketMessage("正在刷新插件目录，请稍后重试。", "The catalog is refreshing; try again in a moment.")
+		}
 		s.mu.Unlock()
 		s.dshMu.Unlock()
 		return

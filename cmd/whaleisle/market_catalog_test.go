@@ -103,3 +103,14 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 		})
 	}
 }
+
+func TestMarketInstallBlockedWithoutRuntimeReportsWhy(t *testing.T) {
+	s := &mainState{}
+	s.runMarketCatalogInstall(marketstore.InstallTarget{})
+	s.mu.Lock()
+	message := s.marketInstallMsg
+	s.mu.Unlock()
+	if message == "" {
+		t.Fatal("a blocked install left the market with no message")
+	}
+}
