@@ -26,7 +26,7 @@
 | frame/workflow_member.go | 1 | 🟡 | 共享表面 |
 | settings/confirm.go | 1 | ✅ | 通用确认；共享表面，widgets 测试覆盖按钮 |
 | settings/permission_defaults.go | 1 | ✅ | 默认权限确认；共享表面 + 设置测试 |
-| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24；行内录键；见 `round3-shortcuts.md` |
+| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24/下移 30；行悬停铅笔；行内录键；见 `round3-shortcuts.md`、`round4-dialog-surface.md` |
 | settings/agent_preset_guide.go | 1 | ✅ | 模式指南；共享表面 + 设置测试 |
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |
@@ -40,11 +40,11 @@
 | composer/voice_setup.go | 1 | ✅ | 共享表面 + composer 测试 |
 | composer/attachment_display.go | 1 | 🟡 | 遮罩/20px 圆角/裁剪 |
 | pluginmanager/confirmationDialog | 1 | ✅ | 共享表面 + pluginmanager 测试 |
-| pluginmanager/installDialog | 1 | ⛔ | 12px、自有固定高度 |
-| pluginmanager/index-sources | 1 | ⛔ | 12px |
-| pluginmanager/market-choice | 1 | ⛔ | 12px |
+| pluginmanager/installDialog | 1 | ✅ | 560 宽内容自适应、共享表面（淡入/玻璃/投影/描边）、22/14/12/24 头部；见 `round4-dialog-surface.md` |
+| pluginmanager/index-sources | 1 | ✅ | 同上；底部重复 `关闭` 与内层重复标题已移除 |
+| pluginmanager/market-choice | 1 | ✅ | 同上；头部关闭 + 底部 `取消/安装` |
 | market/confirmationView | 1 | ✅ | 共享表面 + market 测试 |
-| market/details | 1 | ⛔ | 待核 |
+| market/details | 1 | ⛔ | 已是 28 圆角/玻璃/淡入，但遮罩、头部（16 内边距 + 文字关闭）、正文内边距为手写值；下一轮接共享表面 |
 | diffsurface/commit_dialog.go | 1 | ✅ | 共享表面 + diffsurface 测试 |
 | diffsurface/caption_actions.go | 1 | ✅ | 创建分支；共享表面 + 测试 |
 | diffsurface/caption_review.go | 1 | ✅ | Git Review；共享表面 + 测试 |
@@ -110,7 +110,7 @@
 
 ## 四、下一轮优先
 
-1. settings/effect_preferences、pluginmanager 安装/来源/市场选择、market details。
+1. `market/details`、`settings/onboarding` 接共享表面（遮罩/头部/内边距/关闭盒）。
 2. 完整执行一次“输入 → 发送启用 → 不发送”的输入验证（需要可用键入方案）。
 3. 终端不可用与模型目录为空的运行时原因。
 4. Git/工作区/插件的实际执行路径。
