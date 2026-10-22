@@ -193,7 +193,7 @@ func View(c *ui.Context, m Model) {
 			})
 		})
 	})
-	catalogDetailsDialog(c, m, d, snap, fg, muted, field, border, accent)
+	catalogDetailsDialog(c, m, d, snap, fg, muted, field, accent)
 	confirmationView(c, m, fg, accent)
 }
 

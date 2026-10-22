@@ -287,7 +287,10 @@ func formatStars(stars float64) string {
 	return fmt.Sprintf("%.0f", stars)
 }
 
-func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
+// marketCloseIcon is the reference Modal's 14 DIP cross.
+var marketCloseIcon = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>`))
+
+func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, accent ui.Color) {
 	if d.Selected == nil || m.Store.Confirmation() != "" {
 		return
 	}
@@ -295,23 +298,36 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 	open := true
 	w, h := c.Size()
 	ui.DialogBase(c.Key("market-details-dialog"), &open, func(backdrop, panel ui.Element) {
-		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
-		chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .35), progress)
-		backdrop.Padding(16)
-		panel.Label(catalogTitle(item)).Width(max(0, min(float32(680), w-32))).Height(max(0, min(float32(720), h-48))).Border(.5, border).Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).BG), chrome.MaterialPanel, 28)).Children(func() {
-			ui.Row(c).FillWidth().Padding(16).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-				if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details")).Disabled(d.DetailsLoading).Clicked() {
-					m.Store.SelectDetails(item.ID, true)
+		box := chrome.DialogSurfaceBox{
+			Width:   min(float32(680), max(float32(320), w-48)),
+			Height:  min(float32(720), max(float32(320), h-48)),
+			Padding: 0,
+		}
+		panel = chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box)
+		panel.Label(catalogTitle(item)).Gap(0).Children(func() {
+			// The reference Modal header: 22/14/12/24 around a 16/500 title and a
+			// 28 DIP close box; reload belongs to the body, as the header holds
+			// only the title and the close control.
+			ui.Row(c).FillWidth().Height(58).Shrink(0).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
+				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).SingleLine()
+				closeLabel := marketText(i18n.T(i18n.KeyW4MarketClose), "Close")
+				closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(7).
+					Radius(8).BorderWidth(0).Background(ui.Transparent).Tooltip(closeLabel)
+				closeBox.Children(func() { ui.Icon(c, marketCloseIcon).Size(14, 14).TextColor(muted) })
+				if closeBox.Hovered() {
+					closeBox.Background(c.Theme().SurfaceHover)
 				}
-				if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketClose), "Close")).Clicked() {
+				if closeBox.Clicked() {
 					open = false
 				}
 			})
-			ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Padding(0, 16, 16, 16).Children(func() {
+			ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Padding(20, 24, 24, 24).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 					ui.Text(c, item.Description).FillWidth().TextColor(fg)
 					ui.Text(c, item.ID+"\n"+item.Homepage+"\n"+item.InstallSpec).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details")).Disabled(d.DetailsLoading).Clicked() {
+						m.Store.SelectDetails(item.ID, true)
+					}
 					favoriteButton(c, m, item.ID)
 					catalogInstallButton(c, m, d, item, inventory, fg, muted)
 					if item.Deprecated {
@@ -339,15 +355,6 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
 			})
-		})
-		// --dsw-elevation-stroke: the panel paints its hairline after the glass,
-		// because the glass fill runs after the element's own border and would
-		// cover it once no wallpaper makes the fill opaque (as MenuSurface does).
-		panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if border.A == 0 || r.W <= 0 || r.H <= 0 {
-				return
-			}
-			p.Stroke(r, border, 12, 0.5)
 		})
 	})
 	if !open {

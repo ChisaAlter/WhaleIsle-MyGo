@@ -91,11 +91,17 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 	}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Background(c.Theme().Background)
-		catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+		catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 	}, 1000, 800)
 	if _, ok := tt.Find("Workspace tools"); !ok {
 		t.Fatal("details fixture did not open")
 	}
+	// The panel fades in from zero opacity; settle the overlay clock so the
+	// snapshot shows the shared surface, not its first frame.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(time.Second))
+	tt.Frame()
 	saveMarketSnapshot(t, tt, "market-details-wide.png")
 	tt.SetSize(520, 600)
 	close, ok := tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
@@ -158,7 +164,7 @@ func TestMarketDetailsDrawsItsHairlineInTheDark(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(ui.DarkTheme())
 		ui.Column(c).Fill().Background(c.Theme().Background)
-		catalogDetailsDialog(c, Model{Store: store, ThemeID: theme.IDDeepseekDark, SystemDark: true}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+		catalogDetailsDialog(c, Model{Store: store, ThemeID: theme.IDDeepseekDark, SystemDark: true}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 	}, 900, 700)
 	// The panel fades in; a settled clock shows its material, not frame one.
 	start := time.Unix(1000, 0)

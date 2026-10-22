@@ -231,7 +231,7 @@ func TestMarketRichReadmeDetailsWideAndNarrow(t *testing.T) {
 	for _, size := range [][2]int{{1000, 1000}, {420, 720}} {
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Background(c.Theme().Background)
-			catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+			catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 		}, size[0], size[1])
 		panel, ok := tt.Find("Native tools")
 		section, mounted := tt.Find("Repository README")
