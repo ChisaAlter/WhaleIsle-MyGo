@@ -88,6 +88,13 @@ assistant whale settings、boot 两处 drawer、chat feedback / user references�
 - assistant 系列 13 个 `ack := r.Acknowledged` 已核对：回调同步更新 review 状态并调用 `updateAssistantTasks()`，现有测试全部通过，因此不做无依据改写；若后续接入异步 RPC，再统一改为 `ui.Local`。
 - 排期删除弹窗尝试迁到共享表面时，`TestScheduleSaveAndDeleteKeepCapturedOwner` 稳定失败；已保留旧实现并列入待办，避免“样式统一但按钮点不到”。
 
+## 功能点击验证（第 6 轮）
+
+- 工作区选择器：`选择工作区…` 打开“选择工作目录”，`取消` 能关闭。
+- 模型选择器：点击可打开，当前显示“暂无可用模型”；模型页同样提示需 Harness Ready 且已拉目录，属于运行时状态。
+- Git 菜单：`Git 操作选项` 打开“切换分支 / 提交并推送”，再次点击可关闭。
+- projects 重命名/归档/未保存更改弹窗：保留 28px 圆角与阴影，新增玻璃层绘制。
+
 ## 下一轮
 
 1. 迁移 widgets 通用 `ConfirmDialog`、diffsurface、projects、settings 其余弹窗。
