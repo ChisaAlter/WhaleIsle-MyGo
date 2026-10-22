@@ -60,17 +60,17 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 			title, hint := "", ""
 			switch s.Progress.Step {
 			case "welcome":
-				title = providerCopy("欢迎使用 MyGo鲸屿", "Welcome to MyGo鲸屿")
-				hint = providerCopy("MyGo鲸屿 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。", "MyGo鲸屿 works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.")
+				title = providerCopy("欢迎使用 Whale Isle", "Welcome to Whale Isle")
+				hint = providerCopy("Whale Isle 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。", "Whale Isle works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.")
 			case "credit":
 				title = providerCopy("准备可用额度", "Add credits")
-				hint = providerCopy("MyGo鲸屿 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。", "MyGo鲸屿 charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.")
+				hint = providerCopy("Whale Isle 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。", "Whale Isle charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.")
 			case "purpose":
-				title = providerCopy("你希望 MyGo鲸屿 帮你做什么？", "What would you like MyGo鲸屿 to help with?")
+				title = providerCopy("你希望 Whale Isle 帮你做什么？", "What would you like Whale Isle to help with?")
 				hint = providerCopy("我们会根据你的选择调整界面和工具，以更适合你的工作方式。", "We’ll tailor the interface and tools to fit the way you work.")
 			case "process":
 				title = providerCopy("你希望看到多少工作过程？", "How much detail would you like to see?")
-				hint = providerCopy("这只会影响工作过程的展示方式，不会影响 MyGo鲸屿 的工作能力。", "This only changes how progress is shown, not what MyGo鲸屿 can do.")
+				hint = providerCopy("这只会影响工作过程的展示方式，不会影响 Whale Isle 的工作能力。", "This only changes how progress is shown, not what Whale Isle can do.")
 			}
 			anchor.Children(func() {
 				if s.Progress.Step != "welcome" && s.Progress.Step != "credit" {
@@ -220,7 +220,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 					if next, ok := buttons[focusTarget]; ok {
 						next.Focus()
 					}
-					if s.Progress.Process != "" && ui.PrimaryButton(c, providerCopy("进入应用", "Enter MyGo鲸屿")).Disabled(busy).Clicked() {
+					if s.Progress.Process != "" && ui.PrimaryButton(c, providerCopy("进入应用", "Enter Whale Isle")).Disabled(busy).Clicked() {
 						controller.Complete("completed")
 					}
 				}
@@ -254,7 +254,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 					box.Width(440).MaxWidthPercent(90).Padding(28).Gap(14).Radius(16).Background(bg).Children(func() {
 						message := providerCopy("你可以随时前往 设置 → 通用设置 中调整工作过程、性能与用量展示方式或开启代码工作工具。", "You can change how progress, performance, and usage are displayed, or enable Coding Tools, anytime in Settings → General.")
 						if kind != "skip" {
-							message = providerCopy("没有可用额度时，MyGo鲸屿 将无法开始新的任务。你可以稍后前往 个人中心 → 账号与余额 进行充值。", "MyGo鲸屿 can’t start new tasks without credits. You can add them later in Profile → Accounts.")
+							message = providerCopy("没有可用额度时，Whale Isle 将无法开始新的任务。你可以稍后前往 个人中心 → 账号与余额 进行充值。", "Whale Isle can’t start new tasks without credits. You can add them later in Profile → Accounts.")
 						}
 						ui.Text(c, message).FillWidth().TextColor(fg)
 						ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {

@@ -75,7 +75,7 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 		recovery = "cancelled"
 	}
 	lines := []string{
-		strings.TrimSpace("MyGo鲸屿 " + version),
+		strings.TrimSpace("Whale Isle " + version),
 		"savedAt: " + savedAt.Format(time.RFC3339Nano),
 		"state: " + status.State.String(),
 		"error: " + value(errText),

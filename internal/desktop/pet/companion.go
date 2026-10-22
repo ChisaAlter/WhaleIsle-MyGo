@@ -185,7 +185,7 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "MyGo鲸屿 companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetWindowCreateFailed)
 		p.close()

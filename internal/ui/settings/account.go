@@ -73,7 +73,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	signedIn := a.Status == "credential-stored"
 	if !signedIn && !active {
 		ui.Column(c.Key("account-signed-out")).FillWidth().Gap(16).Padding(40, 0).Children(func() {
-			ui.Text(c, providerCopy("登录 MyGo鲸屿", "Sign in to MyGo鲸屿")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
+			ui.Text(c, providerCopy("登录 Whale Isle", "Sign in to Whale Isle")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
 			message := providerCopy("登录后即可使用账户模型并查看余额与用量。", "Sign in to use account models and view your balance and usage.")
 			if a.Loading {
 				message = i18n.T(i18n.KeySettingsLoading)
