@@ -112,7 +112,7 @@ func messageFeedbackDialog(c *ui.Context, m Model) {
 			ui.Column(c).FillWidth().Children(func() {
 				ui.Row(c).FillWidth().Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, feedbackText("title")).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(fg).Grow(1)
-					close := ui.Button(c.Key("feedback-close"), "").Label(feedbackText("close")).Tooltip(feedbackText("close")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center)
+					close := ui.Button(c.Key("feedback-close"), "").Label(feedbackText("close")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center)
 					if close.Hovered() {
 						close.Background(chrome.Color(colors.Hover))
 					}

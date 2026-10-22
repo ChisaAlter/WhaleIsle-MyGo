@@ -39,7 +39,7 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 			Label(i18n.T(i18n.KeySurfacesGitCommitTitle)).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitTitle)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
-				if ui.Button(c, "").Label(i18n.T(i18n.KeySurfacesGitClose)).Size(24, 24).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(i18n.T(i18n.KeySurfacesGitClose)).Clicked() {
+				if ui.Button(c, "").Label(i18n.T(i18n.KeySurfacesGitClose)).Size(24, 24).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Clicked() {
 					open = false
 				}
 			})
