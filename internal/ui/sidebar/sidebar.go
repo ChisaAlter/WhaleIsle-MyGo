@@ -324,7 +324,7 @@ func View(c *ui.Context, m Model) {
 						}
 						workspaceListFeedback(c, m, items, fg, muted)
 						projects.View(c, m.Projects)
-						if filter != "hide" && len(m.Snapshot.ArchivedSessionIDs) > 0 {
+						if filter != "hide" {
 							ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
 								Padding(8, 0, 2, 0)
 							for _, id := range m.Snapshot.ArchivedSessionIDs {
