@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func failedOutcome(result string) bool {
@@ -73,15 +74,16 @@ func confirmationView(c *ui.Context, m Model, fg, accent ui.Color) {
 		ui.DialogBase(c.Key("market-confirm-dialog"), &open, func(backdrop, panel ui.Element) {
 			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(float32(560), w-32)), 20).
 				Role(ui.RoleAlertDialog).Label(marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).MaxHeight(max(0, h-48)).Gap(16).Children(func() {
-				ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).Bold().TextColor(accent)
+				ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketConfirmAction), "Confirm operation")).Bold().TextColor(fg)
 				ui.Scroll(c).FillWidth().MaxHeight(max(0, h-200)).MinHeight(0).Children(func() {
 					ui.Text(c, description).FillWidth().MinWidth(0).Selectable().TextColor(fg)
 				})
 				ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.End).Children(func() {
-					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketCancel), "Cancel")).Clicked() {
+					colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+					if widgets.Button(c, colors, marketText(i18n.T(i18n.KeyW4MarketCancel), "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium}).Clicked() {
 						m.Store.ResolveConfirmation(false)
 					}
-					if !m.InstallBusy && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketConfirmAndRun), "Confirm and run")).Clicked() {
+					if widgets.Button(c, colors, marketText(i18n.T(i18n.KeyW4MarketConfirmAndRun), "Confirm and run"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: m.InstallBusy}).Clicked() {
 						m.Store.ResolveConfirmation(true)
 					}
 				})
