@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -122,8 +123,8 @@ func CaptionReview(c *ui.Context, m Model) {
 		title = word("发布仓库", "Publish repository")
 	}
 	ui.DialogBase(c.Key("caption-git-review"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Width(max(0, min(float32(680), width-32))).MaxHeight(max(0, height-48)).Padding(20).Gap(16).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(12).Label(title).Children(func() {
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(float32(680), width-32)), 20).
+			MaxHeight(max(0, height-48)).Gap(16).Label(title).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Text(c, title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
 				if widgets.Button(c, colors, word("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {

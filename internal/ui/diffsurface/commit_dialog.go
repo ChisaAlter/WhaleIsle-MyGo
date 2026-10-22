@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -33,9 +34,8 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	open := true
 	ui.DialogBase(c.Key("commit-dialog"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Width(commitDialogWidth).MaxWidthPercent(94).MaxHeightPercent(88).Padding(20).Gap(12).Radius(16).Clip().
-			Background(c.Theme().Surface).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), commitDialogWidth, 20).
+			MaxHeightPercent(88).Gap(12).
 			Label(i18n.T(i18n.KeySurfacesGitCommitTitle)).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitTitle)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)

@@ -194,8 +194,8 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	}
 	if state.createOpen {
 		ui.DialogBase(c.Key("caption-create-branch"), &state.createOpen, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-			panel.Width(max(0, min(float32(440), width-32))).Padding(20).Gap(16).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(12).Label(word("创建分支", "Create branch")).Children(func() {
+			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(float32(440), width-32)), 20).Gap(16).
+				Label(word("创建分支", "Create branch")).Children(func() {
 				ui.Text(c, word("创建分支", "Create branch")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
 				ui.Text(c, word("从当前 HEAD 创建并切换到新分支。", "Create a local branch from the current HEAD and switch to it.")).FillWidth().TextColor(c.Theme().TextMuted)
 				submitted := ui.TextInput(c, &state.name).FillWidth().Label(word("分支名称", "Branch name")).Placeholder("feature/my-change").Submitted()
