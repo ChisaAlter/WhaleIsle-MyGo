@@ -359,8 +359,10 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 	}
 	seat.full.load(a, true, c.Services().Invalidate)
 	ui.DialogBase(c, &seat.open, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, .4))
 		_, height := c.Size()
-		panel.Width(960).MaxWidthPercent(94).Height(max(float32(120), height*.85)).Padding(12).Background(c.Theme().Background).Children(func() {
+		panel.Width(960).MaxWidthPercent(94).Height(max(float32(120), height*.85)).Padding(16).Radius(20).Clip().
+			Background(c.Theme().Background).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Text(c, label).Grow(1).MaxLines(1)
 				if ui.Button(c, "1:1 / Fit").Clicked() {

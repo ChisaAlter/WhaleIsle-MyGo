@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
 )
@@ -76,7 +77,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 				if expanded {
 					open := true
 					ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-						panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
+						chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
 							ui.Row(c).FillWidth().Children(func() {
 								ui.Text(c, p.Title).Grow(1).TextColor(fg)
 								if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {
@@ -165,7 +166,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	ui.Box(c).FillWidth().Height(height)
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		panel.Width(960).MaxWidthPercent(94).Padding(12).Background(field).Children(func() {
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Text(c, p.Title).Grow(1).TextColor(fg)
 				if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {

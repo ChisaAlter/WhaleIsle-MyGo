@@ -25,7 +25,8 @@ func pricingDialog(c *ui.Context, open *bool, colors fonttheme.Colors, content f
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))
 		w, h := c.Size()
-		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Background(c.Theme().Background).Padding(16).Children(func() {
+		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Radius(20).Clip().
+			Background(c.Theme().Background).Padding(20).Children(func() {
 			if widgets.Button(c, colors, usageText("关闭价格详情", "Close price details"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 				*open = false
 			}

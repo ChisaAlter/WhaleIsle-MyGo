@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -233,8 +234,8 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 		}
 		visible := true
 		ui.DialogBase(c.Key(index), &visible, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .24)).Padding(24)
-			panel.Label(referenceCopy("Couldn’t open file", "无法打开文件")).Width(420).MaxWidthPercent(100).Gap(16).Padding(24).Radius(16).Background(c.Theme().Surface).Children(func() {
+			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 24).Gap(16).
+				Label(referenceCopy("Couldn’t open file", "无法打开文件")).Children(func() {
 				ui.Text(c, referenceCopy("Couldn’t open file", "无法打开文件")).FontSize(16).Bold().TextColor(fg)
 				ui.Text(c, reference.path).FontSize(13).TextColor(muted).Selectable()
 				ui.Row(c).Gap(8).Justify(ui.End).Children(func() {

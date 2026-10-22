@@ -48,7 +48,7 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 		backdrop.Background(ui.RGBA(0, 0, 0, .6))
 		w, h := c.Size()
 		pw, ph := max(float32(0), min(float32(1000), w-32)), max(float32(0), h-32)
-		panel.Width(pw).Height(ph).Padding(12).Background(c.Theme().Background).Children(func() {
+		panel.Width(pw).Height(ph).Padding(16).Radius(20).Clip().Background(c.Theme().Background).Children(func() {
 			ui.Row(c).Gap(8).Children(func() {
 				if ui.Button(c, i18n.T(i18n.KeyChatImagePrev)).Disabled(index == 0).Clicked() {
 					index--
