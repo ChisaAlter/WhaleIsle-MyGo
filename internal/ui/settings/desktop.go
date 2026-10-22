@@ -59,12 +59,15 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	generalPermissionPreference(c, d.Host, fg, muted)
 	if d.Fields.Locale != nil {
-		bodyPreferenceRow(c, "general-language", i18n.T(i18n.KeySettingsDesktopLocale), providerCopy("选择界面使用的语言。", "Choose the interface language."), fg, muted, func() {
+		// The reference General page labels this row simply "语言" and keeps the
+		// explanation in the select's own label; the old description made the row
+		// taller than the original's compact Setting-Cell.
+		bodyPreferenceRow(c, "general-language", providerCopy("语言", "Language"), "", fg, muted, func() {
 			lang := "中文"
 			if *d.Fields.Locale == "en" {
 				lang = "English"
 			}
-			if ui.Select(c, &lang, []string{"中文", "English"}).FillWidth().Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsDesktopLocale)).Changed() {
+			if ui.Select(c, &lang, []string{"中文", "English"}).MinWidth(84).MaxWidth(140).Disabled(d.OnSave == nil).Label(providerCopy("语言", "Language")).Changed() {
 				if lang == "English" {
 					*d.Fields.Locale = "en"
 				} else {
@@ -76,13 +79,13 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if d.Preferences != nil {
 		bodyFontSizePreference(c, d.Preferences, fg, muted)
 	}
-	bodyHostPreference(c, d.Host, "ui-chat", "transcriptView", providerCopy("工作详情", "Work details"), providerCopy("选择任务过程展示的详细程度。", "Choose how much of the task's work is shown."), fg, muted)
-	bodyHostPreference(c, d.Host, "ui-chat", "collapseTiming", providerCopy("工作详情收起时机", "Collapse completed work"), "", fg, muted)
+	bodyHostPreference(c, d.Host, "ui-chat", "transcriptView", providerCopy("工作步骤展示", "Work step display"), providerCopy("选择希望看到多少工具调用细节", "Choose how much tool-call detail to show"), fg, muted)
+	bodyHostPreference(c, d.Host, "ui-chat", "collapseTiming", providerCopy("工作步骤收起时机", "Collapse completed work steps"), providerCopy("选择何时自动收起工作步骤", "Choose when completed work steps collapse"), fg, muted)
 	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show the code work view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换。", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
 	if d.Shortcuts != nil {
-		bodyDisclosure(c, "general-shortcuts", providerCopy("键盘快捷键", "Keyboard shortcuts"), func() { shortcutsPane(c, d.Shortcuts, fg, muted) })
+		bodyShortcutPreference(c, d.Shortcuts, fg, muted)
 	}
-	bodyHostPreference(c, d.Host, "ui-chat", "linkOpening", providerCopy("链接打开方式", "Open links in"), "", fg, muted)
+	bodyHostPreference(c, d.Host, "ui-chat", "linkOpening", providerCopy("网页链接默认打开方式", "Default link opening"), providerCopy("对话中网页链接的打开位置", "Where links in the conversation open"), fg, muted)
 	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("繁忙时的发送行为", "Sending while busy"), providerCopy("智能体运行时 Enter 和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为。", "What Enter and Send do while the agent runs; Cmd/Ctrl+Enter uses the other action."), fg, muted)
 	if d.Fields.CloseToTray != nil {
 		bodyPreferenceRow(c, "general-close", providerCopy("关闭窗口时", "Closing the window"), providerCopy("点标题栏关闭时：最小化到托盘，或退出并停止本机 Harness 服务。", "On the title-bar close button: minimize to the tray, or quit and stop the local Harness service."), fg, muted, func() {
@@ -91,7 +94,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if *d.Fields.CloseToTray {
 				choice = options[0]
 			}
-			if ui.Select(c, &choice, options).FillWidth().Disabled(d.OnSave == nil).Label(providerCopy("关闭窗口时", "Closing the window")).Changed() {
+			if ui.Select(c, &choice, options).MinWidth(84).MaxWidth(140).Disabled(d.OnSave == nil).Label(providerCopy("关闭窗口时", "Closing the window")).Changed() {
 				*d.Fields.CloseToTray = choice == options[0]
 			}
 		})
@@ -104,7 +107,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if *d.AutoStartDesktop {
 				choice = options[0]
 			}
-			if ui.Select(c, &choice, options).FillWidth().Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsInterfaceAutoStart)).Changed() {
+			if ui.Select(c, &choice, options).MinWidth(84).MaxWidth(140).Disabled(d.OnSave == nil).Label(i18n.T(i18n.KeySettingsInterfaceAutoStart)).Changed() {
 				*d.AutoStartDesktop = choice == options[0]
 			}
 		})

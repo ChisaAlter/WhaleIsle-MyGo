@@ -38,7 +38,9 @@ func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
 	if err := tt.Click(sectionLabel(SectionGeneral)); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) || tt.HasText("Feature-owned market body") {
+	// The reference General page labels the locale row "Language"; the old
+	// "Interface language" wording was a MyGo-only drift.
+	if !tt.HasText("Language") || tt.HasText("Feature-owned market body") {
 		t.Fatal("General did not restore existing desktop controls")
 	}
 	tt.Key(0, ui.KeyEscape)

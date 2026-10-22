@@ -9,6 +9,37 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
+// bodyShortcutPreference is the reference General page's "快捷键" Setting-Cell:
+// a compact row whose right-hand button opens the editor over the shared modal
+// surface. The previous disclosure row pushed the General list taller than the
+// installed build and made the editor look like a page section instead of a
+// dialog.
+func bodyShortcutPreference(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
+	if e == nil {
+		return
+	}
+	row := ui.Column(c.Key("general-shortcuts")).FillWidth().MinWidth(0)
+	open := ui.Local(row, "open", func() bool { return false })
+	row.Children(func() {
+		bodyPreferenceRow(c, "general-shortcuts-row",
+			providerCopy("快捷键", "Keyboard shortcuts"),
+			providerCopy("查看和编辑当前可用的快捷键和输入操作", "View and edit the shortcuts and input actions available now"),
+			fg, muted, func() {
+				ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
+					button := ui.Button(c, providerCopy("编辑快捷键", "Edit shortcuts")).Label("edit-shortcuts").Height(32).MinWidth(132).Padding(0, 14).Radius(10)
+					if button.Clicked() {
+						*open = true
+					}
+				})
+			})
+	})
+	if *open {
+		bodyDialog(c, open, providerCopy("快捷键", "Keyboard shortcuts"), func() {
+			shortcutsPane(c, e, fg, muted)
+		})
+	}
+}
+
 func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 	if e == nil {
 		return

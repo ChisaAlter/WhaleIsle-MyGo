@@ -29,8 +29,8 @@ type Model struct {
 	OnClose        func()
 	// OnOpenConfig opens the configuration file in the host editor; nil renders
 	// the header action disabled with an explanation.
-	OnOpenConfig   func()
-	OnDraft        func(key, value string)
+	OnOpenConfig func()
+	OnDraft      func(key, value string)
 	// DraftPtr returns a stable *string for editing one field in the selected namespace.
 	DraftPtr func(key, seed string) *string
 	// BoolPtr returns a stable *bool wired to the same field drafts (bool kinds).
@@ -227,7 +227,15 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 }
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color) {
 	active := activeSection(m, snap)
-	ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(10).Children(func() {
+	// The General page is the reference's Setting-Cell list: every row carries
+	// its own leading hairline and padding, with a small 5 DIP separation. The
+	// old shared 10 DIP pane gap pushed the last rows below the modal edge (the
+	// reference fits ten rows in 800 DIP with the close row at y≈816).
+	gap := float32(10)
+	if active == SectionGeneral && m.DesktopActive {
+		gap = 5
+	}
+	ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(gap).Children(func() {
 		if snap.Err != "" {
 			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
@@ -293,7 +301,9 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {
 			petPane(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), m.Pet, fg, muted, m.PetSettings)
-			if m.PetSettings == nil { petLookPane(c, m.Pet, m.Store, fg, muted) }
+			if m.PetSettings == nil {
+				petLookPane(c, m.Pet, m.Store, fg, muted)
+			}
 			return
 		}
 		namespaceForm(c, m, snap, fg, muted)

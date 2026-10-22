@@ -62,11 +62,17 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
 			})
-			if gear := takeRowGear(); gear != nil { 				rowGearButton(c, *gear) 			}
+			if gear := takeRowGear(); gear != nil {
+				rowGearButton(c, *gear)
+			}
 			if controls != nil {
 				control := ui.Column(c).MinWidth(0).Gap(6)
 				if width >= 420 {
-					control.Width(180).Shrink(0)
+					// The reference selector column is about 135 DIP and each
+					// control keeps its intrinsic width, right-aligned against
+					// the row's trailing edge. The old fixed 180 DIP column
+					// stretched every select and stole room from the copy.
+					control.Width(140).Shrink(0).AlignItems(ui.End)
 				} else {
 					control.FillWidth()
 				}
@@ -234,7 +240,8 @@ func hostEnumIndex(labels []string, selected string) int {
 	return -1
 }
 
-func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, title, hint string, fg, muted ui.Color) bool {	field, value, found := bodyHostValue(a, namespace, key)
+func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, title, hint string, fg, muted ui.Color) bool {
+	field, value, found := bodyHostValue(a, namespace, key)
 	if !found {
 		return false
 	}
@@ -276,7 +283,7 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 				labels[i] = hostEnumLabel(options[i])
 			}
 			display := hostEnumLabel(value)
-			if ui.Select(c, &display, labels).Label(title).FillWidth().Height(32).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
+			if ui.Select(c, &display, labels).Label(title).Height(32).MinWidth(84).MaxWidth(140).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
 				if index := hostEnumIndex(labels, display); index >= 0 {
 					a.OnChange(namespace, key, options[index])
 				}

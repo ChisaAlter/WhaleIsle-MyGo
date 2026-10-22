@@ -18,8 +18,8 @@ func permissionDefaultField(c *ui.Context, m Model, s store.ViewState, f store.F
 	if s.SelectedNS != "permission" || f.Key != "defaultPreset" {
 		return false
 	}
-	ui.Text(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("只影响以后创建的任务；当前会话权限保持不变。", "Applies to newly created tasks. The current session keeps its permissions.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, providerCopy("权限", "Permission")).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
+	ui.Text(c, providerCopy("选择新会话的默认权限模式", "Choose the default permission mode for new sessions")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	defaults := s.PermissionDefaults
 	if defaults.Err != "" {
 		ui.Text(c, defaults.Err).FontSize(theme.InterfaceSize(11)).TextColor(fg)
@@ -106,12 +106,12 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	confirming := ui.Local(row, "confirm", func() bool { return false })
 	acknowledged := ui.Local(row, "acknowledged", func() bool { return false })
 	row.Children(func() {
-		bodyPreferenceRow(c, "permission-row", providerCopy("新任务默认权限", "Default permissions for new tasks"), providerCopy("只影响以后创建的任务；当前会话权限保持不变。", "Applies to newly created tasks. The current session keeps its permissions."), fg, muted, func() {
+		bodyPreferenceRow(c, "permission-row", providerCopy("权限", "Permission"), providerCopy("选择新会话的默认权限模式", "Choose the default permission mode for new sessions"), fg, muted, func() {
 			if len(options) == 0 {
 				ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FillWidth().TextColor(muted)
 				return
 			}
-			if ui.Select(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).FillWidth().Disabled(bodyHostDisabled(a)).Changed() {
+			if ui.Select(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).MinWidth(84).MaxWidth(140).Disabled(bodyHostDisabled(a)).Changed() {
 				if values[selected] == "danger-full-access" {
 					*confirming, *acknowledged = true, false
 				} else {

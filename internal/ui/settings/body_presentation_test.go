@@ -166,15 +166,23 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 func TestSettingsPreferenceRowsReflowLongCopy(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Padding(24).Children(func() {
-			bodyPreferenceRow(c, "long-row", "Long preference title that must wrap without escaping its settings column", strings.Repeat("A helpful sentence with long content. ", 6), c.Theme().Text, c.Theme().TextMuted, func() { ui.Button(c, "Fixture control").FillWidth() })
+			bodyPreferenceRow(c, "long-row", "Long preference title that must wrap without escaping its settings column", strings.Repeat("A helpful sentence with long content. ", 6), c.Theme().Text, c.Theme().TextMuted, func() {
+				ui.Button(c, "Fixture control").Label("fixture-control").FillWidth()
+			})
 		})
 	}, 620, 500)
-	wide, ok := tt.Find("Fixture control")
+	wide, ok := tt.Find("fixture-control")
 	if !ok || wide.X < 350 || wide.X+wide.W > 620 {
 		t.Fatalf("wide control geometry %v", wide)
 	}
+	// The reference Setting-Cell's selector column is about 135 DIP; the copy
+	// column owns the rest of the row. A wider fixed column (the old 180) both
+	// stretched every select and pushed descriptions into extra lines.
+	if wide.W < 130 || wide.W > 150 {
+		t.Fatalf("selector column width = %.1f DIP at x=%.1f, want the reference's ~140", wide.W, wide.X)
+	}
 	tt.SetSize(340, 700)
-	narrow, ok := tt.Find("Fixture control")
+	narrow, ok := tt.Find("fixture-control")
 	if !ok || narrow.X < 24 || narrow.X+narrow.W > 316 || narrow.Y <= wide.Y {
 		t.Fatalf("narrow control did not stack %v -> %v", wide, narrow)
 	}
