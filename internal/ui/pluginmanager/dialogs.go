@@ -316,7 +316,11 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 					if !choice.Version.Compatibility.Compatible {
 						ui.Text(c, copyText("此版本具有兼容性风险豁免。", "This version has a compatibility risk exemption.")).FillWidth().TextColor(c.Theme().Warning)
 					}
-					ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().TextColor(muted)
+					// This card has no reference counterpart (the market is
+					// native), so its trust line borrows the spec screen's
+					// `.installSafety` panel rather than a second, weaker
+					// sentence: both install cards then warn in one voice.
+					installSafetyNote(c)
 				})
 				ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Children(func() {
 					if ui.Button(c, copyText("取消", "Cancel")).Clicked() {

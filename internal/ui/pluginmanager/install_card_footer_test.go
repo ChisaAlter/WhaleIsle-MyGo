@@ -284,6 +284,66 @@ func TestInstallFooterReadsCheckingWhileTheSpecChecks(t *testing.T) {
 	}
 }
 
+// marketChoiceFixture renders the native market confirmation card over the
+// shared backdrop, as the market's install button opens it.
+func marketChoiceFixture(t *testing.T) *ui.Tester {
+	t.Helper()
+	m := pageModel(t)
+	s := m.Controller.Snapshot()
+	entry := manager.MarketEntry{Name: "fixture-discover", Title: manager.Text(`"Discover fixture"`),
+		Description: manager.Text(`"A source-backed entry with exact install versions."`), Author: "Fixture author", DefaultVersion: "2.0.0"}
+	entry.Installation.Status = "not-installed"
+	version := manager.MarketVersion{Version: "2.0.0", Compatibility: manager.Compatibility{Compatible: true}}
+	version.Install.Spec = "fixture-discover@2.0.0"
+	entry.Versions = []manager.MarketVersion{version}
+	s.Discover.Choice = &manager.MarketChoice{Entry: entry, Version: version}
+	return pluginDialogFixture(t, func(c *ui.Context) {
+		marketChoiceDialog(c, m, s, m.Controller.Actions(s.Owner))
+	}, 1440, 920)
+}
+
+// TestMarketChoiceCarriesTheReferenceSafetyNote covers the two install cards
+// speaking in one voice: the native market confirmation used to warn with a
+// one-line sentence of its own ("请确认来源可信。插件以当前 profile 的权限运行。")
+// while the spec screen warned with the reference's `.installSafety` panel. It
+// now shows the same panel and the same reference copy.
+func TestMarketChoiceCarriesTheReferenceSafetyNote(t *testing.T) {
+	tt := marketChoiceFixture(t)
+	card, ok := tt.Find(copyText("确认安装插件", "Confirm plugin installation"))
+	if !ok {
+		t.Fatalf("the market choice card is missing: %v", tt.Texts())
+	}
+	safety, upgrade := installSafetyCopy()
+	note, ok := tt.Find(safety)
+	if !ok {
+		t.Fatalf("the market card lost the reference's trust note: %v", tt.Texts())
+	}
+	if !tt.HasText(upgrade) {
+		t.Fatalf("the market card lost the upgrade notice: %v", tt.Texts())
+	}
+	if tt.HasText("请确认来源可信。插件以当前 profile 的权限运行。") {
+		t.Fatalf("the market card still warns with its own one-line sentence: %v", tt.Texts())
+	}
+
+	// The body's 24 DIP inset, then the note's 12 DIP padding, 8 DIP gap and the
+	// 14 DIP glyph: the copy starts 58 DIP into the card, as in the footer.
+	if inset := note.X - card.X; math.Abs(float64(inset-58)) > 1 {
+		t.Fatalf("the market note's copy starts %.1f DIP into the card, want 24 + 12 + 8 + 14 = 58", inset)
+	}
+	// The panel fills the body's 512 DIP of content width: the copy is that
+	// width, less the note's 12/12 padding, the 8 DIP gap and the 14 DIP glyph.
+	if math.Abs(float64(note.W-466)) > 1 {
+		t.Fatalf("the market note's copy is %.1f DIP wide, want 466 (512 - 12 - 12 - 8 - 14)", note.W)
+	}
+	// The panel paints the warn tint at its left edge and leaves the corner.
+	img := tt.Image()
+	panelLeft := card.X + 24
+	mid := img.At(int(panelLeft+2), int(note.Y-10+12))
+	if !closeTo(mid, color.RGBA{254, 245, 231, 255}) {
+		t.Fatalf("the market note paints %v at its left edge, want the reference's warn tint rgb(254, 245, 231)", mid)
+	}
+}
+
 // TestInstallFooterIsAbsentFromTheLogScreen keeps the footer to the spec screen:
 // the installing, installed and failed screens carry their own actions, as the
 // reference's wizard does (PluginManagerPage.tsx:930-974).
