@@ -356,7 +356,11 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 				}
 				favoriteButton(c, m, item.ID)
 				ui.Box(c).Grow(1)
-				catalogInstallButton(c, m, d, item, inventory, fg, muted)
+				if m.InstallBusy {
+					ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				} else {
+					catalogInstallButton(c, m, d, item, inventory, fg, muted)
+				}
 			})
 		})
 	})
