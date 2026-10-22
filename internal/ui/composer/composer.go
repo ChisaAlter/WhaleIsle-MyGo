@@ -390,7 +390,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				var area ui.Element
 				placeholder := composerPlaceholder(m)
 				if m.UseTextInputClient && m.TextInput != nil {
-					area = paintDraftTextInput(c, m, fg, chrome.Color(colors.Caption), selectStart, selectEnd)
+					ink := readablePlaceholder(chrome.Color(colors.Caption), chrome.Color(colors.Muted), chrome.Color(colors.InputMajor))
+					area = paintDraftTextInput(c, m, fg, ink, selectStart, selectEnd)
 					// A clicked mention explicitly requests selection and focus.
 					// Ordinary rebuilds must preserve sidebar/toolbar/input focus.
 					if selectStart >= 0 {

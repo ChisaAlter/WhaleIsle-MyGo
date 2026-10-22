@@ -3,8 +3,38 @@ package composer
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"math"
 	"time"
 )
+
+// readablePlaceholder keeps the reference caption token when it is legible on
+// the input fill, and falls back to muted ink when the light card washes it
+// out (the default light caption sits around 2.2:1 on white).
+func readablePlaceholder(caption, muted, fill ui.Color) ui.Color {
+	if contrastRatio(caption, fill) >= 3 {
+		return caption
+	}
+	return muted
+}
+
+func contrastRatio(a, b ui.Color) float64 {
+	la, lb := relativeLuminance(a), relativeLuminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + .05) / (lb + .05)
+}
+
+func relativeLuminance(c ui.Color) float64 {
+	channel := func(v uint8) float64 {
+		s := float64(v) / 255
+		if s <= .04045 {
+			return s / 12.92
+		}
+		return math.Pow((s+.055)/1.055, 2.4)
+	}
+	return .2126*channel(c.R) + .7152*channel(c.G) + .0722*channel(c.B)
+}
 
 func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, selectUTF16Start, selectUTF16End int) ui.Element {
 	client := m.TextInput
