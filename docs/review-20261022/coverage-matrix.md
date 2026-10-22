@@ -26,7 +26,7 @@
 | frame/workflow_member.go | 1 | 🟡 | 共享表面 |
 | settings/confirm.go | 1 | ✅ | 通用确认；共享表面，widgets 测试覆盖按钮 |
 | settings/permission_defaults.go | 1 | ✅ | 默认权限确认；共享表面 + 设置测试 |
-| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24/下移 30；行悬停铅笔；行内录键；见 `round3-shortcuts.md`、`round4-dialog-surface.md` |
+| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24/下移 30；行悬停铅笔；行内录键；关闭盒/Esc/遮罩/重置四类手势都先收行内编辑器（参考 `closeReference`），标签不可聚焦；见 `round3-shortcuts.md`、`round4-dialog-surface.md`、`round5-close-gestures.md` |
 | settings/agent_preset_guide.go | 1 | ✅ | 模式指南；共享表面 + 设置测试 |
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |
@@ -110,8 +110,9 @@
 
 ## 四、下一轮优先
 
-1. 其余 🟡 弹窗（projects/dirpick/workspacepicker/chat/usage/boot）逐项核对是否接共享表面，并补 1440×920 证据。
-2. 快捷键行内编辑的 Esc 先收编辑器、点外收起；安装卡的 footer 化。
+1. 安装卡的 footer 化：把安全说明与主按钮移到不随正文滚动的固定底栏（参考 `PluginManagerPage.module.css` 的 footer），并核对引导/索引源开关是否为参考的带箭头文字切换。
+2. 其余 🟡 弹窗（projects/dirpick/workspacepicker/chat/usage/boot）逐项核对是否接共享表面，并补 1440×920 证据。
 3. 完整执行一次“输入 → 发送启用 → 不发送”的输入验证（需要可用键入方案）。
 4. 终端不可用与模型目录为空的运行时原因。
 5. Git/工作区/插件的实际执行路径。
+6. 实机窗口截图（Host 门禁允许时），替换快捷键弹窗与插件卡的纯无头证据。
