@@ -131,6 +131,15 @@ func (c *Controller) Refresh(ctx context.Context) { go c.Load(ctx) }
 func (c *Controller) Load(ctx context.Context) error {
 	client, owner, ctx, done, err := c.capture(ctx)
 	if err != nil {
+		// Ensure already moved the status to loading. A capture failure (Host
+		// still booting, no owner yet) must not leave the page on an endless
+		// skeleton; surface the error and its retry instead.
+		c.mu.Lock()
+		c.state.Loading = false
+		c.state.Status = "error"
+		c.state.Error = err.Error()
+		c.mu.Unlock()
+		c.fire()
 		return err
 	}
 	defer done()
