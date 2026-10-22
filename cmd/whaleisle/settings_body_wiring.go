@@ -86,6 +86,12 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		// status from a dev feed and reads as an internal failure to the user;
 		// the friendly status already says the lookup failed and the list was kept.
 		m.About.UpdateStatus = strings.TrimSpace(releases.status)
+		// A background feed failure is diagnostic noise on About. Keep it out
+		// of the default page; the check button retries and surfaces success or
+		// a newer version there.
+		if strings.Contains(m.About.UpdateStatus, "目录读取失败") || strings.Contains(m.About.UpdateStatus, "Catalog lookup failed") {
+			m.About.UpdateStatus = ""
+		}
 		m.About.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", false) }
 	}
 	var cfg config.Config
