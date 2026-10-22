@@ -144,10 +144,10 @@ func TestStageLongComponentListScrollsWithoutMovingRail(t *testing.T) {
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{ActiveTab: TabComponents, Components: rows}) }, 1060, 660)
 	first, _ := tt.Find("Component-00")
-	rail, _ := tt.Find("MYGO鲸屿")
+	rail, _ := tt.Find("WHALE ISLE")
 	tt.Scroll(800, 450, 0, 600)
 	after, _ := tt.Find("Component-00")
-	railAfter, _ := tt.Find("MYGO鲸屿")
+	railAfter, _ := tt.Find("WHALE ISLE")
 	if after.Y >= first.Y {
 		t.Fatalf("stage did not scroll: first=%+v after=%+v", first, after)
 	}
@@ -252,11 +252,11 @@ func TestBrandWordmarkStaysOnOneBaselineLine(t *testing.T) {
 	tt := ui.NewTester(railHead, 164, 100)
 	cn, _ := tt.Find("鲸")
 	isle, _ := tt.Find("屿")
-	en, _ := tt.Find("MYGO鲸屿")
+	en, _ := tt.Find("WHALE ISLE")
 	role, _ := tt.Find(i18n.T(i18n.KeyLauncherBrandRole))
-	// The wordmark is the rebranded "MYGO鲸屿" lockup; 56 DIP is its reference
-	// width at 10 DIP with 1.2 tracking (the old "WHALE ISLE" lockup was 65).
-	if en.H > cn.H || en.W < 56 {
+	// The wordmark is the reference's "鲸屿 WHALE ISLE" lockup; 65 DIP is its
+	// width at 10 DIP with 1.2 tracking.
+	if en.H > cn.H || en.W < 65 {
 		t.Errorf("English wordmark wrapped or lost reference tracking: %+v", en)
 	}
 	if en.X <= isle.X || en.Y+en.H < cn.Y || en.Y > cn.Y+cn.H {

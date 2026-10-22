@@ -303,7 +303,7 @@ func railHead(c *ui.Context) {
 				ui.Text(c, "屿").Label("屿").FontSize(theme.InterfaceSize(18)).FontWeight(700).LetterSpacing(-0.72).TextColor(colAccent)
 				// An em-space at7 DIP preserves the CSS7px gap within one native text line.
 				ui.Text(c, "\u2003").FontSize(theme.InterfaceSize(7))
-				ui.Text(c, "MYGO鲸屿").Label("MYGO鲸屿").FontSize(theme.InterfaceSize(10)).FontWeight(600).LetterSpacing(1.2).TextColor(colPrimary)
+				ui.Text(c, "WHALE ISLE").Label("WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).LetterSpacing(1.2).TextColor(colPrimary)
 			})
 			ui.Text(c, i18n.T(i18n.KeyLauncherBrandRole)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
 				FontWeight(500).LetterSpacing(0.72).TextColor(colTertiary).SingleLine()
@@ -419,7 +419,7 @@ func homePanel(c *ui.Context, m Model) {
 		Padding(20, 24, 20, 24).Gap(0).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Start).Gap(16).Children(func() {
 			ui.Column(c).Gap(2).Grow(1).Children(func() {
-				ui.Text(c, "MYGO鲸屿").FontSize(theme.InterfaceSize(10)).FontWeight(600).TextColor(colTertiary)
+				ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).TextColor(colTertiary)
 				ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
 			})
 			badge := strings.TrimSpace(m.Version)

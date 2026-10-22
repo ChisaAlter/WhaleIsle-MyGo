@@ -24,7 +24,7 @@ func TestViewLauncherElectronParityLabels(t *testing.T) {
 	for _, label := range []string{
 		"鲸",
 		"屿",
-		"MYGO鲸屿",
+		"WHALE ISLE",
 		i18n.T(i18n.KeyLauncherBrandRole),
 		i18n.T(i18n.KeyLauncherTabHome),
 		i18n.T(i18n.KeyLauncherTabComponents),
