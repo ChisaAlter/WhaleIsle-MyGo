@@ -197,7 +197,16 @@ func View(c *ui.Context, m Model) {
 							FixedLineHeight(theme.InterfaceSize(10)).FontWeight(500).LetterSpacing(0.32).TextColor(muted)
 					})
 					if m.OnToggle != nil {
-						if ui.Button(c, "‹").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
+						collapse := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent)
+						collapse.Draw(func(p *ui.Painter, r ui.Rect) {
+							// Reference chrome: sidebar panel glyph, not a chevron.
+							p.Stroke(ui.Rect{X: r.X + 5, Y: r.Y + 6, W: 14, H: 12}, fg, 1, 2)
+							path := &ui.Path{}
+							path.MoveTo(r.X+10.5, r.Y+6)
+							path.LineTo(r.X+10.5, r.Y+18)
+							p.StrokePath(path, 1, fg)
+						})
+						if collapse.Clicked() {
 							m.OnToggle()
 						}
 					}
