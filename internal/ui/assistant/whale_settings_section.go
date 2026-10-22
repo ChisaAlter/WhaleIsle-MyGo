@@ -216,7 +216,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .24))
 		vw, vh := c.Size()
-		panel.Width(min(float32(560), max(float32(0), vw-48))).Height(min(float32(600), max(float32(0), vh-48))).Radius(16).Clip().Background(chrome.Color(colors.BG)).Children(func() {
+		panel.Width(min(float32(560), max(float32(0), vw-48))).Height(min(float32(600), max(float32(0), vh-48))).Radius(28).Clip().Background(chrome.Color(colors.BG)).Children(func() {
 			ui.Scroll(c).Fill().MinWidth(0).MinHeight(0).Padding(20).Gap(10).Children(func() {
 				ui.Text(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantAssistantSettings), "Assistant settings")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClose), "Close")).Clicked() {
@@ -274,6 +274,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				}
 			})
 		})
+		chrome.DialogDecor(c, backdrop, panel, colors, 28)
 	})
 	if !open {
 		*dialog = ""

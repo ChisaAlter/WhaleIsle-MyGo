@@ -298,7 +298,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
 		chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .35), progress)
 		backdrop.Padding(16)
-		panel.Label(catalogTitle(item)).Width(max(0, min(float32(680), w-32))).Height(max(0, min(float32(720), h-48))).Border(.5, border).Radius(12).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).BG), chrome.MaterialPanel, 12)).Children(func() {
+		panel.Label(catalogTitle(item)).Width(max(0, min(float32(680), w-32))).Height(max(0, min(float32(720), h-48))).Border(.5, border).Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).BG), chrome.MaterialPanel, 28)).Children(func() {
 			ui.Row(c).FillWidth().Padding(16).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 				if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details")).Disabled(d.DetailsLoading).Clicked() {
