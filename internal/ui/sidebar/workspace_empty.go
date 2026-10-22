@@ -56,7 +56,12 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 		ui.Text(c, workspaceText("连接后显示会话", "Connect to load sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 		return
 	}
-	ui.Column(c.Key("workspace-empty-state")).Label("Empty sessions").FillWidth().AlignItems(ui.Center).Gap(8).Margin(80, 0, 0, 0).Padding(0, 12).Children(func() {
+	margin := float32(80)
+	if filter == "only" {
+		// The archived header already introduces this state.
+		margin = 16
+	}
+	ui.Column(c.Key("workspace-empty-state")).Label("Empty sessions").FillWidth().AlignItems(ui.Center).Gap(8).Margin(margin, 0, 0, 0).Padding(0, 12).Children(func() {
 		ui.Box(c).Width(24).Height(24).Margin(0, 0, 4, 0).Draw(func(p *ui.Painter, r ui.Rect) {
 			path := &ui.Path{}
 			if filter == "only" {
