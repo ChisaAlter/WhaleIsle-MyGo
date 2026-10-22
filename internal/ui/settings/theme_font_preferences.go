@@ -73,11 +73,10 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				})
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-					if currentLight {
-						ui.Text(c, providerCopy("浅色当前", "Light")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					}
-					if currentDark {
-						ui.Text(c, providerCopy("深色当前", "Dark")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					if currentLight || currentDark {
+						// One family can supply both schemes; say "current" once
+						// instead of claiming light and dark are both current modes.
+						ui.Text(c, providerCopy("当前主题", "Current theme")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 				})
 			})
@@ -138,9 +137,9 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 			ui.Box(c).Height(4)
 			ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
 			switchText := providerCopy(map[string]string{"light": "浅色", "dark": "深色"}[scheme], map[string]string{"light": "Light", "dark": "Dark"}[scheme])
-			if current {
-				switchText = providerCopy(map[string]string{"light": "浅色（当前模式）", "dark": "深色（当前模式）"}[scheme], map[string]string{"light": "Light (current)", "dark": "Dark (current)"}[scheme])
-			}
+			// The check above already marks the family selected for this
+			// scheme; repeating "(current mode)" on both halves reads as if both
+			// modes were active at once.
 			ui.Row(c).Gap(0).Children(func() {
 				ui.Text(c, switchText).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
 					Border(.5, chrome.Color(seed.Foreground).Alpha(.25)).TextColor(chrome.Color(seed.Foreground).Alpha(.85))
