@@ -30,7 +30,7 @@
 | settings/agent_preset_guide.go | 1 | ✅ | 模式指南；共享表面 + 设置测试 |
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |
-| settings/effect_preferences.go | 1 | ⛔ | 特效设置面板仍是 16px |
+| settings/effect_preferences.go | 1 | ✅ | 620×min(760,85% 视口) 编辑面板；共享表面玻璃/描边；快照 `settings-effect-dialog.png` |
 | settings/onboarding.go | 2 | ⛔ | 首次引导 |
 | settings/modal.go | 1 | ➖ | 设置主模态，已是 28px 玻璃 |
 | terminal/pane_close.go | 1 | ✅ | 共享表面 + terminal 测试 |

@@ -64,7 +64,16 @@ go build -o whaleisle-pass123.exe ./cmd/whaleisle
 结果：`internal/ui/...` 全部包通过（首次全量跑时 `widgets/TestStateDotRunningBreathes` 曾因并行负载失败一次，单独与复跑均通过）；`internal/shortcuts` 通过；`go vet` 无输出；`go build` 成功。
 截图：`settings-shortcuts-dialog-1440.png`、`settings-shortcuts-editor-1440.png`。
 
-## 5. 残留
+## 5. 同轮附带：特效设置弹窗改用共享表面
+
+覆盖矩阵里 `settings/effect_preferences` 一直标 ⛔（“16px、无玻璃”）。实际代码已是 28 DIP 圆角，但面板直接 `Background(theme.Background)+Clip`，遮罩是手写黑色层：没有共享弹窗的淡入、玻璃材质、菜单投影与 0.5 DIP 外描边，和参考弹窗的材质不一致。
+
+- `internal/ui/settings/effect_preferences.go`：面板改为 `chrome.DialogSurfaceTheme(...)`，保留 620×min(760, 85% 视口) 的尺寸，去掉手写遮罩。
+- 证据：`docs/review-20261022/evidence/settings-effect-dialog.png`（900×950 无头渲染，含合成保存失败状态）。
+- 覆盖矩阵对应行改为 ✅。
+- 验证：`go test ./internal/ui/settings`（含 `TestEffectEditorAtomicSaveRetainsFailureAndChangesHost`、`TestInterfaceGearOpensTheEffectDialog`）通过。
+
+## 6. 残留
 
 1. **弹窗垂直位置**：参考在居中基础上 `translateY(30px)`（`Reference.module.css:59`），当前 `DialogBase` 严格居中，实测顶部 161 vs 参考 191。需要共享弹窗支持统一偏移后再改，未在本轮动 `DialogBase`。
 2. **行悬停提示**：参考悬停时在键位胶囊左侧淡入铅笔图标（`.rowActions`），当前只换行底色（悬停 `Tooltip` 说明动作）。
@@ -73,4 +82,4 @@ go build -o whaleisle-pass123.exe ./cmd/whaleisle
 5. **分组**：参考有 `应用操作/消息输入/菜单与弹层/审批区域` 四组，原生没有消息输入与审批区命令，按参考“空组不显示标题”的规则只渲染应用操作组，因此列表没有组标题。
 6. **应用缩放簇**：从弹窗移除；能力仍由 `window.zoomIn/zoomOut/actualSize`（`Mod+=`/`Mod+-`/`Mod+0`）提供，并在同一弹窗列表中可见。
 7. **实机截图**：本轮仍未取得 MyGo 实机窗口图（Host 门禁与 150% DPI 老问题），证据为生产 `ModalView` 无头渲染 + 测试。也尝试直接截取运行中的鲸屿本体（0.3.9）快捷键弹窗：窗口可 `SetWindowPos`，但侧栏 `账号菜单` 的 UIA 元素不支持 `InvokePattern`，无法在不注入鼠标的情况下进入设置；改用 `Ctrl+,` 发送按键也未送达前台。故参考侧仍以源码 CSS/文案为准。
-8. 覆盖矩阵中其余待迁移弹窗：`settings/effect_preferences`、`pluginmanager` 安装/来源/市场选择、`settings/onboarding`、`market/details`。
+8. 覆盖矩阵中其余待迁移弹窗：`pluginmanager` 安装/来源/市场选择、`settings/onboarding`、`market/details`。

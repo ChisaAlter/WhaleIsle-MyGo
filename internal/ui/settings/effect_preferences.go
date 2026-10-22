@@ -352,9 +352,12 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		return
 	}
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .24))
 		vw, vh := c.Size()
-		panel.Width(min(float32(620), max(float32(0), vw-48))).Height(min(float32(760), max(float32(0), vh*.85))).Radius(28).Clip().Background(c.Theme().Background).Children(func() {
+		// The effect editor is a feature dialog on the shared modal surface, like
+		// the reference settings dialogs: the same fade, glass, 28 DIP radius and
+		// 0.5 DIP outer hairline as commit, permission and settings editors.
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(620), max(float32(0), vw-48)), 0).
+			Height(min(float32(760), max(float32(0), vh*.85))).Children(func() {
 			ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
 				ui.Row(c).FillWidth().Padding(16, 20).Wrap().Gap(8).Children(func() {
 					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
