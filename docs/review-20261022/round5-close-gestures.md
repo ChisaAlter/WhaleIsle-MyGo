@@ -24,7 +24,7 @@
 | 文件 | 修改 |
 | --- | --- |
 | `internal/ui/settings/shortcuts.go` | 新增 `shortcutCloseReference(open, e, target)`：有行内编辑器时只 `CancelRecording` 并清空 `target`，否则关闭弹窗；关闭盒改为调用它。弹窗内容在 `*target != ""` 时把 `Escape` 注册到 panel（非 overlay，位于焦点链上，优先于 backdrop 的关窗处理），并接管遮罩点击（`backdrop.Clicked()` 时收编辑器并恢复 `*open = true`，使第一下只退一层）。底栏“恢复全部默认”在 `RequestReset` 前清 `target`；清空后弹窗不再注册 panel 级 Escape，确认框独占 Esc。行内编辑器的标签由 `ui.Button` 改为不可聚焦的 `ui.Box` + `Clicked()`（保留“点标签收起编辑器”的指针路径，去掉多出的 Tab 停靠点）。 |
-| `internal/ui/settings/shortcut_dialog_affordance_test.go` | 新增 5 条回归：关闭盒、Escape、遮罩、录键中 Escape、重置确认、标签非 Tab 停靠点。 |
+| `internal/ui/settings/shortcut_dialog_affordance_test.go` | 新增 6 条回归：关闭盒、Escape、遮罩、录键中 Escape、重置确认、标签非 Tab 停靠点。 |
 | `internal/ui/pluginmanager/install_registry.go` | 拆出 `installOptionsRow`（`.optionsRow`：一行、两端对齐、可换行）、`installGuideToggle`（`.guideToggle`：16 DIP 箭头在前、12.5 DIP、无描边、悬停转主要色、展开换文案）、`installRegistryToggle`（`.registryToggle`：28 高、0.5 描边、圆角 10、次要色标题 + 500 字重主要色选中名 + 末尾箭头）；`installGuidePanel` / `installRegistryPanel` 承接展开内容与浮层。新增 `installChevronAngle`（160ms ease-out 旋转，`c.After(16ms)` 续帧）与参考 `IconChevronDownOutlineRegular` 的箭头路径。 |
 | `internal/ui/pluginmanager/dialogs.go` | 空态调用改成选项行 + 引导面板 + 注册表面板三步；顺带修正该文件既有的 import 次序（gofmt）。 |
 | `internal/ui/pluginmanager/install_options_row_test.go` | 新增 4 条回归：选项行几何（引导 18 高、左 24；注册表 28 高、右 24；同一中线）、引导展开换文案、箭头 160ms 的 0→180→0 缓动、注册表展开露出选项。 |
