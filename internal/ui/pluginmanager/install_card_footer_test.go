@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // specInstallCardAt renders the install card's spec screen in a window of the
@@ -342,6 +343,38 @@ func TestMarketChoiceCarriesTheReferenceSafetyNote(t *testing.T) {
 	if !closeTo(mid, color.RGBA{254, 245, 231, 255}) {
 		t.Fatalf("the market note paints %v at its left edge, want the reference's warn tint rgb(254, 245, 231)", mid)
 	}
+}
+
+// TestInstallSafetyNotePaintsTheDarkTint keeps the note readable on the dark
+// scheme: `.installSafety` swaps to the turned-over warn tint and the reference's
+// secondary label there, so the panel is one notch above the dark card rather
+// than blending into it.
+func TestInstallSafetyNotePaintsTheDarkTint(t *testing.T) {
+	m := pageModel(t)
+	m.SystemDark = true
+	m.ThemeID = theme.IDDeepseekDark
+	s := m.Controller.Snapshot()
+	s.Install = manager.InstallState{Open: true, Phase: "idle"}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		ui.Column(c).Fill().Children(func() { installDialog(c, m, s, m.Controller.Actions(s.Owner)) })
+	}, 1440, 920)
+	for range 12 {
+		tt.Frame()
+		time.Sleep(16 * time.Millisecond)
+	}
+	card, note, _ := installFooterBoxes(t, tt)
+	img := tt.Image()
+	panelLeft, panelTop := card.X+24, note.Y-10
+	if painted := img.At(int(panelLeft+2), int(panelTop+12)); !closeTo(painted, color.RGBA{39, 36, 31, 255}) {
+		t.Fatalf("the dark note paints %v at its left edge, want the reference's dark warn tint rgb(39, 36, 31)", painted)
+	}
+	// The note stands off the dark card: its tint is not the card's own fill,
+	// sampled just above the panel.
+	if painted := img.At(int(panelLeft+2), int(panelTop-8)); closeTo(painted, color.RGBA{39, 36, 31, 255}) {
+		t.Fatalf("the dark card paints the note's tint above the note: %v", painted)
+	}
+	savePageSnapshot(t, tt, "plugins-install-dark-1440.png")
 }
 
 // TestInstallFooterIsAbsentFromTheLogScreen keeps the footer to the spec screen:
