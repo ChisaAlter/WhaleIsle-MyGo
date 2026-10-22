@@ -248,10 +248,10 @@ func View(c *ui.Context, m Model) {
 								})
 							}
 						})
-						TurnUsageView(row.Context, m, msg, muted)
 						if target, ok := actionTargets[row.Index]; ok {
 							assistantMessageActions(row.Context, m, target, messageRoot, muted)
 						}
+						TurnUsageView(row.Context, m, msg, muted)
 						return
 					}
 					// Electron chat: system failures as red banner; no role chips on user/assistant.
