@@ -202,7 +202,7 @@ func shortcutRow(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, 
 // row. The slot stays in the layout while hidden, so the badge never shifts as
 // the pointer enters and leaves.
 func shortcutRowActions(c *ui.Context, id string, p shortcutPalette, hovered bool) {
-	slot := ui.Box(c).Label("row-edit-" + id).Size(shortcutRowActionSize, shortcutBadgeHeight).Shrink(0).
+	slot := ui.Box(c).Label("row-edit-"+id).Size(shortcutRowActionSize, shortcutBadgeHeight).Shrink(0).
 		AlignItems(ui.Center).Justify(ui.Center).PassThrough()
 	slot.Children(func() {
 		icon := ui.Icon(c, shortcutEditIcon).Size(12, 12).TextColor(p.caption)

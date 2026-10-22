@@ -986,6 +986,7 @@ func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State
 		})
 	}
 }
+
 // sourcesEditor is the index-source body of the sources card: the reference
 // modal names the section in its header, so the body carries no second title or
 // nested panel of its own.

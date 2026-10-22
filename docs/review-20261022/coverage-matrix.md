@@ -31,7 +31,7 @@
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |
 | settings/effect_preferences.go | 1 | ✅ | 620×min(760,85% 视口) 编辑面板；共享表面玻璃/描边；快照 `settings-effect-dialog.png` |
-| settings/onboarding.go | 2 | ⛔ | 首次引导 |
+| settings/onboarding.go | 2 | ➖ | 参考 `OnboardingSurface.module.css` 即全屏 overlay（`inset: 0`、无圆角），原生同为 100%×100%、圆角 0 |
 | settings/modal.go | 1 | ➖ | 设置主模态，已是 28px 玻璃 |
 | terminal/pane_close.go | 1 | ✅ | 共享表面 + terminal 测试 |
 | remote/file_actions.go | 1 | ✅ | 共享表面 + remote 测试 |
@@ -44,7 +44,7 @@
 | pluginmanager/index-sources | 1 | ✅ | 同上；底部重复 `关闭` 与内层重复标题已移除 |
 | pluginmanager/market-choice | 1 | ✅ | 同上；头部关闭 + 底部 `取消/安装` |
 | market/confirmationView | 1 | ✅ | 共享表面 + market 测试 |
-| market/details | 1 | ⛔ | 已是 28 圆角/玻璃/淡入，但遮罩、头部（16 内边距 + 文字关闭）、正文内边距为手写值；下一轮接共享表面 |
+| market/details | 1 | ✅ | 共享表面 + 参考头部（22/14/12/24、28 关闭盒）+ 24 体边距；`market-details-wide/narrow.png` |
 | diffsurface/commit_dialog.go | 1 | ✅ | 共享表面 + diffsurface 测试 |
 | diffsurface/caption_actions.go | 1 | ✅ | 创建分支；共享表面 + 测试 |
 | diffsurface/caption_review.go | 1 | ✅ | Git Review；共享表面 + 测试 |
@@ -110,7 +110,8 @@
 
 ## 四、下一轮优先
 
-1. `market/details`、`settings/onboarding` 接共享表面（遮罩/头部/内边距/关闭盒）。
-2. 完整执行一次“输入 → 发送启用 → 不发送”的输入验证（需要可用键入方案）。
-3. 终端不可用与模型目录为空的运行时原因。
-4. Git/工作区/插件的实际执行路径。
+1. 其余 🟡 弹窗（projects/dirpick/workspacepicker/chat/usage/boot）逐项核对是否接共享表面，并补 1440×920 证据。
+2. 快捷键行内编辑的 Esc 先收编辑器、点外收起；安装卡的 footer 化。
+3. 完整执行一次“输入 → 发送启用 → 不发送”的输入验证（需要可用键入方案）。
+4. 终端不可用与模型目录为空的运行时原因。
+5. Git/工作区/插件的实际执行路径。
