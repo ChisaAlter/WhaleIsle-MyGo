@@ -37,6 +37,8 @@ child image gallery、visual reply、attachment display、usage pricing、boot d
 
 第 7 轮已补：visual reply 两处改为 28px 共享表面；图片画廊/附件/价格详情补 20px 圆角、裁剪、遮罩与内边距；文件引用错误框改为 28px 共享表面。
 
+第 9 轮已补：启动日志 drawer/scene 从 12px 直角感面板改为 20px 圆角、裁剪、24→20 内边距。
+
 ### D. 待迁移的普通弹窗
 
 assistant whale settings、boot 两处 drawer、chat feedback / user references、composer voice setup、diffsurface 创建分支 / review / commit、market 两处、pluginmanager 四处、projects rename/archive/modal、settings agent guide / body helpers / effect preferences / onboarding / pet / shortcuts、usage pricing、workspacepicker。

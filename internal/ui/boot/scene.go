@@ -56,7 +56,7 @@ func startupScene(c *ui.Context, m Model) {
 			ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
 				backdrop.Background(ui.RGBA(0, 0, 0, .4))
 				w, h := c.Size()
-				panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(c.Theme().Background).Padding(16).Children(func() {
+				panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(c.Theme().Background).Radius(20).Clip().Padding(20).Children(func() {
 					ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold()
 					if ui.Button(c, bootText("关闭日志", "Close logs")).Clicked() {
 						*drawer = false

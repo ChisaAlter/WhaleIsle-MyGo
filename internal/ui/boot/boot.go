@@ -123,7 +123,7 @@ func View(c *ui.Context, m Model) {
 			backdrop.Background(ui.RGBA(0, 0, 0, .4))
 			w, h := c.Size()
 			panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(bg).Border(1, border).
-				Radius(12).Padding(16).Children(func() {
+				Radius(20).Clip().Padding(20).Children(func() {
 				ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold().TextColor(fg)
 				if ui.Button(c, bootText("关闭日志", "Close logs")).Clicked() {
 					*drawer = false
