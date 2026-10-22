@@ -363,7 +363,6 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 		ui.Text(c, i18n.T(i18n.KeyMarketInstallSpecLabel)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		spec := ""
 		if m.InstallSpec != nil {
-			ui.TextInput(c, m.InstallSpec).FillWidth().Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
 			spec = strings.TrimSpace(*m.InstallSpec)
 		}
 		var allow []string
@@ -374,9 +373,14 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 		if m.NeedsAllowBuilds {
 			btnLabel = i18n.T(i18n.KeyMarketAllowBuildsButton)
 		}
-		if !m.InstallBusy && ui.Button(c, btnLabel).Clicked() && m.OnInstallSpec != nil && spec != "" {
-			m.OnInstallSpec(spec, allow)
-		}
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			if m.InstallSpec != nil {
+				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
+			}
+			if !m.InstallBusy && ui.Button(c, btnLabel).Height(36).Padding(0, 16).Shrink(0).Clicked() && m.OnInstallSpec != nil && spec != "" {
+				m.OnInstallSpec(spec, allow)
+			}
+		})
 		if !m.InstallReady {
 			ui.Text(c, i18n.T(i18n.KeyMarketInstallNotReady)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
