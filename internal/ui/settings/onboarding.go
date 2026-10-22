@@ -250,8 +250,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 				kind := *dialog
 				confirm := true
 				ui.DialogBase(c, &confirm, func(mask, box ui.Element) {
-					mask.Background(ui.RGBA(0, 0, 0, .28))
-					box.Width(440).MaxWidthPercent(90).Padding(28).Gap(14).Radius(16).Background(bg).Children(func() {
+					chrome.DialogSurfaceTheme(c, mask, box, c.Theme(), 440, 28).Gap(14).Children(func() {
 						message := providerCopy("你可以随时前往 设置 → 通用设置 中调整工作过程、性能与用量展示方式或开启代码工作工具。", "You can change how progress, performance, and usage are displayed, or enable Coding Tools, anytime in Settings → General.")
 						if kind != "skip" {
 							message = providerCopy("没有可用额度时，Whale Isle 将无法开始新的任务。你可以稍后前往 个人中心 → 账号与余额 进行充值。", "Whale Isle can’t start new tasks without credits. You can add them later in Profile → Accounts.")
