@@ -96,7 +96,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				title = g.Workspace.Path
 			}
 			if g.Kind == "scratch" {
-				title = workspaceText("无目录会话", "No workspace folder")
+				title = workspaceText("无工作目录", "No working directory")
 			}
 			if g.Kind == "other" {
 				title = workspaceText("其他会话", "Other sessions")

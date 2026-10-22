@@ -136,7 +136,7 @@ func TestWorkspaceSearchIsInlineAndEscapeClears(t *testing.T) {
 	if _, ok := tt.Find(workspaceText("清除搜索", "Clear search")); ok {
 		t.Fatal("Escape left input expanded")
 	}
-	if err := tt.Click(workspaceText("选择会话", "Select sessions")); err != nil {
+	if err := tt.Click(workspaceText("多选会话", "Select sessions")); err != nil {
 		t.Fatal(err)
 	}
 	if selected != 1 {

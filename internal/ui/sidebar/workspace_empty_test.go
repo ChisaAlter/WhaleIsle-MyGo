@@ -80,7 +80,7 @@ func TestWorkspaceArchiveOnlyPreservesStatusAndMenuFilter(t *testing.T) {
 	filter, open := "show", false
 	m := Model{BrowseArchivedFilter: &filter, WorkspaceMenuOpen: &open, Snapshot: session.ViewState{WorkspaceReady: true, WorkspaceLayout: session.WorkspaceLayoutState{PreferenceError: "fixture preference conflict"}}}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 1000)
-	if err := tt.Click("Workspace options"); err != nil {
+	if err := tt.Click("View options"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("Archived session visibility"); err != nil {

@@ -72,7 +72,7 @@ func batchToggle(c *ui.Context, m Model, fg ui.Color) {
 		return
 	}
 	b := m.Batch
-	label := workspaceText("选择会话", "Select sessions")
+	label := workspaceText("多选会话", "Select sessions")
 	if b.Enabled {
 		label = workspaceText("退出多选", "Exit selection")
 	}
@@ -80,17 +80,16 @@ func batchToggle(c *ui.Context, m Model, fg ui.Color) {
 		BorderWidth(0).Background(ui.Transparent).Disabled(b.Busy || b.Confirming)
 	button.Draw(func(p *ui.Painter, r ui.Rect) {
 		path := &ui.Path{}
-		path.MoveTo(r.X+8, r.Y+7)
-		path.LineTo(r.X+20, r.Y+7)
-		path.LineTo(r.X+20, r.Y+20)
-		path.LineTo(r.X+8, r.Y+20)
-		path.Close()
-		p.StrokePath(path, 1.2, fg)
-		if b.Enabled {
+		// Reference header icon: a checked list, not a panel outline.
+		path.MoveTo(r.X+7, r.Y+9)
+		path.LineTo(r.X+9.5, r.Y+11.5)
+		path.LineTo(r.X+14, r.Y+6.5)
+		p.StrokePath(path, 1.3, fg)
+		for i := 0; i < 3; i++ {
+			y := r.Y + 9 + float32(i)*5
 			path = &ui.Path{}
-			path.MoveTo(r.X+10, r.Y+13)
-			path.LineTo(r.X+13, r.Y+16)
-			path.LineTo(r.X+18, r.Y+10)
+			path.MoveTo(r.X+16, y)
+			path.LineTo(r.X+22, y)
 			p.StrokePath(path, 1.2, fg)
 		}
 	})

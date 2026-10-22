@@ -59,8 +59,21 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 		}
 		batchToggle(c, m, muted)
 		if !*expanded {
-			options := ui.Button(c, "…").Label(workspaceText("工作区选项", "Workspace options")).Width(28).Height(28).
+			label := workspaceText("视图选项", "View options")
+			options := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).
 				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+			options.Draw(func(p *ui.Painter, r ui.Rect) {
+				// Reference header icon: three sliders with their knobs.
+				for i := 0; i < 3; i++ {
+					y := r.Y + 9 + float32(i)*5
+					knob := []float32{15, 10, 18}[i]
+					path := &ui.Path{}
+					path.MoveTo(r.X+7, y)
+					path.LineTo(r.X+21, y)
+					p.StrokePath(path, 1.2, muted)
+					p.Fill(ui.Rect{X: r.X + knob - 1.6, Y: y - 1.6, W: 3.2, H: 3.2}, muted, 1.6)
+				}
+			})
 			if options.Clicked() {
 				*menuOpen = !*menuOpen
 			}
