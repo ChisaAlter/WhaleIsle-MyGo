@@ -217,15 +217,19 @@ func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 		return []WorkspaceGroup{{Key: "::flat", Kind: "flat", Workspace: WorkspaceRow{SessionIDs: order}, Items: append([]Item(nil), items...)}}
 	}
 	owners := WorkspaceSessionOwners(snap.Workspaces, items)
+	knownWorkspace := map[string]bool{}
+	for _, ws := range snap.Workspaces {
+		knownWorkspace[ws.WorkspaceID] = true
+	}
 	byGroup := map[string][]Item{}
-	var scratch, other []Item
+	var scratch []Item
 	for _, item := range items {
-		if id := owners[item.SessionID]; id != "" {
+		if id := owners[item.SessionID]; id != "" && knownWorkspace[id] {
 			byGroup[id] = append(byGroup[id], item)
-		} else if snap.IsNoDirectory(item) {
-			scratch = append(scratch, item)
 		} else {
-			other = append(other, item)
+			// The Original has one unfiled bucket ("无工作目录"); a session
+			// whose folder is not a registered workspace belongs there too.
+			scratch = append(scratch, item)
 		}
 	}
 	parents := map[string]string{}
@@ -248,9 +252,6 @@ func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 	emit("", 0)
 	if len(scratch) > 0 {
 		out = append(out, WorkspaceGroup{Key: "::scratch", Kind: "scratch", Workspace: WorkspaceRow{SessionIDs: localSessionOrder(snap, "::scratch")}, Items: scratch})
-	}
-	if len(other) > 0 {
-		out = append(out, WorkspaceGroup{Key: "::other", Kind: "other", Workspace: WorkspaceRow{SessionIDs: localSessionOrder(snap, "::other")}, Items: other})
 	}
 	return out
 }

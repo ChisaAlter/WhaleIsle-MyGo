@@ -30,8 +30,17 @@ func TestWorkspaceGroupingFixture(t *testing.T) {
 	if byID["child"].ParentID != "root" || byID["child"].Depth != 1 || byID["neighbor"].ParentID != "" || byID["winchild"].ParentID != "win" || byID["winchild"].Depth != 1 {
 		t.Fatalf("Host path tree mismatch %#v", groups)
 	}
-	if len(byID["root"].Items) != 3 || len(byID["::scratch"].Items) != 1 || len(byID["::other"].Items) != 1 || byID["::other"].Items[0].SessionID != "orphan" {
-		t.Fatal("membership guessed from path or scratch merged")
+	if len(byID["root"].Items) != 3 || len(byID["::scratch"].Items) != 2 {
+		t.Fatal("membership guessed from path or unfiled sessions split")
+	}
+	foundOrphan := false
+	for _, item := range byID["::scratch"].Items {
+		if item.SessionID == "orphan" {
+			foundOrphan = true
+		}
+	}
+	if !foundOrphan {
+		t.Fatal("a session outside every registered workspace was not filed under 无工作目录")
 	}
 	ordered := OrderedWorkspaceSessionRows(byID["root"].Items, rows[0].SessionIDs, nil, "manual", false)
 	if len(ordered) != 3 || ordered[0].Item.SessionID != "second" || ordered[1].Item.SessionID != "first" || ordered[2].Depth != 1 {
