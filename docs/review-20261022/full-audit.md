@@ -80,6 +80,9 @@ assistant whale settings、boot 两处 drawer、chat feedback / user references�
 
 - 设置 → 界面设置 → “显示归档列表”：实机 UIA Toggle `On → Off → On`，恢复原值。
 - 模型选择、命令列表、终端抽屉、右侧面板均可点击打开；终端/右侧面板渲染正常。
+- 插件页实机可进入并渲染插件卡、版本、启用/更多操作；先前文本计数为 0 是导航后窗口重建导致的查询失败，不是空白页。
+- 侧栏搜索实机展开为输入框，输入“新”后出现归档结果过滤条（隐藏/显示/仅归档），可清空恢复。
+- 终端抽屉内容显示“终端不可用”，来自运行时/插件状态，不是弹窗样式问题，已单列。
 - assistant 系列 13 个 `ack := r.Acknowledged` 已核对：回调同步更新 review 状态并调用 `updateAssistantTasks()`，现有测试全部通过，因此不做无依据改写；若后续接入异步 RPC，再统一改为 `ui.Local`。
 - 排期删除弹窗尝试迁到共享表面时，`TestScheduleSaveAndDeleteKeepCapturedOwner` 稳定失败；已保留旧实现并列入待办，避免“样式统一但按钮点不到”。
 
