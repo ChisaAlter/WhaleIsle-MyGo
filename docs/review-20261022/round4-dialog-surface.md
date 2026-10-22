@@ -58,7 +58,7 @@
 ## 4. 验证
 
 ```sh
-go test ./internal/ui/... -count=1      # 全部通过（35 个包）
+go test ./internal/ui/... -count=1      # 34 个包通过，custompanel 无测试
 go test ./internal/shortcuts -count=1   # 通过
 go vet ./internal/ui/settings ./internal/ui/chrome ./internal/ui/pluginmanager ./internal/shortcuts
 go build -o whaleisle-pass4.exe ./cmd/whaleisle
