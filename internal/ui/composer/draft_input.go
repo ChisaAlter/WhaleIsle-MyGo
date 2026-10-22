@@ -19,8 +19,9 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	client.setInsets(left, right, top)
 	minH := float32(36)
 	if m.Hero {
-		// One 24px placeholder line; the card's own 20px padding frames it.
-		minH = 24
+		// `.hero .input` is 52 DIP tall in the reference; the card's own
+		// 20 DIP padding frames it.
+		minH = 52
 	}
 	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(m.Inert)
 	client.syncStop(m, box.Focused())

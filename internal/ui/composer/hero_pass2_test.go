@@ -46,11 +46,11 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	if !ok {
 		t.Fatal("composer card missing")
 	}
-	closeMetric(t, card.H, 100, "hero empty card height")
+	closeMetric(t, card.H, 128, "hero empty card height")
 	input, _ := tt.Find("Composer draft")
 	closeMetric(t, input.Y-card.Y, 20, "hero top padding")
 	closeMetric(t, input.X-card.X, 16, "hero side padding")
-	closeMetric(t, input.H, 24, "hero placeholder line")
+	closeMetric(t, input.H, 52, "hero placeholder line")
 	send, ok := tt.Find(i18n.T(i18n.KeyComposerSend))
 	if !ok {
 		t.Fatal("hero send button missing")

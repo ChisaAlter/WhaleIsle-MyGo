@@ -85,7 +85,7 @@ func TestShippedDraftClientGrowsAndClipsAtOriginal336pxCap(t *testing.T) {
 			input, _ := tt.Find("Composer draft")
 			minH := float32(36)
 			if hero {
-				minH = 24
+				minH = 52
 			}
 			_, _, top := draftInsets(hero)
 			want := max(minH, float32(lines*24)+top)

@@ -21,8 +21,13 @@ func TestStatefulEmptyAttachmentRailDoesNotDisplaceDraft(t *testing.T) {
 			input, _ := tt.Find("Composer draft")
 			wantTop, want, limit := float32(8), float32(36), float32(120)
 			if hero {
-				// HeroShell.card: 20px padding around a single 24px line.
-				wantTop, want, limit = 20, 24, 100
+				// HeroShell.card: 20px padding around the reference's
+				// 52 DIP native input / three-line textarea well.
+				wantTop, limit = 20, 148
+				want = 72
+				if native {
+					want = 52
+				}
 			}
 			closeMetric(t, input.Y-card.Y, wantTop, "stateful zero-attachment draft top")
 			closeMetric(t, input.H, want, "natural empty draft")

@@ -397,11 +397,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						area.Focus()
 					}
 				} else {
-					// InputBar: docked min-height 36 (~1 line). The hero card shows
-					// one 24px placeholder line and grows with the draft.
+					// InputBar: docked min-height 36 (~1 line). The hero input is
+					// three lines tall, matching the reference's taller
+					// `.hero .input` writing well and 148 DIP card.
 					minLines, maxLines := 1, 8
 					if m.Hero {
-						minLines, maxLines = 1, 10
+						minLines, maxLines = 3, 10
 					}
 					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
 						Font(theme.RenderPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
