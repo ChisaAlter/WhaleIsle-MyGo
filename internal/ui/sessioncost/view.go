@@ -135,14 +135,18 @@ func dockLine(c *ui.Context, m Model, r cost.Result, stats bool, muted ui.Color)
 		}
 	}
 	if stats && r.Available {
-		parts := []string{fmt.Sprintf("%s %s", compactCount(bucketTotal(r.Total)), i18n.T(i18n.KeyComposerDockTokenUnit))}
-		if hit := cacheHitPercent(r.Total); hit != "" {
-			parts = append(parts, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), hit))
+		if total := bucketTotal(r.Total); total > 0 {
+			parts := []string{fmt.Sprintf("%s %s", compactCount(total), i18n.T(i18n.KeyComposerDockTokenUnit))}
+			if hit := cacheHitPercent(r.Total); hit != "" {
+				parts = append(parts, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), hit))
+			}
+			clusters = append(clusters, strings.Join(parts, " · "))
 		}
-		clusters = append(clusters, strings.Join(parts, " · "))
 	}
 	if len(clusters) == 0 {
-		if stats {
+		// Reference hides the strip until a turn has usage. Only an actual
+		// unavailable cost read gets the fallback line.
+		if stats && !r.Available {
 			ui.Text(c, i18n.T(i18n.KeyComposerCostUnavailable)).FontSize(12).TextColor(muted).Padding(1, 8)
 		}
 		return
