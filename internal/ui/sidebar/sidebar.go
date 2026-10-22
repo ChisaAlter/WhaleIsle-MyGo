@@ -374,14 +374,10 @@ func View(c *ui.Context, m Model) {
 				// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
 				// to workspaces and sessions.
 
-				// SidebarRoot.footArea: the account seat is the settings entry
-				// once a profile is signed in; a signed-out profile keeps the
-				// settings gear.
-				if strings.TrimSpace(m.Account.Name) != "" || m.Account.SignedIn {
-					accountRow(c, m, colors, muted, m.Collapsed)
-				} else if m.OnOpenSettings != nil {
-					settingsConnectionTrigger(c, m, colors, m.Collapsed)
-				}
+				// SidebarRoot.footArea: one account seat for both signed-in and
+				// signed-out profiles. Signed out it falls back to the settings
+				// entry, keeping the account menu and person avatar.
+				accountRow(c, m, colors, muted, m.Collapsed)
 			})
 		})
 }
