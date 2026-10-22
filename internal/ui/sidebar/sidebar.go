@@ -325,8 +325,16 @@ func View(c *ui.Context, m Model) {
 						workspaceListFeedback(c, m, items, fg, muted)
 						projects.View(c, m.Projects)
 						if filter != "hide" {
-							ui.Text(c, i18n.T(i18n.KeySidebarArchivedSection)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).
-								Padding(8, 0, 2, 0)
+							archived := ui.Button(c, "▾ "+i18n.T(i18n.KeySidebarArchivedSection)).Label(i18n.T(i18n.KeySidebarArchivedSection)).
+								FillWidth().Height(24).Padding(8, 0, 2, 0).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).
+								FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
+							if archived.Clicked() && m.BrowseArchivedFilter != nil {
+								if filter == "only" {
+									*m.BrowseArchivedFilter = "default"
+								} else {
+									*m.BrowseArchivedFilter = "only"
+								}
+							}
 							for _, id := range m.Snapshot.ArchivedSessionIDs {
 								aid := id
 								label := i18n.T(i18n.KeySidebarNewSessionFallback)
