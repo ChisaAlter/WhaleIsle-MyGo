@@ -312,7 +312,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).SingleLine()
 				closeLabel := marketText(i18n.T(i18n.KeyW4MarketClose), "Close")
 				closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(7).
-					Radius(8).BorderWidth(0).Background(ui.Transparent)
+					Radius(8).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
 				closeBox.Children(func() { ui.Icon(c, marketCloseIcon).Size(14, 14).TextColor(muted) })
 				if closeBox.Hovered() {
 					closeBox.Background(c.Theme().SurfaceHover)

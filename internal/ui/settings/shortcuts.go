@@ -118,7 +118,7 @@ func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shor
 		// The reference places the 28 DIP close box at 20 from the top, two DIPs
 		// above the title's 22, so the two share a center line.
 		close := ui.Button(c, "").Label(providerCopy("关闭快捷键", "Close keyboard shortcuts")).
-			Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent)
+			Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
 		close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(p.fg) })
 		if close.Hovered() {
 			close.Background(p.hover)

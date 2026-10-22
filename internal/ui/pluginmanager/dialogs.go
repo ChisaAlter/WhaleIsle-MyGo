@@ -46,7 +46,7 @@ func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors
 		ui.Row(c).FillWidth().Height(pluginDialogHeaderHeight).Shrink(0).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
 			ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG)).SingleLine()
 			closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Padding(7).Radius(8).
-				BorderWidth(0).Background(ui.Transparent)
+				BorderWidth(0).Background(ui.Transparent).FocusRing(false)
 			closeBox.Children(func() {
 				ui.Icon(c, pluginDialogCloseIcon).Size(14, 14).TextColor(chrome.Color(colors.Muted))
 			})
