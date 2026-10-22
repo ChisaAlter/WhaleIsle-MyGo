@@ -309,7 +309,7 @@ func coreSwitch(c *context, on *bool) *node {
 	t := c.theme
 	sw := coreSwitchBase(c, on).Size(t.Space(9), t.Space(5)).Radius(t.Space(2.5))
 	pos := sw.Animate("knob", b2f(*on), 140*time.Millisecond)
-	off := t.Border.Mix(t.Text, 0.15)
+	off := t.Border.Mix(t.Text, 0.05)
 	sw.Background(off.Mix(t.Accent, pos))
 	sw.Draw(func(p *Painter, r Rect) {
 		in := t.Space(0.5)
