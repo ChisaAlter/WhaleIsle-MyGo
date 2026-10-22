@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/theme"
 )
@@ -353,7 +354,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .24))
 		vw, vh := c.Size()
-		panel.Width(min(float32(620), max(float32(0), vw-48))).Height(min(float32(760), max(float32(0), vh*.85))).Radius(16).Clip().Background(c.Theme().Background).Children(func() {
+		panel.Width(min(float32(620), max(float32(0), vw-48))).Height(min(float32(760), max(float32(0), vh*.85))).Radius(28).Clip().Background(c.Theme().Background).Children(func() {
 			ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
 				ui.Row(c).FillWidth().Padding(16, 20).Wrap().Gap(8).Children(func() {
 					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
@@ -473,6 +474,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 				})
 			})
 		})
+		chrome.DialogDecorTheme(c, backdrop, panel, c.Theme(), 28)
 	})
 }
 

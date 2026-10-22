@@ -48,7 +48,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	_, githubRecovery := manager.GitHubRecoveryRegistry(i)
 	ui.DialogBase(c.Key("plugin-manager-install"), &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("添加插件", "Add plugin")).Width(max(0, min(float32(640), w-32))).Height(max(0, min(float32(720), h-48))).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Clip().Children(func() {
+		panel.Label(copyText("添加插件", "Add plugin")).Width(max(0, min(float32(640), w-32))).Height(max(0, min(float32(720), h-48))).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(20).Clip().Children(func() {
 			ui.Row(c).FillWidth().Padding(20, 20, 12, 20).Gap(8).Children(func() {
 				title := copyText("添加插件", "Add plugin")
 				if githubRecovery {
@@ -209,6 +209,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 				})
 			})
 		})
+		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.CloseInstall()
@@ -221,7 +222,7 @@ func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	ui.DialogBase(c.Key("plugin-index-sources"), &open, func(backdrop, panel ui.Element) {
 		dismissed := ui.Local(panel, "source-error-dismissed", func() uint64 { return 0 })
 		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("插件索引源", "Plugin index sources")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(12).Background(chrome.Color(colors.BG)).Radius(12).Children(func() {
+		panel.Label(copyText("插件索引源", "Plugin index sources")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(12).Background(chrome.Color(colors.BG)).Radius(20).Children(func() {
 			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-140)).MinHeight(0).Children(func() { sourcesEditor(c, s, a, chrome.Color(colors.FG), chrome.Color(colors.Muted)) })
 			if s.Discover.SourceError != "" && *dismissed != s.Discover.SourceErrorSequence {
 				ui.Overlay(c.Key("plugin-source-error-toast"), func() {
@@ -237,6 +238,7 @@ func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 				open = false
 			}
 		})
+		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.ToggleSources()
@@ -253,7 +255,7 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.DialogBase(c.Key("plugin-market-choice"), &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("确认安装插件", "Confirm plugin installation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(16).Background(chrome.Color(colors.BG)).Radius(12).Children(func() {
+		panel.Label(copyText("确认安装插件", "Confirm plugin installation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(16).Background(chrome.Color(colors.BG)).Radius(20).Children(func() {
 			ui.Text(c, choice.Entry.Label(i18n.Locale())+" · "+choice.Version.Version).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
 			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-220)).MinHeight(0).Children(func() {
 				ui.Text(c, choice.Entry.Author).FillWidth().TextColor(muted)
@@ -274,6 +276,7 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 				}
 			})
 		})
+		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.CancelMarketChoice()
