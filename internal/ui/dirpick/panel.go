@@ -277,7 +277,7 @@ func createDialog(c *ui.Context, m Model) {
 	w, h := c.Size()
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Key("directory-create-dialog").Width(min(float32(380), max(float32(0), w-48))).MaxHeight(max(float32(0), h-48)).Padding(22, 24, 20).Radius(28).Background(chrome.Color(colors.Field)).Children(func() {
+		panel.Key("directory-create-dialog").Width(min(float32(380), max(float32(0), w-48))).MaxHeight(max(float32(0), h-48)).Padding(22, 24, 20).Radius(28).Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 				ui.Text(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				name := s.TargetName(dirText("\u4e3b\u76ee\u5f55", "Home"))

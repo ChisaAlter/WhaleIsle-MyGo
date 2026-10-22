@@ -199,7 +199,8 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))
 		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Gap(20).Radius(28).
-			Background(chrome.Color(colors.Field)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+			Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).
+			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 0, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
 				close := ui.Button(c, "").Label(text("关闭", "Close")).Width(28).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(request.Busy)
