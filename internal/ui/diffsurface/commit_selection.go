@@ -311,7 +311,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
 	}
 	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch
-	ui.TextInput(c, &w.Message).FillWidth().Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
+	ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
 	ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch"))
 	if s.MakeBranch {
 		ui.TextInput(c, &s.NewBranch).FillWidth().Placeholder("feature/my-change")

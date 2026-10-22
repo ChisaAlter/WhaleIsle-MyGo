@@ -146,7 +146,7 @@ func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette)
 		field := ui.Row(c).FillWidth().Height(36).MinWidth(0).Padding(8, 14).Gap(8).Radius(12).Border(.5, p.border).Background(p.field).AlignItems(ui.Center)
 		field.Children(func() {
 			ui.Icon(c, bodyIcon("search")).Size(14, 14).Shrink(0).TextColor(p.caption)
-			ui.TextInputBase(c, &e.Query).Label("shortcut-search").Grow(1).MinWidth(0).Height(18).
+			ui.TextInputBase(c, &e.Query).AutoFocus().Label("shortcut-search").Grow(1).MinWidth(0).Height(18).
 				FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg).
 				Placeholder(providerCopy("搜索快捷键", "Search shortcuts"))
 			if e.Query == "" {
