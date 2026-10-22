@@ -15,7 +15,10 @@
 | settings | 通用确认、默认权限确认 |
 | terminal | 关闭运行中的终端 |
 | remote | 新建/重命名/删除、关闭未保存文件 |
-| composer | slash 权限确认、语音设置 |\n| pluginmanager | 插件操作确认 |\n| market | 市场操作确认 |
+| composer | slash 权限确认、语音设置 |
+| pluginmanager | 插件操作确认 |
+| market | 市场操作确认 |
+| diffsurface | 提交、创建分支、Git Review |
 
 表面：28px 圆角、玻璃 + 实色打底、0.5px 发丝边、菜单阴影、遮罩淡入。
 
@@ -26,7 +29,6 @@
 | settings | 设置主模态本身：28px 玻璃，已对齐 |
 | projects | `request_changes.go`：28px + 多层阴影，接近参考 |
 | widgets | 通用 `ConfirmDialog`：已改为 28px、24 内边距、12/32 阴影；因 chrome↔widgets 包循环仍无玻璃层 |
-| composer | 权限确认已单独统一；其余附件/语音尚未 |
 | diffsurface | commit dialog：16px，自有样式 |
 
 ### C. 全屏 / 媒体 / 特殊面板（不应套 28px 小弹窗）
