@@ -95,18 +95,23 @@ func TestSettingsUnsignedAccountStillHasLoginEntry(t *testing.T) {
 // TestSettingsNavigationHidesMarketButDeepLinkResolves covers task-48: the market
 // entry leaves the settings rail, while the constant, the namespace mapping and
 // the rendering path stay so an existing deep link still lands on the page.
-func TestSettingsNavigationHidesMarketButDeepLinkResolves(t *testing.T) {
+func TestSettingsNavigationRestoresMarketAndDeepLinkResolves(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	locale := "en"
-	m := Model{Desktop: &DesktopAccess{Fields: DesktopFields{Locale: &locale}}, DesktopActive: true, OnClose: func() {}}
+	opened := 0
+	m := Model{Desktop: &DesktopAccess{Fields: DesktopFields{Locale: &locale}}, DesktopActive: true, OnClose: func() {}, OnOpenMarket: func() { opened++ }}
+	found := false
 	for _, entry := range primaryNavigation(m, store.ViewState{}) {
 		if entry.id == SectionMarket {
-			t.Fatal("the settings rail still offers a market entry")
+			found = true
 		}
 	}
-	if planSectionOrderHas(SectionMarket) {
-		t.Fatal("the market section is still in the plan order")
+	if !found {
+		t.Fatal("the settings rail lost the market entry")
+	}
+	if !planSectionOrderHas(SectionMarket) {
+		t.Fatal("the market section is missing from the plan order")
 	}
 	for _, alias := range []string{"market", "ui-settings-market"} {
 		if got := SectionForNamespace(alias); got != SectionMarket {
@@ -118,6 +123,12 @@ func TestSettingsNavigationHidesMarketButDeepLinkResolves(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1000, 760)
 	if !tt.HasText("Feature-owned market body") {
 		t.Fatal("a deep link to the market section no longer renders")
+	}
+	if err := tt.Click(sectionLabel(SectionMarket)); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 1 {
+		t.Fatalf("market rail entry calls=%d, want 1", opened)
 	}
 }
 

@@ -33,9 +33,6 @@ const (
 )
 
 // planSectionOrder is the left-nav order for harness namespaces (desktop is separate).
-// SectionMarket is intentionally absent: plugin discovery moved to the official
-// dsh marketplace, so the settings rail no longer offers a market entry. The
-// constant, the namespace mapping and the pane stay so deep links still resolve.
 var planSectionOrder = []SectionID{
 	SectionAccount,
 	SectionGeneral,
@@ -44,6 +41,7 @@ var planSectionOrder = []SectionID{
 	SectionModels,
 	SectionPlugins,
 	SectionSkills,
+	SectionMarket,
 	SectionRemote,
 	SectionMCP,
 	SectionAgentPresets,

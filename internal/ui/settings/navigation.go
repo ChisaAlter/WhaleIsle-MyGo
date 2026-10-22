@@ -86,10 +86,9 @@ func primaryNavigation(m Model, snap store.ViewState) []navigationEntry {
 	add(SectionModels, "DataOutline", m.Models != nil, m.OnSelectModels)
 	add(SectionPlugins, "PersonalizationOutline", m.Plugins != nil, m.OnSelectPlugins)
 	add(SectionSkills, "SkillOutline", m.Skills != nil, m.OnSelectSkills)
-	// SectionMarket stays out of the rail: plugin discovery lives in the official
-	// dsh marketplace (opened from the plugins page), and deep links still resolve.
-	add(SectionMCP, "ServerOutline", m.MCP != nil, m.OnSelectMCP)
+	add(SectionMarket, "StoreOutline", m.OnOpenMarket != nil, m.OnOpenMarket)
 	add(SectionRemote, "DeviceOutline", m.OnOpenRemote != nil, m.OnOpenRemote)
+	add(SectionMCP, "ServerOutline", m.MCP != nil, m.OnSelectMCP)
 	add(SectionAgentPresets, "AgentPresetOutline", m.AgentPresets != nil, m.OnSelectAgentPresets)
 	add(SectionUsageStats, "ChartOutline", m.OnOpenUsage != nil, m.OnOpenUsage)
 	add(SectionPet, "SettingsOutline", m.Pet != nil, selectNamespace("pet"))
