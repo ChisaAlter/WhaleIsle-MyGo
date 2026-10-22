@@ -70,10 +70,6 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 		return
 	}
 	label := accountLabel(a)
-	accessible := label
-	if strings.TrimSpace(a.Name) == "" {
-		accessible = i18n.T(i18n.KeySettingsAccountSeat)
-	}
 	height := float32(44) // AccountMenu.module.css .trigger
 	key := "sidebar-account"
 	if compact {
@@ -82,7 +78,7 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 	}
 	row := ui.Button(c.Key(key), "").FillWidth().Height(height).Radius(12).
 		BorderWidth(0).Background(ui.Transparent).Padding(6).
-		Label(accessible).Tooltip(label).Disabled(a.Busy)
+		Label(label).Tooltip(label).Disabled(a.Busy)
 	if row.Hovered() {
 		row.Background(chrome.Color(colors.Hover))
 	}
