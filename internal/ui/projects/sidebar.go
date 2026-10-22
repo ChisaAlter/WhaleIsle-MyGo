@@ -16,6 +16,13 @@ func View(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
+	// The reference only grows a Project section once a project exists (or the
+	// reader is explicitly browsing project history/search). An empty section
+	// with an add hint is native-only chrome.
+	if len(m.Listing.Projects) == 0 && !m.History && strings.TrimSpace(m.SearchQuery) == "" && !m.Expanded {
+		projectModals(c, m)
+		return
+	}
 	section := ui.Column(c).FillWidth().MinWidth(0).Padding(8, 0).Gap(4)
 	m.presentation = ui.Local(section, "project-presentation", newProjectPresentation)
 	section.Children(func() {
