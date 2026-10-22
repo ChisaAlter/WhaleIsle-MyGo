@@ -325,11 +325,6 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 					ui.Text(c, item.Description).FillWidth().TextColor(fg)
 					ui.Text(c, item.ID+"\n"+item.Homepage+"\n"+item.InstallSpec).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details")).Disabled(d.DetailsLoading).Clicked() {
-						m.Store.SelectDetails(item.ID, true)
-					}
-					favoriteButton(c, m, item.ID)
-					catalogInstallButton(c, m, d, item, inventory, fg, muted)
 					if item.Deprecated {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
 					}
@@ -354,6 +349,14 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					marketScreenshotGallery(c, m, item, fg, muted, field)
 					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
+			})
+			ui.Row(c).FillWidth().Padding(10, 24, 16, 24).Gap(8).AlignItems(ui.Center).Children(func() {
+				if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: d.DetailsLoading}).Clicked() {
+					m.Store.SelectDetails(item.ID, true)
+				}
+				favoriteButton(c, m, item.ID)
+				ui.Box(c).Grow(1)
+				catalogInstallButton(c, m, d, item, inventory, fg, muted)
 			})
 		})
 	})
