@@ -19,7 +19,7 @@ func recorderFixture(t *testing.T) (*ui.Tester, *shortcuts.Editor, *[]map[string
 		return nil
 	})
 	e.BeginRecording("window.refresh")
-	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { shortcutRecorder(c, e, "window.refresh") }) }, 580, 280)
+	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { shortcutRecorder(c, e, "window.refresh", nil) }) }, 580, 280)
 	return tt, e, &writes
 }
 

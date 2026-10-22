@@ -26,7 +26,7 @@
 | frame/workflow_member.go | 1 | 🟡 | 共享表面 |
 | settings/confirm.go | 1 | ✅ | 通用确认；共享表面，widgets 测试覆盖按钮 |
 | settings/permission_defaults.go | 1 | ✅ | 默认权限确认；共享表面 + 设置测试 |
-| settings/shortcuts.go | 1 | ✅ | 快捷键恢复；共享表面 + 设置测试 |
+| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24；行内录键；见 `round3-shortcuts.md` |
 | settings/agent_preset_guide.go | 1 | ✅ | 模式指南；共享表面 + 设置测试 |
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |

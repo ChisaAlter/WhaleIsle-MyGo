@@ -10,16 +10,35 @@ import (
 // the 0.5px outer hairline. It returns the panel so the caller adds its
 // content, as ModalView does for settings.
 func DialogSurface(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors, width, padding float32) ui.Element {
-	return dialogSurface(c, backdrop, panel, Color(colors.BG), Color(colors.Border), width, padding)
+	return dialogSurface(c, backdrop, panel, Color(colors.BG), Color(colors.Border), DialogSurfaceBox{Width: width, Radius: 28, Padding: padding})
 }
 
 // DialogSurfaceTheme is DialogSurface for callers that hold the ui theme
 // rather than the resolved brand colors.
 func DialogSurfaceTheme(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, width, padding float32) ui.Element {
-	return dialogSurface(c, backdrop, panel, t.Background, t.Border, width, padding)
+	return dialogSurface(c, backdrop, panel, t.Background, t.Border, DialogSurfaceBox{Width: width, Radius: 28, Padding: padding})
 }
 
-func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, width, padding float32) ui.Element {
+// DialogSurfaceBox overrides the metrics a feature dialog declares: the width
+// and height of the panel, its corner radius and the padding inside the glass.
+// A zero Height keeps the panel as tall as its content, as the shared surface
+// does for settings editors.
+type DialogSurfaceBox struct {
+	Width, Height, Radius, Padding float32
+}
+
+// DialogSurfaceSized gives a DialogBase panel explicit metrics, for the feature
+// dialogs that the installed build sizes itself: the shortcut reference is
+// 480x600 with a 24 DIP radius and no inner padding, so its header, search row
+// and footer reach the glass edges.
+func DialogSurfaceSized(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, box DialogSurfaceBox) ui.Element {
+	if box.Radius <= 0 {
+		box.Radius = 28
+	}
+	return dialogSurface(c, backdrop, panel, t.Background, t.Border, box)
+}
+
+func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, box DialogSurfaceBox) ui.Element {
 	progress := Reveal(c, backdrop, OverlayDuration)
 	mask := ui.RGBA(0, 0, 0, .24)
 	luminance := (0.2126*float32(bg.R) + 0.7152*float32(bg.G) + 0.0722*float32(bg.B)) / 255
@@ -27,13 +46,16 @@ func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Colo
 		mask = ui.RGBA(0, 0, 0, .5)
 	}
 	RevealMask(backdrop, mask, progress)
-	panel.Width(width).MaxWidthPercent(94).Padding(padding).Radius(28).Clip().Opacity(progress).
+	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress).
 		Background(bg).
-		Draw(Glass(bg, MaterialPanel, 28))
+		Draw(Glass(bg, MaterialPanel, box.Radius))
+	if box.Height > 0 {
+		panel.Height(box.Height).MaxHeightPercent(94)
+	}
 	MenuElevation(panel)
 	panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if border.A != 0 && r.W > 0 && r.H > 0 {
-			p.Stroke(r, border, 28, 0.5)
+			p.Stroke(r, border, box.Radius, 0.5)
 		}
 	})
 	return panel

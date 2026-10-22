@@ -6,17 +6,29 @@ import (
 	"runtime"
 	"sort"
 	"whaleisle/internal/shortcuts"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
-func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string) {
+// shortcutRecorder is the reference inline recorder: a 26 DIP key field that
+// arms physical recording when clicked, then reads the keys while focused until
+// they are released and the row saves.
+func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved func()) {
 	desktopChords := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
+	t := c.Theme()
 	if e.Recording != id {
-		if ui.Button(c, providerCopy("录制按键…", "Record shortcut…")).Label("record-" + id).Disabled(e.ReadError != "" || e.ResetPending).Clicked() {
+		button := ui.Button(c, providerCopy("按下快捷键", "Press a shortcut")).Label("record-"+id).
+			Height(shortcutBadgeHeight).MinWidth(shortcutRecorderWidth).Shrink(0).Padding(0, 14).Radius(10).
+			Border(.5, t.Border).Background(t.Surface).FontSize(fonttheme.InterfaceSize(12)).TextColor(t.TextMuted).
+			Disabled(e.ReadError != "" || e.ResetPending)
+		if button.Clicked() {
 			e.BeginRecording(id)
 		}
 		return
 	}
-	anchor := ui.Text(c, providerCopy("按住一至两个键，释放后保存", "Hold one or two keys; release to save")).Key("capture-" + id).Label("capture-" + id).Padding(8).Focusable().AutoFocus()
+	anchor := ui.Text(c, providerCopy("按下快捷键…", "Press a shortcut…")).Key("capture-"+id).Label("capture-"+id).
+		Height(shortcutBadgeHeight).MinWidth(shortcutRecorderWidth).Padding(3, 14).Radius(10).
+		Border(.5, t.Border).Background(t.Surface).FontSize(fonttheme.InterfaceSize(12)).TextColor(t.TextMuted).
+		Focusable().AutoFocus()
 	state := ui.Local(anchor, "physical-recording", func() physicalRecording { return physicalRecording{} })
 	reset := func() { state.held = nil; state.pending = nil; state.blocked = false }
 	capture := func() {
@@ -26,7 +38,9 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string) {
 		binding := *state.pending
 		state.pending = nil
 		state.blocked = true
-		e.RecordAndSave(binding.String())
+		if e.RecordAndSave(binding.String()) && onSaved != nil {
+			onSaved()
+		}
 	}
 	anchor.HandleInput(func(ev ui.InputEvent) bool {
 		if ev.Kind == ui.InputBlur || ev.Kind == ui.InputCompose || ev.ShortcutBlocked {
@@ -110,16 +124,16 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string) {
 	}
 	if e.Err != "" {
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("审阅当前配置，保留录制", "Review current settings; keep recording")).Clicked() {
+			if ui.Button(c, providerCopy("审阅当前配置，保留录制", "Review current settings; keep recording")).Label("review-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				reset()
 				e.Review()
 			}
-			if ui.Button(c, providerCopy("重试保存当前录制", "Retry saving the retained recording")).Clicked() {
+			if ui.Button(c, providerCopy("重试保存当前录制", "Retry saving the retained recording")).Label("retry-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				e.SaveRow(id, false)
 			}
 		})
 	}
-	if ui.Button(c, providerCopy("取消录制", "Cancel recording")).Clicked() {
+	if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-recording").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 		reset()
 		e.CancelRecording()
 	}

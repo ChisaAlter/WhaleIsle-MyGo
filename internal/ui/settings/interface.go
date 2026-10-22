@@ -121,7 +121,6 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 			a.OnSave()
 		}
-		shortcutsPane(c, a.Shortcuts, fg, muted)
 	})
 	if a.ShowArchivedList != nil && a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Label("save-interface-preferences").Clicked() {
 		a.OnSave()

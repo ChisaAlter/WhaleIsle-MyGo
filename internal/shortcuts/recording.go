@@ -26,11 +26,17 @@ func (e *Editor) SaveRow(id string, reset bool) bool {
 		return false
 	}
 	value := *e.drafts[id]
-	if !reset && e.describe != nil {
-		if issue := e.describe(id, value); issue != "" {
-			e.Err = issue
-			return false
+	issue := ""
+	if !reset {
+		if e.describe != nil {
+			issue = e.describe(id, value)
+		} else if !e.shared {
+			issue = Validate(e.Values())[id]
 		}
+	}
+	if issue != "" {
+		e.Err = issue
+		return false
 	}
 	chord, err := Parse(value)
 	if err != nil {

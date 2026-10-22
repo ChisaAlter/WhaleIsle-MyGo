@@ -121,13 +121,13 @@ func TestGeneralShortcutRowOpensTheEditor(t *testing.T) {
 	if err := tt.Click("edit-shortcuts"); err != nil {
 		t.Fatalf("shortcut row has no reachable editor button: %v", err)
 	}
-	if !tt.HasText("应用与主页快捷键") {
-		t.Fatalf("shortcut editor did not open: %v", tt.Texts())
+	if !tt.HasText("恢复全部默认") {
+		t.Fatalf("shortcut reference did not open: %v", tt.Texts())
 	}
-	if err := tt.Click("关闭"); err != nil {
+	if err := tt.Click("关闭快捷键"); err != nil {
 		t.Fatalf("shortcut dialog has no close action: %v", err)
 	}
-	if tt.HasText("应用与主页快捷键") {
+	if tt.HasText("恢复全部默认") {
 		t.Fatal("shortcut dialog stayed open after its close action")
 	}
 }
