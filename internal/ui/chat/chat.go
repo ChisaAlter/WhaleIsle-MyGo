@@ -458,6 +458,10 @@ func messageSpacing(msg session.Message) (top, bottom float32) {
 		return 16, 2
 	case msg.Role == "status":
 		return 16, 2
+	case msg.Kind == session.MessageKindContext:
+		// Context snapshots read as one quiet disclosure stack, not as
+		// separate transcript entries; keep their rhythm tight.
+		return 4, 0
 	case msg.Kind == session.MessageKindThinking, msg.Kind == session.MessageKindTool:
 		return 6, 0
 	case msg.Role == "assistant" && msg.Kind == session.MessageKindText:
