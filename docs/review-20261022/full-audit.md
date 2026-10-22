@@ -106,3 +106,9 @@ assistant whale settings、boot 两处 drawer、chat feedback / user references�
 1. 迁移 widgets 通用 `ConfirmDialog`、diffsurface、projects、settings 其余弹窗。
 2. 对主页面逐页做可点击清单：侧栏、工作区、会话行、搜索、面板开关、终端、Git、模型选择、发送/停止。
 3. 每个修复补测试；最后输出完整覆盖矩阵。
+
+## 运行时状态定位（第 13 轮）
+
+- 终端不可用：	erminal.View 收到 m.Panel == nil；面板由 state.terminalPanel 在存在工作区时初始化。当前会话没有工作区根目录，因此为空，不是渲染缺陷。
+- 会话重复写句柄：强制结束 MyGo 进程会留下子 harness，旧 harness 仍持有 session；清理孤儿 node 后报错消失。正常关闭应等待子进程退出，这是测试环境残留，不是 UI 缺陷。
+- 模型目录为空：清理孤儿 harness 后仍为空，说明是 harness 目录/凭据未就绪，不是模型选择弹窗状态绑定问题。
