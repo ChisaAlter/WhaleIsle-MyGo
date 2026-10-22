@@ -100,7 +100,7 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
 				if d.Tab == "history" {
-					if m.OnExportHistory != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")).Disabled(len(personal.History) == 0).Clicked() {
+					if m.OnExportHistory != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Disabled(len(personal.History) == 0).Clicked() {
 						m.OnExportHistory()
 					}
 					ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheLast200OperationsInterruptedOrUnkno), "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
@@ -108,6 +108,7 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoInstallHistoryYet), "No installation history yet.")).TextColor(muted)
 					}
 					managementFilters(c, m)
+					danger := chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Danger)
 					for _, h := range personal.History {
 						if m.Store.ManagementFilter() == "failed" && !failedOutcome(h.Result) {
 							continue
@@ -115,7 +116,7 @@ func View(c *ui.Context, m Model) {
 						if m.Store.ManagementFilter() == "updates" && h.Action != "update" {
 							continue
 						}
-						ui.Text(c, h.At.Local().Format("2006-01-02 15:04:05 MST")+" · "+h.Plugin+" · "+h.Action+" · "+h.Result+" "+h.Error).TextColor(fg)
+						marketHistoryRow(c, h, fg, muted, danger, border)
 					}
 				} else if d.Tab != "installed" {
 					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
@@ -217,6 +218,57 @@ func marketText(zh, en string) string {
 		return zh
 	}
 	return en
+}
+
+// marketHistoryRow is one install-history receipt: the plugin and result lead,
+// the timestamp and raw receipt follow as secondary lines.
+func marketHistoryRow(c *ui.Context, h marketstore.InstallHistory, fg, muted, danger, border ui.Color) {
+	result, color := marketHistoryResult(h.Result, fg, danger)
+	action := marketHistoryAction(h.Action)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(10, 12).Radius(8).Border(.5, border).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, h.Plugin).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg).SingleLine()
+			ui.Text(c, result).FontSize(theme.InterfaceSize(11)).TextColor(color)
+		})
+		ui.Text(c, h.At.Local().Format("2006-01-02 15:04")+" · "+action).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		if h.Error != "" && h.Error != h.Result {
+			ui.Text(c, h.Error).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted).SingleLine()
+		}
+	})
+}
+
+func marketHistoryResult(result string, fg, danger ui.Color) (string, ui.Color) {
+	switch strings.ToLower(strings.TrimSpace(result)) {
+	case "applied", "applied-restart", "applied_restart":
+		return marketText("已应用", "Applied"), fg
+	case "failed":
+		return marketText("失败", "Failed"), danger
+	case "interrupted":
+		return marketText("已中断", "Interrupted"), danger
+	case "not-started":
+		return marketText("未启动", "Not started"), danger
+	case "unknown":
+		return marketText("结果未知", "Unknown"), danger
+	default:
+		return result, fg
+	}
+}
+
+func marketHistoryAction(action string) string {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "install":
+		return marketText("安装", "Install")
+	case "update":
+		return marketText("更新", "Update")
+	case "remove":
+		return marketText("移除", "Remove")
+	case "enable":
+		return marketText("启用", "Enable")
+	case "disable":
+		return marketText("停用", "Disable")
+	default:
+		return action
+	}
 }
 
 func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
