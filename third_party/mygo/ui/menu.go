@@ -90,6 +90,7 @@ func (e *node) buildMenu(button bool, build func(m *Menu)) {
 		rt.openMenu(e.id, button, pm, run.labels, commands)
 	case mr.chosen == e.id && mr.chosenButton == button:
 		mr.chosen = 0
+		mr.chosenHold = false
 		run := &menuRun{choice: mr.choice, label: mr.label}
 		build(&Menu{run: run, rt: rt, text: rt.states[mr.chosenText]})
 		if run.chosen {
@@ -250,6 +251,7 @@ type menuState struct {
 	index                int
 	focused              bool
 	chosen               uint64
+	chosenHold           bool
 	choice               int
 	label                string
 }
@@ -485,11 +487,6 @@ func (rt *engine) buildMenuOverlay(c *context) {
 		panel := coreBox(c).Role(RoleMenu).Absolute().Left(left).Top(top).Width(220).Padding(4).Gap(0).Radius(12).
 			Background(t.Background).Border(.5, t.Border)
 		panel.flags |= flagClickable
-		panel.Focusable()
-		if !rt.menu.focused {
-			rt.menu.focused = true
-			panel.Focus()
-		}
 		panel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
 		move := func(delta int) {
 			n := len(p.menu.Items)
@@ -554,6 +551,11 @@ func (rt *engine) buildMenuOverlay(c *context) {
 				}
 			}
 		})
+		panel.Focusable()
+		if !rt.menu.focused {
+			rt.menu.focused = true
+			panel.Focus()
+		}
 	})
 }
 
@@ -582,6 +584,9 @@ func (rt *engine) menuChosen(p *shownMenu, id int) {
 	} else {
 		mr := &rt.menu
 		mr.chosen, mr.chosenButton, mr.choice, mr.label, mr.chosenText = p.id, p.button, id, p.labels[id-1], p.text
+		// The overlay reports the choice while building, before endPass; keep
+		// it for the next frame, when the button's builder runs it.
+		mr.chosenHold = true
 	}
 	rt.requestFrame()
 }

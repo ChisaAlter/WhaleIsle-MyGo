@@ -589,7 +589,9 @@ func (rt *engine) endPass() {
 		}
 	}
 	rt.clickLater = rt.clickLater[:0]
-	rt.menu.chosen = 0
+	if !rt.menu.chosenHold {
+		rt.menu.chosen = 0
+	}
 	rt.delivered = rt.delivered[:0]
 	rt.downs = rt.downs[:0]
 	// The next pass may not ask again, as when the view cleared what asked.

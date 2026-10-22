@@ -38,7 +38,8 @@
 - headless 测试保留原生模拟，MyGo 菜单测试全绿。
 
 证据：`menu-overlay.png`、`menu-overlay-keyboard.png`。  
-未验证：当前桌面会话输入注入被系统拒绝（`SetCursorPos` error 203，`keybd_event` 不生效，UIA Invoke 报错），因此鼠标点选、键盘选择只做了代码与截图级验证；子菜单仍只画 `›`，未展开。
+已验证：UIA Invoke 菜单项“设置”成功打开设置页；键盘 Enter 成功打开设置页。修复了 overlay 在选择当帧被 `endPass` 清空 `menu.chosen` 的问题（新增 `chosenHold`）。  
+仍未做：子菜单只画 `›`，未展开；真实鼠标坐标注入不稳定，但点击路径已由 accessibility action 覆盖。
 
 ## 有意差异
 
