@@ -638,7 +638,7 @@ func coreSelect(c *context, selected *string, options []string) *node {
 	styleButton(c, b, false)
 	b.Justify(SpaceBetween).MinWidth(t.Space(35))
 	b.Children(func() {
-		coreText(c, *selected).SingleLine()
+		coreText(c, *selected).SingleLine().FontSize(13)
 		chevron(c)
 	})
 	sel.Popup(func(panel *node) {
