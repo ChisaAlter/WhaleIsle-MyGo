@@ -15,8 +15,7 @@ func sessionFeedbackDialog(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, 0.4))
-		panel.Width(520).MaxWidthPercent(92).Padding(20).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel, colors, 520, 24).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
 				ui.Text(c, archiveText("会话反馈", "Session feedback")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
 				ui.Text(c, archiveText("提交后，Host 会记录这条反馈，并可能发送相关会话日志供审阅。", "Submitting records your feedback and may send related session logs for review.")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))

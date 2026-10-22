@@ -2,6 +2,8 @@ package frame
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -22,31 +24,44 @@ func permissionRiskConfirmation(c *ui.Context, m Model) {
 		description = archiveText("Auto review 不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前 agent 相同的模型进行审查；审查拒绝的调用由你批准或拒绝。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。", "Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it; you approve or reject each call it denies. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.")
 		action = archiveText("启用 Auto review", "Enable Auto review")
 	}
+	permissionRiskDialog(c, colors, request.Token, title, description, request.SessionID, action, request.Acknowledged,
+		func(acknowledged bool) { m.Store.AcknowledgePermissionRisk(request.Token, acknowledged) },
+		func() { m.Store.CancelPermissionRisk(request.Token) },
+		func() { m.Store.ConfirmPermissionRisk(context.Background(), request.Token) },
+	)
+}
+
+// permissionRiskDialog draws the confirmation and keeps its acknowledgement in
+// element-local state, so a click survives the frame while the store catches
+// up. Without that, the refilled request.Acknowledged resets the box to off
+// every frame and the primary button can never enable.
+func permissionRiskDialog(c *ui.Context, colors theme.Colors, token uint64, title, description, sessionID, action string, acknowledged bool, onAcknowledge func(bool), onCancel, onConfirm func()) {
 	open := true
-	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, 0.4))
-		panel.Width(520).MaxWidthPercent(92).Padding(20).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
-			ui.Column(c).Gap(12).Children(func() {
+	ui.DialogBase(c.Key("permission-risk"), &open, func(backdrop, panel ui.Element) {
+		chrome.DialogSurface(c, backdrop, panel, colors, 520, 24).Children(func() {
+			ack := ui.Local(panel, "permission-risk-ack-"+strconv.FormatUint(token, 10), func() bool {
+				return acknowledged
+			})
+			ui.Column(c).Gap(14).Children(func() {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, request.SessionID).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
-				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
-				acknowledged := request.Acknowledged
-				ui.Checkbox(c, &acknowledged, archiveText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue"))
-				if acknowledged != request.Acknowledged {
-					m.Store.AcknowledgePermissionRisk(request.Token, acknowledged)
+				ui.Text(c, sessionID).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
+				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).LineHeight(1.5)
+				ui.Checkbox(c, ack, archiveText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue"))
+				if *ack != acknowledged {
+					onAcknowledge(*ack)
 				}
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, archiveText("取消", "Cancel")).Clicked() {
-						m.Store.CancelPermissionRisk(request.Token)
+						onCancel()
 					}
-					if ui.Button(c, action).Disabled(!acknowledged).Clicked() {
-						m.Store.ConfirmPermissionRisk(context.Background(), request.Token)
+					if ui.PrimaryButton(c, action).Disabled(!*ack).Clicked() {
+						onConfirm()
 					}
 				})
 			})
 		})
 	})
 	if !open {
-		m.Store.CancelPermissionRisk(request.Token)
+		onCancel()
 	}
 }

@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 )
 
 // nativeOptionLabel renders one row of the /permission picker. Permission
@@ -21,24 +22,28 @@ func paintNativePermissionConfirmation(c *ui.Context, m Model, p *nativeCommandP
 		action = composerText("启用自动审查", "Enable Auto review")
 	}
 	open := true
-	ui.DialogBase(c, &open, func(backdrop, dialog ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		dialog.Width(520).MaxWidthPercent(92).Padding(20).Background(panel).Radius(14).Children(func() {
-			ui.Column(c).Gap(12).Children(func() {
+	ui.DialogBase(c.Key("composer-permission-risk"), &open, func(backdrop, dialog ui.Element) {
+		mask := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
+		chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .32), mask)
+		dialog.Width(520).MaxWidthPercent(92).Padding(24).Radius(28).Clip().Opacity(mask).
+			Background(panel).
+			Draw(chrome.Glass(panel, chrome.MaterialPanel, 28)).Children(func() {
+			ui.Column(c).Gap(14).Children(func() {
 				ui.Text(c, title).FontSize(16).Bold().TextColor(fg)
-				ui.Text(c, description).FontSize(12).TextColor(fg)
+				ui.Text(c, description).FontSize(12).TextColor(fg).LineHeight(1.5)
 				ui.Checkbox(c, &p.acknowledged, composerText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue")).Disabled(p.busy)
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, composerText("取消", "Cancel")).Disabled(p.busy).Clicked() {
 						p.confirmation = nil
 						p.acknowledged = false
 					}
-					if ui.Button(c, action).Disabled(!p.acknowledged || p.busy).Clicked() {
+					if ui.PrimaryButton(c, action).Disabled(!p.acknowledged || p.busy).Clicked() {
 						p.settle(m, *p.confirmation)
 					}
 				})
 			})
 		})
+		chrome.MenuElevation(dialog)
 	})
 	if !open && !p.busy {
 		p.confirmation = nil

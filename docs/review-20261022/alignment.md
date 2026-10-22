@@ -35,3 +35,5 @@
 - 设置：`settings-general.png`、`settings-appearance.png`、`settings-interface.png`、`settings-models.png`、`settings-about.png`。
 - 折叠栏：`.devdata/collapsed-pass93.png`。
 - 全量测试通过；残留：B5 原生菜单（MyGo overlay 渲染阻塞）、B7 弹层退出动画、B19 模型页结构有意差异。
+
+| B22 | 权限确认弹窗：复选框每帧被重置、主按钮永远禁用；面板是 14px 平面白卡 | **已修复**：确认状态改存 ui.Local，复选框可勾选、主按钮随即可用；全部确认弹窗（权限/归档/反馈/workflow）统一走 chrome.DialogSurface：28 圆角、玻璃材质、0.5 发丝边、阴影、遮罩淡入。实机 UIA 勾选→确认成功，权限切到完全权限。截图 permission-dialog-unchecked.png、permission-dialog-checked.png |

@@ -23,8 +23,7 @@ func workflowMemberDialog(c *ui.Context, m Model) {
 	_, height := viewportDIP(c)
 	panelHeight := min(float32(700), max(float32(280), height-64))
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Width(940).MaxWidthPercent(94).Height(panelHeight).Padding(18).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel, colors, 940, 20).Height(panelHeight).Children(func() {
 			ui.Column(c).Fill().Gap(8).Children(func() {
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
 					ui.Text(c, v.Label+" · Workflow").FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)

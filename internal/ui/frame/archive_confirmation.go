@@ -28,8 +28,7 @@ func archiveConfirmation(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, 0.4))
-		panel.Width(480).MaxWidthPercent(92).Padding(20).Background(chrome.Color(colors.BG)).Radius(14).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel, colors, 480, 24).Children(func() {
 			ui.Column(c).Gap(12).Children(func() {
 				ui.Text(c, archiveText("停止工作并归档会话", "Stop work and archive session")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
 				ui.Text(c, request.Title).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
