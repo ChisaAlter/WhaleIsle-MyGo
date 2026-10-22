@@ -40,7 +40,7 @@
 | composer/voice_setup.go | 1 | ✅ | 共享表面 + composer 测试 |
 | composer/attachment_display.go | 1 | 🟡 | 遮罩/20px 圆角/裁剪 |
 | pluginmanager/confirmationDialog | 1 | ✅ | 共享表面 + pluginmanager 测试 |
-| pluginmanager/installDialog | 1 | ✅ | 560 宽内容自适应、共享表面（淡入/玻璃/投影/描边）、22/14/12/24 头部；见 `round4-dialog-surface.md` |
+| pluginmanager/installDialog | 1 | ✅ | 560 宽内容自适应、共享表面（淡入/玻璃/投影/描边）、22/14/12/24 头部；空态选项行按 `.optionsRow`（引导文字开关 + 28 高注册表 chip）；见 `round4-dialog-surface.md`、`round5-close-gestures.md` |
 | pluginmanager/index-sources | 1 | ✅ | 同上；底部重复 `关闭` 与内层重复标题已移除 |
 | pluginmanager/market-choice | 1 | ✅ | 同上；头部关闭 + 底部 `取消/安装` |
 | market/confirmationView | 1 | ✅ | 共享表面 + market 测试 |
