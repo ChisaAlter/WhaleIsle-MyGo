@@ -1,7 +1,7 @@
 # 覆盖矩阵（弹窗 / 页面 / 功能）
 
 日期：2026-10-22  
-状态：审计进行中；✅ 已实机或测试验证，🟡 已改样式但未逐项实机，⛔ 待处理，➖ 非模态/不适用。
+状态：已收口；差异/修复/残留三张总表见 `final-convergence.md`。✅ 有测试或像素证据，🟡 已接共享表面但无参考对照（原生功能），⛔ 需真实执行。
 
 ## 覆盖统计
 
@@ -26,7 +26,7 @@
 | frame/workflow_member.go | 1 | 🟡 | 共享表面 |
 | settings/confirm.go | 1 | ✅ | 通用确认；共享表面，widgets 测试覆盖按钮 |
 | settings/permission_defaults.go | 1 | ✅ | 默认权限确认；共享表面 + 设置测试 |
-| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24/下移 30；行悬停铅笔；行内录键；关闭盒/Esc/遮罩/重置四类手势都先收行内编辑器（参考 `closeReference`），标签不可聚焦；见 `round3-shortcuts.md`、`round4-dialog-surface.md`、`round5-close-gestures.md` |
+| settings/shortcuts.go | 1 | ✅ | 速查弹窗 480×600/圆角 24/下移 30；行悬停铅笔；行内录键；关闭盒/Esc/遮罩/重置四类手势都先收行内编辑器（参考 `closeReference`），标签不可聚焦；`重新读取` 只在草稿脏/读取失败时出现，作为原生恢复路径保留；见 `round3-shortcuts.md`、`round4-dialog-surface.md`、`round5-close-gestures.md` |
 | settings/agent_preset_guide.go | 1 | ✅ | 模式指南；共享表面 + 设置测试 |
 | settings/body_helpers.go | 1 | ✅ | `bodyDialog` 通用弹窗；覆盖多个设置内容弹窗 |
 | settings/pet_whale.go | 1 | ✅ | 鲸鱼娘记忆；共享表面 + 页面测试 |
@@ -42,18 +42,18 @@
 | pluginmanager/confirmationDialog | 1 | ✅ | 共享表面 + pluginmanager 测试 |
 | pluginmanager/installDialog | 1 | ✅ | 560 宽内容自适应、共享表面（淡入/玻璃/投影/描边）、22/14/12/24 头部；空态选项行按 `.optionsRow`（引导文字开关 + 28 高注册表 chip）；展开的引导为 `.guide` 面板（0.5 描边/16 圆角/示例行 + “填入示例”）；spec 页有固定 footer（`.installSafety` warn 面板 + `.wide` 整宽 40 高主按钮），只有正文滚动；见 `round4-dialog-surface.md`、`round5-close-gestures.md`、`round6-install-footer.md` |
 | pluginmanager/index-sources | 1 | ✅ | 同上；底部重复 `关闭` 与内层重复标题已移除 |
-| pluginmanager/market-choice | 1 | ✅ | 同上；头部关闭 + 底部 `取消/安装` |
+| pluginmanager/market-choice | 1 | ✅ | 同上；头部关闭 + 底部 `取消/安装`；安全提示与 spec 页同用 `.installSafety` warn 面板（参考两句文案、12 圆角、14 DIP 图标、10/12 内边距），不再是一行旧短句；见 `final-convergence.md` D33 |
 | market/confirmationView | 1 | ✅ | 共享表面 + market 测试 |
 | market/details | 1 | ✅ | 共享表面 + 参考头部（22/14/12/24、28 关闭盒）+ 24 体边距；`market-details-wide/narrow.png` |
 | diffsurface/commit_dialog.go | 1 | ✅ | 共享表面 + diffsurface 测试 |
 | diffsurface/caption_actions.go | 1 | ✅ | 创建分支；共享表面 + 测试 |
 | diffsurface/caption_review.go | 1 | ✅ | Git Review；共享表面 + 测试 |
 | schedule/presentation.go | 1 | ✅ | 排期删除；`DialogDecor` 解决裁剪/延迟点击 |
-| projects/lifecycle.go | 2 | 🟡 | 28px + 玻璃层 |
-| projects/modal.go | 1 | 🟡 | 28px + 玻璃层 |
-| projects/request_changes.go | 1 | 🟡 | 28px + 多层阴影 |
-| dirpick/panel.go | 1 | 🟡 | 28px + 玻璃层 |
-| workspacepicker/picker.go | 2 | 🟡 | 280 菜单 / 380 确认框 |
+| projects/lifecycle.go | 2 | ✅ | 380 宽 28px 玻璃卡 + 200ms 遮罩/面板淡入（`.24` 浅色 / `.5` 深色遮罩）；1440×920 证据 `projects-rename-1440.png`、`projects-rename-fade-1440.png`，窄窗 `projects-rename-narrow.png`、`projects-archive-narrow.png` |
+| projects/modal.go | 1 | 🟡 | 28px + 玻璃层 + 200ms 淡入（同 `DialogReveal`）；页面级弹窗未逐页截 1440×920 |
+| projects/request_changes.go | 1 | 🟡 | 28px + 多层阴影 + 200ms 淡入；未单独截图 |
+| dirpick/panel.go | 1 | 🟡 | 28px + 玻璃层 + 200ms 淡入；新建文件夹卡 1440×680 证据 `directory-picker-create.png` |
+| workspacepicker/picker.go | 2 | 🟡 | 280 菜单 / 380 确认框 + 200ms 淡入；改名确认框证据 `workspace-rename.png` |
 | chat/child_image_gallery.go | 1 | 🟡 | 20px 圆角/裁剪 |
 | chat/visual_reply.go | 2 | 🟡 | 共享表面 |
 | chat/user_references.go | 1 | 🟡 | 共享表面 |
@@ -108,11 +108,12 @@
 | 排期创建/删除 | ✅/🟡 | 删除弹窗测试通过；创建未实机 |
 | 设置保存 | 🟡 | 部分页面测试覆盖 |
 
-## 四、下一轮优先
+## 四、收口状态与后续
 
-1. 安装卡的 footer 化：把安全说明与主按钮移到不随正文滚动的固定底栏（参考 `PluginManagerPage.module.css` 的 footer），并核对引导/索引源开关是否为参考的带箭头文字切换。
-2. 其余 🟡 弹窗（projects/dirpick/workspacepicker/chat/usage/boot）逐项核对是否接共享表面，并补 1440×920 证据。
-3. 完整执行一次“输入 → 发送启用 → 不发送”的输入验证（需要可用键入方案）。
-4. 终端不可用与模型目录为空的运行时原因。
-5. Git/工作区/插件的实际执行路径。
-6. 实机窗口截图（Host 门禁允许时），替换快捷键弹窗与插件卡的纯无头证据。
+收口轮（`final-convergence.md`）收口了安装卡操作区/引导面板/两张安装卡的安全提示与原生弹窗的入场动画。矩阵里仍为 🟡 的条目统一属于三类：
+
+1. **无参考对应物**：projects/dirpick/workspacepicker/chat 反馈/usage 价格/boot 日志都是原生功能；鲸屿本体没有同款弹窗，只能按共享表面（28px 玻璃、0.5 发丝线、200ms 淡入）自查，不能再逐像素对照。已按此标准接表面并给代表卡留 1440 证据。
+2. **实机不可达**：插件启用/安装、市场安装、Git 实际提交、排期创建、工作区文件操作。执行会改本机环境；只做到打开/取消。
+3. **实机截图受门禁**：Host provenance 与 150% DPI 下窗口超出屏幕，UIA 坐标不可靠；证据以生产渲染 `ui.Tester` + 键盘/指针事件 + 像素断言为准。
+
+后续若要继续，优先级是：实机窗口截图 → 插件安装/市场安装的真实执行 → 输入→发送的实机键入 → 菜单子菜单展开。

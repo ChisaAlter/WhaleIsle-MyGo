@@ -1,5 +1,8 @@
 # MyGo鲸屿 ↔ 鲸屿 视觉/交互对齐最终报告
 
+> 后续第 2–7 轮（D1–D34）的收口见 [`final-convergence.md`](final-convergence.md)；
+> 本页是前 30 轮（A1–B21）的记录。
+
 日期：2026-10-22  
 参考：Electron 鲸屿 0.3.9 安装版（`C:\软件\Whale Isle`）及其 `app.asar` 内的 CSS/Radix 实现。  
 范围：布局、UI 样式、动画特效、交互体验。共 30 轮，25 个提交（`5291a3cf`…`ffa4c4f0`）。
