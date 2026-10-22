@@ -324,8 +324,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 	open := true
 	_, height := c.Size()
 	ui.DialogBase(c.Key("schedule-delete-dialog"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .24))
-		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(14).Padding(20).Children(func() {
+		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(28).Padding(20).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Gap(16).Children(func() {
 				ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				ui.Scroll(c.Key("schedule-delete-content")).MinHeight(0).MaxHeight(max(float32(40), height-180)).FillWidth().Children(func() {
@@ -348,6 +347,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 				})
 			})
 		})
+		chrome.DialogDecor(c, backdrop, panel, colors, 28)
 	})
 	if !open {
 		p.deleting = nil
