@@ -130,6 +130,11 @@ func View(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
+	if !m.SystemDark {
+		// The rail's light glass over the wallpaper lifts muted gray below a
+		// readable ratio; secondary ink keeps times and hints legible.
+		muted = chrome.Color(colors.Secondary)
+	}
 	border := chrome.Color(colors.Border)
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
