@@ -28,7 +28,7 @@
 | --- | --- |
 | `internal/ui/pluginmanager/dialogs.go` | `pluginDialog` 增加 `footer func()`（nil = 无 footer），footer 作为卡片最后一行、`Shrink(0)`，位于滚动体之外；`installDialog` 在 `idle`/`checking` 且非 `githubRecovery`、非 `Confirmed` 时挂上 `installFooter`，并把正文滚动体的底部内边距从 24 改为 0（由 footer 的 20 + 24 承担）；正文移除安全说明文本、`正在检查…` 状态行与 `安装` 主按钮，只保留“取消检查并返回编辑”这条原生恢复路径。 |
 | `internal/ui/pluginmanager/install_footer.go` | 新增 `installSafetyNote`（`.installSafety`：12 圆角 warn 面板、10/12 内边距、14 DIP `IconWarningOutlineRegular`、`margin-top:2`、两行 12/18、4 DIP 行距）、`installSafetyCopy`（参考两句安全/升级文案）、`installWarnFill`/`installSafetyInk`（warn-tertiary / label-secondary 的四个 token 值）、`installFooter`（`padding:20 24 24`、20 DIP 列间距、`.wide` 整宽 40 高 primary；检查中换 `正在检查…` + `widgets.StateDot` 并禁用）。 |
-| `internal/ui/pluginmanager/install_card_footer_test.go` | 新增 5 条回归：footer 在两个窗口高度下与卡片底边保持同一距离（且正文真的溢出）、`.installSafety` 的 58 DIP 文字内缩/4 DIP 行距/warn 底色/12 圆角像素、`.wide` 512×40、检查中只出现 `正在检查…`、日志页没有 spec 页的 footer。 |
+| `internal/ui/pluginmanager/install_card_footer_test.go` | 新增 6 条回归：footer 在两个窗口高度下与卡片底边保持同一距离（且正文真的溢出）、`.installSafety` 的 58 DIP 文字内缩/4 DIP 行距/warn 底色/12 圆角像素、`.wide` 512×40、检查中只出现 `正在检查…`、日志页没有 spec 页的 footer、英文长文案下 footer 仍把主按钮留在卡片内。 |
 | `internal/ui/pluginmanager/dialogs_surface_test.go` | 空态断言改到参考文案（`请确认插件来源可信`、`暂不支持自动更新`）。 |
 | `internal/ui/pluginmanager/install_registry.go` | `installGuidePanel` 改为 `.guide` 面板（0.5 描边 `BorderL3`、16 圆角、`colors.Field` 底、`padding:8 14`、`gap:2`），拆出 `installGuideItem`（`.guideItem`：`padding:8 0`、10 DIP 间距、`align-items:center`；标题 13/20/500、`.guideHint` 12/18 + `Margin(6,0,0,0)`、示例行“示例：”+ `Font("monospace")` 包名）与 `installGuideExample`（参考 `GUIDE_EXAMPLES` 唯一一条的标题/提示/示例）；右侧改为 `widgets.Button` 的 outline/sm“填入示例”，无障碍名 `填入示例 <包名>`，点击仍是 `EditInstall`。镜像恢复提示留在面板下方。 |
 | `internal/ui/pluginmanager/install_guide_panel_test.go` | 新增回归：标题内缩 38（正文 24 + 面板 14）、标题 20 高、提示距标题 6、示例行距提示 0 且与标签同一行、填入按钮 28 高/右缘落在面板 14 内边距/与整行同为中线、面板底色为 `rgb(245,246,247)` 且与卡片白底不同；顺带产出 `plugins-install-guide-1440.png`。 |
@@ -79,5 +79,6 @@ go build ./internal/... ./cmd/...
 1. **`label-secondary`**：共享 `theme.Colors` 没有这个 token（本仓把 secondary 折到 tertiary），`installSafetyInk` 直接写 `rgb(97,102,107)` / 深色 `rgb(207,211,214)`；自定义主题族下这两行仍是固定灰。
 2. **面板描边**：`.guide` 的 `border-l4`（0.16）用 `BorderL3`（0.12）代替，0.5 DIP 发丝线在浅色下比参考略淡。
 3. **检查中的恢复路径**：参考 footer 只有禁用的“正在检查…”，没有“取消检查并返回编辑”；原生保留这条按钮作为卡死时的退路，位置在正文。
-4. **`重新读取` 与底栏语义**、**其余 🟡 弹窗**、**分组标题**：仍沿用第 5 轮残留（未在本轮处理）。
-5. **实机截图**：仍以 `ui.Tester` 渲染为证据，未取得实机窗口截图。
+4. **市场选择卡的安全线**：`确认安装插件` 卡（原生功能，参考无对应弹窗）正文仍是一行旧短句；两张卡现在用了两种安全文案，下一轮统一。
+5. **`重新读取` 与底栏语义**、**其余 🟡 弹窗**、**分组标题**：仍沿用第 5 轮残留（未在本轮处理）。
+6. **实机截图**：仍以 `ui.Tester` 渲染为证据，未取得实机窗口截图。

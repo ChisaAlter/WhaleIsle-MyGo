@@ -4,9 +4,11 @@ import (
 	"image/color"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/ui/i18n"
 )
 
 // specInstallCardAt renders the install card's spec screen in a window of the
@@ -216,6 +218,42 @@ func closeTo(c color.Color, want color.RGBA) bool {
 	return math.Abs(float64(r>>8)-float64(want.R)) < 3 &&
 		math.Abs(float64(g>>8)-float64(want.G)) < 3 &&
 		math.Abs(float64(b>>8)-float64(want.B)) < 3
+}
+
+// TestInstallFooterKeepsTheLongCopyInsideTheCard covers the wider locale: the
+// English safety note and upgrade notice are longer than the Chinese ones, so
+// the footer must grow instead of pushing the action past the card's edge.
+func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(old) })
+	m := pageModel(t)
+	s := m.Controller.Snapshot()
+	s.Install = manager.InstallState{Open: true, Phase: "idle"}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		})
+	}, 1440, 920)
+	for range 12 {
+		tt.Frame()
+		time.Sleep(16 * time.Millisecond)
+	}
+
+	safety, upgrade := installSafetyCopy()
+	if !tt.HasText(safety) || !tt.HasText(upgrade) {
+		t.Fatalf("the English card lost the reference's note: %v", tt.Texts())
+	}
+	card, note, action := installFooterBoxes(t, tt)
+	if note.H < 18 || note.Y < card.Y+pluginDialogHeaderHeight {
+		t.Fatalf("the English note is out of place: %v in a %.0f DIP card", note, card.H)
+	}
+	if inset := card.Y + card.H - (action.Y + action.H); math.Abs(float64(inset-24)) > 1 {
+		t.Fatalf("the English action ends %.1f DIP above the card's bottom, want the reference's 24", inset)
+	}
+	if action.Y+action.H > card.Y+card.H {
+		t.Fatalf("the English action ends at %.0f, past the card's bottom %.0f", action.Y+action.H, card.Y+card.H)
+	}
 }
 
 // TestInstallFooterReadsCheckingWhileTheSpecChecks covers the reference's busy
