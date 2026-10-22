@@ -271,13 +271,8 @@ func joinDescription(a, b string) string {
 // Danger while the input is not valid, its Accent while it has the focus,
 // darker while the pointer is over the box.
 func inputBorder(t *Theme, box, in *node) {
-	switch {
-	case in.invalid:
+	if in.invalid {
 		box.borderC = t.Danger
-	case in.Focused():
-		box.borderC = t.Accent
-	case box.Hovered():
-		box.borderC = t.Border.Mix(t.Text, 0.25)
 	}
 }
 
