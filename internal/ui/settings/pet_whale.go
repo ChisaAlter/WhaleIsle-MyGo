@@ -219,9 +219,8 @@ func petWhaleMemoryDialog(c *ui.Context, colors theme.Colors, st *petWhaleState,
 		return
 	}
 	ui.DialogBase(c, &st.MemoryOpen, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Width(560).MaxWidthPercent(92).Padding(20).Gap(12).Radius(16).
-			Background(c.Theme().Surface).Label(i18n.T(i18n.KeySettingsWhaleMemoryDialog)).
+		chrome.DialogSurface(c, backdrop, panel, colors, 560, 20).Gap(12).
+			Label(i18n.T(i18n.KeySettingsWhaleMemoryDialog)).
 			Children(func() {
 				ui.Text(c, i18n.T(i18n.KeySettingsWhaleMemoryDialog)).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 				ui.Text(c, i18n.T(i18n.KeySettingsWhaleMemoryHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)

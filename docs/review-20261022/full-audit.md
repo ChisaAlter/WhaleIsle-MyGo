@@ -12,7 +12,7 @@
 | 区域 | 弹窗 |
 | --- | --- |
 | frame | 权限确认、归档确认、会话反馈、Workflow member |
-| settings | 通用确认、默认权限确认 |
+| settings | 通用确认、默认权限确认、快捷键恢复、模式指南、`bodyDialog` 系列、鲸鱼娘记忆 |
 | terminal | 关闭运行中的终端 |
 | remote | 新建/重命名/删除、关闭未保存文件 |
 | composer | slash 权限确认、语音设置 |

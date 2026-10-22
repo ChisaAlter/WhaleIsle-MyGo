@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"runtime"
 	"whaleisle/internal/shortcuts"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -96,9 +97,8 @@ func shortcutsPane(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Color) {
 		if e.ResetPending {
 			open := true
 			ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-				backdrop.Background(ui.RGBA(0, 0, 0, .24))
 				width, _ := c.Size()
-				panel.Width(min(float32(480), max(float32(0), width-32))).Background(c.Theme().Background).Radius(12).Padding(20).Gap(12).Children(func() {
+				chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(480), max(float32(0), width-32)), 20).Gap(12).Children(func() {
 					ui.Text(c, providerCopy("确认恢复全部应用和主页绑定并立即保存？将替换已知命令的自定义绑定与未保存草稿，未知命令保留。", "Restore and save all application and page defaults? This replaces known commands' bindings and drafts; unknown commands remain.")).TextColor(fg)
 					ui.Row(c).Gap(8).Children(func() {
 						if ui.Button(c, providerCopy("确认恢复并保存", "Restore and save")).Label("confirm-reset-shortcuts").Clicked() {

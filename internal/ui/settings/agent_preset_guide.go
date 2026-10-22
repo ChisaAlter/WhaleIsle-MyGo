@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -55,9 +56,9 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 		}
 		open := true
 		ui.DialogBase(c.Key("mode-guide"), &open, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .4))
 			w, h := c.Size()
-			panel.Width(max(0, min(720, w-32))).Height(max(0, min(720, h-32))).Padding(20).Radius(12).Background(c.Theme().Background).Children(func() {
+			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(720, w-32)), 20).
+				Height(max(0, min(720, h-32))).Children(func() {
 				ui.Column(c).Fill().MinHeight(0).Gap(12).Children(func() {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, providerCopy("模式指南", "Mode guide")).FontSize(fonttheme.InterfaceSize(16)).Bold().Grow(1)
