@@ -133,10 +133,6 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 			}
 		})
 	}
-	if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-recording").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-		reset()
-		e.CancelRecording()
-	}
 }
 
 type physicalRecording struct {

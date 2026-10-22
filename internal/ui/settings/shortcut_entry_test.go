@@ -100,8 +100,11 @@ func TestShortcutDialogRowRecordsAndPersistsOneRow(t *testing.T) {
 	if err := tt.Click("shortcut-settings.open"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := tt.Find("capture-settings.open"); !ok || !tt.HasText("松开组合键即保存。") {
+	if _, ok := tt.Find("capture-settings.open"); !ok {
 		t.Fatalf("row did not open the reference recorder: %v", tt.Texts())
+	}
+	if tt.HasText("松开组合键即保存。") {
+		t.Fatal("inline editor still shows the page-style instruction the reference keeps off screen")
 	}
 	tt.PhysicalKeyDown("F9", ui.KeyF9, ui.Cmd, false, false, false)
 	if len(writes) != 0 || e.Recording == "" {
@@ -292,7 +295,7 @@ func TestShortcutReferenceDialogSnapshot(t *testing.T) {
 	saveBodySnapshot(t, tt, "settings-shortcuts-dialog-1440.png")
 
 	// The inline editor is the reference's second state: the row keeps its label
-	// and the binding column holds 恢复默认, 移除 and the recorder.
+	// and the binding column holds 恢复默认, 移除 and the 96 DIP recorder.
 	if err := tt.Click("shortcut-settings.open"); err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +303,7 @@ func TestShortcutReferenceDialogSnapshot(t *testing.T) {
 		tt.Frame()
 		time.Sleep(16 * time.Millisecond)
 	}
-	if !tt.HasText("松开组合键即保存。") {
+	if _, ok := tt.Find("capture-settings.open"); !ok {
 		t.Fatalf("snapshot did not reach the inline editor: %v", tt.Texts())
 	}
 	saveBodySnapshot(t, tt, "settings-shortcuts-editor-1440.png")

@@ -20,17 +20,18 @@ func DialogSurfaceTheme(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, 
 }
 
 // DialogSurfaceBox overrides the metrics a feature dialog declares: the width
-// and height of the panel, its corner radius and the padding inside the glass.
-// A zero Height keeps the panel as tall as its content, as the shared surface
-// does for settings editors.
+// and height of the panel, its corner radius, the padding inside the glass, and
+// how far its centered place drops down the window. A zero Height keeps the
+// panel as tall as its content, as the shared surface does for settings
+// editors. A zero OffsetY keeps it centered.
 type DialogSurfaceBox struct {
-	Width, Height, Radius, Padding float32
+	Width, Height, Radius, Padding, OffsetY float32
 }
 
 // DialogSurfaceSized gives a DialogBase panel explicit metrics, for the feature
 // dialogs that the installed build sizes itself: the shortcut reference is
-// 480x600 with a 24 DIP radius and no inner padding, so its header, search row
-// and footer reach the glass edges.
+// 480x600 with a 24 DIP radius, no inner padding and a 30 DIP drop from the
+// centered place, so its header, search row and footer reach the glass edges.
 func DialogSurfaceSized(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, box DialogSurfaceBox) ui.Element {
 	if box.Radius <= 0 {
 		box.Radius = 28
@@ -51,6 +52,11 @@ func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Colo
 		Draw(Glass(bg, MaterialPanel, box.Radius))
 	if box.Height > 0 {
 		panel.Height(box.Height).MaxHeightPercent(94)
+	}
+	// The backdrop centers the panel; a top margin of twice the drop moves the
+	// centered box down by the drop alone, as the reference's translateY does.
+	if box.OffsetY != 0 {
+		panel.Margin(2*box.OffsetY, 0, 0, 0)
 	}
 	MenuElevation(panel)
 	panel.DrawOver(func(p *ui.Painter, r ui.Rect) {

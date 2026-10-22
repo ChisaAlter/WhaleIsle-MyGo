@@ -12,16 +12,19 @@ import (
 
 // The installed build's shortcut dialog is a 480x600 reference list: a 46 DIP
 // title, a 60 DIP search row, one 42 DIP row per command with its key badge,
-// and a 52 DIP footer that owns the reset action and the customized count.
+// and a 52 DIP footer that owns the reset action and the customized count. The
+// reference drops the centered card 30 DIPs down (translateY(30px)).
 const (
 	shortcutDialogWidth   = 480
 	shortcutDialogHeight  = 600
 	shortcutDialogRadius  = 24
+	shortcutDialogOffsetY = 30
 	shortcutHeaderHeight  = 46
 	shortcutSearchHeight  = 60
 	shortcutFooterHeight  = 52
 	shortcutRowHeight     = 42
 	shortcutBadgeHeight   = 26
+	shortcutRowActionSize = 20
 	shortcutRecorderWidth = 96
 )
 
@@ -75,6 +78,7 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 			Height:  min(float32(shortcutDialogHeight), max(float32(320), h-108)),
 			Radius:  shortcutDialogRadius,
 			Padding: 0,
+			OffsetY: shortcutDialogOffsetY,
 		}
 		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box).Key("shortcut-reference-dialog").Gap(0).Children(func() {
 			target := ui.Local(panel, "shortcut-target", func() string { return "" })
@@ -94,8 +98,10 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shortcutPalette) {
 	ui.Row(c).FillWidth().Height(shortcutHeaderHeight).Shrink(0).Padding(22, 14, 0, 24).AlignItems(ui.Start).Children(func() {
 		ui.Text(c, providerCopy("快捷键", "Keyboard shortcuts")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
+		// The reference places the 28 DIP close box at 20 from the top, two DIPs
+		// above the title's 22, so the two share a center line.
 		close := ui.Button(c, "").Label(providerCopy("关闭快捷键", "Close keyboard shortcuts")).
-			Size(28, 28).Shrink(0).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent).
+			Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent).
 			Tooltip(providerCopy("关闭快捷键", "Close keyboard shortcuts"))
 		close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(p.fg) })
 		if close.Hovered() {
@@ -176,17 +182,34 @@ func shortcutRow(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, 
 	row := ui.Button(c, "").Label("shortcut-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).
 		Padding(8).Gap(8).Radius(10).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
 		Tooltip(providerCopy("修改"+label+"快捷键", "Edit shortcut for "+label))
+	hovered := row.Hovered()
 	row.Children(func() {
 		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
+		shortcutRowActions(c, command.ID, p, hovered)
 		shortcutKeyBadge(c, e, command.ID, p, invalid)
 	})
-	if row.Hovered() {
+	if hovered {
 		row.Background(p.hover)
 	}
 	if row.Clicked() && e.ReadError == "" && !e.ResetPending {
 		*target = command.ID
 		e.BeginRecording(command.ID)
 	}
+}
+
+// shortcutRowActions is the reference row's hover affordance: a 20x26 slot left
+// of the key badge that shows the 12 DIP pencil while the pointer is over the
+// row. The slot stays in the layout while hidden, so the badge never shifts as
+// the pointer enters and leaves.
+func shortcutRowActions(c *ui.Context, id string, p shortcutPalette, hovered bool) {
+	slot := ui.Box(c).Label("row-edit-" + id).Size(shortcutRowActionSize, shortcutBadgeHeight).Shrink(0).
+		AlignItems(ui.Center).Justify(ui.Center).PassThrough()
+	slot.Children(func() {
+		icon := ui.Icon(c, shortcutEditIcon).Size(12, 12).TextColor(p.caption)
+		if !hovered {
+			icon.Opacity(0)
+		}
+	})
 }
 
 func shortcutKeyBadge(c *ui.Context, e *shortcuts.Editor, id string, p shortcutPalette, invalid bool) {
@@ -212,7 +235,7 @@ func shortcutKeyBadge(c *ui.Context, e *shortcuts.Editor, id string, p shortcutP
 func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, p shortcutPalette, target *string, issue string) {
 	label := shortcutCommandLabel(command)
 	ui.Row(c).Key("shortcut-row-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
-		closeEditor := ui.Button(c, "").Label("shortcut-" + command.ID).Tooltip(providerCopy("完成", "Done")).
+		closeEditor := ui.Button(c, "").Label("shortcut-" + command.ID).
 			Grow(1).MinWidth(0).Height(shortcutRowHeight).Padding(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Start)
 		closeEditor.Children(func() {
 			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
@@ -238,9 +261,6 @@ func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.
 				}
 				shortcutRecorder(c, e, command.ID, func() { *target = "" })
 			})
-			if e.Recording == command.ID {
-				ui.Text(c, providerCopy("松开组合键即保存。", "Release the keys to save.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(p.caption)
-			}
 			if issue != "" && e.Recording != command.ID {
 				ui.Text(c, issue).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger).MaxWidth(220)
 			}
