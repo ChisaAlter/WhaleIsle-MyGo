@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/widgets"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // The plugin manager's cards follow the reference Modal: a 560 DIP card on the
@@ -141,8 +141,9 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 						if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名称或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
 							a.EditInstall(spec, i.Registry)
 						}
-						installGuide(c, i, a)
-						installRegistryOptions(c, i, a, s.Busy || i.Phase == "checking")
+						_, registryAnchor, guideOpen, _ := installOptionsRow(c, i, a, s.Busy || i.Phase == "checking")
+						installGuidePanel(c, i, a, guideOpen)
+						installRegistryPanel(c, registryAnchor, i, a)
 						ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
 					if i.Inspection != nil && i.Inspection.Status == "accepted" && i.Phase != "idle" && i.Phase != "checking" {
