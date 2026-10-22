@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -99,6 +100,10 @@ func TestRenameFocusAndBusyDismissal(t *testing.T) {
 	if input.H != 44 {
 		t.Fatalf("rename input=%+v", input)
 	}
+	// The card is hand-run: let its entrance finish before the evidence frame.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(2 * time.Second))
 	saveSecondarySnapshot(t, tt, "workspace-rename.png")
 	request.Busy = true
 	tt.Frame()

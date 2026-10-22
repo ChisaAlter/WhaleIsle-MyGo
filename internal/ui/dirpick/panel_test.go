@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh/api"
@@ -161,6 +162,7 @@ func TestNestedCreateRawNameAndParentInertness(t *testing.T) {
 	if closed+navigated+picked != 0 {
 		t.Fatal("nested create left parent controls active")
 	}
+	settleDialogReveal(tt)
 	saveSecondarySnapshot(t, tt, "directory-picker-create.png")
 	s.Creating = false
 	tt.Frame()
@@ -222,6 +224,14 @@ func TestDirectoryErrorToastRetryAndEmptyData(t *testing.T) {
 		t.Fatal("empty filesystem level lost browse controls")
 	}
 	saveSecondarySnapshot(t, tt, "directory-picker-empty.png")
+}
+
+// settleDialogReveal lets a nested card finish its entrance, so the frame that
+// follows shows the settled surface rather than the first frame of the fade.
+func settleDialogReveal(tt *ui.Tester) {
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(2 * time.Second))
 }
 
 func saveSecondarySnapshot(t *testing.T, tt *ui.Tester, name string) {

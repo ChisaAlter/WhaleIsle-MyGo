@@ -197,7 +197,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 	}
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
+		chrome.DialogReveal(c, backdrop, panel)
 		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Gap(20).Radius(28).
 			Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).
 			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {

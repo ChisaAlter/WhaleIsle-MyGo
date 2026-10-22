@@ -171,7 +171,7 @@ func projectModals(c *ui.Context, m Model) {
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		width, height := c.Size()
 		ui.DialogBase(c, &open, func(back, panel ui.Element) {
-			back.Background(ui.RGBA(0, 0, 0, .4))
+			chrome.DialogReveal(c, back, panel)
 			panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0).Radius(28).Clip().Background(chrome.Color(colors.Field)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 				projectModalHeader(c, m, route.title, close, materialRoute && m.Busy, memory.LastRoute != route.key)
 				if m.Error != "" {
@@ -290,7 +290,7 @@ func materialTransitionDialog(c *ui.Context, m Model, state *projectPresentation
 	open := true
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.DialogBase(c, &open, func(back, panel ui.Element) {
-		back.Background(ui.RGBA(0, 0, 0, .4))
+		chrome.DialogReveal(c, back, panel)
 		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Radius(28).
 			Background(chrome.Color(colors.Field)).
 			Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).Children(func() {

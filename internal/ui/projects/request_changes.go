@@ -73,12 +73,12 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 	resolved := theme.Resolve(m.ThemeID)
 	colors := resolved.Active(m.SystemDark)
 	dark := resolved.Scheme == theme.SchemeDark || resolved.Scheme == theme.SchemeSystem && m.SystemDark
-	mask, surface := ui.RGBA(0, 0, 0, .24), ui.RGBA(255, 255, 255, .8)
+	surface := ui.RGBA(255, 255, 255, .8)
 	secondary, stroke := ui.RGB(97, 102, 107), ui.RGBA(0, 0, 0, .12)
 	elevationStroke := ui.RGBA(0, 0, 0, .16)
 	primary, primaryHover, primaryText := ui.RGB(15, 17, 21), ui.RGB(67, 69, 74), ui.RGB(255, 255, 255)
 	if dark {
-		mask, surface = ui.RGBA(0, 0, 0, .5), ui.RGBA(44, 44, 46, .8)
+		surface = ui.RGBA(44, 44, 46, .8)
 		secondary, stroke = ui.RGB(207, 211, 214), ui.RGBA(255, 255, 255, .16)
 		elevationStroke = ui.RGBA(255, 255, 255, .2)
 		primary, primaryHover, primaryText = ui.RGB(249, 250, 251), ui.RGB(235, 238, 242), ui.RGB(15, 17, 21)
@@ -94,7 +94,8 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 	open := true
 	viewportWidth, _ := c.Size()
 	ui.DialogBase(c.Key("revert/"+card.ID), &open, func(back, panel ui.Element) {
-		back.Background(mask).Padding(24)
+		chrome.DialogReveal(c, back, panel)
+		back.Padding(24)
 		// Modal.module.css: a 380px card, 28px panel corners, and a separate
 		// padded content region and footer separated by 20px.
 		panel.Width(380).MaxWidth(max(1, viewportWidth-48)).Padding(0, 0, 24, 0).Gap(20).Radius(28).Clip().Background(surface).Shadow(0, 0, 0, .5, elevationStroke).Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04)).Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).Children(func() {

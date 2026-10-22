@@ -121,3 +121,24 @@ func RevealMask(backdrop ui.Element, mask ui.Color, progress float32) {
 		p.Fill(r, mask.Alpha(progress), 0)
 	})
 }
+
+// DialogMask is the dim layer under a modal card, `--dsw-alias-bg-mask-1`: .24
+// over the light sheet and .5 over the dark one (`Modal.module.css:25-31`), so
+// the card keeps its contrast on either scheme.
+func DialogMask(c *ui.Context) ui.Color {
+	if c.Theme().Dark {
+		return ui.RGBA(0, 0, 0, .5)
+	}
+	return ui.RGBA(0, 0, 0, .24)
+}
+
+// DialogReveal fades a hand-run DialogBase overlay in over the reference modal's
+// 200ms enter (`Modal.module.css:29-31, 48`): the mask at the theme's depth and
+// the panel at the same progress. Call it where the panel is styled, before its
+// children. A tester that sets no clock fades with wall time, so a snapshot
+// fixture settles the frame (SetTime twice) before it encodes the image.
+func DialogReveal(c *ui.Context, backdrop, panel ui.Element) {
+	progress := Reveal(c, backdrop, OverlayDuration)
+	RevealMask(backdrop, DialogMask(c), progress)
+	panel.Opacity(progress)
+}

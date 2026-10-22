@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
@@ -331,6 +332,7 @@ func TestProjectLifecycleDialogsProtectTargetAndBusyState(t *testing.T) {
 	}
 	m.Busy = false
 	tt.Frame()
+	settleDialogReveal(tt)
 	saveProjectSnapshot(t, tt, "projects-rename-narrow.png")
 	tt.Key(0, ui.KeyEscape)
 	if m.RenameID != "" {
@@ -350,6 +352,7 @@ func TestProjectLifecycleDialogsProtectTargetAndBusyState(t *testing.T) {
 	if confirmed != 0 {
 		t.Fatal("archive executed without explicit confirmation")
 	}
+	settleDialogReveal(tt)
 	saveProjectSnapshot(t, tt, "projects-archive-narrow.png")
 	if err := tt.Click("Stop work and archive"); err != nil {
 		t.Fatal(err)
@@ -505,6 +508,47 @@ func TestProjectRowLifecycleCancelReturnsToOriginFocus(t *testing.T) {
 		t.Fatal("cancel did not restore originating project menu focus")
 	}
 }
+// TestProjectRenameDialogWideSurface covers the rename card at the audit size:
+// the native lifecycle dialogs share the shell's glass surface, so the card is
+// the reference's 380 DIP panel with the 28 DIP radius, not a bare box.
+func TestProjectRenameDialogWideSurface(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	m := projectFixture()
+	draft := "Harbor renamed"
+	m.RenameID = "project-fixture"
+	m.RenameDraft = &draft
+	m.OnRename = func(string, string) {}
+	m.OnCancelRename = func() { m.RenameID = "" }
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 1440, 920)
+	for range 6 {
+		tt.Frame()
+	}
+	settleDialogReveal(tt)
+	card, ok := tt.Find("Rename Project")
+	if !ok {
+		t.Fatalf("rename card not found: %v", tt.Texts())
+	}
+	if card.W < 379 || card.W > 381 {
+		t.Fatalf("rename card is %.0f DIP wide, want the 380 DIP lifecycle panel", card.W)
+	}
+	if card.X < 529 || card.X > 531 {
+		t.Fatalf("rename card starts at %.0f, want it centered on 1440", card.X)
+	}
+	if !tt.HasText("Project name") || !tt.HasText("Save") || !tt.HasText("Cancel") {
+		t.Fatalf("rename card lost its field or actions: %v", tt.Texts())
+	}
+	saveProjectSnapshot(t, tt, "projects-rename-1440.png")
+}
+// settleDialogReveal lets a hand-run modal finish its entrance, so the frame
+// that follows shows the settled card instead of the first frame of the fade
+// (the overlay's start time is captured on its first paint).
+func settleDialogReveal(tt *ui.Tester) {
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(2 * time.Second))
+}
+
 func saveProjectSnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
 	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")
