@@ -510,7 +510,9 @@ func formatEventTime(ms float64) string {
 	if sec <= 0 {
 		return ""
 	}
-	return time.UnixMilli(int64(ms)).Local().Format("15:04:05.000")
+	// The reference stamps messages with HH:MM; seconds and milliseconds are
+	// inspection-only detail.
+	return time.UnixMilli(int64(ms)).Local().Format("15:04")
 }
 
 func findTrajectoryRow(rows []trajRow, id string) *trajRow {
