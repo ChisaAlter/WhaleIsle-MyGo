@@ -76,9 +76,15 @@ assistant whale settings、boot 两处 drawer、chat feedback / user references�
 - 鲸鱼娘：57 个文本节点，正常。
 - 设置主模态、返回、rail 全部可点。
 
+## 功能点击验证（第 2 轮）
+
+- 设置 → 界面设置 → “显示归档列表”：实机 UIA Toggle `On → Off → On`，恢复原值。
+- 模型选择、命令列表、终端抽屉、右侧面板均可点击打开；终端/右侧面板渲染正常。
+- assistant 系列 13 个 `ack := r.Acknowledged` 已核对：回调同步更新 review 状态并调用 `updateAssistantTasks()`，现有测试全部通过，因此不做无依据改写；若后续接入异步 RPC，再统一改为 `ui.Local`。
+- 排期删除弹窗尝试迁到共享表面时，`TestScheduleSaveAndDeleteKeepCapturedOwner` 稳定失败；已保留旧实现并列入待办，避免“样式统一但按钮点不到”。
+
 ## 下一轮
 
-1. 迁移 `assistant` 系列 13 个 `ack := r.Acknowledged` 复选框（同类每帧重置风险）。
-2. 迁移 widgets 通用 `ConfirmDialog`、settings 其余弹窗、diffsurface、market、pluginmanager、projects。
-3. 对主页面逐页做可点击清单：侧栏、工作区、会话行、搜索、面板开关、终端、Git、模型选择、发送/停止。
-4. 每个修复补测试；最后输出完整覆盖矩阵。
+1. 迁移 widgets 通用 `ConfirmDialog`、diffsurface、projects、settings 其余弹窗。
+2. 对主页面逐页做可点击清单：侧栏、工作区、会话行、搜索、面板开关、终端、Git、模型选择、发送/停止。
+3. 每个修复补测试；最后输出完整覆盖矩阵。
