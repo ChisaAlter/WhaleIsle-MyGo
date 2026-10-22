@@ -181,14 +181,29 @@ func View(c *ui.Context, m Model) {
 					})
 				}
 				if log := strings.TrimSpace(m.InstallLog); log != "" {
-					if m.OnCopyInstallLog != nil && ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).Clicked() {
-						m.OnCopyInstallLog(log)
-					}
-					lines := strings.Split(log, "\n")
-					if len(lines) > 40 {
-						lines = lines[len(lines)-40:]
-					}
-					ui.Text(c, strings.Join(lines, "\n")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					logBox := ui.Column(c.Key("market-install-log")).FillWidth().MinWidth(0).Gap(6)
+					logOpen := ui.Local(logBox, "open", func() bool { return false })
+					logBox.Children(func() {
+						if strings.Contains(strings.ToLower(log), "operation-error") {
+							ui.Text(c, marketText("安装未完成。请检查网络或安装源，或展开日志排查。", "Installation did not finish. Check the network or source, or open the log to inspect it.")).TextColor(accent)
+						}
+						if ui.Button(c, marketText("安装日志", "Install log")).FontSize(theme.InterfaceSize(11)).Clicked() {
+							*logOpen = !*logOpen
+						}
+						if !*logOpen {
+							return
+						}
+						if m.OnCopyInstallLog != nil && ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).Clicked() {
+							m.OnCopyInstallLog(log)
+						}
+						lines := strings.Split(log, "\n")
+						if len(lines) > 40 {
+							lines = lines[len(lines)-40:]
+						}
+						ui.Scroll(c).FillWidth().MaxHeight(180).Children(func() {
+							ui.Text(c, strings.Join(lines, "\n")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Selectable()
+						})
+					})
 				}
 			})
 		})
