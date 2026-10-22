@@ -13,6 +13,52 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// The plugin manager's cards follow the reference Modal: a 560 DIP card on the
+// shared surface, 24 DIP of air around it, a 22/14/12/24 header holding a
+// 16/500 title and a 28 DIP close box, and 24 DIP body padding.
+const (
+	pluginDialogWidth        = 560
+	pluginDialogHeaderHeight = 58
+)
+
+// pluginDialogCloseIcon is the reference Modal's 14 DIP cross.
+var pluginDialogCloseIcon = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>`))
+
+// pluginDialog draws one plugin manager card: the shared surface, the reference
+// header, and body. A zero height sizes the card to its content, capped at the
+// window's 24 DIP inset; a positive height fixes it. It returns the panel so the
+// caller can add overlays of its own.
+func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors, title, closeLabel string, height float32, close func(), body func()) ui.Element {
+	w, h := c.Size()
+	box := chrome.DialogSurfaceBox{
+		Width:   min(float32(pluginDialogWidth), max(float32(280), w-48)),
+		Height:  height,
+		Padding: 0,
+	}
+	panel = chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box)
+	if height <= 0 {
+		panel.MaxHeight(max(0, h-48))
+	}
+	panel.Label(title).Gap(0).Children(func() {
+		ui.Row(c).FillWidth().Height(pluginDialogHeaderHeight).Shrink(0).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
+			ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG)).SingleLine()
+			closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Padding(7).Radius(8).
+				BorderWidth(0).Background(ui.Transparent).Tooltip(closeLabel)
+			closeBox.Children(func() {
+				ui.Icon(c, pluginDialogCloseIcon).Size(14, 14).TextColor(chrome.Color(colors.Muted))
+			})
+			if closeBox.Hovered() {
+				closeBox.Background(c.Theme().SurfaceHover)
+			}
+			if closeBox.Clicked() {
+				close()
+			}
+		})
+		body()
+	})
+	return panel
+}
+
 func confirmationDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	open := true
 	w, h := c.Size()
@@ -41,32 +87,28 @@ func confirmationDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	i := s.Install
 	open := true
-	w, h := c.Size()
+	_, h := c.Size()
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	pending := i.Phase == "starting" || i.Phase == "running" || i.Phase == "applying" || i.Phase == "cancelling" || i.Phase == "unconfirmed" || i.Phase == "unknown"
 	_, githubRecovery := manager.GitHubRecoveryRegistry(i)
+	title := copyText("添加插件", "Add plugin")
+	if githubRecovery {
+		title = copyText("无法访问 GitHub", "Cannot access GitHub")
+		if i.Result.PackageResult.Kind == "timeout" {
+			title = copyText("连接 GitHub 超时", "GitHub connection timed out")
+		}
+	}
+	closeLabel := copyText("关闭", "Close")
+	if i.Phase == "starting" || i.Phase == "running" || i.Phase == "unconfirmed" {
+		closeLabel = copyText("取消安装并关闭", "Cancel install and close")
+	}
+	// The card is as tall as its content, as the reference Modal is, and the
+	// body scrolls inside it once the log outgrows the window's inset.
+	height := float32(0)
 	ui.DialogBase(c.Key("plugin-manager-install"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("添加插件", "Add plugin")).Width(max(0, min(float32(640), w-32))).Height(max(0, min(float32(720), h-48))).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(20).Clip().Children(func() {
-			ui.Row(c).FillWidth().Padding(20, 20, 12, 20).Gap(8).Children(func() {
-				title := copyText("添加插件", "Add plugin")
-				if githubRecovery {
-					title = copyText("无法访问 GitHub", "Cannot access GitHub")
-					if i.Result.PackageResult.Kind == "timeout" {
-						title = copyText("连接 GitHub 超时", "GitHub connection timed out")
-					}
-				}
-				ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(fg)
-				closeLabel := copyText("关闭", "Close")
-				if i.Phase == "starting" || i.Phase == "running" || i.Phase == "unconfirmed" {
-					closeLabel = copyText("取消安装并关闭", "Cancel install and close")
-				}
-				if ui.Button(c, closeLabel).Clicked() {
-					open = false
-				}
-			})
-			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Padding(0, 20, 20, 20).Children(func() {
+		pluginDialog(c, backdrop, panel, colors, title, closeLabel, height, func() { open = false }, func() {
+			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(0, h-150)).Padding(20, 24, 24, 24).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 					if githubRecovery {
 						ui.Text(c, copyText("请尝试其他安装来源。", "Try another installation source.")).FillWidth().TextColor(muted)
@@ -209,7 +251,6 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 				})
 			})
 		})
-		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.CloseInstall()
@@ -217,13 +258,14 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 }
 func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 	open := true
-	w, h := c.Size()
+	_, h := c.Size()
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.DialogBase(c.Key("plugin-index-sources"), &open, func(backdrop, panel ui.Element) {
 		dismissed := ui.Local(panel, "source-error-dismissed", func() uint64 { return 0 })
-		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("插件索引源", "Plugin index sources")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(12).Background(chrome.Color(colors.BG)).Radius(20).Children(func() {
-			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-140)).MinHeight(0).Children(func() { sourcesEditor(c, s, a, chrome.Color(colors.FG), chrome.Color(colors.Muted)) })
+		pluginDialog(c, backdrop, panel, colors, copyText("插件索引源", "Plugin index sources"), copyText("关闭", "Close"), 0, func() { open = false }, func() {
+			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-150)).MinHeight(0).Padding(20, 24, 24, 24).Children(func() {
+				sourcesEditor(c, s, a, chrome.Color(colors.FG), chrome.Color(colors.Muted))
+			})
 			if s.Discover.SourceError != "" && *dismissed != s.Discover.SourceErrorSequence {
 				ui.Overlay(c.Key("plugin-source-error-toast"), func() {
 					ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(560).Padding(12).Gap(10).Role(ui.RoleStatus).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(8).Children(func() {
@@ -234,11 +276,7 @@ func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					})
 				})
 			}
-			if ui.Button(c, copyText("关闭", "Close")).Clicked() {
-				open = false
-			}
 		})
-		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.ToggleSources()
@@ -250,33 +288,33 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 		return
 	}
 	open := true
-	w, h := c.Size()
+	_, h := c.Size()
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.DialogBase(c.Key("plugin-market-choice"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .35)).Padding(16)
-		panel.Label(copyText("确认安装插件", "Confirm plugin installation")).Width(max(0, min(float32(560), w-32))).MaxHeight(max(0, h-48)).Padding(20).Gap(16).Background(chrome.Color(colors.BG)).Radius(20).Children(func() {
-			ui.Text(c, choice.Entry.Label(i18n.Locale())+" · "+choice.Version.Version).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
-			ui.Scroll(c).FillWidth().MaxHeight(max(0, h-220)).MinHeight(0).Children(func() {
-				ui.Text(c, choice.Entry.Author).FillWidth().TextColor(muted)
-				for _, fact := range manager.SourceFacts(choice.Entry.Name, choice.Version) {
-					ui.Text(c, fact.Kind+": "+fact.Value).FillWidth().Selectable().TextColor(fg)
-				}
-				if !choice.Version.Compatibility.Compatible {
-					ui.Text(c, copyText("此版本具有兼容性风险豁免。", "This version has a compatibility risk exemption.")).FillWidth().TextColor(c.Theme().Warning)
-				}
-				ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().TextColor(muted)
-			})
-			ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Children(func() {
-				if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
-					open = false
-				}
-				if ui.PrimaryButton(c, copyText("安装", "Install")).Clicked() {
-					a.ConfirmMarketChoice()
-				}
+		pluginDialog(c, backdrop, panel, colors, copyText("确认安装插件", "Confirm plugin installation"), copyText("关闭", "Close"), 0, func() { open = false }, func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Padding(20, 24, 24, 24).Children(func() {
+				ui.Text(c, choice.Entry.Label(i18n.Locale())+" · "+choice.Version.Version).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
+				ui.Scroll(c).FillWidth().MaxHeight(max(0, h-260)).MinHeight(0).Children(func() {
+					ui.Text(c, choice.Entry.Author).FillWidth().TextColor(muted)
+					for _, fact := range manager.SourceFacts(choice.Entry.Name, choice.Version) {
+						ui.Text(c, fact.Kind+": "+fact.Value).FillWidth().Selectable().TextColor(fg)
+					}
+					if !choice.Version.Compatibility.Compatible {
+						ui.Text(c, copyText("此版本具有兼容性风险豁免。", "This version has a compatibility risk exemption.")).FillWidth().TextColor(c.Theme().Warning)
+					}
+					ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().TextColor(muted)
+				})
+				ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Children(func() {
+					if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
+						open = false
+					}
+					if ui.PrimaryButton(c, copyText("安装", "Install")).Clicked() {
+						a.ConfirmMarketChoice()
+					}
+				})
 			})
 		})
-		chrome.DialogDecor(c, backdrop, panel, colors, 20)
 	})
 	if !open {
 		a.CancelMarketChoice()

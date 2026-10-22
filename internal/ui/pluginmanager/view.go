@@ -986,9 +986,11 @@ func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State
 		})
 	}
 }
+// sourcesEditor is the index-source body of the sources card: the reference
+// modal names the section in its header, so the body carries no second title or
+// nested panel of its own.
 func sourcesEditor(c *ui.Context, s manager.State, a manager.Actions, fg, muted ui.Color) {
-	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(12).Border(.5, c.Theme().Border).Radius(8).Children(func() {
-		groupTitle(c, copyText("插件索引源", "Plugin index sources"), fg)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
 		if len(s.Discover.Indexes) == 0 {
 			ui.Text(c, copyText("尚未配置索引源。添加一个源以浏览插件。", "No index sources configured. Add a source to browse plugins.")).FillWidth().TextColor(muted)
 		}
