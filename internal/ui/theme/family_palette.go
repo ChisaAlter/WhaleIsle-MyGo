@@ -42,7 +42,9 @@ func derivePalette(c Colors, s Seed) Colors {
 	c.Titlebar = mix(mix(s.Background, s.Foreground, overlayFG), s.Accent, overlayAccent)
 	c.SelectorFill = mix(mix(s.Background, s.Foreground, layerFG), s.Accent, layerAccent)
 	c.Muted = mix(s.Foreground, s.Background, .38-f*.14)
+	c.Secondary = mix(s.Foreground, s.Background, .30-f*.12)
 	c.Border = familyAlpha(s.Foreground, .1+f*.2)
+	c.BorderL4 = familyAlpha(s.Foreground, .16+f*.08)
 	c.Sidebar = mix(s.Background, s.Accent, strong)
 	c.Bubble = mix(s.Background, s.Accent, wash)
 	c.InputMajor = c.Titlebar
@@ -69,7 +71,7 @@ func derivePalette(c Colors, s Seed) Colors {
 		case "--dsw-alias-label-primary":
 			c.FG = value
 		case "--dsw-alias-label-secondary":
-			c.Muted = value
+			c.Secondary = value
 		case "--dsw-alias-label-primary-foreground":
 			c.ButtonFG = value
 		case "--dsw-alias-brand-primary", "--dsw-alias-state-business-primary":

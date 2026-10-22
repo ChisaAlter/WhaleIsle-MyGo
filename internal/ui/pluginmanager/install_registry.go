@@ -188,7 +188,7 @@ func installGuidePanel(c *ui.Context, i manager.InstallState, a manager.Actions,
 		return
 	}
 	ui.Column(c).FillWidth().Shrink(0).Gap(2).Padding(8, 14).Radius(16).
-		Border(.5, chrome.Color(colors.BorderL3)).Background(chrome.Color(colors.Field)).Children(func() {
+		Border(.5, chrome.Color(colors.BorderL4)).Background(chrome.Color(colors.Field)).Children(func() {
 		installGuideItem(c, i, a, colors)
 	})
 	if strings.TrimSpace(i.Spec) == "" && i.MirrorRecovery {

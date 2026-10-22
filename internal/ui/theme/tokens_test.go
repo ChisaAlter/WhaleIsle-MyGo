@@ -14,7 +14,6 @@ import (
 //
 // Known gaps this wave does not close, because they need a design decision or
 // wiring outside the theme package:
-//   - there is no --dsw-alias-label-secondary: secondary text uses label-tertiary;
 //   - no --dsw-alias-scrollbar-bg-l2 / -hover-l2 are carried;
 //   - Field reads --dsw-alias-bg-module-platform in the light half and
 //     --dsw-alias-bg-layer-1 in the dark one (module-platform is lighter there).
@@ -29,7 +28,9 @@ func TestSampledTokensMatchTheHarness(t *testing.T) {
 		{"--dsw-alias-bg-base", deepseekLight.BG, deepseekDark.BG, "rgb(255, 255, 255)", "rgb(21, 21, 23)"},
 		{"--dsw-alias-label-primary", deepseekLight.FG, deepseekDark.FG, "rgb(15, 17, 21)", "rgb(249, 250, 251)"},
 		{"--dsw-alias-label-tertiary", deepseekLight.Muted, deepseekDark.Muted, "rgb(129, 133, 140)", "rgb(173, 178, 184)"},
+		{"--dsw-alias-label-secondary", deepseekLight.Secondary, deepseekDark.Secondary, "rgb(97, 102, 107)", "rgb(207, 211, 214)"},
 		{"--dsw-alias-label-caption", deepseekLight.Caption, deepseekDark.Caption, "rgb(173, 178, 184)", "rgb(129, 133, 140)"},
+		{"--dsw-alias-border-l4", deepseekLight.BorderL4, deepseekDark.BorderL4, "rgba(0, 0, 0, 0.16)", "rgba(255, 255, 255, 0.2)"},
 		{"--dsw-alias-label-primary-foreground", deepseekLight.ButtonFG, deepseekDark.ButtonFG, "rgb(255, 255, 255)", "rgb(15, 17, 21)"},
 		{"--dsw-alias-border-l2", deepseekLight.Border, deepseekDark.Border, "rgba(0, 0, 0, 0.1)", "rgba(255, 255, 255, 0.12)"},
 		{"--dsw-alias-interactive-bg-hover", deepseekLight.Hover, deepseekDark.Hover, "rgba(38, 49, 72, 0.06)", "rgba(255, 255, 255, 0.08)"},

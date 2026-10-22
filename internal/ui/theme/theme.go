@@ -46,6 +46,7 @@ type Colors struct {
 	BG              string // --dsw-alias-bg-base
 	FG              string // --dsw-alias-label-primary
 	Muted           string // --dsw-alias-label-tertiary
+	Secondary       string // --dsw-alias-label-secondary
 	Caption         string // --dsw-alias-label-caption / composer placeholder
 	Accent          string // --dsw-alias-state-business-primary (deepseek-500 light, rgb(103, 158, 254) dark)
 	Border          string // --dsw-alias-border-l2
@@ -66,6 +67,9 @@ type Colors struct {
 	BrandPrimaryHover string
 	// BorderL3 is --dsw-alias-border-l3, the 0.5 DIP outline-button stroke.
 	BorderL3 string
+	// BorderL4 is --dsw-alias-border-l4, the heavier 0.5 DIP panel stroke
+	// (the reference's .guide panel).
+	BorderL4 string
 	// ToolbarFill/Hover are --dsw-alias-button-tool-bar-fill/hover.
 	ToolbarFill  string
 	ToolbarHover string
@@ -90,6 +94,7 @@ var deepseekLight = Colors{
 	BG:      "#ffffff",
 	FG:      "#0f1115",
 	Muted:   "#81858c",
+	Secondary: "#61666b",
 	Caption: "#adb2b8",
 	Accent:  "#4176e6",
 	Border:  "rgba(0, 0, 0, 0.10)",
@@ -112,6 +117,7 @@ var deepseekLight = Colors{
 	BrandPrimary:      "#0f1115",             // --dsw-alias-brand-primary (neutral-bluish-1000)
 	BrandPrimaryHover: "rgb(67, 69, 74)",     // --dsw-alias-button-primary-hover (neutral-bluish-750)
 	BorderL3:          "rgba(0, 0, 0, 0.12)",
+	BorderL4:          "rgba(0, 0, 0, 0.16)",
 	ToolbarFill:       "rgba(84, 85, 87, 0.5)",
 	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
 	Danger:            "rgb(236, 19, 19)",
@@ -124,6 +130,7 @@ var deepseekDark = Colors{
 	BG:      "#151517",
 	FG:      "#f9fafb",
 	Muted:   "#adb2b8",
+	Secondary: "#cfd3d6",
 	Caption: "#81858c",
 	// --dsw-alias-state-business-primary: the harness stylesheet resolves it to
 	// --dsw-static-deepseek-400 (rgb(122, 170, 255)) in the dark half. The
@@ -152,6 +159,7 @@ var deepseekDark = Colors{
 	BrandPrimary:      "rgb(249, 250, 251)",
 	BrandPrimaryHover: "rgb(235, 238, 242)",
 	BorderL3:          "rgba(255, 255, 255, 0.16)",
+	BorderL4:          "rgba(255, 255, 255, 0.20)",
 	ToolbarFill:       "rgba(84, 85, 87, 0.5)",
 	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
 	Danger:            "rgb(242, 90, 90)",

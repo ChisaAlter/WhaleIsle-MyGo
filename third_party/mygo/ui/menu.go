@@ -249,6 +249,7 @@ type menuState struct {
 	pending              *shownMenu
 	overlay              *shownMenu
 	index                int
+	submenu              int
 	focused              bool
 	chosen               uint64
 	chosenHold           bool
@@ -442,6 +443,7 @@ func (rt *engine) showMenu() {
 	}
 	rt.menu.overlay = p
 	rt.menu.index = 0
+	rt.menu.submenu = -1
 	rt.menu.focused = false
 	rt.requestFrame()
 }
@@ -467,7 +469,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 		back := coreBox(c).Absolute().Left(0).Top(0).Right(0).Bottom(0)
 		back.flags |= flagClickable
 		if back.Clicked() {
-			rt.menu.overlay, rt.menu.focused = nil, false
+			rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 			rt.requestFrame()
 		}
 		left := p.x
@@ -509,23 +511,29 @@ func (rt *engine) buildMenuOverlay(c *context) {
 		if panel.OverlayShortcut(0, KeyEnter) {
 			if rt.menu.index >= 0 && rt.menu.index < len(p.menu.Items) {
 				it := p.menu.Items[rt.menu.index]
-				if it.Enabled && it.Type != platform.MenuItemSeparator && it.Submenu == nil {
-					rt.menu.overlay, rt.menu.focused = nil, false
+				if it.Submenu != nil && it.Enabled {
+					rt.menu.submenu = rt.menu.index
+					rt.requestFrame()
+				} else if it.Enabled && it.Type != platform.MenuItemSeparator {
+					rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 					rt.menuChosen(p, it.ID)
 				}
 			}
 		}
 		if panel.OverlayShortcut(0, KeyEscape) {
-			rt.menu.overlay, rt.menu.focused = nil, false
+			rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 			rt.requestFrame()
 		}
+		var submenuTop float32
 		panel.Children(func() {
+			offset := float32(4)
 			for i, item := range p.menu.Items {
 				if !item.Visible {
 					continue
 				}
 				if item.Type == platform.MenuItemSeparator {
 					coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
+					offset += 9
 					continue
 				}
 				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Radius(8).
@@ -533,8 +541,20 @@ func (rt *engine) buildMenuOverlay(c *context) {
 				if !item.Enabled {
 					row.Disabled(true)
 				}
-				if item.Enabled && (row.Hovered() || i == rt.menu.index) {
+				if item.Enabled && (row.Hovered() || i == rt.menu.index || i == rt.menu.submenu) {
 					row.Background(t.SurfaceHover)
+				}
+				if item.Submenu != nil {
+					row.Label(item.Label + " ›")
+					if row.Hovered() || row.Clicked() {
+						if rt.menu.submenu != i {
+							rt.menu.submenu = i
+							rt.requestFrame()
+						}
+					}
+				} else if row.Hovered() && rt.menu.submenu != -1 {
+					rt.menu.submenu = -1
+					rt.requestFrame()
 				}
 				row.Children(func() {
 					if item.Checked {
@@ -544,13 +564,58 @@ func (rt *engine) buildMenuOverlay(c *context) {
 					if item.Accelerator != "" {
 						coreText(c, item.Accelerator).Shrink(0).FontSize(11).TextColor(t.TextMuted)
 					}
+					if item.Submenu != nil {
+						coreText(c, "›").Shrink(0).FontSize(14).TextColor(t.TextMuted)
+					}
 				})
-				if item.Enabled && row.Clicked() {
-					rt.menu.overlay, rt.menu.focused = nil, false
+				if item.Enabled && row.Clicked() && item.Submenu == nil {
+					rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 					rt.menuChosen(p, item.ID)
 				}
+				if i == rt.menu.submenu {
+					submenuTop = top + offset
+				}
+				offset += 34
 			}
 		})
+		if rt.menu.submenu >= 0 && rt.menu.submenu < len(p.menu.Items) {
+			if sub := p.menu.Items[rt.menu.submenu].Submenu; sub != nil {
+				subLeft := left + 220 - 4
+				subPanel := coreBox(c).Role(RoleMenu).Absolute().Left(subLeft).Top(submenuTop).Width(200).Padding(4).Gap(0).Radius(12).
+					Background(t.Background).Border(.5, t.Border)
+				subPanel.flags |= flagClickable
+				subPanel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
+				subPanel.Children(func() {
+					for _, item := range sub.Items {
+						if !item.Visible {
+							continue
+						}
+						if item.Type == platform.MenuItemSeparator {
+							coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
+							continue
+						}
+						row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Radius(8).
+							BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
+						if !item.Enabled {
+							row.Disabled(true)
+						}
+						if item.Enabled && row.Hovered() {
+							row.Background(t.SurfaceHover)
+						}
+						row.Children(func() {
+							coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(t.Text)
+							if item.Accelerator != "" {
+								coreText(c, item.Accelerator).Shrink(0).FontSize(11).TextColor(t.TextMuted)
+							}
+						})
+						if item.Enabled && row.Clicked() {
+							rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+							rt.menuChosen(p, item.ID)
+						}
+					}
+				})
+			}
+		}
 		panel.Focusable()
 		if !rt.menu.focused {
 			rt.menu.focused = true
@@ -566,10 +631,14 @@ func (rt *engine) menuChosen(p *shownMenu, id int) {
 	if h, ok := rt.host.(*headless); ok {
 		h.menu, h.chosen = nil, nil
 	}
-	if id < 1 || id > len(p.labels) {
+	if id < 1 {
 		return
 	}
-	if p.commands != nil && p.commands[id-1] != "" {
+	label := ""
+	if id <= len(p.labels) {
+		label = p.labels[id-1]
+	}
+	if p.commands != nil && id <= len(p.commands) && p.commands[id-1] != "" {
 		// An editing command, of the text's own menu or of EditItems.
 		target := p.text
 		if target == 0 {
@@ -583,7 +652,7 @@ func (rt *engine) menuChosen(p *shownMenu, id int) {
 		}
 	} else {
 		mr := &rt.menu
-		mr.chosen, mr.chosenButton, mr.choice, mr.label, mr.chosenText = p.id, p.button, id, p.labels[id-1], p.text
+		mr.chosen, mr.chosenButton, mr.choice, mr.label, mr.chosenText = p.id, p.button, id, label, p.text
 		// The overlay reports the choice while building, before endPass; keep
 		// it for the next frame, when the button's builder runs it.
 		mr.chosenHold = true

@@ -44,15 +44,9 @@ func installWarnFill(dark bool) ui.Color {
 	return ui.RGB(254, 245, 231)
 }
 
-// installSafetyInk is --dsw-alias-label-secondary, the note's text colour. The
-// shared Colors folds secondary into the tertiary label everywhere else; on the
-// warn tint the reference's darker grain is what keeps the note readable, so the
-// shipped token's two values live here.
+// installSafetyInk is --dsw-alias-label-secondary, the note's text colour.
 func installSafetyInk(dark bool) ui.Color {
-	if dark {
-		return ui.RGB(207, 211, 214)
-	}
-	return ui.RGB(97, 102, 107)
+	return ui.Hex(theme.SecondaryInk(dark))
 }
 
 // installSafetyCopy is the reference's two lines of trust guidance

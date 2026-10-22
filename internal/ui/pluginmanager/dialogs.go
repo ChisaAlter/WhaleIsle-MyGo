@@ -305,8 +305,18 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.DialogBase(c.Key("plugin-market-choice"), &open, func(backdrop, panel ui.Element) {
+		footer := func() {
+			ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Padding(0, 24, 20, 24).Children(func() {
+				if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
+					open = false
+				}
+				if ui.PrimaryButton(c, copyText("安装", "Install")).Clicked() {
+					a.ConfirmMarketChoice()
+				}
+			})
+		}
 		pluginDialog(c, backdrop, panel, colors, copyText("确认安装插件", "Confirm plugin installation"), copyText("关闭", "Close"), 0, func() { open = false }, func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Padding(20, 24, 24, 24).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Padding(20, 24, 12, 24).Children(func() {
 				ui.Text(c, choice.Entry.Label(i18n.Locale())+" · "+choice.Version.Version).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
 				ui.Scroll(c).FillWidth().MaxHeight(max(0, h-260)).MinHeight(0).Children(func() {
 					ui.Text(c, choice.Entry.Author).FillWidth().TextColor(muted)
@@ -322,16 +332,8 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 					// sentence: both install cards then warn in one voice.
 					installSafetyNote(c)
 				})
-				ui.Row(c).FillWidth().Wrap().Justify(ui.End).Gap(8).Children(func() {
-					if ui.Button(c, copyText("取消", "Cancel")).Clicked() {
-						open = false
-					}
-					if ui.PrimaryButton(c, copyText("安装", "Install")).Clicked() {
-						a.ConfirmMarketChoice()
-					}
-				})
 			})
-		}, nil)
+		}, footer)
 	})
 	if !open {
 		a.CancelMarketChoice()
