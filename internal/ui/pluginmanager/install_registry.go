@@ -8,6 +8,7 @@ import (
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func registryRadio(c *ui.Context, label string, selected bool, choose func()) {
@@ -169,19 +170,54 @@ func installRegistryToggle(c *ui.Context, i manager.InstallState, chosen string,
 	return chip, open
 }
 
-// installGuidePanel is the unfolded guide, below the options row.
-func installGuidePanel(c *ui.Context, i manager.InstallState, a manager.Actions, open bool) {
+// installGuideExample is the reference's one GUIDE_EXAMPLES entry
+// (PluginManagerPage.tsx:742-744): the npm package name, the hint under it and the
+// example the row fills in.
+func installGuideExample() (title, hint, example string) {
+	return copyText("填入插件 npm 包名", "Enter the plugin's npm package name"),
+		copyText("插件包名即 npm 包名（如 dsh-xxx 或 @作者/插件名），社区插件的 README 安装命令中 dsh plugin add 或 pnpm add 之后的部分。",
+			"Use the npm package name, such as dsh-xxx or @author/plugin: the part after dsh plugin add or pnpm add in the plugin README."),
+		"dsh-plugin-whale-pet"
+}
+
+// installGuidePanel is the unfolded guide: the reference's `.guide` panel, a 0.5
+// hairline rounded box on the raised layer holding the ordered example list
+// (PluginManagerPage.tsx:1032-1059, PluginManagerPage.module.css:619-711).
+func installGuidePanel(c *ui.Context, i manager.InstallState, a manager.Actions, open bool, colors theme.Colors) {
 	if !open {
 		return
 	}
-	ui.Text(c, copyText("填入插件 npm 包名", "Enter the plugin's npm package name")).FontSize(theme.InterfaceSize(13)).TextColor(c.Theme().Text)
-	ui.Text(c, copyText("插件包名即 npm 包名，如 dsh-xxx 或 @作者/插件名，是社区插件 README 安装命令中 dsh plugin add 或 pnpm add 之后的部分。", "Use the npm package name, such as dsh-xxx or @author/plugin: the part after dsh plugin add or pnpm add in the plugin README.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-	if ui.Button(c, "dsh-plugin-whale-pet").Disabled(i.Phase != "idle").Clicked() {
-		a.EditInstall("dsh-plugin-whale-pet", i.Registry)
-	}
+	ui.Column(c).FillWidth().Shrink(0).Gap(2).Padding(8, 14).Radius(16).
+		Border(.5, chrome.Color(colors.BorderL3)).Background(chrome.Color(colors.Field)).Children(func() {
+		installGuideItem(c, i, a, colors)
+	})
 	if strings.TrimSpace(i.Spec) == "" && i.MirrorRecovery {
 		ui.Text(c, copyText("请用 npm 包名尝试其他安装来源。", "Try another installation source using the npm package name.")).FillWidth().TextColor(c.Theme().TextMuted)
 	}
+}
+
+// installGuideItem is one `.guideItem` row: the example's title, hint and example
+// beside the button that fills it in, centred against the three lines.
+func installGuideItem(c *ui.Context, i manager.InstallState, a manager.Actions, colors theme.Colors) {
+	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	title, hint, example := installGuideExample()
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Padding(8, 0).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).FontWeight(500).TextColor(fg)
+			ui.Text(c, hint).FillWidth().Margin(6, 0, 0, 0).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted)
+			ui.Row(c).FillWidth().Children(func() {
+				ui.Text(c, copyText("示例：", "Example: ")).Shrink(0).FontSize(theme.InterfaceSize(12)).FixedLineHeight(20).TextColor(muted)
+				ui.Text(c, example).Font("monospace").FontSize(theme.InterfaceSize(12)).FixedLineHeight(20).TextColor(muted)
+			})
+		})
+		fill := copyText("填入示例", "Fill the example")
+		button := widgets.Button(c, colors, fill, widgets.ButtonSpec{
+			Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: i.Phase != "idle",
+		}).Shrink(0).Label(fill + " " + example)
+		if button.Clicked() {
+			a.EditInstall(example, i.Registry)
+		}
+	})
 }
 
 // Keep registry choices in an anchored popover: expanding them does not resize

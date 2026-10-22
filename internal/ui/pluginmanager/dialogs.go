@@ -158,7 +158,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							a.EditInstall(spec, i.Registry)
 						}
 						_, registryAnchor, guideOpen, _ := installOptionsRow(c, i, a, s.Busy || i.Phase == "checking")
-						installGuidePanel(c, i, a, guideOpen)
+						installGuidePanel(c, i, a, guideOpen, colors)
 						installRegistryPanel(c, registryAnchor, i, a)
 					}
 					if i.Inspection != nil && i.Inspection.Status == "accepted" && i.Phase != "idle" && i.Phase != "checking" {
