@@ -351,6 +351,12 @@ func View(c *ui.Context, m Model) {
 				if m.OnOpenSettings != nil {
 					settingsConnectionTrigger(c, m, colors, m.Collapsed)
 				}
+				// SidebarRoot.footArea keeps the account seat under the settings
+				// trigger once a profile is present; without one the settings row
+				// is the only seat.
+				if strings.TrimSpace(m.Account.Name) != "" || m.Account.OnOpen != nil || m.Account.OnSignOut != nil {
+					accountRow(c, m, colors, muted, m.Collapsed)
+				}
 			})
 		})
 }

@@ -142,8 +142,12 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				if g.Kind == "workspace" && !layout.Reordering {
 					titleButton.Drag(workspaceDrag{HostGeneration: layout.HostGeneration, ID: g.Key})
 				}
-				if titleButton.Clicked() && g.Kind == "workspace" && m.OnSelectWorkspace != nil {
-					m.OnSelectWorkspace(g.Key)
+				if titleButton.Clicked() {
+					if g.Kind == "workspace" && m.OnSelectWorkspace != nil {
+						m.OnSelectWorkspace(g.Key)
+					} else if m.OnToggleWorkspaceGroup != nil {
+						m.OnToggleWorkspaceGroup(g.Key)
+					}
 				}
 				if g.Kind == "workspace" {
 					beforeUp, up := session.WorkspaceMoveAnchor(groups, g.Key, -1)
