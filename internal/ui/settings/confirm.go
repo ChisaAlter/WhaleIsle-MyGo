@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -49,8 +50,7 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 		cancelLabel = "取消"
 	}
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Width(420).MaxWidthPercent(92).Radius(16).Padding(20).Gap(12).Clip().Background(c.Theme().Surface).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 20).Gap(12).Children(func() {
 			ui.Text(c, opts.Title).FillWidth().FontSize(16).FixedLineHeight(24).FontWeight(600).TextColor(c.Theme().Text)
 			if opts.Body != "" {
 				ui.Text(c, opts.Body).FillWidth().FontSize(13).FixedLineHeight(20).TextColor(c.Theme().TextMuted)

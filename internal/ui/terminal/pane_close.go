@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -59,8 +60,7 @@ func terminalClosePrompt(c *ui.Context, m Model, fg, muted ui.Color) {
 	id := p.pendingClose
 	open := true
 	ui.DialogBase(c.Key("terminal-close-pane"), &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
-		panel.Width(360).Padding(20).Gap(10).Radius(16).Clip().Background(c.Theme().Surface).
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 360, 20).Gap(10).
 			Label(i18n.T(i18n.KeySurfacesTerminalClose)).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeySurfacesTerminalClosePrompt)).FillWidth().
 				FontSize(15).FontWeight(600).TextColor(fg)

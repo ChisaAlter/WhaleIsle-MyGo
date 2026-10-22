@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -127,8 +128,7 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	}
 	if *confirming {
 		ui.DialogBase(c, confirming, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .24))
-			panel.Width(420).MaxWidthPercent(90).Padding(24).Radius(16).Background(c.Theme().Background).Gap(12).Children(func() {
+			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 24).Gap(12).Children(func() {
 				bodyHeading(c, providerCopy("启用完全访问权限？", "Enable full access?"), providerCopy("新任务将可以访问工作区之外的文件并执行命令。", "New tasks can access files outside the workspace and execute commands."), fg, muted)
 				ui.Checkbox(c, acknowledged, providerCopy("我了解这些权限的影响", "I understand the impact of these permissions")).Label("permission-full-access-acknowledgement")
 				ui.Row(c).Wrap().Gap(8).Children(func() {

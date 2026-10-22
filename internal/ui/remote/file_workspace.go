@@ -205,9 +205,8 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	if s.PendingClose != "" {
 		open := true
 		ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .24))
 			width, _ := c.Size()
-			panel.Width(min(float32(480), max(float32(0), width-32))).Padding(20).Gap(12).Radius(12).Background(chrome.Color(colors.BG)).Children(func() {
+			chrome.DialogSurface(c, backdrop, panel, colors, min(float32(480), max(float32(0), width-32)), 20).Gap(12).Children(func() {
 				ui.Text(c, label("关闭未保存的远程文件？", "Close an unsaved remote file?")).Bold()
 				ui.Text(c, s.PendingClose).FillWidth()
 				ui.Row(c).Gap(8).Wrap().Children(func() {

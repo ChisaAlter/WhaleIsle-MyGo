@@ -61,9 +61,8 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 	}
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .24))
 		width, _ := c.Size()
-		panel.Width(min(float32(480), max(float32(0), width-32))).Radius(12).Padding(20).Gap(10).Background(chrome.Color(colors.BG)).Children(func() {
+		chrome.DialogSurface(c, backdrop, panel, colors, min(float32(480), max(float32(0), width-32)), 20).Gap(10).Children(func() {
 			title := label("新建文件夹于：", "Create folder in: ")
 			if a.Operation == "rename" {
 				title = label("重命名：", "Rename: ")
