@@ -20,6 +20,7 @@ pet-render-assets/
 # copy of credentials.json) and the runtime staged for it by
 # scripts/session-runtime.mjs. Never committed.
 .devdata/
+.devdata-clean/
 .runtime-rc2/
 
 # Scratch notes, logs and one-off helper scripts.
