@@ -66,6 +66,6 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 	if s.Saving {
 		ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)
 	} else if s.LastAction != "" {
-		ui.Text(c, s.LastAction).TextColor(muted)
+		ui.Text(c, settingsActionText(s.LastAction)).TextColor(muted)
 	}
 }

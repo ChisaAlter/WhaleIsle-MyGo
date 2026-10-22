@@ -240,7 +240,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
 		if snap.LastAction != "" && !strings.HasPrefix(snap.LastAction, "settings document ") {
-			ui.Text(c, snap.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, settingsActionText(snap.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		if m.SectionContent != nil && m.ActiveSection != "" {
 			m.SectionContent(c)

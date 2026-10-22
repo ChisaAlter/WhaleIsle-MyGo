@@ -60,8 +60,9 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		if _, picked := settingsSegmented(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat and abilities"), providerCopy("桌面形象与行为", "Appearance and behavior")}, *tab, false); picked >= 0 {
 			*tab = picked
 		}
-		if p.Error != "" {
-			ui.Text(c, p.Error).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+		if p.Error != "" && *tab == 1 {
+			ui.Text(c, providerCopy("桌面形象加载失败，请重启应用重试。", "The desktop character failed to load. Restart the app to try again.")).
+				FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning).Tooltip(p.Error)
 		}
 		if a != nil && a.Err != "" {
 			ui.Text(c, a.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
@@ -82,7 +83,8 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			ui.Text(c, providerCopy("当前为便携/测试模式，桌面形象不会显示；安装版可用。", "Portable/QA mode does not show the desktop character; the installed build does.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if a != nil && a.DesktopError != "" {
-			ui.Text(c, a.DesktopError).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(ui.RGB(220, 38, 38))
+			ui.Text(c, providerCopy("桌宠窗口未能打开，请检查 WebView2 运行时或重启应用。", "The desktop character window could not open. Check the WebView2 runtime or restart the app.")).
+				FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning).Tooltip(a.DesktopError)
 		}
 		if a != nil && a.Busy {
 			disabled = true

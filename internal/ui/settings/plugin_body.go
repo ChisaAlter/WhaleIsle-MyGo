@@ -34,7 +34,7 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 			ui.Text(c, snap.Err).FillWidth().TextColor(c.Theme().Danger)
 		}
 		if snap.LastAction != "" {
-			ui.Text(c, snap.LastAction).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, settingsActionText(snap.LastAction)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		for _, field := range ns.Fields {
 			f := field

@@ -34,7 +34,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, s.Err).TextColor(fg)
 	}
 	if s.LastAction != "" {
-		ui.Text(c, s.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(s.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.Button(c, providerCopy("刷新供应商", "Refresh providers")).Disabled(s.Busy || s.Dirty || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()

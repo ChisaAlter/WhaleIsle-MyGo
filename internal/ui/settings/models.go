@@ -42,7 +42,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.Err).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, settingsActionText(a.LastAction)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 	if m.Store != nil {

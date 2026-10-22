@@ -33,7 +33,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 		ui.Text(c, s.Err).TextColor(fg)
 	}
 	if s.LastAction != "" {
-		ui.Text(c, s.LastAction).TextColor(muted)
+		ui.Text(c, settingsActionText(s.LastAction)).TextColor(muted)
 	}
 	if s.Busy {
 		ui.Text(c, providerCopy("正在处理，请稍候…", "Working, please wait…")).TextColor(muted)

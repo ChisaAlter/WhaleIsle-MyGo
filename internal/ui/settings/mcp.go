@@ -79,7 +79,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(a.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if a.HealthRefreshFailed {
 		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Refresh reconnects failed managed servers and reloads the list.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)

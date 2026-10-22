@@ -76,7 +76,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(a.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	bodyDisclosure(c, "interface-local-preferences", providerCopy("本地偏好与快捷键", "Local preferences and shortcuts"), func() {
 		desktopRow(c, i18n.T(i18n.KeySettingsDesktopLocale), func() {

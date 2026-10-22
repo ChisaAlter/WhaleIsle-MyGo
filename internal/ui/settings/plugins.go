@@ -83,7 +83,7 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(a.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if len(a.Rows) == 0 && !a.Loading {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

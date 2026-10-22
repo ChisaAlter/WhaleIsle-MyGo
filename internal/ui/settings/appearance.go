@@ -39,7 +39,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if a.LastAction != "" {
-		ui.Text(c, a.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(a.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	schemeError := ui.Local(scheme, "error", func() string { return "" })

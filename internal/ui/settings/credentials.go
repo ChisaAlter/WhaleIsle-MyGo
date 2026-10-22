@@ -38,7 +38,7 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, d.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if d.LastAction != "" {
-		ui.Text(c, d.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(d.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if d.HarnessNote != "" {
 		ui.Text(c, d.HarnessNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)

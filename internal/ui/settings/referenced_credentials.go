@@ -32,7 +32,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if s.LastAction != "" {
-		ui.Text(c, s.LastAction).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(s.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).Disabled(s.Busy || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()

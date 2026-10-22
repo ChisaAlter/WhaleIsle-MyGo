@@ -55,7 +55,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, d.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 	}
 	if d.LastAction != "" {
-		ui.Text(c, d.LastAction).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, settingsActionText(d.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	generalPermissionPreference(c, d.Host, fg, muted)
 	if d.Fields.Locale != nil {
