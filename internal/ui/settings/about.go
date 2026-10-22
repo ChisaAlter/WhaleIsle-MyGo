@@ -99,7 +99,6 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.UpdateStatus != "" {
 				ui.Text(c, a.UpdateStatus).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
-			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			if a.OnRevealHome != nil {
 				colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 				folder := widgets.Button(c, colors, i18n.T(KeyPass4OpenRuntime),
@@ -136,6 +135,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, a.Status).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
+			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			for _, row := range []struct{ label, value string }{{i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
 				if row.value != "" {
 					bodyPreferenceRow(c, "about-detail-"+row.label, row.label, "", fg, muted, func() {
