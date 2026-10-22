@@ -206,6 +206,8 @@ func (s *Store) CloseDetails() {
 	s.mu.Unlock()
 	s.fire()
 }
+var detailTimeout = 15 * time.Second
+
 func (s *Store) SelectDetails(id string, force bool) {
 	s.mu.Lock()
 	d := &s.discovery
@@ -224,7 +226,7 @@ func (s *Store) SelectDetails(id string, force bool) {
 	if d.detailCancel != nil {
 		d.detailCancel()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), detailTimeout)
 	d.detailCancel = cancel
 	d.detailID++
 	request, revision := d.detailID, d.revision
