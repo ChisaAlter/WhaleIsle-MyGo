@@ -165,6 +165,11 @@ func View(c *ui.Context, m Model) {
 func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
+	if !m.SystemDark {
+		// The light card's muted gray is close to the fill; secondary keeps
+		// the permission, model and hint labels readable.
+		muted = chrome.Color(colors.Secondary)
+	}
 	border := chrome.Color(colors.Border)
 	accent := chrome.Color(colors.Accent)
 	panel := chrome.Color(colors.BG)
