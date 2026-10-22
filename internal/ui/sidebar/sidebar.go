@@ -319,10 +319,8 @@ func View(c *ui.Context, m Model) {
 						filter := browseArchiveFilter(m)
 						if filter != "only" {
 							workspaceRowsView(c, m, items, fg, muted, border)
-						} else {
-							workspaceRowsStatus(c, m, fg)
+							workspaceListFeedback(c, m, items, fg, muted)
 						}
-						workspaceListFeedback(c, m, items, fg, muted)
 						projects.View(c, m.Projects)
 						if filter != "hide" {
 							archived := ui.Button(c, "▾ "+i18n.T(i18n.KeySidebarArchivedSection)).Label(i18n.T(i18n.KeySidebarArchivedSection)).
@@ -334,6 +332,12 @@ func View(c *ui.Context, m Model) {
 								} else {
 									*m.BrowseArchivedFilter = "only"
 								}
+							}
+							if filter == "only" {
+								// Layout errors stay with the archived view; the
+								// empty archived state belongs under its header.
+								workspaceRowsStatus(c, m, fg)
+								workspaceListFeedback(c, m, items, fg, muted)
 							}
 							for _, id := range m.Snapshot.ArchivedSessionIDs {
 								aid := id
