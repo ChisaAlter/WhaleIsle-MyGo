@@ -82,20 +82,37 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 		}
 		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box).Key("shortcut-reference-dialog").Gap(0).Children(func() {
 			target := ui.Local(panel, "shortcut-target", func() string { return "" })
-			shortcutDialogHeader(c, open, e, p)
+			if *target != "" && !e.ResetPending {
+				// The reference's Escape runs closeReference too, so an armed row
+				// editor is what it closes first. The panel's own registration is in
+				// the focus chain, ahead of the backdrop handler that would close the
+				// dialog instead.
+				if panel.Shortcut(0, ui.KeyEscape) {
+					shortcutCloseReference(open, e, target)
+				}
+				// The reference Modal's mask runs onClose on a press outside the
+				// card. DialogBase has already closed the dialog for this frame, so
+				// the press only disarms the row editor and the dialog stays.
+				if backdrop.Clicked() {
+					e.CancelRecording()
+					*target = ""
+					*open = true
+				}
+			}
+			shortcutDialogHeader(c, open, e, p, target)
 			shortcutDialogSearch(c, e, p)
 			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(0).Padding(0, 16, 18, 16).Children(func() {
 					shortcutDialogRows(c, e, p, target)
 				})
 			})
-			shortcutDialogFooter(c, e, p)
+			shortcutDialogFooter(c, e, p, target)
 			shortcutResetConfirmation(c, e, p)
 		})
 	})
 }
 
-func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shortcutPalette) {
+func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shortcutPalette, target *string) {
 	ui.Row(c).FillWidth().Height(shortcutHeaderHeight).Shrink(0).Padding(22, 14, 0, 24).AlignItems(ui.Start).Children(func() {
 		ui.Text(c, providerCopy("快捷键", "Keyboard shortcuts")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
 		// The reference places the 28 DIP close box at 20 from the top, two DIPs
@@ -108,9 +125,21 @@ func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shor
 			close.Background(p.hover)
 		}
 		if close.Clicked() {
-			*open = false
+			shortcutCloseReference(open, e, target)
 		}
 	})
+}
+
+// shortcutCloseReference is the reference's closeReference (Reference.tsx:102):
+// the close box, Escape and a press on the mask all close the armed row editor
+// first and the reference itself only after it.
+func shortcutCloseReference(open *bool, e *shortcuts.Editor, target *string) {
+	if *target != "" {
+		e.CancelRecording()
+		*target = ""
+		return
+	}
+	*open = false
 }
 
 func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette) {
@@ -231,16 +260,18 @@ func shortcutKeyBadge(c *ui.Context, e *shortcuts.Editor, id string, p shortcutP
 }
 
 // shortcutInlineEditor is the reference inline command editor: the row keeps
-// its label, and the binding column holds 恢复默认, 移除 and the recorder.
+// its label, and the binding column holds 恢复默认, 移除 and the recorder. The
+// label stays inert: a press on it disarms the editor, as the reference's
+// pointer-down handler does, but it is not a second control in the row.
 func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, p shortcutPalette, target *string, issue string) {
 	label := shortcutCommandLabel(command)
 	ui.Row(c).Key("shortcut-row-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
-		closeEditor := ui.Button(c, "").Label("shortcut-" + command.ID).
-			Grow(1).MinWidth(0).Height(shortcutRowHeight).Padding(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Start)
-		closeEditor.Children(func() {
+		labelArea := ui.Box(c).Label("shortcut-" + command.ID).
+			Grow(1).MinWidth(0).Height(shortcutRowHeight).AlignItems(ui.Start).Justify(ui.Center)
+		labelArea.Children(func() {
 			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
 		})
-		if closeEditor.Clicked() {
+		if labelArea.Clicked() {
 			e.CancelRecording()
 			*target = ""
 		}
@@ -280,7 +311,7 @@ func shortcutTextAction(c *ui.Context, text, label string, color ui.Color, disab
 	return button.Clicked()
 }
 
-func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette) {
+func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string) {
 	modified := shortcutModifiedCount(e)
 	ui.Row(c).FillWidth().Height(shortcutFooterHeight).Shrink(0).Padding(0, 24).Gap(12).AlignItems(ui.Center).
 		BorderWidth(1, 0, 0, 0).BorderColor(p.border).Children(func() {
@@ -294,6 +325,9 @@ func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette)
 			})
 		})
 		if reset.Clicked() {
+			// The reference's Reset All clears the armed row editor as it opens
+			// its confirmation (Reference.tsx:206).
+			*target = ""
 			e.RequestReset()
 		}
 		ui.Box(c).Grow(1)

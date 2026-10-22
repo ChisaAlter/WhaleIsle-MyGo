@@ -166,6 +166,256 @@ func TestShortcutInlineEditorHasNoCancelControl(t *testing.T) {
 	}
 }
 
+// TestShortcutDialogCloseBoxClosesTheRowEditorFirst pins the reference's
+// closeReference (ui-shortcuts/src/client/Reference.tsx:102-108): with a row
+// editor armed the close box closes that editor and leaves the reference open,
+// so only the second press dismisses it.
+func TestShortcutDialogCloseBoxClosesTheRowEditorFirst(t *testing.T) {
+	writes := 0
+	e := shortcuts.NewEditor(map[string]string{"session.new": "Mod+N"}, nil, func(map[string]string) error {
+		writes++
+		return nil
+	})
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tt.Find("capture-settings.open"); !ok {
+		t.Fatalf("row did not arm its recorder: %v", tt.Texts())
+	}
+	if err := tt.Click(providerCopy("关闭快捷键", "Close keyboard shortcuts")); err != nil {
+		t.Fatalf("shortcut dialog has no close box: %v", err)
+	}
+	for range 2 {
+		tt.Frame()
+	}
+	if !tt.HasText("恢复全部默认") {
+		t.Fatal("the close box dismissed the reference instead of closing the row editor")
+	}
+	if e.Recording != "" {
+		t.Fatalf("the close box left the recorder armed: %q", e.Recording)
+	}
+	if _, ok := tt.Find("capture-settings.open"); ok {
+		t.Fatal("the close box left the row editor on screen")
+	}
+	if _, ok := tt.Find("shortcut-settings.open"); !ok {
+		t.Fatalf("the closed row lost its key badge: %v", tt.Texts())
+	}
+
+	if err := tt.Click(providerCopy("关闭快捷键", "Close keyboard shortcuts")); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		tt.Frame()
+	}
+	if tt.HasText("恢复全部默认") {
+		t.Fatal("the second press did not dismiss the reference")
+	}
+	if writes != 0 {
+		t.Fatalf("closing the row editor wrote a binding: %d", writes)
+	}
+}
+
+// TestShortcutDialogEscapeClosesTheRowEditorFirst covers the same reference rule
+// for Escape: the reference's Modal calls closeReference, which closes the row
+// editor before the dialog.
+func TestShortcutDialogEscapeClosesTheRowEditorFirst(t *testing.T) {
+	e := shortcuts.NewEditor(map[string]string{"session.new": "Mod+N"}, nil, func(map[string]string) error { return nil })
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tt.Find("capture-settings.open"); !ok {
+		t.Fatalf("row did not arm its recorder: %v", tt.Texts())
+	}
+	// The search field keeps the editor armed and leaves Escape to the dialog.
+	if err := tt.Click("shortcut-search"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		tt.Frame()
+	}
+	tt.Key(0, ui.KeyEscape)
+	for range 2 {
+		tt.Frame()
+	}
+	if !tt.HasText("恢复全部默认") {
+		t.Fatal("Escape dismissed the reference instead of closing the row editor")
+	}
+	if e.Recording != "" {
+		t.Fatalf("Escape left the recorder armed: %q", e.Recording)
+	}
+	if _, ok := tt.Find("capture-settings.open"); ok {
+		t.Fatal("Escape left the row editor on screen")
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	for range 2 {
+		tt.Frame()
+	}
+	if tt.HasText("恢复全部默认") {
+		t.Fatal("the second Escape did not dismiss the reference")
+	}
+}
+
+// TestShortcutInlineEditorLabelIsNotATabStop keeps the reference's inert row
+// label: the edited row's label is not a second control, so Tab from the search
+// field reaches the inline actions instead of stopping on the label.
+func TestShortcutInlineEditorLabelIsNotATabStop(t *testing.T) {
+	e := shortcuts.NewEditor(map[string]string{"session.new": "Mod+N"}, nil, func(map[string]string) error { return nil })
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("shortcut-search"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		tt.Frame()
+	}
+	reachedActions := false
+	for range 6 {
+		tt.Key(0, ui.KeyTab)
+		for range 2 {
+			tt.Frame()
+		}
+		if tt.Focused("shortcut-settings.open") {
+			t.Fatal("the edited row's label is a tab stop the reference does not have")
+		}
+		if tt.Focused("default-settings.open") {
+			reachedActions = true
+		}
+	}
+	if !reachedActions {
+		t.Fatal("Tab never reached the row's inline actions")
+	}
+	if !tt.HasText("恢复默认") {
+		t.Fatalf("the row editor is no longer armed: %v", tt.Texts())
+	}
+}
+
+// TestShortcutDialogArmedRecorderEscapeLeavesTheEditor covers Escape while the
+// recorder itself holds the focus: mygo delivers a key the dialog registers
+// before the focused element's input handler, so the armed row leaves its editor
+// instead of recording Escape as an invalid chord and raising the review/retry
+// pair.
+func TestShortcutDialogArmedRecorderEscapeLeavesTheEditor(t *testing.T) {
+	writes := 0
+	e := shortcuts.NewEditor(map[string]string{"session.new": "Mod+N"}, nil, func(map[string]string) error {
+		writes++
+		return nil
+	})
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.Focused("capture-settings.open") {
+		t.Fatalf("the recorder did not take the focus: %v", tt.Texts())
+	}
+	tt.Key(0, ui.KeyEscape)
+	for range 2 {
+		tt.Frame()
+	}
+	if !tt.HasText("恢复全部默认") {
+		t.Fatal("Escape on the recorder dismissed the reference")
+	}
+	if e.Recording != "" || e.Err != "" {
+		t.Fatalf("Escape on the recorder left a recording or an error: %q %q", e.Recording, e.Err)
+	}
+	if tt.HasText("审阅当前配置") {
+		t.Fatal("Escape on the recorder raised the invalid-chord recovery pair")
+	}
+	if _, ok := tt.Find("capture-settings.open"); ok {
+		t.Fatal("Escape on the recorder left the editor armed")
+	}
+	if writes != 0 {
+		t.Fatalf("Escape on the recorder wrote a binding: %d", writes)
+	}
+}
+
+// TestShortcutDialogMaskPressClosesTheRowEditorFirst covers the reference
+// Modal's mask click, which runs the same closeReference.
+func TestShortcutDialogMaskPressClosesTheRowEditorFirst(t *testing.T) {
+	e := shortcuts.NewEditor(map[string]string{"session.new": "Mod+N"}, nil, func(map[string]string) error { return nil })
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tt.Find("capture-settings.open"); !ok {
+		t.Fatalf("row did not arm its recorder: %v", tt.Texts())
+	}
+	// A press on the mask, 900x800 with the 480x600 card centered around y=160.
+	tt.ClickAt(24, 40)
+	for range 2 {
+		tt.Frame()
+	}
+	if !tt.HasText("恢复全部默认") {
+		t.Fatal("the mask press dismissed the reference instead of the row editor")
+	}
+	if e.Recording != "" {
+		t.Fatalf("the mask press left the recorder armed: %q", e.Recording)
+	}
+	if _, ok := tt.Find("capture-settings.open"); ok {
+		t.Fatal("the mask press left the row editor on screen")
+	}
+
+	// With no row editor armed the same press dismisses the reference.
+	tt.ClickAt(24, 40)
+	for range 2 {
+		tt.Frame()
+	}
+	if tt.HasText("恢复全部默认") {
+		t.Fatal("the mask press did not dismiss the reference")
+	}
+}
+
+// TestShortcutDialogResetConfirmationKeepsEscape covers the footer gesture: the
+// reference's Reset All clears the armed row editor as it opens its
+// confirmation (Reference.tsx:206), so Escape still closes that confirmation
+// alone.
+func TestShortcutDialogResetConfirmationKeepsEscape(t *testing.T) {
+	writes := 0
+	e := shortcuts.NewEditor(map[string]string{"settings.open": "Mod+Alt+F12"}, nil, func(map[string]string) error {
+		writes++
+		return nil
+	})
+	tt := shortcutDialogFixture(t, e, 900, 800)
+
+	if err := tt.Click("shortcut-settings.open"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("reset-shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		tt.Frame()
+	}
+	if !tt.HasText("恢复全部默认快捷键？") {
+		t.Fatalf("reset confirmation did not open: %v", tt.Texts())
+	}
+	if _, ok := tt.Find("capture-settings.open"); ok {
+		t.Fatal("Reset All left the row editor armed under its confirmation")
+	}
+	tt.Key(0, ui.KeyEscape)
+	for range 2 {
+		tt.Frame()
+	}
+	if tt.HasText("恢复全部默认快捷键？") {
+		t.Fatal("Escape did not close the reset confirmation")
+	}
+	if !tt.HasText("1 项已自定义") {
+		t.Fatal("Escape closed the reference along with its confirmation")
+	}
+	if writes != 0 || e.ResetPending {
+		t.Fatalf("Escape wrote the reset: %d %v", writes, e.ResetPending)
+	}
+}
+
 // TestShortcutDialogHoverSnapshot writes the pointer-over-row state for the
 // visual comparison, next to the resting dialog render.
 func TestShortcutDialogHoverSnapshot(t *testing.T) {
