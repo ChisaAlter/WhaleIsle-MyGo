@@ -308,7 +308,14 @@ func View(c *ui.Context, m Model) {
 				}
 				// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
 				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
-					workspaceHeading(c, m, menuOpen, fg, muted)
+					// The rail's glass is translucent over the wallpaper; on the
+					// light theme its muted ink falls below readable contrast, so
+					// section labels use the primary ink there.
+					sectionInk := muted
+					if !m.SystemDark {
+						sectionInk = fg
+					}
+					workspaceHeading(c, m, menuOpen, fg, sectionInk)
 					batchToolbar(c, m, fg)
 					ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
 						if sessionSearchResultsView(c, m, fg, muted) {
@@ -325,7 +332,7 @@ func View(c *ui.Context, m Model) {
 						if filter != "hide" {
 							archived := ui.Button(c, "▾ "+i18n.T(i18n.KeySidebarArchivedSection)).Label(i18n.T(i18n.KeySidebarArchivedSection)).
 								FillWidth().Height(24).Padding(8, 0, 2, 0).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).
-								FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
+								FontSize(theme.InterfaceSize(11)).Bold().TextColor(sectionInk)
 							if archived.Clicked() && m.BrowseArchivedFilter != nil {
 								if filter == "only" {
 									*m.BrowseArchivedFilter = "default"
