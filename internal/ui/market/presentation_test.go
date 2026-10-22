@@ -96,6 +96,11 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 	if _, ok := tt.Find("Workspace tools"); !ok {
 		t.Fatal("details fixture did not open")
 	}
+	description, _ := tt.Find(item.Description)
+	reload, ok := tt.Find(marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details"))
+	if !ok || reload.Y <= description.Y {
+		t.Fatalf("details actions are not in the footer below the description: desc=%v reload=%v", description, reload)
+	}
 	// The panel fades in from zero opacity; settle the overlay clock so the
 	// snapshot shows the shared surface, not its first frame.
 	start := time.Unix(1000, 0)
