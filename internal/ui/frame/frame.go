@@ -1108,7 +1108,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Box(c).Grow(1).MinWidth(0)
 							})
 						}
-						if note := strings.TrimSpace(snap.ControlNote); note != "" {
+						// "baseline" is the Host's default turn-control label, not a
+						// product status line; the reference does not paint it above
+						// the composer. Non-default notes still surface.
+						if note := strings.TrimSpace(snap.ControlNote); note != "" && !strings.EqualFold(note, "baseline") {
 							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
 								ui.Box(c).Grow(1).MinWidth(0)
 								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Padding(0, 0, 4, 0).Children(func() {

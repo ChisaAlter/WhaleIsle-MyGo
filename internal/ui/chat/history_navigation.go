@@ -67,7 +67,9 @@ func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.
 		return
 	}
 	v := m.Snapshot.HistoryNavigation
-	if len(v.Turns) == 0 {
+	// The reference keeps turn navigation out of the transcript header. Show
+	// the native directory only while a jump is pending, running or failed.
+	if len(v.Turns) == 0 || (!v.HasTarget && !v.Busy && v.Err == "") {
 		return
 	}
 	ui.Column(c).FillWidth().Gap(4).Padding(4, 12).Children(func() {
