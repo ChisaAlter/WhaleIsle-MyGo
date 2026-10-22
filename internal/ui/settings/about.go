@@ -100,12 +100,6 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				ui.Text(c, a.UpdateStatus).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			if storage.Error != "" {
-				ui.Text(c, storage.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-			}
-			if a.HomePath != "" {
-				ui.Text(c, providerCopy("运行目录 ", "Runtime directory ")+a.HomePath).FillWidth().Tooltip(a.HomePath).TextColor(muted)
-			}
 			if a.OnRevealHome != nil {
 				colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 				folder := widgets.Button(c, colors, i18n.T(KeyPass4OpenRuntime),
