@@ -57,10 +57,16 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.Err != "" {
 			ui.Text(c, a.Err).FillWidth().TextColor(fg)
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Gap(4).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).Children(func() {
-			ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
-			ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().Tooltip(a.Version).TextColor(muted)
-			ui.Text(c, "Based on DeepSeek Harness").FillWidth().TextColor(muted)
+		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Children(func() {
+			if bmp := chrome.BrandAvatar(); bmp != nil {
+				ui.Image(c, bmp).Size(44, 44).Fit(ui.Contain).Shrink(0)
+			}
+			ui.Column(c).Grow(1).MinWidth(0).Gap(4).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).Children(func() {
+				ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
+				ui.Text(c, providerCopy("桌面版本 ", "Desktop version ")+emptyDash(a.Version)).FillWidth().Tooltip(a.Version).TextColor(muted)
+				ui.Text(c, "Based on DeepSeek Harness").FillWidth().TextColor(muted)
+			})
+		})
 			// Version row: the installed version as a one-row picker, then the
 			// installer badge. Nothing is faked: without an installer the badge
 			// explains itself instead of pretending to start a download.
@@ -115,7 +121,6 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if *homeResult != "" {
 				ui.Text(c, *homeResult).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
-		})
 		for _, link := range aboutLinks() {
 			button := ui.Button(c, link.Label).AlignSelf(ui.Start).MinWidth(0).Height(fonttheme.InterfaceSize(21)).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(21)).TextColor(accent).Tooltip(link.URL).Disabled(a.OnOpenLink == nil)
 			if button.Hovered() {
