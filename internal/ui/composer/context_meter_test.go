@@ -27,8 +27,11 @@ func TestContextMeterDisclosureAndInvalidation(t *testing.T) {
 	if _, ok := tt.Find("Context occupancy"); ok {
 		t.Fatal("unavailable meter visible")
 	}
-	if !tt.HasText("—%") {
-		t.Fatal("unavailable meter lost its placeholder")
+	if tt.HasText("—%") {
+		t.Fatal("unavailable meter painted a placeholder")
+	}
+	if _, ok := tt.Find("context-meter-placeholder"); ok {
+		t.Fatal("unavailable meter kept its seat")
 	}
 	snap.ContextOccupancy = saved
 	tt.Frame()

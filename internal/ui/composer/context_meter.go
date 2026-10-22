@@ -25,11 +25,8 @@ func paintContextMeter(c *ui.Context, snapshot session.ViewState, colors theme.C
 	value := snapshot.ContextOccupancy
 	if value == nil {
 		state.Open = false
-		ui.Row(c).Key("context-meter-placeholder").Label("Context occupancy unavailable").
-			Height(height).Padding(0, 8).Gap(6).AlignItems(ui.Center).Children(func() {
-			contextRing(c, 0, chrome.Color(colors.Border), chrome.Color(colors.Border))
-			ui.Text(c, "—%").FontSize(13).TextColor(chrome.Color(colors.Caption))
-		})
+		// The reference omits the occupancy control until the Host reports a
+		// context window; a "—%" placeholder reads as a broken metric.
 		return
 	}
 	reading := fmt.Sprintf("%d%%", value.Percent)
