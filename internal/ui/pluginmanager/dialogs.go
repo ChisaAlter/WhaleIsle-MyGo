@@ -46,7 +46,7 @@ func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors
 		ui.Row(c).FillWidth().Height(pluginDialogHeaderHeight).Shrink(0).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
 			ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG)).SingleLine()
 			closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Padding(7).Radius(8).
-				BorderWidth(0).Background(ui.Transparent).Tooltip(closeLabel)
+				BorderWidth(0).Background(ui.Transparent)
 			closeBox.Children(func() {
 				ui.Icon(c, pluginDialogCloseIcon).Size(14, 14).TextColor(chrome.Color(colors.Muted))
 			})
@@ -154,7 +154,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							ui.Text(c, copyText("输入完整 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						}
 						spec := i.Spec
-						if ui.TextInput(c, &spec).FillWidth().Label(copyText("插件名称或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
+						if ui.TextInput(c, &spec).FillWidth().AutoFocus().Label(copyText("插件名称或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
 							a.EditInstall(spec, i.Registry)
 						}
 						_, registryAnchor, guideOpen, _ := installOptionsRow(c, i, a, s.Busy || i.Phase == "checking")
