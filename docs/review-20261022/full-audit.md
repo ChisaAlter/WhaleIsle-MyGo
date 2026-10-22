@@ -25,7 +25,7 @@
 | --- | --- |
 | settings | 设置主模态本身：28px 玻璃，已对齐 |
 | projects | `request_changes.go`：28px + 多层阴影，接近参考 |
-| widgets | 通用 `ConfirmDialog`：14px、实色、阴影；被多页复用 |
+| widgets | 通用 `ConfirmDialog`：已改为 28px、24 内边距、12/32 阴影；因 chrome↔widgets 包循环仍无玻璃层 |
 | composer | 权限确认已单独统一；其余附件/语音尚未 |
 | diffsurface | commit dialog：16px，自有样式 |
 

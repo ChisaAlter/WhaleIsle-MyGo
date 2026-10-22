@@ -8,7 +8,7 @@ import (
 // raised shadow and the buttons along its bottom edge.
 const (
 	confirmDialogWidth  = 400
-	confirmDialogRadius = 14
+	confirmDialogRadius = 28
 	confirmButtonRadius = 8
 )
 
@@ -74,9 +74,9 @@ func ConfirmDialog(c *ui.Context, o ConfirmDialogOptions) bool {
 	ui.DialogBase(c, o.Open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, mask))
 		panel.Width(confirmDialogWidth).MaxWidthPercent(92).
-			Padding(20, 20, 18, 20).Gap(12).
+			Padding(24, 24, 20, 24).Gap(14).
 			Radius(confirmDialogRadius).Background(t.Background).Border(0.5, t.Border).
-			Shadow(0, 16, 40, 0, ui.RGBA(0, 0, 0, 0.28))
+			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.24))
 		if name != "" {
 			panel.Label(name)
 		}
