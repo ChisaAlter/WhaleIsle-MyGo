@@ -78,7 +78,7 @@ func TestInstallDialogUsesTheSharedModalSurface(t *testing.T) {
 	if card.H < 200 || card.H > 560 {
 		t.Fatalf("idle card is %.0f DIP tall; the reference sizes it to its content", card.H)
 	}
-	for _, want := range []string{"插件名称或地址", "安装", "请确认来源可信"} {
+	for _, want := range []string{"插件名称或地址", "安装", "请确认插件来源可信", "暂不支持自动更新"} {
 		if !tt.HasText(want) {
 			t.Fatalf("idle card is missing %q: %v", want, tt.Texts())
 		}

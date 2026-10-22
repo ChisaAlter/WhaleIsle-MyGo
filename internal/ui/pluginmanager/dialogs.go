@@ -25,10 +25,13 @@ const (
 var pluginDialogCloseIcon = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>`))
 
 // pluginDialog draws one plugin manager card: the shared surface, the reference
-// header, and body. A zero height sizes the card to its content, capped at the
-// window's 24 DIP inset; a positive height fixes it. It returns the panel so the
+// header, the body and, when the card has one, its footer. A zero height sizes
+// the card to its content, capped at the window's 24 DIP inset; a positive
+// height fixes it. A nil footer leaves the card as the header and body alone;
+// otherwise the footer is the card's last row and never scrolls, as the
+// reference's `footer` prop is (Modal.tsx:88-96). It returns the panel so the
 // caller can add overlays of its own.
-func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors, title, closeLabel string, height float32, close func(), body func()) ui.Element {
+func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors, title, closeLabel string, height float32, close func(), body, footer func()) ui.Element {
 	w, h := c.Size()
 	box := chrome.DialogSurfaceBox{
 		Width:   min(float32(pluginDialogWidth), max(float32(280), w-48)),
@@ -55,6 +58,9 @@ func pluginDialog(c *ui.Context, backdrop, panel ui.Element, colors theme.Colors
 			}
 		})
 		body()
+		if footer != nil {
+			footer()
+		}
 	})
 	return panel
 }
@@ -104,11 +110,21 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		closeLabel = copyText("取消安装并关闭", "Cancel install and close")
 	}
 	// The card is as tall as its content, as the reference Modal is, and the
-	// body scrolls inside it once the log outgrows the window's inset.
+	// body scrolls inside it once the log outgrows the window's inset. The
+	// spec screen's trust note and primary action sit in the card's footer
+	// instead, outside the scrolling content.
+	var footer func()
+	if !githubRecovery && !i.Confirmed && (i.Phase == "idle" || i.Phase == "checking") {
+		footer = func() { installFooter(c, i, a, colors, s.Busy) }
+	}
+	bodyBottom := float32(24)
+	if footer != nil {
+		bodyBottom = 0
+	}
 	height := float32(0)
 	ui.DialogBase(c.Key("plugin-manager-install"), &open, func(backdrop, panel ui.Element) {
 		pluginDialog(c, backdrop, panel, colors, title, closeLabel, height, func() { open = false }, func() {
-			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(0, h-150)).Padding(20, 24, 24, 24).Children(func() {
+			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(0, h-150)).Padding(20, 24, bodyBottom, 24).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 					if githubRecovery {
 						ui.Text(c, copyText("请尝试其他安装来源。", "Try another installation source.")).FillWidth().TextColor(muted)
@@ -144,7 +160,6 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 						_, registryAnchor, guideOpen, _ := installOptionsRow(c, i, a, s.Busy || i.Phase == "checking")
 						installGuidePanel(c, i, a, guideOpen)
 						installRegistryPanel(c, registryAnchor, i, a)
-						ui.Text(c, copyText("请确认来源可信。插件以当前 profile 的权限运行。", "Confirm the source is trusted. Plugins run with this profile's permissions.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
 					if i.Inspection != nil && i.Inspection.Status == "accepted" && i.Phase != "idle" && i.Phase != "checking" {
 						ui.Text(c, strings.TrimSpace(i.Inspection.Name+" "+i.Inspection.Version)).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
@@ -153,13 +168,10 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					if i.Error != "" {
 						ui.Text(c, i.Error).FillWidth().Role(ui.RoleStatus).TextColor(c.Theme().Danger)
 					}
-					if i.Phase == "checking" {
-						ui.Text(c, copyText("正在检查…", "Checking…")).Role(ui.RoleStatus).TextColor(muted)
-						if ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
-							a.CancelInstall()
-						}
-					} else if i.Phase == "idle" && ui.PrimaryButton(c, copyText("安装", "Install")).Disabled(s.Busy || strings.TrimSpace(i.Spec) == "").Clicked() {
-						a.RetryInstall()
+					// The footer owns the checking state's primary action; the
+					// body keeps the way back to editing while a check runs.
+					if i.Phase == "checking" && ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
+						a.CancelInstall()
 					}
 					if pending {
 						ui.Text(c, copyText("安装阶段：", "Installation phase: ")+i.Phase).Role(ui.RoleStatus).FillWidth().TextColor(muted)
@@ -251,7 +263,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					}
 				})
 			})
-		})
+		}, footer)
 	})
 	if !open {
 		a.CloseInstall()
@@ -277,7 +289,7 @@ func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					})
 				})
 			}
-		})
+		}, nil)
 	})
 	if !open {
 		a.ToggleSources()
@@ -315,7 +327,7 @@ func marketChoiceDialog(c *ui.Context, m Model, s manager.State, a manager.Actio
 					}
 				})
 			})
-		})
+		}, nil)
 	})
 	if !open {
 		a.CancelMarketChoice()

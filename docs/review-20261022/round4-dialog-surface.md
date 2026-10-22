@@ -78,7 +78,7 @@ go build -o whaleisle-pass4.exe ./cmd/whaleisle
 2. ~~**点外收起**~~：第 5 轮已收口，遮罩点击先收编辑器、第二次才关弹窗；行标签仍可点击收起但不再可聚焦。
 3. **`重新读取`**：参考底部只有重置与计数；原生在草稿脏或读取失败时仍显示 `重新读取`，保留配置被外部改写的恢复路径。
 4. **分组标题**：参考有应用/输入/菜单/审批四组；原生没有输入与审批命令，按“空组不显示标题”只渲染应用组。
-5. **安装卡的操作区**：参考把安全说明与主按钮放在固定 footer；原生仍把动作放在滚动体内（视觉一致，滚动时按钮会随内容移动）。
+5. ~~**安装卡的操作区**~~：第 6 轮已收口，安全说明与主按钮移到卡片固定 footer（`.installSafety` + `.wide`），只有正文滚动（`round6-install-footer.md`）。
 6. ~~**安装引导/索引源开关**~~：第 5 轮已收口，空态选项行按 `.optionsRow`/`.guideToggle`/`.registryToggle` 改成左侧 12.5 文字开关（带 160ms 旋转箭头）与右侧 28 高描边 chip（`round5-close-gestures.md`）。
 7. **`settings/onboarding`**：参考本身是全屏 overlay（`OnboardingSurface.module.css`：`position: fixed; inset: 0`，无圆角），原生也是 100%×100%、圆角 0，故覆盖矩阵改标 ➖，不再作为“待接共享表面”。
 8. **实机截图**：仍以生产 `ModalView`/`ui.Tester` 无头渲染 + 测试为证据；实机窗口受 Host 门禁与 DPI 限制未取得。
