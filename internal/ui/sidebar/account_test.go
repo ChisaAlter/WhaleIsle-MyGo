@@ -6,12 +6,31 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-// TestAccountRowShowsIdentityAndMenu pins the account seat: 44px row, 24px
-// avatar, name + detail, and the menu's two actions routed to the shell.
+// TestSidebarFooterUsesAccountSeatWhenSignedIn keeps the production footer
+// from rendering the settings gear and the account seat at the same time.
+func TestSidebarFooterUsesAccountSeatWhenSignedIn(t *testing.T) {
+	i18n.SetLocale("en")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	m := Model{
+		ThemeID: "deepseek.dark", SystemDark: true,
+		Snapshot:       session.ViewState{WorkspaceReady: true},
+		OnOpenSettings: func() {},
+		Account:        Account{Name: "Ayase", SignedIn: true, OnOpen: func() {}},
+	}
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 600)
+	if !tt.HasText("Ayase") {
+		t.Fatalf("signed-in footer lost the account seat: %q", tt.Texts())
+	}
+	if tt.HasText(i18n.T(i18n.KeySettingsAccountTitle)) {
+		t.Fatalf("signed-in footer rendered two account/settings entries: %q", tt.Texts())
+	}
+}
+
 func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
