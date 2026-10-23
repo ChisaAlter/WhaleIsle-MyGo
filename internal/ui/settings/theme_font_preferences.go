@@ -287,10 +287,11 @@ func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, 
 func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string, value, lo, hi float32, open *bool, fg, muted ui.Color) {
 	generalFontRow(c, "general-size-"+role, title, hint, fg, muted, func() {
 		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			pill := ui.Row(c).Width(72).Height(36).Radius(12).Background(c.Theme().Surface).Center()
+			pill := ui.Row(c).Width(88).Height(36).Radius(12).Background(c.Theme().Surface).Center()
 			pill.Children(func() {
 				ui.Text(c, fmt.Sprintf("%.0f", value)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontFeatures("tnum").TextColor(fg)
-				arrows := ui.Column(c).Absolute().Right(8).Top(5).Gap(2)
+				ui.Text(c, " px").FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted)
+				arrows := ui.Column(c).Absolute().Right(6).Top(5).Gap(2)
 				if !pill.Hovered() && !pill.FocusWithin() {
 					arrows.Opacity(0)
 				}
@@ -316,7 +317,6 @@ func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string
 					}
 				})
 			})
-			ui.Text(c, "px").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted)
 			if open != nil {
 				button := ui.Button(c, "").Label(providerCopy("更多字体设置", "More font settings")).Tooltip(providerCopy("更多字体设置", "More font settings")).Size(24, 24).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent)
 				button.Children(func() {
