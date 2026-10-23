@@ -49,7 +49,7 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 			})
 			return
 		}
-		if ui.Button(c, providerCopy("新建 Creator 任务", "New Creator task")).Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
+		if ui.Button(c, providerCopy("新建 Creator 任务", "New Creator task")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
 			a.OnPrepare()
 		}
 	})

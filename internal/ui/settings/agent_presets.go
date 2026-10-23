@@ -119,7 +119,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 			})
 			// Two cards per row at the reference width, one on narrow panes.
 			columns := 2
-			if width < 600 {
+			if width < 480 {
 				columns = 1
 			}
 			cardWidth := (width - float32(columns-1)*12) / float32(columns)
