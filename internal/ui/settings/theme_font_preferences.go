@@ -404,8 +404,8 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	render("interface", providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily, 12, 22, true)
 	render("code", providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily, 10, 20, true)
 	bodyDisclosure(c, "typography-advanced", providerCopy("高级字体设置", "Advanced typography"), func() {
-		render("composer", providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily, 10, 22, false)
-		render("terminal", providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f }, 10, 20, false)
+		render("composer", providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily, 10, 22, true)
+		render("terminal", providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f }, 10, 20, true)
 	})
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Clicked() {
