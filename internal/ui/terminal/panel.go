@@ -256,7 +256,7 @@ func View(c *ui.Context, m Model) {
 				if shell == nil {
 					continue
 				}
-				ui.Column(c).Key(shell.id).Fill().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+				ui.Column(c).Key(shell.id).Fill().Grow(1).MinWidth(0).MinHeight(0).Padding(4, 8, 8, 8).Children(func() {
 					if shell.err != nil {
 						ui.Text(c, shell.err.Error()).FontSize(12).TextColor(muted)
 						return

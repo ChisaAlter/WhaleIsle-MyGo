@@ -61,7 +61,7 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 	if p == nil || len(p.panes) == 0 {
 		return
 	}
-	ui.Row(c).FillWidth().MinWidth(0).Gap(4).Padding(2, 8, 4, 8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(36).Shrink(0).MinWidth(0).Gap(4).Padding(2, 8, 4, 8).AlignItems(ui.Center).Children(func() {
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 				for index, pane := range append([]*terminalPane(nil), p.panes...) {
