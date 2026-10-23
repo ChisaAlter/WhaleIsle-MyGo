@@ -98,6 +98,9 @@ type Model struct {
 // View paints the message list with FollowEnd for future streaming.
 func View(c *ui.Context, m Model) {
 	if m.GroupRoom {
+		if m.Inspector != nil {
+			m.Inspector.CancelReveal()
+		}
 		groupThreadsView(c, m)
 		return
 	}
@@ -142,6 +145,9 @@ func View(c *ui.Context, m Model) {
 			})
 		}
 		if len(msgs) == 0 {
+			if m.Inspector != nil {
+				m.Inspector.CancelReveal()
+			}
 			// The empty Session is the Hero's job (conversationPhase), so this
 			// only paints for a standalone surface or an errored settle: center
 			// the hint instead of pinning a 13px line to the top-left corner.
@@ -154,9 +160,12 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		transcript := ui.List(c, list, len(msgs)).Fill()
-		if m.Scroll != nil {
-			transcript.TrackScroll(m.Scroll)
+		scroll := m.Scroll
+		if scroll == nil {
+			scroll = ui.Local(transcript, "inspector-scroll", func() ui.ScrollState { return ui.ScrollState{} })
 		}
+		transcript.TrackScroll(scroll)
+		inspectorChatViewport(c, m, transcript, scroll)
 		if m.FullColumnViewport {
 			transcript.ScrollbarInsets(0, -3, 0, 0)
 		}
@@ -175,6 +184,7 @@ func View(c *ui.Context, m Model) {
 				}
 				isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 				messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill()
+				inspectorChatRowGeometry(row.Context, m, msg.ID, messageRoot, padT, padR, padB, padL)
 				messageRoot.Children(func() {
 					sessionInspectorChatControl(row.Context, m, msg)
 					if control, ok := transcriptControls[msg.ID]; ok {
@@ -397,6 +407,7 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 	})
+	inspectorChatRevealOverlay(c, m, colors)
 	// FeedbackDialog's overlay is session-owned, outside the virtualized rows.
 	// Scrolling the voted message away must not unmount its open modal.
 	if m.FeedbackStore != nil {

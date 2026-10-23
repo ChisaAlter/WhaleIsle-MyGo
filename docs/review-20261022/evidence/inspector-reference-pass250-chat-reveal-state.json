@@ -1,0 +1,236 @@
+{
+  "source": "Installed InspectorChatRevealer and CSS in real Chromium, synthetic loaded Chat boxes",
+  "samples": [
+    {
+      "ms": 0,
+      "opacity": 0.65,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 117,
+      "opacity": 0.374214,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 233,
+      "opacity": 0.100786,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 350,
+      "opacity": 0.3,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 467,
+      "opacity": 0.499286,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 583,
+      "opacity": 0.250714,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    },
+    {
+      "ms": 700,
+      "opacity": 0,
+      "duration": 700,
+      "easing": "linear",
+      "keyframes": [
+        {
+          "offset": 0,
+          "opacity": "0.65"
+        },
+        {
+          "offset": 0.3333333333333333,
+          "opacity": "0.1"
+        },
+        {
+          "offset": 0.6666666666666666,
+          "opacity": "0.5"
+        },
+        {
+          "offset": 1,
+          "opacity": "0"
+        }
+      ],
+      "fill": "rgb(211, 226, 255)",
+      "outline": "0.666667px rgb(65, 118, 230)",
+      "radius": "6px",
+      "pointerEvents": "none"
+    }
+  ],
+  "partial": {
+    "scroll": 100,
+    "rect": {
+      "x": 20,
+      "y": 40,
+      "w": 255.333,
+      "h": 20
+    }
+  },
+  "fallback": {
+    "scroll": 100,
+    "rect": {
+      "x": 0,
+      "y": 40,
+      "w": 295.333,
+      "h": 260
+    }
+  },
+  "reduced": {
+    "scroll": 1400,
+    "rect": null
+  },
+  "repeat": {
+    "scroll": 1400,
+    "rect": {
+      "x": 20,
+      "y": 140,
+      "w": 255.333,
+      "h": 60
+    }
+  },
+  "disposed": {
+    "scroll": 1400,
+    "rect": null
+  }
+}

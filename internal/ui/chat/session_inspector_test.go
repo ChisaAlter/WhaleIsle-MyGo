@@ -31,7 +31,7 @@ func TestInspectorChatIdentityAndFoldReveal(t *testing.T) {
 	n.Target = &InspectorTarget{ID: "first"}
 	m.Snapshot.SelectedID = "other"
 	prepareSessionInspector(m, msgs, nil, list)
-	if n.Highlight != "exact" || n.Target == nil {
-		t.Fatal("cross-session gesture")
+	if n.Highlight != "" || n.Target != nil || n.reveal.pending || !n.reveal.started.IsZero() {
+		t.Fatal("cross-session gesture was not disposed")
 	}
 }

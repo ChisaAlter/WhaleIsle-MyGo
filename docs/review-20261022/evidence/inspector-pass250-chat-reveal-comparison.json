@@ -1,0 +1,122 @@
+{
+  "source": "Installed InspectorChatRevealer Chromium screenshot vs production native overlay Tester with fixed clock; synthetic boxes and flat background samples",
+  "maxRGBTolerance": 1,
+  "checks": [
+    {
+      "ms": 0,
+      "referenceOpacity": 0.65,
+      "nativeOpacity": 0.65,
+      "referenceRGB": [
+        226,
+        236,
+        255
+      ],
+      "nativeRGB": [
+        226,
+        236,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 117,
+      "referenceOpacity": 0.374214,
+      "nativeOpacity": 0.37421426,
+      "referenceRGB": [
+        239,
+        244,
+        255
+      ],
+      "nativeRGB": [
+        239,
+        244,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 233,
+      "referenceOpacity": 0.100786,
+      "nativeOpacity": 0.10078567,
+      "referenceRGB": [
+        250,
+        252,
+        255
+      ],
+      "nativeRGB": [
+        251,
+        252,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 350,
+      "referenceOpacity": 0.3,
+      "nativeOpacity": 0.3,
+      "referenceRGB": [
+        242,
+        246,
+        255
+      ],
+      "nativeRGB": [
+        242,
+        246,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 467,
+      "referenceOpacity": 0.499286,
+      "nativeOpacity": 0.4992857,
+      "referenceRGB": [
+        233,
+        240,
+        255
+      ],
+      "nativeRGB": [
+        233,
+        241,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 583,
+      "referenceOpacity": 0.250714,
+      "nativeOpacity": 0.2507143,
+      "referenceRGB": [
+        244,
+        248,
+        255
+      ],
+      "nativeRGB": [
+        244,
+        248,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 700,
+      "referenceOpacity": 0,
+      "nativeOpacity": 0,
+      "referenceRGB": [
+        255,
+        255,
+        255
+      ],
+      "nativeRGB": [
+        255,
+        255,
+        255
+      ],
+      "passed": true
+    }
+  ],
+  "partialVisibleNoScroll": true,
+  "reducedCenter": true,
+  "disposed": true,
+  "limitations": "Different synthetic content and scrollbar reservation; CSS outside outline rounds to .666667px at host zoom, native 1DIP. No whole-transcript pixel parity or smooth-scroll timing claim."
+}

@@ -57,9 +57,8 @@ func sessionInspectorChatNavigation(m Model) *chat.InspectorNavigation {
 		if p := n.Inspector; p != nil && p != chosen {
 			if chosen.navigation.Picking || p.navigation.Picking {
 				p.cancelInspectorNavigation()
-			} else if chosen.navigation.Target != nil {
-				p.navigation.Target = nil
-				p.navigation.Highlight = ""
+			} else {
+				p.navigation.CancelReveal()
 			}
 		}
 	})
@@ -102,7 +101,8 @@ func inspectorPaneVisible(w *WorkspacePanes, n *WorkspacePane, dockOpen bool) bo
 func (p *SessionInspectorPaneState) cancelInspectorNavigation() {
 	p.navigation.Picking = false
 	p.navigation.Picked, p.navigation.Target = nil, nil
-	p.navigation.Highlight, p.navigation.Notice = "", ""
+	p.navigation.CancelReveal()
+	p.navigation.Notice = ""
 	p.pendingPick, p.pendingPickBinding = nil, ""
 }
 

@@ -1,0 +1,140 @@
+﻿[
+    {
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2676.6667,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "waiting":  false
+                                   },
+                        "scroll":  2676.6667,
+                        "targetPending":  false
+                    },
+        "phase":  "initial"
+    },
+    {
+        "phase":  "locate",
+        "active":  {
+                       "highlight":  "answer-7",
+                       "max":  2676.6667,
+                       "reveal":  {
+                                      "ageMs":  -1,
+                                      "locating":  false,
+                                      "pending":  true,
+                                      "rect":  {
+                                                   "X":  0,
+                                                   "Y":  0,
+                                                   "W":  0,
+                                                   "H":  0
+                                               },
+                                      "waiting":  false
+                                  },
+                       "scroll":  2676.6667,
+                       "targetPending":  false
+                   },
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2590.7576,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "waiting":  false
+                                   },
+                        "scroll":  386.83334,
+                        "targetPending":  false
+                    }
+    },
+    {
+        "phase":  "repeat",
+        "active":  {
+                       "highlight":  "answer-7",
+                       "max":  2590.7576,
+                       "reveal":  {
+                                      "ageMs":  193.4217,
+                                      "locating":  false,
+                                      "pending":  false,
+                                      "rect":  {
+                                                   "X":  46.833313,
+                                                   "Y":  250.16666,
+                                                   "W":  420,
+                                                   "H":  88
+                                               },
+                                      "waiting":  false
+                                  },
+                       "scroll":  386.83334,
+                       "targetPending":  false
+                   },
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2590.7576,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "waiting":  false
+                                   },
+                        "scroll":  386.83334,
+                        "targetPending":  false
+                    }
+    },
+    {
+        "phase":  "latest",
+        "active":  {
+                       "highlight":  "answer-30",
+                       "max":  2588.6233,
+                       "reveal":  {
+                                      "ageMs":  -1,
+                                      "locating":  false,
+                                      "pending":  true,
+                                      "rect":  {
+                                                   "X":  0,
+                                                   "Y":  0,
+                                                   "W":  0,
+                                                   "H":  0
+                                               },
+                                      "waiting":  true
+                                  },
+                       "scroll":  2588.6233,
+                       "targetPending":  false
+                   },
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2588.6233,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "waiting":  false
+                                   },
+                        "scroll":  2588.6233,
+                        "targetPending":  false
+                    }
+    }
+]

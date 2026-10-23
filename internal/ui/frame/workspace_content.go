@@ -340,8 +340,7 @@ func (w *WorkspacePanes) EndContentFrame() {
 				p.cancelInspectorNavigation()
 			} else if !p.chatProjected {
 				p.navigation.Picking = false
-				p.navigation.Target = nil
-				p.navigation.Highlight = ""
+				p.navigation.CancelReveal()
 			}
 		}
 		if n.Agents != nil && !n.Agents.rendered && (n.Kind != "subagentchat" || n.SubagentChat == nil) {

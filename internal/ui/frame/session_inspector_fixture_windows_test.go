@@ -4,6 +4,7 @@ package frame
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -74,6 +75,41 @@ func TestMain(m *testing.M) {
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	colors := theme.Default().Light
+	if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "chat-reveal" {
+		var messages []session.Message
+		for i := 1; i <= 30; i++ {
+			id := fmt.Sprintf("answer-%d", i)
+			messages = append(messages, session.Message{ID: id, Seq: float64(i), Role: "assistant", Kind: session.MessageKindText, Body: fmt.Sprintf("Reveal answer %d\n\nRecorded answer content for a real Inspector to Chat navigation gesture.", i)})
+		}
+		list, scroll := &ui.ListState{FollowEnd: true}, &ui.ScrollState{}
+		p.navigation.SessionID = "fixture"
+		for i := range source.Records {
+			source.Records[i].ChatID = fmt.Sprintf("answer-%.0f", source.Records[i].Seq)
+		}
+		view := ui.View(func(c *ui.Context) {
+			theme.ApplyInterface(c)
+			if c.Shortcut(0, ui.KeyF9) {
+				metrics, _ := json.MarshalIndent(map[string]any{"scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation)}, "", "  ")
+				if err := os.WriteFile(os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")+"-metrics.json", metrics, 0600); err != nil {
+					panic(err)
+				}
+			}
+			ui.Row(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
+				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
+					chat.View(c, chat.Model{Inspector: &p.navigation, List: list, Scroll: scroll, Snapshot: session.ViewState{SelectedID: "fixture", PlanHistoryBinding: "fixture", Messages: messages}, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 420})
+					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() { ui.Text(c, "Composer seat") })
+				})
+				ui.Column(c).Width(680).FillHeight().Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })
+			})
+		})
+		mygo.App.WhenReady(func() {
+			mygo.NewWindow(mygo.WindowOptions{Title: "Native Inspector Chat reveal fixture", Width: 1280, Height: 720, UseContentSize: true, Content: view, Frameless: true, BackgroundColor: "#ffffff"})
+		})
+		if err = mygo.App.Run(); err != nil {
+			panic(err)
+		}
+		return
+	}
 	view := ui.View(func(c *ui.Context) {
 		theme.ApplyInterface(c)
 		if advance != nil && c.Shortcut(0, ui.KeyF8) {

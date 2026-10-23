@@ -210,6 +210,26 @@ func TestInspectorNavigationUsesActualResourceVisibility(t *testing.T) {
 	}
 }
 
+func TestInspectorOwnerHandoffDisposesConsumedChatReveal(t *testing.T) {
+	s := session.New()
+	s.Select("current")
+	makePane := func(id string) *WorkspacePane {
+		return &WorkspacePane{ID: id, Kind: "session-inspector-log", Inspector: &SessionInspectorPaneState{binding: s.InspectorBinding(), navigation: chat.InspectorNavigation{SessionID: "current"}}}
+	}
+	a, b := makePane("a"), makePane("b")
+	w := &WorkspacePanes{Root: &WorkspacePane{ID: "split", First: a, Second: b}, Active: "a"}
+	m := Model{Store: s, Sizes: &LayoutSizes{Workspace: w}, RightPaneOpen: true}
+	a.Inspector.navigation.Highlight = "consumed-pending-target"
+	w.Active = "b"
+	if sessionInspectorChatNavigation(m) != &b.Inspector.navigation || a.Inspector.navigation.Highlight != "" {
+		t.Fatal("previous Chat owner retained consumed reveal")
+	}
+	w.Active = "a"
+	if sessionInspectorChatNavigation(m) != &a.Inspector.navigation || a.Inspector.navigation.Highlight != "" {
+		t.Fatal("owner handoff revived previous reveal")
+	}
+}
+
 func TestInspectorVisibleOccurrencesShareCurrentChatProjection(t *testing.T) {
 	s := session.New()
 	s.Select("current")

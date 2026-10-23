@@ -3092,7 +3092,9 @@ func mainView(c *ui.Context) {
 	if win != nil {
 		openUIParent = win.NativeHandle()
 	}
-	chatList := state.chatList
+	// List layout commits after this view returns. Keep one UI-thread owner
+	// across build passes so deferred navigation and cancellation share it.
+	chatList := &state.chatList
 	draft := state.draft
 	editMessageSeq := state.editMessageSeq
 	feedbackCommentMsgID := state.feedbackCommentMsgID
@@ -6589,7 +6591,7 @@ func mainView(c *ui.Context) {
 						ComposerResize:          &state.composerResize,
 						OnComposerResizeEnd:     func(axis string, value float32) { setStore.SaveComposerSize(context.Background(), axis, value) },
 						Sizes:                   &layout,
-						ChatList:                &chatList,
+						ChatList:                chatList,
 						ThemeID:                 themeID,
 						SystemDark:              systemDark,
 						Draft:                   &activeDraft.Text,
@@ -7318,7 +7320,6 @@ func mainView(c *ui.Context) {
 					state.composerSkillsFilter = composerSkillsFilter
 					state.skillCreateName = skillCreateName
 					state.composerChipEdit = composerChipEdit
-					state.chatList = chatList
 					state.draft = activeDraft.Text
 					state.editMessageSeq = editMessageSeq
 					state.feedbackCommentMsgID = feedbackCommentMsgID

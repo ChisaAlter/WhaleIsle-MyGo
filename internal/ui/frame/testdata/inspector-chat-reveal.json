@@ -1,0 +1,5 @@
+[
+  {"Key":"event:7","Type":"assistant/7","Seq":7,"Value":{"id":"answer-7","text":"Recorded answer content for a real Inspector to Chat navigation gesture."}},
+  {"Key":"event:15","Type":"assistant/15","Seq":15,"Value":{"id":"answer-15","text":"Recorded middle answer"}},
+  {"Key":"event:30","Type":"assistant/30","Seq":30,"Value":{"id":"answer-30","text":"Recorded latest answer"}}
+]

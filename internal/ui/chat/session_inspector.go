@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"math"
+	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/theme"
 )
@@ -22,6 +23,7 @@ type InspectorNavigation struct {
 	Target    *InspectorTarget
 	Highlight string
 	Notice    string
+	reveal    inspectorChatReveal
 }
 
 func inspectorMessageIndex(msgs []session.Message, target InspectorTarget) int {
@@ -52,9 +54,25 @@ func inspectorMessageIndex(msgs []session.Message, target InspectorTarget) int {
 	return best
 }
 func prepareSessionInspector(m Model, msgs []session.Message, controls map[string]transcriptControl, list *ui.ListState) {
-	n := m.Inspector
-	if n == nil || n.SessionID != m.Snapshot.SelectedID || m.DisableDeveloperTools {
+	n := inspectorChatNavigation(m)
+	if n == nil {
 		return
+	}
+	r := &n.reveal
+	if r.binding != m.Snapshot.PlanHistoryBinding || r.session != m.Snapshot.SelectedID {
+		r.cancelCenter()
+		*r = inspectorChatReveal{binding: m.Snapshot.PlanHistoryBinding, session: m.Snapshot.SelectedID}
+		n.Highlight = ""
+	}
+	if n.Picking {
+		n.CancelReveal()
+	}
+	if n.Target != nil && n.Target != r.request {
+		r.cancelCenter()
+		n.Highlight = ""
+		r.request = n.Target
+		r.pending, r.waiting, r.locating, r.centerQueued = false, false, false, false
+		r.started, r.quietSince = time.Time{}, time.Time{}
 	}
 	n.Nodes = session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
 	n.Groups = map[string][]string{}
@@ -65,6 +83,20 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		}
 	}
 	if n.Target == nil {
+		if r.pending && (r.centerQueued || r.centerList != nil) {
+			r.centerQueued = false
+			// Resolve the key immediately before List layout. Source prepends
+			// or cancellation cannot leave a stale ordinal request in the list.
+			if i := inspectorMessageIndex(msgs, InspectorTarget{ID: n.Highlight}); i >= 0 {
+				r.centerList, r.centerFrom = list, r.offset
+				list.ScrollTo(i, ui.Center)
+				r.waiting = true
+				r.quietSince = time.Time{}
+			} else {
+				r.cancelCenter()
+				r.waiting = false
+			}
+		}
 		return
 	}
 	target := *n.Target
@@ -97,15 +129,29 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		}
 	}
 	n.Target = nil
+	r.pending = true
+	r.waiting, r.locating = false, false
+	n.Notice = ""
 	if i := inspectorMessageIndex(msgs, target); i >= 0 {
-		list.ScrollIntoView(i)
+		if msgs[i].Kind == session.MessageKindThinking && m.ThinkingExpanded != nil && !isThinkingExpanded(m.ThinkingExpanded, msgs[i].ID) {
+			if *m.ThinkingExpanded == nil {
+				*m.ThinkingExpanded = map[string]bool{}
+			}
+			(*m.ThinkingExpanded)[msgs[i].ID] = true
+			n.Target = &target
+			r.pending = false
+			return
+		}
 		n.Highlight = msgs[i].ID
-		n.Notice = ""
+		r.locating = true
 	} else {
-		n.Notice = "No matching loaded chat content"
+		// The original reveals the displayed Chat column when no loaded
+		// occurrence can provide a usable box, without adding a status row.
+		n.Highlight = ""
 	}
 }
-func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	n := m.Inspector
 	if n == nil || n.SessionID != m.Snapshot.SelectedID || m.DisableDeveloperTools {
 		return
@@ -114,11 +160,8 @@ func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {	
 		if stdButton(c, palette, historyNavigationText("选择此聊天节点", "Pick this chat node"), buttonGhost, false).Clicked() {
 			n.Picked = &InspectorTarget{ID: msg.ID, Seq: msg.Seq}
 			n.Picking = false
-			n.Highlight = msg.ID
+			n.CancelReveal()
 		}
-	}
-	if n.Highlight == msg.ID {
-		ui.Text(c, historyNavigationText("已定位检查器节点", "Inspector target")).FontSize(11)
 	}
 }
 
