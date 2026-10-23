@@ -70,7 +70,7 @@ func TestBuiltinPluginsRenderAsAGridWithASkeleton(t *testing.T) {
 	if loading.HasText("dsh-ui-market") {
 		t.Fatal("the skeleton invented plugin rows")
 	}
-	if got := len(loading.Texts()); got > 1 {
-		t.Fatalf("the skeleton painted text: %v", loading.Texts())
+	if got := loading.Texts(); len(got) != 1 || got[0] != i18n.T(KeyPass4ABuiltinLoading) {
+		t.Fatalf("the skeleton should paint only its loading label: %v", got)
 	}
 }

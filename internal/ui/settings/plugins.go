@@ -147,6 +147,7 @@ func pluginsText(zh, en string) string {
 // two column grid of 60 DIP cards, or a 2×2 skeleton while the list loads.
 func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if a.Loading && len(a.Rows) == 0 {
+		ui.Text(c, i18n.T(KeyPass4ABuiltinLoading)).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		grid := ui.Grid(c.Key("builtin-plugins-loading")).FillWidth().MinWidth(0).Gap(12)
 		grid.Columns(2).Children(func() {
 			for index := 0; index < 4; index++ {
