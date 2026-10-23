@@ -118,9 +118,6 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow))
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
-			a.OnSave()
-		}
 	})
 	if a.ShowArchivedList != nil && a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Label("save-interface-preferences").Clicked() {
 		a.OnSave()
