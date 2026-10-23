@@ -28,7 +28,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhalePreferences)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).Disabled(blocked).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Busy {
@@ -136,7 +136,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).Bold().TextColor(fg)
 		if len(s.Server.Skills) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)+"\n"+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		for _, skill := range s.Server.Skills {
 			skill := skill
