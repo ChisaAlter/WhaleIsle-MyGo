@@ -1,0 +1,36 @@
+﻿[
+    {
+        "name":  "reference-functions",
+        "program":  "node",
+        "args":  [
+                     "scripts/inspector-reference-targets.mjs"
+                 ],
+        "exitCode":  0,
+        "seconds":  0.1759732
+    },
+    {
+        "name":  "affected-tests",
+        "program":  "go",
+        "args":  [
+                     "test",
+                     "./internal/store/session",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  17.1958712
+    },
+    {
+        "name":  "affected-vet",
+        "program":  "go",
+        "args":  [
+                     "vet",
+                     "./internal/store/session",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.2737918
+    }
+]

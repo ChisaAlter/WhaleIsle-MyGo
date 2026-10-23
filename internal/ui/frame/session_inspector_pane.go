@@ -252,7 +252,7 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 		source.Chat = nil
 		for _, msg := range p.navigation.Nodes {
 			raw, _ := json.Marshal(msg)
-			source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw})
+			source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw, ChatTarget: msg.InspectorTarget()})
 		}
 	}
 	inspectorPresentation(c, p, source, m.Store.Snapshot(), theme.Resolve(m.ThemeID).Active(m.SystemDark), func() { m.Store.LoadEarlierHistory(context.Background()) })

@@ -2,7 +2,6 @@ package chat
 
 import (
 	"github.com/egoist/mygo/ui"
-	"math"
 	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/theme"
@@ -10,10 +9,6 @@ import (
 
 // InspectorNavigation is an in-memory gesture owned by one visible inspector
 // pane. It carries identities only and never fetches or changes session data.
-type InspectorTarget struct {
-	ID  string
-	Seq float64
-}
 type InspectorNavigation struct {
 	Nodes     []session.Message
 	Groups    map[string][]string
@@ -26,33 +21,6 @@ type InspectorNavigation struct {
 	reveal    inspectorChatReveal
 }
 
-func inspectorMessageIndex(msgs []session.Message, target InspectorTarget) int {
-	for i, m := range msgs {
-		if target.ID != "" && (m.ID == target.ID || m.SourceMessageID == target.ID) {
-			return i
-		}
-	}
-	if target.Seq <= 0 {
-		return -1
-	}
-	best := -1
-	distance := math.MaxFloat64
-	for i, m := range msgs {
-		seq := m.Seq
-		if m.Tool != nil && m.Tool.Call != nil {
-			seq = m.Tool.Call.Seq
-		}
-		if seq <= 0 {
-			continue
-		}
-		d := math.Abs(seq - target.Seq)
-		if d < distance {
-			best = i
-			distance = d
-		}
-	}
-	return best
-}
 func prepareSessionInspector(m Model, msgs []session.Message, controls map[string]transcriptControl, list *ui.ListState) {
 	n := inspectorChatNavigation(m)
 	if n == nil {
@@ -71,6 +39,7 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		r.cancelCenter()
 		n.Highlight = ""
 		r.request = n.Target
+		r.rejected = nil
 		r.pending, r.waiting, r.locating, r.centerQueued, r.centerCommitted = false, false, false, false, false
 		r.started, r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}, time.Time{}
 	}
@@ -82,12 +51,20 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 			n.Groups[msg.ID] = append([]string(nil), control.members...)
 		}
 	}
+	if n.Target == nil && r.pending && r.request != nil && r.request.LiveAssistant && inspectorMessageExactIndex(n.Nodes, n.Highlight) < 0 {
+		if rebound := inspectorRebindLiveTarget(*r.request, n.Nodes); rebound.ID != r.request.ID {
+			n.Target = &rebound
+			r.cancelCenter()
+			r.centerQueued, r.centerCommitted = false, false
+			r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}
+		}
+	}
 	if n.Target == nil {
 		if r.pending && (r.centerQueued || r.centerList != nil && !r.centerCommitted) {
 			r.centerQueued = false
 			// Resolve the key immediately before List layout. Source prepends
 			// or cancellation cannot leave a stale ordinal request in the list.
-			if i := inspectorMessageIndex(msgs, InspectorTarget{ID: n.Highlight}); i >= 0 {
+			if i := inspectorMessageExactIndex(msgs, n.Highlight); i >= 0 {
 				r.centerList = list
 				scale := r.scale
 				if scale <= 0 {
@@ -105,24 +82,39 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		return
 	}
 	target := *n.Target
-	// Reveal folded ancestors through the same native transcript state used by
-	// their disclosure buttons, then resolve against the next visible projection.
+	// Resolve before folding, so a raw tool result or Assistant part unfolds
+	// the same occurrence that will be highlighted after the next projection.
+	loaded := append([]session.Message(nil), n.Nodes...)
+	seen := make(map[string]bool, len(loaded))
+	for _, msg := range loaded {
+		seen[msg.ID] = true
+	}
+	for _, msg := range msgs {
+		if !seen[msg.ID] {
+			loaded = append(loaded, msg)
+			seen[msg.ID] = true
+		}
+	}
+	target = inspectorRebindLiveTarget(target, loaded)
+	displayed := visibleChatMessages(loaded)
+	candidates := inspectorRevealTargets(target, inspectorMessageNodes(loaded, displayed))
+	occurrences := inspectorRevealOccurrences(loaded, candidates)
+	usable := make(map[string]bool, len(displayed))
+	for _, msg := range displayed {
+		usable[msg.ID] = true
+	}
+	owner := ""
+	for _, id := range occurrences {
+		if usable[id] && !r.rejected[id] {
+			owner = id
+			break
+		}
+	}
 	for _, control := range controls {
 		match := false
 		for _, id := range control.members {
-			if id == target.ID {
+			if id == owner {
 				match = true
-			}
-		}
-		if !match && target.Seq > 0 {
-			for _, raw := range m.Snapshot.Messages {
-				if raw.Seq == target.Seq {
-					for _, id := range control.members {
-						if id == raw.ID {
-							match = true
-						}
-					}
-				}
 			}
 		}
 		if match && !control.open && m.ThinkingExpanded != nil {
@@ -137,13 +129,13 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 	r.pending = true
 	r.waiting, r.locating = false, false
 	n.Notice = ""
-	if i := inspectorMessageIndex(msgs, target); i >= 0 {
+	if i := inspectorMessageExactIndex(msgs, owner); i >= 0 {
 		if msgs[i].Kind == session.MessageKindThinking && m.ThinkingExpanded != nil && !isThinkingExpanded(m.ThinkingExpanded, msgs[i].ID) {
 			if *m.ThinkingExpanded == nil {
 				*m.ThinkingExpanded = map[string]bool{}
 			}
 			(*m.ThinkingExpanded)[msgs[i].ID] = true
-			n.Target = &target
+			n.Target = r.request
 			r.pending = false
 			return
 		}
@@ -163,7 +155,8 @@ func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {
 	}
 	if n.Picking {
 		if stdButton(c, palette, historyNavigationText("选择此聊天节点", "Pick this chat node"), buttonGhost, false).Clicked() {
-			n.Picked = &InspectorTarget{ID: msg.ID, Seq: msg.Seq}
+			target := msg.InspectorTarget()
+			n.Picked = &target
 			n.Picking = false
 			n.CancelReveal()
 		}

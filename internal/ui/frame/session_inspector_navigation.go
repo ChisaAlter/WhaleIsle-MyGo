@@ -166,7 +166,13 @@ func (p *SessionInspectorPaneState) selectInspectorRow(row session.InspectorReco
 }
 
 func (p *SessionInspectorPaneState) locateInspectorChat(row session.InspectorRecord) {
-	target := chat.InspectorTarget{ID: row.ChatID, Seq: row.Seq}
+	target := row.ChatTarget
+	if target.ID == "" {
+		target.ID = row.ChatID
+	}
+	if target.AnchorSeq == nil && row.Seq > 0 {
+		target.Seq = row.Seq
+	}
 	if strings.HasPrefix(row.Key, "chat:") {
 		target.ID = strings.TrimPrefix(row.Key, "chat:")
 	}

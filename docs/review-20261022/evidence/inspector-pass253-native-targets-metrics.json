@@ -1,0 +1,28 @@
+{
+  "expanded": {
+    "m40/reasoning/0": true,
+    "transcript-group:fixture:fixture:m40/reasoning/0:40": true,
+    "transcript-turn:fixture:fixture:0": true
+  },
+  "highlight": "m40",
+  "max": 0,
+  "reveal": {
+    "ageMs": 197.8793,
+    "locating": false,
+    "moving": false,
+    "pending": false,
+    "rect": {
+      "X": 80.16669,
+      "Y": 248.93164,
+      "W": 420,
+      "H": 24
+    },
+    "scale": 1.5,
+    "settling": false,
+    "waiting": false
+  },
+  "scroll": 0,
+  "selected": "event:40/chunk:3",
+  "targetPending": false,
+  "time": "2026-10-24T05:09:00.4852473+08:00"
+}

@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	colors := theme.Default().Light
-	if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "chat-reveal" {
+	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "chat-reveal" || scenario == "target-ownership" {
 		var messages []session.Message
 		for i := 1; i <= 30; i++ {
 			id := fmt.Sprintf("answer-%d", i)
@@ -87,10 +87,40 @@ func TestMain(m *testing.M) {
 		for i := range source.Records {
 			source.Records[i].ChatID = fmt.Sprintf("answer-%.0f", source.Records[i].Seq)
 		}
+		expanded := map[string]bool{}
+		if scenario == "target-ownership" {
+			store := session.New()
+			store.Select("fixture")
+			frames := []string{
+				`{"type":"turn/start","seq":1,"data":{"turn":0}}`,
+				`{"type":"step/start","seq":2,"data":{"turn":0,"step":0}}`,
+				`{"type":"tool/call","seq":10,"data":{"turn":0,"step":0,"callId":"root","name":"functions.pwsh","arguments":"{}"}}`,
+				`{"type":"tool/ptc-dispatch-start","seq":11,"data":{"rootCallId":"root","parentCallId":"root","subCallId":"child","name":"functions.read","arguments":{}}}`,
+				`{"type":"tool/ptc-dispatch","seq":19,"data":{"rootCallId":"root","parentCallId":"root","subCallId":"child","name":"functions.read","arguments":{},"result":"child done"}}`,
+				`{"type":"tool/result","seq":20,"surfaceOp":"append","data":{"turn":0,"step":0,"message":{"id":"result","role":"tool","toolCallId":"root","source":{"kind":"tool","callId":"root"},"content":[{"type":"text","text":"root output"}]}}}`,
+				`{"type":"step/end","seq":21,"data":{"turn":0,"step":0}}`,
+				`{"type":"step/start","seq":22,"data":{"turn":0,"step":1}}`,
+				`{"type":"assistant/message","seq":40,"surfaceOp":"append","data":{"turn":0,"step":1,"message":{"id":"m40","role":"assistant","content":[{"type":"reasoning","text":"Reasoning details."},{"type":"text","text":"Canonical answer."},{"type":"text","text":"Second answer block."}]},"stream":[{"type":"chunk","time":1,"chunk":{"type":"block-start","index":4,"blockType":"reasoning"}},{"type":"reasoning-chunks","index":4,"time0":2,"dt":[],"texts":["Reasoning details."]},{"type":"chunk","time":3,"chunk":{"type":"block-start","index":9,"blockType":"text"}},{"type":"text-chunks","index":9,"time0":4,"dt":[],"texts":["Canonical answer."]}]}}`,
+				`{"type":"step/end","seq":41,"data":{"turn":0,"step":1}}`,
+				`{"type":"turn/end","seq":42,"data":{"turn":0}}`,
+			}
+			for _, frame := range frames {
+				store.ApplyInspectorFixtureFrame(json.RawMessage(`{"type":"event","event":` + frame + `}`))
+			}
+			source = store.InspectorSnapshot()
+			messages = store.Snapshot().Messages
+			p.navigation.SessionID = "fixture"
+			for _, row := range source.Chat {
+				if row.Key == "chat:m40" || row.Key == "chat:m40/text/2" {
+					row.Type = row.Key
+					source.Records = append(source.Records, row)
+				}
+			}
+		}
 		prefix := os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")
 		trace := os.Getenv("INSPECTOR_NATIVE_FIXTURE_TRACE") == "1"
 		writeMetrics := func(suffix string, now time.Time) {
-			metrics, _ := json.MarshalIndent(map[string]any{"time": now.Format(time.RFC3339Nano), "scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation)}, "", "  ")
+			metrics, _ := json.MarshalIndent(map[string]any{"time": now.Format(time.RFC3339Nano), "scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation), "expanded": expanded, "selected": p.selected}, "", "  ")
 			if err := os.WriteFile(prefix+suffix, metrics, 0600); err != nil {
 				panic(err)
 			}
@@ -102,7 +132,7 @@ func TestMain(m *testing.M) {
 			}
 			ui.Row(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
 				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
-					chat.View(c, chat.Model{Inspector: &p.navigation, List: list, Scroll: scroll, Snapshot: session.ViewState{SelectedID: "fixture", PlanHistoryBinding: "fixture", Messages: messages}, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 420})
+					chat.View(c, chat.Model{Inspector: &p.navigation, List: list, Scroll: scroll, Snapshot: session.ViewState{SelectedID: "fixture", PlanHistoryBinding: "fixture", Messages: messages}, ThinkingExpanded: &expanded, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 420})
 					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() { ui.Text(c, "Composer seat") })
 				})
 				ui.Column(c).Width(680).FillHeight().Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })

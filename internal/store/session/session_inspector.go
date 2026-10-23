@@ -26,6 +26,7 @@ type InspectorRecord struct {
 	Disclosure         string
 	CollapsedSummary   string
 	ChatID, ChatPickID string
+	ChatTarget         InspectorChatTarget
 }
 type InspectorSnapshot struct {
 	Binding, SessionID string
@@ -68,7 +69,7 @@ func inspectorRecord(key, parent string, raw json.RawMessage) InspectorRecord {
 		Data struct{ Turn, Step json.RawMessage }
 	}
 	_ = json.Unmarshal(raw, &h)
-	row := InspectorRecord{Key: key, Parent: parent, Type: h.Type, Time: h.Time, Raw: append(json.RawMessage(nil), raw...)}
+	row := InspectorRecord{Key: key, Parent: parent, Type: h.Type, Time: h.Time, Raw: append(json.RawMessage(nil), raw...), ChatTarget: inspectorEventChatTarget(raw)}
 	if h.Seq != nil {
 		row.Seq = *h.Seq
 		row.Identity = fmt.Sprintf("%.0f", *h.Seq)
@@ -102,6 +103,7 @@ func inspectorChildren(root InspectorRecord) []InspectorRecord {
 	for i, item := range chunks {
 		row := inspectorRecord(fmt.Sprintf("%s/chunk:%d", root.Key, i), root.Key, item.chunk)
 		row.Seq, row.Identity, row.Location, row.Time = root.Seq, fmt.Sprint(i), root.Location, item.time
+		row.ChatTarget = inspectorChunkChatTarget(root.ChatTarget, item.chunk)
 		var h struct {
 			Type, BlockType, Text string
 			Index                 *int
@@ -193,7 +195,7 @@ func inspectorLiveRecords(a *assistantStreamAttempt, parent string) []InspectorR
 		return nil
 	}
 	raw, _ := json.Marshal(map[string]any{"data": map[string]any{"stream": a.Stream}})
-	root := InspectorRecord{Key: "attempt:" + a.AttemptID, Parent: parent, Type: "assistant/live", Identity: a.AttemptID, Location: fmt.Sprintf("%.0f/%.0f", a.Turn, a.Step), Time: chunks[len(chunks)-1].time, Raw: raw}
+	root := InspectorRecord{Key: "attempt:" + a.AttemptID, Parent: parent, Type: "assistant/live", Identity: a.AttemptID, Location: fmt.Sprintf("%.0f/%.0f", a.Turn, a.Step), Time: chunks[len(chunks)-1].time, Raw: raw, ChatTarget: InspectorChatTarget{NodeKind: "assistant-step", Turn: &a.Turn, Step: &a.Step, LiveAssistant: true}}
 	rows := inspectorChildren(root)
 	for i := range rows {
 		var h struct{ Index *int }
@@ -220,6 +222,7 @@ func inspectorLiveRecords(a *assistantStreamAttempt, parent string) []InspectorR
 			// Step end removes them from the log.
 			rows[i].ChatID, rows[i].ChatPickID = "", ""
 			rows[i].Seq = a.settlementSeq
+			rows[i].ChatTarget.Seq, rows[i].ChatTarget.AnchorSeq = a.settlementSeq, &a.settlementSeq
 		}
 	}
 	rows[0].Raw, _ = json.Marshal(struct {
@@ -300,6 +303,7 @@ func (s *Store) InspectorSnapshot() InspectorSnapshot {
 		row := inspectorRecord("chat:"+msg.ID, "", raw)
 		row.Type = string(msg.Kind)
 		row.Seq = msg.Seq
+		row.ChatTarget = msg.InspectorTarget()
 		out.Chat = append(out.Chat, row)
 	}
 	return out

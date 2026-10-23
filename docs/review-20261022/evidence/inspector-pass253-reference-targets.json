@@ -1,0 +1,10 @@
+{
+  "installed": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/client.js",
+  "installedSha256": "62443553c0dec20f1d1a21b02a55822877c734059ea1c18d5a414ddafac657a0",
+  "modelCases": 176,
+  "logCases": 14,
+  "installedAndSourceAgree": true,
+  "fixture": "C:\\AI\\WhaleIsle-MyGo\\internal\\ui\\chat\\testdata\\inspector-targets.json",
+  "fixtureSha256": "1a8107ad1d62bfeeeaec4a83e6c5fc9f20f44fb4aa55177cd78a3a60ce861470",
+  "method": "Evaluate verbatim pure-function regions from installed client.js in Node vm; independently import read-only TypeScript source. No DOM/browser claim."
+}

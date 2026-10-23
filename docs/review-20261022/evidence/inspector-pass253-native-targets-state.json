@@ -1,0 +1,189 @@
+﻿[
+    {
+        "record":  "chat:m40/text/2",
+        "metrics":  {
+                        "expanded":  {
+                                         "transcript-turn:fixture:fixture:0":  false
+                                     },
+                        "highlight":  "m40/text/2",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  18.9756,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  51,
+                                                    "W":  420,
+                                                    "H":  24
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "chat:m40/text/2",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:08:48.1206831+08:00"
+                    },
+        "expected":  "m40/text/2"
+    },
+    {
+        "record":  "chat:m40",
+        "metrics":  {
+                        "expanded":  {
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  false,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "highlight":  "m40",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  264.5606,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  89,
+                                                    "W":  420,
+                                                    "H":  24
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "chat:m40",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:08:51.0243106+08:00"
+                    },
+        "expected":  "m40"
+    },
+    {
+        "record":  "tool/result",
+        "metrics":  {
+                        "expanded":  {
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "highlight":  "tool:root",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  264.7618,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  83,
+                                                    "W":  420,
+                                                    "H":  95.93164
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:20",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:08:53.3846018+08:00"
+                    },
+        "expected":  "tool:root"
+    },
+    {
+        "record":  "tool/ptc-dispatch",
+        "metrics":  {
+                        "expanded":  {
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "highlight":  "tool:root",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  208.106,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  83,
+                                                    "W":  420,
+                                                    "H":  95.93164
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:19",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:08:55.7582254+08:00"
+                    },
+        "expected":  "tool:root"
+    },
+    {
+        "record":  "block-start",
+        "metrics":  {
+                        "expanded":  {
+                                         "m40/reasoning/0":  true,
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "highlight":  "m40/reasoning/0",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  264.3075,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  184.93164,
+                                                    "W":  420,
+                                                    "H":  52
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:40/chunk:0",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:08:58.1230575+08:00"
+                    },
+        "expected":  "m40/reasoning/0"
+    },
+    {
+        "record":  "text-delta",
+        "metrics":  {
+                        "expanded":  {
+                                         "m40/reasoning/0":  true,
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "highlight":  "m40",
+                        "max":  0,
+                        "reveal":  {
+                                       "ageMs":  197.8793,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  80.16669,
+                                                    "Y":  248.93164,
+                                                    "W":  420,
+                                                    "H":  24
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:40/chunk:3",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:09:00.4852473+08:00"
+                    },
+        "expected":  "m40"
+    }
+]

@@ -1,0 +1,39 @@
+﻿2026/10/24 04:55:45 deeplink: action=settings session= section=account
+2026/10/24 04:55:45 deeplink: action=launcher session= section=
+2026/10/24 04:55:45 deeplink: action=settings session= section=
+2026/10/24 04:55:45 deeplink: action=market session= section=
+2026/10/24 04:55:45 deeplink: action=settings session= section=mcp
+2026/10/24 04:55:45 deeplink: action=settings session= section=skills
+2026/10/24 04:55:45 deeplink: action=settings session= section=interface
+2026/10/24 04:55:45 deeplink: action=settings session= section=about
+2026/10/24 04:55:45 deeplink: action=settings session= section=mcp
+2026/10/24 04:55:45 deeplink: action=settings session= section=mcp
+2026/10/24 04:55:45 deeplink: action=session session=requested-session section=
+2026/10/24 04:55:45 deeplink: action=agents session=requested-session section=
+2026/10/24 04:55:45 deeplink: action=open session= section=
+2026/10/24 04:55:45 deeplink: action=settings session= section=about
+2026/10/24 04:55:45 deeplink: action=launcher session= section=
+2026/10/24 04:55:45 deeplink: action=settings session= section=
+2026/10/24 04:55:45 deeplink: action=market session= section=
+--- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths (0.02s)
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/remote-1000 (0.00s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/remote-600 (0.00s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/remote-workspace-1000 (0.00s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/remote-workspace-600 (0.00s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/usage-stats-1000 (0.00s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+    --- FAIL: TestSettingsEmbeddedPagesStayInModalAcrossWidths/usage-stats-600 (0.01s)
+        settings_sections_test.go:73: embedded selection stranded the settings rail
+--- FAIL: TestSettingsMarketUsesModalShellAndReturnsToGeneral (0.02s)
+    settings_sections_test.go:151: General did not restore the existing desktop controls
+2026/10/24 04:55:47 deeplink: action=settings session= section=models
+2026/10/24 04:55:47 deeplink: action=auth session= section=
+FAIL
+FAIL	whaleisle/cmd/whaleisle	17.612s
+?   	whaleisle/cmd/whaleisle-preview	[no test files]
+?   	whaleisle/cmd/whaleisle-launcher	[no test files]
+FAIL

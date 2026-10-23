@@ -1,0 +1,12 @@
+﻿{
+    "name":  "production-build",
+    "program":  "go",
+    "args":  [
+                 "build",
+                 "-o",
+                 "whaleisle-pass253.exe",
+                 "./cmd/whaleisle"
+             ],
+    "exitCode":  0,
+    "seconds":  7.4904524
+}

@@ -75,18 +75,22 @@ type Message struct {
 	ID      string
 	// SourceMessageID is the durable identity shared by projected assistant rows.
 	SourceMessageID string
-	ImageRef        string
-	ContentBlock    json.RawMessage
-	Kind            MessageKind
-	Role            string
-	Body            string
-	Seq             float64         // persistence seq when known (editMessageSeq)
-	EventType       string          // persistence type when Kind is tool / deliverables
-	Raw             json.RawMessage // full persistence event JSON
-	TurnSeq         float64         // owning turn/start seq for edit projection
-	TurnOpening     bool
-	Streaming       bool
-	Files           []string // deliverables/presented paths
+	// Conversation coordinates are retained for process-local Assistant rows,
+	// whose raw durable event does not exist until settlement.
+	ConversationTurn *float64 `json:",omitempty"`
+	ConversationStep *float64 `json:",omitempty"`
+	ImageRef         string
+	ContentBlock     json.RawMessage
+	Kind             MessageKind
+	Role             string
+	Body             string
+	Seq              float64         // persistence seq when known (editMessageSeq)
+	EventType        string          // persistence type when Kind is tool / deliverables
+	Raw              json.RawMessage // full persistence event JSON
+	TurnSeq          float64         // owning turn/start seq for edit projection
+	TurnOpening      bool
+	Streaming        bool
+	Files            []string // deliverables/presented paths
 	// Model is the assistant source model when known (trajectory 模型 column).
 	Model string
 	// Args is tool-call arguments / structured payload for the inspector 参数 tab.

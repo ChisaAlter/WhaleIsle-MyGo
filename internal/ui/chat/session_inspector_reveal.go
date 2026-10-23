@@ -17,6 +17,8 @@ type inspectorChatReveal struct {
 	binding, session string
 	request          *InspectorTarget
 	rows             map[string]ui.Rect
+	emptyRows        map[string]bool
+	rejected         map[string]bool
 	viewport         ui.Rect
 	flow             ui.Rect
 	pending, waiting bool
@@ -48,6 +50,7 @@ func (n *InspectorNavigation) CancelReveal() {
 	n.reveal.started, n.reveal.quietSince, n.reveal.settledAt, n.reveal.flashAfter = time.Time{}, time.Time{}, time.Time{}, time.Time{}
 	n.reveal.scrollMoved = false
 	n.reveal.rect = ui.Rect{}
+	n.reveal.rejected = nil
 }
 
 func (r *inspectorChatReveal) cancelCenter() {
@@ -112,6 +115,11 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 		} else {
 			clear(r.rows)
 		}
+		if r.emptyRows == nil {
+			r.emptyRows = map[string]bool{}
+		} else {
+			clear(r.emptyRows)
+		}
 		r.viewport = inspectorChatIntersect(box, p.ClipBounds())
 	})
 	view.DrawOver(func(p *ui.Painter, _ ui.Rect) {
@@ -119,6 +127,16 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 			return
 		}
 		if r.centerQueued {
+			return
+		}
+		if r.emptyRows[n.Highlight] && n.Highlight != "" && r.request != nil {
+			if r.rejected == nil {
+				r.rejected = map[string]bool{}
+			}
+			r.rejected[n.Highlight] = true
+			r.cancelCenter()
+			n.Target = r.request
+			c.Services().Invalidate()
 			return
 		}
 		if r.locating {
@@ -209,6 +227,8 @@ func inspectorChatRowGeometry(c *ui.Context, m Model, msgID string, root ui.Elem
 		return
 	}
 	root.DrawOver(func(p *ui.Painter, box ui.Rect) {
+		contentW, contentH := box.W-left-right, box.H-top-bottom
+		n.reveal.emptyRows[msgID] = contentW <= 0 || contentH <= 0
 		flow := inspectorChatIntersect(box, p.ClipBounds())
 		if flow.W > 0 && flow.H > 0 {
 			if n.reveal.flow.W <= 0 {

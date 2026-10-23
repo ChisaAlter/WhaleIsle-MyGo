@@ -1,0 +1,26 @@
+﻿{
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ParentProcessId":  8544,
+                          "Name":  "Whale Isle.exe",
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ParentProcessId":  20012,
+                          "Name":  "node.exe",
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "nativeFixtureProcesses":  [
+
+                               ],
+    "listeners":  [
+                      {
+                          "LocalPort":  3080,
+                          "OwningProcess":  16008
+                      }
+                  ],
+    "newModelRequests":  0
+}

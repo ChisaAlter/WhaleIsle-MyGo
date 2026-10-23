@@ -312,7 +312,7 @@ func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.Ra
 		id = newRequestID()
 		a.rows[index] = id
 	}
-	msg := assistantBlockMessage(Message{ID: id, TurnSeq: s.editTurnSeq, Streaming: true, EventTime: block.time}, block)
+	msg := assistantBlockMessage(Message{ID: id, TurnSeq: s.editTurnSeq, Streaming: true, EventTime: block.time, ConversationTurn: &a.Turn, ConversationStep: &a.Step}, block)
 	for i := range s.messages {
 		if s.messages[i].ID == id {
 			s.messages[i] = msg
