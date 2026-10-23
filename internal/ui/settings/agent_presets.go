@@ -132,7 +132,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 					count++
 					label := agentPresetSettingsLabel(row)
 					_, description := agentPresetDisplay(row)
-					card := ui.Column(c.Key("preset-row/"+row.ID)).Width(cardWidth).Height(170).MinWidth(0).Gap(0).
+					card := ui.Column(c.Key("preset-row/"+row.ID)).Width(cardWidth).Height(156).MinWidth(0).Gap(0).
 						Radius(12).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .18)).Background(c.Theme().Background)
 					card.Children(func() {
 						main := ui.Button(c, "").Label(providerCopy("选择默认", "Choose default") + " · " + label).MinHeight(82).FillWidth().MinWidth(0).Padding(14).BorderWidth(0).Background(ui.Transparent).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
