@@ -165,7 +165,7 @@ func View(c *ui.Context, m Model) {
 			scroll = ui.Local(transcript, "inspector-scroll", func() ui.ScrollState { return ui.ScrollState{} })
 		}
 		transcript.TrackScroll(scroll)
-		inspectorChatViewport(c, m, transcript, scroll)
+		inspectorChatViewport(c, m, transcript, list)
 		if m.FullColumnViewport {
 			transcript.ScrollbarInsets(0, -3, 0, 0)
 		}

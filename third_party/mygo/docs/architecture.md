@@ -1444,6 +1444,14 @@ either.
   scroll bar's thumb keeps the content's size of when it was grabbed until
   it is let go, as rows measured meanwhile change it, and a frame that
   moved a list whose `Visible` or `AtEnd` the view read builds another.
+  `ScrollToAnimated` (`ui/list_motion.go`) measures the target before
+  applying its first offset and advances during layout with the app's duration
+  and easing. A keyed target follows row changes, the final layout aligns its
+  measured box, and reduced motion resolves immediately. `StopScrollAnimation`
+  stops future writes without queuing a position that would override the
+  interrupting input. `Context.ObserveInput` (`ui/input_observer.go`) offers
+  passive window-wide pointer/scroll/key-press observation before control
+  dispatch; registrations belong to the final view pass and clear on close.
   Rows built as a list lays out handle their input as the view's do,
   which `layoutTree` then forgets, asking for a frame if they changed
   anything, and lays out what they put in the overlay. Rows a `ScrollTo`

@@ -1,0 +1,22 @@
+{
+  "highlight": "",
+  "max": 2525.5747,
+  "reveal": {
+    "ageMs": -1,
+    "locating": false,
+    "moving": false,
+    "pending": false,
+    "rect": {
+      "X": 0,
+      "Y": 0,
+      "W": 0,
+      "H": 0
+    },
+    "scale": 1.5,
+    "settling": false,
+    "waiting": false
+  },
+  "scroll": 2525.5747,
+  "targetPending": false,
+  "time": "2026-10-24T03:45:16.0585517+08:00"
+}

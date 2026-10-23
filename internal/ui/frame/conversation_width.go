@@ -11,7 +11,6 @@ type conversationWidthGesture struct {
 	handles                       [2]ui.Handle
 	binding, side                 string
 	origin, base, preview, column float32
-	scroll                        ui.ScrollState
 }
 
 func resolvedConversationWidth(column, preference float32) float32 {
@@ -60,7 +59,7 @@ func conversationWidthRails(column, content float32) (left, right, width float32
 	width = max(float32(0), min(float32(10), margin-48))
 	return max(float32(0), margin-24-width), min(column, margin+content+24), width
 }
-func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, content float32, active bool) {
+func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, content float32, active bool, scroll *ui.ScrollState) {
 	if m.Sizes == nil {
 		return
 	}
@@ -68,9 +67,6 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 	g := &s.transcriptGesture
 	if g.binding != m.FileBindingID || !active {
 		g.side = ""
-		if g.binding != m.FileBindingID {
-			g.scroll = ui.ScrollState{}
-		}
 		g.binding = m.FileBindingID
 	}
 	if !active {
@@ -79,9 +75,6 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 	column := body.Bounds().W
 	if column <= 0 {
 		column = s.Center
-	}
-	if m.ChatList != nil {
-		c.Resolve(m.ChatList.Handle).TrackScroll(&g.scroll)
 	}
 	left, right, width := conversationWidthRails(column, min(content, max(float32(0), column-64)))
 	if width <= 0 {
@@ -126,11 +119,10 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 					return true
 				}
 			case ui.InputScroll:
-				if ev.Mods&ui.Ctrl != 0 || ev.DY == 0 || m.ChatList == nil {
+				if ev.Mods&ui.Ctrl != 0 || ev.DY == 0 || m.ChatList == nil || scroll == nil {
 					return false
 				}
-				m.ChatList.FollowEnd = false
-				g.scroll.Y += ev.DY
+				scroll.Y += ev.DY
 				return true
 			}
 			return false

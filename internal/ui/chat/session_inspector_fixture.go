@@ -15,5 +15,5 @@ func InspectorRevealFixtureState(n *InspectorNavigation) map[string]any {
 	if !r.started.IsZero() {
 		age = float64(time.Since(r.started)) / float64(time.Millisecond)
 	}
-	return map[string]any{"pending": r.pending, "locating": r.locating, "waiting": r.waiting, "ageMs": age, "rect": r.rect}
+	return map[string]any{"pending": r.pending, "locating": r.locating, "waiting": r.waiting, "ageMs": age, "rect": r.rect, "moving": r.centerList != nil && r.centerList.ScrollAnimating(), "scale": r.scale, "settling": !r.settledAt.IsZero()}
 }

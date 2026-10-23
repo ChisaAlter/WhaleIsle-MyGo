@@ -65,6 +65,7 @@ type engine struct {
 	public          *Context
 	arena           *elementOwner
 	handleChecks    bool
+	inputObservers  []func(InputEvent)
 	afterInputs     []inputAction
 	inputs          []*node
 	inputAt         int
@@ -733,6 +734,8 @@ func (rt *engine) armTimer() {
 
 func (rt *engine) close() {
 	rt.closed = true
+	clear(rt.inputObservers)
+	rt.inputObservers = nil
 	rt.decorations.clearPointer()
 	clear(rt.focusFields)
 	rt.focusFields = nil

@@ -26,6 +26,7 @@ func inspectorRevealFixture(t *testing.T, afterPaint ...func()) (*ui.Tester, *In
 		m.Snapshot.Messages = append(m.Snapshot.Messages, session.Message{ID: fmt.Sprint(i), Seq: float64(i + 1)})
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
+		list.Key = func(i int) any { return m.Snapshot.Messages[i].ID }
 		prepareSessionInspector(*m, m.Snapshot.Messages, nil, list)
 		if len(afterPaint) > 1 {
 			afterPaint[1]()
@@ -33,7 +34,7 @@ func inspectorRevealFixture(t *testing.T, afterPaint ...func()) (*ui.Tester, *In
 		ui.Column(c).Fill().Background(ui.RGB(255, 255, 255)).Children(func() {
 			ui.Box(c).Height(40).FillWidth()
 			view := ui.List(c, list, len(m.Snapshot.Messages)).Fill().TrackScroll(scroll)
-			inspectorChatViewport(c, *m, view, scroll)
+			inspectorChatViewport(c, *m, view, list)
 			view.Rows(func(row ui.ListRow) {
 				id := m.Snapshot.Messages[row.Index].ID
 				box := ui.Column(row.Context).Height(60).FillWidth().Padding(0, 20)
@@ -124,6 +125,7 @@ func TestInspectorDeferredCenterResolvesCurrentKeyAndCancellation(t *testing.T) 
 			n.Target = &InspectorTarget{ID: "25"}
 			tt.Frame()
 			if action == "prepend" {
+				tt.SetTime(time.Unix(7000, 0).Add(2 * time.Second))
 				if scroll.Y != 2000 {
 					t.Fatalf("prepend centered old ordinal: %+v", scroll)
 				}
@@ -179,30 +181,37 @@ func TestInspectorCenterReprojectionAfterPreparationUsesFinalOrdinal(t *testing.
 	}
 	n.Target = &InspectorTarget{ID: "25"}
 	tt.Frame()
+	tt.SetTime(time.Unix(7000, 0).Add(2 * time.Second))
 	if scroll.Y != 2000 {
 		t.Fatalf("final build did not resolve target ordinal: %+v", scroll)
 	}
 }
 
-func TestInspectorRevealCentersOffscreenThenWaitsForQuietAndExpires(t *testing.T) {
+func TestInspectorRevealAnimatesOffscreenThenFlashesAtScrollEnd(t *testing.T) {
 	tt, n, scroll, list, _ := inspectorRevealFixture(t)
 	list.ScrollToOffset(100)
 	tt.Frame()
 	n.Target = &InspectorTarget{ID: "25"}
 	tt.Frame()
-	if scroll.Y != 1400 || !n.reveal.started.IsZero() || !n.reveal.waiting {
+	if scroll.Y != 100 || !n.reveal.started.IsZero() || !n.reveal.waiting || !list.ScrollAnimating() {
 		t.Fatalf("offscreen center/settlement: scroll=%+v reveal=%+v", scroll, n.reveal)
 	}
 	now := time.Unix(7000, 0)
-	tt.SetTime(now.Add(149 * time.Millisecond))
-	if !n.reveal.started.IsZero() {
-		t.Fatal("flashed before quiet")
+	duration := inspectorChatScrollDuration(1300)
+	tt.SetTime(now.Add(duration / 2))
+	if !n.reveal.started.IsZero() || scroll.Y <= 100 || scroll.Y >= 1400 {
+		t.Fatalf("not animating through intermediate offset: %+v", scroll)
 	}
-	tt.SetTime(now.Add(150 * time.Millisecond))
+	tt.SetTime(now.Add(duration))
+	if !n.reveal.started.IsZero() {
+		t.Fatal("flash started in final scrolling frame")
+	}
+	tt.SetTime(now.Add(duration + time.Millisecond))
+	tt.SetTime(now.Add(duration + 2*time.Millisecond))
 	if n.reveal.started.IsZero() || n.reveal.rect != (ui.Rect{X: 20, Y: 140, W: 260, H: 60}) {
 		t.Fatalf("final centered rectangle not used: %+v", n.reveal)
 	}
-	tt.SetTime(now.Add(850 * time.Millisecond))
+	tt.SetTime(now.Add(duration + 702*time.Millisecond))
 	if !n.reveal.started.IsZero() || n.Highlight != "" {
 		t.Fatal("expired flash retained")
 	}

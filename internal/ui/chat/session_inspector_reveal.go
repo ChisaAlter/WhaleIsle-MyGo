@@ -14,20 +14,24 @@ const inspectorChatScrollQuiet = 150 * time.Millisecond
 // The reveal owns a separate window overlay. Its captured rectangle never
 // changes transcript layout, and stays fixed for the lifetime of one flash.
 type inspectorChatReveal struct {
-	binding, session   string
-	request            *InspectorTarget
-	rows               map[string]ui.Rect
-	viewport           ui.Rect
-	flow               ui.Rect
-	pending, waiting   bool
-	locating           bool
-	centerQueued       bool
-	centerList         *ui.ListState
-	centerFrom, offset float32
-	lastScroll         float32
-	quietSince         time.Time
-	started            time.Time
-	rect               ui.Rect
+	binding, session string
+	request          *InspectorTarget
+	rows             map[string]ui.Rect
+	viewport         ui.Rect
+	flow             ui.Rect
+	pending, waiting bool
+	locating         bool
+	centerQueued     bool
+	centerCommitted  bool
+	centerList       *ui.ListState
+	offset, scale    float32
+	lastScroll       float32
+	scrollMoved      bool
+	quietSince       time.Time
+	settledAt        time.Time
+	flashAfter       time.Time
+	started          time.Time
+	rect             ui.Rect
 }
 
 // CancelReveal releases an Inspector-owned flash or deferred landing. Cached
@@ -40,16 +44,17 @@ func (n *InspectorNavigation) CancelReveal() {
 	n.Target = nil
 	n.Highlight = ""
 	n.reveal.request = nil
-	n.reveal.pending, n.reveal.waiting, n.reveal.locating, n.reveal.centerQueued = false, false, false, false
-	n.reveal.started, n.reveal.quietSince = time.Time{}, time.Time{}
+	n.reveal.pending, n.reveal.waiting, n.reveal.locating, n.reveal.centerQueued, n.reveal.centerCommitted = false, false, false, false, false
+	n.reveal.started, n.reveal.quietSince, n.reveal.settledAt, n.reveal.flashAfter = time.Time{}, time.Time{}, time.Time{}, time.Time{}
+	n.reveal.scrollMoved = false
 	n.reveal.rect = ui.Rect{}
 }
 
 func (r *inspectorChatReveal) cancelCenter() {
 	if r.centerList != nil {
-		// A center requested in a discarded build pass must not outlive
-		// its gesture. Freeze at the last painted offset before layout.
-		r.centerList.ScrollToOffset(r.centerFrom)
+		// Stop future writes without queuing an offset that would swallow
+		// the wheel or key event currently interrupting the navigation.
+		r.centerList.StopScrollAnimation()
 		r.centerList = nil
 	}
 }
@@ -89,15 +94,18 @@ func inspectorChatNavigation(m Model) *InspectorNavigation {
 	return n
 }
 
-func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, scroll *ui.ScrollState) {
+func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.ListState) {
 	n := inspectorChatNavigation(m)
 	if n == nil {
 		return
 	}
 	r := &n.reveal
+	inspectorChatRevealInput(c, n)
 	view.Draw(func(p *ui.Painter, box ui.Rect) {
-		r.centerList = nil
-		r.offset = scroll.Y
+		r.offset, r.scale = list.ScrollOffset(), p.Scale()
+		if r.centerList != nil {
+			r.centerCommitted = true
+		}
 		r.flow = ui.Rect{}
 		if r.rows == nil {
 			r.rows = map[string]ui.Rect{}
@@ -129,13 +137,43 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, scroll *ui.S
 			return
 		}
 		if r.waiting {
-			if r.quietSince.IsZero() || r.lastScroll != scroll.Y {
-				r.lastScroll, r.quietSince = scroll.Y, p.Now()
+			if r.quietSince.IsZero() {
+				r.quietSince = p.Now()
 			}
-			if delay := inspectorChatScrollQuiet - p.Now().Sub(r.quietSince); delay > 0 {
-				p.After(delay)
+			if y := list.ScrollOffset(); y != r.lastScroll {
+				r.lastScroll, r.quietSince, r.scrollMoved = y, p.Now(), true
+				r.settledAt = time.Time{}
+			}
+			if list.ScrollAnimating() {
 				return
 			}
+			// No-op scrolling has no scrollend. Release it after the same
+			// quiet fallback as the browser; actual motion ends explicitly.
+			if !r.scrollMoved {
+				if d := inspectorChatScrollQuiet - p.Now().Sub(r.quietSince); d > 0 {
+					p.After(d)
+					return
+				}
+			}
+			if r.scrollMoved {
+				if r.settledAt.IsZero() {
+					r.settledAt = p.Now()
+					p.AnimationFrame()
+					return
+				}
+				if !p.Now().After(r.settledAt) {
+					p.AnimationFrame()
+					return
+				}
+			}
+			r.centerList, r.waiting = nil, false
+			r.flashAfter = p.Now()
+			p.AnimationFrame()
+			return
+		}
+		if !r.flashAfter.IsZero() && !p.Now().After(r.flashAfter) {
+			p.AnimationFrame()
+			return
 		}
 		box := inspectorChatIntersect(r.rows[n.Highlight], r.viewport)
 		if box.W <= 0 || box.H <= 0 {

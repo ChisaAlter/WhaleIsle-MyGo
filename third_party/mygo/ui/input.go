@@ -15,6 +15,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		// Whatever the event changes, the next frame builds anew.
 		rt.redraw = false
 	}
+	rt.observeInput(ev)
 	x, y := float32(ev.X), float32(ev.Y)
 	if rt.insp.pointer(rt, ev, x, y) {
 		return true

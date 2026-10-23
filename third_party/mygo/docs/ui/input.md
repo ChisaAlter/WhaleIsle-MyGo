@@ -59,6 +59,18 @@ row.Children(func() {
 })
 ```
 
+## Window input observation
+
+`c.ObserveInput(func(ev ui.InputEvent))` observes pointer presses, wheel/touchpad
+scrolling and key presses anywhere in the window before controls, shortcuts,
+scrollbars and toolkit inspection handle them. It cannot consume an event.
+Pointer coordinates are window DIPs, unlike the element-relative coordinates of
+`HandleInput`. Zero wheel deltas and consumed keys are still reported. Register
+while building a view: only the final pass's observers stay until the next build
+or window close. A callback that changes visible state should invalidate the
+window; a temporary operation should also check its current lifetime in the
+callback, since paint-only animation frames do not rebuild registrations.
+
 ## The keyboard focus
 
 `Focusable` elements take the focus when clicked, and Tab and Shift+Tab

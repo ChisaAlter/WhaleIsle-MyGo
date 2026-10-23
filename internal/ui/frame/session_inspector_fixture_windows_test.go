@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -86,13 +87,18 @@ func TestMain(m *testing.M) {
 		for i := range source.Records {
 			source.Records[i].ChatID = fmt.Sprintf("answer-%.0f", source.Records[i].Seq)
 		}
+		prefix := os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")
+		trace := os.Getenv("INSPECTOR_NATIVE_FIXTURE_TRACE") == "1"
+		writeMetrics := func(suffix string, now time.Time) {
+			metrics, _ := json.MarshalIndent(map[string]any{"time": now.Format(time.RFC3339Nano), "scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation)}, "", "  ")
+			if err := os.WriteFile(prefix+suffix, metrics, 0600); err != nil {
+				panic(err)
+			}
+		}
 		view := ui.View(func(c *ui.Context) {
 			theme.ApplyInterface(c)
 			if c.Shortcut(0, ui.KeyF9) {
-				metrics, _ := json.MarshalIndent(map[string]any{"scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation)}, "", "  ")
-				if err := os.WriteFile(os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")+"-metrics.json", metrics, 0600); err != nil {
-					panic(err)
-				}
+				writeMetrics("-metrics.json", time.Now())
 			}
 			ui.Row(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
 				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
@@ -100,6 +106,10 @@ func TestMain(m *testing.M) {
 					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() { ui.Text(c, "Composer seat") })
 				})
 				ui.Column(c).Width(680).FillHeight().Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })
+			}).DrawOver(func(painter *ui.Painter, _ ui.Rect) {
+				if trace {
+					writeMetrics("-frame.json", painter.Now())
+				}
 			})
 		})
 		mygo.App.WhenReady(func() {

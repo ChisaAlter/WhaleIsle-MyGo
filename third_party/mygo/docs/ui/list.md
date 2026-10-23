@@ -113,6 +113,20 @@ clamps to the content bounds; use it to preserve measured geometry across folds.
 `Visible` returns the first and last rows in view and `AtEnd` whether the
 end shows, to load more as the list nears the end of what was loaded.
 
+`ScrollToAnimated(row, align, ui.ScrollAnimation{Duration: duration, Ease: ease})`
+measures the target without jumping to it, then moves over display frames. The
+`Duration` callback receives the resolved distance in DIPs and can be called
+again if the first frame changes layout; it should be a pure function. `Ease`
+maps elapsed progress from 0 to 1. A nil duration callback, a nonpositive duration or desktop
+reduced motion makes the movement immediate. The target follows `Key` through
+insertions and disappears with it. Intermediate measurements refine the target;
+the last layout aligns the measured row exactly. Another scroll request or an
+external offset change stops the animation. Call once per navigation.
+`StopScrollAnimation()` stops future writes without adding an offset request, so
+an interrupting wheel/key event still scrolls normally. `ScrollAnimating()`
+reports pending/moving navigation; `ScrollOffset()` returns the last layout's
+vertical offset, independent of the currently bound `ScrollState`.
+
 A chat:
 
 ```go

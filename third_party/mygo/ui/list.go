@@ -103,6 +103,7 @@ type ListState struct {
 	wroteY  float64
 	req     listRequest
 	heights listHeights
+	motion  *listScrollMotion
 	// width, gap and padTop are those the rows were placed with: the width
 	// of the rows, the gap between them, and where the first starts below
 	// the list's top. border is its top border.
@@ -158,23 +159,26 @@ type listRowID struct {
 // the list scrolls as the frame is laid out, to where the row is once it
 // is measured.
 func (s *ListState) ScrollTo(row int, align Align) {
+	s.StopScrollAnimation()
 	s.req = listRequest{set: true, row: row, align: align}
 }
 
 // ScrollIntoView scrolls the list as little as shows row whole, as
 // Element.ScrollIntoView does an element.
 func (s *ListState) ScrollIntoView(row int) {
+	s.StopScrollAnimation()
 	s.req = listRequest{set: true, row: row, near: true}
 }
 
 // ScrollToEnd scrolls the list to its end, where FollowEnd follows it
 // again.
-func (s *ListState) ScrollToEnd() { s.req = listRequest{set: true, end: true} }
+func (s *ListState) ScrollToEnd() { s.StopScrollAnimation(); s.req = listRequest{set: true, end: true} }
 
 // ScrollToOffset sets the vertical offset in DIPs after the rows are measured.
 // It takes priority over key anchoring when the app preserves a measured visual
 // position across folding or replacing rows. The content bounds clamp y.
 func (s *ListState) ScrollToOffset(y float32) {
+	s.StopScrollAnimation()
 	s.req = listRequest{set: true, offset: true, y: float64(max(0, y))}
 }
 
@@ -270,7 +274,8 @@ type listFrame struct {
 	at map[int]int
 	// rb is the row being built (Context.row), kept here rather than
 	// allocated for each row.
-	rb rowBuild
+	rb          rowBuild
+	layoutDepth int
 }
 
 type listRow struct {
@@ -374,6 +379,9 @@ func buildList(c *context, e, owner *node, s *ListState, n int, row func(i int),
 // items moving, the user or the app scrolling.
 func (s *ListState) sync(e *node, n int) {
 	st, rt := e.st, e.c.rt
+	if m := s.motion; m != nil && m.completedFrame != 0 && m.completedFrame != rt.frame {
+		s.motion = nil
+	}
 	if !s.started {
 		s.started = true
 		s.following = s.FollowEnd
@@ -420,10 +428,12 @@ func (s *ListState) sync(e *node, n int) {
 		// has: the place stands, unless the app set the offset with a
 		// ScrollState this frame.
 		if st.movedIn(rt.frame) && !s.req.set {
+			s.StopScrollAnimation()
 			s.req = listRequest{set: true, offset: true, y: max(0, st.scrollY)}
 		}
 		st.list = s
 	case st.scrollY != s.wroteY && !s.req.set:
+		s.StopScrollAnimation()
 		// Scrolled by the wheel, the keys, the scroll bar or the app: a
 		// step moves the rows by as much, from the place; a jump goes
 		// where the heights known put the offset, or to the end.
@@ -440,6 +450,7 @@ func (s *ListState) sync(e *node, n int) {
 		s.following = s.FollowEnd && top > 0 && y >= top-0.5
 	}
 	s.wroteY = st.scrollY
+	s.syncMotion(n)
 }
 
 // anchorAt returns the row at the top of the view scrolled to y, and where
@@ -1028,6 +1039,8 @@ func (s *ListState) focusedRow(e *node, n int) (int, bool) {
 // it is empty, say.
 func (e *node) layoutList(w, h float32) {
 	f := e.list
+	f.layoutDepth++
+	defer func() { f.layoutDepth-- }()
 	s, n := f.s, f.n
 	hs := &s.heights
 	st := e.st
@@ -1084,6 +1097,27 @@ func (e *node) layoutList(w, h float32) {
 		return true
 	}
 	ht := hs.height
+	if req, ok := s.animatedRequest(e, ensure, top, bottom, padTop, padBottom); ok {
+		s.req = req
+	}
+
+	appliedReq, appliedMotion := s.req, s.motion
+	restart := func() bool {
+		if s.req == appliedReq && s.motion == appliedMotion {
+			return false
+		}
+		// A newly built row may replace or cancel this layout's request.
+		// Resolve it before committing an offset, retaining already measured rows.
+		if s.req == appliedReq && s.motion == nil {
+			s.req = listRequest{}
+		}
+		if f.layoutDepth < 8 {
+			e.layoutList(w, h)
+		} else {
+			e.c.rt.animating = true
+		}
+		return true
+	}
 
 	// The row placed first, and where its top goes.
 	var a int
@@ -1193,6 +1227,10 @@ func (e *node) layoutList(w, h float32) {
 		yLo -= ht(lo) + gap
 	}
 
+	if restart() {
+		return
+	}
+
 	// The offset: where the heights known put row lo's top, less where it
 	// shows.
 	content := max(padTop+padBottom+hs.top(n, gap)-gap, H)
@@ -1263,6 +1301,9 @@ func (e *node) layoutList(w, h float32) {
 		// offset moves before placing.
 		pinned.flags |= flagAbsolute
 	}
+	if restart() {
+		return
+	}
 	e.contentW, e.contentH = float64(cw+e.padX()), content
 	e.scrollBase = scroll
 	st.scrollTo(st.scrollX, scroll)
@@ -1285,6 +1326,7 @@ func (e *node) relayoutList(ch *node, y float64) {
 			req.row, req.hint = r.i, true
 		}
 	}
+	f.s.StopScrollAnimation()
 	f.s.req = req
 	layoutBox(e, e.w, e.h)
 }
@@ -1297,6 +1339,14 @@ func (s *ListState) remember(e *node, first, last int, atEnd bool, scroll float6
 		e.c.rt.animating = true
 	}
 	s.laidOut, s.wroteY, s.req, s.read = true, scroll, listRequest{}, false
+	if m := s.motion; m != nil {
+		// Rows measured after the animated request can translate the
+		// estimated coordinate system while preserving the visible anchor.
+		if m.completedFrame == 0 {
+			m.from += scroll - m.last
+		}
+		m.last = scroll
+	}
 	s.first, s.last, s.atEnd = first, last, atEnd
 	s.following = s.FollowEnd && atEnd
 	s.anchor, s.anchorKey = max(0, first), nil

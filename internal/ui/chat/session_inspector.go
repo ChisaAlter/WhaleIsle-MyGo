@@ -71,8 +71,8 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		r.cancelCenter()
 		n.Highlight = ""
 		r.request = n.Target
-		r.pending, r.waiting, r.locating, r.centerQueued = false, false, false, false
-		r.started, r.quietSince = time.Time{}, time.Time{}
+		r.pending, r.waiting, r.locating, r.centerQueued, r.centerCommitted = false, false, false, false, false
+		r.started, r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}, time.Time{}
 	}
 	n.Nodes = session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
 	n.Groups = map[string][]string{}
@@ -83,15 +83,20 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		}
 	}
 	if n.Target == nil {
-		if r.pending && (r.centerQueued || r.centerList != nil) {
+		if r.pending && (r.centerQueued || r.centerList != nil && !r.centerCommitted) {
 			r.centerQueued = false
 			// Resolve the key immediately before List layout. Source prepends
 			// or cancellation cannot leave a stale ordinal request in the list.
 			if i := inspectorMessageIndex(msgs, InspectorTarget{ID: n.Highlight}); i >= 0 {
-				r.centerList, r.centerFrom = list, r.offset
-				list.ScrollTo(i, ui.Center)
+				r.centerList = list
+				scale := r.scale
+				if scale <= 0 {
+					scale = 1
+				}
+				list.ScrollToAnimated(i, ui.Center, ui.ScrollAnimation{Duration: func(d float32) time.Duration { return inspectorChatScrollDuration(d * scale) }, Ease: inspectorChatScrollEase})
 				r.waiting = true
-				r.quietSince = time.Time{}
+				r.lastScroll, r.scrollMoved = r.offset, false
+				r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}
 			} else {
 				r.cancelCenter()
 				r.waiting = false

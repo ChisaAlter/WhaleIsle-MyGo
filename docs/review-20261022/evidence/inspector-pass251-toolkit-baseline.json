@@ -1,0 +1,16 @@
+{
+  "schema": "round107-toolkit-baseline/v1",
+  "baseCommit": "a7c58fda",
+  "method": "git archive HEAD:third_party/mygo into a newly created .devdata/r107-toolkit-baseline, no existing worktree files replaced; CGO_ENABLED=0; Go1.27.2 on Windows",
+  "currentWholeSuiteJob": "pwsh-785e927c080242fc",
+  "baselineJob": "pwsh-87eb69b310304a61",
+  "baselineCommand": "go test ./ui -run '^TestDiffFrameAllocs$|^TestShapeTextLineNativeFallbackAndGraphemeEllipsis$' -count=1; go test ./internal/windows -run '^TestPreviewCleanupOwnsOriginalDirectory$' -count=1; GOOS=linux go vet ./internal/linux",
+  "failures": [
+    {"name": "TestDiffFrameAllocs", "current": {"steady": 6, "sidebar": 146, "diff": 148, "withinMeasuredRows": 13}, "baseline": {"steady": 6, "sidebar": 146, "diff": 148, "withinMeasuredRows": 13}, "same": true},
+    {"name": "TestShapeTextLineNativeFallbackAndGraphemeEllipsis", "current": "width24 did not use the native one-line ellipsis", "baseline": "width24 did not use the native one-line ellipsis", "same": true},
+    {"name": "TestPreviewCleanupOwnsOriginalDirectory", "current": "removed a replacement directory; replacement marker no longer exists", "baseline": "removed a replacement directory; replacement marker no longer exists", "same": true},
+    {"name": "Linux vet", "current": "internal/linux/browser_seat.go:55:23 possible misuse of unsafe.Pointer", "baseline": "internal/linux/browser_seat.go:55:23 possible misuse of unsafe.Pointer", "same": true}
+  ],
+  "baselineExitCodes": {"ui": 1, "windows": 1, "linuxVet": 1},
+  "affectedChecks": "List/InputObserver/Scroll/Transition/Handle/Physical/Key/Scope tests pass; Windows toolkit build, vet, noinspector vet pass; Linux toolkit build passes. Chat/frame/theme and affected app vet pass. Full toolkit result is not clean."
+}

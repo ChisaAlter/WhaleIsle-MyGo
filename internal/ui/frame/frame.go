@@ -1038,7 +1038,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								})
 							}
-							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory")
+							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory", &enterScroll.scroll)
 						})
 						if paneTab != "trajectory" && (snap.PlanBoard.PlanMode || snap.PlanBoard.Goal != nil || len(snap.PlanBoard.Todos) > 0) {
 							// Goal/todo/takeover cards share the transcript content axis.

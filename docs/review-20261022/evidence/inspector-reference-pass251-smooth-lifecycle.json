@@ -1,0 +1,121 @@
+﻿{
+    "capturedAt":  "2026-10-23T19:15:22.6364830Z",
+    "referencePortsConfirmedFreeBeforeLaunch":  true,
+    "removedProcessEnvironment":  "ELECTRON_RUN_AS_NODE",
+    "launchExecutable":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+    "exactProfile":  "C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100",
+    "launchArguments":  [
+                            "--user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\"",
+                            "--remote-debugging-port=19444"
+                        ],
+    "ownedMainPid":  16764,
+    "ownedBackendPid":  8040,
+    "protectedMainPid":  20012,
+    "protectedBackendPid":  16008,
+    "protectedPort":  3080,
+    "exactOperatedPage":  "http://127.0.0.1:3083/",
+    "mainCommandBeforeTeardown":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --remote-debugging-port=19444 ",
+    "listenersBefore":  [
+                            {
+                                "LocalAddress":  "127.0.0.1",
+                                "LocalPort":  19444,
+                                "OwningProcess":  16764
+                            },
+                            {
+                                "LocalAddress":  "127.0.0.1",
+                                "LocalPort":  3083,
+                                "OwningProcess":  8040
+                            },
+                            {
+                                "LocalAddress":  "127.0.0.1",
+                                "LocalPort":  3080,
+                                "OwningProcess":  16008
+                            }
+                        ],
+    "validatedOwnedTree":  [
+                               {
+                                   "ProcessId":  16764,
+                                   "ParentProcessId":  21176,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --remote-debugging-port=19444 "
+                               },
+                               {
+                                   "ProcessId":  23288,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --type=gpu-process --force_high_performance_gpu --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --gpu-preferences=WAAAAAAAAADgAAAEAAAAAAAAAAAAAGAAQAAAAAAAAAADAAAAAAAAADgAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAoAAAAAAAAAAgAAAAAAAAAEAAAAAIAAAABAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --field-trial-handle=2336,i,27549244659473603,7378460862480503819,262144 --enable-features=PdfUseShowSaveFilePicker --disable-features=DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,NetworkServiceSandbox,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=2340,i,16311996169738407001,4365478450898800247,4 --trace-process-track-uuid=3190708988185955192 --mojo-platform-channel-handle=2328 /prefetch:2"
+                               },
+                               {
+                                   "ProcessId":  44488,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=zh-CN --service-sandbox-type=none --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --standard-schemes=pet --secure-schemes=pet --fetch-schemes=pet --streaming-schemes=pet --field-trial-handle=2336,i,27549244659473603,7378460862480503819,262144 --enable-features=PdfUseShowSaveFilePicker --disable-features=DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,NetworkServiceSandbox,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=2340,i,16311996169738407001,4365478450898800247,4 --trace-process-track-uuid=3190708989122997041 --mojo-platform-channel-handle=2524 /prefetch:11"
+                               },
+                               {
+                                   "ProcessId":  22928,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --type=renderer --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --standard-schemes=pet --secure-schemes=pet --fetch-schemes=pet --streaming-schemes=pet --app-user-model-id=ai.deepseek.harness.gui --app-path=\"C:\\软件\\Whale Isle\\resources\\app.asar\" --enable-sandbox --remote-debugging-port=19444 --video-capture-use-gpu-memory-buffer --lang=zh-CN --device-scale-factor=1.5 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=68431641037 --field-trial-handle=2336,i,27549244659473603,7378460862480503819,262144 --enable-features=PdfUseShowSaveFilePicker --disable-features=DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,NetworkServiceSandbox,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=2340,i,16311996169738407001,4365478450898800247,4 --trace-process-track-uuid=3190708990997080739 --mojo-platform-channel-handle=3436 --dshd-shell-role=launcher /prefetch:1"
+                               },
+                               {
+                                   "ProcessId":  21972,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --type=renderer --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --standard-schemes=pet --secure-schemes=pet --fetch-schemes=pet --streaming-schemes=pet --app-user-model-id=ai.deepseek.harness.gui --app-path=\"C:\\软件\\Whale Isle\\resources\\app.asar\" --enable-sandbox --remote-debugging-port=19444 --video-capture-use-gpu-memory-buffer --lang=zh-CN --device-scale-factor=1.5 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=68431852186 --field-trial-handle=2336,i,27549244659473603,7378460862480503819,262144 --enable-features=PdfUseShowSaveFilePicker --disable-features=DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,NetworkServiceSandbox,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=2340,i,16311996169738407001,4365478450898800247,4 --trace-process-track-uuid=3190708991934122588 --mojo-platform-channel-handle=3400 --dshd-shell-role=boot /prefetch:1"
+                               },
+                               {
+                                   "ProcessId":  8040,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe\" \"C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js\" web --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\install-dsh-plugin\\desktop-install.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\office\\desktop-office.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-market\\desktop-dsh-market.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --host 127.0.0.1 --port 3083 --no-open"
+                               },
+                               {
+                                   "ProcessId":  41304,
+                                   "ParentProcessId":  8040,
+                                   "ExecutablePath":  "C:\\WINDOWS\\system32\\conhost.exe",
+                                   "CommandLine":  "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+                               },
+                               {
+                                   "ProcessId":  21788,
+                                   "ParentProcessId":  16764,
+                                   "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe",
+                                   "CommandLine":  "\"C:\\软件\\Whale Isle\\Whale Isle.exe\" --type=renderer --user-data-dir=\"C:\\AI\\WhaleIsle-MyGo\\.devdata-ref-r100\" --standard-schemes=pet --secure-schemes=pet --fetch-schemes=pet --streaming-schemes=pet --app-user-model-id=ai.deepseek.harness.gui --app-path=\"C:\\软件\\Whale Isle\\resources\\app.asar\" --enable-sandbox --remote-debugging-port=19444 --video-capture-use-gpu-memory-buffer --lang=zh-CN --device-scale-factor=1.5 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=7 --launch-time-ticks=68437469645 --field-trial-handle=2336,i,27549244659473603,7378460862480503819,262144 --enable-features=PdfUseShowSaveFilePicker --disable-features=DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,NetworkServiceSandbox,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=2340,i,16311996169738407001,4365478450898800247,4 --trace-process-track-uuid=3190708992871164437 --mojo-platform-channel-handle=4740 --dshd-shell-role=harness --dshd-remote-feature=1 /prefetch:1"
+                               }
+                           ],
+    "teardownCommand":  "taskkill.exe /PID 16764 /T /F",
+    "teardownOutput":  [
+                           "SUCCESS: The process with PID 41304 (child process of PID 8040) has been terminated.",
+                           "SUCCESS: The process with PID 23288 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 44488 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 22928 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 21972 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 8040 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 21788 (child process of PID 16764) has been terminated.",
+                           "SUCCESS: The process with PID 16764 (child process of PID 21176) has been terminated."
+                       ],
+    "remainingOwnedProcesses":  [
+
+                                ],
+    "listenersAfter":  [
+                           {
+                               "LocalAddress":  "127.0.0.1",
+                               "LocalPort":  3080,
+                               "OwningProcess":  16008
+                           }
+                       ],
+    "protectedAfter":  [
+                           {
+                               "ProcessId":  20012,
+                               "ParentProcessId":  8544,
+                               "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                           },
+                           {
+                               "ProcessId":  16008,
+                               "ParentProcessId":  20012,
+                               "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                           }
+                       ],
+    "referencePortsFreeAfter":  true,
+    "protectedOriginalUnchanged":  true,
+    "passed":  true
+}

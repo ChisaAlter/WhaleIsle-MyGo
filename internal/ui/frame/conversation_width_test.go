@@ -68,7 +68,7 @@ func TestTranscriptWidthHandleDragAndKeyboard(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		body := ui.Box(c).Fill()
 		body.Children(func() {
-			paintConversationWidthControls(c, Model{Sizes: &s, FileBindingID: "session"}, body, s.conversationWidth(1200), true)
+			paintConversationWidthControls(c, Model{Sizes: &s, FileBindingID: "session"}, body, s.conversationWidth(1200), true, nil)
 		})
 	}, 1200, 400)
 	rail, ok := tt.Find("Resize transcript right")

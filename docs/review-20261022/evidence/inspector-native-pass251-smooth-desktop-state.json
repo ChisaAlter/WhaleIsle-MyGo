@@ -1,0 +1,146 @@
+﻿[
+    {
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2531.5332,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  2531.5332,
+                        "targetPending":  false,
+                        "time":  "2026-10-24T03:45:05.0302269+08:00"
+                    },
+        "phase":  "initial"
+    },
+    {
+        "phase":  "escape",
+        "late":  {
+                     "highlight":  "",
+                     "max":  2531.5332,
+                     "reveal":  {
+                                    "ageMs":  -1,
+                                    "locating":  false,
+                                    "moving":  false,
+                                    "pending":  false,
+                                    "rect":  {
+                                                 "X":  0,
+                                                 "Y":  0,
+                                                 "W":  0,
+                                                 "H":  0
+                                             },
+                                    "scale":  1.5,
+                                    "settling":  false,
+                                    "waiting":  false
+                                },
+                     "scroll":  2528.3567,
+                     "targetPending":  false,
+                     "time":  "2026-10-24T03:45:07.6453701+08:00"
+                 },
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2531.5332,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  2528.3567,
+                        "targetPending":  false,
+                        "time":  "2026-10-24T03:45:05.80288+08:00"
+                    },
+        "moving":  {
+                       "highlight":  "answer-7",
+                       "max":  2531.5332,
+                       "reveal":  {
+                                      "ageMs":  -1,
+                                      "locating":  false,
+                                      "moving":  true,
+                                      "pending":  true,
+                                      "rect":  {
+                                                   "X":  0,
+                                                   "Y":  0,
+                                                   "W":  0,
+                                                   "H":  0
+                                               },
+                                      "scale":  1.5,
+                                      "settling":  false,
+                                      "waiting":  true
+                                  },
+                       "scroll":  2528.3567,
+                       "targetPending":  false,
+                       "time":  "2026-10-24T03:45:05.5427485+08:00"
+                   }
+    },
+    {
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2525.5747,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  361.40805,
+                        "targetPending":  false,
+                        "time":  "2026-10-24T03:45:11.8751938+08:00"
+                    },
+        "phase":  "ordinary-key-landed"
+    },
+    {
+        "metrics":  {
+                        "highlight":  "",
+                        "max":  2525.5747,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  2525.5747,
+                        "targetPending":  false,
+                        "time":  "2026-10-24T03:45:16.0585517+08:00"
+                    },
+        "phase":  "latest"
+    }
+]
