@@ -28,7 +28,10 @@ func (p *SessionInspectorPaneState) applyInspectorFilter(query string) {
 	p.closeInspectorDetails()
 	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{}
+	previousOffset := p.tableY.Y
 	p.tableY = ui.ScrollState{}
+	p.scroll = inspectorScrollState{mode: "scroll", requestedFrom: &previousOffset}
+	p.pulse.revealKey = ""
 	p.list.ScrollTo(0, ui.Start)
 }
 func (p *SessionInspectorPaneState) cancelFilter() {

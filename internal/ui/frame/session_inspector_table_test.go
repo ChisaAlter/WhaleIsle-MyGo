@@ -130,7 +130,7 @@ func TestInspectorPinnedControlsKeepOneInstanceAndScrollOwner(t *testing.T) {
 	if !ok {
 		t.Fatal("missing pinned turn")
 	}
-	tt.Scroll(pinned.X+2, pinned.Y+2, 0, 180)
+	tt.Scroll(pinned.X+2, pinned.Y+2, 0, -600)
 	tt.Frame()
 	if p.tableY.Y <= 0 {
 		t.Fatal("wheel over pinned record did not reach vertical list")

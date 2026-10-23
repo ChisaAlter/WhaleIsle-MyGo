@@ -1,0 +1,102 @@
+{
+  "offset": 600,
+  "max": 600,
+  "viewportHeight": 565,
+  "padding": 385,
+  "records": [
+    {
+      "identity": "7",
+      "type": "private/before",
+      "top": -360.0000114440918
+    },
+    {
+      "identity": "8",
+      "type": "private/before",
+      "top": -330.0000114440918
+    },
+    {
+      "identity": "9",
+      "type": "private/before",
+      "top": -300.0000114440918
+    },
+    {
+      "identity": "10",
+      "type": "private/before",
+      "top": -270.0000114440918
+    },
+    {
+      "identity": "11",
+      "type": "private/before",
+      "top": -240.0000114440918
+    },
+    {
+      "identity": "12",
+      "type": "private/before",
+      "top": -210.0000114440918
+    },
+    {
+      "identity": "13",
+      "type": "private/before",
+      "top": -180.0000114440918
+    },
+    {
+      "identity": "14",
+      "type": "private/before",
+      "top": -150.00000381469727
+    },
+    {
+      "identity": "15",
+      "type": "private/before",
+      "top": -120.00000381469727
+    },
+    {
+      "identity": "16",
+      "type": "private/before",
+      "top": -90.00000381469727
+    },
+    {
+      "identity": "17",
+      "type": "private/before",
+      "top": -60.00000190734863
+    },
+    {
+      "identity": "18",
+      "type": "private/before",
+      "top": -30.000000953674316
+    },
+    {
+      "identity": "19",
+      "type": "private/before",
+      "top": 0
+    },
+    {
+      "identity": "20",
+      "type": "turn/start",
+      "top": 30.000003814697266,
+      "expanded": "true"
+    },
+    {
+      "identity": "21",
+      "type": "step/start",
+      "top": 60.000003814697266,
+      "expanded": "true"
+    },
+    {
+      "identity": "scroll-a",
+      "type": "assistant/live",
+      "top": 90.00000381469727,
+      "expanded": "true"
+    },
+    {
+      "identity": "0",
+      "type": "block-start",
+      "top": 120.00000381469727,
+      "expanded": "false"
+    },
+    {
+      "identity": "22",
+      "type": "private/next",
+      "top": 150.00000381469727
+    }
+  ]
+}

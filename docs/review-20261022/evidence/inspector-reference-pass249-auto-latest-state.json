@@ -1,0 +1,142 @@
+{
+  "offset": 245.3333282470703,
+  "max": 245,
+  "viewportHeight": 565,
+  "padding": 0,
+  "records": [
+    {
+      "identity": "0",
+      "type": "private/before",
+      "top": -215.3333396911621
+    },
+    {
+      "identity": "1",
+      "type": "private/before",
+      "top": -185.3333396911621
+    },
+    {
+      "identity": "2",
+      "type": "private/before",
+      "top": -155.3333396911621
+    },
+    {
+      "identity": "3",
+      "type": "private/before",
+      "top": -125.33333969116211
+    },
+    {
+      "identity": "4",
+      "type": "private/before",
+      "top": -95.33333587646484
+    },
+    {
+      "identity": "5",
+      "type": "private/before",
+      "top": -65.33333587646484
+    },
+    {
+      "identity": "6",
+      "type": "private/before",
+      "top": -35.3333346247673
+    },
+    {
+      "identity": "7",
+      "type": "private/before",
+      "top": -5.333333969116211
+    },
+    {
+      "identity": "8",
+      "type": "private/before",
+      "top": 24.666667938232422
+    },
+    {
+      "identity": "9",
+      "type": "private/before",
+      "top": 54.66666793823242
+    },
+    {
+      "identity": "10",
+      "type": "private/before",
+      "top": 84.66666793823242
+    },
+    {
+      "identity": "11",
+      "type": "private/before",
+      "top": 114.66667556762695
+    },
+    {
+      "identity": "12",
+      "type": "private/before",
+      "top": 144.66667556762695
+    },
+    {
+      "identity": "13",
+      "type": "private/before",
+      "top": 174.66667556762695
+    },
+    {
+      "identity": "14",
+      "type": "private/before",
+      "top": 204.66667556762695
+    },
+    {
+      "identity": "15",
+      "type": "private/before",
+      "top": 234.66667556762695
+    },
+    {
+      "identity": "16",
+      "type": "private/before",
+      "top": 264.66667556762695
+    },
+    {
+      "identity": "17",
+      "type": "private/before",
+      "top": 294.66667556762695
+    },
+    {
+      "identity": "18",
+      "type": "private/before",
+      "top": 324.66667556762695
+    },
+    {
+      "identity": "19",
+      "type": "private/before",
+      "top": 354.66667556762695
+    },
+    {
+      "identity": "20",
+      "type": "turn/start",
+      "top": 384.66667556762695,
+      "expanded": "true"
+    },
+    {
+      "identity": "21",
+      "type": "step/start",
+      "top": 414.66667556762695,
+      "expanded": "true"
+    },
+    {
+      "identity": "scroll-a",
+      "type": "assistant/live",
+      "top": 444.66667556762695,
+      "expanded": "true"
+    },
+    {
+      "identity": "0",
+      "type": "block-start",
+      "top": 474.66667556762695,
+      "expanded": "false"
+    },
+    {
+      "identity": "22",
+      "type": "private/next",
+      "top": 504.6667060852051
+    },
+    {
+      "identity": "23",
+      "type": "private/after",
+      "top": 534.6667060852051
+    }
+  ]
+}

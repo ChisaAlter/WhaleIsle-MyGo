@@ -1,0 +1,25 @@
+﻿{
+    "physicalScale":  1.5,
+    "viewportHeight":  566.1667,
+    "mode":  "manual",
+    "max":  600.00006,
+    "padding":  506.16675,
+    "offset":  600,
+    "records":  [
+                    {
+                        "key":  "event:18",
+                        "top":  -30,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:19",
+                        "top":  0,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:20",
+                        "top":  30,
+                        "height":  30
+                    }
+                ]
+}

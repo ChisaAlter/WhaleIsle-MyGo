@@ -1,0 +1,39 @@
+{
+  "source": "Installed InspectorTable through its real hooks and WAAPI",
+  "initialAnimations": 0,
+  "samples": [
+    {
+      "offset": 0,
+      "duration": 700,
+      "easing": "linear",
+      "color": "rgb(211, 226, 255)",
+      "keyframes": [
+        "rgb(211, 226, 255)",
+        "transparent"
+      ]
+    },
+    {
+      "offset": 350,
+      "duration": 700,
+      "easing": "linear",
+      "color": "rgba(211, 226, 255, 0.5)",
+      "keyframes": [
+        "rgb(211, 226, 255)",
+        "transparent"
+      ]
+    },
+    {
+      "offset": 700,
+      "duration": 700,
+      "easing": "linear",
+      "color": "rgba(0, 0, 0, 0)",
+      "keyframes": [
+        "rgb(211, 226, 255)",
+        "transparent"
+      ]
+    }
+  ],
+  "rawUpdateAnimations": 0,
+  "rawRevealAnimations": 1,
+  "reducedRevealAnimations": 0
+}

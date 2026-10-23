@@ -131,6 +131,7 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
+	p.scroll, p.pulse = inspectorScrollState{}, inspectorPulseState{}
 }
 func inspectorPickRecord(rows []session.InspectorRecord, target chat.InspectorTarget) string {
 	for _, r := range rows {
@@ -191,6 +192,10 @@ func (p *SessionInspectorPaneState) revealInspectorRow(key string, rows []sessio
 		p.setInspectorCollapsed(byKey[parent], false)
 	}
 	p.selected = key
+	p.scroll.mode, p.scroll.reset, p.scroll.anchor = "scroll", true, nil
+	previousOffset := p.tableY.Y
+	p.scroll.requestedFrom = &previousOffset
+	p.pulse.revealKey, p.pulse.revealGeneration = key, p.pulse.revealGeneration+1
 	p.list.FollowEnd = false
 	for i, row := range inspectorDisclosedRows(filtered, p.collapsed) {
 		if row.Key == key {

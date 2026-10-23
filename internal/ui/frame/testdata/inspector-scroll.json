@@ -1,0 +1,3293 @@
+[
+  {
+    "name": "open",
+    "frames": [
+      {
+        "type": "snapshot",
+        "records": [
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 0,
+              "time": 1792759200000,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 1,
+              "time": 1792759200100,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 2,
+              "time": 1792759200200,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 3,
+              "time": 1792759200300,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 4,
+              "time": 1792759200400,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 5,
+              "time": 1792759200500,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 6,
+              "time": 1792759200600,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 7,
+              "time": 1792759200700,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 8,
+              "time": 1792759200800,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 9,
+              "time": 1792759200900,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 10,
+              "time": 1792759201000,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 11,
+              "time": 1792759201100,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 12,
+              "time": 1792759201200,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 13,
+              "time": 1792759201300,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 14,
+              "time": 1792759201400,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 15,
+              "time": 1792759201500,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 16,
+              "time": 1792759201600,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 17,
+              "time": 1792759201700,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 18,
+              "time": 1792759201800,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "private/before",
+              "seq": 19,
+              "time": 1792759201900,
+              "data": {}
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "turn/start",
+              "seq": 20,
+              "time": 1792759202000,
+              "data": {
+                "turn": 1
+              }
+            }
+          },
+          {
+            "type": "event",
+            "event": {
+              "type": "step/start",
+              "seq": 21,
+              "time": 1792759202100,
+              "data": {
+                "turn": 1,
+                "step": 0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "start",
+          "revision": 1,
+          "attemptId": "scroll-a",
+          "startedAfterSeq": 21,
+          "turn": 1,
+          "step": 0
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 2,
+          "attemptId": "scroll-a",
+          "index": 0,
+          "time": 1792759203000,
+          "chunk": {
+            "type": "block-start",
+            "index": 0,
+            "blockType": "reasoning"
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 3,
+          "attemptId": "scroll-a",
+          "index": 1,
+          "time": 1792759203010,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 0 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 4,
+          "attemptId": "scroll-a",
+          "index": 2,
+          "time": 1792759203020,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 1 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 5,
+          "attemptId": "scroll-a",
+          "index": 3,
+          "time": 1792759203030,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 2 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 6,
+          "attemptId": "scroll-a",
+          "index": 4,
+          "time": 1792759203040,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 3 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 7,
+          "attemptId": "scroll-a",
+          "index": 5,
+          "time": 1792759203050,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 4 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 8,
+          "attemptId": "scroll-a",
+          "index": 6,
+          "time": 1792759203060,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 5 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 9,
+          "attemptId": "scroll-a",
+          "index": 7,
+          "time": 1792759203070,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 6 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 10,
+          "attemptId": "scroll-a",
+          "index": 8,
+          "time": 1792759203080,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 7 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 11,
+          "attemptId": "scroll-a",
+          "index": 9,
+          "time": 1792759203090,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 8 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 12,
+          "attemptId": "scroll-a",
+          "index": 10,
+          "time": 1792759203100,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 9 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 13,
+          "attemptId": "scroll-a",
+          "index": 11,
+          "time": 1792759203110,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 10 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 14,
+          "attemptId": "scroll-a",
+          "index": 12,
+          "time": 1792759203120,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 11 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 15,
+          "attemptId": "scroll-a",
+          "index": 13,
+          "time": 1792759203130,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 12 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 16,
+          "attemptId": "scroll-a",
+          "index": 14,
+          "time": 1792759203140,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 13 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 17,
+          "attemptId": "scroll-a",
+          "index": 15,
+          "time": 1792759203150,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 14 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 18,
+          "attemptId": "scroll-a",
+          "index": 16,
+          "time": 1792759203160,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 15 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 19,
+          "attemptId": "scroll-a",
+          "index": 17,
+          "time": 1792759203170,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 16 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 20,
+          "attemptId": "scroll-a",
+          "index": 18,
+          "time": 1792759203180,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 17 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 21,
+          "attemptId": "scroll-a",
+          "index": 19,
+          "time": 1792759203190,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 18 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 22,
+          "attemptId": "scroll-a",
+          "index": 20,
+          "time": 1792759203200,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 19 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 23,
+          "attemptId": "scroll-a",
+          "index": 21,
+          "time": 1792759203210,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 20 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 24,
+          "attemptId": "scroll-a",
+          "index": 22,
+          "time": 1792759203220,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 21 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 25,
+          "attemptId": "scroll-a",
+          "index": 23,
+          "time": 1792759203230,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 22 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 26,
+          "attemptId": "scroll-a",
+          "index": 24,
+          "time": 1792759203240,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 23 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 27,
+          "attemptId": "scroll-a",
+          "index": 25,
+          "time": 1792759203250,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 24 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 28,
+          "attemptId": "scroll-a",
+          "index": 26,
+          "time": 1792759203260,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 25 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 29,
+          "attemptId": "scroll-a",
+          "index": 27,
+          "time": 1792759203270,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 26 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 30,
+          "attemptId": "scroll-a",
+          "index": 28,
+          "time": 1792759203280,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 27 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 31,
+          "attemptId": "scroll-a",
+          "index": 29,
+          "time": 1792759203290,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 28 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 32,
+          "attemptId": "scroll-a",
+          "index": 30,
+          "time": 1792759203300,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 29 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 33,
+          "attemptId": "scroll-a",
+          "index": 31,
+          "time": 1792759203310,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 30 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 34,
+          "attemptId": "scroll-a",
+          "index": 32,
+          "time": 1792759203320,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 31 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 35,
+          "attemptId": "scroll-a",
+          "index": 33,
+          "time": 1792759203330,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 32 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 36,
+          "attemptId": "scroll-a",
+          "index": 34,
+          "time": 1792759203340,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 33 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 37,
+          "attemptId": "scroll-a",
+          "index": 35,
+          "time": 1792759203350,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 34 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 38,
+          "attemptId": "scroll-a",
+          "index": 36,
+          "time": 1792759203360,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 35 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 39,
+          "attemptId": "scroll-a",
+          "index": 37,
+          "time": 1792759203370,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 36 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 40,
+          "attemptId": "scroll-a",
+          "index": 38,
+          "time": 1792759203380,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 37 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 41,
+          "attemptId": "scroll-a",
+          "index": 39,
+          "time": 1792759203390,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 38 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 42,
+          "attemptId": "scroll-a",
+          "index": 40,
+          "time": 1792759203400,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 39 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 43,
+          "attemptId": "scroll-a",
+          "index": 41,
+          "time": 1792759203410,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 40 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 44,
+          "attemptId": "scroll-a",
+          "index": 42,
+          "time": 1792759203420,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 41 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 45,
+          "attemptId": "scroll-a",
+          "index": 43,
+          "time": 1792759203430,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 42 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 46,
+          "attemptId": "scroll-a",
+          "index": 44,
+          "time": 1792759203440,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 43 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 47,
+          "attemptId": "scroll-a",
+          "index": 45,
+          "time": 1792759203450,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 44 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 48,
+          "attemptId": "scroll-a",
+          "index": 46,
+          "time": 1792759203460,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 45 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 49,
+          "attemptId": "scroll-a",
+          "index": 47,
+          "time": 1792759203470,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 46 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 50,
+          "attemptId": "scroll-a",
+          "index": 48,
+          "time": 1792759203480,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 47 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 51,
+          "attemptId": "scroll-a",
+          "index": 49,
+          "time": 1792759203490,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 48 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 52,
+          "attemptId": "scroll-a",
+          "index": 50,
+          "time": 1792759203500,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 49 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 53,
+          "attemptId": "scroll-a",
+          "index": 51,
+          "time": 1792759203510,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 50 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 54,
+          "attemptId": "scroll-a",
+          "index": 52,
+          "time": 1792759203520,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 51 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 55,
+          "attemptId": "scroll-a",
+          "index": 53,
+          "time": 1792759203530,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 52 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 56,
+          "attemptId": "scroll-a",
+          "index": 54,
+          "time": 1792759203540,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 53 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 57,
+          "attemptId": "scroll-a",
+          "index": 55,
+          "time": 1792759203550,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 54 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 58,
+          "attemptId": "scroll-a",
+          "index": 56,
+          "time": 1792759203560,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 55 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 59,
+          "attemptId": "scroll-a",
+          "index": 57,
+          "time": 1792759203570,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 56 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 60,
+          "attemptId": "scroll-a",
+          "index": 58,
+          "time": 1792759203580,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 57 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 61,
+          "attemptId": "scroll-a",
+          "index": 59,
+          "time": 1792759203590,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 58 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 62,
+          "attemptId": "scroll-a",
+          "index": 60,
+          "time": 1792759203600,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 59 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 63,
+          "attemptId": "scroll-a",
+          "index": 61,
+          "time": 1792759203610,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 60 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 64,
+          "attemptId": "scroll-a",
+          "index": 62,
+          "time": 1792759203620,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 61 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 65,
+          "attemptId": "scroll-a",
+          "index": 63,
+          "time": 1792759203630,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 62 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 66,
+          "attemptId": "scroll-a",
+          "index": 64,
+          "time": 1792759203640,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 63 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 67,
+          "attemptId": "scroll-a",
+          "index": 65,
+          "time": 1792759203650,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 64 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 68,
+          "attemptId": "scroll-a",
+          "index": 66,
+          "time": 1792759203660,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 65 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 69,
+          "attemptId": "scroll-a",
+          "index": 67,
+          "time": 1792759203670,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 66 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 70,
+          "attemptId": "scroll-a",
+          "index": 68,
+          "time": 1792759203680,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 67 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 71,
+          "attemptId": "scroll-a",
+          "index": 69,
+          "time": 1792759203690,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 68 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 72,
+          "attemptId": "scroll-a",
+          "index": 70,
+          "time": 1792759203700,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 69 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 73,
+          "attemptId": "scroll-a",
+          "index": 71,
+          "time": 1792759203710,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 70 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 74,
+          "attemptId": "scroll-a",
+          "index": 72,
+          "time": 1792759203720,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 71 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 75,
+          "attemptId": "scroll-a",
+          "index": 73,
+          "time": 1792759203730,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 72 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 76,
+          "attemptId": "scroll-a",
+          "index": 74,
+          "time": 1792759203740,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 73 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 77,
+          "attemptId": "scroll-a",
+          "index": 75,
+          "time": 1792759203750,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 74 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 78,
+          "attemptId": "scroll-a",
+          "index": 76,
+          "time": 1792759203760,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 75 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 79,
+          "attemptId": "scroll-a",
+          "index": 77,
+          "time": 1792759203770,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 76 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 80,
+          "attemptId": "scroll-a",
+          "index": 78,
+          "time": 1792759203780,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 77 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 81,
+          "attemptId": "scroll-a",
+          "index": 79,
+          "time": 1792759203790,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 78 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 82,
+          "attemptId": "scroll-a",
+          "index": 80,
+          "time": 1792759203800,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 79 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 83,
+          "attemptId": "scroll-a",
+          "index": 81,
+          "time": 1792759203810,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 80 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 84,
+          "attemptId": "scroll-a",
+          "index": 82,
+          "time": 1792759203820,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 81 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 85,
+          "attemptId": "scroll-a",
+          "index": 83,
+          "time": 1792759203830,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 82 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 86,
+          "attemptId": "scroll-a",
+          "index": 84,
+          "time": 1792759203840,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 83 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 87,
+          "attemptId": "scroll-a",
+          "index": 85,
+          "time": 1792759203850,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 84 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 88,
+          "attemptId": "scroll-a",
+          "index": 86,
+          "time": 1792759203860,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 85 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 89,
+          "attemptId": "scroll-a",
+          "index": 87,
+          "time": 1792759203870,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 86 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 90,
+          "attemptId": "scroll-a",
+          "index": 88,
+          "time": 1792759203880,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 87 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 91,
+          "attemptId": "scroll-a",
+          "index": 89,
+          "time": 1792759203890,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 88 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 92,
+          "attemptId": "scroll-a",
+          "index": 90,
+          "time": 1792759203900,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 89 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 93,
+          "attemptId": "scroll-a",
+          "index": 91,
+          "time": 1792759203910,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 90 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 94,
+          "attemptId": "scroll-a",
+          "index": 92,
+          "time": 1792759203920,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 91 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 95,
+          "attemptId": "scroll-a",
+          "index": 93,
+          "time": 1792759203930,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 92 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 96,
+          "attemptId": "scroll-a",
+          "index": 94,
+          "time": 1792759203940,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 93 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 97,
+          "attemptId": "scroll-a",
+          "index": 95,
+          "time": 1792759203950,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 94 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 98,
+          "attemptId": "scroll-a",
+          "index": 96,
+          "time": 1792759203960,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 95 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 99,
+          "attemptId": "scroll-a",
+          "index": 97,
+          "time": 1792759203970,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 96 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 100,
+          "attemptId": "scroll-a",
+          "index": 98,
+          "time": 1792759203980,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 97 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 101,
+          "attemptId": "scroll-a",
+          "index": 99,
+          "time": 1792759203990,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 98 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 102,
+          "attemptId": "scroll-a",
+          "index": 100,
+          "time": 1792759204000,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 99 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 103,
+          "attemptId": "scroll-a",
+          "index": 101,
+          "time": 1792759204010,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 100 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 104,
+          "attemptId": "scroll-a",
+          "index": 102,
+          "time": 1792759204020,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 101 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 105,
+          "attemptId": "scroll-a",
+          "index": 103,
+          "time": 1792759204030,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 102 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 106,
+          "attemptId": "scroll-a",
+          "index": 104,
+          "time": 1792759204040,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 103 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 107,
+          "attemptId": "scroll-a",
+          "index": 105,
+          "time": 1792759204050,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 104 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 108,
+          "attemptId": "scroll-a",
+          "index": 106,
+          "time": 1792759204060,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 105 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 109,
+          "attemptId": "scroll-a",
+          "index": 107,
+          "time": 1792759204070,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 106 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 110,
+          "attemptId": "scroll-a",
+          "index": 108,
+          "time": 1792759204080,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 107 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 111,
+          "attemptId": "scroll-a",
+          "index": 109,
+          "time": 1792759204090,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 108 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 112,
+          "attemptId": "scroll-a",
+          "index": 110,
+          "time": 1792759204100,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 109 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 113,
+          "attemptId": "scroll-a",
+          "index": 111,
+          "time": 1792759204110,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 110 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 114,
+          "attemptId": "scroll-a",
+          "index": 112,
+          "time": 1792759204120,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 111 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 115,
+          "attemptId": "scroll-a",
+          "index": 113,
+          "time": 1792759204130,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 112 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 116,
+          "attemptId": "scroll-a",
+          "index": 114,
+          "time": 1792759204140,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 113 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 117,
+          "attemptId": "scroll-a",
+          "index": 115,
+          "time": 1792759204150,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 114 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 118,
+          "attemptId": "scroll-a",
+          "index": 116,
+          "time": 1792759204160,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 115 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 119,
+          "attemptId": "scroll-a",
+          "index": 117,
+          "time": 1792759204170,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 116 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 120,
+          "attemptId": "scroll-a",
+          "index": 118,
+          "time": 1792759204180,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 117 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 121,
+          "attemptId": "scroll-a",
+          "index": 119,
+          "time": 1792759204190,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 118 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 122,
+          "attemptId": "scroll-a",
+          "index": 120,
+          "time": 1792759204200,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 119 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 123,
+          "attemptId": "scroll-a",
+          "index": 121,
+          "time": 1792759204210,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 120 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 124,
+          "attemptId": "scroll-a",
+          "index": 122,
+          "time": 1792759204220,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 121 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 125,
+          "attemptId": "scroll-a",
+          "index": 123,
+          "time": 1792759204230,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 122 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 126,
+          "attemptId": "scroll-a",
+          "index": 124,
+          "time": 1792759204240,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 123 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 127,
+          "attemptId": "scroll-a",
+          "index": 125,
+          "time": 1792759204250,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 124 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 128,
+          "attemptId": "scroll-a",
+          "index": 126,
+          "time": 1792759204260,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 125 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 129,
+          "attemptId": "scroll-a",
+          "index": 127,
+          "time": 1792759204270,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 126 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 130,
+          "attemptId": "scroll-a",
+          "index": 128,
+          "time": 1792759204280,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 127 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 131,
+          "attemptId": "scroll-a",
+          "index": 129,
+          "time": 1792759204290,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 128 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 132,
+          "attemptId": "scroll-a",
+          "index": 130,
+          "time": 1792759204300,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 129 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 133,
+          "attemptId": "scroll-a",
+          "index": 131,
+          "time": 1792759204310,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 130 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 134,
+          "attemptId": "scroll-a",
+          "index": 132,
+          "time": 1792759204320,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 131 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 135,
+          "attemptId": "scroll-a",
+          "index": 133,
+          "time": 1792759204330,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 132 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 136,
+          "attemptId": "scroll-a",
+          "index": 134,
+          "time": 1792759204340,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 133 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 137,
+          "attemptId": "scroll-a",
+          "index": 135,
+          "time": 1792759204350,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 134 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 138,
+          "attemptId": "scroll-a",
+          "index": 136,
+          "time": 1792759204360,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 135 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 139,
+          "attemptId": "scroll-a",
+          "index": 137,
+          "time": 1792759204370,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 136 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 140,
+          "attemptId": "scroll-a",
+          "index": 138,
+          "time": 1792759204380,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 137 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 141,
+          "attemptId": "scroll-a",
+          "index": 139,
+          "time": 1792759204390,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 138 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 142,
+          "attemptId": "scroll-a",
+          "index": 140,
+          "time": 1792759204400,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 139 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 143,
+          "attemptId": "scroll-a",
+          "index": 141,
+          "time": 1792759204410,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 140 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 144,
+          "attemptId": "scroll-a",
+          "index": 142,
+          "time": 1792759204420,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 141 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 145,
+          "attemptId": "scroll-a",
+          "index": 143,
+          "time": 1792759204430,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 142 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 146,
+          "attemptId": "scroll-a",
+          "index": 144,
+          "time": 1792759204440,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 143 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 147,
+          "attemptId": "scroll-a",
+          "index": 145,
+          "time": 1792759204450,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 144 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 148,
+          "attemptId": "scroll-a",
+          "index": 146,
+          "time": 1792759204460,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 145 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 149,
+          "attemptId": "scroll-a",
+          "index": 147,
+          "time": 1792759204470,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 146 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 150,
+          "attemptId": "scroll-a",
+          "index": 148,
+          "time": 1792759204480,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 147 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 151,
+          "attemptId": "scroll-a",
+          "index": 149,
+          "time": 1792759204490,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 148 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 152,
+          "attemptId": "scroll-a",
+          "index": 150,
+          "time": 1792759204500,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 149 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 153,
+          "attemptId": "scroll-a",
+          "index": 151,
+          "time": 1792759204510,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 150 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 154,
+          "attemptId": "scroll-a",
+          "index": 152,
+          "time": 1792759204520,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 151 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 155,
+          "attemptId": "scroll-a",
+          "index": 153,
+          "time": 1792759204530,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 152 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 156,
+          "attemptId": "scroll-a",
+          "index": 154,
+          "time": 1792759204540,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 153 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 157,
+          "attemptId": "scroll-a",
+          "index": 155,
+          "time": 1792759204550,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 154 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 158,
+          "attemptId": "scroll-a",
+          "index": 156,
+          "time": 1792759204560,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 155 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 159,
+          "attemptId": "scroll-a",
+          "index": 157,
+          "time": 1792759204570,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 156 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 160,
+          "attemptId": "scroll-a",
+          "index": 158,
+          "time": 1792759204580,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 157 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 161,
+          "attemptId": "scroll-a",
+          "index": 159,
+          "time": 1792759204590,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 158 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 162,
+          "attemptId": "scroll-a",
+          "index": 160,
+          "time": 1792759204600,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 159 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 163,
+          "attemptId": "scroll-a",
+          "index": 161,
+          "time": 1792759204610,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 160 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 164,
+          "attemptId": "scroll-a",
+          "index": 162,
+          "time": 1792759204620,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 161 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 165,
+          "attemptId": "scroll-a",
+          "index": 163,
+          "time": 1792759204630,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 162 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 166,
+          "attemptId": "scroll-a",
+          "index": 164,
+          "time": 1792759204640,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 163 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 167,
+          "attemptId": "scroll-a",
+          "index": 165,
+          "time": 1792759204650,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 164 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 168,
+          "attemptId": "scroll-a",
+          "index": 166,
+          "time": 1792759204660,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 165 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 169,
+          "attemptId": "scroll-a",
+          "index": 167,
+          "time": 1792759204670,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 166 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 170,
+          "attemptId": "scroll-a",
+          "index": 168,
+          "time": 1792759204680,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 167 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 171,
+          "attemptId": "scroll-a",
+          "index": 169,
+          "time": 1792759204690,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 168 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 172,
+          "attemptId": "scroll-a",
+          "index": 170,
+          "time": 1792759204700,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 169 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 173,
+          "attemptId": "scroll-a",
+          "index": 171,
+          "time": 1792759204710,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 170 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 174,
+          "attemptId": "scroll-a",
+          "index": 172,
+          "time": 1792759204720,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 171 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 175,
+          "attemptId": "scroll-a",
+          "index": 173,
+          "time": 1792759204730,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 172 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 176,
+          "attemptId": "scroll-a",
+          "index": 174,
+          "time": 1792759204740,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 173 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 177,
+          "attemptId": "scroll-a",
+          "index": 175,
+          "time": 1792759204750,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 174 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 178,
+          "attemptId": "scroll-a",
+          "index": 176,
+          "time": 1792759204760,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 175 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 179,
+          "attemptId": "scroll-a",
+          "index": 177,
+          "time": 1792759204770,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 176 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 180,
+          "attemptId": "scroll-a",
+          "index": 178,
+          "time": 1792759204780,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 177 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 181,
+          "attemptId": "scroll-a",
+          "index": 179,
+          "time": 1792759204790,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 178 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 182,
+          "attemptId": "scroll-a",
+          "index": 180,
+          "time": 1792759204800,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 179 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 183,
+          "attemptId": "scroll-a",
+          "index": 181,
+          "time": 1792759204810,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 180 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 184,
+          "attemptId": "scroll-a",
+          "index": 182,
+          "time": 1792759204820,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 181 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 185,
+          "attemptId": "scroll-a",
+          "index": 183,
+          "time": 1792759204830,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 182 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 186,
+          "attemptId": "scroll-a",
+          "index": 184,
+          "time": 1792759204840,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 183 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 187,
+          "attemptId": "scroll-a",
+          "index": 185,
+          "time": 1792759204850,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 184 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 188,
+          "attemptId": "scroll-a",
+          "index": 186,
+          "time": 1792759204860,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 185 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 189,
+          "attemptId": "scroll-a",
+          "index": 187,
+          "time": 1792759204870,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 186 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 190,
+          "attemptId": "scroll-a",
+          "index": 188,
+          "time": 1792759204880,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 187 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 191,
+          "attemptId": "scroll-a",
+          "index": 189,
+          "time": 1792759204890,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 188 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 192,
+          "attemptId": "scroll-a",
+          "index": 190,
+          "time": 1792759204900,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 189 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 193,
+          "attemptId": "scroll-a",
+          "index": 191,
+          "time": 1792759204910,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 190 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 194,
+          "attemptId": "scroll-a",
+          "index": 192,
+          "time": 1792759204920,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 191 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 195,
+          "attemptId": "scroll-a",
+          "index": 193,
+          "time": 1792759204930,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 192 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 196,
+          "attemptId": "scroll-a",
+          "index": 194,
+          "time": 1792759204940,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 193 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 197,
+          "attemptId": "scroll-a",
+          "index": 195,
+          "time": 1792759204950,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 194 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 198,
+          "attemptId": "scroll-a",
+          "index": 196,
+          "time": 1792759204960,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 195 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 199,
+          "attemptId": "scroll-a",
+          "index": 197,
+          "time": 1792759204970,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 196 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 200,
+          "attemptId": "scroll-a",
+          "index": 198,
+          "time": 1792759204980,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 197 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 201,
+          "attemptId": "scroll-a",
+          "index": 199,
+          "time": 1792759204990,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 198 "
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 202,
+          "attemptId": "scroll-a",
+          "index": 200,
+          "time": 1792759205000,
+          "chunk": {
+            "type": "reasoning-delta",
+            "index": 0,
+            "text": "delta 199 "
+          }
+        }
+      },
+      {
+        "type": "event",
+        "event": {
+          "type": "private/next",
+          "seq": 22,
+          "time": 1792759202200,
+          "data": {
+            "turn": 1,
+            "step": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "closed",
+    "frames": [
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "revision": 203,
+          "attemptId": "scroll-a",
+          "index": 201,
+          "time": 1792759205010,
+          "chunk": {
+            "type": "block-end",
+            "index": 0,
+            "block": {
+              "type": "reasoning",
+              "text": "completed"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "appended",
+    "frames": [
+      {
+        "type": "event",
+        "event": {
+          "type": "private/after",
+          "seq": 23,
+          "time": 1792759202300,
+          "data": {
+            "turn": 1,
+            "step": 0
+          }
+        }
+      }
+    ]
+  }
+]

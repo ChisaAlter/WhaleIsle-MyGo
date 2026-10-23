@@ -51,6 +51,7 @@ func derivePalette(c Colors, s Seed) Colors {
 	c.BorderL4 = familyAlpha(s.Foreground, .16+f*.08)
 	c.Sidebar = mix(s.Background, s.Accent, strong)
 	c.Bubble = mix(s.Background, s.Accent, wash)
+	c.BubbleHighlight = mix(s.Background, s.Accent, strong)
 	c.InputMajor = c.Titlebar
 	c.ButtonFG = s.Foreground
 	for _, candidate := range []string{s.Background, "#ffffff", "#0f1115"} {
@@ -102,6 +103,8 @@ func derivePalette(c Colors, s Seed) Colors {
 			c.Sidebar = value
 		case "--dsw-specific-bubble":
 			c.Bubble = value
+		case "--dsw-specific-bubble-highlight":
+			c.BubbleHighlight = value
 		}
 	}
 	// The trigger aliases follow the platform sheet's light/dark selection;

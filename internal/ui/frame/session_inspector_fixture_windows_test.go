@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	}
 	phase := 0
 	var advance func()
-	if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "stream" {
+	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "stream" || scenario == "scroll" {
 		if err = json.Unmarshal(raw, &phases); err != nil {
 			panic(err)
 		}
@@ -78,6 +78,15 @@ func TestMain(m *testing.M) {
 		theme.ApplyInterface(c)
 		if advance != nil && c.Shortcut(0, ui.KeyF8) {
 			advance()
+		}
+		if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "scroll" {
+			if c.Shortcut(0, ui.KeyF9) {
+				prefix := os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")
+				metrics, _ := json.MarshalIndent(map[string]any{"offset": p.tableY.Y, "max": p.tableY.MaxY, "padding": p.scroll.layout.bottomPadding, "mode": p.scroll.mode, "phase": phase, "viewportHeight": float32(len(p.scroll.layout.rows)+1)*inspectorRowHeight + p.scroll.layout.bottomPadding - p.tableY.MaxY}, "", "  ")
+				if err := os.WriteFile(prefix+"-metrics.json", metrics, 0600); err != nil {
+					panic(err)
+				}
+			}
 		}
 		if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "interaction" {
 			// Emulate the Chat-owned pick handoff without connecting a Host.

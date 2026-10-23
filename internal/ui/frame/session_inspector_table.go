@@ -105,6 +105,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			button.Children(func() { inspectorText(c, label) })
 			if button.Clicked() {
 				p.list.FollowEnd = false
+				p.scroll.mode = "scroll"
 				if loadOlder != nil {
 					loadOlder()
 				}
@@ -114,8 +115,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 		button := inspectorButton(c.Key("inspector-latest"), label)
 		button.Children(func() { inspectorText(c, label) })
 		if button.Clicked() {
-			p.list.FollowEnd = true
-			p.list.ScrollToEnd()
+			p.followInspectorLatest()
 		}
 	})
 }
@@ -131,6 +131,7 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
+	p.scroll, p.pulse = inspectorScrollState{}, inspectorPulseState{}
 	p.detailsPercent = 0
 }
 
@@ -206,6 +207,7 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 	filtered := inspectorTypeRows(rows, p.Filter)
 	_, branches := inspectorDepths(filtered)
 	shown := inspectorDisclosedRows(filtered, p.collapsed)
+	p.pulse.updateRows(rows, c.Now())
 	viewport := ui.ScrollHorizontal(c.Key("inspector-table-x")).Label("Inspector table horizontal scroll").TrackScroll(&p.tableX).Grow(1).MinHeight(0).FillWidth()
 	width := max(float32(660), viewport.Bounds().W)
 	viewport.Children(func() {
@@ -213,6 +215,10 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 			inspectorTableHeader(c, p, rows, width, colors)
 			host := ui.Box(c.Key("inspector-table-rows")).Grow(1).MinHeight(0).FillWidth().Clip()
 			host.Children(func() {
+				bounds := host.Bounds()
+				p.scroll.viewportTop = bounds.Y
+				layout := p.prepareInspectorLayout(shown, branches, bounds.H)
+				host.DrawOver(func(_ *ui.Painter, r ui.Rect) { p.commitInspectorViewport(r.Y) })
 				pinned := inspectorStickyIndexes(shown, branches, p.tableY.Y)
 				isPinned := func(i int) bool {
 					for _, index := range pinned {
@@ -238,7 +244,7 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 					}
 					row := shown[i]
 					inspectorTableRow(c.Key("inspector-row:"+row.Key), p, row, depths[row.Key], branches[row.Key], false, width, colors)
-				}).TrackScroll(&p.tableY).Fill().Children(func() {
+				}).TrackScroll(&p.tableY).Fill().Padding(0, 0, layout.bottomPadding, 0).Children(func() {
 					if len(shown) == 0 {
 						ui.Text(c, paneLabel("暂无记录", "No records")).Padding(12).FontSize(11).TextColor(chrome.Color(colors.Muted))
 					}
@@ -253,6 +259,9 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 						})
 					}
 				})
+				// Programmatic end/center requests commit in List layout. Reading
+				// visibility schedules a new build if that changes its sticky band.
+				p.list.Visible()
 			})
 		})
 	})
@@ -294,6 +303,7 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 			ink = chrome.Color(colors.Accent)
 		}
 	}
+	p.pulse.paint(c, container, row, p.Mode == "chat-node", colors)
 	if context {
 		container.Tooltip(paneLabel("匹配记录的父级上下文", "Parent context of a matching record"))
 	}
@@ -316,8 +326,7 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 				button := inspectorButton(c.Key("disclosure"), label+" "+identity).Width(16).Shrink(0).Expanded(!inspectorRowCollapsed(row, p.collapsed))
 				button.Children(func() { inspectorText(c, marker).TextColor(ink) })
 				if button.Clicked() {
-					p.setInspectorCollapsed(row, !inspectorRowCollapsed(row, p.collapsed))
-					p.list.FollowEnd = false
+					p.toggleInspectorDisclosure(row, container.Bounds().Y-p.scroll.viewportTop)
 				}
 			}
 			button := inspectorButton(c.Key("record"), row.Type).MinWidth(0).Shrink(1)

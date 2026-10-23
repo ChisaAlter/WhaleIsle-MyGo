@@ -1,0 +1,97 @@
+{
+  "source": "Same normal follow frames through installed controller/model and native Store; actual-window disclosure and latest actions",
+  "tolerance": "2 DIP absolute viewport/offset/padding due to window and fractional CSS height;2 DIP row tops across separately sized/scaled window surfaces;30 DIP row heights",
+  "checks": [
+    {
+      "phase": "manual-open",
+      "pass": true,
+      "offset": {
+        "reference": 6215.33349609375,
+        "native": 6213.8335
+      },
+      "padding": {
+        "reference": 0,
+        "native": 0
+      },
+      "checkedRows": 21
+    },
+    {
+      "phase": "manual-fold",
+      "pass": true,
+      "offset": {
+        "reference": 600,
+        "native": 600
+      },
+      "padding": {
+        "reference": 505,
+        "native": 506.16675
+      },
+      "checkedRows": 1
+    },
+    {
+      "phase": "manual-latest",
+      "pass": true,
+      "offset": {
+        "reference": 95.33333587646484,
+        "native": 93.83331
+      },
+      "padding": {
+        "reference": 0,
+        "native": 0
+      },
+      "checkedRows": 17
+    },
+    {
+      "phase": "auto-open",
+      "pass": true,
+      "offset": {
+        "reference": 6215.33349609375,
+        "native": 6213.8335
+      },
+      "padding": {
+        "reference": 0,
+        "native": 0
+      },
+      "checkedRows": 21
+    },
+    {
+      "phase": "auto-closed",
+      "pass": true,
+      "offset": {
+        "reference": 600,
+        "native": 600
+      },
+      "padding": {
+        "reference": 385,
+        "native": 386.16675
+      },
+      "checkedRows": 5
+    },
+    {
+      "phase": "auto-appended",
+      "pass": true,
+      "offset": {
+        "reference": 600,
+        "native": 600
+      },
+      "padding": {
+        "reference": 355,
+        "native": 356.16675
+      },
+      "checkedRows": 6
+    },
+    {
+      "phase": "auto-latest",
+      "pass": true,
+      "offset": {
+        "reference": 245.3333282470703,
+        "native": 243.83331
+      },
+      "padding": {
+        "reference": 0,
+        "native": 0
+      },
+      "checkedRows": 17
+    }
+  ]
+}

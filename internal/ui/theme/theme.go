@@ -57,6 +57,7 @@ type Colors struct {
 	Pressed         string // --dsw-alias-interactive-bg-active
 	ButtonFG        string // --dsw-alias-label-primary-foreground / on-accent text
 	Bubble          string // --dsw-specific-bubble
+	BubbleHighlight string // --dsw-specific-bubble-highlight
 	InputMajor      string // --dsw-specific-input-major (glass-opacity 80%)
 	ButtonInfoFill  string // --dsw-alias-button-info-fill
 	ButtonInfoHover string // --dsw-alias-button-info-hover (also active)
@@ -116,6 +117,7 @@ var deepseekLight = Colors{
 	Pressed:           "rgba(38, 49, 72, 0.1)",
 	ButtonFG:          "#ffffff",
 	Bubble:            "rgb(237, 243, 254)",
+	BubbleHighlight:   "rgb(211, 226, 255)",
 	InputMajor:        "rgba(255, 255, 255, 0.8)",
 	ButtonInfoFill:    "rgb(65, 118, 230)",
 	ButtonInfoHover:   "rgb(122, 170, 255)",
@@ -150,13 +152,14 @@ var deepseekDark = Colors{
 	// Raised surface, --dsw-alias-bg-layer-1: rgb(35, 35, 36), which is also
 	// mixWallpaperSurfaces' dark "raised" fallback (neutral-bluish-875). The light
 	// half reads --dsw-alias-bg-module-platform instead (see deepseekLight.Field).
-	Field:    "#232324",
-	Sidebar:  "#1b1b1c",
-	Titlebar: "#232324",
-	Hover:    "rgba(255, 255, 255, 0.08)",
-	Pressed:  "rgba(255, 255, 255, 0.14)",
-	ButtonFG: "#0f1115",
-	Bubble:   "rgb(44, 44, 46)",
+	Field:           "#232324",
+	Sidebar:         "#1b1b1c",
+	Titlebar:        "#232324",
+	Hover:           "rgba(255, 255, 255, 0.08)",
+	Pressed:         "rgba(255, 255, 255, 0.14)",
+	ButtonFG:        "#0f1115",
+	Bubble:          "rgb(44, 44, 46)",
+	BubbleHighlight: "rgb(67, 69, 74)",
 	// --dsw-specific-input-major: color-mix(rgb(44, 44, 46) 80%, transparent).
 	InputMajor: "rgba(44, 44, 46, 0.8)",
 	// --dsw-alias-button-info-fill follows state-business-primary here

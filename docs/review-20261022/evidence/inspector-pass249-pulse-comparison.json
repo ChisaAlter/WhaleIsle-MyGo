@@ -1,0 +1,97 @@
+{
+  "source": "Installed InspectorTable WAAPI real browser screenshot vs native Tester production row painter with fixed clock; excludes typography",
+  "maxRGBTolerance": 1,
+  "checks": [
+    {
+      "ms": 0,
+      "mode": "session-log",
+      "referenceRGB": [
+        211,
+        226,
+        255
+      ],
+      "nativeRGB": [
+        211,
+        226,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 0,
+      "mode": "chat-node",
+      "referenceRGB": [
+        211,
+        226,
+        255
+      ],
+      "nativeRGB": [
+        211,
+        226,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 350,
+      "mode": "session-log",
+      "referenceRGB": [
+        233,
+        240,
+        255
+      ],
+      "nativeRGB": [
+        233,
+        240,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 350,
+      "mode": "chat-node",
+      "referenceRGB": [
+        233,
+        240,
+        255
+      ],
+      "nativeRGB": [
+        233,
+        240,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 700,
+      "mode": "session-log",
+      "referenceRGB": [
+        255,
+        255,
+        255
+      ],
+      "nativeRGB": [
+        255,
+        255,
+        255
+      ],
+      "passed": true
+    },
+    {
+      "ms": 700,
+      "mode": "chat-node",
+      "referenceRGB": [
+        255,
+        255,
+        255
+      ],
+      "nativeRGB": [
+        255,
+        255,
+        255
+      ],
+      "passed": true
+    }
+  ],
+  "reducedMotionWhite": true
+}

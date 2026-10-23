@@ -171,6 +171,13 @@ func (s *ListState) ScrollIntoView(row int) {
 // again.
 func (s *ListState) ScrollToEnd() { s.req = listRequest{set: true, end: true} }
 
+// ScrollToOffset sets the vertical offset in DIPs after the rows are measured.
+// It takes priority over key anchoring when the app preserves a measured visual
+// position across folding or replacing rows. The content bounds clamp y.
+func (s *ListState) ScrollToOffset(y float32) {
+	s.req = listRequest{set: true, offset: true, y: float64(max(0, y))}
+}
+
 // Visible returns the first and the last row the list showed in the last
 // frame, last below first when it showed none: a list nearing the end of
 // what was loaded, say, loads more. A frame that changes them builds

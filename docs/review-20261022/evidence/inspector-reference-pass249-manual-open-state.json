@@ -1,0 +1,187 @@
+{
+  "offset": 6215.33349609375,
+  "max": 6215,
+  "viewportHeight": 565,
+  "padding": 0,
+  "records": [
+    {
+      "identity": "20",
+      "type": "turn/start",
+      "top": 30.000003814697266,
+      "expanded": "true"
+    },
+    {
+      "identity": "21",
+      "type": "step/start",
+      "top": 60.000003814697266,
+      "expanded": "true"
+    },
+    {
+      "identity": "scroll-a",
+      "type": "assistant/live",
+      "top": 90.00000381469727,
+      "expanded": "true"
+    },
+    {
+      "identity": "0",
+      "type": "block-start",
+      "top": 120.00000381469727,
+      "expanded": "true"
+    },
+    {
+      "identity": "171",
+      "type": "reasoning-delta",
+      "top": -365.3333549499512
+    },
+    {
+      "identity": "172",
+      "type": "reasoning-delta",
+      "top": -335.3333549499512
+    },
+    {
+      "identity": "173",
+      "type": "reasoning-delta",
+      "top": -305.3333549499512
+    },
+    {
+      "identity": "174",
+      "type": "reasoning-delta",
+      "top": -275.3333396911621
+    },
+    {
+      "identity": "175",
+      "type": "reasoning-delta",
+      "top": -245.3333396911621
+    },
+    {
+      "identity": "176",
+      "type": "reasoning-delta",
+      "top": -215.3333396911621
+    },
+    {
+      "identity": "177",
+      "type": "reasoning-delta",
+      "top": -185.3333396911621
+    },
+    {
+      "identity": "178",
+      "type": "reasoning-delta",
+      "top": -155.3333396911621
+    },
+    {
+      "identity": "179",
+      "type": "reasoning-delta",
+      "top": -125.33333969116211
+    },
+    {
+      "identity": "180",
+      "type": "reasoning-delta",
+      "top": -95.33333587646484
+    },
+    {
+      "identity": "181",
+      "type": "reasoning-delta",
+      "top": -65.33333587646484
+    },
+    {
+      "identity": "182",
+      "type": "reasoning-delta",
+      "top": -35.3333346247673
+    },
+    {
+      "identity": "183",
+      "type": "reasoning-delta",
+      "top": -5.333333969116211
+    },
+    {
+      "identity": "184",
+      "type": "reasoning-delta",
+      "top": 24.666667938232422
+    },
+    {
+      "identity": "185",
+      "type": "reasoning-delta",
+      "top": 54.66666793823242
+    },
+    {
+      "identity": "186",
+      "type": "reasoning-delta",
+      "top": 84.66666793823242
+    },
+    {
+      "identity": "187",
+      "type": "reasoning-delta",
+      "top": 114.66667556762695
+    },
+    {
+      "identity": "188",
+      "type": "reasoning-delta",
+      "top": 144.66667556762695
+    },
+    {
+      "identity": "189",
+      "type": "reasoning-delta",
+      "top": 174.66667556762695
+    },
+    {
+      "identity": "190",
+      "type": "reasoning-delta",
+      "top": 204.66667556762695
+    },
+    {
+      "identity": "191",
+      "type": "reasoning-delta",
+      "top": 234.66667556762695
+    },
+    {
+      "identity": "192",
+      "type": "reasoning-delta",
+      "top": 264.66667556762695
+    },
+    {
+      "identity": "193",
+      "type": "reasoning-delta",
+      "top": 294.66667556762695
+    },
+    {
+      "identity": "194",
+      "type": "reasoning-delta",
+      "top": 324.66667556762695
+    },
+    {
+      "identity": "195",
+      "type": "reasoning-delta",
+      "top": 354.66667556762695
+    },
+    {
+      "identity": "196",
+      "type": "reasoning-delta",
+      "top": 384.66667556762695
+    },
+    {
+      "identity": "197",
+      "type": "reasoning-delta",
+      "top": 414.66667556762695
+    },
+    {
+      "identity": "198",
+      "type": "reasoning-delta",
+      "top": 444.66667556762695
+    },
+    {
+      "identity": "199",
+      "type": "reasoning-delta",
+      "top": 474.66667556762695
+    },
+    {
+      "identity": "200",
+      "type": "reasoning-delta",
+      "top": 504.6667060852051
+    },
+    {
+      "identity": "22",
+      "type": "private/next",
+      "top": 534.6667060852051
+    }
+  ]
+}

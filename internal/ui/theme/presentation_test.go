@@ -10,8 +10,8 @@ func TestConversationSemanticRolesMatchCurrentOriginal(t *testing.T) {
 		id   string
 		want map[string]string
 	}{
-		{IDDeepseekLight, map[string]string{"Bubble": "rgb(237, 243, 254)", "InputMajor": "rgba(255, 255, 255, 0.8)", "ButtonInfoFill": "rgb(65, 118, 230)", "SelectorFill": "rgb(245, 246, 247)"}},
-		{IDDeepseekDark, map[string]string{"Bubble": "rgb(44, 44, 46)", "InputMajor": "rgba(44, 44, 46, 0.8)", "ButtonInfoFill": "rgb(122, 170, 255)", "SelectorFill": "rgb(53, 54, 56)"}},
+		{IDDeepseekLight, map[string]string{"Bubble": "rgb(237, 243, 254)", "BubbleHighlight": "rgb(211, 226, 255)", "InputMajor": "rgba(255, 255, 255, 0.8)", "ButtonInfoFill": "rgb(65, 118, 230)", "SelectorFill": "rgb(245, 246, 247)"}},
+		{IDDeepseekDark, map[string]string{"Bubble": "rgb(44, 44, 46)", "BubbleHighlight": "rgb(67, 69, 74)", "InputMajor": "rgba(44, 44, 46, 0.8)", "ButtonInfoFill": "rgb(122, 170, 255)", "SelectorFill": "rgb(53, 54, 56)"}},
 	} {
 		v := reflect.ValueOf(Resolve(tc.id).Active(false))
 		for name, want := range tc.want {

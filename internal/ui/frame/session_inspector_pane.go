@@ -30,6 +30,8 @@ type SessionInspectorPaneState struct {
 	collapsed                                               map[string]inspectorDisclosure
 	list                                                    ui.ListState
 	tableX, tableY                                          ui.ScrollState
+	scroll                                                  inspectorScrollState
+	pulse                                                   inspectorPulseState
 	// pendingPick is an inspect request that arrived before this pane rendered
 	// its binding, e.g. a tool card clicked from the transcript.
 	pendingPick                         *chat.InspectorTarget

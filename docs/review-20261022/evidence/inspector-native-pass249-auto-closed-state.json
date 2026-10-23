@@ -1,0 +1,45 @@
+﻿{
+    "physicalScale":  1.5,
+    "viewportHeight":  566.1667,
+    "mode":  "tail",
+    "max":  600.00006,
+    "padding":  386.16675,
+    "offset":  600,
+    "records":  [
+                    {
+                        "key":  "event:18",
+                        "top":  -30,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:19",
+                        "top":  0,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:22",
+                        "top":  150,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:20",
+                        "top":  30,
+                        "height":  30
+                    },
+                    {
+                        "key":  "event:21",
+                        "top":  60,
+                        "height":  30
+                    },
+                    {
+                        "key":  "attempt:scroll-a",
+                        "top":  90,
+                        "height":  30
+                    },
+                    {
+                        "key":  "attempt:scroll-a/chunk:0",
+                        "top":  120,
+                        "height":  30
+                    }
+                ]
+}

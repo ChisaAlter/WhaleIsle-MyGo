@@ -107,6 +107,9 @@ widgets of your own that do the same.
 `ui.End` of the list, `ScrollIntoView(row)` scrolls as little as shows it,
 and `ScrollToEnd` scrolls to the end, rows not built yet included: the list
 scrolls as the frame is laid out, to where the row is once measured.
+`ScrollToOffset(y)` requests a vertical offset in DIPs after measurement,
+overriding key anchoring even when the numerical offset has not changed. It
+clamps to the content bounds; use it to preserve measured geometry across folds.
 `Visible` returns the first and last rows in view and `AtEnd` whether the
 end shows, to load more as the list nears the end of what was loaded.
 
