@@ -264,12 +264,37 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 	}
 	ui.Text(c, "壁纸图库与背景").Bold().TextColor(fg)
 	ui.Text(c, g.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	sources := []string{"收藏"}
+	labels := []string{providerCopy("收藏夹", "Favorites")}
+	ids := []string{"收藏"}
 	for _, s := range g.Prefs.Sources {
-		sources = append(sources, s.ID)
+		name := strings.TrimSpace(s.Name)
+		switch s.ID {
+		case "bing":
+			name = providerCopy("必应", "Bing")
+		case "wallhaven":
+			name = "Wallhaven"
+		default:
+			if name == "" {
+				name = s.ID
+			}
+		}
+		labels = append(labels, name)
+		ids = append(ids, s.ID)
+	}
+	selectedSource := labels[0]
+	for index, id := range ids {
+		if id == g.Source {
+			selectedSource = labels[index]
+		}
 	}
 	ui.Row(c).Wrap().Gap(8).Children(func() {
-		if ui.Select(c, &g.Source, sources).Changed() {
+		if ui.Select(c, &selectedSource, labels).Changed() {
+			for index, label := range labels {
+				if label == selectedSource {
+					g.Source = ids[index]
+					break
+				}
+			}
 			g.generation++
 			g.Busy = false
 			g.Items = nil
@@ -343,12 +368,12 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 		removed := false
 		s := g.Prefs.Sources[sourceIndex]
 		ui.Row(c).Wrap().Gap(8).Children(func() {
-			ui.TextInput(c, &g.Prefs.Sources[sourceIndex].Name).Label("来源名称")
+			ui.TextInput(c, &g.Prefs.Sources[sourceIndex].Name).Label("来源名称").Width(140).Shrink(0)
 			ui.Text(c, s.ID).FontSize(fonttheme.InterfaceSize(11))
 			if s.Kind == "catalog" {
-				ui.TextInput(c, &g.Prefs.Sources[sourceIndex].URL).Label("目录 URL")
+				ui.TextInput(c, &g.Prefs.Sources[sourceIndex].URL).Label("目录 URL").Grow(1).MinWidth(200)
 			}
-			if ui.Button(c, "保存来源").Clicked() {
+			if ui.Button(c, "保存来源").Height(30).Padding(0, 10).Clicked() {
 				if s.Kind == "catalog" {
 					if _, err := wallpapers.URL(g.Prefs.Sources[sourceIndex].URL); err != nil {
 						g.Status = err.Error()
@@ -359,7 +384,7 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 					g.commit()
 				}
 			}
-			if ui.Button(c, "移除来源").Clicked() {
+			if ui.Button(c, "移除来源").Height(30).Padding(0, 10).Clicked() {
 				out := []wallpapers.Source{}
 				for _, v := range g.Prefs.Sources {
 					if v.ID != s.ID {
@@ -380,9 +405,9 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 		}
 	}
 	ui.Row(c).Wrap().Gap(8).Children(func() {
-		ui.TextInput(c, &g.SourceName).Placeholder("来源名称")
-		ui.TextInput(c, &g.SourceURL).Placeholder("https://…/catalog.json").Grow(1)
-		if ui.Button(c, "添加来源").Clicked() {
+		ui.TextInput(c, &g.SourceName).Placeholder("来源名称").Width(140).Shrink(0)
+		ui.TextInput(c, &g.SourceURL).Placeholder("https://…/catalog.json").Grow(1).MinWidth(200)
+		if ui.Button(c, "添加来源").Height(30).Padding(0, 10).Clicked() {
 			count := 0
 			for _, s := range g.Prefs.Sources {
 				if s.Kind == "catalog" {
