@@ -118,7 +118,7 @@ func TestEmptyTranscriptCentersItsHintInsteadOfTopLeftLine(t *testing.T) {
 }
 
 func TestInternalStatusPhrasesStayOutOfTranscript(t *testing.T) {
-	for _, internal := range []string{"workspace ready: Whale Isle", "workspace ready", "session ready: abc", "session created", "agent preset selected", "prompt accepted"} {
+	for _, internal := range []string{"workspace ready: Whale Isle", "workspace ready", "session ready: abc", "session created", "agent preset selected", "prompt accepted", "session pinned", "prompt sent", "skill updated: demo"} {
 		if got := displayableAction(internal); got != "" {
 			t.Fatalf("internal phrase %q surfaced as %q", internal, got)
 		}
