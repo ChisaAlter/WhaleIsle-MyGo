@@ -177,6 +177,9 @@ func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitActio
 			ui.Text(c, a.label).SingleLine().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Text)
 		}
 	})
+	if disabled {
+		b = b.Opacity(.45)
+	}
 	if b.Clicked() {
 		captionRun(m, a.id)
 	}
