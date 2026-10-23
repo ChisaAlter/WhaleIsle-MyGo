@@ -13,6 +13,39 @@ import (
 	"whaleisle/internal/ui/widgets"
 )
 
+type petChoice struct {
+	value, zh, en string
+}
+
+// petChoiceSelect shows localized option labels while storing the Host's raw
+// enum value, so the page never displays "natural" or "balanced" to a user.
+func petChoiceSelect(c *ui.Context, current *string, label string, options []petChoice, disabled bool) bool {
+	labels := make([]string, 0, len(options)+1)
+	selected := ""
+	for _, option := range options {
+		text := providerCopy(option.zh, option.en)
+		labels = append(labels, text)
+		if option.value == *current {
+			selected = text
+		}
+	}
+	if selected == "" {
+		selected = *current
+		labels = append(labels, selected)
+	}
+	if !ui.Select(c, &selected, labels).Label(label).FillWidth().Disabled(disabled).Changed() {
+		return false
+	}
+	for _, option := range options {
+		if providerCopy(option.zh, option.en) == selected {
+			*current = option.value
+			return true
+		}
+	}
+	*current = selected
+	return true
+}
+
 type PetSettingsAccess struct {
 	AssistantEnabled   bool
 	AssistantAvailable bool
@@ -113,23 +146,30 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				if !found {
 					choices = append(choices, selected)
 				}
-				if ui.Select(c, &selected, choices).FillWidth().Label(label).Disabled(disabled).Changed() {
-					number, _ := strconv.ParseFloat(strings.TrimSuffix(selected, "%"), 64)
-					*value = number / 100
-					commit(field)
-				}
+				ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+					ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					if ui.Select(c, &selected, choices).FillWidth().Label(label).Disabled(disabled).Changed() {
+						number, _ := strconv.ParseFloat(strings.TrimSuffix(selected, "%"), 64)
+						*value = number / 100
+						commit(field)
+					}
+				})
 			}
 			percentage(providerCopy("体型", "Scale"), "scale", &p.Behavior.Scale, []string{"60%", "80%", "100%", "120%", "140%", "160%"})
 			percentage(providerCopy("不透明度", "Opacity"), "opacity", &p.Behavior.Opacity, []string{"30%", "50%", "70%", "85%", "100%"})
 		})
 		bodyPreferenceRow(c, "pet-personality", providerCopy("性格", "Personality"), providerCopy("影响台词与「聊聊」语气，助理人格跟随同一设置。", "Affects dialogue and quick-chat tone; the assistant uses the same personality."), fg, muted, func() {
-			if ui.Select(c, &p.Behavior.Personality, []string{"natural", "genki", "tsundere", "poison"}).FillWidth().Label(providerCopy("性格", "Personality")).Disabled(disabled).Changed() {
+			if petChoiceSelect(c, &p.Behavior.Personality, providerCopy("性格", "Personality"), []petChoice{
+				{"natural", "自然", "Natural"}, {"genki", "元气", "Energetic"}, {"tsundere", "傲娇", "Tsundere"}, {"poison", "毒舌", "Sharp-tongued"},
+			}, disabled) {
 				commit("personality")
 			}
 		})
 		bodyHeading(c, providerCopy("行为", "Behavior"), "", fg, muted)
 		bodyPreferenceRow(c, "pet-activity", providerCopy("活跃频率", "Activity"), providerCopy("驱动自言自语与乱逛的间隔。", "Controls the interval between self-talk and wandering."), fg, muted, func() {
-			if ui.Select(c, &p.Behavior.Activity, []string{"quiet", "balanced", "active"}).FillWidth().Label(providerCopy("活跃频率", "Activity")).Disabled(disabled).Changed() {
+			if petChoiceSelect(c, &p.Behavior.Activity, providerCopy("活跃频率", "Activity"), []petChoice{
+				{"quiet", "安静", "Quiet"}, {"balanced", "均衡", "Balanced"}, {"active", "活跃", "Active"},
+			}, disabled) {
 				commit("activity")
 			}
 		})
@@ -154,7 +194,9 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			} else if p.Behavior.ShiftToDrag {
 				selected = "shift"
 			}
-			if ui.Select(c, &selected, []string{"free", "shift", "locked"}).FillWidth().Label(providerCopy("拖拽方式", "Dragging")).Disabled(disabled).Changed() {
+			if petChoiceSelect(c, &selected, providerCopy("拖拽方式", "Dragging"), []petChoice{
+				{"free", "自由拖动", "Free"}, {"shift", "Shift 拖动", "Shift to drag"}, {"locked", "锁定位置", "Locked"},
+			}, disabled) {
 				p.Behavior.LockPosition = selected == "locked"
 				p.Behavior.ShiftToDrag = selected == "shift"
 				commit("drag")
