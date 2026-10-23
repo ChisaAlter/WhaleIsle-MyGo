@@ -382,7 +382,7 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	bodyHeading(c, providerCopy("字体与字号", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
 	render := func(role, label string, f *theme.FontPreference, family func(string) string, lo, hi float64, size bool) {
 		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() {
-			if ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")).Disabled(e.OnSave == nil).Changed() {
+			if ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")).Placeholder(providerCopy("系统字体", "System font")).Disabled(e.OnSave == nil).Changed() {
 				e.SaveAppearanceFont(role, *f)
 			}
 		})
