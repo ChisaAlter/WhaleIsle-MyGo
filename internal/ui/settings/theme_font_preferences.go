@@ -156,11 +156,32 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	ui.Column(c.Key("custom-theme-editor")).FillWidth().Gap(8).Children(func() {
 		customIDs := []string{""}
+		labels := []string{providerCopy("选择自定义主题", "Select custom theme")}
 		for _, f := range e.Draft.Custom {
 			customIDs = append(customIDs, f.ID)
+			name := strings.TrimSpace(f.Name)
+			if name == "" {
+				name = f.ID
+			}
+			labels = append(labels, name)
 		}
-		if ui.Select(c, &e.Selected, customIDs).FillWidth().Label(providerCopy("选择自定义主题", "Select custom theme")).Changed() && e.Selected != "" {
-			e.StartFamily(e.Draft.Family(e.Selected))
+		selected := 0
+		for index, id := range customIDs {
+			if id == e.Selected {
+				selected = index
+			}
+		}
+		selectedLabel := labels[selected]
+		if ui.Select(c, &selectedLabel, labels).FillWidth().Label(providerCopy("选择自定义主题", "Select custom theme")).Changed() {
+			for index, label := range labels {
+				if label == selectedLabel {
+					e.Selected = customIDs[index]
+					break
+				}
+			}
+			if e.Selected != "" {
+				e.StartFamily(e.Draft.Family(e.Selected))
+			}
 		}
 		ui.Row(c).Wrap().Gap(8).Children(func() {
 			if ui.Button(c, providerCopy("复制浅色主题", "Duplicate light theme")).Clicked() {

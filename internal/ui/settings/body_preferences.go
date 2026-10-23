@@ -115,7 +115,7 @@ func bodyDisclosure(c *ui.Context, key, title string, body func()) {
 	open := ui.Local(anchor, "open", func() bool { return false })
 	muted := c.Theme().TextMuted
 	anchor.Children(func() {
-		toggle := ui.Button(c, "").Label(title).FillWidth().Height(34).Padding(0, 8, 0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Tooltip(title)
+		toggle := ui.Button(c, "").Label(title).FillWidth().Height(34).Padding(0, 8, 0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
 		toggle.Children(func() {
 			if *open {
 				ui.Icon(c, bodyIcon("down")).Size(12, 12).TextColor(muted).PassThrough()

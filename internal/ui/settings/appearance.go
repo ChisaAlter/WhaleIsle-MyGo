@@ -81,8 +81,18 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if a.WallpaperPath == nil {
 			return
 		}
-		opts := append([]string{""}, a.WallpaperChoices...)
-		ui.Select(c, a.WallpaperPath, opts)
+		opts := append([]string{providerCopy("无壁纸", "None")}, a.WallpaperChoices...)
+		selected := providerCopy("无壁纸", "None")
+		if *a.WallpaperPath != "" {
+			selected = *a.WallpaperPath
+		}
+		if ui.Select(c, &selected, opts).Changed() {
+			if selected == providerCopy("无壁纸", "None") {
+				*a.WallpaperPath = ""
+			} else {
+				*a.WallpaperPath = selected
+			}
+		}
 		if len(a.WallpaperChoices) == 0 {
 			ui.Text(c, i18n.T(i18n.KeySettingsAppearanceWallpaperDir)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
