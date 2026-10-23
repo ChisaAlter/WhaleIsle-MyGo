@@ -396,7 +396,10 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				ui.Text(c, fmt.Sprintf("%.0f px", f.Size)).Width(44).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			})
 		}
-		ui.Text(c, providerCopy("预览 字体 Aa 0123", "Preview Aa 0123")).FillWidth().Font(family(f.Family)).FontSize(f.Size).TextColor(fg)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, providerCopy("预览", "Preview")).FontSize(11).TextColor(muted)
+			ui.Text(c, providerCopy("字体 Aa 0123", "Aa 0123 — the quick brown fox")).Font(family(f.Family)).FontSize(f.Size).TextColor(fg)
+		})
 	}
 	render("interface", providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily, 12, 22, true)
 	render("code", providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily, 10, 20, true)
