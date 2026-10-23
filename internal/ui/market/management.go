@@ -55,13 +55,19 @@ func showInstalledRow(m Model, row marketstore.Entry) bool {
 	return false
 }
 func managementFilters(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Row(c).Gap(8).Children(func() {
 		for _, f := range []struct{ id, zh, en string }{{"", i18n.T(i18n.KeyW4MarketAll), "All"}, {"updates", i18n.T(i18n.KeyW4MarketUpdatableUpdateHistory), "Updates"}, {"failed", i18n.T(i18n.KeyW4MarketFailedInterrupted), "Failed / interrupted"}} {
+			selected := m.Store.ManagementFilter() == f.id
 			label := marketText(f.zh, f.en)
-			if m.Store.ManagementFilter() == f.id {
+			if selected {
 				label = "● " + label
 			}
-			if ui.Button(c, label).Clicked() {
+			b := ui.Button(c, label).Selected(selected)
+			if selected {
+				b = b.Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.FG))
+			}
+			if b.Clicked() {
 				m.Store.SetManagementFilter(f.id)
 			}
 		}
