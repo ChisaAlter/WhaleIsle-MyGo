@@ -377,8 +377,11 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 			if m.InstallSpec != nil {
 				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
 			}
-			if !m.InstallBusy && ui.Button(c, btnLabel).Height(36).Padding(0, 16).Shrink(0).Clicked() && m.OnInstallSpec != nil && spec != "" {
-				m.OnInstallSpec(spec, allow)
+			if !m.InstallBusy {
+				install := ui.Button(c, btnLabel).Height(36).Padding(0, 16).Shrink(0).Disabled(spec == "")
+				if install.Clicked() && m.OnInstallSpec != nil && spec != "" {
+					m.OnInstallSpec(spec, allow)
+				}
 			}
 		})
 		if !m.InstallReady {
