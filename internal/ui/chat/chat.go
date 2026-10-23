@@ -432,6 +432,18 @@ var internalActionPrefixes = []string{
 	"workspace ready",
 	"session ready:",
 	"session ready",
+	"session created",
+	"session deleted",
+	"session archived",
+	"session unarchived",
+	"blank session",
+	"agent preset selected",
+	"prompt accepted",
+	"goal created",
+	"goal edited",
+	"creator task:",
+	"feedback saved",
+	"band ",
 }
 
 // displayableAction drops internal status phrases and keeps user-facing ones.
