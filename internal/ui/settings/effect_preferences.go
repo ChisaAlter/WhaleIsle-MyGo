@@ -334,7 +334,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			disabled: bodyHostDisabled(a) || !styleFound,
 			onOpen:   openSettings,
 		}, func() {
-			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, "", fg, muted, func() {
+			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, providerCopy("点击齿轮调整光效样式；开关控制是否启用。", "Use the cog to tune the effect; the switch only enables it."), fg, muted, func() {
 				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 					checked := enabled == "true"
 					if ui.Switch(c, &checked).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
