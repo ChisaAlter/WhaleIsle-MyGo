@@ -45,6 +45,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		client.SetSelectionUTF16(selectUTF16Start, selectUTF16End)
 	}
 	placeholder := composerPlaceholder(m)
+	client.accessPlaceholder = placeholder
 	left, right, top := draftInsets(m.Hero)
 	client.setInsets(left, right, top)
 	minH := float32(36)
@@ -268,6 +269,14 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		}
 	case ui.InputCommand:
 		switch ev.Text {
+		case "undo", "redo":
+			if client.marked != nil {
+				return false
+			}
+			if ev.Text == "redo" {
+				return client.Redo()
+			}
+			return client.Undo()
 		case "selectAll":
 			client.selection = ui.TextInputSelection{Range: ui.TextInputRange{End: ui.UTF16Len(client.text())}}
 		case "copy", "cut":

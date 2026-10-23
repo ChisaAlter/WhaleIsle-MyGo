@@ -81,6 +81,38 @@ application-owned text field.
 It demonstrates composition, pointer selection, Edit-menu commands and custom
 rendering. It is a primitive example, not an editor implementation.
 
+## Accessibility
+
+An application-owned field can opt into accessible reading and editing by also
+implementing `ui.AccessibleTextInputClient`:
+
+```go
+func (input *myInput) TextInputAccessibility() ui.TextInputAccessibility {
+    return ui.TextInputAccessibility{Multiline: true, Placeholder: "Write a message"}
+}
+```
+
+Give the element `Role(ui.RoleTextField)` (or `RoleComboBox`) and a `Label`.
+The engine queries its full document and primary selection only after assistive
+technology asks for the tree. It can read a field without keyboard focus. The
+snapshot includes marked text, as the client contract does. The accessibility
+backends convert selection units from the client's UTF-16 offsets.
+
+Setting the value calls the registered client's `ReplaceText` once with the
+whole-document range `[0, max int)`. The client must clamp that range to its
+document. This keeps its undo history and mutation callbacks; it does not select
+text or simulate typing. Native composition is reset so a pending commit cannot
+reuse offsets from the replaced document. Removed, hidden, inert, modal-obscured
+and inactive router-page fields reject stale accessibility writes.
+
+`TextInputAccessibility` also describes `ReadOnly` and `Password`. A password
+field's value and selection are withheld and its document is not queried; it
+uses the same whole-document replacement range. These are accessibility
+properties, so the client still enforces its editing and native-query policy.
+Legacy clients without the optional interface keep their explicit element
+`Value` and do not offer an accessible write action. Windows currently exposes
+ValuePattern, matching the built-in text controls; this does not add TextPattern.
+
 ## Client contract
 
 Pass a pointer to a client kept across frames. `HandleTextInput(nil)` (including

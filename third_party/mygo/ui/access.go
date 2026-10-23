@@ -411,6 +411,7 @@ func (rt *engine) accessDetails(e *node, n *platform.AccessNode) {
 	if st := e.st; (st.vw <= 0 || st.vh <= 0) && e.w > 0 && e.h > 0 {
 		n.States |= platform.AccessOffscreen
 	}
+	accessTextInput(e, n, disabled)
 	if disabled {
 		return
 	}
@@ -520,7 +521,11 @@ func (rt *engine) accessAction(ev platform.SurfaceEvent) {
 			s.expand = -1
 		}
 	case platform.AccessSetValue:
-		if s.editor == nil || s.flags&flagEditable == 0 || s.editor.readOnly {
+		if s.editor == nil {
+			rt.accessSetTextInputValue(s, ev.Text)
+			return
+		}
+		if s.flags&flagEditable == 0 || s.editor.readOnly {
 			return
 		}
 		rt.focusOn(s)

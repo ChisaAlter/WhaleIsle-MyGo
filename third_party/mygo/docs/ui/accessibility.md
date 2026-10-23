@@ -66,6 +66,11 @@ if app.some {
 date := ui.ButtonBase(c).Role(ui.RolePopUpButton).Label("Due").Value(app.due.Format("Jan 2")).Expanded(app.picking)
 ```
 
+Custom fields attached with `HandleTextInput` can implement
+[`AccessibleTextInputClient`](text-input-client.md#accessibility) to expose their
+full value, primary selection, placeholder and editing properties. Accessible
+value changes go through the client's own replacement and undo policy.
+
 ## Descriptions and errors
 
 `Description` tells more than the name, as help text read after it, as a

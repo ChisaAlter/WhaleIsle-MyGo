@@ -34,6 +34,9 @@ panics where the second key was given, as apps only log it.
   element. `tt.Compose` shows the composition of an input method,
   `tt.Command` performs an edit command of the menus, such as `"copy"`, and
   `tt.TextCaret` returns where input methods would compose.
+- **Accessible editing.** `tt.SetValue("Document", "New text")` replaces a
+  labeled text field through the same accessibility action used by screen
+  readers. It returns an error if the field is missing, disabled or read-only.
 - **Menus.** `tt.RightClick` opens a context menu, which `tt.Menu` lists and
   `tt.ChooseMenuItem("Move to", "Archive")` chooses from.
 - **The window.** `tt.SetSize`, `tt.SetScale`, `tt.SetDark` and

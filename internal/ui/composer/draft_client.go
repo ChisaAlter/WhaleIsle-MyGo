@@ -50,6 +50,7 @@ type DraftClient struct {
 	// Native text input retains this adapter identity across frames so an
 	// ordinary repaint does not release an active IME composition.
 	input              typingInputClient
+	accessPlaceholder  string
 	typing             typingEffects
 	Draft              *string
 	selection          ui.TextInputSelection
@@ -97,6 +98,12 @@ func (c *DraftClient) Sync() {
 		c.shape()
 	}
 	c.ensure()
+}
+
+// TextInputAccessibility shares the same document and undo owner with native
+// input while letting assistive technology read and replace the whole draft.
+func (c *DraftClient) TextInputAccessibility() ui.TextInputAccessibility {
+	return ui.TextInputAccessibility{Multiline: true, Placeholder: c.accessPlaceholder}
 }
 
 // SetSelectionUTF16 sets the primary selection in UTF-16 document offsets.
