@@ -52,7 +52,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 					selected := *a.Theme == mode.id || mode.id == "system" && *a.Theme == "deepseek" || mode.id == "deepseek.light" && *a.Theme == "light" || mode.id == "deepseek.dark" && *a.Theme == "dark"
 					button := ui.Button(c, "").Label(providerCopy(mode.zh, mode.en)).Basis(180).Grow(1).MinWidth(0).Padding(20, 32).Radius(16).Border(.5, c.Theme().Border).Background(ui.Transparent).Selected(selected).Disabled(a.OnSetTheme == nil)
 					if selected {
-						button.Background(c.Theme().Surface).BorderColor(ui.Hex("#adb2b8"))
+						button.Background(c.Theme().SurfaceHover).Border(1.5, fg)
 					} else if button.Hovered() {
 						button.Background(c.Theme().SurfaceHover)
 					}
