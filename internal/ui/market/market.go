@@ -225,7 +225,7 @@ func marketText(zh, en string) string {
 func marketHistoryRow(c *ui.Context, h marketstore.InstallHistory, fg, muted, danger, border ui.Color) {
 	result, color := marketHistoryResult(h.Result, fg, danger)
 	action := marketHistoryAction(h.Action)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(10, 12).Radius(8).Border(.5, border).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(10, 12).Margin(0, 0, 6, 0).Radius(8).Border(.5, border).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, h.Plugin).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg).SingleLine()
 			ui.Text(c, result).FontSize(theme.InterfaceSize(11)).TextColor(color)
