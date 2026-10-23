@@ -1,0 +1,38 @@
+﻿{
+    "build":  "pass255",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "bytes":  85267456,
+    "files":  [
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                      "Hash":  "D7BB8177520B7B9DC7A77BB294F3CA52C398377520DAE9C8910AA2988E28A768"
+                  },
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass255.exe",
+                      "Hash":  "D7BB8177520B7B9DC7A77BB294F3CA52C398377520DAE9C8910AA2988E28A768"
+                  }
+              ],
+    "fixtureHash":  "B602341785217DAE46B2EC5662D5127AC22F8C0B26B1006165D74CA6816D56E4",
+    "nativeFixturesRemaining":  0,
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ParentProcessId":  8544,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ParentProcessId":  20012,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "listeners":  [
+                      {
+                          "LocalPort":  3080,
+                          "OwningProcess":  16008
+                      }
+                  ],
+    "newModelRequests":  0,
+    "nativeDesktopHover":  "partial-environment-blocked"
+}

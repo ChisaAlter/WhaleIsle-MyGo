@@ -66,6 +66,7 @@ type engine struct {
 	arena           *elementOwner
 	handleChecks    bool
 	inputObservers  []func(InputEvent)
+	keyCaptures     []func(InputEvent) bool
 	afterInputs     []inputAction
 	inputs          []*node
 	inputAt         int
@@ -736,6 +737,8 @@ func (rt *engine) close() {
 	rt.closed = true
 	clear(rt.inputObservers)
 	rt.inputObservers = nil
+	clear(rt.keyCaptures)
+	rt.keyCaptures = nil
 	rt.decorations.clearPointer()
 	clear(rt.focusFields)
 	rt.focusFields = nil

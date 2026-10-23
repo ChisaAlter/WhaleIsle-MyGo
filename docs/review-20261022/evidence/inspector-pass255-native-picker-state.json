@@ -1,0 +1,1943 @@
+﻿{
+    "schema":  2,
+    "runId":  "c08d70e9-96c6-48bd-ac35-4102ee2b2e90",
+    "status":  "partial-environment-blocked",
+    "strictPassed":  false,
+    "startedAt":  "2026-10-23T22:47:19.2893484Z",
+    "finishedAt":  "2026-10-23T22:48:06.4082097Z",
+    "fixture":  {
+                    "executable":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r111-inspector-fixture.exe",
+                    "exited":  true,
+                    "closeRequested":  true,
+                    "pid":  41024,
+                    "startTimeUtc":  "2026-10-23T22:47:08.8408464Z"
+                },
+    "scope":  "Win32 messages injected into the owned MyGoSurface; WM_SETFOCUS is synthetic; no hardware input claim",
+    "assertions":  "strict: failed assertions are retained and cause a nonzero exit; independent checks continue for diagnosis",
+    "desktop":  {
+                    "fixture":  {
+                                    "handle":  21040050,
+                                    "pid":  41024,
+                                    "title":  "Native Inspector Chat reveal fixture",
+                                    "className":  "MyGoWindow",
+                                    "visible":  true,
+                                    "iconic":  false,
+                                    "enabled":  true,
+                                    "rect":  {
+                                                 "L":  320,
+                                                 "T":  144,
+                                                 "R":  2240,
+                                                 "B":  1224
+                                             },
+                                    "root":  21040050,
+                                    "rootPid":  41024,
+                                    "rootOwner":  21040050,
+                                    "rootOwnerPid":  41024,
+                                    "owner":  0,
+                                    "cloaked":  0
+                                },
+                    "surface":  {
+                                    "handle":  20973608,
+                                    "pid":  41024,
+                                    "title":  "",
+                                    "className":  "MyGoSurface",
+                                    "visible":  true,
+                                    "iconic":  false,
+                                    "enabled":  true,
+                                    "rect":  {
+                                                 "L":  331,
+                                                 "T":  144,
+                                                 "R":  2229,
+                                                 "B":  1213
+                                             },
+                                    "root":  21040050,
+                                    "rootPid":  41024,
+                                    "rootOwner":  21040050,
+                                    "rootOwnerPid":  41024,
+                                    "owner":  0,
+                                    "cloaked":  0
+                                },
+                    "dpi":  144,
+                    "threadDpiAwareness":  2,
+                    "windowStation":  "WinSta0",
+                    "threadDesktop":  "Default",
+                    "inputDesktop":  {
+                                         "name":  "Default",
+                                         "error":  0
+                                     },
+                    "clip":  {
+                                 "ok":  true,
+                                 "error":  0,
+                                 "rect":  {
+                                              "L":  0,
+                                              "T":  0,
+                                              "R":  4480,
+                                              "B":  1440
+                                          }
+                             },
+                    "virtualScreen":  {
+                                          "x":  0,
+                                          "y":  0,
+                                          "width":  4480,
+                                          "height":  1440
+                                      },
+                    "remoteSession":  false,
+                    "monitors":  [
+                                     {
+                                         "handle":  45487109,
+                                         "ok":  true,
+                                         "value":  {
+                                                       "Size":  104,
+                                                       "Monitor":  {
+                                                                       "L":  0,
+                                                                       "T":  0,
+                                                                       "R":  2560,
+                                                                       "B":  1440
+                                                                   },
+                                                       "Work":  {
+                                                                    "L":  0,
+                                                                    "T":  0,
+                                                                    "R":  2560,
+                                                                    "B":  1368
+                                                                },
+                                                       "Flags":  1,
+                                                       "Device":  "\\\\.\\DISPLAY1"
+                                                   }
+                                     },
+                                     {
+                                         "handle":  77859641,
+                                         "ok":  true,
+                                         "value":  {
+                                                       "Size":  104,
+                                                       "Monitor":  {
+                                                                       "L":  2560,
+                                                                       "T":  0,
+                                                                       "R":  4480,
+                                                                       "B":  1080
+                                                                   },
+                                                       "Work":  {
+                                                                    "L":  2560,
+                                                                    "T":  0,
+                                                                    "R":  4480,
+                                                                    "B":  1032
+                                                                },
+                                                       "Flags":  0,
+                                                       "Device":  "\\\\.\\DISPLAY2"
+                                                   }
+                                     }
+                                 ],
+                    "foreground":  {
+                                       "handle":  66454,
+                                       "pid":  12516,
+                                       "title":  "Windows 默认锁屏界面",
+                                       "className":  "Windows.UI.Core.CoreWindow",
+                                       "visible":  true,
+                                       "iconic":  false,
+                                       "enabled":  true,
+                                       "rect":  {
+                                                    "L":  0,
+                                                    "T":  0,
+                                                    "R":  2560,
+                                                    "B":  1440
+                                                },
+                                       "root":  66454,
+                                       "rootPid":  12516,
+                                       "rootOwner":  66454,
+                                       "rootOwnerPid":  12516,
+                                       "owner":  0,
+                                       "cloaked":  2
+                                   }
+                },
+    "activation":  {
+                       "returned":  false,
+                       "error":  0,
+                       "foregroundVerified":  false,
+                       "foreground":  {
+                                          "handle":  66454,
+                                          "pid":  12516,
+                                          "title":  "Windows 默认锁屏界面",
+                                          "className":  "Windows.UI.Core.CoreWindow",
+                                          "visible":  true,
+                                          "iconic":  false,
+                                          "enabled":  true,
+                                          "rect":  {
+                                                       "L":  0,
+                                                       "T":  0,
+                                                       "R":  2560,
+                                                       "B":  1440
+                                                   },
+                                          "root":  66454,
+                                          "rootPid":  12516,
+                                          "rootOwner":  66454,
+                                          "rootOwnerPid":  12516,
+                                          "owner":  0,
+                                          "cloaked":  2
+                                      }
+                   },
+    "checks":  [
+                   {
+                       "detail":  "Toolbar activates picker",
+                       "name":  "picker-started",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Changed rows: ",
+                       "name":  "picker-activation-no-reflow",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "expected transcript-turn:fixture:fixture:0; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                       "name":  "group-hover-identity",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                       "name":  "group-crosshair",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "Changed rows: ",
+                       "name":  "group-hover-no-reflow",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Right click must keep picker, selection, and group disclosure unchanged",
+                       "name":  "right-click-suppressed",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Selected event:10; picking=False",
+                       "name":  "group-picked-event10-no-disclosure",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "expected m40/text/2; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                       "name":  "response-hover-identity",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                       "name":  "response-crosshair",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "Selected event:40; picking=False",
+                       "name":  "response-picked-event40",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Composer click must not cancel picker",
+                       "name":  "outside-composer-keeps-picker",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "UIA HasKeyboardFocus after Win32-injected click and initial synthetic WM_SETFOCUS",
+                       "name":  "outside-composer-focus",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Escape cancels picker and removes preview from composer focus",
+                       "name":  "escape-from-composer",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "expected m40/reasoning/0; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                       "name":  "reasoning-hover-identity",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                       "name":  "reasoning-crosshair",
+                       "passed":  false
+                   },
+                   {
+                       "detail":  "scroll=0; max=118.264984",
+                       "name":  "wheel-has-scroll-range",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Wheel clears preview while keeping picker active",
+                       "name":  "wheel-clears-preview-keeps-picker",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "before=0; after=99; max=118.264984",
+                       "name":  "wheel-scrolls-transcript",
+                       "passed":  true
+                   },
+                   {
+                       "detail":  "Final Escape retires picker",
+                       "name":  "final-escape",
+                       "passed":  true
+                   }
+               ],
+    "states":  [
+                   {
+                       "name":  "baseline-before-picker",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:20.0097837+08:00"
+                                   },
+                       "extra":  {
+                                     "syntheticFocus":  true,
+                                     "top":  {
+                                                 "ok":  true,
+                                                 "error":  0
+                                             }
+                                 }
+                   },
+                   {
+                       "name":  "group-hover",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:21.768978+08:00"
+                                   },
+                       "extra":  {
+                                     "surfaceCursor":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "handled":  1,
+                                                           "handle":  65539,
+                                                           "crosshairHandle":  65545,
+                                                           "isCrosshair":  false,
+                                                           "flags":  1,
+                                                           "position":  {
+                                                                            "X":  481,
+                                                                            "Y":  182
+                                                                        },
+                                                           "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                       },
+                                     "native":  {
+                                                    "target":  {
+                                                                   "X":  481,
+                                                                   "Y":  182
+                                                               },
+                                                    "before":  {
+                                                                   "ok":  true,
+                                                                   "error":  0,
+                                                                   "point":  {
+                                                                                 "X":  481,
+                                                                                 "Y":  439
+                                                                             }
+                                                               },
+                                                    "set":  {
+                                                                "ok":  true,
+                                                                "error":  0
+                                                            },
+                                                    "after":  {
+                                                                  "ok":  true,
+                                                                  "error":  0,
+                                                                  "point":  {
+                                                                                "X":  481,
+                                                                                "Y":  182
+                                                                            }
+                                                              },
+                                                    "exactPositionVerified":  true,
+                                                    "requestedHit":  {
+                                                                         "handle":  47516200,
+                                                                         "pid":  8544,
+                                                                         "title":  "Backstop Window",
+                                                                         "className":  "LockScreenBackstopFrame",
+                                                                         "visible":  true,
+                                                                         "iconic":  false,
+                                                                         "enabled":  false,
+                                                                         "rect":  {
+                                                                                      "L":  0,
+                                                                                      "T":  0,
+                                                                                      "R":  2560,
+                                                                                      "B":  1440
+                                                                                  },
+                                                                         "root":  47516200,
+                                                                         "rootPid":  8544,
+                                                                         "rootOwner":  47516200,
+                                                                         "rootOwnerPid":  8544,
+                                                                         "owner":  0,
+                                                                         "cloaked":  0
+                                                                     },
+                                                    "actualHit":  {
+                                                                      "handle":  47516200,
+                                                                      "pid":  8544,
+                                                                      "title":  "Backstop Window",
+                                                                      "className":  "LockScreenBackstopFrame",
+                                                                      "visible":  true,
+                                                                      "iconic":  false,
+                                                                      "enabled":  false,
+                                                                      "rect":  {
+                                                                                   "L":  0,
+                                                                                   "T":  0,
+                                                                                   "R":  2560,
+                                                                                   "B":  1440
+                                                                               },
+                                                                      "root":  47516200,
+                                                                      "rootPid":  8544,
+                                                                      "rootOwner":  47516200,
+                                                                      "rootOwnerPid":  8544,
+                                                                      "owner":  0,
+                                                                      "cloaked":  0
+                                                                  },
+                                                    "nativeTargetVerified":  false
+                                                },
+                                     "expectedPreview":  {
+                                                             "Y":  13,
+                                                             "W":  420,
+                                                             "H":  24,
+                                                             "X":  80.16669
+                                                         }
+                                 }
+                   },
+                   {
+                       "name":  "right-click-suppressed",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:22.632436+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "group-picked-no-disclosure",
+                       "metrics":  {
+                                       "collapsed":  {
+                                                         "event:1":  {
+
+                                                                     },
+                                                         "event:2":  {
+
+                                                                     }
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:10",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:23.4230838+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "response-hover",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:26.7596626+08:00"
+                                   },
+                       "extra":  {
+                                     "surfaceCursor":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "handled":  1,
+                                                           "handle":  65539,
+                                                           "crosshairHandle":  65545,
+                                                           "isCrosshair":  false,
+                                                           "flags":  1,
+                                                           "position":  {
+                                                                            "X":  481,
+                                                                            "Y":  238
+                                                                        },
+                                                           "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                       },
+                                     "native":  {
+                                                    "target":  {
+                                                                   "X":  481,
+                                                                   "Y":  238
+                                                               },
+                                                    "before":  {
+                                                                   "ok":  true,
+                                                                   "error":  0,
+                                                                   "point":  {
+                                                                                 "X":  481,
+                                                                                 "Y":  182
+                                                                             }
+                                                               },
+                                                    "set":  {
+                                                                "ok":  true,
+                                                                "error":  0
+                                                            },
+                                                    "after":  {
+                                                                  "ok":  true,
+                                                                  "error":  0,
+                                                                  "point":  {
+                                                                                "X":  481,
+                                                                                "Y":  238
+                                                                            }
+                                                              },
+                                                    "exactPositionVerified":  true,
+                                                    "requestedHit":  {
+                                                                         "handle":  47516200,
+                                                                         "pid":  8544,
+                                                                         "title":  "Backstop Window",
+                                                                         "className":  "LockScreenBackstopFrame",
+                                                                         "visible":  true,
+                                                                         "iconic":  false,
+                                                                         "enabled":  false,
+                                                                         "rect":  {
+                                                                                      "L":  0,
+                                                                                      "T":  0,
+                                                                                      "R":  2560,
+                                                                                      "B":  1440
+                                                                                  },
+                                                                         "root":  47516200,
+                                                                         "rootPid":  8544,
+                                                                         "rootOwner":  47516200,
+                                                                         "rootOwnerPid":  8544,
+                                                                         "owner":  0,
+                                                                         "cloaked":  0
+                                                                     },
+                                                    "actualHit":  {
+                                                                      "handle":  47516200,
+                                                                      "pid":  8544,
+                                                                      "title":  "Backstop Window",
+                                                                      "className":  "LockScreenBackstopFrame",
+                                                                      "visible":  true,
+                                                                      "iconic":  false,
+                                                                      "enabled":  false,
+                                                                      "rect":  {
+                                                                                   "L":  0,
+                                                                                   "T":  0,
+                                                                                   "R":  2560,
+                                                                                   "B":  1440
+                                                                               },
+                                                                      "root":  47516200,
+                                                                      "rootPid":  8544,
+                                                                      "rootOwner":  47516200,
+                                                                      "rootOwnerPid":  8544,
+                                                                      "owner":  0,
+                                                                      "cloaked":  0
+                                                                  },
+                                                    "nativeTargetVerified":  false
+                                                },
+                                     "expectedPreview":  {
+                                                             "Y":  51,
+                                                             "W":  420,
+                                                             "H":  24,
+                                                             "X":  80.16669
+                                                         }
+                                 }
+                   },
+                   {
+                       "name":  "response-picked",
+                       "metrics":  {
+                                       "collapsed":  {
+                                                         "event:1":  {
+
+                                                                     },
+                                                         "event:22":  {
+
+                                                                      }
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:40",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:27.3906791+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "outside-composer-focused",
+                       "metrics":  {
+                                       "collapsed":  {
+                                                         "event:1":  {
+
+                                                                     },
+                                                         "event:22":  {
+
+                                                                      }
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:30.2899466+08:00"
+                                   },
+                       "extra":  {
+                                     "syntheticWindowFocus":  true,
+                                     "hasKeyboardFocus":  true
+                                 }
+                   },
+                   {
+                       "name":  "escape-from-composer",
+                       "metrics":  {
+                                       "collapsed":  {
+                                                         "event:1":  {
+
+                                                                     },
+                                                         "event:22":  {
+
+                                                                      }
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-turn:fixture:fixture:0":  false
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  250
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  173,
+                                                                                                                "W":  420,
+                                                                                                                "H":  76
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  95,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  51,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:47:48.6399281+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "expanded-reasoning-with-scroll-range",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  118.264984,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  341.66666
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  304.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  37.735016
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  220.93164,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  184.93164,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  260.93164,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  95.93164
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:48:03.4108762+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "reasoning-hover",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  118.264984,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  341.66666
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  304.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  37.735016
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  220.93164,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  184.93164,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  260.93164,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  95.93164
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:48:04.0930914+08:00"
+                                   },
+                       "extra":  {
+                                     "surfaceCursor":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "handled":  1,
+                                                           "handle":  65539,
+                                                           "crosshairHandle":  65545,
+                                                           "isCrosshair":  false,
+                                                           "flags":  1,
+                                                           "position":  {
+                                                                            "X":  481,
+                                                                            "Y":  439
+                                                                        },
+                                                           "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                       },
+                                     "native":  {
+                                                    "target":  {
+                                                                   "X":  481,
+                                                                   "Y":  439
+                                                               },
+                                                    "before":  {
+                                                                   "ok":  true,
+                                                                   "error":  0,
+                                                                   "point":  {
+                                                                                 "X":  481,
+                                                                                 "Y":  238
+                                                                             }
+                                                               },
+                                                    "set":  {
+                                                                "ok":  true,
+                                                                "error":  0
+                                                            },
+                                                    "after":  {
+                                                                  "ok":  true,
+                                                                  "error":  0,
+                                                                  "point":  {
+                                                                                "X":  481,
+                                                                                "Y":  439
+                                                                            }
+                                                              },
+                                                    "exactPositionVerified":  true,
+                                                    "requestedHit":  {
+                                                                         "handle":  47516200,
+                                                                         "pid":  8544,
+                                                                         "title":  "Backstop Window",
+                                                                         "className":  "LockScreenBackstopFrame",
+                                                                         "visible":  true,
+                                                                         "iconic":  false,
+                                                                         "enabled":  false,
+                                                                         "rect":  {
+                                                                                      "L":  0,
+                                                                                      "T":  0,
+                                                                                      "R":  2560,
+                                                                                      "B":  1440
+                                                                                  },
+                                                                         "root":  47516200,
+                                                                         "rootPid":  8544,
+                                                                         "rootOwner":  47516200,
+                                                                         "rootOwnerPid":  8544,
+                                                                         "owner":  0,
+                                                                         "cloaked":  0
+                                                                     },
+                                                    "actualHit":  {
+                                                                      "handle":  47516200,
+                                                                      "pid":  8544,
+                                                                      "title":  "Backstop Window",
+                                                                      "className":  "LockScreenBackstopFrame",
+                                                                      "visible":  true,
+                                                                      "iconic":  false,
+                                                                      "enabled":  false,
+                                                                      "rect":  {
+                                                                                   "L":  0,
+                                                                                   "T":  0,
+                                                                                   "R":  2560,
+                                                                                   "B":  1440
+                                                                               },
+                                                                      "root":  47516200,
+                                                                      "rootPid":  8544,
+                                                                      "rootOwner":  47516200,
+                                                                      "rootOwnerPid":  8544,
+                                                                      "owner":  0,
+                                                                      "cloaked":  0
+                                                                  },
+                                                    "nativeTargetVerified":  false
+                                                },
+                                     "expectedPreview":  {
+                                                             "Y":  184.93164,
+                                                             "W":  420,
+                                                             "H":  24,
+                                                             "X":  80.16669
+                                                         }
+                                 }
+                   },
+                   {
+                       "name":  "wheel-keeps-picker",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  118.264984,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  true,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  341.66666
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  283.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  58.735016
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  205.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  121.93164,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  85.93164,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  161.93164,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  1,
+                                                                                         "W":  420,
+                                                                                         "H":  78.93164
+                                                                                     }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  99,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:48:04.7170294+08:00"
+                                   },
+                       "extra":  null
+                   },
+                   {
+                       "name":  "final-idle",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "",
+                                       "max":  118.264984,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  -1,
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  341.66666
+                                                                   },
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "3e5ffb39f1fb3d913d4bcc6e6a533da3":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  283.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  58.735016
+                                                                                                            },
+                                                                       "c55704da8907ff4aa7e457650dd1cd17":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  205.93164,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  121.93164,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  85.93164,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  161.93164,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  1,
+                                                                                         "W":  420,
+                                                                                         "H":  78.93164
+                                                                                     }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  0,
+                                                                   "Y":  0,
+                                                                   "W":  0,
+                                                                   "H":  0
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  99,
+                                       "selected":  "",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T06:48:05.2471514+08:00"
+                                   },
+                       "extra":  null
+                   }
+               ],
+    "cursorSamples":  [
+                          {
+                              "surfaceCursor":  {
+                                                    "ok":  true,
+                                                    "error":  0,
+                                                    "handled":  1,
+                                                    "handle":  65539,
+                                                    "crosshairHandle":  65545,
+                                                    "isCrosshair":  false,
+                                                    "flags":  1,
+                                                    "position":  {
+                                                                     "X":  481,
+                                                                     "Y":  182
+                                                                 },
+                                                    "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                },
+                              "name":  "group",
+                              "native":  {
+                                             "target":  {
+                                                            "X":  481,
+                                                            "Y":  182
+                                                        },
+                                             "before":  {
+                                                            "ok":  true,
+                                                            "error":  0,
+                                                            "point":  {
+                                                                          "X":  481,
+                                                                          "Y":  439
+                                                                      }
+                                                        },
+                                             "set":  {
+                                                         "ok":  true,
+                                                         "error":  0
+                                                     },
+                                             "after":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "point":  {
+                                                                         "X":  481,
+                                                                         "Y":  182
+                                                                     }
+                                                       },
+                                             "exactPositionVerified":  true,
+                                             "requestedHit":  {
+                                                                  "handle":  47516200,
+                                                                  "pid":  8544,
+                                                                  "title":  "Backstop Window",
+                                                                  "className":  "LockScreenBackstopFrame",
+                                                                  "visible":  true,
+                                                                  "iconic":  false,
+                                                                  "enabled":  false,
+                                                                  "rect":  {
+                                                                               "L":  0,
+                                                                               "T":  0,
+                                                                               "R":  2560,
+                                                                               "B":  1440
+                                                                           },
+                                                                  "root":  47516200,
+                                                                  "rootPid":  8544,
+                                                                  "rootOwner":  47516200,
+                                                                  "rootOwnerPid":  8544,
+                                                                  "owner":  0,
+                                                                  "cloaked":  0
+                                                              },
+                                             "actualHit":  {
+                                                               "handle":  47516200,
+                                                               "pid":  8544,
+                                                               "title":  "Backstop Window",
+                                                               "className":  "LockScreenBackstopFrame",
+                                                               "visible":  true,
+                                                               "iconic":  false,
+                                                               "enabled":  false,
+                                                               "rect":  {
+                                                                            "L":  0,
+                                                                            "T":  0,
+                                                                            "R":  2560,
+                                                                            "B":  1440
+                                                                        },
+                                                               "root":  47516200,
+                                                               "rootPid":  8544,
+                                                               "rootOwner":  47516200,
+                                                               "rootOwnerPid":  8544,
+                                                               "owner":  0,
+                                                               "cloaked":  0
+                                                           },
+                                             "nativeTargetVerified":  false
+                                         }
+                          },
+                          {
+                              "surfaceCursor":  {
+                                                    "ok":  true,
+                                                    "error":  0,
+                                                    "handled":  1,
+                                                    "handle":  65539,
+                                                    "crosshairHandle":  65545,
+                                                    "isCrosshair":  false,
+                                                    "flags":  1,
+                                                    "position":  {
+                                                                     "X":  481,
+                                                                     "Y":  238
+                                                                 },
+                                                    "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                },
+                              "name":  "response",
+                              "native":  {
+                                             "target":  {
+                                                            "X":  481,
+                                                            "Y":  238
+                                                        },
+                                             "before":  {
+                                                            "ok":  true,
+                                                            "error":  0,
+                                                            "point":  {
+                                                                          "X":  481,
+                                                                          "Y":  182
+                                                                      }
+                                                        },
+                                             "set":  {
+                                                         "ok":  true,
+                                                         "error":  0
+                                                     },
+                                             "after":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "point":  {
+                                                                         "X":  481,
+                                                                         "Y":  238
+                                                                     }
+                                                       },
+                                             "exactPositionVerified":  true,
+                                             "requestedHit":  {
+                                                                  "handle":  47516200,
+                                                                  "pid":  8544,
+                                                                  "title":  "Backstop Window",
+                                                                  "className":  "LockScreenBackstopFrame",
+                                                                  "visible":  true,
+                                                                  "iconic":  false,
+                                                                  "enabled":  false,
+                                                                  "rect":  {
+                                                                               "L":  0,
+                                                                               "T":  0,
+                                                                               "R":  2560,
+                                                                               "B":  1440
+                                                                           },
+                                                                  "root":  47516200,
+                                                                  "rootPid":  8544,
+                                                                  "rootOwner":  47516200,
+                                                                  "rootOwnerPid":  8544,
+                                                                  "owner":  0,
+                                                                  "cloaked":  0
+                                                              },
+                                             "actualHit":  {
+                                                               "handle":  47516200,
+                                                               "pid":  8544,
+                                                               "title":  "Backstop Window",
+                                                               "className":  "LockScreenBackstopFrame",
+                                                               "visible":  true,
+                                                               "iconic":  false,
+                                                               "enabled":  false,
+                                                               "rect":  {
+                                                                            "L":  0,
+                                                                            "T":  0,
+                                                                            "R":  2560,
+                                                                            "B":  1440
+                                                                        },
+                                                               "root":  47516200,
+                                                               "rootPid":  8544,
+                                                               "rootOwner":  47516200,
+                                                               "rootOwnerPid":  8544,
+                                                               "owner":  0,
+                                                               "cloaked":  0
+                                                           },
+                                             "nativeTargetVerified":  false
+                                         }
+                          },
+                          {
+                              "surfaceCursor":  {
+                                                    "ok":  true,
+                                                    "error":  0,
+                                                    "handled":  1,
+                                                    "handle":  65539,
+                                                    "crosshairHandle":  65545,
+                                                    "isCrosshair":  false,
+                                                    "flags":  1,
+                                                    "position":  {
+                                                                     "X":  481,
+                                                                     "Y":  439
+                                                                 },
+                                                    "scope":  "injected WM_SETCURSOR on owned MyGoSurface"
+                                                },
+                              "name":  "reasoning",
+                              "native":  {
+                                             "target":  {
+                                                            "X":  481,
+                                                            "Y":  439
+                                                        },
+                                             "before":  {
+                                                            "ok":  true,
+                                                            "error":  0,
+                                                            "point":  {
+                                                                          "X":  481,
+                                                                          "Y":  238
+                                                                      }
+                                                        },
+                                             "set":  {
+                                                         "ok":  true,
+                                                         "error":  0
+                                                     },
+                                             "after":  {
+                                                           "ok":  true,
+                                                           "error":  0,
+                                                           "point":  {
+                                                                         "X":  481,
+                                                                         "Y":  439
+                                                                     }
+                                                       },
+                                             "exactPositionVerified":  true,
+                                             "requestedHit":  {
+                                                                  "handle":  47516200,
+                                                                  "pid":  8544,
+                                                                  "title":  "Backstop Window",
+                                                                  "className":  "LockScreenBackstopFrame",
+                                                                  "visible":  true,
+                                                                  "iconic":  false,
+                                                                  "enabled":  false,
+                                                                  "rect":  {
+                                                                               "L":  0,
+                                                                               "T":  0,
+                                                                               "R":  2560,
+                                                                               "B":  1440
+                                                                           },
+                                                                  "root":  47516200,
+                                                                  "rootPid":  8544,
+                                                                  "rootOwner":  47516200,
+                                                                  "rootOwnerPid":  8544,
+                                                                  "owner":  0,
+                                                                  "cloaked":  0
+                                                              },
+                                             "actualHit":  {
+                                                               "handle":  47516200,
+                                                               "pid":  8544,
+                                                               "title":  "Backstop Window",
+                                                               "className":  "LockScreenBackstopFrame",
+                                                               "visible":  true,
+                                                               "iconic":  false,
+                                                               "enabled":  false,
+                                                               "rect":  {
+                                                                            "L":  0,
+                                                                            "T":  0,
+                                                                            "R":  2560,
+                                                                            "B":  1440
+                                                                        },
+                                                               "root":  47516200,
+                                                               "rootPid":  8544,
+                                                               "rootOwner":  47516200,
+                                                               "rootOwnerPid":  8544,
+                                                               "owner":  0,
+                                                               "cloaked":  0
+                                                           },
+                                             "nativeTargetVerified":  false
+                                         }
+                          }
+                      ],
+    "error":  null,
+    "screenshot":  {
+                       "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\inspector-pass255-native-picker-final-partial.png",
+                       "scope":  "Final idle fixture capture after every input check; not hover proof"
+                   },
+    "limitations":  [
+                        "Native hover is proven only if SetCursorPos and GetCursorPos agree and WindowFromPoint root belongs to the fixture.",
+                        "Injected WM_SETFOCUS does not establish OS foreground focus."
+                    ],
+    "nativeDesktopHover":  {
+                               "scope":  "SetCursorPos/GetCursorPos/WindowFromPoint ownership; no hardware-input claim",
+                               "verified":  false,
+                               "blockedSamples":  3
+                           }
+}

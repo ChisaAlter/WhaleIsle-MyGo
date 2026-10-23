@@ -15,7 +15,13 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		// Whatever the event changes, the next frame builds anew.
 		rt.redraw = false
 	}
-	rt.observeInput(ev)
+	if rt.observeInput(ev) {
+		// Captures run before controls, but must still retire physical-key
+		// chords and publish the native modifier state of the captured press.
+		rt.modsChanged(Modifiers(ev.Mods))
+		rt.resetPhysicalKeys()
+		return true
+	}
 	x, y := float32(ev.X), float32(ev.Y)
 	if rt.insp.pointer(rt, ev, x, y) {
 		return true

@@ -15,6 +15,61 @@ import (
 
 func pickNumber(n float64) *float64 { return &n }
 
+func TestInspectorAcceptedMaskImmediatelyReleasesUnderlyingDisclosure(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(previous)
+	p := SessionInspectorPaneState{Mode: "chat-node", navigation: chat.InspectorNavigation{SessionID: "s"}}
+	expanded := map[string]bool{}
+	model := chat.Model{Inspector: &p.navigation, List: &ui.ListState{}, ThinkingExpanded: &expanded, Snapshot: session.ViewState{SelectedID: "s", PlanHistoryBinding: "h", Messages: []session.Message{
+		{ID: "question", Role: "user", Kind: session.MessageKindText, Body: "Question"},
+		{ID: "reason", Role: "assistant", Kind: session.MessageKindThinking, Body: "Details"},
+		{ID: "answer", Role: "assistant", Kind: session.MessageKindText, Body: "Answer"},
+	}}, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 400}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Row(c).Fill().Children(func() {
+			ui.Column(c).Width(600).FillHeight().Children(func() { chat.View(c, model) })
+			ui.Column(c).Fill().Children(func() {
+				source := session.InspectorSnapshot{}
+				for _, node := range p.navigation.Nodes {
+					raw, _ := json.Marshal(node)
+					source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + node.ID, Type: string(node.Kind), Raw: raw, ChatTarget: p.navigation.PickTarget(node)})
+				}
+				inspectorPresentation(c, &p, source, session.ViewState{}, theme.Default().Light, nil)
+			})
+		})
+	}, 1300, 500)
+	label := i18n.T(i18n.KeyChatProcessAnalyzing)
+	for range 2 {
+		p.toggleInspectorPicking()
+		tt.Frame()
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		if p.navigation.Picking || p.navigation.Picked != nil || p.selected == "" {
+			t.Fatal("accepted handoff retained the mask")
+		}
+		for _, open := range expanded {
+			if open {
+				t.Fatal("pick activated underlying disclosure")
+			}
+		}
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		open := false
+		for _, value := range expanded {
+			open = open || value
+		}
+		if !open {
+			t.Fatal("next click was swallowed after successful selection")
+		}
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestInspectorReversePickInstalledReference(t *testing.T) {
 	raw, err := os.ReadFile("testdata/inspector-picks.json")
 	if err != nil {

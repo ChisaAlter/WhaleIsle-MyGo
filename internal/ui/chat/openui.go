@@ -37,7 +37,8 @@ type openUIBlock struct {
 	media                        *openUIMedia
 }
 
-func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if language != "openui" && language != "openui-lang" {
 		return false
 	}
@@ -135,7 +136,11 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 				media := b.media
 				b.mu.Unlock()
 				if media != nil {
-					media.Paint(r, clip, m.OpenUIMediaOcclusions)
+					picking := false
+					if n := inspectorChatNavigation(m); n != nil {
+						picking = n.Picking
+					}
+					media.Paint(r, clip, m.OpenUIMediaOcclusions, picking)
 				}
 				if !childImageVisible(r, clip) {
 					return
@@ -153,6 +158,9 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 					if !handle.RenderPixels(c, height, appearance, nil) {
 						ui.Box(c).FillWidth().Height(height).DrawOver(func(p *ui.Painter, r ui.Rect) {
 							clip := p.NativeSurfaceClip()
+							if n := inspectorChatNavigation(m); n != nil && n.Picking {
+								clip = ui.Rect{}
+							}
 							if err := handle.PresentSurface(m.OpenUIParent, int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H)); err != nil {
 								b.mu.Lock()
 								b.err = err.Error()

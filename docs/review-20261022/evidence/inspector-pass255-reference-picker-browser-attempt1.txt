@@ -1,0 +1,58 @@
+Round111 isolated installed InspectorChatPicker browser acceptance: FAILED
+Started: 2026-10-23T22:11:44.434Z
+Finished: 2026-10-23T22:11:47.701Z
+Node: v24.21.0
+Chrome: Chrome/155.0.8059.85
+Owned Chrome PID: 46604
+Scope: Actual installed InspectorChatPicker and five verbatim installed functions in a controlled DOM, navigated by file URL in a separate headless Chrome. This is not the original GUI or full original application.
+Fixture: C:\AI\WhaleIsle-MyGo\.devdata\r111-original-picker.html
+Unique profile: C:\AI\WhaleIsle-MyGo\.devdata\r111-picker-chrome\2026-10-23T22-11-44-433Z-2e70eb00
+Installed bundle SHA256: 62443553c0dec20f1d1a21b02a55822877c734059ea1c18d5a414ddafac657a0
+Applied installed picker CSS SHA256: d63382b629c63048449b6c2fa464a03dfa4d9a7522f31fbe7315fee04572ba07
+
+Verbatim installed regions:
+  displayed: lines 379-386; SHA256 bc38ca12497acf14acce71a98599dc9b4f9ac568dcfd9f43994c872be74d7dc5
+  inChat: lines 400-402; SHA256 6c142a557107d266dc44946c30abb6a89195ded269cc61d14230eb8b97c4f619
+  matchChatElement: lines 464-489; SHA256 2584528232c6acf96e0b91c8738c16a77c1c1e20fe901c5211c9a79f827b46e9
+  visibleChatRect: lines 3548-3570; SHA256 9a1b537c964dad5bdab5d093dbd7fc9ed825db7a7d55ae8f7513eeec5fda4b18
+  placeChatHighlight: lines 3577-3587; SHA256 58026cd4ef301a2a4dbe9cf517f16189dcb32c6d4f0cedeb7a9303c0cb201bfd
+  POINTER_ACTIONS: lines 4006-4014; SHA256 f9c9a1772eb2091c0c1b86ab4adc4a36646253d30e4d451497fd5c8c79efb50b
+  InspectorChatPicker: lines 4016-4195; SHA256 6dcd9bff8e4e27064c4fa8107b89820900ebc23e65691cd9e091153a52a6ff32
+  Exact CSS: .dFsv8a_chatPick{z-index:1201;pointer-events:none;background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 15%, transparent);outline:1px solid var(--dsw-alias-state-business-primary);border-radius:4px;position:fixed}
+  Exact CSS: .dFsv8a_chatPickMask{z-index:1200;pointer-events:auto;cursor:crosshair;touch-action:none;background:0 0;position:fixed}
+
+Browser cases:
+  PASSED mask-main-scope-and-no-reflow: 6/6 assertions
+  PASSED clipped-preview-original-css-and-no-reflow: 7/7 assertions
+  FAILED secondary-and-context-suppressed: 1/7 assertions
+    FAIL trusted pointerdown reaches mask and is prevented: actual=[{"type":"pointerdown","trusted":true,"targetId":null,"mask":true,"button":2,"key":null,"deltaY":null,"defaultPrevented":false},{"type":"pointerdown","trusted":true,"targetId":null,"mask":true,"button":1,"key":null,"deltaY":null,"defaultPrevented":false}] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+    FAIL trusted pointerup reaches mask and is prevented: actual=[{"type":"pointerup","trusted":true,"targetId":null,"mask":true,"button":2,"key":null,"deltaY":null,"defaultPrevented":false},{"type":"pointerup","trusted":true,"targetId":null,"mask":true,"button":1,"key":null,"deltaY":null,"defaultPrevented":false}] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+    FAIL trusted mousedown reaches mask and is prevented: actual=[] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+    FAIL trusted mouseup reaches mask and is prevented: actual=[] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+    FAIL trusted contextmenu reaches mask and is prevented: actual=[{"type":"contextmenu","trusted":true,"targetId":null,"mask":true,"button":2,"key":null,"deltaY":null,"defaultPrevented":false}] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+    FAIL trusted auxclick reaches mask and is prevented: actual=[{"type":"auxclick","trusted":true,"targetId":null,"mask":true,"button":2,"key":null,"deltaY":null,"defaultPrevented":false},{"type":"auxclick","trusted":true,"targetId":null,"mask":true,"button":1,"key":null,"deltaY":null,"defaultPrevented":false}] expected="at least one trusted mask-targeted event, defaultPrevented=true"
+  PASSED rejected-pick-stays-active-and-outside-controls-work: 4/4 assertions
+  PASSED nested-sidebar-and-nested-view-excluded: 3/3 assertions
+  FAILED primary-selects-releases-and-catches-underlying-action: 5/6 assertions
+    FAIL selection used a trusted browser click caught and prevented by mask: actual={"type":"click","trusted":true,"targetId":null,"mask":true,"button":0,"key":null,"deltaY":null,"defaultPrevented":false} expected={"trusted":true,"mask":true,"defaultPrevented":true}
+  FAILED wheel-forwarded-to-main-scroller-clears-preview: 4/5 assertions
+    FAIL trusted browser wheel is caught and prevented by mask: actual={"type":"wheel","trusted":true,"targetId":null,"mask":true,"button":0,"key":null,"deltaY":140,"defaultPrevented":false} expected={"trusted":true,"mask":true,"defaultPrevented":true}
+  FAILED escape-cancels-with-real-key-input: 2/3 assertions
+    FAIL Escape is a trusted prevented browser key event: actual=undefined expected={"trusted":true,"key":"Escape","defaultPrevented":true}
+  PASSED real-viewport-resize-clears-and-repositions: 4/4 assertions
+  PASSED hidden-owner-cancels-via-real-mutation-observer: 4/4 assertions
+  PASSED window-blur-by-owned-target-activation: 3/3 assertions
+  PASSED page-and-source-integrity: 4/4 assertions
+
+Owned Chrome cleanup: {"target":"Only the Chrome process spawned by this runner and its verified owned CDP browser","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastOwnedProcesses":[{"type":"browser","id":46604,"cpuTime":1.192492},{"type":"renderer","id":34368,"cpuTime":0.032709},{"type":"renderer","id":45416,"cpuTime":0.053799},{"type":"renderer","id":20544,"cpuTime":0.242781},{"type":"renderer","id":8748,"cpuTime":0.040804},{"type":"renderer","id":15956,"cpuTime":0.273926},{"type":"GPU","id":5156,"cpuTime":0.163693},{"type":"network.mojom.NetworkService","id":35380,"cpuTime":0.100027},{"type":"storage.mojom.StorageService","id":45064,"cpuTime":0.030737}],"browserClose":"sent to profile/PID/port-verified owned browser","exit":{"code":0,"signal":null,"at":"2026-10-23T22:11:47.672Z"},"debugPortReleased":true,"pass":true}
+
+Remaining scope limits:
+  - Controlled main conversation DOM and fixture theme, not the full original application, current original GUI, live session data, React integration, or original Electron Chromium.
+  - Only the extracted installed picker and its required functions/CSS are executed; unrelated installed module registration and app lifecycle are outside this acceptance scope.
+  - Pixel-mode wheel forwarding is exercised. Line/page wheel delta modes, touch input, and platform-native menus are outside this run.
+
+Errors:
+  none
+
+Full per-case measured values and trusted input events: C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass255-reference-picker-browser.json
+Screenshot: C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass255-reference-picker-browser.png

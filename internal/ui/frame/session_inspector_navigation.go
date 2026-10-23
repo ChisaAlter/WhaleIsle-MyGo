@@ -99,7 +99,7 @@ func inspectorPaneVisible(w *WorkspacePanes, n *WorkspacePane, dockOpen bool) bo
 }
 
 func (p *SessionInspectorPaneState) cancelInspectorNavigation() {
-	p.navigation.Picking = false
+	p.navigation.CancelPicking()
 	p.navigation.Picked, p.navigation.Target = nil, nil
 	p.navigation.CancelReveal()
 	p.navigation.Notice = ""
@@ -230,9 +230,8 @@ func (p *SessionInspectorPaneState) consumeInspectorPick(rows []session.Inspecto
 	p.revealInspectorRow(key, rows)
 	p.breadcrumb = []string{key}
 	p.tree = inspectorJSONTreeState{}
-	p.navigation.Picking = false
+	p.navigation.CancelPicking()
 	p.navigation.Target = nil
-	p.navigation.Notice = ""
 }
 
 func (p *SessionInspectorPaneState) followInspectorReference(key string, rows []session.InspectorRecord) {

@@ -1,0 +1,23 @@
+﻿[
+    {
+        "name":  "final-tests",
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  21.5766487
+    },
+    {
+        "name":  "final-native-vet",
+        "args":  [
+                     "vet",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.9977418
+    }
+]

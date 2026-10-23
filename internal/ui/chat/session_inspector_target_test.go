@@ -262,7 +262,7 @@ func TestInspectorReducedMotionRejectsPaintedEmptyRowBeforeCentering(t *testing.
 				if id == targetID {
 					box.Height(0)
 				}
-				inspectorChatRowGeometry(row.Context, m, id, box, 0, 0, 0, 0)
+				inspectorChatRowGeometry(row.Context, m, m.Snapshot.Messages[row.Index], box, 0, 0, 0, 0)
 			})
 			inspectorChatRevealOverlay(c, m, theme.Default().Light)
 		}, 300, 360)

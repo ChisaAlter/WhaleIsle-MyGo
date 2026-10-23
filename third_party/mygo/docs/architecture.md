@@ -1387,6 +1387,13 @@ either.
   tag `mygo_noinspector` (`inspector_off.go` stands in for it, never
   open), added to the tags of `GOFLAGS`, unless `-debug` or
   `MYGO_INSPECTOR=1`.
+- **Window gesture input.** `Context.ObserveInput` reports pointer presses,
+  wheel deltas, key presses and window blur before normal dispatch; it is
+  passive. `CaptureKeyDown` consumes a key before focused handlers and window
+  shortcuts, with the last registered capture first. Both registrations are
+  replaced on each build and released when the window closes. `KeepFocus`
+  leaves the existing keyboard focus in place when an element takes a pointer
+  press, as a nonmodal transparent picker does.
 - **Input taken as it comes.** An element with `HandleInput` gets its
   input on the main thread as the backend reports it, before the frame
   (`ui/handler.go`): keys (with their releases, which ui otherwise

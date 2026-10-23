@@ -14,5 +14,5 @@ func PublishedPageSurface(c *ui.Context, surface session.VisualReplySurface, the
 		return
 	}
 	c.After(100 * time.Millisecond)
-	visualReplySurfaceSeat(c, surface, themeID, dark, height)
+	visualReplySurfaceSeat(c, surface, themeID, dark, height, nil)
 }

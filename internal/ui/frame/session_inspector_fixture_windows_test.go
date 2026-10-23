@@ -132,6 +132,7 @@ func TestMain(m *testing.M) {
 				panic(err)
 			}
 		}
+		fixtureDraft := ""
 		view := ui.View(func(c *ui.Context) {
 			theme.ApplyInterface(c)
 			if c.Shortcut(0, ui.KeyF9) {
@@ -146,7 +147,12 @@ func TestMain(m *testing.M) {
 			ui.Row(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
 				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 					chat.View(c, chat.Model{Inspector: &p.navigation, List: list, Scroll: scroll, Snapshot: session.ViewState{SelectedID: "fixture", PlanHistoryBinding: "fixture", Messages: messages}, ThinkingExpanded: &expanded, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 420})
-					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() { ui.Text(c, "Composer seat") })
+					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() {
+						ui.Text(c, "Composer seat")
+						if scenario == "reverse-pick" {
+							ui.TextInput(c.Key("fixture-composer"), &fixtureDraft).Label("Outside composer").FillWidth()
+						}
+					})
 				})
 				ui.Column(c).Width(680).FillHeight().Children(func() {
 					current := source

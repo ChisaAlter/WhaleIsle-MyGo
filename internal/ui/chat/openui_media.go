@@ -33,14 +33,23 @@ type openUIMedia struct {
 	clip       ui.Rect
 	holes      []mygo.Rectangle
 	painted    time.Time
+	masked     bool
 	off        []func()
 	closed     bool
+}
+
+type openUIMediaHost interface {
+	Alive() bool
+	State() webview.State
+	SetVisible(bool)
+	PresentMedia(mygo.Rectangle, mygo.Rectangle, []mygo.Rectangle) (bool, error)
+	Close() error
 }
 
 type openUIMediaSeat struct {
 	request  openui.MediaRequest
 	sequence uint64
-	host     *webview.Host
+	host     openUIMediaHost
 	failed   string
 }
 
@@ -138,7 +147,7 @@ func (m *openUIMedia) ExpirePaint() {
 
 // Paint receives coordinates only from MyGo's trusted native painter. Modal,
 // ancestor-scroll and workspace-float clipping stay independent of DOM claims.
-func (m *openUIMedia) Paint(rect, clip ui.Rect, holes []mygo.Rectangle) {
+func (m *openUIMedia) Paint(rect, clip ui.Rect, holes []mygo.Rectangle, masked bool) {
 	if m == nil {
 		return
 	}
@@ -146,7 +155,7 @@ func (m *openUIMedia) Paint(rect, clip ui.Rect, holes []mygo.Rectangle) {
 		m.suspend()
 		return
 	}
-	m.rect, m.clip, m.painted = rect, clip, time.Now()
+	m.rect, m.clip, m.painted, m.masked = rect, clip, time.Now(), masked
 	m.holes = append(m.holes[:0], holes...)
 	for _, seat := range m.seats {
 		if _, err := m.present(seat); err != nil {
@@ -236,6 +245,18 @@ func (m *openUIMedia) present(seat *openUIMediaSeat) (string, error) {
 	bounds, clip, ok := openUIMediaGeometry(seat.request, m.rect, m.clip, runtime.GOOS)
 	if !ok {
 		m.closeSeat(seat)
+		return "hidden", nil
+	}
+	return m.presentHost(seat, bounds, clip)
+}
+
+func (m *openUIMedia) presentHost(seat *openUIMediaSeat, bounds, clip mygo.Rectangle) (string, error) {
+	if m.masked {
+		// Inspector picking is a temporary occlusion, not an offscreen
+		// lifecycle change. Preserve the private player and its playback state.
+		if seat.host != nil {
+			seat.host.SetVisible(false)
+		}
 		return "hidden", nil
 	}
 	if seat.failed != "" {

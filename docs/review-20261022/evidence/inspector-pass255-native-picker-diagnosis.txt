@@ -1,0 +1,53 @@
+Round111 native picker Win32 acceptance probe
+Final code run: c08d70e9-96c6-48bd-ac35-4102ee2b2e90
+Started: 2026-10-24T06:47:19.2893484+08:00
+Finished: 2026-10-24T06:48:06.4082097+08:00
+Result: PARTIAL / ENVIRONMENT BLOCKED, strictPassed=false, probe exit 1.
+The complete final-code sequence executed: 13 strict checks passed and 6 failed. Hover, crosshair and no-reflow assertions remain strict. This is not a native desktop hover acceptance pass.
+
+Executed input scope
+- Win32 WM_MOUSEMOVE, button, key, wheel and WM_SETCURSOR messages target only the ownership-verified MyGoSurface.
+- Initial WM_SETFOCUS is synthetic. OS foreground activation was attempted on the owned fixture and remained false. No hardware-input or verified OS foreground-focus claim.
+- SetCursorPos results, errors, GetCursorPos and WindowFromPoint ownership are recorded separately.
+- F9 metrics require a LastWriteTimeUtc newer than the pre-request file and valid JSON. The final fixture has no temporary toolkit debug API or input diagnostic fields.
+- The final fixture was rebuilt after visible-row hit testing, media retention, lifecycle and Windows system-key fixes. Binary SHA256: B602341785217DAE46B2EC5662D5127AC22F8C0B26B1006165D74CA6816D56E4.
+
+Concrete desktop limitation
+The process and input desktop are WinSta0\Default. DPI is 144. The fixture and MyGoSurface are visible and uncloaked. Moving only the owned top-level to topmost succeeds. SetCursorPos and GetCursorPos agree at all three hover targets, but WindowFromPoint/root/root-owner is Backstop Window / LockScreenBackstopFrame, PID8544, rather than the fixture. Foreground is LockApp.exe PID12516. These processes were inspected only; none was signalled, hidden or modified.
+The surface receives native WM_MOUSELEAVE under this obstruction, clearing the preview and crosshair. Strict hover checks retain their failures. An unlocked desktop whose WindowFromPoint resolves to the fixture is required to finish native physical hover verification.
+
+Strict checks that passed
+- Toolbar starts picker.
+- Activation and group hover attempt preserve all painted row rectangles.
+- Right click preserves picker, selection and group disclosure.
+- Primary group selection chooses event:10, exits picker and does not disclose the group.
+- Primary response selection chooses event:40 and exits picker.
+- Outside composer click keeps picker active and reports UIA keyboard focus under synthetic window focus.
+- Escape from that composer focus removes picker and preview.
+- Actual transcript overflow exists.
+- Wheel clears preview, keeps picker active and moves offset 0 to 99 (max118.264984).
+- Final Escape retires picker.
+The probe resizes only its owned fixture to 430 DIPs high so scrolling cannot pass vacuously on the short transcript.
+
+Strict checks that failed
+- Group, response m40/text/2 and reasoning m40/reasoning/0 hover identity/clipped preview.
+- Crosshair for those three targets.
+
+Process and job custody
+Final fixture PID41024, exact executable .devdata/r111-inspector-fixture.exe, start2026-10-23T22:47:08.8408464Z.
+Launcher job pwsh-4bd143a8922441fd collected, exit0.
+Probe job pwsh-1412d122c0944951 collected, exit1 as required by six strict failures.
+WM_CLOSE targeted only the verified PID/path/start-time/window. It exited normally. No owned fixture remains.
+Protected ElectronPID20012 and backendPID16008 remain running; GUI3080 remains owned by16008. No original app/profile or server mutation and no model request.
+
+Earlier diagnostic run
+The first complete strict run551746e1-abd3-43eb-a84a-40ecd7d48ee2 used the earlier diagnostic fixture PID21472 at06:39:34–06:40:22+08 and returned the same13/19 result. Its jobs pwsh-73de54c2452041e5 and pwsh-ec924b0e6a0249dc were collected (exit0/1). Bounded synchronous/queued F9 ordering trials did not establish trustworthy persistent hover; these remain diagnostic only. Final-code execution supersedes the earlier diagnostic fixture. No unchanged retry followed the final code run.
+
+Evidence
+- inspector-pass255-native-picker-result.json: concise final-code partial result and strict failures.
+- inspector-pass255-native-picker-state.json: all19 checks,12 fresh snapshots, cursor ownership samples and cleanup.
+- inspector-pass255-native-picker-cursor-diagnostic.json: native desktop/monitor/DPI/foreground and window ownership.
+- inspector-pass255-native-picker-metrics.json: final idle metrics; per-step metrics are in state.
+- inspector-pass255-native-picker-run.txt: strict result log.
+- inspector-pass255-native-picker-final-partial.png: final idle capture after inputs, not hover proof.
+- *sync*, *queued*, *immediate*, *prior-partial* and *prior-unverified* files preserve earlier failed probe diagnostics only.

@@ -1,0 +1,227 @@
+﻿{
+    "collapsed":  {
+
+                  },
+    "debug":  {
+                  "bounds":  {
+                                 "X":  80.16669,
+                                 "Y":  1,
+                                 "W":  420,
+                                 "H":  250
+                             },
+                  "flags":  33555712,
+                  "frame":  24,
+                  "hit":  [
+                              {
+                                  "flags":  33555712,
+                                  "handler":  true,
+                                  "id":  2270887228090224824,
+                                  "role":  1,
+                                  "visible":  {
+                                                  "X":  80.16669,
+                                                  "Y":  1,
+                                                  "W":  420,
+                                                  "H":  250
+                                              }
+                              },
+                              {
+                                  "flags":  2304,
+                                  "handler":  false,
+                                  "id":  6257420695135707728,
+                                  "role":  0,
+                                  "visible":  {
+                                                  "X":  0,
+                                                  "Y":  0,
+                                                  "W":  1265.3334,
+                                                  "H":  712.6667
+                                              }
+                              },
+                              {
+                                  "flags":  0,
+                                  "handler":  false,
+                                  "id":  1,
+                                  "role":  0,
+                                  "visible":  {
+                                                  "X":  0,
+                                                  "Y":  0,
+                                                  "W":  1265.3334,
+                                                  "H":  712.6667
+                                              }
+                              }
+                          ],
+                  "id":  2270887228090224824,
+                  "parent":  6257420695135707728,
+                  "pass":  0,
+                  "pointerIn":  true,
+                  "pointerX":  150.66667,
+                  "pointerY":  38,
+                  "visible":  {
+                                  "X":  80.16669,
+                                  "Y":  1,
+                                  "W":  420,
+                                  "H":  250
+                              }
+              },
+    "expanded":  {
+                     "transcript-turn:fixture:fixture:0":  false
+                 },
+    "filter":  "",
+    "groups":  {
+                   "transcript-turn:fixture:fixture:0":  [
+                                                             "tool:root",
+                                                             "m40/reasoning/0",
+                                                             "m40"
+                                                         ]
+               },
+    "highlight":  "",
+    "max":  0,
+    "mode":  "session-log",
+    "notice":  "",
+    "picking":  true,
+    "reveal":  {
+                   "ageMs":  -1,
+                   "globalDown":  {
+                                      "Kind":  0,
+                                      "Key":  0,
+                                      "Mods":  0,
+                                      "Repeat":  false,
+                                      "Code":  "",
+                                      "ShortcutBlocked":  false,
+                                      "Text":  "",
+                                      "Caret":  0,
+                                      "X":  0,
+                                      "Y":  0,
+                                      "Button":  0,
+                                      "Clicks":  0,
+                                      "DX":  0,
+                                      "DY":  0,
+                                      "Precise":  false
+                                  },
+                   "lastDown":  {
+                                    "Kind":  0,
+                                    "Key":  0,
+                                    "Mods":  0,
+                                    "Repeat":  false,
+                                    "Code":  "",
+                                    "ShortcutBlocked":  false,
+                                    "Text":  "",
+                                    "Caret":  0,
+                                    "X":  0,
+                                    "Y":  0,
+                                    "Button":  0,
+                                    "Clicks":  0,
+                                    "DX":  0,
+                                    "DY":  0,
+                                    "Precise":  false
+                                },
+                   "lastInput":  {
+                                     "Kind":  8,
+                                     "Key":  0,
+                                     "Mods":  0,
+                                     "Repeat":  false,
+                                     "Code":  "",
+                                     "ShortcutBlocked":  false,
+                                     "Text":  "",
+                                     "Caret":  0,
+                                     "X":  70.499985,
+                                     "Y":  37,
+                                     "Button":  -1,
+                                     "Clicks":  0,
+                                     "DX":  0,
+                                     "DY":  0,
+                                     "Precise":  false
+                                 },
+                   "lastPoint":  {
+                                     "X":  150.66667,
+                                     "Y":  38,
+                                     "W":  0,
+                                     "H":  0
+                                 },
+                   "lastUp":  {
+                                  "Kind":  0,
+                                  "Key":  0,
+                                  "Mods":  0,
+                                  "Repeat":  false,
+                                  "Code":  "",
+                                  "ShortcutBlocked":  false,
+                                  "Text":  "",
+                                  "Caret":  0,
+                                  "X":  0,
+                                  "Y":  0,
+                                  "Button":  0,
+                                  "Clicks":  0,
+                                  "DX":  0,
+                                  "DY":  0,
+                                  "Precise":  false
+                              },
+                   "locating":  false,
+                   "maskRect":  {
+                                    "X":  80.16669,
+                                    "Y":  1,
+                                    "W":  420,
+                                    "H":  250
+                                },
+                   "moving":  false,
+                   "over":  false,
+                   "pending":  false,
+                   "pickArea":  {
+                                    "X":  80.16669,
+                                    "Y":  1,
+                                    "W":  420,
+                                    "H":  250
+                                },
+                   "pickPressed":  false,
+                   "pickPreview":  {
+                                       "X":  0,
+                                       "Y":  0,
+                                       "W":  0,
+                                       "H":  0
+                                   },
+                   "pickPreviewID":  "",
+                   "pickRows":  {
+                                    "29ff1596da434b14937cbbf9db15a9b8":  {
+                                                                             "X":  80.16669,
+                                                                             "Y":  95,
+                                                                             "W":  420,
+                                                                             "H":  60
+                                                                         },
+                                    "ef73f4dc49d64976e036e8320d49912b":  {
+                                                                             "X":  80.16669,
+                                                                             "Y":  173,
+                                                                             "W":  420,
+                                                                             "H":  76
+                                                                         },
+                                    "m40/text/2":  {
+                                                       "X":  80.16669,
+                                                       "Y":  51,
+                                                       "W":  420,
+                                                       "H":  24
+                                                   },
+                                    "transcript-turn:fixture:fixture:0":  {
+                                                                              "X":  80.16669,
+                                                                              "Y":  13,
+                                                                              "W":  420,
+                                                                              "H":  24
+                                                                          }
+                                },
+                   "pointer":  {
+                                   "X":  70.499985,
+                                   "Y":  37,
+                                   "W":  0,
+                                   "H":  0
+                               },
+                   "rect":  {
+                                "X":  0,
+                                "Y":  0,
+                                "W":  0,
+                                "H":  0
+                            },
+                   "scale":  1.5,
+                   "settling":  false,
+                   "waiting":  false
+               },
+    "scroll":  0,
+    "selected":  "",
+    "targetPending":  false,
+    "time":  "2026-10-24T06:32:55.0255422+08:00"
+}

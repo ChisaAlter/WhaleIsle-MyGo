@@ -1,0 +1,23 @@
+Status: partial-environment-blocked
+Strict passed: False
+Scope: Win32 messages injected into the owned MyGoSurface; WM_SETFOCUS is synthetic; no hardware input claim
+Native desktop hover verified: False
+PASS picker-started: Toolbar activates picker
+PASS picker-activation-no-reflow: Changed rows:
+FAIL group-hover-identity: expected transcript-turn:fixture:fixture:0; actual ; preview={"X":0,"Y":0,"W":0,"H":0}
+FAIL group-crosshair: Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof
+PASS group-hover-no-reflow: Changed rows:
+PASS right-click-suppressed: Right click must keep picker, selection, and group disclosure unchanged
+PASS group-picked-event10-no-disclosure: Selected event:10; picking=False
+FAIL response-hover-identity: expected m40/text/2; actual ; preview={"X":0,"Y":0,"W":0,"H":0}
+FAIL response-crosshair: Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof
+PASS response-picked-event40: Selected event:40; picking=False
+PASS outside-composer-keeps-picker: Composer click must not cancel picker
+PASS outside-composer-focus: UIA HasKeyboardFocus after Win32-injected click and initial synthetic WM_SETFOCUS
+PASS escape-from-composer: Escape cancels picker and removes preview from composer focus
+FAIL reasoning-hover-identity: expected m40/reasoning/0; actual ; preview={"X":0,"Y":0,"W":0,"H":0}
+FAIL reasoning-crosshair: Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof
+PASS wheel-has-scroll-range: scroll=0; max=118.264984
+PASS wheel-clears-preview-keeps-picker: Wheel clears preview while keeping picker active
+PASS wheel-scrolls-transcript: before=0; after=99; max=118.264984
+PASS final-escape: Final Escape retires picker

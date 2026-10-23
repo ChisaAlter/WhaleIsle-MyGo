@@ -1,0 +1,95 @@
+{
+  "collapsed": {},
+  "expanded": {
+    "transcript-group:fixture:fixture:m40/reasoning/0:40": true,
+    "transcript-turn:fixture:fixture:0": true
+  },
+  "filter": "",
+  "groups": {
+    "transcript-group:fixture:fixture:m40/reasoning/0:40": [
+      "tool:root",
+      "m40/reasoning/0"
+    ],
+    "transcript-turn:fixture:fixture:0": [
+      "tool:root",
+      "m40/reasoning/0",
+      "m40"
+    ]
+  },
+  "highlight": "",
+  "max": 118.264984,
+  "mode": "session-log",
+  "notice": "",
+  "picking": false,
+  "reveal": {
+    "ageMs": -1,
+    "locating": false,
+    "moving": false,
+    "pending": false,
+    "pickArea": {
+      "X": 80.16669,
+      "Y": 1,
+      "W": 420,
+      "H": 341.66666
+    },
+    "pickPressed": false,
+    "pickPreview": {
+      "X": 0,
+      "Y": 0,
+      "W": 0,
+      "H": 0
+    },
+    "pickPreviewID": "",
+    "pickRows": {
+      "3e5ffb39f1fb3d913d4bcc6e6a533da3": {
+        "X": 80.16669,
+        "Y": 283.93164,
+        "W": 420,
+        "H": 58.735016
+      },
+      "c55704da8907ff4aa7e457650dd1cd17": {
+        "X": 80.16669,
+        "Y": 205.93164,
+        "W": 420,
+        "H": 60
+      },
+      "m40": {
+        "X": 80.16669,
+        "Y": 121.93164,
+        "W": 420,
+        "H": 24
+      },
+      "m40/reasoning/0": {
+        "X": 80.16669,
+        "Y": 85.93164,
+        "W": 420,
+        "H": 24
+      },
+      "m40/text/2": {
+        "X": 80.16669,
+        "Y": 161.93164,
+        "W": 420,
+        "H": 24
+      },
+      "tool:root": {
+        "X": 80.16669,
+        "Y": 1,
+        "W": 420,
+        "H": 78.93164
+      }
+    },
+    "rect": {
+      "X": 0,
+      "Y": 0,
+      "W": 0,
+      "H": 0
+    },
+    "scale": 1.5,
+    "settling": false,
+    "waiting": false
+  },
+  "scroll": 99,
+  "selected": "",
+  "targetPending": false,
+  "time": "2026-10-24T06:48:05.2471514+08:00"
+}

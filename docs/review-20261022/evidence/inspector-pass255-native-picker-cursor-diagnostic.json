@@ -1,0 +1,134 @@
+﻿{
+    "fixture":  {
+                    "handle":  21040050,
+                    "pid":  41024,
+                    "title":  "Native Inspector Chat reveal fixture",
+                    "className":  "MyGoWindow",
+                    "visible":  true,
+                    "iconic":  false,
+                    "enabled":  true,
+                    "rect":  {
+                                 "L":  320,
+                                 "T":  144,
+                                 "R":  2240,
+                                 "B":  1224
+                             },
+                    "root":  21040050,
+                    "rootPid":  41024,
+                    "rootOwner":  21040050,
+                    "rootOwnerPid":  41024,
+                    "owner":  0,
+                    "cloaked":  0
+                },
+    "surface":  {
+                    "handle":  20973608,
+                    "pid":  41024,
+                    "title":  "",
+                    "className":  "MyGoSurface",
+                    "visible":  true,
+                    "iconic":  false,
+                    "enabled":  true,
+                    "rect":  {
+                                 "L":  331,
+                                 "T":  144,
+                                 "R":  2229,
+                                 "B":  1213
+                             },
+                    "root":  21040050,
+                    "rootPid":  41024,
+                    "rootOwner":  21040050,
+                    "rootOwnerPid":  41024,
+                    "owner":  0,
+                    "cloaked":  0
+                },
+    "dpi":  144,
+    "threadDpiAwareness":  2,
+    "windowStation":  "WinSta0",
+    "threadDesktop":  "Default",
+    "inputDesktop":  {
+                         "name":  "Default",
+                         "error":  0
+                     },
+    "clip":  {
+                 "ok":  true,
+                 "error":  0,
+                 "rect":  {
+                              "L":  0,
+                              "T":  0,
+                              "R":  4480,
+                              "B":  1440
+                          }
+             },
+    "virtualScreen":  {
+                          "x":  0,
+                          "y":  0,
+                          "width":  4480,
+                          "height":  1440
+                      },
+    "remoteSession":  false,
+    "monitors":  [
+                     {
+                         "handle":  45487109,
+                         "ok":  true,
+                         "value":  {
+                                       "Size":  104,
+                                       "Monitor":  {
+                                                       "L":  0,
+                                                       "T":  0,
+                                                       "R":  2560,
+                                                       "B":  1440
+                                                   },
+                                       "Work":  {
+                                                    "L":  0,
+                                                    "T":  0,
+                                                    "R":  2560,
+                                                    "B":  1368
+                                                },
+                                       "Flags":  1,
+                                       "Device":  "\\\\.\\DISPLAY1"
+                                   }
+                     },
+                     {
+                         "handle":  77859641,
+                         "ok":  true,
+                         "value":  {
+                                       "Size":  104,
+                                       "Monitor":  {
+                                                       "L":  2560,
+                                                       "T":  0,
+                                                       "R":  4480,
+                                                       "B":  1080
+                                                   },
+                                       "Work":  {
+                                                    "L":  2560,
+                                                    "T":  0,
+                                                    "R":  4480,
+                                                    "B":  1032
+                                                },
+                                       "Flags":  0,
+                                       "Device":  "\\\\.\\DISPLAY2"
+                                   }
+                     }
+                 ],
+    "foreground":  {
+                       "handle":  66454,
+                       "pid":  12516,
+                       "title":  "Windows 默认锁屏界面",
+                       "className":  "Windows.UI.Core.CoreWindow",
+                       "visible":  true,
+                       "iconic":  false,
+                       "enabled":  true,
+                       "rect":  {
+                                    "L":  0,
+                                    "T":  0,
+                                    "R":  2560,
+                                    "B":  1440
+                                },
+                       "root":  66454,
+                       "rootPid":  12516,
+                       "rootOwner":  66454,
+                       "rootOwnerPid":  12516,
+                       "owner":  0,
+                       "cloaked":  2
+                   }
+}

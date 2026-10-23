@@ -99,6 +99,8 @@ func (c *context) reset(now time.Time, w, h float32) {
 	c.rt.beginInputs()
 	clear(c.rt.inputObservers)
 	c.rt.inputObservers = c.rt.inputObservers[:0]
+	clear(c.rt.keyCaptures)
+	c.rt.keyCaptures = c.rt.keyCaptures[:0]
 	if uint32(c.rt.epoch) == 0 {
 		c.rt.arena.rt = nil
 		c.rt.arena = &elementOwner{rt: c.rt}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -91,6 +92,7 @@ func inspectorChatNavigation(m Model) *InspectorNavigation {
 		return nil
 	}
 	if m.DisableDeveloperTools || m.GroupRoom || n.SessionID != m.Snapshot.SelectedID {
+		n.CancelPicking()
 		n.CancelReveal()
 		return nil
 	}
@@ -110,6 +112,8 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 			r.centerCommitted = true
 		}
 		r.flow = ui.Rect{}
+		clear(n.picker.rows)
+		n.picker.rows = n.picker.rows[:0]
 		if r.rows == nil {
 			r.rows = map[string]ui.Rect{}
 		} else {
@@ -123,6 +127,7 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 		r.viewport = inspectorChatIntersect(box, p.ClipBounds())
 	})
 	view.DrawOver(func(p *ui.Painter, _ ui.Rect) {
+		inspectorChatPickGeometry(c, m)
 		if !r.pending {
 			return
 		}
@@ -221,11 +226,12 @@ func inspectorChatFlowRect(m Model, viewport ui.Rect) ui.Rect {
 	return inspectorChatIntersect(ui.Rect{X: viewport.X + left, Y: viewport.Y, W: width, H: viewport.H}, viewport)
 }
 
-func inspectorChatRowGeometry(c *ui.Context, m Model, msgID string, root ui.Element, top, right, bottom, left float32) {
+func inspectorChatRowGeometry(c *ui.Context, m Model, msg session.Message, root ui.Element, top, right, bottom, left float32) {
 	n := inspectorChatNavigation(m)
 	if n == nil {
 		return
 	}
+	msgID := msg.ID
 	root.DrawOver(func(p *ui.Painter, box ui.Rect) {
 		contentW, contentH := box.W-left-right, box.H-top-bottom
 		n.reveal.emptyRows[msgID] = contentW <= 0 || contentH <= 0
@@ -243,6 +249,7 @@ func inspectorChatRowGeometry(c *ui.Context, m Model, msgID string, root ui.Elem
 		box = inspectorChatIntersect(box, p.ClipBounds())
 		if box.W > 0 && box.H > 0 {
 			n.reveal.rows[msgID] = box
+			n.picker.rows = append(n.picker.rows, msg)
 		}
 	})
 }

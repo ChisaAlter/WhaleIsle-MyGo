@@ -1059,6 +1059,10 @@ func (e *node) hasState() bool {
 // Focusable lets the element take the keyboard focus, by a click or Tab.
 func (e *node) Focusable() *node { e.flags |= flagFocusable; return e }
 
+// KeepFocus leaves keyboard focus on its current control when the pointer
+// presses this element or its descendants.
+func (e *node) KeepFocus() *node { e.flags |= flagKeepFocus; return e }
+
 // DragWindow makes the element a handle that moves the window, such as the
 // title bar of a frameless window. A double click on it maximizes the
 // window, as on a title bar.

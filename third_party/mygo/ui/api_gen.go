@@ -3318,6 +3318,18 @@ func (_handle Element) JustifySelf(a Align) Element {
 	return wrapElement(_node.JustifySelf(a))
 }
 
+// KeepFocus leaves keyboard focus on its current control when the pointer
+// presses this element or its descendants.
+func (_handle Element) KeepFocus() Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.KeepFocus())
+}
+
 // Label names the element for assistive technology and for finding it in
 // tests, when its text does not.
 func (_handle Element) Label(s string) Element {

@@ -1,0 +1,60 @@
+﻿{
+    "runId":  "c08d70e9-96c6-48bd-ac35-4102ee2b2e90",
+    "status":  "partial-environment-blocked",
+    "strictPassed":  false,
+    "scope":  "Win32 messages injected into the owned MyGoSurface; WM_SETFOCUS is synthetic; no hardware input claim",
+    "completedSequence":  true,
+    "passedChecks":  13,
+    "failedChecks":  [
+                         {
+                             "detail":  "expected transcript-turn:fixture:fixture:0; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                             "name":  "group-hover-identity",
+                             "passed":  false
+                         },
+                         {
+                             "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                             "name":  "group-crosshair",
+                             "passed":  false
+                         },
+                         {
+                             "detail":  "expected m40/text/2; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                             "name":  "response-hover-identity",
+                             "passed":  false
+                         },
+                         {
+                             "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                             "name":  "response-crosshair",
+                             "passed":  false
+                         },
+                         {
+                             "detail":  "expected m40/reasoning/0; actual ; preview={\"X\":0,\"Y\":0,\"W\":0,\"H\":0}",
+                             "name":  "reasoning-hover-identity",
+                             "passed":  false
+                         },
+                         {
+                             "detail":  "Surface WM_SETCURSOR must select IDC_CROSS; injection is not physical cursor proof",
+                             "name":  "reasoning-crosshair",
+                             "passed":  false
+                         }
+                     ],
+    "nativeDesktopHover":  {
+                               "scope":  "SetCursorPos/GetCursorPos/WindowFromPoint ownership; no hardware-input claim",
+                               "verified":  false,
+                               "blockedSamples":  3
+                           },
+    "fixture":  {
+                    "executable":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r111-inspector-fixture.exe",
+                    "exited":  true,
+                    "closeRequested":  true,
+                    "pid":  41024,
+                    "startTimeUtc":  "2026-10-23T22:47:08.8408464Z"
+                },
+    "error":  null,
+    "startedAt":  "2026-10-23T22:47:19.2893484Z",
+    "finishedAt":  "2026-10-23T22:48:06.4082097Z",
+    "evidence":  [
+                     "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\inspector-pass255-native-picker-state.json",
+                     "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\inspector-pass255-native-picker-cursor-diagnostic.json",
+                     "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\inspector-pass255-native-picker-metrics.json"
+                 ]
+}

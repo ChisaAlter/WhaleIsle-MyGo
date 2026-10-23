@@ -525,8 +525,9 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 			blocked := dead&0x80000000 != 0 || mods()&platform.ModCtrl != 0 && int16(rightAlt) < 0 || wp == 0xE5
 			s.keyTaken = s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: k, Code: code, ShortcutBlocked: blocked, ShortcutDead: dead&0x80000000 != 0, Mods: mods(), Repeat: lp&(1<<30) != 0})
 		}
-		// Alt+F4, Alt+Space and F10 keep working.
-		return 0, m == wmKeyDown || s.keyTaken && !s.input.Active
+		// Unhandled Alt+F4, Alt+Space and F10 keep working. A captured
+		// system key stays consumed even while a text client owns input.
+		return 0, m == wmKeyDown || s.keyTaken
 	case wmKeyUp, wmSysKeyUp:
 		if modifierKey(wp) {
 			s.send(platform.SurfaceEvent{Kind: platform.ModifiersChanged, Mods: mods()})

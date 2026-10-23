@@ -38,7 +38,7 @@ func inspectorRevealFixture(t *testing.T, afterPaint ...func()) (*ui.Tester, *In
 			view.Rows(func(row ui.ListRow) {
 				id := m.Snapshot.Messages[row.Index].ID
 				box := ui.Column(row.Context).Height(60).FillWidth().Padding(0, 20)
-				inspectorChatRowGeometry(row.Context, *m, id, box, 0, 20, 0, 20)
+				inspectorChatRowGeometry(row.Context, *m, m.Snapshot.Messages[row.Index], box, 0, 20, 0, 20)
 				box.Children(func() { ui.Button(row.Context, "row "+id).Height(30).Width(90) })
 			})
 			ui.Box(c).Height(60).FillWidth().Background(ui.RGB(255, 255, 255))

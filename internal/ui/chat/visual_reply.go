@@ -5,8 +5,8 @@ import (
 	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // VisualReplyView sits outside ToolCardView's disclosure. HTML is always plain
@@ -72,7 +72,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 					m.HistoryStore.ToggleVisualReplyExpanded()
 				}
 				if !expanded {
-					visualReplySurfaceSeat(c, state.Surface, m.ThemeID, m.SystemDark, 360)
+					visualReplySurfaceSeat(c, state.Surface, m.ThemeID, m.SystemDark, 360, m.Inspector)
 				}
 				if expanded {
 					open := true
@@ -84,7 +84,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 									open = false
 								}
 							})
-							visualReplySurfaceSeat(c, state.Surface, m.ThemeID, m.SystemDark, 600)
+							visualReplySurfaceSeat(c, state.Surface, m.ThemeID, m.SystemDark, 600, nil)
 						})
 					})
 					if !open && m.HistoryStore != nil {
@@ -94,13 +94,13 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 			}
 		}
 		if state.InteractiveError != "" {
-			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPage) + ": "+state.InteractiveError).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPage)+": "+state.InteractiveError).TextColor(muted)
 		}
 		if state.PreviewLoading {
 			ui.Text(c, i18n.T(i18n.KeyChatVisualChecking)).TextColor(muted)
 		}
 		if state.PreviewError != "" {
-			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPreview) + ": "+state.PreviewError).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPreview)+": "+state.PreviewError).TextColor(muted)
 		}
 		if m.VisualReplyBitmap != nil && state.PreviewID != 0 {
 			ui.Image(c, m.VisualReplyBitmap).FillWidth().AspectRatio(float32(state.PreviewWidth) / float32(state.PreviewCapturedHeight)).Fit(ui.Contain)
@@ -117,7 +117,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 	})
 }
 
-func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, themeID string, dark bool, height float32) {
+func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, themeID string, dark bool, height float32, inspector *InspectorNavigation) {
 	resolved := theme.Resolve(themeID)
 	colors := resolved.Active(dark)
 	appearance := "light"
@@ -133,6 +133,9 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 	}
 	ui.Box(c).FillWidth().Height(height).DrawOver(func(p *ui.Painter, r ui.Rect) {
 		clip := p.NativeSurfaceClip()
+		if inspector != nil && inspector.Picking {
+			clip = ui.Rect{}
+		}
 		_ = surface.Present(int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H), appearance, map[string]string{"--bg": colors.BG, "--background": colors.BG, "--surface": colors.Field, "--text": colors.FG, "--text-secondary": colors.Muted, "--border": colors.Border, "--accent": colors.Accent})
 	})
 }
@@ -159,7 +162,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 		if stdButton(c, palette, i18n.T(i18n.KeyChatVisualExpand), buttonGhost, false).Clicked() {
 			page.ToggleExpanded()
 		}
-		visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, height)
+		visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, height, m.Inspector)
 		return
 	}
 	// Preserve the inline layout while moving the same child to the dialog seat.
@@ -173,7 +176,7 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 					open = false
 				}
 			})
-			visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, 600)
+			visualReplySurfaceSeat(c, page.Surface, m.ThemeID, m.SystemDark, 600, nil)
 		})
 	})
 	if !open {

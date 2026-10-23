@@ -1,0 +1,49 @@
+Round111 isolated installed InspectorChatPicker browser acceptance: PASSED
+Started: 2026-10-23T22:13:29.824Z
+Finished: 2026-10-23T22:13:32.820Z
+Node: v24.21.0
+Chrome: Chrome/155.0.8059.85
+Owned Chrome PID: 12524
+Scope: Actual installed InspectorChatPicker and five verbatim installed functions in a controlled DOM, navigated by file URL in a separate headless Chrome. This is not the original GUI or full original application.
+Fixture: C:\AI\WhaleIsle-MyGo\.devdata\r111-original-picker.html
+Unique profile: C:\AI\WhaleIsle-MyGo\.devdata\r111-picker-chrome\2026-10-23T22-13-29-822Z-6c8fab77
+Installed bundle SHA256: 62443553c0dec20f1d1a21b02a55822877c734059ea1c18d5a414ddafac657a0
+Applied installed picker CSS SHA256: d63382b629c63048449b6c2fa464a03dfa4d9a7522f31fbe7315fee04572ba07
+
+Verbatim installed regions:
+  displayed: lines 379-386; SHA256 bc38ca12497acf14acce71a98599dc9b4f9ac568dcfd9f43994c872be74d7dc5
+  inChat: lines 400-402; SHA256 6c142a557107d266dc44946c30abb6a89195ded269cc61d14230eb8b97c4f619
+  matchChatElement: lines 464-489; SHA256 2584528232c6acf96e0b91c8738c16a77c1c1e20fe901c5211c9a79f827b46e9
+  visibleChatRect: lines 3548-3570; SHA256 9a1b537c964dad5bdab5d093dbd7fc9ed825db7a7d55ae8f7513eeec5fda4b18
+  placeChatHighlight: lines 3577-3587; SHA256 58026cd4ef301a2a4dbe9cf517f16189dcb32c6d4f0cedeb7a9303c0cb201bfd
+  POINTER_ACTIONS: lines 4006-4014; SHA256 f9c9a1772eb2091c0c1b86ab4adc4a36646253d30e4d451497fd5c8c79efb50b
+  InspectorChatPicker: lines 4016-4195; SHA256 6dcd9bff8e4e27064c4fa8107b89820900ebc23e65691cd9e091153a52a6ff32
+  Exact CSS: .dFsv8a_chatPick{z-index:1201;pointer-events:none;background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 15%, transparent);outline:1px solid var(--dsw-alias-state-business-primary);border-radius:4px;position:fixed}
+  Exact CSS: .dFsv8a_chatPickMask{z-index:1200;pointer-events:auto;cursor:crosshair;touch-action:none;background:0 0;position:fixed}
+
+Browser cases:
+  PASSED mask-main-scope-and-no-reflow: 6/6 assertions
+  PASSED clipped-preview-original-css-and-no-reflow: 7/7 assertions
+  PASSED secondary-and-context-suppressed: 6/6 assertions
+  PASSED rejected-pick-stays-active-and-outside-controls-work: 4/4 assertions
+  PASSED nested-sidebar-and-nested-view-excluded: 3/3 assertions
+  PASSED primary-selects-releases-and-catches-underlying-action: 6/6 assertions
+  PASSED wheel-forwarded-to-main-scroller-clears-preview: 5/5 assertions
+  PASSED escape-cancels-with-real-key-input: 3/3 assertions
+  PASSED real-viewport-resize-clears-and-repositions: 4/4 assertions
+  PASSED hidden-owner-cancels-via-real-mutation-observer: 4/4 assertions
+  PASSED window-blur-by-owned-target-activation: 3/3 assertions
+  PASSED page-and-source-integrity: 4/4 assertions
+
+Owned Chrome cleanup: {"target":"Only the Chrome process spawned by this runner and its verified owned CDP browser","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastOwnedProcesses":[{"type":"browser","id":12524,"cpuTime":1.501566},{"type":"renderer","id":45112,"cpuTime":0.038388},{"type":"renderer","id":12196,"cpuTime":0.053149},{"type":"renderer","id":10476,"cpuTime":0.266148},{"type":"renderer","id":5692,"cpuTime":0.048817},{"type":"renderer","id":8720,"cpuTime":0.280671},{"type":"GPU","id":41024,"cpuTime":0.175593},{"type":"network.mojom.NetworkService","id":38120,"cpuTime":0.104868},{"type":"storage.mojom.StorageService","id":41460,"cpuTime":0.030607},{"type":"chrome.mojom.ProcessorMetrics","id":14312,"cpuTime":0.037023}],"browserClose":"sent to profile/PID/port-verified owned browser","exit":{"code":0,"signal":null,"at":"2026-10-23T22:13:32.774Z"},"debugPortReleased":true,"pass":true}
+
+Remaining scope limits:
+  - Controlled main conversation DOM and fixture theme, not the full original application, current original GUI, live session data, React integration, or original Electron Chromium.
+  - Only the extracted installed picker and its required functions/CSS are executed; unrelated installed module registration and app lifecycle are outside this acceptance scope.
+  - Pixel-mode wheel forwarding is exercised. Line/page wheel delta modes, touch input, and platform-native menus are outside this run.
+
+Errors:
+  none
+
+Full per-case measured values and trusted input events: C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass255-reference-picker-browser.json
+Screenshot: C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass255-reference-picker-browser.png

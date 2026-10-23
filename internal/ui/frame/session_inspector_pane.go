@@ -265,13 +265,12 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 	}
 	root := ui.Column(c.Key("inspector-root")).Fill().MinHeight(0).Font(theme.RenderPreferences().Interface.Family).FontSize(11).LineHeight(0).TextColor(chrome.Color(colors.FG))
 	if root.Shortcut(0, ui.KeyEscape) && p.navigation.Picking {
-		p.navigation.Picking = false
-		p.navigation.Notice = ""
+		p.navigation.CancelPicking()
 	}
 	root.Children(func() {
 		inspectorToolbar(c, p, source, rows, state.HistoryHasMore, state.HistoryPageBusy, loadOlder, colors)
 		if p.navigation.Picking {
-			ui.Text(c, paneLabel("点击对话中的选择按钮；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(4, 8).TextColor(chrome.Color(colors.Secondary))
+			ui.Text(c, paneLabel("点击对话中的元素；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(4, 8).TextColor(chrome.Color(colors.Secondary))
 		}
 
 		if state.HistoryPageErr != "" {
@@ -281,7 +280,11 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 		// turns into a pick once the chat projection exists, so the selection is the
 		// real record rather than an invented one.
 		p.applyPendingPick(rows)
+		hadPick := p.navigation.Picked != nil
 		p.consumeInspectorPick(rows)
+		if hadPick {
+			c.Services().Invalidate()
+		}
 		if p.navigation.Notice != "" {
 			ui.Text(c, p.navigation.Notice)
 		}

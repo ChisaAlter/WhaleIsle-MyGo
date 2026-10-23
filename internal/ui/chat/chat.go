@@ -99,6 +99,7 @@ type Model struct {
 func View(c *ui.Context, m Model) {
 	if m.GroupRoom {
 		if m.Inspector != nil {
+			m.Inspector.CancelPicking()
 			m.Inspector.CancelReveal()
 		}
 		groupThreadsView(c, m)
@@ -114,6 +115,7 @@ func View(c *ui.Context, m Model) {
 	_ = colors.BG
 
 	msgs := session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
+	projected := msgs
 	msgs, transcriptControls := projectTranscript(visibleChatMessages(msgs), m)
 	actionTargets := assistantActionTargets(msgs)
 	list := m.List
@@ -123,7 +125,7 @@ func View(c *ui.Context, m Model) {
 
 	cards := prepareScheduleContext(m)
 	prepareHistoryNavigation(m, msgs, list)
-	prepareSessionInspector(m, msgs, transcriptControls, list)
+	prepareSessionInspector(m, msgs, transcriptControls, list, projected)
 	if m.Inspector != nil && m.Inspector.SessionID == m.Snapshot.SelectedID && m.Inspector.Target != nil {
 		c.Services().Invalidate()
 	}
@@ -146,6 +148,7 @@ func View(c *ui.Context, m Model) {
 		}
 		if len(msgs) == 0 {
 			if m.Inspector != nil {
+				m.Inspector.CancelPicking()
 				m.Inspector.CancelReveal()
 			}
 			// The empty Session is the Hero's job (conversationPhase), so this
@@ -169,6 +172,7 @@ func View(c *ui.Context, m Model) {
 		if m.FullColumnViewport {
 			transcript.ScrollbarInsets(0, -3, 0, 0)
 		}
+		inspectorChatPickerOverlay(c, m, colors, list, scroll)
 		transcript.Rows(func(row ui.ListRow) {
 			paintMessage := func() {
 				msg := msgs[row.Index]
@@ -184,9 +188,8 @@ func View(c *ui.Context, m Model) {
 				}
 				isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 				messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill()
-				inspectorChatRowGeometry(row.Context, m, msg.ID, messageRoot, padT, padR, padB, padL)
+				inspectorChatRowGeometry(row.Context, m, msg, messageRoot, padT, padR, padB, padL)
 				messageRoot.Children(func() {
-					sessionInspectorChatControl(row.Context, m, msg)
 					if control, ok := transcriptControls[msg.ID]; ok {
 						transcriptControlView(row.Context, control, m, muted)
 						return
