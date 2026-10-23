@@ -100,7 +100,7 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 		if m.Density == "cozy" {
 			maxWidth = 120
 		}
-		anchor := ui.ButtonBase(c).Height(27).MaxWidth(maxWidth).Padding(0, 10).Gap(4).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil)
+		anchor := ui.ButtonBase(c).Height(27).MaxWidth(maxWidth).Padding(0, 10).Gap(4).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil).FocusRing(false)
 		if m.Density == "compact" {
 			anchor.Padding(0, 8)
 		}
@@ -124,7 +124,7 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 		captionGitRule(c)
 		captionGitButton(c, m, resolveCaptionQuick(m), m.Density != "compact" && m.Density != "cozy")
 		captionGitRule(c)
-		trigger := ui.ButtonBase(c).Width(24).Height(27).Padding(0).Justify(ui.Center).AlignItems(ui.Center).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("Git 操作选项", "Git action options")).Disabled(m.GitBusy)
+		trigger := ui.ButtonBase(c).Width(24).Height(27).Padding(0).Justify(ui.Center).AlignItems(ui.Center).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("Git 操作选项", "Git action options")).Disabled(m.GitBusy).FocusRing(false)
 		trigger.Children(func() { ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).TextColor(c.Theme().Text) })
 		open := ui.Local(trigger, "menu-open", func() bool { return false })
 		if m.GitBusy {
@@ -164,7 +164,7 @@ func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitActio
 	if a.disabled {
 		hint = a.hint
 	}
-	b := ui.ButtonBase(c).Height(27).Padding(0, 10).Gap(4).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(a.label).Tooltip(hint).Disabled(disabled).AlignItems(ui.Center).Justify(ui.Center)
+	b := ui.ButtonBase(c).Height(27).Padding(0, 10).Gap(4).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(a.label).Tooltip(hint).Disabled(disabled).AlignItems(ui.Center).Justify(ui.Center).FocusRing(false)
 	if !label {
 		b.Padding(0, 8)
 		if hint == "" {
