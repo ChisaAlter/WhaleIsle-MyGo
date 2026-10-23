@@ -71,6 +71,7 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 		terminalActionBar(c, m, false)
 	})
+	ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(c.Theme().Border)
 }
 
 // paintTerminalChip paints one pane chip with the same geometry as a file tab.
