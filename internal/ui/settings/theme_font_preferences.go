@@ -408,14 +408,14 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		render("terminal", providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f }, 10, 20, true)
 	})
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Clicked() {
+		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Disabled(e.OnSave == nil).Clicked() {
 			e.ResetAppearanceFonts()
 		}
 		if ui.Button(c, providerCopy("预览", "Preview")).Clicked() {
 			e.ApplyPreview()
 			c.Invalidate()
 		}
-		if ui.Button(c, providerCopy("取消预览", "Cancel preview")).Clicked() {
+		if ui.Button(c, providerCopy("取消预览", "Cancel preview")).Disabled(!e.Preview).Clicked() {
 			e.Cancel()
 			c.Invalidate()
 		}
