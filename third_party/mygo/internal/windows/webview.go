@@ -134,7 +134,7 @@ const (
 )
 
 func (w *window) createWebView() {
-	if w.closed {
+	if w.closed || w.destroying || w.isolated != nil && w.isolated.closed {
 		return
 	}
 	if !w.opts.IsolatedPreview && !w.opts.TransientProfile && !w.opts.BrowserProfile && w.b.envErr != nil {
@@ -145,15 +145,36 @@ func (w *window) createWebView() {
 	if fail {
 		testFailWebViews--
 	}
+	p := w.isolated
+	if p != nil {
+		p.controllerPending = true
+	}
 	hr := withHandler(func(hr, controller uintptr) {
+		if p != nil {
+			p.controllerSetup = true
+			defer func() {
+				p.controllerSetup = false
+				if p.exitPending {
+					p.exitPending = false
+					w.previewBrowserExited(p)
+				}
+			}()
+		}
+		if p != nil {
+			p.controllerPending = false
+			p.browserStarted = p.browserStarted || controller != 0
+		}
 		if fail && controller != 0 { // TestFailWebViews
 			comCall(controller, ctlClose)
 			hr, controller = eFail, 0
 		}
 		// Closing the window aborts the creation (E_ABORT).
-		if w.closed || w.destroying {
+		if w.closed || w.destroying || p != nil && p.closed {
 			if controller != 0 {
 				comCall(controller, ctlClose)
+			}
+			if p != nil {
+				p.close()
 			}
 			return
 		}
@@ -165,6 +186,12 @@ func (w *window) createWebView() {
 		w.setUp(controller)
 	}, func(h uintptr) uintptr { return comCall(w.environment(), envCreateController, w.hwnd, h) })
 	if failed(hr) {
+		if p != nil {
+			p.controllerPending = false
+			if p.closed {
+				p.close()
+			}
+		}
 		w.creationFailed(hr)
 	}
 }
@@ -172,6 +199,9 @@ func (w *window) createWebView() {
 // creationFailed has the window ask for its webview again later, or, if it
 // may not, fails the calls waiting for it.
 func (w *window) creationFailed(hr uintptr) {
+	if w.closed || w.destroying || w.isolated != nil && w.isolated.closed {
+		return
+	}
 	err := hresultError("creating the WebView2 controller", hr)
 	w.webViewFails++
 	if hr == errorInvalidState || w.webViewFails >= webViewAttempts {
@@ -299,12 +329,16 @@ func (w *window) setUp(controller uintptr) {
 		w.focusWebView()
 	}
 
+	if w.isolated != nil && w.isolated.closed {
+		w.failPending(errDestroyed)
+		return
+	}
 	w.ready = true
 	pending := w.pending
 	w.pending = nil
 	for i, c := range pending {
-		if w.closed {
-			// A call closed the window: the others never run.
+		if w.closed || w.destroying || w.isolated != nil && w.isolated.closed {
+			// A close or private browser exit stops the remaining calls.
 			w.pending = pending[i:]
 			w.failPending(errDestroyed)
 			return

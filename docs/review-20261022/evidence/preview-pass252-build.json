@@ -1,0 +1,16 @@
+﻿{
+    "build":  "pass252",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "bytes":  85158912,
+    "files":  [
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                      "Hash":  "BAC54C66F39DBB0239770516D898EF4E56F42631B77D444F792815F7829696CE"
+                  },
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass252.exe",
+                      "Hash":  "BAC54C66F39DBB0239770516D898EF4E56F42631B77D444F792815F7829696CE"
+                  }
+              ]
+}

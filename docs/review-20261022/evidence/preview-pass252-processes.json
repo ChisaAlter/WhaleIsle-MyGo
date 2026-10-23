@@ -1,0 +1,28 @@
+﻿{
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ParentProcessId":  8544,
+                          "Name":  "Whale Isle.exe",
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ParentProcessId":  20012,
+                          "Name":  "node.exe",
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "earlierFailedFixtureResidual":  [
+                                         {
+                                             "ProcessId":  40992,
+                                             "ParentProcessId":  22476,
+                                             "Name":  "msedgewebview2.exe",
+                                             "CommandLine":  "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.62\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=windows.test.exe --user-data-dir=\"C:\\Users\\48818\\AppData\\Local\\Temp\\TestPreviewWebViewNativeExitCleanup3845744727\\001\\mygo-preview-764361506\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --mojo-named-platform-channel-pipe=22476.21756.7781815176436069282 /pfhostedapp:328b34cf8b9a1b5cd6ac1bb3a99f25cb84d292b1"
+                                         }
+                                     ],
+    "residualAction":  "Exact fixture-owned orphan40992 from failed04:12 run verified and stopped; parent22476 absent",
+    "nativeFixtureProcesses":  [
+
+                               ]
+}

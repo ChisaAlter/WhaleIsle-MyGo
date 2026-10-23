@@ -1,0 +1,101 @@
+﻿[
+    {
+        "name":  "native-and-filesystem",
+        "args":  [
+                     "test",
+                     "./internal/windows",
+                     "-run",
+                     "^TestPreview",
+                     "-count=1",
+                     "-v",
+                     "-timeout=100s"
+                 ],
+        "goos":  "windows",
+        "goarch":  "amd64",
+        "native":  true,
+        "exitCode":  0,
+        "seconds":  8.7681924,
+        "log":  "preview-pass252-native-and-filesystem.txt"
+    },
+    {
+        "name":  "windows-package",
+        "args":  [
+                     "test",
+                     "./internal/windows",
+                     "-count=1"
+                 ],
+        "goos":  "windows",
+        "goarch":  "amd64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  3.5434520999999997,
+        "log":  "preview-pass252-windows-package.txt"
+    },
+    {
+        "name":  "windows-build",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "goos":  "windows",
+        "goarch":  "amd64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  10.5444756,
+        "log":  "preview-pass252-windows-build.txt"
+    },
+    {
+        "name":  "windows-vet",
+        "args":  [
+                     "vet",
+                     "./..."
+                 ],
+        "goos":  "windows",
+        "goarch":  "amd64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  6.1316405,
+        "log":  "preview-pass252-windows-vet.txt"
+    },
+    {
+        "name":  "production-vet",
+        "args":  [
+                     "vet",
+                     "-tags",
+                     "mygo_noinspector",
+                     "./..."
+                 ],
+        "goos":  "windows",
+        "goarch":  "amd64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  8.0059915,
+        "log":  "preview-pass252-production-vet.txt"
+    },
+    {
+        "name":  "arm64-build",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "goos":  "windows",
+        "goarch":  "arm64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  17.9499615,
+        "log":  "preview-pass252-arm64-build.txt"
+    },
+    {
+        "name":  "linux-build",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "goos":  "linux",
+        "goarch":  "amd64",
+        "native":  false,
+        "exitCode":  0,
+        "seconds":  30.1338652,
+        "log":  "preview-pass252-linux-build.txt"
+    }
+]

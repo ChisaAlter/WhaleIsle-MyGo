@@ -1,0 +1,1 @@
+﻿ok  	github.com/egoist/mygo/internal/windows	2.173s

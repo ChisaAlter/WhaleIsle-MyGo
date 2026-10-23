@@ -1,0 +1,52 @@
+﻿=== RUN   TestPreviewCleanupRemovesOriginalContentsAndCanRepeat
+--- PASS: TestPreviewCleanupRemovesOriginalContentsAndCanRepeat (1.86s)
+=== RUN   TestPreviewCleanupRefusesMissingFileAndUnknownIdentity
+=== RUN   TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/missing
+=== RUN   TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/file
+=== RUN   TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/unknown-identity
+=== RUN   TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/wrong-id
+--- PASS: TestPreviewCleanupRefusesMissingFileAndUnknownIdentity (0.09s)
+    --- PASS: TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/missing (0.01s)
+    --- PASS: TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/file (0.01s)
+    --- PASS: TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/unknown-identity (0.03s)
+    --- PASS: TestPreviewCleanupRefusesMissingFileAndUnknownIdentity/wrong-id (0.03s)
+=== RUN   TestPreviewCleanupPinRejectsRenameAndReleasesOnClose
+--- PASS: TestPreviewCleanupPinRejectsRenameAndReleasesOnClose (0.01s)
+=== RUN   TestPreviewCleanupRetainsInUseFolderAndTerminatesOwner
+--- PASS: TestPreviewCleanupRetainsInUseFolderAndTerminatesOwner (0.01s)
+=== RUN   TestPreviewIdentityLifetimeAllowsRenameAndEndsOnClose
+--- PASS: TestPreviewIdentityLifetimeAllowsRenameAndEndsOnClose (0.01s)
+=== RUN   TestPreviewIdentityStaysAliveUntilPendingCreationSettles
+--- PASS: TestPreviewIdentityStaysAliveUntilPendingCreationSettles (0.00s)
+=== RUN   TestPreviewIdentityLateCreationSuccessAfterCloseReleasesWithoutSubscription
+--- PASS: TestPreviewIdentityLateCreationSuccessAfterCloseReleasesWithoutSubscription (0.00s)
+=== RUN   TestPreviewExitCleanupEndsRetryAndReleasesIdentity
+--- PASS: TestPreviewExitCleanupEndsRetryAndReleasesIdentity (0.00s)
+=== RUN   TestPreviewExitDuringControllerSetupWaitsForOuterCallback
+--- PASS: TestPreviewExitDuringControllerSetupWaitsForOuterCallback (0.01s)
+=== RUN   TestPreviewIdentityCloseKeepsSubscribedOriginalUntilExit
+--- PASS: TestPreviewIdentityCloseKeepsSubscribedOriginalUntilExit (0.00s)
+=== RUN   TestPreviewIdentityRejectsRelativeMissingFileAndInvalidHandle
+--- PASS: TestPreviewIdentityRejectsRelativeMissingFileAndInvalidHandle (0.00s)
+=== RUN   TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild
+=== RUN   TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild/root-true
+=== RUN   TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild/root-false
+--- PASS: TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild (0.02s)
+    --- PASS: TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild/root-true (0.01s)
+    --- PASS: TestPreviewCleanupRefusesJunctionRootAndDoesNotTraverseChild/root-false (0.01s)
+=== RUN   TestPreviewCleanupWorksWithLongUnicodePath
+--- PASS: TestPreviewCleanupWorksWithLongUnicodePath (0.01s)
+=== RUN   TestPreviewCleanupOwnsOriginalDirectory
+--- PASS: TestPreviewCleanupOwnsOriginalDirectory (0.01s)
+=== RUN   TestPreviewWebViewNativeExitCleanup
+    preview_native_test.go:62: native case: normal-exit
+    preview_native_test.go:133: browser exit cleaned original; controller failures=0 terminal=true
+    preview_native_test.go:62: native case: close-during-creation
+    preview_native_test.go:107: immediate close settled; environmentPending=false controllerPending=true identity released
+    preview_native_test.go:62: native case: first-controller-fails
+2026/10/24 04:18:15 mygo: creating the WebView2 controller failed (HRESULT 0x80004005); trying again
+2026/10/24 04:18:16 mygo: private preview browser exited
+    preview_native_test.go:133: browser exit cleaned original; controller failures=1 terminal=true
+--- PASS: TestPreviewWebViewNativeExitCleanup (2.52s)
+PASS
+ok  	github.com/egoist/mygo/internal/windows	6.647s

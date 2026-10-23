@@ -1,0 +1,5 @@
+﻿ok  	whaleisle/internal/desktop/webview	1.761s
+ok  	whaleisle/internal/desktop/htmlpreview	2.066s
+ok  	whaleisle/internal/desktop/pdfpreview	2.783s
+ok  	whaleisle/internal/desktop/openui	2.074s
+ok  	whaleisle/internal/ui/browserpreview	2.923s

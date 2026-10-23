@@ -1,0 +1,6 @@
+﻿go : internal\linux\browser_seat.go:55:23: possible misuse of unsafe.Pointer
+At line:1 char:412
++ ... g; $tests=$LASTEXITCODE; $env:GOOS='linux'; go vet ./... 2>&1 | Tee-O ...
++                                                 ~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (internal\linux\... unsafe.Pointer:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError

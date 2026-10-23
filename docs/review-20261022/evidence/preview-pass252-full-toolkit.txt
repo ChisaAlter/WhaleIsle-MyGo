@@ -1,0 +1,78 @@
+﻿ok  	github.com/egoist/mygo	15.121s
+ok  	github.com/egoist/mygo/cmd/mygo	111.848s
+?   	github.com/egoist/mygo/examples/clipboard	[no test files]
+ok  	github.com/egoist/mygo/examples/counter-native	1.925s
+?   	github.com/egoist/mygo/examples/drag-drop	[no test files]
+ok  	github.com/egoist/mygo/examples/effort-slider	2.560s
+?   	github.com/egoist/mygo/examples/frameless	[no test files]
+ok  	github.com/egoist/mygo/examples/gallery	2.522s
+?   	github.com/egoist/mygo/examples/hello	[no test files]
+?   	github.com/egoist/mygo/examples/menubar-native	[no test files]
+?   	github.com/egoist/mygo/examples/native	[no test files]
+?   	github.com/egoist/mygo/examples/terminal	[no test files]
+?   	github.com/egoist/mygo/examples/text-buffer	[no test files]
+?   	github.com/egoist/mygo/examples/text-input	[no test files]
+?   	github.com/egoist/mygo/examples/todo	[no test files]
+ok  	github.com/egoist/mygo/examples/vibrancy	2.808s
+ok  	github.com/egoist/mygo/internal/accelerator	0.760s
+?   	github.com/egoist/mygo/internal/bridge	[no test files]
+ok  	github.com/egoist/mygo/internal/darwin	1.056s
+ok  	github.com/egoist/mygo/internal/e2e	3.852s
+?   	github.com/egoist/mygo/internal/fake	[no test files]
+ok  	github.com/egoist/mygo/internal/gamut	0.842s
+ok  	github.com/egoist/mygo/internal/gpu	0.822s
+ok  	github.com/egoist/mygo/internal/gpu/d3d11	9.291s
+ok  	github.com/egoist/mygo/internal/gpu/d3d11/device	1.398s
+ok  	github.com/egoist/mygo/internal/gpu/d3d11/roundclip	0.823s
+?   	github.com/egoist/mygo/internal/gpu/gputest	[no test files]
+?   	github.com/egoist/mygo/internal/idlemem	[no test files]
+ok  	github.com/egoist/mygo/internal/platform	0.835s
+ok  	github.com/egoist/mygo/internal/raster	5.490s
+ok  	github.com/egoist/mygo/internal/scene	0.766s
+?   	github.com/egoist/mygo/internal/surface	[no test files]
+ok  	github.com/egoist/mygo/internal/svg	1.553s
+ok  	github.com/egoist/mygo/internal/text	2.193s
+ok  	github.com/egoist/mygo/internal/tsgen	1.108s
+?   	github.com/egoist/mygo/internal/tsgen/internal/fixture	[no test files]
+?   	github.com/egoist/mygo/internal/uigen	[no test files]
+ok  	github.com/egoist/mygo/internal/uimigrate	1.157s
+ok  	github.com/egoist/mygo/internal/uivet	1.576s
+?   	github.com/egoist/mygo/internal/unsupported	[no test files]
+ok  	github.com/egoist/mygo/internal/update	7.127s
+?   	github.com/egoist/mygo/internal/vec	[no test files]
+ok  	github.com/egoist/mygo/internal/windows	7.911s
+ok  	github.com/egoist/mygo/plugins/fetch	2.620s
+ok  	github.com/egoist/mygo/plugins/glass	3.180s
+?   	github.com/egoist/mygo/plugins/glass/internal/gen	[no test files]
+ok  	github.com/egoist/mygo/plugins/sqlite	2.859s
+?   	github.com/egoist/mygo/plugins/sqlite/internal/libbuild	[no test files]
+ok  	github.com/egoist/mygo/plugins/terminal	4.857s
+?   	github.com/egoist/mygo/plugins/terminal/internal/libbuild	[no test files]
+?   	github.com/egoist/mygo/plugins/terminal/internal/library	[no test files]
+ok  	github.com/egoist/mygo/plugins/terminal/internal/pty	1.552s
+ok  	github.com/egoist/mygo/plugins/terminal/internal/vt	2.718s
+ok  	github.com/egoist/mygo/plugins/updater	3.343s
+?   	github.com/egoist/mygo/plugins/updater/internal/frontend	[no test files]
+ok  	github.com/egoist/mygo/plugins/updater/internal/markdown	1.182s
+ok  	github.com/egoist/mygo/plugins/updater/native	3.307s
+ok  	github.com/egoist/mygo/plugins/websocket	1.994s
+ok  	github.com/egoist/mygo/transfer	0.637s
+--- FAIL: TestDiffFrameAllocs (18.56s)
+    bench_test.go:288: allocations a frame: steady 6, scrolling the sidebar 146, with the diff 148, within rows laid out 13
+    bench_test.go:293: a steady frame allocates 6 times, and one scrolling within rows laid out 13, not 2
+2026/10/24 04:19:53 mygo: MYGO_FRAME_STATS="fast" is not a number of milliseconds: logging frames over 8 ms
+2026/10/24 04:19:53 mygo: drawing without the GPU: the device was removed
+2026/10/24 04:19:53 mygo: drawing with the GPU again
+2026/10/24 04:19:53 mygo: drawing without the GPU: the device was removed
+2026/10/24 04:19:53 mygo: drawing without the GPU: no device
+2026/10/24 04:19:53 mygo: drawing without the GPU: no device
+2026/10/24 04:19:53 mygo: drawing with the GPU again
+2026/10/24 04:19:53 mygo: drawing without the GPU: the device was removed
+2026/10/24 04:19:53 mygo: drawing in software until the GPU is back
+2026/10/24 04:19:53 mygo: drawing with the GPU again
+2026/10/24 04:19:53 mygo: drawing without the GPU: no device
+--- FAIL: TestShapeTextLineNativeFallbackAndGraphemeEllipsis (0.01s)
+    text_layout_raster_test.go:147: width 24 did not use the native one-line ellipsis
+FAIL
+FAIL	github.com/egoist/mygo/ui	38.208s
+FAIL
