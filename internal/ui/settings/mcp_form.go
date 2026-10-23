@@ -103,7 +103,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 		return false
 	}
 	if a.Draft == nil {
-		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
 			a.OnOpen()
 		}
 		return false

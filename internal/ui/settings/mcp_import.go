@@ -107,7 +107,7 @@ func mcpImportPane(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Co
 	box := ui.Column(c.Key("mcp-import-dialog"))
 	open := ui.Local(box, "open", func() bool { return false })
 	box.Children(func() {
-		if ui.Button(c, mcpCatalogText("从 JSON 导入", "Import from JSON")).Disabled(busy).Clicked() {
+		if ui.Button(c, mcpCatalogText("从 JSON 导入", "Import from JSON")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(busy).Clicked() {
 			*open = true
 		}
 		bodyDialog(c, open, mcpCatalogText("导入 MCP 服务器", "Import MCP server"), func() { mcpImportContent(c, a, busy, fg, muted) })

@@ -128,12 +128,14 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if area.Changed() && a.OnDraftChanged != nil {
 			a.OnDraftChanged(*a.DraftSpec)
 		}
-		if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
-			a.OnUpsert(*a.DraftSpec)
-		}
-		if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
-			a.OnCancelEdit()
-		}
+		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
+			if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(32).Padding(0, 14).Disabled(a.Busy).Clicked() {
+				a.OnCancelEdit()
+			}
+			if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Height(32).Padding(0, 14).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
+				a.OnUpsert(*a.DraftSpec)
+			}
+		})
 	}
 }
 

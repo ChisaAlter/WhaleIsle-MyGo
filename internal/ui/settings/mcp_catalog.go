@@ -30,31 +30,33 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 		return
 	}
 	query := a.Snapshot.Query
-	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
-		if ui.TextInput(c, &query).Label("MCP search").Grow(1).MinWidth(180).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
-			a.OnQuery(query)
-		}
-		// One dropdown replaces the three chips the installed build does not have.
-		labels := []string{mcpCatalogText("全部", "All"), mcpCatalogText("已启用", "Enabled"), mcpCatalogText("已禁用", "Disabled")}
-		ids := []string{"all", "enabled", "disabled"}
-		current := labels[0]
-		for index, id := range ids {
-			if a.Snapshot.EnabledFilter == id {
-				current = labels[index]
+	ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16, 0, 0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+			if ui.TextInput(c, &query).Label("MCP search").Basis(0).Grow(1).MinWidth(0).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
+				a.OnQuery(query)
 			}
-		}
-		filtered := false
-		ui.Box(c).Width(88).Shrink(0).Children(func() {
-			filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Changed()
-		})
-		if filtered && a.OnFilter != nil {
-			for index, label := range labels {
-				if current == label {
-					a.OnFilter(ids[index])
-					break
+			// One dropdown replaces the three chips the installed build does not have.
+			labels := []string{mcpCatalogText("全部", "All"), mcpCatalogText("已启用", "Enabled"), mcpCatalogText("已禁用", "Disabled")}
+			ids := []string{"all", "enabled", "disabled"}
+			current := labels[0]
+			for index, id := range ids {
+				if a.Snapshot.EnabledFilter == id {
+					current = labels[index]
 				}
 			}
-		}
+			filtered := false
+			ui.Box(c).Width(88).Shrink(0).Clip().Children(func() {
+				filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Changed()
+			})
+			if filtered && a.OnFilter != nil {
+				for index, label := range labels {
+					if current == label {
+						a.OnFilter(ids[index])
+						break
+					}
+				}
+			}
+		})
 	})
 	ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d 个服务器，共 %d 个", "Showing %d of %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if a.Snapshot.Err != "" && a.Snapshot.Ready {
