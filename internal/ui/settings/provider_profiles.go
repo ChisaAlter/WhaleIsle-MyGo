@@ -26,7 +26,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 	}
 	s := a.Snapshot
 	ui.Text(c, providerCopy("已配置的供应商", "Configured providers")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Disabled(s.Busy).Clicked() {
+	if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).AlignSelf(ui.Start).Height(30).Padding(0, 12).Disabled(s.Busy).Clicked() {
 		a.OnRefresh()
 	}
 	if s.Err != "" {

@@ -92,7 +92,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	open := ui.Local(advanced, "open", func() bool { return false })
 	advanced.Children(func() {
 		label := providerCopy("供应商密钥与模型探测", "Provider keys and model discovery")
-		if ui.Button(c, label).Clicked() {
+		if ui.Button(c, label).AlignSelf(ui.Start).Height(30).Padding(0, 12).Clicked() {
 			*open = !*open
 		}
 		if *open {

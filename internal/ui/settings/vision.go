@@ -18,7 +18,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 	}
 	s := a.Snapshot
 	ui.Text(c, providerCopy("识图模型（全局）", "Vision model (global)")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	if a.OnRefresh != nil && ui.Button(c, providerCopy("刷新识图设置", "Refresh vision settings")).Disabled(s.Loading || s.Saving).Clicked() {
+	if a.OnRefresh != nil && ui.Button(c, providerCopy("刷新识图设置", "Refresh vision settings")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Disabled(s.Loading || s.Saving).Clicked() {
 		a.OnRefresh()
 	}
 	if s.Err != "" {
