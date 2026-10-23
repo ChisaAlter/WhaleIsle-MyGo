@@ -74,9 +74,16 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 					if currentLight || currentDark {
-						// One family can supply both schemes; say "current" once
-						// instead of claiming light and dark are both current modes.
-						ui.Text(c, providerCopy("当前主题", "Current theme")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						status := providerCopy("当前主题", "Current theme")
+						switch {
+						case currentLight && !currentDark:
+							status = providerCopy("当前浅色", "Current light")
+						case currentDark && !currentLight:
+							status = providerCopy("当前深色", "Current dark")
+						}
+						// One family can supply both schemes; state it once
+						// instead of drawing a check on each half.
+						ui.Text(c, status).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
 				})
 			})
@@ -130,9 +137,6 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 				ui.Box(c).Size(10, 10).Shrink(0).Radius(5).Background(chrome.Color(seed.Accent))
 				ui.Box(c).Width(38).Height(6).Shrink(0).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.35))
 				ui.Box(c).Grow(1)
-				if current {
-					ui.Text(c, "✓").FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(seed.Foreground))
-				}
 			})
 			ui.Box(c).Height(4)
 			ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
