@@ -30,6 +30,9 @@ type captionListTransport struct {
 }
 
 func (f *captionListTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Method == http.MethodGet && r.URL.Path == "/" {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"text/html"}}, Body: io.NopCloser(strings.NewReader("<!doctype html><html></html>"))}, nil
+	}
 	f.calls.Add(1)
 	var request struct {
 		Type, Method string

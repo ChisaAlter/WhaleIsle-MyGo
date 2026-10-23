@@ -2,6 +2,7 @@ package chrome
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -87,6 +88,49 @@ func TestWorkspaceTrailingDensityAndIndependentPanelGates(t *testing.T) {
 			}
 			if _, ok := tt.Find("Toggle terminal drawer"); !ok {
 				t.Fatal("managed session hid independent panels")
+			}
+		})
+	}
+}
+
+func TestWorkspaceTrailingDisabledReasonsRemainVisibleOnHover(t *testing.T) {
+	i18n.SetLocale("en")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, menu := range []bool{false, true} {
+		name := "primary"
+		if menu {
+			name = "menu"
+		}
+		t.Run(name, func(t *testing.T) {
+			calls := 0
+			status := &git.RepositoryStatus{IsRepo: true, Branch: "main", HasOrigin: true, HasUpstream: menu}
+			m := WorkspaceTrailingModel{Status: status, WorkspaceRoot: "fixture", GitLoaded: true, Density: "full", OnGitAction: func(string) { calls++ }}
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Column(c).Fill().Padding(16).Children(func() { WorkspaceTrailing(c, m) })
+			}, 800, 400)
+			now := time.Now()
+			tt.SetTime(now)
+			reason := "No local commits to push"
+			if menu {
+				if err := tt.Click("Git action options"); err != nil {
+					t.Fatal(err)
+				}
+				reason = "Requires local commits on a branch that is not behind upstream"
+			}
+			button, ok := tt.Find("Push")
+			if !ok {
+				t.Fatal("missing disabled Push action", tt.Texts())
+			}
+			tt.Move(button.X+button.W/2, button.Y+button.H/2)
+			tt.SetTime(now.Add(time.Second))
+			if !tt.HasText(reason) {
+				t.Fatalf("disabled %s action hid its reason: %q", name, tt.Texts())
+			}
+			if err := tt.Click("Push"); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 0 {
+				t.Fatal("disabled action dispatched Git")
 			}
 		})
 	}

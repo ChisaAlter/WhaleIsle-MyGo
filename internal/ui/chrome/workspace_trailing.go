@@ -122,7 +122,12 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 			m.RenderBranches(c, anchor, branchOpen)
 		}
 		captionGitRule(c)
-		captionGitButton(c, m, resolveCaptionQuick(m), m.Density != "compact" && m.Density != "cozy")
+		quick := resolveCaptionQuick(m)
+		// A disabled button cannot own a toolkit tooltip. Keep its reason on
+		// the enabled presentation wrapper, as the reference span does.
+		ui.Row(c).Height(27).Shrink(0).Tooltip(quick.hint).Children(func() {
+			captionGitButton(c, m, quick, m.Density != "compact" && m.Density != "cozy")
+		})
 		captionGitRule(c)
 		trigger := ui.ButtonBase(c).Width(24).Height(27).Padding(0).Justify(ui.Center).AlignItems(ui.Center).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("Git 操作选项", "Git action options")).Disabled(m.GitBusy).FocusRing(false)
 		trigger.Children(func() { ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).TextColor(c.Theme().Text) })
@@ -141,10 +146,16 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 			panel.Children(func() {
 				for _, action := range captionMenuActions(m) {
 					a := action
-					row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(36).Padding(6, 8).Role(ui.RoleMenuItem).Radius(8)
-					if row.Clicked() {
-						*open = false
+					hint := ""
+					if a.disabled {
+						hint = a.hint
 					}
+					ui.Row(c).FillWidth().Height(36).Shrink(0).Tooltip(hint).Children(func() {
+						row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(36).Padding(6, 8).Role(ui.RoleMenuItem).Radius(8)
+						if row.Clicked() {
+							*open = false
+						}
+					})
 				}
 				if m.Status.Branch == "" {
 					ui.Text(c, captionWord("当前处于 detached HEAD", "Currently on detached HEAD")).FillWidth().Padding(8, 10).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
@@ -177,9 +188,6 @@ func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitActio
 			ui.Text(c, a.label).SingleLine().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Text)
 		}
 	})
-	if disabled {
-		b = b.Opacity(.45)
-	}
 	if b.Clicked() {
 		captionRun(m, a.id)
 	}

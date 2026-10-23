@@ -177,6 +177,19 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	state.publish(m)
 	w.legacyFileID = active.ID
 
+	if trailing := m.WorkspaceTrailing; trailing != nil {
+		m.WorkspaceTrailing = func(c *ui.Context, density string) {
+			owner := w.Root.find(w.legacyFileID)
+			trailing(c, density)
+			// The caption's callbacks retain the main Workbench adapter. Collect
+			// their changes before a pane renders or the end-of-frame projection
+			// would replace a newly opened review with the pane's earlier copy.
+			if owner != nil && w.Root.find(owner.ID) == owner {
+				w.diffState(owner).capture(m)
+			}
+		}
+	}
+
 	// Existing callbacks retain all original session/Host checks. Publish at the
 	// gesture, then collect their result into that same occurrence.
 	run := func(action func()) {
