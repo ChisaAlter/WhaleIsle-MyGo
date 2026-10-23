@@ -537,7 +537,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), &g.Prefs.Count, 1, 5, g.Save == nil, fg, muted)
 			for i := range g.Prefs.Colors {
 				bodyPreferenceRow(c, fmt.Sprintf("background-color-%d", i), fmt.Sprintf(providerCopy("颜色 %d", "Color %d"), i+1), "#RRGGBB", fg, muted, func() {
-					if ui.TextInput(c, &g.Prefs.Colors[i]).FillWidth().Disabled(g.Save == nil).Changed() {
+					if ui.TextInput(c, &g.Prefs.Colors[i]).FillWidth().Disabled(g.Save == nil).Placeholder(providerCopy("留空不绘制", "Leave blank to skip")).Changed() {
 						g.Prefs.Preset = "custom"
 					}
 				})
