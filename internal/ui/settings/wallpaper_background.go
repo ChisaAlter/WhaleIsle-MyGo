@@ -258,8 +258,34 @@ func (g *WallpaperEditor) applyCrop() {
 		g.Status = "壁纸已应用；原图副本保留，可重新裁剪"
 	}
 }
-func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
-	if g == nil {
+// wallpaperChoiceSelect shows localized labels while writing the renderer's
+// stable enum IDs back into preferences.
+func wallpaperChoiceSelect(c *ui.Context, current *string, label string, options [][2]string, disabled bool) bool {
+	labels := make([]string, 0, len(options))
+	selected := ""
+	for _, option := range options {
+		labels = append(labels, option[1])
+		if option[0] == *current {
+			selected = option[1]
+		}
+	}
+	if selected == "" {
+		selected = *current
+		labels = append(labels, selected)
+	}
+	if !ui.Select(c, &selected, labels).Label(label).FillWidth().Disabled(disabled).Changed() {
+		return false
+	}
+	for _, option := range options {
+		if option[1] == selected {
+			*current = option[0]
+			return true
+		}
+	}
+	return false
+}
+
+func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {	if g == nil {
 		return
 	}
 	ui.Text(c, "壁纸图库与背景").Bold().TextColor(fg)
@@ -490,16 +516,22 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	bodyDisclosure(c, "wallpaper-library", providerCopy("壁纸图库", "Wallpaper library"), func() { wallpaperGalleryPane(c, g, fg, muted) })
 	bodyDisclosure(c, "background-effects", providerCopy("背景特效", "Background effects"), func() {
 		bodyPreferenceRow(c, "background-effect-mode", providerCopy("动态背景", "Animated background"), providerCopy("壁纸优先于动态背景。", "Wallpaper takes precedence over the animated background."), fg, muted, func() {
-			ui.Select(c, &g.Prefs.Effect, []string{"none", "gradient"}).FillWidth().Disabled(g.Save == nil)
+			wallpaperChoiceSelect(c, &g.Prefs.Effect, providerCopy("动态背景", "Animated background"), [][2]string{{"none", providerCopy("无", "None")}, {"gradient", providerCopy("渐变", "Gradient")}}, g.Save == nil)
 		})
 		if g.Prefs.Effect == "gradient" {
 			bodyPreferenceRow(c, "background-preset", providerCopy("配色方案", "Color preset"), "", fg, muted, func() {
-				if ui.Select(c, &g.Prefs.Preset, []string{"default", "aurora", "sunset", "ocean", "sakura", "custom"}).FillWidth().Disabled(g.Save == nil).Changed() && g.Prefs.Preset != "custom" {
+				changed := wallpaperChoiceSelect(c, &g.Prefs.Preset, providerCopy("配色方案", "Color preset"), [][2]string{
+					{"default", providerCopy("默认", "Default")}, {"aurora", providerCopy("极光", "Aurora")}, {"sunset", providerCopy("日落", "Sunset")},
+					{"ocean", providerCopy("海洋", "Ocean")}, {"sakura", providerCopy("樱花", "Sakura")}, {"custom", providerCopy("自定义", "Custom")},
+				}, g.Save == nil)
+				if changed && g.Prefs.Preset != "custom" {
 					g.Prefs.Colors = wallpapers.PresetColors(g.Prefs.Preset)
 				}
 			})
 			bodyPreferenceRow(c, "background-variant", providerCopy("动画样式", "Animation style"), "", fg, muted, func() {
-				ui.Select(c, &g.Prefs.Variant, []string{"orbs", "aurora", "chaos", "rays"}).FillWidth().Disabled(g.Save == nil)
+				wallpaperChoiceSelect(c, &g.Prefs.Variant, providerCopy("动画样式", "Animation style"), [][2]string{
+					{"orbs", providerCopy("光团", "Orbs")}, {"aurora", providerCopy("极光", "Aurora")}, {"chaos", providerCopy("混沌", "Chaos")}, {"rays", providerCopy("射线", "Rays")},
+				}, g.Save == nil)
 			})
 			wallpaperSlider(c, "background-speed", providerCopy("速度", "Speed"), &g.Prefs.Speed, 20, 300, g.Save == nil, fg, muted)
 			wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), &g.Prefs.Count, 1, 5, g.Save == nil, fg, muted)
