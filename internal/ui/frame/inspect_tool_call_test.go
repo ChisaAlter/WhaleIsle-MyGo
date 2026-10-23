@@ -45,7 +45,7 @@ func TestToolCallInspectorHiddenWithoutDeveloperTools(t *testing.T) {
 
 // A queued pick waits for rows, then selects the real record and reports no miss.
 func TestPendingPickWaitsForRowsThenSelectsTheRecord(t *testing.T) {
-	p := &SessionInspectorPaneState{pendingPick: &chat.InspectorTarget{ID: "msg-9", Seq: 33}}
+	p := &SessionInspectorPaneState{Mode: "chat-node", pendingPick: &chat.InspectorTarget{ID: "msg-9", Seq: 33}}
 	p.applyPendingPick(nil)
 	if p.pendingPick == nil {
 		t.Fatal("pending pick dropped before any rows existed")

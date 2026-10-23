@@ -6,6 +6,20 @@ import (
 	"whaleisle/internal/store/session"
 )
 
+func TestInspectorPickerKeepsGroupIdentityWithoutHeaderAnchor(t *testing.T) {
+	n := &InspectorNavigation{Groups: map[string][]string{"group": {"member"}}}
+	group := n.PickTarget(session.Message{ID: "group", Seq: 42})
+	if group.ID != "" || group.GroupKey != "group" || group.AnchorSeq != nil || group.Seq != 0 {
+		t.Fatalf("group inherited presentation-only header placement: %+v", group)
+	}
+	zero := float64(0)
+	node := session.Message{ID: "member", Role: "assistant", Streaming: true, ConversationTurn: &zero, ConversationStep: &zero}
+	picked := n.PickTarget(node)
+	if picked.ID != "member" || picked.GroupKey != "" || picked.GroupPart != "response" || picked.Turn == nil || *picked.Turn != 0 {
+		t.Fatalf("actual member lost occurrence metadata: %+v", picked)
+	}
+}
+
 func TestInspectorChatIdentityAndFoldReveal(t *testing.T) {
 	msgs := []session.Message{{ID: "first", Seq: 10}, {ID: "exact", Seq: 20}, {ID: "last", Seq: 30}}
 	if inspectorMessageIndex(msgs, InspectorTarget{ID: "exact", Seq: 30}) != 1 {

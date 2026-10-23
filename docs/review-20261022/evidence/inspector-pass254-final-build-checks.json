@@ -1,0 +1,29 @@
+﻿[
+    {
+        "name":  "final-fixture",
+        "args":  [
+                     "test",
+                     "-tags",
+                     "inspectorfixture",
+                     "-c",
+                     "-o",
+                     ".devdata/r110-inspector-fixture.exe",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  4.8195999
+    },
+    {
+        "name":  "final-production-build",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "build",
+                     "-o",
+                     "whaleisle-pass254.exe",
+                     "./cmd/whaleisle"
+                 ],
+        "exitCode":  0,
+        "seconds":  0.86528299999999991
+    }
+]

@@ -118,15 +118,15 @@ func TestInspectorLiveRowsNavigateByActualChatIdentity(t *testing.T) {
 	}
 	empty := session.InspectorRecord{Key: "empty-header", Type: "block-start", ChatID: "actual-live-message"}
 	rows = append([]session.InspectorRecord{empty}, rows...)
-	if got := inspectorPickRecord(rows, chat.InspectorTarget{ID: "actual-live-message"}); got != "block" {
+	if got := p.inspectorPickRecord(rows, chat.InspectorTarget{ID: "actual-live-message"}); got != "block" {
 		t.Fatalf("forward owner fallback hijacked exact reverse pick: %s", got)
 	}
 	rows = append(rows, session.InspectorRecord{Key: "event:9", Type: "assistant/message", Seq: 9})
 	rows[3].Seq = 9
-	if got := inspectorPickRecord(rows, chat.InspectorTarget{Seq: 9}); got != "event:9" {
+	if got := p.inspectorPickRecord(rows, chat.InspectorTarget{Seq: 9}); got != "event:9" {
 		t.Fatalf("canonical message pick chose retained live prefix: %s", got)
 	}
-	if got := inspectorPickRecord(rows, chat.InspectorTarget{ID: "actual-live-message"}); got != "block" {
+	if got := p.inspectorPickRecord(rows, chat.InspectorTarget{ID: "actual-live-message"}); got != "block" {
 		t.Fatalf("live pick did not prefer its block header: %s", got)
 	}
 }

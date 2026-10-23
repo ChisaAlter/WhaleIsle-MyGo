@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	colors := theme.Default().Light
-	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "chat-reveal" || scenario == "target-ownership" {
+	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "chat-reveal" || scenario == "target-ownership" || scenario == "reverse-pick" {
 		var messages []session.Message
 		for i := 1; i <= 30; i++ {
 			id := fmt.Sprintf("answer-%d", i)
@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 			source.Records[i].ChatID = fmt.Sprintf("answer-%.0f", source.Records[i].Seq)
 		}
 		expanded := map[string]bool{}
-		if scenario == "target-ownership" {
+		if scenario == "target-ownership" || scenario == "reverse-pick" {
 			store := session.New()
 			store.Select("fixture")
 			frames := []string{
@@ -110,17 +110,24 @@ func TestMain(m *testing.M) {
 			source = store.InspectorSnapshot()
 			messages = store.Snapshot().Messages
 			p.navigation.SessionID = "fixture"
-			for _, row := range source.Chat {
-				if row.Key == "chat:m40" || row.Key == "chat:m40/text/2" {
-					row.Type = row.Key
-					source.Records = append(source.Records, row)
+			if scenario == "target-ownership" {
+				for _, row := range source.Chat {
+					if row.Key == "chat:m40" || row.Key == "chat:m40/text/2" {
+						row.Type = row.Key
+						source.Records = append(source.Records, row)
+					}
 				}
+			} else {
+				store.ApplyInspectorFixtureFrame(json.RawMessage(`{"type":"event","event":{"type":"user/message","seq":0,"surfaceOp":"append","data":{"id":"zero-user","role":"user","source":{"kind":"user"},"content":[{"type":"text","text":"Sequence zero message."}]}}}`))
+				source = store.InspectorSnapshot()
+				messages = store.Snapshot().Messages
+				list.FollowEnd = false
 			}
 		}
 		prefix := os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT")
 		trace := os.Getenv("INSPECTOR_NATIVE_FIXTURE_TRACE") == "1"
 		writeMetrics := func(suffix string, now time.Time) {
-			metrics, _ := json.MarshalIndent(map[string]any{"time": now.Format(time.RFC3339Nano), "scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation), "expanded": expanded, "selected": p.selected}, "", "  ")
+			metrics, _ := json.MarshalIndent(map[string]any{"time": now.Format(time.RFC3339Nano), "scroll": scroll.Y, "max": scroll.MaxY, "highlight": p.navigation.Highlight, "targetPending": p.navigation.Target != nil, "reveal": chat.InspectorRevealFixtureState(&p.navigation), "expanded": expanded, "selected": p.selected, "mode": p.Mode, "picking": p.navigation.Picking, "notice": p.navigation.Notice, "filter": p.Filter, "collapsed": p.collapsed, "groups": p.navigation.Groups}, "", "  ")
 			if err := os.WriteFile(prefix+suffix, metrics, 0600); err != nil {
 				panic(err)
 			}
@@ -130,12 +137,28 @@ func TestMain(m *testing.M) {
 			if c.Shortcut(0, ui.KeyF9) {
 				writeMetrics("-metrics.json", time.Now())
 			}
+			if scenario == "reverse-pick" && c.Shortcut(0, ui.KeyF6) {
+				p.navigation.Nodes, p.navigation.Groups = nil, nil
+				p.changeInspectorMode("session-log", "fixture")
+				expanded = map[string]bool{}
+				list.ScrollToOffset(0)
+			}
 			ui.Row(c).Fill().Background(chrome.Color(colors.BG)).Children(func() {
 				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 					chat.View(c, chat.Model{Inspector: &p.navigation, List: list, Scroll: scroll, Snapshot: session.ViewState{SelectedID: "fixture", PlanHistoryBinding: "fixture", Messages: messages}, ThinkingExpanded: &expanded, ThemeID: theme.IDDeepseekLight, SuppressStatus: true, FullColumnViewport: true, ContentWidth: 420})
 					ui.Box(c).Height(80).FillWidth().Background(chrome.Color(colors.Field)).Children(func() { ui.Text(c, "Composer seat") })
 				})
-				ui.Column(c).Width(680).FillHeight().Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })
+				ui.Column(c).Width(680).FillHeight().Children(func() {
+					current := source
+					if scenario == "reverse-pick" {
+						current.Chat = nil
+						for _, msg := range p.navigation.Nodes {
+							raw, _ := json.Marshal(msg)
+							current.Chat = append(current.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw, ChatTarget: p.navigation.PickTarget(msg)})
+						}
+					}
+					inspectorPresentation(c, &p, current, session.ViewState{}, colors, nil)
+				})
 			}).DrawOver(func(painter *ui.Painter, _ ui.Rect) {
 				if trace {
 					writeMetrics("-frame.json", painter.Now())

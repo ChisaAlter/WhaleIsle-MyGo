@@ -155,12 +155,21 @@ func sessionInspectorChatControl(c *ui.Context, m Model, msg session.Message) {
 	}
 	if n.Picking {
 		if stdButton(c, palette, historyNavigationText("选择此聊天节点", "Pick this chat node"), buttonGhost, false).Clicked() {
-			target := msg.InspectorTarget()
+			target := n.PickTarget(msg)
 			n.Picked = &target
 			n.Picking = false
 			n.CancelReveal()
 		}
 	}
+}
+
+// PickTarget keeps a transcript header a group identity. Its displayed sequence
+// is presentation metadata; log mode resolves placement from the first member.
+func (n *InspectorNavigation) PickTarget(msg session.Message) InspectorTarget {
+	if _, ok := n.Groups[msg.ID]; ok {
+		return InspectorTarget{GroupKey: msg.ID}
+	}
+	return msg.InspectorTarget()
 }
 
 func inspectorMessageIDs(messages []session.Message) []string {

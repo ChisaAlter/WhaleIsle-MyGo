@@ -1,0 +1,39 @@
+﻿{
+  "collapsed": {},
+  "expanded": {
+    "transcript-group:fixture:fixture:m40/reasoning/0:40": true,
+    "transcript-turn:fixture:fixture:0": false
+  },
+  "filter": "",
+  "groups": {
+    "transcript-turn:fixture:fixture:0": [
+      "tool:root",
+      "m40/reasoning/0",
+      "m40"
+    ]
+  },
+  "highlight": "",
+  "max": 0,
+  "mode": "chat-node",
+  "notice": "",
+  "picking": false,
+  "reveal": {
+    "ageMs": -1,
+    "locating": false,
+    "moving": false,
+    "pending": false,
+    "rect": {
+      "X": 0,
+      "Y": 0,
+      "W": 0,
+      "H": 0
+    },
+    "scale": 1.5,
+    "settling": false,
+    "waiting": false
+  },
+  "scroll": 0,
+  "selected": "chat:transcript-turn:fixture:fixture:0",
+  "targetPending": false,
+  "time": "2026-10-24T05:36:47.3802136+08:00"
+}

@@ -22,7 +22,7 @@ func TestInspectorObjectsAndReferenceNavigation(t *testing.T) {
 	if p.Filter != "" || len(p.breadcrumb) != 2 || p.navigation.Target.ID != "actual" {
 		t.Fatal("reference reveal failed")
 	}
-	if inspectorPickRecord(source.Chat, chat.InspectorTarget{ID: "actual", Seq: 3}) != "chat:actual" || inspectorPickRecord(source.Records, chat.InspectorTarget{ID: "actual", Seq: 3}) != "event:3" {
+	if inspectorPickChatRecord(source.Chat, chat.InspectorTarget{ID: "actual", Seq: 3}) != "chat:actual" || inspectorPickLogRecord(source.Records, chat.InspectorTarget{ID: "actual", Seq: 3}) != "event:3" {
 		t.Fatal("pick identity mismatch")
 	}
 }

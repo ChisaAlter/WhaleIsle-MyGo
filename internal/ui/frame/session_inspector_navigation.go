@@ -133,31 +133,6 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
 	p.scroll, p.pulse = inspectorScrollState{}, inspectorPulseState{}
 }
-func inspectorPickRecord(rows []session.InspectorRecord, target chat.InspectorTarget) string {
-	for _, r := range rows {
-		if r.Key == "chat:"+target.ID {
-			return r.Key
-		}
-	}
-	if target.ID != "" {
-		for _, r := range rows {
-			if r.ChatPickID == target.ID && r.Type == "block-start" {
-				return r.Key
-			}
-		}
-		for _, r := range rows {
-			if r.ChatPickID == target.ID {
-				return r.Key
-			}
-		}
-	}
-	for _, r := range rows {
-		if r.Seq == target.Seq && r.Seq > 0 && r.Type != "assistant/live" && !strings.Contains(r.Key, "/chunk:") {
-			return r.Key
-		}
-	}
-	return ""
-}
 func (p *SessionInspectorPaneState) selectInspectorRow(row session.InspectorRecord) {
 	p.selected = row.Key
 	p.breadcrumb = []string{row.Key}
@@ -233,7 +208,7 @@ func (p *SessionInspectorPaneState) applyPendingPick(rows []session.InspectorRec
 		p.pendingPick, p.pendingPickBinding = nil, ""
 		return
 	}
-	if inspectorPickRecord(rows, *p.pendingPick) == "" && len(p.navigation.Nodes) == 0 {
+	if p.inspectorPickRecord(rows, *p.pendingPick) == "" && len(p.navigation.Nodes) == 0 {
 		return
 	}
 	p.navigation.Picked = p.pendingPick
@@ -246,7 +221,7 @@ func (p *SessionInspectorPaneState) consumeInspectorPick(rows []session.Inspecto
 		return
 	}
 	p.navigation.Picked = nil
-	key := inspectorPickRecord(rows, *target)
+	key := p.inspectorPickRecord(rows, *target)
 	if key == "" {
 		p.navigation.Notice = paneLabel("当前加载窗口没有对应记录", "No matching record in this loaded window")
 		p.navigation.Picking = true

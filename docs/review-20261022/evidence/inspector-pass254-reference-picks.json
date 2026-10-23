@@ -1,0 +1,10 @@
+﻿{
+  "installed": "C:/杞欢/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/client.js",
+  "installedSha256": "62443553c0dec20f1d1a21b02a55822877c734059ea1c18d5a414ddafac657a0",
+  "logCases": 181,
+  "chatCases": 90,
+  "installedAndSourceAgree": true,
+  "fixture": "C:\\AI\\WhaleIsle-MyGo\\internal\\ui\\frame\\testdata\\inspector-picks.json",
+  "fixtureSha256": "9214cb83e85961adb40ad64dfec3a73ca4a45269e979da83f61ad24729741133",
+  "method": "Verbatim installed log method/Chat matcher in Node VM; independent TypeScript source method/matcher, loaded entries/row stores substituted. No browser DOM claim."
+}

@@ -1,0 +1,250 @@
+﻿[
+    {
+        "row":  "Sequence zero message.",
+        "name":  "zero-anchor",
+        "metrics":  {
+                        "collapsed":  {
+
+                                      },
+                        "expanded":  {
+                                         "transcript-turn:fixture:fixture:0":  false
+                                     },
+                        "filter":  "",
+                        "groups":  {
+                                       "transcript-turn:fixture:fixture:0":  [
+                                                                                 "tool:root",
+                                                                                 "m40/reasoning/0",
+                                                                                 "m40"
+                                                                             ]
+                                   },
+                        "highlight":  "",
+                        "max":  0,
+                        "mode":  "session-log",
+                        "notice":  "",
+                        "picking":  false,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:0",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:36:32.6769385+08:00"
+                    },
+        "expected":  "event:0"
+    },
+    {
+        "row":  "Work details",
+        "name":  "group-first-member",
+        "metrics":  {
+                        "collapsed":  {
+                                          "event:1":  {
+
+                                                      },
+                                          "event:2":  {
+
+                                                      }
+                                      },
+                        "expanded":  {
+                                         "transcript-turn:fixture:fixture:0":  false
+                                     },
+                        "filter":  "",
+                        "groups":  {
+                                       "transcript-turn:fixture:fixture:0":  [
+                                                                                 "tool:root",
+                                                                                 "m40/reasoning/0",
+                                                                                 "m40"
+                                                                             ]
+                                   },
+                        "highlight":  "",
+                        "max":  0,
+                        "mode":  "session-log",
+                        "notice":  "",
+                        "picking":  false,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:10",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:36:35.568262+08:00"
+                    },
+        "expected":  "event:10"
+    },
+    {
+        "row":  "Second answer block.",
+        "name":  "response-root",
+        "metrics":  {
+                        "collapsed":  {
+                                          "event:1":  {
+
+                                                      },
+                                          "event:22":  {
+
+                                                       }
+                                      },
+                        "expanded":  {
+                                         "transcript-turn:fixture:fixture:0":  false
+                                     },
+                        "filter":  "",
+                        "groups":  {
+                                       "transcript-turn:fixture:fixture:0":  [
+                                                                                 "tool:root",
+                                                                                 "m40/reasoning/0",
+                                                                                 "m40"
+                                                                             ]
+                                   },
+                        "highlight":  "",
+                        "max":  0,
+                        "mode":  "session-log",
+                        "notice":  "",
+                        "picking":  false,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:40",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:36:38.4432475+08:00"
+                    },
+        "expected":  "event:40"
+    },
+    {
+        "row":  "Thinking Reasoning details.",
+        "name":  "reasoning-header",
+        "metrics":  {
+                        "collapsed":  {
+                                          "event:1":  {
+
+                                                      },
+                                          "event:22":  {
+
+                                                       },
+                                          "event:40":  {
+
+                                                       }
+                                      },
+                        "expanded":  {
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  true
+                                     },
+                        "filter":  "",
+                        "groups":  {
+                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                   "tool:root",
+                                                                                                   "m40/reasoning/0"
+                                                                                               ],
+                                       "transcript-turn:fixture:fixture:0":  [
+                                                                                 "tool:root",
+                                                                                 "m40/reasoning/0",
+                                                                                 "m40"
+                                                                             ]
+                                   },
+                        "highlight":  "",
+                        "max":  0,
+                        "mode":  "session-log",
+                        "notice":  "",
+                        "picking":  false,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "event:40/chunk:0",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:36:43.1636348+08:00"
+                    },
+        "expected":  "event:40/chunk:0"
+    },
+    {
+        "expected":  "chat:transcript-turn:fixture:fixture:0",
+        "name":  "chat-group-header",
+        "metrics":  {
+                        "collapsed":  {
+
+                                      },
+                        "expanded":  {
+                                         "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                         "transcript-turn:fixture:fixture:0":  false
+                                     },
+                        "filter":  "",
+                        "groups":  {
+                                       "transcript-turn:fixture:fixture:0":  [
+                                                                                 "tool:root",
+                                                                                 "m40/reasoning/0",
+                                                                                 "m40"
+                                                                             ]
+                                   },
+                        "highlight":  "",
+                        "max":  0,
+                        "mode":  "chat-node",
+                        "notice":  "",
+                        "picking":  false,
+                        "reveal":  {
+                                       "ageMs":  -1,
+                                       "locating":  false,
+                                       "moving":  false,
+                                       "pending":  false,
+                                       "rect":  {
+                                                    "X":  0,
+                                                    "Y":  0,
+                                                    "W":  0,
+                                                    "H":  0
+                                                },
+                                       "scale":  1.5,
+                                       "settling":  false,
+                                       "waiting":  false
+                                   },
+                        "scroll":  0,
+                        "selected":  "chat:transcript-turn:fixture:fixture:0",
+                        "targetPending":  false,
+                        "time":  "2026-10-24T05:36:47.3802136+08:00"
+                    }
+    }
+]

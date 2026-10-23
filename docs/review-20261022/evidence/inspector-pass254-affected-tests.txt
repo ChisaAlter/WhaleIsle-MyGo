@@ -1,0 +1,3 @@
+﻿ok  	whaleisle/internal/store/session	6.650s
+ok  	whaleisle/internal/ui/chat	4.205s
+ok  	whaleisle/internal/ui/frame	11.913s

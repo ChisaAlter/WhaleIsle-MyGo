@@ -1,0 +1,25 @@
+﻿[
+    {
+        "name":  "affected-tests",
+        "args":  [
+                     "test",
+                     "./internal/store/session",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  16.5668042
+    },
+    {
+        "name":  "affected-vet",
+        "args":  [
+                     "vet",
+                     "./internal/store/session",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.3981569
+    }
+]

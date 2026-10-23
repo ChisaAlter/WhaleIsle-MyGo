@@ -1,0 +1,36 @@
+﻿{
+    "build":  "pass254",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "bytes":  85242368,
+    "files":  [
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                      "Hash":  "F6EB7508F140DEB8FDA0E4DDD7A8C803BBD3677C8E4F1EF86D7A52145B0BB593"
+                  },
+                  {
+                      "Path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass254.exe",
+                      "Hash":  "F6EB7508F140DEB8FDA0E4DDD7A8C803BBD3677C8E4F1EF86D7A52145B0BB593"
+                  }
+              ],
+    "nativeFixturesRemaining":  0,
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ParentProcessId":  8544,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ParentProcessId":  20012,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "listeners":  [
+                      {
+                          "LocalPort":  3080,
+                          "OwningProcess":  16008
+                      }
+                  ],
+    "newModelRequests":  0
+}
