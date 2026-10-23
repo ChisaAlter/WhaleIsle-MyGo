@@ -1,0 +1,41 @@
+﻿{
+    "createdAt":  "2026-10-23T23:26:16.4011814Z",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "artifacts":  [
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass256.exe",
+                          "bytes":  85293056,
+                          "sha256":  "D278D4D84BD4FA491B73B9EF89C76A01A76483D93A284BABAFE031F2B9815E48"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                          "bytes":  85293056,
+                          "sha256":  "D278D4D84BD4FA491B73B9EF89C76A01A76483D93A284BABAFE031F2B9815E48"
+                      }
+                  ],
+    "fixture":  {
+                    "scope":  "Native surface fixture compiled before final history-ownership corrections; no history mutation tested in native probe",
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r112-inspector-fixture.exe",
+                    "sha256":  "BD11E643B549D9A10F30C31D0AA5E902E0ACE5E06B6769952ECFAD86C8D89DF8"
+                },
+    "originalInspectorSHA256":  "62443553C0DEC20F1D1A21B02A55822877C734059EA1C18D5A414DDAFAC657A0",
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "guiListeners":  [
+                         {
+                             "LocalAddress":  "127.0.0.1",
+                             "LocalPort":  3080,
+                             "OwningProcess":  16008
+                         }
+                     ],
+    "ownedFixturesRemaining":  0
+}

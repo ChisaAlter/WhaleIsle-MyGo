@@ -14,6 +14,8 @@ import (
 // ToolImageGalleryOptions keeps disclosure state in the owning chat model.
 type ToolImageGalleryOptions struct {
 	OnInspectCall func(string)
+	// Inspector records main Chat call boxes without changing disclosure or data.
+	Inspector *InspectorNavigation
 	// TextOnly is an addressed read-only seat: never load images/open links,
 	// and retain image attachment evidence in expanded tool output.
 	TextOnly  bool
@@ -32,7 +34,7 @@ func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolI
 	if open {
 		arrow = "▾"
 	}
-	if ui.Button(c, fmt.Sprintf("%s" + fmt.Sprintf(i18n.T(i18n.KeyChatImageGallery), len(refs)), arrow, len(refs))).Clicked() {
+	if ui.Button(c, fmt.Sprintf("%s"+fmt.Sprintf(i18n.T(i18n.KeyChatImageGallery), len(refs)), arrow, len(refs))).Clicked() {
 		toggleThinkingExpanded(opts.Expanded, key)
 	}
 	if open {

@@ -1,0 +1,12 @@
+﻿{
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "args":  [
+                 "build",
+                 "-o",
+                 "whaleisle-pass256.exe",
+                 "./cmd/whaleisle"
+             ],
+    "exitCode":  0,
+    "seconds":  7.8458676999999994
+}

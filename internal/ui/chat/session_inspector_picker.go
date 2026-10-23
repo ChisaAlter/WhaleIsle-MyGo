@@ -9,14 +9,31 @@ import (
 
 // The pick mask lives above Chat, so it cannot change virtual row measurements.
 // All rectangles are the last painted, clipped main-Chat boxes in window DIPs.
+type inspectorChatPick struct {
+	session.Message
+	call *session.ToolCallView
+	box  ui.Rect
+}
+
+func (p inspectorChatPick) target(n *InspectorNavigation) InspectorTarget {
+	target := n.PickTarget(p.Message)
+	if p.call != nil {
+		// The call refines the box; node placement still comes from its owner.
+		target.CallID = p.call.CallID
+	}
+	return target
+}
+
 type inspectorChatPicker struct {
-	mask      ui.Handle
-	area      ui.Rect
-	preview   ui.Rect
-	previewID string
-	offset    float32
-	pressed   bool
-	rows      []session.Message
+	mask          ui.Handle
+	area          ui.Rect
+	preview       ui.Rect
+	previewID     string
+	previewCallID string
+	tools         []inspectorChatPick
+	offset        float32
+	pressed       bool
+	rows          []session.Message
 }
 
 // CancelPicking also retires a held press before native blur synthesizes its up.
@@ -32,7 +49,7 @@ func (n *InspectorNavigation) CancelPicking() {
 }
 
 func (p *inspectorChatPicker) hide() {
-	p.preview, p.previewID = ui.Rect{}, ""
+	p.preview, p.previewID, p.previewCallID = ui.Rect{}, "", ""
 }
 
 func inspectorChatPickArea(m Model, r *inspectorChatReveal) ui.Rect {
@@ -53,8 +70,14 @@ func inspectorChatPickGeometry(c *ui.Context, m Model) {
 			c.Services().Invalidate()
 		}
 	}
-	if q.previewID != "" && inspectorChatIntersect(r.rows[q.previewID], area) != q.preview {
-		q.hide()
+	if q.previewID != "" {
+		box := r.rows[q.previewID]
+		if q.previewCallID != "" {
+			box = r.toolRows[inspectorToolKey{q.previewID, q.previewCallID}]
+		}
+		if inspectorChatIntersect(box, area) != q.preview {
+			q.hide()
+		}
 	}
 	if n.Picking && (area.W <= 0 || area.H <= 0) {
 		n.CancelPicking()
@@ -62,19 +85,25 @@ func inspectorChatPickGeometry(c *ui.Context, m Model) {
 	}
 }
 
-func (n *InspectorNavigation) pickAt(x, y float32) (session.Message, ui.Rect, bool) {
+func (n *InspectorNavigation) pickAt(x, y float32) (inspectorChatPick, ui.Rect, bool) {
 	if !n.Picking || !n.picker.area.Contains(x, y) {
-		return session.Message{}, ui.Rect{}, false
+		return inspectorChatPick{}, ui.Rect{}, false
+	}
+	for _, tool := range n.picker.tools {
+		box := inspectorChatIntersect(tool.box, n.picker.area)
+		if box.Contains(x, y) {
+			return tool, box, true
+		}
 	}
 	// Hit-test only the painted occurrences. Offscreen history never enters
 	// this hot path; source metadata is decoded only on primary release.
 	for _, node := range n.picker.rows {
 		box := inspectorChatIntersect(n.reveal.rows[node.ID], n.picker.area)
 		if box.Contains(x, y) {
-			return node, box, true
+			return inspectorChatPick{Message: node}, box, true
 		}
 	}
-	return session.Message{}, ui.Rect{}, false
+	return inspectorChatPick{}, ui.Rect{}, false
 }
 
 func inspectorChatPickerOverlay(c *ui.Context, m Model, colors theme.Colors, list *ui.ListState, scroll *ui.ScrollState) {
@@ -134,6 +163,9 @@ func inspectorChatPickerOverlay(c *ui.Context, m Model, colors theme.Colors, lis
 				q.hide()
 				if node, box, ok := n.pickAt(x, y); ok {
 					q.preview, q.previewID = box, node.ID
+					if node.call != nil {
+						q.previewCallID = node.call.CallID
+					}
 				}
 				return true
 			case ui.InputPointerUp:
@@ -141,7 +173,7 @@ func inspectorChatPickerOverlay(c *ui.Context, m Model, colors theme.Colors, lis
 				q.pressed = false
 				if pressed && ev.Button == 0 {
 					if node, _, ok := n.pickAt(x, y); ok {
-						target := n.PickTarget(node)
+						target := node.target(n)
 						n.Picked = &target
 						n.CancelReveal()
 					}

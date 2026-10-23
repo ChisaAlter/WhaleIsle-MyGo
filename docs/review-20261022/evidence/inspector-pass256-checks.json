@@ -1,0 +1,27 @@
+﻿[
+    {
+        "name":  "affected-tests",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  22.3754208
+    },
+    {
+        "name":  "affected-vet",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "vet",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  3.9235675
+    }
+]

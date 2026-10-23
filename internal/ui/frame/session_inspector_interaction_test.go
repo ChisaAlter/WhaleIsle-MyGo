@@ -295,7 +295,7 @@ func TestInspectToolCallQueuesOnlyRoutedOccurrenceAndBinding(t *testing.T) {
 	tab := "files"
 	open := false
 	m := Model{Store: s, Sizes: &LayoutSizes{Workspace: w}, RightPaneTab: &tab, OnToggleTools: func() { open = !open }}
-	m.inspectToolCall("tool-owner", 9)
+	m.inspectToolCall("opaque-child", "tool-owner", 9)
 	if !open {
 		t.Fatal("inspect action did not persist opening the resource dock")
 	}
@@ -303,7 +303,7 @@ func TestInspectToolCallQueuesOnlyRoutedOccurrenceAndBinding(t *testing.T) {
 		t.Fatal("explicit tool inspection did not replace the previous picker")
 	}
 	routed := w.Root.find(w.Active).Inspector
-	if routed == nil || routed.pendingPick == nil || routed.pendingPickBinding != s.InspectorBinding() || other.Inspector.pendingPick != nil || other.Inspector.Mode != "session-log" {
+	if routed == nil || routed.pendingPick == nil || routed.pendingPick.CallID != "opaque-child" || routed.pendingPickBinding != s.InspectorBinding() || other.Inspector.pendingPick != nil || other.Inspector.Mode != "session-log" {
 		t.Fatalf("inspect request was not limited to routed owner: active=%s routed=%+v other=%+v expected=%s", w.Active, routed, other.Inspector, s.InspectorBinding())
 	}
 	m.RightPaneOpen = true

@@ -1,0 +1,34 @@
+﻿[
+    {
+        "name":  "list-tests",
+        "args":  [
+                     "test",
+                     "./ui",
+                     "-run",
+                     "TestList|TestTrackScroll",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  8.8406197
+    },
+    {
+        "name":  "toolkit-vet",
+        "args":  [
+                     "vet",
+                     "./ui"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.1968311
+    },
+    {
+        "name":  "production-toolkit-vet",
+        "args":  [
+                     "vet",
+                     "-tags",
+                     "mygo_noinspector",
+                     "./ui"
+                 ],
+        "exitCode":  0,
+        "seconds":  4.0844014
+    }
+]

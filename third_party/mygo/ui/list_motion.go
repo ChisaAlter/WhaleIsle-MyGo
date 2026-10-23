@@ -19,6 +19,8 @@ type listScrollMotion struct {
 	row            int
 	key            any
 	align          Align
+	region         bool
+	top, height    float64
 	spec           ScrollAnimation
 	started        time.Time
 	initialized    bool
@@ -40,6 +42,19 @@ func (s *ListState) ScrollToAnimated(row int, align Align, animation ScrollAnima
 	if s.Key != nil && row >= 0 && row < s.heights.n {
 		s.motion.key = s.Key(row)
 	}
+}
+
+// ScrollToRegionAnimated measures row and scrolls a region within it to align.
+// top and height are DIPs relative to the top of the row's content. Negative
+// values become zero. At each layout, top is clamped to the measured row height,
+// then height is clamped to the space remaining below top; a zero height targets
+// a point. The list's content bounds can limit the requested alignment.
+// It uses ScrollToAnimated's timing, Key tracking and cancellation behavior,
+// including immediate scrolling for reduced motion. Call once per navigation.
+func (s *ListState) ScrollToRegionAnimated(row int, top, height float32, align Align, animation ScrollAnimation) {
+	s.ScrollToAnimated(row, align, animation)
+	s.motion.region = true
+	s.motion.top, s.motion.height = float64(max(0, top)), float64(max(0, height))
 }
 
 // StopScrollAnimation stops future movement at the last committed position.
@@ -88,7 +103,11 @@ func (s *ListState) animatedRequest(e *node, ensure func(int) bool, top, bottom,
 		return listRequest{}, false
 	}
 	hs := &s.heights
-	size := hs.height(m.row)
+	size, regionTop := hs.height(m.row), 0.0
+	if m.region {
+		regionTop = min(m.top, size)
+		size = min(m.height, size-regionTop)
+	}
 	shown, start := top, padTop
 	if s.Header != nil && !s.Header(m.row) {
 		if hh := s.headerAbove(m.row, e.list.n); hh >= 0 && ensure(hh) {
@@ -110,7 +129,7 @@ func (s *ListState) animatedRequest(e *node, ensure func(int) bool, top, bottom,
 		y = float64(e.h) - padBottom - size
 	}
 	content := max(padTop+padBottom+hs.top(e.list.n, s.gap)-s.gap, float64(e.h))
-	goal := max(0, min(padTop+hs.top(m.row, s.gap)-y, content-float64(e.h)))
+	goal := max(0, min(padTop+hs.top(m.row, s.gap)+regionTop-y, content-float64(e.h)))
 	// Measurement can change the estimated total. Keep the currently displayed
 	// anchor fixed while moving both ends of the animation's coordinate system.
 	current := max(0, min(hs.top(s.anchor, s.gap)+s.inset, content-float64(e.h)))
@@ -140,8 +159,13 @@ func (s *ListState) animatedRequest(e *node, ensure func(int) bool, top, bottom,
 	offset := m.from + (goal-m.from)*float64(fraction)
 	if progress >= 1 {
 		// Parent size transitions can lay the List out again in this frame.
-		// Keep exact row alignment through the final layout, then retire it.
+		// Keep exact target alignment through the final layout, then retire it.
 		m.completedFrame = e.c.rt.frame
+		if m.region {
+			// Place from the measured owner so newly measured neighboring rows
+			// preserve the region's alignment as the estimated offsets change.
+			return listRequest{set: true, offset: true, hint: true, row: m.row, y: goal}, true
+		}
 		return listRequest{set: true, row: m.row, align: m.align}, true
 	} else {
 		m.completedFrame = 0

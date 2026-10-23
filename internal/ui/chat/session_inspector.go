@@ -36,6 +36,16 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		*r = inspectorChatReveal{binding: m.Snapshot.PlanHistoryBinding, session: m.Snapshot.SelectedID}
 		n.Highlight = ""
 	}
+	clear(r.toolTrees)
+	r.toolTrees = r.toolTrees[:0]
+	if r.layoutRows == nil {
+		r.layoutRows = map[string]ui.Rect{}
+	} else {
+		clear(r.layoutRows)
+	}
+	if r.toolFull == nil {
+		r.toolFull, r.toolRows = map[inspectorToolKey]ui.Rect{}, map[inspectorToolKey]ui.Rect{}
+	}
 	if n.Picking {
 		n.CancelReveal()
 	}
@@ -46,6 +56,7 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		r.rejected = nil
 		r.pending, r.waiting, r.locating, r.centerQueued, r.centerCommitted = false, false, false, false, false
 		r.started, r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}, time.Time{}
+		r.callID, r.centerRegion = "", nil
 	}
 	if len(projected) > 0 {
 		// Production Chat already projected these exact source occurrences.
@@ -59,6 +70,18 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 		if control, ok := controls[msg.ID]; ok {
 			n.Nodes = append(n.Nodes, msg)
 			n.Groups[msg.ID] = append([]string(nil), control.members...)
+		}
+	}
+	if n.Target == nil && r.pending && r.request != nil && r.callID != "" {
+		owner := inspectorMessageExactIndex(n.Nodes, n.Highlight)
+		if owner < 0 || inspectorToolInMessage(n.Nodes[owner], r.callID) == nil || n.Nodes[owner].Seq != r.ownerSeq || n.Nodes[owner].EventType != r.ownerEvent {
+			// Older history can reparent an orphan or replace a result-only
+			// owner's source key. The particular call survives either change.
+			n.Target = r.request
+			r.cancelCenter()
+			r.callID, r.centerRegion = "", nil
+			r.centerQueued, r.centerCommitted = false, false
+			r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}
 		}
 	}
 	if n.Target == nil && r.pending && r.request != nil && r.request.LiveAssistant && inspectorMessageExactIndex(n.Nodes, n.Highlight) < 0 {
@@ -80,7 +103,12 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 				if scale <= 0 {
 					scale = 1
 				}
-				list.ScrollToAnimated(i, ui.Center, ui.ScrollAnimation{Duration: func(d float32) time.Duration { return inspectorChatScrollDuration(d * scale) }, Ease: inspectorChatScrollEase})
+				animation := ui.ScrollAnimation{Duration: func(d float32) time.Duration { return inspectorChatScrollDuration(d * scale) }, Ease: inspectorChatScrollEase}
+				if region := r.centerRegion; region != nil {
+					list.ScrollToRegionAnimated(i, region.top, region.height, ui.Center, animation)
+				} else {
+					list.ScrollToAnimated(i, ui.Center, animation)
+				}
 				r.waiting = true
 				r.lastScroll, r.scrollMoved = r.offset, false
 				r.quietSince, r.settledAt, r.flashAfter = time.Time{}, time.Time{}, time.Time{}
@@ -150,6 +178,11 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 			return
 		}
 		n.Highlight = msgs[i].ID
+		r.ownerSeq, r.ownerEvent = msgs[i].Seq, msgs[i].EventType
+		r.callID = ""
+		if call := inspectorToolInMessage(msgs[i], target.CallID); call != nil {
+			r.callID = call.CallID
+		}
 		r.locating = true
 	} else {
 		// The original reveals the displayed Chat column when no loaded

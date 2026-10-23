@@ -1454,7 +1454,16 @@ either.
   `ScrollToAnimated` (`ui/list_motion.go`) measures the target before
   applying its first offset and advances during layout with the app's duration
   and easing. A keyed target follows row changes, the final layout aligns its
-  measured box, and reduced motion resolves immediately. `StopScrollAnimation`
+  measured box, and reduced motion resolves immediately.
+  `ListState.ScrollToRegionAnimated(row, top, height, align, animation)` shares
+  that controller to target a child region within one row: `top` and `height`
+  are DIPs relative to the row's content top. Negative values become zero;
+  after measuring the row (including offscreen or on its first frame), each
+  layout clamps `top` to the row height, then `height` to the remaining space.
+  A region past the bottom becomes a zero-height point at the bottom. Content
+  bounds limit alignment; the final offset retains the region instead of
+  aligning the whole row. Key tracking, replacement, cancellation and reduced
+  motion are the same as for `ScrollToAnimated`. `StopScrollAnimation`
   stops future writes without queuing a position that would override the
   interrupting input. `Context.ObserveInput` (`ui/input_observer.go`) offers
   passive window-wide pointer/scroll/key-press observation before control

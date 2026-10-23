@@ -1,0 +1,2 @@
+﻿ok  	whaleisle/internal/ui/chat	15.179s
+ok  	whaleisle/internal/ui/frame	13.406s

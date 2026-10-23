@@ -289,7 +289,7 @@ func View(c *ui.Context, m Model) {
 					case session.MessageKindTool:
 						tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 						ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
-							ID: msg.ID, Expanded: m.ThinkingExpanded,
+							ID: msg.ID, Expanded: m.ThinkingExpanded, Inspector: inspectorChatNavigation(m),
 							OnOpenURL:     m.OnOpenCitationURL,
 							OnOpenFile:    m.OnOpenDeliverable,
 							OnInspectCall: inspectCallHandler(m.OnInspectToolCall, msg.ID, msg.Seq),

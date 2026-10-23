@@ -1,0 +1,40 @@
+﻿[
+    {
+        "name":  "final-tests",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  21.3798601
+    },
+    {
+        "name":  "final-vet",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "vet",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.7121256
+    },
+    {
+        "name":  "final-production-build",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "build",
+                     "-o",
+                     "whaleisle-pass256.exe",
+                     "./cmd/whaleisle"
+                 ],
+        "exitCode":  0,
+        "seconds":  10.467892899999999
+    }
+]

@@ -15,26 +15,33 @@ const inspectorChatScrollQuiet = 150 * time.Millisecond
 // The reveal owns a separate window overlay. Its captured rectangle never
 // changes transcript layout, and stays fixed for the lifetime of one flash.
 type inspectorChatReveal struct {
-	binding, session string
-	request          *InspectorTarget
-	rows             map[string]ui.Rect
-	emptyRows        map[string]bool
-	rejected         map[string]bool
-	viewport         ui.Rect
-	flow             ui.Rect
-	pending, waiting bool
-	locating         bool
-	centerQueued     bool
-	centerCommitted  bool
-	centerList       *ui.ListState
-	offset, scale    float32
-	lastScroll       float32
-	scrollMoved      bool
-	quietSince       time.Time
-	settledAt        time.Time
-	flashAfter       time.Time
-	started          time.Time
-	rect             ui.Rect
+	binding, session   string
+	request            *InspectorTarget
+	rows               map[string]ui.Rect
+	layoutRows         map[string]ui.Rect
+	toolTrees          []*inspectorToolTree
+	toolFull, toolRows map[inspectorToolKey]ui.Rect
+	callID             string
+	ownerSeq           float64
+	ownerEvent         string
+	centerRegion       *inspectorChatRegion
+	emptyRows          map[string]bool
+	rejected           map[string]bool
+	viewport           ui.Rect
+	flow               ui.Rect
+	pending, waiting   bool
+	locating           bool
+	centerQueued       bool
+	centerCommitted    bool
+	centerList         *ui.ListState
+	offset, scale      float32
+	lastScroll         float32
+	scrollMoved        bool
+	quietSince         time.Time
+	settledAt          time.Time
+	flashAfter         time.Time
+	started            time.Time
+	rect               ui.Rect
 }
 
 // CancelReveal releases an Inspector-owned flash or deferred landing. Cached
@@ -52,6 +59,7 @@ func (n *InspectorNavigation) CancelReveal() {
 	n.reveal.scrollMoved = false
 	n.reveal.rect = ui.Rect{}
 	n.reveal.rejected = nil
+	n.reveal.callID, n.reveal.centerRegion = "", nil
 }
 
 func (r *inspectorChatReveal) cancelCenter() {
@@ -127,6 +135,7 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 		r.viewport = inspectorChatIntersect(box, p.ClipBounds())
 	})
 	view.DrawOver(func(p *ui.Painter, _ ui.Rect) {
+		inspectorChatToolGeometry(n)
 		inspectorChatPickGeometry(c, m)
 		if !r.pending {
 			return
@@ -148,9 +157,19 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 			r.locating = false
 			// Decide from this paint, after virtual rows and viewport have
 			// their final geometry. A newly selected owner has no old cache.
-			visible := inspectorChatIntersect(r.rows[n.Highlight], r.viewport)
+			visible := inspectorChatRevealBox(n)
 			if visible.W <= 0 || visible.H <= 0 {
+				r.centerRegion = inspectorChatRevealRegion(n)
 				r.centerQueued = true
+				c.Services().Invalidate()
+				return
+			}
+		}
+		if !list.ScrollAnimating() && inspectorChatRevealBox(n).W <= 0 {
+			if region := inspectorChatRevealRegion(n); region != nil && (r.centerRegion == nil || *region != *r.centerRegion) {
+				// A cold owner is now measured; use its child before considering
+				// the reveal complete, including with reduced motion.
+				r.centerRegion, r.centerQueued, r.centerCommitted = region, true, false
 				c.Services().Invalidate()
 				return
 			}
@@ -198,7 +217,7 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 			p.AnimationFrame()
 			return
 		}
-		box := inspectorChatIntersect(r.rows[n.Highlight], r.viewport)
+		box := inspectorChatRevealBox(n)
 		if box.W <= 0 || box.H <= 0 {
 			box = inspectorChatIntersect(inspectorChatFlowRect(m, r.viewport), r.flow)
 		}
@@ -232,6 +251,7 @@ func inspectorChatRowGeometry(c *ui.Context, m Model, msg session.Message, root 
 		return
 	}
 	msgID := msg.ID
+	root.ObserveLayout(func(box ui.Rect) { n.reveal.layoutRows[msgID] = box })
 	root.DrawOver(func(p *ui.Painter, box ui.Rect) {
 		contentW, contentH := box.W-left-right, box.H-top-bottom
 		n.reveal.emptyRows[msgID] = contentW <= 0 || contentH <= 0

@@ -15,7 +15,7 @@ func TestInspectToolCallOpensSessionLogAtTheCallRecord(t *testing.T) {
 		RightPaneTab: &tab,
 		Sizes:        &LayoutSizes{Workspace: &WorkspacePanes{Root: &WorkspacePane{ID: "p1", Kind: "files"}}},
 	}
-	m.inspectToolCall("msg-9", 33)
+	m.inspectToolCall("opaque-child", "msg-9", 33)
 	if tab != "session-inspector-log" {
 		t.Fatalf("right tab = %q, want the session log", tab)
 	}
@@ -27,7 +27,7 @@ func TestInspectToolCallOpensSessionLogAtTheCallRecord(t *testing.T) {
 	if pane.Mode != "chat-node" {
 		t.Fatalf("inspector mode = %q, want the chat projection", pane.Mode)
 	}
-	if pane.pendingPick == nil || pane.pendingPick.ID != "msg-9" || pane.pendingPick.Seq != 33 {
+	if pane.pendingPick == nil || pane.pendingPick.ID != "msg-9" || pane.pendingPick.Seq != 33 || pane.pendingPick.CallID != "opaque-child" {
 		t.Fatalf("pending pick = %+v", pane.pendingPick)
 	}
 }
@@ -40,6 +40,26 @@ func TestToolCallInspectorHiddenWithoutDeveloperTools(t *testing.T) {
 		Sizes: &LayoutSizes{Workspace: &WorkspacePanes{}}}
 	if m.toolCallInspector() != nil {
 		t.Fatal("inspect action must stay nil when developer tools are off")
+	}
+}
+
+func TestToolCallInspectorFallbackRetainsNestedCallAndOwner(t *testing.T) {
+	store := session.New()
+	store.Select("s")
+	tab := "files"
+	m := Model{Store: store, RightPaneTab: &tab, Sizes: &LayoutSizes{Workspace: &WorkspacePanes{Root: &WorkspacePane{ID: "p", Kind: "files"}}}}
+	callback := inspectActionFor(nil, m.toolCallInspector())
+	if callback == nil {
+		t.Fatal("loaded main Chat lost its inspector fallback")
+	}
+	callback("unrelated/child", "tool:opaque-root", 17)
+	panes := inspectorPaneStates(m.Sizes.Workspace)
+	if len(panes) != 1 {
+		t.Fatal("fallback did not route one inspector")
+	}
+	p := panes[0]
+	if p.pendingPick == nil || p.pendingPick.CallID != "unrelated/child" || p.pendingPick.ID != "tool:opaque-root" || p.pendingPick.Seq != 17 || p.pendingPickBinding != store.InspectorBinding() {
+		t.Fatalf("fallback discarded nested identity: %+v", p.pendingPick)
 	}
 }
 
@@ -97,10 +117,10 @@ func TestPendingPickReportsMissingRecord(t *testing.T) {
 func TestInspectActionPrefersTrajectoryThenInspector(t *testing.T) {
 	var got []string
 	trajectory := func(callID string) { got = append(got, "traj:"+callID) }
-	inspector := func(callID, messageID string, seq float64) { got = append(got, "insp:"+messageID) }
+	inspector := func(callID, messageID string, seq float64) { got = append(got, "insp:"+callID+":"+messageID) }
 	inspectActionFor(trajectory, inspector)("call-1", "msg-1", 5)
 	inspectActionFor(nil, inspector)("call-2", "msg-2", 6)
-	if len(got) != 2 || got[0] != "traj:call-1" || got[1] != "insp:msg-2" {
+	if len(got) != 2 || got[0] != "traj:call-1" || got[1] != "insp:call-2:msg-2" {
 		t.Fatalf("dispatch = %v", got)
 	}
 	if inspectActionFor(nil, nil) != nil {

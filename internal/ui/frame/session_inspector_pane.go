@@ -71,17 +71,15 @@ func (m Model) toolCallInspector() func(callID, messageID string, seq float64) {
 	if m.DisableDeveloperTools || m.RightPaneTab == nil || m.Sizes == nil || m.Store == nil {
 		return nil
 	}
-	return func(_, messageID string, seq float64) {
-		m.inspectToolCall(messageID, seq)
+	return func(callID, messageID string, seq float64) {
+		m.inspectToolCall(callID, messageID, seq)
 	}
 }
 
 // inspectToolCall routes the right dock to the session log and asks the inspector
-// to select the record that carries the call. The log keys chat rows by message
-// ID, so the owning message identifies the row; seq stays as the fallback anchor
-// for records without an ID. A call outside the loaded window produces the
-// inspector's own "no matching record" notice rather than a fake selection.
-func (m Model) inspectToolCall(messageID string, seq float64) {
+// to select the containing Chat node. CallID retains the particular nested call;
+// messageID and seq identify its projected owner in the current loaded window.
+func (m Model) inspectToolCall(callID, messageID string, seq float64) {
 	if m.RightPaneTab == nil || m.Sizes == nil {
 		return
 	}
@@ -112,7 +110,7 @@ func (m Model) inspectToolCall(messageID string, seq float64) {
 			other.Inspector.cancelInspectorNavigation()
 		}
 	})
-	pane.pendingPick = &chat.InspectorTarget{ID: messageID, Seq: seq}
+	pane.pendingPick = &chat.InspectorTarget{ID: messageID, Seq: seq, CallID: callID}
 	pane.pendingPickBinding = binding
 	pane.pickQueued = true
 }

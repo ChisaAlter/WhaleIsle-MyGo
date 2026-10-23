@@ -1,0 +1,13 @@
+﻿{
+    "args":  [
+                 "test",
+                 "-tags",
+                 "inspectorfixture",
+                 "-c",
+                 "-o",
+                 ".devdata/r112-inspector-fixture.exe",
+                 "./internal/ui/frame"
+             ],
+    "exitCode":  0,
+    "seconds":  10.36777
+}

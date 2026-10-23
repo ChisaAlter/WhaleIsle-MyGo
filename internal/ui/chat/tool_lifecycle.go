@@ -34,10 +34,16 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 		return
 	}
 	type entry struct {
-		call  *session.ToolCallView
-		depth int
+		call   *session.ToolCallView
+		depth  int
+		parent int
 	}
-	stack := []entry{{msg.Tool, 0}}
+	var tree *inspectorToolTree
+	if gallery.Inspector != nil && !gallery.TextOnly {
+		tree = &inspectorToolTree{owner: msg}
+		gallery.Inspector.reveal.toolTrees = append(gallery.Inspector.reveal.toolTrees, tree)
+	}
+	stack := []entry{{call: msg.Tool, parent: -1}}
 	seen := map[*session.ToolCallView]bool{}
 	for len(stack) > 0 {
 		item := stack[len(stack)-1]
@@ -55,7 +61,18 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 		if depth > 6 {
 			depth = 6
 		}
-		ui.Column(c).Padding(0, 0, 4, float32(depth)*14).Gap(4).FillWidth().Children(func() {
+		index := -1
+		seat := ui.Column(c).Padding(0, 0, 4, float32(depth)*14).Gap(4).FillWidth()
+		if tree != nil {
+			index = len(tree.boxes)
+			box := &inspectorToolBox{call: call, parent: item.parent}
+			tree.boxes = append(tree.boxes, box)
+			seat.ObserveLayout(func(rect ui.Rect) {
+				indent := float32(depth) * 14
+				box.rect = ui.Rect{X: rect.X + indent, Y: rect.Y, W: max(float32(0), rect.W-indent), H: max(float32(0), rect.H-4)}
+			})
+		}
+		seat.Children(func() {
 			if item.depth > 0 {
 				ui.Text(c, "↳ "+call.ParentCallID).FontSize(10).TextColor(st.Muted)
 			}
@@ -102,7 +119,7 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			toolCardInfoViewExtra(c, info, st, extra, childGallery)
 		})
 		for i := len(call.Children) - 1; i >= 0; i-- {
-			stack = append(stack, entry{call.Children[i], item.depth + 1})
+			stack = append(stack, entry{call: call.Children[i], depth: item.depth + 1, parent: index})
 		}
 	}
 }
@@ -137,7 +154,7 @@ func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyl
 		return
 	}
 	open := expanded == nil || isThinkingExpanded(expanded, key)
-	ui.Column(c).Key("tool-detail:"+key).Gap(3).FillWidth().MinWidth(0).Children(func() {
+	ui.Column(c).Key("tool-detail:" + key).Gap(3).FillWidth().MinWidth(0).Children(func() {
 		if expanded != nil {
 			paintDisclosureRow(c, disclosureRow{
 				Key:        "tool-detail-row:" + key,

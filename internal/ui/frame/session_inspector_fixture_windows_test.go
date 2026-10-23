@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	colors := theme.Default().Light
-	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "chat-reveal" || scenario == "target-ownership" || scenario == "reverse-pick" {
+	if scenario := os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO"); scenario == "chat-reveal" || scenario == "target-ownership" || scenario == "reverse-pick" || scenario == "nested-tools" {
 		var messages []session.Message
 		for i := 1; i <= 30; i++ {
 			id := fmt.Sprintf("answer-%d", i)
@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 			source.Records[i].ChatID = fmt.Sprintf("answer-%.0f", source.Records[i].Seq)
 		}
 		expanded := map[string]bool{}
-		if scenario == "target-ownership" || scenario == "reverse-pick" {
+		if scenario == "target-ownership" || scenario == "reverse-pick" || scenario == "nested-tools" {
 			store := session.New()
 			store.Select("fixture")
 			frames := []string{
@@ -104,13 +104,29 @@ func TestMain(m *testing.M) {
 				`{"type":"step/end","seq":41,"data":{"turn":0,"step":1}}`,
 				`{"type":"turn/end","seq":42,"data":{"turn":0}}`,
 			}
+			if scenario == "nested-tools" {
+				nested := []string{
+					`{"type":"tool/ptc-dispatch-start","seq":13,"data":{"rootCallId":"root","parentCallId":"child","subCallId":"opaque-grandchild","name":"functions.read","arguments":{}}}`,
+					`{"type":"tool/ptc-dispatch-start","seq":14,"data":{"rootCallId":"root","parentCallId":"root","subCallId":"unrelated-sibling","name":"functions.read","arguments":{}}}`,
+				}
+				frames = append(append(append([]string(nil), frames[:4]...), nested...), frames[4:]...)
+			}
 			for _, frame := range frames {
 				store.ApplyInspectorFixtureFrame(json.RawMessage(`{"type":"event","event":` + frame + `}`))
 			}
 			source = store.InspectorSnapshot()
 			messages = store.Snapshot().Messages
 			p.navigation.SessionID = "fixture"
-			if scenario == "target-ownership" {
+			if scenario == "nested-tools" {
+				list.FollowEnd = false
+				p.Mode = "session-log"
+				for i := range source.Records {
+					row := &source.Records[i]
+					if row.ChatTarget.CallID != "" {
+						row.Type = row.Key
+					}
+				}
+			} else if scenario == "target-ownership" {
 				for _, row := range source.Chat {
 					if row.Key == "chat:m40" || row.Key == "chat:m40/text/2" {
 						row.Type = row.Key
@@ -138,7 +154,7 @@ func TestMain(m *testing.M) {
 			if c.Shortcut(0, ui.KeyF9) {
 				writeMetrics("-metrics.json", time.Now())
 			}
-			if scenario == "reverse-pick" && c.Shortcut(0, ui.KeyF6) {
+			if (scenario == "reverse-pick" || scenario == "nested-tools") && c.Shortcut(0, ui.KeyF6) {
 				p.navigation.Nodes, p.navigation.Groups = nil, nil
 				p.changeInspectorMode("session-log", "fixture")
 				expanded = map[string]bool{}

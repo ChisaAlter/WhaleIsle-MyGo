@@ -1,0 +1,726 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-23T23:18:14.6382879Z",
+    "finishedAt":  "2026-10-23T23:19:22.0262236Z",
+    "status":  "pass-injected-surface",
+    "scope":  "Win32-injected clicks and keys on ownership-verified MyGoSurface; WM_SETFOCUS synthetic; no native-hover or hardware-input claim",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r112-inspector-fixture.exe",
+                    "startTimeUtc":  "2026-10-23T23:18:05.3187147Z",
+                    "exited":  true,
+                    "pid":  7756,
+                    "closed":  true
+                },
+    "activation":  {
+                       "returned":  false,
+                       "foregroundVerified":  false,
+                       "foregroundOwner":  12516
+                   },
+    "states":  [
+                   {
+                       "record":  "event:13",
+                       "call":  "opaque-grandchild",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "tool:root",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  264.8127,
+                                                      "call":  "opaque-grandchild",
+                                                      "calls":  [
+                                                                    {
+                                                                        "call":  "unrelated-sibling",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  232.23242,
+                                                                                     "W":  406,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  232.23242,
+                                                                                        "W":  406,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "opaque-grandchild",
+                                                                        "full":  {
+                                                                                     "X":  108.16669,
+                                                                                     "Y":  182.93164,
+                                                                                     "W":  392,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  108.16669,
+                                                                                        "Y":  182.93164,
+                                                                                        "W":  392,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "child",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  133.63086,
+                                                                                     "W":  406,
+                                                                                     "H":  90.60156
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  133.63086,
+                                                                                        "W":  406,
+                                                                                        "H":  90.60156
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "root",
+                                                                        "full":  {
+                                                                                     "X":  80.16669,
+                                                                                     "Y":  101.63086,
+                                                                                     "W":  420,
+                                                                                     "H":  171.90234
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  80.16669,
+                                                                                        "Y":  101.63086,
+                                                                                        "W":  420,
+                                                                                        "H":  171.90234
+                                                                                    }
+                                                                    }
+                                                                ],
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  464.5332
+                                                                   },
+                                                      "pickCall":  "",
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "6b32683dcba6b278cfdcc57757d71f31":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  403.5332,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  319.5332,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  283.5332,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  359.5332,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  194.5332
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  108.16669,
+                                                                   "Y":  182.93164,
+                                                                   "W":  392,
+                                                                   "H":  41.30078
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:13",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T07:18:15.8393558+08:00"
+                                   },
+                       "passed":  true
+                   },
+                   {
+                       "record":  "event:11",
+                       "call":  "child",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "tool:root",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  261.1979,
+                                                      "call":  "child",
+                                                      "calls":  [
+                                                                    {
+                                                                        "call":  "root",
+                                                                        "full":  {
+                                                                                     "X":  80.16669,
+                                                                                     "Y":  101.63086,
+                                                                                     "W":  420,
+                                                                                     "H":  171.90234
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  80.16669,
+                                                                                        "Y":  101.63086,
+                                                                                        "W":  420,
+                                                                                        "H":  171.90234
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "unrelated-sibling",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  232.23242,
+                                                                                     "W":  406,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  232.23242,
+                                                                                        "W":  406,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "opaque-grandchild",
+                                                                        "full":  {
+                                                                                     "X":  108.16669,
+                                                                                     "Y":  182.93164,
+                                                                                     "W":  392,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  108.16669,
+                                                                                        "Y":  182.93164,
+                                                                                        "W":  392,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "child",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  133.63086,
+                                                                                     "W":  406,
+                                                                                     "H":  90.60156
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  133.63086,
+                                                                                        "W":  406,
+                                                                                        "H":  90.60156
+                                                                                    }
+                                                                    }
+                                                                ],
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  464.5332
+                                                                   },
+                                                      "pickCall":  "",
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "6b32683dcba6b278cfdcc57757d71f31":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  403.5332,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  319.5332,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  283.5332,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  359.5332,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  194.5332
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  94.16669,
+                                                                   "Y":  133.63086,
+                                                                   "W":  406,
+                                                                   "H":  90.60156
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:11",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T07:18:35.2957349+08:00"
+                                   },
+                       "passed":  true
+                   },
+                   {
+                       "record":  "event:14",
+                       "call":  "unrelated-sibling",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "tool:root",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  265.2264,
+                                                      "call":  "unrelated-sibling",
+                                                      "calls":  [
+                                                                    {
+                                                                        "call":  "root",
+                                                                        "full":  {
+                                                                                     "X":  80.16669,
+                                                                                     "Y":  101.63086,
+                                                                                     "W":  420,
+                                                                                     "H":  171.90234
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  80.16669,
+                                                                                        "Y":  101.63086,
+                                                                                        "W":  420,
+                                                                                        "H":  171.90234
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "unrelated-sibling",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  232.23242,
+                                                                                     "W":  406,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  232.23242,
+                                                                                        "W":  406,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "opaque-grandchild",
+                                                                        "full":  {
+                                                                                     "X":  108.16669,
+                                                                                     "Y":  182.93164,
+                                                                                     "W":  392,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  108.16669,
+                                                                                        "Y":  182.93164,
+                                                                                        "W":  392,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "child",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  133.63086,
+                                                                                     "W":  406,
+                                                                                     "H":  90.60156
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  133.63086,
+                                                                                        "W":  406,
+                                                                                        "H":  90.60156
+                                                                                    }
+                                                                    }
+                                                                ],
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  464.5332
+                                                                   },
+                                                      "pickCall":  "",
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "6b32683dcba6b278cfdcc57757d71f31":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  403.5332,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  319.5332,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  283.5332,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  359.5332,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  194.5332
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  94.16669,
+                                                                   "Y":  232.23242,
+                                                                   "W":  406,
+                                                                   "H":  41.30078
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:14",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T07:18:54.9572134+08:00"
+                                   },
+                       "passed":  true
+                   },
+                   {
+                       "record":  "event:10",
+                       "call":  "root",
+                       "metrics":  {
+                                       "collapsed":  {
+
+                                                     },
+                                       "expanded":  {
+                                                        "transcript-group:fixture:fixture:m40/reasoning/0:40":  true,
+                                                        "transcript-turn:fixture:fixture:0":  true
+                                                    },
+                                       "filter":  "",
+                                       "groups":  {
+                                                      "transcript-group:fixture:fixture:m40/reasoning/0:40":  [
+                                                                                                                  "tool:root",
+                                                                                                                  "m40/reasoning/0"
+                                                                                                              ],
+                                                      "transcript-turn:fixture:fixture:0":  [
+                                                                                                "tool:root",
+                                                                                                "m40/reasoning/0",
+                                                                                                "m40"
+                                                                                            ]
+                                                  },
+                                       "highlight":  "tool:root",
+                                       "max":  0,
+                                       "mode":  "session-log",
+                                       "notice":  "",
+                                       "picking":  false,
+                                       "reveal":  {
+                                                      "ageMs":  263.234,
+                                                      "call":  "root",
+                                                      "calls":  [
+                                                                    {
+                                                                        "call":  "root",
+                                                                        "full":  {
+                                                                                     "X":  80.16669,
+                                                                                     "Y":  101.63086,
+                                                                                     "W":  420,
+                                                                                     "H":  171.90234
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  80.16669,
+                                                                                        "Y":  101.63086,
+                                                                                        "W":  420,
+                                                                                        "H":  171.90234
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "unrelated-sibling",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  232.23242,
+                                                                                     "W":  406,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  232.23242,
+                                                                                        "W":  406,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "opaque-grandchild",
+                                                                        "full":  {
+                                                                                     "X":  108.16669,
+                                                                                     "Y":  182.93164,
+                                                                                     "W":  392,
+                                                                                     "H":  41.30078
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  108.16669,
+                                                                                        "Y":  182.93164,
+                                                                                        "W":  392,
+                                                                                        "H":  41.30078
+                                                                                    }
+                                                                    },
+                                                                    {
+                                                                        "call":  "child",
+                                                                        "full":  {
+                                                                                     "X":  94.16669,
+                                                                                     "Y":  133.63086,
+                                                                                     "W":  406,
+                                                                                     "H":  90.60156
+                                                                                 },
+                                                                        "owner":  "tool:root",
+                                                                        "visible":  {
+                                                                                        "X":  94.16669,
+                                                                                        "Y":  133.63086,
+                                                                                        "W":  406,
+                                                                                        "H":  90.60156
+                                                                                    }
+                                                                    }
+                                                                ],
+                                                      "locating":  false,
+                                                      "moving":  false,
+                                                      "pending":  false,
+                                                      "pickArea":  {
+                                                                       "X":  80.16669,
+                                                                       "Y":  1,
+                                                                       "W":  420,
+                                                                       "H":  464.5332
+                                                                   },
+                                                      "pickCall":  "",
+                                                      "pickPressed":  false,
+                                                      "pickPreview":  {
+                                                                          "X":  0,
+                                                                          "Y":  0,
+                                                                          "W":  0,
+                                                                          "H":  0
+                                                                      },
+                                                      "pickPreviewID":  "",
+                                                      "pickRows":  {
+                                                                       "6b32683dcba6b278cfdcc57757d71f31":  {
+                                                                                                                "X":  80.16669,
+                                                                                                                "Y":  403.5332,
+                                                                                                                "W":  420,
+                                                                                                                "H":  60
+                                                                                                            },
+                                                                       "m40":  {
+                                                                                   "X":  80.16669,
+                                                                                   "Y":  319.5332,
+                                                                                   "W":  420,
+                                                                                   "H":  24
+                                                                               },
+                                                                       "m40/reasoning/0":  {
+                                                                                               "X":  80.16669,
+                                                                                               "Y":  283.5332,
+                                                                                               "W":  420,
+                                                                                               "H":  24
+                                                                                           },
+                                                                       "m40/text/2":  {
+                                                                                          "X":  80.16669,
+                                                                                          "Y":  359.5332,
+                                                                                          "W":  420,
+                                                                                          "H":  24
+                                                                                      },
+                                                                       "tool:root":  {
+                                                                                         "X":  80.16669,
+                                                                                         "Y":  83,
+                                                                                         "W":  420,
+                                                                                         "H":  194.5332
+                                                                                     },
+                                                                       "transcript-group:fixture:fixture:m40/reasoning/0:40":  {
+                                                                                                                                   "X":  80.16669,
+                                                                                                                                   "Y":  51,
+                                                                                                                                   "W":  420,
+                                                                                                                                   "H":  24
+                                                                                                                               },
+                                                                       "transcript-turn:fixture:fixture:0":  {
+                                                                                                                 "X":  80.16669,
+                                                                                                                 "Y":  13,
+                                                                                                                 "W":  420,
+                                                                                                                 "H":  24
+                                                                                                             }
+                                                                   },
+                                                      "rect":  {
+                                                                   "X":  80.16669,
+                                                                   "Y":  101.63086,
+                                                                   "W":  420,
+                                                                   "H":  171.90234
+                                                               },
+                                                      "scale":  1.5,
+                                                      "settling":  false,
+                                                      "waiting":  false
+                                                  },
+                                       "scroll":  0,
+                                       "selected":  "event:10",
+                                       "targetPending":  false,
+                                       "time":  "2026-10-24T07:19:13.8471034+08:00"
+                                   },
+                       "passed":  true
+                   }
+               ],
+    "error":  null
+}
