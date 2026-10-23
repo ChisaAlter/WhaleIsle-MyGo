@@ -242,7 +242,7 @@ func View(c *ui.Context, m Model) {
 					nav := func(drawIcon func(), label string, fn func()) {
 						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 							Background(ui.Transparent).BorderWidth(0).
-							Padding(7, 8, 7, 8).AlignItems(ui.Center)
+							Padding(7, 8, 7, 8).AlignItems(ui.Center).FocusRing(false)
 						row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 						row.Children(func() {
 							ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
@@ -292,7 +292,7 @@ func View(c *ui.Context, m Model) {
 					}, i18n.T(i18n.KeySidebarSchedule), m.OnOpenSchedule)
 					assist := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 						Background(ui.Transparent).BorderWidth(0).
-						Padding(7, 8, 7, 8).AlignItems(ui.Center)
+						Padding(7, 8, 7, 8).AlignItems(ui.Center).FocusRing(false)
 					assist.Children(func() {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							if bmp := chrome.BrandAvatar(); bmp != nil {
