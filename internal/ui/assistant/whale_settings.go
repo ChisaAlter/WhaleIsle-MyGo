@@ -64,7 +64,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantMemoryMdIsInjectedIntoWhaleSSessi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			memory := s.Memory
-			ui.TextArea(c.Key("whale-memory-editor"), &memory).Label("Whale long-term memory").FillWidth().Lines(6, 14).Disabled(blocked).OnChange(func() {
+			ui.TextArea(c.Key("whale-memory-editor"), &memory).Label("Whale long-term memory").FillWidth().Lines(6, 8).MaxHeight(200).Disabled(blocked).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("memory", memory)
 				}
