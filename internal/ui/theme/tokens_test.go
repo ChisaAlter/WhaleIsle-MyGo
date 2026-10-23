@@ -33,6 +33,10 @@ func TestSampledTokensMatchTheHarness(t *testing.T) {
 		{"--dsw-alias-border-l4", deepseekLight.BorderL4, deepseekDark.BorderL4, "rgba(0, 0, 0, 0.16)", "rgba(255, 255, 255, 0.2)"},
 		{"--dsw-alias-label-primary-foreground", deepseekLight.ButtonFG, deepseekDark.ButtonFG, "rgb(255, 255, 255)", "rgb(15, 17, 21)"},
 		{"--dsw-alias-border-l2", deepseekLight.Border, deepseekDark.Border, "rgba(0, 0, 0, 0.1)", "rgba(255, 255, 255, 0.12)"},
+		{"--dsw-alias-border-l1", deepseekLight.BorderL1, deepseekDark.BorderL1, "rgba(0, 0, 0, 0.04)", "rgba(255, 255, 255, 0.06)"},
+		{"--dsw-alias-markdown-code-block", deepseekLight.CodeBlock, deepseekDark.CodeBlock, "rgb(249, 250, 251)", "rgb(27, 27, 28)"},
+		{"--dsw-alias-turn-trigger-bg", deepseekLight.TriggerBG, deepseekDark.TriggerBG, "rgb(249, 250, 251)", "rgba(255, 255, 255, 0.08)"},
+		{"--dsw-alias-turn-trigger-bg-hover", deepseekLight.TriggerHover, deepseekDark.TriggerHover, "rgba(38, 49, 72, 0.06)", "rgba(255, 255, 255, 0.14)"},
 		{"--dsw-alias-interactive-bg-hover", deepseekLight.Hover, deepseekDark.Hover, "rgba(38, 49, 72, 0.06)", "rgba(255, 255, 255, 0.08)"},
 		{"--dsw-alias-interactive-bg-active", deepseekLight.Pressed, deepseekDark.Pressed, "rgba(38, 49, 72, 0.1)", "rgba(255, 255, 255, 0.14)"},
 		// The dark accent is design-platform.css's cascaded deepseek-400; the

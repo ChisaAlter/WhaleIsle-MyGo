@@ -13,24 +13,21 @@ type contextBlock struct {
 }
 
 func contextMessageParts(msg session.Message) (source map[string]json.RawMessage, content []contextBlock) {
-	var event struct {
-		Type string `json:"type"`
-		Data struct {
-			Source  map[string]json.RawMessage `json:"source"`
-			Content []contextBlock             `json:"content"`
-			Message *struct {
-				Source  map[string]json.RawMessage `json:"source"`
-				Content []contextBlock             `json:"content"`
-			} `json:"message"`
-		} `json:"data"`
+	fields, blocks, _ := readContextBodyMessage(msg)
+	if fields != nil {
+		source = make(map[string]json.RawMessage, len(fields))
+		for _, field := range fields {
+			source[field.Name] = field.Raw
+		}
 	}
-	if json.Unmarshal(msg.Raw, &event) != nil {
-		return nil, nil
+	for _, raw := range blocks {
+		fields, _ := contextObjectEntries(raw)
+		kind, _ := contextSourceString(fields, "type")
+		name, _ := contextSourceString(fields, "toolName")
+		text, _ := contextSourceString(fields, "text")
+		content = append(content, contextBlock{Type: kind, ToolName: name, Text: text})
 	}
-	if event.Type == "developer/message" && event.Data.Message != nil {
-		return event.Data.Message.Source, event.Data.Message.Content
-	}
-	return event.Data.Source, event.Data.Content
+	return source, content
 }
 
 // visibleChatMessages filters the main Chat order, never its retained snapshot.

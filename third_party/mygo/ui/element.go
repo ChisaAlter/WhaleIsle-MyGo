@@ -222,6 +222,7 @@ type node struct {
 
 	// Layout.
 	row                    bool
+	scrollOverflowX        bool // constrain layout width while retaining X overflow
 	wrap                   bool
 	reverse, wrapReverse   bool
 	justify, align, self   Align

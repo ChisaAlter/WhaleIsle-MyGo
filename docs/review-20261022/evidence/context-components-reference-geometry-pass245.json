@@ -1,0 +1,177 @@
+[
+  {
+    "id": "instructions",
+    "rect": {
+      "x": 24,
+      "y": 24,
+      "w": 552,
+      "h": 126,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 126
+    },
+    "text": "Context injection\nAGENTS.md, rules.md\nAGENTS.md\nloaded\nrules.md\nloaded\n<system-reminder>\n  Keep model-facing whitespace exactly.\n</system-reminder>",
+    "header": {
+      "x": 24,
+      "y": 24,
+      "w": 552,
+      "h": 24,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 24
+    },
+    "body": {
+      "x": 46,
+      "y": 52,
+      "w": 530,
+      "h": 94,
+      "font": "11px / 16px \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\", \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\"",
+      "background": "rgb(249, 250, 251)",
+      "padding": "10px 16px 12px 12px",
+      "scrollWidth": 530,
+      "scrollHeight": 94
+    }
+  },
+  {
+    "id": "catalog",
+    "rect": {
+      "x": 24,
+      "y": 162,
+      "w": 552,
+      "h": 112,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 112
+    },
+    "text": "Context injection\nskill-catalog\n\nReplacement catalog\n\noffice\nRead and create Office documents\nreview\nReview code and capture concrete findings",
+    "header": {
+      "x": 24,
+      "y": 162,
+      "w": 552,
+      "h": 24,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 24
+    },
+    "body": {
+      "x": 46,
+      "y": 190,
+      "w": 530,
+      "h": 80,
+      "font": "11px / 16px \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\", \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\"",
+      "background": "rgb(249, 250, 251)",
+      "padding": "10px 16px 12px 12px",
+      "scrollWidth": 530,
+      "scrollHeight": 80
+    }
+  },
+  {
+    "id": "opaque",
+    "rect": {
+      "x": 24,
+      "y": 286,
+      "w": 552,
+      "h": 173,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 173
+    },
+    "text": "Context injection\nforeign\nfirst joined\n▸ Unknown content block\nlast\n  exact\nform\nfuture\nnote\none two three\npayload\n{\"1\":\"one\",\"2\":\"two\",\"z\":9007199254740992}",
+    "header": {
+      "x": 24,
+      "y": 286,
+      "w": 552,
+      "h": 24,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 24
+    },
+    "body": {
+      "x": 46,
+      "y": 314,
+      "w": 530,
+      "h": 141,
+      "font": "11px / 16px \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\", \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\"",
+      "background": "rgb(249, 250, 251)",
+      "padding": "10px 16px 12px 12px",
+      "scrollWidth": 525,
+      "scrollHeight": 169
+    }
+  },
+  {
+    "id": "tools",
+    "rect": {
+      "x": 24,
+      "y": 471,
+      "w": 552,
+      "h": 86,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 86
+    },
+    "text": "Tools updated\n2 added, 1 removed\nAdded: read, edit\nRemoved: old_tool",
+    "header": {
+      "x": 24,
+      "y": 471,
+      "w": 552,
+      "h": 24,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 24
+    },
+    "body": {
+      "x": 46,
+      "y": 499,
+      "w": 530,
+      "h": 54,
+      "font": "11px / 16px \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\", \"SF Mono\", \"JetBrains Mono\", \"Fira Code\", Consolas, \"Liberation Mono\", Menlo, Courier, \"PingFang SC\", \"Microsoft YaHei\"",
+      "background": "rgb(249, 250, 251)",
+      "padding": "10px 16px 12px 12px",
+      "scrollWidth": 530,
+      "scrollHeight": 54
+    }
+  },
+  {
+    "id": "trigger",
+    "rect": {
+      "x": 24,
+      "y": 569,
+      "w": 552,
+      "h": 174,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 552,
+      "scrollHeight": 174
+    },
+    "text": "Automation task\n10/22 14:00\n\nThis notification triggered this response.\n\nfirst\nsecond\nthird\n▸ Unknown content block",
+    "header": {
+      "x": 24.666667938232422,
+      "y": 569.6666870117188,
+      "w": 550.6666870117188,
+      "h": 42.66666793823242,
+      "font": "14px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "12px 16px",
+      "scrollWidth": 551,
+      "scrollHeight": 43
+    },
+    "body": null
+  }
+]

@@ -63,7 +63,7 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if data.Time > 0 {
-				ui.Text(c, formatEventTime(data.Time)).FontSize(11).TextColor(muted)
+				ui.Text(c, formatMessageClock(data.Time, c.Now())).FontSize(11).TextColor(muted)
 			}
 			if stdButton(c, palette, i18n.T(i18n.KeyChatQuestionCopyReply), buttonGhost, false).Label("Copy question reply " + msg.ID).Clicked() {
 				c.WriteClipboard(questionReplyClipboard(data))

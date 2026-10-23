@@ -143,7 +143,7 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 			}
 		}
 		if msg.EventTime > 0 {
-			stamp := ui.Text(c, formatEventTime(msg.EventTime)).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, 8).TextColor(muted)
+			stamp := ui.Text(c, formatMessageClock(msg.EventTime, c.Now())).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, 8).TextColor(muted)
 			if !revealed {
 				stamp.Opacity(0)
 			}

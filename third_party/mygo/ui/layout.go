@@ -454,7 +454,7 @@ func layoutBox(e *node, w, h float32) {
 		e.layoutToolbar(cw)
 	}
 	lw, lh := cw, ch
-	if e.flags&flagScrollX != 0 {
+	if e.flags&flagScrollX != 0 && !e.scrollOverflowX {
 		lw = inf
 	}
 	if e.flags&flagScrollY != 0 {
@@ -465,6 +465,13 @@ func layoutBox(e *node, w, h float32) {
 		alignBaselines(e)
 	}
 	if e.scrolls() {
+		if e.scrollOverflowX {
+			for child := e.first; child != nil; child = child.next {
+				if child.flags&flagAbsolute == 0 {
+					uw = max(uw, child.x-e.contentX()+overflowRight(child))
+				}
+			}
+		}
 		e.contentW = float64(max(uw, cw) + e.padX())
 		e.contentH = float64(max(uh, ch) + e.padY())
 	}

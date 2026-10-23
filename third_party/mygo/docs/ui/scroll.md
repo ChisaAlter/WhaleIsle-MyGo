@@ -5,7 +5,7 @@ the touchpad, their scroll bar and the keyboard: the arrow keys, Page Up and
 Page Down, Space, Home and End scroll the container around the focus, or
 under the pointer, unless the focused element takes those keys, as a text
 input does. `ui.ScrollBoth` scrolls both ways, as a canvas or a wide table
-does.
+does. `ui.Scroll(c).ScrollOverflowX()` keeps children laid out at the viewport's width while allowing horizontal scrolling to fixed-width content that extends past it. Ordinary text continues wrapping; nested scroll views and clipped containers own their own overflow.
 
 ```go
 ui.Scroll(c).Grow(1).Padding(16).Gap(12).Children(func() {

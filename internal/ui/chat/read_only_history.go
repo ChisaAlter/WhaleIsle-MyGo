@@ -102,7 +102,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					return
 				}
 				if msg.Kind == session.MessageKindContext {
-					ContextInjectionView(c, msg, scope, st.FG, st.Muted)
+					ContextInjectionView(c, msg, scope, st.Colors)
 					return
 				}
 				if msg.Kind == session.MessageKindCompaction {

@@ -78,6 +78,11 @@ type Colors struct {
 	Danger       string
 	DangerHover  string
 	SelectorFill string // --dsw-specific-selector
+	// Context and turn-trigger surfaces have distinct reference tokens.
+	BorderL1     string // --dsw-alias-border-l1
+	CodeBlock    string // --dsw-alias-markdown-code-block
+	TriggerBG    string // --dsw-alias-turn-trigger-bg
+	TriggerHover string // --dsw-alias-turn-trigger-bg-hover
 }
 
 // Theme is a resolved family with both palettes and a scheme preference.
@@ -91,47 +96,51 @@ type Theme struct {
 
 // deepseekLight mirrors official dsh web light tokens (dsh-webui-tokens.css).
 var deepseekLight = Colors{
-	BG:      "#ffffff",
-	FG:      "#0f1115",
-	Muted:   "#81858c",
+	BG:        "#ffffff",
+	FG:        "#0f1115",
+	Muted:     "#81858c",
 	Secondary: "#61666b",
-	Caption: "#adb2b8",
-	Accent:  "#4176e6",
-	Border:  "rgba(0, 0, 0, 0.10)",
+	Caption:   "#adb2b8",
+	Accent:    "#4176e6",
+	Border:    "rgba(0, 0, 0, 0.10)",
 	// Raised surface. --dsw-alias-bg-layer-1 is rgb(255, 255, 255) here
 	// (mixWallpaperSurfaces' light "raised" fallback, neutral-bluish-00); this
 	// value instead reads --dsw-alias-bg-module-platform (rgb(245, 246, 247)),
 	// which keeps light-mode wells visible against the white base. Matching the
 	// sheet would need #ffffff and is left to a wave that can retune the surfaces
 	// sharing the token (see the Wave 9 token report).
-	Field:           "#f5f6f7",
-	Sidebar:         "#f9fafb",
-	Titlebar:        "#f9fafb",
-	Hover:           "rgba(38, 49, 72, 0.06)",
-	Pressed:         "rgba(38, 49, 72, 0.1)",
-	ButtonFG:        "#ffffff",
-	Bubble:          "rgb(237, 243, 254)",
-	InputMajor:      "rgba(255, 255, 255, 0.8)",
-	ButtonInfoFill:  "rgb(65, 118, 230)",
-	ButtonInfoHover: "rgb(122, 170, 255)",
-	BrandPrimary:      "#0f1115",             // --dsw-alias-brand-primary (neutral-bluish-1000)
-	BrandPrimaryHover: "rgb(67, 69, 74)",     // --dsw-alias-button-primary-hover (neutral-bluish-750)
+	Field:             "#f5f6f7",
+	Sidebar:           "#f9fafb",
+	Titlebar:          "#f9fafb",
+	Hover:             "rgba(38, 49, 72, 0.06)",
+	Pressed:           "rgba(38, 49, 72, 0.1)",
+	ButtonFG:          "#ffffff",
+	Bubble:            "rgb(237, 243, 254)",
+	InputMajor:        "rgba(255, 255, 255, 0.8)",
+	ButtonInfoFill:    "rgb(65, 118, 230)",
+	ButtonInfoHover:   "rgb(122, 170, 255)",
+	BrandPrimary:      "#0f1115",         // --dsw-alias-brand-primary (neutral-bluish-1000)
+	BrandPrimaryHover: "rgb(67, 69, 74)", // --dsw-alias-button-primary-hover (neutral-bluish-750)
 	BorderL3:          "rgba(0, 0, 0, 0.12)",
 	BorderL4:          "rgba(0, 0, 0, 0.16)",
 	ToolbarFill:       "rgba(84, 85, 87, 0.5)",
 	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
 	Danger:            "rgb(236, 19, 19)",
 	DangerHover:       "rgb(209, 18, 18)",
-	SelectorFill:    "rgb(245, 246, 247)",
+	SelectorFill:      "rgb(245, 246, 247)",
+	BorderL1:          "rgba(0, 0, 0, 0.04)",
+	CodeBlock:         "#f9fafb",
+	TriggerBG:         "#f9fafb",
+	TriggerHover:      "rgba(38, 49, 72, 0.06)",
 }
 
 // deepseekDark mirrors official dsh web dark tokens.
 var deepseekDark = Colors{
-	BG:      "#151517",
-	FG:      "#f9fafb",
-	Muted:   "#adb2b8",
+	BG:        "#151517",
+	FG:        "#f9fafb",
+	Muted:     "#adb2b8",
 	Secondary: "#cfd3d6",
-	Caption: "#81858c",
+	Caption:   "#81858c",
 	// --dsw-alias-state-business-primary: the harness stylesheet resolves it to
 	// --dsw-static-deepseek-400 (rgb(122, 170, 255)) in the dark half. The
 	// app-level dsh-webui-tokens.css copy says rgb(103, 158, 254); the cascaded
@@ -164,7 +173,11 @@ var deepseekDark = Colors{
 	ToolbarHover:      "rgba(84, 85, 87, 0.6)",
 	Danger:            "rgb(242, 90, 90)",
 	DangerHover:       "rgb(244, 102, 102)",
-	SelectorFill:    "rgb(53, 54, 56)",
+	SelectorFill:      "rgb(53, 54, 56)",
+	BorderL1:          "rgba(255, 255, 255, 0.06)",
+	CodeBlock:         "#1b1b1c",
+	TriggerBG:         "rgba(255, 255, 255, 0.08)",
+	TriggerHover:      "rgba(255, 255, 255, 0.14)",
 }
 
 // Default returns the deepseek family with system scheme (light-dark window bg).

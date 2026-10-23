@@ -142,7 +142,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 		}
 		actions.Children(func() {
 			if msg.EventTime > 0 {
-				ui.Text(c, formatEventTime(msg.EventTime)).FontSize(13).FixedLineHeight(24).Padding(0, 12, 0, 0).TextColor(muted)
+				ui.Text(c, formatMessageClock(msg.EventTime, c.Now())).FontSize(13).FixedLineHeight(24).Padding(0, 12, 0, 0).TextColor(muted)
 			}
 			action := func(icon *ui.SVG, label string, run func()) {
 				if messageAction(c, icon, label, false, muted).Clicked() {

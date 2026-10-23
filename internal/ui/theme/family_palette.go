@@ -41,9 +41,13 @@ func derivePalette(c Colors, s Seed) Colors {
 	c.Field = mix(mix(s.Background, s.Foreground, cardFG), s.Accent, cardAccent)
 	c.Titlebar = mix(mix(s.Background, s.Foreground, overlayFG), s.Accent, overlayAccent)
 	c.SelectorFill = mix(mix(s.Background, s.Foreground, layerFG), s.Accent, layerAccent)
-	c.Muted = mix(s.Foreground, s.Background, .38-f*.14)
-	c.Secondary = mix(s.Foreground, s.Background, .30-f*.12)
+	c.Muted, c.Caption = deepseekLight.Muted, deepseekLight.Caption
+	if dark {
+		c.Muted, c.Caption = deepseekDark.Muted, deepseekDark.Caption
+	}
+	c.Secondary = mix(s.Foreground, s.Background, .38-f*.14)
 	c.Border = familyAlpha(s.Foreground, .1+f*.2)
+	c.BorderL1 = familyAlpha(s.Foreground, .08+f*.18)
 	c.BorderL4 = familyAlpha(s.Foreground, .16+f*.08)
 	c.Sidebar = mix(s.Background, s.Accent, strong)
 	c.Bubble = mix(s.Background, s.Accent, wash)
@@ -80,13 +84,48 @@ func derivePalette(c Colors, s Seed) Colors {
 			c.ButtonInfoFill = value
 		case "--dsw-alias-button-info-hover":
 			c.ButtonInfoHover = value
-		case "--dsw-alias-border-l1", "--dsw-alias-border-l2":
+		case "--dsw-alias-border-l1":
+			c.BorderL1 = value
+		case "--dsw-alias-border-l2":
 			c.Border = value
+		case "--dsw-alias-label-tertiary":
+			c.Muted = value
+		case "--dsw-alias-label-caption":
+			c.Caption = value
+		case "--dsw-alias-markdown-code-block":
+			c.CodeBlock = value
+		case "--dsw-alias-interactive-bg-hover":
+			c.Hover = value
+		case "--dsw-alias-interactive-bg-active":
+			c.Pressed = value
 		case "--dsw-specific-sidebar-fill":
 			c.Sidebar = value
 		case "--dsw-specific-bubble":
 			c.Bubble = value
 		}
+	}
+	// The trigger aliases follow the platform sheet's light/dark selection;
+	// custom code-block overrides flow through the light alias before an
+	// explicit trigger override is applied.
+	hover, active := deepseekLight.Hover, deepseekLight.Pressed
+	if dark {
+		hover, active = deepseekDark.Hover, deepseekDark.Pressed
+	}
+	if value := s.Overrides["--dsw-alias-interactive-bg-hover"]; value != "" {
+		hover = value
+	}
+	if value := s.Overrides["--dsw-alias-interactive-bg-active"]; value != "" {
+		active = value
+	}
+	c.TriggerBG, c.TriggerHover = c.CodeBlock, hover
+	if dark {
+		c.TriggerBG, c.TriggerHover = hover, active
+	}
+	if value := s.Overrides["--dsw-alias-turn-trigger-bg"]; value != "" {
+		c.TriggerBG = value
+	}
+	if value := s.Overrides["--dsw-alias-turn-trigger-bg-hover"]; value != "" {
+		c.TriggerHover = value
 	}
 	return c
 }

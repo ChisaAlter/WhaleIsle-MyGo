@@ -189,7 +189,7 @@ func View(c *ui.Context, m Model) {
 						if msg.ContextWaking {
 							TurnTriggerView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, colors)
 						} else {
-							ContextInjectionView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
+							ContextInjectionView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, colors)
 						}
 						return
 					}

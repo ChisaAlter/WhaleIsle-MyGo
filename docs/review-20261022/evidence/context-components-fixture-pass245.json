@@ -1,0 +1,131 @@
+{
+  "fixtures": [
+    {
+      "id": "instructions",
+      "source": {
+        "kind": "agent-instructions",
+        "form": "instructions",
+        "baseline": true,
+        "changes": [
+          {
+            "path": "AGENTS.md",
+            "action": "set"
+          },
+          {
+            "path": "rules.md",
+            "action": "replace"
+          }
+        ]
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "<system-reminder>\n  Keep model-facing whitespace exactly.\n</system-reminder>"
+        }
+      ]
+    },
+    {
+      "id": "catalog",
+      "source": {
+        "kind": "skill-catalog",
+        "form": "catalog",
+        "update": true,
+        "entries": [
+          {
+            "name": "office",
+            "description": "Read and create Office documents"
+          },
+          {
+            "name": "review",
+            "description": "Review code and capture concrete findings"
+          }
+        ]
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "catalog replacement source text"
+        }
+      ]
+    },
+    {
+      "id": "opaque",
+      "source": {
+        "kind": "foreign",
+        "form": "future",
+        "note": "one\n  two\tthree",
+        "payload": {
+          "1": "one",
+          "2": "two",
+          "z": 9007199254740992
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "first"
+        },
+        {
+          "type": "text",
+          "text": " joined"
+        },
+        {
+          "type": "future",
+          "text": {
+            "opaque": true
+          },
+          "extra": [
+            true,
+            null
+          ]
+        },
+        {
+          "type": "text",
+          "text": "last\n  exact"
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "source": {
+        "kind": "tool-registry"
+      },
+      "content": [
+        {
+          "type": "tool-addition",
+          "toolName": "read"
+        },
+        {
+          "type": "tool-addition",
+          "toolName": "edit"
+        },
+        {
+          "type": "tool-removal",
+          "toolName": "old_tool"
+        }
+      ]
+    },
+    {
+      "id": "trigger",
+      "source": {
+        "kind": "schedule",
+        "form": "notice",
+        "summary": "Daily reminder"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "first\nsecond\nthird"
+        },
+        {
+          "type": "future",
+          "text": {
+            "opaque": true
+          }
+        }
+      ],
+      "time": 1792648800000
+    }
+  ],
+  "description": "Actual installed component factory rendered in isolated Electron profile 3083, captured after opening top-level disclosures; saved HTML retains captured states only."
+}

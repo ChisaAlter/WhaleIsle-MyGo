@@ -2,7 +2,7 @@ package chat
 
 import (
 	"encoding/json"
-	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -15,7 +15,7 @@ import (
 // TurnTriggerView identifies the durable nonhuman input that opened a Turn.
 // Its source changes attribution only; the body is retained, read-only text.
 func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette theme.Colors) {
-	source, content := contextMessageParts(msg)
+	source, _ := contextMessageParts(msg)
 	field := func(name string) string {
 		var text string
 		_ = json.Unmarshal(source[name], &text)
@@ -47,27 +47,31 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 	title := i18n.T(label)
 	muted, secondary := chrome.Color(palette.Muted), chrome.Color(palette.Secondary)
 	root := ui.Column(c.Key("turn-trigger:"+scope+":"+msg.ID)).FillWidth().MinWidth(0).
-		Border(.5, chrome.Color(palette.Border).Alpha(.5)).Radius(20).Background(chrome.Color(palette.Field))
+		Border(.5, chrome.Color(palette.BorderL1)).Radius(20).Background(chrome.Color(palette.TriggerBG)).
+		Transition(ui.ElementTransition{Colors: true, Duration: 100 * time.Millisecond, Ease: contextColorEase})
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
 		header := ui.Button(c, "").Label(title).Expanded(*open).Role(ui.RoleDisclosure).
 			FillWidth().MinWidth(0).Padding(12, 16).Gap(10).BorderWidth(0).Radius(20).
 			Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Start)
-		ink := muted
-		if header.Hovered() {
-			ink = secondary
-			root.Background(chrome.Color(palette.Hover))
+		rootHovered, headerHovered := root.Hovered(), header.Hovered()
+		if rootHovered {
+			root.Background(chrome.Color(palette.TriggerHover))
 		}
+		target := float32(0)
+		if headerHovered {
+			target = 1
+		}
+		ink := muted.Mix(secondary, header.AnimateWith("trigger-hover", target, 100*time.Millisecond, contextColorEase))
 		if header.Clicked() {
 			*open = !*open
 			c.Invalidate()
 		}
 		header.Children(func() {
 			ui.Icon(c, icon).Size(14, 14).TextColor(ink).Shrink(0).Role(ui.RoleNone)
-			ui.Text(c, title).FontSize(theme.CurrentPreferences().Chat.Size).TextColor(ink).Shrink(1).MinWidth(0).SingleLine()
-			ui.Box(c).Grow(1).MinWidth(0)
-			if stamp := formatEventTime(msg.EventTime); stamp != "" {
-				ui.Text(c, stamp).FontSize(12).TextColor(ink).SingleLine().Shrink(0)
+			ui.Text(c, title).Font(theme.RenderPreferences().Interface.Family).FontSize(theme.RenderPreferences().Chat.Size).LineHeight(0).TextColor(ink).Shrink(0).SingleLine()
+			if stamp := formatMessageClock(msg.EventTime, c.Now()); stamp != "" {
+				ui.Text(c, stamp).Font(theme.RenderPreferences().Interface.Family).FontSize(12).FixedLineHeight(18).TextColor(ink).SingleLine().Shrink(0).Margin(0, 0, 0, ui.Auto)
 			}
 			chevron := ui.Icon(c, contextChevronIcon).Size(12, 12).TextColor(ink).Shrink(0).Role(ui.RoleNone)
 			if *open {
@@ -78,21 +82,11 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 			return
 		}
 		ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16, 12, 40).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatTriggerExplanation)).FontSize(12).TextColor(secondary).Margin(8, 0)
-			body := msg.Body
-			if len(content) > 0 {
-				var text strings.Builder
-				allText := true
-				for _, block := range content {
-					allText = allText && block.Type == "text"
-					text.WriteString(block.Text)
-				}
-				if allText {
-					body = text.String()
-				}
-			}
-			ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(240).Children(func() {
-				ui.Text(c, clipReadOnlyText(body, 20000)).FontSize(12).TextColor(secondary).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyChatTriggerExplanation)).Font(theme.RenderPreferences().Interface.Family).FontSize(12).FixedLineHeight(18).TextColor(secondary).Margin(8, 0)
+			style := contextBodyPalette(palette)
+			style.Font, style.Size, style.LineHeight = theme.RenderPreferences().Interface.Family, 12, 18
+			ui.Scroll(c).ScrollOverflowX().FillWidth().MinWidth(0).MaxHeight(240).Children(func() {
+				paintNoticeContext(c, msg, style)
 			})
 		})
 	})

@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestToolContextCountsNamesAndExitPresence(t *testing.T) {
@@ -25,7 +26,7 @@ func TestToolContextCountsNamesAndExitPresence(t *testing.T) {
 			for _, reduced := range []bool{false, true} {
 				tt := ui.NewTester(func(c *ui.Context) {
 					ui.Column(c).FillWidth().Padding(12).Children(func() {
-						ContextInjectionView(c, msg, "s", ui.RGB(20, 20, 20), ui.RGB(100, 100, 100))
+						ContextInjectionView(c, msg, "s", theme.Resolve(theme.IDDeepseekLight).Light)
 					})
 				}, 420, 400)
 				tt.SetPreferences(ui.Preferences{ReduceMotion: reduced})
@@ -49,8 +50,8 @@ func TestToolContextCountsNamesAndExitPresence(t *testing.T) {
 				if err := tt.Click(name); err != nil {
 					t.Fatal(err)
 				}
-				if !reduced && !tt.HasText(tc.added) {
-					t.Fatal("exit body unmounted before its fade")
+				if tt.HasText(tc.added) || tt.HasText(tc.removed) {
+					t.Fatal("retained exit body remains interactive/findable")
 				}
 				tt.SetTime(at.Add(301 * time.Millisecond))
 				if tt.HasText(tc.added) || tt.HasText(tc.removed) {
@@ -67,7 +68,7 @@ func TestToolContextSingletonAndMixedContent(t *testing.T) {
 	defer i18n.SetLocale(old)
 	for _, tc := range []struct{ kind, label string }{{"tool-addition", "Tool added: last_tool"}, {"tool-removal", "Tool removed: last_tool"}} {
 		msg := contextFixture("single", "tool-registry", `[{"type":"`+tc.kind+`","toolName":"last_tool"}]`)
-		tt := ui.NewTester(func(c *ui.Context) { ContextInjectionView(c, msg, "s", ui.RGB(20, 20, 20), ui.RGB(100, 100, 100)) }, 360, 160)
+		tt := ui.NewTester(func(c *ui.Context) { ContextInjectionView(c, msg, "s", theme.Resolve(theme.IDDeepseekLight).Light) }, 360, 160)
 		if !tt.HasText(tc.label) || tt.HasText("Context injection") || tt.HasText("tool-registry") {
 			t.Fatalf("singleton notice = %q", tt.Texts())
 		}
@@ -79,11 +80,11 @@ func TestToolContextSingletonAndMixedContent(t *testing.T) {
 		}
 	}
 	mixed := contextFixture("mixed", "tool-registry", `[{"type":"text","text":"mixed content"},{"type":"tool-addition","toolName":"search"}]`)
-	tt := ui.NewTester(func(c *ui.Context) { ContextInjectionView(c, mixed, "s", ui.RGB(20, 20, 20), ui.RGB(100, 100, 100)) }, 480, 400)
+	tt := ui.NewTester(func(c *ui.Context) { ContextInjectionView(c, mixed, "s", theme.Resolve(theme.IDDeepseekLight).Light) }, 480, 400)
 	if !tt.HasText("Context injection") || tt.HasText("Tools updated") || tt.HasText("snapshot") {
 		t.Fatalf("mixed content was treated as an all-tool notice: %q", tt.Texts())
 	}
-	if err := tt.Click("Context details mixed"); err != nil || !strings.Contains(strings.Join(tt.Texts(), "\n"), mixed.Body) {
+	if err := tt.Click("Context injection tool-registry"); err != nil || !strings.Contains(strings.Join(tt.Texts(), "\n"), "mixed content") || !tt.HasText("Unknown content block") {
 		t.Fatalf("mixed opaque detail missing: %v", err)
 	}
 }
