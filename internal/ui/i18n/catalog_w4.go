@@ -377,7 +377,7 @@ func init() {
 	Register(KeyW4AssistantDefaultsToA30mDelayWholeNumberMHDF, "默认延迟 30m；整数 m/h/d，范围 1 分钟至 365 天。启用后由 Host 安排一次执行；实际下次时间以 Host 返回为准。", "Defaults to a 30m delay; whole-number m/h/d from 1 minute to 365 days. Once enabled the Host schedules a single run, and its answer decides the actual time.")
 	Register(KeyW4AssistantFiveFieldOrderMinuteHourDayMonthWeekd, "五字段顺序：分钟 小时 日 月 星期。这里只检查结构；确认保存时由 Host 验证完整 Cron 语法。月末、夏令时和实际下次时间以 Host 返回为准。", "Five-field order: minute hour day month weekday. Only the shape is checked here; the Host validates full Cron syntax when you confirm the save. Month-end, daylight saving and the actual next run follow the Host.")
 	Register(KeyW4AssistantConfirm, "确认：", "Confirm: ")
-	Register(KeyW4AssistantReadRefreshHostContentRefresh, "读取 / 刷新 Host 内容 · Refresh", "Read / refresh Host content · Refresh")
+	Register(KeyW4AssistantReadRefreshHostContentRefresh, "刷新 Host 内容", "Refresh Host content")
 	Register(KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder, "还没有技能；在此 Host 的 Whale 目录下放入 skills/<名称>/SKILL.md 后刷新。", "No skills yet; put skills/<name>/SKILL.md under this Host's Whale directory and refresh.")
 	Register(KeyW4AssistantImBotsWithoutAnotherPresetJoinHerResi2, "未指定其他预设的 IM 机器人进入她的常驻会话，与桌面共用记录。", "IM bots without another preset join her resident session and share its history with the desktop app.")
 	Register(KeyW4AssistantReadAssistantSettings, "读取助理设置", "Read assistant settings")

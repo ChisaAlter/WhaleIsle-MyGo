@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
@@ -136,7 +137,12 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).Bold().TextColor(fg)
 		if len(s.Server.Skills) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)+"\n"+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			label := "技能目录："
+			if !strings.HasPrefix(i18n.Locale(), "zh") {
+				label = "Skills directory: "
+			}
+			ui.Text(c, label+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Selectable()
 		}
 		for _, skill := range s.Server.Skills {
 			skill := skill

@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
@@ -53,7 +54,11 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if s.Server.HomeDir == "" {
 			return
 		}
-		ui.Text(c, s.Server.HomeDir+" · "+s.Server.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+		label := "会话："
+		if !strings.HasPrefix(i18n.Locale(), "zh") {
+			label = "Session: "
+		}
+		ui.Text(c, label+s.Server.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		disabled := blocked || !s.Loaded
 		ui.Column(c.Key("whale-memory")).Background(field).Border(1, border).Radius(8).Padding(12).Gap(7).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
