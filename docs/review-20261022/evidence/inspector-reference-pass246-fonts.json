@@ -1,0 +1,46 @@
+[
+  {
+    "selector": "#r102-inspector-fixture tbody td button",
+    "fonts": [
+      {
+        "familyName": "NSimSun",
+        "postScriptName": "NSimSun",
+        "isCustomFont": false,
+        "glyphCount": 12
+      }
+    ]
+  },
+  {
+    "selector": "#r102-inspector-fixture th",
+    "fonts": [
+      {
+        "familyName": "NSimSun",
+        "postScriptName": "NSimSun",
+        "isCustomFont": false,
+        "glyphCount": 5
+      }
+    ]
+  },
+  {
+    "selector": "#r102-inspector-fixture select",
+    "fonts": [
+      {
+        "familyName": "Segoe UI",
+        "postScriptName": "SegoeUI",
+        "isCustomFont": false,
+        "glyphCount": 7
+      }
+    ]
+  },
+  {
+    "selector": "#r102-inspector-fixture summary",
+    "fonts": [
+      {
+        "familyName": "NSimSun",
+        "postScriptName": "NSimSun",
+        "isCustomFont": false,
+        "glyphCount": 12
+      }
+    ]
+  }
+]

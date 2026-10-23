@@ -64,7 +64,7 @@ func TestSessionInspectorOlderPageAndPackedStream(t *testing.T) {
 	}
 	root := inspectorRecord("event:3", "", json.RawMessage(`{"type":"assistant/message","seq":3,"data":{"stream":[{"type":"chunk","time":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}},{"type":"text-chunks","index":0,"time0":2,"dt":[3],"texts":["a","b"]}]}}`))
 	rows := inspectorChildren(root)
-	if len(rows) != 4 || rows[3].Type != "text-delta" || rows[3].Time != 5 || rows[3].Parent != rows[1].Key {
+	if len(rows) != 4 || rows[3].Type != "text-delta" || rows[3].Time != 5 || rows[3].Parent != rows[1].Key || rows[3].Identity != "2" {
 		t.Fatalf("lost chunk/time: %+v", rows)
 	}
 }

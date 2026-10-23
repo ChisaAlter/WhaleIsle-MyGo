@@ -237,6 +237,39 @@ func TestAccessibilityOfTables(t *testing.T) {
 	}
 }
 
+func TestAccessibilityOfCheckedCustomRow(t *testing.T) {
+	tt := coreNewTester(func(c *context) {
+		coreRow(c).Role(RoleRow).Label("Selected record").Checked(true)
+	}, 400, 300)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	row := accessNode(t, tt.h.access, platform.RoleRow, "Selected record")
+	if row.States&(platform.AccessSelectable|platform.AccessChecked) != platform.AccessSelectable|platform.AccessChecked {
+		t.Fatalf("custom record does not expose selection: %+v", row)
+	}
+}
+
+func TestAccessibilityOfColumnHeaderControls(t *testing.T) {
+	pressed := false
+	tt := coreNewTester(func(c *context) {
+		coreRow(c).Role(RoleColumnHeader).Children(func() {
+			coreText(c, "Type")
+			if coreButton(c, "Filter types").Clicked() {
+				pressed = true
+			}
+		})
+	}, 400, 300)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	header := accessNode(t, tt.h.access, platform.RoleColumnHeader, "Type")
+	button := accessNode(t, tt.h.access, platform.RoleButton, "Filter types")
+	if tt.h.access.Nodes[button.Parent].ID != header.ID || button.Actions&platform.ActionPress == 0 {
+		t.Fatalf("header control missing from accessible header: %+v", button)
+	}
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessAction, ID: button.ID, Action: platform.AccessPress})
+	if !pressed {
+		t.Fatal("accessible filter action did not reach button")
+	}
+}
+
 func TestAccessibilityOfOverlays(t *testing.T) {
 	open := true
 	tt := coreNewTester(func(c *context) {

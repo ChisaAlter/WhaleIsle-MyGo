@@ -17,9 +17,10 @@ type sessionInspectorState struct {
 	contextWaking map[float64]bool
 }
 type InspectorRecord struct {
-	Key, Parent, Type string
-	Seq, Time         float64
-	Raw               json.RawMessage
+	Key, Parent, Type  string
+	Identity, Location string
+	Seq, Time          float64
+	Raw                json.RawMessage
 }
 type InspectorSnapshot struct {
 	Binding, SessionID string
@@ -52,11 +53,24 @@ func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
 }
 func inspectorRecord(key, parent string, raw json.RawMessage) InspectorRecord {
 	var h struct {
-		Type      string
-		Seq, Time float64
+		Type string
+		Seq  *float64
+		Time float64
+		Data struct{ Turn, Step json.RawMessage }
 	}
 	_ = json.Unmarshal(raw, &h)
-	return InspectorRecord{Key: key, Parent: parent, Type: h.Type, Seq: h.Seq, Time: h.Time, Raw: append(json.RawMessage(nil), raw...)}
+	row := InspectorRecord{Key: key, Parent: parent, Type: h.Type, Time: h.Time, Raw: append(json.RawMessage(nil), raw...)}
+	if h.Seq != nil {
+		row.Seq = *h.Seq
+		row.Identity = fmt.Sprintf("%.0f", *h.Seq)
+	}
+	if len(h.Data.Turn) > 0 {
+		row.Location = string(h.Data.Turn)
+		if len(h.Data.Step) > 0 {
+			row.Location += "/" + string(h.Data.Step)
+		}
+	}
+	return row
 }
 func inspectorChildren(root InspectorRecord) []InspectorRecord {
 	var ev struct {
@@ -73,6 +87,8 @@ func inspectorChildren(root InspectorRecord) []InspectorRecord {
 		chunk, timestamp := item.chunk, item.time
 		row := inspectorRecord(fmt.Sprintf("%s/chunk:%d", root.Key, i), root.Key, chunk)
 		row.Seq = root.Seq
+		row.Identity = fmt.Sprint(i)
+		row.Location = root.Location
 		row.Time = timestamp
 		var h struct {
 			Type  string

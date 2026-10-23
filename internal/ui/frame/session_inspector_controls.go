@@ -5,11 +5,10 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 )
 
 func inspectorTypeCandidates(rows []session.InspectorRecord, query string) []string {
-	query = strings.ToLower(strings.Trim(strings.TrimSpace(query), "* "))
+	query = strings.ToLower(inspectorFilterQuery(query))
 	seen := map[string]bool{}
 	var out []string
 	for _, row := range rows {
@@ -30,6 +29,7 @@ func (p *SessionInspectorPaneState) applyInspectorFilter(query string) {
 	p.tree = inspectorJSONTreeState{}
 	p.collapsed = map[string]bool{}
 	p.list = ui.ListState{}
+	p.tableY = ui.ScrollState{}
 	p.list.ScrollTo(0, ui.Start)
 }
 func (p *SessionInspectorPaneState) cancelFilter() {
@@ -61,8 +61,14 @@ func (p *SessionInspectorPaneState) confirmFilter(items []string) {
 	p.applyInspectorFilter(query)
 }
 func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord) {
-	ui.Row(c).Gap(6).Padding(6).Children(func() {
-		anchor := ui.Button(c, paneLabel("事件类型筛选", "Filter event type")).Label("Inspector type filter").Selected(p.Filter != "")
+	ui.Row(c).Children(func() {
+		anchor := inspectorButton(c, "Inspector type filter").Tooltip(paneLabel("筛选类型", "Filter types")).Size(17, 17).Padding(2).Radius(3).Selected(inspectorFilterQuery(p.Filter) != "").Expanded(p.filterOpen)
+		ink := c.Theme().Text
+		if anchor.Hovered() || inspectorFilterQuery(p.Filter) != "" {
+			anchor.Background(c.Theme().SurfaceHover)
+			ink = c.Theme().Accent
+		}
+		anchor.Children(func() { ui.Icon(c, inspectorFilterIcon).Size(13, 13).TextColor(ink) })
 		if anchor.Clicked() {
 			if p.filterOpen {
 				p.cancelFilter()
@@ -74,12 +80,11 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 				p.filterList = ui.ListState{}
 			}
 		}
-		if p.Filter != "" {
-			ui.Text(c, "*"+p.Filter+"*").Grow(1)
-		}
-		ui.Popover(c, anchor, &p.filterOpen, func() {
-			ui.Column(c).Width(300).Gap(6).Children(func() {
-				input := ui.TextInput(c, &p.draft).FillWidth().Label("Inspector type query").Placeholder(paneLabel("事件类型片段", "Type fragment")).AutoFocus()
+		ui.PopoverBase(c, anchor, &p.filterOpen, func(panel ui.Element) {
+			width, height := c.Size()
+			panel.Width(290).MaxWidth(width-24).MaxHeight(height-24).Margin(4, 0, 0, 0).Padding(10).Radius(6).Background(c.Theme().Surface).Border(.5, c.Theme().Border).FontSize(11).FontWeight(400)
+			ui.Column(c).FillWidth().Children(func() {
+				input := ui.TextInputBase(c, &p.draft).FillWidth().Label("Inspector type query").Placeholder(paneLabel("输入类型片段，如 delta", "Type a fragment, e.g. delta")).AutoFocus().Padding(5, 6).Border(.5, c.Theme().Border).Radius(4).Background(ui.Transparent).FontSize(11)
 				if p.filterQuery != p.draft {
 					p.filterQuery = p.draft
 					p.filterActive = -1
@@ -98,34 +103,41 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 						anchor.Focus()
 					}
 				}
-				ui.Text(c, paneLabel("仅应用或选择候选后筛选；Esc 取消", "Apply or choose a candidate to filter; Esc cancels")).FontSize(11)
+				ui.Text(c, paneLabel("默认包含匹配（*关键词*）；Enter 确认，Esc 取消。", "Contains matching (*keyword*). Enter confirms; Esc cancels.")).FontSize(11).FontWeight(400).Margin(6, 0).TextColor(c.Theme().TextMuted)
 				if len(items) == 0 {
-					ui.Text(c, paneLabel("没有匹配类型", "No matching types"))
+					ui.Text(c, paneLabel("没有匹配候选，仍可确认当前关键词。", "No suggestions. You can still apply this keyword.")).FontSize(11)
 				} else {
 					p.filterList.Key = func(i int) any { return items[i] }
 					ui.List(c, &p.filterList, len(items), func(i int) {
-						row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
-							Label(items[i]).Selected(i == p.filterActive).Tooltip(items[i])
-						row.Children(func() {
-							ui.Text(c, items[i]).Grow(1).SingleLine().FontSize(13).TextColor(c.Theme().Text)
-						})
+						row := inspectorButton(c, items[i]).FillWidth().Padding(4, 6).Selected(i == p.filterActive).Tooltip(items[i])
+						ink := c.Theme().Text
+						if row.Hovered() || i == p.filterActive {
+							row.Background(c.Theme().SurfaceHover)
+							ink = c.Theme().Accent
+						}
+						row.Children(func() { inspectorText(c, items[i]).Grow(1).TextColor(ink) })
 						if row.Clicked() {
 							p.applyInspectorFilter(items[i])
 							anchor.Focus()
 						}
-					}).Height(min(float32(160), float32(len(items)*32))).FillWidth()
+					}).Height(min(float32(180), float32(len(items)*22))).FillWidth()
 				}
-				ui.Row(c).Gap(6).Children(func() {
-					if ui.Button(c, paneLabel("清除", "Clear")).Clicked() {
+				action := func(label string) ui.Element {
+					button := inspectorButton(c, label).Padding(3, 6).Border(.5, c.Theme().Border).Radius(4)
+					button.Children(func() { inspectorText(c, label) })
+					return button
+				}
+				ui.Row(c).Gap(8).Margin(8, 0, 0, 0).Justify(ui.End).Children(func() {
+					if action(paneLabel("清空", "Clear")).Clicked() {
 						p.draft = ""
 						p.filterActive = -1
 						input.Focus()
 					}
-					if ui.Button(c, paneLabel("取消", "Cancel")).Clicked() {
+					if action(paneLabel("取消", "Cancel")).Clicked() {
 						p.cancelFilter()
 						anchor.Focus()
 					}
-					if ui.Button(c, paneLabel("应用", "Apply")).Clicked() {
+					if action(paneLabel("确认筛选", "Apply filter")).Clicked() {
 						p.applyInspectorFilter(p.draft)
 						anchor.Focus()
 					}
@@ -182,7 +194,7 @@ func (p *SessionInspectorPaneState) detailsKey(key ui.Key) {
 	p.detailsPercent = min(float32(80), max(float32(15), value))
 }
 func inspectorDetailsDivider(c *ui.Context, p *SessionInspectorPaneState, available float32) {
-	rail := ui.Box(c).FillWidth().Height(6).Shrink(0).Cursor(ui.CursorResizeNS).Focusable().Role(ui.RoleSplitter).Label("Inspector details divider").Range(15, 80, float64(p.inspectorDetailsPercent())).Step(5)
+	rail := ui.Box(c).FillWidth().Height(5).Shrink(0).Cursor(ui.CursorResizeNS).Focusable().Role(ui.RoleSplitter).Label("Inspector details divider").Range(15, 80, float64(p.inspectorDetailsPercent())).Step(5)
 	for _, key := range []ui.Key{ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
 		if rail.Shortcut(0, key) {
 			p.detailsKey(key)

@@ -1,0 +1,9 @@
+[
+  {"key":"event:0","type":"user/message","seq":0,"time":1792759200000,"value":{"type":"user/message","seq":0,"time":1792759200000,"data":{"content":[{"type":"text","text":"Compare the same inspector events."}]}}},
+  {"key":"event:1","type":"turn/start","seq":1,"time":1792759200100,"value":{"type":"turn/start","seq":1,"time":1792759200100,"data":{"turn":0,"source":"user"}}},
+  {"key":"event:2","parent":"event:1","type":"step/start","seq":2,"time":1792759200200,"value":{"type":"step/start","seq":2,"time":1792759200200,"data":{"turn":0,"step":0}}},
+  {"key":"event:3","parent":"event:2","type":"assistant/message","seq":3,"time":1792759200300,"value":{"type":"assistant/message","seq":3,"time":1792759200300,"data":{"turn":0,"step":0,"content":[{"type":"text","text":"Inspect this record without changing retained data."}],"stream":[]}}},
+  {"key":"event:4","parent":"event:2","type":"future/custom","seq":4,"time":1792759200400,"value":{"type":"future/custom","seq":4,"time":1792759200400,"data":{"turn":0,"step":0,"flag":true,"detail":{"count":2,"tags":["one","two"]}}}},
+  {"key":"event:5","parent":"event:2","type":"step/end","seq":5,"time":1792759200500,"value":{"type":"step/end","seq":5,"time":1792759200500,"data":{"turn":0,"step":0,"status":"completed"}}},
+  {"key":"event:6","parent":"event:1","type":"turn/end","seq":6,"time":1792759200600,"value":{"type":"turn/end","seq":6,"time":1792759200600,"data":{"turn":0,"status":"completed"}}}
+]

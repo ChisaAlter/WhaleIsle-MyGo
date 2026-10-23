@@ -1,0 +1,39 @@
+{
+  "contentSizeDIP": [
+    1440,
+    863
+  ],
+  "data": "isolated profile",
+  "historyReady": true,
+  "host": "ready",
+  "imagePixels": [
+    2160,
+    1295
+  ],
+  "messageCount": 5,
+  "modelRequests": 0,
+  "mux": "ready",
+  "preferencesConcurrentEdit": false,
+  "readSmoke": {
+    "pluginManager/listBundles": {
+      "pass": true,
+      "responseBytes": 126903
+    },
+    "schedule/catalog": {
+      "pass": true,
+      "responseBytes": 2
+    },
+    "settings/describe": {
+      "pass": true,
+      "responseBytes": 62434
+    }
+  },
+  "sessionList": "ready",
+  "view": "production mainView",
+  "windowHidden": true,
+  "windowSizeDIP": [
+    1440,
+    864
+  ],
+  "workspace": "ready"
+}

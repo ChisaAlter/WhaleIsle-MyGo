@@ -13,18 +13,18 @@ func TestInspectorJSONTreeExpandedAndDeterministic(t *testing.T) {
 	for _, row := range rows {
 		names = append(names, row.name)
 	}
-	want := []string{"$", `"a"`, "[0]", "[1]", `"large"`, `"text"`, `"empty"`, `"z"`}
+	want := []string{"$", "z", "a", "0", "1", "large", "text", "empty"}
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("names = %#v; want %#v", names, want)
 	}
-	if rows[4].label != "9007199254740993" {
-		t.Fatalf("number lost precision: %q", rows[4].label)
+	if rows[5].label != "9007199254740993" {
+		t.Fatalf("number lost precision: %q", rows[5].label)
 	}
-	if rows[6].label != "{}" || rows[6].expandable {
-		t.Fatalf("empty object = %+v", rows[6])
+	if rows[7].label != "Object" || !rows[7].expandable {
+		t.Fatalf("empty object = %+v", rows[7])
 	}
-	if rows[7].label != "null" {
-		t.Fatalf("null = %+v", rows[7])
+	if rows[1].label != "null" {
+		t.Fatalf("null = %+v", rows[1])
 	}
 }
 
@@ -38,7 +38,7 @@ func TestInspectorJSONTreeCollapseIsPathLocal(t *testing.T) {
 	for _, row := range rows {
 		paths = append(paths, row.path)
 	}
-	want := []string{"", "/a", "/a/b", "/a/b/x", "/a~1b", "/~0", "/~0/0"}
+	want := []string{"", "/a~1b", "/a", "/a/b", "/a/b/x", "/~0", "/~0/0"}
 	if !reflect.DeepEqual(paths, want) {
 		t.Fatalf("paths = %#v; want %#v", paths, want)
 	}
@@ -61,7 +61,14 @@ func TestInspectorJSONTreeScalarsAndInvalidJSON(t *testing.T) {
 		var state inspectorJSONTreeState
 		state.setRaw([]byte(raw))
 		rows := state.visibleRows()
-		if state.invalid || len(rows) != 1 || rows[0].label != raw {
+		want := raw
+		if raw == "[]" {
+			want = "Array(0)"
+		}
+		if raw == "{}" {
+			want = "Object"
+		}
+		if state.invalid || len(rows) != 1 || rows[0].label != want {
 			t.Fatalf("%q: invalid=%v rows=%+v", raw, state.invalid, rows)
 		}
 	}

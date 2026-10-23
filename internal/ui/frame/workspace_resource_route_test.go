@@ -32,7 +32,7 @@ func TestWorkspaceResourceMenuOpensRetainedInspectorThroughFrame(t *testing.T) {
 	}
 	for i := 0; i < 3; i++ {
 		tt.Frame()
-		if !open || selected != "session-inspector-log" || !tt.HasText("Raw Log") || !tt.HasText("No matching records in the loaded window") {
+		if !open || selected != "session-inspector-log" || !tt.HasText("Raw Log") || !tt.HasText("No records") {
 			t.Fatalf("inspector route lost after menu choice: open=%v route=%q texts=%q", open, selected, tt.Texts())
 		}
 	}

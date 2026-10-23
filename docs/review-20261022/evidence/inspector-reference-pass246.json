@@ -1,0 +1,185 @@
+{
+  "root": {
+    "x": 0,
+    "y": 0,
+    "w": 780,
+    "h": 600,
+    "font": "11px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "scrollWidth": 780,
+    "scrollHeight": 600
+  },
+  "text": "Raw Log\nChat Group\n · 7\nFollow Latest\nIndex\t\nType\n\tT/S\tTime (UTC)\tData\n\n0\n\tuser/message\t\t12:40:00.000\t\n[1]\n\n\n1\n\t▾turn/start\t0\t12:40:00.100\t\nturn: 0 · source: user\n\n\n2\n\t▾step/start\t0/0\t12:40:00.200\t\nturn: 0 · step: 0\n\n\n3\n\tassistant/message\t0/0\t12:40:00.300\t\nturn: 0 · step: 0 · content: [1] · stream: [0]\n\n\n4\n\tfuture/custom\t0/0\t12:40:00.400\t\nturn: 0 · step: 0 · flag: true · detail: {…}\n\n\n5\n\tstep/end\t0/0\t12:40:00.500\t\nturn: 0 · step: 0 · status: completed\n\n\n6\n\tturn/end\t0\t12:40:00.600\t\nturn: 0 · status: completed",
+  "toolbar": {
+    "x": 0,
+    "y": 0,
+    "w": 780,
+    "h": 34.66666793823242,
+    "font": "11px -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)",
+    "padding": "6px 8px",
+    "scrollWidth": 780,
+    "scrollHeight": 34
+  },
+  "header": {
+    "x": 0,
+    "y": 34.66666793823242,
+    "w": 780,
+    "h": 30,
+    "font": "11px monospace",
+    "background": "rgba(0, 0, 0, 0)",
+    "padding": "0px",
+    "scrollWidth": 780,
+    "scrollHeight": 30
+  },
+  "columns": [
+    {
+      "text": "Index",
+      "x": 0,
+      "y": 34.66666793823242,
+      "w": 64,
+      "h": 30,
+      "font": "700 11px monospace",
+      "background": "rgb(245, 246, 247)",
+      "padding": "4px 8px",
+      "scrollWidth": 64,
+      "scrollHeight": 30
+    },
+    {
+      "text": "Type",
+      "x": 64,
+      "y": 34.66666793823242,
+      "w": 190,
+      "h": 30,
+      "font": "700 11px monospace",
+      "background": "rgb(245, 246, 247)",
+      "padding": "4px 8px",
+      "scrollWidth": 190,
+      "scrollHeight": 30
+    },
+    {
+      "text": "T/S",
+      "x": 254,
+      "y": 34.66666793823242,
+      "w": 65,
+      "h": 30,
+      "font": "700 11px monospace",
+      "background": "rgb(245, 246, 247)",
+      "padding": "4px 8px",
+      "scrollWidth": 65,
+      "scrollHeight": 30
+    },
+    {
+      "text": "Time (UTC)",
+      "x": 319,
+      "y": 34.66666793823242,
+      "w": 100,
+      "h": 30,
+      "font": "700 11px monospace",
+      "background": "rgb(245, 246, 247)",
+      "padding": "4px 8px",
+      "scrollWidth": 100,
+      "scrollHeight": 30
+    },
+    {
+      "text": "Data",
+      "x": 419,
+      "y": 34.66666793823242,
+      "w": 361,
+      "h": 30,
+      "font": "700 11px monospace",
+      "background": "rgb(245, 246, 247)",
+      "padding": "4px 8px",
+      "scrollWidth": 361,
+      "scrollHeight": 30
+    }
+  ],
+  "rows": [
+    {
+      "text": "0\n\tuser/message\t\t12:40:00.000\t\n[1]",
+      "x": 0,
+      "y": 64.66667175292969,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "1\n\t▾turn/start\t0\t12:40:00.100\t\nturn: 0 · source: user",
+      "x": 0,
+      "y": 94.66667175292969,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "2\n\t▾step/start\t0/0\t12:40:00.200\t\nturn: 0 · step: 0",
+      "x": 0,
+      "y": 124.66667175292969,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "3\n\tassistant/message\t0/0\t12:40:00.300\t\nturn: 0 · step: 0 · content: [1] · stream: [0]",
+      "x": 0,
+      "y": 154.6666717529297,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "4\n\tfuture/custom\t0/0\t12:40:00.400\t\nturn: 0 · step: 0 · flag: true · detail: {…}",
+      "x": 0,
+      "y": 184.6666717529297,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "5\n\tstep/end\t0/0\t12:40:00.500\t\nturn: 0 · step: 0 · status: completed",
+      "x": 0,
+      "y": 214.6666717529297,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    },
+    {
+      "text": "6\n\tturn/end\t0\t12:40:00.600\t\nturn: 0 · status: completed",
+      "x": 0,
+      "y": 244.6666717529297,
+      "w": 780,
+      "h": 30,
+      "font": "11px monospace",
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px",
+      "scrollWidth": 780,
+      "scrollHeight": 30
+    }
+  ],
+  "details": null
+}
