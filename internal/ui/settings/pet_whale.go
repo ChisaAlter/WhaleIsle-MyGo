@@ -264,10 +264,10 @@ func petWhaleMemoryDialog(c *ui.Context, colors theme.Colors, st *petWhaleState,
 
 // linkAction is the reference's blue text action on a settings row.
 func linkAction(c *ui.Context, label string, ink ui.Color, enabled bool, action func()) {
-	button := ui.Button(c, "").Label(label).Height(24).Padding(0, 4).BorderWidth(0).
+	button := ui.Button(c, "").Label(label).Height(24).Padding(0, 4).Shrink(0).BorderWidth(0).
 		Background(ui.Transparent).TextColor(ink).Disabled(!enabled)
 	button.Children(func() {
-		ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(ink)
+		ui.Text(c, label).SingleLine().FontSize(theme.InterfaceSize(13)).TextColor(ink)
 	})
 	if button.Clicked() && enabled {
 		action()
