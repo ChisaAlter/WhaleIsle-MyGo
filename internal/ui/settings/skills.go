@@ -249,9 +249,18 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	})
+	filtering := a.Query != nil && strings.TrimSpace(*a.Query) != "" || a.SourceFilter != nil && *a.SourceFilter != "" && *a.SourceFilter != "all"
 	visible := filterSkillRows(a.Skills, a.Query, a.SourceFilter)
 	if len(visible) == 0 {
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		if filtering {
+			ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		} else {
+			ui.Column(c).FillWidth().Padding(64, 0).AlignItems(ui.Center).Gap(8).Children(func() {
+				ui.Icon(c, ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></svg>`))).Size(28, 28).TextColor(muted)
+				ui.Text(c, providerCopy("还没有可用技能", "No skills available yet")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+				ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			})
+		}
 	} else {
 		groups := skillSections(visible)
 		for _, group := range groups {
