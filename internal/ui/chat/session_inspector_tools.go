@@ -8,13 +8,11 @@ import (
 type inspectorToolKey struct{ owner, call string }
 
 type inspectorToolBox struct {
-	call   *session.ToolCallView
-	parent int
-	rect   ui.Rect
+	call *session.ToolCallView
+	rect ui.Rect
 }
 
-// Tool calls are painted as adjacent indented rows. The original call wrapper
-// also contains its descendants, so its inspection box spans that whole branch.
+// A call's native wrapper contains its card and complete descendant subtree.
 type inspectorToolTree struct {
 	owner session.Message
 	boxes []*inspectorToolBox
@@ -45,17 +43,6 @@ func inspectorToolInMessage(msg session.Message, callID string) *session.ToolCal
 	return nil
 }
 
-func inspectorChatUnion(a, b ui.Rect) ui.Rect {
-	if a.W <= 0 || a.H <= 0 {
-		return b
-	}
-	if b.W <= 0 || b.H <= 0 {
-		return a
-	}
-	x, y := min(a.X, b.X), min(a.Y, b.Y)
-	return ui.Rect{X: x, Y: y, W: max(a.X+a.W, b.X+b.W) - x, H: max(a.Y+a.H, b.Y+b.H) - y}
-}
-
 // Full layout geometry can place a child outside the clip of a tall virtual
 // item. Only branches belonging to a painted owner enter the pointer hit list.
 func inspectorChatToolGeometry(n *InspectorNavigation) {
@@ -65,19 +52,15 @@ func inspectorChatToolGeometry(n *InspectorNavigation) {
 	clear(n.picker.tools)
 	n.picker.tools = n.picker.tools[:0]
 	for _, tree := range r.toolTrees {
-		full := make([]ui.Rect, len(tree.boxes))
+		// Reverse preorder places descendants before their containing ancestors.
 		for i := len(tree.boxes) - 1; i >= 0; i-- {
 			box := tree.boxes[i]
-			full[i] = inspectorChatUnion(full[i], box.rect)
-			if box.parent >= 0 {
-				full[box.parent] = inspectorChatUnion(full[box.parent], full[i])
-			}
 			key := inspectorToolKey{tree.owner.ID, box.call.CallID}
-			r.toolFull[key] = full[i]
+			r.toolFull[key] = box.rect
 			if r.rows[tree.owner.ID].W <= 0 {
 				continue
 			}
-			clipped := inspectorChatIntersect(full[i], r.viewport)
+			clipped := inspectorChatIntersect(box.rect, r.viewport)
 			if clipped.W > 0 && clipped.H > 0 {
 				r.toolRows[key] = clipped
 				n.picker.tools = append(n.picker.tools, inspectorChatPick{Message: tree.owner, call: box.call, box: clipped})

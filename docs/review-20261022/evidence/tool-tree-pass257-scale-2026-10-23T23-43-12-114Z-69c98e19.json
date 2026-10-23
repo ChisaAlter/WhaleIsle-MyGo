@@ -1,0 +1,2022 @@
+{
+  "schema": "tool-tree-pass257-process-scale/v1",
+  "runId": "2026-10-23T23-43-12-114Z-69c98e19",
+  "startedAt": "2026-10-23T23:43:12.115Z",
+  "status": "passed",
+  "scope": {
+    "description": "Four small separately owned installed Chrome child runs with process --force-device-scale-factor=1,1.5,2,3. Exact installed ToolCallTree CSS; synthetic 24px own cards with root-child-grandchild and sibling wrappers. No CDP Emulation methods, full app, React, live Session, hardware monitor or Electron claim.",
+    "script": "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-scale.mjs",
+    "fixture": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+    "network": "No page HTTP(S)/WS(S) requests: CSP denies, CDP blocks, DNS disabled. Runner connects only to its own verified loopback CDP endpoint; no app server.",
+    "protected": {
+      "electronPid": 20012,
+      "backendPid": 16008,
+      "guiPort": 3080,
+      "policy": "No targeting, signalling, restarting, profiles, application requests, foreground or lock-screen manipulation."
+    }
+  },
+  "extraction": {
+    "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js",
+    "sourceLine": 2093,
+    "startUtf16Offset": 98542,
+    "literal": "\t\tconst css$2 = \".PUgJda_callRow{border-radius:var(--dsw-radius-sm)}.PUgJda_subCalls{border-left:.5px solid var(--dsw-alias-border-l2);flex-direction:column;gap:4px;margin:4px 0 2px 22px;padding-left:8px;display:flex}\";",
+    "css": ".PUgJda_callRow{border-radius:var(--dsw-radius-sm)}.PUgJda_subCalls{border-left:.5px solid var(--dsw-alias-border-l2);flex-direction:column;gap:4px;margin:4px 0 2px 22px;padding-left:8px;display:flex}",
+    "cssSha256": "599e388708001ed854fe3e9bda739c088beced48079fe84a70e4af7c189f0c9c",
+    "mappingText": "var ToolCallTree_module_css_default = {\n\t\t\t\"callRow\": \"PUgJda_callRow\",\n\t\t\t\"subCalls\": \"PUgJda_subCalls\"\n\t\t};",
+    "mapping": {
+      "callRow": "PUgJda_callRow",
+      "subCalls": "PUgJda_subCalls"
+    },
+    "treePath": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\ToolCallTree.js",
+    "treeWrapperLines": [
+      31,
+      40
+    ]
+  },
+  "sourcesBefore": {
+    "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-scale.mjs": "f581d019534cdbf295e4895c1a3f0ff1a2c62db490ff2d96da2f32cccaef1f83",
+    "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-layout.mjs": "8b26d24e79e0df2ad8cf1108d2e314afde8c3a7e60a13cfee9b848089d4a87ff",
+    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js": "15beaa6632f0c2d16c7d84ef25a1ca96725b8f8fc3c74decc79c1801540b994d",
+    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\ToolCallTree.js": "a506bbb34deff21a498c309155f633a013dc947a352cd8cf89a51cb7eb268835"
+  },
+  "sourcesAfter": {
+    "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-scale.mjs": "f581d019534cdbf295e4895c1a3f0ff1a2c62db490ff2d96da2f32cccaef1f83",
+    "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-layout.mjs": "8b26d24e79e0df2ad8cf1108d2e314afde8c3a7e60a13cfee9b848089d4a87ff",
+    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js": "15beaa6632f0c2d16c7d84ef25a1ca96725b8f8fc3c74decc79c1801540b994d",
+    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\ToolCallTree.js": "a506bbb34deff21a498c309155f633a013dc947a352cd8cf89a51cb7eb268835"
+  },
+  "runs": [
+    {
+      "requestedScale": 1,
+      "profile": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1",
+      "startedAt": "2026-10-23T23:43:12.132Z",
+      "status": "passed",
+      "protocolErrors": [],
+      "runtimeExceptions": [],
+      "requests": [
+        {
+          "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+          "type": "Document"
+        }
+      ],
+      "methods": [
+        "Browser.getVersion",
+        "Browser.getBrowserCommandLine",
+        "SystemInfo.getProcessInfo",
+        "Target.getTargets",
+        "Target.attachToTarget",
+        "Page.enable",
+        "Runtime.enable",
+        "Network.enable",
+        "Network.setBlockedURLs",
+        "Page.navigate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "SystemInfo.getProcessInfo",
+        "Browser.close"
+      ],
+      "assertions": [
+        {
+          "name": "process flag gives actual DPR",
+          "pass": true,
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "name": "child X delta is margin22+padding8+observed border",
+          "pass": true,
+          "actual": 31,
+          "expected": 31
+        },
+        {
+          "name": "grandchild X delta uses own observed border",
+          "pass": true,
+          "actual": 31,
+          "expected": 31
+        },
+        {
+          "name": "native border formula matches computed used width",
+          "pass": true,
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "name": "synthetic own cards remain24px",
+          "pass": true,
+          "actual": {
+            "root": 24,
+            "child": 24,
+            "grandchild": 24,
+            "sibling": 24
+          },
+          "expected": 24
+        },
+        {
+          "name": "root110 seat112 child54 and trailing margin collapse",
+          "pass": true,
+          "actual": {
+            "declaredBorderCss": 0.5,
+            "observedBorderCss": 1,
+            "observedPhysicalBorder": 1,
+            "childXDelta": 31,
+            "grandchildXDelta": 31,
+            "expectedFromObservedComputedBorder": 31,
+            "nativeUsedBorder": 1,
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          },
+          "expected": {
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          }
+        },
+        {
+          "name": "child owns grandchild bottom margin2",
+          "pass": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "name": "sibling follows complete child subtree by gap4",
+          "pass": true,
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "name": "file only and no runtime/protocol errors",
+          "pass": true,
+          "actual": {
+            "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+            "requests": [
+              {
+                "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+                "type": "Document"
+              }
+            ],
+            "exceptions": [],
+            "protocolErrors": []
+          },
+          "expected": "exact owned file only; no errors"
+        }
+      ],
+      "port": 64625,
+      "launch": {
+        "pid": 32352,
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "args": [
+          "--headless=new",
+          "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1",
+          "--remote-debugging-address=127.0.0.1",
+          "--remote-debugging-port=64625",
+          "--force-device-scale-factor=1",
+          "--enable-automation",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-component-update",
+          "--disable-sync",
+          "--disable-extensions",
+          "--disable-default-apps",
+          "--disable-domain-reliability",
+          "--disable-client-side-phishing-detection",
+          "--safebrowsing-disable-auto-update",
+          "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+          "--metrics-recording-only",
+          "--password-store=basic",
+          "--no-proxy-server",
+          "--host-resolver-rules=MAP * ~NOTFOUND",
+          "--disable-breakpad",
+          "--disable-gpu",
+          "--window-size=1000,700",
+          "about:blank"
+        ],
+        "stdio": "ignore",
+        "shell": false
+      },
+      "version": {
+        "protocolVersion": "1.3",
+        "product": "Chrome/155.0.8059.85",
+        "revision": "@0e66b94549a8bd85f03fbdf189b752d6e7b63c32",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "jsVersion": "15.5.35.25"
+      },
+      "commandLine": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "--headless=new",
+        "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=64625",
+        "--force-device-scale-factor=1",
+        "--enable-automation",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-component-update",
+        "--disable-sync",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--disable-domain-reliability",
+        "--disable-client-side-phishing-detection",
+        "--safebrowsing-disable-auto-update",
+        "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+        "--metrics-recording-only",
+        "--password-store=basic",
+        "--no-proxy-server",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--disable-breakpad",
+        "--disable-gpu",
+        "--window-size=1000,700",
+        "--noerrdialogs",
+        "--flag-switches-begin",
+        "--flag-switches-end",
+        "about:blank"
+      ],
+      "initialProcesses": [
+        {
+          "type": "browser",
+          "id": 32352,
+          "cpuTime": 0.439677
+        },
+        {
+          "type": "renderer",
+          "id": 18212,
+          "cpuTime": 0.043074
+        },
+        {
+          "type": "GPU",
+          "id": 42172,
+          "cpuTime": 0.069665
+        },
+        {
+          "type": "network.mojom.NetworkService",
+          "id": 33524,
+          "cpuTime": 0.047686
+        },
+        {
+          "type": "storage.mojom.StorageService",
+          "id": 43548,
+          "cpuTime": 0.019159
+        }
+      ],
+      "ownership": {
+        "verified": true,
+        "pid": 32352,
+        "profileMatched": true,
+        "portMatched": true,
+        "scaleFlagMatched": true
+      },
+      "measurement": {
+        "actualDPR": 1,
+        "viewport": {
+          "innerWidth": 978,
+          "innerHeight": 546,
+          "outerWidth": 1000,
+          "outerHeight": 700
+        },
+        "seat": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "column": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "nodes": {
+          "root": {
+            "box": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 110,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 24,
+              "right": 660,
+              "bottom": 44
+            },
+            "sub": {
+              "box": {
+                "x": 42,
+                "y": 48,
+                "width": 618,
+                "height": 82,
+                "right": 660,
+                "bottom": 130
+              },
+              "style": {
+                "borderLeftWidth": "1px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "child": {
+            "box": {
+              "x": 51,
+              "y": 48,
+              "width": 609,
+              "height": 54,
+              "right": 660,
+              "bottom": 102
+            },
+            "own": {
+              "x": 51,
+              "y": 48,
+              "width": 609,
+              "height": 24,
+              "right": 660,
+              "bottom": 72
+            },
+            "sub": {
+              "box": {
+                "x": 73,
+                "y": 76,
+                "width": 587,
+                "height": 24,
+                "right": 660,
+                "bottom": 100
+              },
+              "style": {
+                "borderLeftWidth": "1px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "grandchild": {
+            "box": {
+              "x": 82,
+              "y": 76,
+              "width": 578,
+              "height": 24,
+              "right": 660,
+              "bottom": 100
+            },
+            "own": {
+              "x": 82,
+              "y": 76,
+              "width": 578,
+              "height": 24,
+              "right": 660,
+              "bottom": 100
+            },
+            "sub": null
+          },
+          "sibling": {
+            "box": {
+              "x": 51,
+              "y": 106,
+              "width": 609,
+              "height": 24,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 51,
+              "y": 106,
+              "width": 609,
+              "height": 24,
+              "right": 660,
+              "bottom": 130
+            },
+            "sub": null
+          }
+        },
+        "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html"
+      },
+      "math": {
+        "declaredBorderCss": 0.5,
+        "observedBorderCss": 1,
+        "observedPhysicalBorder": 1,
+        "childXDelta": 31,
+        "grandchildXDelta": 31,
+        "expectedFromObservedComputedBorder": 31,
+        "nativeUsedBorder": 1,
+        "rootHeight": 110,
+        "seatHeight": 112,
+        "childHeight": 54,
+        "rootBottomMarginOutside": 2
+      },
+      "cleanup": {
+        "protectedProcessesSignalled": false,
+        "verifiedOwnBrowser": true,
+        "lastProcesses": [
+          {
+            "type": "browser",
+            "id": 32352,
+            "cpuTime": 0.659557
+          },
+          {
+            "type": "renderer",
+            "id": 46876,
+            "cpuTime": 0.067188
+          },
+          {
+            "type": "renderer",
+            "id": 1544,
+            "cpuTime": 0.043946
+          },
+          {
+            "type": "renderer",
+            "id": 41432,
+            "cpuTime": 0.083079
+          },
+          {
+            "type": "renderer",
+            "id": 18212,
+            "cpuTime": 0.19555
+          },
+          {
+            "type": "GPU",
+            "id": 42172,
+            "cpuTime": 0.091322
+          },
+          {
+            "type": "network.mojom.NetworkService",
+            "id": 33524,
+            "cpuTime": 0.069374
+          },
+          {
+            "type": "storage.mojom.StorageService",
+            "id": 43548,
+            "cpuTime": 0.019956
+          }
+        ],
+        "browserClose": "only verified own browser",
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-23T23:43:13.387Z"
+        },
+        "portReleased": true,
+        "processLiveness": [
+          {
+            "pid": 32352,
+            "alive": false
+          },
+          {
+            "pid": 18212,
+            "alive": false
+          },
+          {
+            "pid": 42172,
+            "alive": false
+          },
+          {
+            "pid": 33524,
+            "alive": false
+          },
+          {
+            "pid": 43548,
+            "alive": false
+          },
+          {
+            "pid": 46876,
+            "alive": false
+          },
+          {
+            "pid": 1544,
+            "alive": false
+          },
+          {
+            "pid": 41432,
+            "alive": false
+          }
+        ],
+        "allObservedProcessesExited": true,
+        "profileRemoved": true,
+        "pass": true
+      },
+      "finishedAt": "2026-10-23T23:43:13.407Z"
+    },
+    {
+      "requestedScale": 1.5,
+      "profile": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1p5",
+      "startedAt": "2026-10-23T23:43:13.407Z",
+      "status": "passed",
+      "protocolErrors": [],
+      "runtimeExceptions": [],
+      "requests": [
+        {
+          "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+          "type": "Document"
+        }
+      ],
+      "methods": [
+        "Browser.getVersion",
+        "Browser.getBrowserCommandLine",
+        "SystemInfo.getProcessInfo",
+        "Target.getTargets",
+        "Target.attachToTarget",
+        "Page.enable",
+        "Runtime.enable",
+        "Network.enable",
+        "Network.setBlockedURLs",
+        "Page.navigate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "SystemInfo.getProcessInfo",
+        "Browser.close"
+      ],
+      "assertions": [
+        {
+          "name": "process flag gives actual DPR",
+          "pass": true,
+          "actual": 1.5,
+          "expected": 1.5
+        },
+        {
+          "name": "child X delta is margin22+padding8+observed border",
+          "pass": true,
+          "actual": 30.666667938232422,
+          "expected": 30.666667
+        },
+        {
+          "name": "grandchild X delta uses own observed border",
+          "pass": true,
+          "actual": 30.666667938232422,
+          "expected": 30.666667
+        },
+        {
+          "name": "native border formula matches computed used width",
+          "pass": true,
+          "actual": 0.666667,
+          "expected": 0.6666666666666666
+        },
+        {
+          "name": "synthetic own cards remain24px",
+          "pass": true,
+          "actual": {
+            "root": 24,
+            "child": 24,
+            "grandchild": 24,
+            "sibling": 24
+          },
+          "expected": 24
+        },
+        {
+          "name": "root110 seat112 child54 and trailing margin collapse",
+          "pass": true,
+          "actual": {
+            "declaredBorderCss": 0.5,
+            "observedBorderCss": 0.666667,
+            "observedPhysicalBorder": 1.0000005,
+            "childXDelta": 30.666667938232422,
+            "grandchildXDelta": 30.666667938232422,
+            "expectedFromObservedComputedBorder": 30.666667,
+            "nativeUsedBorder": 0.6666666666666666,
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          },
+          "expected": {
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          }
+        },
+        {
+          "name": "child owns grandchild bottom margin2",
+          "pass": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "name": "sibling follows complete child subtree by gap4",
+          "pass": true,
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "name": "file only and no runtime/protocol errors",
+          "pass": true,
+          "actual": {
+            "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+            "requests": [
+              {
+                "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+                "type": "Document"
+              }
+            ],
+            "exceptions": [],
+            "protocolErrors": []
+          },
+          "expected": "exact owned file only; no errors"
+        }
+      ],
+      "port": 49346,
+      "launch": {
+        "pid": 36900,
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "args": [
+          "--headless=new",
+          "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1p5",
+          "--remote-debugging-address=127.0.0.1",
+          "--remote-debugging-port=49346",
+          "--force-device-scale-factor=1.5",
+          "--enable-automation",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-component-update",
+          "--disable-sync",
+          "--disable-extensions",
+          "--disable-default-apps",
+          "--disable-domain-reliability",
+          "--disable-client-side-phishing-detection",
+          "--safebrowsing-disable-auto-update",
+          "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+          "--metrics-recording-only",
+          "--password-store=basic",
+          "--no-proxy-server",
+          "--host-resolver-rules=MAP * ~NOTFOUND",
+          "--disable-breakpad",
+          "--disable-gpu",
+          "--window-size=1000,700",
+          "about:blank"
+        ],
+        "stdio": "ignore",
+        "shell": false
+      },
+      "version": {
+        "protocolVersion": "1.3",
+        "product": "Chrome/155.0.8059.85",
+        "revision": "@0e66b94549a8bd85f03fbdf189b752d6e7b63c32",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "jsVersion": "15.5.35.25"
+      },
+      "commandLine": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "--headless=new",
+        "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1p5",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=49346",
+        "--force-device-scale-factor=1.5",
+        "--enable-automation",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-component-update",
+        "--disable-sync",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--disable-domain-reliability",
+        "--disable-client-side-phishing-detection",
+        "--safebrowsing-disable-auto-update",
+        "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+        "--metrics-recording-only",
+        "--password-store=basic",
+        "--no-proxy-server",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--disable-breakpad",
+        "--disable-gpu",
+        "--window-size=1000,700",
+        "--noerrdialogs",
+        "--flag-switches-begin",
+        "--flag-switches-end",
+        "about:blank"
+      ],
+      "initialProcesses": [
+        {
+          "type": "browser",
+          "id": 36900,
+          "cpuTime": 0.539381
+        },
+        {
+          "type": "renderer",
+          "id": 24140,
+          "cpuTime": 0.016601
+        },
+        {
+          "type": "renderer",
+          "id": 32380,
+          "cpuTime": 0.017004
+        },
+        {
+          "type": "renderer",
+          "id": 47944,
+          "cpuTime": 0.051186
+        },
+        {
+          "type": "renderer",
+          "id": 33760,
+          "cpuTime": 0.056812
+        },
+        {
+          "type": "GPU",
+          "id": 17032,
+          "cpuTime": 0.065333
+        },
+        {
+          "type": "network.mojom.NetworkService",
+          "id": 7120,
+          "cpuTime": 0.055322
+        },
+        {
+          "type": "storage.mojom.StorageService",
+          "id": 4056,
+          "cpuTime": 0.024932
+        }
+      ],
+      "ownership": {
+        "verified": true,
+        "pid": 36900,
+        "profileMatched": true,
+        "portMatched": true,
+        "scaleFlagMatched": true
+      },
+      "measurement": {
+        "actualDPR": 1.5,
+        "viewport": {
+          "innerWidth": 978,
+          "innerHeight": 546,
+          "outerWidth": 1000,
+          "outerHeight": 700
+        },
+        "seat": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "column": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "nodes": {
+          "root": {
+            "box": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 110,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 24,
+              "right": 660,
+              "bottom": 44
+            },
+            "sub": {
+              "box": {
+                "x": 42,
+                "y": 48,
+                "width": 618,
+                "height": 82,
+                "right": 660,
+                "bottom": 130
+              },
+              "style": {
+                "borderLeftWidth": "0.666667px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "child": {
+            "box": {
+              "x": 50.66666793823242,
+              "y": 48,
+              "width": 609.3333740234375,
+              "height": 54,
+              "right": 660.0000419616699,
+              "bottom": 102
+            },
+            "own": {
+              "x": 50.66666793823242,
+              "y": 48,
+              "width": 609.3333740234375,
+              "height": 24,
+              "right": 660.0000419616699,
+              "bottom": 72
+            },
+            "sub": {
+              "box": {
+                "x": 72.66667175292969,
+                "y": 76,
+                "width": 587.3333740234375,
+                "height": 24,
+                "right": 660.0000457763672,
+                "bottom": 100
+              },
+              "style": {
+                "borderLeftWidth": "0.666667px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "grandchild": {
+            "box": {
+              "x": 81.33333587646484,
+              "y": 76,
+              "width": 578.6666870117188,
+              "height": 24,
+              "right": 660.0000228881836,
+              "bottom": 100
+            },
+            "own": {
+              "x": 81.33333587646484,
+              "y": 76,
+              "width": 578.6666870117188,
+              "height": 24,
+              "right": 660.0000228881836,
+              "bottom": 100
+            },
+            "sub": null
+          },
+          "sibling": {
+            "box": {
+              "x": 50.66666793823242,
+              "y": 106,
+              "width": 609.3333740234375,
+              "height": 24,
+              "right": 660.0000419616699,
+              "bottom": 130
+            },
+            "own": {
+              "x": 50.66666793823242,
+              "y": 106,
+              "width": 609.3333740234375,
+              "height": 24,
+              "right": 660.0000419616699,
+              "bottom": 130
+            },
+            "sub": null
+          }
+        },
+        "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html"
+      },
+      "math": {
+        "declaredBorderCss": 0.5,
+        "observedBorderCss": 0.666667,
+        "observedPhysicalBorder": 1.0000005,
+        "childXDelta": 30.666667938232422,
+        "grandchildXDelta": 30.666667938232422,
+        "expectedFromObservedComputedBorder": 30.666667,
+        "nativeUsedBorder": 0.6666666666666666,
+        "rootHeight": 110,
+        "seatHeight": 112,
+        "childHeight": 54,
+        "rootBottomMarginOutside": 2
+      },
+      "cleanup": {
+        "protectedProcessesSignalled": false,
+        "verifiedOwnBrowser": true,
+        "lastProcesses": [
+          {
+            "type": "browser",
+            "id": 36900,
+            "cpuTime": 0.702938
+          },
+          {
+            "type": "renderer",
+            "id": 24140,
+            "cpuTime": 0.060626
+          },
+          {
+            "type": "renderer",
+            "id": 32380,
+            "cpuTime": 0.044876
+          },
+          {
+            "type": "renderer",
+            "id": 47944,
+            "cpuTime": 0.093374
+          },
+          {
+            "type": "renderer",
+            "id": 33760,
+            "cpuTime": 0.247998
+          },
+          {
+            "type": "GPU",
+            "id": 17032,
+            "cpuTime": 0.083308
+          },
+          {
+            "type": "network.mojom.NetworkService",
+            "id": 7120,
+            "cpuTime": 0.07029
+          },
+          {
+            "type": "storage.mojom.StorageService",
+            "id": 4056,
+            "cpuTime": 0.028328
+          }
+        ],
+        "browserClose": "only verified own browser",
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-23T23:43:14.669Z"
+        },
+        "portReleased": true,
+        "processLiveness": [
+          {
+            "pid": 36900,
+            "alive": false
+          },
+          {
+            "pid": 24140,
+            "alive": false
+          },
+          {
+            "pid": 32380,
+            "alive": false
+          },
+          {
+            "pid": 47944,
+            "alive": false
+          },
+          {
+            "pid": 33760,
+            "alive": false
+          },
+          {
+            "pid": 17032,
+            "alive": false
+          },
+          {
+            "pid": 7120,
+            "alive": false
+          },
+          {
+            "pid": 4056,
+            "alive": false
+          }
+        ],
+        "allObservedProcessesExited": true,
+        "profileRemoved": true,
+        "pass": true
+      },
+      "finishedAt": "2026-10-23T23:43:14.733Z"
+    },
+    {
+      "requestedScale": 2,
+      "profile": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-2",
+      "startedAt": "2026-10-23T23:43:14.733Z",
+      "status": "passed",
+      "protocolErrors": [],
+      "runtimeExceptions": [],
+      "requests": [
+        {
+          "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+          "type": "Document"
+        }
+      ],
+      "methods": [
+        "Browser.getVersion",
+        "Browser.getBrowserCommandLine",
+        "SystemInfo.getProcessInfo",
+        "Target.getTargets",
+        "Target.attachToTarget",
+        "Page.enable",
+        "Runtime.enable",
+        "Network.enable",
+        "Network.setBlockedURLs",
+        "Page.navigate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "SystemInfo.getProcessInfo",
+        "Browser.close"
+      ],
+      "assertions": [
+        {
+          "name": "process flag gives actual DPR",
+          "pass": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "name": "child X delta is margin22+padding8+observed border",
+          "pass": true,
+          "actual": 30.5,
+          "expected": 30.5
+        },
+        {
+          "name": "grandchild X delta uses own observed border",
+          "pass": true,
+          "actual": 30.5,
+          "expected": 30.5
+        },
+        {
+          "name": "native border formula matches computed used width",
+          "pass": true,
+          "actual": 0.5,
+          "expected": 0.5
+        },
+        {
+          "name": "synthetic own cards remain24px",
+          "pass": true,
+          "actual": {
+            "root": 24,
+            "child": 24,
+            "grandchild": 24,
+            "sibling": 24
+          },
+          "expected": 24
+        },
+        {
+          "name": "root110 seat112 child54 and trailing margin collapse",
+          "pass": true,
+          "actual": {
+            "declaredBorderCss": 0.5,
+            "observedBorderCss": 0.5,
+            "observedPhysicalBorder": 1,
+            "childXDelta": 30.5,
+            "grandchildXDelta": 30.5,
+            "expectedFromObservedComputedBorder": 30.5,
+            "nativeUsedBorder": 0.5,
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          },
+          "expected": {
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          }
+        },
+        {
+          "name": "child owns grandchild bottom margin2",
+          "pass": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "name": "sibling follows complete child subtree by gap4",
+          "pass": true,
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "name": "file only and no runtime/protocol errors",
+          "pass": true,
+          "actual": {
+            "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+            "requests": [
+              {
+                "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+                "type": "Document"
+              }
+            ],
+            "exceptions": [],
+            "protocolErrors": []
+          },
+          "expected": "exact owned file only; no errors"
+        }
+      ],
+      "port": 49816,
+      "launch": {
+        "pid": 21012,
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "args": [
+          "--headless=new",
+          "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-2",
+          "--remote-debugging-address=127.0.0.1",
+          "--remote-debugging-port=49816",
+          "--force-device-scale-factor=2",
+          "--enable-automation",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-component-update",
+          "--disable-sync",
+          "--disable-extensions",
+          "--disable-default-apps",
+          "--disable-domain-reliability",
+          "--disable-client-side-phishing-detection",
+          "--safebrowsing-disable-auto-update",
+          "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+          "--metrics-recording-only",
+          "--password-store=basic",
+          "--no-proxy-server",
+          "--host-resolver-rules=MAP * ~NOTFOUND",
+          "--disable-breakpad",
+          "--disable-gpu",
+          "--window-size=1000,700",
+          "about:blank"
+        ],
+        "stdio": "ignore",
+        "shell": false
+      },
+      "version": {
+        "protocolVersion": "1.3",
+        "product": "Chrome/155.0.8059.85",
+        "revision": "@0e66b94549a8bd85f03fbdf189b752d6e7b63c32",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "jsVersion": "15.5.35.25"
+      },
+      "commandLine": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "--headless=new",
+        "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-2",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=49816",
+        "--force-device-scale-factor=2",
+        "--enable-automation",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-component-update",
+        "--disable-sync",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--disable-domain-reliability",
+        "--disable-client-side-phishing-detection",
+        "--safebrowsing-disable-auto-update",
+        "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+        "--metrics-recording-only",
+        "--password-store=basic",
+        "--no-proxy-server",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--disable-breakpad",
+        "--disable-gpu",
+        "--window-size=1000,700",
+        "--noerrdialogs",
+        "--flag-switches-begin",
+        "--flag-switches-end",
+        "about:blank"
+      ],
+      "initialProcesses": [
+        {
+          "type": "browser",
+          "id": 21012,
+          "cpuTime": 0.44127
+        },
+        {
+          "type": "renderer",
+          "id": 14572,
+          "cpuTime": 0.039116
+        },
+        {
+          "type": "renderer",
+          "id": 44832,
+          "cpuTime": 0.041757
+        },
+        {
+          "type": "GPU",
+          "id": 21508,
+          "cpuTime": 0.073738
+        },
+        {
+          "type": "network.mojom.NetworkService",
+          "id": 42956,
+          "cpuTime": 0.048357
+        },
+        {
+          "type": "storage.mojom.StorageService",
+          "id": 24960,
+          "cpuTime": 0.020031
+        }
+      ],
+      "ownership": {
+        "verified": true,
+        "pid": 21012,
+        "profileMatched": true,
+        "portMatched": true,
+        "scaleFlagMatched": true
+      },
+      "measurement": {
+        "actualDPR": 2,
+        "viewport": {
+          "innerWidth": 978,
+          "innerHeight": 546,
+          "outerWidth": 1000,
+          "outerHeight": 700
+        },
+        "seat": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "column": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "nodes": {
+          "root": {
+            "box": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 110,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 24,
+              "right": 660,
+              "bottom": 44
+            },
+            "sub": {
+              "box": {
+                "x": 42,
+                "y": 48,
+                "width": 618,
+                "height": 82,
+                "right": 660,
+                "bottom": 130
+              },
+              "style": {
+                "borderLeftWidth": "0.5px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "child": {
+            "box": {
+              "x": 50.5,
+              "y": 48,
+              "width": 609.5,
+              "height": 54,
+              "right": 660,
+              "bottom": 102
+            },
+            "own": {
+              "x": 50.5,
+              "y": 48,
+              "width": 609.5,
+              "height": 24,
+              "right": 660,
+              "bottom": 72
+            },
+            "sub": {
+              "box": {
+                "x": 72.5,
+                "y": 76,
+                "width": 587.5,
+                "height": 24,
+                "right": 660,
+                "bottom": 100
+              },
+              "style": {
+                "borderLeftWidth": "0.5px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "grandchild": {
+            "box": {
+              "x": 81,
+              "y": 76,
+              "width": 579,
+              "height": 24,
+              "right": 660,
+              "bottom": 100
+            },
+            "own": {
+              "x": 81,
+              "y": 76,
+              "width": 579,
+              "height": 24,
+              "right": 660,
+              "bottom": 100
+            },
+            "sub": null
+          },
+          "sibling": {
+            "box": {
+              "x": 50.5,
+              "y": 106,
+              "width": 609.5,
+              "height": 24,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 50.5,
+              "y": 106,
+              "width": 609.5,
+              "height": 24,
+              "right": 660,
+              "bottom": 130
+            },
+            "sub": null
+          }
+        },
+        "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html"
+      },
+      "math": {
+        "declaredBorderCss": 0.5,
+        "observedBorderCss": 0.5,
+        "observedPhysicalBorder": 1,
+        "childXDelta": 30.5,
+        "grandchildXDelta": 30.5,
+        "expectedFromObservedComputedBorder": 30.5,
+        "nativeUsedBorder": 0.5,
+        "rootHeight": 110,
+        "seatHeight": 112,
+        "childHeight": 54,
+        "rootBottomMarginOutside": 2
+      },
+      "cleanup": {
+        "protectedProcessesSignalled": false,
+        "verifiedOwnBrowser": true,
+        "lastProcesses": [
+          {
+            "type": "browser",
+            "id": 21012,
+            "cpuTime": 0.644259
+          },
+          {
+            "type": "renderer",
+            "id": 23636,
+            "cpuTime": 0.059527
+          },
+          {
+            "type": "renderer",
+            "id": 4060,
+            "cpuTime": 0.040825
+          },
+          {
+            "type": "renderer",
+            "id": 14572,
+            "cpuTime": 0.079561
+          },
+          {
+            "type": "renderer",
+            "id": 44832,
+            "cpuTime": 0.186495
+          },
+          {
+            "type": "GPU",
+            "id": 21508,
+            "cpuTime": 0.091374
+          },
+          {
+            "type": "network.mojom.NetworkService",
+            "id": 42956,
+            "cpuTime": 0.073661
+          },
+          {
+            "type": "storage.mojom.StorageService",
+            "id": 24960,
+            "cpuTime": 0.02174
+          }
+        ],
+        "browserClose": "only verified own browser",
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-23T23:43:15.777Z"
+        },
+        "portReleased": true,
+        "processLiveness": [
+          {
+            "pid": 21012,
+            "alive": false
+          },
+          {
+            "pid": 14572,
+            "alive": false
+          },
+          {
+            "pid": 44832,
+            "alive": false
+          },
+          {
+            "pid": 21508,
+            "alive": false
+          },
+          {
+            "pid": 42956,
+            "alive": false
+          },
+          {
+            "pid": 24960,
+            "alive": false
+          },
+          {
+            "pid": 23636,
+            "alive": false
+          },
+          {
+            "pid": 4060,
+            "alive": false
+          }
+        ],
+        "allObservedProcessesExited": true,
+        "profileRemoved": true,
+        "pass": true
+      },
+      "finishedAt": "2026-10-23T23:43:15.826Z"
+    },
+    {
+      "requestedScale": 3,
+      "profile": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-3",
+      "startedAt": "2026-10-23T23:43:15.826Z",
+      "status": "passed",
+      "protocolErrors": [],
+      "runtimeExceptions": [],
+      "requests": [
+        {
+          "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+          "type": "Document"
+        }
+      ],
+      "methods": [
+        "Browser.getVersion",
+        "Browser.getBrowserCommandLine",
+        "SystemInfo.getProcessInfo",
+        "Target.getTargets",
+        "Target.attachToTarget",
+        "Page.enable",
+        "Runtime.enable",
+        "Network.enable",
+        "Network.setBlockedURLs",
+        "Page.navigate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "Runtime.evaluate",
+        "SystemInfo.getProcessInfo",
+        "Browser.close"
+      ],
+      "assertions": [
+        {
+          "name": "process flag gives actual DPR",
+          "pass": true,
+          "actual": 3,
+          "expected": 3
+        },
+        {
+          "name": "child X delta is margin22+padding8+observed border",
+          "pass": true,
+          "actual": 30.333335876464844,
+          "expected": 30.333333
+        },
+        {
+          "name": "grandchild X delta uses own observed border",
+          "pass": true,
+          "actual": 30.333335876464844,
+          "expected": 30.333333
+        },
+        {
+          "name": "native border formula matches computed used width",
+          "pass": true,
+          "actual": 0.333333,
+          "expected": 0.3333333333333333
+        },
+        {
+          "name": "synthetic own cards remain24px",
+          "pass": true,
+          "actual": {
+            "root": 24,
+            "child": 24,
+            "grandchild": 24,
+            "sibling": 24
+          },
+          "expected": 24
+        },
+        {
+          "name": "root110 seat112 child54 and trailing margin collapse",
+          "pass": true,
+          "actual": {
+            "declaredBorderCss": 0.5,
+            "observedBorderCss": 0.333333,
+            "observedPhysicalBorder": 0.999999,
+            "childXDelta": 30.333335876464844,
+            "grandchildXDelta": 30.333335876464844,
+            "expectedFromObservedComputedBorder": 30.333333,
+            "nativeUsedBorder": 0.3333333333333333,
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          },
+          "expected": {
+            "rootHeight": 110,
+            "seatHeight": 112,
+            "childHeight": 54,
+            "rootBottomMarginOutside": 2
+          }
+        },
+        {
+          "name": "child owns grandchild bottom margin2",
+          "pass": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "name": "sibling follows complete child subtree by gap4",
+          "pass": true,
+          "actual": 4,
+          "expected": 4
+        },
+        {
+          "name": "file only and no runtime/protocol errors",
+          "pass": true,
+          "actual": {
+            "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+            "requests": [
+              {
+                "url": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+                "type": "Document"
+              }
+            ],
+            "exceptions": [],
+            "protocolErrors": []
+          },
+          "expected": "exact owned file only; no errors"
+        }
+      ],
+      "port": 49834,
+      "launch": {
+        "pid": 24164,
+        "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "args": [
+          "--headless=new",
+          "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-3",
+          "--remote-debugging-address=127.0.0.1",
+          "--remote-debugging-port=49834",
+          "--force-device-scale-factor=3",
+          "--enable-automation",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-component-update",
+          "--disable-sync",
+          "--disable-extensions",
+          "--disable-default-apps",
+          "--disable-domain-reliability",
+          "--disable-client-side-phishing-detection",
+          "--safebrowsing-disable-auto-update",
+          "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+          "--metrics-recording-only",
+          "--password-store=basic",
+          "--no-proxy-server",
+          "--host-resolver-rules=MAP * ~NOTFOUND",
+          "--disable-breakpad",
+          "--disable-gpu",
+          "--window-size=1000,700",
+          "about:blank"
+        ],
+        "stdio": "ignore",
+        "shell": false
+      },
+      "version": {
+        "protocolVersion": "1.3",
+        "product": "Chrome/155.0.8059.85",
+        "revision": "@0e66b94549a8bd85f03fbdf189b752d6e7b63c32",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "jsVersion": "15.5.35.25"
+      },
+      "commandLine": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "--headless=new",
+        "--user-data-dir=C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-3",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=49834",
+        "--force-device-scale-factor=3",
+        "--enable-automation",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-component-update",
+        "--disable-sync",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--disable-domain-reliability",
+        "--disable-client-side-phishing-detection",
+        "--safebrowsing-disable-auto-update",
+        "--disable-features=MediaRouter,OptimizationHints,Translate,AutofillServerCommunication",
+        "--metrics-recording-only",
+        "--password-store=basic",
+        "--no-proxy-server",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--disable-breakpad",
+        "--disable-gpu",
+        "--window-size=1000,700",
+        "--noerrdialogs",
+        "--flag-switches-begin",
+        "--flag-switches-end",
+        "about:blank"
+      ],
+      "initialProcesses": [
+        {
+          "type": "browser",
+          "id": 24164,
+          "cpuTime": 0.543925
+        },
+        {
+          "type": "renderer",
+          "id": 13976,
+          "cpuTime": 0.02384
+        },
+        {
+          "type": "renderer",
+          "id": 9436,
+          "cpuTime": 0.026387
+        },
+        {
+          "type": "renderer",
+          "id": 31056,
+          "cpuTime": 0.051096
+        },
+        {
+          "type": "renderer",
+          "id": 24056,
+          "cpuTime": 0.055063
+        },
+        {
+          "type": "GPU",
+          "id": 6640,
+          "cpuTime": 0.068188
+        },
+        {
+          "type": "network.mojom.NetworkService",
+          "id": 33744,
+          "cpuTime": 0.053134
+        },
+        {
+          "type": "storage.mojom.StorageService",
+          "id": 36400,
+          "cpuTime": 0.025843
+        }
+      ],
+      "ownership": {
+        "verified": true,
+        "pid": 24164,
+        "profileMatched": true,
+        "portMatched": true,
+        "scaleFlagMatched": true
+      },
+      "measurement": {
+        "actualDPR": 3,
+        "viewport": {
+          "innerWidth": 978,
+          "innerHeight": 546,
+          "outerWidth": 1000,
+          "outerHeight": 700
+        },
+        "seat": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "column": {
+          "x": 20,
+          "y": 20,
+          "width": 640,
+          "height": 112,
+          "right": 660,
+          "bottom": 132
+        },
+        "nodes": {
+          "root": {
+            "box": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 110,
+              "right": 660,
+              "bottom": 130
+            },
+            "own": {
+              "x": 20,
+              "y": 20,
+              "width": 640,
+              "height": 24,
+              "right": 660,
+              "bottom": 44
+            },
+            "sub": {
+              "box": {
+                "x": 42,
+                "y": 48,
+                "width": 618,
+                "height": 82,
+                "right": 660,
+                "bottom": 130
+              },
+              "style": {
+                "borderLeftWidth": "0.333333px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "child": {
+            "box": {
+              "x": 50.333335876464844,
+              "y": 48,
+              "width": 609.6666870117188,
+              "height": 54,
+              "right": 660.0000228881836,
+              "bottom": 102
+            },
+            "own": {
+              "x": 50.333335876464844,
+              "y": 48,
+              "width": 609.6666870117188,
+              "height": 24,
+              "right": 660.0000228881836,
+              "bottom": 72
+            },
+            "sub": {
+              "box": {
+                "x": 72.33333587646484,
+                "y": 76,
+                "width": 587.6666870117188,
+                "height": 24,
+                "right": 660.0000228881836,
+                "bottom": 100
+              },
+              "style": {
+                "borderLeftWidth": "0.333333px",
+                "borderLeftStyle": "solid",
+                "marginTop": "4px",
+                "marginBottom": "2px",
+                "marginLeft": "22px",
+                "paddingLeft": "8px",
+                "gap": "4px",
+                "display": "flex",
+                "flexDirection": "column"
+              }
+            }
+          },
+          "grandchild": {
+            "box": {
+              "x": 80.66667175292969,
+              "y": 76,
+              "width": 579.3333740234375,
+              "height": 24,
+              "right": 660.0000457763672,
+              "bottom": 100
+            },
+            "own": {
+              "x": 80.66667175292969,
+              "y": 76,
+              "width": 579.3333740234375,
+              "height": 24,
+              "right": 660.0000457763672,
+              "bottom": 100
+            },
+            "sub": null
+          },
+          "sibling": {
+            "box": {
+              "x": 50.333335876464844,
+              "y": 106,
+              "width": 609.6666870117188,
+              "height": 24,
+              "right": 660.0000228881836,
+              "bottom": 130
+            },
+            "own": {
+              "x": 50.333335876464844,
+              "y": 106,
+              "width": 609.6666870117188,
+              "height": 24,
+              "right": 660.0000228881836,
+              "bottom": 130
+            },
+            "sub": null
+          }
+        },
+        "location": "file:///C:/AI/WhaleIsle-MyGo/.devdata/r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html"
+      },
+      "math": {
+        "declaredBorderCss": 0.5,
+        "observedBorderCss": 0.333333,
+        "observedPhysicalBorder": 0.999999,
+        "childXDelta": 30.333335876464844,
+        "grandchildXDelta": 30.333335876464844,
+        "expectedFromObservedComputedBorder": 30.333333,
+        "nativeUsedBorder": 0.3333333333333333,
+        "rootHeight": 110,
+        "seatHeight": 112,
+        "childHeight": 54,
+        "rootBottomMarginOutside": 2
+      },
+      "cleanup": {
+        "protectedProcessesSignalled": false,
+        "verifiedOwnBrowser": true,
+        "lastProcesses": [
+          {
+            "type": "browser",
+            "id": 24164,
+            "cpuTime": 0.728742
+          },
+          {
+            "type": "renderer",
+            "id": 13976,
+            "cpuTime": 0.061506
+          },
+          {
+            "type": "renderer",
+            "id": 9436,
+            "cpuTime": 0.045829
+          },
+          {
+            "type": "renderer",
+            "id": 31056,
+            "cpuTime": 0.097414
+          },
+          {
+            "type": "renderer",
+            "id": 24056,
+            "cpuTime": 0.22696
+          },
+          {
+            "type": "GPU",
+            "id": 6640,
+            "cpuTime": 0.104931
+          },
+          {
+            "type": "network.mojom.NetworkService",
+            "id": 33744,
+            "cpuTime": 0.070947
+          },
+          {
+            "type": "storage.mojom.StorageService",
+            "id": 36400,
+            "cpuTime": 0.029389
+          }
+        ],
+        "browserClose": "only verified own browser",
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-23T23:43:17.037Z"
+        },
+        "portReleased": true,
+        "processLiveness": [
+          {
+            "pid": 24164,
+            "alive": false
+          },
+          {
+            "pid": 13976,
+            "alive": false
+          },
+          {
+            "pid": 9436,
+            "alive": false
+          },
+          {
+            "pid": 31056,
+            "alive": false
+          },
+          {
+            "pid": 24056,
+            "alive": false
+          },
+          {
+            "pid": 6640,
+            "alive": false
+          },
+          {
+            "pid": 33744,
+            "alive": false
+          },
+          {
+            "pid": 36400,
+            "alive": false
+          }
+        ],
+        "allObservedProcessesExited": true,
+        "profileRemoved": true,
+        "pass": true
+      },
+      "finishedAt": "2026-10-23T23:43:17.055Z"
+    }
+  ],
+  "errors": [],
+  "writes": [
+    "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19.html",
+    "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1\\ (owned Chrome profile)",
+    "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-1p5\\ (owned Chrome profile)",
+    "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-2\\ (owned Chrome profile)",
+    "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-scale-2026-10-23T23-43-12-114Z-69c98e19-profile-3\\ (owned Chrome profile)",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-tree-pass257-scale-2026-10-23T23-43-12-114Z-69c98e19.txt",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-tree-pass257-scale-2026-10-23T23-43-12-114Z-69c98e19-report.md"
+  ],
+  "limitations": [
+    "Process-level device scale is real Chrome startup configuration, not CDP metrics emulation or a physical-monitor/hardware acceptance test.",
+    "Synthetic own cards are fixed 24 CSS px; only tree CSS and recursive wrapper relationships are from installed original output.",
+    "This separate scale measurement does not repeat the earlier geometry/picker interaction acceptance."
+  ],
+  "attemptPolicy": "One invocation, each requested scale launched once. No acceptance rerun; failed measurements retained.",
+  "chromeSHA256": "de999bce6a1c954df71a8f15bf751b336172f55ac1a0325bb0580cbc2121268c",
+  "fixtureSHA256": "135abe3d9973c25f486cab38b8c3d7d1fb690f39cc0cca90e56f66e975081e0d",
+  "sourcesUnchanged": true,
+  "actualDPRVaried": true,
+  "finishedAt": "2026-10-23T23:43:17.057Z"
+}

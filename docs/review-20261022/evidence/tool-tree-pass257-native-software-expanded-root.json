@@ -1,0 +1,50 @@
+{
+  "boxes": {
+    "opaque/grandchild": {
+      "X": 82,
+      "Y": 145.21484,
+      "W": 418,
+      "H": 24
+    },
+    "opaque:root": {
+      "X": 20,
+      "Y": 20,
+      "W": 480,
+      "H": 179.21484
+    },
+    "sibling-0": {
+      "X": 51,
+      "Y": 175.21484,
+      "W": 449,
+      "H": 24
+    },
+    "unrelated-child": {
+      "X": 51,
+      "Y": 117.21484,
+      "W": 449,
+      "H": 54
+    }
+  },
+  "scope": "MyGo software renderer; no OS backend/font/GPU or live Electron comparison",
+  "texts": [
+    "读取文件 {}",
+    "读取文件",
+    "{}",
+    "参数",
+    "复制",
+    "复制",
+    "{}",
+    "复制",
+    "复制",
+    "读取文件 same.txt",
+    "读取文件",
+    "same.txt",
+    "读取文件 same.txt",
+    "读取文件",
+    "same.txt",
+    "读取文件 same.txt",
+    "读取文件",
+    "same.txt",
+    "after tool tree"
+  ]
+}

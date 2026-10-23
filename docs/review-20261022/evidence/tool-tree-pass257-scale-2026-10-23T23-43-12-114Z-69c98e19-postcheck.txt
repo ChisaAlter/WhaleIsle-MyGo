@@ -1,0 +1,17 @@
+Round113 saved-artifact postcheck (no browser rerun)
+
+The one four-scale Chrome acceptance completed exit0 with 4/4 runs and36/36 assertions passed. All source and runner before/after hashes in the saved JSON matched.
+
+An initial PowerShell postcheck used Get-Content without -Encoding UTF8. This host runs Windows PowerShell, which decoded the UTF8 JSON Chinese directory segment as mojibake and reported nonexistent paths / HASH MISMATCH. It exited1 during the read-only postcheck. No browser, source modification or acceptance retry occurred.
+
+The same saved JSON was then read with Get-Content -Raw -Encoding UTF8. Verification passed: all recorded original/source/runner SHA256 values still match current files, all four owned profiles are absent, each scale has nine passing assertions, and no Emulation method was called. All four recorded Chrome versions are Chrome/155.0.8059.85.
+
+Saved runtime/runner SHA256 (unchanged after acceptance):
+runner f581d019534cdbf295e4895c1a3f0ff1a2c62db490ff2d96da2f32cccaef1f83
+JSON 20352f2f0b18576401069161839d04fac25db6858e455771ec90a0476c5c5930
+summary fcba18f4dd08b6ba031a755273c338c39a5175879c5e73a13ca2e32167743aa7
+report 6bf1e5b410d16484f67a87d0e5c6e99ded2a76075128eccc7b827f85f6c9fd1c
+
+Collected acceptance job pwsh-d0a2f59ca10745ab exit0.
+Collected initial read-only encoding postcheck job pwsh-edbe48c2ef534e01 exit1.
+Corrected UTF8 read-only postcheck completed foreground exit0.

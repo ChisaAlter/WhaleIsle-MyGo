@@ -1297,7 +1297,10 @@ either.
   within its content; a `ScrollState` mirrors an offset both ways, and a
   frame that moved one builds another for what read the old one. Frames
   happen only when asked: input, `Invalidate`, `After`, or `AnimationFrame`
-  while something moves.
+  while something moves. `Context.DeviceScale` exposes the current frame's
+  device pixels per layout DIP, including content zoom, before layout. It
+  matches `Painter.Scale`, is normalized to one if the host reports no scale,
+  and lets a view reserve the device-pixel width of a painted hairline.
   A frame asked for only by drawings that move (`Painter.AnimationFrame`,
   `Painter.After`, as spinners and progress bars of unknown length do)
   paints the elements of the last frame again at its own time

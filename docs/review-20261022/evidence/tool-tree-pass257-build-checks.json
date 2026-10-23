@@ -1,0 +1,27 @@
+﻿[
+    {
+        "name":  "fixture-build",
+        "args":  [
+                     "test",
+                     "-tags",
+                     "inspectorfixture",
+                     "-c",
+                     "-o",
+                     ".devdata/r113-inspector-fixture.exe",
+                     "./internal/ui/frame"
+                 ],
+        "exitCode":  0,
+        "seconds":  8.1529429
+    },
+    {
+        "name":  "production-build",
+        "args":  [
+                     "build",
+                     "-o",
+                     "whaleisle-pass257.exe",
+                     "./cmd/whaleisle"
+                 ],
+        "exitCode":  0,
+        "seconds":  8.6387581
+    }
+]

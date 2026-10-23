@@ -1,0 +1,71 @@
+﻿{
+    "scope":  "Logical subtree X/Y/height and right-edge inset at real Chrome DPR1 and MyGo software scale1; own labels/theme differ; not screenshot/full-app parity",
+    "referenceRawStatus":  "failed",
+    "referenceOracleFailure":  "106/108 expected vs observed 110/112 root/seat arithmetic, preserved",
+    "comparisons":  [
+                        {
+                            "call":  "root",
+                            "referenceRelative":  [
+                                                      0,
+                                                      0,
+                                                      110
+                                                  ],
+                            "nativeRelative":  [
+                                                   0,
+                                                   0,
+                                                   110
+                                               ],
+                            "referenceRightInset":  0,
+                            "nativeRightInset":  0,
+                            "pass":  true
+                        },
+                        {
+                            "call":  "child",
+                            "referenceRelative":  [
+                                                      31,
+                                                      28,
+                                                      54
+                                                  ],
+                            "nativeRelative":  [
+                                                   31,
+                                                   28,
+                                                   54
+                                               ],
+                            "referenceRightInset":  0,
+                            "nativeRightInset":  0,
+                            "pass":  true
+                        },
+                        {
+                            "call":  "grandchild",
+                            "referenceRelative":  [
+                                                      62,
+                                                      56,
+                                                      24
+                                                  ],
+                            "nativeRelative":  [
+                                                   62,
+                                                   56,
+                                                   24
+                                               ],
+                            "referenceRightInset":  0,
+                            "nativeRightInset":  0,
+                            "pass":  true
+                        },
+                        {
+                            "call":  "sibling",
+                            "referenceRelative":  [
+                                                      31,
+                                                      86,
+                                                      24
+                                                  ],
+                            "nativeRelative":  [
+                                                   31,
+                                                   86,
+                                                   24
+                                               ],
+                            "referenceRightInset":  0,
+                            "nativeRightInset":  0,
+                            "pass":  true
+                        }
+                    ]
+}

@@ -1,0 +1,34 @@
+﻿[
+    {
+        "name":  "toolkit-tests",
+        "args":  [
+                     "test",
+                     "./ui",
+                     "-run",
+                     "TestContextDeviceScale|TestPixelHost|TestHeadlessHost|TestNonPositiveScale|TestList|TestTrackScroll",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  2.7847839
+    },
+    {
+        "name":  "toolkit-vet",
+        "args":  [
+                     "vet",
+                     "./ui"
+                 ],
+        "exitCode":  0,
+        "seconds":  0.92031069999999993
+    },
+    {
+        "name":  "toolkit-production-vet",
+        "args":  [
+                     "vet",
+                     "-tags",
+                     "mygo_noinspector",
+                     "./ui"
+                 ],
+        "exitCode":  0,
+        "seconds":  3.3836432
+    }
+]

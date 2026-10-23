@@ -1,0 +1,39 @@
+﻿[
+    {
+        "name":  "affected-tests",
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "-count=1"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  17.5865625
+    },
+    {
+        "name":  "affected-lifetime-vet",
+        "args":  [
+                     "run",
+                     "github.com/egoist/mygo/cmd/mygo",
+                     "vet",
+                     "./internal/ui/chat"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  2.783734
+    },
+    {
+        "name":  "affected-frame-vet",
+        "args":  [
+                     "vet",
+                     "./internal/ui/frame"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  1.2692002999999998
+    }
+]

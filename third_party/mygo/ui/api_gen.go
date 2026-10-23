@@ -275,6 +275,16 @@ func (_handle *Context) CloseToast(id string) {
 	_ctx.CloseToast(id)
 }
 
+// DeviceScale returns the device pixels per layout DIP for the current frame,
+// including the window's content zoom. It is positive and matches Painter.Scale.
+func (_handle *Context) DeviceScale() float32 {
+	_ctx := _handle.build()
+	if _ctx == nil {
+		return 0
+	}
+	return _ctx.DeviceScale()
+}
+
 // MeasureText returns the size spans of text take as Painter.RichText draws
 // them, wrapping lines at width DIPs (none for 0), to lay out what depends
 // on it while building.

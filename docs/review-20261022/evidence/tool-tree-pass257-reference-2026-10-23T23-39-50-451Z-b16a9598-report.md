@@ -1,0 +1,42 @@
+# Round113 isolated installed tool-tree layout
+
+FAILED: 8/9 cases, 135/136 assertions. Node v24.21.0, Chrome/155.0.8059.85.
+
+Verbatim installed ToolCallTree and ToolRow CSS plus installed DisclosureRow/TextShimmer CSS and installed base/platform/font-axis tokens. Manually composed installed DOM relationships in an isolated file document; no React/full-app/live-Session claim.
+
+[Full JSON](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598.json) · [Summary](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598.txt)
+
+[Collapsed](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-collapsed.png) · [Expanded own body](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-expanded.png) · [Depth0–9](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-deep.png) · [220px narrow](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-narrow.png)
+
+Geometry is under `geometry.collapsed` and each case `actual`: per-call own-card, subtree, tree-relative and parent-relative rectangles, computed styles, and exact subCalls connector rectangles. Source offsets, decoded CSS, mappings and hashes are under `extraction`. A [compact measurements export](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-measurements.json) selects the expanded and deep-tree boxes from that same saved run; it is derived evidence, not another execution.
+
+The one failed assertion is an arithmetic error in the runner's expected total height. It expected root106 and seat108 despite the separately asserted child54 + sibling24 + gap4 producing82px of subcalls, then own24 + top margin4 producing110px of root. Actual measured root110 and seat112 are internally consistent. The [exact executed runner](tool-tree-pass257-reference-2026-10-23T23-39-50-451Z-b16a9598-executed-runner.mjs), JSON, text, fixture and failed exit1 are retained unchanged; the acceptance was not rerun or reclassified as passing. After archiving the executed runner with its original hash, the maintained runner's two height literals were corrected to110/112 for future use; only its syntax was rechecked. All other135 assertions passed.
+
+| CallID | Tree-relative own-card `(x,y,w,h)` | Tree-relative subtree `(x,y,w,h)` | Connector `(x,y,w,h)` relative to tree |
+| --- | --- | --- | --- |
+| root | `(0,0,640,24)` | `(0,0,640,110)` | `(22,28,1,82)` |
+| child | `(31,28,609,24)` | `(31,28,609,54)` | `(53,56,1,24)` |
+| grandchild | `(62,56,578,24)` | `(62,56,578,24)` | none |
+| sibling | `(31,86,609,24)` | `(31,86,609,24)` | none |
+
+The outer seat is112px high. The root callRow's final2px subCalls margin collapses outside that plain block into the seat, so its Inspector box is110px. Nested callRow wrappers are flex items of their parent's subCalls; their own final2px margin remains inside the wrapper, so child height54 includes a2px tail after grandchild. Root connector starts4px below its24px own card, spans82px, and ends at the sibling's bottom. The child connector spans exactly24px, ending before the child's2px internal tail. Root-only height is24px with no subCalls or tail. These results confirm the browser margin behavior with the installed display rules, not an approximation based on repeated row gaps.
+
+The exact installed CSS is `.PUgJda_callRow{border-radius:var(--dsw-radius-sm)}` and `.PUgJda_subCalls{border-left:.5px solid var(--dsw-alias-border-l2);flex-direction:column;gap:4px;margin:4px 0 2px 22px;padding-left:8px;display:flex}`. The installed light token computes BorderL2 to `rgba(0, 0, 0, 0.1)` and radius-sm to8px. The declared .5px border computed1px in this Chrome under both CDP deviceScaleFactor1 and2; x indentation was31px. CDP changing `devicePixelRatio` did not change border snapping in this execution. This does not certify a real high-DPI physical display; preserve declared .5px separately from measured1px in the evidence.
+
+A trusted CDP root click expanded only its own generic IN/OUT fixture body using exact installed bodyWrap/ioCard/ioSection CSS. Its own-card height grew24→114.5px, a90.5px delta. All descendant and connector Y values moved by that same90.5px; connector heights stayed82/24px. Root subtree became200.5px and seat202.5px. The second trusted click restored the original four descendant boxes exactly. All ten observed pointer/mouse/click events had `isTrusted:true`. The toggler is fixture code, not original React disclosure logic or motion.
+
+Ten deep calls at depths0–9 retained increasing31px indentation through depth9 x279px; no cap6 and no visible ancestor-ID text were introduced. Deep root subtree height292px and seat294px; deepest leaf starts at `(279,252)` with size361×24px. The220px narrow tree retained the same110/112px root/seat height and same relative vertical/indent offsets. Changing the baseline container640→340px narrowed every row300px without moving Y or indent. A real CDP viewport resize1200→520px yielded440px baseline width and unchanged tree rhythm.
+
+The installed shared DisclosureRow has a neutral `data-disclosure-header` flex wrapper absent from the older readonly reference TS. The fixture reproduces installed root/header/row wrappers. ToolRow's outer root is flex column with no gap/padding; the tree callRow is otherwise a plain block. Descendants follow ToolRow outside its own disclosure. Installed renderer slot anchors use display:contents, also reproduced in the fixture. No React runtime or original app was started.
+
+Run custody: one browser acceptance `pwsh-33db879aa81346b0`, collected exit1 because of the retained failed assertion; owned ChromePID12352 exited0, all nine observed owned processes exited, own CDP port56712 was released and the exact unique profile was removed. Only this owned file target was requested. No remote requests, runtime exceptions or CDP errors occurred. The script never contacted protected original GUI3080, signalled originalPID20012/backend16008, accessed their profiles or manipulated the lock screen.
+
+- Fixture DOM manually reproduces installed ToolCallBranch/ToolRow/DisclosureRow containment, not React rendering or the original application.
+- Disclosure click toggler and generic Input/Output payloads are fixture-only. CSS and wrapper relationships are exact installed outputs; original motion/usePresence and business models are not executed.
+- Positions, scenario widths, headings and background outlines are fixture presentation; tree margins/gaps/borders/row height and body CSS are not approximated.
+- Installed token sheets use their baseline light values; no persisted user theme/font settings, profiles or live Session state are read.
+- Declared .5px borders can be rounded to a device pixel by Chrome; measured computed widths and both DPR1/DPR2 configurations are reported separately.
+
+Own browser cleanup: `{"target":"Only own spawned Chrome verified by CDP browser PID, profile and port","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastOwnedProcesses":[{"type":"browser","id":12352,"cpuTime":0.925724},{"type":"renderer","id":8636,"cpuTime":0.054861},{"type":"renderer","id":21400,"cpuTime":0.040365},{"type":"renderer","id":21036,"cpuTime":0.198535},{"type":"renderer","id":16336,"cpuTime":0.041186},{"type":"renderer","id":30572,"cpuTime":0.313012},{"type":"GPU","id":43424,"cpuTime":0.147122},{"type":"network.mojom.NetworkService","id":20116,"cpuTime":0.106587},{"type":"storage.mojom.StorageService","id":14320,"cpuTime":0.032699}],"browserClose":"owned browser only","exit":{"code":0,"signal":null,"at":"2026-10-23T23:39:51.657Z"},"debugPortReleased":true,"ownedProcessLiveness":[{"pid":12352,"alive":false},{"pid":8636,"alive":false},{"pid":21400,"alive":false},{"pid":21036,"alive":false},{"pid":16336,"alive":false},{"pid":30572,"alive":false},{"pid":43424,"alive":false},{"pid":20116,"alive":false},{"pid":14320,"alive":false}],"allObservedOwnedProcessesExited":true,"profileCleanupTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-profiles\\2026-10-23T23-39-50-451Z-b16a9598","ownedProfileRemoved":true,"pass":true}`.
+
+Preparation included a shell `node -e` theme-literal extraction that failed from PowerShell argument quoting before browser launch (SyntaxError: Unexpected end of input). It wrote no output and is not an acceptance attempt. The runner uses direct file script loading and JSON literal extraction instead. The runner was syntax checked and its generated inline JavaScript parsed before the one acceptance execution. Failed assertions, if any, remain in JSON/text; no passing rerun.

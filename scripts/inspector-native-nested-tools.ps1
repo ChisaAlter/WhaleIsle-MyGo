@@ -1,7 +1,7 @@
-param([Parameter(Mandatory=$true)][int]$OwnerId)
+param([Parameter(Mandatory=$true)][int]$OwnerId,[switch]$VerifyTreeLayout)
 $ErrorActionPreference='Stop'
-$fixturePath='C:\AI\WhaleIsle-MyGo\.devdata\r112-inspector-fixture.exe'
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass256-native-nested-tools'
+$fixturePath=if($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\.devdata\r113-inspector-fixture.exe'}else{'C:\AI\WhaleIsle-MyGo\.devdata\r112-inspector-fixture.exe'}
+$prefix=if($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-tree-pass257-native-layout'}else{'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass256-native-nested-tools'}
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId='+$OwnerId)
 if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in 20012,16008){throw 'Wrong owned fixture'}
 $ownedStart=(Get-Process -Id $OwnerId).StartTime.ToUniversalTime()
@@ -95,6 +95,27 @@ try {
  $byCall=@{};foreach($state in $run.states){$byCall[$state.call]=$state.metrics.reveal.rect}
  $parent=$byCall['child'];$leaf=$byCall['opaque-grandchild'];$whole=$byCall['root']
  if($parent.H -le $leaf.H -or $parent.Y -gt $leaf.Y -or $parent.Y+$parent.H -lt $leaf.Y+$leaf.H -or $whole.H -le $parent.H){throw 'Parent subtree ancestry was lost'}
+ if($VerifyTreeLayout){
+  $scale=$run.states[0].metrics.reveal.scale
+  $indent=30+[Math]::Max(1,[Math]::Floor(.5*$scale))/$scale
+  $sibling=$byCall['unrelated-sibling']
+  $checks=@(
+   @{name='child indent';actual=$parent.X-$whole.X;expected=$indent},
+   @{name='grandchild indent';actual=$leaf.X-$parent.X;expected=$indent},
+   @{name='first child top';actual=$parent.Y-$whole.Y;expected=28},
+   @{name='grandchild top';actual=$leaf.Y-$parent.Y;expected=28},
+   @{name='root subtree';actual=$whole.H;expected=110},
+   @{name='child subtree';actual=$parent.H;expected=54},
+   @{name='leaf height';actual=$leaf.H;expected=24},
+   @{name='sibling height';actual=$sibling.H;expected=24},
+   @{name='sibling gap';actual=$sibling.Y-$parent.Y-$parent.H;expected=4},
+   @{name='child right edge';actual=$parent.X+$parent.W-$whole.X-$whole.W;expected=0},
+   @{name='grandchild right edge';actual=$leaf.X+$leaf.W-$whole.X-$whole.W;expected=0}
+  )
+  foreach($check in $checks){if([Math]::Abs($check.actual-$check.expected) -gt .025){throw ('Native tree geometry '+$check.name+': '+$check.actual+' expected '+$check.expected)}}
+  $run['layoutChecks']=$checks
+  Write-Output ('PASS native tree layout at '+$scale+' scale: '+$checks.Count+' measured assertions')
+ }
  $run.status='pass-injected-surface'
  Write-Output 'PASS four actual native Inspector -> tool subtree selections; ancestor rectangles and closed call bodies'
 } catch {

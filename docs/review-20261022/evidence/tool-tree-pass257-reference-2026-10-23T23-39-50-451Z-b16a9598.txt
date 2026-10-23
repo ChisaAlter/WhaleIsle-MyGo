@@ -1,0 +1,33 @@
+Round113 exact installed tool-tree layout: FAILED
+Run ID: 2026-10-23T23-39-50-451Z-b16a9598
+Started: 2026-10-23T23:39:50.452Z
+Finished: 2026-10-23T23:39:51.721Z
+Node: v24.21.0
+Chrome: Chrome/155.0.8059.85
+Scope: Verbatim installed ToolCallTree and ToolRow CSS plus installed DisclosureRow/TextShimmer CSS and installed base/platform/font-axis tokens. Manually composed installed DOM relationships in an isolated file document; no React/full-app/live-Session claim.
+Runner: C:\AI\WhaleIsle-MyGo\scripts\tool-tree-reference-layout.mjs
+Fixture: C:\AI\WhaleIsle-MyGo\.devdata\r113-tool-tree-2026-10-23T23-39-50-451Z-b16a9598.html
+
+PASSED collapsed-root-child-grandchild-sibling-exact-css: 23/23
+FAILED computed-margin-collapse-and-connector-extents: 5/6
+FAIL 24px baseline subtree heights actual={"grandchild":24,"sibling":24,"child":54,"root":110,"seat":112} expected={"grandchild":24,"sibling":24,"child":54,"root":106,"seat":108}
+PASSED root-only-has-no-subcalls-or-extra-bottom: 2/2
+PASSED trusted-expand-collapse-own-body-retains-all-descendants: 4/4
+PASSED deep-recursion-unlimited-beyond-six: 67/67
+PASSED narrow220-width-preserves-relative-tree-rhythm: 23/23
+PASSED live-width-change-and-actual-viewport-resize: 3/3
+PASSED declared-half-pixel-border-at-dpr1-and-dpr2: 5/5
+PASSED source-integrity-network-and-input-audit: 3/3
+
+Summary: {"passedCases":8,"failedCases":1,"passedAssertions":135,"failedAssertions":1}
+Cleanup: {"target":"Only own spawned Chrome verified by CDP browser PID, profile and port","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastOwnedProcesses":[{"type":"browser","id":12352,"cpuTime":0.925724},{"type":"renderer","id":8636,"cpuTime":0.054861},{"type":"renderer","id":21400,"cpuTime":0.040365},{"type":"renderer","id":21036,"cpuTime":0.198535},{"type":"renderer","id":16336,"cpuTime":0.041186},{"type":"renderer","id":30572,"cpuTime":0.313012},{"type":"GPU","id":43424,"cpuTime":0.147122},{"type":"network.mojom.NetworkService","id":20116,"cpuTime":0.106587},{"type":"storage.mojom.StorageService","id":14320,"cpuTime":0.032699}],"browserClose":"owned browser only","exit":{"code":0,"signal":null,"at":"2026-10-23T23:39:51.657Z"},"debugPortReleased":true,"ownedProcessLiveness":[{"pid":12352,"alive":false},{"pid":8636,"alive":false},{"pid":21400,"alive":false},{"pid":21036,"alive":false},{"pid":16336,"alive":false},{"pid":30572,"alive":false},{"pid":43424,"alive":false},{"pid":20116,"alive":false},{"pid":14320,"alive":false}],"allObservedOwnedProcessesExited":true,"profileCleanupTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r113-tool-tree-profiles\\2026-10-23T23-39-50-451Z-b16a9598","ownedProfileRemoved":true,"pass":true}
+
+Errors:
+none
+
+Limits:
+Fixture DOM manually reproduces installed ToolCallBranch/ToolRow/DisclosureRow containment, not React rendering or the original application.
+Disclosure click toggler and generic Input/Output payloads are fixture-only. CSS and wrapper relationships are exact installed outputs; original motion/usePresence and business models are not executed.
+Positions, scenario widths, headings and background outlines are fixture presentation; tree margins/gaps/borders/row height and body CSS are not approximated.
+Installed token sheets use their baseline light values; no persisted user theme/font settings, profiles or live Session state are read.
+Declared .5px borders can be rounded to a device pixel by Chrome; measured computed widths and both DPR1/DPR2 configurations are reported separately.

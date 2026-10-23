@@ -1,0 +1,11 @@
+Round113 process-level ToolCallTree scale: PASSED
+Run 2026-10-23T23-43-12-114Z-69c98e19
+Node v24.21.0
+No CDP Emulation methods; four separate Chrome processes.
+scale 1 passed {"declaredBorderCss":0.5,"observedBorderCss":1,"observedPhysicalBorder":1,"childXDelta":31,"grandchildXDelta":31,"expectedFromObservedComputedBorder":31,"nativeUsedBorder":1,"rootHeight":110,"seatHeight":112,"childHeight":54,"rootBottomMarginOutside":2} cleanup=true
+scale 1.5 passed {"declaredBorderCss":0.5,"observedBorderCss":0.666667,"observedPhysicalBorder":1.0000005,"childXDelta":30.666667938232422,"grandchildXDelta":30.666667938232422,"expectedFromObservedComputedBorder":30.666667,"nativeUsedBorder":0.6666666666666666,"rootHeight":110,"seatHeight":112,"childHeight":54,"rootBottomMarginOutside":2} cleanup=true
+scale 2 passed {"declaredBorderCss":0.5,"observedBorderCss":0.5,"observedPhysicalBorder":1,"childXDelta":30.5,"grandchildXDelta":30.5,"expectedFromObservedComputedBorder":30.5,"nativeUsedBorder":0.5,"rootHeight":110,"seatHeight":112,"childHeight":54,"rootBottomMarginOutside":2} cleanup=true
+scale 3 passed {"declaredBorderCss":0.5,"observedBorderCss":0.333333,"observedPhysicalBorder":0.999999,"childXDelta":30.333335876464844,"grandchildXDelta":30.333335876464844,"expectedFromObservedComputedBorder":30.333333,"nativeUsedBorder":0.3333333333333333,"rootHeight":110,"seatHeight":112,"childHeight":54,"rootBottomMarginOutside":2} cleanup=true
+Original source hashes unchanged: true
+Errors: []
+Scope: Four small separately owned installed Chrome child runs with process --force-device-scale-factor=1,1.5,2,3. Exact installed ToolCallTree CSS; synthetic 24px own cards with root-child-grandchild and sibling wrappers. No CDP Emulation methods, full app, React, live Session, hardware monitor or Electron claim.

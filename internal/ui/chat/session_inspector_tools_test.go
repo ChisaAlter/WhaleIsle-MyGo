@@ -300,7 +300,7 @@ func TestInspectorNestedToolPartialClipAndDeepAncestry(t *testing.T) {
 	tt.Frame()
 	tt.Move(want.X+4, want.Y+want.H/2)
 	if n.picker.previewCallID != leaf || n.picker.preview != want {
-		t.Fatal("indentation cap caused ancestor to shadow deeper call")
+		t.Fatal("deeper call was shadowed by an ancestor")
 	}
 	tt.SetSize(580, 320)
 	if n.picker.preview.H > 0 {

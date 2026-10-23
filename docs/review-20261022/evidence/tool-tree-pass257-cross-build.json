@@ -1,0 +1,38 @@
+﻿[
+    {
+        "platform":  "windows",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "exitCode":  0,
+        "seconds":  5.5500596,
+        "output":  [
+
+                   ]
+    },
+    {
+        "platform":  "linux",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "exitCode":  0,
+        "seconds":  6.1090976,
+        "output":  [
+
+                   ]
+    },
+    {
+        "platform":  "darwin",
+        "args":  [
+                     "build",
+                     "./..."
+                 ],
+        "exitCode":  0,
+        "seconds":  6.4276788,
+        "output":  [
+
+                   ]
+    }
+]

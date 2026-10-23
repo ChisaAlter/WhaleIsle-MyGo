@@ -3,6 +3,7 @@ package chat
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -15,7 +16,7 @@ import (
 )
 
 // ToolMessageView draws one complete callId lifecycle and its subcalls. The
-// projection and rendering both avoid recursion, including malformed histories.
+// traversal builds nested wrappers iteratively, including malformed histories.
 func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, gallery ToolImageGalleryOptions) {
 	if gallery.TextOnly {
 		gallery.OnOpen, gallery.OnOpenURL, gallery.OnOpenFile = nil, nil, nil
@@ -35,7 +36,6 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 	}
 	type entry struct {
 		call   *session.ToolCallView
-		depth  int
 		parent int
 	}
 	var tree *inspectorToolTree
@@ -43,85 +43,113 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 		tree = &inspectorToolTree{owner: msg}
 		gallery.Inspector.reveal.toolTrees = append(gallery.Inspector.reveal.toolTrees, tree)
 	}
+	// CSS border widths reserve whole device pixels (at least one). Match that
+	// used width in layout too, so the connector does not drift at each level.
+	scale := float64(c.DeviceScale())
+	border := float32(max(1, math.Floor(.5*scale)) / scale)
 	stack := []entry{{call: msg.Tool, parent: -1}}
-	seen := map[*session.ToolCallView]bool{}
+	parents := []ui.Element{}
+	seen := map[*session.ToolCallView]bool{msg.Tool: true}
 	for len(stack) > 0 {
 		item := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		if item.call == nil || seen[item.call] {
-			continue
-		}
-		seen[item.call] = true
 		call := item.call
-		childGallery := gallery
-		// Keep the owner scope in the row key: the same call id in another
-		// message/scope must not inherit an expanded seat.
-		childGallery.ID = gallery.ID + "|tool:" + call.CallID
-		depth := item.depth
-		if depth > 6 {
-			depth = 6
+		var children ui.Element
+		hasChildren := false
+		for _, child := range call.Children {
+			if child != nil && !seen[child] {
+				hasChildren = true
+				break
+			}
 		}
-		index := -1
-		seat := ui.Column(c).Padding(0, 0, 4, float32(depth)*14).Gap(4).FillWidth()
-		if tree != nil {
-			index = len(tree.boxes)
-			box := &inspectorToolBox{call: call, parent: item.parent}
-			tree.boxes = append(tree.boxes, box)
-			seat.ObserveLayout(func(rect ui.Rect) {
-				indent := float32(depth) * 14
-				box.rect = ui.Rect{X: rect.X + indent, Y: rect.Y, W: max(float32(0), rect.W-indent), H: max(float32(0), rect.H-4)}
+		build := func() {
+			seat := ui.Column(c.Key("call:" + call.CallID)).MinWidth(0).Shrink(0).Radius(8)
+			// A plain root block lets its last margin escape into the Chat
+			// seat. Nested call wrappers are flex items and include that margin.
+			bottom := float32(2)
+			if item.parent < 0 && hasChildren {
+				bottom = 0
+				seat.Margin(0, 0, 2, 0)
+			}
+			if tree != nil {
+				box := &inspectorToolBox{call: call}
+				tree.boxes = append(tree.boxes, box)
+				seat.ObserveLayout(func(rect ui.Rect) { box.rect = rect })
+			}
+			seat.Children(func() {
+				childGallery := gallery
+				// The same call in another owner/scope has its own disclosure.
+				childGallery.ID = gallery.ID + "|tool:" + call.CallID
+				toolLifecycleCard(c, call, st, childGallery)
+				if hasChildren {
+					children = ui.Column(c.Key("subcalls")).MinWidth(0).Shrink(0).Gap(4).
+						Margin(4, 0, bottom, 22).Padding(0, 0, 0, 8).
+						BorderWidth(0, 0, 0, border).BorderColor(st.Border)
+				}
 			})
 		}
-		seat.Children(func() {
-			if item.depth > 0 {
-				ui.Text(c, "↳ "+call.ParentCallID).FontSize(10).TextColor(st.Muted)
+		if item.parent >= 0 {
+			parents[item.parent].Children(build)
+		} else {
+			build()
+		}
+		// Re-enter the same-pass parent on the next iteration. The native tree
+		// is nested without recursively building an arbitrarily deep history.
+		start := len(stack)
+		parent := len(parents)
+		parents = append(parents, children)
+		for _, child := range call.Children {
+			if child == nil || seen[child] {
+				continue
 			}
-			info := ToolLifecycleCardInfo(call)
-			arguments := call.Arguments
-			output := toolLifecycleOutputFor(call, !childGallery.TextOnly)
-			if childGallery.TextOnly {
-				info.Images, info.Links = nil, nil
-				if call.Result != nil {
-					info.Detail = truncateToolText(output, 200)
-				}
-			} else {
-				arguments = prettyToolPayload(arguments)
-			}
-			info.Arguments = arguments
-			if call.Result != nil {
-				info.Output = output
-				// The typed web metadata (sources / fetch URL) lives on the result
-				// message and drives the web card, not the raw JSON.
-				info.Web = call.Result.Web
-			}
-			// Everything below belongs to the expanded body: a collapsed row is
-			// one 24px line, as the Original ToolRow keeps it.
-			extra := func() {
-				if !childGallery.TextOnly {
-					toolFileView(c, call, st, childGallery)
-				}
-				if call.ParentIssue != "" {
-					ui.Text(c, i18n.T(i18n.KeyChatToolCallRelated)+": "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
-				}
-				if !childGallery.TextOnly && call.CallID != "" && childGallery.OnInspectCall != nil {
-					if stdButton(c, st.Colors, i18n.T(i18n.KeyChatToolInspect), buttonGhost, false).Clicked() {
-						childGallery.OnInspectCall(call.CallID)
-					}
-				}
-				if !childGallery.TextOnly {
-					var citations []Citation
-					for _, source := range call.Events {
-						citations = append(citations, CitationsForMessage(source)...)
-					}
-					CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, childGallery.OnOpenURL)
-				}
-			}
-			toolCardInfoViewExtra(c, info, st, extra, childGallery)
-		})
-		for i := len(call.Children) - 1; i >= 0; i-- {
-			stack = append(stack, entry{call: call.Children[i], depth: item.depth + 1, parent: index})
+			seen[child] = true
+			stack = append(stack, entry{call: child, parent: parent})
+		}
+		for a, b := start, len(stack)-1; a < b; a, b = a+1, b-1 {
+			stack[a], stack[b] = stack[b], stack[a]
 		}
 	}
+}
+
+func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+	info := ToolLifecycleCardInfo(call)
+	arguments := call.Arguments
+	output := toolLifecycleOutputFor(call, !gallery.TextOnly)
+	if gallery.TextOnly {
+		info.Images, info.Links = nil, nil
+		if call.Result != nil {
+			info.Detail = truncateToolText(output, 200)
+		}
+	} else {
+		arguments = prettyToolPayload(arguments)
+	}
+	info.Arguments = arguments
+	if call.Result != nil {
+		info.Output = output
+		// Typed sources/fetch URL belong to the result, not the raw JSON.
+		info.Web = call.Result.Web
+	}
+	extra := func() {
+		if !gallery.TextOnly {
+			toolFileView(c, call, st, gallery)
+		}
+		if call.ParentIssue != "" {
+			ui.Text(c, i18n.T(i18n.KeyChatToolCallRelated)+": "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
+		}
+		if !gallery.TextOnly && call.CallID != "" && gallery.OnInspectCall != nil {
+			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatToolInspect), buttonGhost, false).Clicked() {
+				gallery.OnInspectCall(call.CallID)
+			}
+		}
+		if !gallery.TextOnly {
+			var citations []Citation
+			for _, source := range call.Events {
+				citations = append(citations, CitationsForMessage(source)...)
+			}
+			CitationsView(c, dedupeCitations(citations, 8), st.Muted, st.Accent, gallery.OnOpenURL)
+		}
+	}
+	toolCardInfoViewExtra(c, info, st, extra, gallery)
 }
 
 // ToolLifecycleCardInfo retains the existing image/link renderers while taking

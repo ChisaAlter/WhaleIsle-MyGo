@@ -290,6 +290,10 @@ func (c *context) SetTheme(t *Theme) {
 // Size returns the size of the window's content in DIPs.
 func (c *context) Size() (width, height float32) { return c.w, c.h }
 
+// DeviceScale returns the device pixels per layout DIP for the current frame,
+// including the window's content zoom. It is positive and matches Painter.Scale.
+func (c *context) DeviceScale() float32 { return c.rt.painted[2] }
+
 // TitleBar is the room the window controls take at the top of a window
 // with a hidden title bar, in DIPs: they sit in a band of Height along the
 // top edge, Left wide from the left edge and Right wide from the right.

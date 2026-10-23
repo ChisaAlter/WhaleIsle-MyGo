@@ -1,0 +1,442 @@
+﻿{
+    "runId":  "2026-10-23T23-39-50-451Z-b16a9598",
+    "status":  "failed",
+    "summary":  {
+                    "passedCases":  8,
+                    "failedCases":  1,
+                    "passedAssertions":  135,
+                    "failedAssertions":  1
+                },
+    "fixtureSha256":  "b764da0de84e4d1249adf4ce4c80ca4a5d0b7e08010e6036b9553d66367bdd71",
+    "runnerSha256":  "8b26d24e79e0df2ad8cf1108d2e314afde8c3a7e60a13cfee9b848089d4a87ff",
+    "port":  56712,
+    "pid":  12352,
+    "expandedRoot":  {
+                         "id":  "root",
+                         "parentId":  null,
+                         "depth":  0,
+                         "subtree":  {
+                                         "x":  40,
+                                         "y":  138,
+                                         "width":  640,
+                                         "height":  200.5,
+                                         "right":  680,
+                                         "bottom":  338.5
+                                     },
+                         "relativeToTree":  {
+                                                "x":  0,
+                                                "y":  0,
+                                                "width":  640,
+                                                "height":  200.5,
+                                                "right":  640,
+                                                "bottom":  200.5
+                                            },
+                         "relativeToParent":  null,
+                         "ownCard":  {
+                                         "x":  40,
+                                         "y":  138,
+                                         "width":  640,
+                                         "height":  114.5,
+                                         "right":  680,
+                                         "bottom":  252.5
+                                     },
+                         "ownRelative":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "width":  640,
+                                             "height":  114.5,
+                                             "right":  640,
+                                             "bottom":  114.5
+                                         },
+                         "row":  {
+                                     "x":  40,
+                                     "y":  138,
+                                     "width":  640,
+                                     "height":  24,
+                                     "right":  680,
+                                     "bottom":  162
+                                 },
+                         "subCalls":  {
+                                          "box":  {
+                                                      "x":  62,
+                                                      "y":  256.5,
+                                                      "width":  618,
+                                                      "height":  82,
+                                                      "right":  680,
+                                                      "bottom":  338.5
+                                                  },
+                                          "relative":  {
+                                                           "x":  22,
+                                                           "y":  118.5,
+                                                           "width":  618,
+                                                           "height":  82,
+                                                           "right":  640,
+                                                           "bottom":  200.5
+                                                       },
+                                          "style":  {
+                                                        "display":  "flex",
+                                                        "flexDirection":  "column",
+                                                        "gap":  "4px",
+                                                        "marginTop":  "4px",
+                                                        "marginRight":  "0px",
+                                                        "marginBottom":  "2px",
+                                                        "marginLeft":  "22px",
+                                                        "paddingTop":  "0px",
+                                                        "paddingRight":  "0px",
+                                                        "paddingBottom":  "0px",
+                                                        "paddingLeft":  "8px",
+                                                        "borderLeftWidth":  "1px",
+                                                        "borderLeftStyle":  "solid",
+                                                        "borderLeftColor":  "rgba(0, 0, 0, 0.1)",
+                                                        "borderRadius":  "0px",
+                                                        "boxSizing":  "content-box",
+                                                        "height":  "82px",
+                                                        "minWidth":  "0px",
+                                                        "overflow":  "visible",
+                                                        "lineHeight":  "normal",
+                                                        "fontSize":  "14px"
+                                                    },
+                                          "connector":  {
+                                                            "x":  62,
+                                                            "y":  256.5,
+                                                            "width":  1,
+                                                            "height":  82,
+                                                            "color":  "rgba(0, 0, 0, 0.1)",
+                                                            "declaredWidth":  ".5px"
+                                                        }
+                                      },
+                         "style":  {
+                                       "display":  "block",
+                                       "flexDirection":  "row",
+                                       "gap":  "normal",
+                                       "marginTop":  "0px",
+                                       "marginRight":  "0px",
+                                       "marginBottom":  "0px",
+                                       "marginLeft":  "0px",
+                                       "paddingTop":  "0px",
+                                       "paddingRight":  "0px",
+                                       "paddingBottom":  "0px",
+                                       "paddingLeft":  "0px",
+                                       "borderLeftWidth":  "0px",
+                                       "borderLeftStyle":  "none",
+                                       "borderLeftColor":  "rgb(15, 17, 21)",
+                                       "borderRadius":  "8px",
+                                       "boxSizing":  "content-box",
+                                       "height":  "200.5px",
+                                       "minWidth":  "0px",
+                                       "overflow":  "visible",
+                                       "lineHeight":  "normal",
+                                       "fontSize":  "14px"
+                                   },
+                         "cardStyle":  {
+                                           "display":  "flex",
+                                           "flexDirection":  "column",
+                                           "gap":  "normal",
+                                           "marginTop":  "0px",
+                                           "marginRight":  "0px",
+                                           "marginBottom":  "0px",
+                                           "marginLeft":  "0px",
+                                           "paddingTop":  "0px",
+                                           "paddingRight":  "0px",
+                                           "paddingBottom":  "0px",
+                                           "paddingLeft":  "0px",
+                                           "borderLeftWidth":  "0px",
+                                           "borderLeftStyle":  "none",
+                                           "borderLeftColor":  "rgb(15, 17, 21)",
+                                           "borderRadius":  "0px",
+                                           "boxSizing":  "content-box",
+                                           "height":  "114.5px",
+                                           "minWidth":  "0px",
+                                           "overflow":  "visible",
+                                           "lineHeight":  "normal",
+                                           "fontSize":  "14px"
+                                       },
+                         "rowStyle":  {
+                                          "display":  "flex",
+                                          "flexDirection":  "row",
+                                          "gap":  "normal",
+                                          "marginTop":  "0px",
+                                          "marginRight":  "0px",
+                                          "marginBottom":  "0px",
+                                          "marginLeft":  "0px",
+                                          "paddingTop":  "0px",
+                                          "paddingRight":  "0px",
+                                          "paddingBottom":  "0px",
+                                          "paddingLeft":  "0px",
+                                          "borderLeftWidth":  "0px",
+                                          "borderLeftStyle":  "none",
+                                          "borderLeftColor":  "rgb(103, 108, 114)",
+                                          "borderRadius":  "0px",
+                                          "boxSizing":  "content-box",
+                                          "height":  "24px",
+                                          "minWidth":  "0px",
+                                          "overflow":  "hidden",
+                                          "lineHeight":  "normal",
+                                          "fontSize":  "14px"
+                                      },
+                         "expanded":  true,
+                         "renderedText":  "Read\nsame/path/with-a-long-fixture-file-name.txt\nInput\n{\"value\": 1}\nOutput\nfixture result"
+                     },
+    "expandedChildren":  [
+                             {
+                                 "id":  "root",
+                                 "ownCard":  {
+                                                 "x":  40,
+                                                 "y":  138,
+                                                 "width":  640,
+                                                 "height":  114.5,
+                                                 "right":  680,
+                                                 "bottom":  252.5
+                                             },
+                                 "subtree":  {
+                                                 "x":  40,
+                                                 "y":  138,
+                                                 "width":  640,
+                                                 "height":  200.5,
+                                                 "right":  680,
+                                                 "bottom":  338.5
+                                             },
+                                 "relativeToTree":  {
+                                                        "x":  0,
+                                                        "y":  0,
+                                                        "width":  640,
+                                                        "height":  200.5,
+                                                        "right":  640,
+                                                        "bottom":  200.5
+                                                    }
+                             },
+                             {
+                                 "id":  "child",
+                                 "ownCard":  {
+                                                 "x":  71,
+                                                 "y":  256.5,
+                                                 "width":  609,
+                                                 "height":  24,
+                                                 "right":  680,
+                                                 "bottom":  280.5
+                                             },
+                                 "subtree":  {
+                                                 "x":  71,
+                                                 "y":  256.5,
+                                                 "width":  609,
+                                                 "height":  54,
+                                                 "right":  680,
+                                                 "bottom":  310.5
+                                             },
+                                 "relativeToTree":  {
+                                                        "x":  31,
+                                                        "y":  118.5,
+                                                        "width":  609,
+                                                        "height":  54,
+                                                        "right":  640,
+                                                        "bottom":  172.5
+                                                    }
+                             },
+                             {
+                                 "id":  "grandchild",
+                                 "ownCard":  {
+                                                 "x":  102,
+                                                 "y":  284.5,
+                                                 "width":  578,
+                                                 "height":  24,
+                                                 "right":  680,
+                                                 "bottom":  308.5
+                                             },
+                                 "subtree":  {
+                                                 "x":  102,
+                                                 "y":  284.5,
+                                                 "width":  578,
+                                                 "height":  24,
+                                                 "right":  680,
+                                                 "bottom":  308.5
+                                             },
+                                 "relativeToTree":  {
+                                                        "x":  62,
+                                                        "y":  146.5,
+                                                        "width":  578,
+                                                        "height":  24,
+                                                        "right":  640,
+                                                        "bottom":  170.5
+                                                    }
+                             },
+                             {
+                                 "id":  "sibling",
+                                 "ownCard":  {
+                                                 "x":  71,
+                                                 "y":  314.5,
+                                                 "width":  609,
+                                                 "height":  24,
+                                                 "right":  680,
+                                                 "bottom":  338.5
+                                             },
+                                 "subtree":  {
+                                                 "x":  71,
+                                                 "y":  314.5,
+                                                 "width":  609,
+                                                 "height":  24,
+                                                 "right":  680,
+                                                 "bottom":  338.5
+                                             },
+                                 "relativeToTree":  {
+                                                        "x":  31,
+                                                        "y":  176.5,
+                                                        "width":  609,
+                                                        "height":  24,
+                                                        "right":  640,
+                                                        "bottom":  200.5
+                                                    }
+                             }
+                         ],
+    "deepCompact":  [
+                        {
+                            "id":  "deep-0",
+                            "depth":  0,
+                            "relativeToTree":  {
+                                                   "x":  0,
+                                                   "y":  0,
+                                                   "width":  640,
+                                                   "height":  292,
+                                                   "right":  640,
+                                                   "bottom":  292
+                                               }
+                        },
+                        {
+                            "id":  "deep-1",
+                            "depth":  1,
+                            "relativeToTree":  {
+                                                   "x":  31,
+                                                   "y":  28,
+                                                   "width":  609,
+                                                   "height":  264,
+                                                   "right":  640,
+                                                   "bottom":  292
+                                               }
+                        },
+                        {
+                            "id":  "deep-2",
+                            "depth":  2,
+                            "relativeToTree":  {
+                                                   "x":  62,
+                                                   "y":  56,
+                                                   "width":  578,
+                                                   "height":  234,
+                                                   "right":  640,
+                                                   "bottom":  290
+                                               }
+                        },
+                        {
+                            "id":  "deep-3",
+                            "depth":  3,
+                            "relativeToTree":  {
+                                                   "x":  93,
+                                                   "y":  84,
+                                                   "width":  547,
+                                                   "height":  204,
+                                                   "right":  640,
+                                                   "bottom":  288
+                                               }
+                        },
+                        {
+                            "id":  "deep-4",
+                            "depth":  4,
+                            "relativeToTree":  {
+                                                   "x":  124,
+                                                   "y":  112,
+                                                   "width":  516,
+                                                   "height":  174,
+                                                   "right":  640,
+                                                   "bottom":  286
+                                               }
+                        },
+                        {
+                            "id":  "deep-5",
+                            "depth":  5,
+                            "relativeToTree":  {
+                                                   "x":  155,
+                                                   "y":  140,
+                                                   "width":  485,
+                                                   "height":  144,
+                                                   "right":  640,
+                                                   "bottom":  284
+                                               }
+                        },
+                        {
+                            "id":  "deep-6",
+                            "depth":  6,
+                            "relativeToTree":  {
+                                                   "x":  186,
+                                                   "y":  168,
+                                                   "width":  454,
+                                                   "height":  114,
+                                                   "right":  640,
+                                                   "bottom":  282
+                                               }
+                        },
+                        {
+                            "id":  "deep-7",
+                            "depth":  7,
+                            "relativeToTree":  {
+                                                   "x":  217,
+                                                   "y":  196,
+                                                   "width":  423,
+                                                   "height":  84,
+                                                   "right":  640,
+                                                   "bottom":  280
+                                               }
+                        },
+                        {
+                            "id":  "deep-8",
+                            "depth":  8,
+                            "relativeToTree":  {
+                                                   "x":  248,
+                                                   "y":  224,
+                                                   "width":  392,
+                                                   "height":  54,
+                                                   "right":  640,
+                                                   "bottom":  278
+                                               }
+                        },
+                        {
+                            "id":  "deep-9",
+                            "depth":  9,
+                            "relativeToTree":  {
+                                                   "x":  279,
+                                                   "y":  252,
+                                                   "width":  361,
+                                                   "height":  24,
+                                                   "right":  640,
+                                                   "bottom":  276
+                                               }
+                        }
+                    ],
+    "sources":  {
+                    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js":  {
+                                                                                                                               "sha256":  "15beaa6632f0c2d16c7d84ef25a1ca96725b8f8fc3c74decc79c1801540b994d",
+                                                                                                                               "bytes":  200350
+                                                                                                                           },
+                    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\ToolCallTree.js":  {
+                                                                                                                                                          "sha256":  "a506bbb34deff21a498c309155f633a013dc947a352cd8cf89a51cb7eb268835",
+                                                                                                                                                          "bytes":  3480
+                                                                                                                                                      },
+                    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\client.js":  {
+                                                                                                                                "sha256":  "20760845c9aa5a5dcc540b00a8a2ac0f638f6bebbd41abfea34e567e3ec83e2d",
+                                                                                                                                "bytes":  407989
+                                                                                                                            },
+                    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-l5jToo6l.css":  {
+                                                                                                                                 "sha256":  "443ab85817b4ed526b2fa3df2c98a3e9baf577880cc95259c128f0571067a122",
+                                                                                                                                 "bytes":  93073
+                                                                                                                             },
+                    "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-wKUmVWbt.js":  {
+                                                                                                                                "sha256":  "328188be7381f20aac74717a49c536adda26b52e12f244a36bc34507429d4398",
+                                                                                                                                "bytes":  1133102
+                                                                                                                            },
+                    "C:\\AI\\WhaleIsle-MyGo\\scripts\\inspector-reference-nested-tools.mjs":  {
+                                                                                                  "sha256":  "873edc9aaa48678c6c14e62aa220ae2aaf6de803530bfe5f396125d7791fb3f0",
+                                                                                                  "bytes":  61014
+                                                                                              },
+                    "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-layout.mjs":  {
+                                                                                            "sha256":  "8b26d24e79e0df2ad8cf1108d2e314afde8c3a7e60a13cfee9b848089d4a87ff",
+                                                                                            "bytes":  44866
+                                                                                        }
+                }
+}
