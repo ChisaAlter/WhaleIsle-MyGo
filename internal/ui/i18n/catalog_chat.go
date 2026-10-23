@@ -153,6 +153,25 @@ const (
 	KeyChatContextContent = "chat.context.model_content"
 	KeyChatContextCopy    = "chat.context.copy"
 	KeyChatContextClipped = "chat.context.clipped"
+	KeyChatToolAdded = "chat.context.tool_added"
+	KeyChatToolRemoved = "chat.context.tool_removed"
+	KeyChatToolsAdded = "chat.context.tools_added"
+	KeyChatToolsRemoved = "chat.context.tools_removed"
+	KeyChatToolsAddedCount = "chat.context.tools_added_count"
+	KeyChatToolsRemovedCount = "chat.context.tools_removed_count"
+	KeyChatToolsChanged = "chat.context.tools_changed"
+	KeyChatToolsUpdated = "chat.context.tools_updated"
+	KeyChatTriggerRequest = "chat.trigger.request"
+	KeyChatTriggerGoal = "chat.trigger.goal"
+	KeyChatTriggerAgent = "chat.trigger.agent"
+	KeyChatTriggerTeam = "chat.trigger.team"
+	KeyChatTriggerSubagent = "chat.trigger.subagent"
+	KeyChatTriggerGithub = "chat.trigger.github"
+	KeyChatTriggerWebhook = "chat.trigger.webhook"
+	KeyChatTriggerSchedule = "chat.trigger.schedule"
+	KeyChatTriggerJob = "chat.trigger.job"
+	KeyChatTriggerPlugin = "chat.trigger.plugin"
+	KeyChatTriggerExplanation = "chat.trigger.explanation"
 
 	// Group room transcript.
 	KeyChatGroupTitle   = "chat.group.title"
@@ -284,18 +303,7 @@ const (
 	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
 	KeyChatQuestionTakeTime = "chat.question.take_time"
 
-	// Turn failure cards: localized headline plus the raw Host error in details.
-	KeyChatFailureAPIKeyTitle = "chat.failure.api_key.title"
-	KeyChatFailureAPIKeyBody  = "chat.failure.api_key.body"
-	KeyChatFailureAuthTitle   = "chat.failure.auth.title"
-	KeyChatFailureAuthBody    = "chat.failure.auth.body"
-	KeyChatFailureQuotaTitle  = "chat.failure.quota.title"
-	KeyChatFailureQuotaBody   = "chat.failure.quota.body"
-	KeyChatFailureInterruptedTitle = "chat.failure.interrupted.title"
-	KeyChatFailureInterruptedBody  = "chat.failure.interrupted.body"
-	KeyChatFailureDetails     = "chat.failure.details"
-	KeyChatFailureDetailsHide = "chat.failure.details_hide"
-	KeyChatOpenModelSettings  = "chat.failure.open_model_settings"
+	KeyChatAccountStopped = "chat.failure.account_stopped"
 
 	// Search / web / todo evidence blocks.
 	KeyChatToolNoMatches = "chat.tool.no_matches"
@@ -462,8 +470,27 @@ func init() {
 	Register(KeyChatIsolatedVisible, "当前可见时加载真实运行资源", "Loads the real runtime when visible")
 
 	// Context injection.
-	Register(KeyChatContextTitle, "上下文注入", "Injected context")
-	Register(KeyChatContextRecall, "会话回忆", "Recalled context")
+	Register(KeyChatContextTitle, "上下文注入", "Context injection")
+	Register(KeyChatContextRecall, "跨会话召回", "Session recall")
+	Register(KeyChatToolAdded, "已添加工具：%s", "Tool added: %s")
+	Register(KeyChatToolRemoved, "已移除工具：%s", "Tool removed: %s")
+	Register(KeyChatToolsAdded, "新增：%s", "Added: %s")
+	Register(KeyChatToolsRemoved, "移除：%s", "Removed: %s")
+	Register(KeyChatToolsAddedCount, "新增 %d 个", "%d added")
+	Register(KeyChatToolsRemovedCount, "移除 %d 个", "%d removed")
+	Register(KeyChatToolsChanged, "新增 %d 个，移除 %d 个", "%d added, %d removed")
+	Register(KeyChatToolsUpdated, "工具已更新", "Tools updated")
+	Register(KeyChatTriggerRequest, "收到执行请求", "Execution requested")
+	Register(KeyChatTriggerGoal, "继续执行目标", "Continuing goal")
+	Register(KeyChatTriggerAgent, "收到任务消息", "Task message received")
+	Register(KeyChatTriggerTeam, "收到团队消息", "Team message received")
+	Register(KeyChatTriggerSubagent, "子任务状态更新", "Subtask status updated")
+	Register(KeyChatTriggerGithub, "收到 GitHub 事件", "GitHub event received")
+	Register(KeyChatTriggerWebhook, "收到外部事件", "External event received")
+	Register(KeyChatTriggerSchedule, "自动化任务", "Automation task")
+	Register(KeyChatTriggerJob, "后台任务状态更新", "Background task updated")
+	Register(KeyChatTriggerPlugin, "插件状态更新", "Plugin status updated")
+	Register(KeyChatTriggerExplanation, "这条通知触发了本轮回复。", "This notification triggered this response.")
 	Register(KeyChatContextContent, "模型可见内容", "Model-facing content")
 	Register(KeyChatContextCopy, "复制上下文", "Copy context")
 	Register(KeyChatContextClipped, "展示已截断；复制可获取完整内容。", "Display clipped; copy includes full content.")
@@ -574,10 +601,10 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatWorkbookCopyShownTSV, "复制本页显示 TSV", "Copy displayed page TSV")
 	Register(KeyChatOpenUIRetry, "重试内联 UI", "Retry inline UI")
 	Register(KeyChatOpenUIClose, "关闭交互 UI", "Close interactive UI")
-	Register(KeyChatRetryAuthFailed, "身份验证失败，请检查登录状态。", "Authentication failed. Check your sign-in.")
-	Register(KeyChatRetrySignedOut, "已停止，因为你已退出 DeepSeek。", "Stopped because you signed out of DeepSeek.")
-	Register(KeyChatRetrySignIn, "请先登录 DeepSeek。", "Sign in to DeepSeek to continue.")
-	Register(KeyChatRetryQuota, "额度不足。", "Account quota exhausted.")
+	Register(KeyChatRetryAuthFailed, "API 密钥无效", "API key is invalid")
+	Register(KeyChatRetrySignedOut, "任务已因退出 DeepSeek 登录而停止。", "Stopped because you signed out of DeepSeek.")
+	Register(KeyChatRetrySignIn, "请先登录 DeepSeek，并确认请求地址支持账号认证。", "Sign in to DeepSeek and ensure the request destination supports account authentication.")
+	Register(KeyChatRetryQuota, "当前请求的额度已用尽", "Request quota exhausted.")
 	Register(KeyChatRetryAwaitingHost, "等待 Host", "Awaiting Host")
 	Register(KeyChatVisualPublished, "已发布 HTML", "Published HTML")
 	Register(KeyChatVisualIsolatedNote, "在隔离进程中的卡片表面运行控件和脚本；不开放网络、本机文件、应用权限或持久登录。", "Runs this page in an isolated process without network, local files or persistent sign-in.")
@@ -595,17 +622,7 @@ Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
 	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
 	Register(KeyChatQuestionTakeTime, "让我慢慢回答", "Take my time")
-	Register(KeyChatFailureAPIKeyTitle, "还没有配置 API Key", "No API key yet")
-	Register(KeyChatFailureAPIKeyBody, "当前模型路线需要可用的 API Key。打开设置 → 模型填入后即可开始对话；原始错误仍在详情里。", "This route needs a working API key. Add one in Settings → Models to start chatting; the raw error stays under details.")
-	Register(KeyChatFailureAuthTitle, "API Key 无效", "API key is invalid")
-	Register(KeyChatFailureAuthBody, "Host 拒绝了这个 API Key。请在设置 → 模型里检查后重试。", "The Host rejected this key. Check it in Settings → Models and try again.")
-	Register(KeyChatFailureQuotaTitle, "额度不足", "Quota exhausted")
-	Register(KeyChatFailureQuotaBody, "账户额度或余额不足，本次请求没有发出。", "The account has no quota or balance left, so this request was not sent.")
-	Register(KeyChatFailureInterruptedTitle, "已中断", "Interrupted")
-	Register(KeyChatFailureInterruptedBody, "本次运行已被中断，可以重新发送。", "This turn was interrupted; send it again to continue.")
-	Register(KeyChatFailureDetails, "详情", "Details")
-	Register(KeyChatFailureDetailsHide, "收起", "Hide")
-	Register(KeyChatOpenModelSettings, "打开模型设置", "Open model settings")
+	Register(KeyChatAccountStopped, "任务已停止", "Task stopped")
 
 	Register(KeyChatToolNoMatches, "没有命中", "No matches")
 	Register(KeyChatToolMoreHits, "还有 %d 条", "%d more")

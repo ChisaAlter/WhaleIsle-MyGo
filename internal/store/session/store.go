@@ -61,6 +61,8 @@ const (
 
 // Message is one chat line from session/follow persistence or streaming.
 type Message struct {
+	// ContextWaking is a drawing fact derived from the loaded Inbox claims.
+	ContextWaking       bool
 	AutomaticCompaction *ManualCompactionView
 	Retry               *RetryStatus
 	TurnDelivery        *TurnDelivery
@@ -677,6 +679,7 @@ func (s *Store) Snapshot() ViewState {
 	st.Messages = s.projectTrajectoryTimingLocked(st.Messages)
 	st.Messages = s.projectRetryMessagesLocked(st.Messages)
 	st.Messages = s.projectSystemPromptsLocked(st.Messages)
+	st.Messages = s.projectContextTriggersLocked(st.Messages)
 	st.TrajectoryRequestHeaders = s.trajectoryRequestHeadersLocked()
 	st.TrajectoryRequests = s.trajectoryRequestsLocked()
 	st.WorkflowRuns = s.workflowRunsLocked(st.Messages)

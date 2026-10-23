@@ -1,116 +1,87 @@
 package chat
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-func TestClassifyTurnFailureRecognizesAPIKeyErrors(t *testing.T) {
-	cases := []struct {
-		body string
-		code string
-		kind turnFailureKind
+func TestTerminalFailureUsesStableCodeAndKeepsUncodedReason(t *testing.T) {
+	for _, tc := range []struct {
+		code, raw, want string
 	}{
-		{"llm-deepseek: no API key for provider route deepseek/deepseek-chat", "", turnFailureAPIKey},
-		{"no API key configured", "MISSING_API_KEY", turnFailureAPIKey},
-		{"请求失败：未配置 API Key", "", turnFailureAPIKey},
-		{"invalid API key", "AUTH", turnFailureAuth},
-		{"account quota exhausted", "QUOTA", turnFailureQuota},
-		{"run interrupted by user", "INTERRUPTED", turnFailureInterrupted},
-		{"HTTP 502 from upstream", "", turnFailureGeneric},
-	}
-	for _, tc := range cases {
-		got := classifyTurnFailure(tc.body, tc.code)
-		if got.Kind != tc.kind {
-			t.Fatalf("classify(%q, %q) = %v, want %v", tc.body, tc.code, got.Kind, tc.kind)
+		{"", "llm-deepseek: no API key for provider route deepseek-official", "llm-deepseek: no API key for provider route deepseek-official"},
+		{"AUTH", "credential fragment must not reach Chat", i18n.T(i18n.KeyChatRetryAuthFailed)},
+		{"ACCOUNT_SIGNED_OUT", "raw sign-out", i18n.T(i18n.KeyChatRetrySignedOut)},
+		{"ACCOUNT_SIGN_IN_REQUIRED", "raw sign-in", i18n.T(i18n.KeyChatRetrySignIn)},
+		{"QUOTA", "raw quota", i18n.T(i18n.KeyChatRetryQuota)},
+		{"ACCOUNT_QUOTA", "raw account quota", i18n.T(i18n.KeyChatRetryQuota)},
+		{"TIMEOUT", "upstream timeout", "upstream timeout"},
+	} {
+		raw, _ := json.Marshal(map[string]any{"data": map[string]any{"reason": map[string]any{"kind": "error", "error": map[string]any{"message": tc.raw, "code": tc.code}}}})
+		msg := session.Message{Raw: raw}
+		got, ok := terminalFailure(msg)
+		if !ok || got.Message != tc.want || got.Code != tc.code {
+			t.Fatalf("failure %q = %+v, %v", tc.code, got, ok)
 		}
-		if got.Title == "" {
-			t.Fatalf("classify(%q) produced no headline", tc.body)
-		}
-		if got.Raw != strings.TrimSpace(tc.body) {
-			t.Fatalf("classify(%q) dropped the raw text: %q", tc.body, got.Raw)
-		}
-		if tc.kind == turnFailureGeneric && got.Action != "" {
-			t.Fatalf("generic failure must not offer an action: %q", got.Action)
-		}
-		if tc.kind == turnFailureAPIKey && got.Action != i18n.T(i18n.KeyChatOpenModelSettings) {
-			t.Fatalf("api-key failure action = %q", got.Action)
+		if string(msg.Raw) != string(raw) || !strings.Contains(string(msg.Raw), tc.raw) {
+			t.Fatal("presentation changed retained failure")
 		}
 	}
 }
 
-func TestSplitTurnFailureKeepsTheHostCode(t *testing.T) {
+func TestTurnFailureIsInlineWithoutExtraActions(t *testing.T) {
+	raw := "llm-deepseek: no API key for provider route deepseek-official"
+	for _, width := range []int{280, 760} {
+		tt := ui.NewTester(func(c *ui.Context) {
+			ui.Column(c).FillWidth().Padding(12).Children(func() {
+				paintTurnFailure(c, turnFailure{Message: raw, Code: "MISSING_CREDENTIAL"}, theme.Resolve("deepseek.light").Light)
+			})
+		}, width, 320)
+		for _, want := range []string{i18n.T(i18n.KeyChatRunFailed), raw, "MISSING_CREDENTIAL"} {
+			if !tt.HasText(want) {
+				t.Fatalf("width %d lost %q: %q", width, want, tt.Texts())
+			}
+		}
+		for _, unwanted := range []string{"还没有配置 API Key", "No API key yet", "打开模型设置", "Open model settings", "详情", "Details"} {
+			if tt.HasText(unwanted) {
+				t.Fatalf("extra failure action/copy %q", unwanted)
+			}
+		}
+		if _, ok := tt.Find("MISSING_CREDENTIAL"); !ok {
+			t.Fatal("provider code was merged into the message")
+		}
+	}
+}
+
+func TestAccountSignOutIsATerminalNotice(t *testing.T) {
+	msg := session.Message{Raw: json.RawMessage(`{"data":{"reason":{"kind":"aborted","reason":{"kind":"hook","reason":"deepseek-account/signed-out"}}}}`)}
+	failure, ok := terminalFailure(msg)
+	if !ok || failure.Code != "ACCOUNT_SIGNED_OUT" {
+		t.Fatalf("sign-out notice lost: %+v", failure)
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintTurnFailure(c, failure, theme.Resolve("deepseek.light").Light)
+	}, 760, 160)
+	if !tt.HasText(i18n.T(i18n.KeyChatAccountStopped)) || !tt.HasText(i18n.T(i18n.KeyChatRetrySignedOut)) {
+		t.Fatalf("sign-out copy lost: %q", tt.Texts())
+	}
+	for _, reason := range []string{`{"kind":"complete"}`, `{"kind":"max-tokens"}`, `{"kind":"aborted","reason":{"kind":"user"}}`} {
+		if _, ok := terminalFailure(session.Message{Raw: json.RawMessage(`{"data":{"reason":` + reason + `}}`)}); ok {
+			t.Fatalf("nonfailure %s became a terminal error", reason)
+		}
+	}
+}
+
+func TestSplitTurnFailureKeepsLegacyHostCode(t *testing.T) {
 	text, code := splitTurnFailure("llm-deepseek: no API key for provider route x MISSING_API_KEY")
-	if strings.Contains(text, "MISSING_API_KEY") {
-		t.Fatalf("code leaked into the headline text: %q", text)
-	}
-	if code != "MISSING_API_KEY" {
-		t.Fatalf("code = %q", code)
-	}
-}
-
-// The card leads with a localized sentence and an action; the raw Host error
-// only appears after the details toggle and is never dropped.
-func TestTurnFailureCardLocalizesAndKeepsRawDetails(t *testing.T) {
-	raw := "llm-deepseek: no API key for provider route deepseek/deepseek-chat"
-	opened := 0
-	palette := theme.Resolve("deepseek.light").Light
-	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).FillWidth().Padding(12).Children(func() {
-			paintTurnFailure(c, "m1", classifyTurnFailure(raw, "MISSING_API_KEY"), palette,
-				ui.RGB(20, 20, 20), ui.RGB(110, 110, 110), func() { opened++ })
-		})
-	}, 760, 320)
-	if !tt.HasText(i18n.T(i18n.KeyChatFailureAPIKeyTitle)) {
-		t.Fatalf("localized headline missing: %q", tt.Texts())
-	}
-	if !tt.HasText(i18n.T(i18n.KeyChatFailureAPIKeyBody)) {
-		t.Fatalf("localized explanation missing: %q", tt.Texts())
-	}
-	if tt.HasText(raw) {
-		t.Fatal("raw Host error is visible before the details toggle")
-	}
-	if err := tt.Click(i18n.T(i18n.KeyChatFailureDetails)); err != nil {
-		t.Fatalf("details toggle missing: %v", err)
-	}
-	if !tt.HasText(raw) {
-		t.Fatalf("raw Host error lost after expanding: %q", tt.Texts())
-	}
-	if !tt.HasText("MISSING_API_KEY") {
-		t.Fatalf("host code lost: %q", tt.Texts())
-	}
-	if err := tt.Click(i18n.T(i18n.KeyChatOpenModelSettings)); err != nil {
-		t.Fatalf("model settings action missing: %v", err)
-	}
-	if opened != 1 {
-		t.Fatalf("open model settings calls = %d", opened)
-	}
-}
-
-// Without a wired action the card still explains the failure and keeps details.
-func TestTurnFailureCardWithoutActionStaysReadable(t *testing.T) {
-	raw := "HTTP 502 from upstream"
-	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).FillWidth().Padding(12).Children(func() {
-			paintTurnFailure(c, "m2", classifyTurnFailure(raw, ""), theme.Resolve("deepseek.light").Light,
-				ui.RGB(20, 20, 20), ui.RGB(110, 110, 110), nil)
-		})
-	}, 760, 240)
-	if !tt.HasText(i18n.T(i18n.KeyChatRunFailed)) {
-		t.Fatalf("generic headline missing: %q", tt.Texts())
-	}
-	if tt.HasText(i18n.T(i18n.KeyChatOpenModelSettings)) {
-		t.Fatal("generic failure must not advertise model settings")
-	}
-	if err := tt.Click(i18n.T(i18n.KeyChatFailureDetails)); err != nil {
-		t.Fatalf("details toggle missing: %v", err)
-	}
-	if !tt.HasText(raw) {
-		t.Fatalf("raw error lost: %q", tt.Texts())
+	if strings.Contains(text, "MISSING_API_KEY") || code != "MISSING_API_KEY" {
+		t.Fatalf("legacy failure = %q %q", text, code)
 	}
 }

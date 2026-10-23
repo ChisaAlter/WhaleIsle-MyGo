@@ -10,10 +10,11 @@ import (
 // Inspector retains only the existing, authorized Session window. It never
 // reads Host files, creates another subscription, or uploads log contents.
 type sessionInspectorState struct {
-	client     *dsh.Client
-	session    string
-	generation uint64
-	events     map[float64]json.RawMessage
+	client        *dsh.Client
+	session       string
+	generation    uint64
+	events        map[float64]json.RawMessage
+	contextWaking map[float64]bool
 }
 type InspectorRecord struct {
 	Key, Parent, Type string
@@ -31,20 +32,22 @@ func (s *Store) resetInspectorLocked() {
 func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
 	var h struct {
 		Type string
-		Seq  float64
+		Seq  *float64
 	}
-	if json.Unmarshal(raw, &h) != nil || h.Type == "" || h.Seq <= 0 {
+	if json.Unmarshal(raw, &h) != nil || h.Type == "" || h.Seq == nil || *h.Seq < 0 {
 		return false
 	}
+	seq := *h.Seq
 	if s.inspector.events == nil || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		s.resetInspectorLocked()
 	}
-	if string(s.inspector.events[h.Seq]) == string(raw) {
+	if string(s.inspector.events[seq]) == string(raw) {
 		return false
 	}
 	// Follow/page hand us immutable decoded event bytes. Retain that window
 	// without duplicating its payload; snapshots copy before exposing it.
-	s.inspector.events[h.Seq] = raw
+	s.inspector.events[seq] = raw
+	s.inspector.contextWaking = nil
 	return true
 }
 func inspectorRecord(key, parent string, raw json.RawMessage) InspectorRecord {

@@ -242,18 +242,16 @@ func TestTranscriptGalleryToolKinds(t *testing.T) {
 	writeGallery(t, dir, "transcript-tool-kinds.png", tt)
 }
 
-// transcript-turn-failure.png — a failed turn with no API key: localized
-// headline, the fix action and the raw Host error behind the details toggle.
+// transcript-turn-failure.png — inline terminal error notices: the missing-key
+// reason stays visible, while coded authentication errors use localized copy.
 func TestTranscriptGalleryTurnFailure(t *testing.T) {
 	dir := galleryDir(t)
-	colors, fg, muted := galleryTheme()
-	raw := "llm-deepseek: no API key for provider route deepseek/deepseek-chat MISSING_API_KEY"
+	colors, _, _ := galleryTheme()
+	raw := "llm-deepseek: no API key for provider route deepseek/deepseek-chat"
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(18).Children(func() {
-			paintTurnFailure(c, "api-key", classifyTurnFailure(raw, "MISSING_API_KEY"), colors, fg, muted, func() {})
-			details := ui.Local(c.Root(), "turn-failure-details", func() bool { return false })
-			_ = details
-			paintTurnFailure(c, "generic", classifyTurnFailure("HTTP 502 from upstream", ""), colors, fg, muted, nil)
+			paintTurnFailure(c, turnFailure{Message: raw}, colors)
+			paintTurnFailure(c, turnFailure{Message: i18n.T(i18n.KeyChatRetryAuthFailed), Code: "AUTH"}, colors)
 		})
 	}, 1200, 320)
 	writeGallery(t, dir, "transcript-turn-failure.png", tt)

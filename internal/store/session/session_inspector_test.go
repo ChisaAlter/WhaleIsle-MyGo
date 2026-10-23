@@ -8,6 +8,16 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
+func TestSessionInspectorRetainsExplicitZeroSequence(t *testing.T) {
+	s := New()
+	s.selectedID = "s"
+	s.applyFollowFrame(json.RawMessage(`{"type":"snapshot","records":[{"type":"event","event":{"type":"agent/inbox/spliced","seq":0,"data":{"target":"next-turn","start":0,"inserted":[{"id":"wake","source":{"kind":"schedule"}}]}}},{"type":"event","event":{"type":"missing-sequence"}}]}`))
+	rows := s.InspectorSnapshot().Records
+	if len(rows) != 1 || rows[0].Seq != 0 || rows[0].Type != "agent/inbox/spliced" {
+		t.Fatalf("zero-based durable sequence was discarded: %+v", rows)
+	}
+}
+
 func TestSessionInspectorWindowOwnershipAndUnknownEvents(t *testing.T) {
 	s := New()
 	s.client = &dsh.Client{}

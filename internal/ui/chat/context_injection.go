@@ -16,13 +16,15 @@ func ContextInjectionView(c *ui.Context, msg session.Message, scope string, fg, 
 	box := ui.Column(c.Key(key)).FillWidth().Gap(4)
 	open := ui.Local(box, "open", func() bool { return false })
 	box.Children(func() {
-		title := historyNavigationText(i18n.T(i18n.KeyChatContextTitle), "Injected context")
-		if v.Role == "recall" {
-			title = historyNavigationText(i18n.T(i18n.KeyChatContextRecall), "Recalled context")
+		if paintToolContext(c, msg, key, open, muted) {
+			return
 		}
-		title += " · " + clipReadOnlyText(v.Producer, 512)
-		if v.Form != "" {
-			title += " · " + v.Form
+		title := i18n.T(i18n.KeyChatContextTitle)
+		if v.Role == "recall" {
+			title = i18n.T(i18n.KeyChatContextRecall)
+		}
+		if v.Producer != "" && v.Producer != "unknown" {
+			title += " · " + clipReadOnlyText(v.Producer, 512)
 		}
 		marker := "▸"
 		if *open {

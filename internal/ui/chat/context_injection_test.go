@@ -11,7 +11,7 @@ import (
 func TestInjectedContextUsesReadOnlyDisclosure(t *testing.T) {
 	msg := session.Message{ID: "ctx", Seq: 1, Kind: session.MessageKindContext, Role: "context", Body: "model-facing instructions", Raw: json.RawMessage(`{"type":"user/message","data":{"source":{"kind":"agent-instructions","form":"instructions","changes":[{"path":"AGENTS.md","action":"add"}]}}}`)}
 	snap := session.ViewState{SelectedID: "one", Messages: []session.Message{msg}}
-	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Snapshot: snap}) }, 800, 1000)
+	tt := ui.NewTester(func(c *ui.Context) { ContextInjectionView(c, snap.Messages[0], snap.SelectedID, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 800, 1000)
 	if _, ok := tt.Find("User message bubble"); ok {
 		t.Fatal("context uses human bubble")
 	}

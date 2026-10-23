@@ -12,21 +12,6 @@ import (
 	"whaleisle/internal/ui/launcher"
 )
 
-// openModelSettings opens Settings on the Models page; every failed-turn card
-// uses the same destination as the settings rail.
-func (s *mainState) openModelSettings() {
-	s.mu.Lock()
-	s.settingsEmbeddedSection = "models"
-	s.settingsOpen = true
-	s.settingsDesktopActive = false
-	s.settingsModelsActive = true
-	settings := s.settings
-	s.mu.Unlock()
-	if settings != nil {
-		settings.OpenSettingsDocument(context.Background())
-	}
-}
-
 func connectionUnavailableMessage(bootstrapError string, offline, lost bool) string {
 	if bootstrapError != "" {
 		return bootstrapError
@@ -161,7 +146,6 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 			settings.OpenSettingsDocument(context.Background())
 		}
 	}
-	m.OnOpenModelSettings = s.openModelSettings
 	m.OnNoDirectory = func() {
 		s.selectMainPanel("")
 		snap := sessions.Snapshot()

@@ -6511,7 +6511,6 @@ func mainView(c *ui.Context) {
 						PageShortcutBindings: state.pageShortcutBindings(),
 						SessionSearchFocus:   &state.commandSearchFocus,
 						OnOpenWorkspaceFiles: func() { filesPaneOpen = true; rightPaneTab = "files" },
-						OnOpenModelSettings:  state.openModelSettings,
 						Store:                sessions,
 						ScheduleStore:        schedStore,
 						OnOpenScheduleTask: func(row schedstore.Entry) {

@@ -113,9 +113,11 @@ func TestLifecycleErrorIsSelectedSessionScoped(t *testing.T) {
 	if s.Snapshot().LastAction != "" {
 		t.Fatal("background session error replaced foreground status")
 	}
+	s.lastAction = "current action"
 	receiveLifecycle(t, s, "api-session/error", `"B"`, `"B failed"`)
-	if s.Snapshot().LastAction != "B failed" {
-		t.Fatal("selected session error not reported")
+	got := s.Snapshot()
+	if got.LastAction != "current action" || got.Items[0].ContactError != "A failed" || got.Items[1].ContactError != "B failed" {
+		t.Fatal("agent error lost its session identity or replaced action feedback")
 	}
 }
 

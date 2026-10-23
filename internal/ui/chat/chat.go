@@ -25,9 +25,6 @@ type Model struct {
 	OpenUIParent          uintptr
 	OpenUIWindow          *mygo.Window
 	OpenUIMediaOcclusions []mygo.Rectangle
-	// OnOpenModelSettings opens Settings → Models, the place a failed turn tells the
-	// user to fix a missing or rejected API key.
-	OnOpenModelSettings func()
 	// OnInspectToolCall opens the session inspector at the record that carries a
 	// tool call. The message ID and sequence travel with the call ID so the
 	// inspector can select the exact log row instead of guessing.
@@ -114,7 +111,7 @@ func View(c *ui.Context, m Model) {
 	_ = colors.BG
 
 	msgs := session.ProjectTurnDeliveryMessages(session.ProjectToolMessages(session.ProjectWorkflowMessages(session.WithSubmittedPlanCards(m.Snapshot.Messages), m.Snapshot.WorkflowRuns)))
-	msgs, transcriptControls := projectTranscript(msgs, m)
+	msgs, transcriptControls := projectTranscript(visibleChatMessages(msgs), m)
 	actionTargets := assistantActionTargets(msgs)
 	list := m.List
 	if list == nil {
@@ -189,7 +186,11 @@ func View(c *ui.Context, m Model) {
 						return
 					}
 					if msg.Kind == session.MessageKindContext {
-						ContextInjectionView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
+						if msg.ContextWaking {
+							TurnTriggerView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, colors)
+						} else {
+							ContextInjectionView(row.Context, msg, m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, fg, muted)
+						}
 						return
 					}
 					if msg.Kind == session.MessageKindSystemPrompt {
@@ -223,11 +224,8 @@ func View(c *ui.Context, m Model) {
 						key := "turn-end:" + msg.ID
 						open := isThinkingExpanded(m.ThinkingExpanded, key)
 						detail := terminalReasonDetail(msg)
-						if turnStatusKind(msg) == "failed" && detail != "" {
-							// A failed turn keeps its raw host reason but shows the same
-							// actionable, localized card as a system failure. Without this
-							// the strip read only 「运行失败」until the user expanded it.
-							paintTurnFailure(row.Context, "turn-end:"+msg.ID, classifyTurnFailure(detail, ""), colors, fg, muted, m.OnOpenModelSettings)
+						if failure, ok := terminalFailure(msg); ok {
+							paintTurnFailure(row.Context, failure, colors)
 							TurnUsageView(row.Context, m, msg, muted)
 							return
 						}
@@ -257,7 +255,7 @@ func View(c *ui.Context, m Model) {
 					// Electron chat: system failures as red banner; no role chips on user/assistant.
 					if isSystem {
 						text, code := splitTurnFailure(msg.Body)
-						paintTurnFailure(row.Context, msg.ID, classifyTurnFailure(text, code), colors, fg, muted, m.OnOpenModelSettings)
+						paintTurnFailure(row.Context, turnFailure{Message: text, Code: code}, colors)
 						return
 					}
 					if msg.Kind != session.MessageKindText || (msg.Role != "user" && msg.Role != "assistant") {

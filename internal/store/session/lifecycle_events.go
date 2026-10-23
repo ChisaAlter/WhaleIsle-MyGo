@@ -265,11 +265,9 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			s.selectSessionLocked("")
 		}
 	case "api-session/error":
+		// Live agent failures retain their session identity. Turn errors have
+		// their own durable transcript row and are not shell action feedback.
 		s.items[index].ContactError = m.message
-		if !live || s.selectedID != m.sessionID {
-			return true
-		}
-		s.lastAction = m.message
 	}
 	return true
 }
