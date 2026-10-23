@@ -125,7 +125,7 @@ func terminalTabLabel(pane *terminalPane, ordinal int) string {
 		return ""
 	}
 	if pane.term != nil {
-		if title := strings.TrimSpace(pane.term.Title()); title != "" {
+		if title := friendlyTerminalTitle(strings.TrimSpace(pane.term.Title())); title != "" {
 			if runes := []rune(title); len(runes) > 40 {
 				return string(runes[:40]) + "…"
 			}
@@ -133,4 +133,34 @@ func terminalTabLabel(pane *terminalPane, ordinal int) string {
 		}
 	}
 	return fmt.Sprintf(terminalLabel("终端 %d", "Terminal %d"), ordinal)
+}
+
+// friendlyTerminalTitle turns a shell's OSC path title into the program name, so
+// a chip reads "PowerShell" instead of a truncated C:\WINDOWS\System32 path.
+func friendlyTerminalTitle(title string) string {
+	if title == "" {
+		return ""
+	}
+	normalized := strings.ReplaceAll(title, "\\", "/")
+	if !strings.Contains(normalized, "/") {
+		return title
+	}
+	base := normalized[strings.LastIndex(normalized, "/")+1:]
+	if dot := strings.LastIndex(base, "."); dot > 0 {
+		base = base[:dot]
+	}
+	switch strings.ToLower(base) {
+	case "powershell", "pwsh":
+		return "PowerShell"
+	case "cmd":
+		return terminalLabel("命令提示符", "Command Prompt")
+	case "bash":
+		return "Bash"
+	case "wsl":
+		return "WSL"
+	}
+	if base != "" {
+		return base
+	}
+	return title
 }
