@@ -280,7 +280,7 @@ func View(c *ui.Context, m Model) {
 						shell.term.SetTheme(native, native)
 						shell.appearanceColors = colors
 					}
-					surface := myterm.View(c, shell.term).Fill().Grow(1).FocusBind(&p.focused, shell.id)
+					surface := myterm.View(c, shell.term).Fill().Grow(1).Margin(4, 8, 4, 8).FocusBind(&p.focused, shell.id)
 					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
 						bounds := surface.Bounds()
 						ui.Overlay(c, func() {
