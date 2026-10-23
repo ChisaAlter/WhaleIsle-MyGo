@@ -1,0 +1,154 @@
+[
+  {
+    "Key": "event:0",
+    "Parent": "",
+    "Type": "turn/start",
+    "Identity": "0",
+    "Location": "1",
+    "Seq": 0,
+    "Time": 1792759200000,
+    "Raw": {
+      "type": "turn/start",
+      "seq": 0,
+      "time": 1792759200000,
+      "data": {
+        "turn": 1
+      }
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:1",
+    "Parent": "event:0",
+    "Type": "step/start",
+    "Identity": "1",
+    "Location": "1/0",
+    "Seq": 1,
+    "Time": 1792759200100,
+    "Raw": {
+      "type": "step/start",
+      "seq": 1,
+      "time": 1792759200100,
+      "data": {
+        "turn": 1,
+        "step": 0
+      }
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a",
+    "Parent": "event:1",
+    "Type": "assistant/live",
+    "Identity": "stream-a",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200240,
+    "Raw": {
+      "attemptId": "stream-a",
+      "turn": 1,
+      "step": 0,
+      "chunks": 5
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "a65c5297f916b33b184839f59935cbb1",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:0",
+    "Parent": "attempt:stream-a",
+    "Type": "block-start",
+    "Identity": "0",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200200,
+    "Raw": {
+      "type": "block-start",
+      "index": 0,
+      "blockType": "reasoning"
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "blockType: reasoning · first second",
+    "ChatID": "a65c5297f916b33b184839f59935cbb1",
+    "ChatPickID": "a65c5297f916b33b184839f59935cbb1"
+  },
+  {
+    "Key": "attempt:stream-a/chunk:1",
+    "Parent": "attempt:stream-a/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "1",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200210,
+    "Raw": {
+      "type": "reasoning-delta",
+      "index": 0,
+      "text": "first "
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "a65c5297f916b33b184839f59935cbb1",
+    "ChatPickID": "a65c5297f916b33b184839f59935cbb1"
+  },
+  {
+    "Key": "attempt:stream-a/chunk:4",
+    "Parent": "attempt:stream-a/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "4",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200240,
+    "Raw": {
+      "type": "reasoning-delta",
+      "index": 0,
+      "text": "second"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "a65c5297f916b33b184839f59935cbb1",
+    "ChatPickID": "a65c5297f916b33b184839f59935cbb1"
+  },
+  {
+    "Key": "attempt:stream-a/chunk:2",
+    "Parent": "attempt:stream-a",
+    "Type": "block-start",
+    "Identity": "2",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200220,
+    "Raw": {
+      "type": "block-start",
+      "index": 1,
+      "blockType": "text"
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "",
+    "ChatID": "e024891c4383e995e15ff78f8bcfcab2",
+    "ChatPickID": "e024891c4383e995e15ff78f8bcfcab2"
+  },
+  {
+    "Key": "attempt:stream-a/chunk:3",
+    "Parent": "attempt:stream-a/chunk:2",
+    "Type": "text-delta",
+    "Identity": "3",
+    "Location": "1/0",
+    "Seq": 0,
+    "Time": 1792759200230,
+    "Raw": {
+      "type": "text-delta",
+      "index": 1,
+      "text": "answer"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "e024891c4383e995e15ff78f8bcfcab2",
+    "ChatPickID": "e024891c4383e995e15ff78f8bcfcab2"
+  }
+]

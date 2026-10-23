@@ -256,6 +256,7 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 				}
 			}
 		}
+		s.pruneInspectorSettlementsLocked()
 		s.restoreAssistantStreamLocked(snap.AssistantStream)
 		if snap.Projections != nil {
 			s.applyQueueValuesLocked(snap.Projections.Values, snap.Projections.AsOfSeq)

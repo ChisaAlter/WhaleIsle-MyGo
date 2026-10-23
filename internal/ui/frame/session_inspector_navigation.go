@@ -128,7 +128,7 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 	p.navigation = chat.InspectorNavigation{SessionID: sessionID}
 	p.closeInspectorDetails()
 	p.draft = p.Filter
-	p.collapsed = map[string]bool{}
+	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
 }
@@ -138,8 +138,20 @@ func inspectorPickRecord(rows []session.InspectorRecord, target chat.InspectorTa
 			return r.Key
 		}
 	}
+	if target.ID != "" {
+		for _, r := range rows {
+			if r.ChatPickID == target.ID && r.Type == "block-start" {
+				return r.Key
+			}
+		}
+		for _, r := range rows {
+			if r.ChatPickID == target.ID {
+				return r.Key
+			}
+		}
+	}
 	for _, r := range rows {
-		if r.Seq == target.Seq && r.Seq > 0 && !strings.Contains(r.Key, "/chunk:") {
+		if r.Seq == target.Seq && r.Seq > 0 && r.Type != "assistant/live" && !strings.Contains(r.Key, "/chunk:") {
 			return r.Key
 		}
 	}
@@ -153,7 +165,7 @@ func (p *SessionInspectorPaneState) selectInspectorRow(row session.InspectorReco
 }
 
 func (p *SessionInspectorPaneState) locateInspectorChat(row session.InspectorRecord) {
-	target := chat.InspectorTarget{Seq: row.Seq}
+	target := chat.InspectorTarget{ID: row.ChatID, Seq: row.Seq}
 	if strings.HasPrefix(row.Key, "chat:") {
 		target.ID = strings.TrimPrefix(row.Key, "chat:")
 	}
@@ -176,7 +188,7 @@ func (p *SessionInspectorPaneState) revealInspectorRow(key string, rows []sessio
 		byKey[row.Key] = row
 	}
 	for parent := byKey[key].Parent; parent != ""; parent = byKey[parent].Parent {
-		delete(p.collapsed, parent)
+		p.setInspectorCollapsed(byKey[parent], false)
 	}
 	p.selected = key
 	p.list.FollowEnd = false

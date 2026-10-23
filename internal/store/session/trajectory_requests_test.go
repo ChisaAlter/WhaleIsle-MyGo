@@ -70,11 +70,14 @@ func TestTrajectoryRequestsPartialInterruptedAndCompaction(t *testing.T) {
 	}
 }
 func TestTrajectoryRequestsRealLiveAttemptIdentity(t *testing.T) {
-	s := New()
-	s.captureTrajectoryBoundaryLocked([]byte(`{"type":"step/start","seq":1,"time":10,"data":{"turn":2,"step":3}}`))
-	s.assistantStream.active = &assistantStreamAttempt{AttemptID: "actual-attempt", Turn: 2, Step: 3, StartedAfterSeq: 1, NextIndex: 2, Stream: []json.RawMessage{json.RawMessage(`{"type":"usage","usage":{"inputTokens":3}}`)}}
+	f := newAssistantFixture()
+	s := f.s
+	f.durable(t, `{"type":"step/start","seq":1,"time":10,"data":{"turn":2,"step":3}}`)
+	f.start(t, "actual-attempt", 2, 3)
+	f.chunk(t, "actual-attempt", 0, map[string]any{"type": "usage", "usage": map[string]float64{"inputTokens": 3}})
+	f.chunk(t, "actual-attempt", 1, map[string]any{"type": "usage", "usage": map[string]float64{"outputTokens": 2}})
 	r := s.trajectoryRequestsLocked()
-	if len(r) != 1 || r[0].LiveAttempt == nil || r[0].LiveAttempt.AttemptID != "actual-attempt" || r[0].LiveAttempt.Usage["inputTokens"] != 3 {
+	if len(r) != 1 || r[0].LiveAttempt == nil || r[0].LiveAttempt.AttemptID != "actual-attempt" || r[0].LiveAttempt.Usage["inputTokens"] != 3 || r[0].LiveAttempt.Usage["outputTokens"] != 2 || len(r[0].LiveAttempt.Stream) != 2 {
 		t.Fatal("live identity lost")
 	}
 	s.assistantStream.active.Step = 4

@@ -42,7 +42,7 @@ func TestInspectorTableColumnsScrollingSelectionAndDetails(t *testing.T) {
 		{Key: "event:0", Type: "turn/start", Raw: json.RawMessage(`{"type":"turn/start","seq":0,"time":0,"data":{"turn":0}}`)},
 		{Key: "event:1", Parent: "event:0", Type: "user/message", Seq: 1, Raw: json.RawMessage(`{"type":"user/message","seq":1,"data":{"turn":0,"step":0,"text":"fixture preview"}}`)},
 	}
-	p := SessionInspectorPaneState{collapsed: map[string]bool{}}
+	p := SessionInspectorPaneState{collapsed: map[string]inspectorDisclosure{}}
 	source := session.InspectorSnapshot{Records: rows}
 	tt := ui.NewTester(func(c *ui.Context) {
 		inspectorPresentation(c, &p, source, session.ViewState{}, theme.Default().Light, nil)
@@ -109,7 +109,7 @@ func TestInspectorPinnedControlsKeepOneInstanceAndScrollOwner(t *testing.T) {
 	for i := 0; i < 80; i++ {
 		rows = append(rows, session.InspectorRecord{Key: fmt.Sprintf("leaf:%d", i), Parent: "step", Type: "delta"})
 	}
-	p := SessionInspectorPaneState{collapsed: map[string]bool{}}
+	p := SessionInspectorPaneState{collapsed: map[string]inspectorDisclosure{}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		inspectorPresentation(c, &p, session.InspectorSnapshot{Records: rows}, session.ViewState{}, theme.Default().Light, nil)
 	}, 780, 300)
@@ -160,7 +160,7 @@ func TestInspectorStickyAncestryAndFilterContext(t *testing.T) {
 	if got := inspectorStickyIndexes(rows, branches, 150); !reflect.DeepEqual(got, []int{0, 1}) {
 		t.Fatal(got)
 	}
-	p := SessionInspectorPaneState{collapsed: map[string]bool{"turn": true}}
+	p := SessionInspectorPaneState{collapsed: map[string]inspectorDisclosure{"turn": {collapsed: true}}}
 	p.applyInspectorFilter(" *DELTA* ")
 	tt := ui.NewTester(func(c *ui.Context) {
 		inspectorPresentation(c, &p, session.InspectorSnapshot{Records: rows}, session.ViewState{}, theme.Default().Light, nil)

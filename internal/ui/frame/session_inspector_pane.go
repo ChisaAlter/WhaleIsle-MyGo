@@ -27,7 +27,7 @@ type SessionInspectorPaneState struct {
 	Mode                                                    string `json:"mode,omitempty"`
 	Filter                                                  string `json:"filter,omitempty"`
 	binding, draft, selected                                string
-	collapsed                                               map[string]bool
+	collapsed                                               map[string]inspectorDisclosure
 	list                                                    ui.ListState
 	tableX, tableY                                          ui.ScrollState
 	// pendingPick is an inspect request that arrived before this pane rendered
@@ -164,16 +164,45 @@ func inspectorTypeRows(rows []session.InspectorRecord, filter string) []session.
 			keep[parent] = true
 		}
 	}
+	branches := map[string]bool{}
+	for key := range keep {
+		if parent := byKey[key].Parent; parent != "" {
+			branches[parent] = true
+		}
+	}
 	var out []session.InspectorRecord
 	for _, row := range rows {
 		if keep[row.Key] {
+			row.Disclosure = ""
+			if branches[row.Key] {
+				row.Disclosure = "open"
+			}
 			out = append(out, row)
 		}
 	}
 	return out
 }
 
-func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]bool) []session.InspectorRecord {
+type inspectorDisclosure struct {
+	state     string
+	collapsed bool
+}
+
+func inspectorRowCollapsed(row session.InspectorRecord, choices map[string]inspectorDisclosure) bool {
+	if choice, ok := choices[row.Key]; ok && choice.state == row.Disclosure {
+		return choice.collapsed
+	}
+	return row.Disclosure == "closed"
+}
+
+func (p *SessionInspectorPaneState) setInspectorCollapsed(row session.InspectorRecord, collapsed bool) {
+	if p.collapsed == nil {
+		p.collapsed = map[string]inspectorDisclosure{}
+	}
+	p.collapsed[row.Key] = inspectorDisclosure{state: row.Disclosure, collapsed: collapsed}
+}
+
+func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]inspectorDisclosure) []session.InspectorRecord {
 	byKey := make(map[string]session.InspectorRecord, len(rows))
 	for _, row := range rows {
 		byKey[row.Key] = row
@@ -182,7 +211,7 @@ func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]bo
 	for _, row := range rows {
 		hidden := false
 		for parent := row.Parent; parent != ""; parent = byKey[parent].Parent {
-			if folded[parent] {
+			if inspectorRowCollapsed(byKey[parent], folded) {
 				hidden = true
 				break
 			}
@@ -194,7 +223,7 @@ func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]bo
 	return out
 }
 
-func inspectorVisibleRows(rows []session.InspectorRecord, filter string, folded map[string]bool) []session.InspectorRecord {
+func inspectorVisibleRows(rows []session.InspectorRecord, filter string, folded map[string]inspectorDisclosure) []session.InspectorRecord {
 	return inspectorDisclosedRows(inspectorTypeRows(rows, filter), folded)
 }
 func sessionInspectorPane(c *ui.Context, m Model) {

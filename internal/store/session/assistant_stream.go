@@ -19,6 +19,7 @@ type assistantStreamState struct {
 
 type assistantStreamAttempt struct {
 	trajectoryFirstToken *float64
+	inspectorAfterSeq    *float64
 	tools                toolPreparingState
 	AttemptID            string            `json:"attemptId"`
 	StartedAfterSeq      float64           `json:"startedAfterSeq"`
@@ -184,6 +185,9 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 		if st.active != nil || st.retained != nil || len(st.pending) != 0 {
 			return s.rebaselineAssistantLocked()
 		}
+		if s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
+			s.resetInspectorLocked()
+		}
 		st.active = &assistantStreamAttempt{AttemptID: f.AttemptID, StartedAfterSeq: f.StartedAfterSeq, Turn: f.Turn, Step: f.Step}
 		return false
 	case "chunk":
@@ -197,7 +201,14 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 			return s.rebaselineAssistantLocked()
 		}
 		a.NextIndex++
-		return s.applyAssistantChunkLocked(a, f.Chunk, f.Time)
+		if a.inspectorAfterSeq == nil {
+			a.inspectorAfterSeq = s.inspectorCursorLocked()
+		}
+		record, _ := json.Marshal(map[string]any{"type": "chunk", "time": f.Time, "chunk": f.Chunk})
+		a.Stream = append(a.Stream, record)
+		s.applyAssistantChunkLocked(a, f.Chunk, f.Time)
+		// Raw-only chunks also change the inspector, even when Chat text is unchanged.
+		return true
 	case "end":
 		a := st.active
 		if a == nil || a.AttemptID != f.AttemptID {
@@ -233,6 +244,9 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 			s.retireAssistantAttemptLocked(a)
 		}
 		s.publishAssistantDurableLocked(raw, ev.Seq)
+		if ev.Type != "assistant/message" || ev.Data.Interrupted {
+			s.settleInspectorAttemptLocked(a, ev.Seq)
+		}
 		return true
 	default:
 		return s.rebaselineAssistantLocked()
@@ -264,6 +278,9 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 	}
 	a.blocks, a.rows = nil, nil
 	a.tools = toolPreparingState{}
+	if len(chunks) > 0 {
+		a.inspectorAfterSeq = s.inspectorCursorLocked()
+	}
 	st.active = a
 	for _, chunk := range chunks {
 		s.applyAssistantChunkLocked(a, chunk.chunk, chunk.time)

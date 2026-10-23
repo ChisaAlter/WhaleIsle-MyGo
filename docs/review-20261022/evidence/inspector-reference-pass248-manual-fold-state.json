@@ -1,0 +1,167 @@
+{
+  "records": [
+    {
+      "identity": "0",
+      "type": "turn/start",
+      "preview": "1",
+      "expanded": "true"
+    },
+    {
+      "identity": "1",
+      "type": "step/start",
+      "preview": "turn: 1 · step: 0",
+      "expanded": "true"
+    },
+    {
+      "identity": "stream-a",
+      "type": "assistant/live",
+      "preview": "attemptId: stream-a · turn: 1 · step: 0 · chunks: 5",
+      "expanded": "true"
+    },
+    {
+      "identity": "0",
+      "type": "block-start",
+      "preview": "blockType: reasoning · first second",
+      "expanded": "false"
+    },
+    {
+      "identity": "2",
+      "type": "block-start",
+      "preview": "index: 1 · blockType: text",
+      "expanded": "true"
+    },
+    {
+      "identity": "3",
+      "type": "text-delta",
+      "preview": "index: 1 · text: answer",
+      "expanded": null
+    }
+  ],
+  "text": "Raw Log\nChat Group\n · 8\nFollow Latest\nIndex\t\nType\n\tT/S\tTime (UTC)\tData\n\n0\n\t▾turn/start\t1\t12:40:00.000\t\n1\n\n\n1\n\t▾step/start\t1/0\t12:40:00.100\t\nturn: 1 · step: 0\n\n\nstream-a\n\t▾assistant/live\t1/0\t12:40:00.240\t\nattemptId: stream-a · turn: 1 · step: 0 · chunks: 5\n\n\n0\n\t▸block-start\t1/0\t12:40:00.200\t\nblockType: reasoning · first second\n\n\n2\n\t▾block-start\t1/0\t12:40:00.220\t\nindex: 1 · blockType: text\n\n\n3\n\ttext-delta\t1/0\t12:40:00.230\t\nindex: 1 · text: answer\n\n",
+  "projection": [
+    {
+      "key": "event:0",
+      "depth": 0,
+      "disclosure": "open",
+      "type": "turn/start",
+      "identity": "0",
+      "time": 1792759200000,
+      "location": "1",
+      "value": {
+        "type": "turn/start",
+        "seq": 0,
+        "time": 1792759200000,
+        "data": {
+          "turn": 1
+        }
+      }
+    },
+    {
+      "key": "event:1",
+      "depth": 1,
+      "parent": "event:0",
+      "disclosure": "open",
+      "type": "step/start",
+      "identity": "1",
+      "time": 1792759200100,
+      "location": "1/0",
+      "value": {
+        "type": "step/start",
+        "seq": 1,
+        "time": 1792759200100,
+        "data": {
+          "turn": 1,
+          "step": 0
+        }
+      }
+    },
+    {
+      "key": "attempt:stream-a",
+      "depth": 2,
+      "parent": "event:1",
+      "type": "assistant/live",
+      "identity": "stream-a",
+      "location": "1/0",
+      "time": 1792759200240,
+      "value": {
+        "attemptId": "stream-a",
+        "turn": 1,
+        "step": 0,
+        "chunks": 5
+      }
+    },
+    {
+      "key": "attempt:stream-a/chunk:0",
+      "parent": "attempt:stream-a",
+      "depth": 3,
+      "disclosure": "open",
+      "type": "block-start",
+      "identity": "0",
+      "time": 1792759200200,
+      "location": "1/0",
+      "value": {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "reasoning"
+      },
+      "collapsedSummary": "blockType: reasoning · first second"
+    },
+    {
+      "key": "attempt:stream-a/chunk:1",
+      "parent": "attempt:stream-a/chunk:0",
+      "depth": 4,
+      "type": "reasoning-delta",
+      "identity": "1",
+      "time": 1792759200210,
+      "location": "1/0",
+      "value": {
+        "type": "reasoning-delta",
+        "index": 0,
+        "text": "first "
+      }
+    },
+    {
+      "key": "attempt:stream-a/chunk:4",
+      "parent": "attempt:stream-a/chunk:0",
+      "depth": 4,
+      "type": "reasoning-delta",
+      "identity": "4",
+      "time": 1792759200240,
+      "location": "1/0",
+      "value": {
+        "type": "reasoning-delta",
+        "index": 0,
+        "text": "second"
+      }
+    },
+    {
+      "key": "attempt:stream-a/chunk:2",
+      "parent": "attempt:stream-a",
+      "depth": 3,
+      "disclosure": "open",
+      "type": "block-start",
+      "identity": "2",
+      "time": 1792759200220,
+      "location": "1/0",
+      "value": {
+        "type": "block-start",
+        "index": 1,
+        "blockType": "text"
+      }
+    },
+    {
+      "key": "attempt:stream-a/chunk:3",
+      "parent": "attempt:stream-a/chunk:2",
+      "depth": 4,
+      "type": "text-delta",
+      "identity": "3",
+      "time": 1792759200230,
+      "location": "1/0",
+      "value": {
+        "type": "text-delta",
+        "index": 1,
+        "text": "answer"
+      }
+    }
+  ]
+}

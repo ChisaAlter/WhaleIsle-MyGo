@@ -13,7 +13,7 @@ func TestSessionInspectorFilterAndPaneIsolation(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatal("filter lost ancestor context")
 	}
-	if len(inspectorVisibleRows(rows, "", map[string]bool{"turn": true})) != 1 {
+	if len(inspectorVisibleRows(rows, "", map[string]inspectorDisclosure{"turn": {collapsed: true}})) != 1 {
 		t.Fatal("fold lost descendants")
 	}
 	old := &WorkspacePane{Kind: "session-inspector-log", Inspector: &SessionInspectorPaneState{Mode: "chat-node", Filter: "tool", binding: "private-host", selected: "private-row", draft: "private-draft"}}

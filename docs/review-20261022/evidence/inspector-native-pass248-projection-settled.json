@@ -1,0 +1,484 @@
+[
+  {
+    "Key": "event:0",
+    "Parent": "",
+    "Type": "turn/start",
+    "Identity": "0",
+    "Location": "1",
+    "Seq": 0,
+    "Time": 1792759200000,
+    "Raw": {
+      "type": "turn/start",
+      "seq": 0,
+      "time": 1792759200000,
+      "data": {
+        "turn": 1
+      }
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:1",
+    "Parent": "event:0",
+    "Type": "step/start",
+    "Identity": "1",
+    "Location": "1/0",
+    "Seq": 1,
+    "Time": 1792759200100,
+    "Raw": {
+      "type": "step/start",
+      "seq": 1,
+      "time": 1792759200100,
+      "data": {
+        "turn": 1,
+        "step": 0
+      }
+    },
+    "Disclosure": "open",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a",
+    "Parent": "event:1",
+    "Type": "assistant/live",
+    "Identity": "stream-a",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200270,
+    "Raw": {
+      "attemptId": "stream-a",
+      "turn": 1,
+      "step": 0,
+      "chunks": 8
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:0",
+    "Parent": "attempt:stream-a",
+    "Type": "block-start",
+    "Identity": "0",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200200,
+    "Raw": {
+      "type": "block-start",
+      "index": 0,
+      "blockType": "reasoning"
+    },
+    "Disclosure": "closed",
+    "CollapsedSummary": "blockType: reasoning · first second",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:1",
+    "Parent": "attempt:stream-a/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "1",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200210,
+    "Raw": {
+      "type": "reasoning-delta",
+      "index": 0,
+      "text": "first "
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:4",
+    "Parent": "attempt:stream-a/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "4",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200240,
+    "Raw": {
+      "type": "reasoning-delta",
+      "index": 0,
+      "text": "second"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:5",
+    "Parent": "attempt:stream-a/chunk:0",
+    "Type": "block-end",
+    "Identity": "5",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200250,
+    "Raw": {
+      "type": "block-end",
+      "index": 0,
+      "block": {
+        "type": "reasoning",
+        "text": "first second"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:2",
+    "Parent": "attempt:stream-a",
+    "Type": "block-start",
+    "Identity": "2",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200220,
+    "Raw": {
+      "type": "block-start",
+      "index": 1,
+      "blockType": "text"
+    },
+    "Disclosure": "closed",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:3",
+    "Parent": "attempt:stream-a/chunk:2",
+    "Type": "text-delta",
+    "Identity": "3",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200230,
+    "Raw": {
+      "type": "text-delta",
+      "index": 1,
+      "text": "answer"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:6",
+    "Parent": "attempt:stream-a/chunk:2",
+    "Type": "block-end",
+    "Identity": "6",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200260,
+    "Raw": {
+      "type": "block-end",
+      "index": 1,
+      "block": {
+        "type": "text",
+        "text": "answer"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "attempt:stream-a/chunk:7",
+    "Parent": "attempt:stream-a",
+    "Type": "finish",
+    "Identity": "7",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200270,
+    "Raw": {
+      "type": "finish",
+      "reason": {
+        "kind": "stop"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2",
+    "Parent": "event:1",
+    "Type": "assistant/message",
+    "Identity": "2",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200300,
+    "Raw": {
+      "type": "assistant/message",
+      "seq": 2,
+      "time": 1792759200300,
+      "surfaceOp": "append",
+      "data": {
+        "turn": 1,
+        "step": 0,
+        "interrupted": false,
+        "message": {
+          "id": "message-a",
+          "content": [
+            {
+              "type": "reasoning",
+              "text": "first second"
+            },
+            {
+              "type": "text",
+              "text": "answer"
+            }
+          ]
+        },
+        "stream": [
+          {
+            "type": "chunk",
+            "time": 1792759200200,
+            "chunk": {
+              "type": "block-start",
+              "index": 0,
+              "blockType": "reasoning"
+            }
+          },
+          {
+            "type": "reasoning-chunks",
+            "index": 0,
+            "time0": 1792759200210,
+            "dt": [],
+            "texts": [
+              "first "
+            ]
+          },
+          {
+            "type": "chunk",
+            "time": 1792759200220,
+            "chunk": {
+              "type": "block-start",
+              "index": 1,
+              "blockType": "text"
+            }
+          },
+          {
+            "type": "text-chunks",
+            "index": 1,
+            "time0": 1792759200230,
+            "dt": [],
+            "texts": [
+              "answer"
+            ]
+          },
+          {
+            "type": "reasoning-chunks",
+            "index": 0,
+            "time0": 1792759200240,
+            "dt": [],
+            "texts": [
+              "second"
+            ]
+          },
+          {
+            "type": "chunk",
+            "time": 1792759200250,
+            "chunk": {
+              "type": "block-end",
+              "index": 0,
+              "block": {
+                "type": "reasoning",
+                "text": "first second"
+              }
+            }
+          },
+          {
+            "type": "chunk",
+            "time": 1792759200260,
+            "chunk": {
+              "type": "block-end",
+              "index": 1,
+              "block": {
+                "type": "text",
+                "text": "answer"
+              }
+            }
+          },
+          {
+            "type": "chunk",
+            "time": 1792759200270,
+            "chunk": {
+              "type": "finish",
+              "reason": {
+                "kind": "stop"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:0",
+    "Parent": "event:2",
+    "Type": "block-start",
+    "Identity": "0",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200200,
+    "Raw": {
+      "type": "block-start",
+      "index": 0,
+      "blockType": "reasoning"
+    },
+    "Disclosure": "closed",
+    "CollapsedSummary": "blockType: reasoning · first second",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:1",
+    "Parent": "event:2/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "1",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200210,
+    "Raw": {
+      "index": 0,
+      "text": "first ",
+      "type": "reasoning-delta"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:4",
+    "Parent": "event:2/chunk:0",
+    "Type": "reasoning-delta",
+    "Identity": "4",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200240,
+    "Raw": {
+      "index": 0,
+      "text": "second",
+      "type": "reasoning-delta"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:5",
+    "Parent": "event:2/chunk:0",
+    "Type": "block-end",
+    "Identity": "5",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200250,
+    "Raw": {
+      "type": "block-end",
+      "index": 0,
+      "block": {
+        "type": "reasoning",
+        "text": "first second"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:2",
+    "Parent": "event:2",
+    "Type": "block-start",
+    "Identity": "2",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200220,
+    "Raw": {
+      "type": "block-start",
+      "index": 1,
+      "blockType": "text"
+    },
+    "Disclosure": "closed",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:3",
+    "Parent": "event:2/chunk:2",
+    "Type": "text-delta",
+    "Identity": "3",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200230,
+    "Raw": {
+      "index": 1,
+      "text": "answer",
+      "type": "text-delta"
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:6",
+    "Parent": "event:2/chunk:2",
+    "Type": "block-end",
+    "Identity": "6",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200260,
+    "Raw": {
+      "type": "block-end",
+      "index": 1,
+      "block": {
+        "type": "text",
+        "text": "answer"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  },
+  {
+    "Key": "event:2/chunk:7",
+    "Parent": "event:2",
+    "Type": "finish",
+    "Identity": "7",
+    "Location": "1/0",
+    "Seq": 2,
+    "Time": 1792759200270,
+    "Raw": {
+      "type": "finish",
+      "reason": {
+        "kind": "stop"
+      }
+    },
+    "Disclosure": "",
+    "CollapsedSummary": "",
+    "ChatID": "",
+    "ChatPickID": ""
+  }
+]

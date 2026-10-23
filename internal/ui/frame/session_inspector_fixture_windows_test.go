@@ -40,12 +40,45 @@ func TestMain(m *testing.M) {
 	for _, r := range records {
 		source.Records = append(source.Records, session.InspectorRecord{Key: r.Key, Parent: r.Parent, Type: r.Type, Seq: r.Seq, Time: r.Time, Raw: r.Value})
 	}
-	p := SessionInspectorPaneState{collapsed: map[string]bool{}}
+	var phases []struct {
+		Name   string
+		Frames []json.RawMessage
+	}
+	phase := 0
+	var advance func()
+	if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "stream" {
+		if err = json.Unmarshal(raw, &phases); err != nil {
+			panic(err)
+		}
+		store := session.New()
+		store.Select("fixture")
+		advance = func() {
+			if phase >= len(phases) {
+				return
+			}
+			for _, frame := range phases[phase].Frames {
+				store.ApplyInspectorFixtureFrame(frame)
+			}
+			source = store.InspectorSnapshot()
+			if prefix := os.Getenv("INSPECTOR_NATIVE_FIXTURE_OUTPUT"); prefix != "" {
+				projection, _ := json.MarshalIndent(source.Records, "", "  ")
+				if err := os.WriteFile(prefix+"-projection-"+phases[phase].Name+".json", projection, 0600); err != nil {
+					panic(err)
+				}
+			}
+			phase++
+		}
+		advance()
+	}
+	p := SessionInspectorPaneState{collapsed: map[string]inspectorDisclosure{}}
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	colors := theme.Default().Light
 	view := ui.View(func(c *ui.Context) {
 		theme.ApplyInterface(c)
+		if advance != nil && c.Shortcut(0, ui.KeyF8) {
+			advance()
+		}
 		if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "interaction" {
 			// Emulate the Chat-owned pick handoff without connecting a Host.
 			if c.Shortcut(0, ui.KeyF6) {
@@ -58,7 +91,7 @@ func TestMain(m *testing.M) {
 		ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })
 	})
 	mygo.App.WhenReady(func() {
-		mygo.NewWindow(mygo.WindowOptions{Title: "Round102 inspector fixture", Width: 780, Height: 600, UseContentSize: true, Content: view, Frameless: true, BackgroundColor: "#ffffff"})
+		mygo.NewWindow(mygo.WindowOptions{Title: "Native inspector fixture", Width: 780, Height: 600, UseContentSize: true, Content: view, Frameless: true, BackgroundColor: "#ffffff"})
 	})
 	if err = mygo.App.Run(); err != nil {
 		panic(err)

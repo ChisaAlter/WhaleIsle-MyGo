@@ -1,0 +1,33 @@
+[
+  {
+    "name": "open",
+    "frames": [
+      {"type":"snapshot","records":[{"type":"event","event":{"type":"turn/start","seq":0,"time":1792759200000,"data":{"turn":1}}},{"type":"event","event":{"type":"step/start","seq":1,"time":1792759200100,"data":{"turn":1,"step":0}}}]},
+      {"type":"assistant-stream","frame":{"type":"start","revision":1,"attemptId":"stream-a","startedAfterSeq":1,"turn":1,"step":0}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":2,"attemptId":"stream-a","index":0,"time":1792759200200,"chunk":{"type":"block-start","index":0,"blockType":"reasoning"}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":3,"attemptId":"stream-a","index":1,"time":1792759200210,"chunk":{"type":"reasoning-delta","index":0,"text":"first "}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":4,"attemptId":"stream-a","index":2,"time":1792759200220,"chunk":{"type":"block-start","index":1,"blockType":"text"}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":5,"attemptId":"stream-a","index":3,"time":1792759200230,"chunk":{"type":"text-delta","index":1,"text":"answer"}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":6,"attemptId":"stream-a","index":4,"time":1792759200240,"chunk":{"type":"reasoning-delta","index":0,"text":"second"}}}
+    ]
+  },
+  {
+    "name":"closed",
+    "frames":[
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":7,"attemptId":"stream-a","index":5,"time":1792759200250,"chunk":{"type":"block-end","index":0,"block":{"type":"reasoning","text":"first second"}}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":8,"attemptId":"stream-a","index":6,"time":1792759200260,"chunk":{"type":"block-end","index":1,"block":{"type":"text","text":"answer"}}}},
+      {"type":"assistant-stream","frame":{"type":"chunk","revision":9,"attemptId":"stream-a","index":7,"time":1792759200270,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+    ]
+  },
+  {
+    "name":"settled",
+    "frames":[
+      {"type":"event","event":{"type":"assistant/message","seq":2,"time":1792759200300,"surfaceOp":"append","data":{"turn":1,"step":0,"interrupted":false,"message":{"id":"message-a","content":[{"type":"reasoning","text":"first second"},{"type":"text","text":"answer"}]},"stream":[{"type":"chunk","time":1792759200200,"chunk":{"type":"block-start","index":0,"blockType":"reasoning"}},{"type":"reasoning-chunks","index":0,"time0":1792759200210,"dt":[],"texts":["first "]},{"type":"chunk","time":1792759200220,"chunk":{"type":"block-start","index":1,"blockType":"text"}},{"type":"text-chunks","index":1,"time0":1792759200230,"dt":[],"texts":["answer"]},{"type":"reasoning-chunks","index":0,"time0":1792759200240,"dt":[],"texts":["second"]},{"type":"chunk","time":1792759200250,"chunk":{"type":"block-end","index":0,"block":{"type":"reasoning","text":"first second"}}},{"type":"chunk","time":1792759200260,"chunk":{"type":"block-end","index":1,"block":{"type":"text","text":"answer"}}},{"type":"chunk","time":1792759200270,"chunk":{"type":"finish","reason":{"kind":"stop"}}}]}}},
+      {"type":"assistant-stream","frame":{"type":"end","revision":10,"attemptId":"stream-a","index":8,"outcome":{"kind":"committed","eventType":"assistant/message","seq":2}}}
+    ]
+  },
+  {
+    "name":"retired",
+    "frames":[{"type":"event","event":{"type":"step/end","seq":3,"time":1792759200400,"data":{"turn":1,"step":0}}},{"type":"event","event":{"type":"turn/end","seq":4,"time":1792759200500,"data":{"turn":1}}}]
+  }
+]

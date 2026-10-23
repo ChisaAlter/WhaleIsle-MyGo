@@ -128,7 +128,7 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 	p.pendingPick, p.pendingPickBinding = nil, ""
 	p.breadcrumb, p.tree = nil, inspectorJSONTreeState{}
 	p.Filter, p.draft, p.selected = "", "", ""
-	p.collapsed = map[string]bool{}
+	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
 	p.detailsPercent = 0
@@ -137,6 +137,9 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 func inspectorDepths(rows []session.InspectorRecord) (map[string]int, map[string]bool) {
 	depth, branches := map[string]int{}, map[string]bool{}
 	for _, row := range rows {
+		if row.Disclosure != "" {
+			branches[row.Key] = true
+		}
 		if row.Parent != "" {
 			depth[row.Key] = depth[row.Parent] + 1
 			branches[row.Parent] = true
@@ -306,17 +309,14 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 			if branch {
 				marker := "▾"
 				label := paneLabel("收起子行", "Collapse children")
-				if p.collapsed[row.Key] {
+				if inspectorRowCollapsed(row, p.collapsed) {
 					marker = "▸"
 					label = paneLabel("展开子行", "Expand children")
 				}
-				button := inspectorButton(c.Key("disclosure"), label+" "+identity).Width(16).Shrink(0).Expanded(!p.collapsed[row.Key])
+				button := inspectorButton(c.Key("disclosure"), label+" "+identity).Width(16).Shrink(0).Expanded(!inspectorRowCollapsed(row, p.collapsed))
 				button.Children(func() { inspectorText(c, marker).TextColor(ink) })
 				if button.Clicked() {
-					if p.collapsed == nil {
-						p.collapsed = map[string]bool{}
-					}
-					p.collapsed[row.Key] = !p.collapsed[row.Key]
+					p.setInspectorCollapsed(row, !inspectorRowCollapsed(row, p.collapsed))
 					p.list.FollowEnd = false
 				}
 			}
@@ -342,6 +342,9 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 		}
 		inspectorCell(c, dataWidth).Children(func() {
 			preview := inspectorPreview(row.Raw)
+			if inspectorRowCollapsed(row, p.collapsed) && row.CollapsedSummary != "" {
+				preview = row.CollapsedSummary
+			}
 			button := inspectorButton(c.Key("preview"), preview).FillWidth().MinWidth(0)
 			button.Children(func() { inspectorText(c, preview).TextColor(chrome.Color(colors.FG)) })
 			if button.Clicked() {

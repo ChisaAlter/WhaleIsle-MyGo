@@ -15,7 +15,7 @@ func TestInspectorFilterConfirmationAlwaysResetsTable(t *testing.T) {
 	for _, query := range []string{" *TOOL* ", "TOOL", "***", ""} {
 		p := SessionInspectorPaneState{
 			Filter: inspectorFilterQuery(query), selected: "old", breadcrumb: []string{"old", "data"},
-			collapsed: map[string]bool{"parent": true}, detailsPercent: 80, detailsDragging: true,
+			collapsed: map[string]inspectorDisclosure{"parent": {collapsed: true}}, detailsPercent: 80, detailsDragging: true,
 			list: ui.ListState{FollowEnd: true}, tableX: ui.ScrollState{X: 30}, tableY: ui.ScrollState{Y: 600},
 		}
 		p.applyInspectorFilter(query)
@@ -59,7 +59,7 @@ func TestInspectorFilteredDisclosuresAndDraftCancellation(t *testing.T) {
 	if err := tt.Click("Cancel"); err != nil {
 		t.Fatal(err)
 	}
-	if p.Filter != "custom" || !p.collapsed["event:2"] || tt.HasText("future/custom") {
+	if p.Filter != "custom" || !p.collapsed["event:2"].collapsed || tt.HasText("future/custom") {
 		t.Fatal("cancelling a cleared draft changed the confirmed hierarchy")
 	}
 	p.applyInspectorFilter(" *TURN/START* ")
@@ -78,10 +78,10 @@ func TestInspectorPickPreservesFilterAndOtherFolds(t *testing.T) {
 		{Key: "turn", Type: "turn"}, {Key: "step", Parent: "turn", Type: "step"},
 		{Key: "target", Parent: "step", Type: "match", Seq: 9}, {Key: "detail", Parent: "target", Type: "match"},
 	}
-	p := SessionInspectorPaneState{Filter: "match", draft: "match", collapsed: map[string]bool{"other": true, "turn": true, "step": true, "target": true},
+	p := SessionInspectorPaneState{Filter: "match", draft: "match", collapsed: map[string]inspectorDisclosure{"other": {state: "open", collapsed: true}, "turn": {state: "open", collapsed: true}, "step": {state: "open", collapsed: true}, "target": {state: "open", collapsed: true}},
 		navigation: chat.InspectorNavigation{Picking: true, Picked: &chat.InspectorTarget{Seq: 9}, Target: &chat.InspectorTarget{ID: "old"}, Notice: "old miss"}}
 	p.consumeInspectorPick(rows)
-	if p.Filter != "match" || p.draft != "match" || p.collapsed["turn"] || p.collapsed["step"] || !p.collapsed["other"] || !p.collapsed["target"] {
+	if p.Filter != "match" || p.draft != "match" || p.collapsed["turn"].collapsed || p.collapsed["step"].collapsed || !p.collapsed["other"].collapsed || !p.collapsed["target"].collapsed {
 		t.Fatalf("pick reset the filter or unrelated/target disclosure: %+v", p)
 	}
 	if p.selected != "target" || len(p.breadcrumb) != 1 || p.navigation.Target != nil || p.navigation.Picked != nil || p.navigation.Picking || p.navigation.Notice != "" {
@@ -92,7 +92,7 @@ func TestInspectorPickPreservesFilterAndOtherFolds(t *testing.T) {
 		t.Fatal("revealing context unnecessarily cleared the filter")
 	}
 	p.Filter, p.draft = "absent", "absent"
-	if !p.revealInspectorRow("target", rows) || p.Filter != "" || p.draft != "" || !p.collapsed["other"] || !p.collapsed["target"] {
+	if !p.revealInspectorRow("target", rows) || p.Filter != "" || p.draft != "" || !p.collapsed["other"].collapsed || !p.collapsed["target"].collapsed {
 		t.Fatal("excluded target did not clear only the filter and its ancestor folds")
 	}
 }

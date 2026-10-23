@@ -2,7 +2,7 @@ package frame
 
 import (
 	"encoding/json"
-	"fmt"
+	"strings"
 	"whaleisle/internal/store/session"
 )
 
@@ -22,7 +22,7 @@ func inspectorObjects(source session.InspectorSnapshot) map[string]inspectorObje
 	stepAt := map[float64]string{}
 	var turn, step string
 	for _, row := range source.Records {
-		if row.Parent != "" && row.Seq > 0 && row.Key != fmt.Sprintf("event:%.0f", row.Seq) {
+		if strings.Contains(row.Key, "/chunk:") {
 			continue
 		}
 		if row.Type == "turn/start" {

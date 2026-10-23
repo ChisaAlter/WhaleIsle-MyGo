@@ -303,12 +303,13 @@ func trajectorySummaryText(raw json.RawMessage) string {
 // remain absent; this is not a fabricated aggregate across previous retries.
 func trajectoryLiveUsage(stream []json.RawMessage) map[string]float64 {
 	var result map[string]float64
-	for _, raw := range stream {
+	chunks, _ := expandAssistantStream(stream)
+	for _, item := range chunks {
 		var chunk struct {
 			Type  string             `json:"type"`
 			Usage map[string]float64 `json:"usage"`
 		}
-		if json.Unmarshal(raw, &chunk) != nil || chunk.Type != "usage" {
+		if json.Unmarshal(item.chunk, &chunk) != nil || chunk.Type != "usage" {
 			continue
 		}
 		for _, key := range []string{"inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"} {

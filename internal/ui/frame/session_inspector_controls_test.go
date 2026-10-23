@@ -65,12 +65,12 @@ func TestInspectorDetailsResizeBoundsAndKeyboard(t *testing.T) {
 }
 func TestInspectorFilterConfirmationRevealsThenAllowsManualFold(t *testing.T) {
 	rows := []session.InspectorRecord{{Key: "parent", Type: "turn"}, {Key: "match", Parent: "parent", Type: "tool"}}
-	p := SessionInspectorPaneState{collapsed: map[string]bool{"parent": true}}
+	p := SessionInspectorPaneState{collapsed: map[string]inspectorDisclosure{"parent": {collapsed: true}}}
 	p.applyInspectorFilter(" *TOOL* ")
 	if p.Filter != "TOOL" || len(inspectorVisibleRows(rows, p.Filter, p.collapsed)) != 2 {
 		t.Fatal("confirmation did not normalize the query and reveal matching descendants")
 	}
-	p.collapsed["parent"] = true
+	p.setInspectorCollapsed(inspectorTypeRows(rows, p.Filter)[0], true)
 	if got := inspectorVisibleRows(rows, p.Filter, p.collapsed); len(got) != 1 || got[0].Key != "parent" {
 		t.Fatal("manual fold of filtered context was ignored")
 	}

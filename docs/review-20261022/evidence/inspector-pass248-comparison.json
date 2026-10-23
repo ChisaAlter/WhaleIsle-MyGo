@@ -1,0 +1,83 @@
+{
+  "source": "Shared normal follow frames; installed controller/model and native Store; separate real window interactions",
+  "checks": [
+    {
+      "kind": "projection",
+      "phase": "open",
+      "rows": 8,
+      "pass": true
+    },
+    {
+      "kind": "projection",
+      "phase": "closed",
+      "rows": 11,
+      "pass": true
+    },
+    {
+      "kind": "projection",
+      "phase": "settled",
+      "rows": 20,
+      "pass": true
+    },
+    {
+      "kind": "projection",
+      "phase": "retired",
+      "rows": 13,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "open",
+      "rows": 8,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "manual-fold",
+      "rows": 6,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "closed",
+      "rows": 6,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "reopened",
+      "rows": 9,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "filtered",
+      "rows": 6,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "filtered-fold",
+      "rows": 4,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "cleared",
+      "rows": 6,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "settled",
+      "rows": 10,
+      "pass": true
+    },
+    {
+      "kind": "visible rows and previews",
+      "phase": "retired",
+      "rows": 8,
+      "pass": true
+    }
+  ]
+}

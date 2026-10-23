@@ -26,7 +26,7 @@ func (p *SessionInspectorPaneState) applyInspectorFilter(query string) {
 	p.filterOpen = false
 	p.filterActive = -1
 	p.closeInspectorDetails()
-	p.collapsed = map[string]bool{}
+	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{}
 	p.tableY = ui.ScrollState{}
 	p.list.ScrollTo(0, ui.Start)
