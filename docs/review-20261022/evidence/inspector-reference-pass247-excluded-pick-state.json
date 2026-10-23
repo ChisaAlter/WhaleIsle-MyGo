@@ -1,0 +1,35 @@
+{
+  "filterActive": false,
+  "records": [
+    {
+      "type": "user/message",
+      "selected": false
+    },
+    {
+      "type": "turn/start",
+      "selected": false
+    },
+    {
+      "type": "step/start",
+      "selected": false
+    },
+    {
+      "type": "assistant/message",
+      "selected": true
+    },
+    {
+      "type": "future/custom",
+      "selected": false
+    },
+    {
+      "type": "step/end",
+      "selected": false
+    },
+    {
+      "type": "turn/end",
+      "selected": false
+    }
+  ],
+  "details": true,
+  "dividerY": 360
+}

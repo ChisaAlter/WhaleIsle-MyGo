@@ -17,7 +17,7 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 		ui.Row(c.Key("inspector-details-toolbar")).FillWidth().Gap(8).Padding(6, 8).AlignItems(ui.Center).BorderWidth(0, 0, .5, 0).BorderColor(border).Children(func() {
 			inspectorText(c, paneLabel("原始数据", "Raw data")).Grow(1)
 			// Retain the native copy command as a small secondary action.
-			copy := inspectorButton(c, paneLabel("复制原始 JSON", "Copy raw JSON")).Tooltip(paneLabel("复制原始 JSON", "Copy raw JSON")).Size(16, 16)
+			copy := inspectorButton(c, paneLabel("复制原始 JSON", "Copy raw JSON")).Tooltip(paneLabel("复制原始 JSON", "Copy raw JSON")).Size(16, 16).Disabled(object.Missing)
 			copy.Children(func() { ui.Icon(c, inspectorCopyIcon).Size(13, 13).TextColor(ink) })
 			if copy.Clicked() {
 				mygo.Clipboard.WriteText(string(object.Raw))
@@ -26,13 +26,14 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 			close := inspectorButton(c, label)
 			close.Children(func() { inspectorText(c, label) })
 			if close.Clicked() {
-				p.selected = ""
-				p.breadcrumb = nil
-				p.tree = inspectorJSONTreeState{}
-				p.navigation.Target = nil
+				p.closeInspectorDetails()
 			}
 		})
 		ui.Scroll(c.Key("inspector-details:" + p.binding + ":" + object.Key)).Grow(1).MinHeight(0).FillWidth().Padding(8).Children(func() {
+			if object.Missing {
+				ui.Text(c, paneLabel("该记录已移除或结算，请选择当前记录。", "This record was removed or settled. Select a current record.")).FontSize(11)
+				return
+			}
 			if p.Mode == "chat-node" {
 				ui.Row(c).Gap(6).FillWidth().Padding(6, 0).Margin(0, 0, 8, 0).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
 					for i, path := range p.breadcrumb {
@@ -51,8 +52,7 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 						}
 						button.Children(func() { inspectorText(c, label).TextColor(color) })
 						if button.Clicked() {
-							p.breadcrumb = p.breadcrumb[:i+1]
-							p.tree = inspectorJSONTreeState{}
+							p.backInspectorReference(i, rows)
 						}
 					}
 				})

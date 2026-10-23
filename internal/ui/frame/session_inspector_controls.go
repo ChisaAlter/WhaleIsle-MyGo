@@ -21,12 +21,11 @@ func inspectorTypeCandidates(rows []session.InspectorRecord, query string) []str
 	return out
 }
 func (p *SessionInspectorPaneState) applyInspectorFilter(query string) {
+	query = inspectorFilterQuery(query)
 	p.Filter, p.draft = query, query
 	p.filterOpen = false
 	p.filterActive = -1
-	p.selected = ""
-	p.breadcrumb = nil
-	p.tree = inspectorJSONTreeState{}
+	p.closeInspectorDetails()
 	p.collapsed = map[string]bool{}
 	p.list = ui.ListState{}
 	p.tableY = ui.ScrollState{}

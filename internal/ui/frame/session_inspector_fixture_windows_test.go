@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -45,6 +46,15 @@ func TestMain(m *testing.M) {
 	colors := theme.Default().Light
 	view := ui.View(func(c *ui.Context) {
 		theme.ApplyInterface(c)
+		if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "interaction" {
+			// Emulate the Chat-owned pick handoff without connecting a Host.
+			if c.Shortcut(0, ui.KeyF6) {
+				p.navigation.Picked = &chat.InspectorTarget{Seq: 4}
+			}
+			if c.Shortcut(0, ui.KeyF7) {
+				p.navigation.Picked = &chat.InspectorTarget{Seq: 3}
+			}
+		}
 		ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Children(func() { inspectorPresentation(c, &p, source, session.ViewState{}, colors, nil) })
 	})
 	mygo.App.WhenReady(func() {

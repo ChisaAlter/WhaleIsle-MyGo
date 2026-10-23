@@ -82,8 +82,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			}
 			pick.Children(func() { ui.Icon(c, inspectorPickIcon).Size(16, 16).TextColor(pickInk) })
 			if pick.Clicked() {
-				p.navigation.Picking = !p.navigation.Picking
-				p.navigation.Notice = ""
+				p.toggleInspectorPicking()
 			}
 			count := strconv.Itoa(len(rows))
 			if query := inspectorFilterQuery(p.Filter); query != "" {
@@ -126,6 +125,7 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 	p.filterOpen, p.detailsDragging = false, false
 	p.filterActive = -1
 	p.navigation = chat.InspectorNavigation{SessionID: sessionID}
+	p.pendingPick, p.pendingPickBinding = nil, ""
 	p.breadcrumb, p.tree = nil, inspectorJSONTreeState{}
 	p.Filter, p.draft, p.selected = "", "", ""
 	p.collapsed = map[string]bool{}
@@ -199,8 +199,10 @@ func inspectorStickyIndexes(rows []session.InspectorRecord, branches map[string]
 // The horizontal viewport owns both the header and the virtual vertical list.
 // Narrow docks retain the reference's 660px table rather than wrapping cells.
 func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, colors theme.Colors) {
-	depths, branches := inspectorDepths(rows)
-	shown := inspectorVisibleRows(rows, p.Filter, p.collapsed)
+	depths, _ := inspectorDepths(rows)
+	filtered := inspectorTypeRows(rows, p.Filter)
+	_, branches := inspectorDepths(filtered)
+	shown := inspectorDisclosedRows(filtered, p.collapsed)
 	viewport := ui.ScrollHorizontal(c.Key("inspector-table-x")).Label("Inspector table horizontal scroll").TrackScroll(&p.tableX).Grow(1).MinHeight(0).FillWidth()
 	width := max(float32(660), viewport.Bounds().W)
 	viewport.Children(func() {
@@ -311,6 +313,9 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 				button := inspectorButton(c.Key("disclosure"), label+" "+identity).Width(16).Shrink(0).Expanded(!p.collapsed[row.Key])
 				button.Children(func() { inspectorText(c, marker).TextColor(ink) })
 				if button.Clicked() {
+					if p.collapsed == nil {
+						p.collapsed = map[string]bool{}
+					}
 					p.collapsed[row.Key] = !p.collapsed[row.Key]
 					p.list.FollowEnd = false
 				}

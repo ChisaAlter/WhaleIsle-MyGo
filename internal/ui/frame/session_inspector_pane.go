@@ -32,7 +32,9 @@ type SessionInspectorPaneState struct {
 	tableX, tableY                                          ui.ScrollState
 	// pendingPick is an inspect request that arrived before this pane rendered
 	// its binding, e.g. a tool card clicked from the transcript.
-	pendingPick *chat.InspectorTarget
+	pendingPick                         *chat.InspectorTarget
+	pendingPickBinding                  string
+	rendered, chatProjected, pickQueued bool
 }
 
 func copySessionInspectorPane(to, from *WorkspacePane) {
@@ -82,13 +84,35 @@ func (m Model) inspectToolCall(messageID string, seq float64) {
 		return
 	}
 	*m.RightPaneTab = "session-inspector-log"
+	if !m.RightPaneOpen && m.OnToggleTools != nil {
+		m.OnToggleTools()
+	}
 	m.RightPaneOpen = true
 	prepareWorkspace(m)
-	target := chat.InspectorTarget{ID: messageID, Seq: seq}
-	for _, pane := range inspectorPaneStates(m.Sizes.Workspace) {
-		pane.Mode = "chat-node"
-		pane.pendingPick = &target
+	w := m.Sizes.Workspace
+	n := w.Root.find(w.Active)
+	if n == nil || n.Kind != "session-inspector-log" {
+		return
 	}
+	if n.Inspector == nil {
+		n.Inspector = &SessionInspectorPaneState{}
+	}
+	pane := n.Inspector
+	binding, sessionID := "", ""
+	if m.Store != nil {
+		binding, sessionID = m.Store.InspectorBinding(), m.Store.Snapshot().SelectedID
+	}
+	if pane.Mode != "chat-node" {
+		pane.changeInspectorMode("chat-node", sessionID)
+	}
+	w.Root.eachResource(func(other *WorkspacePane) {
+		if other.Inspector != nil {
+			other.Inspector.cancelInspectorNavigation()
+		}
+	})
+	pane.pendingPick = &chat.InspectorTarget{ID: messageID, Seq: seq}
+	pane.pendingPickBinding = binding
+	pane.pickQueued = true
 }
 
 // inspectorPaneStates lists every mounted session-log pane, creating its state so
@@ -118,44 +142,60 @@ func inspectorPaneStates(w *WorkspacePanes) []*SessionInspectorPaneState {
 	visit(w.Root)
 	return out
 }
-func inspectorVisibleRows(rows []session.InspectorRecord, filter string, folded map[string]bool) []session.InspectorRecord {
-	byKey := map[string]session.InspectorRecord{}
-	keep := map[string]bool{}
-	filter = strings.ToLower(inspectorFilterQuery(filter))
-	for _, r := range rows {
-		byKey[r.Key] = r
+
+// Type filtering retains matches and their ancestor context before disclosure
+// choices are applied. A confirmed filter resets those choices, not each frame.
+func inspectorTypeRows(rows []session.InspectorRecord, filter string) []session.InspectorRecord {
+	query := strings.ToLower(inspectorFilterQuery(filter))
+	if query == "" {
+		return rows
 	}
-	for _, r := range rows {
-		if filter == "" || strings.Contains(strings.ToLower(r.Type), filter) {
-			keep[r.Key] = true
-			for p := r.Parent; p != ""; p = byKey[p].Parent {
-				keep[p] = true
-				if _, ok := byKey[p]; !ok {
-					break
-				}
-			}
+	byKey := make(map[string]session.InspectorRecord, len(rows))
+	for _, row := range rows {
+		byKey[row.Key] = row
+	}
+	keep := map[string]bool{}
+	for _, row := range rows {
+		if !strings.Contains(strings.ToLower(row.Type), query) {
+			continue
+		}
+		keep[row.Key] = true
+		for parent := row.Parent; parent != "" && !keep[parent]; parent = byKey[parent].Parent {
+			keep[parent] = true
 		}
 	}
 	var out []session.InspectorRecord
-	for _, r := range rows {
-		if !keep[r.Key] {
-			continue
+	for _, row := range rows {
+		if keep[row.Key] {
+			out = append(out, row)
 		}
+	}
+	return out
+}
+
+func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]bool) []session.InspectorRecord {
+	byKey := make(map[string]session.InspectorRecord, len(rows))
+	for _, row := range rows {
+		byKey[row.Key] = row
+	}
+	var out []session.InspectorRecord
+	for _, row := range rows {
 		hidden := false
-		for p := r.Parent; p != ""; p = byKey[p].Parent {
-			if filter == "" && folded[p] {
+		for parent := row.Parent; parent != ""; parent = byKey[parent].Parent {
+			if folded[parent] {
 				hidden = true
-				break
-			}
-			if _, ok := byKey[p]; !ok {
 				break
 			}
 		}
 		if !hidden {
-			out = append(out, r)
+			out = append(out, row)
 		}
 	}
 	return out
+}
+
+func inspectorVisibleRows(rows []session.InspectorRecord, filter string, folded map[string]bool) []session.InspectorRecord {
+	return inspectorDisclosedRows(inspectorTypeRows(rows, filter), folded)
 }
 func sessionInspectorPane(c *ui.Context, m Model) {
 	if m.DisableDeveloperTools {
@@ -170,23 +210,9 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 		n.Inspector = &SessionInspectorPaneState{}
 	}
 	p := n.Inspector
+	p.rendered = true
 	source := m.Store.InspectorSnapshot()
-	if p.binding != source.Binding {
-		p.binding = source.Binding
-		p.filterOpen = false
-		p.detailsDragging = false
-		p.filterActive = -1
-		p.filterList = ui.ListState{}
-		p.navigation = chat.InspectorNavigation{SessionID: source.SessionID}
-		p.breadcrumb = nil
-		p.tree = inspectorJSONTreeState{}
-		p.selected = ""
-		p.draft = p.Filter
-		p.collapsed = map[string]bool{}
-		p.list = ui.ListState{FollowEnd: true}
-		p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
-		p.detailsPercent = 0
-	}
+	p.bindInspectorSource(source.Binding, source.SessionID)
 	if source.SessionID == "" {
 		ui.Text(c, paneLabel("选择会话以检查日志", "Select a session to inspect its log"))
 		return
@@ -233,6 +259,7 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 			available := root.Bounds().H
 			if available <= 0 {
 				available = 400
+				c.Invalidate()
 			}
 			inspectorTable(c, p, rows, colors)
 			objects := inspectorObjects(source)
@@ -267,7 +294,10 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 					}
 				}
 			}
-			if ok {
+			if p.selected != "" {
+				if !ok {
+					object = inspectorObject{Key: key, Missing: true}
+				}
 				inspectorDetails(c, p, object, objects, rows, available, colors)
 			}
 		})

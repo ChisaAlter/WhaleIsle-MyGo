@@ -293,6 +293,10 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 		}
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if p := n.Inspector; p != nil {
+			p.rendered, p.chatProjected, p.pickQueued = false, false, false
+			p.navigation.Nodes, p.navigation.Groups = nil, nil
+		}
 		if n.Schedule != nil {
 			n.Schedule.rendered = false
 		}
@@ -331,9 +335,14 @@ func (w *WorkspacePanes) EndContentFrame() {
 		if n.Schedule != nil && !n.Schedule.rendered {
 			n.Schedule.deactivate()
 		}
-		if n.Inspector != nil && (n.Float != nil && n.Float.Minimized || n.Float == nil && w.Root.dockGroup(n.ID) != n) {
-			n.Inspector.navigation.Picking = false
-			n.Inspector.navigation.Target = nil
+		if p := n.Inspector; p != nil {
+			if !p.pickQueued && (!p.rendered || !p.chatProjected || !inspectorPaneVisible(w, n, true)) {
+				p.cancelInspectorNavigation()
+			} else if !p.chatProjected {
+				p.navigation.Picking = false
+				p.navigation.Target = nil
+				p.navigation.Highlight = ""
+			}
 		}
 		if n.Agents != nil && !n.Agents.rendered && (n.Kind != "subagentchat" || n.SubagentChat == nil) {
 			n.releaseAgentPane()
@@ -357,6 +366,9 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Inspector != nil {
+			n.Inspector.cancelInspectorNavigation()
+		}
 		if retainReads {
 			// This path suspends an outgoing Session. OS hide/minimize uses
 			// PauseContent(false), which keeps the mounted task's draft.

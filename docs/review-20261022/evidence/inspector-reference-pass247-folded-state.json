@@ -1,0 +1,15 @@
+{
+  "filterActive": true,
+  "records": [
+    {
+      "type": "turn/start",
+      "selected": false
+    },
+    {
+      "type": "step/start",
+      "selected": false
+    }
+  ],
+  "details": false,
+  "dividerY": null
+}

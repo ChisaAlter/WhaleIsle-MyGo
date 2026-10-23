@@ -10,6 +10,7 @@ type inspectorObject struct {
 	Key, Label string
 	Raw        json.RawMessage
 	Links      []string
+	Missing    bool
 }
 
 // The graph contains actual native Message objects and loaded event Data.

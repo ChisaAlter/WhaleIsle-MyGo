@@ -160,7 +160,8 @@ func TestInspectorStickyAncestryAndFilterContext(t *testing.T) {
 	if got := inspectorStickyIndexes(rows, branches, 150); !reflect.DeepEqual(got, []int{0, 1}) {
 		t.Fatal(got)
 	}
-	p := SessionInspectorPaneState{Filter: " *DELTA* ", collapsed: map[string]bool{"turn": true}}
+	p := SessionInspectorPaneState{collapsed: map[string]bool{"turn": true}}
+	p.applyInspectorFilter(" *DELTA* ")
 	tt := ui.NewTester(func(c *ui.Context) {
 		inspectorPresentation(c, &p, session.InspectorSnapshot{Records: rows}, session.ViewState{}, theme.Default().Light, nil)
 	}, 780, 300)

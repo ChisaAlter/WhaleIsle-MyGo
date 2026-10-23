@@ -1,7 +1,7 @@
 // Mount installed Inspector components in an independently owned Electron renderer.
 // node scripts/inspector-reference-fixture.mjs 19444 http://127.0.0.1:3083/ C:/.../session-inspector/lib/client.js output-prefix
 import {readFileSync,writeFileSync} from 'node:fs';
-const [debugPort,pageUrl,bundlePath,output]=process.argv.slice(2);
+const [debugPort,pageUrl,bundlePath,output,scenario]=process.argv.slice(2);
 if(!debugPort||!pageUrl||!bundlePath||!output||new URL(pageUrl).port==='3080')throw Error('Specify an isolated reference page, installed bundle and output prefix');
 const fixtures=JSON.parse(readFileSync('internal/ui/frame/testdata/inspector-records.json','utf8'));
 let bundle=readFileSync(bundlePath,'utf8');
@@ -28,7 +28,7 @@ try{
  const t=(key,params={})=>{let text=E.en[key]||key;for(const[k,v]of Object.entries(params))text=text.replaceAll('{'+k+'}',String(v));return text};
  document.querySelector('#r102-inspector-fixture')?.remove();const mount=document.createElement('div');mount.id='r102-inspector-fixture';mount.style.cssText='position:fixed;inset:0;z-index:2147483000;background:white;display:flex;color:var(--dsw-alias-label-primary);font-size:11px;';document.body.append(mount);
  const useRows=select=>select(rows),useRecord=key=>records.get(key);
- const props={t,useSession:select=>select({hasMore:false,loadingOlder:false,openError:null}),useLogRows:useRows,useChatRows:useRows,useLogRecord:useRecord,useChatRecord:useRecord,loadOlder:async()=>{},recordType:key=>records.get(key)?.type,chatRoot:()=>undefined,pickChat:()=>undefined,resolveChatTargets:()=>[],logChatTarget:()=>undefined,pickRow:()=>undefined,objects:{row:()=>undefined}};
+ const props={t,useSession:select=>select({hasMore:false,loadingOlder:false,openError:null}),useLogRows:useRows,useChatRows:useRows,useLogRecord:useRecord,useChatRecord:useRecord,loadOlder:async()=>{},recordType:key=>records.get(key)?.type,chatRoot:()=>undefined,pickChat:(_owner,picked)=>{window.__inspectorFixturePick=key=>SyncDOM.flushSync(()=>picked({nodeKey:key}));return ()=>{delete window.__inspectorFixturePick}},resolveChatTargets:()=>[],logChatTarget:()=>undefined,pickRow:target=>records.has(target.nodeKey)?target.nodeKey:undefined,objects:{row:()=>undefined}};
  SyncDOM.flushSync(()=>DOM.createRoot(mount).render(React.createElement(E.SessionInspectorView,props)));
  return {rows:rows.length,components:Object.keys(E)};
  })()`);
@@ -44,4 +44,18 @@ try{
   if(node.nodeId)fonts.push({selector,...await send('CSS.getPlatformFontsForNode',{nodeId:node.nodeId})});
  }
  writeFileSync(output+'-fonts.json',JSON.stringify(fonts,null,2));
+ if(scenario==='interaction'){
+  const click=label=>evaluate(`(()=>{const root=document.querySelector('#r102-inspector-fixture');const button=[...document.querySelectorAll('button')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(label)}||e.textContent===${JSON.stringify(label)});if(!button)throw Error('Missing button '+${JSON.stringify(label)});window.__DSH_MODULES__.seed.get('react-dom').flushSync(()=>button.click())})()`);
+  const settled=()=>new Promise(resolve=>setTimeout(resolve,180));
+  const filter=async query=>{await click('Filter types');await evaluate(`(()=>{const input=document.querySelector('[role="combobox"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;window.__DSH_MODULES__.seed.get('react-dom').flushSync(()=>{set.call(input,${JSON.stringify(query)});input.dispatchEvent(new Event('input',{bubbles:true}))})})()`);await settled();await click('Apply filter');await settled()};
+  const state=()=>evaluate(`(()=>{const root=document.querySelector('#r102-inspector-fixture');return {filterActive:root.querySelector('button[aria-label="Filter types"]').getAttribute('aria-pressed')==='true',records:[...root.querySelectorAll('tbody tr[aria-selected]')].map(row=>({type:row.querySelector('td:nth-child(2) button:last-child')?.textContent,selected:row.getAttribute('aria-selected')==='true'})),details:!!root.querySelector('[role="separator"]'),dividerY:root.querySelector('[role="separator"]')?.getBoundingClientRect().y??null}})()`);
+  const check=async(name,expected)=>{const actual=await state();for(const[key,value]of Object.entries(expected)){const found=key==='types'?actual.records.map(row=>row.type):key==='selected'?actual.records.find(row=>row.selected)?.type??null:actual[key];if(JSON.stringify(found)!==JSON.stringify(value))throw Error(name+' '+key+': '+JSON.stringify(found)+' != '+JSON.stringify(value))}writeFileSync(output+'-'+name+'-state.json',JSON.stringify(actual,null,2));await capture('-'+name)};
+  await filter(' *CUSTOM* ');await check('filtered',{filterActive:true,types:['turn/start','step/start','future/custom'],details:false});
+  await evaluate(`(()=>{const buttons=[...document.querySelectorAll('#r102-inspector-fixture button[aria-label="Collapse children"]')];window.__DSH_MODULES__.seed.get('react-dom').flushSync(()=>buttons[1].click())})()`);await settled();await check('folded',{types:['turn/start','step/start'],filterActive:true,details:false});
+  await click('Pick an element in Chat View');await settled();await evaluate(`window.__inspectorFixturePick('event:4')`);await settled();await check('picked',{types:['turn/start','step/start','future/custom'],filterActive:true,selected:'future/custom',details:true});
+  await evaluate(`(()=>{const rail=document.querySelector('#r102-inspector-fixture [role="separator"]');window.__DSH_MODULES__.seed.get('react-dom').flushSync(()=>rail.dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true})))})()`);await settled();await click('Close');await settled();await click('future/custom');await settled();await check('reopened',{filterActive:true,selected:'future/custom',dividerY:360});
+  await filter('CUSTOM');await check('reconfirmed',{types:['turn/start','step/start','future/custom'],filterActive:true,details:false});
+  await click('Pick an element in Chat View');await settled();await evaluate(`window.__inspectorFixturePick('event:3')`);await settled();await check('excluded-pick',{filterActive:false,selected:'assistant/message',details:true});
+  console.log('PASS: reference filter, fold, included/excluded pick, details lifetime and repeated confirmation');
+ }
 }finally{ws.close()}

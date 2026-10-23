@@ -66,8 +66,8 @@ func TestPendingPickWaitsForRowsThenSelectsTheRecord(t *testing.T) {
 	if p.selected != "chat:msg-9" {
 		t.Fatalf("selected row = %q", p.selected)
 	}
-	if p.navigation.Target == nil || p.navigation.Target.ID != "msg-9" {
-		t.Fatalf("navigation target = %+v", p.navigation.Target)
+	if p.navigation.Target != nil {
+		t.Fatalf("picked Chat record unexpectedly revealed Chat again: %+v", p.navigation.Target)
 	}
 	if p.navigation.Notice != "" {
 		t.Fatalf("unexpected miss notice: %q", p.navigation.Notice)

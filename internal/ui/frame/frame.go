@@ -934,9 +934,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											},
 										})
 									} else {
+										navigation := sessionInspectorChatNavigation(m)
 										chat.View(c, chat.Model{
 											OnInspectToolCall:    inspectActionFor(inspectToolCall, m.toolCallInspector()),
-											Inspector:         sessionInspectorChatNavigation(m),
+											Inspector:         navigation,
 											GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 											DisableDeveloperTools: m.DisableDeveloperTools,
 											Preferences:           m.ChatPreferences,
@@ -1020,6 +1021,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnSaveVisualReply:            m.OnSaveVisualReply,
 											OnCloseVisualReply:           m.OnCloseVisualReply,
 										})
+										syncInspectorChatProjection(m, navigation)
 									}
 								})
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
