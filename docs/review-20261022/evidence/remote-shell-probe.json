@@ -1,0 +1,79 @@
+{
+  "path": "phoneremote.NewRuntime + Start",
+  "probes": [
+    {
+      "name": "gitStatus anonymous :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/gitStatus",
+      "auth": "",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/gitStatus\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "gitStatus bearer :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/gitStatus",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/gitStatus\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "gitStatus anonymous :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
+      "auth": "",
+      "statusCode": 405,
+      "body": "Method not allowed",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "gitStatus bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
+      "auth": "bearer",
+      "statusCode": 405,
+      "body": "Method not allowed",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "listDir bearer :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/listDir",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/listDir\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "unknown shell name :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/writeFile",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/writeFile\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "gitStatus cookie :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/gitStatus",
+      "auth": "cookie",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/gitStatus\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    }
+  ],
+  "snapshot": {
+    "expiresAt": "2026-10-25T04:12:06.491+08:00",
+    "hasPairingURL": true,
+    "listening": true,
+    "pairingURLShape": "http://127.0.0.1:3180/#offer=\u003credacted\u003e",
+    "relayConnected": false,
+    "status": "ready"
+  },
+  "tokenHash": "9136b76cb86d619fe18a8289595ec0762a2a5f5114a8908e3fbc882ca35de90b",
+  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-1448824660",
+  "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor"
+}
