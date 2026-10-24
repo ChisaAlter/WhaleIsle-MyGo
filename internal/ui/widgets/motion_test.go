@@ -12,7 +12,7 @@ func TestMotionTokens(t *testing.T) {
 		want time.Duration
 	}{
 		{"overlay", OverlayMotion, 200 * time.Millisecond},
-		{"popover", PopoverMotion, 150 * time.Millisecond},
+		{"popover", PopoverMotion, 160 * time.Millisecond},
 		{"swap", SwapMotion, 120 * time.Millisecond},
 		{"flip", FlipMotion, 300 * time.Millisecond},
 	}

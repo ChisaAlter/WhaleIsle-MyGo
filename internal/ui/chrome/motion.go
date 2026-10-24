@@ -14,14 +14,15 @@ const (
 	// OverlayDuration is how long a modal or a page takes to appear.
 	OverlayDuration = 200 * time.Millisecond
 	// PopoverDuration is how long a menu or a floating card takes.
-	PopoverDuration = 150 * time.Millisecond
+	PopoverDuration = 160 * time.Millisecond
 )
 
 // How far a surface rises as it appears, in DIPs: a menu grows up out of its
-// anchor, a modal barely moves.
+// anchor by 4, a modal by 8, matching --ds-motion-distance-popover and
+// --ds-motion-distance-overlay (ui-theme/src/styles/base.css:21-22).
 const (
-	popoverRise = 6
-	overlayRise = 2
+	popoverRise = 4
+	overlayRise = 8
 )
 
 // PopoverTransition is the enter and exit motion of a menu, popover or floating
@@ -43,7 +44,7 @@ func PopoverTransition() ui.ElementTransition {
 		Duration: PopoverDuration,
 		Ease:     ui.EaseInOut,
 		Enter:    &ui.Motion{Y: popoverRise, Opacity: 0},
-		Exit:     &ui.Motion{Y: popoverRise / 2, Opacity: 0},
+		Exit:     &ui.Motion{Y: popoverRise, Opacity: 0},
 	}
 }
 

@@ -44,7 +44,7 @@ func captionWindowButtons(c *ui.Context, ink ui.Color) {
 		return en
 	}
 	control := func(key string, right float32, name string, paint func(*ui.Painter, ui.Rect), run func()) {
-		button := ui.ButtonBase(c.Key(key)).Absolute().Top(8).Right(right).Size(32, 32).
+		button := ui.ButtonBase(c.Key(key)).Absolute().Top(12).Right(right).Size(32, 32).
 			Padding(0).BorderWidth(0).Radius(8).Background(ui.Transparent).
 			Label(name).Tooltip(name)
 		button.Draw(paint)

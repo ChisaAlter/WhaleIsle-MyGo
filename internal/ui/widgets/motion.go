@@ -25,7 +25,7 @@ type Motion struct {
 // switch's thumb sliding) and Flip a whole surface turning over.
 var (
 	OverlayMotion = Motion{Duration: 200 * time.Millisecond, Ease: ui.EaseInOut}
-	PopoverMotion = Motion{Duration: 150 * time.Millisecond, Ease: ui.EaseInOut}
+	PopoverMotion = Motion{Duration: 160 * time.Millisecond, Ease: ui.EaseInOut}
 	SwapMotion    = Motion{Duration: 120 * time.Millisecond, Ease: ui.EaseInOut}
 	FlipMotion    = Motion{Duration: 300 * time.Millisecond, Ease: ui.EaseInOut}
 )
@@ -36,7 +36,7 @@ const (
 	// OverlayDuration is how long a modal or a page takes to appear.
 	OverlayDuration = 200 * time.Millisecond
 	// PopoverDuration is how long a menu or a floating card takes.
-	PopoverDuration = 150 * time.Millisecond
+	PopoverDuration = 160 * time.Millisecond
 	// SwapDuration is how long a control takes to change its face.
 	SwapDuration = 120 * time.Millisecond
 	// FlipDuration is how long a surface takes to turn over.

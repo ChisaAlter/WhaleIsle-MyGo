@@ -1,0 +1,164 @@
+{
+  "report": "chrome-metrics",
+  "date": "2026-10-24",
+  "matrix": "docs/parity/gap-matrix-20261024.md",
+  "rows": ["G01", "G02", "G50"],
+  "repo": { "branch": "main", "head": "3ee88ae5", "tree": "clean", "writes": ["docs/parity/chrome-metrics-20261024.md", "docs/parity/chrome-metrics-20261024.json"] },
+  "evidenceClass": "source-only",
+  "evidenceLimits": "No pixel measurement of the packaged Electron window (host provenance + 150% DPI gate, gap-matrix-20261024.md:169). MyGo band is render-measured through ui.NewTester.",
+
+  "deadExport": {
+    "symbol": "TITLEBAR_HEIGHT",
+    "value": 48,
+    "declaration": "reference/electron/src/main/chrome.js:9",
+    "onlyOtherOccurrence": "reference/electron/src/main/chrome.js:376 (module.exports)",
+    "consumers": [],
+    "note": "Repo-wide grep over js/mjs/cjs/ts/tsx/css/html (node_modules excluded) returns only :9 and :376. The constant never sizes any window."
+  },
+
+  "bandOwners": [
+    { "surface": "boot page (boot.html)", "owner": "boot.css:2 --caption-h: 48px; .caption boot.css:39-47", "height": 48, "visibleInMainWindow": false, "why": "boot.css:64-67,78-80 body[data-harness-covered] hides it while the BrowserView covers the window" },
+    { "surface": "launcher page (launcher.html)", "owner": "launcher.css:21-29 .caption", "height": 48, "visibleInMainWindow": false, "why": "launcher.html is the launcher shell, not the 1440x920 main window" },
+    { "surface": "main window harness page", "owner": "harness-chrome-inject.js:11 CAPTION_HEIGHT, :75/:88 plate", "height": 48, "visibleInMainWindow": true },
+    { "surface": "harness page drag rect", "owner": "AppFrame.module.css:277-284 .captionDrag", "height": 48, "visibleInMainWindow": true },
+    { "surface": "conversation header content row", "owner": "ConversationRoot.module.css:49-66 padding 12px top + :169-175 titleRow min-height 32", "height": 44, "visibleInMainWindow": true },
+    { "surface": "DSH standalone desktop app", "owner": "apps/desktop/src/windows-layout.ts:4 WINDOWS_TITLEBAR_HEIGHT=40; apps/desktop/src/main.ts:215; apps/desktop/src/preload-windows.ts:13; AppFrame.module.css:26-31,74-77", "height": 40, "visibleInMainWindow": false, "why": "data-windows-titlebar is set only by the DSH desktop preload; Whale Isle loads the harness Web UI into its own BrowserView (window.js:633-658) whose bounds are {0,0,contentW,contentH} (window.js:379-387)" }
+  ],
+
+  "nativeMainChrome": {
+    "file": "reference/electron/src/main/harness-chrome-inject.js",
+    "captionHeight": { "value": 48, "lines": [11, 75, 88] },
+    "controlSize": { "value": 32, "lines": [4, 96, 97] },
+    "controlGap": { "value": 0, "lines": [5, 86] },
+    "edge": { "value": 8, "lines": [8, 89] },
+    "cluster": { "value": 8, "lines": [9] },
+    "platePadding": { "value": "12px 8px 4px", "lines": [89, 269] },
+    "buttonRadius": { "value": 8, "lines": [104] },
+    "glyph": { "value": "12x12", "lines": [111, 115] },
+    "controlsReserve": { "value": 112, "formula": "EDGE + CONTROL_SIZE*3 + CONTROL_GAP*2 + CLUSTER = 8 + 96 + 0 + 8", "lines": [61, 62, 63, 74] },
+    "buttonTopInBand": { "value": 12, "derivation": "plate height 48, align-items center, padding 12 top / 4 bottom -> content box 32 -> 32px button at y=12..44", "lines": [83, 89, 96] },
+    "closeHover": { "value": "#e81123 background, #fff glyph", "lines": [120, 123] },
+    "pageTrailingCluster": { "file": "reference/electron/vendor/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.module.css", "height": 32, "marginTop": 12, "marginRight": "var(--dshd-wco-controls, 8px)", "lines": [333, 348] }
+  },
+
+  "pillDefaultIsDead": {
+    "file": "reference/electron/src/renderer/window-controls.css",
+    "declared": { "gap": "2px", "padding": "0 10px", "button": "30x30", "radius": "999px", "lines": [9, 14, 25, 30, 34] },
+    "overrides": [
+      "src/renderer/boot.html:2 carries data-boot-theme; src/renderer/boot.css:50-59 sets gap 0, padding 12px 8px 4px, buttons 32x32 radius 8 (comment: 'Match main-window geometry')",
+      "src/renderer/launcher.css:33-42 sets gap 0, padding 12px 8px 4px, buttons 32x32 radius 8 (comment: 'matching the main-window chrome')",
+      "src/main/window-harness-cover.test.js:280-281 pins the boot override text"
+    ],
+    "mainWindowLoadsIt": false,
+    "verdict": "measurement error: 30x30/gap2/padding0 10/radius999 never renders in the shipped shell"
+  },
+
+  "mygoActuals": {
+    "titleBarHeightConst": { "value": 12, "file": "internal/ui/chrome/titlebar.go", "line": 36 },
+    "effectiveTitleBarHeight": { "value": 12, "file": "internal/ui/chrome/titlebar.go", "lines": [39, 41] },
+    "windowOption": { "file": "cmd/whaleisle/main.go", "line": 2202, "value": "int(chrome.EffectiveTitleBarHeight()) = 12" },
+    "windowsCaptionButtons": { "file": "cmd/whaleisle/main.go", "line": 2208, "width": 32, "height": 32, "top": 8, "right": 8, "cornerRadius": 8, "glyphSize": 12 },
+    "platformTitleBarHeight": { "file": "third_party/mygo/internal/windows/titlebar.go", "line": 158, "value": 12, "expr": "cmp.Or(opts.TitleBarHeight, captionHeight)" },
+    "platformCaptionGeometry": { "file": "third_party/mygo/internal/windows/titlebar.go", "lines": [162, 167], "width": 32, "height": 32, "top": 8, "right": 8 },
+    "platformTitleBar": { "file": "third_party/mygo/internal/windows/titlebar.go", "lines": [169, 175], "height": 12, "right": "32*shown + 8 = 104 for three buttons" },
+    "goCaptionPainter": { "file": "internal/ui/frame/caption_buttons.go", "lines": [46, 70], "top": 8, "right": [8, 40, 72], "size": "32x32", "radius": 8 },
+    "windowsMainWindowSkipsTitleRow": { "file": "cmd/whaleisle/main.go", "lines": [3875, 3909], "code": "sharedNativeCaption -> ui.Box(c).Height(0)", "consequence": "no 12 DIP strip is painted on Windows while the harness is ready" },
+    "sharedCaptionBand": { "file": "internal/ui/frame/workspace_caption.go", "heightConst": 31, "minHeight": 36, "trailingTop": 88, "trailingRight": "max(112, c.TitleBar().Right+8) = 112", "trailingHeight": 32, "hairline": [111, 113], "returnExpr": 114, "value": 48 },
+    "renderProof": { "command": "go test ./internal/ui/frame -run \"TestSharedCaptionIsOneRowAcrossEveryRoute|TestConversationViewTabsStayInsideTheBand\" -count=1", "result": "PASS", "assertions": ["workspace_caption_test.go:48-55 center.Y == details.Y == 48 and trailing Y=12 H=32 ending at width-112", "workspace_caption_test.go:75-77 band == 48"] }
+  },
+
+  "comparison": [
+    { "metric": "band height", "native": "48 drag rect + 48 plate", "mygo": "48", "verdict": "match" },
+    { "metric": "band content row", "native": "44 (12 + 32)", "mygo": "48 centred", "verdict": "difference", "deltaDip": 4, "confidence": "source-only" },
+    { "metric": "caption button size", "native": "32x32", "mygo": "32x32", "verdict": "match" },
+    { "metric": "caption button radius", "native": 8, "mygo": 8, "verdict": "match" },
+    { "metric": "caption button gap", "native": 0, "mygo": 0, "verdict": "match" },
+    { "metric": "caption button right", "native": 8, "mygo": 8, "verdict": "match" },
+    { "metric": "caption button top", "native": 12, "mygo": 8, "verdict": "difference", "deltaDip": 4 },
+    { "metric": "cluster reserve", "native": 112, "mygo": 112, "verdict": "match" },
+    { "metric": "glyph size", "native": 12, "mygo": 12, "verdict": "match" },
+    { "metric": "close hover", "native": "#e81123 / #fff", "mygo": "no hover fill, theme muted ink", "verdict": "difference", "confidence": "source-only" },
+    { "metric": "title font", "native": "14px/20px weight 500", "mygo": "14/20 weight 500", "verdict": "match" },
+    { "metric": "title vertical position", "native": "row 12..44, centre 28", "mygo": "centred in 48, centre 24", "verdict": "difference", "deltaDip": 4 },
+    { "metric": "bottom hairline", "native": "0.5px at bottom:1px (ConversationRoot.module.css:104-114)", "mygo": "0.5px at H-0.5 (workspace_caption.go:111-113)", "verdict": "match" },
+    { "metric": "drag region", "native": "single 48 rect across all columns (AppFrame.module.css:277-284) with no-drag holes", "mygo": "48 row across chat+details + sidebar 60 brand drag row + 6 footer drag", "verdict": "difference", "confidence": "structural, hit area >= native" },
+    { "metric": "window buttons ownership", "native": "page overlay (#dshd-shell-controls)", "mygo": "native Win32 layered bar + Go-painted duplicates at identical geometry", "verdict": "difference", "confidence": "both clickable; layers must stay in sync" },
+    { "metric": "maximize corner radius", "native": 20, "mygo": 20, "verdict": "match" }
+  ],
+
+  "motionTokens": [
+    { "token": "shared duration", "native": "0.2s", "nativeRef": "ui-theme/src/styles/base.css:13", "mygo": "200ms", "mygoRef": "internal/ui/widgets/motion.go:27,37; internal/ui/chrome/motion.go:15", "verdict": "match" },
+    { "token": "fast / overlay-out", "native": "0.1s", "nativeRef": "ui-theme/src/styles/base.css:14,17", "mygo": "swap 120ms; overlay exit 200ms", "mygoRef": "internal/ui/widgets/motion.go:29,41; internal/ui/chrome/motion.go:59-65", "verdict": "difference", "delta": "swap +20ms, overlay-out +100ms" },
+    { "token": "slow (frame tracks)", "native": "0.3s", "nativeRef": "ui-theme/src/styles/base.css:15", "mygo": "no token; per-site 150/200ms", "mygoRef": "internal/ui/sidebar/sidebar.go:167-175", "verdict": "difference" },
+    { "token": "popover duration", "native": "0.16s", "nativeRef": "ui-theme/src/styles/base.css:18 (--ds-motion-duration-popover); ui-primitives/src/styles/../MenuSurface.module.css:53,58; motion.css:34-40", "mygo": "150ms", "mygoRef": "internal/ui/widgets/motion.go:28,39; internal/ui/chrome/motion.go:17", "verdict": "difference", "delta": "-10ms" },
+    { "token": "popover distance", "native": "translateY(4px)", "nativeRef": "ui-theme/src/styles/base.css:22; motion.css:44", "mygo": "enter Y=6, exit Y=3", "mygoRef": "internal/ui/chrome/motion.go:23,45,46", "verdict": "difference" },
+    { "token": "overlay duration", "native": "0.2s", "nativeRef": "ui-theme/src/styles/base.css:16; motion.css:20-26", "mygo": "200ms", "mygoRef": "internal/ui/chrome/motion.go:15,59-65", "verdict": "match" },
+    { "token": "overlay distance + scale", "native": "translateY(8px) scale(0.96)", "nativeRef": "ui-theme/src/styles/base.css:21,23; motion.css:30", "mygo": "Y=2, no scale", "mygoRef": "internal/ui/chrome/motion.go:24,63,64; third_party/mygo/ui/transition.go:40-49 has no Scale field", "verdict": "difference", "delta": "6 DIP less travel; scale unsupported by toolkit" },
+    { "token": "overlay exit", "native": "0.1s", "nativeRef": "ui-theme/src/styles/base.css:17; motion.css:28-32", "mygo": "200ms", "mygoRef": "internal/ui/chrome/motion.go:61-65", "verdict": "difference" },
+    { "token": "modal enter", "native": "0.2s, opacity only (mask ::after and dialog)", "nativeRef": "ui-primitives/src/Modal.module.css:25-31,48,51-54", "mygo": "200ms + Y=2 + opacity", "mygoRef": "internal/ui/chrome/motion.go:59-66,140-144; internal/ui/chrome/dialog_surface.go:43", "verdict": "partial" },
+    { "token": "shared ease", "native": "cubic-bezier(0.4, 0, 0.2, 1)", "nativeRef": "ui-theme/src/styles/base.css:12", "mygo": "cubic in-out 4t^3 / 1-(2-2t)^3/2", "mygoRef": "third_party/mygo/ui/widgets.go:128-135", "verdict": "difference", "delta": "same endpoints and midpoint; at t=0.25 MyGo ~0.063 vs ~0.29" },
+    { "token": "flip", "native": "0.4s rotateX +-80deg", "nativeRef": "ui-theme/src/styles/base.css:20; motion.css:66-109", "mygo": "300ms", "mygoRef": "internal/ui/widgets/motion.go:30,43", "verdict": "difference", "delta": "-100ms" },
+    { "token": "reduced motion", "native": "all tokens zeroed", "nativeRef": "ui-theme/src/styles/base.css:42-49; motion.css:111-116; Modal.module.css:56-58", "mygo": "framework skips transitions; Reveal returns 1", "mygoRef": "internal/ui/chrome/motion.go:92-94", "verdict": "match" }
+  ],
+
+  "fixes": [
+    {
+      "id": "F1",
+      "title": "caption button top 8 -> 12",
+      "priority": 1,
+      "edits": ["cmd/whaleisle/main.go:2208 Top: 8 -> 12", "internal/ui/frame/caption_buttons.go:46 Top(8) -> Top(12)"],
+      "test": "third_party/mygo/internal/windows/caption_geometry_windows_test.go require top == 12; new internal/ui/frame/caption_buttons_test.go asserting close rect Y==12, H==32, X+W==width-8",
+      "risk": "low; hit target unchanged, bottom edge at 44 matches the 4px plate inset"
+    },
+    {
+      "id": "F2",
+      "title": "band content vertical position centre 24 -> 28",
+      "priority": 2,
+      "edits": ["internal/ui/frame/workspace_caption.go:36 add Padding(12,0,0,0) (or AlignItems Start + inner 32 row), keeping MinHeight(48)"],
+      "test": "assert conversation title seat Y==12 && H==32 in TestSharedCaptionIsOneRowAcrossEveryRoute; hero and view-tab cases stay inside 0..48",
+      "risk": "medium-low; header goldens may move 4 DIP, band stays 48 with no second row"
+    },
+    {
+      "id": "F3",
+      "title": "popover token 150 -> 160ms, rise 6 -> 4",
+      "priority": 3,
+      "edits": ["internal/ui/widgets/motion.go:28,39", "internal/ui/chrome/motion.go:17,23,45,46"],
+      "test": "update internal/ui/widgets/motion_test.go:15 and internal/ui/chrome/motion_test.go:41; Reveal settle test at +80/+160ms (chrome/motion_test.go:64-66)",
+      "risk": "low, timing only, but user-visible across menus/chips/cards so land alone"
+    },
+    {
+      "id": "F4",
+      "title": "overlay recipe distance 2 -> 8 and 100ms exit",
+      "priority": 4,
+      "edits": ["internal/ui/chrome/motion.go:24 overlayRise 2 -> 8", "internal/ui/chrome/motion.go:61-65 give exit its own 100ms duration"],
+      "test": "overlay progress test: settled at +100ms on close; enter offset == 8",
+      "risk": "medium; mask and panel must stay synchronised; the reference scale(0.96) is unreachable without a toolkit Scale field (third_party/mygo/ui/transition.go:40-49)"
+    },
+    {
+      "id": "F5",
+      "title": "TitleBarHeight=12 residuals (investigate, do not blind-fix)",
+      "priority": 5,
+      "edits": ["internal/ui/browserpreview/{media,pdf,html}.go:23-26 + controller.go:128 TopInset uses chrome.TitleBarHeight (12) while the band is 48", "internal/ui/chrome/titlebar.go:84-90 h = bar.Height = 12 unless a leading control lifts it to 32"],
+      "test": "measure the preview host rect against the 48 band on a running window; header-seat test for the not-ready panel path",
+      "risk": "unverified: whether the panel rect is already below the band; changing the constant also moves the platform caption overlay geometry and the 112 reserve"
+    }
+  ],
+
+  "unverified": [
+    "any pixel of the packaged Electron window (band height, button top, title baseline) - source math only",
+    "whether browserpreview child hosts overlap the 48 band because TopInset uses 12",
+    "whether the not-ready Windows panel path really renders a 12 DIP strip with a 13px label",
+    "whether native rc.2 still mounts a tab under the caption (ConversationRoot.module.css:43-48 describes a 76 DIP header with tabs, MyGo pins 'no second tab row')"
+  ],
+
+  "verdict": {
+    "row": "G01",
+    "answer": "measurement error",
+    "notA": ["36 DIP defect", "8 DIP difference"],
+    "bandNative": 48,
+    "bandMygo": 48,
+    "realDeltas": ["caption button top 12 native vs 8 MyGo (4 DIP)", "band content centred at 24 vs native row centre 28 (4 DIP)", "popover 160 vs 150ms and rise 4 vs 6 (G50)"],
+    "g02": "30x30 pill is the unused window-controls.css default; real box is 32x32 radius 8 gap 0 right 8 on both sides, only top differs",
+    "statement": "The 12 DIP value is the platform caption reserve (chrome/titlebar.go:36), not the rendered band; on Windows the main window paints zero title strip (main.go:3938) and the workspace shared caption is 48 DIP (workspace_caption.go:31,36,114, render-verified). The 48 comes from harness-chrome-inject.js:11 not from the dead chrome.js:9 export."
+  }
+}
