@@ -1,0 +1,7 @@
+﻿{
+    "output":  "ok  \tgithub.com/egoist/mygo/ui\t2.737s",
+    "finishedAt":  "2026-10-24T02:05:46.0252191Z",
+    "command":  "go test ./ui -run ^TestAccessibility -count=1",
+    "startedAt":  "2026-10-24T02:05:40.2081499Z",
+    "exit":  0
+}

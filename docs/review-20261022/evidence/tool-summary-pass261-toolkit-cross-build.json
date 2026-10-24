@@ -1,0 +1,17 @@
+﻿[
+    {
+        "output":  "",
+        "goos":  "windows",
+        "exit":  0
+    },
+    {
+        "output":  "",
+        "goos":  "linux",
+        "exit":  0
+    },
+    {
+        "output":  "",
+        "goos":  "darwin",
+        "exit":  0
+    }
+]

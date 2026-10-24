@@ -188,7 +188,7 @@ func leafRole(r platform.AccessRole) bool {
 	switch r {
 	case platform.RoleGroup, platform.RoleList, platform.RoleScroll, platform.RoleDialog, platform.RoleAlertDialog, platform.RolePopup, platform.RoleStatus,
 		platform.RoleTabList, platform.RoleTable, platform.RoleRow, platform.RoleCell, platform.RoleColumnHeader, platform.RoleTree, platform.RoleListItem,
-		platform.RoleToolbar, platform.RoleRadioGroup, platform.RoleMenu, platform.RoleMenuBar:
+		platform.RoleToolbar, platform.RoleRadioGroup, platform.RoleMenu, platform.RoleMenuBar, platform.RoleDisclosure:
 		return false
 	}
 	return true
@@ -370,9 +370,9 @@ func (rt *engine) accessDetails(e *node, n *platform.AccessNode) {
 	if n.Role == platform.RoleRow && e.checked > 0 {
 		n.States |= platform.AccessSelectable
 	}
-	// Rows and items of lists, and statuses, are named by their content,
-	// as leaves are, but show what is inside them too, as a toast's button.
-	if n.Label == "" && (leafRole(n.Role) || n.Role == platform.RoleListItem || n.Role == platform.RoleRow || n.Role == platform.RoleColumnHeader || n.Role == platform.RoleStatus) {
+	// Rows, statuses and disclosures take their content as a default name,
+	// as leaves do, while keeping nested actions visible to assistive tools.
+	if n.Label == "" && (leafRole(n.Role) || n.Role == platform.RoleListItem || n.Role == platform.RoleRow || n.Role == platform.RoleColumnHeader || n.Role == platform.RoleStatus || n.Role == platform.RoleDisclosure) {
 		n.Label = e.innerText()
 	}
 	switch e.checked {

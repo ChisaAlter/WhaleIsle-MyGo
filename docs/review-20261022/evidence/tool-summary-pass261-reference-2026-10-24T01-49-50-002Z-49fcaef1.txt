@@ -1,0 +1,13 @@
+Round117 installed summary links + totals: PASSED
+Run 2026-10-24T01-49-50-002Z-49fcaef1
+Cases 8/8; assertions 36/36
+PASSED source-only-installed-tables 3/3
+PASSED neutral-link-and-totals-exact-CSS 8/8
+PASSED plain-flex-and-narrow-ellipsis 4/4
+PASSED hover-open-success-error-colors 3/3
+PASSED path-click-callback-line-stopprop 4/4
+PASSED keyboard-explicit-local-scope 5/5
+PASSED settlement-terminal-empty-zero-and-href 5/5
+PASSED source-input-network-custody 4/4
+Cleanup {"target":"Only spawned exact Chrome PID/profile/port","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":21436},{"type":"renderer","id":6844},{"type":"renderer","id":11036},{"type":"renderer","id":9672},{"type":"renderer","id":25792},{"type":"renderer","id":9996},{"type":"renderer","id":34492},{"type":"GPU","id":48052},{"type":"network.mojom.NetworkService","id":30660},{"type":"storage.mojom.StorageService","id":42748}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null},"portReleased":true,"processes":[{"pid":21436,"alive":false},{"pid":11036,"alive":false},{"pid":9672,"alive":false},{"pid":25792,"alive":false},{"pid":34492,"alive":false},{"pid":48052,"alive":false},{"pid":30660,"alive":false},{"pid":42748,"alive":false},{"pid":6844,"alive":false},{"pid":9996,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r117-tool-summary-2026-10-24T01-49-50-002Z-49fcaef1-profile","profileRemoved":true,"pass":true}
+Errors []

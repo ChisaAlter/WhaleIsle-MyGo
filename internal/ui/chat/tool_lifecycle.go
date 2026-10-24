@@ -122,6 +122,15 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		}
 	}
 	info.Arguments = arguments
+	if !gallery.TextOnly {
+		summary := toolSummaryModelFor(call, gallery.Cwd, gallery.Home)
+		info.summaryModel = &summary
+		info.openFile = gallery.OnOpenFile
+		info.diffSummary = toolDiffSummaryFor(call)
+		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {
+			info.contentKB = &kilobytes
+		}
+	}
 	info.terminal = terminalModelFor(call, gallery.Cwd)
 	if info.Status == "ok" && terminalModelFailed(info.terminal) {
 		info.Status = "error"

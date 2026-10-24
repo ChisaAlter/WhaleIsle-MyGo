@@ -1,0 +1,12 @@
+﻿{
+    "finishedAt":  "2026-10-24T02:03:18.9735592Z",
+    "vet":  {
+                "exit":  0,
+                "output":  ""
+            },
+    "startedAt":  "2026-10-24T02:01:40.6250782Z",
+    "test":  {
+                 "exit":  1,
+                 "output":  "--- FAIL: TestDiffFrameAllocs (36.90s)\n    bench_test.go:288: allocations a frame: steady 6, scrolling the sidebar 146, with the diff 148, within rows laid out 13\n    bench_test.go:293: a steady frame allocates 6 times, and one scrolling within rows laid out 13, not 2\n2026/10/24 10:02:57 mygo: MYGO_FRAME_STATS=\"fast\" is not a number of milliseconds: logging frames over 8 ms\n2026/10/24 10:02:57 mygo: drawing without the GPU: the device was removed\n2026/10/24 10:02:57 mygo: drawing with the GPU again\n2026/10/24 10:02:57 mygo: drawing without the GPU: the device was removed\n2026/10/24 10:02:57 mygo: drawing without the GPU: no device\n2026/10/24 10:02:57 mygo: drawing without the GPU: no device\n2026/10/24 10:02:57 mygo: drawing with the GPU again\n2026/10/24 10:02:57 mygo: drawing without the GPU: the device was removed\n2026/10/24 10:02:57 mygo: drawing in software until the GPU is back\n2026/10/24 10:02:57 mygo: drawing with the GPU again\n2026/10/24 10:02:57 mygo: drawing without the GPU: no device\n--- FAIL: TestShapeTextLineNativeFallbackAndGraphemeEllipsis (0.01s)\n    text_layout_raster_test.go:147: width 24 did not use the native one-line ellipsis\nFAIL\nFAIL\tgithub.com/egoist/mygo/ui\t70.138s\nFAIL"
+             }
+}

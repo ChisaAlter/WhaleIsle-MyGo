@@ -1,0 +1,23 @@
+# Round117 installed summary links and diff totals
+
+PASSED: 8/8 cases; 36/36 assertions. [Metrics](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1.json>) · [Unique source/CSS/maps/algorithm tables](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1-source.json>) · [Runner](<C:/AI/WhaleIsle-MyGo/scripts/tool-summary-reference-chrome.mjs>).
+
+Manual DOM reproducing current installed ToolRow/DisclosureRow/TextShimmer base containment with verbatim current installed CSS and light theme. Synthetic summaries/diffs and explicit local handlers. Source-only exact installed pure functions execute in a VM; no React or application execution.
+
+| Surface | Current installed declaration / observation |
+|---|---|
+| Link | Native button or href anchor; font13px/24px, color inherit; dotted underline1px with3px offset; text-align:left; border/margin/padding0; flex:0 1 auto, min-width0, ellipsis/nowrap/hidden. |
+| Summary | Plain span uses flex:1 1 auto and no underline. Outer TextShimmer root is width:max-content, max-width:100%; the short summary does not automatically fill an otherwise wide row. Constrained long plain text fills available width and pushes totals to the content edge. |
+| Suffix / totals | Suffix flex:none,13px/24px, margin-left4px. Totals combine summarySuffix+diffStat: code-font11px/24px, margin-left10px, translateY(.5px); +0 -0 remains visible. |
+| Colors | Neutral totals inherit tertiary at rest. Hover row/link uses secondary; hover OR aria-expanded=true selects success/error for additions/deletions. Nonhover open row text remains tertiary. |
+| State | error/stopped remove path and href links, suffix and totals. Error first-line replaces summary; stopped retains summary. Terminal exit suppresses links and preserves terminal description; empty summary removes entire fragment. |
+
+Measured short path unused right: 373.4375px; short plain unused right: 373.4375px. Tiny link client/scroll widths: 73/354px. Long plain client/scroll widths: 243/532px.
+
+The source-only VM executes the exact current bundled diff engine QL/eT/rT with Bw/QZ/L8. Empty text is zero content lines; remove exactly one terminal LF then split LF, keeping interior blanks and CR. Each line is normalized with LF before structuredPatch(context:3,maxEditLength:256). Count only hunk lines beginning + or -. At256 edits shared lines remain context; above256 a full-fragment fallback counts shared lines as replaced. Seventeen cases include CRLF, final terminator changes, blank lines, repeated diff entries, reorder and limit behavior. Read offset and path/state model tables also execute installed pure functions without importing app modules.
+
+Trusted CDP path clicks stop propagation and log only local onOpenFile arguments; read uses {line:37}; description text may link to a separate path; a path wins href; Ctrl click still invokes the path callback. The URL anchor retains target=_blank/rel=noopener noreferrer without any navigation. Explicit row Enter/Space handlers and trusted Tab are measured. Space on the path uses an explicit local keydown activation adapter after installed stopPropagation; this is documented local behavior, not React or native-button default certification. No native-button Enter activation assertion is made.
+
+Running/preparing shimmer source/CSS are retained without motion certification. The terminal-exit example uses a plain local exit-label marker solely to establish link suppression and description selection; it does not measure the installed ExitCodeBadge capsule. Manual fixture does not run original React, ReadBlock/DiffBlock bodies, disclosure presence/motion, application host dispatch, file opening or URL navigation. Installed source integrity: true; startup count: 1; DPR: 1; cleanup: true. All observed owned PIDs exited, loopback port released and owned profile removed when cleanup passes. Protected Electron20012/backend16008/LockApp12516 and GUI3080 untouched.
+
+[rest](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1-rest.png>) · [hover](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1-hover.png>) · [open](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1-open.png>) · [focus](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/tool-summary-pass261-reference-2026-10-24T01-49-50-002Z-49fcaef1-focus.png>)

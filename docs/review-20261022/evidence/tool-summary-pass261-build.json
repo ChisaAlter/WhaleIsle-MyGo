@@ -1,0 +1,45 @@
+﻿{
+    "at":  "2026-10-24T02:07:01.1108100Z",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "buildCommand":  "go build -o whaleisle-pass261.exe ./cmd/whaleisle",
+    "buildExit":  0,
+    "fixtureCommand":  "go test -tags summaryfixture -c -o .devdata/r117-summary-fixture.exe ./internal/ui/chat",
+    "fixtureExit":  0,
+    "artifacts":  [
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass261.exe",
+                          "bytes":  85477888,
+                          "sha256":  "37812234B1814B2E02F014F1A5870517DFE714D407895767692BB84A884C32E1"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                          "bytes":  85477888,
+                          "sha256":  "37812234B1814B2E02F014F1A5870517DFE714D407895767692BB84A884C32E1"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r117-summary-fixture.exe",
+                          "bytes":  50394624,
+                          "sha256":  "20C9C5D1EF6E8D0BE9E82A28EC9FA0884D3A374D29BBC52430537358F661A332"
+                      }
+                  ],
+    "originalToolSHA256":  "15BEAA6632F0C2D16C7D84EF25A1CA96725B8F8FC3C74DECC79C1801540B994D",
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "guiListener":  [
+                        {
+                            "LocalAddress":  "127.0.0.1",
+                            "LocalPort":  3080,
+                            "OwningProcess":  16008
+                        }
+                    ],
+    "ownedFixtureCount":  0
+}

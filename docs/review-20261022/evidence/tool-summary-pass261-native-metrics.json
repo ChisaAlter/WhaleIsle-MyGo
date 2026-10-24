@@ -1,0 +1,35 @@
+{
+  "dark": true,
+  "expanded": {
+    "|tool:read-summary": true
+  },
+  "following": {
+    "X": 20,
+    "Y": 239.79199,
+    "W": 705.3333,
+    "H": 1
+  },
+  "opened": [
+    "/recorded/src/read.go:37",
+    "/recorded/src/read.go:37",
+    "/recorded/src/read.go:37",
+    "/recorded/src/read.go:37",
+    "/recorded/src/read.go:37"
+  ],
+  "rows": {
+    "edit-summary": {
+      "X": 20,
+      "Y": 205.79199,
+      "W": 560,
+      "H": 24
+    },
+    "read-summary": {
+      "X": 20,
+      "Y": 65.28125,
+      "W": 560,
+      "H": 130.51074
+    }
+  },
+  "scale": 1.5,
+  "time": "2026-10-24T09:57:19.7641006+08:00"
+}

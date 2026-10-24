@@ -1,0 +1,95 @@
+{
+  "boxes": {
+    "+2 -1": {
+      "X": 249.7608,
+      "Y": 20.5,
+      "W": 30.239197,
+      "H": 23.5
+    },
+    "/work/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/change.go": {
+      "X": 20,
+      "Y": 268.5,
+      "W": 260,
+      "H": 28
+    },
+    "1KB": {
+      "X": 217.75983,
+      "Y": 20,
+      "W": 22.000977,
+      "H": 24
+    },
+    "@@ -1,7 +1,13 @@\n-old\n+new%0Aextra\n %0Asha\n": {
+      "X": 20,
+      "Y": 349.80078,
+      "W": 260,
+      "H": 76.1084
+    },
+    "Applied diff": {
+      "X": 20,
+      "Y": 300.5,
+      "W": 260,
+      "H": 13.300781
+    },
+    "Edit": {
+      "X": 42,
+      "Y": 20,
+      "W": 21.785156,
+      "H": 24
+    },
+    "Edit long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/change.go": {
+      "X": 20,
+      "Y": 20,
+      "W": 260,
+      "H": 24
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 425.90918,
+      "W": 260,
+      "H": 1
+    },
+    "IN": {
+      "X": 25,
+      "Y": 49,
+      "W": 254,
+      "H": 174
+    },
+    "OUT": {
+      "X": 25,
+      "Y": 223.5,
+      "W": 254,
+      "H": 40
+    },
+    "Tool input/output": {
+      "X": 24,
+      "Y": 48,
+      "W": 256,
+      "H": 216.5
+    },
+    "a": {
+      "X": 20,
+      "Y": 317.80078,
+      "W": 260,
+      "H": 28
+    },
+    "done": {
+      "X": 73.143555,
+      "Y": 235.5,
+      "W": 189.85645,
+      "H": 16
+    },
+    "long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/change.go": {
+      "X": 81.78516,
+      "Y": 20,
+      "W": 131.97467,
+      "H": 24
+    },
+    "{\n  \"file_path\": \"/work/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/long-directory/change.go\",\n  \"new_string\": \"new\",\n  \"old_string\": \"old\"\n}": {
+      "X": 67.0957,
+      "Y": 61,
+      "W": 195.9043,
+      "H": 162
+    }
+  },
+  "scope": "MyGo software DPR1; recorded data, no Host or physical input"
+}

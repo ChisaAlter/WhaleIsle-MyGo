@@ -1,0 +1,171 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T01:57:18.3787696Z",
+    "status":  "pass-injected-native-surface",
+    "scope":  "Injected focus/click/key messages on exact owned MyGoSurface plus UIAutomation Invoke. Recorded callback only: no files opened, Host calls, clipboard or hardware input.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r117-summary-fixture.exe",
+                    "startUtc":  "2026-10-24T01:56:59.0575677Z",
+                    "exited":  true,
+                    "pid":  8204,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "path-click-enter-space",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  133.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37"
+                                                  ],
+                                       "rows":  {
+                                                    "edit-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  99.28125,
+                                                                         "W":  560,
+                                                                         "H":  24
+                                                                     },
+                                                    "read-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  65.28125,
+                                                                         "W":  560,
+                                                                         "H":  24
+                                                                     }
+                                                },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:57:18.8035473+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "open-row-path-and-accessible-invoke",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:read-summary":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  239.79199,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37"
+                                                  ],
+                                       "rows":  {
+                                                    "edit-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  205.79199,
+                                                                         "W":  560,
+                                                                         "H":  24
+                                                                     },
+                                                    "read-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  65.28125,
+                                                                         "W":  560,
+                                                                         "H":  130.51074
+                                                                     }
+                                                },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:57:19.2274294+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "theme-keeps-disclosure-and-path",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "|tool:read-summary":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  239.79199,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37"
+                                                  ],
+                                       "rows":  {
+                                                    "edit-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  205.79199,
+                                                                         "W":  560,
+                                                                         "H":  24
+                                                                     },
+                                                    "read-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  65.28125,
+                                                                         "W":  560,
+                                                                         "H":  130.51074
+                                                                     }
+                                                },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:57:19.3415832+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "disclosure-space",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "|tool:read-summary":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  239.79199,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37",
+                                                      "/recorded/src/read.go:37"
+                                                  ],
+                                       "rows":  {
+                                                    "edit-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  205.79199,
+                                                                         "W":  560,
+                                                                         "H":  24
+                                                                     },
+                                                    "read-summary":  {
+                                                                         "X":  20,
+                                                                         "Y":  65.28125,
+                                                                         "W":  560,
+                                                                         "H":  130.51074
+                                                                     }
+                                                },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:57:19.7641006+08:00"
+                                   }
+                   }
+               ],
+    "error":  null,
+    "finishedAt":  "2026-10-24T01:57:20.0443334Z"
+}

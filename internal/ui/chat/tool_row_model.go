@@ -87,6 +87,9 @@ func toolRowSummary(info ToolCardInfo) string {
 	if info.terminal != nil && terminalDescription(info.terminal) != "" {
 		return terminalDescription(info.terminal)
 	}
+	if info.summaryModel != nil {
+		return info.summaryModel.Summary
+	}
 	if (info.Status == "error" || info.Status == "failed") && info.Output != "" {
 		return toolRowFirstLine(info.Output)
 	}

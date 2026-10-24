@@ -93,19 +93,7 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 		}
 		if summary != "" {
 			ui.Box(c).Size(2, 2).Radius(1).Background(caption).Shrink(0).Margin(0, 8, 0, 8)
-			if running {
-				widgets.TextShimmer(c, widgets.TextShimmerOptions{Text: summary, Active: true, Font: font, Size: size, Color: summaryInk}).Grow(1).MinWidth(0)
-			} else {
-				summaryText := ui.Text(c, summary).Font(font).FontSize(size).FixedLineHeight(height).TextColor(summaryInk).SingleLine().MinWidth(0)
-				if exitLabel == "" {
-					summaryText.Grow(1)
-				} else {
-					summaryText.Shrink(1)
-				}
-			}
-			if exitLabel != "" {
-				terminalExitBadge(c, exitLabel, st)
-			}
+			toolHeaderSummary(c, info, st, summary, size, height, summaryInk, running, hovered || *open, exitLabel)
 		}
 	})
 	return row

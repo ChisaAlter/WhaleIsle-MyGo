@@ -1,0 +1,62 @@
+{
+  "scope": "Retained DPR1 installed-CSS/manual-DOM and native software dimensions; different text/fonts. No native underline/font/grammar/focus/motion or complete app pixel parity claim.",
+  "originalAcceptance": {
+    "passedCases": 8,
+    "failedCases": 0,
+    "passedAssertions": 36,
+    "failedAssertions": 0
+  },
+  "sourceAlgorithmCasesPassed": 17,
+  "checks": [
+    {
+      "name": "header height",
+      "installed": 24,
+      "native": 24,
+      "pass": true
+    },
+    {
+      "name": "title left inset after business icon",
+      "installed": 22,
+      "native": 22,
+      "pass": true
+    },
+    {
+      "name": "path link height",
+      "installed": 24,
+      "native": 24,
+      "pass": true
+    },
+    {
+      "name": "content suffix left margin",
+      "installed": 4.0,
+      "native": 3.999989999999997,
+      "pass": true
+    },
+    {
+      "name": "diff totals left margin",
+      "installed": 10.0,
+      "native": 10.000003,
+      "pass": true
+    },
+    {
+      "name": "diff totals vertical shift",
+      "installed": 0.5,
+      "native": 0.5,
+      "pass": true
+    },
+    {
+      "name": "content suffix line height",
+      "installed": 24,
+      "native": 24,
+      "pass": true
+    },
+    {
+      "name": "closed body flow contribution",
+      "installed": 24,
+      "native": 24,
+      "pass": true
+    }
+  ],
+  "nativeClippingLimit": "Find reports viewport-clipped stat height23.5 after its .5 offset; installed getBoundingClientRect reports full24. Visible glyphs fit. Full outer height is not compared.",
+  "linkDecorationLimit": "Native dot spacing and baseline use native font metrics; only installed dotted1px/offset3 source and native implementation are retained, not underline pixel identity."
+}

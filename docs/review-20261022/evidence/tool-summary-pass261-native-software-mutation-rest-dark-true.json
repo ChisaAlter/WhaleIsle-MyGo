@@ -1,0 +1,41 @@
+{
+  "boxes": {
+    "+2 -1": {
+      "X": 198.76953,
+      "Y": 20.5,
+      "W": 30.239258,
+      "H": 23.5
+    },
+    "1KB": {
+      "X": 166.76855,
+      "Y": 20,
+      "W": 22.000977,
+      "H": 24
+    },
+    "Edit": {
+      "X": 42,
+      "Y": 20,
+      "W": 21.785156,
+      "H": 24
+    },
+    "Edit src/change.go": {
+      "X": 20,
+      "Y": 20,
+      "W": 600,
+      "H": 24
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 44,
+      "W": 600,
+      "H": 1
+    },
+    "src/change.go": {
+      "X": 81.78516,
+      "Y": 20,
+      "W": 80.9834,
+      "H": 24
+    }
+  },
+  "scope": "MyGo software DPR1; recorded data, no Host or physical input"
+}

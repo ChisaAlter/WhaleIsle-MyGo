@@ -1,0 +1,27 @@
+﻿{
+    "finishedAt":  "2026-10-24T02:04:52.3836635Z",
+    "startedAt":  "2026-10-24T02:01:37.7960793Z",
+    "checks":  [
+                   {
+                       "output":  "ok  \twhaleisle/internal/ui/chat\t150.748s\nok  \twhaleisle/internal/ui/frame\t32.152s\nok  \twhaleisle/internal/ui/interaction\t5.883s\nok  \twhaleisle/internal/ui/i18n\t0.967s",
+                       "exit":  0,
+                       "command":  "go test ./internal/ui/chat ./internal/ui/frame ./internal/ui/interaction ./internal/ui/i18n -count=1",
+                       "seconds":  183.2258985,
+                       "kind":  "affected"
+                   },
+                   {
+                       "output":  "",
+                       "exit":  0,
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+                       "seconds":  6.4866652,
+                       "kind":  "lifetime-chat"
+                   },
+                   {
+                       "output":  "",
+                       "exit":  0,
+                       "command":  "go vet ./internal/ui/chat ./internal/ui/frame ./internal/ui/interaction ./internal/ui/i18n",
+                       "seconds":  4.6581998,
+                       "kind":  "vet"
+                   }
+               ]
+}

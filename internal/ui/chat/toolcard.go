@@ -44,6 +44,11 @@ type ToolCardInfo struct {
 	Output    string
 	// terminal is derived from a validated paired call/result, never its name alone.
 	terminal *toolTerminalModel
+	// Paired-call header data remains independent of the body and source events.
+	summaryModel *toolSummaryModel
+	diffSummary  *toolDiffSummary
+	contentKB    *int
+	openFile     func(string)
 }
 
 // ParseToolCard extracts name, status, and truncated args/result from raw JSON.
