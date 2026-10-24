@@ -1,5 +1,7 @@
 package pet
 
+import "github.com/egoist/mygo"
+
 // Window geometry mirrors the native desktop pet. The modern pet is the live2d
 // overlay: reference/electron/src/main/desktop-live2d.js:35-37 pins the sprite
 // footprint PET_WIDTH = 240, PET_HEIGHT = 260 and EDGE_GAP = 24 relative to the
@@ -35,3 +37,13 @@ const (
 func petWindowSize() (int, int) {
 	return PetWindowWidth, PetWindowHeight
 }
+
+// openCompanionWindow creates the pet's OS window. The shell can only create a
+// window once the application loop is running, and a main-window recreation
+// (launcher -> desktop) closes the companion, so the manager must be able to
+// create it again on the next SetReady. Tests replace this seam to observe the
+// lifecycle without a GUI.
+var openCompanionWindow = func(opts mygo.WindowOptions) *mygo.Window {
+	return mygo.NewWindow(opts)
+}
+

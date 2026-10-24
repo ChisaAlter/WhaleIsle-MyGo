@@ -67,3 +67,31 @@
 1. 桌宠窗口在本轮 throwaway profile 下未创建，需确认启动时 `sync()` 的触发条件后复测 240×438（150% → 360×657）。
 2. 边缘间隙/位置：原生 ratio + 24 夹紧，MyGo 绝对坐标；若要完全对齐需要改 `config.PetPosition` 语义（本轮未做）。
 3. 无行为相关高度：已确认原生不存在，MyGo 的 `petWindowHeight` 现为常量，但页面状态面板仍占 178 DIP——渲染层差异如实保留。
+
+## 7. task-29 补记：窗口为什么不见（已定位），以及仍未拿到的实测
+
+用 `WHALEISLE_PET_DEBUG=<file>` 打开了 pet 包里的轻量埋点（`internal/desktop/pet/debug.go`，未设置该变量时零 I/O），在同一次启动里拿到了完整因果链：
+
+```
+sync enabled=true ready=true win=false
+newWindow nil=false destroyed=false      <- 窗口创建成功，不是 NewWindow 失败
+sync enabled=true ready=true win=true
+didFailLoad url=whale-pet://localhost/index.html code=14 desc=navigation failed (COREWEBVIEW2_WEB_ERROR_STATUS 14)
+didFailLoad: retrying once
+didFailLoad ... code=14                  <- 重试仍失败
+close: destroy window                    <- 自家 OnDidFailLoad 里 p.close()
+```
+
+结论（已证实，非猜测）：
+1. **不是**创建失败——`mygo.NewWindow` 返回了可用窗口；round154 的「第二次 NewWindow 在创建回调里失败」假设不成立。
+2. 真正的失败是 **`whale-pet://localhost/index.html` 自定义 scheme 导航被 WebView2 中止**（状态 14 = `CONNECTION_ABORTED`）。
+3. 页面失败后 `w.Page().OnDidFailLoad` 直接 `p.close()` 销毁窗口，且**启动后再无人重新创建**（`sync()` 只由 `Save`/`SetEnabled`/`SetReady`/`recovery` 触发），于是整个会话都没有桌宠。
+
+本轮已落地的改动（都在 `internal/desktop/pet/` + 一行 `cmd/whaleisle` 生命周期接线，未改渲染器）：
+- **生命周期 seam**：建窗改走 `openCompanionWindow` 变量（`geometry.go`），测试可替换；主窗 `win.OnShow` 时重新 `SetReady(!isolatedDesktopRun())`（`main.go:2322-2328`），主窗重建（启动器→桌面、恢复重载）后桌宠会重新出现。
+- **加载失败可观测 + 一次重试**：`OnDidFailLoad` 先记 `url/code/desc`，未重试过则 `Reload()` 一次，仍失败才记录 `p.Error` 并关闭。
+- 新增 `lifecycle_test.go`：未 ready 不建窗；ready 建一次；`Close()` 后再次 `SetReady(true)` 会重建；禁用时不再建窗且不残留句柄（用 seam 计数，无需 GUI）。
+
+**仍未完成**：`whale-pet://` 导航中止的根因要在 WebView2/自定义 scheme 层继续查（mygo 约定「scheme 必须在使用它的窗口创建前注册」，而 pet 的 `Protocol.Handle` 在 `New()` 里、建窗前执行；需要对比主窗 `whaleisle://` 的注册时机与 webview 初始化顺序）。因此**实测 240×438（150% → 360×657）依然缺失**，本轮没有 `pet-window-live.json`，不把它当作已验证。
+
+测试：`go test ./internal/desktop/pet` ok 3.2 s；`go test ./cmd/whaleisle -run "Pet|Companion"` ok 5.9 s；`go vet ./internal/desktop/pet ./cmd/whaleisle` → 0。

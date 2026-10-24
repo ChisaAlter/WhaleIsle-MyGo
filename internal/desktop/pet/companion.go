@@ -1,4 +1,4 @@
-﻿package pet
+package pet
 
 import (
 	"embed"
@@ -36,6 +36,7 @@ type Companion struct {
 	renderAssets              map[string][]byte
 	neuralActive              bool
 	renderNotice              string
+	loadRetried                bool
 	notifications             notificationState
 	OnNotificationsClosed     func()
 	OnNotificationsReady      func()
@@ -147,6 +148,7 @@ func (p *Companion) close() {
 	p.neuralActive = false
 	p.assetMu.Unlock()
 	if p.win != nil {
+		petDebugStack("close: destroy window")
 		w := p.win
 		p.win = nil
 		w.Destroy()
@@ -154,6 +156,7 @@ func (p *Companion) close() {
 }
 func (p *Companion) sync() {
 	cfg := p.Store.DesktopPet()
+	petDebug("sync enabled=%v ready=%v win=%v", cfg.Enabled, p.ready, p.win != nil)
 	if !cfg.Enabled || !p.ready {
 		p.close()
 		return
@@ -185,7 +188,8 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: PetWindowWidth, Height: PetWindowHeight, MinHeight: PetWindowHeight, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := openCompanionWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: PetWindowWidth, Height: PetWindowHeight, MinHeight: PetWindowHeight, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	petDebug("newWindow nil=%v destroyed=%v", w == nil, w == nil || w.IsDestroyed())
 	if w == nil || w.IsDestroyed() {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetWindowCreateFailed)
 		p.close()
@@ -276,7 +280,23 @@ func (p *Companion) sync() {
 			p.startInteraction()
 		}
 	})
-	w.Page().OnDidFailLoad(func(err *mygo.LoadError) { p.Error = err.Error(); p.close() })
+	w.Page().OnDidFailLoad(func(err *mygo.LoadError) {
+		if p.win != w {
+			return
+		}
+		petDebug("didFailLoad url=%s code=%d desc=%s", err.URL, err.Code, err.Description)
+		if !p.loadRetried {
+			// A fresh profile can fail the first custom-scheme navigation while
+			// WebView2 initialises; one reload distinguishes that from a real
+			// failure without leaving a closed pet behind.
+			p.loadRetried = true
+			petDebug("didFailLoad: retrying once")
+			w.Page().Reload()
+			return
+		}
+		p.Error = err.Error()
+		p.close()
+	})
 	w.OnHide(func() {
 		if p.win == w {
 			p.stopInteraction()
@@ -426,4 +446,10 @@ func (p *Companion) UpdateTask(task TaskStatus) {
 	p.CheckQuickChat()
 	// The fixed local status endpoint updates text without restarting inference.
 }
+
+
+
+
+
+
 

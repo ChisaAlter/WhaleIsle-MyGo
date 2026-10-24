@@ -2320,6 +2320,11 @@ func main() {
 		state.desktopPet.OnAutoRefreshGrowth = state.autoRefreshPetGrowth
 		state.desktopPet.OnFeedTokens = state.feedPetTokens
 		state.desktopPet.SetReady(!isolatedDesktopRun())
+		// A main-window recreation (launcher -> desktop, or a recovery reload)
+		// closes the companion through OnClosed below; re-arm it when the new
+		// window is shown so an enabled pet comes back instead of staying
+		// closed for the rest of the session.
+		win.OnShow(func() { state.desktopPet.SetReady(!isolatedDesktopRun()) })
 		win.OnClosed(func() { state.desktopPet.Close() })
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
