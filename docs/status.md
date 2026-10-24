@@ -226,26 +226,26 @@
 
 **验收状态：`docs/acceptance-ui-parity.md`（像素级 1:1 + 功能全量穷举验收合同）当前零双签。** §0.3 环境 E1–E7、§2 画面 L-*/D-*/P-*/S-*、§3 功能 FL-*/FD-*/FS-*、§4 门禁 G1–G6 与 §6 总签署的「完成 / 审查完成」列全部为空；按该合同 §5，未双签的历史结论作废——项目尚未通过验收，不得标记目标完成。
 
-### 缺失项（原版有、Go 无实现；审计报告 §1.2，16 项；round126 已补 5 项，round129 已补 1 项）
+### 缺失/降级项（审计报告 §1.2，16 项；round126 补 5、round129 补 1；其余按 2026-10-24 差距矩阵复核）
 
 | # | 功能 | 原版证据 | Go 侧证据 |
 |---|------|----------|-----------|
-| 1 | 桌面宠物 / Live2D 桌宠 | `main/desktop-pet.js`、`main/desktop-live2d.js:757`、`main/pet-chat.js`、`main/pet-growth.js`、`main/pet-stats.js`、`main/pet-wander.js`、`main/pet-physics.js`、`renderer/pet.html`、`renderer/pet-live2d/` | 全仓无 pet UI 窗口；`internal/config` 仅透传 `pet`/`live2dPet` 配置键 |
-| 2 | 手机远程服务端 | `main/mobile-web-server.js:14`、`main/mobile-web.js`、`main/dshd-remote.js:1`、`main/dshd-git-tunnel.js` | `internal/desktop/phoneremote` 仅配置就绪检查；无服务器、无配对、无 QR |
+| 1 | 桌面宠物 / Live2D 桌宠 | `main/desktop-pet.js`、`main/desktop-live2d.js:757`、`main/pet-chat.js`、`main/pet-growth.js`、`main/pet-stats.js`、`main/pet-wander.js`、`main/pet-physics.js`、`renderer/pet.html`、`renderer/pet-live2d/` | ⚠ 部分（矩阵 G31/G32）：`internal/desktop/pet/companion.go:188` 已有窗口与成长/统计/漫步/物理行为族；渲染是单层 canvas rig，非 Live2D+ORT 超分，外观降级 |
+| 2 | 手机远程服务端 | `main/mobile-web-server.js:14`、`main/mobile-web.js`、`main/dshd-remote.js:1`、`main/dshd-git-tunnel.js` | ⚠ 部分（G44）：`internal/desktop/phoneremote/runtime.go` 经 `bridge.cjs` 委托 vendored 守护进程（3180/relay/pairing URL+PNG/devices）；非自研服务端，真实手机未验收 |
 | 3 | Welcome 首次运行窗口 | `main/welcome-window.js:59`、`renderer/welcome.html`、`main/welcome-backend.js` | ✅ round126：`cmd/whaleisle/welcome_window.go` + `internal/ui/welcome`；无 API Key 且无标记时先于 launcher 打开，登录/API Key/跳过三条路径 |
 | 4 | 系统通知 | `main/system-notifications.js`、`main/background-notice.js`、`main/legacy-notification-shortcut.js` | ✅ round126：`cmd/whaleisle/system_notifications.go`（托盘气泡，不注册 Electron.lnk） |
-| 5 | 全局快捷键服务 | `main/shortcuts.js`、`main/shortcuts-protocol.mjs`、`main/menu.js:11-22` | 无快捷键包；无应用菜单 |
-| 6 | 崩溃报告 | `main/crash-report.js` | 无 |
-| 7 | 媒体权限处理 | `main/media-permissions.js` | 无（WebView2 权限走 MyGo 默认） |
+| 5 | 全局快捷键服务 | `main/shortcuts.js`、`main/shortcuts-protocol.mjs`、`main/menu.js:11-22` | ✅ 主体（G37/G38）：`internal/shortcuts/*` + `cmd/whaleisle/application_menu.go`；原生也没有 OS 级 `globalShortcut`；菜单命令覆盖与加速键刷新未逐项 |
+| 6 | 崩溃报告 | `main/crash-report.js` | 🔧 round131 在办（G41）：四源报告、保留 10 份、恢复对话框点名 |
+| 7 | 媒体权限处理 | `main/media-permissions.js` | 🔧 round131 在办（G42）：现为 `internal/desktop/webview/host.go:361` 一律拒绝；改为 loopback 麦克风 + 通知门控 |
 | 8 | 关闭遮罩 / curtain 窗口 | `main/closing-overlay.js`、`main/window.js:486` | ✅ round129：`internal/ui/chrome/closing.go` + `finalizeQuit` 停服前显示（500ms 绘制预算、失败不阻塞）；spinner 旋转未做（静态环） |
-| 9 | 应用级菜单 | `main/menu.js:26-113` | Go 无应用菜单；标题栏仅有 ⚙/▤/▦/⌂/··· 按钮 + 托盘菜单 |
+| 9 | 应用级菜单 | `main/menu.js:26-113` | ⚠ 部分（G37）：`cmd/whaleisle/application_menu.go:34` 已接应用菜单；命令覆盖与运行时加速键刷新未逐项 |
 | 10 | 外部编辑器打开 | `main/editors.js:5-26,105-150` | ✅ round126：`internal/desktop/editors` + `cmd/whaleisle/open_editor.go`；文件预览「打开方式」直接带行列打开 |
 | 11 | WhaleBridge 账号窗口 | `main/whalebridge-window.js:16`、`renderer/whalebridge-accounts.child.cjs`、`main/account-backend.js` | ✅ round126：`cmd/whaleisle/whalebridge_window.go`（1120×780、仅本机管理地址）+ `components/management.go` 地址校验 |
-| 12 | dsh-remote 插件 RPC 接线 | `main/dsh-remote-desktop.js`、`main/remote-shell.js`、`main/remote.js`、`main/relay-client.js`、`main/remote-tls.js` | 原生远程面板自述 stub；全仓无 dsh-remote RPC 调用 |
-| 13 | task-control peer | `main/task-control-peer.js:57` | 无 |
+| 12 | dsh-remote 插件 RPC 接线 | `main/dsh-remote-desktop.js`、`main/remote-shell.js`、`main/remote.js`、`main/relay-client.js`、`main/remote-tls.js` | ⚠ 部分（G46）：`internal/store/remote`（注册表/文件/删除）+ `sshremote` 隧道已有；remote shell / 远程 git dispatch 未逐项 |
+| 13 | task-control peer | `main/task-control-peer.js:57` | ✅ 已对齐（G47）：`internal/desktop/taskcontrol/control.go` + `cmd/whaleisle/task_protection.go` |
 | 14 | AI 提交信息 / PR 文案生成 | `main/git-generate.js:139` | ✅ round126：`internal/desktop/git/commit_generation.go` + `cmd/whaleisle/git_generate.go`；标题栏提交条「自动生成」 |
-| 15 | 在线壁纸目录 | `main/wallpaper-catalog.js:20-56` | 仅本地目录画廊（`internal/ui/theme/gallery.go`）；无任何网络目录 |
-| 16 | relay 客户端 / 远程 shell / 远程 git dispatch | `main/relay-client.js`、`main/remote-shell.js`、`main/dshd-remote.js`、`main/dshd-git-dispatch.js` | 无（config 仅有 relay 端点归一化） |
+| 15 | 在线壁纸目录 | `main/wallpaper-catalog.js:20-56` | ✅ 已对齐（G48）：`internal/desktop/wallpapers/catalog.go`（Bing/Wallhaven 源 + 自定义 JSON）+ 画廊 |
+| 16 | relay 客户端 / 远程 shell / 远程 git dispatch | `main/relay-client.js`、`main/remote-shell.js`、`main/dshd-remote.js`、`main/dshd-git-dispatch.js` | ⚠ 差异（G45）：无自研 relay；`bridge.cjs` 仅消费守护进程 `relayConnected`；直连/重连退避未取证 |
 
 ### 空壳未实现（有界面/有定义、逻辑未接或仅探测；审计报告 §1.3，8 项）
 
