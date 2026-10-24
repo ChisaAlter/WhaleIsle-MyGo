@@ -38,6 +38,27 @@ Usage:
 
 The origin and caption overrides are for rows whose dump lacks the window node or
 the control triad; detection is the default and is always reported.
+
+Duplicate accessible names
+--------------------------
+`新建会话` and `标准模式` are used by more than one control, so a (type, name) key
+alone pairs the wrong nodes: the rail's compact `新建会话` pill was matched to the
+sidebar's wide header button and the header button then matched an unrelated tree
+row, producing a phantom +303 DIP pair. Same-key nodes are therefore bucketed by
+*context*, always measured in the window-relative frame, before any ordering:
+
+  region  sidebar (x < 280 DIP) or main
+  size    narrow (w < 200 DIP) or wide, separating a rail icon/pill from the
+          column's full-width rows
+  id      the dump's automationId, ignored when empty or `RootWebArea`
+
+Buckets present on both sides pair inside themselves (nearest y then width), so
+ordinal order survives only within one context. Leftovers stay on their side and
+are reported as missing/extra with `unpaired_after_context: true`; pairing them
+across contexts would recreate the phantom pair. Every match carries
+`pair_method` and its `context`, and each space reports `pairing_compare` with the
+pairs the rule added and removed versus name-only pairing. The alias table and the
+suffix-normalised fallback are unchanged.
 """
 
 from __future__ import annotations
@@ -199,6 +220,76 @@ def pair(native_nodes: list[dict], mygo_nodes: list[dict]) -> list[tuple[dict, d
     return out
 
 
+# Same accessible name, different control: `新建会话` is both the rail's compact
+# pill inside the sidebar and the session header's wide button, and `标准模式`
+# appears on several rows. A name-only key pairs the rail pill with the wide
+# header button and then pairs the header button with an unrelated tree row
+# (round237/245 saw a phantom +303.33 DIP). Context disambiguates them before any
+# ordering is used.
+CONTEXT_SIDEBAR_MAX_X = 280.0
+CONTEXT_NARROW_MAX_W = 200.0
+CONTEXT_ID_IGNORE = {"", "RootWebArea"}
+
+
+def context_of(node: dict) -> dict:
+    """The region a node belongs to, always in the window-relative frame.
+
+    region: sidebar (x_window < 280) or main; size: narrow (w < 200) or wide,
+    which separates a rail icon/pill from the column's full-width rows; id: the
+    automationId when the dump carries one. The window frame is used even when the
+    reported space is absolute, so the native screen offset cannot move every
+    control into one bucket.
+    """
+    r = node.get("window_registered") or node["registered"]
+    aid = (node.get("automationId") or "").strip()
+    return {
+        "region": "sidebar" if r["x"] < CONTEXT_SIDEBAR_MAX_X else "main",
+        "size": "narrow" if r["w"] < CONTEXT_NARROW_MAX_W else "wide",
+        "id": "" if aid in CONTEXT_ID_IGNORE else aid,
+    }
+
+
+def context_token(node: dict) -> tuple[str, str, str]:
+    c = context_of(node)
+    return (c["region"], c["size"], c["id"])
+
+
+def pair_with_context(native_nodes: list[dict], mygo_nodes: list[dict]) -> list[tuple[dict, dict, str]]:
+    """Pair same-name nodes context-first; ordering only inside one bucket.
+
+    Nodes are bucketed by context_token. Buckets present on both sides are paired
+    inside themselves (nearest y then width). Leftovers keep their side: after
+    bucket pairing the remaining tokens on the two sides are necessarily
+    different, so pairing them by order is exactly the phantom-pair case.
+    """
+    nb: dict[tuple, list[dict]] = {}
+    mb: dict[tuple, list[dict]] = {}
+    for n in native_nodes:
+        nb.setdefault(context_token(n), []).append(n)
+    for m in mygo_nodes:
+        mb.setdefault(context_token(m), []).append(m)
+    pairs: list[tuple[dict, dict, str]] = []
+    for token, bucket_n in nb.items():
+        bucket_m = mb.get(token)
+        if not bucket_m:
+            continue
+        for n, m in pair(bucket_n, bucket_m):
+            pairs.append((n, m, "context"))
+    return pairs
+
+
+def pair_signature(pairs) -> set[tuple]:
+    """Identity of a pair set for the before/after diff: type, name and both rects."""
+    out = set()
+    for item in pairs:
+        n, m = item[0], item[1]
+        out.add((
+            n.get("type", ""), n.get("name", ""),
+            tuple(sorted(rect(n).items())), tuple(sorted(rect(m).items())),
+        ))
+    return out
+
+
 def compare(native: dict, mygo: dict, space: str) -> dict:
     dx = round(mygo["x"] - native["x"], 2)
     dy = round(mygo["y"] - native["y"], 2)
@@ -268,6 +359,9 @@ def main(argv: list[str]) -> int:
                 continue
             copy = dict(node)
             copy["registered"] = register(node, side, space)
+            # Context is always measured in the window-relative frame, so the
+            # absolute space's screen offset cannot split a region in two.
+            copy["window_registered"] = register(node, side, "window")
             out.setdefault(key(node), []).append(copy)
         return out
 
@@ -280,6 +374,8 @@ def main(argv: list[str]) -> int:
         matched, missing, extra, outside, scaffolding = [], [], [], [], []
         alias_pairs = set()
         normalized = 0
+        context_sig: set[tuple] = set()
+        legacy_sig: set[tuple] = set()
         for k, native_list in nb.items():
             if k in CONTAINERS:
                 continue
@@ -307,12 +403,34 @@ def main(argv: list[str]) -> int:
                 for node in native_list:
                     missing.append({"type": k[0], "name": k[1], "native": node["registered"]})
                 continue
-            for n, m in pair(native_list, mine):
-                record = {"type": n["type"], "name": n["name"], "matched_name": m["name"]}
+            built = pair_with_context(native_list, mine)
+            legacy_pairs = pair(native_list, mine)
+            for n, m, method in built:
+                record = {
+                    "type": n["type"], "name": n["name"], "matched_name": m["name"],
+                    "pair_method": method, "context": context_of(m),
+                }
                 record.update(compare(n["registered"], m["registered"], space))
                 matched.append(record)
                 if not record["within_1dip"]:
                     outside.append(record)
+            paired_n = {id(n) for n, _, _ in built}
+            paired_m = {id(m) for _, m, _ in built}
+            for node in native_list:
+                if id(node) not in paired_n:
+                    missing.append({
+                        "type": k[0], "name": k[1], "native": node["registered"],
+                        "unpaired_after_context": True, "context": context_of(node),
+                    })
+            for node in mine:
+                if id(node) not in paired_m:
+                    extra.append({
+                        "type": node.get("type", ""), "name": node.get("name", ""),
+                        "mygo": node["registered"], "unpaired_after_context": True,
+                        "context": context_of(node),
+                    })
+            context_sig |= pair_signature(built)
+            legacy_sig |= pair_signature(legacy_pairs)
         for k, mygo_list in mb.items():
             if k in CONTAINERS:
                 continue
@@ -343,6 +461,18 @@ def main(argv: list[str]) -> int:
             "alias_matches": [{"native": a, "mygo": b} for a, b in sorted(alias_pairs)],
             "normalized_matches": normalized,
             "dominant_delta": dominant_delta(matched),
+            "pairing_compare": {
+                "context_pairs": len(context_sig),
+                "legacy_pairs": len(legacy_sig),
+                "added_by_context": [
+                    {"name": s[1], "native": dict(s[2]), "mygo": dict(s[3])}
+                    for s in sorted(context_sig - legacy_sig, key=lambda x: x[1])[:20]
+                ],
+                "removed_by_context": [
+                    {"name": s[1], "native": dict(s[2]), "mygo": dict(s[3])}
+                    for s in sorted(legacy_sig - context_sig, key=lambda x: x[1])[:20]
+                ],
+            },
             "within_1dip_names": sorted({m["name"] for m in matched if m["within_1dip"]}),
             "outside_tolerance": sorted(
                 outside,
@@ -404,6 +534,17 @@ def main(argv: list[str]) -> int:
         "native_controls": sum(len(v) for v in index(native_nodes, "absolute", "native").values()),
         "mygo_controls": sum(len(v) for v in index(mygo_nodes, "absolute", "mygo").values()),
         "aliases": ALIASES,
+        "context_rules": {
+            "sidebar_max_x_dip": CONTEXT_SIDEBAR_MAX_X,
+            "narrow_max_w_dip": CONTEXT_NARROW_MAX_W,
+            "id": "automationId, ignored when empty or RootWebArea",
+            "frame": "window-relative (origin subtracted) in every reported space",
+            "note": (
+                "Same (type, name) nodes are bucketed by (region, size, id) before pairing; "
+                "buckets present on both sides pair inside themselves, leftovers stay "
+                "missing/extra instead of forming a cross-context pair."
+            ),
+        },
         "absolute": results["absolute"],
         "window": results["window"],
         "caption": results["caption"],
