@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T07:02:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87741952,
+  "productionSHA256": "7DD2940D094FE709C2D959ECA4A78C22DE702071841769A8212A65C307020531",
+  "defaultSHA256": "7DD2940D094FE709C2D959ECA4A78C22DE702071841769A8212A65C307020531",
+  "note": "pass299 covers rounds 237-244: ambient-gradient gate (cyan 0/9), preset-chip gap, the first valid light D-MAIN pair (threshold-0 1.68%, mean|delta| 1.23) and the composer-structure probe groundwork. Readiness verified."
+}

@@ -481,6 +481,16 @@
 - **转写**：不再追 9 级底色，改用 Δ>8/Δ>16 + wash mask + 结构三口径评分（task-110）。
 - pass298：87,739,392 B / SHA256 `32117ACD…`；ready=True。
 
+### round237–244（2026-10-25）
+
+- **首个有效 D-MAIN 对照**（light fixture，两边同主题、无壁纸）：threshold-0 **1.68%**、Δ>8 1.57%、Δ>16 1.46%、mean|Δ| **1.23**、wash mask 仅 47px；分区 mean：sidebar 3.00 / header 3.89 / **hero 0.95** / **composer 0.44** / footer 5.93；两边形色完全一致（hero/card/caption 255，sidebar 249,250,251，cyan 0/9）。
+- **背景层闭环**：host-seeded gradient 不再绘制（painter effect none active=false）、preset 清空、masked fill 计算正确；light 下 fill=#ffffff 与原生一致，dark 的 9 级差只存在于 dark。
+- **原生当前为 light**（OS AppsUseLightTheme=1，原生跟随系统）——未改用户 OS 设置，fixture 改按 light 匹配。
+- 结构（改进 matcher）：23 matched / **12 within 1 DIP**；余项：新建会话 y+303（matcher 名称冲突）、发送消息 y−42.67、Edit 宽 +28.67、fish +14、账号菜单 h−8、标准模式 −3.33/−6.67。
+- 捕获方法修正：light 下 row-capture 的 nudge 会让原生停在未绘制状态，像素改用逐窗口 live 采样、几何单采 UIA（记入 fixture.md）。
+- pass299：87,741,952 B / SHA256 `7DD2940D…`；ready=True。
+- 进行中：task-115 composer 卡/工具行/send/fish 结构（原生 light DOM 探针）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
