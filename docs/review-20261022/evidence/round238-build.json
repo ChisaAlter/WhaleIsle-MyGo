@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T06:34:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87739392,
+  "productionSHA256": "32117ACD9E1FC7F65E51825397E10AF8691BBAE3042675EFC5D8CEF605EFCAB9",
+  "defaultSHA256": "32117ACD9E1FC7F65E51825397E10AF8691BBAE3042675EFC5D8CEF605EFCAB9",
+  "note": "pass298 covers rounds 233-238: the window-level masked fill + probe, hero foot 22.3 (slogan/preset/card exact), host-explicit wallpaper guard, first-run preset clearing and tolerance scoring groundwork. Readiness verified."
+}

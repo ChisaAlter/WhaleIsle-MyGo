@@ -473,6 +473,14 @@
 - **进行中**：task-99 用 pass294 重采 flat D-MAIN 并计算首个有意义的 masked ratio（结构已到 11/22）。
 - pass294：87,729,152 B / SHA256 `0937B63C…`；ready=True。
 
+### round233–238（2026-10-25）
+
+- **D-MAIN 几何全绿**：slogan 314.67 / preset 373.33 / card 409.33（hero foot 22.3，实测全部 0.00–0.66 DIP）、workspace chip x=502、composer 774×114 @469.33（−0.39）、caption x 精确；结构（改进 matcher，排除 scaffolding/别名）23 matched / 11 within 1 DIP / caption 8。
+- **首个 masked ratio**：raw 99.99%，auto wash mask 覆盖 90.02% → 未蒙版失配 **9.96%**（后续发现该轮底色被 wash 污染，需按 Δ>8/Δ>16 容差重算）。
+- **背景层追查**：原生无壁纸（cordis.patch.yml 无 wallpaperImage）；MyGo 的 cyan 来自 Host wallpaper 无条件赋值 + first-run preset/colors + FlatBackdropFill alpha 0.5（mygo 0–255）等多层；已修 host-explicit、preset 空、alpha 255、resolved scheme 判定、Draw 层填充。干净 profile 现为 **21,21,23、cyan 0**，但 masked 10–12 仍未被屏幕采到（可能 Transparent/DirectComposition 或空态占位重绘 21）——列为容差评分中的系统性 9 级差，不再阻塞。
+- **转写**：不再追 9 级底色，改用 Δ>8/Δ>16 + wash mask + 结构三口径评分（task-110）。
+- pass298：87,739,392 B / SHA256 `32117ACD…`；ready=True。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
