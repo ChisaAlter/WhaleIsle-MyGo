@@ -37,7 +37,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.Models
 	ui.Text(c, providerCopy("模型", "Models")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("管理模型供应商、模型目录与视觉模型。", "Manage providers, model catalogs and vision models.")).FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
+	ui.Text(c, providerCopy("填入各提供商的 API 密钥即可使用其模型。", "Enter your API keys to use models from the following providers.")).FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
 	if a.Err != "" {
 		ui.Text(c, a.Err).TextColor(fg)
 	}

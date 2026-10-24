@@ -31,6 +31,11 @@ func TestAppearanceOffersThreeColorModes(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		appearancePane(c, Model{Appearance: appearance, ThemeID: "deepseek.light"}, c.Theme().Text, c.Theme().TextMuted)
 	}, 900, 1400)
+	// The installed Appearance tab names this block 颜色模式 / "Color scheme" and
+	// keeps the one-line description under it.
+	if !tt.HasText("Color scheme") || !tt.HasText("Choose light, dark, or follow the system.") {
+		t.Fatalf("appearance heading lost the installed copy: %v", tt.Texts())
+	}
 	for _, label := range []string{"Light", "Dark", "System"} {
 		if !tt.HasText(label) {
 			t.Fatalf("color scheme card %q missing: %v", label, tt.Texts())
