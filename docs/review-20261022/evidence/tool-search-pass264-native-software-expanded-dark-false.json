@@ -1,0 +1,88 @@
+{
+  "name": "expanded-dark-false",
+  "rects": {
+    "1: first-00": {
+      "X": 24,
+      "Y": 116,
+      "W": 582,
+      "H": 22
+    },
+    "23: second-03": {
+      "X": 24,
+      "Y": 292,
+      "W": 582,
+      "H": 22
+    },
+    "Collapse results": {
+      "X": 24,
+      "Y": 358,
+      "W": 582,
+      "H": 19
+    },
+    "Copied": {
+      "X": 565.08936,
+      "Y": 57,
+      "W": 40.910645,
+      "H": 20
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 441,
+      "W": 600,
+      "H": 1
+    },
+    "Search results card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 341
+    },
+    "Showing 10 of 30 matches · 2 files": {
+      "X": 38,
+      "Y": 57,
+      "W": 515.08936,
+      "H": 20
+    },
+    "src/a.go 4": {
+      "X": 24,
+      "Y": 94,
+      "W": 582,
+      "H": 22
+    },
+    "src/b.go 6": {
+      "X": 24,
+      "Y": 204,
+      "W": 582,
+      "H": 22
+    }
+  },
+  "texts": [
+    "Grep needle",
+    "Grep",
+    "needle",
+    "Search results card",
+    "Showing 10 of 30 matches · 2 files",
+    "Copied",
+    "Copied",
+    "src/a.go 4",
+    "src/a.go",
+    "4",
+    "1: first-00",
+    "2: first-01",
+    "3: first-02",
+    "4: first-03",
+    "src/b.go 6",
+    "src/b.go",
+    "6",
+    "20: second-00",
+    "21: second-01",
+    "22: second-02",
+    "23: second-03",
+    "24: second-04",
+    "25: second-05",
+    "Collapse results",
+    "Collapse",
+    "retained search receipt\nfull output: /recorded/spill.txt",
+    "Following summary flow"
+  ]
+}

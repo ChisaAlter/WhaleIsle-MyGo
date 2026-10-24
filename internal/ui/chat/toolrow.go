@@ -261,6 +261,15 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		toolIORows(c, info, st, key+":mutation-output")
 		return true, true
 	}
+	if info.searchFamily && !opts.TextOnly {
+		if info.search != nil {
+			toolSearchCard(c, info.search, st, key)
+		} else {
+			info.Arguments = ""
+			toolIORows(c, info, st, key+":search-output")
+		}
+		return true, true
+	}
 	if info.Name == "run_code" && !opts.TextOnly {
 		toolCodeBody(c, info, st, key)
 		return true, true

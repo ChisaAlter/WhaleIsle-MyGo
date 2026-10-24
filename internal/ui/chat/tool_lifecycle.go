@@ -131,6 +131,10 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		}
 		info.mutationFamily = call.Name == "write" || call.Name == "edit"
 		info.diff = toolDiffModelFor(call)
+		info.searchFamily = call.Name == "grep" || call.Name == "glob"
+		if info.searchFamily {
+			info.search = toolSearchModelFor(call)
+		}
 		info.openFile = gallery.OnOpenFile
 		info.diffSummary = toolDiffSummaryFor(call)
 		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {

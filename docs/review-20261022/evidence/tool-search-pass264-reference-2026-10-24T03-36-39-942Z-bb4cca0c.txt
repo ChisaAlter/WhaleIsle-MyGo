@@ -1,0 +1,18 @@
+Round120 installed SearchBlock FAILED
+Run 2026-10-24T03-36-39-942Z-bb4cca0c
+Cases 9/10 assertions 44/46
+PASSED early-installed-geometry-light-dark-cascade 6/6
+PASSED exact-source-vm-model-helpers-caller-labels 6/6
+PASSED empty-paths-matches-vs-one-zero-match-file 4/4
+PASSED 8-9-cap-tail-restoration-single-suppression 5/5
+PASSED groups-independent-before-after-global-expand 5/5
+PASSED full-copy-hidden-collapsed-groups-feedback-guard-refusal 5/5
+PASSED summary-locales-inconsistent-counts-recovery-sibling 5/5
+PASSED horizontal-path-match-no-wrap-control 3/3
+FAILED Tab-Space-Enter-native-button-CDP-defaults 1/3
+PASSED source-integrity-input-network-exclusive-attempt 4/4
+FAIL Tab-Space-Enter-native-button-CDP-defaults: installed native button focus ring1px offset2solid null
+FAIL Tab-Space-Enter-native-button-CDP-defaults: executed CDP Space default collapses and Enter reopens same file {"collapsed":{"summary":"2 matches · 1 files","empty":null,"copy":"Copy","totalRows":1,"hidden":-7,"restored":null,"expanded":false,"collapsed":[0],"keys":["file:0"],"files":[{"index":0,"expanded":"false","name":"src/short.ts2"}],"fold":null,"bodyHeight":42,"blockHeight":80},"expanded":{"summary":"2 matches · 1 files","empty":null,"copy":"Copy","totalRows":1,"hidden":-7,"restored":null,"expanded":false,"collapsed":[0],"keys":["file:0"],"files":[{"index":0,"expanded":"false","name":"src/short.ts2"}],"fold":null,"bodyHeight":42,"blockHeight":80},"ax":[{"role":"button","name":"src/short.ts 2","properties":[{"name":"invalid","value":"false"},{"name":"focusable","value":true},{"name":"focused","value":true},{"name":"expanded","value":false}]}]}
+Combined JSON 237111
+Cleanup {"target":"Only spawned Chrome PID/profile/port; protected process/GUI never signalled/requested","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":28268},{"type":"renderer","id":21692},{"type":"renderer","id":41296},{"type":"renderer","id":21676},{"type":"renderer","id":30696},{"type":"renderer","id":7140},{"type":"renderer","id":30336},{"type":"GPU","id":41124},{"type":"network.mojom.NetworkService","id":22620},{"type":"storage.mojom.StorageService","id":9656}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null},"portReleased":true,"processes":[{"pid":28268,"alive":false},{"pid":41296,"alive":false},{"pid":21676,"alive":false},{"pid":30696,"alive":false},{"pid":30336,"alive":false},{"pid":41124,"alive":false},{"pid":22620,"alive":false},{"pid":9656,"alive":false},{"pid":21692,"alive":false},{"pid":7140,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r120-tool-search-2026-10-24T03-36-39-942Z-bb4cca0c-profile","profileRemoved":true,"pass":true}
+Errors []

@@ -46,6 +46,9 @@ type ToolCardInfo struct {
 	terminal *toolTerminalModel
 	read     *toolReadModel
 	diff     *toolDiffModel
+	search   *toolSearchModel
+	// searchFamily is the keyed grep/glob caller, which owns no args body.
+	searchFamily bool
 	// mutationFamily is the keyed write/edit caller, which owns no args body.
 	mutationFamily bool
 	// readFamily identifies the installed keyed read caller, which never owns
@@ -160,7 +163,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
 		}
-		if !opts.TextOnly && !info.readFamily && !info.mutationFamily && info.diff == nil {
+		if !opts.TextOnly && !info.readFamily && !info.mutationFamily && !info.searchFamily && info.diff == nil {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
@@ -187,8 +190,8 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 			extra()
 		}
 	}
-	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily
-	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil)
+	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily && !info.searchFamily
+	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

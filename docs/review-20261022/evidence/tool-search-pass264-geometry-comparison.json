@@ -1,0 +1,434 @@
+{
+  "schema": 1,
+  "reference": "tool-search-pass264-reference-2026-10-24T03-36-39-942Z-bb4cca0c.json",
+  "referenceStatus": "failed",
+  "referenceSummary": {
+    "passedCases": 9,
+    "failedCases": 1,
+    "passedAssertions": 44,
+    "failedAssertions": 2
+  },
+  "scope": "Retained measured dimensions only. Excludes the browser's failed focus-ring and Enter assertions, font rasterization, OS clipboard, physical input and motion.",
+  "passed": 56,
+  "total": 56,
+  "sourceHashes": [
+    {
+      "id": "runner",
+      "pass": true
+    },
+    {
+      "id": "webJS",
+      "pass": true
+    },
+    {
+      "id": "webCSS",
+      "pass": true
+    },
+    {
+      "id": "webHTML",
+      "pass": true
+    },
+    {
+      "id": "tool",
+      "pass": true
+    },
+    {
+      "id": "row",
+      "pass": true
+    },
+    {
+      "id": "search",
+      "pass": true
+    },
+    {
+      "id": "raw",
+      "pass": true
+    },
+    {
+      "id": "labels",
+      "pass": true
+    },
+    {
+      "id": "caller",
+      "pass": true
+    },
+    {
+      "id": "theme",
+      "pass": true
+    },
+    {
+      "id": "locale",
+      "pass": true
+    },
+    {
+      "id": "commonEN",
+      "pass": true
+    },
+    {
+      "id": "commonZH",
+      "pass": true
+    },
+    {
+      "id": "refSearch",
+      "pass": true
+    },
+    {
+      "id": "refCSS",
+      "pass": true
+    },
+    {
+      "id": "refCap",
+      "pass": true
+    },
+    {
+      "id": "refCopy",
+      "pass": true
+    },
+    {
+      "id": "priorDiff",
+      "pass": true
+    },
+    {
+      "id": "priorRead",
+      "pass": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "empty-paths: height",
+      "native": 81,
+      "browser": 81,
+      "pass": true
+    },
+    {
+      "name": "empty-matches: height",
+      "native": 81,
+      "browser": 81,
+      "pass": true
+    },
+    {
+      "name": "zero-match-file: height",
+      "native": 80,
+      "browser": 80,
+      "pass": true
+    },
+    {
+      "name": "one-path: height",
+      "native": 80,
+      "browser": 80,
+      "pass": true
+    },
+    {
+      "name": "paths-eight: height",
+      "native": 234,
+      "browser": 234,
+      "pass": true
+    },
+    {
+      "name": "paths-nine: height",
+      "native": 253,
+      "browser": 253,
+      "pass": true
+    },
+    {
+      "name": "tail-restored: height",
+      "native": 253,
+      "browser": 253,
+      "pass": true
+    },
+    {
+      "name": "short: card width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "short: card height",
+      "native": 124,
+      "browser": 124,
+      "pass": true
+    },
+    {
+      "name": "src/a.go 2: width",
+      "native": 602,
+      "browser": 602,
+      "pass": true
+    },
+    {
+      "name": "src/a.go 2: height",
+      "native": 22,
+      "browser": 22,
+      "pass": true
+    },
+    {
+      "name": "src/a.go 2: top",
+      "native": 46,
+      "browser": 46,
+      "pass": true
+    },
+    {
+      "name": "1: first: width",
+      "native": 602,
+      "browser": 602,
+      "pass": true
+    },
+    {
+      "name": "1: first: height",
+      "native": 22,
+      "browser": 22,
+      "pass": true
+    },
+    {
+      "name": "1: first: top",
+      "native": 68,
+      "browser": 68,
+      "pass": true
+    },
+    {
+      "name": "short: file text left padding",
+      "native": 14,
+      "browser": 14,
+      "pass": true
+    },
+    {
+      "name": "one-path: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "one-path: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "one-path: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "one-path: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "zero-match-file: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "zero-match-file: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "zero-match-file: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "zero-match-file: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "short-matches: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "short-matches: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "short-matches: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "short-matches: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "paths-eight: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "paths-eight: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "paths-eight: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "paths-eight: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "paths-nine: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "paths-nine: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "paths-nine: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "paths-nine: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "tail-restored: copy height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "tail-restored: copy width",
+      "native": 29.599121,
+      "browser": 29.609375,
+      "pass": true
+    },
+    {
+      "name": "tail-restored: copy top",
+      "native": 9,
+      "browser": 9,
+      "pass": true
+    },
+    {
+      "name": "tail-restored: copy right padding",
+      "native": 13.999979000000021,
+      "browser": 14.0,
+      "pass": true
+    },
+    {
+      "name": "folded/False: card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "folded/False: height",
+      "native": 253,
+      "browser": 253,
+      "pass": true
+    },
+    {
+      "name": "folded/False: fold height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "folded/False: summary line height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "expanded/False: card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "expanded/False: height",
+      "native": 341,
+      "browser": 341,
+      "pass": true
+    },
+    {
+      "name": "expanded/False: fold height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "expanded/False: summary line height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "folded/True: card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "folded/True: height",
+      "native": 253,
+      "browser": 253,
+      "pass": true
+    },
+    {
+      "name": "folded/True: fold height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "folded/True: summary line height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    },
+    {
+      "name": "expanded/True: card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "expanded/True: height",
+      "native": 341,
+      "browser": 341,
+      "pass": true
+    },
+    {
+      "name": "expanded/True: fold height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "expanded/True: summary line height",
+      "native": 20,
+      "browser": 20,
+      "pass": true
+    }
+  ]
+}

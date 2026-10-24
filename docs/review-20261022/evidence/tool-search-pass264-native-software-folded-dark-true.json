@@ -1,0 +1,84 @@
+{
+  "name": "folded-dark-true",
+  "rects": {
+    "1: first-00": {
+      "X": 24,
+      "Y": 116,
+      "W": 582,
+      "H": 22
+    },
+    "23: second-03": {
+      "X": 24,
+      "Y": 223,
+      "W": 582,
+      "H": 22
+    },
+    "Copy": {
+      "X": 576.4009,
+      "Y": 57,
+      "W": 29.599121,
+      "H": 20
+    },
+    "Expand 4 more result lines": {
+      "X": 24,
+      "Y": 182,
+      "W": 582,
+      "H": 19
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 353,
+      "W": 600,
+      "H": 1
+    },
+    "Search results card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 253
+    },
+    "Showing 10 of 30 matches · 2 files": {
+      "X": 38,
+      "Y": 57,
+      "W": 526.4009,
+      "H": 20
+    },
+    "src/a.go 4": {
+      "X": 24,
+      "Y": 94,
+      "W": 582,
+      "H": 22
+    },
+    "src/b.go 6": {
+      "X": 24,
+      "Y": 201,
+      "W": 582,
+      "H": 22
+    }
+  },
+  "texts": [
+    "Grep needle",
+    "Grep",
+    "needle",
+    "Search results card",
+    "Showing 10 of 30 matches · 2 files",
+    "Copy",
+    "Copy",
+    "src/a.go 4",
+    "src/a.go",
+    "4",
+    "1: first-00",
+    "2: first-01",
+    "3: first-02",
+    "Expand 4 more result lines",
+    "… 4 more lines",
+    "src/b.go 6",
+    "src/b.go",
+    "6",
+    "23: second-03",
+    "24: second-04",
+    "25: second-05",
+    "retained search receipt\nfull output: /recorded/spill.txt",
+    "Following summary flow"
+  ]
+}
