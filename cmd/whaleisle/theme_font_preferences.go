@@ -89,16 +89,15 @@ func (s *mainState) syncHostAppearance() {
 	previousScheme := s.themeID
 	s.hostWallpaperImage = h.WallpaperImage
 	s.desktopDraft.wallpaperPath = h.WallpaperImage
-	switch h.Scheme {
-	case "light":
-		s.themeID = "deepseek.light"
-	case "dark":
-		s.themeID = "deepseek.dark"
-	default:
-		s.themeID = "deepseek"
-	}
-	s.desktopDraft.theme = s.themeID
+	// The Host always reports a scheme (default "system"), so it cannot tell an
+	// explicit choice from its default: the configured theme wins until the user
+	// actually changes appearance, then the persisted preference wins.
 	acceptedScheme := s.themeID
+	if s.cfgStore != nil {
+		acceptedScheme = startupTheme(s.cfgStore.Get(), h.Scheme, true)
+	}
+	s.themeID = acceptedScheme
+	s.desktopDraft.theme = s.themeID
 	s.mu.Unlock()
 	if previousScheme != acceptedScheme {
 		applyAppearance(acceptedScheme)

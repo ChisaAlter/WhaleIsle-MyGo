@@ -94,6 +94,10 @@ type Config struct {
 	OpenDevTools bool `json:"openDevTools"`
 	// Theme is a theme id matching ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$.
 	Theme string `json:"theme"`
+	// AppearanceExplicit records that the user chose a color scheme in the
+	// appearance settings. Until then the configured theme stays authoritative
+	// even though the Host always reports its default "system" scheme.
+	AppearanceExplicit bool `json:"appearanceExplicit"`
 	// Locale is the UI language, "zh" or "en".
 	Locale string `json:"locale"`
 

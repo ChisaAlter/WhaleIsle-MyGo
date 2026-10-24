@@ -20,6 +20,15 @@ func (s *mainState) setAppearanceTheme(id string) error {
 		if err := host.SaveScheme(id); err != nil {
 			return err
 		}
+		// Record the choice so a later config edit cannot take the scheme back.
+		if cfg != nil {
+			if err := cfg.Update(func(c *config.Config) {
+				c.Theme = id
+				c.AppearanceExplicit = true
+			}); err != nil {
+				return err
+			}
+		}
 		s.mu.Lock()
 		s.themeID, s.desktopDraft.theme = id, id
 		s.mu.Unlock()
@@ -32,7 +41,10 @@ func (s *mainState) setAppearanceTheme(id string) error {
 	if cfg == nil {
 		return fmt.Errorf("config store is not ready")
 	}
-	if err := cfg.Update(func(c *config.Config) { c.Theme = id }); err != nil {
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = id
+		c.AppearanceExplicit = true
+	}); err != nil {
 		return err
 	}
 	s.mu.Lock()
