@@ -101,9 +101,12 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 // 2.68 (25 -> 22.32, rounded to 22.3 for the layout's 0.1 DIP unit) moves the
 // slogan down by half of it and the card up by the other half.
 func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
-	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
+	// round254: the native headline distributes the same total width differently —
+	// the fish sits 2.69 from the slogan and the badge 14.31 after it (live:
+	// slogan 765.33, badge 936), so the row centre does not move.
+	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(2.69).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
 		conversationHeroFish(c, chrome.Color(colors.FG))
-		ui.Row(c).Wrap().Gap(7).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
+		ui.Row(c).Wrap().Gap(14.31).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FixedLineHeight(theme.InterfaceSize(32)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 			badgeBackground := chrome.Color("rgba(120, 160, 210, 0.18)")
 			badgeForeground := chrome.Color("rgb(70, 110, 160)")
