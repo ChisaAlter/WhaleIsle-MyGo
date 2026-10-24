@@ -1,0 +1,74 @@
+{
+  "size": {
+    "w": 2160,
+    "h": 1290
+  },
+  "absolute": {
+    "pixels": 2786400,
+    "mean_delta": 1.23,
+    "gt0": 46952,
+    "ratio_gt0": 0.01685,
+    "gt8": 43679,
+    "ratio_gt8": 0.015676,
+    "gt16": 40598,
+    "ratio_gt16": 0.01457
+  },
+  "regions": {
+    "sidebar": {
+      "pixels": 550830,
+      "mean_delta": 3.0,
+      "gt0": 17333,
+      "ratio_gt0": 0.031467,
+      "gt8": 16181,
+      "ratio_gt8": 0.029376,
+      "gt16": 14729,
+      "ratio_gt16": 0.02674
+    },
+    "header": {
+      "pixels": 155970,
+      "mean_delta": 3.89,
+      "gt0": 9452,
+      "ratio_gt0": 0.060601,
+      "gt8": 8912,
+      "ratio_gt8": 0.057139,
+      "gt16": 8711,
+      "ratio_gt16": 0.05585
+    },
+    "hero": {
+      "pixels": 883830,
+      "mean_delta": 0.95,
+      "gt0": 7124,
+      "ratio_gt0": 0.00806,
+      "gt8": 6813,
+      "ratio_gt8": 0.007708,
+      "gt16": 6574,
+      "ratio_gt16": 0.007438
+    },
+    "composer": {
+      "pixels": 571890,
+      "mean_delta": 0.44,
+      "gt0": 9547,
+      "ratio_gt0": 0.016694,
+      "gt8": 8307,
+      "ratio_gt8": 0.014526,
+      "gt16": 7143,
+      "ratio_gt16": 0.01249
+    },
+    "footer": {
+      "pixels": 38430,
+      "mean_delta": 5.93,
+      "gt0": 2163,
+      "ratio_gt0": 0.056284,
+      "gt8": 2110,
+      "ratio_gt8": 0.054905,
+      "gt16": 2064,
+      "ratio_gt16": 0.053708
+    }
+  },
+  "wash_mask": {
+    "masked_pixels": 47,
+    "masked_ratio": 1.7e-05,
+    "unmasked_pixels": 46952,
+    "unmasked_ratio": 0.01685
+  }
+}
