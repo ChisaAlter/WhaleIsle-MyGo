@@ -853,12 +853,26 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						colW = width
 					}
 				}
-				contentAxis := conversationContentWidth(colW)
+				// Native columns meet edge to edge: the conversation root is
+				// viewport − sidebar (1160 at 1440 wide, probed in round 186), while
+				// Sizes.Center still reserves one DIP per divider between the tracks.
+				// The width formulas below are percentages of that native column, so
+				// feeding them the divider-shrunk Center lands the axis 0.64×(1..2) DIP
+				// short — 741.12 instead of 742.4, i.e. a 773.3 composer card instead
+				// of 774.39. Only the no-right-dock case is widened; with a dock open
+				// the track arithmetic is the drawn geometry.
+				axisColumn := colW
+				if m.Sizes != nil && m.Sizes.Right <= 0 && !m.Sizes.drawerMode() {
+					if width, _ := viewportDIP(c); width > 0 {
+						axisColumn = maxf(colW, width-m.Sizes.Sidebar)
+					}
+				}
+				contentAxis := conversationContentWidth(axisColumn)
 				if m.Sizes != nil {
 					if emptyHero || m.Sizes.transcriptGesture.binding != m.FileBindingID {
 						m.Sizes.transcriptGesture.side = ""
 					}
-					contentAxis = m.Sizes.conversationWidth(colW)
+					contentAxis = m.Sizes.conversationWidth(axisColumn)
 				}
 				// ConversationRoot owns W. InputBar alone owns the 16 DIP side
 				// clearances, so both phases receive the same W+64 seat. The installed
