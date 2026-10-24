@@ -137,3 +137,54 @@ probe commit only inside that throwaway directory.
   without an authoriser (400 then; now mapped to 403); the live mutation run used
   the probe's `SetGitAuthorizer` as the desktop "allow".
 - Relay mode and real-phone pairing still unverified.
+
+## 7. Round 202 addendum — gated gitPush / gitPull
+
+`gitPush` and `gitPull` are now served through the desktop git gate (native
+remote-shell.js:70-73 delegates both with only the workspace cwd; the branch is
+HEAD's). `gitCreateChangeRequest`, `saveConfig`, `openSettings`, `openGallery`
+remain **501 shell unavailable** with TODO(G46).
+
+### Route status
+
+| Route | Status | Notes |
+| --- | --- | --- |
+| gitPush | **served (gated)** | `cwd` must be a non-empty string inside `remoteGitRoots`; optional `remote`/`branch` validated when present (forward compatibility) but not needed — native passes only cwd. Returns the gate's push result (`status: pushed`, `branch`, `upstreamBranch`, `commitSha`) |
+| gitPull | **served (gated)** | same validation; returns `status: pulled`, `refName`, `upstreamRef`; merge/conflict information comes from the git module's result |
+| gitCreateChangeRequest / saveConfig / openSettings / openGallery | 501 + TODO(G46) | desktop PR/host services not proven end to end |
+
+Status mapping unchanged: 401 anonymous/bad token, 403 gate denial or cwd outside
+roots (`Mobile Git is not authorized for this workspace`), 400 invalid args
+(`invalid args: remote|branch|message|…`) and git-level `{ok:false,message}` →
+`{ok:false,error:message}`, 413 >262 144 B, 404 unknown, 200 `{ok:true,result}`.
+
+### Tests
+
+`shell_routes.test.cjs` is now 13/13: push/pull without a desktop authorisation →
+403 with the gate consulted; outside-root cwd → 403; `remote:42` / `branch:""` →
+400 before the gate; success via a fake authorizer → 200 with the exact gate
+arguments captured (`gitPush(cwd)`, `gitPull(cwd)`, i.e. native's single-cwd
+delegation); a git `{ok:false}` push result → 400 native shape. Go wrapper test
+unchanged and green.
+
+### Live probe (temp repo + temp bare remote, Bearer token, sha256 only)
+
+| Step | Result |
+| --- | --- |
+| POST gitPush `{cwd}` | 200 `{"ok":true,"result":{"ok":true,"status":"pushed","branch":"g46-branch","upstreamBranch":"origin/g46-branch","commitSha":"6964bd1…"}}` |
+| bare remote after push | branch `g46-branch`, head `6964bd1…`, log `6964bd1 probe`, files `probe.txt` |
+| second clone commits `second.txt` ("second commit" `ef0fd64…`) and pushes | bare head `ef0fd64…`, files `probe.txt`+`second.txt` |
+| POST gitPull `{cwd}` | 200 `{"ok":true,"result":{"ok":true,"status":"pulled","refName":"g46-branch","upstreamRef":"origin/g46-branch"}}` |
+| local repo after pull | log `ef0fd64 second commit` / `6964bd1 probe`, clean status, HEAD `g46-branch` |
+
+Temp repo, bare remote and the second clone are deleted at the end of the probe
+(reset); nothing outside `%TEMP%` was touched.
+
+### Residual
+
+- `gitCreateChangeRequest` still 501: the PR generator needs the desktop review
+  service (`git-generate-draft`/`git-review-request`) proven end to end.
+- `saveConfig`/`open*` still 501 (host RPC surface not exposed).
+- Gate denial: 403 proven in the node table; the live push/pull run used the
+  probe's `SetGitAuthorizer` as the desktop "allow".
+- Relay mode and real-phone pairing still unverified.

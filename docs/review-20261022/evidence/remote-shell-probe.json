@@ -1,4 +1,16 @@
 {
+  "bareAfterPush": {
+    "branches": "g46-branch",
+    "files": "probe.txt",
+    "head": "6964bd1fda019d3c2c8e428d99d34e66ab0fc28f",
+    "log": "6964bd1 probe"
+  },
+  "bareBeforePull": {
+    "branches": "g46-branch",
+    "files": "probe.txt\nsecond.txt",
+    "head": "ef0fd64c5d7d1d7fc3cd5e86e46d5d84cddabebb",
+    "log": "ef0fd64 second commit\n6964bd1 probe"
+  },
   "path": "phoneremote.NewRuntime + Start",
   "probes": [
     {
@@ -70,7 +82,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"refName\":\"probe-branch\",\"hasWorkingTreeChanges\":true,\"workingTree\":{\"files\":[{\"path\":\"probe.txt\",\"insertions\":0,\"deletions\":0}],\"insertions\":0,\"deletions\":0},\"hasUpstream\":false,\"aheadCount\":0,\"behindCount\":0,\"aheadOfDefaultCount\":0,\"aheadUnreliable\":false,\"pr\":null,\"isDefaultRef\":false,\"hasPrimaryRemote\":false,\"isRepo\":true}}",
+      "body": "{\"ok\":true,\"result\":{\"refName\":\"probe-branch\",\"hasWorkingTreeChanges\":true,\"workingTree\":{\"files\":[{\"path\":\"probe.txt\",\"insertions\":0,\"deletions\":0}],\"insertions\":0,\"deletions\":0},\"hasUpstream\":false,\"aheadCount\":0,\"behindCount\":0,\"aheadOfDefaultCount\":0,\"aheadUnreliable\":false,\"pr\":null,\"sourceControlProvider\":{\"kind\":\"unknown\",\"name\":\"source control\",\"baseUrl\":\"\"},\"isDefaultRef\":false,\"hasPrimaryRemote\":true,\"isRepo\":true}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -79,7 +91,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/listDir",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"cwd\":\"C:\\\\Users\\\\48818\\\\AppData\\\\Local\\\\Temp\\\\mygo-shell-repo-1654075203\",\"entries\":[{\"name\":\".git\",\"type\":\"directory\"},{\"name\":\"probe.txt\",\"type\":\"file\"}]}}",
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"cwd\":\"C:\\\\Users\\\\48818\\\\AppData\\\\Local\\\\Temp\\\\mygo-shell-repo-44657724\",\"entries\":[{\"name\":\".git\",\"type\":\"directory\"},{\"name\":\"probe.txt\",\"type\":\"file\"}]}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -97,7 +109,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/gitCommit",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"created\",\"commitSha\":\"3c02b106da24aed38f8b1ecdacf24219fa440bef\",\"subject\":\"probe\",\"body\":\"\",\"suggestedBranch\":\"feature/probe\"}}",
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"created\",\"commitSha\":\"6964bd1fda019d3c2c8e428d99d34e66ab0fc28f\",\"subject\":\"probe\",\"body\":\"\",\"suggestedBranch\":\"feature/probe\"}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -173,6 +185,24 @@
       "contentType": "application/json; charset=utf-8"
     },
     {
+      "name": "gitPush bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitPush",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"pushed\",\"branch\":\"g46-branch\",\"upstreamBranch\":\"origin/g46-branch\",\"commitSha\":\"6964bd1fda019d3c2c8e428d99d34e66ab0fc28f\"}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "gitPull bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitPull",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"pulled\",\"refName\":\"g46-branch\",\"upstreamRef\":\"origin/g46-branch\"}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
       "name": "gitCreateBranch missing name :3180",
       "method": "POST",
       "url": "http://127.0.0.1:3180/__remote__/shell/gitCreateBranch",
@@ -182,22 +212,29 @@
       "contentType": "application/json; charset=utf-8"
     }
   ],
+  "pullState": {
+    "branches": "* g46-branch\n  probe-branch",
+    "fileExists": "probe.txt",
+    "head": "g46-branch",
+    "log": "ef0fd64 second commit\n6964bd1 probe",
+    "status": ""
+  },
   "repoState": {
     "branches": "* g46-branch\n  probe-branch",
     "fileExists": "probe.txt",
     "head": "g46-branch",
-    "log": "3c02b10 probe",
+    "log": "ef0fd64 second commit\n6964bd1 probe",
     "status": ""
   },
   "snapshot": {
-    "expiresAt": "2026-10-25T04:39:17.477+08:00",
+    "expiresAt": "2026-10-25T04:58:08.621+08:00",
     "hasPairingURL": true,
     "listening": true,
     "pairingURLShape": "http://127.0.0.1:3180/#offer=\u003credacted\u003e",
     "relayConnected": false,
     "status": "ready"
   },
-  "tokenHash": "2bd974db9faf41804368d54d4dd5d64bc2e7a4369ddaa0e583fc919181e8953c",
-  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-754611874",
+  "tokenHash": "f31e34612d8ee5aab413615b72c549a220a77a92c00a77682a6dfc315f4f3763",
+  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-906617186",
   "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor"
 }

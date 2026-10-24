@@ -19,9 +19,9 @@
 const COOKIE_NAME = 'dsh_remote';
 const MAX_BODY = 262144;
 const READ_ONLY = new Set(['gitStatus', 'gitFetchForStatus', 'gitDiff', 'gitBranchList', 'listDir', 'getConfig']);
-const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch']);
+const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch', 'gitPush', 'gitPull']);
 const GATED_TODO = new Set([
-  'gitPush', 'gitPull', 'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery',
+  'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery',
 ]);
 const READ_BODY = Symbol('readBody');
 
@@ -264,8 +264,29 @@ function createShellHandler(opts) {
           wrapResult(res, await git.gitCreateBranch(payload.cwd, payload.name));
           return true;
         }
+        case 'gitPush':
+        case 'gitPull': {
+          const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
+          if (!nonEmptyString(payload.cwd) || !insideRoots(payload.cwd, roots || [])) {
+            fail(res, 403, 'Mobile Git is not authorized for this workspace');
+            return true;
+          }
+          // Native remote-shell.js:70-73 passes only cwd; the branch is HEAD's.
+          // Remote/branch are accepted for forward compatibility and validated
+          // when present, but the gated helper decides the push/pull target.
+          for (const key of ['remote', 'branch']) {
+            if (payload[key] !== undefined && !nonEmptyString(payload[key], 512)) {
+              fail(res, 400, 'invalid args: ' + key);
+              return true;
+            }
+          }
+          wrapResult(res, name === 'gitPush'
+            ? await git.gitPush(payload.cwd)
+            : await git.gitPull(payload.cwd));
+          return true;
+        }
         default:
-          // TODO(G46): push/pull/PR/saveConfig/open* need desktop services that
+          // TODO(G46): PR/saveConfig/open* need desktop services that
           // are not proven end to end yet; the native "unavailable" shape keeps
           // the phone honest instead of half-wiring them.
           fail(res, 501, 'shell unavailable');

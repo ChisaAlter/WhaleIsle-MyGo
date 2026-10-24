@@ -132,7 +132,7 @@ test('unknown name 404, bad JSON 400, oversized body 413, mutations 501', async 
   assert.equal(big.statusCode, 413);
   assert.deepEqual(JSON.parse(big.body), { ok: false, error: '请求过大' });
 
-  for (const name of ['gitPush', 'gitPull', 'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery']) {
+  for (const name of ['gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery']) {
     const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: '{}' });
     assert.equal(res.statusCode, 501, name);
     assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'shell unavailable' });
@@ -256,4 +256,71 @@ test('mutations succeed through the gate with a fake authorizer', async () => {
   const denied = routes.createShellHandler({ tokens: () => [TOKEN], git: denialGit(), roots: () => [ROOT] });
   const deniedRes = await run(denied, { url: '/__remote__/shell/gitCommit', headers, body: JSON.stringify({ cwd: ROOT, message: 'x' }) });
   assert.equal(deniedRes.statusCode, 403);
+});
+
+// Push/pull go through the same gate: native remote-shell.js:70-73 delegates
+// both with only the workspace cwd, so the branch comes from HEAD.
+test('push/pull are 403 without a desktop authorisation', async () => {
+  const calls = { push: 0, pull: 0 };
+  const git = {
+    async gitPush() { calls.push++; throw new Error('Mobile Git desktop workspace permission expired'); },
+    async gitPull() { calls.pull++; throw new Error('Mobile Git desktop workspace permission expired'); },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  for (const name of ['gitPush', 'gitPull']) {
+    const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: JSON.stringify({ cwd: ROOT }) });
+    assert.equal(res.statusCode, 403, name);
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'Mobile Git desktop workspace permission expired' });
+  }
+  assert.equal(calls.push, 1, 'push reached the gate');
+  assert.equal(calls.pull, 1, 'pull reached the gate');
+});
+
+test('push/pull validate cwd and optional remote/branch before the gate', async () => {
+  let reached = 0;
+  const git = { async gitPush() { reached++; return { ok: true }; }, async gitPull() { reached++; return { ok: true }; } };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const root = require('node:path').parse(ROOT).root;
+  const outside = await run(handler, { url: '/__remote__/shell/gitPush', headers, body: JSON.stringify({ cwd: root }) });
+  assert.equal(outside.statusCode, 403);
+  assert.equal(JSON.parse(outside.body).error, 'Mobile Git is not authorized for this workspace');
+
+  const badRemote = await run(handler, { url: '/__remote__/shell/gitPush', headers, body: JSON.stringify({ cwd: ROOT, remote: 42 }) });
+  assert.equal(badRemote.statusCode, 400);
+  assert.deepEqual(JSON.parse(badRemote.body), { ok: false, error: 'invalid args: remote' });
+
+  const badBranch = await run(handler, { url: '/__remote__/shell/gitPull', headers, body: JSON.stringify({ cwd: ROOT, branch: '' }) });
+  assert.equal(badBranch.statusCode, 400);
+  assert.deepEqual(JSON.parse(badBranch.body), { ok: false, error: 'invalid args: branch' });
+  assert.equal(reached, 0, 'invalid requests never reached the gate');
+});
+
+test('push/pull succeed through the gate with a fake authorizer', async () => {
+  const seen = [];
+  const git = {
+    async gitPush(cwd) { seen.push({ name: 'gitPush', cwd }); return { ok: true, status: 'pushed', branch: 'probe-branch', ahead: 1 }; },
+    async gitPull(cwd) { seen.push({ name: 'gitPull', cwd }); return { ok: true, status: 'fast-forward', branch: 'probe-branch' }; },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const pushRes = await run(handler, { url: '/__remote__/shell/gitPush', headers, body: JSON.stringify({ cwd: ROOT }) });
+  assert.equal(pushRes.statusCode, 200);
+  assert.deepEqual(JSON.parse(pushRes.body), { ok: true, result: { ok: true, status: 'pushed', branch: 'probe-branch', ahead: 1 } });
+
+  const pullRes = await run(handler, { url: '/__remote__/shell/gitPull', headers, body: JSON.stringify({ cwd: ROOT, remote: 'origin', branch: 'probe-branch' }) });
+  assert.equal(pullRes.statusCode, 200);
+  assert.equal(JSON.parse(pullRes.body).result.status, 'fast-forward');
+
+  assert.deepEqual(seen, [
+    { name: 'gitPush', cwd: ROOT },
+    { name: 'gitPull', cwd: ROOT },
+  ], 'native delegates only the workspace cwd');
+
+  // A git-level failure result keeps the native wrapResult shape.
+  const failing = routes.createShellHandler({ tokens: () => [TOKEN], git: { async gitPush() { return { ok: false, message: 'no upstream configured' }; } }, roots: () => [ROOT] });
+  const failed = await run(failing, { url: '/__remote__/shell/gitPush', headers, body: JSON.stringify({ cwd: ROOT }) });
+  assert.equal(failed.statusCode, 400);
+  assert.deepEqual(JSON.parse(failed.body), { ok: false, error: 'no upstream configured' });
 });
