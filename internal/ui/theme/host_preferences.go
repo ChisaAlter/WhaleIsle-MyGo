@@ -10,22 +10,25 @@ import (
 // HostSettings is the actual ui-theme namespace, distinct from desktop-only
 // launcher/window startup config. Missing fields use the original schema defaults.
 type HostSettings struct {
-	Preference         string              `json:"preference"`
-	FontSize           float32             `json:"fontSize"`
-	TerminalFontSize   float32             `json:"terminalFontSize"`
-	ActiveLightThemeID string              `json:"activeLightThemeId"`
-	ActiveDarkThemeID  string              `json:"activeDarkThemeId"`
-	CustomThemes       []Family            `json:"customThemes"`
-	GlassOpacity       float64             `json:"glassOpacity"`
-	TerminalOpacity    float64             `json:"terminalOpacity"`
-	TransparentTheme   bool                `json:"transparentTheme"`
-	SidebarMaskHidden  bool                `json:"sidebarMaskHidden"`
-	WallpaperImage     string              `json:"wallpaperImage"`
-	WallpaperBlur      float64             `json:"wallpaperBlur"`
-	WallpaperPixelate  float64             `json:"wallpaperPixelate"`
-	WallpaperSources   []wallpapers.Source `json:"wallpaperSources"`
-	WallpaperFavorites []wallpapers.Item   `json:"wallpaperFavorites"`
-	BackgroundEffect   string              `json:"backgroundEffect"`
+	Preference         string   `json:"preference"`
+	FontSize           float32  `json:"fontSize"`
+	TerminalFontSize   float32  `json:"terminalFontSize"`
+	ActiveLightThemeID string   `json:"activeLightThemeId"`
+	ActiveDarkThemeID  string   `json:"activeDarkThemeId"`
+	CustomThemes       []Family `json:"customThemes"`
+	GlassOpacity       float64  `json:"glassOpacity"`
+	TerminalOpacity    float64  `json:"terminalOpacity"`
+	TransparentTheme   bool     `json:"transparentTheme"`
+	SidebarMaskHidden  bool     `json:"sidebarMaskHidden"`
+	WallpaperImage     string   `json:"wallpaperImage"`
+	// WallpaperImageExplicit is set only when the Host document contains the
+	// wallpaperImage key: a seeded default must not paint over the flat base.
+	WallpaperImageExplicit bool                `json:"-"`
+	WallpaperBlur          float64             `json:"wallpaperBlur"`
+	WallpaperPixelate      float64             `json:"wallpaperPixelate"`
+	WallpaperSources       []wallpapers.Source `json:"wallpaperSources"`
+	WallpaperFavorites     []wallpapers.Item   `json:"wallpaperFavorites"`
+	BackgroundEffect       string              `json:"backgroundEffect"`
 	// BackgroundEffectExplicit is set only when the Host document contains the
 	// key, so a seeded default never paints the ambient gradient.
 	BackgroundEffectExplicit bool      `json:"-"`
@@ -60,6 +63,9 @@ func ReadHostSettings(raw json.RawMessage) (HostSettings, error) {
 		var stored map[string]json.RawMessage
 		if json.Unmarshal(raw, &stored) == nil {
 			_, h.BackgroundEffectExplicit = stored["backgroundEffect"]
+			if _, ok := stored["wallpaperImage"]; ok {
+				h.WallpaperImageExplicit = true
+			}
 		}
 	}
 	return h, err

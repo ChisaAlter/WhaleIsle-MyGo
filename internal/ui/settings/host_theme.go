@@ -20,9 +20,10 @@ func (h *HostThemeBinding) Flush()        { h.binding.Flush() }
 type HostThemeState struct {
 	Ready, Writable, Loading, Saving, Pending bool
 	Owner, Error, Scheme, WallpaperImage      string
-	Revision                                  float64
+	WallpaperImageExplicit                    bool
 	Preferences                               theme.Preferences
 	Background                                wallpapers.Preferences
+	Revision                                  float64
 }
 
 func BindHostTheme(s *store.Store) *HostThemeBinding {
@@ -50,7 +51,7 @@ func (h *HostThemeBinding) Snapshot() HostThemeState {
 		return result
 	}
 	result.Preferences, result.Background, result.Revision = value.Preferences(), value.Background(), ns.Revision
-	result.Scheme, result.WallpaperImage = value.Preference, value.WallpaperImage
+	result.Scheme, result.WallpaperImage, result.WallpaperImageExplicit = value.Preference, value.WallpaperImage, value.WallpaperImageExplicit
 	return result
 }
 

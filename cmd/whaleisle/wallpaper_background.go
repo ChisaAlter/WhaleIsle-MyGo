@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,6 +104,9 @@ func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpaper
 
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
 	path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
+	if os.Getenv("WHALEISLE_BACKDROP_PROBE") != "" {
+		log.Printf("backdrop probe: path=%q hostAccepted=%v hostImageLen=%d configSource=%q", path, s.hostAppearanceAccepted, len(s.hostWallpaperImage), path)
+	}
 	g := s.wallpaperEditor()
 	if g == nil {
 		return func(*ui.Painter, ui.Rect) {}

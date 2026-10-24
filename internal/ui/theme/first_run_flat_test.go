@@ -44,3 +44,22 @@ func TestHostBackgroundExplicitness(t *testing.T) {
 		t.Fatalf("explicit none lost: %q/%v", none.BackgroundEffect, none.BackgroundEffectExplicit)
 	}
 }
+
+// TestHostWallpaperExplicitness: only a Host document that contains
+// wallpaperImage may override the local wallpaper; the seed stays empty.
+func TestHostWallpaperExplicitness(t *testing.T) {
+	seed, err := ReadHostSettings(json.RawMessage(`{"preference":"dark"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seed.WallpaperImageExplicit || seed.WallpaperImage != "" {
+		t.Fatalf("seed wallpaper = %q/%v, want empty/false", seed.WallpaperImage, seed.WallpaperImageExplicit)
+	}
+	set, err := ReadHostSettings(json.RawMessage(`{"wallpaperImage":"data:image/png;base64,AAAA"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !set.WallpaperImageExplicit || set.WallpaperImage == "" {
+		t.Fatalf("explicit wallpaper lost: %q/%v", set.WallpaperImage, set.WallpaperImageExplicit)
+	}
+}

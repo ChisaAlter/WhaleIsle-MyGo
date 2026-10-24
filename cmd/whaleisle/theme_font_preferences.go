@@ -87,8 +87,12 @@ func (s *mainState) syncHostAppearance() {
 	}
 	s.mu.Lock()
 	previousScheme := s.themeID
-	s.hostWallpaperImage = h.WallpaperImage
-	s.desktopDraft.wallpaperPath = h.WallpaperImage
+	// Only a Host document that carries wallpaperImage can override the local
+	// wallpaper; a seeded empty/default value keeps the flat base.
+	if h.WallpaperImageExplicit {
+		s.hostWallpaperImage = h.WallpaperImage
+		s.desktopDraft.wallpaperPath = h.WallpaperImage
+	}
 	// The Host always reports a scheme (default "system"), so it cannot tell an
 	// explicit choice from its default: the configured theme wins until the user
 	// actually changes appearance, then the persisted preference wins.
