@@ -1,0 +1,21 @@
+Round116 installed run_code: FAILED
+Run 2026-10-24T01-20-45-073Z-113d5267
+Cases 9/10; assertions 55/56
+PASSED source-only-formatToolBody-table 3/3
+PASSED open-program-output-exact-metrics 13/13
+PASSED invalid-empty-code-and-raw-branches 4/4
+PASSED empty-output-null-output-and-error-color 4/4
+FAILED default-wrapped-and-click-unwrapped-controls 5/6
+PASSED copy-displayed-source-and-one-second-feedback 6/6
+PASSED explicit-disclosure-keydown-and-toolbar-tab-focus 5/5
+PASSED long-code-cap-output-cap-independent-wheels 6/6
+PASSED manual-spans-exact-installed-token-colors 4/4
+PASSED source-input-network-custody 5/5
+FAIL default-wrapped-and-click-unwrapped-controls: wrapped long source fits horizontally; unwrapped overflows and shrinks to45px pre null
+Exact installed baseline: code viewport260; codeBody margin4 0 4 4; border0/radius16; toolbar42 padding10 18 8 22; buttons24 glyph14; pre11/19 padding6 22 20; OUT11/16 max150 content/174 outer.
+Copy uses displayed program trimmed by exactly one terminal LF, memory adapter only. Wrapping defaults true. No native-button Enter assertion. Manual token color sample is not tokenizer execution.
+Source evidence C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-code-pass260-reference-2026-10-24T01-20-45-073Z-113d5267-source.json
+Cleanup {"target":"Only spawned exact Chrome PID/profile/port; no protected process queries/signals or original GUI requests","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":43692},{"type":"renderer","id":48096},{"type":"renderer","id":39372},{"type":"renderer","id":24552},{"type":"renderer","id":28544},{"type":"renderer","id":45156},{"type":"renderer","id":39028},{"type":"GPU","id":21984},{"type":"network.mojom.NetworkService","id":37972},{"type":"storage.mojom.StorageService","id":1960}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null},"portReleased":true,"processes":[{"pid":43692,"alive":false},{"pid":39372,"alive":false},{"pid":24552,"alive":false},{"pid":28544,"alive":false},{"pid":39028,"alive":false},{"pid":21984,"alive":false},{"pid":37972,"alive":false},{"pid":1960,"alive":false},{"pid":48096,"alive":false},{"pid":45156,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r116-tool-code-2026-10-24T01-20-45-073Z-113d5267-profile","profileRemoved":true,"pass":true}
+Errors []
+Post-run diagnosis from retained measurements: unwrapped pre box50px/client45px, line19+padding6+20=45 plus5px horizontal scrollbar. Wrapped121px→unwrapped50px; horizontal overflow false→true. Original FAILED55/56 acceptance JSON and runner unchanged; no rerun.
+Compact JSON: source71546+measurements72027=143573bytes;27 unique computed styles. All18 sources unchanged;43 trusted events. Copy feedback1001.9ms; code/output wheel offsets0/0→220/0→220/220.

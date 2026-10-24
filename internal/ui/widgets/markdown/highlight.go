@@ -30,7 +30,12 @@ func chromaPalette(dark bool) *chroma.Style {
 // highlightedCodeSpans tokenizes a fenced code block with chroma.
 // Falls back to a single monospace span when the language is unknown.
 func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
-	code = strings.TrimRight(code, "\n")
+	return codeSpans(lang, strings.TrimRight(code, "\n"), st, nil, nil)
+}
+
+// codeSpans shares tokenization while the owner chooses source normalization
+// and token colors. A nil option/palette retains the existing markdown preset.
+func codeSpans(lang, code string, st Style, options *chroma.TokeniseOptions, color func(chroma.TokenType) ui.Color) []ui.Span {
 	if code == "" {
 		return nil
 	}
@@ -45,7 +50,7 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 	}
 	lexer = chroma.Coalesce(lexer)
 	style := chromaPalette(st.Dark)
-	it, err := lexer.Tokenise(nil, code)
+	it, err := lexer.Tokenise(options, code)
 	if err != nil {
 		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
 	}
@@ -54,10 +59,14 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 		if tok.Value == "" {
 			continue
 		}
+		ink := chromaColor(style, tok.Type, st.FG)
+		if color != nil {
+			ink = color(tok.Type)
+		}
 		out = append(out, ui.Span{
 			Text:       tok.Value,
 			Size:       size,
-			Color:      chromaColor(style, tok.Type, st.FG),
+			Color:      ink,
 			Background: st.CodeBG,
 			Font:       font,
 		})
@@ -65,8 +74,6 @@ func highlightedCodeSpans(lang, code string, st Style) []ui.Span {
 	if len(out) == 0 {
 		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
 	}
-	// No trailing newline: a text run does not need one, and it would paint an
-	// empty last line box that the Original <pre> never shows.
 	return withLineNumbers(out, st)
 }
 

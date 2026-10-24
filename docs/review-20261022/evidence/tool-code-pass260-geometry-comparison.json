@@ -1,0 +1,93 @@
+{
+  "scope": "Dimensions only from original installed-CSS manual-DOM DPR1 and native software DPR1. Text, fonts, highlighters and fixture offsets differ; no pixel or full-app parity claim.",
+  "originalAcceptance": {
+    "passedCases": 9,
+    "failedCases": 1,
+    "passedAssertions": 55,
+    "failedAssertions": 1
+  },
+  "checks": [
+    {
+      "name": "code card width in600 row",
+      "original": 596,
+      "native": 596,
+      "pass": true
+    },
+    {
+      "name": "code left indent",
+      "original": 4,
+      "native": 4,
+      "pass": true
+    },
+    {
+      "name": "single-line code card outer height",
+      "original": 87,
+      "native": 87,
+      "pass": true
+    },
+    {
+      "name": "single-line scroll owner including margins",
+      "original": 95,
+      "native": 95,
+      "pass": true
+    },
+    {
+      "name": "toolbar button width",
+      "original": 24,
+      "native": 24,
+      "pass": true
+    },
+    {
+      "name": "toolbar button height",
+      "original": 24,
+      "native": 24,
+      "pass": true
+    },
+    {
+      "name": "toolbar top action inset",
+      "original": 10,
+      "native": 10,
+      "pass": true
+    },
+    {
+      "name": "toolbar right action inset",
+      "original": 18,
+      "native": 18,
+      "pass": true
+    },
+    {
+      "name": "toolbar language inset",
+      "original": 22,
+      "native": 22,
+      "pass": true
+    },
+    {
+      "name": "toolbar language line height",
+      "original": 18,
+      "native": 18,
+      "pass": true
+    },
+    {
+      "name": "output one-line section height",
+      "original": 40,
+      "native": 40,
+      "pass": true
+    },
+    {
+      "name": "long program scroll owner cap",
+      "original": 260,
+      "native": 260,
+      "pass": true
+    },
+    {
+      "name": "long output independent cap",
+      "original": 174,
+      "native": 174,
+      "pass": true
+    }
+  ],
+  "passed": 13,
+  "total": 13,
+  "retainedFailure": "Original wrap check expected pre outer45 but measured50 due installed5px horizontal scrollbar. Original acceptance remains failed55/56.",
+  "knownNativeDifference": "MyGo overlays scrollbars rather than reserving the original browser5px horizontal scrollbar layout. This comparison excludes unwrapped pre outer height."
+}

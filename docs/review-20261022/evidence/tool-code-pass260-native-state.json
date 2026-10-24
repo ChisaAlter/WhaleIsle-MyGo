@@ -1,0 +1,137 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T01:28:42.3407026Z",
+    "status":  "pass-injected-native-surface",
+    "scope":  "Injected focus, click and key messages into exact owned MyGoSurface. No OS hardware input/hover, no original app interaction, no clipboard mutation or code execution.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r116-code-fixture.exe",
+                    "startUtc":  "2026-10-24T01:28:30.6178743Z",
+                    "exited":  true,
+                    "pid":  33736,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "clicked-open",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "code":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  300.61456,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  225.33333
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:28:42.6550238+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unwrap",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "code":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  243.61458,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  168.33333
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:28:42.8657678+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "wrap-enter",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "code":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  300.61456,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  225.33333
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:28:42.9110016+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "theme-retains-open",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "code":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  300.61456,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  225.33333
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:28:42.984975+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "disclosure-space",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "code":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  300.61456,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  225.33333
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T09:28:43.3544004+08:00"
+                                   }
+                   }
+               ],
+    "error":  null,
+    "finishedAt":  "2026-10-24T01:28:43.5270824Z"
+}

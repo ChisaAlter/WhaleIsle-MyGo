@@ -1,0 +1,45 @@
+﻿{
+    "started":  "2026-10-24T01:25:30.6226206Z",
+    "checks":  [
+                   {
+                       "output":  [
+                                      "ok  \twhaleisle/internal/ui/chat\t115.517s",
+                                      "ok  \twhaleisle/internal/ui/widgets/markdown\t1.953s",
+                                      "ok  \twhaleisle/internal/ui/frame\t16.452s",
+                                      "ok  \twhaleisle/internal/ui/interaction\t2.749s",
+                                      "ok  \twhaleisle/internal/ui/i18n\t0.646s"
+                                  ],
+                       "command":  "go test ./internal/ui/chat ./internal/ui/widgets/markdown ./internal/ui/frame ./internal/ui/interaction ./internal/ui/i18n -count=1",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets/markdown",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go vet ./internal/ui/chat ./internal/ui/widgets/markdown ./internal/ui/frame ./internal/ui/interaction ./internal/ui/i18n",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go test -tags codefixture -c -o .devdata/r116-code-fixture.exe ./internal/ui/chat",
+                       "exit":  0
+                   }
+               ],
+    "finished":  "2026-10-24T01:28:16.4183279Z"
+}

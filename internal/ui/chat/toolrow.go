@@ -242,6 +242,10 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		// The addressed reader also exposes the full unmodified call evidence.
 		return true, !opts.TextOnly
 	}
+	if info.Name == "run_code" && !opts.TextOnly {
+		toolCodeBody(c, info, st, key)
+		return true, true
+	}
 	switch kind {
 	case ToolKindBash:
 		return false, false

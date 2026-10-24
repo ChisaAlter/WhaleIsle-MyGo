@@ -45,6 +45,10 @@ type Style struct {
 	LineNumbers bool
 	// CodeBanner is the code-card header fill; zero derives a muted tint.
 	CodeBanner ui.Color
+	// ToolCodeToolbar uses distinct language, action and hover tokens; zero
+	// retains the existing markdown preset for callers without this toolbar.
+	ToolCodeLanguage ui.Color
+	ToolCodeHover    ui.Color
 	// TableHeader is the table header fill; zero derives a muted tint.
 	TableHeader ui.Color
 	// AvailableWidth is the width a table may use before it scrolls. Zero keeps
