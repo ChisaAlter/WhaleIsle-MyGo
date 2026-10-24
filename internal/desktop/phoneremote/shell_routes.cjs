@@ -20,7 +20,9 @@ const COOKIE_NAME = 'dsh_remote';
 const MAX_BODY = 262144;
 const READ_ONLY = new Set(['gitStatus', 'gitFetchForStatus', 'gitDiff', 'gitBranchList', 'listDir', 'getConfig']);
 const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch', 'gitPush', 'gitPull', 'gitCreateChangeRequest']);
-const GATED_TODO = new Set(['saveConfig', 'openSettings', 'openGallery']);
+const HOST_ACTIONS = new Set(['openSettings', 'openGallery', 'saveConfig']);
+// Every native shell name is now served; keep the set for forward-compatible names.
+const GATED_TODO = new Set();
 const READ_BODY = Symbol('readBody');
 
 function tokenFromRequest(headers) {
@@ -163,7 +165,7 @@ function createShellHandler(opts) {
       send(res, 401, 'unauthorized', 'text/plain; charset=utf-8');
       return true;
     }
-    if (!READ_ONLY.has(name) && !MUTATIONS.has(name) && !GATED_TODO.has(name)) {
+    if (!READ_ONLY.has(name) && !MUTATIONS.has(name) && !HOST_ACTIONS.has(name) && !GATED_TODO.has(name)) {
       fail(res, 404, 'not found');
       return true;
     }
@@ -310,8 +312,64 @@ function createShellHandler(opts) {
           wrapResult(res, await git.gitCreateChangeRequest(payload.cwd, input));
           return true;
         }
+        case 'openSettings': {
+          const section = payload.sectionId === undefined ? '' : payload.sectionId;
+          if (section !== '' && !nonEmptyString(section, 200)) {
+            fail(res, 400, 'invalid args: sectionId');
+            return true;
+          }
+          // Native remote-shell.js:84-87 returns the desktop's opened flag.
+          const host = options.host || {};
+          const opened = typeof host.openSettings === 'function'
+            ? Boolean(await host.openSettings(section))
+            : false;
+          send(res, 200, { ok: true, result: { opened, section } });
+          return true;
+        }
+        case 'openGallery': {
+          // Native remote-shell.js:88-91 opens the appearance section.
+          const host = options.host || {};
+          const opened = typeof host.openSettings === 'function'
+            ? Boolean(await host.openSettings('appearance'))
+            : false;
+          send(res, 200, { ok: true, result: { opened, section: 'appearance' } });
+          return true;
+        }
+        case 'saveConfig': {
+          const patch = payload.patch === undefined ? {} : payload.patch;
+          if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+            fail(res, 400, 'invalid args: patch');
+            return true;
+          }
+          const allowed = ['remoteEnabled', 'remoteMode', 'remotePort', 'remoteBindAddress', 'remoteLanTls', 'remoteAppBaseUrl', 'locale', 'theme'];
+          for (const key of Object.keys(patch)) {
+            if (!allowed.includes(key)) {
+              fail(res, 400, 'invalid args: patch.' + key);
+              return true;
+            }
+          }
+          const host = options.host || {};
+          if (typeof host.saveConfig !== 'function') {
+            fail(res, 400, 'saveConfig requires the desktop host');
+            return true;
+          }
+          try {
+            const saved = await host.saveConfig(patch);
+            if (!saved || saved.ok === false) {
+              fail(res, 400, (saved && (saved.error || saved.message)) || 'saveConfig failed');
+              return true;
+            }
+            send(res, 200, { ok: true, result: saved.config || {} });
+            return true;
+          } catch (error) {
+            fail(res, 400, String(error && error.message ? error.message : error));
+            return true;
+          }
+        }
         default:
-          // TODO(G46): saveConfig/open* need desktop services that
+          // No native shell name reaches this branch; kept as a guard.
+          fail(res, 404, 'not found');
+          return true;
           // are not proven end to end yet; the native "unavailable" shape keeps
           // the phone honest instead of half-wiring them.
           fail(res, 501, 'shell unavailable');
@@ -350,6 +408,7 @@ module.exports = {
   MAX_BODY,
   READ_ONLY,
   MUTATIONS,
+  HOST_ACTIONS,
   GATED_TODO,
   tokenFromRequest,
   tokensEqual,

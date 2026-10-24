@@ -247,3 +247,59 @@ Temp repo, bare remote and clone are deleted at the end of the probe.
   title/body before creating it`) cannot be answered from the loopback probe; a
   phone request without `preserveProvided`+title returns that 400 reason.
 - `saveConfig`/`open*` still 501; relay mode and real-phone pairing unverified.
+
+## 9. Round 260 addendum — host actions (openSettings / openGallery / saveConfig)
+
+Every native shell name is now served. The three host actions go through the
+desktop: the bridge asks the Go app (`host-open-settings` / `host-save-config`),
+and the app answers with the native result shape.
+
+### Native shape (citations)
+
+- `remote-shell.js:84-87` — `openSettings`: `ok({opened: Boolean(await host.openSettings(body.sectionId)), section})`.
+- `remote-shell.js:88-91` — `openGallery`: opens the `appearance` section and returns `{opened, section:'appearance'}`.
+- `remote-shell.js:94-95` — `saveConfig`: `ok(await host.saveConfig(body.patch || {}))`.
+
+### MyGo wiring
+
+| Route | Behaviour |
+| --- | --- |
+| openSettings | validates optional `sectionId` (string ≤200, else 400 `invalid args: sectionId`); calls the desktop host, which opens the settings page through the existing `whaleisle://settings?section=` deeplink path (`applyDeeplink`, same as `cmd/whaleisle` step) on the UI goroutine; returns `{ok:true,result:{opened,section}}`. Without a host the answer is the honest `opened:false`, never a fake success |
+| openGallery | same path with section `appearance` (`{opened, section:'appearance'}`) |
+| saveConfig | validates `patch` is an object and only the whitelisted fields (`remoteEnabled, remoteMode, remotePort, remoteBindAddress, remoteLanTls, remoteAppBaseUrl, locale, theme`); anything else (including `remoteToken`/`remoteRelayToken`/`credentials`) is 400 `invalid args: patch.<key>` before the host is called; persists via `config.Store.Update` and returns the redacted config (no tokens). Without a host: 400 `saveConfig requires the desktop host`; host failure: 400 with its reason |
+
+Go plumbing: `phoneremote.HostActions{OpenSettings,SaveConfig}` +
+`Runtime.SetHostActions`; `runtime.go` routes `host-open-settings` /
+`host-save-config` bridge events to the callbacks and answers with
+`host-open-settings-result` / `host-save-config-result`; `bridge.cjs` provides
+`hostActions` to the mounted shell routes with a 4 s bounded round-trip. In
+`cmd/whaleisle` the callbacks are `openPhoneSettingsSection` (deeplink path,
+bounded 2 s) and `savePhoneConfigPatch` (whitelisted patch + redacted result).
+
+### Tests
+
+- `shell_routes.test.cjs` — 20/20: host actions require the token (401); openSettings returns the desktop flag and echoes the section, bad `sectionId` → 400, no host → `opened:false`; openGallery targets `appearance`; saveConfig persists the fake host patch, echoes the redacted config (no `Token` substring), rejects non-object patches and non-whitelisted keys (`patch.remoteToken`) before the host, no host → 400 `saveConfig requires the desktop host`, host error → 400 with its reason.
+- `cmd/whaleisle/remote_host_actions_test.go` — patch whitelist/type validation (rejects token keys, wrong types), redacted config has no secret fields, and `savePhoneConfigPatch` writes the patch to the config store while `config.json` contains no token keys.
+- Go wrapper test unchanged (embedded module + node table).
+
+### Live loopback probe (bare daemon, no Go host callbacks)
+
+| Request | Result |
+| --- | --- |
+| POST openSettings `{sectionId:"remote"}` | 200 `{"ok":true,"result":{"opened":false,"section":"remote"}}` |
+| POST openGallery `{}` | 200 `{"ok":true,"result":{"opened":false,"section":"appearance"}}` |
+| POST saveConfig `{patch:{remoteMode:"lan"}}` | 400 `{"ok":false,"error":"saveConfig requires the desktop host"}` |
+
+The bare probe intentionally has no desktop host, so `opened:false` and the
+explicit saveConfig reason are the honest native fallbacks. The desktop-backed
+path (`opened:true` via deeplink, persisted patch) is covered by the Go tests
+above, including the earlier `TestDeeplinkSettingsRemoteSection` route test.
+
+### Residual
+
+- The in-app `opened:true` path is proven by unit tests plus the existing deeplink
+  route test, not by an app-driven shell-route run; a future slice can call the
+  route from the running app with the pairing token to capture it live.
+- `saveConfig` deliberately accepts only the remote/appearance surface; broader
+  desktop config fields remain out of the phone's reach.
+- Relay mode and real-phone pairing still unverified.

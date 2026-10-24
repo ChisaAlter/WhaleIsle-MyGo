@@ -51,6 +51,7 @@ type Runtime struct {
 	op           sync.Mutex
 	writeMu      sync.Mutex
 	authorizeGit func(string, string) bool
+	hostActions  HostActions
 	reviewGit    GitReviewer
 	reviewCancel context.CancelFunc
 	mu           sync.Mutex
@@ -243,20 +244,22 @@ func (r *Runtime) Snapshot() RuntimeState {
 }
 func (r *Runtime) consume(child Child, b []byte) {
 	var event struct {
-		Kind           string   `json:"kind"`
-		ID             string   `json:"id"`
-		Root           string   `json:"root"`
-		Action         string   `json:"action"`
-		Listening      bool     `json:"listening"`
-		RelayConnected bool     `json:"relayConnected"`
-		URL            string   `json:"url"`
-		QRPNG          string   `json:"qrPNG"`
-		Code           string   `json:"code"`
-		Operation      string   `json:"operation"`
-		Applied        bool     `json:"applied"`
-		Devices        []Device `json:"devices"`
-		Addresses      []string `json:"addresses"`
-		DevicesLoaded  bool     `json:"devicesLoaded"`
+		Kind           string         `json:"kind"`
+		ID             string         `json:"id"`
+		Root           string         `json:"root"`
+		Action         string         `json:"action"`
+		Listening      bool           `json:"listening"`
+		RelayConnected bool           `json:"relayConnected"`
+		URL            string         `json:"url"`
+		QRPNG          string         `json:"qrPNG"`
+		Code           string         `json:"code"`
+		Operation      string         `json:"operation"`
+		Section        string         `json:"section"`
+		Patch          map[string]any `json:"patch"`
+		Applied        bool           `json:"applied"`
+		Devices        []Device       `json:"devices"`
+		Addresses      []string       `json:"addresses"`
+		DevicesLoaded  bool           `json:"devicesLoaded"`
 	}
 	if json.Unmarshal(b, &event) != nil {
 		return
@@ -267,6 +270,34 @@ func (r *Runtime) consume(child Child, b []byte) {
 	}
 	if event.Kind == "git-generate-draft" {
 		go r.generateGitDraft(child, append([]byte(nil), b...))
+		return
+	}
+	if event.Kind == "host-open-settings" {
+		r.mu.Lock()
+		actions := r.hostActions
+		r.mu.Unlock()
+		opened := false
+		if actions.OpenSettings != nil && len(event.Section) <= 200 {
+			opened = actions.OpenSettings(event.Section)
+		}
+		_ = r.sendControl(child, map[string]any{"action": "host-open-settings-result", "id": event.ID, "opened": opened})
+		return
+	}
+	if event.Kind == "host-save-config" {
+		r.mu.Lock()
+		actions := r.hostActions
+		r.mu.Unlock()
+		result := map[string]any{"action": "host-save-config-result", "id": event.ID, "ok": false, "error": "saveConfig requires the desktop host"}
+		if actions.SaveConfig != nil {
+			config, err := actions.SaveConfig(event.Patch)
+			if err != nil {
+				result["error"] = err.Error()
+			} else {
+				result["ok"] = true
+				result["config"] = config
+			}
+		}
+		_ = r.sendControl(child, result)
 		return
 	}
 	if event.Kind == "git-authorize" {

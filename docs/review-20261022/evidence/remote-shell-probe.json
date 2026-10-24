@@ -2,14 +2,14 @@
   "bareAfterPush": {
     "branches": "g46-branch",
     "files": "probe.txt",
-    "head": "3589f47257648971a06e1d5e38adc36d21460425",
-    "log": "3589f47 probe"
+    "head": "1077bcc4271459b1ab2a7d09923e94c53567512c",
+    "log": "1077bcc probe"
   },
   "bareBeforePull": {
     "branches": "g46-branch",
     "files": "probe.txt\nsecond.txt",
-    "head": "2acbf772c7e7bb9bb1ec9beb1ed1671ebc835639",
-    "log": "2acbf77 second commit\n3589f47 probe"
+    "head": "67de6cd9cb7ef63ec7b299c7f4c6e22eede42daa",
+    "log": "67de6cd second commit\n1077bcc probe"
   },
   "ghAvailable": "gh version 2.102.0 (2026-09-30)",
   "path": "phoneremote.NewRuntime + Start",
@@ -92,7 +92,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/listDir",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"cwd\":\"C:\\\\Users\\\\48818\\\\AppData\\\\Local\\\\Temp\\\\mygo-shell-repo-3964366353\",\"entries\":[{\"name\":\".git\",\"type\":\"directory\"},{\"name\":\"probe.txt\",\"type\":\"file\"}]}}",
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"cwd\":\"C:\\\\Users\\\\48818\\\\AppData\\\\Local\\\\Temp\\\\mygo-shell-repo-3219667551\",\"entries\":[{\"name\":\".git\",\"type\":\"directory\"},{\"name\":\"probe.txt\",\"type\":\"file\"}]}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -110,7 +110,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/gitCommit",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"created\",\"commitSha\":\"3589f47257648971a06e1d5e38adc36d21460425\",\"subject\":\"probe\",\"body\":\"\",\"suggestedBranch\":\"feature/probe\"}}",
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"created\",\"commitSha\":\"1077bcc4271459b1ab2a7d09923e94c53567512c\",\"subject\":\"probe\",\"body\":\"\",\"suggestedBranch\":\"feature/probe\"}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -191,7 +191,7 @@
       "url": "http://127.0.0.1:3180/__remote__/shell/gitPush",
       "auth": "bearer",
       "statusCode": 200,
-      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"pushed\",\"branch\":\"g46-branch\",\"upstreamBranch\":\"origin/g46-branch\",\"commitSha\":\"3589f47257648971a06e1d5e38adc36d21460425\"}}",
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"status\":\"pushed\",\"branch\":\"g46-branch\",\"upstreamBranch\":\"origin/g46-branch\",\"commitSha\":\"1077bcc4271459b1ab2a7d09923e94c53567512c\"}}",
       "contentType": "application/json; charset=utf-8"
     },
     {
@@ -222,6 +222,33 @@
       "contentType": "application/json; charset=utf-8"
     },
     {
+      "name": "openSettings bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/openSettings",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"opened\":false,\"section\":\"remote\"}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "openGallery bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/openGallery",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"opened\":false,\"section\":\"appearance\"}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "saveConfig bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/saveConfig",
+      "auth": "bearer",
+      "statusCode": 400,
+      "body": "{\"ok\":false,\"error\":\"saveConfig requires the desktop host\"}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
       "name": "gitCreateBranch missing name :3180",
       "method": "POST",
       "url": "http://127.0.0.1:3180/__remote__/shell/gitCreateBranch",
@@ -235,25 +262,25 @@
     "branches": "* g46-branch\n  probe-branch",
     "fileExists": "probe.txt",
     "head": "g46-branch",
-    "log": "2acbf77 second commit\n3589f47 probe",
+    "log": "67de6cd second commit\n1077bcc probe",
     "status": ""
   },
   "repoState": {
     "branches": "* g46-branch\n  probe-branch",
     "fileExists": "probe.txt",
     "head": "g46-branch",
-    "log": "2acbf77 second commit\n3589f47 probe",
+    "log": "67de6cd second commit\n1077bcc probe",
     "status": ""
   },
   "snapshot": {
-    "expiresAt": "2026-10-25T07:35:29.765+08:00",
+    "expiresAt": "2026-10-25T07:57:15.572+08:00",
     "hasPairingURL": true,
     "listening": true,
     "pairingURLShape": "http://127.0.0.1:3180/#offer=\u003credacted\u003e",
     "relayConnected": false,
     "status": "ready"
   },
-  "tokenHash": "bac235fbaa368d60bdb0a7b396d0a0913e0d4703aedef1b072758505d40aa121",
-  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-3323743777",
+  "tokenHash": "8af6b1d35029158784ef107c8e982a21deaec4c1499a549323629ce352b4d4e0",
+  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-2774726996",
   "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor"
 }

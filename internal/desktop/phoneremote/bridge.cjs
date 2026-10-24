@@ -57,6 +57,7 @@ function ensureShellRoutes() {
       git: gitGate.git,
       roots: () => (Array.isArray(config.remoteGitRoots) ? config.remoteGitRoots : []),
       config: () => config,
+      host: hostActions,
     });
   } catch { /* the SPA server keeps working without the shell routes */ }
 }
@@ -159,6 +160,23 @@ async function stop() {
 }
 const timer = setInterval(() => { try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); } },1000);
 remote.on('listening',snapshot);
+let hostSequence=0;const hostPending=new Map();
+function hostCall(kind,payload){
+  return new Promise(resolve=>{
+    const id=String(++hostSequence);
+    const timer=setTimeout(()=>{hostPending.delete(id);resolve({ok:false,timeout:true});},4000);
+    hostPending.set(id,message=>{clearTimeout(timer);resolve(message);});
+    emit({kind,id,...payload});
+  });
+}
+const hostActions={
+  async openSettings(section){const result=await hostCall('host-open-settings',{section:String(section||'')});return result.opened===true;},
+  async saveConfig(patch){
+    const result=await hostCall('host-save-config',{patch:patch||{}});
+    if(!result.ok)return {ok:false,error:result.error||'saveConfig failed'};
+    return {ok:true,config:result.config||{}};
+  },
+};
 const input=readline.createInterface({input:process.stdin});
 input.on('line',line=>{
   if(line.length>128*1024)return;
@@ -166,6 +184,7 @@ input.on('line',line=>{
   if(immediate.action==='git-review-result'){const done=reviewPending.get(immediate.id);if(done){reviewPending.delete(immediate.id);done(immediate);}return;}
   if(immediate.action==='git-generation-result'){const done=draftPending.get(immediate.id);if(done){draftPending.delete(immediate.id);done(immediate.error?{error:immediate.error}:immediate.value);}return;}
   if(immediate.action==='git-authorize-result'){const done=gitPending.get(immediate.id);if(done){gitPending.delete(immediate.id);done(immediate.allowed===true);}return;}
+  if(immediate.action==='host-open-settings-result'||immediate.action==='host-save-config-result'){const done=hostPending.get(immediate.id);if(done){hostPending.delete(immediate.id);done(immediate);}return;}
   if(immediate.action==='git-revoke'||immediate.action==='stop'){revokeGit();if(immediate.action==='git-revoke')return;}
   queue=queue.then(async()=>{
     const command=JSON.parse(line);

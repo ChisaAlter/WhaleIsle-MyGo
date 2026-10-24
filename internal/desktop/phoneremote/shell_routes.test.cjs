@@ -132,11 +132,6 @@ test('unknown name 404, bad JSON 400, oversized body 413, mutations 501', async 
   assert.equal(big.statusCode, 413);
   assert.deepEqual(JSON.parse(big.body), { ok: false, error: '请求过大' });
 
-  for (const name of ['saveConfig', 'openSettings', 'openGallery']) {
-    const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: '{}' });
-    assert.equal(res.statusCode, 501, name);
-    assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'shell unavailable' });
-  }
 });
 
 test('non-POST and other paths are not handled', async () => {
@@ -395,4 +390,83 @@ test('change request failures keep the native reason (no fake success)', async (
   const reviewRes = await run(reviewHandler, { url: '/__remote__/shell/gitCreateChangeRequest', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ cwd: ROOT, input: {} }) });
   assert.equal(reviewRes.statusCode, 400);
   assert.deepEqual(JSON.parse(reviewRes.body), { ok: false, error: 'Review and confirm a change-request title/body before creating it' });
+});
+
+// Host actions (native remote-shell.js:84-96): openSettings returns the desktop
+// opened flag, openGallery opens the appearance section, saveConfig persists a
+// whitelisted patch and never echoes tokens.
+test('host actions require the token', async () => {
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  for (const name of ['openSettings', 'openGallery', 'saveConfig']) {
+    const res = await run(handler, { url: '/__remote__/shell/' + name, body: '{}' });
+    assert.equal(res.statusCode, 401, name);
+  }
+});
+
+test('openSettings and openGallery return the desktop shape', async () => {
+  const opened = [];
+  const handler = routes.createShellHandler({
+    tokens: () => [TOKEN], git, roots: () => [ROOT],
+    host: { openSettings: (section) => { opened.push(section); return section !== 'blocked'; } },
+  });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const remote = await run(handler, { url: '/__remote__/shell/openSettings', headers, body: JSON.stringify({ sectionId: 'remote' }) });
+  assert.equal(remote.statusCode, 200);
+  assert.deepEqual(JSON.parse(remote.body), { ok: true, result: { opened: true, section: 'remote' } });
+
+  const gallery = await run(handler, { url: '/__remote__/shell/openGallery', headers, body: '{}' });
+  assert.equal(gallery.statusCode, 200);
+  assert.deepEqual(JSON.parse(gallery.body), { ok: true, result: { opened: true, section: 'appearance' } });
+  assert.deepEqual(opened, ['remote', 'appearance']);
+
+  const badSection = await run(handler, { url: '/__remote__/shell/openSettings', headers, body: JSON.stringify({ sectionId: 42 }) });
+  assert.equal(badSection.statusCode, 400);
+  assert.deepEqual(JSON.parse(badSection.body), { ok: false, error: 'invalid args: sectionId' });
+
+  // Without a desktop host the opened flag is false, not a fake success.
+  const noHost = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const plain = await run(noHost, { url: '/__remote__/shell/openSettings', headers, body: '{}' });
+  assert.deepEqual(JSON.parse(plain.body), { ok: true, result: { opened: false, section: '' } });
+});
+
+test('saveConfig persists a whitelisted patch without echoing tokens', async () => {
+  const saved = [];
+  const handler = routes.createShellHandler({
+    tokens: () => [TOKEN], git, roots: () => [ROOT],
+    host: {
+      saveConfig: async (patch) => {
+        saved.push(patch);
+        return { ok: true, config: { remoteEnabled: true, remoteMode: patch.remoteMode || 'lan', remotePort: 3499, remoteBindAddress: '127.0.0.1', remoteAppBaseUrl: '' } };
+      },
+    },
+  });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const res = await run(handler, { url: '/__remote__/shell/saveConfig', headers, body: JSON.stringify({ patch: { remoteMode: 'relay', remotePort: 3499 } }) });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.body);
+  assert.equal(body.ok, true);
+  assert.equal(body.result.remoteMode, 'relay');
+  assert.ok(!JSON.stringify(body).includes('Token'));
+  assert.deepEqual(saved, [{ remoteMode: 'relay', remotePort: 3499 }]);
+
+  for (const [patch, error] of [
+    ['nope', 'invalid args: patch'],
+    [[], 'invalid args: patch'],
+    [{ remoteToken: 'secret' }, 'invalid args: patch.remoteToken'],
+  ]) {
+    const bad = await run(handler, { url: '/__remote__/shell/saveConfig', headers, body: JSON.stringify({ patch }) });
+    assert.equal(bad.statusCode, 400, JSON.stringify(patch));
+    assert.deepEqual(JSON.parse(bad.body), { ok: false, error });
+  }
+  assert.equal(saved.length, 1, 'invalid patches never reached the host');
+
+  const noHost = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const unavailable = await run(noHost, { url: '/__remote__/shell/saveConfig', headers, body: JSON.stringify({ patch: {} }) });
+  assert.equal(unavailable.statusCode, 400);
+  assert.deepEqual(JSON.parse(unavailable.body), { ok: false, error: 'saveConfig requires the desktop host' });
+
+  const failing = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT], host: { saveConfig: async () => ({ ok: false, error: 'config store read-only' }) } });
+  const failed = await run(failing, { url: '/__remote__/shell/saveConfig', headers, body: JSON.stringify({ patch: {} }) });
+  assert.equal(failed.statusCode, 400);
+  assert.deepEqual(JSON.parse(failed.body), { ok: false, error: 'config store read-only' });
 });
