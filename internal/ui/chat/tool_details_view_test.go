@@ -680,3 +680,58 @@ func TestToolDetailsViewUnchangedEmptyAndSuppressed(t *testing.T) {
 	// The container adds its .5px hairline and 9/14 summary below the empty copy.
 	toolTreeNear(t, "empty plus unchanged", body.H, 50+0.5+9+20+9)
 }
+
+// Team task rows project like entity records: subject title, description,
+// status badge, named fields and the blockedBy/writeScopes disclosures.
+func TestToolDetailsViewTeamTaskList(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	tasks := `{"tasks":[{"id":"task-1","revision":2,"subject":"Review the diff","description":"Recorded description","status":"in_progress","ownerName":"a1","blockedBy":["task-0"],"writeScopes":["internal/ui/chat"],"ready":true,"writeScopeWarnings":[]},{"id":"task-2","revision":1,"subject":"Ship","status":"pending","blockedBy":[],"writeScopes":[],"ready":false}],"nextCursor":2}`
+	model := toolDetailsReceiptCallForTest(t, "team_task_list", `{}`, tasks)
+	if model == nil {
+		t.Fatal("team_task_list model")
+	}
+	tt, _ := toolDetailsCardFixture(t, model, false)
+	for _, want := range []string{
+		"More tasks available; next cursor is 2", "Review the diff", "Recorded description", "In progress",
+		"Revision", "2", "Owner", "a1", "Ready", "Yes", "Dependencies", "Write scopes", "Ship", "Pending", "No",
+	} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	// Nested list values stay collapsed until their summary is used.
+	for _, hidden := range []string{"task-0", "internal/ui/chat"} {
+		if tt.HasText(hidden) {
+			t.Fatal("collapsed entry painted", hidden, tt.Texts())
+		}
+	}
+	if err := tt.Click("Dependencies"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("task-0") {
+		t.Fatal("dependencies did not open", tt.Texts())
+	}
+	if tt.HasText("OUT") || tt.HasText("IN") {
+		t.Fatal("card fell back to generic evidence", tt.Texts())
+	}
+}
+
+// The agent roster keeps the recorded target as subtitle and shows parent/depth.
+func TestToolDetailsViewAgentRoster(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	model := toolDetailsReceiptCallForTest(t, "list_agents", `{}`, "a1 [running] — Build\na2 [ready] parent=a1 depth=1 — Review")
+	if model == nil {
+		t.Fatal("list_agents model")
+	}
+	tt, _ := toolDetailsCardFixture(t, model, false)
+	// The count labels the collapsed row; the expanded body carries the roster.
+	for _, want := range []string{"Build", "a1", "Running", "Review", "Parent", "Depth"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("roster fell back to evidence", tt.Texts())
+	}
+}

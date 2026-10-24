@@ -85,10 +85,10 @@ type toolDetailField struct {
 	Label, Value string
 }
 
-// toolDetailsModelFor derives the create_goal/get_goal/update_goal subset and the
-// installed reminder families of the details card. Root results borrow their
-// retained raw head; nested results embed their own call even in a result-only
-// history window.
+// toolDetailsModelFor derives the installed control receipts, the
+// create_goal/get_goal/update_goal subset and the installed reminder families of
+// the details card. Root results borrow their retained raw head; nested results
+// embed their own call even in a result-only history window.
 func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 	if call == nil || call.Result == nil || call.State != "ok" {
 		return nil
@@ -104,6 +104,11 @@ func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 	text, ok := terminalModelSingleText(result.content)
 	if !ok {
 		return nil
+	}
+	// The installed dispatcher runs its agent/team control receipts before the
+	// goal and reminder JSON families.
+	if model := toolDetailsModelControl(name, args, text); model != nil {
+		return model
 	}
 	value := json.RawMessage(text)
 	switch name {

@@ -55,6 +55,70 @@ const (
 	KeyToolDetailWrap      = "chat.tool.detail.code.wrap"
 	KeyToolDetailUnwrap    = "chat.tool.detail.code.unwrap"
 
+	// Agent/team control receipts: counts, receipts, wait outcomes and the
+	// projected-record field vocabulary.
+	KeyToolDetailAgentsCount      = "chat.tool.detail.agents.count"
+	KeyToolDetailTasksCount       = "chat.tool.detail.tasks.count"
+	KeyToolDetailTasksNextPage    = "chat.tool.detail.tasks.next_page"
+	KeyToolDetailReceiptDelivered = "chat.tool.detail.receipt.delivered"
+	KeyToolDetailReceiptInterrupt = "chat.tool.detail.receipt.interrupt"
+	KeyToolDetailReceiptStarted   = "chat.tool.detail.receipt.started"
+	KeyToolDetailWaitNoProgress   = "chat.tool.detail.wait.no_progress"
+	KeyToolDetailWaitTitle        = "chat.tool.detail.wait.title"
+	KeyToolDetailWaitTimeout      = "chat.tool.detail.wait.timeout"
+	KeyToolDetailWaitChanged      = "chat.tool.detail.wait.changed"
+	KeyToolDetailModelsTitle      = "chat.tool.detail.models.title"
+	KeyToolDetailAgentReply       = "chat.tool.detail.agent.reply"
+	KeyToolDetailNone             = "chat.tool.detail.none"
+	KeyToolDetailYes              = "chat.tool.detail.yes"
+	KeyToolDetailNo               = "chat.tool.detail.no"
+	KeyToolDetailMoreInInspect    = "chat.tool.detail.more_in_inspect"
+	KeyToolDetailRowInput         = "chat.tool.detail.row.input"
+	KeyToolDetailRowOutput        = "chat.tool.detail.row.output"
+
+	KeyToolDetailFieldID             = "chat.tool.detail.field.id"
+	KeyToolDetailFieldRevision       = "chat.tool.detail.field.revision"
+	KeyToolDetailFieldPlatform       = "chat.tool.detail.field.platform"
+	KeyToolDetailFieldProvider       = "chat.tool.detail.field.provider"
+	KeyToolDetailFieldModel          = "chat.tool.detail.field.model"
+	KeyToolDetailFieldRole           = "chat.tool.detail.field.role"
+	KeyToolDetailFieldContext        = "chat.tool.detail.field.context"
+	KeyToolDetailFieldOwner          = "chat.tool.detail.field.owner"
+	KeyToolDetailFieldReady          = "chat.tool.detail.field.ready"
+	KeyToolDetailFieldDependencies   = "chat.tool.detail.field.dependencies"
+	KeyToolDetailFieldWriteScopes    = "chat.tool.detail.field.write_scopes"
+	KeyToolDetailFieldWarnings       = "chat.tool.detail.field.warnings"
+	KeyToolDetailFieldDiagnostics    = "chat.tool.detail.field.diagnostics"
+	KeyToolDetailFieldMethods        = "chat.tool.detail.field.methods"
+	KeyToolDetailFieldInputSchema    = "chat.tool.detail.field.input_schema"
+	KeyToolDetailFieldOutputSchema   = "chat.tool.detail.field.output_schema"
+	KeyToolDetailFieldCurrentPackage = "chat.tool.detail.field.current_package"
+	KeyToolDetailFieldNextPackage    = "chat.tool.detail.field.next_package"
+	KeyToolDetailFieldLatestRun      = "chat.tool.detail.field.latest_run"
+	KeyToolDetailFieldPackages       = "chat.tool.detail.field.packages"
+	KeyToolDetailFieldRegistrations  = "chat.tool.detail.field.registrations"
+	KeyToolDetailFieldProps          = "chat.tool.detail.field.props"
+	KeyToolDetailFieldData           = "chat.tool.detail.field.data"
+	KeyToolDetailFieldSource         = "chat.tool.detail.field.source"
+	KeyToolDetailFieldContent        = "chat.tool.detail.field.content"
+	KeyToolDetailFieldMessage        = "chat.tool.detail.field.message"
+	KeyToolDetailFieldMessageID      = "chat.tool.detail.field.message_id"
+	KeyToolDetailFieldRoot           = "chat.tool.detail.field.root"
+	KeyToolDetailFieldPID            = "chat.tool.detail.field.pid"
+	KeyToolDetailFieldTime           = "chat.tool.detail.field.time"
+	KeyToolDetailFieldSeq            = "chat.tool.detail.field.seq"
+	KeyToolDetailFieldTurn           = "chat.tool.detail.field.turn"
+	KeyToolDetailFieldStep           = "chat.tool.detail.field.step"
+	KeyToolDetailFieldCallID         = "chat.tool.detail.field.call_id"
+	KeyToolDetailFieldAgents         = "chat.tool.detail.field.agents"
+	KeyToolDetailFieldResult         = "chat.tool.detail.field.result"
+	KeyToolDetailFieldParent         = "chat.tool.detail.field.parent"
+	KeyToolDetailFieldDepth          = "chat.tool.detail.field.depth"
+	KeyToolDetailFieldAgent          = "chat.tool.detail.field.agent"
+	KeyToolDetailFieldJob            = "chat.tool.detail.field.job"
+	KeyToolDetailFieldPreviousStatus = "chat.tool.detail.field.previous_status"
+	KeyToolDetailFieldTask           = "chat.tool.detail.field.task"
+
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
 	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
@@ -126,6 +190,70 @@ func init() {
 	Register(KeyToolDetailCopied, "复制成功", "Copied")
 	Register(KeyToolDetailWrap, "自动换行", "Wrap lines")
 	Register(KeyToolDetailUnwrap, "取消自动换行", "Do not wrap lines")
+
+	// Agent/team control receipts and the projected-record field vocabulary,
+	// recorded from the installed conversation dictionary.
+	Register(KeyToolDetailAgentsCount, "%d 个智能体", "%d agents")
+	Register(KeyToolDetailTasksCount, "%d 个团队任务", "%d team tasks")
+	Register(KeyToolDetailTasksNextPage, "后面还有任务；下一页位置为 %s", "More tasks available; next cursor is %s")
+	Register(KeyToolDetailReceiptDelivered, "消息已送达", "Message delivered")
+	Register(KeyToolDetailReceiptInterrupt, "已请求中断", "Interrupt requested")
+	Register(KeyToolDetailReceiptStarted, "已启动", "Started")
+	Register(KeyToolDetailWaitNoProgress, "没有正在运行的子智能体", "No active subagents")
+	Register(KeyToolDetailWaitTitle, "子智能体状态", "Subagent activity")
+	Register(KeyToolDetailWaitTimeout, "等待超时", "Wait timed out")
+	Register(KeyToolDetailWaitChanged, "检测到变化", "Change detected")
+	Register(KeyToolDetailModelsTitle, "可用模型", "Available models")
+	Register(KeyToolDetailAgentReply, "智能体回复", "Agent response")
+	Register(KeyToolDetailNone, "无", "None")
+	Register(KeyToolDetailYes, "是", "Yes")
+	Register(KeyToolDetailNo, "否", "No")
+	Register(KeyToolDetailMoreInInspect, "另有 %d 项，可在「查看」中读取", "%d more items available in Inspect")
+	Register(KeyToolDetailRowInput, "输入", "Input")
+	Register(KeyToolDetailRowOutput, "输出", "Output")
+
+	Register(KeyToolDetailFieldID, "ID", "ID")
+	Register(KeyToolDetailFieldRevision, "版本", "Revision")
+	Register(KeyToolDetailFieldPlatform, "平台", "Platform")
+	Register(KeyToolDetailFieldProvider, "提供方", "Provider")
+	Register(KeyToolDetailFieldModel, "模型", "Model")
+	Register(KeyToolDetailFieldRole, "角色", "Role")
+	Register(KeyToolDetailFieldContext, "上下文", "Context")
+	Register(KeyToolDetailFieldOwner, "负责人", "Owner")
+	Register(KeyToolDetailFieldReady, "可开始", "Ready")
+	Register(KeyToolDetailFieldDependencies, "前置任务", "Dependencies")
+	Register(KeyToolDetailFieldWriteScopes, "文件范围", "Write scopes")
+	Register(KeyToolDetailFieldWarnings, "提示", "Warnings")
+	Register(KeyToolDetailFieldDiagnostics, "诊断", "Diagnostics")
+	Register(KeyToolDetailFieldMethods, "方法", "Methods")
+	Register(KeyToolDetailFieldInputSchema, "输入 Schema", "Input schema")
+	Register(KeyToolDetailFieldOutputSchema, "输出 Schema", "Output schema")
+	Register(KeyToolDetailFieldCurrentPackage, "当前包", "Current package")
+	Register(KeyToolDetailFieldNextPackage, "待运行的包", "Next package")
+	Register(KeyToolDetailFieldLatestRun, "最近运行", "Latest run")
+	Register(KeyToolDetailFieldPackages, "版本包", "Packages")
+	Register(KeyToolDetailFieldRegistrations, "注册项", "Registrations")
+	Register(KeyToolDetailFieldProps, "属性", "Props")
+	Register(KeyToolDetailFieldData, "数据", "Data")
+	Register(KeyToolDetailFieldSource, "来源", "Source")
+	Register(KeyToolDetailFieldContent, "内容", "Content")
+	Register(KeyToolDetailFieldMessage, "消息", "Message")
+	Register(KeyToolDetailFieldMessageID, "消息 ID", "Message ID")
+	Register(KeyToolDetailFieldRoot, "根节点", "Root")
+	Register(KeyToolDetailFieldPID, "进程 ID", "Process ID")
+	Register(KeyToolDetailFieldTime, "时间", "Time")
+	Register(KeyToolDetailFieldSeq, "事件序号", "Event sequence")
+	Register(KeyToolDetailFieldTurn, "轮次", "Turn")
+	Register(KeyToolDetailFieldStep, "步骤", "Step")
+	Register(KeyToolDetailFieldCallID, "调用 ID", "Call ID")
+	Register(KeyToolDetailFieldAgents, "启动智能体数", "Agents started")
+	Register(KeyToolDetailFieldResult, "结果", "Result")
+	Register(KeyToolDetailFieldParent, "父级", "Parent")
+	Register(KeyToolDetailFieldDepth, "层级", "Depth")
+	Register(KeyToolDetailFieldAgent, "智能体 ID", "Agent ID")
+	Register(KeyToolDetailFieldJob, "任务 ID", "Job ID")
+	Register(KeyToolDetailFieldPreviousStatus, "中断前状态", "Previous status")
+	Register(KeyToolDetailFieldTask, "任务内容", "Task")
 
 	Register(KeyToolDetailStatusRunning, "运行中", "Running")
 	Register(KeyToolDetailStatusIdle, "空闲", "Idle")

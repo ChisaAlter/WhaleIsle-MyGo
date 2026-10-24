@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -990,4 +991,256 @@ func TestToolDetailsFamilyModelsStayOnTheirOwnEntries(t *testing.T) {
 			t.Fatalf("invalid record produced %#v", got)
 		}
 	}
+}
+
+// control-details-model.ts:22-41,113-160 and the harness expectation spec
+// packages/client/ui-tool/tests/details-models.client.spec.ts:56-117 pin these.
+func toolDetailsReceiptCallForTest(t *testing.T, name, args, text string) *toolDetailsModel {
+	t.Helper()
+	call := toolDetailsModelCallForTest(t, false, name, args, text)
+	call.Name, call.Arguments = name, args
+	return toolDetailsModelFor(call)
+}
+
+func TestToolDetailsModelAgentList(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	lines := "a1 [running] — Build\na2 [ready] parent=a1 depth=1 — Review"
+	got := toolDetailsReceiptCallForTest(t, "list_agents", `{"scope":"descendants"}`, lines)
+	if got == nil || got.Summary != "2 agents" || got.Caption != "Recorded result" || len(got.Items) != 2 {
+		t.Fatalf("list_agents = %#v", got)
+	}
+	first, second := got.Items[0], got.Items[1]
+	if first.Title != "Build" || first.Subtitle == nil || *first.Subtitle != "a1" || first.Badge.Label != "Running" || first.Badge.Tone != "info" || len(first.Fields) != 0 {
+		t.Fatalf("first agent = %#v", first)
+	}
+	if second.Title != "Review" || second.Badge.Label != "Ready" || second.Badge.Tone != "neutral" {
+		t.Fatalf("second agent = %#v", second)
+	}
+	if len(second.Fields) != 2 || second.Fields[0].Label != "Parent" || second.Fields[0].Value != "a1" || second.Fields[1].Value != "1" {
+		t.Fatalf("parent fields = %#v", second.Fields)
+	}
+	// A member line without a title keeps the target as its heading and no subtitle.
+	bare := toolDetailsReceiptCallForTest(t, "list_agents", `{}`, "a1 [failed]")
+	if bare == nil || bare.Items[0].Title != "a1" || bare.Items[0].Subtitle != nil || bare.Items[0].Badge.Label != "Failed" {
+		t.Fatalf("bare agent = %#v", bare)
+	}
+	// A JSON roster projects like any entity list; the empty text keeps a zero count.
+	roster := toolDetailsReceiptCallForTest(t, "list_agents", `{}`, `[{"id":"a1","status":"running"},{"id":"a2","status":"failed"}]`)
+	if roster == nil || roster.Summary != "2 agents" || roster.Items[0].Title != "a1" || roster.Items[1].Badge.Label != "Failed" {
+		t.Fatalf("json roster = %#v", roster)
+	}
+	empty := toolDetailsReceiptCallForTest(t, "list_agents", `{}`, "(no subagents)")
+	if empty == nil || empty.Summary != "0 agents" || empty.Items == nil || len(empty.Items) != 0 {
+		t.Fatalf("empty roster = %#v", empty)
+	}
+	for _, text := range []string{"", "a1 running — Build", "a1 [running] extra"} {
+		if got := toolDetailsReceiptCallForTest(t, "list_agents", `{}`, text); got != nil {
+			t.Fatalf("invalid roster %q produced %#v", text, got)
+		}
+	}
+}
+
+func TestToolDetailsModelSpawnAndTeamTasks(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	spawn := toolDetailsReceiptCallForTest(t, "spawn_teammate", `{"name":"A"}`, `{"member":{"id":"a1","status":"running"}}`)
+	if spawn == nil || spawn.Summary != "A" || spawn.Items[0].Title != "a1" || spawn.Items[0].Badge.Label != "Running" {
+		t.Fatalf("spawn = %#v", spawn)
+	}
+	// A real member row carries target/role/diagnostics, so the installed
+	// result fallback names it.
+	member := toolDetailsReceiptCallForTest(t, "spawn_teammate", `{"name":"A"}`, `{"member":{"target":"a1","role":"teammate","status":"provisioning","diagnostics":[]}}`)
+	if member == nil || member.Items[0].Title != "Result" || member.Items[0].Badge.Label != "Provisioning" {
+		t.Fatalf("member = %#v", member)
+	}
+	// `target` is not a known field name, so it keeps its spelling; role is.
+	if member.Items[0].Fields[0].Label != "target" || member.Items[0].Fields[0].Value != "a1" ||
+		member.Items[0].Fields[1].Label != "Role" || member.Items[0].Fields[1].Value != "teammate" || len(member.Items[0].Groups) != 0 {
+		t.Fatalf("member fields = %#v", member.Items[0])
+	}
+	for _, text := range []string{`{}`, `{"member":[]}`, `{"member":"a1"}`, `[]`, `not json`} {
+		if got := toolDetailsReceiptCallForTest(t, "spawn_teammate", `{"name":"A"}`, text); got != nil {
+			t.Fatalf("invalid spawn %q produced %#v", text, got)
+		}
+	}
+
+	task := toolDetailsReceiptCallForTest(t, "team_task_create", `{}`, `{"id":"task-1","subject":"Review","status":"pending"}`)
+	if task == nil || task.Summary != "Review" || task.Items[0].Title != "Review" || task.Items[0].Badge.Label != "Pending" ||
+		len(task.Items[0].Fields) != 1 || task.Items[0].Fields[0].Label != "ID" || task.Items[0].Fields[0].Value != "task-1" {
+		t.Fatalf("team_task_create = %#v", task)
+	}
+	for _, name := range []string{"team_task_get", "team_task_update"} {
+		if got := toolDetailsReceiptCallForTest(t, name, `{}`, `{"id":"t","subject":"Edit"}`); got == nil || got.Summary != "Edit" {
+			t.Fatalf("%s = %#v", name, got)
+		}
+	}
+	for _, text := range []string{`{"id":"t"}`, `{"subject":1}`, `[]`, `bad`} {
+		if got := toolDetailsReceiptCallForTest(t, "team_task_create", `{}`, text); got != nil {
+			t.Fatalf("invalid task %q produced %#v", text, got)
+		}
+	}
+
+	list := toolDetailsReceiptCallForTest(t, "team_task_list", `{}`, `{"tasks":[{"id":"task-1","subject":"Review"}],"nextCursor":3}`)
+	if list == nil || list.Summary != "1 team tasks" || list.Caption != "More tasks available; next cursor is 3" || list.Items[0].Title != "Review" {
+		t.Fatalf("team_task_list = %#v", list)
+	}
+	noCursor := toolDetailsReceiptCallForTest(t, "team_task_list", `{}`, `{"tasks":[]}`)
+	if noCursor == nil || noCursor.Summary != "0 team tasks" || noCursor.Caption != "Recorded result" || len(noCursor.Items) != 1 ||
+		noCursor.Items[0].Description == nil || *noCursor.Items[0].Description != "No results" {
+		t.Fatalf("empty task list = %#v", noCursor)
+	}
+	for _, text := range []string{`{"tasks":[],"nextCursor":"bad"}`, `{"tasks":{}}`, `[]`} {
+		if got := toolDetailsReceiptCallForTest(t, "team_task_list", `{}`, text); got != nil {
+			t.Fatalf("invalid task list %q produced %#v", text, got)
+		}
+	}
+}
+
+func TestToolDetailsModelAgentReceipts(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	queued := toolDetailsReceiptCallForTest(t, "send_message", `{"agent_id":"a1","message":"hello"}`, `{"status":"queued"}`)
+	if queued == nil || queued.Summary != "a1 · Queued" || queued.Items[0].Badge.Tone != "warning" ||
+		queued.Items[0].Description == nil || *queued.Items[0].Description != "hello" {
+		t.Fatalf("queued message = %#v", queued)
+	}
+	accepted := toolDetailsReceiptCallForTest(t, "send_message", `{"agent_id":"a1","message":"hello"}`, `{"status":"accepted"}`)
+	if accepted == nil || accepted.Summary != "a1 · Message delivered" || accepted.Items[0].Badge.Tone != "success" {
+		t.Fatalf("accepted message = %#v", accepted)
+	}
+	delivered := toolDetailsReceiptCallForTest(t, "send_message", `{"agent_id":"a1","message":"hello"}`, "message delivered to agent a1")
+	if delivered == nil || delivered.Summary != "a1 · Message delivered" || *delivered.Items[0].Description != "hello" {
+		t.Fatalf("delivered message = %#v", delivered)
+	}
+	for _, tc := range []struct{ args, text string }{
+		{`{"agent_id":"a1"}`, "message delivered to agent a2"},
+		{`{"agent_id":"a1"}`, `{"status":"sent"}`},
+		{`{}`, "delivered"},
+	} {
+		if got := toolDetailsReceiptCallForTest(t, "send_message", tc.args, tc.text); got != nil {
+			t.Fatalf("invalid message %q/%s produced %#v", tc.text, tc.args, got)
+		}
+	}
+
+	interrupt := toolDetailsReceiptCallForTest(t, "interrupt_agent", `{"agent_id":"a1"}`, `{"previousStatus":"running"}`)
+	if interrupt == nil || interrupt.Summary != "a1 · Interrupt requested" || interrupt.Items[0].Badge.Tone != "warning" ||
+		len(interrupt.Items[0].Fields) != 1 || interrupt.Items[0].Fields[0].Label != "Previous status" || interrupt.Items[0].Fields[0].Value != "Running" {
+		t.Fatalf("interrupt = %#v", interrupt)
+	}
+	plain := toolDetailsReceiptCallForTest(t, "interrupt_agent", `{"agent_id":"a1"}`, "interrupt requested for agent a1")
+	if plain == nil || plain.Summary != "a1 · Interrupt requested" || len(plain.Items[0].Fields) != 0 {
+		t.Fatalf("plain interrupt = %#v", plain)
+	}
+	if got := toolDetailsReceiptCallForTest(t, "interrupt_agent", `{"agent_id":"a1"}`, "unexpected"); got != nil {
+		t.Fatalf("invalid interrupt produced %#v", got)
+	}
+
+	timeout := toolDetailsReceiptCallForTest(t, "wait_agent", `{}`, `{"timedOut":true}`)
+	if timeout == nil || timeout.Summary != "Subagent activity · Wait timed out" || timeout.Items[0].Title != "Subagent activity" || timeout.Items[0].Badge.Tone != "neutral" {
+		t.Fatalf("wait timeout = %#v", timeout)
+	}
+	changed := toolDetailsReceiptCallForTest(t, "wait_agent", `{}`, `{"timedOut":false}`)
+	if changed == nil || changed.Summary != "Subagent activity · Change detected" {
+		t.Fatalf("wait changed = %#v", changed)
+	}
+	stalled := toolDetailsReceiptCallForTest(t, "wait_agent", `{}`, `{"timedOut":false,"noProgress":{"message":"No peer"}}`)
+	if stalled == nil || stalled.Summary != "No active subagents" || stalled.Items[0].Title != "No active subagents" ||
+		stalled.Items[0].Description == nil || *stalled.Items[0].Description != "No peer" {
+		t.Fatalf("wait stalled = %#v", stalled)
+	}
+	for _, text := range []string{`{"timedOut":"yes"}`, `{}`, `[]`} {
+		if got := toolDetailsReceiptCallForTest(t, "wait_agent", `{}`, text); got != nil {
+			t.Fatalf("invalid wait %q produced %#v", text, got)
+		}
+	}
+}
+
+func TestToolDetailsModelSubagent(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	job := toolDetailsReceiptCallForTest(t, "subagent", `{"prompt":"Do work"}`, "started background subagent job job-1")
+	if job == nil || job.Summary != "Do work · Started" || job.Items[0].Badge.Tone != "info" ||
+		len(job.Items[0].Fields) != 1 || job.Items[0].Fields[0].Label != "Job ID" || job.Items[0].Fields[0].Value != "job-1" {
+		t.Fatalf("subagent job = %#v", job)
+	}
+	sync := toolDetailsReceiptCallForTest(t, "subagent", `{"prompt":"Do work"}`, "started subagent a1")
+	if sync == nil || sync.Items[0].Fields[0].Label != "Agent ID" || sync.Items[0].Fields[0].Value != "a1" {
+		t.Fatalf("sync subagent = %#v", sync)
+	}
+	reply := toolDetailsReceiptCallForTest(t, "subagent", `{"prompt":"Do work"}`, "A useful reply")
+	if reply == nil || reply.Summary != "Agent response" || reply.Items[0].Title != "Agent response" ||
+		reply.Items[0].Description == nil || *reply.Items[0].Description != "A useful reply" {
+		t.Fatalf("subagent reply = %#v", reply)
+	}
+	if len(reply.Items[0].Groups) != 1 || reply.Items[0].Groups[0].Label != "Task" ||
+		reply.Items[0].Groups[0].Items[0].Description == nil || *reply.Items[0].Groups[0].Items[0].Description != "Do work" {
+		t.Fatalf("subagent task group = %#v", reply.Items[0].Groups)
+	}
+
+	models := toolDetailsReceiptCallForTest(t, "list_subagent_models", `{"model":"deepseek-chat"}`, "deepseek-chat — Fast\nunknown")
+	if models == nil || models.Summary != "deepseek-chat" || len(models.Items) != 2 {
+		t.Fatalf("subagent models = %#v", models)
+	}
+	if models.Items[0].Title != "deepseek-chat" || models.Items[0].Description == nil || *models.Items[0].Description != "Fast" {
+		t.Fatalf("model row = %#v", models.Items[0])
+	}
+	if models.Items[1].Title != "" || models.Items[1].Description == nil || *models.Items[1].Description != "unknown" {
+		t.Fatalf("model note = %#v", models.Items[1])
+	}
+	fallback := toolDetailsReceiptCallForTest(t, "list_subagent_models", `{}`, "m — note")
+	if fallback == nil || fallback.Summary != "Available models" {
+		t.Fatalf("model fallback = %#v", fallback)
+	}
+	provider := toolDetailsReceiptCallForTest(t, "list_subagent_models", `{"provider":"p"}`, "m — note")
+	if provider == nil || provider.Summary != "p" {
+		t.Fatalf("provider fallback = %#v", provider)
+	}
+}
+
+// The generic projector behind spawn_teammate and the team task cards mirrors
+// inspectionItems: scalars, localized null/booleans, nested disclosures, a 40
+// row cap and JSON code past the depth limit.
+func TestToolDetailsModelInspectionProjection(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	scalars := toolDetailsInspectionItems(mustToolDetailsJSONForTest(t, `[null,true,"x",[]]`), 0)
+	if len(scalars) != 4 || *scalars[0].Description != "None" || *scalars[1].Description != "Yes" ||
+		*scalars[2].Description != "x" || *scalars[3].Description != "No results" {
+		t.Fatalf("scalars = %#v", scalars)
+	}
+	record := toolDetailsInspectionItems(mustToolDetailsJSONForTest(t, `{"title":"Record","description":"Description","status":"running","inputSchema":{"type":"object"},"arguments":"{\"x\":1}","empty":[],"count":2}`), 0)[0]
+	if record.Title != "Record" || record.Description == nil || *record.Description != "Description" || record.Badge.Label != "Running" {
+		t.Fatalf("record = %#v", record)
+	}
+	if len(record.Fields) != 1 || record.Fields[0].Label != "count" || record.Fields[0].Value != "2" {
+		t.Fatalf("record fields = %#v", record.Fields)
+	}
+	if len(record.Groups) != 2 || record.Groups[0].Label != "Input schema" || record.Groups[0].Items[0].Code == nil ||
+		record.Groups[0].Items[0].Code.Language != "json" || record.Groups[1].Label != "Input" ||
+		record.Groups[1].Items[0].Fields[0].Label != "x" || record.Groups[1].Items[0].Fields[0].Value != "1" {
+		t.Fatalf("record groups = %#v", record.Groups)
+	}
+	capped := make([]any, 41)
+	for index := range capped {
+		capped[index] = map[string]any{"id": "t" + strconv.Itoa(index)}
+	}
+	raw, _ := json.Marshal(capped)
+	items := toolDetailsInspectionItems(mustToolDetailsJSONForTest(t, string(raw)), 0)
+	if len(items) != 41 || items[40].Description == nil || *items[40].Description != "1 more items available in Inspect" {
+		t.Fatalf("capped = %d %#v", len(items), items[40])
+	}
+	deep := toolDetailsInspectionItems(mustToolDetailsJSONForTest(t, `{"a":{"b":{"c":{"d":{"e":{"f":1}}}}}}`), 0)[0]
+	depth := 0
+	for len(deep.Groups) > 0 {
+		deep = deep.Groups[0].Items[0]
+		depth++
+	}
+	if deep.Code == nil || deep.Code.Language != "json" || depth < 5 {
+		t.Fatalf("deep = %#v depth %d", deep, depth)
+	}
+}
+
+func mustToolDetailsJSONForTest(t *testing.T, text string) *toolDetailsValue {
+	t.Helper()
+	value, ok := toolDetailsDecodeJSON(text)
+	if !ok {
+		t.Fatalf("decode %q", text)
+	}
+	return value
 }
