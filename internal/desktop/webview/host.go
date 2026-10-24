@@ -364,11 +364,17 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		pg.SetPermissionHandler(DenyAllPermissions)
 		pg.OnWillDownload(func(e *mygo.DownloadEvent) { e.PreventDefault() })
 		h.url = opts.DisplayURL
-	} else if opts.PermissionPolicy != nil {
-		// The shell's media/notification policy replaces the engine default,
-		// which would grant a trusted loopback page anything it asked for
-		// (native installMediaPermissions, media-permissions.js:24-60).
-		pg.SetPermissionHandler(opts.PermissionPolicy)
+	} else {
+		// A real page (the harness UI included) keeps its downloads: the native
+		// shell's will-download handler sanitizes the name and saves into the
+		// user Downloads folder (index.js:1359, download-path.js:1-28).
+		pg.OnWillDownload(saveDownload)
+		if opts.PermissionPolicy != nil {
+			// The shell's media/notification policy replaces the engine default,
+			// which would grant a trusted loopback page anything it asked for
+			// (native installMediaPermissions, media-permissions.js:24-60).
+			pg.SetPermissionHandler(opts.PermissionPolicy)
+		}
 	}
 	h.offMove = opts.Parent.OnMove(h.SyncBounds)
 	h.offResize = opts.Parent.OnResize(func() {
