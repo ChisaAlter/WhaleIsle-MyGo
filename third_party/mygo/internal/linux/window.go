@@ -915,6 +915,9 @@ func (w *window) UserAgent() string {
 }
 
 func (w *window) OpenDevTools() {
+	if gate := w.devToolsEnabled; gate != nil && !*gate {
+		return
+	}
 	if w.opts.DevTools {
 		webkitWebInspectorShow(webkitWebViewGetInspector(w.web))
 	}

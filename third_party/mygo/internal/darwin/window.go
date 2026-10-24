@@ -893,6 +893,9 @@ func (w *window) inspector() id {
 }
 
 func (w *window) OpenDevTools() {
+	if gate := w.devToolsEnabled; gate != nil && !*gate {
+		return
+	}
 	if in := w.inspector(); in != 0 {
 		send(in, "show")
 	}

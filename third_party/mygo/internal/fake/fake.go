@@ -494,7 +494,16 @@ func (w *Window) SetZoom(f float64)                  { w.mu.Lock(); w.zoom = f; 
 func (w *Window) Zoom() float64                      { w.mu.Lock(); defer w.mu.Unlock(); return w.zoom }
 func (w *Window) SetUserAgent(string)                {}
 func (w *Window) UserAgent() string                  { return "fake" }
-func (w *Window) OpenDevTools()                      { w.mu.Lock(); w.devtools = true; w.mu.Unlock() }
+func (w *Window) OpenDevTools() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	// Same rule as the Windows backend: a disabled runtime gate blocks the
+	// programmatic call, not only the built-in accelerator.
+	if w.devToolsEnabled != nil && !*w.devToolsEnabled {
+		return
+	}
+	w.devtools = true
+}
 func (w *Window) CloseDevTools()                     { w.mu.Lock(); w.devtools = false; w.mu.Unlock() }
 func (w *Window) IsDevToolsOpened() bool             { w.mu.Lock(); defer w.mu.Unlock(); return w.devtools }
 func (w *Window) CapturePage(cb func([]byte, error)) { cb([]byte("png"), nil) }

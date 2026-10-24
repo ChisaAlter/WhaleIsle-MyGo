@@ -804,7 +804,14 @@ func (w *window) UserAgent() string {
 }
 
 func (w *window) OpenDevTools() {
-	if !w.opts.DevTools {
+	// The runtime gate (Page.SetDevToolsEnabled) wins over the creation option:
+	// round201 proved WebView2's AreDevToolsEnabled alone does not stop the
+	// programmatic OpenDevToolsWindow, so the Go entry must honour it too.
+	if gate := w.devToolsGate; gate != nil {
+		if !*gate {
+			return
+		}
+	} else if !w.opts.DevTools {
 		return
 	}
 	w.withWebView(func() {
