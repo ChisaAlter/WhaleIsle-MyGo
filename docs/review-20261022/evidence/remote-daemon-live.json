@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "task": "task-35",
+  "generatedAt": "2026-10-24T18:15:08.764Z",
+  "purpose": "Stage a working dshd-remote (phone remote) runtime from the installed app.asar + app.asar.unpacked and run MyGo daemon path on loopback.",
+  "method": "asar header walk (tmp/asar_extract.mjs) + app.asar.unpacked overlay + junctioned @chisacode/server node_modules + Electron-as-node (ELECTRON_RUN_AS_NODE=1); phoneremote.ResolveResources/Start probe (tmp/probe-remote-live/main.go); no PrintWindow, no LAN bind, no installed-app writes",
+  "sources": {
+    "asar": {
+      "path": "C:\\软件\\Whale Isle\\resources\\app.asar",
+      "bytes": 77657424,
+      "sha256": "33cbc7054037274369dba55c501a984d51230665a418fd05dd0aa27330695de8"
+    },
+    "unpacked": {
+      "path": "C:\\软件\\Whale Isle\\resources\\app.asar.unpacked",
+      "note": "unpacked entries for src/main/*.mjs, src/shared/dshd-*.js"
+    },
+    "electronNode": {
+      "path": "C:\\软件\\Whale Isle\\Whale Isle.exe",
+      "bytes": 245687296,
+      "sha256": "068962b28c7f0544c5c71563f12059e1523fe7bead43102b68ea93fb587e946d",
+      "modules": 149,
+      "node": "24.21.0"
+    },
+    "referenceSource": {
+      "path": "reference/electron/src/main/dshd-remote.js",
+      "bytes": 36578,
+      "sha256": "2c5d951c3c854d8fcbb348a939a5a4ee844fec39a86e6796d4ea1eb255a08785",
+      "note": "older source copy than the installed build (36,578 vs 42,291 B); installed asar content was used"
+    }
+  },
+  "staged": {
+    "root": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote",
+    "files": 7189,
+    "bytes": 364496423,
+    "nodeExe": {
+      "path": "node.exe",
+      "hardlinkTo": "C:\\软件\\Whale Isle\\Whale Isle.exe",
+      "sha256": "068962b28c7f0544c5c71563f12059e1523fe7bead43102b68ea93fb587e946d",
+      "mode": "ELECTRON_RUN_AS_NODE=1"
+    },
+    "chisacodeJunction": {
+      "path": "vendor/chisacode-remote/node_modules",
+      "type": "Junction",
+      "target": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules"
+    },
+    "hashes": {
+      "node.exe": "068962b28c7f0544c5c71563f12059e1523fe7bead43102b68ea93fb587e946d",
+      "icudtl.dat": "9f48c7f9c7c94d516a14870707e910ab94d75ae640ff6842c4af53276cd26ebe",
+      "src/main/dshd-remote.js": "87402fdaf986b6581592439c6fad02374c823061a5b5a018a5d8b590645b16ab",
+      "src/main/dshd-daemon-runner.mjs": "0ff7c581d2422ceb2e868ec010b4affddbd5b04103a6c98c9510070cdd8f858e",
+      "src/main/dshd-daemon-hooks.mjs": "bdb40f9fd0cde89b9bb467a200a8933e39d22e0297a8c2b8d3927e22f1a68a6c",
+      "src/main/mobile-web-server.js": "1295c09d7ee6613b80b3dd374af50fa7b813b5b3518a0f0d2bcd3a5b155fb286",
+      "src/main/mobile-web.js": "768c2fefbba8628980b4fddd8ac97b7b5adcca3447a7a237d504ab4309daa3a8",
+      "src/main/dshd-git-tunnel.js": "6d0884816f103b5a7fc9a4764859203d759f4a7cb9400b3d897a51ef6d847e18",
+      "src/main/dshd-git-dispatch.js": "5a4d5160c5739d4e282221a46231cefa4a3e88777dfcb8dd5aeae3bea1ae018b",
+      "src/shared/lan.js": "652b2db0ee792f071ded7bd4ad12007ddf81e048ed033b68e22a68d7d905a919",
+      "src/shared/offer.js": "6917dab4deb5839a097d0e08a5b573006678873d734e60829b37e7d5d283641c",
+      "src/shared/official-deepseek-env.js": "12db2d8a8345e997987ac68c82aaa519a2ffade0a4cd6589d891eb540574f0b1",
+      "src/shared/dshd-host-tunnel.js": "7e4d431cae2e6f93e05eb8f45de9fcf0f9829712b14e5dbeecb3a59ea39dcb03",
+      "src/shared/dshd-mux-sse.js": "7033c315807709b3b458424b5ff9023f680f1e4097acd1f55d0f88576938c1bc",
+      "mobile/web/index.html": "00e269d6ddf61f651a9b9eca515889f40b6a423163c908d5c256ce376522d502",
+      "node_modules/better-sqlite3/build/Release/better_sqlite3.node": "5471d23290125b7a406ca50fc4908c35cb6aba7f1713dd9b2e4b6bc5dcbdb330",
+      "node_modules/@chisacode/server/dist/server/server/exports.js": "9e4d1d43abd3f09b1bca221a433da04b9ea87f51b8662bbf101413cc5f3b9d2d",
+      "node_modules/@chisacode/server/dist/server/server/pairing-offer.js": "52920f63f854f1b3c2459bbb63b6ce464845098a2544b62df5c6dffa903bf828",
+      "node_modules/@chisacode/server/dist/server/server/relay-device-credential-store.js": "5afa5b0c02044050b14683d3d0483bb96a0c06c248148a508496e8244f86234a"
+    }
+  },
+  "abi": {
+    "plainRuntimeNode": {
+      "path": "runtime/node/node.exe",
+      "modules": 137,
+      "node": "v24.21.0"
+    },
+    "betterSqlite3": {
+      "builtForModules": 149,
+      "loadUnder137Error": "NODE_MODULE_VERSION 149 ... requires 137"
+    },
+    "solution": "run the daemon with the installed Electron binary in Node mode (ELECTRON_RUN_AS_NODE=1), whose ABI (149) matches the shipped better-sqlite3; node-pty loaded under both"
+  },
+  "command": {
+    "probe": "go run ./tmp/probe-remote-live",
+    "env": {
+      "ELECTRON_RUN_AS_NODE": "1"
+    },
+    "daemonConfig": {
+      "remoteEnabled": true,
+      "remoteMode": "lan",
+      "remotePort": 3499,
+      "remoteBindAddress": "127.0.0.1",
+      "remoteLanTls": false,
+      "remoteRelayEndpoint": "",
+      "remoteRelayUseTls": false,
+      "remoteAppBaseUrl": "",
+      "harnessOrigin": "",
+      "harnessCookie": ""
+    }
+  },
+  "live": {
+    "resources": {
+      "error": "",
+      "home": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-remote-live-3287950888\\dsh-home",
+      "module": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-remote.js",
+      "node": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe"
+    },
+    "firstStart": {
+      "bindAddresses": [
+        "192.168.53.103",
+        "192.168.0.1"
+      ],
+      "devices": 0,
+      "elapsedSeconds": 28.3,
+      "expiresAt": "2026-10-24T18:24:27Z",
+      "listening": true,
+      "message": "",
+      "pairingImage": true,
+      "pairingURL": "http://127.0.0.1:3180/#offer=eyJ2IjoyLCJzZXJ2ZXJJZCI6InNydl9CVHlrdVdYQ0c5c3IiLCJkYWVtb25QdWJsaWNLZXlCNjQiOiIwSFlCeFFGQ1VuMERDTXlNYWFzREd2UWhxZ3pENFhqSHRpRnpMT3FPb1VVPSIsInJlbGF5QXV0aFB1YmxpY0tleUI2NCI6ImNsNEFIbS9XRFhUSGkyUEdrUXE0dUc4enpkRUhJQW1lVkgweVhSUm0wV289IiwiYXV0aEJvb3RzdHJhcCI6eyJ2ZXJzaW9uIjoxLCJwYWlyaW5nVG9rZW4iOiJZczJvcmx1MzlDV3hVaGNMRVFsNkZiMFdWVm9wZlZZZ3ZVWEVjWDVzZ0w4IiwiZXhwaXJlc0F0TXMiOjE3OTI4NjYyNjc1NzV9LCJyZWxheSI6eyJlbmRwb2ludCI6ImF5YXNlLmNuOjQ0MyIsInVzZVRscyI6ZmFsc2V9fQ",
+      "relay": false,
+      "status": "ready"
+    },
+    "pairingURLShape": {
+      "scheme": "http:",
+      "host": "127.0.0.1",
+      "port": "3180",
+      "fragmentPrefix": "#offer=",
+      "offerVersion": 2,
+      "expiresAtMs": 1792866267575,
+      "relayEndpoint": "ayase.cn:443",
+      "relayUseTls": false,
+      "offerBytes": 468
+    },
+    "listeners": [
+      {
+        "port": 3499,
+        "open": true,
+        "addr": "127.0.0.1:3499"
+      },
+      {
+        "port": 3180,
+        "open": true,
+        "addr": "127.0.0.1:3180"
+      }
+    ],
+    "pairingPage": {
+      "url": "http://127.0.0.1:3180/",
+      "statusCode": 200,
+      "contentType": "text/html; charset=utf-8",
+      "length": 17013,
+      "title": "Whale Isle · 手机远程"
+    },
+    "daemonHTTP": {
+      "url": "http://127.0.0.1:3499/",
+      "statusCode": 404,
+      "contentType": "text/html; charset=utf-8",
+      "length": 139,
+      "title": "Error"
+    },
+    "secondStart": {
+      "elapsedSeconds": 2,
+      "listening": true,
+      "pairingURLPresent": true,
+      "relay": false,
+      "status": "ready"
+    },
+    "listenersAfterStop": [
+      {
+        "port": 3499,
+        "open": false
+      },
+      {
+        "port": 3180,
+        "open": false
+      }
+    ],
+    "timeline": [
+      {
+        "t": 0,
+        "status": "starting",
+        "listening": false,
+        "relayConnected": false
+      },
+      {
+        "t": 28.3,
+        "status": "ready",
+        "listening": true,
+        "relayConnected": false
+      }
+    ]
+  },
+  "residual": [
+    "daemon needs ELECTRON_RUN_AS_NODE=1 because the shipped better-sqlite3 prebuild is Electron ABI 149 while runtime/node is ABI 137; a plain-Node build of better-sqlite3 (npm rebuild, online/toolchain) would remove the requirement",
+    "node.exe is a hardlink to the installed Electron binary; the Chromium data files (icudtl.dat, *.pak, *.bin, dlls, locales) are copied beside it inside runtime/vendor/dshd-remote so Electron-as-node can start outside the install dir",
+    "pairing URL carries a one-time pairing token; only its shape is recorded here",
+    "daemon root http://127.0.0.1:3499/ answers 404 (it is not the SPA); the phone SPA is the mobile web server on 127.0.0.1:3180",
+    "packaging: scripts/build-mobile-runtime.ps1 remains the online path; this asar staging is a local unblock and is gitignored under runtime/"
+  ]
+}
