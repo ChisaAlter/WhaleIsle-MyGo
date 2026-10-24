@@ -311,6 +311,7 @@ type Window struct {
 	H    platform.WindowHandler
 	Opts *platform.WindowOptions
 
+	beforeInput func(platform.KeyInput) bool
 	mu        sync.Mutex
 	scripts   []string
 	title     string
