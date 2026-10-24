@@ -117,18 +117,30 @@ func effectivePrefs(p wallpapers.Preferences) wallpapers.Preferences {
 // version of the same material.
 func BackdropCanvas(c ui.Color) ui.Color {
 	if !backgroundState.active {
+		prefs := effectivePrefs(backgroundState.prefs)
+		if alpha := ShowThroughAlpha(prefs, backgroundState.dark); alpha < 1 {
+			return c.Alpha(alpha)
+		}
 		return c
 	}
 	return c.Alpha(MaterialAlpha(MaterialCanvas, effectivePrefs(backgroundState.prefs), backgroundState.dark))
 }
 func BackdropSidebar(c ui.Color) ui.Color {
 	if !backgroundState.active {
+		prefs := effectivePrefs(backgroundState.prefs)
+		if alpha := ShowThroughAlpha(prefs, backgroundState.dark); alpha < 1 {
+			return c.Alpha(alpha)
+		}
 		return c
 	}
 	return c.Alpha(MaterialAlpha(MaterialSidebar, effectivePrefs(backgroundState.prefs), backgroundState.dark))
 }
 func BackdropSurface(c ui.Color) ui.Color {
 	if !backgroundState.active {
+		prefs := effectivePrefs(backgroundState.prefs)
+		if alpha := ShowThroughAlpha(prefs, backgroundState.dark); alpha < 1 {
+			return c.Alpha(alpha)
+		}
 		return c
 	}
 	return c.Alpha(MaterialAlpha(MaterialPanel, effectivePrefs(backgroundState.prefs), backgroundState.dark))

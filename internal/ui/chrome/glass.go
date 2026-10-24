@@ -240,6 +240,12 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 		return
 	}
 	if !backgroundState.active {
+		// No backdrop: dark chrome composites over the desktop exactly as the
+		// native glass model does; light keeps the solid token fill.
+		if alpha := ShowThroughAlpha(prefs, p.Theme().Dark); alpha < 1 && chromeSurface(m) {
+			p.Fill(r, MaterialFill(base, alpha), round)
+			return
+		}
 		// No backdrop to share: the surface keeps the theme's own fill, as the
 		// Background it replaces did.
 		p.Fill(r, base, round)
@@ -620,4 +626,25 @@ func FlatBackdropFill(base ui.Color, dark bool) ui.Color {
 	// Force full opacity: a translucent canvas in a transparent window lets the
 	// desktop tint the hero (round230 jitter), which the native mask never does.
 	return ui.RGBA(blended.R, blended.G, blended.B, 255)
+}
+
+// ShowThroughAlpha is the share a chrome surface paints when no wallpaper or
+// gradient sits behind it. The native glass model keeps the window transparent
+// and composites the panel token at glassOpacity over the desktop (solved from
+// pass303: sidebar 27,27,28 at 60% over a 5,20,46 desktop gives 18,24,35), so
+// dark surfaces paint at glass/100 instead of covering the desktop.
+func ShowThroughAlpha(p wallpapers.Preferences, dark bool) float32 {
+	if p.Transparent || !dark {
+		return 1
+	}
+	if p.Glass <= 0 || p.Glass >= 100 {
+		return 1
+	}
+	return float32(p.Glass / 100)
+}
+
+// GlassComposite is the solved glass model: the panel token at alpha over the
+// desktop pixel behind it.
+func GlassComposite(panel, desktop ui.Color, alpha float32) ui.Color {
+	return MaterialFill(panel, alpha).Over(desktop)
 }

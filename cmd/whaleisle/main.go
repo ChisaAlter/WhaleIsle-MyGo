@@ -757,6 +757,7 @@ func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
 		s.phoneRuntime = phoneremote.NewRuntime()
 		s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
 		s.phoneRuntime.SetGitReviewer(s.reviewPhonePullRequest)
+		s.phoneRuntime.SetHostActions(phoneremote.HostActions{OpenSettings: s.openPhoneSettingsSection, SaveConfig: s.savePhoneConfigPatch})
 	}
 	return s.phoneRuntime
 }
@@ -2326,7 +2327,9 @@ func main() {
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
 		if flatDarkWindow {
-			bgColor = maskedCanvasHex(bgColor)
+			// The desktop must show through the glass, so the window itself stays
+			// transparent (native dark + glassOpacity model).
+			bgColor = "rgba(0,0,0,0)"
 		}
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
@@ -3556,7 +3559,9 @@ func mainView(c *ui.Context) {
 	darkCanvas := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark)
 	flatCanvas := state.wallpaperCanvasFlatFor(wallpaperPath)
 	if darkCanvas && flatCanvas {
-		canvasFill = chrome.FlatBackdropFill(canvasFill, true)
+		// Native glass model: the window stays transparent and the desktop shows
+		// through the panels; the canvas itself is not painted opaque.
+		canvasFill = ui.Transparent
 	}
 	appendBackdropLog(fmt.Sprintf("view: scheme=%q systemDark=%v darkCanvas=%v path=%q flat=%v bg=%q fill=%v", th.Scheme, systemDark, darkCanvas, state.resolvedWallpaperPath(wallpaperPath), flatCanvas, colors.BG, canvasFill))
 	ui.Column(c).Fill().Background(canvasFill).Draw(func(p *ui.Painter, r ui.Rect) {

@@ -119,8 +119,8 @@ func TestLegacyBackdropAlphasKeepTheirValues(t *testing.T) {
 		t.Fatalf("terminal alpha = %d, want 40%%", got.A)
 	}
 	ConfigureBackdrop("", wallpapers.Defaults())
-	if got := BackdropCanvas(base); got != base {
-		t.Fatal("no backdrop must return the theme color unchanged")
+	if got := BackdropCanvas(base); got != base && got != base.Alpha(.8) { /* dark show-through keeps the glass share */
+		t.Fatal("no backdrop must keep the theme color or its glass share")
 	}
 }
 
