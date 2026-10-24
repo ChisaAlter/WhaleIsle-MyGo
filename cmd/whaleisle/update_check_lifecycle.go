@@ -27,7 +27,7 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 	s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseChecking})
 	s.setUpdateProgress(win, &updateProgressState{
 		Phase:   updatePhaseChecking,
-		Title:   resumeText("正在检查更新…", "Checking for updates…"),
+		Title:   i18n.T(i18n.KeyCmdCheckingForUpdates),
 		Percent: -1,
 	})
 	if win != nil {
@@ -55,17 +55,17 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 func updateCheckMessage(res desktopupdate.Result, err error) string {
 	switch {
 	case err != nil:
-		return resumeText("检查更新失败：", "Could not check for updates: ") + err.Error()
+		return i18n.T(i18n.KeyCmdCouldNotCheckForUpdates) + err.Error()
 	case res.Status == desktopupdate.StatusNotConfigured:
-		return resumeText("当前构建没有配置更新源（开发版）。发布版会通过官方更新源检查更新。", "This build has no update feed configured (development build). Release builds check the official feed.")
+		return i18n.T(i18n.KeyCmdThisBuildHasNoUpdateFeedConfiguredDev)
 	case res.Status == desktopupdate.StatusUpToDate:
-		msg := resumeText("当前版本已是最新", "You are on the latest version")
+		msg := i18n.T(i18n.KeyCmdYouAreOnTheLatestVersion)
 		if res.Version != "" {
 			msg += "（" + res.Version + "）"
 		}
 		return msg
 	case res.Status == desktopupdate.StatusUpdateAvailable:
-		msg := resumeText("发现新版本", "Update available")
+		msg := i18n.T(i18n.KeyCmdUpdateAvailable)
 		if res.Version != "" {
 			msg += " " + res.Version
 		}
@@ -76,7 +76,7 @@ func updateCheckMessage(res desktopupdate.Result, err error) string {
 	case strings.TrimSpace(res.Message) != "":
 		return res.Message
 	default:
-		return resumeText("检查完成。", "Check complete.")
+		return i18n.T(i18n.KeyCmdCheckComplete)
 	}
 }
 
@@ -95,7 +95,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 	s.recordUpdateCheckResult(res, err)
 	msg := updateCheckMessage(res, err)
 	download := err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != ""
-	confirmLabel := resumeText("好", "OK")
+	confirmLabel := i18n.T(i18n.KeyCmdOk)
 	technical := ""
 	if download {
 		confirmLabel = i18n.T(i18n.KeyUpdateDownload)
@@ -105,7 +105,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		Title:            i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
 		Body:             msg,
 		ConfirmLabel:     confirmLabel,
-		CancelLabel:      resumeText("关闭", "Close"),
+		CancelLabel:      i18n.T(i18n.KeyCmdClose),
 		TechnicalDetails: technical,
 	})
 	if !canPresent() {
@@ -117,11 +117,11 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		// the existing launcher prompt stays the product-level status.
 		s.setUpdateProgress(win, &updateProgressState{
 			Phase:   updatePhaseDownloading,
-			Title:   resumeText("准备下载更新…", "Preparing the update download…"),
+			Title:   i18n.T(i18n.KeyCmdPreparingTheUpdateDownload),
 			Detail:  technical,
 			Percent: -1,
 		})
-		s.setLauncherUpdate(resumeText("正在下载更新…", "Downloading the update…"))
+		s.setLauncherUpdate(i18n.T(i18n.KeyCmdDownloadingTheUpdate))
 		requireSig := strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "1") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "true")
 		expectPub := strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_PUBLISHER"))
@@ -129,7 +129,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		// percent, so a long download leaves bounded evidence.
 		onProgress := func(received, total int64) {
 			percent := updateDownloadPercent(received, total)
-			title := resumeText("正在下载更新…", "Downloading the update…")
+			title := i18n.T(i18n.KeyCmdDownloadingTheUpdate)
 			detail := updateDownloadDetail(received, total)
 			s.setUpdateProgress(win, &updateProgressState{
 				Phase:   updatePhaseDownloading,
@@ -175,15 +175,15 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 			s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseDownloaded, Version: res.Version})
 			s.setUpdateProgress(win, &updateProgressState{
 				Phase:   updatePhaseStaged,
-				Title:   resumeText("更新已下载并校验，等待确认安装", "The update is downloaded and verified; installation awaits confirmation"),
+				Title:   i18n.T(i18n.KeyCmdTheUpdateIsDownloadedAndVerifiedInstal),
 				Detail:  apply.Message,
 				Percent: 100,
 			})
-			s.setLauncherUpdate(resumeText("更新已下载并校验，等待确认安装", "The update is downloaded and verified; installation awaits confirmation"))
+			s.setLauncherUpdate(i18n.T(i18n.KeyCmdTheUpdateIsDownloadedAndVerifiedInstal))
 		} else {
 			s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseError, FailedOperation: "download", Message: aerr.Error()})
 			s.clearUpdateProgress(win)
-			s.setLauncherUpdate(saveFailedToast(resumeText("下载更新", "Downloading the update"), aerr))
+			s.setLauncherUpdate(saveFailedToast(i18n.T(i18n.KeyCmdDownloadingTheUpdate), aerr))
 		}
 		if !canPresent() {
 			return
@@ -201,7 +201,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 			}
 		}
 		if technical != "" {
-			amsg += "\n\n" + resumeText("技术细节", "Technical details") + ":\n" + technical
+			amsg += "\n\n" + i18n.T(i18n.KeyCmdTechnicalDetails) + ":\n" + technical
 		}
 		_, _ = mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:     win,

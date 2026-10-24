@@ -122,7 +122,7 @@ func (s *mainState) restoreResumeSelection() {
 	s.resumePendingSession = ""
 	s.mu.Unlock()
 	if workspace != current {
-		sessions.SetLastAction(resumeText("恢复的草稿已保留；工作区已改变，未自动打开旧会话。", "Recovered drafts were kept; the workspace changed, so the old session was not opened."))
+		sessions.SetLastAction(i18n.T(i18n.KeyCmdRecoveredDraftsWereKeptTheWorkspaceCha))
 		return
 	}
 	for _, item := range snap.Items {
@@ -131,7 +131,7 @@ func (s *mainState) restoreResumeSelection() {
 			return
 		}
 	}
-	sessions.SetLastAction(resumeText("上次会话不在当前列表中；草稿已保留。", "The previous session is not in the current list; its draft was kept."))
+	sessions.SetLastAction(i18n.T(i18n.KeyCmdThePreviousSessionIsNotInTheCurrentL))
 }
 
 func (s *mainState) saveResume() error {
@@ -233,9 +233,9 @@ func (s *mainState) saveResumeBeforeClose(win *mygo.Window) bool {
 	}
 	if err := s.saveResume(); err != nil {
 		result, dialogErr := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   resumeText("未能保存恢复状态", "Could not save resume state"),
-			Message: strings.Join([]string{err.Error(), resumeText("原文件未被覆盖。请保留窗口、备份草稿并解决磁盘或多实例冲突后重试。直接退出可能丢失本次未保存内容。", "The original file was not overwritten. Keep this window open, back up drafts, and resolve disk or other-instance conflicts before retrying. Quitting now may lose unsaved changes.")}, "\n\n"),
-			Buttons: []string{resumeText("保留窗口", "Keep window open"), resumeText("不保存并退出", "Quit without saving")}, DefaultButton: 0, CancelButton: 0})
+			Title:   i18n.T(i18n.KeyCmdCouldNotSaveResumeState),
+			Message: strings.Join([]string{err.Error(), i18n.T(i18n.KeyCmdTheOriginalFileWasNotOverwrittenKeepT)}, "\n\n"),
+			Buttons: []string{i18n.T(i18n.KeyCmdKeepWindowOpen), i18n.T(i18n.KeyCmdQuitWithoutSaving)}, DefaultButton: 0, CancelButton: 0})
 		return dialogErr == nil && result.Button == 1
 	}
 	return true

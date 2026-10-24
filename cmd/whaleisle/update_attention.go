@@ -128,8 +128,8 @@ func (s *mainState) showStartupUpdateNotice(win *mygo.Window, ticket startuprec.
 		return
 	}
 	n := mygo.NewNotification(mygo.NotificationOptions{
-		Title: resumeText("MyGo 更新待确认", "MyGo update awaiting confirmation"),
-		Body:  fmt.Sprintf(resumeText("%s 已可用。点击返回更新确认；下载和安装仍需明确确认。", "%s is available. Return to confirmation; downloading and installation still need explicit confirmation."), ticket.Scope.Version), Silent: true,
+		Title: i18n.T(i18n.KeyCmdMygoUpdateAwaitingConfirmation),
+		Body:  fmt.Sprintf(i18n.T(i18n.KeyCmdIsAvailableReturnToConfirmationDownloa), ticket.Scope.Version), Silent: true,
 	})
 	s.mu.Lock()
 	if !s.startupUpdateCurrentLocked(win, ticket) || s.startupRecovery.updateNoticeTicket != ticket {
@@ -222,10 +222,10 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		}
 		s.clearStartupUpdateNotice()
 		s.askConfirm(confirmAskRequest{
-			Title:            resumeText("MyGo 更新可用", "MyGo update available"),
+			Title:            i18n.T(i18n.KeyCmdMygoUpdateAvailable),
 			Body:             update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
-			ConfirmLabel:     resumeText("查看版本与下载方式", "Review versions and downloads"),
-			CancelLabel:      resumeText("稍后", "Later"),
+			ConfirmLabel:     i18n.T(i18n.KeyCmdReviewVersionsAndDownloads),
+			CancelLabel:      i18n.T(i18n.KeyCmdLater),
 			TechnicalDetails: nativeReleaseDetail(release),
 			Run:              func() { s.finishStartupUpdatePrompt(win, ticket, release, true) },
 			Cancel:           func() { s.finishStartupUpdatePrompt(win, ticket, release, false) },

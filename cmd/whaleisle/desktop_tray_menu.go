@@ -1,6 +1,10 @@
 package main
 
-import "github.com/egoist/mygo"
+import (
+	"github.com/egoist/mygo"
+
+	"whaleisle/internal/ui/i18n"
+)
 
 type desktopTrayActions struct {
 	open, launcher, settings, market, restart, quit func()
@@ -20,7 +24,7 @@ func buildDesktopTrayMenu(a desktopTrayActions) *mygo.Menu {
 	}
 	restart := row("restart", "重启 Harness", "Restart Harness", a.restart)
 	restart.Disabled = restart.Disabled || !a.canRestart
-	pet := &mygo.MenuItem{ID: "pet", Label: resumeText("桌面宠物", "Desktop pet"), Type: mygo.MenuItemCheckbox, Checked: a.petEnabled, Disabled: a.pet == nil || !a.canTogglePet,
+	pet := &mygo.MenuItem{ID: "pet", Label: i18n.T(i18n.KeyCmdDesktopPet), Type: mygo.MenuItemCheckbox, Checked: a.petEnabled, Disabled: a.pet == nil || !a.canTogglePet,
 		Click: func(item *mygo.MenuItem, _ *mygo.Window) {
 			if a.pet != nil && a.canTogglePet {
 				a.pet(item.Checked)

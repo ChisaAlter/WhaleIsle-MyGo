@@ -248,7 +248,7 @@ func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 			item("window.zoomOut", "缩小", "Zoom out"),
 			mygo.Separator(),
 			item("window.fullscreen", "全屏", "Fullscreen"),
-			&mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}),
+			&mygo.MenuItem{ID: "window.inspector", Label: i18n.T(i18n.KeyCmdDeveloperTools), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}),
 		group("help", "帮助", "Help",
 			plain("help.web", "Web UI 指南", "Web UI guide"),
 			plain("help.sdk", "Python SDK", "Python SDK"),

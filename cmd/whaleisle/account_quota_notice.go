@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -88,7 +89,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 			s.mu.Lock()
 			s.accountQuotaNotice.toast = notice.ID
 			s.mu.Unlock()
-			c.AddToast(ui.Toast{ID: "account-quota-notice", Description: resumeText("当前请求的额度已用尽", "Request quota exhausted."), OnClose: func() { sessions.DismissQuotaNotice(notice.ID) }})
+			c.AddToast(ui.Toast{ID: "account-quota-notice", Description: i18n.T(i18n.KeyCmdRequestQuotaExhausted), OnClose: func() { sessions.DismissQuotaNotice(notice.ID) }})
 		}
 		return
 	}
@@ -105,13 +106,13 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 		backdrop.Background(ui.RGBA(0, 0, 0, .4))
 		panel.Width(460).MaxWidthPercent(92).Padding(20).Radius(14).Background(chrome.Color(colors.BG)).Children(func() {
 			ui.Column(c).Gap(12).Children(func() {
-				ui.Text(c, resumeText("当前无可用余额", "No balance available")).Bold().FontSize(16).TextColor(chrome.Color(colors.FG))
-				ui.Text(c, resumeText("没有可用额度时，MyGo鲸屿 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。", "MyGo鲸屿 cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.")).TextColor(chrome.Color(colors.FG))
+				ui.Text(c, i18n.T(i18n.KeyCmdNoBalanceAvailable)).Bold().FontSize(16).TextColor(chrome.Color(colors.FG))
+				ui.Text(c, i18n.T(i18n.KeyCmdMygoCannotStartANewTaskWithThisAccou)).TextColor(chrome.Color(colors.FG))
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, resumeText("取消", "Cancel")).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyCmdCancel)).Clicked() {
 						sessions.DismissQuotaNotice(notice.ID)
 					}
-					if ui.Button(c, resumeText("前往充值", "Top up")).Clicked() && sessions.HoldQuotaNotice(notice.ID) {
+					if ui.Button(c, i18n.T(i18n.KeyCmdTopUp)).Clicked() && sessions.HoldQuotaNotice(notice.ID) {
 						s.openAccountTopUp(account.TopUpURL)
 						s.mu.Lock()
 						success := s.accountReturn.err == ""

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/usage"
+	"whaleisle/internal/ui/i18n"
 
 	desktopwebview "whaleisle/internal/desktop/webview"
 )
@@ -77,9 +78,9 @@ func (s *mainState) openAccountLink(url string, topUp bool, open func(string) er
 			s.accountReturn.external, s.accountReturn.leftWindow = false, false
 		}
 		s.mu.Unlock()
-		label := resumeText("无法打开授权页面", "Could not open authorization page")
+		label := i18n.T(i18n.KeyCmdCouldNotOpenAuthorizationPage)
 		if topUp {
-			label = resumeText("无法打开充值页面", "Could not open top-up page")
+			label = i18n.T(i18n.KeyCmdCouldNotOpenTopUpPage)
 		}
 		err = fmt.Errorf("%s: %w", label, err)
 	}
@@ -96,7 +97,7 @@ func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, us
 			return
 		}
 		if err != nil {
-			err = fmt.Errorf("%s: %w", resumeText("取消登录失败", "Could not cancel sign-in"), err)
+			err = fmt.Errorf("%s: %w", i18n.T(i18n.KeyCmdCouldNotCancelSignIn), err)
 		} else {
 			s.accountLogin.Finish()
 		}

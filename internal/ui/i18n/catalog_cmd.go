@@ -6,75 +6,130 @@ package i18n
 const (
 
 	// cmd
-	KeyCmdChooseLocalAvatarImage               = "cmd.choose_local_avatar_image"
-	KeyCmdBotCreatedSessionConnectionUnavailab = "cmd.bot_created_session_connection_unavailab"
-	KeyCmdCreatedBotOpenCanonicalSession       = "cmd.created_bot_open_canonical_session"
-	KeyCmdCatalogRecordRetainedSessionConnecti = "cmd.catalog_record_retained_session_connecti"
-	KeyCmdOpenInspectedCatalogBot              = "cmd.open_inspected_catalog_bot"
-	KeyCmdWatchingThisBotPageSCompleteCatalo   = "cmd.watching_this_bot_page_s_complete_catalo"
-	KeyCmdSystemNotificationsUnavailableOrNot  = "cmd.system_notifications_unavailable_or_not"
-	KeyCmdCouldNotRestoreTheNotificationTarge  = "cmd.could_not_restore_the_notification_targe"
-	KeyCmdNotificationTargetVerifyInVisibility = "cmd.notification_target_verify_in_visibility"
-	KeyCmdSystemNotificationDeliveryFailedChec = "cmd.system_notification_delivery_failed_chec"
-	KeyCmdConversationOpenedReadMarkerFailed   = "cmd.conversation_opened_read_marker_failed"
-	KeyCmdOpeningCanonicalConversation         = "cmd.opening_canonical_conversation"
-	KeyCmdResolveTheExistingChatDraftBeforeS   = "cmd.resolve_the_existing_chat_draft_before_s"
-	KeyCmdCanonicalConversationOpened          = "cmd.canonical_conversation_opened"
-	KeyCmdNeedsAttention                       = "cmd.needs_attention"
-	KeyCmdCreatedRoomOpenCanonicalSession      = "cmd.created_room_open_canonical_session"
-	KeyCmdUnsupportedTriggerAddressNoCredentia = "cmd.unsupported_trigger_address_no_credentia"
-	KeyCmdNoImageOnTheClipboard                = "cmd.no_image_on_the_clipboard"
-	KeyCmdEnterAReplyOrAddAnAttachment         = "cmd.enter_a_reply_or_add_an_attachment"
-	KeyCmdHostOffline                          = "cmd.host_offline"
-	KeyCmdNoCompletedBotJsonReply              = "cmd.no_completed_bot_json_reply"
-	KeyCmdResolveTheExistingChatDraftFirst     = "cmd.resolve_the_existing_chat_draft_first"
-	KeyCmdDraftPreparedReviewAndSend           = "cmd.draft_prepared_review_and_send"
-	KeyCmdImportedForPreviewSaveToApply        = "cmd.imported_for_preview_save_to_apply"
-	KeyCmdSavedOtherBotCopiesRemainIndependen  = "cmd.saved_other_bot_copies_remain_independen"
-	KeyCmdIndependentCopyAdded                 = "cmd.independent_copy_added"
-	KeyCmdTemplateUpdatedForFutureCopies       = "cmd.template_updated_for_future_copies"
-	KeyCmdRemovedFromThisBotTemplateRetained   = "cmd.removed_from_this_bot_template_retained"
-	KeyCmdExportInstallationHistory            = "cmd.export_installation_history"
-	KeyCmdPhoneRemoteSettingWasNotSavedRetry   = "cmd.phone_remote_setting_was_not_saved_retry"
-	KeyCmdWhaleAssistantIsDisabled             = "cmd.whale_assistant_is_disabled"
-	KeyCmdHostOffline2                         = "cmd.host_offline_2"
-	KeyCmdConnectionChanged                    = "cmd.connection_changed"
-	KeyCmdConversationChanged                  = "cmd.conversation_changed"
-	KeyCmdPetChatUnavailable                   = "cmd.pet_chat_unavailable"
-	KeyCmdPetChatOpened                        = "cmd.pet_chat_opened"
-	KeyCmdRuntimeChanged                       = "cmd.runtime_changed"
-	KeyCmdCancelled                            = "cmd.cancelled"
-	KeyCmdScanUnavailableSavedFoodRetained     = "cmd.scan_unavailable_saved_food_retained"
-	KeyCmdLocalFoodRefreshed                   = "cmd.local_food_refreshed"
-	KeyCmdConnectHostAndEnableWhaleFirst       = "cmd.connect_host_and_enable_whale_first"
-	KeyCmdSelectThePetLookModelAndRefreshIt    = "cmd.select_the_pet_look_model_and_refresh_it"
-	KeyCmdLookAtScreen                         = "cmd.look_at_screen"
-	KeyCmdCancel                               = "cmd.cancel"
-	KeyCmdCaptureAndSend                       = "cmd.capture_and_send"
-	KeyCmdCancelledNoScreenshotTaken           = "cmd.cancelled_no_screenshot_taken"
-	KeyCmdWindowConversationOrVisionRouteChan  = "cmd.window_conversation_or_vision_route_chan"
-	KeyCmdContextChangedScreenshotWasNotSent   = "cmd.context_changed_screenshot_was_not_sent"
-	KeyCmdContextChanged                       = "cmd.context_changed"
-	KeyCmdLookFailedCheckTheVisionModel        = "cmd.look_failed_check_the_vision_model"
-	KeyCmdHostOfflineReopenAfterConnecting     = "cmd.host_offline_reopen_after_connecting"
-	KeyCmdGatewaySettingsSavedApplying         = "cmd.gateway_settings_saved_applying"
-	KeyCmdPhonePrReview                        = "cmd.phone_pr_review"
-	KeyCmdWorking                              = "cmd.working"
-	KeyCmdPhoneRequestedAPrReviewAndConfirm    = "cmd.phone_requested_a_pr_review_and_confirm"
-	KeyCmdCommitPushMayAlreadyBeCompleteCanc   = "cmd.commit_push_may_already_be_complete_canc"
-	KeyCmdPrTitle                              = "cmd.pr_title"
-	KeyCmdPrBody                               = "cmd.pr_body"
-	KeyCmdCreateDraftPr                        = "cmd.create_draft_pr"
-	KeyCmdGenerateCandidate                    = "cmd.generate_candidate"
-	KeyCmdCandidateNotYetApplied               = "cmd.candidate_not_yet_applied"
-	KeyCmdApplyCandidate                       = "cmd.apply_candidate"
-	KeyCmdPrepareTargetReview                  = "cmd.prepare_target_review"
-	KeyCmdReviewTheExactContentBelow           = "cmd.review_the_exact_content_below"
-	KeyCmdConfirmThisPr                        = "cmd.confirm_this_pr"
-	KeyCmdOutcomeUncertainCheckExistingPrBefo  = "cmd.outcome_uncertain_check_existing_pr_befo"
-	KeyCmdPublishedHtmlUnavailable             = "cmd.published_html_unavailable"
-	KeyCmdSavePublishedHtml                    = "cmd.save_published_html"
-	KeyCmdIsolatedPreviewHelperIsNotInstalled  = "cmd.isolated_preview_helper_is_not_installed"
+	KeyCmdChooseLocalAvatarImage                 = "cmd.choose_local_avatar_image"
+	KeyCmdBotCreatedSessionConnectionUnavailab   = "cmd.bot_created_session_connection_unavailab"
+	KeyCmdCreatedBotOpenCanonicalSession         = "cmd.created_bot_open_canonical_session"
+	KeyCmdCatalogRecordRetainedSessionConnecti   = "cmd.catalog_record_retained_session_connecti"
+	KeyCmdOpenInspectedCatalogBot                = "cmd.open_inspected_catalog_bot"
+	KeyCmdWatchingThisBotPageSCompleteCatalo     = "cmd.watching_this_bot_page_s_complete_catalo"
+	KeyCmdSystemNotificationsUnavailableOrNot    = "cmd.system_notifications_unavailable_or_not"
+	KeyCmdCouldNotRestoreTheNotificationTarge    = "cmd.could_not_restore_the_notification_targe"
+	KeyCmdNotificationTargetVerifyInVisibility   = "cmd.notification_target_verify_in_visibility"
+	KeyCmdSystemNotificationDeliveryFailedChec   = "cmd.system_notification_delivery_failed_chec"
+	KeyCmdConversationOpenedReadMarkerFailed     = "cmd.conversation_opened_read_marker_failed"
+	KeyCmdOpeningCanonicalConversation           = "cmd.opening_canonical_conversation"
+	KeyCmdResolveTheExistingChatDraftBeforeS     = "cmd.resolve_the_existing_chat_draft_before_s"
+	KeyCmdCanonicalConversationOpened            = "cmd.canonical_conversation_opened"
+	KeyCmdNeedsAttention                         = "cmd.needs_attention"
+	KeyCmdCreatedRoomOpenCanonicalSession        = "cmd.created_room_open_canonical_session"
+	KeyCmdUnsupportedTriggerAddressNoCredentia   = "cmd.unsupported_trigger_address_no_credentia"
+	KeyCmdNoImageOnTheClipboard                  = "cmd.no_image_on_the_clipboard"
+	KeyCmdEnterAReplyOrAddAnAttachment           = "cmd.enter_a_reply_or_add_an_attachment"
+	KeyCmdHostOffline                            = "cmd.host_offline"
+	KeyCmdNoCompletedBotJsonReply                = "cmd.no_completed_bot_json_reply"
+	KeyCmdResolveTheExistingChatDraftFirst       = "cmd.resolve_the_existing_chat_draft_first"
+	KeyCmdDraftPreparedReviewAndSend             = "cmd.draft_prepared_review_and_send"
+	KeyCmdImportedForPreviewSaveToApply          = "cmd.imported_for_preview_save_to_apply"
+	KeyCmdSavedOtherBotCopiesRemainIndependen    = "cmd.saved_other_bot_copies_remain_independen"
+	KeyCmdIndependentCopyAdded                   = "cmd.independent_copy_added"
+	KeyCmdTemplateUpdatedForFutureCopies         = "cmd.template_updated_for_future_copies"
+	KeyCmdRemovedFromThisBotTemplateRetained     = "cmd.removed_from_this_bot_template_retained"
+	KeyCmdExportInstallationHistory              = "cmd.export_installation_history"
+	KeyCmdPhoneRemoteSettingWasNotSavedRetry     = "cmd.phone_remote_setting_was_not_saved_retry"
+	KeyCmdWhaleAssistantIsDisabled               = "cmd.whale_assistant_is_disabled"
+	KeyCmdHostOffline2                           = "cmd.host_offline_2"
+	KeyCmdConnectionChanged                      = "cmd.connection_changed"
+	KeyCmdConversationChanged                    = "cmd.conversation_changed"
+	KeyCmdPetChatUnavailable                     = "cmd.pet_chat_unavailable"
+	KeyCmdPetChatOpened                          = "cmd.pet_chat_opened"
+	KeyCmdRuntimeChanged                         = "cmd.runtime_changed"
+	KeyCmdCancelled                              = "cmd.cancelled"
+	KeyCmdScanUnavailableSavedFoodRetained       = "cmd.scan_unavailable_saved_food_retained"
+	KeyCmdLocalFoodRefreshed                     = "cmd.local_food_refreshed"
+	KeyCmdConnectHostAndEnableWhaleFirst         = "cmd.connect_host_and_enable_whale_first"
+	KeyCmdSelectThePetLookModelAndRefreshIt      = "cmd.select_the_pet_look_model_and_refresh_it"
+	KeyCmdLookAtScreen                           = "cmd.look_at_screen"
+	KeyCmdCancel                                 = "cmd.cancel"
+	KeyCmdCaptureAndSend                         = "cmd.capture_and_send"
+	KeyCmdCancelledNoScreenshotTaken             = "cmd.cancelled_no_screenshot_taken"
+	KeyCmdWindowConversationOrVisionRouteChan    = "cmd.window_conversation_or_vision_route_chan"
+	KeyCmdContextChangedScreenshotWasNotSent     = "cmd.context_changed_screenshot_was_not_sent"
+	KeyCmdContextChanged                         = "cmd.context_changed"
+	KeyCmdLookFailedCheckTheVisionModel          = "cmd.look_failed_check_the_vision_model"
+	KeyCmdHostOfflineReopenAfterConnecting       = "cmd.host_offline_reopen_after_connecting"
+	KeyCmdGatewaySettingsSavedApplying           = "cmd.gateway_settings_saved_applying"
+	KeyCmdPhonePrReview                          = "cmd.phone_pr_review"
+	KeyCmdWorking                                = "cmd.working"
+	KeyCmdPhoneRequestedAPrReviewAndConfirm      = "cmd.phone_requested_a_pr_review_and_confirm"
+	KeyCmdCommitPushMayAlreadyBeCompleteCanc     = "cmd.commit_push_may_already_be_complete_canc"
+	KeyCmdPrTitle                                = "cmd.pr_title"
+	KeyCmdPrBody                                 = "cmd.pr_body"
+	KeyCmdCreateDraftPr                          = "cmd.create_draft_pr"
+	KeyCmdGenerateCandidate                      = "cmd.generate_candidate"
+	KeyCmdCandidateNotYetApplied                 = "cmd.candidate_not_yet_applied"
+	KeyCmdApplyCandidate                         = "cmd.apply_candidate"
+	KeyCmdPrepareTargetReview                    = "cmd.prepare_target_review"
+	KeyCmdReviewTheExactContentBelow             = "cmd.review_the_exact_content_below"
+	KeyCmdConfirmThisPr                          = "cmd.confirm_this_pr"
+	KeyCmdOutcomeUncertainCheckExistingPrBefo    = "cmd.outcome_uncertain_check_existing_pr_befo"
+	KeyCmdPublishedHtmlUnavailable               = "cmd.published_html_unavailable"
+	KeyCmdSavePublishedHtml                      = "cmd.save_published_html"
+	KeyCmdIsolatedPreviewHelperIsNotInstalled    = "cmd.isolated_preview_helper_is_not_installed"
+	KeyCmdTrayUnavailable                        = "cmd.tray_unavailable"
+	KeyCmdTheSystemTrayCouldNotBeCreatedTheWin   = "cmd.the_system_tray_could_not_be_created_the_win"
+	KeyCmdKeepWindow                             = "cmd.keep_window"
+	KeyCmdQuitApplication                        = "cmd.quit_application"
+	KeyCmdMinimizedToTray                        = "cmd.minimized_to_tray"
+	KeyCmdClickTheTrayIconToReopenTheWindowOr    = "cmd.click_the_tray_icon_to_reopen_the_window_or"
+	KeyCmdDesktopPet                             = "cmd.desktop_pet"
+	KeyCmdDeveloperTools                         = "cmd.developer_tools"
+	KeyCmdCheckingForUpdates                     = "cmd.checking_for_updates"
+	KeyCmdCouldNotCheckForUpdates                = "cmd.could_not_check_for_updates"
+	KeyCmdThisBuildHasNoUpdateFeedConfiguredDev  = "cmd.this_build_has_no_update_feed_configured_dev"
+	KeyCmdYouAreOnTheLatestVersion               = "cmd.you_are_on_the_latest_version"
+	KeyCmdUpdateAvailable                        = "cmd.update_available"
+	KeyCmdCheckComplete                          = "cmd.check_complete"
+	KeyCmdOk                                     = "cmd.ok"
+	KeyCmdClose                                  = "cmd.close"
+	KeyCmdPreparingTheUpdateDownload             = "cmd.preparing_the_update_download"
+	KeyCmdDownloadingTheUpdate                   = "cmd.downloading_the_update"
+	KeyCmdTheUpdateIsDownloadedAndVerifiedInstal = "cmd.the_update_is_downloaded_and_verified_instal"
+	KeyCmdTechnicalDetails                       = "cmd.technical_details"
+	KeyCmdDismiss                                = "cmd.dismiss"
+	KeyCmdNewVersion                             = "cmd.new_version"
+	KeyCmdDownloadRoute                          = "cmd.download_route"
+	KeyCmdInstallerSize                          = "cmd.installer_size"
+	KeyCmdAnIncrementalPatchPathIsAvailable      = "cmd.an_incremental_patch_path_is_available"
+	KeyCmdVersion                                = "cmd.version"
+	KeyCmdPlatform                               = "cmd.platform"
+	KeyCmdIncludesTheRuntime                     = "cmd.includes_the_runtime"
+	KeyCmdMygoUpdateAwaitingConfirmation         = "cmd.mygo_update_awaiting_confirmation"
+	KeyCmdIsAvailableReturnToConfirmationDownloa = "cmd.is_available_return_to_confirmation_download"
+	KeyCmdMygoUpdateAvailable                    = "cmd.mygo_update_available"
+	KeyCmdReviewVersionsAndDownloads             = "cmd.review_versions_and_downloads"
+	KeyCmdLater                                  = "cmd.later"
+	KeyCmdConfirmingNotice                       = "cmd.confirming_notice"
+	KeyCmdCouldNotAcknowledgeRetry               = "cmd.could_not_acknowledge_retry"
+	KeyCmdThisAccountCannotAcknowledgeTheNoticeR = "cmd.this_account_cannot_acknowledge_the_notice_r"
+	KeyCmdGotIt                                  = "cmd.got_it"
+	KeyCmdRetry                                  = "cmd.retry"
+	KeyCmdRewardNotice                           = "cmd.reward_notice"
+	KeyCmdRequestQuotaExhausted                  = "cmd.request_quota_exhausted"
+	KeyCmdNoBalanceAvailable                     = "cmd.no_balance_available"
+	KeyCmdMygoCannotStartANewTaskWithThisAccou   = "cmd.mygo_cannot_start_a_new_task_with_this_accou"
+	KeyCmdTopUp                                  = "cmd.top_up"
+	KeyCmdYouHaveSignedOutOfYourAccountPleaseL   = "cmd.you_have_signed_out_of_your_account_please_l"
+	KeyCmdModelUnavailablePleaseSignInAndTryAga  = "cmd.model_unavailable_please_sign_in_and_try_aga"
+	KeyCmdSignIn                                 = "cmd.sign_in"
+	KeyCmdCouldNotOpenAuthorizationPage          = "cmd.could_not_open_authorization_page"
+	KeyCmdCouldNotOpenTopUpPage                  = "cmd.could_not_open_top_up_page"
+	KeyCmdCouldNotCancelSignIn                   = "cmd.could_not_cancel_sign_in"
+	KeyCmdRecoveredDraftsWereKeptTheWorkspaceCha = "cmd.recovered_drafts_were_kept_the_workspace_cha"
+	KeyCmdThePreviousSessionIsNotInTheCurrentL   = "cmd.the_previous_session_is_not_in_the_current_l"
+	KeyCmdCouldNotSaveResumeState                = "cmd.could_not_save_resume_state"
+	KeyCmdTheOriginalFileWasNotOverwrittenKeepT  = "cmd.the_original_file_was_not_overwritten_keep_t"
+	KeyCmdKeepWindowOpen                         = "cmd.keep_window_open"
+	KeyCmdQuitWithoutSaving                      = "cmd.quit_without_saving"
 )
 
 func init() {
@@ -149,6 +204,61 @@ func init() {
 	Register(KeyCmdPublishedHtmlUnavailable, "已发布 HTML 读取不可用：", "Published HTML unavailable: ")
 	Register(KeyCmdSavePublishedHtml, "另存已发布 HTML", "Save published HTML")
 	Register(KeyCmdIsolatedPreviewHelperIsNotInstalled, "隔离 helper 未随应用安装", "Isolated preview helper is not installed")
+	Register(KeyCmdTrayUnavailable, "托盘不可用", "Tray unavailable")
+	Register(KeyCmdTheSystemTrayCouldNotBeCreatedTheWin, "系统托盘未能创建，已保留窗口和后台任务。可以保留窗口，或明确退出应用。", "The system tray could not be created. The window and background work were kept open. Keep the window, or explicitly quit the application.")
+	Register(KeyCmdKeepWindow, "保留窗口", "Keep window")
+	Register(KeyCmdQuitApplication, "退出应用", "Quit application")
+	Register(KeyCmdMinimizedToTray, "已最小化到托盘", "Minimized to tray")
+	Register(KeyCmdClickTheTrayIconToReopenTheWindowOr, "点击托盘图标可重新打开窗口，托盘菜单可完全退出。可在设置中更改关闭到托盘。", "Click the tray icon to reopen the window, or choose Quit from its menu. Change close-to-tray in Settings.")
+	Register(KeyCmdDesktopPet, "桌面宠物", "Desktop pet")
+	Register(KeyCmdDeveloperTools, "开发者工具", "Developer tools")
+	Register(KeyCmdCheckingForUpdates, "正在检查更新…", "Checking for updates…")
+	Register(KeyCmdCouldNotCheckForUpdates, "检查更新失败：", "Could not check for updates: ")
+	Register(KeyCmdThisBuildHasNoUpdateFeedConfiguredDev, "当前构建没有配置更新源（开发版）。发布版会通过官方更新源检查更新。", "This build has no update feed configured (development build). Release builds check the official feed.")
+	Register(KeyCmdYouAreOnTheLatestVersion, "当前版本已是最新", "You are on the latest version")
+	Register(KeyCmdUpdateAvailable, "发现新版本", "Update available")
+	Register(KeyCmdCheckComplete, "检查完成。", "Check complete.")
+	Register(KeyCmdOk, "好", "OK")
+	Register(KeyCmdClose, "关闭", "Close")
+	Register(KeyCmdPreparingTheUpdateDownload, "准备下载更新…", "Preparing the update download…")
+	Register(KeyCmdDownloadingTheUpdate, "正在下载更新…", "Downloading the update…")
+	Register(KeyCmdTheUpdateIsDownloadedAndVerifiedInstal, "更新已下载并校验，等待确认安装", "The update is downloaded and verified; installation awaits confirmation")
+	Register(KeyCmdTechnicalDetails, "技术细节", "Technical details")
+	Register(KeyCmdDismiss, "关闭", "Dismiss")
+	Register(KeyCmdNewVersion, "新版本：", "New version: ")
+	Register(KeyCmdDownloadRoute, "下载线路：", "Download route: ")
+	Register(KeyCmdInstallerSize, "安装包大小：", "Installer size: ")
+	Register(KeyCmdAnIncrementalPatchPathIsAvailable, "存在增量更新路径", "An incremental patch path is available")
+	Register(KeyCmdVersion, "版本：", "Version: ")
+	Register(KeyCmdPlatform, "平台：", "Platform: ")
+	Register(KeyCmdIncludesTheRuntime, "包含运行时", "Includes the runtime")
+	Register(KeyCmdMygoUpdateAwaitingConfirmation, "MyGo 更新待确认", "MyGo update awaiting confirmation")
+	Register(KeyCmdIsAvailableReturnToConfirmationDownloa, "%s 已可用。点击返回更新确认；下载和安装仍需明确确认。", "%s is available. Return to confirmation; downloading and installation still need explicit confirmation.")
+	Register(KeyCmdMygoUpdateAvailable, "MyGo 更新可用", "MyGo update available")
+	Register(KeyCmdReviewVersionsAndDownloads, "查看版本与下载方式", "Review versions and downloads")
+	Register(KeyCmdLater, "稍后", "Later")
+	Register(KeyCmdConfirmingNotice, "正在确认已读…", "Confirming notice…")
+	Register(KeyCmdCouldNotAcknowledgeRetry, "确认失败，可重试：", "Could not acknowledge; retry: ")
+	Register(KeyCmdThisAccountCannotAcknowledgeTheNoticeR, "当前账户无法确认这条通知，请刷新账户状态。", "This account cannot acknowledge the notice. Refresh the account state.")
+	Register(KeyCmdGotIt, "知道了", "Got it")
+	Register(KeyCmdRetry, "重试", "Retry")
+	Register(KeyCmdRewardNotice, "奖励通知", "Reward notice")
+	Register(KeyCmdRequestQuotaExhausted, "当前请求的额度已用尽", "Request quota exhausted.")
+	Register(KeyCmdNoBalanceAvailable, "当前无可用余额", "No balance available")
+	Register(KeyCmdMygoCannotStartANewTaskWithThisAccou, "没有可用额度时，MyGo鲸屿 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。", "MyGo鲸屿 cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.")
+	Register(KeyCmdTopUp, "前往充值", "Top up")
+	Register(KeyCmdYouHaveSignedOutOfYourAccountPleaseL, "登录信息已失效，请重新登录", "You have signed out of your account, please log in again.")
+	Register(KeyCmdModelUnavailablePleaseSignInAndTryAga, "当前模型暂不可用，请登录后再试", "Model unavailable. Please sign in and try again.")
+	Register(KeyCmdSignIn, "前往登录", "Sign in")
+	Register(KeyCmdCouldNotOpenAuthorizationPage, "无法打开授权页面", "Could not open authorization page")
+	Register(KeyCmdCouldNotOpenTopUpPage, "无法打开充值页面", "Could not open top-up page")
+	Register(KeyCmdCouldNotCancelSignIn, "取消登录失败", "Could not cancel sign-in")
+	Register(KeyCmdRecoveredDraftsWereKeptTheWorkspaceCha, "恢复的草稿已保留；工作区已改变，未自动打开旧会话。", "Recovered drafts were kept; the workspace changed, so the old session was not opened.")
+	Register(KeyCmdThePreviousSessionIsNotInTheCurrentL, "上次会话不在当前列表中；草稿已保留。", "The previous session is not in the current list; its draft was kept.")
+	Register(KeyCmdCouldNotSaveResumeState, "未能保存恢复状态", "Could not save resume state")
+	Register(KeyCmdTheOriginalFileWasNotOverwrittenKeepT, "原文件未被覆盖。请保留窗口、备份草稿并解决磁盘或多实例冲突后重试。直接退出可能丢失本次未保存内容。", "The original file was not overwritten. Keep this window open, back up drafts, and resolve disk or other-instance conflicts before retrying. Quitting now may lose unsaved changes.")
+	Register(KeyCmdKeepWindowOpen, "保留窗口", "Keep window open")
+	Register(KeyCmdQuitWithoutSaving, "不保存并退出", "Quit without saving")
 }
 
 // Window titles, dialog titles and notifications opened from the desktop

@@ -153,9 +153,9 @@ func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor)
 		// permission to stop background work. Explicit Quit still uses task checks.
 		s.showMainWindow()
 		result, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   resumeText("托盘不可用", "Tray unavailable"),
-			Message: resumeText("系统托盘未能创建，已保留窗口和后台任务。可以保留窗口，或明确退出应用。", "The system tray could not be created. The window and background work were kept open. Keep the window, or explicitly quit the application."),
-			Buttons: []string{resumeText("保留窗口", "Keep window"), resumeText("退出应用", "Quit application")}, DefaultButton: 0, CancelButton: 0})
+			Title:   i18n.T(i18n.KeyCmdTrayUnavailable),
+			Message: i18n.T(i18n.KeyCmdTheSystemTrayCouldNotBeCreatedTheWin),
+			Buttons: []string{i18n.T(i18n.KeyCmdKeepWindow), i18n.T(i18n.KeyCmdQuitApplication)}, DefaultButton: 0, CancelButton: 0})
 		if err == nil && result.Button == 1 {
 			s.requestQuitProtected(win, sup)
 		}
@@ -165,8 +165,8 @@ func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor)
 		if !systemNotificationsSupported() {
 			return nil
 		}
-		n := mygo.NewNotification(mygo.NotificationOptions{ID: "whaleisle-tray-hide", Title: resumeText("已最小化到托盘", "Minimized to tray"),
-			Body: resumeText("点击托盘图标可重新打开窗口，托盘菜单可完全退出。可在设置中更改关闭到托盘。", "Click the tray icon to reopen the window, or choose Quit from its menu. Change close-to-tray in Settings."), Silent: true})
+		n := mygo.NewNotification(mygo.NotificationOptions{ID: "whaleisle-tray-hide", Title: i18n.T(i18n.KeyCmdMinimizedToTray),
+			Body: i18n.T(i18n.KeyCmdClickTheTrayIconToReopenTheWindowOr), Silent: true})
 		n.OnClick(s.showMainWindow)
 		s.mu.Lock()
 		s.trayHideNotification = n

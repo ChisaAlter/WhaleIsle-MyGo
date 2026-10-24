@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 	usagestore "whaleisle/internal/store/usage"
@@ -71,13 +72,13 @@ func (s *mainState) syncAccountBonusNotice(c *ui.Context) {
 		switch feedback.State {
 		case "pending":
 			phase = "pending"
-			detail += "\n" + resumeText("正在确认已读…", "Confirming notice…")
+			detail += "\n" + i18n.T(i18n.KeyCmdConfirmingNotice)
 		case "failed":
 			phase = "failed"
-			detail += "\n" + resumeText("确认失败，可重试：", "Could not acknowledge; retry: ") + feedback.Error
+			detail += "\n" + i18n.T(i18n.KeyCmdCouldNotAcknowledgeRetry) + feedback.Error
 		case "refused":
 			phase = "refused"
-			detail += "\n" + resumeText("当前账户无法确认这条通知，请刷新账户状态。", "This account cannot acknowledge the notice. Refresh the account state.")
+			detail += "\n" + i18n.T(i18n.KeyCmdThisAccountCannotAcknowledgeTheNoticeR)
 		}
 	}
 	if current.phase != phase {
@@ -93,13 +94,13 @@ func (s *mainState) syncAccountBonusNotice(c *ui.Context) {
 	generation := current.generation
 	s.mu.Unlock()
 
-	action := resumeText("知道了", "Got it")
+	action := i18n.T(i18n.KeyCmdGotIt)
 	if phase == "failed" {
-		action = resumeText("重试", "Retry")
+		action = i18n.T(i18n.KeyCmdRetry)
 	} else if phase == "pending" {
 		action = ""
 	} else if phase == "refused" {
-		action = resumeText("关闭", "Close")
+		action = i18n.T(i18n.KeyCmdClose)
 	}
 	actionTaken := false
 	acknowledge := func() {
@@ -122,7 +123,7 @@ func (s *mainState) syncAccountBonusNotice(c *ui.Context) {
 		store.AckBonusNotified(context.Background(), candidate.AccountID, candidate.OrderID, "")
 	}
 	c.AddToast(ui.Toast{
-		ID: accountBonusToastID, Title: resumeText("奖励通知", "Reward notice"), Description: detail,
+		ID: accountBonusToastID, Title: i18n.T(i18n.KeyCmdRewardNotice), Description: detail,
 		Timeout: -1, Action: action,
 		OnAction: func() {
 			actionTaken = true

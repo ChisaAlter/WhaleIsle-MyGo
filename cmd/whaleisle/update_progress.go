@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -73,7 +74,7 @@ func (s *mainState) paintUpdateProgress(c *ui.Context, colors chrome.TitleBarCol
 		Title:        state.Title,
 		Detail:       state.Detail,
 		Percent:      state.Percent,
-		DismissLabel: resumeText("关闭", "Dismiss"),
+		DismissLabel: i18n.T(i18n.KeyCmdDismiss),
 	}, func() { s.clearUpdateProgress(win) })
 }
 
@@ -130,19 +131,19 @@ func formatUpdateBytes(n int64) string {
 func updateAvailableDetail(res desktopupdate.Result, route string) string {
 	var lines []string
 	if res.Version != "" {
-		lines = append(lines, resumeText("新版本：", "New version: ")+res.Version)
+		lines = append(lines, i18n.T(i18n.KeyCmdNewVersion)+res.Version)
 	}
 	if route = strings.ToLower(strings.TrimSpace(route)); route != "" {
-		lines = append(lines, resumeText("下载线路：", "Download route: ")+route)
+		lines = append(lines, i18n.T(i18n.KeyCmdDownloadRoute)+route)
 	}
 	if res.Size > 0 {
-		lines = append(lines, resumeText("安装包大小：", "Installer size: ")+formatUpdateBytes(res.Size))
+		lines = append(lines, i18n.T(i18n.KeyCmdInstallerSize)+formatUpdateBytes(res.Size))
 	}
 	if res.SHA256 != "" {
 		lines = append(lines, "SHA-256: "+res.SHA256)
 	}
 	if res.IncrementalPossible {
-		lines = append(lines, resumeText("存在增量更新路径", "An incremental patch path is available"))
+		lines = append(lines, i18n.T(i18n.KeyCmdAnIncrementalPatchPathIsAvailable))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -152,18 +153,18 @@ func updateAvailableDetail(res desktopupdate.Result, route string) string {
 // route, size and checksum, never a download URL.
 func nativeReleaseDetail(release desktopupdate.NativeRelease) string {
 	lines := []string{
-		resumeText("版本：", "Version: ") + release.Version,
+		i18n.T(i18n.KeyCmdVersion) + release.Version,
 		"Tag: " + release.Tag,
-		resumeText("平台：", "Platform: ") + release.Platform + "/" + release.Arch,
+		i18n.T(i18n.KeyCmdPlatform) + release.Platform + "/" + release.Arch,
 	}
 	if release.DownloadRoute != "" {
-		lines = append(lines, resumeText("下载线路：", "Download route: ")+strings.ToLower(release.DownloadRoute))
+		lines = append(lines, i18n.T(i18n.KeyCmdDownloadRoute)+strings.ToLower(release.DownloadRoute))
 	}
 	if release.RuntimeIncluded {
-		lines = append(lines, resumeText("包含运行时", "Includes the runtime"))
+		lines = append(lines, i18n.T(i18n.KeyCmdIncludesTheRuntime))
 	}
 	if release.Size > 0 {
-		lines = append(lines, resumeText("安装包大小：", "Installer size: ")+formatUpdateBytes(release.Size))
+		lines = append(lines, i18n.T(i18n.KeyCmdInstallerSize)+formatUpdateBytes(release.Size))
 	}
 	if release.SHA256 != "" {
 		lines = append(lines, "SHA-256: "+release.SHA256)

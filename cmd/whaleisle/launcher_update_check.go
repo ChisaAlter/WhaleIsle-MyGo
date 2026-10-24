@@ -18,7 +18,7 @@ func (s *mainState) checkLauncherUpdate(win *mygo.Window) {
 		return
 	}
 	s.launcherUpdateCheckBusy = true
-	s.launcherUpdate = resumeText("正在检查更新…", "Checking for updates…")
+	s.launcherUpdate = i18n.T(i18n.KeyCmdCheckingForUpdates)
 	s.mu.Unlock()
 	route := s.updateDownloadRoute()
 	go func() {
