@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T00:58:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87513600,
+  "productionSHA256": "3388F4B47F5C34B04D67DD91D027F5D26923A054315CF1DC491F400398A197A7",
+  "defaultSHA256": "3388F4B47F5C34B04D67DD91D027F5D26923A054315CF1DC491F400398A197A7",
+  "note": "pass277 = pass276 + native launcher SVG nav icons, the 鲸屿桌面端 home title and the verified whale-head avatar."
+}
