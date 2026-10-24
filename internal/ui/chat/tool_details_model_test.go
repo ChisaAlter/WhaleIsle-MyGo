@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
@@ -431,3 +432,272 @@ func TestToolDetailsModelActualProjectionAndIndependentModels(t *testing.T) {
 }
 
 const toolDetailsModelInstalledGoldensForTest = `[{"name":"create root","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"get root","tool":"get_goal","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"update root","tool":"update_goal","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"empty ignores activation","valueRaw":"{\"goal\":null,\"activation\":{},\"unrelated\":1e9999}","want":{"items":[],"empty":"No goal"}},{"name":"empty without activation","valueRaw":"{\"goal\":null}","want":{"items":[],"empty":"No goal"}},{"name":"empty nested result only","nested":true,"resultOnly":true,"valueRaw":"{\"goal\":null}","want":{"items":[],"empty":"No goal"}},{"name":"active disarmed","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\"},\"activation\":\"disarmed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Awaiting continuation"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"paused disarmed","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"phase\":\"paused\"},\"activation\":\"disarmed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Paused"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"blocked disarmed","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"phase\":\"blocked\"},\"activation\":\"disarmed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Blocked"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"complete disarmed","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"phase\":\"complete\"},\"activation\":\"disarmed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Completed"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"reason exact text","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"blockedReason\":{\"code\":\" code \",\"message\":\" \\tblocked\\r\\n \",\"ignored\":1e9999}},\"activation\":\"armed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"},{"label":"Blocker","value":" \tblocked\r\n "}]}]}},{"name":"zero maximum with greater rounds","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"maxGoalRounds\":0},\"activation\":\"armed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 0"}]}]}},{"name":"safe counts and rounded fraction","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"revision\":9007199254740991,\"roundsStarted\":9007199254740991.1,\"maxGoalRounds\":1.99999999999999999},\"activation\":\"armed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"9007199254740991 / 2"}]}]}},{"name":"negative zero underflow","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"revision\":-0,\"roundsStarted\":-1e-9999,\"maxGoalRounds\":1e-9999},\"activation\":\"armed\"}","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"0 / 0"}]}]}},{"name":"duplicate last and ignored overflow","argsRaw":"{\"x\":null,\"x\":1e9999}","valueRaw":"{\"goal\":false,\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"objective\":null,\"objective\":\" last \",\"ignored\":1e9999},\"activation\":null,\"activation\":\"armed\",\"ignored\":1e9999}","want":{"items":[{"title":" last ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"NEL visible","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"objective\":\"\\u0085\"},\"activation\":\"armed\"}","want":{"items":[{"title":"\u0085","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"nested result only","nested":true,"resultOnly":true,"want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"nested result owns call","nested":true,"headTool":"wrong","headArgsRaw":"[]","want":{"items":[{"title":" objective ","fields":[{"label":"Status","value":"Active"},{"label":"Rounds","value":"2 / 10"}]}]}},{"name":"root result without head","resultOnly":true,"want":null},{"name":"nested embedded name is exact","nested":true,"tool":"functions.get_goal","want":null},{"name":"BOM blank objective","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"objective\":\" \\u00a0\\ufeff\"},\"activation\":\"armed\"}","want":null},{"name":"null reason declined","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"blockedReason\":null},\"activation\":\"armed\"}","want":null},{"name":"unsafe rounded count declined","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"roundsStarted\":9007199254740993},\"activation\":\"armed\"}","want":null},{"name":"boolean count declined","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"revision\":true},\"activation\":\"armed\"}","want":null},{"name":"null count declined","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\",\"maxGoalRounds\":null},\"activation\":\"armed\"}","want":null},{"name":"root args must be record","argsRaw":"[]","want":null},{"name":"root entire args required","argsRaw":"{} {}","want":null},{"name":"nested args must be record","nested":true,"argsRaw":"[]","want":null},{"name":"single text only","contentRaw":"[{\"type\":\"text\",\"text\":\"{\\\"goal\\\":null}\"},{\"type\":\"text\",\"text\":\"\"}]","want":null},{"name":"text type exact","contentRaw":"[{\"type\":\"Text\",\"text\":\"{\\\"goal\\\":null}\"}]","want":null},{"name":"whole result JSON only","valueRaw":"{\"goal\":{\"id\":\"g\",\"objective\":\" objective \",\"revision\":1,\"roundsStarted\":2,\"maxGoalRounds\":10,\"phase\":\"active\"},\"activation\":\"armed\"} {}","want":null},{"name":"error result","isError":true,"want":null},{"name":"unknown tool","tool":"get_goal ","want":null},{"name":"no goal","valueRaw":"{}","want":null},{"name":"nonrecord result","valueRaw":"[]","want":null}]`
+
+// Node 24 goldens for the installed Intl.DateTimeFormat shapes. The 2025-2026
+// instants were recorded with TZ=Asia/Shanghai; the year-0 and 0099 instants use
+// TZ=Etc/GMT-8 because Asia/Shanghai's pre-1901 LMT (+08:05:43) would shift them,
+// while these tests install a fixed +08:00 zone. Modern instants are identical
+// under both zones.
+func toolDetailsModelScheduleZoneForTest(t *testing.T) {
+	t.Helper()
+	previous := time.Local
+	time.Local = time.FixedZone("GMT+8", 8*60*60)
+	t.Cleanup(func() { time.Local = previous })
+}
+
+func toolDetailsModelScheduleRecordForTest(extra string) string {
+	return `{"id":" s1 ","prompt":" prompt ","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z"` + extra + `}`
+}
+
+func TestToolDetailsModelScheduleKinds(t *testing.T) {
+	toolDetailsModelScheduleZoneForTest(t)
+	cases := []struct{ name, extra, en, zh, enState, zhState string }{
+		{"at", `,"kind":"at"`, "Once", "单次", "Scheduled", "等待触发"},
+		{"after", `,"kind":"after","afterSeconds":90`, "Once", "单次", "Scheduled", "等待触发"},
+		{"after overdue", `,"kind":"after","afterSeconds":1,"state":"overdue"`, "Once", "单次", "Overdue, awaiting session resume", "已到期，等待会话恢复"},
+		{"every days", `,"kind":"every","everySeconds":172800`, "Every 2 d", "每 2 天", "Scheduled", "等待触发"},
+		{"every hours", `,"kind":"every","everySeconds":7200`, "Every 2 h", "每 2 小时", "Scheduled", "等待触发"},
+		{"every minutes", `,"kind":"every","everySeconds":420`, "Every 7 min", "每 7 分钟", "Scheduled", "等待触发"},
+		{"every seconds", `,"kind":"every","everySeconds":59`, "Every 59 s", "每 59 秒", "Scheduled", "等待触发"},
+		{"daily", `,"kind":"daily","time":"07:05:00.000","timeZone":"Asia/Shanghai"`, "Every day at 07:05 (Asia/Shanghai)", "每天 07:05（Asia/Shanghai）", "Scheduled", "等待触发"},
+		{"daily keeps plain seconds", `,"kind":"daily","time":"07:05:00","timeZone":"UTC"`, "Every day at 07:05:00 (UTC)", "每天 07:05:00（UTC）", "Scheduled", "等待触发"},
+		{"daily strips bare millis", `,"kind":"daily","time":"07:05.000","timeZone":"UTC"`, "Every day at 07:05 (UTC)", "每天 07:05（UTC）", "Scheduled", "等待触发"},
+		{"weekly", `,"kind":"weekly","time":"09:05:00.000","timeZone":"Asia/Shanghai","weekdays":[1,3,5]`, "Weekly on Mon, Wed, Fri at 09:05 (Asia/Shanghai)", "每周 周一、周三、周五 09:05（Asia/Shanghai）", "Scheduled", "等待触发"},
+		{"weekly duplicate day", `,"kind":"weekly","time":"09:05:00.000","timeZone":"UTC","weekdays":[7,7]`, "Weekly on Sun, Sun at 09:05 (UTC)", "每周 周日、周日 09:05（UTC）", "Scheduled", "等待触发"},
+		{"cron", `,"kind":"cron","expression":"*/5 * * * *","timeZone":"UTC"`, "Cron */5 * * * * (UTC)", "Cron */5 * * * *（UTC）", "Scheduled", "等待触发"},
+	}
+	for _, locale := range []struct{ name, when, frequency, state, date string }{
+		{"en", "Scheduled for", "Repeat", "Status", "Oct 24, 2026, 03:59:30 PM GMT+8"},
+		{"zh-CN", "计划时间", "重复", "状态", "2026年10月24日 GMT+8 15:59:30"},
+	} {
+		toolDetailsModelLocaleForTest(t, locale.name)
+		for _, tc := range cases {
+			frequency, state := tc.en, tc.enState
+			if locale.name != i18n.LocaleEN {
+				frequency, state = tc.zh, tc.zhState
+			}
+			want := &toolDetailsModel{Items: []toolDetailItem{{Title: " prompt ", Fields: []toolDetailField{
+				{locale.when, locale.date}, {locale.frequency, frequency}, {locale.state, state},
+			}}}}
+			got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, toolDetailsModelScheduleRecordForTest(tc.extra)))
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("%s/%s = %#v, want %#v", locale.name, tc.name, got, want)
+			}
+		}
+	}
+	value := toolDetailsModelScheduleRecordForTest(`,"kind":"at"`)
+	if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_update", `{}`, value)); got == nil || got.Summary != "" || got.Empty != "" || len(got.Items) != 1 {
+		t.Fatalf("schedule_update = %#v", got)
+	}
+}
+
+func TestToolDetailsModelScheduleDateText(t *testing.T) {
+	toolDetailsModelScheduleZoneForTest(t)
+	goldens := []struct{ instant, en, zh string }{
+		{"2026-10-24T07:59:30.000Z", "Oct 24, 2026, 03:59:30 PM GMT+8", "2026年10月24日 GMT+8 15:59:30"},
+		{"2026-10-23T16:00:00.000Z", "Oct 24, 2026, 12:00:00 AM GMT+8", "2026年10月24日 GMT+8 00:00:00"},
+		{"2026-10-24T04:00:00.000Z", "Oct 24, 2026, 12:00:00 PM GMT+8", "2026年10月24日 GMT+8 12:00:00"},
+		{"2026-06-15T12:00:00.000Z", "Jun 15, 2026, 08:00:00 PM GMT+8", "2026年6月15日 GMT+8 20:00:00"},
+		{"2026-01-01T00:30:05.000Z", "Jan 1, 2026, 08:30:05 AM GMT+8", "2026年1月1日 GMT+8 08:30:05"},
+		{"0000-02-03T04:05:06.000Z", "Feb 3, 1, 12:05:06 PM GMT+8", "1年2月3日 GMT+8 12:05:06"},
+		{"0099-12-31T23:59:59.999Z", "Jan 1, 100, 07:59:59 AM GMT+8", "100年1月1日 GMT+8 07:59:59"},
+	}
+	for _, locale := range []struct {
+		name string
+		en   bool
+	}{{"en", true}, {"zh-CN", false}} {
+		toolDetailsModelLocaleForTest(t, locale.name)
+		for _, golden := range goldens {
+			value := `{"id":"s","prompt":"p","deliveryMode":"host","state":"scheduled","scheduledAt":` + toolDetailsModelJSONForTest(t, golden.instant) + `,"kind":"at"}`
+			got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, value))
+			want := golden.zh
+			if locale.en {
+				want = golden.en
+			}
+			if got == nil || len(got.Items) != 1 || got.Items[0].Fields[0].Value != want {
+				t.Fatalf("%s %s = %#v, want %q", locale.name, golden.instant, got, want)
+			}
+		}
+	}
+}
+
+func TestToolDetailsModelScheduleRejects(t *testing.T) {
+	toolDetailsModelScheduleZoneForTest(t)
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	reject := func(values ...string) {
+		t.Helper()
+		for _, value := range values {
+			if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, value)); got != nil {
+				t.Fatalf("schedule_create %s produced %#v", value, got)
+			}
+		}
+	}
+	for _, at := range []string{
+		`"2026-10-24"`, `"2026-10-24T07:59:30Z"`, `"2026-10-24T07:59:30.000+00:00"`,
+		`"2026-10-24T07:59:30.000+08:00"`, `"2026-10-24T07:59:30.0000Z"`, `"2026-10-24T07:59:30.00Z"`,
+		`"2026-10-24T07:59:30.000z"`, `"2026-10-24 07:59:30.000Z"`, `"2026-02-30T00:00:00.000Z"`,
+		`"2026-10-24T24:00:00.000Z"`, `"2026-10-24T07:59:60.000Z"`, `"not a date"`, `""`,
+		`null`, `1`, `true`, `[]`, `{}`,
+	} {
+		reject(`{"id":"s","prompt":"p","deliveryMode":"host","state":"scheduled","scheduledAt":` + at + `,"kind":"at"}`)
+	}
+	base := toolDetailsModelScheduleRecordForTest(`,"kind":"at"`)
+	for _, field := range []string{`"deliveryMode":"local"`, `"deliveryMode":"HOST"`, `"deliveryMode":"host "`, `"deliveryMode":null`, `"deliveryMode":1`} {
+		reject(strings.Replace(base, `"deliveryMode":"host"`, field, 1))
+	}
+	for _, field := range []string{`"state":"fired"`, `"state":"Scheduled"`, `"state":"scheduled "`, `"state":null`, `"state":1`} {
+		reject(strings.Replace(base, `"state":"scheduled"`, field, 1))
+	}
+	reject(`{"prompt":"p","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"}`,
+		`{"id":"s","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"}`,
+		toolDetailsModelScheduleRecordForTest(`,"kind":"AT"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"later"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":null`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":1`),
+		toolDetailsModelScheduleRecordForTest(""),
+		`{"id":"s","prompt":"p","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"} {}`,
+		`{}`, `[]`, `null`, `1`, `"x"`, `{`)
+	for _, extra := range []string{
+		`,"id":""`, `,"id":" "`, `,"id":null`, `,"id":1`,
+		`,"prompt":""`, `,"prompt":" \t"`, `,"prompt":null`, `,"prompt":1`,
+		`,"kind":"after","afterSeconds":0`, `,"kind":"after","afterSeconds":-0`, `,"kind":"after","afterSeconds":-1`,
+		`,"kind":"after","afterSeconds":1.5`, `,"kind":"after","afterSeconds":"60"`, `,"kind":"after"`,
+		`,"kind":"after","afterSeconds":null`, `,"kind":"after","afterSeconds":true`, `,"kind":"after","afterSeconds":[]`,
+		`,"kind":"after","afterSeconds":9007199254740992`, `,"kind":"after","afterSeconds":9007199254740991.5`,
+		`,"kind":"after","afterSeconds":1e9999`,
+		`,"kind":"every","everySeconds":0`, `,"kind":"every","everySeconds":-60`, `,"kind":"every","everySeconds":2.5`,
+		`,"kind":"every","everySeconds":"60"`, `,"kind":"every"`, `,"kind":"every","everySeconds":9007199254740992`,
+	} {
+		reject(toolDetailsModelScheduleRecordForTest(extra))
+	}
+	for _, days := range []string{`[]`, `[0]`, `[8]`, `[1.5]`, `["1"]`, `[true]`, `[null]`, `[[1]]`, `[1,8]`, `{}`, `null`, `1`, `"1"`} {
+		reject(toolDetailsModelScheduleRecordForTest(`,"kind":"weekly","time":"09:05","timeZone":"UTC","weekdays":` + days))
+	}
+	reject(toolDetailsModelScheduleRecordForTest(`,"kind":"weekly","time":"09:05","timeZone":"UTC"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"weekly","time":" ","timeZone":"UTC","weekdays":[1]`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"weekly","time":"09:05","timeZone":" ","weekdays":[1]`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"daily","time":"  ","timeZone":"UTC"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"daily","time":"09:05","timeZone":" "`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"daily"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"cron","expression":" ","timeZone":"UTC"`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"cron","expression":"* * * * *","timeZone":" "`),
+		toolDetailsModelScheduleRecordForTest(`,"kind":"cron","timeZone":"UTC"`))
+}
+
+func TestToolDetailsModelScheduleRecordSpelling(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	for _, tc := range []struct{ name, extra, want string }{
+		{"title wins", `,"title":" raw title "`, " raw title "},
+		{"blank title falls back", `,"title":" \t\n "`, " prompt "},
+		{"null title falls back", `,"title":null`, " prompt "},
+		{"numeric title falls back", `,"title":1`, " prompt "},
+		{"duplicate title keeps last", `,"title":"a","title":"b"`, "b"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			value := toolDetailsModelScheduleRecordForTest(`,"kind":"at"` + tc.extra)
+			got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, value))
+			if got == nil || got.Items[0].Title != tc.want {
+				t.Fatalf("title = %#v, want %q", got, tc.want)
+			}
+		})
+	}
+	value := `{"id":" id ","prompt":" prompt ","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"}`
+	if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, value)); got == nil || got.Items[0].Title != " prompt " {
+		t.Fatalf("retained prompt = %#v", got)
+	}
+}
+
+func TestToolDetailsModelScheduleListAndDelete(t *testing.T) {
+	toolDetailsModelScheduleZoneForTest(t)
+	const entryA = `{"id":"a","prompt":" A ","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"}`
+	const entryB = `{"id":"b","title":" B ","prompt":" ignored ","deliveryMode":"session-local","state":"overdue","scheduledAt":"2026-10-23T16:00:00.000Z","kind":"after","afterSeconds":30}`
+	for _, locale := range []struct{ name, count, countZero, empty, when, frequency, state, scheduled, overdue, deleted, once, dateA, dateB string }{
+		{"en", "2 reminders", "0 reminders", "No reminders", "Scheduled for", "Repeat", "Status", "Scheduled", "Overdue, awaiting session resume", "Deleted", "Once", "Oct 24, 2026, 03:59:30 PM GMT+8", "Oct 24, 2026, 12:00:00 AM GMT+8"},
+		{"zh-CN", "2 个定时任务", "0 个定时任务", "没有定时任务", "计划时间", "重复", "状态", "等待触发", "已到期，等待会话恢复", "已删除", "单次", "2026年10月24日 GMT+8 15:59:30", "2026年10月24日 GMT+8 00:00:00"},
+	} {
+		toolDetailsModelLocaleForTest(t, locale.name)
+		want := &toolDetailsModel{Items: []toolDetailItem{
+			{Title: " A ", Fields: []toolDetailField{{locale.when, locale.dateA}, {locale.frequency, locale.once}, {locale.state, locale.scheduled}}},
+			{Title: " B ", Fields: []toolDetailField{{locale.when, locale.dateB}, {locale.frequency, locale.once}, {locale.state, locale.overdue}}},
+		}, Summary: locale.count, Empty: locale.empty}
+		got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_list", `{}`, `[`+entryA+`,`+entryB+`]`))
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s list = %#v, want %#v", locale.name, got, want)
+		}
+		empty := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_list", `{}`, `[]`))
+		if empty == nil || empty.Items == nil || len(empty.Items) != 0 || empty.Summary != locale.countZero || empty.Empty != locale.empty {
+			t.Fatalf("%s empty list = %#v", locale.name, empty)
+		}
+		for _, value := range []string{`{}`, `null`, `1`, `"x"`, `true`, `[`, `[] {}`, `[1]`, `[{}]`, `[` + entryA + `,{}]`, `[null]`} {
+			if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_list", `{}`, value)); got != nil {
+				t.Fatalf("%s invalid list %s produced %#v", locale.name, value, got)
+			}
+		}
+		deleted := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_delete", `{}`, `{"id":" s1 ","deleted":true}`))
+		wantDeleted := &toolDetailsModel{Items: []toolDetailItem{{Title: " s1 ", Fields: []toolDetailField{{locale.state, locale.deleted}}}}}
+		if !reflect.DeepEqual(deleted, wantDeleted) {
+			t.Fatalf("%s delete = %#v, want %#v", locale.name, deleted, wantDeleted)
+		}
+		for _, value := range []string{
+			`{"id":"s1","deleted":false}`, `{"id":"s1","deleted":"true"}`, `{"id":"s1","deleted":1}`,
+			`{"id":"s1"}`, `{"deleted":true}`, `{"id":" ","deleted":true}`, `{"id":1,"deleted":true}`,
+			`{"id":"s1","deleted":true} {}`, `[]`, `null`,
+		} {
+			if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "schedule_delete", `{}`, value)); got != nil {
+				t.Fatalf("%s invalid delete %s produced %#v", locale.name, value, got)
+			}
+		}
+	}
+}
+
+func TestToolDetailsModelScheduleProjectionAndIndependence(t *testing.T) {
+	toolDetailsModelScheduleZoneForTest(t)
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	value := `[{"id":"a","prompt":" A ","deliveryMode":"host","state":"scheduled","scheduledAt":"2026-10-24T07:59:30.000Z","kind":"at"},{"id":"b","prompt":" B ","deliveryMode":"session-local","state":"overdue","scheduledAt":"2026-10-23T16:00:00.000Z","kind":"cron","expression":"0 9 * * *","timeZone":"UTC"}]`
+	for _, nested := range []bool{false, true} {
+		call := toolDetailsModelCallForTest(t, nested, "schedule_list", `{}`, value)
+		if nested {
+			head := toolDetailsModelCallForTest(t, true, "other", `[]`, value)
+			call.Call = head.Call
+		}
+		messages := []session.Message{*call.Call, *call.Result}
+		before := toolDetailsModelJSONForTest(t, messages)
+		for _, window := range []struct {
+			name string
+			raw  []session.Message
+			want bool
+		}{{"paired", messages, true}, {"result only", messages[1:], nested}, {"head only", messages[:1], false}} {
+			projected := session.ProjectToolMessages(window.raw)
+			if len(projected) != 1 || projected[0].Tool == nil {
+				t.Fatalf("nested=%v %s: wire records did not project", nested, window.name)
+			}
+			view := projected[0].Tool
+			got := toolDetailsModelFor(view)
+			if (got != nil) != window.want {
+				t.Fatalf("nested=%v %s: model=%#v", nested, window.name, got)
+			}
+			if got == nil {
+				continue
+			}
+			if got.Summary != "2 reminders" || len(got.Items) != 2 || got.Items[1].Title != " B " {
+				t.Fatalf("nested=%v %s: projected model=%#v", nested, window.name, got)
+			}
+			sourceBefore := toolDetailsModelJSONForTest(t, view)
+			second := toolDetailsModelFor(view)
+			secondBefore := toolDetailsModelJSONForTest(t, second)
+			got.Summary, got.Empty, got.Items[0].Title = "changed", "changed", "changed"
+			got.Items[0].Fields[0].Label = "changed"
+			got.Items[0].Fields = append(got.Items[0].Fields, toolDetailField{Value: "appended"})
+			got.Items = append(got.Items, toolDetailItem{Title: "appended"})
+			if secondBefore != toolDetailsModelJSONForTest(t, second) || !reflect.DeepEqual(second, toolDetailsModelFor(view)) {
+				t.Fatal("models share mutable item or field slices")
+			}
+			if sourceBefore != toolDetailsModelJSONForTest(t, view) {
+				t.Fatal("derivation or model mutation changed retained call/events")
+			}
+		}
+		if before != toolDetailsModelJSONForTest(t, messages) {
+			t.Fatal("projection or model derivation mutated source messages")
+		}
+	}
+}

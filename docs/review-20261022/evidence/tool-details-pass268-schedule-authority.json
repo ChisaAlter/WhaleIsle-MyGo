@@ -1,0 +1,183 @@
+{
+  "schema": "tool-details-pass268-schedule-authority/v1",
+  "files": [
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\details-card-model.js",
+      "sha256": "61babee6dd3ea6351bcceffb9540641744853638e6dc8640aea3323884cd2da7",
+      "bytes": 9080
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-conversation\\lib\\types\\client\\locales.js",
+      "sha256": "01618495e97ead047b7f242651b725e689b5aac718bc846d71e55a1603377f54",
+      "bytes": 59141
+    }
+  ],
+  "sourceFacts": {
+    "scheduleItemBytes": 2995,
+    "topLevelShape": "function scheduleItem(value, t, locale) {\n    if (!detailRecord(value) || !nonempty(value.id) || !nonempty(value.prompt)\n        || typeof value.scheduledAt !== 'string'\n        // `host` is the current Host-delivered view; `session-local` stays readable\n        // for results recorded before the Host storage domain owned delivery.\n        || (value.deliveryMode !== 'host' && value.deliveryMode !== 'session-local')\n        || (value.state !== 'scheduled' && value.state !== 'overdue'))\n        return null;\n    const date = new Date(value.scheduledAt);\n    if (!Number.isFinite(date.getTime()) || date.toISOString() !== value.scheduledAt)\n        return null;\n    ",
+    "weekdayKeys": [
+      "'detail.weekday.1'",
+      "'detail.weekday.2'",
+      "'detail.weekday.3'",
+      "'detail.weekday.4'",
+      "'detail.weekday.5'",
+      "'detail.weekday.6'",
+      "'detail.weekday.7'"
+    ],
+    "itemShape": "title = nonempty(title) ? title : prompt; fields = Scheduled for / Repeat / Status",
+    "listSummary": "summary = detail.schedule.count{count}; empty = detail.schedule.empty",
+    "delete": "record && nonempty(id) && deleted===true -> {title:id, fields:[{Status, Deleted}]}",
+    "dateFormat": "Intl.DateTimeFormat(locale,{year numeric,month short,day numeric,hour 2-digit,minute 2-digit,second 2-digit,timeZoneName short}) with raw scheduledAt fallback"
+  },
+  "labels": {
+    "detail.recordedResult": [
+      "调用结果",
+      "Recorded result"
+    ],
+    "detail.empty": [
+      "暂无结果",
+      "No results"
+    ],
+    "detail.schedule.count": [
+      "{count} 个定时任务",
+      "{count} reminders"
+    ],
+    "detail.schedule.empty": [
+      "没有定时任务",
+      "No reminders"
+    ],
+    "detail.schedule.deleted": [
+      "已删除",
+      "Deleted"
+    ],
+    "detail.schedule.once": [
+      "单次",
+      "Once"
+    ],
+    "detail.schedule.every": [
+      "每 {interval}",
+      "Every {interval}"
+    ],
+    "detail.schedule.daily": [
+      "每天 {time}（{zone}）",
+      "Every day at {time} ({zone})"
+    ],
+    "detail.schedule.weekly": [
+      "每周 {days} {time}（{zone}）",
+      "Weekly on {days} at {time} ({zone})"
+    ],
+    "detail.schedule.cron": [
+      "Cron {expression}（{zone}）",
+      "Cron {expression} ({zone})"
+    ],
+    "detail.schedule.when": [
+      "计划时间",
+      "Scheduled for"
+    ],
+    "detail.schedule.frequency": [
+      "重复",
+      "Repeat"
+    ],
+    "detail.schedule.scheduled": [
+      "等待触发",
+      "Scheduled"
+    ],
+    "detail.schedule.overdue": [
+      "已到期，等待会话恢复",
+      "Overdue, awaiting session resume"
+    ],
+    "detail.state": [
+      "状态",
+      "Status"
+    ],
+    "detail.days": [
+      "{count} 天",
+      "{count} d"
+    ],
+    "detail.hours": [
+      "{count} 小时",
+      "{count} h"
+    ],
+    "detail.minutes": [
+      "{count} 分钟",
+      "{count} min"
+    ],
+    "detail.seconds": [
+      "{count} 秒",
+      "{count} s"
+    ],
+    "detail.weekday.1": [
+      "周一",
+      "Mon"
+    ],
+    "detail.weekday.2": [
+      "周二",
+      "Tue"
+    ],
+    "detail.weekday.3": [
+      "周三",
+      "Wed"
+    ],
+    "detail.weekday.4": [
+      "周四",
+      "Thu"
+    ],
+    "detail.weekday.5": [
+      "周五",
+      "Fri"
+    ],
+    "detail.weekday.6": [
+      "周六",
+      "Sat"
+    ],
+    "detail.weekday.7": [
+      "周日",
+      "Sun"
+    ],
+    "detail.weekday.join": [
+      "、",
+      ", "
+    ]
+  },
+  "intlReference": {
+    "timeZone": "Asia/Shanghai",
+    "node": "v24.21.0",
+    "options": "year numeric, month short, day numeric, hour 2-digit, minute 2-digit, second 2-digit, timeZoneName short",
+    "samples": [
+      {
+        "locale": "en",
+        "instant": "2026-10-25T01:30:00.000Z",
+        "text": "Oct 25, 2026, 09:30:00 AM GMT+8"
+      },
+      {
+        "locale": "en",
+        "instant": "2026-10-24T02:00:00.000Z",
+        "text": "Oct 24, 2026, 10:00:00 AM GMT+8"
+      },
+      {
+        "locale": "en",
+        "instant": "2026-01-05T16:05:09.000Z",
+        "text": "Jan 6, 2026, 12:05:09 AM GMT+8"
+      },
+      {
+        "locale": "zh-CN",
+        "instant": "2026-10-25T01:30:00.000Z",
+        "text": "2026年10月25日 GMT+8 09:30:00"
+      },
+      {
+        "locale": "zh-CN",
+        "instant": "2026-10-24T02:00:00.000Z",
+        "text": "2026年10月24日 GMT+8 10:00:00"
+      },
+      {
+        "locale": "zh-CN",
+        "instant": "2026-01-05T16:05:09.000Z",
+        "text": "2026年1月6日 GMT+8 00:05:09"
+      }
+    ]
+  },
+  "limits": [
+    "Schedule date text is composed in Go to match Node Intl for en and zh-CN in one fixed zone; other zones, DST labels and locale variants are unverified.",
+    "Reminder rows reuse the card and Inspect behaviour verified by the goal native fixture; no new native run or browser acceptance was made for this change."
+  ]
+}

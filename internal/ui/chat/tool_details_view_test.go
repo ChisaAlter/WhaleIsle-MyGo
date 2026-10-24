@@ -105,7 +105,7 @@ func TestToolDetailsViewRecordedGoalAndInspectIdentity(t *testing.T) {
 			if len(*opened) != 3 || !(*expanded)["details-view|tool:goal-123"] {
 				t.Fatal("keyboard action", opened, expanded)
 			}
-			tt.SetTime(time.Unix(12300, 0).Add(3*time.Second))
+			tt.SetTime(time.Unix(12300, 0).Add(3 * time.Second))
 			tt.Frame()
 			toolDetailsViewExport(t, tt, fmt.Sprintf("goal-dark-%v", dark))
 		})
@@ -277,5 +277,59 @@ func toolDetailsViewExport(t *testing.T, tt *ui.Tester, name string) {
 	raw, _ := json.MarshalIndent(map[string]any{"rects": boxes, "texts": tt.Texts()}, "", "  ")
 	if err := os.WriteFile(prefix+".json", raw, 0600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func toolDetailsScheduleCall(t *testing.T, name string, value any) *session.ToolCallView {
+	t.Helper()
+	call := toolDetailsModelCallForTest(t, false, name, `{}`, toolDetailsModelJSONForTest(t, value))
+	call.Name, call.Arguments = name, `{}`
+	return call
+}
+
+// Installed reminder rows reuse the goal card but add a collapsed count summary,
+// a multiple-item list and a deleted receipt.
+func TestToolDetailsViewScheduleListEmptyAndDelete(t *testing.T) {
+	oldLocale, oldPrefs := i18n.Locale(), theme.CurrentPreferences()
+	i18n.SetLocale(i18n.LocaleEN)
+	theme.SetPreferences(theme.Defaults())
+	t.Cleanup(func() { i18n.SetLocale(oldLocale); theme.SetPreferences(oldPrefs) })
+	first := map[string]any{"id": "s-1", "prompt": "Recorded standup prompt", "title": "Standup", "scheduledAt": "2026-10-25T01:30:00.000Z", "deliveryMode": "host", "state": "scheduled", "kind": "daily", "time": "09:30:00.000", "timeZone": "Asia/Shanghai"}
+	second := map[string]any{"id": "s-2", "prompt": "Recorded hourly prompt", "scheduledAt": "2026-10-24T02:00:00.000Z", "deliveryMode": "session-local", "state": "overdue", "kind": "every", "everySeconds": 3600}
+	tt, expanded, _ := toolDetailsViewFixture(t, toolDetailsScheduleCall(t, "schedule_list", []any{first, second}), false, false, true, 640)
+	if !tt.HasText("2 reminders") {
+		t.Fatal("collapsed list summary", tt.Texts())
+	}
+	openDetailsView(tt, expanded)
+	for _, want := range []string{"Standup", "Recorded hourly prompt", "Scheduled for", "Repeat", "Every day at 09:30 (Asia/Shanghai)", "Every 1 h"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	for _, label := range []string{"Scheduled", "Overdue, awaiting session resume"} {
+		if _, ok := tt.Find(label); !ok {
+			t.Fatal("state label", label, tt.Texts())
+		}
+	}
+	tt, expanded, _ = toolDetailsViewFixture(t, toolDetailsScheduleCall(t, "schedule_list", []any{}), false, false, true, 640)
+	if !tt.HasText("0 reminders") {
+		t.Fatal("empty list summary", tt.Texts())
+	}
+	openDetailsView(tt, expanded)
+	if !tt.HasText("No reminders") || tt.HasText("Scheduled for") {
+		t.Fatal("empty list card", tt.Texts())
+	}
+	tt, expanded, _ = toolDetailsViewFixture(t, toolDetailsScheduleCall(t, "schedule_delete", map[string]any{"id": "s-9", "deleted": true}), false, false, true, 640)
+	openDetailsView(tt, expanded)
+	for _, want := range []string{"s-9", "Status", "Deleted"} {
+		if !tt.HasText(want) {
+			t.Fatal("delete card", want, tt.Texts())
+		}
+	}
+	// An invalid recorded receipt falls back to raw evidence instead of a card.
+	tt, expanded, _ = toolDetailsViewFixture(t, toolDetailsScheduleCall(t, "schedule_list", map[string]any{"id": "s-1"}), false, false, true, 640)
+	openDetailsView(tt, expanded)
+	if tt.HasText("Scheduled for") || !tt.HasText("OUT") {
+		t.Fatal("invalid list kept a card", tt.Texts())
 	}
 }

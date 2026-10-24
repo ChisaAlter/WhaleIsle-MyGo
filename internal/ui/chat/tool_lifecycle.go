@@ -139,9 +139,12 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	if !gallery.TextOnly {
 		summary := toolSummaryModelFor(call, gallery.Cwd, gallery.Home)
 		if info.details != nil {
-			if len(info.details.Items) > 0 {
+			switch {
+			case info.details.Summary != "":
+				summary.Summary = info.details.Summary
+			case len(info.details.Items) > 0:
 				summary.Summary = info.details.Items[0].Title
-			} else {
+			default:
 				summary.Summary = info.details.Empty
 			}
 		}
