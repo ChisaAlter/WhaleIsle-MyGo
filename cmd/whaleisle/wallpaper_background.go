@@ -93,6 +93,17 @@ func wallpaperSourcePath(hostAccepted bool, hostImage, configPath string) string
 	return strings.TrimSpace(configPath)
 }
 
+// wallpaperBackdropPrefs keeps an image-less backdrop flat. The native profile
+// stores wallpaperImage: "" and the page then shows the theme base colour, so
+// the ambient aurora must not paint when no image is set; a seeded or Host
+// image keeps the stored effect.
+func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpapers.Preferences {
+	if strings.TrimSpace(path) == "" {
+		prefs.Effect = "none"
+	}
+	return prefs
+}
+
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
 	path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
 	g := s.wallpaperEditor()
@@ -103,7 +114,7 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 		chrome.ConfigureBackdrop("", wallpapers.Defaults())
 		return func(*ui.Painter, ui.Rect) {}
 	}
-	return chrome.WallpaperBackgroundPainter(path, g.Prefs, reducedMotion...)
+	return chrome.WallpaperBackgroundPainter(path, wallpaperBackdropPrefs(path, g.Prefs), reducedMotion...)
 }
 
 // Existing local-dropdown selections also become durable app-owned copies on save.
