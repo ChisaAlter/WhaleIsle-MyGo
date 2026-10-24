@@ -33,6 +33,34 @@ function usableURL(s) {
   } catch { return ''; }
 }
 
+const shellRoutes = typeof __mygoShellRoutes !== 'undefined' ? __mygoShellRoutes : null;
+let shellMountedOn = null;
+function pairingOfferToken(raw) {
+  try {
+    const match = String(raw || '').match(/#offer=([^&\s]+)/);
+    if (!match) return '';
+    const offer = JSON.parse(Buffer.from(match[1], 'base64url').toString('utf8'));
+    return offer?.authBootstrap?.pairingToken || '';
+  } catch { return ''; }
+}
+// Mount POST /__remote__/shell/<name> in front of the SPA/proxy (native
+// reference/electron/src/main/remote.js:708-730, 779-807). Tokens are compared
+// constant-time and never logged; the pairing offer token is the one the phone
+// holds, config.remoteToken is the desktop-saved one.
+function ensureShellRoutes() {
+  try {
+    const server = remote && remote.mobileWebServer;
+    if (!server || !shellRoutes || shellMountedOn === server) return;
+    shellMountedOn = server;
+    shellRoutes.mountShellRoutes(server, {
+      tokens: () => [config.remoteToken, pairingOfferToken(remote.pairing && remote.pairing.url)].filter(Boolean),
+      git: gitGate.git,
+      roots: () => (Array.isArray(config.remoteGitRoots) ? config.remoteGitRoots : []),
+      config: () => config,
+    });
+  } catch { /* the SPA server keeps working without the shell routes */ }
+}
+setInterval(ensureShellRoutes, 500).unref?.();
 const originalGit=loadOriginalGit(__MYGO_GIT_SOURCES__);
 const gitPending=new Map();let gitSequence=0;
 const draftPending = new Map();

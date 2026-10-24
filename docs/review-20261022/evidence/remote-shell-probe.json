@@ -20,22 +20,94 @@
       "contentType": "text/html; charset=utf-8"
     },
     {
+      "name": "listDir bearer :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/listDir",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/listDir\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "getConfig bearer :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/getConfig",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/getConfig\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "gitCommit bearer :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/gitCommit",
+      "auth": "bearer",
+      "statusCode": 404,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eCannot POST /__remote__/shell/gitCommit\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "name": "fileWrite bad json :3499",
+      "method": "POST",
+      "url": "http://127.0.0.1:3499/__remote__/shell/gitStatus",
+      "auth": "bearer",
+      "statusCode": 400,
+      "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003ctitle\u003eError\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cpre\u003eSyntaxError: Unexpected token \u0026#39;\u0026quot;\u0026#39;, \u0026quot;\u0026quot;not-json\u0026quot;\u0026quot; is not valid JSON\u003cbr\u003e \u0026nbsp; \u0026nbsp;at JSON.parse (\u0026lt;anonymous\u0026gt;)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at createStrictSyntaxError (C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\lib\\types\\json.js:169:10)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at parse (C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\lib\\types\\json.js:90:15)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\lib\\read.js:146:18\u003cbr\u003e \u0026nbsp; \u0026nbsp;at AsyncResource.runInAsyncScope (node:async_hooks:227:14)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at invokeCallback (C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\node_modules\\raw-body\\index.js:238:16)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at done (C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\node_modules\\raw-body\\index.js:227:7)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at IncomingMessage.onEnd (C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\body-parser\\node_modules\\raw-body\\index.js:287:7)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at IncomingMessage.emit (node:events:514:28)\u003cbr\u003e \u0026nbsp; \u0026nbsp;at endReadableNT (node:internal/streams/readable:1764:12)\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
       "name": "gitStatus anonymous :3180",
       "method": "POST",
       "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
       "auth": "",
-      "statusCode": 405,
-      "body": "Method not allowed",
-      "contentType": "text/html; charset=utf-8"
+      "statusCode": 401,
+      "body": "unauthorized",
+      "contentType": "text/plain; charset=utf-8"
     },
     {
       "name": "gitStatus bearer :3180",
       "method": "POST",
       "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
       "auth": "bearer",
-      "statusCode": 405,
-      "body": "Method not allowed",
-      "contentType": "text/html; charset=utf-8"
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"refName\":\"probe-branch\",\"hasWorkingTreeChanges\":true,\"workingTree\":{\"files\":[{\"path\":\"probe.txt\",\"insertions\":0,\"deletions\":0}],\"insertions\":0,\"deletions\":0},\"hasUpstream\":false,\"aheadCount\":0,\"behindCount\":0,\"aheadOfDefaultCount\":0,\"aheadUnreliable\":false,\"pr\":null,\"isDefaultRef\":false,\"hasPrimaryRemote\":false,\"isRepo\":true}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "listDir bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/listDir",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"ok\":true,\"cwd\":\"C:\\\\Users\\\\48818\\\\AppData\\\\Local\\\\Temp\\\\mygo-shell-repo-3061140163\",\"entries\":[{\"name\":\".git\",\"type\":\"directory\"},{\"name\":\"probe.txt\",\"type\":\"file\"}]}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "getConfig bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/getConfig",
+      "auth": "bearer",
+      "statusCode": 200,
+      "body": "{\"ok\":true,\"result\":{\"remoteEnabled\":true,\"remoteMode\":\"lan\",\"remotePort\":3499,\"remoteBindAddress\":\"127.0.0.1\",\"remoteLanTls\":false,\"remoteGitEnabled\":true}}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "gitCommit bearer :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitCommit",
+      "auth": "bearer",
+      "statusCode": 501,
+      "body": "{\"ok\":false,\"error\":\"shell unavailable\"}",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "fileWrite bad json :3180",
+      "method": "POST",
+      "url": "http://127.0.0.1:3180/__remote__/shell/gitStatus",
+      "auth": "bearer",
+      "statusCode": 400,
+      "body": "{\"ok\":false,\"error\":\"Mobile Git is not authorized for this workspace\"}",
+      "contentType": "application/json; charset=utf-8"
     },
     {
       "name": "listDir bearer :3499",
@@ -66,14 +138,14 @@
     }
   ],
   "snapshot": {
-    "expiresAt": "2026-10-25T04:12:06.491+08:00",
+    "expiresAt": "2026-10-25T04:27:05.995+08:00",
     "hasPairingURL": true,
     "listening": true,
     "pairingURLShape": "http://127.0.0.1:3180/#offer=\u003credacted\u003e",
     "relayConnected": false,
     "status": "ready"
   },
-  "tokenHash": "9136b76cb86d619fe18a8289595ec0762a2a5f5114a8908e3fbc882ca35de90b",
-  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-1448824660",
+  "tokenHash": "78159c2d17cf637cd08f943e350e23bd8f0a5b540246203b3b7fabc8ee50592e",
+  "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-shell-probe-390974148",
   "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor"
 }

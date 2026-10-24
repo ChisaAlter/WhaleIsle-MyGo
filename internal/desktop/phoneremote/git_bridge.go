@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+//go:embed shell_routes.cjs
+var shellRoutesScript string
+
 //go:embed git-gate.cjs
 var gitGateScript string
 
@@ -38,7 +41,11 @@ func composedBridgeScript() string {
 	draftUI, _ := json.Marshal(mobileDraftUI)
 	bridge := strings.ReplaceAll(bridgeScript, "__MYGO_GIT_SOURCES__", string(encoded))
 	bridge = strings.ReplaceAll(bridge, "__MYGO_MOBILE_DRAFT_UI__", string(draftUI))
-	return gitGateScript + "\n" + deviceActionsScript + "\n" + mobileDraftServer + "\n" + bridge
+	// The shell routes are a plain CommonJS module; wrap it so the composed
+	// bridge script can require it without a second file next to the temp script.
+	shellRoutes := "const __mygoShellRoutes=(function(){const module={exports:{}};const exports=module.exports;\n" +
+		shellRoutesScript + "\nreturn module.exports;})();\n"
+	return shellRoutes + gitGateScript + "\n" + deviceActionsScript + "\n" + mobileDraftServer + "\n" + bridge
 }
 
 // SetGitAuthorizer checks the current desktop session for each authenticated
