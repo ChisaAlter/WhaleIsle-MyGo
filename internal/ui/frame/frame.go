@@ -668,6 +668,13 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					enter.cancel()
 					return
 				}
+				// Round245: the hero card grew by 41.34 (round244b 155.34) while the
+				// centred stack kept its 38-DIP foot, so the whole stack rose by
+				// 20.67. This fixed block above the stack restores slogan 314.67 /
+				// preset 373.33 / card top 409.33; the foot stays 38.
+				if emptyHero || phase == conversationSettling {
+					ui.Box(c).Key("conversation-hero-top-block").Height(41.34).Shrink(0)
+				}
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
 				// Prefer live commands/list from main; do not invent stub slash rows.
