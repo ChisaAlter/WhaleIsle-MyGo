@@ -1,0 +1,3392 @@
+{
+  "row": "D-MAIN-flat2",
+  "tolerance_dip": 1.0,
+  "scale": 1.5,
+  "registration": {
+    "native_origin": {
+      "x": -2800.0,
+      "y": 0.0,
+      "detected_by": "window node Window/'Whale Isle' depth 0"
+    },
+    "mygo_origin": {
+      "x": 0.0,
+      "y": 0.0,
+      "detected_by": "window node Window/'Whale Isle' depth 0"
+    },
+    "native_caption_bottom": {
+      "y": 40.0,
+      "detected_by": "window-control triad bottom (3 buttons in the top 64 DIP)"
+    },
+    "mygo_caption_bottom": {
+      "y": 40.67,
+      "detected_by": "window-control triad bottom (3 buttons in the top 64 DIP)"
+    },
+    "caption_offset_dip": 0.67,
+    "note": "caption-relative subtracts each side's own caption bottom, so a control placed a few DIP lower inside a same-height band does not smear into every page delta; caption_offset_dip records how much that registration absorbed."
+  },
+  "native_controls": 64,
+  "mygo_controls": 44,
+  "aliases": {
+    "新建会话": "新会话",
+    "探索未至之鲸": "探索未至之境",
+    "拖动调整输入框高度": "调整输入框高度",
+    "拖动调整输入框宽度": "调整输入框宽度",
+    "收起侧边栏": "收起左侧栏",
+    "切换右侧栏": "切换右侧面板",
+    "展开面板": "展开右侧面板",
+    "选择工作区": "选择工作区…",
+    "搜索会话": "搜索会话…",
+    "添加工作区": "选择工作区…"
+  },
+  "absolute": {
+    "matched": 22,
+    "within_1dip": 0,
+    "outside_1dip": 22,
+    "missing_native_only": 37,
+    "extra_mygo_only": 27,
+    "alias_matches": [
+      {
+        "native": "切换右侧栏",
+        "mygo": "切换右侧面板"
+      },
+      {
+        "native": "探索未至之鲸",
+        "mygo": "探索未至之境"
+      },
+      {
+        "native": "搜索会话",
+        "mygo": "搜索会话…"
+      },
+      {
+        "native": "收起侧边栏",
+        "mygo": "收起左侧栏"
+      },
+      {
+        "native": "新建会话",
+        "mygo": "新会话"
+      },
+      {
+        "native": "添加工作区",
+        "mygo": "选择工作区…"
+      },
+      {
+        "native": "选择工作区",
+        "mygo": "选择工作区…"
+      }
+    ],
+    "normalized_matches": 0,
+    "dominant_delta": {
+      "dx": 2800,
+      "dy": 1,
+      "count": 8,
+      "of": 22
+    },
+    "within_1dip_names": [],
+    "outside_tolerance": [
+      {
+        "type": "Button",
+        "name": "标准模式",
+        "matched_name": "标准模式",
+        "native": {
+          "x": -2144.67,
+          "y": 373.33,
+          "w": 106.67,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 675.33,
+          "y": 393.33,
+          "w": 100,
+          "h": 28
+        },
+        "delta": {
+          "x": 2820.0,
+          "y": 20.0,
+          "w": -6.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "发送消息",
+        "matched_name": "发送消息",
+        "native": {
+          "x": -1611.33,
+          "y": 522,
+          "w": 34.67,
+          "h": 34.67
+        },
+        "mygo": {
+          "x": 1202,
+          "y": 499.33,
+          "w": 34,
+          "h": 34
+        },
+        "delta": {
+          "x": 2813.33,
+          "y": -22.67,
+          "w": -0.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之鲸",
+        "matched_name": "探索未至之境",
+        "native": {
+          "x": -2034.67,
+          "y": 314.67,
+          "w": 156.67,
+          "h": 35.33
+        },
+        "mygo": {
+          "x": 766,
+          "y": 332.67,
+          "w": 156,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800.67,
+          "y": 18.0,
+          "w": -0.67,
+          "h": -3.33
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "收起侧边栏",
+        "matched_name": "收起左侧栏",
+        "native": {
+          "x": -2560,
+          "y": 22,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 240,
+          "y": 22.67,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Text",
+        "name": "工作区",
+        "matched_name": "工作区",
+        "native": {
+          "x": -2784,
+          "y": 254.67,
+          "w": 42,
+          "h": 18.67
+        },
+        "mygo": {
+          "x": 16,
+          "y": 255.33,
+          "w": 124,
+          "h": 16
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.66,
+          "w": 82,
+          "h": -2.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "多选会话",
+        "matched_name": "多选会话",
+        "native": {
+          "x": -2624,
+          "y": 250,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 176,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": -0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "视图选项",
+        "matched_name": "视图选项",
+        "native": {
+          "x": -2592,
+          "y": 250,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 208,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": -0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "添加工作区",
+        "matched_name": "选择工作区…",
+        "native": {
+          "x": -2560,
+          "y": 250,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 240,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": -0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "账号菜单",
+        "matched_name": "账号菜单",
+        "native": {
+          "x": -2786,
+          "y": 806,
+          "w": 252,
+          "h": 44
+        },
+        "mygo": {
+          "x": 14,
+          "y": 813.33,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 2800,
+          "y": 7.33,
+          "w": 0,
+          "h": -8
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "切换终端抽屉",
+        "matched_name": "切换终端抽屉",
+        "native": {
+          "x": -1540,
+          "y": 8,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1260,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800,
+          "y": 4.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧栏",
+        "matched_name": "切换右侧面板",
+        "native": {
+          "x": -1504,
+          "y": 8,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1296,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800,
+          "y": 4.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "最小化",
+        "matched_name": "最小化",
+        "native": {
+          "x": -1464,
+          "y": 8,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1336,
+          "y": 8.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "最大化",
+        "matched_name": "最大化",
+        "native": {
+          "x": -1432,
+          "y": 8,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1368,
+          "y": 8.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "关闭",
+        "matched_name": "关闭",
+        "native": {
+          "x": -1400,
+          "y": 8,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1400,
+          "y": 8.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "插件",
+        "matched_name": "插件",
+        "native": {
+          "x": -2786,
+          "y": 120,
+          "w": 252,
+          "h": 36
+        },
+        "mygo": {
+          "x": 14,
+          "y": 120.67,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "自动化任务",
+        "matched_name": "自动化任务",
+        "native": {
+          "x": -2786,
+          "y": 160,
+          "w": 252,
+          "h": 36
+        },
+        "mygo": {
+          "x": 14,
+          "y": 160.67,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "鲸鱼娘",
+        "matched_name": "鲸鱼娘",
+        "native": {
+          "x": -2786,
+          "y": 200,
+          "w": 252,
+          "h": 36
+        },
+        "mygo": {
+          "x": 14,
+          "y": 200.67,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 2800,
+          "y": 0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "搜索会话",
+        "matched_name": "搜索会话…",
+        "native": {
+          "x": -2656,
+          "y": 250,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 144,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": -0.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": -2784,
+          "y": 16.67,
+          "w": 168.67,
+          "h": 38.67
+        },
+        "mygo": {
+          "x": 14,
+          "y": 70.67,
+          "w": 252,
+          "h": 38
+        },
+        "delta": {
+          "x": 2798,
+          "y": 54.0,
+          "w": 83.33,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": -2786,
+          "y": 70,
+          "w": 252,
+          "h": 38
+        },
+        "mygo": {
+          "x": 12,
+          "y": 373.33,
+          "w": 256,
+          "h": 32
+        },
+        "delta": {
+          "x": 2798,
+          "y": 303.33,
+          "w": 4,
+          "h": -6
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Text",
+        "name": "大肥鱼版",
+        "matched_name": "大肥鱼版",
+        "native": {
+          "x": -1864,
+          "y": 321.33,
+          "w": 48.67,
+          "h": 15.33
+        },
+        "mygo": {
+          "x": 928.67,
+          "y": 338.67,
+          "w": 62.67,
+          "h": 20
+        },
+        "delta": {
+          "x": 2792.67,
+          "y": 17.34,
+          "w": 14.0,
+          "h": 4.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "选择工作区",
+        "matched_name": "选择工作区…",
+        "native": {
+          "x": -2298,
+          "y": 373.33,
+          "w": 150,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 240,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 2538,
+          "y": -124.0,
+          "w": -122,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      }
+    ],
+    "missing": [
+      {
+        "type": "Group",
+        "name": "全局面板",
+        "native": {
+          "x": -2788,
+          "y": 120,
+          "w": 256,
+          "h": 116
+        }
+      },
+      {
+        "type": "Tree",
+        "name": "会话",
+        "native": {
+          "x": -2792,
+          "y": 286,
+          "w": 270,
+          "h": 516
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框高度",
+        "native": {
+          "x": -2310,
+          "y": 405.33,
+          "w": 733.33,
+          "h": 8.67
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": -2322,
+          "y": 417.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": -1573.33,
+          "y": 417.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "native": {
+          "x": -2318,
+          "y": 417.33,
+          "w": 745.33,
+          "h": 52.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "添加文件或调用指令",
+        "native": {
+          "x": -2310,
+          "y": 527.33,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "访问模式，当前：工作区内修改",
+        "native": {
+          "x": -2270,
+          "y": 527.33,
+          "w": 126.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "选择模型，当前 DeepSeek V4.1 Flash 1017，推理等级 Max",
+        "native": {
+          "x": -1831.33,
+          "y": 527.33,
+          "w": 208.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "展开面板",
+        "native": {
+          "x": -1389.33,
+          "y": 0.67,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换分支",
+        "native": {
+          "x": -1660,
+          "y": 10.67,
+          "w": 52.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Commit & push",
+        "native": {
+          "x": -1607.33,
+          "y": 10.67,
+          "w": 34.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Git 操作",
+        "native": {
+          "x": -1572.67,
+          "y": 10.67,
+          "w": 24,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "搜索会话名称",
+        "native": {
+          "x": -2628,
+          "y": 254,
+          "w": 4,
+          "h": 20
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "whale-code",
+        "native": {
+          "x": -2788,
+          "y": 286,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleBridge",
+        "native": {
+          "x": -2788,
+          "y": 324,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "全面看看这玩意 8小时",
+        "native": {
+          "x": -2788,
+          "y": 360,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "鲸Bridge用量统计页面整改 1天",
+        "native": {
+          "x": -2788,
+          "y": 394,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Whale Isle",
+        "native": {
+          "x": -2788,
+          "y": 430,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Deepseek-Harness-Desktop",
+        "native": {
+          "x": -2788,
+          "y": 468,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleIsle-MyGo",
+        "native": {
+          "x": -2788,
+          "y": 506,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "新会话",
+        "native": {
+          "x": -2788,
+          "y": 542,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "进行中 1 个子智能体运行中 和鲸屿本身同步到什么进度了 7小时",
+        "native": {
+          "x": -2788,
+          "y": 576,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "ChisaCloudCode",
+        "native": {
+          "x": -2788,
+          "y": 612,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已完成 移除本地同步，专注云端 7小时",
+        "native": {
+          "x": -2788,
+          "y": 648,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "dsh-pad",
+        "native": {
+          "x": -2788,
+          "y": 684,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "无工作目录",
+        "native": {
+          "x": -2788,
+          "y": 722,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "在 Linux 服务器部署 QQ 桥接 10小时",
+        "native": {
+          "x": -2788,
+          "y": 758,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "了解 Claude Projects 功能 19小时",
+        "native": {
+          "x": -2788,
+          "y": 792,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "不要参考其他文件，画一个鹈 1天",
+        "native": {
+          "x": -2788,
+          "y": 826,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已归档",
+        "native": {
+          "x": -2788,
+          "y": 862,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "调整终端高度",
+        "native": {
+          "x": -2520,
+          "y": 860,
+          "w": 1160,
+          "h": 6
+        }
+      },
+      {
+        "type": "Button",
+        "name": "左右分屏",
+        "native": {
+          "x": -1510.67,
+          "y": 868.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "上下分屏",
+        "native": {
+          "x": -1482.67,
+          "y": 868.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新建终端",
+        "native": {
+          "x": -1425.33,
+          "y": 868.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "关闭终端",
+        "native": {
+          "x": -1396.67,
+          "y": 868.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Text",
+        "name": "暂无终端会话",
+        "native": {
+          "x": -1979.33,
+          "y": 868,
+          "w": 78.67,
+          "h": 15.33
+        }
+      }
+    ],
+    "extra": [
+      {
+        "type": "Text",
+        "name": "鲸",
+        "mygo": {
+          "x": 58,
+          "y": 20,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "屿",
+        "mygo": {
+          "x": 74.67,
+          "y": 20,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "WHALE ISLE",
+        "mygo": {
+          "x": 100,
+          "y": 21.33,
+          "w": 66.67,
+          "h": 18.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "BASED ON DEEPSEEK HARNESS",
+        "mygo": {
+          "x": 58,
+          "y": 42.67,
+          "w": 174,
+          "h": 10
+        }
+      },
+      {
+        "type": "Button",
+        "name": "收起左侧栏",
+        "mygo": {
+          "x": 240,
+          "y": 22.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 14,
+          "y": 70.67,
+          "w": 252,
+          "h": 38
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 12,
+          "y": 373.33,
+          "w": 256,
+          "h": 32
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "Sidebar divider",
+        "mygo": {
+          "x": 280,
+          "y": 0.67,
+          "w": 0.67,
+          "h": 858.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "初始化 Git",
+        "mygo": {
+          "x": 1158,
+          "y": 14.67,
+          "w": 93.33,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧面板",
+        "mygo": {
+          "x": 1296,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        }
+      },
+      {
+        "type": "Image",
+        "name": "Conversation hero fish",
+        "mygo": {
+          "x": 722,
+          "y": 336,
+          "w": 34,
+          "h": 24.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之境",
+        "mygo": {
+          "x": 766,
+          "y": 332.67,
+          "w": 156,
+          "h": 32
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer hero preset row",
+        "mygo": {
+          "x": 469.33,
+          "y": 393.33,
+          "w": 774,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer card",
+        "mygo": {
+          "x": 469.33,
+          "y": 429.33,
+          "w": 774,
+          "h": 114
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 20,
+          "y": 301.33,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "workspace",
+        "mygo": {
+          "x": 36,
+          "y": 295.33,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区操作 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 244,
+          "y": 301.33,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 ::scratch",
+        "mygo": {
+          "x": 20,
+          "y": 344.67,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无工作目录",
+        "mygo": {
+          "x": 36,
+          "y": 338.67,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无目录会话",
+        "mygo": {
+          "x": 244,
+          "y": 344.67,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "已归档",
+        "mygo": {
+          "x": 12,
+          "y": 414.67,
+          "w": 256,
+          "h": 24
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace",
+        "mygo": {
+          "x": 489.33,
+          "y": 393.33,
+          "w": 150,
+          "h": 28
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft",
+        "mygo": {
+          "x": 469.33,
+          "y": 437.33,
+          "w": 774,
+          "h": 52
+        }
+      },
+      {
+        "type": "Button",
+        "name": "命令列表",
+        "mygo": {
+          "x": 477.33,
+          "y": 504.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区内修改",
+        "mygo": {
+          "x": 529.33,
+          "y": 504.67,
+          "w": 124,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls",
+        "mygo": {
+          "x": 966.67,
+          "y": 501.33,
+          "w": 268.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Button",
+        "name": "deepseek-official/deepseek-flash",
+        "mygo": {
+          "x": 972.67,
+          "y": 504.67,
+          "w": 216.67,
+          "h": 28
+        }
+      }
+    ]
+  },
+  "window": {
+    "matched": 22,
+    "within_1dip": 11,
+    "outside_1dip": 11,
+    "missing_native_only": 37,
+    "extra_mygo_only": 27,
+    "alias_matches": [
+      {
+        "native": "切换右侧栏",
+        "mygo": "切换右侧面板"
+      },
+      {
+        "native": "探索未至之鲸",
+        "mygo": "探索未至之境"
+      },
+      {
+        "native": "搜索会话",
+        "mygo": "搜索会话…"
+      },
+      {
+        "native": "收起侧边栏",
+        "mygo": "收起左侧栏"
+      },
+      {
+        "native": "新建会话",
+        "mygo": "新会话"
+      },
+      {
+        "native": "添加工作区",
+        "mygo": "选择工作区…"
+      },
+      {
+        "native": "选择工作区",
+        "mygo": "选择工作区…"
+      }
+    ],
+    "normalized_matches": 0,
+    "dominant_delta": {
+      "dx": 0,
+      "dy": 1,
+      "count": 8,
+      "of": 22
+    },
+    "within_1dip_names": [
+      "关闭",
+      "多选会话",
+      "插件",
+      "搜索会话",
+      "收起侧边栏",
+      "最大化",
+      "最小化",
+      "添加工作区",
+      "自动化任务",
+      "视图选项",
+      "鲸鱼娘"
+    ],
+    "outside_tolerance": [
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": 14.0,
+          "y": 70.0,
+          "w": 252,
+          "h": 38
+        },
+        "mygo": {
+          "x": 12.0,
+          "y": 373.33,
+          "w": 256,
+          "h": 32
+        },
+        "delta": {
+          "x": -2.0,
+          "y": 303.33,
+          "w": 4,
+          "h": -6
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "选择工作区",
+        "matched_name": "选择工作区…",
+        "native": {
+          "x": 502.0,
+          "y": 373.33,
+          "w": 150,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 240.0,
+          "y": 249.33,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": -262.0,
+          "y": -124.0,
+          "w": -122,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": 16.0,
+          "y": 16.67,
+          "w": 168.67,
+          "h": 38.67
+        },
+        "mygo": {
+          "x": 14.0,
+          "y": 70.67,
+          "w": 252,
+          "h": 38
+        },
+        "delta": {
+          "x": -2.0,
+          "y": 54.0,
+          "w": 83.33,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Text",
+        "name": "工作区",
+        "matched_name": "工作区",
+        "native": {
+          "x": 16.0,
+          "y": 254.67,
+          "w": 42,
+          "h": 18.67
+        },
+        "mygo": {
+          "x": 16.0,
+          "y": 255.33,
+          "w": 124,
+          "h": 16
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 0.66,
+          "w": 82,
+          "h": -2.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "发送消息",
+        "matched_name": "发送消息",
+        "native": {
+          "x": 1188.67,
+          "y": 522.0,
+          "w": 34.67,
+          "h": 34.67
+        },
+        "mygo": {
+          "x": 1202.0,
+          "y": 499.33,
+          "w": 34,
+          "h": 34
+        },
+        "delta": {
+          "x": 13.33,
+          "y": -22.67,
+          "w": -0.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "标准模式",
+        "matched_name": "标准模式",
+        "native": {
+          "x": 655.33,
+          "y": 373.33,
+          "w": 106.67,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 675.33,
+          "y": 393.33,
+          "w": 100,
+          "h": 28
+        },
+        "delta": {
+          "x": 20.0,
+          "y": 20.0,
+          "w": -6.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之鲸",
+        "matched_name": "探索未至之境",
+        "native": {
+          "x": 765.33,
+          "y": 314.67,
+          "w": 156.67,
+          "h": 35.33
+        },
+        "mygo": {
+          "x": 766.0,
+          "y": 332.67,
+          "w": 156,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.67,
+          "y": 18.0,
+          "w": -0.67,
+          "h": -3.33
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Text",
+        "name": "大肥鱼版",
+        "matched_name": "大肥鱼版",
+        "native": {
+          "x": 936.0,
+          "y": 321.33,
+          "w": 48.67,
+          "h": 15.33
+        },
+        "mygo": {
+          "x": 928.67,
+          "y": 338.67,
+          "w": 62.67,
+          "h": 20
+        },
+        "delta": {
+          "x": -7.33,
+          "y": 17.34,
+          "w": 14.0,
+          "h": 4.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "账号菜单",
+        "matched_name": "账号菜单",
+        "native": {
+          "x": 14.0,
+          "y": 806.0,
+          "w": 252,
+          "h": 44
+        },
+        "mygo": {
+          "x": 14.0,
+          "y": 813.33,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 7.33,
+          "w": 0,
+          "h": -8
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "切换终端抽屉",
+        "matched_name": "切换终端抽屉",
+        "native": {
+          "x": 1260.0,
+          "y": 8.0,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1260.0,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 4.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧栏",
+        "matched_name": "切换右侧面板",
+        "native": {
+          "x": 1296.0,
+          "y": 8.0,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1296.0,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 4.67,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "window"
+      }
+    ],
+    "missing": [
+      {
+        "type": "Group",
+        "name": "全局面板",
+        "native": {
+          "x": 12.0,
+          "y": 120.0,
+          "w": 256,
+          "h": 116
+        }
+      },
+      {
+        "type": "Tree",
+        "name": "会话",
+        "native": {
+          "x": 8.0,
+          "y": 286.0,
+          "w": 270,
+          "h": 516
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框高度",
+        "native": {
+          "x": 490.0,
+          "y": 405.33,
+          "w": 733.33,
+          "h": 8.67
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": 478.0,
+          "y": 417.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": 1226.67,
+          "y": 417.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "native": {
+          "x": 482.0,
+          "y": 417.33,
+          "w": 745.33,
+          "h": 52.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "添加文件或调用指令",
+        "native": {
+          "x": 490.0,
+          "y": 527.33,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "访问模式，当前：工作区内修改",
+        "native": {
+          "x": 530.0,
+          "y": 527.33,
+          "w": 126.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "选择模型，当前 DeepSeek V4.1 Flash 1017，推理等级 Max",
+        "native": {
+          "x": 968.67,
+          "y": 527.33,
+          "w": 208.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "展开面板",
+        "native": {
+          "x": 1410.67,
+          "y": 0.67,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换分支",
+        "native": {
+          "x": 1140.0,
+          "y": 10.67,
+          "w": 52.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Commit & push",
+        "native": {
+          "x": 1192.67,
+          "y": 10.67,
+          "w": 34.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Git 操作",
+        "native": {
+          "x": 1227.33,
+          "y": 10.67,
+          "w": 24,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "搜索会话名称",
+        "native": {
+          "x": 172.0,
+          "y": 254.0,
+          "w": 4,
+          "h": 20
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "whale-code",
+        "native": {
+          "x": 12.0,
+          "y": 286.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleBridge",
+        "native": {
+          "x": 12.0,
+          "y": 324.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "全面看看这玩意 8小时",
+        "native": {
+          "x": 12.0,
+          "y": 360.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "鲸Bridge用量统计页面整改 1天",
+        "native": {
+          "x": 12.0,
+          "y": 394.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Whale Isle",
+        "native": {
+          "x": 12.0,
+          "y": 430.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Deepseek-Harness-Desktop",
+        "native": {
+          "x": 12.0,
+          "y": 468.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleIsle-MyGo",
+        "native": {
+          "x": 12.0,
+          "y": 506.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "新会话",
+        "native": {
+          "x": 12.0,
+          "y": 542.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "进行中 1 个子智能体运行中 和鲸屿本身同步到什么进度了 7小时",
+        "native": {
+          "x": 12.0,
+          "y": 576.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "ChisaCloudCode",
+        "native": {
+          "x": 12.0,
+          "y": 612.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已完成 移除本地同步，专注云端 7小时",
+        "native": {
+          "x": 12.0,
+          "y": 648.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "dsh-pad",
+        "native": {
+          "x": 12.0,
+          "y": 684.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "无工作目录",
+        "native": {
+          "x": 12.0,
+          "y": 722.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "在 Linux 服务器部署 QQ 桥接 10小时",
+        "native": {
+          "x": 12.0,
+          "y": 758.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "了解 Claude Projects 功能 19小时",
+        "native": {
+          "x": 12.0,
+          "y": 792.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "不要参考其他文件，画一个鹈 1天",
+        "native": {
+          "x": 12.0,
+          "y": 826.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已归档",
+        "native": {
+          "x": 12.0,
+          "y": 862.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "调整终端高度",
+        "native": {
+          "x": 280.0,
+          "y": 860.0,
+          "w": 1160,
+          "h": 6
+        }
+      },
+      {
+        "type": "Button",
+        "name": "左右分屏",
+        "native": {
+          "x": 1289.33,
+          "y": 868.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "上下分屏",
+        "native": {
+          "x": 1317.33,
+          "y": 868.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新建终端",
+        "native": {
+          "x": 1374.67,
+          "y": 868.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "关闭终端",
+        "native": {
+          "x": 1403.33,
+          "y": 868.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Text",
+        "name": "暂无终端会话",
+        "native": {
+          "x": 820.67,
+          "y": 868.0,
+          "w": 78.67,
+          "h": 15.33
+        }
+      }
+    ],
+    "extra": [
+      {
+        "type": "Text",
+        "name": "鲸",
+        "mygo": {
+          "x": 58.0,
+          "y": 20.0,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "屿",
+        "mygo": {
+          "x": 74.67,
+          "y": 20.0,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "WHALE ISLE",
+        "mygo": {
+          "x": 100.0,
+          "y": 21.33,
+          "w": 66.67,
+          "h": 18.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "BASED ON DEEPSEEK HARNESS",
+        "mygo": {
+          "x": 58.0,
+          "y": 42.67,
+          "w": 174,
+          "h": 10
+        }
+      },
+      {
+        "type": "Button",
+        "name": "收起左侧栏",
+        "mygo": {
+          "x": 240.0,
+          "y": 22.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 14.0,
+          "y": 70.67,
+          "w": 252,
+          "h": 38
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 12.0,
+          "y": 373.33,
+          "w": 256,
+          "h": 32
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "Sidebar divider",
+        "mygo": {
+          "x": 280.0,
+          "y": 0.67,
+          "w": 0.67,
+          "h": 858.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "初始化 Git",
+        "mygo": {
+          "x": 1158.0,
+          "y": 14.67,
+          "w": 93.33,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧面板",
+        "mygo": {
+          "x": 1296.0,
+          "y": 12.67,
+          "w": 32,
+          "h": 32
+        }
+      },
+      {
+        "type": "Image",
+        "name": "Conversation hero fish",
+        "mygo": {
+          "x": 722.0,
+          "y": 336.0,
+          "w": 34,
+          "h": 24.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之境",
+        "mygo": {
+          "x": 766.0,
+          "y": 332.67,
+          "w": 156,
+          "h": 32
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer hero preset row",
+        "mygo": {
+          "x": 469.33,
+          "y": 393.33,
+          "w": 774,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer card",
+        "mygo": {
+          "x": 469.33,
+          "y": 429.33,
+          "w": 774,
+          "h": 114
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 20.0,
+          "y": 301.33,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "workspace",
+        "mygo": {
+          "x": 36.0,
+          "y": 295.33,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区操作 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 244.0,
+          "y": 301.33,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 ::scratch",
+        "mygo": {
+          "x": 20.0,
+          "y": 344.67,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无工作目录",
+        "mygo": {
+          "x": 36.0,
+          "y": 338.67,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无目录会话",
+        "mygo": {
+          "x": 244.0,
+          "y": 344.67,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "已归档",
+        "mygo": {
+          "x": 12.0,
+          "y": 414.67,
+          "w": 256,
+          "h": 24
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace",
+        "mygo": {
+          "x": 489.33,
+          "y": 393.33,
+          "w": 150,
+          "h": 28
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft",
+        "mygo": {
+          "x": 469.33,
+          "y": 437.33,
+          "w": 774,
+          "h": 52
+        }
+      },
+      {
+        "type": "Button",
+        "name": "命令列表",
+        "mygo": {
+          "x": 477.33,
+          "y": 504.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区内修改",
+        "mygo": {
+          "x": 529.33,
+          "y": 504.67,
+          "w": 124,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls",
+        "mygo": {
+          "x": 966.67,
+          "y": 501.33,
+          "w": 268.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Button",
+        "name": "deepseek-official/deepseek-flash",
+        "mygo": {
+          "x": 972.67,
+          "y": 504.67,
+          "w": 216.67,
+          "h": 28
+        }
+      }
+    ]
+  },
+  "caption": {
+    "matched": 22,
+    "within_1dip": 7,
+    "outside_1dip": 15,
+    "missing_native_only": 37,
+    "extra_mygo_only": 27,
+    "alias_matches": [
+      {
+        "native": "切换右侧栏",
+        "mygo": "切换右侧面板"
+      },
+      {
+        "native": "探索未至之鲸",
+        "mygo": "探索未至之境"
+      },
+      {
+        "native": "搜索会话",
+        "mygo": "搜索会话…"
+      },
+      {
+        "native": "收起侧边栏",
+        "mygo": "收起左侧栏"
+      },
+      {
+        "native": "新建会话",
+        "mygo": "新会话"
+      },
+      {
+        "native": "添加工作区",
+        "mygo": "选择工作区…"
+      },
+      {
+        "native": "选择工作区",
+        "mygo": "选择工作区…"
+      }
+    ],
+    "normalized_matches": 0,
+    "dominant_delta": {
+      "dx": 0,
+      "dy": 0,
+      "count": 8,
+      "of": 22
+    },
+    "within_1dip_names": [
+      "关闭",
+      "插件",
+      "收起侧边栏",
+      "最大化",
+      "最小化",
+      "自动化任务",
+      "鲸鱼娘"
+    ],
+    "outside_tolerance": [
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": 14.0,
+          "y": 30.0,
+          "w": 252,
+          "h": 38
+        },
+        "mygo": {
+          "x": 12.0,
+          "y": 332.66,
+          "w": 256,
+          "h": 32
+        },
+        "delta": {
+          "x": -2.0,
+          "y": 302.66,
+          "w": 4,
+          "h": -6
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "选择工作区",
+        "matched_name": "选择工作区…",
+        "native": {
+          "x": 502.0,
+          "y": 333.33,
+          "w": 150,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 240.0,
+          "y": 208.66,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": -262.0,
+          "y": -124.67,
+          "w": -122,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "新建会话",
+        "matched_name": "新会话",
+        "native": {
+          "x": 16.0,
+          "y": -23.33,
+          "w": 168.67,
+          "h": 38.67
+        },
+        "mygo": {
+          "x": 14.0,
+          "y": 30.0,
+          "w": 252,
+          "h": 38
+        },
+        "delta": {
+          "x": -2.0,
+          "y": 53.33,
+          "w": 83.33,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Text",
+        "name": "工作区",
+        "matched_name": "工作区",
+        "native": {
+          "x": 16.0,
+          "y": 214.67,
+          "w": 42,
+          "h": 18.67
+        },
+        "mygo": {
+          "x": 16.0,
+          "y": 214.66,
+          "w": 124,
+          "h": 16
+        },
+        "delta": {
+          "x": 0.0,
+          "y": -0.01,
+          "w": 82,
+          "h": -2.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "发送消息",
+        "matched_name": "发送消息",
+        "native": {
+          "x": 1188.67,
+          "y": 482.0,
+          "w": 34.67,
+          "h": 34.67
+        },
+        "mygo": {
+          "x": 1202.0,
+          "y": 458.66,
+          "w": 34,
+          "h": 34
+        },
+        "delta": {
+          "x": 13.33,
+          "y": -23.34,
+          "w": -0.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "标准模式",
+        "matched_name": "标准模式",
+        "native": {
+          "x": 655.33,
+          "y": 333.33,
+          "w": 106.67,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 675.33,
+          "y": 352.66,
+          "w": 100,
+          "h": 28
+        },
+        "delta": {
+          "x": 20.0,
+          "y": 19.33,
+          "w": -6.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之鲸",
+        "matched_name": "探索未至之境",
+        "native": {
+          "x": 765.33,
+          "y": 274.67,
+          "w": 156.67,
+          "h": 35.33
+        },
+        "mygo": {
+          "x": 766.0,
+          "y": 292.0,
+          "w": 156,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.67,
+          "y": 17.33,
+          "w": -0.67,
+          "h": -3.33
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Text",
+        "name": "大肥鱼版",
+        "matched_name": "大肥鱼版",
+        "native": {
+          "x": 936.0,
+          "y": 281.33,
+          "w": 48.67,
+          "h": 15.33
+        },
+        "mygo": {
+          "x": 928.67,
+          "y": 298.0,
+          "w": 62.67,
+          "h": 20
+        },
+        "delta": {
+          "x": -7.33,
+          "y": 16.67,
+          "w": 14.0,
+          "h": 4.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "账号菜单",
+        "matched_name": "账号菜单",
+        "native": {
+          "x": 14.0,
+          "y": 766.0,
+          "w": 252,
+          "h": 44
+        },
+        "mygo": {
+          "x": 14.0,
+          "y": 772.66,
+          "w": 252,
+          "h": 36
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 6.66,
+          "w": 0,
+          "h": -8
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "切换终端抽屉",
+        "matched_name": "切换终端抽屉",
+        "native": {
+          "x": 1260.0,
+          "y": -32.0,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1260.0,
+          "y": -28.0,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 4.0,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧栏",
+        "matched_name": "切换右侧面板",
+        "native": {
+          "x": 1296.0,
+          "y": -32.0,
+          "w": 32,
+          "h": 32
+        },
+        "mygo": {
+          "x": 1296.0,
+          "y": -28.0,
+          "w": 32,
+          "h": 32
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 4.0,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "多选会话",
+        "matched_name": "多选会话",
+        "native": {
+          "x": 176.0,
+          "y": 210.0,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 176.0,
+          "y": 208.66,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 0.0,
+          "y": -1.34,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "视图选项",
+        "matched_name": "视图选项",
+        "native": {
+          "x": 208.0,
+          "y": 210.0,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 208.0,
+          "y": 208.66,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 0.0,
+          "y": -1.34,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "添加工作区",
+        "matched_name": "选择工作区…",
+        "native": {
+          "x": 240.0,
+          "y": 210.0,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 240.0,
+          "y": 208.66,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 0.0,
+          "y": -1.34,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Button",
+        "name": "搜索会话",
+        "matched_name": "搜索会话…",
+        "native": {
+          "x": 144.0,
+          "y": 210.0,
+          "w": 28,
+          "h": 28
+        },
+        "mygo": {
+          "x": 144.0,
+          "y": 208.66,
+          "w": 28,
+          "h": 28
+        },
+        "delta": {
+          "x": 0.0,
+          "y": -1.34,
+          "w": 0,
+          "h": 0
+        },
+        "within_1dip": false,
+        "space": "caption"
+      }
+    ],
+    "missing": [
+      {
+        "type": "Group",
+        "name": "全局面板",
+        "native": {
+          "x": 12.0,
+          "y": 80.0,
+          "w": 256,
+          "h": 116
+        }
+      },
+      {
+        "type": "Tree",
+        "name": "会话",
+        "native": {
+          "x": 8.0,
+          "y": 246.0,
+          "w": 270,
+          "h": 516
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框高度",
+        "native": {
+          "x": 490.0,
+          "y": 365.33,
+          "w": 733.33,
+          "h": 8.67
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": 478.0,
+          "y": 377.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "拖动调整输入框宽度",
+        "native": {
+          "x": 1226.67,
+          "y": 377.33,
+          "w": 8.67,
+          "h": 147.33
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "native": {
+          "x": 482.0,
+          "y": 377.33,
+          "w": 745.33,
+          "h": 52.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "添加文件或调用指令",
+        "native": {
+          "x": 490.0,
+          "y": 487.33,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "访问模式，当前：工作区内修改",
+        "native": {
+          "x": 530.0,
+          "y": 487.33,
+          "w": 126.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "选择模型，当前 DeepSeek V4.1 Flash 1017，推理等级 Max",
+        "native": {
+          "x": 968.67,
+          "y": 487.33,
+          "w": 208.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "展开面板",
+        "native": {
+          "x": 1410.67,
+          "y": -39.33,
+          "w": 28.67,
+          "h": 28.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换分支",
+        "native": {
+          "x": 1140.0,
+          "y": -29.33,
+          "w": 52.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Commit & push",
+        "native": {
+          "x": 1192.67,
+          "y": -29.33,
+          "w": 34.67,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Git 操作",
+        "native": {
+          "x": 1227.33,
+          "y": -29.33,
+          "w": 24,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "搜索会话名称",
+        "native": {
+          "x": 172.0,
+          "y": 214.0,
+          "w": 4,
+          "h": 20
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "whale-code",
+        "native": {
+          "x": 12.0,
+          "y": 246.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleBridge",
+        "native": {
+          "x": 12.0,
+          "y": 284.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "全面看看这玩意 8小时",
+        "native": {
+          "x": 12.0,
+          "y": 320.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "鲸Bridge用量统计页面整改 1天",
+        "native": {
+          "x": 12.0,
+          "y": 354.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Whale Isle",
+        "native": {
+          "x": 12.0,
+          "y": 390.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "Deepseek-Harness-Desktop",
+        "native": {
+          "x": 12.0,
+          "y": 428.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "WhaleIsle-MyGo",
+        "native": {
+          "x": 12.0,
+          "y": 466.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "新会话",
+        "native": {
+          "x": 12.0,
+          "y": 502.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "进行中 1 个子智能体运行中 和鲸屿本身同步到什么进度了 7小时",
+        "native": {
+          "x": 12.0,
+          "y": 536.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "ChisaCloudCode",
+        "native": {
+          "x": 12.0,
+          "y": 572.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已完成 移除本地同步，专注云端 7小时",
+        "native": {
+          "x": 12.0,
+          "y": 608.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "dsh-pad",
+        "native": {
+          "x": 12.0,
+          "y": 644.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "无工作目录",
+        "native": {
+          "x": 12.0,
+          "y": 682.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "在 Linux 服务器部署 QQ 桥接 10小时",
+        "native": {
+          "x": 12.0,
+          "y": 718.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "了解 Claude Projects 功能 19小时",
+        "native": {
+          "x": 12.0,
+          "y": 752.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "不要参考其他文件，画一个鹈 1天",
+        "native": {
+          "x": 12.0,
+          "y": 786.0,
+          "w": 256.67,
+          "h": 32
+        }
+      },
+      {
+        "type": "TreeItem",
+        "name": "已归档",
+        "native": {
+          "x": 12.0,
+          "y": 822.0,
+          "w": 256.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "调整终端高度",
+        "native": {
+          "x": 280.0,
+          "y": 820.0,
+          "w": 1160,
+          "h": 6
+        }
+      },
+      {
+        "type": "Button",
+        "name": "左右分屏",
+        "native": {
+          "x": 1289.33,
+          "y": 828.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "上下分屏",
+        "native": {
+          "x": 1317.33,
+          "y": 828.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新建终端",
+        "native": {
+          "x": 1374.67,
+          "y": 828.67,
+          "w": 28.67,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "关闭终端",
+        "native": {
+          "x": 1403.33,
+          "y": 828.67,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Text",
+        "name": "暂无终端会话",
+        "native": {
+          "x": 820.67,
+          "y": 828.0,
+          "w": 78.67,
+          "h": 15.33
+        }
+      }
+    ],
+    "extra": [
+      {
+        "type": "Text",
+        "name": "鲸",
+        "mygo": {
+          "x": 58.0,
+          "y": -20.67,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "屿",
+        "mygo": {
+          "x": 74.67,
+          "y": -20.67,
+          "w": 16.67,
+          "h": 22
+        }
+      },
+      {
+        "type": "Text",
+        "name": "WHALE ISLE",
+        "mygo": {
+          "x": 100.0,
+          "y": -19.34,
+          "w": 66.67,
+          "h": 18.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "BASED ON DEEPSEEK HARNESS",
+        "mygo": {
+          "x": 58.0,
+          "y": 2.0,
+          "w": 174,
+          "h": 10
+        }
+      },
+      {
+        "type": "Button",
+        "name": "收起左侧栏",
+        "mygo": {
+          "x": 240.0,
+          "y": -18.0,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 14.0,
+          "y": 30.0,
+          "w": 252,
+          "h": 38
+        }
+      },
+      {
+        "type": "Button",
+        "name": "新会话",
+        "mygo": {
+          "x": 12.0,
+          "y": 332.66,
+          "w": 256,
+          "h": 32
+        }
+      },
+      {
+        "type": "Separator",
+        "name": "Sidebar divider",
+        "mygo": {
+          "x": 280.0,
+          "y": -40.0,
+          "w": 0.67,
+          "h": 858.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "初始化 Git",
+        "mygo": {
+          "x": 1158.0,
+          "y": -26.0,
+          "w": 93.33,
+          "h": 26.67
+        }
+      },
+      {
+        "type": "Button",
+        "name": "切换右侧面板",
+        "mygo": {
+          "x": 1296.0,
+          "y": -28.0,
+          "w": 32,
+          "h": 32
+        }
+      },
+      {
+        "type": "Image",
+        "name": "Conversation hero fish",
+        "mygo": {
+          "x": 722.0,
+          "y": 295.33,
+          "w": 34,
+          "h": 24.67
+        }
+      },
+      {
+        "type": "Text",
+        "name": "探索未至之境",
+        "mygo": {
+          "x": 766.0,
+          "y": 292.0,
+          "w": 156,
+          "h": 32
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer hero preset row",
+        "mygo": {
+          "x": 469.33,
+          "y": 352.66,
+          "w": 774,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer card",
+        "mygo": {
+          "x": 469.33,
+          "y": 388.66,
+          "w": 774,
+          "h": 114
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 20.0,
+          "y": 260.66,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "workspace",
+        "mygo": {
+          "x": 36.0,
+          "y": 254.66,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区操作 61553c7c-8b47-4ba8-a921-1f877ccf5458",
+        "mygo": {
+          "x": 244.0,
+          "y": 260.66,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "折叠工作区 ::scratch",
+        "mygo": {
+          "x": 20.0,
+          "y": 304.0,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无工作目录",
+        "mygo": {
+          "x": 36.0,
+          "y": 298.0,
+          "w": 208,
+          "h": 32
+        }
+      },
+      {
+        "type": "Button",
+        "name": "无目录会话",
+        "mygo": {
+          "x": 244.0,
+          "y": 304.0,
+          "w": 16,
+          "h": 20
+        }
+      },
+      {
+        "type": "Button",
+        "name": "已归档",
+        "mygo": {
+          "x": 12.0,
+          "y": 374.0,
+          "w": 256,
+          "h": 24
+        }
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace",
+        "mygo": {
+          "x": 489.33,
+          "y": 352.66,
+          "w": 150,
+          "h": 28
+        }
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft",
+        "mygo": {
+          "x": 469.33,
+          "y": 396.66,
+          "w": 774,
+          "h": 52
+        }
+      },
+      {
+        "type": "Button",
+        "name": "命令列表",
+        "mygo": {
+          "x": 477.33,
+          "y": 464.0,
+          "w": 28,
+          "h": 28
+        }
+      },
+      {
+        "type": "Button",
+        "name": "工作区内修改",
+        "mygo": {
+          "x": 529.33,
+          "y": 464.0,
+          "w": 124,
+          "h": 28
+        }
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls",
+        "mygo": {
+          "x": 966.67,
+          "y": 460.66,
+          "w": 268.67,
+          "h": 34
+        }
+      },
+      {
+        "type": "Button",
+        "name": "deepseek-official/deepseek-flash",
+        "mygo": {
+          "x": 972.67,
+          "y": 464.0,
+          "w": 216.67,
+          "h": 28
+        }
+      }
+    ]
+  },
+  "window_outside_dy_median": 18.0,
+  "regions": {
+    "sidebar": {
+      "box_px": [
+        0,
+        0,
+        427,
+        1290
+      ],
+      "pixels": 550830,
+      "mismatch": 550632,
+      "ratio": 0.9996
+    },
+    "header": {
+      "box_px": [
+        427,
+        0,
+        2160,
+        90
+      ],
+      "pixels": 155970,
+      "mismatch": 155913,
+      "ratio": 0.9996
+    },
+    "hero": {
+      "box_px": [
+        427,
+        90,
+        2160,
+        600
+      ],
+      "pixels": 883830,
+      "mismatch": 883830,
+      "ratio": 1.0
+    },
+    "composer": {
+      "box_px": [
+        427,
+        600,
+        2160,
+        930
+      ],
+      "pixels": 571890,
+      "mismatch": 571890,
+      "ratio": 1.0
+    },
+    "footer": {
+      "box_px": [
+        0,
+        1200,
+        427,
+        1290
+      ],
+      "pixels": 38430,
+      "mismatch": 38404,
+      "ratio": 0.9993
+    }
+  }
+}
