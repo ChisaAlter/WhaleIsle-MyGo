@@ -21,6 +21,16 @@ from PIL import Image, ImageChops
 
 TOLERANCE_DIP = 1.0
 
+# Accessible names the two apps use for the same control. Electron names the
+# button 新建会话 while MyGo names it 新会话 and puts a Text child inside; a name
+# mismatch is name drift, not a missing control.
+ALIASES = {
+    "新建会话": "新会话",
+    "探索未至之鲸": "探索未至之境",
+    "拖动调整输入框高度": "调整输入框高度",
+    "拖动调整输入框宽度": "调整输入框宽度",
+}
+
 # Regions are expressed in DIP and converted with the row's DPI scale (150 %).
 REGIONS_DIP = {
     "sidebar": (0, 0, 285, 860),
@@ -54,9 +64,17 @@ def main(argv: list[str]) -> int:
     nb = index(geom["native"])
     mb = index(geom["mygo"])
 
+    def alias_for(k):
+        name = k[1]
+        if name in ALIASES:
+            return (k[0], ALIASES[name])
+        for native_name, mygo_name in ALIASES.items():
+            if mygo_name == name:
+                return (k[0], native_name)
+        return k
     matched, missing, extra, mismatched = [], [], [], []
     for k, native_nodes in nb.items():
-        mine = mb.get(k)
+        mine = mb.get(k) or mb.get(alias_for(k))
         if not mine:
             for node in native_nodes:
                 missing.append({"type": node["type"], "name": node["name"], "native": node["dip"]})
@@ -80,7 +98,7 @@ def main(argv: list[str]) -> int:
         if not record["within_1dip"]:
             mismatched.append(record)
     for k, mygo_nodes in mb.items():
-        if k not in nb:
+        if k not in nb and alias_for(k) not in nb:
             for node in mygo_nodes:
                 extra.append({"type": node["type"], "name": node["name"], "mygo": node["dip"]})
 
@@ -114,6 +132,7 @@ def main(argv: list[str]) -> int:
         "scale": scale,
         "native_controls": sum(len(v) for v in nb.values()),
         "mygo_controls": sum(len(v) for v in mb.values()),
+        "aliases": ALIASES,
         "matched": len(matched),
         "within_1dip": sum(1 for m in matched if m["within_1dip"]),
         "outside_1dip": len(mismatched),
