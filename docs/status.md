@@ -437,6 +437,15 @@
 - pass290：87,697,408 B / SHA256 `5CB93E9C…`；ready=True。
 - 残留：D-MAIN 聊天窗口驱动、S03 OpenDevTools 门控、G46 PR、壁纸屏幕空间像素化、D1–D4 决策与双签。
 
+### round205–209（2026-10-25）
+
+- round205：**D-MAIN hand-off 打通**——seed profile 启动后 ~42s 执行 whaleisle://open，运行实例清 overlay、launcherOpen=false，同一窗口重绘为聊天。1440×860 对照：caption 三钮 **+0.67**（F1 ✓）、侧栏导航 **+0.67/pitch 40**（F2 ✓）、标准模式 chip 左流（✓）、composer 卡 **773.33 vs 774.39（−1.06）**。像素数字有 caveat：该次原生画面丢失壁纸（flat rgb(12,12,12)），结构 dump 也是切换中采的，故不作为回归；fixture 已记录 hand-off 命令，剩余 native 重绘顺序与 ~741.33 轴来源。
+- round206：**程序化 OpenDevTools 门控关闭**——mygo 记住 SetDevToolsEnabled，禁用时 OpenDevTools 直接返回；live allow=1、deny=0（反转 round201 的 B-deny，且 allow 不过度拦截）；键盘 Ctrl+Shift+I 的 deny 仍依据 WebView2 文档语义 + 程序化路径关闭，直接观测待补（UIA SetFocus 配方）。
+- round207：**壁纸屏幕空间像素化**——48px bleed → cover 到目标尺寸 → 整数因子像素化 → 三遍 box blur（σ 匹配）→ 裁回；block 大小恒定：320×200 与 1440×860 源在 factor 3 都测得 **3px**（原 2.8 / 0.63）；glass 采样仍用源分辨率，材质数字不变。残留：gaussian 近似、透明提升未持久化。
+- round208：**L-HOME 对照**——MyGo 150% 启动器 vs 原生 headless reference：未蒙版 8.53%、洗色蒙版 7.90%，差异全部为数据态（catalog warning/vdev vs 预载占位）；窗口 1060×660 r20、rail 188、nav pitch 44、卡片 48+12、按钮 34、caption 48 等全部匹配。fresh pass290 被共享单实例锁阻塞，live 原生启动器需 D2 决策。
+- pass291：87,708,160 B / SHA256 `2672AEAB…`；ready=True。
+- 残留：settled pair 重采（原生先重绘/壁纸）、TranscriptWidth 来源、workspace chip 宽 116.67 vs 150、键盘 deny 观测、G46 PR、D1–D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

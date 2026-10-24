@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T05:06:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87708160,
+  "productionSHA256": "2672AEAB2FB1E1CEAE063E430C511C1339DE270FBE7F9E6A0637F5E8E0701BF7",
+  "defaultSHA256": "2672AEAB2FB1E1CEAE063E430C511C1339DE270FBE7F9E6A0637F5E8E0701BF7",
+  "note": "pass291 covers rounds 205-209: OpenDevTools gate, screen-space wallpaper pixelation, the D-MAIN whaleisle://open hand-off capture and the L-HOME reference comparison. Readiness verified."
+}

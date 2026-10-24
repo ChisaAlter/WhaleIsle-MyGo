@@ -1,0 +1,1923 @@
+{
+    "schema":  1,
+    "smoke":  "harness-start",
+    "method":  "Start-Process with WHALEISLE_USER_DATA temp profile; sampled TcpClient port probe, EnumWindows+GetWindowText+GetWindowRect (per-monitor-v2 physical px, DIP derived from GetDpiForWindow), Process.Responding; UIAutomation descendants of the main/launcher HWND; recursive ParentProcessId tree kill; no PrintWindow",
+    "generatedAt":  "2026-10-24T21:04:22.8472568Z",
+    "status":  "ok",
+    "error":  null,
+    "exe":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass291.exe",
+    "pid":  4320,
+    "userData":  "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile",
+    "workspace":  "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\workspace",
+    "port":  3099,
+    "realConfig":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\smoke-config.json",
+    "configOriginal":  {
+                           "workspace":  "C:\\Users\\48818\\Documents\\Whale Isle",
+                           "port":  3080
+                       },
+    "clearedSockets":  [
+
+                       ],
+    "startedAt":  "2026-10-24T21:02:57.6676466Z",
+    "finishedAt":  "2026-10-24T21:04:22.8507913Z",
+    "readiness":  {
+                      "portListening":  true,
+                      "mainVisible":  true,
+                      "launcherGone":  true,
+                      "responding":  true,
+                      "respondingAtReady":  true,
+                      "respondingFresh":  true,
+                      "respondingStaleHandle":  false,
+                      "freshMainWindowHandle":  5966768,
+                      "mainWindowPing":  true
+                  },
+    "settleSamples":  [
+                          {
+                              "t":  0,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  1,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  2,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  3,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  4,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  5,
+                              "processResponding":  false,
+                              "mainWindowHandle":  20711408,
+                              "mainHwnd":  5966768,
+                              "mainPing":  true
+                          }
+                      ],
+    "timeline":  [
+                     {
+                         "t":  2,
+                         "at":  "2026-10-24T21:02:59.4355156Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  3,
+                         "at":  "2026-10-24T21:03:00.7479962Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  4,
+                         "at":  "2026-10-24T21:03:01.9937631Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  6,
+                         "at":  "2026-10-24T21:03:03.2778763Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  7,
+                         "at":  "2026-10-24T21:03:04.5208994Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  8,
+                         "at":  "2026-10-24T21:03:05.7876778Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  9,
+                         "at":  "2026-10-24T21:03:07.0195535Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  11,
+                         "at":  "2026-10-24T21:03:08.2735259Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  12,
+                         "at":  "2026-10-24T21:03:09.5129800Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  13,
+                         "at":  "2026-10-24T21:03:10.7608103Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  14,
+                         "at":  "2026-10-24T21:03:11.9895858Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  16,
+                         "at":  "2026-10-24T21:03:13.2179948Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  17,
+                         "at":  "2026-10-24T21:03:14.4621473Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  18,
+                         "at":  "2026-10-24T21:03:15.6904593Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  19,
+                         "at":  "2026-10-24T21:03:16.9067064Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  20,
+                         "at":  "2026-10-24T21:03:18.1437479Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  23,
+                         "at":  "2026-10-24T21:03:20.2212645Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  25,
+                         "at":  "2026-10-24T21:03:22.2724520Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  27,
+                         "at":  "2026-10-24T21:03:24.3502778Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  29,
+                         "at":  "2026-10-24T21:03:26.4342386Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  31,
+                         "at":  "2026-10-24T21:03:28.4918268Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  33,
+                         "at":  "2026-10-24T21:03:30.5733978Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  35,
+                         "at":  "2026-10-24T21:03:32.6279247Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  37,
+                         "at":  "2026-10-24T21:03:34.7330705Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  39,
+                         "at":  "2026-10-24T21:03:36.8118854Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  41,
+                         "at":  "2026-10-24T21:03:38.8786901Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  43,
+                         "at":  "2026-10-24T21:03:40.9482803Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  45,
+                         "at":  "2026-10-24T21:03:43.0148565Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  47,
+                         "at":  "2026-10-24T21:03:45.1066266Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  50,
+                         "at":  "2026-10-24T21:03:47.1712260Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  52,
+                         "at":  "2026-10-24T21:03:49.2426834Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  54,
+                         "at":  "2026-10-24T21:03:51.2893248Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  56,
+                         "at":  "2026-10-24T21:03:53.3135750Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  58,
+                         "at":  "2026-10-24T21:03:55.3691395Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  60,
+                         "at":  "2026-10-24T21:03:57.4621301Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  65,
+                         "at":  "2026-10-24T21:04:02.8025629Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  71,
+                         "at":  "2026-10-24T21:04:08.1982242Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  72,
+                         "at":  "2026-10-24T21:04:09.9016906Z",
+                         "portListening":  true,
+                         "responding":  false,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     }
+                 ],
+    "windowStates":  [
+                         {
+                             "hwnd":  5966768,
+                             "title":  "Whale Isle",
+                             "class":  "MyGoWindow",
+                             "rect":  {
+                                          "left":  200,
+                                          "top":  0,
+                                          "width":  2160,
+                                          "height":  1380
+                                      },
+                             "dip":  {
+                                         "width":  1440,
+                                         "height":  920
+                                     },
+                             "visible":  true,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  7341882,
+                             "title":  "",
+                             "class":  "MyGoApp",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  202,
+                                          "height":  56
+                                      },
+                             "dip":  {
+                                         "width":  135,
+                                         "height":  37
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  12258432,
+                             "title":  "",
+                             "class":  "PseudoConsoleWindow",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  true,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  7014874,
+                             "title":  "MSCTFIME UI",
+                             "class":  "MSCTFIME UI",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  13109586,
+                             "title":  "Default IME",
+                             "class":  "IME",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         }
+                     ],
+    "mainHwnd":  5966768,
+    "launcherHwnd":  0,
+    "uia":  {
+                "hwnd":  5966768,
+                "available":  true,
+                "nodes":  [
+                              {
+                                  "name":  "预览版说明",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "DeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "继续",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              }
+                          ],
+                "error":  null
+            },
+    "uiaLauncher":  null,
+    "hostChildren":  [
+                         {
+                             "pid":  24580,
+                             "name":  "conhost.exe",
+                             "commandLine":  "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+                         },
+                         {
+                             "pid":  31800,
+                             "name":  "node.exe",
+                             "commandLine":  "C:\\AI\\WhaleIsle-MyGo\\runtime\\node\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-050257\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-market\\desktop-dsh-market.patch.yml --host 127.0.0.1 --port 3101 --no-open"
+                         },
+                         {
+                             "pid":  20140,
+                             "name":  "conhost.exe",
+                             "commandLine":  "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+                         }
+                     ],
+    "harnessHttp":  {
+                        "error":  "远程服务器返回错误: (401) 未经授权。"
+                    },
+    "dshHome":  [
+                    {
+                        "name":  ".agent-presets",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "cache",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "data",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "no-workspace",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "profiles",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "sessions",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "storages",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  ".anonymous-user-id",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  ".credentials.yaml",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite-shm",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite-wal",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "project-writer.lock",
+                        "mode":  "-a----"
+                    }
+                ],
+    "crashReports":  [
+
+                     ]
+}
