@@ -1,0 +1,44 @@
+﻿{
+    "gate":  "allow",
+    "flipAfterMs":  0,
+    "tag":  "A-open",
+    "steps":  [
+                  {
+                      "name":  "page",
+                      "data":  {
+                                   "hwnd":  12913056,
+                                   "pid":  9272,
+                                   "title":  "HostProbe",
+                                   "class":  "MyGoWindow",
+                                   "x":  605,
+                                   "y":  204,
+                                   "w":  1350,
+                                   "h":  960
+                               }
+                  },
+                  {
+                      "name":  "foreground",
+                      "data":  {
+                                   "expected":  12913056,
+                                   "actual":  12913056,
+                                   "ok":  true
+                               }
+                  },
+                  {
+                      "name":  "before",
+                      "data":  {
+                                   "devtools":  [
+
+                                                ]
+                               }
+                  },
+                  {
+                      "name":  "afterPress1",
+                      "data":  {
+                                   "devtools":  [
+
+                                                ]
+                               }
+                  }
+              ]
+}
