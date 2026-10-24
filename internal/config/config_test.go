@@ -394,3 +394,39 @@ func TestNormalizeRemoteModeCollapsesToRelay(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadKeepsNativeThemeIDs pins every id the native app can persist: the
+// family/scheme pair ("deepseek.dark"), the bare scheme ("dark"), the pair with
+// another family ("codex.dark") and the system values must all survive loading,
+// so the appearance resolution can honor them.
+func TestLoadKeepsNativeThemeIDs(t *testing.T) {
+	for _, id := range []string{"deepseek", "deepseek.dark", "deepseek.light", "dark", "light", "system", "codex.dark", "claude.light", "midnight.blue"} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, FileName), []byte(`{"theme": "`+id+`"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		s, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := s.Get().Theme; got != id {
+			t.Fatalf("theme %q was rewritten to %q", id, got)
+		}
+	}
+}
+
+// TestLoadRejectsMalformedThemeID keeps the pattern guard: an id the native app
+// never writes falls back to the shipped default.
+func TestLoadRejectsMalformedThemeID(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(`{"theme": "not a theme!"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Get().Theme; got != DefaultTheme {
+		t.Fatalf("malformed theme kept %q", got)
+	}
+}

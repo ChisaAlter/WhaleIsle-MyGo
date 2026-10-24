@@ -216,8 +216,17 @@ func Resolve(id string) Theme {
 		base.Scheme = SchemeLight
 		return base
 	default:
-		// Unknown family: still deepseek tokens so the shell never has a
-		// blank palette; keep system scheme so the window tracks the OS.
+		// Native hosts persist any installed family with a scheme suffix
+		// ("codex.dark", "claude.light", …). When that family's palettes are not
+		// installed the shell still uses the deepseek tokens, but the requested
+		// scheme must survive: falling back to system left a persisted dark id
+		// painting light on a light OS.
+		switch {
+		case strings.HasSuffix(id, ".dark"):
+			base.Scheme = SchemeDark
+		case strings.HasSuffix(id, ".light"):
+			base.Scheme = SchemeLight
+		}
 		return base
 	}
 }

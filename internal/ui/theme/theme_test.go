@@ -87,3 +87,38 @@ func TestSidebarAndTitlebarPresent(t *testing.T) {
 		t.Fatal("border colors missing")
 	}
 }
+
+// TestResolveNativeFamilySuffixes covers the ids the native host persists:
+// every family may carry .light/.dark, and an uninstalled family keeps the
+// requested scheme while the shell borrows the deepseek tokens.
+func TestResolveNativeFamilySuffixes(t *testing.T) {
+	for _, tc := range []struct {
+		id     string
+		scheme string
+	}{
+		{"deepseek.dark", SchemeDark},
+		{"dark", SchemeDark},
+		{"DEEPSEEK.DARK", SchemeDark},
+		{"deepseek.light", SchemeLight},
+		{"light", SchemeLight},
+		{"codex.dark", SchemeDark},
+		{"claude.light", SchemeLight},
+		{"midnight.dark", SchemeDark},
+		{"system", SchemeSystem},
+		{"deepseek", SchemeSystem},
+		{"", SchemeSystem},
+		{"not-a-theme", SchemeSystem},
+	} {
+		got := Resolve(tc.id)
+		if got.Scheme != tc.scheme {
+			t.Fatalf("Resolve(%q).Scheme = %q, want %q", tc.id, got.Scheme, tc.scheme)
+		}
+		if got.Light.BG != "#ffffff" || got.Dark.BG != "#151517" {
+			t.Fatalf("Resolve(%q) palette drift: light=%q dark=%q", tc.id, got.Light.BG, got.Dark.BG)
+		}
+	}
+	// A pinned suffix survives a light system: a persisted dark id must paint dark.
+	if bg := ResolveWithSystem("codex.dark", false).Active(false).BG; bg != "#151517" {
+		t.Fatalf("pinned family dark painted %q under a light system", bg)
+	}
+}
