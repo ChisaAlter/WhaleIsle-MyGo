@@ -22,6 +22,11 @@ const (
 	// composerCardMaxWidth is the installed InputBar card's `max-width: 774.4px`
 	// (probed at 1440x860 and 1440x920: card 774.39 wide, 114 tall).
 	composerCardMaxWidth = float32(774.39)
+	// conversationHeroHeadlineFoot is the installed hero headline row's bottom pad:
+	// 25 DIP left the centred stack 2.68 DIP too tall, so the foot is 25 - 2.68 =
+	// 22.32, rounded to the layout's 0.1 DIP unit. Verified live against the window
+	// rects 314.67 / 373.33 / 409.33 (round 232).
+	conversationHeroHeadlineFoot = float32(22.3)
 	// conversationHeroStackFoot lifts the centred hero stack to the installed seat: the
 	// window's slogan/preset/card sit 19 DIP higher than an even vertical split.
 	conversationHeroStackFoot = float32(38)
@@ -86,11 +91,17 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 
 // ConversationRoot.composerHero centers the entire stack inside scrollBody,
 // with a 32 DIP foot; HeroShell supplies the title's 10/7 spacing and 26/32 type.
-// The installed hero measures headline row 337..369 and preset row at 398
-// (1440x860 probe), so 29 DIP pass between them; the previous 12-DIP foot left
-// the preset row 13 DIP high.
+// Measured against the installed window (1440x860 UIA, all values DIP):
+//
+//	slogan 314.67   preset chip 373.33   composer card top 409.33
+//
+// The stack is centred, so its height decides both ends. With a 25-DIP headline
+// foot MyGo measured 313.33 / 374.67 / 410.67 — slogan 1.34 high while preset and
+// card sat 1.34 low, i.e. the stack was 2.68 DIP too tall. Shortening the foot by
+// 2.68 (25 -> 22.32, rounded to 22.3 for the layout's 0.1 DIP unit) moves the
+// slogan down by half of it and the card up by the other half.
 func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
-	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, 25, 16).Children(func() {
+	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
 		conversationHeroFish(c, chrome.Color(colors.FG))
 		ui.Row(c).Wrap().Gap(7).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FixedLineHeight(theme.InterfaceSize(32)).FontWeight(500).TextColor(chrome.Color(colors.FG))
