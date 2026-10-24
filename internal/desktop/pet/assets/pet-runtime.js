@@ -4,6 +4,9 @@
   const fallback = document.getElementById('fallback');
   const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
   const notice = document.getElementById('render-notice');
+  // Text the shell rendered server-side reports a degraded renderer. Anything
+  // the page writes itself is transient progress and is cleared after painting.
+  const serverNotice = notice ? (notice.textContent || '').trim() : '';
   let settings = {}, shiftHeld = false, clickAudio = null;
   let behaviorController = null, currentTask = {};
   try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
@@ -221,8 +224,14 @@
       }
       raf=requestAnimationFrame(tick);
     }
-    document.body.dataset.renderer='rig';notice.textContent='原版分层动画 / Layered rig';
+    document.body.dataset.renderer='rig';
+    // The native pet shows only the character at rest (pet-live2d.html:275-303
+    // keeps every overlay hidden until asked). The rig label is a diagnostic, so
+    // it only stays visible when the shell already had to report a degraded
+    // renderer; otherwise a successful paint clears it and the :empty CSS rule
+    // hides the line.
     paint(performance.now());if(sleeping)paintSleeping();
+    if(!serverNotice){notice.textContent='';}
     resumeRenderer=()=>{if(!stopped&&!sleeping&&!raf)raf=requestAnimationFrame(tick);};resumeRenderer();
   }
   async function startNeural() {
@@ -282,6 +291,9 @@
       }
     };
     document.body.dataset.renderer='neural';
+    // Same as the rig path: no permanent label at rest (native pet-live2d.html
+    // shows only #pet). Keep the shell's degradation text when it exists.
+    if(!serverNotice){notice.textContent='';}
     resumeRenderer();
 
     } catch(error) {
