@@ -270,8 +270,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// picker on the left and the agent preset on the right.
 			// Gap 18 (native: workspace chip ends ~620, 标准模式 at 638.3); it only
 				// separates the two chips, so it is the native chip-to-chip inset.
-				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(18).AlignItems(ui.Center).
-				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
+				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(3.33).AlignItems(ui.Center).
+				// Round217 UIA (1440x860): the native workspace chip starts at x=502
+				// (33 DIP leading inset) and 标准模式 follows at 655.33, i.e. a 3.33 DIP
+				// chip-to-chip gap; the old 20/18 pair is what put us at 489.33/675.33.
+				Margin(4, 0, 8, 0).Padding(0, 16, 0, 32.67).Children(func() {
 				wsLabel := strings.TrimSpace(m.WorkspaceRoot)
 				// Session groups without a directory carry sentinel ids such as
 				// "no-workspace"; only an absolute root names a workspace.

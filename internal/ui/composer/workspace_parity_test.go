@@ -156,7 +156,9 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			closeMetric(t, card.Y-row.Y-row.H, 8, "hero row-card gap")
 			closeMetric(t, row.H, 28, "hero row height")
 			// The row keeps Padding(0,16,0,20): 20 on the left, 16 on the right.
-			closeMetric(t, workspace.X-row.X, 20, "workspace left inset")
+			// round217 UIA at 1440x860: native chip x=502 / preset x=655.33 on a 1440
+			// window, i.e. a 32.67 DIP leading inset and a 3.33 DIP chip-to-chip gap.
+			closeMetric(t, workspace.X-row.X, 32.67, "workspace left inset")
 			closeMetric(t, workspace.H, 28, "workspace chip height")
 			closeMetric(t, presetChip.H, 28, "preset chip height")
 			closeMetric(t, (workspace.Y+workspace.H/2)-(presetChip.Y+presetChip.H/2), 0, "both chips share the row")
@@ -167,9 +169,9 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			// short and long names share the width and the preset chip after it
 			// keeps the native x.
 			closeMetric(t, workspace.W, 150, "workspace chip width")
-			closeMetric(t, presetChip.X, workspace.X+workspace.W+18, "preset chip sits 18 DIP after the chip")
+			closeMetric(t, presetChip.X, workspace.X+workspace.W+3.33, "preset chip sits 3.33 DIP after the chip")
 			t.Logf("width=%d workspace=%v preset=%v", width, workspace, presetChip)
-			if gap := presetChip.X - (workspace.X + workspace.W); gap < 0 || gap > 24 {
+			if gap := presetChip.X - (workspace.X + workspace.W); gap < 3 || gap > 3.7 {
 				t.Fatalf("preset chip gap=%.2f, want it right after the workspace chip: %v %v", gap, workspace, presetChip)
 			}
 			if presetChip.X+presetChip.W > row.X+row.W-16 {
