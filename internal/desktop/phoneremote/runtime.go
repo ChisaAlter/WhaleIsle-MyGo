@@ -386,6 +386,26 @@ func (c *execChild) Input() io.Writer  { return c.in }
 func (c *execChild) Output() io.Reader { return c.out }
 func (c *execChild) Wait() error       { defer os.Remove(c.script); return c.cmd.Wait() }
 func (c *execChild) Kill()             { _ = c.in.Close(); _ = c.cmd.Process.Kill() }
+
+const electronRunAsNodeEnv = "ELECTRON_RUN_AS_NODE"
+
+// daemonEnv is the remote daemon child environment. The staged runtime may point
+// at the installed Electron binary because the shipped better-sqlite3 prebuild
+// is built for Electron ABI 149 while runtime/node is standard Node ABI 137;
+// Electron only behaves as Node with ELECTRON_RUN_AS_NODE=1. Plain Node ignores
+// the variable, so it is always supplied, and an explicit caller value wins
+// (a wrapper or a diagnostic run can still opt out). The returned slice carries
+// the parent environment verbatim: nothing here is logged, because that
+// environment can contain unrelated tokens.
+func daemonEnv(base []string) []string {
+	out := append([]string(nil), base...)
+	for _, entry := range out {
+		if key, _, ok := strings.Cut(entry, "="); ok && strings.EqualFold(key, electronRunAsNodeEnv) {
+			return out
+		}
+	}
+	return append(out, electronRunAsNodeEnv+"=1")
+}
 func spawnBridge(r Resources) (Child, error) {
 	if e := os.MkdirAll(r.Home, 0700); e != nil {
 		return nil, e
@@ -413,6 +433,7 @@ func spawnBridge(r Resources) (Child, error) {
 	cmd := exec.Command(r.Node, "-e", "const file=process.argv[1];process.argv.splice(1,1);require(file)", scriptName, r.Module, r.Home)
 	cmd.Dir = filepath.Dir(r.Module)
 	cmd.Stderr = io.Discard
+	cmd.Env = daemonEnv(os.Environ())
 	in, e := cmd.StdinPipe()
 	if e != nil {
 		return nil, e

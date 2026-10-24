@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "task": "task-39",
+  "generatedAt": "2026-10-24T18:26:04.030Z",
+  "purpose": "Wire ELECTRON_RUN_AS_NODE=1 into the phoneremote daemon spawn and verify the remote daemon starts through the product code and from the app.",
+  "envChange": {
+    "file": "internal/desktop/phoneremote/runtime.go",
+    "helper": "daemonEnv(base []string) []string",
+    "behavior": "adds ELECTRON_RUN_AS_NODE=1 when absent (case-insensitive key check), preserves an explicit value, copies the parent environment verbatim; plain Node ignores the variable (verified: runtime/node prints it and still runs at ABI 137)",
+    "test": "internal/desktop/phoneremote/spawn_env_test.go (TestDaemonEnvSuppliesElectronRunAsNode, TestDaemonEnvEmptyBase)",
+    "secrets": "no logging: daemonEnv emits nothing and the child scope discards stderr (io.Discard)"
+  },
+  "spawnPathProof": {
+    "what": "phoneremote.ResolveResources/Start with NO ELECTRON_RUN_AS_NODE in the shell (tmp/probe-remote-live, os.Unsetenv before Start)",
+    "shellElectronRunAsNode": null,
+    "resources": {
+      "error": "",
+      "home": "C:\\Users\\48818\\AppData\\Local\\Temp\\mygo-remote-live-2013104082\\dsh-home",
+      "module": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-remote.js",
+      "node": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe"
+    },
+    "config": [
+      "harnessCookie",
+      "harnessOrigin",
+      "remoteAppBaseUrl",
+      "remoteBindAddress",
+      "remoteEnabled",
+      "remoteGitEnabled",
+      "remoteGitRoots",
+      "remoteLanTls",
+      "remoteMode",
+      "remotePort",
+      "remoteRelayEndpoint",
+      "remoteRelayUseTls"
+    ],
+    "firstStart": {
+      "status": "ready",
+      "listening": true,
+      "relayConnected": false,
+      "pairingURLPresent": true,
+      "pairingImage": true,
+      "bindAddresses": [
+        "192.168.53.103",
+        "192.168.0.1"
+      ],
+      "elapsedSeconds": 2.8
+    },
+    "pairingURLShape": {
+      "scheme": "http:",
+      "host": "127.0.0.1",
+      "port": "3180",
+      "fragmentPrefix": "#offer=",
+      "offerVersion": 2,
+      "expiresAtMs": 1792866920333,
+      "relay": {
+        "endpoint": "ayase.cn:443",
+        "useTls": false
+      }
+    },
+    "listeners": [
+      {
+        "port": 3499,
+        "open": true,
+        "addr": "127.0.0.1:3499"
+      },
+      {
+        "port": 3180,
+        "open": true,
+        "addr": "127.0.0.1:3180"
+      }
+    ],
+    "phoneSpa": {
+      "url": "http://127.0.0.1:3180/",
+      "statusCode": 200,
+      "contentType": "text/html; charset=utf-8",
+      "length": 17013,
+      "title": "Whale Isle · 手机远程"
+    },
+    "secondStart": {
+      "elapsedSeconds": 2.4,
+      "listening": true,
+      "pairingURLPresent": true,
+      "relay": false,
+      "status": "ready"
+    },
+    "listenersAfterStop": [
+      {
+        "port": 3499,
+        "open": false
+      },
+      {
+        "port": 3180,
+        "open": false
+      }
+    ],
+    "timeline": [
+      {
+        "t": 0,
+        "status": "starting",
+        "listening": false,
+        "relayConnected": false
+      },
+      {
+        "t": 2.8,
+        "status": "ready",
+        "listening": true,
+        "relayConnected": false
+      }
+    ]
+  },
+  "appRun": {
+    "exe": "whaleisle-remote-app.exe (temp build from ./cmd/whaleisle with the env fix; deleted after the run)",
+    "profile": "throwaway profile (tmp/remote-app-profile-*), config remoteEnabled=true, remoteMode=lan, remotePort=3499, remoteBindAddress=127.0.0.1, remoteLanTls=false, harness port 3099, temp workspace, welcome-shown marker, real runtime/vendor",
+    "shellElectronRunAsNode": false,
+    "attempt1": {
+      "exeLocation": "tmp/whaleisle-remote-app.exe",
+      "result": "launcher error: \"vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1\" (paths.VendorDir resolves next to the exe first; a temp build must live beside runtime/)"
+    },
+    "attempt2": {
+      "exeLocation": "repo root",
+      "result": "app starts; harness listener 127.0.0.1:3099 up from the staged runtime (node child runtime/vendor/deepseek-harness/apps/cli/lib/bin.js)",
+      "launcherTransition": "launcher 1060x660 -> main 1440x920 observed within ~15-20 s after the harness came up",
+      "settings": "relaunched with --settings; settings nav exposed 远程; remote panel rendered (网关 tab: 连接方式 局域网/服务器, 监听端口, 监听范围, 传输加密, 刷新)",
+      "uiActions": "clicked 局域网 (ok) and 刷新 (ok); panel then showed \"refresh the phone runtime before managing devices\"; no 3499/3180 listener appeared and no dshd-remote node child was spawned",
+      "remoteListeners": [],
+      "dshdRemoteChild": false
+    },
+    "finding": {
+      "summary": "remoteEnabled=true in config does not start the phone gateway at boot; refreshPhoneRemote is only invoked from UI actions, so the in-app daemon never started.",
+      "evidence": "cmd/whaleisle/main.go:763 (definition) with call sites only at main.go:5134, main.go:5141, main.go:5225 (QR refresh), main.go:5281 and cmd/whaleisle/phone_gateway.go:49; no startup/Ready hook.",
+      "nextFix": "after harness Ready (or at startup when cfg.RemoteEnabled), call refreshPhoneRemote once; then the spawn env fix makes the daemon start from the app."
+    },
+    "afterKill": {
+      "harness": false,
+      "remote": false,
+      "mobile": false,
+      "appAlive": false
+    }
+  },
+  "residual": [
+    "in-app remote daemon start is blocked by the missing boot-time refreshPhoneRemote (cmd change, outside this task scope)",
+    "relay mode, 0.0.0.0 bind and real-phone pairing remain unverified",
+    "packaging still uses scripts/build-mobile-runtime.ps1 (online) for a truthful mobile runtime; the asar staging stays gitignored under runtime/",
+    "the temp build must be placed beside runtime/ (repo root) or WHALEISLE_VENDOR must be set"
+  ]
+}

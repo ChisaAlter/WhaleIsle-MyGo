@@ -105,3 +105,44 @@ Copy-Item 'C:\软件\Whale Isle\locales' $dst -Recurse -Force
 3. **硬链接语义**：`node.exe` 指向安装版 exe 的同一 inode；安装版升级/重装后需要重建硬链接（脚本可重复执行）。`debug.log` 是 Electron 运行时写的小文件，可忽略。
 4. **配对 token 敏感**：evidence 只记录 URL 形状（scheme/host/port/offer 版本/过期时间），不落盘 token；`PairingURL` 本身只活在内存。
 5. **未验证**：0.0.0.0 绑定（本轮按约束保持 loopback）、真实手机扫码完成配对/会话代理、relay 模式（需要 token + 外网）。这些仍归 round157 的 G3/G5/G6。
+
+## 6. Round160 补记（task-39）：把 ELECTRON_RUN_AS_NODE 接进产品路径 + 真机验证结果
+
+### 6.1 环境变量接线（已落地）
+
+`internal/desktop/phoneremote/runtime.go` 的 `spawnBridge` 现在给 daemon 子进程显式设置环境：
+
+```go
+cmd.Env = daemonEnv(os.Environ())
+```
+
+`daemonEnv`（runtime.go）：
+
+- 父环境**逐项原样复制**（不重排、不删除），仅在缺少 `ELECTRON_RUN_AS_NODE` 时追加 `ELECTRON_RUN_AS_NODE=1`；
+- key 比较用 `strings.EqualFold`，Windows 上显式写成 `electron_run_as_node=0` 也不会被覆盖、不会重复；
+- 标准 Node 忽略该变量（实测 `runtime/node` 在变量存在时仍以 ABI 137 正常运行），所以无条件补值对普通 Node 是安全 no-op；
+- 不打印任何环境内容（`spawnBridge` 仍 `cmd.Stderr = io.Discard`），token 不进日志。
+
+测试：`internal/desktop/phoneremote/spawn_env_test.go` —— 缺失时补 1、长度 +1、父环境逐项保持、输入 slice 不被改写、显式 `0/false/空`（两种大小写）优先且不重复、空环境也补 1。
+
+**产品代码路径证明**（不依赖 shell 变量）：`tmp/probe-remote-live` 改为 `os.Unsetenv("ELECTRON_RUN_AS_NODE")` 后直接调用 `phoneremote.Start`：`starting → ready`，`listening=true`、`relayConnected=false`、PairingURL 有值，手机 SPA `GET 127.0.0.1:3180/` → 200，二次 Start 2.4 s 复用同一 stage，停止后 3499/3180 关闭。也就是说：**daemon 能跑起来的原因已经是产品代码补的环境变量，而不是 shell 设置**。
+
+### 6.2 真机（app）验证：阻塞在缺少“启动时拉起远程”的调用
+
+用临时构建（`whaleisle-remote-app.exe`，跑完即删，未覆盖任何 passN）+ 一次性 profile（`remoteEnabled=true, remoteMode=lan, remotePort=3499, remoteBindAddress=127.0.0.1, remoteLanTls=false`，workspace 临时目录，welcome 标记，真实 `runtime/`），shell **不设置** `ELECTRON_RUN_AS_NODE`：
+
+| 步骤 | 结果 |
+| --- | --- |
+| 首次尝试：exe 放在 `tmp\` | 启动器报 `vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1` —— `paths.VendorDir()` 先找 exe 同目录的 `runtime/vendor`，临时构建必须放在仓库根（或设 `WHALEISLE_VENDOR`） |
+| 放仓库根后启动 | 正常进入 launcher → main 1440×920；harness `127.0.0.1:3099` 由 staged runtime 的 node 拉起（`runtime\node\node.exe …deepseek-harness\apps\cli\lib\bin.js`） |
+| 远程监听 | **3499/3180 始终没有出现**，也没有 `dshd-remote` 子进程 |
+| `--settings` → 远程 → 点“局域网”+“刷新” | 面板正常渲染（连接方式/端口/监听范围/传输加密/刷新），两次点击都成功，但面板只显示 `refresh the phone runtime before managing devices`，daemon 仍未启动 |
+
+根因（file:line）：`refreshPhoneRemote`（`cmd/whaleisle/main.go:763`）只被 UI 动作调用 —— `main.go:5134`、`5141`、`5225`、`5281`、`cmd/whaleisle/phone_gateway.go:49`；**没有在 harness Ready / 启动完成时调用一次**。因此 `remoteEnabled=true` 的配置不会在开机时拉起网关（原生 `remote.js` 是随 config 同步启动的），本轮 app 内验证被这个产品缺口挡住，和 env 修复无关。
+
+建议的下一处改动（scope 属 `cmd/whaleisle`，本轮未改）：在 harness `Ready` 之后（或主窗口首次渲染完成时）若 `cfg.RemoteEnabled` 则 `go state.refreshPhoneRemote()` 一次；随后 6.1 的 env 修复即可让 app 内真正出现 3499/3180 与配对码。
+
+### 6.3 证据与残留
+
+- 证据：`docs/review-20261022/evidence/remote-app-live.json` —— env helper/测试、无 shell 变量的 spawn 路径结果（ready/SPA/二次启动/清理）、app 运行记录（两次尝试、settings 面板、点击结果、无监听/无子进程）、afterKill 全 false。
+- 残留：app 内 daemon 启动需 §6.2 的 boot 调用；relay 模式、0.0.0.0、真机扫码仍未验证；打包仍走 `scripts/build-mobile-runtime.ps1`（在线）；临时构建必须与 `runtime/` 同级。
