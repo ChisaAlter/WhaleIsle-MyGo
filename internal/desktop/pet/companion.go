@@ -1,4 +1,4 @@
-package pet
+﻿package pet
 
 import (
 	"embed"
@@ -185,7 +185,7 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: 220, Height: petWindowHeight(cfg.Behavior), MinHeight: 438, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	w := mygo.NewWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: PetWindowWidth, Height: PetWindowHeight, MinHeight: PetWindowHeight, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
 	if w == nil || w.IsDestroyed() {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetWindowCreateFailed)
 		p.close()
@@ -195,7 +195,7 @@ func (p *Companion) sync() {
 	p.resetHitRegions()
 	// Apply the footprint before restoring the deliberate drag anchor. Roaming
 	// is transient and must not be saved by MyGo automatic window state.
-	w.SetSize(220, petWindowHeight(cfg.Behavior))
+	w.SetSize(petWindowSize())
 	p.startMotion(w)
 	p.watchRecovery(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
@@ -426,3 +426,4 @@ func (p *Companion) UpdateTask(task TaskStatus) {
 	p.CheckQuickChat()
 	// The fixed local status endpoint updates text without restarting inference.
 }
+

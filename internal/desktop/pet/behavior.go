@@ -1,9 +1,8 @@
-package pet
+﻿package pet
 
 import (
 	"encoding/json"
 	"html"
-	"math"
 	"strings"
 
 	"whaleisle/internal/config"
@@ -34,15 +33,17 @@ func renderBehaviorPage(page []byte, behavior config.PetBehavior) []byte {
 
 // applyBehavior updates the existing native window. Display-only preference
 // saves must not recreate the page, stop inference, or reset its rest state.
+// The native pet never resizes with growth (desktop-live2d.js:35-37,437), so
+// the window keeps its 240 DIP footprint at every behavior scale and the page
+// scales the sprite in place.
 func petWindowHeight(behavior config.PetBehavior) int {
-	behavior = config.NormalizePetBehavior(behavior)
-	// Snapped tenths can carry binary floating-point noise.
-	return 438 + int(math.Ceil(math.Max(0, behavior.Scale-1)*110-1e-9))
+	_ = config.NormalizePetBehavior(behavior) // validated on save; never a size input
+	return PetWindowHeight
 }
 
 func (p *Companion) applyBehavior() {
 	if p == nil || p.win == nil || p.win.IsDestroyed() {
 		return
 	}
-	p.win.SetSize(220, petWindowHeight(p.savedBehavior()))
+	p.win.SetSize(petWindowSize())
 }
