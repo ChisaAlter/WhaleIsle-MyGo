@@ -357,7 +357,13 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// 12-DIP gap and the 34-DIP control row, which owns the card's 8-DIP
 			// side inset. The rendered dialog is 774.39x114 at (469.3,460) with
 			// 添加文件 at x=477.3 and the send disc ending 8 before the right edge.
-			card = card.Padding(8, 0, 8, 0).Gap(12)
+			// Round242/243: native hero card is 155.34 tall = 8 top + 52.67 draft +
+			// 52.67 toolbar gap + 34.67 control row + 8 bottom; the old 12-DIP gap
+			// and a 72-DIP draft gave 134.
+			// Native card 155.34 = 8 + 52.67 draft + 54 toolbar gap + 34 row + 6.67
+			// bottom (the native send disc is 34.67 tall, ours 34, so the 0.67 lands
+			// in the bottom padding instead of the disc).
+			card = card.Padding(8, 0, 6.67, 0).Gap(54).MinHeight(155.34)
 		} else {
 			card = card.Padding(8, 0, 0, 0).Gap(12)
 		}
@@ -430,9 +436,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					ta.Disabled(m.Inert)
 					if m.Hero {
-						// The card keeps 0 side padding, so the writing well owns the
-						// 12-DIP text inset (the native placeholder starts 12 in).
-						ta = ta.Padding(0, 12, 0, 12)
+						// Native hero writing well: 52.67 DIP tall with 12-DIP text
+						// insets (round242 draft rect 482,417.33,745.33,52.67).
+						ta = ta.Padding(0, 12, 0, 12).Height(52.67)
 					}
 					if m.ResizeEnabled && m.Resize != nil && m.Resize.Height > 0 {
 						ta.Height(resizeInputHeight(c, m, 36))

@@ -48,7 +48,9 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	if !ok {
 		t.Fatal("composer card missing")
 	}
-	closeMetric(t, card.H, 114, "hero card height")
+	// round242 light rects: the native hero card is 155.34 tall (8 + 52.67 draft +
+	// 54 toolbar gap + 34 row + 6.67 bottom), not the old 114 recipe.
+	closeMetric(t, card.H, 155.34, "hero card height")
 	input, _ := tt.Find("Composer draft")
 	closeMetric(t, input.Y-card.Y, 8, "hero top padding")
 	closeMetric(t, input.X-card.X, 0, "hero card side padding")

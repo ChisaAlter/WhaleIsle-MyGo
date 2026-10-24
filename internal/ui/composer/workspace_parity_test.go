@@ -24,8 +24,8 @@ func TestStatefulEmptyAttachmentRailDoesNotDisplaceDraft(t *testing.T) {
 				// HeroShell.card: 8px top padding around the writing well, a 12-DIP
 				// gap and the 34-DIP control row; the tallest well (72 DIP without
 				// the shipped draft client) makes the card 134 DIP.
-				wantTop, limit = 8, 134
-				want = 72
+				wantTop, limit = 8, 155.34
+				want = 52.67
 				if native {
 					want = 52
 				}
