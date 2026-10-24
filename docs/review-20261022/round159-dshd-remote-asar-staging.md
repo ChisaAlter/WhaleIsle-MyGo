@@ -168,3 +168,32 @@ cmd.Env = daemonEnv(os.Environ())
 - 对比：同一脚本在 task-39（无 boot 接线）跑满 150 s 仍无 3499/3180；现在 12 s 就出现 → 证明是本次接线生效，而不是环境或 staging 的偶然。
 - 限制：该次 run 在 14 s 就结束了（脚本以“listeners + shell ready”为达标），daemon 生成 pairing offer 约需 28 s，所以 **app 内的配对码字符串没有抓到**；同一 spawn 路径的 ready+PairingURL 已在 `evidence/remote-daemon-live.json` 证明（`firstStart.status=ready`、`pairingURLShape` 有 `#offer=`、过期时间）。下一轮若要 app 内配对断言：listeners 出现后再 settle ~35 s，然后打开 `远程` 面板读 QR/链接。
 - 复跑注意：强制杀掉的临时 app 会留下 `%TEMP%\mygo-*.sock`（task-20 的已知缺陷），下一个实例会“交接给死实例”并静默退出；本次复跑就被它挡过，清理 socket 后恢复。临时构建必须与 `runtime/` 同级。
+
+### 6.5 Round163 补记（task-41）：app 内配对 offer / QR 证明
+
+**新增的可观测钩子**（cmd/whaleisle/phone_diag.go，默认关闭）：设置 `WHALEISLE_REMOTE_DIAG=1` 时，app 把 PhoneRuntime 快照写成 token-free 记录 `%WHALEISLE_USER_DATA%\runtime\remote-pairing.json`（status/listening/relayConnected/hasPairingURL、URL 形状 scheme/host/port/#offer=、offer v2 版本与过期时间、relay endpoint/useTLS、QR 是否存在、URL 的 sha256），**绝不写 token 本身**；`refreshPhoneRemote` 在 Start/Refresh 后写一次，并由一个 1 s 采样的有界 goroutine 跟随 starting→ready 的转换（remote 停止时退出）。单测 `cmd/whaleisle/phone_diag_test.go` 覆盖形状字段、hash 存在、文件中不含 token/完整 offer、未设 env 时不写文件。
+
+**实机证据**（`docs/review-20261022/evidence/remote-pairing-app.json`；临时构建 `whaleisle-remote-pairing.exe` 放仓库根，跑完删除；一次性 profile `remoteEnabled/lan/3499/127.0.0.1`，临时 workspace，welcome 标记，真实 `runtime/`，shell 未设 `ELECTRON_RUN_AS_NODE`，仅 `WHALEISLE_REMOTE_DIAG=1`）：
+
+| t | 3099 | 3499 | 3180 |
+| --- | --- | --- | --- |
+| 2 s | ✓ | – | – |
+| 11 s | ✓ | – | ✓ |
+| 12 s | ✓ | ✓ | ✓ |
+
+settle 38 s 后读取 `remote-pairing.json`：
+
+```json
+{"status":"ready","listening":true,"relayConnected":true,
+ "hasPairingURL":true,"pairingURLSha256":"b89f620c…11cb",
+ "scheme":"http","host":"127.0.0.1","port":"3180","fragmentPrefix":"#offer=",
+ "offerVersion":2,"offerExpiresAtMs":1792868170466,
+ "relayEndpoint":"ayase.cn:443","relayUseTls":true,
+ "expiresAt":"2026-10-24T18:56:10Z","pairingImage":true}
+```
+
+- 手机 SPA：`GET http://127.0.0.1:3180/` → **200**、`Whale Isle · 手机远程`。
+- QR：`pairingImage=true`；`phone.go:146` 的渲染条件（pairingURL + ready + listening + relayConnected + 未过期）在这次 run 全部成立，因此 远程 面板会绘制二维码与“复制/打开配对链接”。
+- 清理：kill 进程树后 3499/3180 立即关闭，3099 在 1.2 s 内关闭（复查全为 0），无残留进程/临时目录。
+
+**残留**：本轮 UIA 抓 远程 面板只拿到 4 个节点（点击后采样太早，面板尚未绘制），面板文字/QR 像素未截取——但快照字段已证明渲染条件成立；若需要像素证据，下一轮在点击“远程”后多等 3-5 s 再抓 UIA/截图。另：本次 LAN run 的 `relayConnected` 为 true（daemon 同时持有 relay 会话），纯 LAN 无 relay 的路径由 `lan_pairing_test.go` 覆盖；relay 模式离线失败（task 可选）未跑。

@@ -377,6 +377,7 @@ type mainState struct {
 	// (the real start) and replaced by a counter in tests.
 	phoneBootStarted              bool
 	phoneBootStartAction          func()
+	phoneDiagSampling             bool
 	launcherAutoStartDesktop      bool
 	launcherAskOnUpdate           bool
 	launcherDownloadRoute         string
@@ -801,6 +802,8 @@ func (s *mainState) refreshPhoneRemote() (msg string) {
 		manager.Start(paths.UserDataDir(), paths.VendorDir(), runtimeConfig)
 	}
 	snapshot := manager.Snapshot()
+	s.writePhoneDiag(snapshot)
+	s.startPhoneDiagSampler(manager)
 	msg = snapshot.Status
 	if snapshot.Message != "" {
 		msg += ": " + snapshot.Message
