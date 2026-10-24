@@ -606,3 +606,15 @@ func MetallicSheen(p *ui.Painter, rect ui.Rect, radius float32, hovered, animate
 		}
 	})
 }
+
+// FlatBackdropFill is the base colour the page shows when no wallpaper and no
+// gradient paints: the native sheet composites --dsw-alias-bg-base under
+// #dsh-wallpaper::after (--dsw-alias-bg-mask-1, rgba(0,0,0,0.5)) on the dark
+// half, so the sampled hero is ~12,12,12 while the token stays rgb(21,21,23).
+// Kept as a pure helper: callers decide where a masked canvas applies.
+func FlatBackdropFill(base ui.Color, dark bool) ui.Color {
+	if !dark {
+		return base
+	}
+	return ui.RGBA(0, 0, 0, 128).Over(base)
+}

@@ -1,0 +1,8 @@
+{
+    "screen":  "D-MAIN",
+    "threshold":  0,
+    "mask":  [
+
+             ],
+    "note":  "D-MAIN dark steady state: no caret/spinner/toast."
+}
