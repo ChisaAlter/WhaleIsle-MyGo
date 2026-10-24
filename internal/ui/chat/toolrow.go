@@ -149,7 +149,7 @@ func collapseSpace(text string) string {
 
 // paintToolRow holds the exiting body's layout for200ms, while the toolkit
 // retains an inert paint copy. Disclosure changes opacity rather than height.
-func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, shared *map[string]bool, expandable bool, body func()) {
+func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, shared *map[string]bool, expandable bool, body func(bool)) {
 	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0).Font(theme.RenderPreferences().Chat.Family)
 	open := false
 	if shared != nil && key != "" {
@@ -189,7 +189,8 @@ func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string
 			Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Ease: contextFadeEase, Colors: true,
 				Enter: &ui.Motion{Opacity: 0}, Exit: &ui.Motion{Opacity: 0}})
 		panel.ObserveLayout(func(r ui.Rect) { presence.height = r.H })
-		panel.Children(body)
+		ownerHovered := root.Hovered()
+		panel.Children(func() { body(ownerHovered) })
 	})
 }
 
@@ -290,6 +291,10 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 			info.Arguments = ""
 			toolIORows(c, info, st, key+":web-output")
 		}
+		return true, true
+	}
+	if info.details != nil && !opts.TextOnly {
+		toolDetailsCard(c, info.details, st, key, info.inspect != nil)
 		return true, true
 	}
 	if info.Name == "run_code" && !opts.TextOnly {

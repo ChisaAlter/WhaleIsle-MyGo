@@ -28,6 +28,9 @@ func toolBodyKind(name string) ToolKind {
 }
 
 func toolKindIconForName(name string) *ui.SVG {
+	if name == "create_goal" || name == "get_goal" || name == "update_goal" {
+		return toolIconGoal
+	}
 	if name == "web_fetch" {
 		return toolIconRead
 	}

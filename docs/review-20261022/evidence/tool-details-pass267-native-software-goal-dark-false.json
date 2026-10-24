@@ -1,0 +1,67 @@
+{
+  "rects": {
+    "123 / 256": {
+      "X": 122.5,
+      "Y": 109,
+      "W": 412.5,
+      "H": 20
+    },
+    "Awaiting continuation": {
+      "X": 122.5,
+      "Y": 85,
+      "W": 412.5,
+      "H": 20
+    },
+    "Blocker": {
+      "X": 39,
+      "Y": 133,
+      "W": 71.5,
+      "H": 20
+    },
+    "Following details flow": {
+      "X": 20,
+      "Y": 168,
+      "W": 600,
+      "H": 1
+    },
+    "Inspect": {
+      "X": 539.15234,
+      "Y": 56,
+      "W": 68.84766,
+      "H": 22
+    },
+    "Recorded reason": {
+      "X": 122.5,
+      "Y": 133,
+      "W": 412.5,
+      "H": 20
+    },
+    "Rounds": {
+      "X": 39,
+      "Y": 109,
+      "W": 71.5,
+      "H": 20
+    },
+    "Status": {
+      "X": 39,
+      "Y": 85,
+      "W": 71.5,
+      "H": 20
+    }
+  },
+  "texts": [
+    "View goal Recorded objective",
+    "View goal",
+    "Recorded objective",
+    "Recorded objective",
+    "Status",
+    "Awaiting continuation",
+    "Rounds",
+    "123 / 256",
+    "Blocker",
+    "Recorded reason",
+    "Inspect",
+    "Inspect",
+    "Following details flow"
+  ]
+}

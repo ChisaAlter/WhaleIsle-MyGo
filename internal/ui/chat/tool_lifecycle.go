@@ -112,7 +112,21 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 }
 
 func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+	var details *toolDetailsModel
+	if !gallery.TextOnly {
+		details = toolDetailsModelFor(call)
+		if details != nil {
+			// A settled nested receipt owns its name, even if the retained start
+			// differs. Keep the store projection immutable while selecting its row.
+			result, _ := terminalModelReadResult(call.Result)
+			name, _ := toolDetailsModelCallName(call, result.nested)
+			displayCall := *call
+			displayCall.Name = name
+			call = &displayCall
+		}
+	}
 	info := ToolLifecycleCardInfo(call)
+	info.details = details
 	arguments := call.Arguments
 	output := toolLifecycleOutputFor(call, !gallery.TextOnly)
 	if gallery.TextOnly {
@@ -124,7 +138,17 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	info.Arguments = arguments
 	if !gallery.TextOnly {
 		summary := toolSummaryModelFor(call, gallery.Cwd, gallery.Home)
+		if info.details != nil {
+			if len(info.details.Items) > 0 {
+				summary.Summary = info.details.Items[0].Title
+			} else {
+				summary.Summary = info.details.Empty
+			}
+		}
 		info.summaryModel = &summary
+		if call.CallID != "" && gallery.OnInspectCall != nil {
+			info.inspect = func() { gallery.OnInspectCall(call.CallID) }
+		}
 		info.imageFamily = call.Name == "read_image"
 		if info.imageFamily {
 			info.image = toolImageModelFor(call)
@@ -171,16 +195,11 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		info.Web = call.Result.Web
 	}
 	extra := func() {
-		if !gallery.TextOnly && !info.readFamily && !info.imageFamily && !info.mutationFamily && call.Name != "str_replace_editor" {
+		if !gallery.TextOnly && info.details == nil && !info.readFamily && !info.imageFamily && !info.mutationFamily && call.Name != "str_replace_editor" {
 			toolFileView(c, call, st, gallery)
 		}
 		if call.ParentIssue != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatToolCallRelated)+": "+call.ParentIssue).FontSize(10).TextColor(st.Muted)
-		}
-		if !gallery.TextOnly && call.CallID != "" && gallery.OnInspectCall != nil {
-			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatToolInspect), buttonGhost, false).Clicked() {
-				gallery.OnInspectCall(call.CallID)
-			}
 		}
 		if !gallery.TextOnly {
 			var citations []Citation

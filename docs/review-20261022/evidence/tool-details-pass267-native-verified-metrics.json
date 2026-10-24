@@ -1,0 +1,56 @@
+{
+  "dark": true,
+  "empty": {
+    "X": 20,
+    "Y": 198.6146,
+    "W": 320,
+    "H": 73.33333
+  },
+  "expanded": {
+    "empty-message|tool:native-empty": true,
+    "goal-message|tool:native-goal": true
+  },
+  "following": {
+    "X": 20,
+    "Y": 315.94794,
+    "W": 725.3333,
+    "H": 1
+  },
+  "generic": {
+    "X": 20,
+    "Y": 281.94794,
+    "W": 320,
+    "H": 24
+  },
+  "inspected": [
+    {
+      "CallID": "native-goal",
+      "MessageID": "goal-message",
+      "Seq": 207
+    },
+    {
+      "CallID": "native-goal",
+      "MessageID": "goal-message",
+      "Seq": 207
+    },
+    {
+      "CallID": "native-goal",
+      "MessageID": "goal-message",
+      "Seq": 207
+    },
+    {
+      "CallID": "native-goal",
+      "MessageID": "goal-message",
+      "Seq": 207
+    }
+  ],
+  "narrow": true,
+  "row": {
+    "X": 20,
+    "Y": 65.28125,
+    "W": 320,
+    "H": 123.333336
+  },
+  "scale": 1.5,
+  "time": "2026-10-24T13:33:23.0685021+08:00"
+}

@@ -1,0 +1,48 @@
+﻿[
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/chat\t60.735s"
+                   ],
+        "command":  "go test ./internal/ui/chat -count=1",
+        "seconds":  63.0151373,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/frame\t13.292s"
+                   ],
+        "command":  "go test ./internal/ui/frame -count=1",
+        "seconds":  22.0467446,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/i18n\t0.571s"
+                   ],
+        "command":  "go test ./internal/ui/i18n -count=1",
+        "seconds":  1.3719747999999998,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/store/session\t7.591s"
+                   ],
+        "command":  "go test ./internal/store/session -count=1",
+        "seconds":  15.125778599999999,
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "mygo vet internal/ui/chat",
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go vet affected packages",
+        "exit":  0
+    }
+]

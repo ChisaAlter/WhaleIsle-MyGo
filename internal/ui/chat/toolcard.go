@@ -49,6 +49,8 @@ type ToolCardInfo struct {
 	search   *toolSearchModel
 	web      *toolWebModel
 	image    *toolImageModel
+	details  *toolDetailsModel
+	inspect  func()
 	// imageFamily is the keyed read_image caller, which owns no args body.
 	imageFamily bool
 	webFamily   bool
@@ -166,11 +168,11 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 	}
 	// Coarse legacy names do not select a first-party result renderer.
 	kind := toolBodyKind(info.Name)
-	body := func() {
+	body := func(ownerHovered bool) {
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
 		}
-		if !opts.TextOnly && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil && info.diff == nil {
+		if !opts.TextOnly && info.details == nil && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil && info.diff == nil {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
@@ -196,9 +198,12 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if extra != nil {
 			extra()
 		}
+		if info.inspect != nil && !opts.TextOnly {
+			toolInspectButton(c, st, key, info.details != nil, ownerHovered, info.inspect)
+		}
 	}
 	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil
-	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil || info.image != nil)
+	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil || info.image != nil || info.details != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

@@ -1,0 +1,184 @@
+{
+  "schema": "tool-details-pass267-installed-authority/v1",
+  "note": "The vendored app was updated during this round: web asset names changed and the ui-tool and locale bundles now have new hashes. The Goal details model file and every rendered rule/label used by the implemented card are unchanged.",
+  "files": [
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-dU47c3Cy.css",
+      "bytes": 96887,
+      "sha256": "6f650b3c059a222e722abfd6d0e4bce180158db5428974fcbe875340d5ee79a4"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-mpwUGNSV.js",
+      "bytes": 1133488,
+      "sha256": "02f4a3a44bfd31f48b1b73bba36fa2cf4b0bd49a4af41995a1b1c92e4f13c87c"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js",
+      "bytes": 201751,
+      "sha256": "ed5069b3341d9db462436161ee6f5d6f62afe7b9c27f46d9e758ec94293502c5"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\details-card-model.js",
+      "bytes": 9080,
+      "sha256": "61babee6dd3ea6351bcceffb9540641744853638e6dc8640aea3323884cd2da7"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-conversation\\lib\\types\\client\\locales.js",
+      "bytes": 59141,
+      "sha256": "01618495e97ead047b7f242651b725e689b5aac718bc846d71e55a1603377f54"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\components\\ToolDetails.js",
+      "bytes": 5115,
+      "sha256": "66c746d78394919d1c8c334ae129c8f47d2ec4a9cba4369ff7cdca9044605bc2"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\toolviews\\details-row.js",
+      "bytes": 7934,
+      "sha256": "bc52f3e5818928dda0df2ed34b1f34b38254579916a667196196b07834fbc163"
+    }
+  ],
+  "changedSinceRound123Capture": {
+    "webAssets": {
+      "before": [
+        "index-l5jToo6l.css",
+        "index-wKUmVWbt.js"
+      ],
+      "now": [
+        "index-dU47c3Cy.css",
+        "index-mpwUGNSV.js"
+      ]
+    },
+    "uiToolBundle": {
+      "beforeSha256Prefix": "15beaa6632f0c2d1",
+      "nowSha256Prefix": "ed5069b3341d9db4"
+    },
+    "detailsModel": {
+      "beforeSha256Prefix": "61babee6dd3ea635",
+      "nowSha256Prefix": "61babee6dd3ea635"
+    },
+    "localeBundle": {
+      "beforeSha256Prefix": "9a7d75db4ce85fbf",
+      "nowSha256Prefix": "01618495e97ead04"
+    }
+  },
+  "renderedRulesPresent": {
+    "root": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "border:\\.5px solid var\\(--dsw-alias-border-l1\\);border-radius:var\\(--dsw-radius-lg\\);background:var\\(--dsw-alias-markdown-code-block\\);color:var\\(--dsw-alias-label-secondary\\);font:var\\(--dsw-font-xs-13\\);margin:4px 0 4px 4px;overflow:hidden"
+    },
+    "list": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "max-height:320px;margin:0;padding:0;list-style:none;overflow-y:auto"
+    },
+    "itemPadding": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "\\.PsZLWW_item,\\.PsZLWW_empty\\{margin:0;padding:10px 14px\\}"
+    },
+    "inspectReserve": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "padding-inline-end:88px"
+    },
+    "fieldGrid": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "\\.PsZLWW_field\\{grid-template-columns:5\\.5em minmax\\(0,1fr\\);gap:12px;display:grid\\}"
+    },
+    "inspectButton": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "border:\\.5px solid var\\(--dsw-alias-border-l3\\);corner-shape:round;background:var\\(--dsw-alias-bg-base\\);color:var\\(--dsw-alias-label-secondary\\);cursor:pointer;opacity:0;transition:opacity var\\(--ds-transition-duration-fast\\) var\\(--ds-ease-in-out\\);border-radius:999px;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;font-size:11px;line-height:16px;display:inline-flex"
+    },
+    "inspectReveal": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "\\.KZEDha_root:hover \\.KZEDha_inspectButton,\\.KZEDha_inspectButton:focus-visible\\{opacity:1\\}"
+    },
+    "inspectInDetails": {
+      "present": true,
+      "source": "ui-tool/lib/client.js",
+      "pattern": "\\.KZEDha_detailsBodyWrap \\.KZEDha_inspectButton\\{margin:0;position:absolute;top:12px;right:12px\\}"
+    },
+    "hoverSolid": {
+      "present": true,
+      "source": "ui-theme/lib/client.js",
+      "pattern": "--dsw-alias-interactive-bg-hover-solid:var\\(--dsw-static-neutral-bluish-(?:75|800)\\)"
+    },
+    "hoverSolidValue": {
+      "present": true,
+      "source": "ui-theme/lib/client.js",
+      "pattern": "--dsw-static-neutral-bluish-(?:75|800):#(?:f1f3f5|353638)"
+    },
+    "motionDuration": {
+      "present": true,
+      "source": "ui-theme/lib/client.js",
+      "pattern": "--ds-transition-duration-fast:\\.1s"
+    },
+    "motionEase": {
+      "present": true,
+      "source": "ui-theme/lib/client.js",
+      "pattern": "--ds-ease-in-out:cubic-bezier\\(\\.4, 0, \\.2, 1\\)"
+    }
+  },
+  "labels": {
+    "detail.state": [
+      "状态",
+      "Status"
+    ],
+    "detail.goal.empty": [
+      "没有目标",
+      "No goal"
+    ],
+    "detail.goal.rounds": [
+      "执行轮次",
+      "Rounds"
+    ],
+    "detail.goal.reason": [
+      "受阻原因",
+      "Blocker"
+    ],
+    "detail.goal.active": [
+      "进行中",
+      "Active"
+    ],
+    "detail.goal.disarmed": [
+      "等待继续",
+      "Awaiting continuation"
+    ],
+    "detail.goal.paused": [
+      "已暂停",
+      "Paused"
+    ],
+    "detail.goal.blocked": [
+      "受阻",
+      "Blocked"
+    ],
+    "detail.goal.complete": [
+      "已完成",
+      "Completed"
+    ],
+    "row.inspect": [
+      "查看",
+      "Inspect"
+    ]
+  },
+  "componentShape": {
+    "goalBranch": "detailsCardModel switch create_goal/get_goal/update_goal -> goalDetail",
+    "componentUsesList": false,
+    "callerForwardsInspect": true
+  },
+  "browserAcceptance": {
+    "executed": false,
+    "reason": "The prepared reference harness hard-coded the pre-update asset names; its sole acceptance attempt stopped before Chrome startup while re-reading sources, so no Chrome process was created and no browser result is claimed for this round.",
+    "chromeStarted": false
+  },
+  "limits": [
+    "Rules are byte-compared in the current installed module bundle; no browser rendering or computed style is asserted this round.",
+    "Native layout and interaction evidence comes from the recorded fixture and the Go UI toolkit, not from this installed page.",
+    "The retained pre-update source VM extraction is historical only and is not used as current authority."
+  ]
+}

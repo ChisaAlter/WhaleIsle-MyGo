@@ -1,0 +1,267 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T05:34:28.1085681Z",
+    "status":  "pass-injected-native-surface",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation link Invoke. No Host, browser opening, web requests, code execution, OS clipboard or hardware input. Recorded JSON only; navigation captures payloads without a Host or goal mutation.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r123-details-fixture.exe",
+                    "startUtc":  "2026-10-24T05:34:27.0502082Z",
+                    "exited":  true,
+                    "pid":  24140,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "details-click-Space-Enter-UIA-wire-identity",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "empty":  {
+                                                     "X":  20,
+                                                     "Y":  198.6146,
+                                                     "W":  620,
+                                                     "H":  24
+                                                 },
+                                       "expanded":  {
+                                                        "goal-message|tool:native-goal":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  266.6146,
+                                                         "W":  725.3333,
+                                                         "H":  1
+                                                     },
+                                       "generic":  {
+                                                       "X":  20,
+                                                       "Y":  232.6146,
+                                                       "W":  620,
+                                                       "H":  24
+                                                   },
+                                       "inspected":  [
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         }
+                                                     ],
+                                       "narrow":  false,
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  620,
+                                                   "H":  123.333336
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T13:34:28.7444703+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "empty-goal-card-and-Inspect",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "empty":  {
+                                                     "X":  20,
+                                                     "Y":  198.6146,
+                                                     "W":  620,
+                                                     "H":  73.33333
+                                                 },
+                                       "expanded":  {
+                                                        "empty-message|tool:native-empty":  true,
+                                                        "goal-message|tool:native-goal":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  315.94794,
+                                                         "W":  725.3333,
+                                                         "H":  1
+                                                     },
+                                       "generic":  {
+                                                       "X":  20,
+                                                       "Y":  281.94794,
+                                                       "W":  620,
+                                                       "H":  24
+                                                   },
+                                       "inspected":  [
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         }
+                                                     ],
+                                       "narrow":  false,
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  620,
+                                                   "H":  123.333336
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T13:34:28.7821534+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "narrow-theme-keeps-navigation",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "empty":  {
+                                                     "X":  20,
+                                                     "Y":  198.6146,
+                                                     "W":  320,
+                                                     "H":  73.33333
+                                                 },
+                                       "expanded":  {
+                                                        "empty-message|tool:native-empty":  true,
+                                                        "goal-message|tool:native-goal":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  315.94794,
+                                                         "W":  725.3333,
+                                                         "H":  1
+                                                     },
+                                       "generic":  {
+                                                       "X":  20,
+                                                       "Y":  281.94794,
+                                                       "W":  320,
+                                                       "H":  24
+                                                   },
+                                       "inspected":  [
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         }
+                                                     ],
+                                       "narrow":  true,
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  123.333336
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T13:34:29.1168484+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "generic-inline-Inspect",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "empty":  {
+                                                     "X":  20,
+                                                     "Y":  198.6146,
+                                                     "W":  320,
+                                                     "H":  73.33333
+                                                 },
+                                       "expanded":  {
+                                                        "empty-message|tool:native-empty":  true,
+                                                        "generic-message|tool:native-generic":  true,
+                                                        "goal-message|tool:native-goal":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  465.11462,
+                                                         "W":  725.3333,
+                                                         "H":  1
+                                                     },
+                                       "generic":  {
+                                                       "X":  20,
+                                                       "Y":  281.94794,
+                                                       "W":  320,
+                                                       "H":  173.16667
+                                                   },
+                                       "inspected":  [
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-goal",
+                                                             "MessageID":  "goal-message",
+                                                             "Seq":  207
+                                                         },
+                                                         {
+                                                             "CallID":  "native-generic",
+                                                             "MessageID":  "generic-message",
+                                                             "Seq":  209
+                                                         }
+                                                     ],
+                                       "narrow":  true,
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  320,
+                                                   "H":  123.333336
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T13:34:29.4001389+08:00"
+                                   }
+                   }
+               ],
+    "error":  null,
+    "inspectUIAPosition":  {
+                               "expected":  101.28125,
+                               "actual":  100.66666666666666666666666667,
+                               "maxError":  1.3333333333333333333333333333
+                           },
+    "finishedAt":  "2026-10-24T05:34:29.5392812Z"
+}

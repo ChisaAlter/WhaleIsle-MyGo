@@ -1,0 +1,18 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T05:32:05.4042940Z",
+    "status":  "failed",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation link Invoke. No Host, browser opening, web requests, code execution, OS clipboard or hardware input. Recorded JSON only; navigation captures payloads without a Host or goal mutation.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r123-details-fixture.exe",
+                    "startUtc":  "2026-10-24T05:32:04.2950624Z",
+                    "exited":  true,
+                    "pid":  42652,
+                    "closed":  true
+                },
+    "states":  [
+
+               ],
+    "error":  "details Inspect y: 100.666666666667 expected 101.28125",
+    "finishedAt":  "2026-10-24T05:32:05.9430589Z"
+}

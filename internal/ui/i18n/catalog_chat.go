@@ -337,7 +337,7 @@ func init() {
 	Register(KeyChatToolArguments, "参数", "Arguments")
 	Register(KeyChatToolResult, "结果", "Result")
 	Register(KeyChatToolEvent, "原始记录", "Raw event")
-	Register(KeyChatToolInspect, "检查此调用", "Inspect this call")
+	Register(KeyChatToolInspect, "查看", "Inspect")
 	Register(KeyChatToolCopy, "复制", "Copy")
 	Register(KeyChatToolCallRelated, "调用关系", "Call relation")
 	Register(KeyChatToolFailed, "失败", "Failed")
