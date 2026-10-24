@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-24T15:12:54.904Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 86957056,
+  "productionSHA256": "E7371690D1201FE69EC58DB4A8D1610BCEBE924B05047D817B752DF39D5C3D70",
+  "defaultSHA256": "E7371690D1201FE69EC58DB4A8D1610BCEBE924B05047D817B752DF39D5C3D70",
+  "note": "pass272 covers rounds 134-136: native application menu, todo_write diff card, caption content inset 12/4 and the design bezier easing."
+}

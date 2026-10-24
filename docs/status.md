@@ -287,6 +287,13 @@
 - round133：标题带按钮上沿 8→12（y=12..44），popover 150→160ms / 位移 4、overlay 位移 8；G01 经核对是测量错误（带高本就 48）。
 - 证据：pass271（86,918,656 B / SHA256 `FE73AE32…`），四包测试全绿；残留：overlay-out 100ms、scale(0.96)、标题行中心 24→28、todo_write 族、实机像素。
 
+### round134–136（2026-10-24）
+
+- round134：应用菜单按 menu.js 逐项对齐（新增「在资源管理器中打开工作区」、移除原生没有的 Edit/快捷键/本地打开行、keycap 只取已接受 revision、无绑定不显示、首个快照前用出厂默认）。
+- round135：	odo_write 详情卡——从已加载事件窗重建上一版清单，initial / compare / unavailable 三态，added/updated/removed/unchanged 与原生文案。
+- round136：标题带内容坐到 y=12..44（中心 28）；新增 widgets.DesignEase = cubic-bezier(0.4,0,0.2,1)，替换四处 motion token、Motion.Animate 默认、chrome 过渡与 Reveal；overlay 退场 100ms 受 ui.ElementTransition 单时长限制未做。
+- 证据：pass272（86,957,056 B / SHA256 `E7371690…`）；frame/chat/cmd/widgets/chrome 测试绿。残留：scale(0.96)、overlay-out、browserpreview TopInset、关闭按钮 hover、启动器/boot 独立窗（计划见 docs/parity/launcher-boot-plan-20261024.md）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
