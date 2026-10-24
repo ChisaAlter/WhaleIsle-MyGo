@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-24T15:34:30.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87241216,
+  "productionSHA256": "649BBA3DBD0E2041A53B7B0E38C89E613D600170EACC5FA09615AC5B1F33503E",
+  "defaultSHA256": "649BBA3DBD0E2041A53B7B0E38C89E613D600170EACC5FA09615AC5B1F33503E",
+  "note": "pass273 covers rounds 137-139: ask-question history card, caption hover fills and the real-window geometry probe, launcher as its own 1060x660 window."
+}

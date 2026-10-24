@@ -294,6 +294,14 @@
 - round136：标题带内容坐到 y=12..44（中心 28）；新增 widgets.DesignEase = cubic-bezier(0.4,0,0.2,1)，替换四处 motion token、Motion.Animate 默认、chrome 过渡与 Reveal；overlay 退场 100ms 受 ui.ElementTransition 单时长限制未做。
 - 证据：pass272（86,957,056 B / SHA256 `E7371690…`）；frame/chat/cmd/widgets/chrome 测试绿。残留：scale(0.96)、overlay-out、browserpreview TopInset、关闭按钮 hover、启动器/boot 独立窗（计划见 docs/parity/launcher-boot-plan-20261024.md）。
 
+### round137–139（2026-10-24）
+
+- round137：sk_user_question 历史卡（answered / unanswered / 未作答标签，严格校验失败回退 OUT；pending/closed 仍缺 userQuestions 投影）。
+- round138：标题栏按钮 hover 填充（关闭 #e81123 + 白字，最小化/最大化交互底色），并修正 `ui.Painter.Line` 只画横条导致「✕ 变横线」的既有缺陷；新增 scripts/window-geometry-probe.ps1（只 GetWindowRect，绝不 PrintWindow）。
+- round139：启动器改为独立 **1060×660** 原生窗口（冷启动隐藏主窗；start 后销毁启动器并显示主窗一次；托盘/深链复用同一 HWND；--background/--settings/隔离/失败创建回退主窗内面板；一个 launcherPanel 模型）。
+- 实机证据：pass273 探针 1590×990 px = 1060×660 DIP（dpi 144）可见启动器 + 2160×1380 px = 1440×920 DIP 隐藏主窗；pass272 主窗 2160×1380 = 1440×920。见 evidence/window-geometry-pass273.json。
+- pass273：87,241,216 B / SHA256 `649BBA3D…`；cmd/chat/frame 测试绿。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
