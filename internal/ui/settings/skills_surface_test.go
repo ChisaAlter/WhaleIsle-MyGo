@@ -49,7 +49,7 @@ func TestSkillsHeaderOffersThreeActionsAndFilters(t *testing.T) {
 	if _, ok := tt.Find("Skill source filter"); !ok {
 		t.Fatalf("source dropdown missing: %v", tt.Texts())
 	}
-	if !tt.HasText("Workspace and personal skills 2 skills") {
+	if !tt.HasText("2 workspace and personal skills") {
 		t.Fatalf("group count line missing: %v", tt.Texts())
 	}
 	if !tt.HasText("Bundled") {

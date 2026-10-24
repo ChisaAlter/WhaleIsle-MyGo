@@ -41,7 +41,7 @@ func init() {
 	i18n.Register(KeyPass4PresetsHint, "选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。", "Choose the Agent's tools and working style. Use Standard for everyday work and Cordis to extend DSH.")
 	i18n.Register(KeyPass4BuiltIn, "内置", "Built-in")
 	i18n.Register(KeyPass4Custom, "自定义", "Custom")
-	i18n.Register(KeyPass4TaskDefault, "任务默认", "Task default")
+	i18n.Register(KeyPass4TaskDefault, "新任务默认", "New task default")
 	i18n.Register(KeyPass4BadgeBuiltIn, "内置", "Built-in")
 	i18n.Register(KeyPass4ModeExplanation, "模式说明", "Mode notes")
 	i18n.Register(KeyPass4HowToUse, "如何使用", "How to use")

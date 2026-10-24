@@ -275,7 +275,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		groups := skillSections(visible)
 		for _, group := range groups {
 			if len(groups) == 1 && group.Name == "" {
-				ui.Text(c, i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup)+" "+fmt.Sprint(len(group.Skills))+" "+providerCopy("项", "skills")).
+				ui.Text(c, skillsGroupCountLabel(i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup), len(group.Skills))).
 					FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 				for _, row := range group.Skills {
 					skillCompactRow(c, a, row, fg, muted)
@@ -286,7 +286,6 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if label == "" {
 				label = i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup)
 			}
-			count := providerCopy("项", "skills")
 			section := ui.Column(c.Key("skill-group/" + group.Name)).FillWidth().MinWidth(0).Gap(4)
 			open := ui.Local(section, "expanded", func() bool { return true })
 			section.Children(func() {
@@ -298,7 +297,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 							icon = "down"
 						}
 						ui.Icon(c, bodyIcon(icon)).Size(12, 12).TextColor(muted)
-						ui.Text(c, label+" "+fmt.Sprint(len(group.Skills))+" "+count).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+						ui.Text(c, skillsGroupCountLabel(label, len(group.Skills))).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 					})
 					if disclosure.Clicked() {
 						*open = !*open
@@ -472,7 +471,7 @@ func skillSections(rows []SkillRow) []skillSection {
 }
 
 func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.Color) {
-	ui.Column(c.Key("skill-row/"+row.Source+"/"+row.Name)).FillWidth().MinWidth(0).Gap(4).MinHeight(64).Children(func() {
+	ui.Column(c.Key("skill-row/" + row.Source + "/" + row.Name)).FillWidth().MinWidth(0).Gap(4).MinHeight(64).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(10).Wrap().AlignItems(ui.Center).Children(func() {
 			main := ui.Button(c, "").Label("Inspect skill · " + row.Name).MinHeight(48).Grow(1).MinWidth(180).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(!row.Writable || a.Busy || a.OnInspect == nil)
 			main.Children(func() {
@@ -521,6 +520,7 @@ func skillsBrowseButton(c *ui.Context, label string, muted ui.Color) ui.Element 
 	})
 	return button
 }
+
 // skillSourceBadge is the small white chip after a skill row: the source name in
 // 11px over a 0.5 hairline, the way the installed build tags bundled skills.
 func skillSourceBadge(c *ui.Context, label, directory string, muted ui.Color) {
@@ -533,4 +533,13 @@ func skillSourceBadge(c *ui.Context, label, directory string, muted ui.Color) {
 	if directory != "" {
 		badge.Tooltip(directory)
 	}
+}
+
+// skillsGroupCountLabel orders the group label and its count the way the
+// installed page does: "工作区与个人技能 0 项" but "0 workspace and personal skills".
+func skillsGroupCountLabel(label string, count int) string {
+	if i18n.Locale() == i18n.LocaleEN && label != "" && label == i18n.T(i18n.KeySurfacesSkillsWorkspaceGroup) {
+		return fmt.Sprint(count) + " " + strings.ToLower(label[:1]) + label[1:]
+	}
+	return label + " " + fmt.Sprint(count) + " " + providerCopy("项", "skills")
 }
