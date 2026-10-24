@@ -48,7 +48,9 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 		if controls == nil {
 			return
 		}
-		control := ui.Column(c).MinWidth(0).Gap(6)
+		// The installed row keeps the value control flush with the row's right
+		// edge, so an intrinsic-width pill ends where the list ends.
+		control := ui.Column(c).MinWidth(0).Gap(6).AlignItems(ui.End)
 		if width >= 420 {
 			control.Width(180).Shrink(0)
 		} else {
@@ -58,9 +60,9 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 	}
 	row.Children(func() {
 		if width >= 420 {
-			ui.Row(c).FillWidth().MinWidth(0).MinHeight(64).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(body)
+			ui.Row(c).FillWidth().MinWidth(0).MinHeight(68).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(body)
 		} else {
-			ui.Column(c).FillWidth().MinWidth(0).MinHeight(64).Gap(10).Padding(14, 0).Children(body)
+			ui.Column(c).FillWidth().MinWidth(0).MinHeight(68).Gap(10).Padding(14, 0).Children(body)
 		}
 	})
 	return row

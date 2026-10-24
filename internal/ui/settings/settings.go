@@ -197,7 +197,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	active := activeSection(m, snap)
 	ui.Column(c).Key("settings-rail").Width(180).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
-		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(8).Children(func() {
+		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Children(func() {
 			for _, entry := range primaryNavigation(m, snap) {
 				selected := entry.id == active
 				fill := ui.Transparent
@@ -205,7 +205,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 					fill = hover
 				}
 				label := sectionLabel(entry.id)
-				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(38).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(8, 16, 8, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
+				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(40).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(9, 16, 9, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
 				button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 				button.Children(func() {
 					ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(fg)
