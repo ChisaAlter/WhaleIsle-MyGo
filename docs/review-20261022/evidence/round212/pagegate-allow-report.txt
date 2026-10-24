@@ -1,0 +1,10 @@
+gate=allow probeWindow=True
+targetRect=710,294 1140x780 pid=5116
+uiaSetFocus=failed:Exception calling "SetFocus" with "0" argument(s): "Target element cannot receive focus."
+foregroundIsTarget=True foreground=15010758 target=15010758
+focusIsDescendant=True focusHwnd=21892148 activeHwnd=15010758
+devtoolsBefore=0
+sendInputDelivered=False keys=
+keybdEventDelivered=True keys=key="Control" ctrl=true shift=false;key="Shift" ctrl=true shift=true;key="I" ctrl=true shift=true
+devtoolsAfter=1
+  devtools: 'DevTools - about:blank' class=Chrome_WidgetWin_1 pid=33488 visible=True rect=150,150 960x960

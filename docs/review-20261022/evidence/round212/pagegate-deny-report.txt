@@ -1,0 +1,9 @@
+gate=deny probeWindow=True
+targetRect=710,294 1140x780 pid=13360
+uiaSetFocus=failed:Exception calling "SetFocus" with "0" argument(s): "Target element cannot receive focus."
+foregroundIsTarget=True foreground=11798940 target=11798940
+focusIsDescendant=True focusHwnd=16911406 activeHwnd=11798940
+devtoolsBefore=0
+sendInputDelivered=False keys=
+keybdEventDelivered=True keys=key="Control" ctrl=true shift=false;key="Shift" ctrl=true shift=true;key="I" ctrl=true shift=true
+devtoolsAfter=0
