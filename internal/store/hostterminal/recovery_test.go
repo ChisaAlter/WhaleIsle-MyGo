@@ -24,7 +24,7 @@ func TestRecoveryAdoptsExactExistingProcessWithoutCreateOrInput(t *testing.T) {
 		t.Fatal("exact recovery rejected")
 	}
 	_ = attach(t, s, r, 4)
-	if r.count("terminal/create") != 0 || r.count("input/write") != 0 {
+	if r.count("terminal/create") != 0 || r.count("terminal/write") != 0 {
 		t.Fatal("recovery created a replacement or replayed input")
 	}
 	if !s.StartFresh(owner, "session") || r.count("terminal/create") != 0 {
@@ -65,7 +65,7 @@ func TestMissingRecoveryNeverAllocatesAndFreshFailureIsConsumedOnce(t *testing.T
 			t.Fatal("recovery not started")
 		}
 		v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != "" })
-		if v.ActiveID != "gone" || v.Phase != "failed" || r.count("terminal/create") != 0 || r.count("input/write") != 0 {
+		if v.ActiveID != "gone" || v.Phase != "failed" || r.count("terminal/create") != 0 || r.count("terminal/write") != 0 {
 			t.Fatalf("missing descriptor replaced: %+v", v)
 		}
 		if !s.StartFresh(owner, "session") || r.count("terminal/create") != 0 {

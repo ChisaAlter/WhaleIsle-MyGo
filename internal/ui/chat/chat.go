@@ -1,4 +1,5 @@
-// Package chat is the virtualized message list stub for M4.
+// Package chat renders the conversation message list: Markdown, tool cards,
+// diffs, thinking blocks, images, feedback, usage and plan panels.
 package chat
 
 import (

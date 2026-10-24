@@ -1,4 +1,5 @@
-// Package sidebar draws the workspace and session tree stub for M4.
+// Package sidebar draws the workspace and session tree: search, create, pin,
+// archive, delete and rename over the session store.
 package sidebar
 
 import (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 )
@@ -46,5 +47,47 @@ func TestCommitGenerationConfiguredFailureAndCancellation(t *testing.T) {
 	}
 	if _, e := generateCommitText(context.Background(), CommitGenerationInput{}, "fixture", "http://example.invalid", nil); e == nil {
 		t.Fatal("cleartext credentials allowed")
+	}
+}
+
+// TestMergeGenerationSummaryNamesUntrackedFiles pins the title-bar input: the
+// tracked name-status rows stay as-is and the untracked files the review flow
+// would commit are added once, so the heuristic can name them.
+func TestMergeGenerationSummaryNamesUntrackedFiles(t *testing.T) {
+	changes := []Change{
+		{Index: 'M', Worktree: ' ', Path: "tracked.txt"},
+		{Index: '?', Worktree: '?', Path: "new.txt"},
+		{Index: '?', Worktree: '?', Path: "new.txt"},
+	}
+	got := mergeGenerationSummary("M\ttracked.txt", changes, true)
+	if got != "M\ttracked.txt\n??\tnew.txt" {
+		t.Fatalf("summary = %q", got)
+	}
+	// Without a usable HEAD diff every change is reported, staged or not.
+	got = mergeGenerationSummary("", []Change{{Index: 'A', Worktree: ' ', Path: "staged.txt"}}, false)
+	if got != "A\tstaged.txt" {
+		t.Fatalf("fallback summary = %q", got)
+	}
+	if got := mergeGenerationSummary("", nil, true); got != "" {
+		t.Fatalf("empty summary = %q", got)
+	}
+}
+
+// TestGenerateWorktreeCommitMessageFailsWithoutChanges keeps a clean tree from
+// producing invented copy. The directory lives outside this repository, because
+// Git reports the enclosing repository's changes from any nested path.
+func TestGenerateWorktreeCommitMessageFailsWithoutChanges(t *testing.T) {
+	dir, err := os.MkdirTemp("", "whaleisle-generation-*")
+	if err != nil {
+		t.Fatalf("temp dir: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	if _, err := GenerateWorktreeCommitMessage(context.Background(), dir); err == nil {
+		t.Fatal("clean directory generated a message")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := GenerateWorktreeCommitMessage(ctx, dir); err == nil {
+		t.Fatal("cancelled generation continued")
 	}
 }

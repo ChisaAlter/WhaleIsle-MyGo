@@ -158,6 +158,13 @@ func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string
 		open = *rowOpenState(root, key, false)
 	}
 	open = open && expandable
+	// The installed row swaps to details.expandedSummary while open; keep the
+	// caller's summary value intact by copying the small summary record.
+	if open && info.details != nil && info.details.ExpandedSummary != "" && info.summaryModel != nil {
+		copied := *info.summaryModel
+		copied.Summary = info.details.ExpandedSummary
+		info.summaryModel = &copied
+	}
 	root.Children(func() {
 		before := open
 		toolHeader(c, info, st, key, &open, expandable)

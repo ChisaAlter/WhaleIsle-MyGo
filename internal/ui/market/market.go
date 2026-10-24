@@ -1,4 +1,6 @@
-// Package market is the M9 native plugin marketplace stub panel.
+// Package market is the native plugin market surface: catalog discovery with
+// search, categories, details and install, plus installed-plugin management
+// (enable, disable, batch update, remove).
 package market
 
 import (

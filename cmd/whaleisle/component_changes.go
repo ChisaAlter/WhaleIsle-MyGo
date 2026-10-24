@@ -145,6 +145,12 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		}
 		s.launcherComponentStatus = s.launcherUpdate
 		s.mu.Unlock()
+		// A stopped, switched or uninstalled instance invalidates its management
+		// page: the loopback key belongs to the old process. Close the embedded
+		// window instead of leaving a dead document (reference ipc-components.js).
+		if err == nil && !cancelled && win != nil {
+			win.Update(func() { s.closeWhaleBridgeWindow() })
+		}
 		s.refreshLauncherComponents()
 	}()
 }

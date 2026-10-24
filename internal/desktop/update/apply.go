@@ -85,6 +85,9 @@ type IncrementalOptions struct {
 	// RequireSignature / ExpectedPublisher are passed through to staging.
 	RequireSignature  bool
 	ExpectedPublisher string
+	// OnProgress is called during the download (full or patch) with received
+	// and expected bytes, so an in-app download row can report progress.
+	OnProgress func(received, total int64)
 }
 
 // DownloadAndStage fetches ReleaseURL into destDir (or os.TempDir) and returns
@@ -263,6 +266,7 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 				HTTPClient:        client,
 				RequireSignature:  opt.RequireSignature,
 				ExpectedPublisher: opt.ExpectedPublisher,
+				OnProgress:        opt.OnProgress,
 			})
 		}
 	}
@@ -275,6 +279,7 @@ func ApplyIncremental(ctx context.Context, opt IncrementalOptions) (ApplyResult,
 		ExpectSize:        opt.Feed.Size,
 		RequireSignature:  opt.RequireSignature,
 		ExpectedPublisher: opt.ExpectedPublisher,
+		OnProgress:        opt.OnProgress,
 	})
 	if err != nil {
 		return ApplyResult{}, err

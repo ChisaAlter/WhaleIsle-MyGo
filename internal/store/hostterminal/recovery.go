@@ -33,7 +33,7 @@ func (s *Store) RecoverySnapshot(authority, session string) *RecoveryTarget {
 }
 
 // AdoptRecovery is called for a displayed occurrence after its trusted Host is
-// bound. Discovery must find the saved identity before retain/attach; recovery
+// bound. Discovery must find the saved identity before retain/follow; recovery
 // never calls terminal/create and never substitutes a missing process.
 // A failed lookup stays visible for explicit Refresh/Connect, without retries.
 func (s *Store) AdoptRecovery(owner uint64, authority, session string, saved *RecoveryTarget) bool {

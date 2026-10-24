@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,20 +14,43 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// toolDetailsModel is the installed goal and reminder details card's display
-// data. Recorded objectives, prompts and blocker messages retain their spelling
-// and confer no actions.
+// toolDetailsModel is the installed goal, reminder and background-job details
+// card's display data. Recorded objectives, prompts, blocker messages and job
+// output retain their spelling and confer no actions.
 type toolDetailsModel struct {
 	Items []toolDetailItem
 	Empty string
 	// Summary replaces the first item's title in the collapsed row, as the
 	// installed reminder list does with its count.
 	Summary string
+	// Caption is the installed list heading above the items. Only the control
+	// receipts (job_list/job_output/job_kill) record one; the goal and reminder
+	// derivations return captions outside detailList and stay bare.
+	Caption string
+	// ExpandedSummary replaces the collapsed row summary while the body is open.
+	ExpandedSummary string
 }
 
 type toolDetailItem struct {
 	Title  string
 	Fields []toolDetailField
+	// The remaining fields are the installed DetailItem's optional parts. The
+	// pointers keep "the recorded receipt has no subtitle/description/code"
+	// distinct from an empty recorded string, which still paints.
+	Badge       *toolDetailBadge
+	Subtitle    *string
+	Description *string
+	Code        *toolDetailCode
+}
+
+// toolDetailBadge is the installed static status dot and label.
+type toolDetailBadge struct {
+	Label, Tone string
+}
+
+// toolDetailCode is recorded text kept selectable inside its own scroll region.
+type toolDetailCode struct {
+	Text, Language string
 }
 
 type toolDetailField struct {
@@ -45,7 +69,7 @@ func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 	if !ok || result.failed {
 		return nil
 	}
-	name, ok := toolDetailsModelCallName(call, result.nested)
+	name, args, ok := toolDetailsModelCallArgs(call, result.nested)
 	if !ok {
 		return nil
 	}
@@ -67,6 +91,12 @@ func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 		return toolDetailsModelScheduleList(value)
 	case "schedule_delete":
 		return toolDetailsModelScheduleDeleted(value)
+	case "job_list":
+		return toolDetailsModelJobList(text)
+	case "job_output":
+		return toolDetailsModelJobOutput(args, text)
+	case "job_kill":
+		return toolDetailsModelJobKill(args, text)
 	default:
 		return nil
 	}
@@ -420,38 +450,183 @@ func toolDetailsModelScheduleZone(local time.Time) string {
 // parsedToolCall uses JSON.parse of the actual call's argsRaw, never flattened
 // projection fields. childResult supplies JSON.stringify(data.arguments).
 func toolDetailsModelCallName(call *session.ToolCallView, nested bool) (string, bool) {
+	name, _, ok := toolDetailsModelCallArgs(call, nested)
+	return name, ok
+}
+
+// toolDetailsModelCallArgs reads the settled call's wire name together with the
+// arguments record the installed parsedToolCall yields. A root result borrows
+// the retained raw head's arguments string; a nested receipt embeds its own
+// settled arguments record even in a result-only history window. Arguments that
+// do not parse as an object reject the whole card, exactly as parsedToolCall
+// returns null and leaves the generic evidence body in place.
+func toolDetailsModelCallArgs(call *session.ToolCallView, nested bool) (string, map[string]json.RawMessage, bool) {
 	var data map[string]json.RawMessage
 	if nested {
 		envelope, _ := terminalModelObject(call.Result.Raw)
 		data, _ = terminalModelObject(envelope["data"])
-		if _, ok := terminalModelObject(data["arguments"]); !ok {
-			return "", false
-		}
 	} else {
 		if call.Call == nil {
-			return "", false
+			return "", nil, false
 		}
 		envelope, ok := terminalModelObject(call.Call.Raw)
 		if !ok {
-			return "", false
+			return "", nil, false
 		}
 		typ, _ := terminalModelString(envelope["type"])
 		if typ != "tool/call" || call.Call.EventType != "" && call.Call.EventType != typ {
-			return "", false
+			return "", nil, false
 		}
 		data, ok = terminalModelObject(envelope["data"])
 		if !ok {
-			return "", false
-		}
-		args, ok := terminalModelString(data["arguments"])
-		if !ok {
-			return "", false
-		}
-		if _, ok := terminalModelObject(json.RawMessage(args)); !ok {
-			return "", false
+			return "", nil, false
 		}
 	}
-	return terminalModelString(data["name"])
+	// A nil data record indexes as an absent argument and rejects the call.
+	args, ok := terminalModelObject(data["arguments"])
+	if !nested {
+		encoded, valid := terminalModelString(data["arguments"])
+		if !valid {
+			return "", nil, false
+		}
+		args, ok = terminalModelObject(json.RawMessage(encoded))
+	}
+	if !ok {
+		return "", nil, false
+	}
+	name, ok := terminalModelString(data["name"])
+	if !ok {
+		return "", nil, false
+	}
+	return name, args, true
+}
+
+// Background-job lines and output markers are the installed formats:
+//
+//	job-1 [bash] running — npm test
+//	…output…
+//	[status: completed, exit 0]
+var (
+	toolDetailsModelJobLine   = regexp.MustCompile(`^(\S+) \[([^\]]+)\] (\S+) — (.*)$`)
+	toolDetailsModelJobStatus = regexp.MustCompile(`\n\[status: ([^,\]\n]+)(?:, ([^\]\n]+))?\]$`)
+)
+
+const (
+	toolDetailsModelJobListEmpty    = "(no background jobs)"
+	toolDetailsModelOutputTruncated = "\n[output truncated]"
+)
+
+// toolDetailsModelRecordedList composes the installed detailList envelope: the
+// recorded-result caption and generic empty copy accompany every control list.
+func toolDetailsModelRecordedList(items []toolDetailItem, summary string) *toolDetailsModel {
+	return &toolDetailsModel{
+		Items:   items,
+		Summary: summary,
+		Caption: i18n.T(i18n.KeyToolDetailRecordedResult),
+		Empty:   i18n.T(i18n.KeyToolDetailEmpty),
+	}
+}
+
+func toolDetailsModelString(value string) *string {
+	return &value
+}
+
+// toolDetailsModelTarget picks the first non-empty recorded string among the
+// target aliases, exactly as the installed `arg(...) || arg(...)` chain.
+func toolDetailsModelTarget(args map[string]json.RawMessage) string {
+	for _, key := range [...]string{"target", "agent_id", "sessionId", "job_id"} {
+		if value, ok := terminalModelString(args[key]); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// toolDetailsModelJobList mirrors the installed jobList: every line carries an
+// id, bracket kind, state and em-dash title, and one malformed line rejects the
+// whole list so the generic evidence body remains.
+func toolDetailsModelJobList(text string) *toolDetailsModel {
+	if text == toolDetailsModelJobListEmpty {
+		return toolDetailsModelRecordedList([]toolDetailItem{}, fmt.Sprintf(i18n.T(i18n.KeyToolDetailJobsCount), 0))
+	}
+	items := make([]toolDetailItem, 0)
+	for _, line := range strings.Split(text, "\n") {
+		match := toolDetailsModelJobLine.FindStringSubmatch(line)
+		if match == nil {
+			return nil
+		}
+		id, kind, state, title := match[1], match[2], match[3], match[4]
+		badge := toolDetailsModelBadge(state)
+		items = append(items, toolDetailItem{
+			Title:    title,
+			Subtitle: toolDetailsModelString(id),
+			Badge:    &badge,
+			Fields: []toolDetailField{{
+				Label: i18n.T(i18n.KeyToolDetailFieldType),
+				Value: kind,
+			}},
+		})
+	}
+	return toolDetailsModelRecordedList(items, fmt.Sprintf(i18n.T(i18n.KeyToolDetailJobsCount), len(items)))
+}
+
+// toolDetailsModelJobOutput mirrors the installed job_output receipt: the status
+// marker is trailing, the code is the preceding output without the truncation
+// suffix, and the recorded status only names the badge.
+func toolDetailsModelJobOutput(args map[string]json.RawMessage, text string) *toolDetailsModel {
+	match := toolDetailsModelJobStatus.FindStringSubmatchIndex(text)
+	if match == nil {
+		return nil
+	}
+	target := toolDetailsModelTarget(args)
+	output := text[:match[0]]
+	truncated := strings.HasSuffix(output, toolDetailsModelOutputTruncated)
+	code := output
+	if truncated {
+		code = strings.TrimSuffix(output, toolDetailsModelOutputTruncated)
+	}
+	badge := toolDetailsModelBadge(text[match[2]:match[3]])
+	parts := make([]string, 0, 2)
+	if match[4] >= 0 {
+		parts = append(parts, text[match[4]:match[5]])
+	}
+	if truncated {
+		parts = append(parts, i18n.T(i18n.KeyToolDetailOutputTruncated))
+	}
+	item := toolDetailItem{
+		Title: target,
+		Badge: &badge,
+		Code:  &toolDetailCode{Text: code},
+	}
+	if description := strings.Join(parts, " · "); description != "" {
+		item.Description = toolDetailsModelString(description)
+	}
+	model := toolDetailsModelRecordedList([]toolDetailItem{item}, target+" · "+badge.Label)
+	model.ExpandedSummary = target
+	return model
+}
+
+// toolDetailsModelJobKill mirrors the two installed job_kill receipts. The
+// cancellation receipt always carries arg(args,'reason'), which the installed
+// helper yields as "" for an absent or non-string value; the finished receipt
+// carries no description at all.
+func toolDetailsModelJobKill(args map[string]json.RawMessage, text string) *toolDetailsModel {
+	target := toolDetailsModelTarget(args)
+	var item toolDetailItem
+	switch {
+	case text == "requested cancellation of job "+target:
+		badge := toolDetailBadge{Label: i18n.T(i18n.KeyToolDetailReceiptCancel), Tone: "warning"}
+		reason, _ := terminalModelString(args["reason"])
+		item = toolDetailItem{Title: target, Badge: &badge, Description: toolDetailsModelString(reason)}
+	case strings.HasPrefix(text, "job "+target+" had already finished "):
+		badge := toolDetailBadge{Label: i18n.T(i18n.KeyToolDetailReceiptFinished), Tone: "neutral"}
+		item = toolDetailItem{Title: target, Badge: &badge}
+	default:
+		return nil
+	}
+	model := toolDetailsModelRecordedList([]toolDetailItem{item}, target+" · "+item.Badge.Label)
+	model.ExpandedSummary = target
+	return model
 }
 
 // count accepts exactly nonnegative Number.isSafeInteger values after JSON's

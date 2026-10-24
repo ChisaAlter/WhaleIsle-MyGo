@@ -235,6 +235,12 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 				s.nativeReleases.status = resumeText("正在复用已缓存安装包并下载变化区块：", "Reusing cached installer and downloading changed blocks: ") + selected.Tag
 			}
 			s.mu.Unlock()
+			// The launcher's native release download keeps the same evidence as
+			// the in-app updater (update-journal.js): the request, integer
+			// progress, then the verified result.
+			s.recordUpdateAction(update.JournalActionDownloadRequested)
+			startPercent := 0.0
+			s.recordUpdateState(update.JournalState{Phase: update.JournalPhaseDownloading, Version: selected.Version, Percent: &startPercent})
 			base := filepath.Join(paths.UserDataDir(), "updates")
 			if err := os.MkdirAll(base, 0755); err != nil {
 				return err
@@ -253,6 +259,8 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 				s.mu.Lock()
 				s.nativeReleases.received, s.nativeReleases.total = received, total
 				s.mu.Unlock()
+				percent := updateDownloadPercent(received, total)
+				s.recordUpdateState(update.JournalState{Phase: update.JournalPhaseDownloading, Version: selected.Version, Percent: &percent})
 				s.nativeReleaseNotify(win)
 			}})
 			if err != nil {
@@ -269,12 +277,18 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		if len(rows) > 0 {
 			r.rows, r.catalogRoute = rows, route
 		}
+		var journal update.JournalState
+		journal.Phase = update.JournalPhaseDownloaded
+		journal.Version = selected.Version
 		if err != nil {
 			r.err = err.Error()
 			r.status = resumeText("安装准备失败；当前安装、选择和此前已校验下载均保留。", "Installation preparation failed; the current installation, selection and previous verified download were kept.")
 			if errors.Is(err, context.Canceled) {
 				r.status = resumeText("已取消下载，未更改当前安装。", "Download cancelled; the current installation was not changed.")
 				r.err = ""
+				journal = update.JournalState{}
+			} else {
+				journal = update.JournalState{Phase: update.JournalPhaseError, FailedOperation: "download", Message: err.Error()}
 			}
 		} else {
 			r.staged, r.stagedTag = staged, selected.Tag
@@ -301,6 +315,11 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		}
 		r.phase = settledNativeReleasePhase(*r)
 		s.mu.Unlock()
+		if journal.Phase != "" {
+			// File evidence is written outside the state lock: it never delays a
+			// painted frame that waits on this mutex.
+			s.recordUpdateState(journal)
+		}
 		s.nativeReleaseNotify(win)
 	}()
 	s.nativeReleaseNotify(win)

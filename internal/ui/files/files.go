@@ -89,8 +89,14 @@ type Model struct {
 	OfficePreviewStatus func(path string) string
 	// OpenWithApps are session/workspacePathApplications rows for the selected file.
 	OpenWithApps []OpenWithApp
+	// EditorApps are probed external editors (Electron editors.js) offered in
+	// the same open-with menu.
+	EditorApps []OpenWithApp
 	// OnOpenWith opens path via session/openWorkspacePath with application id.
 	OnOpenWith func(absPath, appID string)
+	// OnOpenWithEditor launches a probed external editor at line (0 = no line).
+	// The caller falls back to the system default handler when not installed.
+	OnOpenWithEditor func(absPath, editorID string, line int)
 	// Filter narrows the tree to matching relative paths (live IndexRelPaths).
 	Filter *string
 	// ListRemote is optional workspaceFiles/list fallback when local ListDir fails.

@@ -23,7 +23,7 @@
 | harness 启动器改造 | M2 完成 | vendored 启动 + overlays；install 控制面；**boot 页插件进度**（`Status.PluginLoad` + 日志解析 + UI 进度行）；真实 runtime 无结构化进度时显示 indeterminate |
 | 界面（对话 / 设置 / 文件 / Git / 终端等） | M4–M9 主体可用 | 对话完整度/composer/工作环/设置专用页/用量/远程/IM/市场/定时/壁纸；少量深化项见下文 |
 | dsh-whale 助理 / dshbot / webview 兜底 | M10 主体可用 | WebView2 Host + SlotURL 对齐；助理面板；Prepare 接 whale/dshbot |
-| 启动器 / 导入 / 更新 / 安装包 | M11 主体可用 | staging + NSIS；更新器 hash/签名/blockmap 校验；手机远程；任务保护/深链 |
+| 启动器 / 导入 / 更新 / 安装包 | M11 主体可用 | staging + NSIS；更新器 hash/签名/blockmap 校验；手机远程（**部分实现**：仅配置就绪检查 + SSH 隧道，服务端/配对/QR 未实现，见「审查修正」）；任务保护/深链 |
 
 ## 已完成
 
@@ -184,7 +184,7 @@
   - 已完成（本轮）：通用 schema 表单深化 — 左侧命名空间过滤；password 字段（apiKey/token/secret）+「显示密钥」；描述型 string 用 TextArea；修订号 / 可写·只读徽标；`FilterNamespaces` 单测。专用页仍走独立 pane，过滤只作用于 harness 命名空间列表。
   - 待做：无（M8 主体完成）。
 - **M9 桌面扩展（进行中）**：
-  - 已完成：用量面板（account/job + 近 7 日柱状图 + 近 28 日热力格 + WebView2 打开 `usageUrl`）；插件市场；CSV/TSV/XLSX 预览；PDF/Office 外部打开；定时任务；壁纸画廊；chroma 源码预览。
+  - 已完成：用量面板（account/job + 近 7 日柱状图 + 近 28 日热力格 + WebView2 打开 `usageUrl`）；插件市场；CSV/TSV/XLSX 预览；PDF/Office 外部打开；定时任务；壁纸画廊（**部分实现**：仅本地目录画廊，无 Bing/Wallhaven 在线目录与下载应用，见「审查修正」）；chroma 源码预览。
   - 已完成：`internal/desktop/sshremote` — 就绪检查、TCP 探测、`TunnelSession`（本地端口转发）；远程面板 SSH 表单 Connect/Save/Disconnect。
   - 已完成：**host-key 钉扎** — `userData/ssh/known_hosts`；Connect 关闭静默 TOFU；未知主机指纹 Accept/Decline 对话框（Accept → `AcceptHostKey` + 重连）；错配 → 警告拒连。
   - 已完成：IM 面板深化 — Select/SendDraft + 渠道列表 / 本地历史 / 草稿 / 发送 / dsh-im WebView；`userData/im/`（channels/drafts/history JSON）；codegen `im/*` 为 **0** 时本地模式可用，有 list RPC 时仍走 Refresh 拉列表。
@@ -203,7 +203,7 @@
   - 已完成：`pet/look` — 选图对话框 → `pet/state` 取 provider/model → base64 `pet/look`。
   - 已知收窄：dshbot **无**独立 chat/pet RPC（vendored `control-plane.js` 未注册）；原生仍靠 `[dshbot]` 会话前缀 + WebView 完整 UI。
   - 已完成：composer 行内 `@path` / `/skill` 芯片解析、删除、弹出改写（`ChipEdit`）。
-- **M11 外围与发布（进行中）**：见下节；启动器 UI、深链路由、NSIS、sha256/size + Authenticode + blockmap stub 已落地；**手机远程**（Assess / 连接 URL / 复制剪贴板 / 打开浏览器·WebView / 刷新 / `remoteDevices` 配对列表）已落地。
+- **M11 外围与发布（进行中）**：见下节；启动器 UI、深链路由、NSIS、sha256/size + Authenticode + blockmap stub 已落地；**手机远程**（Assess / 连接 URL / 复制剪贴板 / 打开浏览器·WebView / 刷新 / `remoteDevices` 配对列表）为**部分实现**：`phoneremote` 仅做配置就绪检查与连接 URL 构造，无 mobile-web 服务端、无 ChisaCode 配对、无 QR 绘制（原版 `mobile-web-server.js` / `dshd-remote.js` 未 port），手机端完整能力不可用。
 
 ### M11 发布与数据路径
 
@@ -219,6 +219,60 @@
 - **用户数据路径（已存在，无 CLI 开关）**：`cmd/whaleisle` 通过 `paths.UserDataDir()` 读配置与凭据；默认 `%AppData%\Deepseek-Harness-Desktop`，测试或并行实例可用环境变量 **`WHALEISLE_USER_DATA`** 覆盖（`internal/paths`，常量 `paths.EnvUserData`）。另有 **`WHALEISLE_VENDOR`** 可指向 vendored harness 根目录。
 - **任务保护（stub）**：`internal/desktop/taskguard` + `session.Store.RunningCount`；主窗口 `OnClose` 与托盘「退出」在存在 `running` 会话时用 `mygo.Dialog.Message` 确认（对齐 Electron closing-overlay / confirm quit 意图）；**关窗到托盘**时无运行会话仍只 Hide，有运行会话须确认后 `App.Quit`（不静默进托盘）。
 - **深链 WHALEISLE**：`deeplink.Parse` + `applyDeeplink`（`open` / `launcher` / `settings` / `session/<id>` / `usage`）；`mygo.json` `urlSchemes` + `RegisterURLScheme`。
+
+## 审查修正（功能完整性全面审查登记）
+
+依据 [`docs/work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md`](work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md)（只读审查，结论均附 `文件:行号` 证据；下原版证据列为 `reference/electron/src/` 下相对路径）登记自述与实际的差异。本节只登记差距与修正事实，不替代上文历史记录。
+
+**验收状态：`docs/acceptance-ui-parity.md`（像素级 1:1 + 功能全量穷举验收合同）当前零双签。** §0.3 环境 E1–E7、§2 画面 L-*/D-*/P-*/S-*、§3 功能 FL-*/FD-*/FS-*、§4 门禁 G1–G6 与 §6 总签署的「完成 / 审查完成」列全部为空；按该合同 §5，未双签的历史结论作废——项目尚未通过验收，不得标记目标完成。
+
+### 缺失项（原版有、Go 无实现；审计报告 §1.2，16 项；round126 已补 5 项）
+
+| # | 功能 | 原版证据 | Go 侧证据 |
+|---|------|----------|-----------|
+| 1 | 桌面宠物 / Live2D 桌宠 | `main/desktop-pet.js`、`main/desktop-live2d.js:757`、`main/pet-chat.js`、`main/pet-growth.js`、`main/pet-stats.js`、`main/pet-wander.js`、`main/pet-physics.js`、`renderer/pet.html`、`renderer/pet-live2d/` | 全仓无 pet UI 窗口；`internal/config` 仅透传 `pet`/`live2dPet` 配置键 |
+| 2 | 手机远程服务端 | `main/mobile-web-server.js:14`、`main/mobile-web.js`、`main/dshd-remote.js:1`、`main/dshd-git-tunnel.js` | `internal/desktop/phoneremote` 仅配置就绪检查；无服务器、无配对、无 QR |
+| 3 | Welcome 首次运行窗口 | `main/welcome-window.js:59`、`renderer/welcome.html`、`main/welcome-backend.js` | ✅ round126：`cmd/whaleisle/welcome_window.go` + `internal/ui/welcome`；无 API Key 且无标记时先于 launcher 打开，登录/API Key/跳过三条路径 |
+| 4 | 系统通知 | `main/system-notifications.js`、`main/background-notice.js`、`main/legacy-notification-shortcut.js` | ✅ round126：`cmd/whaleisle/system_notifications.go`（托盘气泡，不注册 Electron.lnk） |
+| 5 | 全局快捷键服务 | `main/shortcuts.js`、`main/shortcuts-protocol.mjs`、`main/menu.js:11-22` | 无快捷键包；无应用菜单 |
+| 6 | 崩溃报告 | `main/crash-report.js` | 无 |
+| 7 | 媒体权限处理 | `main/media-permissions.js` | 无（WebView2 权限走 MyGo 默认） |
+| 8 | 关闭遮罩 / curtain 窗口 | `main/closing-overlay.js`、`main/window.js:486` | 无；仅 `internal/desktop/taskguard` ConfirmQuit 对话框 |
+| 9 | 应用级菜单 | `main/menu.js:26-113` | Go 无应用菜单；标题栏仅有 ⚙/▤/▦/⌂/··· 按钮 + 托盘菜单 |
+| 10 | 外部编辑器打开 | `main/editors.js:5-26,105-150` | ✅ round126：`internal/desktop/editors` + `cmd/whaleisle/open_editor.go`；文件预览「打开方式」直接带行列打开 |
+| 11 | WhaleBridge 账号窗口 | `main/whalebridge-window.js:16`、`renderer/whalebridge-accounts.child.cjs`、`main/account-backend.js` | ✅ round126：`cmd/whaleisle/whalebridge_window.go`（1120×780、仅本机管理地址）+ `components/management.go` 地址校验 |
+| 12 | dsh-remote 插件 RPC 接线 | `main/dsh-remote-desktop.js`、`main/remote-shell.js`、`main/remote.js`、`main/relay-client.js`、`main/remote-tls.js` | 原生远程面板自述 stub；全仓无 dsh-remote RPC 调用 |
+| 13 | task-control peer | `main/task-control-peer.js:57` | 无 |
+| 14 | AI 提交信息 / PR 文案生成 | `main/git-generate.js:139` | ✅ round126：`internal/desktop/git/commit_generation.go` + `cmd/whaleisle/git_generate.go`；标题栏提交条「自动生成」 |
+| 15 | 在线壁纸目录 | `main/wallpaper-catalog.js:20-56` | 仅本地目录画廊（`internal/ui/theme/gallery.go`）；无任何网络目录 |
+| 16 | relay 客户端 / 远程 shell / 远程 git dispatch | `main/relay-client.js`、`main/remote-shell.js`、`main/dshd-remote.js`、`main/dshd-git-dispatch.js` | 无（config 仅有 relay 端点归一化） |
+
+### 空壳未实现（有界面/有定义、逻辑未接或仅探测；审计报告 §1.3，8 项）
+
+| # | 位置 | 判定 |
+|---|------|------|
+| 1 | `internal/desktop/components/lifecycle.go:23` | install 动作为空壳（start/stop/open 已实现） |
+| 2 | `internal/desktop/phoneremote`（整个包） | 整包为空壳：UI 展示就绪清单 + ConnectURL，无任何服务端 |
+| 3 | `internal/ui/chrome/wallpaper.go:18` | 壁纸为内容层占位（MyGo 无窗口背景图 API，属平台限制） |
+| 4 | `internal/ui/market/market.go:1` | 包注释 "stub" 过时（本批次已修正）；面板实际已实现列表/安装/启停/卸载 |
+| 5 | `internal/ui/remote/remote.go:1` | 包注释 "stub" 过时（已修正）；面板为配置状态展示 + SSH 隧道表单，dsh-remote RPC 未接 |
+| 6 | `internal/store/im`（im/* 通路） | im/* 发送/历史为空壳通路（上游 vendor 无 RPC，非 Go 代码缺陷；完整 IM 靠 dsh-im WebView） |
+| 7 | `internal/store/usage/store.go:1`、`internal/ui/chat/chat.go:1`、`internal/ui/usage/usage.go:1` | 包注释 "stub" 过时（本批次已修正为准确描述） |
+| 8 | terminal/follow 流 | 原为 `probeTerminalFollow` 连通性探测（160 端点中唯一未接真实数据流）；本批次已按真实 harness 线协议接线（见下） |
+
+### round126 补全（2026-10-24）
+
+- 5 项缺失已补成可运行实现：Welcome 首启窗、系统通知、外部编辑器、WhaleBridge 账号窗、AI 提交信息生成；逐项对照与边界见 [round126](review-20261022/round126-missing-features.md)。
+- 更新过程补上标题栏进度行（checking / downloading / staged）、确认卡技术详情折叠与 `update-journal/` 证据；journal 失败只丢证据，不阻塞更新。
+- 详情卡 badge 按安装版 `STATUS_KEYS` 词表本地化，未知状态保留原文。
+- 证据：受影响 11 个包测试全绿、`go vet` 0、`go build ./internal/... ./cmd/...` 0；构建 86,703,104 字节 / SHA256 `7BAF783A…`（`round126-checks.json`、`round126-build.json`）。
+- 仍剩 11 项缺失、7 项空壳（`terminal/follow` 已修），验收合同仍零双签。
+
+### 本轮修正记录（terminal/follow 处置与注释/文档清理）
+
+1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
+2. **腐烂 stub 注释清理**：`internal/ui/chat`、`internal/ui/sidebar`、`internal/ui/market` 包注释更新为准确描述（`internal/ui/usage`、`internal/ui/remote`、`internal/store/usage` 已由前序工作修正）；i18n `KeyFrameRightStub`/`KeyFrameBottomStub`/`KeyWebViewStubBody` key 名保留不改（避免大范围重构；其中 `KeyFrameRightStub`/`KeyFrameBottomStub` 当前无渲染引用，是否作为死 key 删除留待专门清理）。
+3. **降格登记**：M11「手机远程」与 M9「壁纸画廊」由「已完成/主体可用」降格为「部分实现」（见总览表与 M9/M11 条目）。
 
 ## 已知问题与技术债
 

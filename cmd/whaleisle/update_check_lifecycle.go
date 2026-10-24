@@ -21,6 +21,15 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 	}
 	s.updateCheckPending = true
 	s.mu.Unlock()
+	// Evidence and the visible row start with the request: a check that never
+	// finishes still leaves the milestone on disk (update-journal.js contract).
+	s.recordUpdateAction(desktopupdate.JournalActionCheckRequested)
+	s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseChecking})
+	s.setUpdateProgress(win, &updateProgressState{
+		Phase:   updatePhaseChecking,
+		Title:   resumeText("正在检查更新…", "Checking for updates…"),
+		Percent: -1,
+	})
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -29,6 +38,9 @@ func (s *mainState) showUpdateCheck(win *mygo.Window) {
 			s.mu.Lock()
 			s.updateCheckPending = false
 			s.mu.Unlock()
+			// The row belongs to this check only; the settled answer lives in the
+			// confirmation dialog that follows it.
+			s.clearUpdateProgress(win)
 			if win != nil {
 				win.Update(func() {})
 			}
@@ -79,25 +91,63 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		return
 	}
 	res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, s.updateDownloadRoute())
+	route := s.updateDownloadRoute()
+	s.recordUpdateCheckResult(res, err)
 	msg := updateCheckMessage(res, err)
 	download := err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != ""
 	confirmLabel := resumeText("好", "OK")
+	technical := ""
 	if download {
 		confirmLabel = i18n.T(i18n.KeyUpdateDownload)
+		technical = updateAvailableDetail(res, route)
 	}
 	approved := s.askConfirmBlocking(confirmAskRequest{
-		Title:        i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
-		Body:         msg,
-		ConfirmLabel: confirmLabel,
-		CancelLabel:  resumeText("关闭", "Close"),
+		Title:            i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
+		Body:             msg,
+		ConfirmLabel:     confirmLabel,
+		CancelLabel:      resumeText("关闭", "Close"),
+		TechnicalDetails: technical,
 	})
 	if !canPresent() {
 		return
 	}
 	if approved && download {
+		s.recordUpdateAction(desktopupdate.JournalActionDownloadRequested)
+		// The download row and the launcher notice bar report the same phase, so
+		// the existing launcher prompt stays the product-level status.
+		s.setUpdateProgress(win, &updateProgressState{
+			Phase:   updatePhaseDownloading,
+			Title:   resumeText("准备下载更新…", "Preparing the update download…"),
+			Detail:  technical,
+			Percent: -1,
+		})
+		s.setLauncherUpdate(resumeText("正在下载更新…", "Downloading the update…"))
 		requireSig := strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "1") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")), "true")
 		expectPub := strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_PUBLISHER"))
+		// The download row reports bytes and keeps the journal at integer
+		// percent, so a long download leaves bounded evidence.
+		onProgress := func(received, total int64) {
+			percent := updateDownloadPercent(received, total)
+			title := resumeText("正在下载更新…", "Downloading the update…")
+			detail := updateDownloadDetail(received, total)
+			s.setUpdateProgress(win, &updateProgressState{
+				Phase:   updatePhaseDownloading,
+				Title:   title,
+				Detail:  detail,
+				Percent: percent,
+			})
+			notice := title
+			if percent >= 0 {
+				notice = fmt.Sprintf("%s %.0f%%", title, percent)
+			}
+			if detail != "" {
+				notice += "（" + detail + "）"
+			}
+			s.setLauncherUpdate(notice)
+			pinned := percent
+			s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseDownloading, Version: res.Version, Percent: &pinned})
+		}
 		var apply desktopupdate.ApplyResult
 		var aerr error
 		if res.IncrementalPossible {
@@ -108,6 +158,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 				OldPath:           strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_OLD_INSTALLER")),
 				RequireSignature:  requireSig,
 				ExpectedPublisher: expectPub,
+				OnProgress:        onProgress,
 			})
 		} else {
 			apply, aerr = desktopupdate.DownloadAndStageOpts(context.Background(), desktopupdate.StageOptions{
@@ -117,7 +168,22 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 				ExpectSize:        res.Size,
 				RequireSignature:  requireSig,
 				ExpectedPublisher: expectPub,
+				OnProgress:        onProgress,
 			})
+		}
+		if aerr == nil {
+			s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseDownloaded, Version: res.Version})
+			s.setUpdateProgress(win, &updateProgressState{
+				Phase:   updatePhaseStaged,
+				Title:   resumeText("更新已下载并校验，等待确认安装", "The update is downloaded and verified; installation awaits confirmation"),
+				Detail:  apply.Message,
+				Percent: 100,
+			})
+			s.setLauncherUpdate(resumeText("更新已下载并校验，等待确认安装", "The update is downloaded and verified; installation awaits confirmation"))
+		} else {
+			s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseError, FailedOperation: "download", Message: aerr.Error()})
+			s.clearUpdateProgress(win)
+			s.setLauncherUpdate(saveFailedToast(resumeText("下载更新", "Downloading the update"), aerr))
 		}
 		if !canPresent() {
 			return
@@ -133,6 +199,9 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 			if apply.Publisher != "" {
 				amsg += "\n" + apply.Publisher
 			}
+		}
+		if technical != "" {
+			amsg += "\n\n" + resumeText("技术细节", "Technical details") + ":\n" + technical
 		}
 		_, _ = mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:     win,

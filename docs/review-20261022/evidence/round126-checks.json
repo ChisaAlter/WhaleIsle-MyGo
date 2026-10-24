@@ -1,0 +1,29 @@
+[
+  {
+    "command": "go test ./internal/ui/chat ./internal/ui/frame ./internal/ui/i18n ./internal/ui/chrome ./internal/ui/welcome ./internal/desktop/editors ./internal/desktop/git ./internal/desktop/components ./internal/desktop/update ./internal/store/hostterminal ./cmd/whaleisle -count=1",
+    "output": [
+      "ok  \twhaleisle/internal/ui/chat\t97.736s",
+      "ok  \twhaleisle/internal/ui/frame\t25.157s",
+      "ok  \twhaleisle/internal/ui/i18n\t0.607s",
+      "ok  \twhaleisle/internal/ui/chrome\t4.413s",
+      "ok  \twhaleisle/internal/ui/welcome\t1.701s",
+      "ok  \twhaleisle/internal/desktop/editors\t0.471s",
+      "ok  \twhaleisle/internal/desktop/git\t113.917s",
+      "ok  \twhaleisle/internal/desktop/components\t2.643s",
+      "ok  \twhaleisle/internal/desktop/update\t2.101s",
+      "ok  \twhaleisle/internal/store/hostterminal\t1.947s",
+      "ok  \twhaleisle/cmd/whaleisle\t37.661s"
+    ],
+    "exit": 0
+  },
+  {
+    "command": "go vet ./cmd/whaleisle ./internal/desktop/editors ./internal/desktop/git ./internal/desktop/components ./internal/desktop/update ./internal/store/hostterminal ./internal/ui/chat ./internal/ui/chrome ./internal/ui/welcome ./internal/ui/i18n ./internal/ui/frame",
+    "output": [],
+    "exit": 0
+  },
+  {
+    "command": "go build ./internal/... ./cmd/...",
+    "output": [],
+    "exit": 0
+  }
+]

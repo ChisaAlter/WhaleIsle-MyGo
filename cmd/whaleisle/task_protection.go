@@ -274,6 +274,9 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 	if !s.saveResumeBeforeClose(win) {
 		return false
 	}
+	// The install answer is the milestone worth keeping: the journal never
+	// records consent that was not given (update-journal.js install-confirmed).
+	s.recordUpdateAction(desktopupdate.JournalActionInstallConfirmed)
 	did := s.withTaskProtection(win, sup, "update", func() error {
 		s.mu.Lock()
 		changed := s.launcherImportBusy || s.quitting || s.sup != sup

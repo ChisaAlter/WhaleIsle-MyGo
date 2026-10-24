@@ -124,7 +124,7 @@ func (s *mainState) showStartupUpdateNotice(win *mygo.Window, ticket startuprec.
 	win.FlashFrame(true)
 	// A failed/unsupported system notification still leaves the launcher notice
 	// and focus-to-confirm path intact, with no repeated native notification.
-	if !mygo.NotificationsSupported() {
+	if !systemNotificationsSupported() {
 		return
 	}
 	n := mygo.NewNotification(mygo.NotificationOptions{
@@ -222,12 +222,13 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		}
 		s.clearStartupUpdateNotice()
 		s.askConfirm(confirmAskRequest{
-			Title:        resumeText("MyGo 更新可用", "MyGo update available"),
-			Body:         update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
-			ConfirmLabel: resumeText("查看版本与下载方式", "Review versions and downloads"),
-			CancelLabel:  resumeText("稍后", "Later"),
-			Run:          func() { s.finishStartupUpdatePrompt(win, ticket, release, true) },
-			Cancel:       func() { s.finishStartupUpdatePrompt(win, ticket, release, false) },
+			Title:            resumeText("MyGo 更新可用", "MyGo update available"),
+			Body:             update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
+			ConfirmLabel:     resumeText("查看版本与下载方式", "Review versions and downloads"),
+			CancelLabel:      resumeText("稍后", "Later"),
+			TechnicalDetails: nativeReleaseDetail(release),
+			Run:              func() { s.finishStartupUpdatePrompt(win, ticket, release, true) },
+			Cancel:           func() { s.finishStartupUpdatePrompt(win, ticket, release, false) },
 		})
 	})
 }

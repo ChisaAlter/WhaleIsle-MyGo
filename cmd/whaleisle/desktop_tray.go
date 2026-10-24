@@ -162,7 +162,7 @@ func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor)
 		return
 	}
 	err := s.trayHideNotice.close(win.Hide, func() error {
-		if !mygo.NotificationsSupported() {
+		if !systemNotificationsSupported() {
 			return nil
 		}
 		n := mygo.NewNotification(mygo.NotificationOptions{ID: "whaleisle-tray-hide", Title: resumeText("已最小化到托盘", "Minimized to tray"),

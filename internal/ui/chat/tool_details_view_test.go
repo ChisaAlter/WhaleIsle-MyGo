@@ -333,3 +333,185 @@ func TestToolDetailsViewScheduleListEmptyAndDelete(t *testing.T) {
 		t.Fatal("invalid list kept a card", tt.Texts())
 	}
 }
+
+// The background-job families add the installed recorded-result caption, the
+// status badge, subtitles/descriptions and a selectable output region.
+func toolDetailsJobCall(t *testing.T, name, args, text string) *session.ToolCallView {
+	t.Helper()
+	call := toolDetailsModelCallForTest(t, false, name, args, text)
+	call.Name, call.Arguments = name, args
+	return call
+}
+
+func TestToolDetailsViewJobOutput(t *testing.T) {
+	call := toolDetailsJobCall(t, "job_output", `{"target":"job-42"}`, "hello\nworld\n[status: completed, exit 0]")
+	tt, expanded, _ := toolDetailsViewFixture(t, call, false, false, true, 420)
+	if !tt.HasText("job-42 · Completed") {
+		t.Fatal("collapsed summary", tt.Texts())
+	}
+	openDetailsView(tt, expanded)
+	for _, want := range []string{"Recorded result", "job-42", "Completed", "exit 0", "hello\nworld"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	for _, absent := range []string{"OUT", "Copy"} {
+		if tt.HasText(absent) {
+			t.Fatal("unexpected", absent, tt.Texts())
+		}
+	}
+}
+
+func TestToolDetailsViewJobListAndFallback(t *testing.T) {
+	lines := "job-1 [bash] running — npm test\njob-2 [agent] completed — review"
+	tt, expanded, _ := toolDetailsViewFixture(t, toolDetailsJobCall(t, "job_list", `{}`, lines), false, false, true, 420)
+	if !tt.HasText("2 background jobs") {
+		t.Fatal("collapsed count", tt.Texts())
+	}
+	openDetailsView(tt, expanded)
+	for _, want := range []string{"Recorded result", "npm test", "job-1", "Running", "Type", "bash", "review", "agent", "Completed"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	tt, expanded, _ = toolDetailsViewFixture(t, toolDetailsJobCall(t, "job_list", `{}`, "(no background jobs)"), false, false, true, 420)
+	if !tt.HasText("0 background jobs") {
+		t.Fatal("empty count", tt.Texts())
+	}
+	openDetailsView(tt, expanded)
+	if !tt.HasText("No results") || tt.HasText("Type") {
+		t.Fatal("empty card", tt.Texts())
+	}
+	// One malformed line keeps the generic evidence body, including its OUT.
+	tt, expanded, _ = toolDetailsViewFixture(t, toolDetailsJobCall(t, "job_list", `{}`, "job-1 [bash] running — npm test\nbroken"), false, false, true, 420)
+	openDetailsView(tt, expanded)
+	if !tt.HasText("OUT") || tt.HasText("Recorded result") || tt.HasText("Type") {
+		t.Fatal("invalid list kept a card", tt.Texts())
+	}
+}
+
+// toolDetailsCardFixture renders the card alone at 420 logical pixels, the width
+// the installed geometry numbers are recorded at.
+func toolDetailsCardFixture(t *testing.T, model *toolDetailsModel, hasInspect bool) (*ui.Tester, ui.Rect) {
+	t.Helper()
+	oldLocale, oldPrefs := i18n.Locale(), theme.CurrentPreferences()
+	i18n.SetLocale(i18n.LocaleEN)
+	theme.SetPreferences(theme.Defaults())
+	t.Cleanup(func() { i18n.SetLocale(oldLocale); theme.SetPreferences(oldPrefs) })
+	var body ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		theme.ApplyInterface(c)
+		palette := theme.Resolve(theme.DefaultID).Active(false)
+		st := toolCardStyle(palette, chrome.Color(palette.FG), chrome.Color(palette.Muted), chrome.Color(palette.Border))
+		ui.Column(c).Width(420).Children(func() {
+			ui.Column(c).FillWidth().ObserveLayout(func(r ui.Rect) { body = r }).Children(func() {
+				toolDetailsCard(c, model, st, "job-geometry", hasInspect)
+			})
+			ui.Box(c).Height(1).Label("after job details")
+		})
+	}, 420, 700)
+	tt.Frame()
+	return tt, body
+}
+
+func toolDetailsJobModelForTest() *toolDetailsModel {
+	subtitle, description := "bash · 1234", "exit 0"
+	return &toolDetailsModel{
+		Items: []toolDetailItem{{
+			Title: "job-42", Subtitle: &subtitle, Description: &description,
+			Badge:  &toolDetailBadge{Label: "Completed", Tone: "success"},
+			Fields: []toolDetailField{{Label: "Type", Value: "bash"}},
+			Code:   &toolDetailCode{Text: "hello\nworld"},
+		}},
+		Summary: "job-42 · Completed", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-42",
+	}
+}
+
+func TestToolDetailsViewJobGeometryAndInspectReserve(t *testing.T) {
+	tt, body := toolDetailsCardFixture(t, toolDetailsJobModelForTest(), true)
+	caption, ok := tt.Find("Recorded result")
+	if !ok {
+		t.Fatal("caption", tt.Texts())
+	}
+	title, _ := tt.Find("job-42")
+	badge, _ := tt.Find("Completed")
+	subtitle, _ := tt.Find("bash · 1234")
+	description, _ := tt.Find("exit 0")
+	code, _ := tt.Find("hello\nworld")
+	if caption.X != 19 || caption.Y != 15 {
+		t.Fatalf("caption box %+v", caption)
+	}
+	if title.X != 19 || title.Y != 51 {
+		t.Fatalf("first item title box %+v", title)
+	}
+	// The heading line keeps the 8px gap before a flex-none badge that is
+	// aligned with the title's first line and sized by its 12/20 label.
+	if badge.Y != title.Y || badge.H != 20 || badge.X != title.X+title.W+8 {
+		t.Fatalf("badge box %+v vs title %+v", badge, title)
+	}
+	if subtitle.Y != title.Y+20+3 || description.Y != subtitle.Y+20+6 {
+		t.Fatalf("subtitle %+v description %+v title %+v", subtitle, description, title)
+	}
+	// With a caption the Inspect reserve lives on the caption only, so the item
+	// content keeps its full width. (The card's FillWidth keeps the parent's
+	// width; its 4px leading margin shifts the content without shrinking it.)
+	if code.W != 390 {
+		t.Fatalf("code width with caption %v", code.W)
+	}
+	toolTreeNear(t, "code top", code.Y, description.Y+20+6+20+8)
+	// The 5px round dot sits on the badge's first line with a 5px label gap.
+	image := tt.Image()
+	centerY := int(badge.Y + badge.H/2)
+	background := image.RGBAAt(int(badge.X)-3, centerY)
+	dotStart, dotEnd := -1, -1
+	for x := int(badge.X) - 1; x < int(badge.X)+8; x++ {
+		if image.RGBAAt(x, centerY) != background {
+			if dotStart < 0 {
+				dotStart = x
+			}
+			dotEnd = x
+		}
+	}
+	// Pixel rounding can move the fractional start by one column and reveal a
+	// sixth antialiased column, so the dot is 5 px within rounding.
+	if dotStart < int(badge.X) || dotStart > int(badge.X)+1 || dotEnd-dotStart < 4 || dotEnd-dotStart > 5 {
+		t.Fatalf("badge dot run %d..%d (badge %+v)", dotStart, dotEnd, badge)
+	}
+	textStart := -1
+	for x := dotEnd + 2; x < int(badge.X)+24; x++ {
+		if image.RGBAAt(x, centerY) != background {
+			textStart = x
+			break
+		}
+	}
+	// The label starts 10 px after the badge's fractional origin: the 5 px dot
+	// plus the 5 px gap. Fractional coverage leaves four fully blank columns.
+	gap := textStart - dotEnd - 1
+	layoutStart := int(badge.X) + 10
+	if gap < 4 || gap > 6 || textStart < layoutStart-1 || textStart > layoutStart+1 {
+		t.Fatalf("badge label gap %d (dot end %d, text %d, badge %+v)", gap, dotEnd, textStart, badge)
+	}
+	// The card lays out the caption, the item's heading/subtitle/description,
+	// the field row and the two-line code region plus its margins and border.
+	toolTreeNear(t, "card height", body.H, 4+1+36+10+20+3+20+6+20+6+20+8+36+10+1+4)
+}
+
+func TestToolDetailsViewJobCaptionReserve(t *testing.T) {
+	long := strings.Repeat("recorded caption ", 40)
+	model := &toolDetailsModel{Caption: long, Items: []toolDetailItem{{Title: "job", Badge: &toolDetailBadge{Label: "Running", Tone: "info"}}}, Empty: "No results"}
+	withInspect, _ := toolDetailsCardFixture(t, model, true)
+	withoutInspect, _ := toolDetailsCardFixture(t, model, false)
+	label := withInspect.Texts()[0]
+	inWith, _ := withInspect.Find(label)
+	inWithout, _ := withoutInspect.Find(label)
+	if inWithout.W-inWith.W != 74 {
+		t.Fatalf("caption reserve %v vs %v", inWith.W, inWithout.W)
+	}
+	// A card with a caption never reserves the item end twice.
+	noCaption := &toolDetailsModel{Items: []toolDetailItem{{Title: "job", Code: &toolDetailCode{Text: "hello"}}}}
+	plain, _ := toolDetailsCardFixture(t, noCaption, true)
+	code, _ := plain.Find("hello")
+	if code.W != 316 {
+		t.Fatalf("code width without caption %v", code.W)
+	}
+}

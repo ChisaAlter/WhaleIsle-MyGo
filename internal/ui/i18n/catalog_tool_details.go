@@ -37,6 +37,30 @@ const (
 	KeyToolDetailWeekday5 = "chat.tool.detail.weekday.5"
 	KeyToolDetailWeekday6 = "chat.tool.detail.weekday.6"
 	KeyToolDetailWeekday7 = "chat.tool.detail.weekday.7"
+
+	KeyToolDetailRecordedResult  = "chat.tool.detail.recorded_result"
+	KeyToolDetailEmpty           = "chat.tool.detail.empty"
+	KeyToolDetailJobsCount       = "chat.tool.detail.jobs.count"
+	KeyToolDetailFieldType       = "chat.tool.detail.field.type"
+	KeyToolDetailReceiptCancel   = "chat.tool.detail.receipt.cancel"
+	KeyToolDetailReceiptFinished = "chat.tool.detail.receipt.finished"
+	KeyToolDetailOutputTruncated = "chat.tool.detail.output.truncated"
+
+	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
+	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
+	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
+	KeyToolDetailStatusInactive     = "chat.tool.detail.status.inactive"
+	KeyToolDetailStatusProvisioning = "chat.tool.detail.status.provisioning"
+	KeyToolDetailStatusFailed       = "chat.tool.detail.status.failed"
+	KeyToolDetailStatusCompleted    = "chat.tool.detail.status.completed"
+	KeyToolDetailStatusPending      = "chat.tool.detail.status.pending"
+	KeyToolDetailStatusProgress     = "chat.tool.detail.status.progress"
+	KeyToolDetailStatusDeleted      = "chat.tool.detail.status.deleted"
+	KeyToolDetailStatusKilled       = "chat.tool.detail.status.killed"
+	KeyToolDetailStatusBlocked      = "chat.tool.detail.status.blocked"
+	KeyToolDetailStatusAccepted     = "chat.tool.detail.status.accepted"
+	KeyToolDetailStatusQueued       = "chat.tool.detail.status.queued"
+	KeyToolDetailStatusExited       = "chat.tool.detail.status.exited"
 )
 
 func init() {
@@ -76,4 +100,28 @@ func init() {
 	Register(KeyToolDetailWeekday5, "周五", "Fri")
 	Register(KeyToolDetailWeekday6, "周六", "Sat")
 	Register(KeyToolDetailWeekday7, "周日", "Sun")
+
+	Register(KeyToolDetailRecordedResult, "调用结果", "Recorded result")
+	Register(KeyToolDetailEmpty, "暂无结果", "No results")
+	Register(KeyToolDetailJobsCount, "%d 个后台任务", "%d background jobs")
+	Register(KeyToolDetailFieldType, "类型", "Type")
+	Register(KeyToolDetailReceiptCancel, "已请求取消", "Cancellation requested")
+	Register(KeyToolDetailReceiptFinished, "任务已结束", "Already finished")
+	Register(KeyToolDetailOutputTruncated, "输出已截断", "Output truncated")
+
+	Register(KeyToolDetailStatusRunning, "运行中", "Running")
+	Register(KeyToolDetailStatusIdle, "空闲", "Idle")
+	Register(KeyToolDetailStatusReady, "就绪", "Ready")
+	Register(KeyToolDetailStatusInactive, "未运行", "Inactive")
+	Register(KeyToolDetailStatusProvisioning, "准备中", "Provisioning")
+	Register(KeyToolDetailStatusFailed, "失败", "Failed")
+	Register(KeyToolDetailStatusCompleted, "已完成", "Completed")
+	Register(KeyToolDetailStatusPending, "待处理", "Pending")
+	Register(KeyToolDetailStatusProgress, "进行中", "In progress")
+	Register(KeyToolDetailStatusDeleted, "已删除", "Deleted")
+	Register(KeyToolDetailStatusKilled, "已取消", "Cancelled")
+	Register(KeyToolDetailStatusBlocked, "受阻", "Blocked")
+	Register(KeyToolDetailStatusAccepted, "已接收", "Accepted")
+	Register(KeyToolDetailStatusQueued, "已入队", "Queued")
+	Register(KeyToolDetailStatusExited, "已退出", "Exited")
 }

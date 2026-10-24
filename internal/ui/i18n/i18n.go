@@ -947,6 +947,35 @@ const (
 	KeyAssistantDshbotProbeErr            = "assistant.dshbot_probe_err"
 	KeyAssistantEnsuring                  = "assistant.ensuring"
 	KeyAssistantChatting                  = "assistant.chatting"
+
+	// Welcome first-run window (internal/ui/welcome), ported from the Electron
+	// welcome renderer copy (reference/electron/src/main/desktop-locale.js).
+	KeyWelcomeTagline           = "welcome.tagline"
+	KeyWelcomeDescription       = "welcome.description"
+	KeyWelcomeSignIn            = "welcome.sign_in"
+	KeyWelcomeSignInStarting    = "welcome.sign_in_starting"
+	KeyWelcomeSignInWaiting     = "welcome.sign_in_waiting"
+	KeyWelcomeSignInWaitingHint = "welcome.sign_in_waiting_hint"
+	KeyWelcomeSignInExchanging  = "welcome.sign_in_exchanging"
+	KeyWelcomeSignInExpired     = "welcome.sign_in_expired"
+	KeyWelcomeSignInDone        = "welcome.sign_in_done"
+	KeyWelcomeCopyLink          = "welcome.copy_link"
+	KeyWelcomeCopied            = "welcome.copied"
+	KeyWelcomeCancel            = "welcome.cancel"
+	KeyWelcomeAPIKey            = "welcome.api_key"
+	KeyWelcomeKeyTitle          = "welcome.key_title"
+	KeyWelcomeKeyDescription    = "welcome.key_description"
+	KeyWelcomeKeyPlaceholder    = "welcome.key_placeholder"
+	KeyWelcomeKeySave           = "welcome.key_save"
+	KeyWelcomeKeySaving         = "welcome.key_saving"
+	KeyWelcomeKeyLater          = "welcome.key_later"
+	KeyWelcomeKeyBack           = "welcome.key_back"
+	KeyWelcomeKeyBlank          = "welcome.key_blank"
+	KeyWelcomeKeyInvalid        = "welcome.key_invalid"
+	KeyWelcomeKeyFailed         = "welcome.key_failed"
+	KeyWelcomeSkip              = "welcome.skip"
+	KeyWelcomeServiceStarting   = "welcome.service_starting"
+	KeyWelcomeNoWorkspace       = "welcome.no_workspace"
 )
 
 var (
@@ -971,6 +1000,32 @@ var zhCN = map[string]string{
 	KeyAppName:                        "Whale Isle",
 	KeyTrayOpen:                       "打开主窗口",
 	KeyTrayQuit:                       "退出",
+	KeyWelcomeTagline:                 "欢迎使用鲸屿",
+	KeyWelcomeDescription:             "组装无限可能，共探智能上限",
+	KeyWelcomeSignIn:                  "登录",
+	KeyWelcomeSignInStarting:          "正在打开登录…",
+	KeyWelcomeSignInWaiting:           "没有自动打开浏览器？",
+	KeyWelcomeSignInWaitingHint:       "复制登录链接，用浏览器手动打开完成登录",
+	KeyWelcomeSignInExchanging:        "正在完成登录…",
+	KeyWelcomeSignInExpired:           "登录已超时",
+	KeyWelcomeSignInDone:              "已登录，正在进入…",
+	KeyWelcomeCopyLink:                "复制登录链接",
+	KeyWelcomeCopied:                  "已复制",
+	KeyWelcomeCancel:                  "取消",
+	KeyWelcomeAPIKey:                  "添加 API Key",
+	KeyWelcomeKeyTitle:                "添加一个 API Key 开始使用",
+	KeyWelcomeKeyDescription:          "配置 DeepSeek 官方模型，即可开始使用",
+	KeyWelcomeKeyPlaceholder:          "输入 API 密钥",
+	KeyWelcomeKeySave:                 "保存并继续",
+	KeyWelcomeKeySaving:               "保存中…",
+	KeyWelcomeKeyLater:                "稍后配置",
+	KeyWelcomeKeyBack:                 "返回登录",
+	KeyWelcomeKeyBlank:                "请输入 API 密钥。",
+	KeyWelcomeKeyInvalid:              "请仅输入 API 密钥，不要包含引号、空格或环境变量赋值。",
+	KeyWelcomeKeyFailed:               "无法保存 API 密钥，请重试。",
+	KeyWelcomeSkip:                    "跳过",
+	KeyWelcomeServiceStarting:         "正在启动本地服务，请稍候…",
+	KeyWelcomeNoWorkspace:             "尚未配置工作区：请先跳过，在启动器中选择工作区。",
 	KeyQuitConfirmTitle:               "仍有任务在运行",
 	KeyQuitConfirmMessage:             "当前有 %d 个会话仍在运行。确定要退出吗？",
 	KeyQuitConfirmQuit:                "退出",
@@ -1903,6 +1958,32 @@ var en = map[string]string{
 	KeyAppName:                            "Whale Isle",
 	KeyTrayOpen:                           "Open main window",
 	KeyTrayQuit:                           "Quit",
+	KeyWelcomeTagline:                     "Welcome to Whale Isle",
+	KeyWelcomeDescription:                 "Build potential. Explore intelligence.",
+	KeyWelcomeSignIn:                      "Sign in",
+	KeyWelcomeSignInStarting:              "Opening sign in…",
+	KeyWelcomeSignInWaiting:               "Browser didn’t open automatically?",
+	KeyWelcomeSignInWaitingHint:           "Copy the sign-in link and open it in your browser to sign in.",
+	KeyWelcomeSignInExchanging:            "Completing sign in…",
+	KeyWelcomeSignInExpired:               "Sign in timed out",
+	KeyWelcomeSignInDone:                  "Signed in — entering…",
+	KeyWelcomeCopyLink:                    "Copy sign-in link",
+	KeyWelcomeCopied:                      "Copied",
+	KeyWelcomeCancel:                      "Cancel",
+	KeyWelcomeAPIKey:                      "Add API Key",
+	KeyWelcomeKeyTitle:                    "Add an API key to get started",
+	KeyWelcomeKeyDescription:              "Configure official DeepSeek models to start using Whale Isle",
+	KeyWelcomeKeyPlaceholder:              "Enter API key",
+	KeyWelcomeKeySave:                     "Save and continue",
+	KeyWelcomeKeySaving:                   "Saving…",
+	KeyWelcomeKeyLater:                    "Set up later",
+	KeyWelcomeKeyBack:                     "Back to sign in",
+	KeyWelcomeKeyBlank:                    "Enter an API key.",
+	KeyWelcomeKeyInvalid:                  "Enter the API key itself, without quotes, spaces, or an environment-variable assignment.",
+	KeyWelcomeKeyFailed:                   "Could not save the API key. Please try again.",
+	KeyWelcomeSkip:                        "Skip",
+	KeyWelcomeServiceStarting:             "Starting the local service, please wait…",
+	KeyWelcomeNoWorkspace:                 "No workspace yet: skip first, then choose a workspace in the launcher.",
 	KeyQuitConfirmTitle:                   "Tasks still running",
 	KeyQuitConfirmMessage:                 "%d session(s) are still running. Quit anyway?",
 	KeyQuitConfirmQuit:                    "Quit",

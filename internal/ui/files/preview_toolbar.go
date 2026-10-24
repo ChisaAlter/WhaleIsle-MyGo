@@ -218,7 +218,7 @@ func paintDesktopFileCrumbs(c *ui.Context, m Model, path string, muted ui.Color)
 }
 
 func paintPreviewOpenTarget(c *ui.Context, m Model, path string, muted ui.Color) {
-	if m.OnOpenDoc == nil && m.OnReveal == nil && m.OnOpenWith == nil {
+	if m.OnOpenDoc == nil && m.OnReveal == nil && m.OnOpenWith == nil && !previewHasEditorApps(m) {
 		return
 	}
 	border := c.Theme().Border
@@ -234,7 +234,7 @@ func paintPreviewOpenTarget(c *ui.Context, m Model, path string, muted ui.Color)
 				revealToolbarPath(m, path, textPreviewPath(m, path))
 			}
 		}
-		if m.OnReveal != nil || (m.OnOpenWith != nil && len(m.OpenWithApps) > 0) {
+		if m.OnReveal != nil || (m.OnOpenWith != nil && len(m.OpenWithApps) > 0) || previewHasEditorApps(m) {
 			previewTool(c, "preview-open-menu", label("更多打开方式", "More open options"), previewChevronIcon, muted).Width(17).Height(23).Radius(0).
 				DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y, W: 0.5, H: r.H}, border, 0) }).
 				Menu(func(menu *ui.Menu) { previewOpenMenu(menu, m, path) })
@@ -242,7 +242,43 @@ func paintPreviewOpenTarget(c *ui.Context, m Model, path string, muted ui.Color)
 	})
 }
 
+// previewHasEditorApps reports whether the probed external editors are usable
+// from this pane (Electron's editors.js menu next to the harness apps).
+func previewHasEditorApps(m Model) bool {
+	return m.OnOpenWithEditor != nil && len(m.EditorApps) > 0
+}
+
+// previewOpenLine is the 1-based line last requested for path, or 0 when the
+// editor should just open the file. revealLine is the pending jump target;
+// lineDraft keeps the last explicitly requested line after it is consumed.
+func previewOpenLine(m Model, path string) int {
+	t := selectedTab(m)
+	if t == nil || t.Path != path {
+		return 0
+	}
+	if t.revealLine > 0 {
+		return t.revealLine
+	}
+	if line, err := strconv.Atoi(strings.TrimSpace(t.lineDraft)); err == nil && line > 0 {
+		return line
+	}
+	return 0
+}
+
 func previewOpenMenu(menu *ui.Menu, m Model, path string) {
+	if previewHasEditorApps(m) {
+		for _, app := range m.EditorApps {
+			caption := strings.TrimSpace(app.Name)
+			if caption == "" {
+				caption = app.ID
+			}
+			editorID := app.ID
+			if menu.Item(caption).Chosen() {
+				line := previewOpenLine(m, path)
+				withToolbarPath(m, path, textPreviewPath(m, path), func(full string) { m.OnOpenWithEditor(full, editorID, line) })
+			}
+		}
+	}
 	if m.OnOpenWith != nil {
 		for _, app := range m.OpenWithApps {
 			caption := strings.TrimSpace(app.Name)

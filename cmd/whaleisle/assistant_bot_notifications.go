@@ -133,7 +133,7 @@ func (s *mainState) observeBotNotifications(rendered bool) {
 			s.mu.Lock()
 			denied := s.botNotificationDenied
 			s.mu.Unlock()
-			supported := mygo.NotificationsSupported() && !denied && !run.deliveryBlocked
+			supported := systemNotificationsSupported() && !denied && !run.deliveryBlocked
 			notices := run.tracker.Observe(snapshot, win.IsFocused(), supported)
 			for ticket, n := range run.notices {
 				if !run.tracker.Current(ticket) {

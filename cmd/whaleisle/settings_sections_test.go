@@ -69,7 +69,10 @@ func TestSettingsEmbeddedPagesStayInModalAcrossWidths(t *testing.T) {
 				if err := tt.Click(i18n.T(i18n.KeySettingsSectionGeneral)); err != nil {
 					t.Fatal(err)
 				}
-				if s.settingsEmbeddedSection != "" || general != 1 || !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) {
+				// The reference General page labels this row simply "Language"
+				// (round2 D4); KeySettingsDesktopLocale now belongs to the
+				// dedicated Interface page.
+				if s.settingsEmbeddedSection != "" || general != 1 || !tt.HasText("Language") {
 					t.Fatal("embedded selection stranded the settings rail")
 				}
 				tt.Key(0, ui.KeyEscape)
@@ -147,7 +150,7 @@ func TestSettingsMarketUsesModalShellAndReturnsToGeneral(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeySettingsSectionGeneral)); err != nil {
 		t.Fatal(err)
 	}
-	if selectedGeneral != 1 || state.settingsEmbeddedSection != "" || !tt.HasText(i18n.T(i18n.KeySettingsDesktopLocale)) {
+	if selectedGeneral != 1 || state.settingsEmbeddedSection != "" || !tt.HasText("Language") {
 		t.Fatal("General did not restore the existing desktop controls")
 	}
 	tt.Key(0, ui.KeyEscape)

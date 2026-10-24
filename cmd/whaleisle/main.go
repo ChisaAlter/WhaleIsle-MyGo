@@ -139,6 +139,12 @@ type mainState struct {
 	desktopTray            *mygo.Tray
 	trayHideNotice         trayHideNotice
 	trayHideNotification   *mygo.Notification
+	welcomeWin             *welcomeWindow
+	// whaleBridgeWin is the single embedded WhaleBridge management window
+	// (port of reference/electron/src/main/whalebridge-window.js).
+	whaleBridgeWin         *whaleBridgeWindow
+	credsMissing           bool
+	welcomeDone            bool
 	bridgeAlerts           *bridgeAlertUI
 	cfgStore               *config.Store
 	viewPreferences        *workspaceViewPreferences
@@ -153,6 +159,9 @@ type mainState struct {
 	hostAppearanceAccepted bool
 	hostWallpaperImage     string
 	confirmAsk             *confirmAskRequest
+	// confirmAskTechnicalOpen is the disclosure state of the queued question's
+	// evidence block; askConfirm resets it for each new request.
+	confirmAskTechnicalOpen bool
 	desktopOnboarding      *settingsstore.DesktopOnboarding
 	sup                    *harness.Supervisor
 	bootStatus             harness.Status
@@ -330,6 +339,11 @@ type mainState struct {
 	launcherUpdate                          string
 	launcherUpdateCheckBusy                 bool
 	updateCheckPending                      bool
+	// updateProgress is the visible update row; updateJournal keeps the update
+	// evidence outside the installation directory (port of the reference shell
+	// update dialog and update-journal.js).
+	updateProgress                          *updateProgressState
+	updateJournal                           updateJournalBook
 	launcherPrefsError                      string
 	nativeReleases                          nativeReleaseState
 	launcherUpdateAvailable                 bool
@@ -394,6 +408,14 @@ type mainState struct {
 	gitPRReport         desktopgit.PRReport
 	gitPRRoot           string
 	gitPRAt             time.Time
+	// gitCommitGenerating owns the in-flight title-bar message generation; the
+	// draft stays user-editable while it runs (port of git-generate.js).
+	gitCommitGenerating bool
+	gitCommitGenErr     string
+	// gitCommitGenPending is the generated copy handed to the next painted
+	// frame, so a worker that finishes mid-frame cannot be overwritten by that
+	// frame's draft save.
+	gitCommitGenPending *string
 
 	fileTabs         files.Tabs
 	gitWorkbench     diffsurface.Workbench
@@ -2133,6 +2155,11 @@ func main() {
 		} else {
 			state.mu.Lock()
 			state.applyRemoteCredentials(creds)
+			// Electron welcome-window gate: a profile without a stored API key
+			// sees the welcome window before the launcher/boot flow.
+			state.credsMissing = strings.TrimSpace(creds.APIKey) == ""
+			_, markerErr := os.Stat(filepath.Join(userData, welcomeMarker))
+			state.welcomeDone = markerErr == nil
 			state.mu.Unlock()
 		}
 		if tcfg, err := sshremote.LoadTunnelConfig(userData); err != nil {
@@ -2370,29 +2397,14 @@ func main() {
 			state.startWhaleBridgeAlerts(win)
 		}
 
-		// Electron launcher.js: show launcher first; auto-start desktop only when
-		// workspace is set AND autoStartDesktop is enabled (default true).
-		state.mu.Lock()
-		state.launcherOpen = true
-		state.mu.Unlock()
-		state.mu.Lock()
-		state.launcherStartPreparing = true
-		state.mu.Unlock()
-		go func() {
-			defer state.finishLauncherPreparation(win)
-			canStartAfterRecovery := state.recoverImportBeforeStart()
-			if state.coldStartupAllowed(cfg, canStartAfterRecovery) {
-				state.mu.Lock()
-				if state.quitting {
-					state.mu.Unlock()
-					return
-				}
-				state.launcherTriedStart = true
-				state.launcherStartBusy = true
-				state.mu.Unlock()
-				startHarness(cfg)
-			}
-		}()
+		// Electron welcome-window.js: a profile without any credential sees the
+		// welcome window first; launcher and boot continue after it completes or
+		// is skipped. Everyone else enters the launcher.js flow right away.
+		if state.welcomeRequired() && !hidden && !background {
+			state.openWelcomeWindow(win, cfg)
+		} else {
+			state.beginLauncherBoot(cfg, win)
+		}
 	})
 
 	if err := mygo.App.Run(); err != nil {
@@ -2565,6 +2577,32 @@ func (s *mainState) finishLauncherPreparation(win *mygo.Window) {
 	if win != nil {
 		win.Update(func() {})
 	}
+}
+
+// beginLauncherBoot is the Electron launcher.js entry: show the launcher first;
+// auto-start the desktop only when the workspace is set AND autoStartDesktop is
+// enabled (default true). The welcome window calls it once after completion or
+// skip, so the ordinary flow runs exactly once on either path.
+func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
+	s.mu.Lock()
+	s.launcherOpen = true
+	s.launcherStartPreparing = true
+	s.mu.Unlock()
+	go func() {
+		defer s.finishLauncherPreparation(win)
+		canStartAfterRecovery := s.recoverImportBeforeStart()
+		if s.coldStartupAllowed(cfg, canStartAfterRecovery) {
+			s.mu.Lock()
+			if s.quitting {
+				s.mu.Unlock()
+				return
+			}
+			s.launcherTriedStart = true
+			s.launcherStartBusy = true
+			s.mu.Unlock()
+			startHarness(cfg)
+		}
+	}()
 }
 
 func applyAppearance(id string) {
@@ -3114,6 +3152,10 @@ func mainView(c *ui.Context) {
 	gitBusy := state.gitBusy
 	gitCommitOpen := state.gitCommitOpen
 	gitCommitDraft := state.gitCommitDraft
+	if generated, ok := state.takeGeneratedCommitMessage(); ok {
+		gitCommitDraft = generated
+	}
+	gitCommitGenerating, gitCommitGenErr := state.gitCommitGenerationState()
 	gitPROpen := state.gitPROpen
 	gitPRReport := state.gitPRReport
 	gitPRBusy := state.gitPRBusy
@@ -3474,7 +3516,14 @@ func mainView(c *ui.Context) {
 						state.mu.Unlock()
 						go func() {
 							defer release()
-							err := desktopcomponents.RunAction(paths.UserDataDir(), id, action)
+							// open/manage start the instance and then own the embedded
+							// management window; the shell never hands the page to the
+							// system browser (reference whalebridge-window.js).
+							run := action
+							if action != "start" {
+								run = "start"
+							}
+							err := desktopcomponents.RunAction(paths.UserDataDir(), id, run)
 							state.mu.Lock()
 							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
 							state.launcherComponentStatus = state.launcherUpdate
@@ -3482,6 +3531,9 @@ func mainView(c *ui.Context) {
 							state.refreshLauncherComponents()
 							if win != nil {
 								win.Update(func() {})
+								if err == nil && action != "start" {
+									win.Update(func() { state.openWhaleBridgeWindow(win, action == "manage") })
+								}
 							}
 						}()
 						return
@@ -3938,14 +3990,23 @@ func mainView(c *ui.Context) {
 			})
 		}
 		diffsurface.DrawGitProgress(c, gitProgress, chrome.Color(colors.FG), chrome.Color(colors.Muted), func() { state.mu.Lock(); state.gitProgress = nil; state.mu.Unlock() })
+		state.paintUpdateProgress(c, titleColors)
 		if gitBranch != "" {
 			root := workspaceRoot
 			chrome.DrawGitCommitStrip(c, titleColors, gitCommitOpen, chrome.GitCommitStrip{
-				Message:     &gitCommitDraft,
-				Dirty:       gitDirty,
-				Placeholder: i18n.T(i18n.KeyGitCommitPlaceholder),
-				CommitLabel: i18n.T(i18n.KeyGitCommit),
-				CancelLabel: i18n.T(i18n.KeyGitCommitCancel),
+				Message:       &gitCommitDraft,
+				Dirty:         gitDirty,
+				Placeholder:   i18n.T(i18n.KeyGitCommitPlaceholder),
+				CommitLabel:   i18n.T(i18n.KeyGitCommit),
+				CancelLabel:   i18n.T(i18n.KeyGitCommitCancel),
+				GenerateLabel: resumeText("自动生成", "Generate"),
+				Generating:    gitCommitGenerating,
+				GenerateError: gitCommitGenErr,
+				OnGenerate: func() {
+					if st.State == harness.Ready && root != "" && !gitBusy && !gitCommitGenerating {
+						state.runGitCommitMessageGeneration(win, root)
+					}
+				},
 				OnCommit: func() {
 					if st.State == harness.Ready && root != "" && !gitBusy {
 						gitWorkbench.RequestCommit(root, gitCommitDraft)
@@ -3954,12 +4015,14 @@ func mainView(c *ui.Context) {
 						state.mu.Lock()
 						state.filesPaneOpen, state.rightPaneTab = true, "diff"
 						state.gitCommitOpen = false
+						state.gitCommitGenErr = ""
 						state.mu.Unlock()
 					}
 				},
 				OnCancel: func() {
 					state.mu.Lock()
 					state.gitCommitOpen = false
+					state.gitCommitGenErr = ""
 					state.mu.Unlock()
 					if win != nil {
 						win.Update(func() {})
@@ -7222,6 +7285,7 @@ func mainView(c *ui.Context) {
 						},
 						OnOpenHistoryReference: openDelivered,
 						FileOpenWithApps:       fileOpenWithApps,
+						FileEditorApps:         editorOpenWithApps(),
 						OnOpenMedia: func(path string, floating bool) {
 							state.openMediaFile(sessions, fileClient, snap.SelectedID, snap.SelectedCwd, path, floating)
 						},
@@ -7266,6 +7330,15 @@ func mainView(c *ui.Context) {
 							if sessions != nil && st.State == harness.Ready {
 								sessions.OpenWorkspacePath(context.Background(), absPath, "", appID)
 							}
+						},
+						OnOpenWithEditor: func(absPath, editorID string, line int) {
+							openInEditor(absPath, editorID, line, func(path string) error {
+								if sessions != nil && st.State == harness.Ready {
+									sessions.OpenWorkspacePath(context.Background(), path, "", "")
+									return nil
+								}
+								return workspacefs.OpenExternal(path)
+							})
 						},
 						OnRenderOfficePDF: func(rel string) {
 							state.openOfficePDF(sessions, snap.SelectedID, snap.SelectedCwd, rel)

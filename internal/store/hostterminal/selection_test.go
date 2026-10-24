@@ -8,7 +8,9 @@ func TestHostTerminalSelectionRequiresCurrentDisplayedIdentity(t *testing.T) {
 	a := attach(t, s, r, 1)
 	o := s.Snapshot("session").Owner
 	s.mu.Lock()
-	a.writable = false
+	// The Host names another attachment as controller: input is revoked while
+	// local selection stays available.
+	a.entry.info.ControllerID = "other-attachment"
 	s.mu.Unlock()
 	if s.Snapshot("session").Writable || !s.CanCopySelection(o, "session", "term", a) {
 		t.Fatal("read-only selection rejected")

@@ -125,7 +125,7 @@ func (s *mainState) deliverWhaleBridgeAlerts(run *bridgeAlertUI) {
 		if attempted || !run.monitor.Current(ticket) {
 			continue
 		}
-		if !mygo.NotificationsSupported() {
+		if !systemNotificationsSupported() {
 			run.monitor.DeliveryFailed(ticket)
 			run.window.FlashFrame(true)
 			continue

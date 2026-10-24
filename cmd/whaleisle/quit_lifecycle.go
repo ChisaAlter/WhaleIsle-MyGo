@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo"
 	desktopcomponents "whaleisle/internal/desktop/components"
+	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 )
@@ -19,6 +20,9 @@ func (s *mainState) requestQuitProtected(win *mygo.Window, sup *harness.Supervis
 	}
 	s.quitRequestPending = true
 	s.mu.Unlock()
+	// One milestone per user request, so a cancelled quit is still visible to the
+	// next run's update evidence (update-journal.js quit-requested).
+	s.recordUpdateAction(desktopupdate.JournalActionQuitRequested)
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -63,6 +67,9 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 		cancelPreparation()
 	}
 	s.closeWhaleBridgeAlerts()
+	// The management window is a separate top-level window; quitting must not
+	// leave it behind its own webview child.
+	s.closeWhaleBridgeWindow()
 	s.closeDesktopTray()
 	s.cancelComposerVoice()
 	if err := desktopcomponents.ShutdownGeneric(paths.UserDataDir()); err != nil {

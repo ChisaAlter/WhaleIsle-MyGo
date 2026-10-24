@@ -17,6 +17,15 @@ type ConfirmOptions struct {
 	Detail       string
 	ConfirmLabel string
 	CancelLabel  string
+	// TechnicalDetails is the optional evidence block (port of the shell update
+	// dialog's technicalDetails). It stays collapsed so it never widens the
+	// question, but the exact version, route and checksum stay one click away.
+	TechnicalDetails string
+	// TechnicalLabel captions that block; empty hides it.
+	TechnicalLabel string
+	// TechnicalOpen holds the disclosure state across frames; the caller owns it
+	// so a closed block stays closed and an opened one stays open.
+	TechnicalOpen *bool
 	// Danger paints the confirm action as the destructive action.
 	Danger bool
 	// Colors is the active palette; a zero value falls back to the light one so
@@ -57,6 +66,11 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 			}
 			if opts.Detail != "" {
 				ui.Text(c, opts.Detail).FillWidth().FontSize(12).FixedLineHeight(18).TextColor(c.Theme().TextMuted)
+			}
+			if opts.TechnicalDetails != "" && opts.TechnicalLabel != "" && opts.TechnicalOpen != nil {
+				ui.Collapsible(c, opts.TechnicalLabel, opts.TechnicalOpen, func() {
+					ui.Text(c, opts.TechnicalDetails).FillWidth().FontSize(11).FixedLineHeight(16).TextColor(c.Theme().TextMuted)
+				})
 			}
 			colors := opts.Colors
 			if colors.FG == "" {

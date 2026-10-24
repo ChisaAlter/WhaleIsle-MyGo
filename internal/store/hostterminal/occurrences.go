@@ -1,8 +1,8 @@
 package hostterminal
 
 // Occurrences share the authenticated transport, but own independent follow
-// duplex streams, acknowledgements and local attachment IDs. The Host's
-// per-attachment writable state controls input when two panes show one terminal.
+// streams and local attachment IDs. The Host's per-attachment controller state
+// controls input when two panes show one terminal.
 func (s *Store) Occurrence(key, source, session string) *Store {
 	s.mu.Lock()
 	if child := s.occurrences[key]; child != nil {

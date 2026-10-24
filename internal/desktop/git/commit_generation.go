@@ -147,3 +147,81 @@ func generateCommitText(ctx context.Context, in CommitGenerationInput, key, base
 	result.Source = "model"
 	return result, nil
 }
+
+// GenerateWorktreeCommitMessage produces the title-bar commit strip's copy for
+// the whole uncommitted change, which is what that entry then reviews (port of
+// the git-generate.js input contract). It never stages, commits or pushes.
+func GenerateWorktreeCommitMessage(ctx context.Context, root string) (GeneratedCommitMessage, error) {
+	if e := ctx.Err(); e != nil {
+		return GeneratedCommitMessage{}, e
+	}
+	diff, diffErr := generationGitText(ctx, root, 8000, "diff", "HEAD", "--name-status", "--no-ext-diff", "--no-textconv")
+	if diffErr != nil {
+		// An unborn HEAD has nothing to diff against; the status still names the
+		// reviewed files, so generation stays useful on the first commit.
+		diff = ""
+	}
+	changes, changesErr := Changes(root)
+	if diffErr != nil && changesErr != nil {
+		return GeneratedCommitMessage{}, diffErr
+	}
+	summary := mergeGenerationSummary(diff, changes, diffErr == nil)
+	if strings.TrimSpace(summary) == "" {
+		return GeneratedCommitMessage{}, errors.New("there are no changes to describe; enter a message manually")
+	}
+	patch, e := generationGitText(ctx, root, 50000, "diff", "HEAD", "--patch", "--no-ext-diff", "--no-textconv")
+	if e != nil {
+		patch = ""
+	}
+	recent, recentErr := selectedText(ctx, root, "", "log", "-n", "8", "--pretty=%s")
+	if recentErr != nil {
+		recent = ""
+	}
+	creds, e := credentials.Load(paths.UserDataDir())
+	if e != nil {
+		return GeneratedCommitMessage{}, errors.New("cannot read saved generation credentials; enter a message manually")
+	}
+	return generateCommitText(ctx, CommitGenerationInput{Summary: summary, Patch: patch, RecentSubjects: recent}, creds.APIKey, creds.BaseURL, nil)
+}
+
+// mergeGenerationSummary joins the tracked name-status rows with the untracked
+// files the review flow would also commit. Duplicate paths are kept once.
+func mergeGenerationSummary(diff string, changes []Change, tracked bool) string {
+	var rows []string
+	seen := map[string]bool{}
+	for _, line := range strings.Split(diff, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if path := fields[len(fields)-1]; path != "" {
+			if seen[path] {
+				continue
+			}
+			seen[path] = true
+		}
+		rows = append(rows, line)
+	}
+	for _, c := range changes {
+		if c.Path == "" || seen[c.Path] {
+			continue
+		}
+		// Only untracked files are missing from `git diff HEAD`; when that diff
+		// was unavailable every change is reported instead.
+		untracked := c.Index == '?' && c.Worktree == '?'
+		if tracked && !untracked {
+			continue
+		}
+		seen[c.Path] = true
+		status := "??"
+		if !untracked {
+			status = strings.TrimSpace(string([]byte{c.Index, c.Worktree}))
+			if status == "" {
+				status = "M"
+			}
+		}
+		rows = append(rows, status+"\t"+c.Path)
+	}
+	return strings.Join(rows, "\n")
+}

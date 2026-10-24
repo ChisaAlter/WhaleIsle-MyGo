@@ -1,6 +1,8 @@
 // Package hostterminal owns retained Host terminals. It never launches a local
-// process. Duplex commands are one-shot and every output attachment has its own
-// input capability, so queued input cannot cross a reconnect or session change.
+// process. Output arrives on one terminal/follow stream per attachment; input
+// and resize are one-shot terminal/write and terminal/resize calls bound to that
+// attachment identity, so an uncertain outcome fails the attachment instead of
+// replaying queued input across a reconnect or session change.
 package hostterminal
 
 import (
@@ -9,7 +11,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -21,15 +22,16 @@ type Shell struct {
 	Name string   `json:"name"`
 }
 type Info struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Shell    Shell  `json:"shell"`
-	Cwd      string `json:"cwd"`
-	Cols     int    `json:"cols"`
-	Rows     int    `json:"rows"`
-	State    string `json:"state"`
-	ExitCode *int   `json:"exitCode"`
-	Error    string `json:"error,omitempty"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Shell        Shell  `json:"shell"`
+	Cwd          string `json:"cwd"`
+	Cols         int    `json:"cols"`
+	Rows         int    `json:"rows"`
+	State        string `json:"state"`
+	ExitCode     *int   `json:"exitCode"`
+	Error        string `json:"error,omitempty"`
+	ControllerID string `json:"controllerId,omitempty"`
 }
 type Environment struct {
 	Cwd              string `json:"cwd"`
@@ -41,7 +43,6 @@ type Environment struct {
 }
 type Stream interface {
 	Recv(context.Context) (json.RawMessage, error)
-	SendItem(context.Context, any) error
 	Cancel()
 }
 type Remote interface {
@@ -575,8 +576,11 @@ func (s *Store) startFollowLocked(e *entry) {
 func (s *Store) currentLocked(a *Attachment) bool {
 	return s.epoch == a.epoch && a.ctx.Err() == nil && a.entry.attachment == a && !a.entry.closing
 }
+// writableLocked reports the Host's own input capability for this attachment:
+// the displayed terminal is running and still names this attachment as its
+// controller. Another attachment taking control revokes it on its next frame.
 func (s *Store) writableLocked(a *Attachment) bool {
-	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running" && a.writable
+	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running" && a.entry.info.ControllerID == a.ID
 }
 
 // Acknowledge is called after native Ghostty has parsed the entire frame. No
@@ -673,62 +677,11 @@ type Attachment struct {
 	render         *Render // Store.mu
 	ack            chan uint64
 	sequence       int64
-	stream         Stream           // Store.mu; scoped to this physical duplex attachment
-	writable       bool             // Store.mu; advertised separately for each attachment
-	inputWindow    *inputWindow     // Store.mu
-	inputSequence  int64            // Store.mu; one outstanding command, serialized by ioMu
-	pending        *inputAcceptance // Store.mu
+	stream         Stream // Store.mu; scoped to this physical follow attachment
 }
 
 func (a *Attachment) Read(p []byte) (int, error) { <-a.ctx.Done(); return 0, io.EOF }
 func (a *Attachment) Close() error               { a.cancel(); return nil }
-func (a *Attachment) Write(p []byte) (int, error) {
-	a.ioMu.Lock()
-	defer a.ioMu.Unlock()
-	s := a.store
-	s.mu.Lock()
-	valid := s.writableLocked(a)
-	maxBytes := s.sessionLocked(a.entry.key.session).environment.MaxInputBytes
-	s.mu.Unlock()
-	if !valid {
-		return 0, errors.New("Host terminal attachment is not writable")
-	}
-	if len(p) > maxBytes {
-		a.fail(errors.New("Host terminal input exceeds its byte limit"))
-		return 0, errors.New("Host terminal input exceeds its byte limit")
-	}
-	if len(p) == 0 {
-		return 0, nil
-	}
-	err := a.command(map[string]any{"type": "write", "data": string(p)})
-	if err != nil {
-		a.fail(fmt.Errorf("Input outcome uncertain; it will not be replayed: %w", err))
-		return 0, err
-	}
-	return len(p), nil
-}
-func (a *Attachment) Resize(cols, rows int) error {
-	a.ioMu.Lock()
-	defer a.ioMu.Unlock()
-	s := a.store
-	s.mu.Lock()
-	if !s.writableLocked(a) {
-		s.mu.Unlock()
-		return errors.New("Host terminal attachment is not writable")
-	}
-	env := s.sessionLocked(a.entry.key.session).environment
-	cols, rows = min(cols, env.MaxCols), min(rows, env.MaxRows)
-	same := a.entry.info.Cols == cols && a.entry.info.Rows == rows
-	s.mu.Unlock()
-	if cols < 2 || rows < 1 || same {
-		return nil
-	}
-	err := a.command(map[string]any{"type": "resize", "cols": cols, "rows": rows})
-	if err != nil {
-		a.fail(err)
-	}
-	return err
-}
 func (a *Attachment) fail(err error) {
 	s := a.store
 	s.mu.Lock()
@@ -742,7 +695,11 @@ func (a *Attachment) fail(err error) {
 	s.fire()
 }
 func (a *Attachment) follow() {
-	stream, err := a.remote.Open(a.ctx, "terminal/attach", map[string]any{"agentId": a.entry.key.session, "id": a.entry.key.id})
+	stream, err := a.remote.Open(a.ctx, "terminal/follow", map[string]any{
+		"agentId":      a.entry.key.session,
+		"id":           a.entry.key.id,
+		"attachmentId": a.ID,
+	})
 	if err != nil {
 		a.fail(err)
 		return
@@ -786,15 +743,6 @@ func (a *Attachment) follow() {
 			s.mu.Unlock()
 			return
 		}
-		if f.Type == "ack" {
-			if err := a.acceptLocked(f); err != nil {
-				s.mu.Unlock()
-				a.fail(err)
-				return
-			}
-			s.mu.Unlock()
-			continue
-		}
 		if f.Type != "output" {
 			env := s.sessionLocked(a.entry.key.session).environment
 			if f.Info.Cols > env.MaxCols || f.Info.Rows > env.MaxRows {
@@ -804,10 +752,6 @@ func (a *Attachment) follow() {
 			}
 			a.entry.info = *f.Info
 			a.entry.metadataRevision++
-			a.writable = *f.Writable
-			if first {
-				a.inputWindow = f.InputWindow
-			}
 			a.entry.phase = "connected"
 		}
 		if f.Type == "snapshot" || f.Type == "output" {
@@ -834,43 +778,37 @@ func (a *Attachment) follow() {
 }
 
 type wireFrame struct {
-	Type        string       `json:"type"`
-	Sequence    *int64       `json:"sequence"`
-	Screen      string       `json:"screen"`
-	Data        string       `json:"data"`
-	Info        *Info        `json:"info"`
-	Writable    *bool        `json:"writable"`
-	InputWindow *inputWindow `json:"inputWindow"`
-	Refusal     string       `json:"refusal"`
+	Type     string `json:"type"`
+	Sequence *int64 `json:"sequence"`
+	Screen   string `json:"screen"`
+	Data     string `json:"data"`
+	Info     *Info  `json:"info"`
 }
 
+// validateFrame enforces the Host wire contract: the stream begins with one
+// complete snapshot, output frames carry contiguous sequence numbers, and
+// snapshot/state frames describe this terminal's Host-owned state.
 func validateFrame(f wireFrame, first bool, sequence int64, id string) error {
 	if first && f.Type != "snapshot" {
 		return errors.New("Host terminal stream must begin with a screen snapshot")
 	}
-	if f.Type != "snapshot" && f.Type != "output" && f.Type != "state" && f.Type != "ack" {
-		return errors.New("invalid Host terminal frame")
-	}
 	if !first && f.Type == "snapshot" {
 		return errors.New("unexpected Host terminal snapshot")
+	}
+	switch f.Type {
+	case "snapshot", "state":
+		if f.Info == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed") {
+			return errors.New("invalid Host terminal identity or state")
+		}
+	case "output":
+	default:
+		return errors.New("invalid Host terminal frame")
 	}
 	if f.Type != "state" && (f.Sequence == nil || *f.Sequence < 0 || *f.Sequence > 9007199254740991) {
 		return errors.New("invalid Host terminal sequence")
 	}
 	if f.Type == "output" && *f.Sequence != sequence+1 {
 		return errors.New("Host terminal output sequence gap")
-	}
-	if f.Type == "ack" {
-		if *f.Sequence < 1 || (f.Refusal != "" && f.Refusal != "read-only" && f.Refusal != "not-running") {
-			return errors.New("invalid Host terminal input acknowledgement")
-		}
-		return nil
-	}
-	if f.Type != "output" && (f.Writable == nil || f.Info == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed")) {
-		return errors.New("invalid Host terminal identity or state")
-	}
-	if f.InputWindow != nil && (f.InputWindow.MaxBytes < 1 || f.InputWindow.FrameOverheadBytes < 0) {
-		return errors.New("invalid Host terminal carrier input window")
 	}
 	return nil
 }

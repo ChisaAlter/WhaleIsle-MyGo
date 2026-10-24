@@ -22,8 +22,11 @@ type confirmAskRequest struct {
 	Detail       string
 	ConfirmLabel string
 	CancelLabel  string
-	Danger       bool
-	Run          func()
+	// TechnicalDetails is the optional collapsed evidence block (port of the
+	// reference shell update dialog's technicalDetails).
+	TechnicalDetails string
+	Danger           bool
+	Run              func()
 	// Cancel, when non-nil, runs after the user dismisses the request.
 	Cancel func()
 	// Result, when non-nil, receives the answer instead of Run being called.
@@ -35,6 +38,9 @@ type confirmAskRequest struct {
 func (s *mainState) askConfirm(req confirmAskRequest) {
 	s.mu.Lock()
 	s.confirmAsk = &req
+	// A replaced request starts with the evidence block closed, so the previous
+	// question's expansion never leaks into an unrelated one.
+	s.confirmAskTechnicalOpen = false
 	win := s.win
 	s.mu.Unlock()
 	if win != nil {
@@ -89,13 +95,16 @@ func (s *mainState) syncConfirmAsk(c *ui.Context) {
 		}
 	}
 	settings.ConfirmDialog(c, settings.ConfirmOptions{
-		Title:        req.Title,
-		Body:         req.Body,
-		Detail:       req.Detail,
-		ConfirmLabel: req.ConfirmLabel,
-		CancelLabel:  req.CancelLabel,
-		Danger:       req.Danger,
-		OnConfirm:    func() { settle(true) },
-		OnCancel:     func() { settle(false) },
+		Title:            req.Title,
+		Body:             req.Body,
+		Detail:           req.Detail,
+		ConfirmLabel:     req.ConfirmLabel,
+		CancelLabel:      req.CancelLabel,
+		TechnicalDetails: req.TechnicalDetails,
+		TechnicalLabel:   resumeText("技术细节", "Technical details"),
+		TechnicalOpen:    &s.confirmAskTechnicalOpen,
+		Danger:           req.Danger,
+		OnConfirm:        func() { settle(true) },
+		OnCancel:         func() { settle(false) },
 	})
 }

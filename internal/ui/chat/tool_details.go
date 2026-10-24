@@ -14,21 +14,37 @@ import (
 // come from the immutable logged result, independently of the live Goals store.
 func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, key string, hasInspect bool) {
 	background, borderInk, secondary, caption := st.Field, st.Border.Alpha(.4), st.Muted, st.Muted.Alpha(.6)
+	tertiary := st.Muted
 	if st.Colors.CodeBlock != "" {
 		background, borderInk = chrome.Color(st.Colors.CodeBlock), chrome.Color(st.Colors.BorderL1)
 		secondary, caption = chrome.Color(st.Colors.Secondary), chrome.Color(st.Colors.Caption)
+		tertiary = chrome.Color(st.Colors.Muted)
 	}
 	border := toolCSSHalfBorder(c)
-	end := float32(14)
-	if hasInspect {
-		end = 88
+	// The installed 88px reserve clears the row's Inspect button. It applies to
+	// the caption when a caption exists, and to the items only when the card has
+	// no caption to carry it (`:not([data-caption])`).
+	itemEnd := float32(14)
+	if hasInspect && model.Caption == "" {
+		itemEnd = 88
 	}
+	font := theme.RenderPreferences().Interface.Family
+	codeFont := theme.RenderPreferences().Code.Family
 	card := ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
 		Border(border, borderInk).Radius(16).Background(background).Clip()
-	font := theme.RenderPreferences().Interface.Family
 	card.Children(func() {
+		if model.Caption != "" {
+			end := float32(14)
+			if hasInspect {
+				end = 88
+			}
+			ui.Column(c.Key("caption")).FillWidth().MinWidth(0).Padding(10, end, 6, 14).Children(func() {
+				ui.Text(c, model.Caption).Font(font).FontSize(12).FixedLineHeight(20).TextColor(caption).
+					FillWidth().MinWidth(0).Selectable()
+			})
+		}
 		if len(model.Items) == 0 {
-			ui.Column(c.Key("empty")).FillWidth().MinWidth(0).Padding(10, end, 10, 14).Children(func() {
+			ui.Column(c.Key("empty")).FillWidth().MinWidth(0).Padding(10, itemEnd, 10, 14).Children(func() {
 				toolDetailsText(c, model.Empty, font, secondary)
 			})
 			return
@@ -39,22 +55,71 @@ func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, k
 					if index > 0 {
 						ui.Box(c).FillWidth().Height(border).Shrink(0).Background(st.Border)
 					}
-					ui.Column(c).FillWidth().MinWidth(0).Padding(10, end, 10, 14).Children(func() {
-						ui.Row(c).FillWidth().MinWidth(0).Children(func() { toolDetailsText(c, item.Title, font, secondary).Grow(1) })
-						if len(item.Fields) > 0 {
-							ui.Column(c).FillWidth().MinWidth(0).Margin(6, 0, 0, 0).Gap(4).Children(func() {
-								for _, field := range item.Fields {
-									ui.Grid(c).ColumnTracks(ui.Fixed(5.5*13), ui.Fr(1)).Gap(12).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
-										toolDetailsText(c, field.Label, font, caption)
-										toolDetailsText(c, field.Value, font, secondary)
-									})
-								}
-							})
-						}
-					})
+					toolDetailsItem(c, item, st, font, codeFont, secondary, tertiary, caption, itemEnd, index)
 				}
 			})
 		})
+	})
+}
+
+// toolDetailsItem paints one installed DetailItem: the heading line with its
+// status badge, the recorded subtitle and description, the named fields and a
+// selectable code region. A code-only item drops the item padding, as the
+// installed `:has(> code:only-child)` rule does.
+func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, font, codeFont string, secondary, tertiary, caption ui.Color, end float32, index int) {
+	// The badge keeps the heading row present even for an empty recorded title,
+	// as the installed `title !== undefined` check does.
+	hasHeading := item.Title != "" || item.Badge != nil
+	codeOnly := item.Code != nil && !hasHeading && item.Subtitle == nil && item.Description == nil && len(item.Fields) == 0
+	body := ui.Column(c.Key(index)).FillWidth().MinWidth(0)
+	if codeOnly {
+		body.Padding(0)
+	} else {
+		body.Padding(10, end, 10, 14)
+	}
+	body.Children(func() {
+		if hasHeading {
+			ui.Row(c.Key("heading")).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+				toolDetailsText(c, item.Title, font, secondary).Grow(1)
+				if item.Badge != nil {
+					toolDetailsBadgeView(c, *item.Badge, st, caption, font, toolDetailsBadgeKey(index))
+				}
+			})
+		}
+		if item.Subtitle != nil {
+			ui.Text(c, *item.Subtitle).Font(font).FontSize(12).FixedLineHeight(20).TextColor(tertiary).
+				Margin(3, 0, 0, 0).FillWidth().MinWidth(0).Selectable()
+		}
+		if item.Description != nil {
+			ui.Text(c, *item.Description).Font(font).FontSize(13).FixedLineHeight(20).TextColor(caption).
+				Margin(6, 0, 6, 0).FillWidth().MinWidth(0).Selectable()
+		}
+		if len(item.Fields) > 0 {
+			fields := ui.Column(c).FillWidth().MinWidth(0).Gap(4)
+			// The installed `.heading + .fields` rule only applies when the fields
+			// directly follow the heading line.
+			if hasHeading && item.Subtitle == nil && item.Description == nil {
+				fields.Margin(6, 0, 0, 0)
+			}
+			fields.Children(func() {
+				for _, field := range item.Fields {
+					ui.Grid(c).ColumnTracks(ui.Fixed(5.5*13), ui.Fr(1)).Gap(12).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
+						toolDetailsText(c, field.Label, font, caption)
+						toolDetailsText(c, field.Value, font, secondary)
+					})
+				}
+			})
+		}
+		if item.Code != nil {
+			code := ui.Scroll(c.Key("code")).FillWidth().MinWidth(0).MaxHeight(240)
+			if !codeOnly {
+				code.Margin(8, 0, 0, 0)
+			}
+			code.Children(func() {
+				ui.Text(c, item.Code.Text).Font(codeFont).FontSize(12).FixedLineHeight(18).TextColor(secondary).
+					FillWidth().MinWidth(0).Selectable()
+			})
+		}
 	})
 }
 

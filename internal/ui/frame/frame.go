@@ -317,6 +317,8 @@ type Model struct {
 	OnRevealFile          func(absPath string)
 	OnOpenWithApp         func(absPath, appID string)
 	FileOpenWithApps      []files.OpenWithApp
+	OnOpenWithEditor      func(absPath, editorID string, line int)
+	FileEditorApps        []files.OpenWithApp
 	OnRenderOfficePDF     func(rel string)
 	OfficePreviewStatus   func(path string) string
 	OnOpenBrowserPreview  func()
@@ -1487,6 +1489,8 @@ func rightPane(c *ui.Context, m Model) {
 			OnReveal:            m.OnRevealFile,
 			OnOpenWith:          m.OnOpenWithApp,
 			OpenWithApps:        m.FileOpenWithApps,
+			OnOpenWithEditor:    m.OnOpenWithEditor,
+			EditorApps:          m.FileEditorApps,
 			OnRenderPDF:         m.OnRenderOfficePDF,
 			OfficePreviewStatus: m.OfficePreviewStatus,
 			OnAddToChat:         m.OnAddSelectionToChat,

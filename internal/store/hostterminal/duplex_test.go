@@ -1,84 +1,70 @@
 package hostterminal
 
 import (
-	"strings"
+	"errors"
 	"testing"
 	"time"
 )
 
-func TestDuplexProviderAckAndCloseUnblocksPendingWrite(t *testing.T) {
+// One-shot control calls: write and resize are unary RPCs bound to the fresh
+// attachment identity, never uplink items on the follow stream.
+func TestControlCallsBindAttachmentIdentity(t *testing.T) {
 	s, r := prepare(t)
 	defer s.bind(nil, nil, false, nil)
-	a := attach(t, s, r, 50)
-	r.mu.Lock()
-	r.noAck = true
-	r.mu.Unlock()
-	done := make(chan error, 1)
-	go func() { _, err := a.Write([]byte("x")); done <- err }()
-	deadline := time.Now().Add(time.Second)
-	for r.count("input/write") == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if r.count("input/write") != 1 {
-		t.Fatal("command was not transmitted")
-	}
-	select {
-	case <-done:
-		t.Fatal("write completed before provider acknowledgement")
-	default:
-	}
-	s.Show("other", true)
-	select {
-	case err := <-done:
-		if err == nil {
-			t.Fatal("detached pending command reported success")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("detach retained pending writer")
-	}
-	if r.count("input/write") != 1 || r.count("terminal/write") != 0 {
-		t.Fatal("command replayed or used old RPC")
-	}
-}
-
-func TestDuplexEscapedInputRespectsCarrierWindow(t *testing.T) {
-	s, r := prepare(t)
-	defer s.bind(nil, nil, false, nil)
-	a := attach(t, s, r, 0)
-	s.mu.Lock()
-	a.inputWindow = &inputWindow{MaxBytes: 70, FrameOverheadBytes: 20}
-	s.mu.Unlock()
-	if _, err := a.Write([]byte(strings.Repeat("\x00", 8))); err == nil {
-		t.Fatal("escaped JSON command exceeded advertised carrier window")
-	}
-	if r.count("input/write") != 0 {
-		t.Fatal("oversized encoded frame was sent")
-	}
-}
-
-func TestDuplexInputAckHasIndependentStrictSequence(t *testing.T) {
-	s, r := prepare(t)
-	defer s.bind(nil, nil, false, nil)
-	a := attach(t, s, r, 500)
-	if _, err := a.Write([]byte("x")); err != nil {
+	a := attach(t, s, r, 3)
+	if _, err := a.Write([]byte("ls\r")); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.Resize(90, 30); err != nil {
+	if err := a.Resize(100, 40); err != nil {
 		t.Fatal(err)
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	sequence := float64(0)
-	for _, call := range r.calls {
-		if strings.HasPrefix(call.method, "input/") {
-			sequence++
-			if call.args["sequence"] != sequence {
-				t.Fatal("output sequence polluted command ordering", call)
+	var writes, resizes int
+	for _, c := range r.calls {
+		switch c.method {
+		case "terminal/write":
+			writes++
+			if c.args["agentId"] != "session" || c.args["id"] != "term" || c.args["attachmentId"] != a.ID || c.args["data"] != "ls\r" {
+				t.Fatal(c)
 			}
+		case "terminal/resize":
+			resizes++
+			if c.args["agentId"] != "session" || c.args["id"] != "term" || c.args["attachmentId"] != a.ID || c.args["cols"] != float64(100) || c.args["rows"] != float64(40) {
+				t.Fatal(c)
+			}
+		case "input/write", "input/resize":
+			t.Fatal("obsolete duplex command transmitted", c)
 		}
 	}
-	if sequence != 2 {
-		t.Fatal("missing duplex commands")
+	if writes != 1 || resizes != 1 {
+		t.Fatal("one-shot control calls missing", writes, resizes)
+	}
+}
+
+// A control call with an uncertain outcome fails exactly that attachment; the
+// input is never replayed and the attachment never accepts further input.
+func TestControlFailureFailsAttachmentWithoutReplay(t *testing.T) {
+	s, r := prepare(t)
+	defer s.bind(nil, nil, false, nil)
+	a := attach(t, s, r, 7)
+	r.mu.Lock()
+	r.writeErr = errors.New("response lost")
+	r.mu.Unlock()
+	if _, err := a.Write([]byte("x")); err == nil {
+		t.Fatal("missing failure")
+	}
+	if r.count("terminal/write") != 1 {
+		t.Fatal("uncertain write not transmitted once")
+	}
+	if _, err := a.Write([]byte("y")); err == nil {
+		t.Fatal("failed attachment remained writable")
+	}
+	if r.count("terminal/write") != 1 {
+		t.Fatal("input replayed after failure")
+	}
+	if s.Snapshot("session").Phase != "failed" {
+		t.Fatal("failed control call did not surface")
 	}
 }
 
@@ -87,7 +73,7 @@ func TestRetentionEndDuringExplicitClosePreservesClosingState(t *testing.T) {
 	defer s.bind(nil, nil, false, nil)
 	hold := nextOpen(t, r, "terminal/retain")
 	hold.stream.send(map[string]any{"type": "retained"})
-	_ = nextOpen(t, r, "terminal/attach")
+	_ = nextOpen(t, r, "terminal/follow")
 	s.mu.Lock()
 	e := s.entries[terminalKey{"session", "term"}]
 	e.closing = true

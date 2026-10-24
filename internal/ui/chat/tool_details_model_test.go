@@ -701,3 +701,189 @@ func TestToolDetailsModelScheduleProjectionAndIndependence(t *testing.T) {
 		}
 	}
 }
+
+// The background-job families were read from the installed client bundles:
+// control-details-model.js SHA256 ff46094f8712c459cadb12d0b1fb7544e63fd054a62f35d2ba008e4e641d595a
+// detail-model-shared.js SHA256 bdc969d96403522b340da929252720a2080d42ddef861d5be61e7b99c7f13b76
+func toolDetailsModelJobPtrForTest(value string) *string { return &value }
+
+const toolDetailsModelJobLinesForTest = "job-1 [bash] running — npm test\njob-2 [agent] completed — review\njob-3 [bash] blocked — deploy"
+
+func TestToolDetailsModelJobList(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	want := &toolDetailsModel{
+		Items: []toolDetailItem{
+			{Title: "npm test", Subtitle: toolDetailsModelJobPtrForTest("job-1"), Badge: &toolDetailBadge{Label: "Running", Tone: "info"}, Fields: []toolDetailField{{Label: "Type", Value: "bash"}}},
+			{Title: "review", Subtitle: toolDetailsModelJobPtrForTest("job-2"), Badge: &toolDetailBadge{Label: "Completed", Tone: "success"}, Fields: []toolDetailField{{Label: "Type", Value: "agent"}}},
+			{Title: "deploy", Subtitle: toolDetailsModelJobPtrForTest("job-3"), Badge: &toolDetailBadge{Label: "Blocked", Tone: "warning"}, Fields: []toolDetailField{{Label: "Type", Value: "bash"}}},
+		},
+		Summary: "3 background jobs",
+		Caption: "Recorded result",
+		Empty:   "No results",
+	}
+	call := toolDetailsModelCallForTest(t, false, "job_list", `{}`, toolDetailsModelJobLinesForTest)
+	if got := toolDetailsModelFor(call); !reflect.DeepEqual(got, want) {
+		t.Fatalf("job_list = %#v, want %#v", got, want)
+	}
+	// A single malformed line, an empty text and a JSON result all reject the
+	// whole card so the generic evidence body remains.
+	for _, text := range []string{
+		"job-1 [bash] running — npm test\nbroken",
+		"job-1 [bash] running — npm test\n",
+		"",
+		"job-1 running — npm test",
+		"job-1 [bash] — npm test",
+		`{"goal":null}`,
+	} {
+		if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_list", `{}`, text)); got != nil {
+			t.Fatalf("job_list %q produced %#v", text, got)
+		}
+	}
+	for _, locale := range []struct{ name, caption, empty, count, running, blocked, zero string }{
+		{"en", "Recorded result", "No results", "3 background jobs", "Running", "Blocked", "0 background jobs"},
+		{"zh-CN", "调用结果", "暂无结果", "3 个后台任务", "运行中", "受阻", "0 个后台任务"},
+	} {
+		toolDetailsModelLocaleForTest(t, locale.name)
+		got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_list", `{}`, toolDetailsModelJobLinesForTest))
+		if got == nil || got.Caption != locale.caption || got.Empty != locale.empty || got.Summary != locale.count ||
+			got.Items[0].Badge.Label != locale.running || got.Items[2].Badge.Label != locale.blocked {
+			t.Fatalf("%s job_list = %#v", locale.name, got)
+		}
+		empty := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_list", `{}`, "(no background jobs)"))
+		if empty == nil || empty.Items == nil || len(empty.Items) != 0 || empty.Summary != locale.zero || empty.Caption != locale.caption {
+			t.Fatalf("%s empty job_list = %#v", locale.name, empty)
+		}
+	}
+}
+
+func TestToolDetailsModelJobOutput(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	args := `{"target":"job-9"}`
+	want := &toolDetailsModel{
+		Items: []toolDetailItem{{
+			Title: "job-9", Badge: &toolDetailBadge{Label: "Completed", Tone: "success"},
+			Description: toolDetailsModelJobPtrForTest("exit 0"),
+			Code:        &toolDetailCode{Text: "line one\nline two"},
+		}},
+		Summary: "job-9 · Completed", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-9",
+	}
+	call := toolDetailsModelCallForTest(t, false, "job_output", args, "line one\nline two\n[status: completed, exit 0]")
+	if got := toolDetailsModelFor(call); !reflect.DeepEqual(got, want) {
+		t.Fatalf("job_output = %#v, want %#v", got, want)
+	}
+	// A status without its second part records no description at all.
+	got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_output", args, "out\n[status: running]"))
+	if got == nil || got.Items[0].Description != nil || got.Items[0].Badge.Tone != "info" || got.Summary != "job-9 · Running" || got.Items[0].Code.Text != "out" {
+		t.Fatalf("job_output bare status = %#v", got)
+	}
+	// The truncation suffix leaves the code and adds its own description part.
+	got = toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_output", args, "out\n[output truncated]\n[status: failed, boom]"))
+	if got == nil || got.Items[0].Code.Text != "out" || got.Items[0].Description == nil ||
+		*got.Items[0].Description != "boom · Output truncated" || got.Items[0].Badge.Tone != "error" {
+		t.Fatalf("job_output truncated = %#v", got)
+	}
+	got = toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_output", args, "out\n[output truncated]\n[status: failed]"))
+	if got == nil || got.Items[0].Description == nil || *got.Items[0].Description != "Output truncated" {
+		t.Fatalf("job_output truncation only = %#v", got)
+	}
+	for _, text := range []string{"no status here", "out\n[status: completed] tail", "", "[status: ]", "out\n[status: completed, extra\n]"} {
+		if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_output", args, text)); got != nil {
+			t.Fatalf("job_output %q produced %#v", text, got)
+		}
+	}
+	// The target falls back through the installed alias order and stays empty
+	// when every alias is absent.
+	for _, target := range []struct{ args, want string }{
+		{`{"target":"t","agent_id":"a","sessionId":"s","job_id":"j"}`, "t"},
+		{`{"target":"","agent_id":"a","sessionId":"s","job_id":"j"}`, "a"},
+		{`{"target":1,"agent_id":"a","sessionId":"s","job_id":"j"}`, "a"},
+		{`{"sessionId":"s","job_id":"j"}`, "s"},
+		{`{"job_id":"j"}`, "j"},
+		{`{}`, ""},
+	} {
+		got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_output", target.args, "out\n[status: completed]"))
+		if got == nil || got.Items[0].Title != target.want || got.ExpandedSummary != target.want || got.Summary != target.want+" · Completed" {
+			t.Fatalf("job_output target %s = %#v", target.args, got)
+		}
+	}
+}
+
+func TestToolDetailsModelJobKill(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	other := &toolDetailBadge{Label: "Already finished", Tone: "neutral"}
+	for _, tc := range []struct {
+		name, args, text string
+		want             *toolDetailsModel
+	}{
+		{"cancel", `{"target":"job-5","reason":"user asked"}`, "requested cancellation of job job-5", &toolDetailsModel{
+			Items: []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("user asked")}},
+			Summary: "job-5 · Cancellation requested", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-5",
+		}},
+		{"cancel without reason", `{"target":"job-5"}`, "requested cancellation of job job-5", &toolDetailsModel{
+			Items: []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("")}},
+			Summary: "job-5 · Cancellation requested", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-5",
+		}},
+		{"already finished", `{"target":"job-5"}`, "job job-5 had already finished with exit code 0", &toolDetailsModel{
+			Items:   []toolDetailItem{{Title: "job-5", Badge: other}},
+			Summary: "job-5 · Already finished", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-5",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_kill", tc.args, tc.text))
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("job_kill = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+	for _, tc := range []struct{ args, text string }{
+		{`{"target":"job-5"}`, "requested cancellation of job job-6"},
+		{`{"target":"job-5"}`, "job job-5 was cancelled"},
+		{`{"target":"job-6"}`, "requested cancellation of job job-5"},
+		{`{"target":""}`, "requested cancellation of job"},
+	} {
+		if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_kill", tc.args, tc.text)); got != nil {
+			t.Fatalf("job_kill %q/%s produced %#v", tc.text, tc.args, got)
+		}
+	}
+}
+
+// job_list/job_output/job_kill are control details: they derive from the settled
+// receipt before the goal/reminder JSON fallback, and a nested receipt owns its
+// embedded name and arguments. Arguments that are not a JSON record reject the
+// card, as the installed parsedToolCall does.
+func TestToolDetailsModelJobDerivation(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	for _, nested := range []bool{false, true} {
+		call := toolDetailsModelCallForTest(t, nested, "job_output", `{"target":"job-7"}`, "out\n[status: completed]")
+		model := toolDetailsModelFor(call)
+		if model == nil || model.Items[0].Title != "job-7" {
+			t.Fatalf("nested=%v model = %#v", nested, model)
+		}
+		messages := []session.Message{*call.Call, *call.Result}
+		window := messages
+		if nested {
+			window = messages[1:]
+		}
+		projected := session.ProjectToolMessages(window)
+		if len(projected) != 1 || projected[0].Tool == nil {
+			t.Fatalf("nested=%v wire records did not project", nested)
+		}
+		current := toolDetailsModelFor(projected[0].Tool)
+		if current == nil || !reflect.DeepEqual(current, model) {
+			t.Fatalf("nested=%v projected model = %#v", nested, current)
+		}
+		// Mutating a derived model must not leak into a later derivation.
+		second := toolDetailsModelFor(projected[0].Tool)
+		second.Items[0].Badge.Label, second.Items[0].Code.Text = "changed", "changed"
+		second.Items[0].Title, second.Items[0].Fields = "changed", append(second.Items[0].Fields, toolDetailField{Value: "appended"})
+		second.Summary = "changed"
+		if !reflect.DeepEqual(toolDetailsModelFor(projected[0].Tool), model) {
+			t.Fatalf("nested=%v models share mutable state", nested)
+		}
+	}
+	for _, args := range []string{"null", "[]", `"args"`, "{} {}", ""} {
+		if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, false, "job_list", args, toolDetailsModelJobLinesForTest)); got != nil {
+			t.Fatalf("non-record arguments %q produced %#v", args, got)
+		}
+	}
+}

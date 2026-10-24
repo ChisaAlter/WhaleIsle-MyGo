@@ -86,7 +86,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 		t.Fatalf("draft after send = %q, want empty", snap.Draft)
 	}
 	if snap.LastSend == "" {
-		t.Fatal("expected LastSend note in stub mode")
+		t.Fatal("expected LastSend note in local fallback mode")
 	}
 
 	// Re-open from disk.
