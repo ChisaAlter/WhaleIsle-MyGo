@@ -1744,3 +1744,103 @@ func TestToolDetailsModelTodoCopyChinese(t *testing.T) {
 		t.Fatalf("zh unavailable = %#v", unavailable)
 	}
 }
+
+// AskQuestionCard.tsx and toolviews/ask-question-row.tsx pair the call's
+// questions with the result's answers by id; the skipped label and the
+// cancelled/interrupted verdicts come from the installed dictionary.
+func askQuestionCallForTest(t *testing.T, questions, result string) *session.ToolCallView {
+	t.Helper()
+	args := `{"questions":` + questions + `}`
+	call := toolDetailsModelCallForTest(t, false, "ask_user_question", args, result)
+	call.Name, call.Arguments = "ask_user_question", args
+	return call
+}
+
+func askQuestionErrorCallForTest(t *testing.T, questions, code string) *session.ToolCallView {
+	t.Helper()
+	call := askQuestionCallForTest(t, questions, `{"pending":true,"callId":"goal-123"}`)
+	raw := string(call.Result.Raw)
+	raw = strings.Replace(raw, `"data":{`, `"data":{"isError":true,"error":{"name":"UserQuestionError","code":"`+code+`"},`, 1)
+	call.Result.Raw = json.RawMessage(raw)
+	call.State = "error"
+	return call
+}
+
+func TestToolDetailsModelAskQuestionAnswered(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"scope","question":"Which project?"},{"id":"notes","question":"Anything else?"}]`
+	answers := `{"answers":[{"id":"scope","selected":["deepseek-harness","whaleisle"]},{"id":"notes","selected":[]}]}`
+	card := askQuestionCardFor(askQuestionCallForTest(t, questions, answers))
+	if card == nil || card.Kind != "answered" || card.SkippedLabel != "Not answered" || len(card.Questions) != 2 {
+		t.Fatalf("answered card = %#v", card)
+	}
+	if card.Questions[0].Question != "Which project?" || len(card.Questions[0].Answers) != 2 ||
+		card.Questions[0].Answers[0] != "deepseek-harness" || card.Questions[0].Answers[1] != "whaleisle" {
+		t.Fatalf("paired answers = %#v", card.Questions[0])
+	}
+	if len(card.Questions[1].Answers) != 0 {
+		t.Fatalf("skipped question = %#v", card.Questions[1])
+	}
+	// A custom answer appends after the selected labels; an empty custom does not.
+	custom := `{"answers":[{"id":"scope","selected":["a"],"custom":"b"},{"id":"notes","selected":[],"custom":""}]}`
+	card = askQuestionCardFor(askQuestionCallForTest(t, questions, custom))
+	if card == nil || len(card.Questions[0].Answers) != 2 || card.Questions[0].Answers[1] != "b" ||
+		len(card.Questions[1].Answers) != 0 {
+		t.Fatalf("custom answers = %#v", card)
+	}
+}
+
+func TestToolDetailsModelAskQuestionFallbacks(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"a","question":"A?"},{"id":"b","question":"B?"}]`
+	for _, tc := range []struct{ name, questions, result string }{
+		{"empty questions", `[]`, `{"answers":[]}`},
+		{"duplicate question ids", `[{"id":"a","question":"A?"},{"id":"a","question":"B?"}]`, `{"answers":[]}`},
+		{"missing question text", `[{"id":"a"}]`, `{"answers":[]}`},
+		{"missing answers", questions, `{"pending":true}`},
+		{"answers not an array", questions, `{"answers":{}}`},
+		{"fewer answers", questions, `{"answers":[{"id":"a","selected":["x"]}]}`},
+		{"unknown answer id", questions, `{"answers":[{"id":"a","selected":["x"]},{"id":"c","selected":[]}]}`},
+		{"duplicate answer id", questions, `{"answers":[{"id":"a","selected":["x"]},{"id":"a","selected":[]}]}`},
+		{"non-string selected", questions, `{"answers":[{"id":"a","selected":[1]},{"id":"b","selected":[]}]}`},
+		{"non-string custom", questions, `{"answers":[{"id":"a","selected":["x"],"custom":1},{"id":"b","selected":[]}]}`},
+		{"not json", questions, `not json`},
+	} {
+		if card := askQuestionCardFor(askQuestionCallForTest(t, tc.questions, tc.result)); card != nil {
+			t.Fatalf("%s produced %#v", tc.name, card)
+		}
+	}
+	if card := askQuestionCardFor(askQuestionErrorCallForTest(t, questions, "TOOL_FAILED")); card != nil {
+		t.Fatalf("unknown error code produced %#v", card)
+	}
+	// Other tools never take this card.
+	if card := askQuestionCardFor(toolDetailsModelCallForTest(t, false, "get_goal", `{}`, "x")); card != nil {
+		t.Fatalf("goal produced %#v", card)
+	}
+}
+
+func TestToolDetailsModelAskQuestionUnanswered(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"a","question":"Which project?"}]`
+	cancelled := askQuestionCardFor(askQuestionErrorCallForTest(t, questions, "ASK_CANCELLED"))
+	if cancelled == nil || cancelled.Kind != "unanswered" ||
+		cancelled.Verdict != "This question set was cancelled before answers were submitted." ||
+		len(cancelled.Questions) != 1 || cancelled.Questions[0].Question != "Which project?" {
+		t.Fatalf("cancelled card = %#v", cancelled)
+	}
+	aborted := askQuestionCardFor(askQuestionErrorCallForTest(t, questions, "ASK_ABORTED"))
+	if aborted == nil || aborted.Kind != "unanswered" ||
+		aborted.Verdict != "This question set was interrupted before answers were submitted." {
+		t.Fatalf("aborted card = %#v", aborted)
+	}
+
+	toolDetailsModelLocaleForTest(t, i18n.LocaleZH)
+	zh := askQuestionCardFor(askQuestionErrorCallForTest(t, questions, "ASK_CANCELLED"))
+	if zh == nil || zh.Verdict != "本轮已取消，未提交回答" {
+		t.Fatalf("zh cancelled = %#v", zh)
+	}
+	zhAnswered := askQuestionCardFor(askQuestionCallForTest(t, questions, `{"answers":[{"id":"a","selected":[]}]}`))
+	if zhAnswered == nil || zhAnswered.SkippedLabel != "未回答" {
+		t.Fatalf("zh skipped = %#v", zhAnswered)
+	}
+}

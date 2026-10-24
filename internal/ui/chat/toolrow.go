@@ -245,6 +245,10 @@ func padLine(n, total int) string {
 // the family was handled (the caller otherwise falls back to the argument and
 // result disclosures) and whether that body already owns the copy action.
 func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string, opts ToolImageGalleryOptions) (handled, ownsCopy bool) {
+	if info.ask != nil && !opts.TextOnly {
+		askQuestionCardView(c, *info.ask, st, key)
+		return true, true
+	}
 	if info.terminal != nil {
 		terminalCard(c, st, key, info.terminal, opts.Home, opts.TextOnly)
 		// The addressed reader also exposes the full unmodified call evidence.

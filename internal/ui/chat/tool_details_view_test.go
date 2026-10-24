@@ -943,3 +943,79 @@ func TestToolDetailsViewTodoDiff(t *testing.T) {
 		t.Fatal("write card fell back to evidence", tt.Texts())
 	}
 }
+
+// The ask-user transcript card replaces the generic IN/OUT body for
+// ask_user_question results, including the recorded cancelled/interrupted
+// verdicts; an unparsable result keeps the evidence body.
+func askQuestionViewFixture(t *testing.T, call *session.ToolCallView) (*ui.Tester, *map[string]bool) {
+	t.Helper()
+	oldLocale, oldPrefs := i18n.Locale(), theme.CurrentPreferences()
+	i18n.SetLocale(i18n.LocaleEN)
+	theme.SetPreferences(theme.Defaults())
+	t.Cleanup(func() { i18n.SetLocale(oldLocale); theme.SetPreferences(oldPrefs) })
+	expanded := map[string]bool{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		theme.ApplyInterface(c)
+		palette := theme.Resolve(theme.DefaultID).Active(false)
+		ui.Column(c).Fill().Padding(20).Background(chrome.Color(palette.BG)).Children(func() {
+			ToolMessageView(c, session.Message{Tool: call},
+				toolCardStyle(palette, chrome.Color(palette.FG), chrome.Color(palette.Muted), chrome.Color(palette.Border)),
+				ToolImageGalleryOptions{ID: "ask-view", Expanded: &expanded})
+		})
+	}, 420, 700)
+	tt.SetTime(time.Unix(12300, 0))
+	tt.Frame()
+	expanded["ask-view|tool:goal-123"] = true
+	tt.Frame()
+	return tt, &expanded
+}
+
+func TestToolDetailsViewAskQuestionAnswered(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"scope","question":"Which project?"},{"id":"notes","question":"Anything else?"}]`
+	answers := `{"answers":[{"id":"scope","selected":["deepseek-harness","whaleisle"],"custom":"The web app"},{"id":"notes","selected":[]}]}`
+	tt, _ := askQuestionViewFixture(t, askQuestionCallForTest(t, questions, answers))
+	for _, want := range []string{"Which project?", "deepseek-harness", "whaleisle", "The web app", "Anything else?", "Not answered"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	// The card replaces the evidence body (the row header label still carries
+	// the recorded arguments, as every tool row does).
+	for _, absent := range []string{"OUT", "IN"} {
+		if tt.HasText(absent) {
+			t.Fatal("unexpected evidence", absent, tt.Texts())
+		}
+	}
+	// The card sits at the row's 4px margin with its 20px text inset.
+	question, ok := tt.Find("Which project?")
+	if !ok || question.X != 45 {
+		t.Fatalf("question %+v", question)
+	}
+}
+
+func TestToolDetailsViewAskQuestionUnanswered(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"a","question":"Which project?"}]`
+	tt, _ := askQuestionViewFixture(t, askQuestionErrorCallForTest(t, questions, "ASK_CANCELLED"))
+	for _, want := range []string{"This question set was cancelled before answers were submitted.", "Which project?"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("cancelled card fell back to evidence", tt.Texts())
+	}
+}
+
+func TestToolDetailsViewAskQuestionMalformedFallback(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	questions := `[{"id":"a","question":"Which project?"}]`
+	tt, _ := askQuestionViewFixture(t, askQuestionCallForTest(t, questions, "not json"))
+	if !tt.HasText("OUT") {
+		t.Fatal("malformed result kept a card", tt.Texts())
+	}
+	if tt.HasText("Not answered") || tt.HasText("Which project?") && !tt.HasText("IN") {
+		t.Fatal("malformed result painted the card", tt.Texts())
+	}
+}

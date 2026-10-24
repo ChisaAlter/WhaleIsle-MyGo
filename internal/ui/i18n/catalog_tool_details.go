@@ -163,6 +163,11 @@ const (
 	KeyToolDetailTodoMoved        = "chat.tool.detail.todo.moved"
 	KeyToolDetailTodoEmpty        = "chat.tool.detail.todo.empty"
 
+	// Ask-user transcript card: the skipped row copy and the unanswered verdicts.
+	KeyAskQuestionSkipped     = "chat.tool.ask.skipped"
+	KeyAskQuestionCancelled   = "chat.tool.ask.cancelled"
+	KeyAskQuestionInterrupted = "chat.tool.ask.interrupted"
+
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
 	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
@@ -354,4 +359,8 @@ func init() {
 	Register(KeyToolDetailTodoRemovedCount, "移除 %d", "%d removed")
 	Register(KeyToolDetailTodoMoved, "顺序调整", "Reordered")
 	Register(KeyToolDetailTodoEmpty, "任务清单为空", "The to-do list is empty")
+
+	Register(KeyAskQuestionSkipped, "未回答", "Not answered")
+	Register(KeyAskQuestionCancelled, "本轮已取消，未提交回答", "This question set was cancelled before answers were submitted.")
+	Register(KeyAskQuestionInterrupted, "本轮已中断，未提交回答", "This question set was interrupted before answers were submitted.")
 }

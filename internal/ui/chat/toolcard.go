@@ -50,7 +50,9 @@ type ToolCardInfo struct {
 	web      *toolWebModel
 	image    *toolImageModel
 	details  *toolDetailsModel
-	inspect  func()
+	// ask is the installed ask-user transcript card for ask_user_question.
+	ask     *askQuestionCard
+	inspect func()
 	// imageFamily is the keyed read_image caller, which owns no args body.
 	imageFamily bool
 	webFamily   bool
@@ -172,7 +174,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
 		}
-		if !opts.TextOnly && info.details == nil && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil && info.diff == nil {
+		if !opts.TextOnly && info.details == nil && info.ask == nil && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil && info.diff == nil {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
@@ -203,7 +205,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		}
 	}
 	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil
-	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil || info.image != nil || info.details != nil)
+	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil || info.image != nil || info.details != nil || info.ask != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

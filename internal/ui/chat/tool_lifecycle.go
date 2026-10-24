@@ -132,6 +132,11 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	}
 	info := ToolLifecycleCardInfo(call)
 	info.details = details
+	// The ask-user transcript card replaces the generic IN/OUT body, including
+	// the recorded cancelled/interrupted verdicts.
+	if !gallery.TextOnly {
+		info.ask = askQuestionCardFor(call)
+	}
 	arguments := call.Arguments
 	output := toolLifecycleOutputFor(call, !gallery.TextOnly)
 	if gallery.TextOnly {
