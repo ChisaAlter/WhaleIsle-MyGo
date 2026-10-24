@@ -237,9 +237,10 @@ func View(c *ui.Context, m Model) {
 					}
 					ui.Box(c).Height(8)
 				}
-				// SidebarRoot.panelList: .panelRow is 36 high and the rows butt together, so
-				// the pitch is 36 (the pass-2 measurement; a 4-DIP gap made it 40).
-				ui.Column(c).FillWidth().Padding(0, 0, 8, 0).Children(func() {
+				// SidebarRoot.panelList: 36-high rows with a 4-DIP gap, so the
+				// pitch is 40. The native page measures 插件 at y=120 and
+				// 自动化任务 at y=160 inside a 76-DIP panelList (12 + 256 x 76).
+				ui.Column(c).FillWidth().Padding(0, 0, 8, 0).Gap(4).Children(func() {
 					nav := func(drawIcon func(), label string, fn func()) {
 						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 							Background(ui.Transparent).BorderWidth(0).

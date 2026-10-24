@@ -101,7 +101,7 @@ func TestModelProjectionUnknownMissingAndRetainedSelection(t *testing.T) {
 	s := modelTestStore(nil)
 	s.applyModelValuesLocked(json.RawMessage(`{"modelSelection":{"lastUsed":null,"next":{"provider":"gone","model":"removed","reasoningEffort":"custom"}}}`), 20)
 	v := s.Snapshot()
-	if v.SelectedModel != "gone / removed" || v.SelectedProvider != "gone" || v.SelectedModelEffort != "custom" || len(v.ModelEffortLabels) != 0 {
+	if v.SelectedModel != "gone/removed" || v.SelectedProvider != "gone" || v.SelectedModelEffort != "custom" || len(v.ModelEffortLabels) != 0 {
 		t.Fatalf("removed route lost: %+v", v)
 	}
 	s.applyModelControlLocked(json.RawMessage(`{"type":"projection","sessionId":"other","key":"modelSelection","seq":100,"value":{"next":null}}`))

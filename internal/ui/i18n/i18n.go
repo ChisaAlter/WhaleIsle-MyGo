@@ -627,6 +627,11 @@ const (
 	KeySettingsAccountNav                 = "settings.account.nav"
 	KeySettingsAccountTitle               = "settings.account.title"
 	KeySettingsAccountSeat                = "settings.account.seat"
+	KeySettingsAccountMenu                = "settings.account.menu"
+	KeyChatPreviewNoticeTitle             = "chat.preview_notice.title"
+	KeyChatPreviewNoticeBody              = "chat.preview_notice.body"
+	KeyChatPreviewNoticeContinue          = "chat.preview_notice.continue"
+	KeyChatPreviewNoticeError             = "chat.preview_notice.error"
 	KeySettingsAccountHint                = "settings.account.hint"
 	KeySettingsAccountStub                = "settings.account.stub"
 	KeySettingsAccountCredHint            = "settings.account.cred_hint"
@@ -1082,7 +1087,7 @@ var zhCN = map[string]string{
 	KeySidebarNewSessionFallback:      "新会话",
 	KeyChatEmpty:                      "选择会话后开始对话",
 	KeyChatHeroSlogan:                 "探索未至之境",
-	KeyChatHeroPreview:                "预览版",
+	KeyChatHeroPreview:                "大肥鱼版",
 	KeyChatHeroChooseWorkspace:        "选择工作区",
 	KeyChatThinking:                   "思考",
 	KeyChatConnConnecting:             "连接中…",
@@ -1104,7 +1109,7 @@ var zhCN = map[string]string{
 	KeyComposerModeSteer:              "插话",
 	// Match dsh ui-conversation locales.js placeholder.default / placeholder.hero.
 	KeyComposerPlaceholder:                "发消息或创建任务, / 调用指令, @ 文件或对话",
-	KeyComposerPlaceholderHero:            "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+	KeyComposerPlaceholderHero:            "描述你想要构建的内容，/ 调用指令，@ 文件或对话",
 	KeyComposerNoSession:                  "未选择会话",
 	KeyComposerWaiting:                    "等待服务…",
 	KeyComposerDropHint:                   "松开以附加 @工作区路径",
@@ -1153,6 +1158,11 @@ var zhCN = map[string]string{
 	KeySettingsAccountNav:                 "账号与登录",
 	KeySettingsAccountTitle:               "账号与登录",
 	KeySettingsAccountSeat:                "设置与账号",
+	KeySettingsAccountMenu:                "账号菜单",
+	KeyChatPreviewNoticeTitle:             "预览版说明",
+	KeyChatPreviewNoticeBody:              "DeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\n\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。",
+	KeyChatPreviewNoticeContinue:          "继续",
+	KeyChatPreviewNoticeError:             "暂时无法保存确认状态，请重试。",
 	KeySettingsAccountHint:                "Harness 账号状态（account/getState、getProfile、getBalance）。",
 	KeySettingsAccountStub:                "未连接 Harness 时显示占位；连接后点刷新拉取账号摘要。",
 	KeySettingsAccountCredHint:            "API Key 等密钥请到左侧「凭据」页编辑。",
@@ -2110,6 +2120,11 @@ var en = map[string]string{
 	KeySettingsAccountNav:                 "Account & login",
 	KeySettingsAccountTitle:               "Account & login",
 	KeySettingsAccountSeat:                "Settings & account",
+	KeySettingsAccountMenu:                "Account menu",
+	KeyChatPreviewNoticeTitle:             "Preview Notice",
+	KeyChatPreviewNoticeBody:              "DeepSeek Harness 0.2 is still in preview, and many areas need continued improvement and refinement. We welcome feedback and suggestions from all developers and users. The new desktop app now targets a broad range of users, while developer-related advanced features can be enabled in the settings. DeepSeek Harness’s product features and plugin APIs are expected to continue rapid iteration and evolution, and will gradually stabilize over time.\n\nWe look forward to exploring the limits of intelligence together with users and developers around the world, building on open-source, reusable, and composable infrastructure. We welcome everyone to bring their ideas to life with DeepSeek Harness and participate in the community to enrich the plugin ecosystem.",
+	KeyChatPreviewNoticeContinue:          "Continue",
+	KeyChatPreviewNoticeError:             "The acknowledgement could not be saved. Please try again.",
 	KeySettingsAccountHint:                "Harness account state (account/getState, getProfile, getBalance).",
 	KeySettingsAccountStub:                "Stub while Harness is disconnected; refresh after connect for a summary.",
 	KeySettingsAccountCredHint:            "Edit API keys on the Credentials page in the left nav.",

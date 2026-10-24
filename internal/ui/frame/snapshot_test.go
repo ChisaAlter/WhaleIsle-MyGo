@@ -69,7 +69,7 @@ func TestShellSoftwareSnapshots(t *testing.T) {
 			t.Fatal(err)
 		}
 		term, _ := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
-		footer, _ := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
+		footer, _ := tt.Find(i18n.T(i18n.KeySettingsAccountMenu))
 		files, _ := tt.Find(i18n.T(i18n.KeyRightPaneFiles))
 		card, _ := tt.Find("Composer card")
 		bubble, _ := tt.Find("User message bubble")

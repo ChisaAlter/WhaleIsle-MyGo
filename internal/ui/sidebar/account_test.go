@@ -87,8 +87,9 @@ func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 }
 
 // TestAccountRowFallsBackToSettings keeps the seat usable before the shell
-// publishes a profile: the localized account title is the label and the
-// settings entry is the destination. The collapsed rail is a 36x36 control.
+// publishes a profile: the profile-less seat is the merged settings/account
+// trigger, labelled launcherLabel (设置与账号) with the accessible name 账号菜单,
+// and the settings entry is the destination. The collapsed rail is 36x36.
 func TestAccountRowFallsBackToSettings(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
@@ -101,11 +102,15 @@ func TestAccountRowFallsBackToSettings(t *testing.T) {
 		})
 	}, 280, 160)
 
-	// Without a name the row shows the localized account label and no detail.
-	if !tt.HasText(i18n.T(i18n.KeySettingsAccountTitle)) {
-		t.Fatalf("missing account label; texts=%q", tt.Texts())
+	// Without a name the row shows the merged seat label and no detail.
+	if !tt.HasText(i18n.T(i18n.KeySettingsAccountSeat)) {
+		t.Fatalf("missing merged settings label; texts=%q", tt.Texts())
 	}
-	if err := tt.Click(i18n.T(i18n.KeySettingsAccountTitle)); err != nil {
+	row, ok := tt.Find(i18n.T(i18n.KeySettingsAccountMenu))
+	if !ok || row.H != 36 || row.W != 280 {
+		t.Fatalf("merged settings seat=%+v, want 280x36", row)
+	}
+	if err := tt.Click(i18n.T(i18n.KeySettingsAccountSeat)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{i18n.T(i18n.KeySettingsAccountTitle)}

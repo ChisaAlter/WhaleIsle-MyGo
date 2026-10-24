@@ -3048,6 +3048,9 @@ func mainView(c *ui.Context) {
 	// window it covers.
 	var closingColors theme.Colors
 	defer func() { state.paintClosingOverlayLayer(c, closingColors) }()
+	// The first-run 预览版说明 layer paints below the closing cover and above
+	// every other surface.
+	defer func() { state.paintPreviewNoticeLayer(c, closingColors) }()
 	consumePendingToast(c)
 	state.syncHostAppearance()
 	openInApp := state.observeWorkspaceOpenInApp()

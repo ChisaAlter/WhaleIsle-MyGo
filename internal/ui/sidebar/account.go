@@ -27,13 +27,14 @@ type Account struct {
 
 var accountPersonIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="8" cy="5.4" r="2.6"/><path d="M2.9 13.1c.7-2.4 2.7-3.7 5.1-3.7s4.4 1.3 5.1 3.7"/></svg>`))
 
-// accountLabel is the row's accessible name and, when the shell published no
-// profile, its visible title too.
+// accountLabel is the row's visible title. A profile-less seat is the merged
+// settings/account trigger, whose installed label is launcherLabel
+// (设置与账号 / Settings & account).
 func accountLabel(a Account) string {
 	if name := strings.TrimSpace(a.Name); name != "" {
 		return name
 	}
-	return i18n.T(i18n.KeySettingsAccountTitle)
+	return i18n.T(i18n.KeySettingsAccountSeat)
 }
 
 // accountInitial is the avatar monogram: the first non-space rune of the name.
@@ -70,21 +71,46 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 		return
 	}
 	label := accountLabel(a)
+	signedOut := strings.TrimSpace(a.Name) == ""
+	// The native trigger's accessible name stays 账号菜单 even when the signed-out
+	// label reads launcherLabel.
+	menuLabel := label
+	if signedOut {
+		menuLabel = i18n.T(i18n.KeySettingsAccountMenu)
+	}
 	height := float32(44) // AccountMenu.module.css .trigger
 	key := "sidebar-account"
 	if compact {
 		height = 36 // AccountMenu.module.css [data-collapsed='true']
 		key = "sidebar-account-rail"
+	} else if signedOut {
+		// Installed AccountMenu trigger[data-signed-out='true']: 36 DIP tall with
+		// 7/8 padding, replacing the avatar with a 16 DIP settings glyph whose
+		// label is launcherLabel (设置与账号 / Settings & account).
+		height = 36
 	}
 	row := ui.Button(c.Key(key), "").FillWidth().Height(height).Radius(12).
 		BorderWidth(0).Background(ui.Transparent).Padding(6).
-		Label(label).Tooltip(label).Disabled(a.Busy)
+		Label(menuLabel).Tooltip(menuLabel).Disabled(a.Busy)
+	if signedOut && !compact {
+		// Installed AccountMenu trigger[data-signed-out='true']: 7/8 padding.
+		row.Padding(7, 8, 7, 8)
+	}
 	if row.Hovered() {
 		row.Background(chrome.Color(colors.Hover))
 	}
 	row.Menu(accountMenu(a, open))
 	row.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
+			if signedOut {
+				// The trigger swaps the avatar for a 16 DIP settings glyph.
+				ui.Icon(c, settingsGear).Size(16, 16).TextColor(chrome.Color(colors.FG))
+				if compact {
+					return
+				}
+				ui.Text(c, label).Grow(1).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG)).SingleLine()
+				return
+			}
 			avatar := ui.Box(c).Size(24, 24).Radius(12).Clip().Center()
 			avatar.Background(chrome.Color(colors.Accent).Alpha(.12))
 			avatar.Children(func() {

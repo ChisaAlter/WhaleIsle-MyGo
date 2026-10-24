@@ -147,6 +147,9 @@ type Config struct {
 	HideChatViewTabs bool `json:"goHideChatViewTabs"`
 	// AutoAllowTools auto-answers approval/request (Electron tool auto-allow).
 	AutoAllowTools bool `json:"goAutoAllowTools"`
+	// PreviewNoticeAck is the last 预览版说明 copy version the user acknowledged,
+	// the Go-side counterpart of the harness welcome-notice settings field.
+	PreviewNoticeAck string `json:"goPreviewNoticeAck,omitempty"`
 }
 
 // Defaults returns the configuration of a first run. Values mirror

@@ -71,7 +71,7 @@ func TestTerminalStaysInsideCenterAndSidebarKeepsFullHeight(t *testing.T) {
 	if term.X < 281 || term.X+term.W > 880 {
 		t.Fatalf("terminal bounds=%+v, want inside center x281..880", term)
 	}
-	settings, ok := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
+	settings, ok := tt.Find(i18n.T(i18n.KeySettingsAccountMenu))
 	if !ok {
 		t.Fatal("sidebar settings missing")
 	}
@@ -363,7 +363,7 @@ func TestTerminalToggleDoesNotStealFocusFromSidebar(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) {
 				View(c, Model{Store: session.New(), Sizes: &sizes, Draft: &draft, UseComposerTextInput: native, ComposerTextInput: client, OnOpenSettings: func() {}})
 			}, 1200, 800)
-			label := i18n.T(i18n.KeySettingsAccountTitle)
+			label := i18n.T(i18n.KeySettingsAccountMenu)
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}

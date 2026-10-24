@@ -43,8 +43,9 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 		t.Fatal("expanded sidebar still shows the rail's expand control")
 	}
 	// The three page rows. Find reports the text's box, so the row height is the
-	// pitch between consecutive rows: the reference's 36 DIP (rows are 36 high
-	// and butt together; a 4-DIP gap used to make the pitch 40).
+	// pitch between consecutive rows: the reference's 40 DIP (36-high rows with a
+	// 4-DIP gap; the native page puts 插件 at y=120 and 自动化任务 at y=160 in a
+	// 76-DIP panelList).
 	rows := make([]ui.Rect, 0, 3)
 	for _, row := range []string{
 		i18n.T(i18n.KeySidebarMarket),
@@ -61,15 +62,15 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 		rows = append(rows, r)
 	}
 	for i := 1; i < len(rows); i++ {
-		if pitch := rows[i].Y - rows[i-1].Y; pitch < 35.5 || pitch > 36.5 {
-			t.Fatalf("nav row pitch = %.1f DIP, want the reference's 36 (rows %v)", pitch, rows)
+		if pitch := rows[i].Y - rows[i-1].Y; pitch < 39.5 || pitch > 40.5 {
+			t.Fatalf("nav row pitch = %.1f DIP, want the reference's 40 (rows %v)", pitch, rows)
 		}
 	}
 	if !tt.HasText(i18n.T(i18n.KeySidebarWorkspaceSection)) {
 		t.Fatalf("expanded sidebar lost the workspace section; texts=%q", tt.Texts())
 	}
 	// The foot is the single settings/account seat inside the window.
-	seat, ok := tt.Find(i18n.T(i18n.KeySettingsAccountTitle))
+	seat, ok := tt.Find(i18n.T(i18n.KeySettingsAccountMenu))
 	if !ok || seat.Y+seat.H > 613 {
 		t.Fatalf("settings foot = %+v, want it inside the 613-DIP window", seat)
 	}

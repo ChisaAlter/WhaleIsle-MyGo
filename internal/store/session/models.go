@@ -99,7 +99,9 @@ func labelForSelection(sel api.ModelCatalogDefault, options []ModelOption) strin
 		return o.Label
 	}
 	if sel.Model != "" {
-		return sel.Provider + " / " + sel.Model
+		// The composer's model seat shows the native provider/model pair with no
+		// spaces around the slash (installed hero: "deepseek-official/deepseek-flash").
+		return sel.Provider + "/" + sel.Model
 	}
 	return ""
 }
