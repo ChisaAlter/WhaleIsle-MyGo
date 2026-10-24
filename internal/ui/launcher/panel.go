@@ -413,14 +413,25 @@ func homePanel(c *ui.Context, m Model) {
 		}
 	})
 
-	// Electron home desktop card: text brand (no 48px avatar), version pill
-	// top-right; status+CTAs one row; running note under the card actions.
+	// Electron home desktop card (launcher.html:68, launcher.css .home-desktop):
+	// a 48px brand avatar, the WHALE ISLE eyebrow over the 16/24 title, the
+	// version pill top-right; status+CTAs one row; running note under the actions.
 	ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
 		Padding(20, 24, 20, 24).Gap(0).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Start).Gap(16).Children(func() {
-			ui.Column(c).Gap(2).Grow(1).Children(func() {
-				ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).TextColor(colTertiary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
+			// .home-product: avatar + text column, 12px apart, centred.
+			ui.Row(c).Gap(12).AlignItems(ui.Center).Grow(1).MinWidth(0).Children(func() {
+				if bmp := brandAvatar(); bmp != nil {
+					ui.Image(c, bmp).Size(48, 48).Shrink(0).Fit(ui.Contain)
+				}
+				ui.Column(c).Gap(2).MinWidth(0).Children(func() {
+					// .home-eyebrow: 10/16, letter-spacing 1px, tertiary.
+					ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).
+						LetterSpacing(1).TextColor(colTertiary)
+					// .home-product h3: 16/24 semibold, 2px above.
+					ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).
+						FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(colPrimary)
+				})
 			})
 			badge := strings.TrimSpace(m.Version)
 			if badge == "" {
