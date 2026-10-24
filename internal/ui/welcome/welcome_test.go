@@ -55,7 +55,6 @@ func TestViewWelcomeActionsAndKeyForm(t *testing.T) {
 		i18n.T(i18n.KeyWelcomeKeyTitle),
 		i18n.T(i18n.KeyWelcomeKeyDescription),
 		i18n.T(i18n.KeyWelcomeKeySave),
-		i18n.T(i18n.KeyWelcomeKeyLater),
 		i18n.T(i18n.KeyWelcomeKeyBack),
 	} {
 		if !tt.HasText(label) {
