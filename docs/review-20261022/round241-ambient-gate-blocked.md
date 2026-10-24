@@ -66,3 +66,39 @@ startup path call order is the bug. The launch/verification procedure above is r
 
 No shadow build left behind (root copy deleted), temp profile removed, native restored to (200,2)
 2268×1366 on the empty 新会话. No commit, no passN, no contract edit.
+
+---
+
+# Retry after the lock cleared — gate verified, pair invalid (native is light)
+
+The lead's second message confirmed the earlier claim was wrong: the build **does** run once the lock is
+free (`whaleisle-r241` had been holding it), and a Go build of the known-good commit also ran when the
+desktop was clear. Retried the slice with the lock free:
+
+## Gate verification (fresh temp build of `eeca3072`, dark no-wallpaper profile, `WHALEISLE_BACKDROP_LOG`)
+
+- Process stayed alive (checked at 10 s and 42 s), main `MyGoWindow` 2160x1380 (9175300), launcher absent,
+  `MyGoApp` hidden -> window selection unambiguous.
+- `view: scheme="dark" systemDark=true darkCanvas=true path="" flat=true bg="#151515" fill={10 10 11 255 [0 0 0]}`
+- `painter: path="" effect="none" localExplicit=true active=false` (repeated every frame)
+  -> **the ambient painter is gated off and the flat fill is computed**; evidence log saved at
+  `evidence/screens/round241-backdrop.log`.
+- Direct 9-point samples after resizing to 1440x860: **cyan 0/9** (the aurora is gone). Points: card /
+  caption / bottom / hero2 = (21,21,23), sidebar (27,27,28), hero (39,39,42 at the headline band).
+  So the screen paints `#151517` (21,21,23), while the computed fill is (10,10,11) -> the masked flat
+  fill is still not the colour that reaches the canvas (a 9-level delta vs native 12,12,12).
+
+## Why the pair cannot be scored this round
+
+The captured baseline is invalid: sampling the native window with the MyGo window parked gives
+**caption (255,255,255), hero (232,232,232), sidebar (12,12,12)** — i.e. **the installed app is in LIGHT
+theme right now** (it was dark in rounds 167-237), and a stray console window (`pwd`) was sitting on top
+of it during the capture. The computed numbers from that baseline (mean delta 97.98, gt16 50.8 %,
+wash-masked 9.63 %) are therefore **not** D-MAIN parity and are not reported as such.
+
+## Next step
+
+Restore the installed app to dark (`跟随系统`/`深色` in its appearance settings) and clear stray windows,
+then re-run: the procedure takes ~5 minutes (build, launch with `WHALEISLE_BACKDROP_LOG`, `whaleisle://open`,
+resize, capture native-first, structure + three scores). Everything else is ready: gate verified, wash
+gone from MyGo, geometry exact.
