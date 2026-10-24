@@ -1561,3 +1561,186 @@ func TestToolDetailsModelVocabularyKindsGolden(t *testing.T) {
 		t.Fatalf("vocabulary kinds = %s", raw)
 	}
 }
+
+// todo-diff-model.ts:17-79 and todo-history.ts:26-56 pin the write card: the
+// list precedes each write, changed rows carry a change marker and the unchanged
+// container holds the rest.
+func toolDetailsTodoCallForTest(t *testing.T, todos string) *session.ToolCallView {
+	t.Helper()
+	args := `{"todos":` + todos + `}`
+	call := toolDetailsModelCallForTest(t, false, "todo_write", args, "Updated todo list")
+	call.Name, call.Arguments = "todo_write", args
+	return call
+}
+
+func toolDetailsTodoBaselineForTest(todos string) *todoBaseline {
+	baseline := &todoBaseline{Known: true}
+	if todos == "" {
+		return baseline
+	}
+	value, ok := toolDetailsDecodeJSON(todos)
+	if !ok || value.kind != 'a' {
+		return baseline
+	}
+	for _, entry := range value.list {
+		content, _ := entry.get("content")
+		status, _ := entry.get("status")
+		baseline.Todos = append(baseline.Todos, session.PlanTodo{Content: content.text, Status: status.text})
+	}
+	return baseline
+}
+
+func TestToolDetailsModelTodoDiff(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	todos := func(entries ...string) string { return "[" + strings.Join(entries, ",") + "]" }
+	entry := func(content, status string) string { return `{"content":"` + content + `","status":"` + status + `"}` }
+
+	// The first loaded write is the initial list; every row counts as added.
+	initial := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, todos(entry("Write docs", "pending"), entry("Ship", "completed"))), nil)
+	if initial == nil || initial.Caption != "Initial list" || initial.Summary != "2 added" ||
+		initial.Empty != "No changes to the list" || len(initial.Items) != 2 ||
+		initial.Items[0].Change == nil || initial.Items[0].Change.Value != "added" ||
+		initial.Items[0].Status.Value != "pending" || initial.Unchanged != nil {
+		t.Fatalf("initial = %#v", initial)
+	}
+
+	// An older unloaded page may hide the predecessor.
+	unavailable := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, todos(entry("Write docs", "pending"))), &todoBaseline{Known: false, HasMore: true})
+	if unavailable == nil || unavailable.Caption != "Previous list unavailable" || unavailable.Summary != "" ||
+		len(unavailable.Items) != 1 || unavailable.Items[0].Change != nil {
+		t.Fatalf("unavailable = %#v", unavailable)
+	}
+
+	// One added row, one status change, one removal, two unchanged rows.
+	baseline := toolDetailsTodoBaselineForTest(todos(entry("Write docs", "pending"), entry("Ship", "pending"), entry("Review", "completed")))
+	current := todos(entry("Write docs", "completed"), entry("Ship", "pending"), entry("Audit", "pending"))
+	diff := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, current), baseline)
+	if diff == nil || diff.Caption != "Changes since the previous list" || diff.Summary != "1 added · 1 updated · 1 removed" ||
+		len(diff.Items) != 3 {
+		t.Fatalf("diff = %#v", diff)
+	}
+	updated := diff.Items[0]
+	if updated.Title != "Write docs" || updated.Change.Value != "updated" || updated.Change.Label != "Status changed" ||
+		updated.PreviousStatus == nil || *updated.PreviousStatus != "Pending" || updated.Status.Label != "Completed" {
+		t.Fatalf("updated row = %#v", updated)
+	}
+	added := diff.Items[1]
+	if added.Title != "Audit" || added.Change.Value != "added" || added.Change.Label != "Added" {
+		t.Fatalf("added row = %#v", added)
+	}
+	removed := diff.Items[2]
+	if removed.Title != "Review" || removed.Change.Value != "removed" || removed.Change.Label != "Removed" ||
+		removed.Status.Value != "completed" || removed.PreviousStatus != nil {
+		t.Fatalf("removed row = %#v", removed)
+	}
+	if diff.Unchanged == nil || diff.Unchanged.Label != "1 unchanged" || len(diff.Unchanged.Items) != 1 || diff.Unchanged.Items[0].Title != "Ship" {
+		t.Fatalf("unchanged = %#v", diff.Unchanged)
+	}
+
+	// Reordering alone marks rows as reordered rather than status changes.
+	moved := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, todos(entry("Ship", "pending"), entry("Write docs", "pending"))),
+		toolDetailsTodoBaselineForTest(todos(entry("Write docs", "pending"), entry("Ship", "pending"))))
+	if moved == nil || moved.Summary != "2 updated" || len(moved.Items) != 2 ||
+		moved.Items[0].Change.Label != "Reordered" || moved.Items[0].PreviousStatus != nil || moved.Unchanged != nil {
+		t.Fatalf("moved = %#v", moved)
+	}
+
+	// Identical lists keep the rows in the unchanged disclosure only.
+	same := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, todos(entry("Ship", "completed"))),
+		toolDetailsTodoBaselineForTest(todos(entry("Ship", "completed"))))
+	if same == nil || same.Summary != "No changes to the list" || len(same.Items) != 0 ||
+		same.Empty != "No changes to the list" || same.Unchanged == nil || same.Unchanged.Label != "1 unchanged" {
+		t.Fatalf("same = %#v", same)
+	}
+
+	// A recorded empty first list reports the empty to-do copy.
+	empty := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, `[]`), &todoBaseline{Known: false})
+	if empty == nil || empty.Caption != "Initial list" || empty.Empty != "The to-do list is empty" ||
+		len(empty.Items) != 0 || empty.Summary != "No changes to the list" {
+		t.Fatalf("empty = %#v", empty)
+	}
+
+	// Malformed argument lists keep the raw evidence body.
+	for _, bad := range []string{
+		`{"todos":"x"}`,
+		`{"todos":[{"content":"","status":"pending"}]}`,
+		`{"todos":[{"content":"   ","status":"pending"}]}`,
+		`{"todos":[{"content":"A","status":"done"}]}`,
+		`{"todos":[{"content":"A"}]}`,
+		`{"todos":[{"content":1,"status":"pending"}]}`,
+		`{"todos":[]} {"todos":[]}`,
+		`{}`,
+	} {
+		call := toolDetailsModelCallForTest(t, false, "todo_write", bad, "Updated todo list")
+		call.Name, call.Arguments = "todo_write", bad
+		if got := toolDetailsTodoFor(call, nil); got != nil {
+			t.Fatalf("malformed %s produced %#v", bad, got)
+		}
+	}
+	duplicate := todos(entry("Same", "pending"), entry(" Same ", "pending"))
+	duplicateCall := toolDetailsModelCallForTest(t, false, "todo_write", `{"todos":`+duplicate+`}`, "x")
+	duplicateCall.Name, duplicateCall.Arguments = "todo_write", `{"todos":`+duplicate+`}`
+	if got := toolDetailsTodoFor(duplicateCall, nil); got != nil {
+		t.Fatalf("duplicate titles produced %#v", got)
+	}
+	// Other tools are not this family.
+	if got := toolDetailsTodoFor(toolDetailsModelCallForTest(t, false, "todo_read", `{}`, "x"), nil); got != nil {
+		t.Fatalf("todo_read produced %#v", got)
+	}
+}
+
+func TestToolDetailsModelTodoHistoryIndex(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	message := func(eventType, raw string) session.Message {
+		return session.Message{EventType: eventType, Raw: json.RawMessage(raw)}
+	}
+	todoWrite := func(content string) string {
+		return `{"type":"todo/write","data":{"todos":[{"content":"` + content + `","status":"pending"}]}}`
+	}
+	call := func(id string) string {
+		return `{"type":"tool/call","data":{"name":"todo_write","arguments":"{}","callId":"` + id + `"}}`
+	}
+	nested := func(id string) string {
+		return `{"type":"tool/ptc-dispatch-start","data":{"name":"todo_write","arguments":{},"subCallId":"` + id + `"}}`
+	}
+	messages := []session.Message{
+		message("todo/write", todoWrite("First")),
+		message("tool/call", call("call-2")),
+		message("todo/write", todoWrite("Second")),
+		message("tool/ptc-dispatch-start", nested("sub-3")),
+	}
+	baselines := todoBaselinesFor(messages, false)
+	if baselines["call-2"] == nil || !baselines["call-2"].Known || len(baselines["call-2"].Todos) != 1 ||
+		baselines["call-2"].Todos[0].Content != "First" || baselines["call-2"].HasMore {
+		t.Fatalf("call-2 baseline = %#v", baselines["call-2"])
+	}
+	if baselines["sub-3"] == nil || baselines["sub-3"].Todos[0].Content != "Second" {
+		t.Fatalf("sub-3 baseline = %#v", baselines["sub-3"])
+	}
+	// A truncated window that starts after the earlier write reports hasMore.
+	truncated := todoBaselinesFor([]session.Message{message("tool/call", call("call-1"))}, true)
+	if truncated["call-1"] == nil || truncated["call-1"].Known || !truncated["call-1"].HasMore {
+		t.Fatalf("truncated baseline = %#v", truncated["call-1"])
+	}
+}
+
+func TestToolDetailsModelTodoCopyChinese(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleZH)
+	call := toolDetailsTodoCallForTest(t, `[{"content":"写文档","status":"pending"}]`)
+	initial := toolDetailsTodoFor(call, nil)
+	if initial == nil || initial.Caption != "首次记录" || initial.Summary != "新增 1" || initial.Empty != "清单没有变化" ||
+		initial.Items[0].Status.Label != "待处理" || initial.Items[0].Change.Label != "新增" {
+		t.Fatalf("zh initial = %#v", initial)
+	}
+	baseline := toolDetailsTodoBaselineForTest(`[{"content":"写文档","status":"completed"},{"content":"评审","status":"pending"}]`)
+	diff := toolDetailsTodoFor(call, baseline)
+	if diff == nil || diff.Summary != "更新 1 · 移除 1" || diff.Caption != "与上次清单相比" ||
+		diff.Items[0].PreviousStatus == nil || *diff.Items[0].PreviousStatus != "已完成" ||
+		diff.Items[1].Change.Label != "移除" {
+		t.Fatalf("zh diff = %#v", diff)
+	}
+	unavailable := toolDetailsTodoFor(call, &todoBaseline{Known: false, HasMore: true})
+	if unavailable == nil || unavailable.Caption != "旧清单不可用" {
+		t.Fatalf("zh unavailable = %#v", unavailable)
+	}
+}

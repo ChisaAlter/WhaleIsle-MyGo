@@ -890,3 +890,56 @@ func TestToolDetailsViewTerminalListAndLSP(t *testing.T) {
 		t.Fatalf("reference open %v", opened)
 	}
 }
+
+// The write card repaints the installed diff: change glyphs, the previous status
+// arrow, the struck removed rows and the unchanged disclosure.
+func TestToolDetailsViewTodoDiff(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	call := toolDetailsTodoCallForTest(t, `[{"content":"Write docs","status":"completed"},{"content":"Ship","status":"pending"},{"content":"Audit","status":"pending"}]`)
+	baseline := toolDetailsTodoBaselineForTest(`[{"content":"Write docs","status":"pending"},{"content":"Ship","status":"pending"},{"content":"Review","status":"completed"}]`)
+	diff := toolDetailsTodoFor(call, baseline)
+	if diff == nil {
+		t.Fatal("todo diff model")
+	}
+	tt, _ := toolDetailsCardFixture(t, diff, false)
+	for _, want := range []string{"Changes since the previous list", "Write docs", "Audit", "Review", "+", "−", "Pending → Completed", "1 unchanged"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	// The unchanged row stays inside its disclosure until opened.
+	if tt.HasText("Ship") {
+		t.Fatal("unchanged row painted closed", tt.Texts())
+	}
+	if err := tt.Click("1 unchanged"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Ship") {
+		t.Fatal("unchanged disclosure did not open", tt.Texts())
+	}
+	// The removed title is toned down and struck through: compare its box with
+	// the same title rendered as an ordinary row.
+	plain := toolDetailsTodoFor(toolDetailsTodoCallForTest(t, `[{"content":"Review","status":"completed"}]`), nil)
+	plainTT, _ := toolDetailsCardFixture(t, plain, false)
+	removed, _ := tt.Find("Review")
+	ordinary, _ := plainTT.Find("Review")
+	if removed.W == 0 || ordinary.W == 0 || removed.W != ordinary.W {
+		t.Fatalf("removed %+v ordinary %+v", removed, ordinary)
+	}
+	first, second := tt.Image(), plainTT.Image()
+	differing := 0
+	for y := 0; y < int(removed.H); y++ {
+		for x := 0; x < int(removed.W); x++ {
+			if first.RGBAAt(int(removed.X)+x, int(removed.Y)+y) != second.RGBAAt(int(ordinary.X)+x, int(ordinary.Y)+y) {
+				differing++
+			}
+		}
+	}
+	if differing < 20 {
+		t.Fatalf("removed title kept its ordinary paint (%d differing pixels)", differing)
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("write card fell back to evidence", tt.Texts())
+	}
+}

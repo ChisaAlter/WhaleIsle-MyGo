@@ -115,6 +115,11 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	var details *toolDetailsModel
 	if !gallery.TextOnly {
 		details = toolDetailsModelFor(call)
+		// The installed write card diffs against the list preceding the call, which
+		// the transcript indexes from the loaded session events.
+		if todo := toolDetailsTodoFor(call, gallery.Todo); todo != nil {
+			details = todo
+		}
 		if details != nil {
 			// A settled nested receipt owns its name, even if the retained start
 			// differs. Keep the store projection immutable while selecting its row.

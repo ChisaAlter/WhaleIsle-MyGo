@@ -152,6 +152,16 @@ const (
 	KeyToolDetailTodoAdded      = "chat.tool.detail.todo.added"
 	KeyToolDetailTodoUpdated    = "chat.tool.detail.todo.updated"
 	KeyToolDetailTodoRemoved    = "chat.tool.detail.todo.removed"
+	// The todo_write diff card: captions, counts and the empty-list copy.
+	KeyToolDetailTodoInitial      = "chat.tool.detail.todo.initial"
+	KeyToolDetailTodoCompare      = "chat.tool.detail.todo.compare"
+	KeyToolDetailTodoUnavailable  = "chat.tool.detail.todo.unavailable"
+	KeyToolDetailTodoNoChanges    = "chat.tool.detail.todo.no_changes"
+	KeyToolDetailTodoAddedCount   = "chat.tool.detail.todo.added_count"
+	KeyToolDetailTodoUpdatedCount = "chat.tool.detail.todo.updated_count"
+	KeyToolDetailTodoRemovedCount = "chat.tool.detail.todo.removed_count"
+	KeyToolDetailTodoMoved        = "chat.tool.detail.todo.moved"
+	KeyToolDetailTodoEmpty        = "chat.tool.detail.todo.empty"
 
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
@@ -335,4 +345,13 @@ func init() {
 	Register(KeyToolDetailTodoAdded, "新增", "Added")
 	Register(KeyToolDetailTodoUpdated, "状态变化", "Status changed")
 	Register(KeyToolDetailTodoRemoved, "移除", "Removed")
+	Register(KeyToolDetailTodoInitial, "首次记录", "Initial list")
+	Register(KeyToolDetailTodoCompare, "与上次清单相比", "Changes since the previous list")
+	Register(KeyToolDetailTodoUnavailable, "旧清单不可用", "Previous list unavailable")
+	Register(KeyToolDetailTodoNoChanges, "清单没有变化", "No changes to the list")
+	Register(KeyToolDetailTodoAddedCount, "新增 %d", "%d added")
+	Register(KeyToolDetailTodoUpdatedCount, "更新 %d", "%d updated")
+	Register(KeyToolDetailTodoRemovedCount, "移除 %d", "%d removed")
+	Register(KeyToolDetailTodoMoved, "顺序调整", "Reordered")
+	Register(KeyToolDetailTodoEmpty, "任务清单为空", "The to-do list is empty")
 }

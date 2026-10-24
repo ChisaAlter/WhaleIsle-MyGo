@@ -125,6 +125,9 @@ func View(c *ui.Context, m Model) {
 	}
 
 	cards := prepareScheduleContext(m)
+	// Index each todo_write call's predecessor from the same loaded event window
+	// the transcript draws, as the installed todo history does.
+	todoBaselines := todoBaselinesFor(m.Snapshot.Messages, m.Snapshot.HistoryHasMore)
 	prepareHistoryNavigation(m, msgs, list)
 	prepareSessionInspector(m, msgs, transcriptControls, list, projected)
 	if m.Inspector != nil && m.Inspector.SessionID == m.Snapshot.SelectedID && m.Inspector.Target != nil {
@@ -294,6 +297,7 @@ func View(c *ui.Context, m Model) {
 							OnOpenURL:     m.OnOpenCitationURL,
 							OnOpenFile:    m.OnOpenDeliverable,
 							OnInspectCall: inspectCallHandler(m.OnInspectToolCall, msg.ID, msg.Seq),
+							Todo:          todoBaselineForCall(todoBaselines, msg),
 							OnOpen: func(path string) {
 								if m.OnOpenImageLightbox != nil {
 									m.OnOpenImageLightbox(path)

@@ -27,6 +27,9 @@ type ToolImageGalleryOptions struct {
 	OnOpenURL func(string)
 	// OnOpenFile reuses the session/Host-bound Files opener; never resolve locally here.
 	OnOpenFile func(string)
+	// Todo is the recorded todo list preceding this call, when the surface keeps
+	// the session event window; nil renders the first-write (initial) card.
+	Todo *todoBaseline
 }
 
 func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolImageGalleryOptions) {
