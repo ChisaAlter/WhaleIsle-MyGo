@@ -1,0 +1,16 @@
+﻿[
+    {
+        "output":  "",
+        "finishedAt":  "2026-10-24T02:31:20.2307336Z",
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+        "startedAt":  "2026-10-24T02:31:12.0387516Z",
+        "exit":  0
+    },
+    {
+        "output":  "",
+        "finishedAt":  "2026-10-24T02:31:23.1916430Z",
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets/markdown",
+        "startedAt":  "2026-10-24T02:31:20.2382647Z",
+        "exit":  0
+    }
+]

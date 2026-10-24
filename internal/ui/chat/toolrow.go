@@ -242,6 +242,16 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		// The addressed reader also exposes the full unmodified call evidence.
 		return true, !opts.TextOnly
 	}
+	if info.readFamily && !opts.TextOnly {
+		if info.read != nil {
+			toolReadCard(c, info.read, st, key)
+		} else {
+			// The read caller never supplies args to generic IN/OUT.
+			info.Arguments = ""
+			toolIORows(c, info, st, key+":read-output")
+		}
+		return true, true
+	}
 	if info.Name == "run_code" && !opts.TextOnly {
 		toolCodeBody(c, info, st, key)
 		return true, true

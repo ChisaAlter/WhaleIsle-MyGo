@@ -1,0 +1,30 @@
+﻿[
+    {
+        "output":  "ok  \twhaleisle/internal/ui/chat\t149.633s\r\nok  \twhaleisle/internal/ui/frame\t29.461s\r\nok  \twhaleisle/internal/ui/widgets/markdown\t4.279s\r\nok  \twhaleisle/internal/ui/i18n\t1.163s\r\n",
+        "finishedAt":  "2026-10-24T02:30:12.9922588Z",
+        "command":  "go test ./internal/ui/chat ./internal/ui/frame ./internal/ui/widgets/markdown ./internal/ui/i18n -count=1",
+        "startedAt":  "2026-10-24T02:27:27.9559124Z",
+        "exit":  0
+    },
+    {
+        "output":  "go.exe : stat C:\\AI\\WhaleIsle-MyGo\\third_party\\mygo\\cmd\\uilifetimevet: directory not found\r\nAt line:4 char:34\r\n+ ... cNow;$text=(\u0026 go run ./third_party/mygo/cmd/uilifetimevet ./internal/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (stat C:\\AI\\Whal...ctory not found:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+        "finishedAt":  "2026-10-24T02:30:13.4194676Z",
+        "command":  "go run ./third_party/mygo/cmd/uilifetimevet ./internal/ui/chat",
+        "startedAt":  "2026-10-24T02:30:13.0033370Z",
+        "exit":  1
+    },
+    {
+        "output":  "go.exe : stat C:\\AI\\WhaleIsle-MyGo\\third_party\\mygo\\cmd\\uilifetimevet: directory not found\r\nAt line:5 char:34\r\n+ ... cNow;$text=(\u0026 go run ./third_party/mygo/cmd/uilifetimevet ./internal/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (stat C:\\AI\\Whal...ctory not found:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+        "finishedAt":  "2026-10-24T02:30:13.6280911Z",
+        "command":  "go run ./third_party/mygo/cmd/uilifetimevet ./internal/ui/widgets/markdown",
+        "startedAt":  "2026-10-24T02:30:13.4204655Z",
+        "exit":  1
+    },
+    {
+        "output":  "",
+        "finishedAt":  "2026-10-24T02:30:29.3279003Z",
+        "command":  "go vet ./internal/ui/chat ./internal/ui/frame ./internal/ui/widgets/markdown ./internal/ui/i18n",
+        "startedAt":  "2026-10-24T02:30:13.6290904Z",
+        "exit":  0
+    }
+]

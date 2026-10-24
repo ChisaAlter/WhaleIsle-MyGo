@@ -44,6 +44,10 @@ type ToolCardInfo struct {
 	Output    string
 	// terminal is derived from a validated paired call/result, never its name alone.
 	terminal *toolTerminalModel
+	read     *toolReadModel
+	// readFamily identifies the installed keyed read caller, which never owns
+	// an IN args body, even when no validated card can be derived.
+	readFamily bool
 	// Paired-call header data remains independent of the body and source events.
 	summaryModel *toolSummaryModel
 	diffSummary  *toolDiffSummary
@@ -153,7 +157,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
 		}
-		if !opts.TextOnly {
+		if !opts.TextOnly && !info.readFamily {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
@@ -180,7 +184,8 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 			extra()
 		}
 	}
-	expandable := info.Status != "preparing" && (info.Arguments != "" || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil)
+	hasInput := info.Arguments != "" && !info.readFamily
+	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

@@ -1,0 +1,18 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T02:28:11.3685801Z",
+    "status":  "failed",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation Invoke. No Host, file opening, code execution, OS clipboard or hardware input.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r118-read-fixture.exe",
+                    "startUtc":  "2026-10-24T02:27:30.4525190Z",
+                    "exited":  true,
+                    "pid":  22032,
+                    "closed":  true
+                },
+    "states":  [
+
+               ],
+    "error":  "fold line height: 18.6666666666667 expected 19",
+    "finishedAt":  "2026-10-24T02:28:12.2121416Z"
+}

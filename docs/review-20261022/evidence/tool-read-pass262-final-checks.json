@@ -1,0 +1,23 @@
+﻿[
+    {
+        "output":  "ok  \twhaleisle/internal/ui/chat\t7.923s\r\nok  \twhaleisle/internal/ui/widgets/markdown\t1.615s\r\nok  \twhaleisle/internal/ui/i18n\t0.466s\r\n",
+        "finishedAt":  "2026-10-24T02:40:05.5979003Z",
+        "command":  "go test ./internal/ui/chat ./internal/ui/widgets/markdown ./internal/ui/i18n -run ^TestTool(Read|FileExplicit|Summary)|^TestLocale|^Test.*Catalog -count=1",
+        "startedAt":  "2026-10-24T02:39:42.6730361Z",
+        "exit":  0
+    },
+    {
+        "output":  "",
+        "finishedAt":  "2026-10-24T02:40:08.7314103Z",
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets/markdown",
+        "startedAt":  "2026-10-24T02:40:05.6049337Z",
+        "exit":  0
+    },
+    {
+        "output":  "",
+        "finishedAt":  "2026-10-24T02:40:11.5921604Z",
+        "command":  "go vet ./internal/ui/chat ./internal/ui/widgets/markdown ./internal/ui/i18n",
+        "startedAt":  "2026-10-24T02:40:08.7314103Z",
+        "exit":  0
+    }
+]

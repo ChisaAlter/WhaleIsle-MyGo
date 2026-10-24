@@ -94,12 +94,8 @@ func TestToolFileExplicitClickAndReadOnlyBoundary(t *testing.T) {
 	if opened != "" {
 		t.Fatal("render opened file")
 	}
-	// The file card is part of the expanded tool body.
-	if err := tt.Click(toolRowTitle("read")); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if err := tt.Click("src/a.go:12"); err != nil {
+	// The current keyed read caller exposes only the header path action.
+	if err := tt.Click("src/a.go"); err != nil {
 		t.Fatal(err)
 	}
 	if opened != "src/a.go:12" {

@@ -1,0 +1,90 @@
+{
+  "name": "folded-dark-true",
+  "rects": {
+    "Code block": {
+      "X": 46,
+      "Y": 61,
+      "W": 60.478516,
+      "H": 18
+    },
+    "Copy": {
+      "X": 578,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "Expand 6 more lines": {
+      "X": 46,
+      "Y": 172,
+      "W": 126.90918,
+      "H": 19
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 291,
+      "W": 600,
+      "H": 1
+    },
+    "Read content card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 239
+    },
+    "Showing 14 of 180 lines": {
+      "X": 422.60742,
+      "Y": 61,
+      "W": 115.39258,
+      "H": 18
+    },
+    "Wrap lines": {
+      "X": 550,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "recorded-line-00": {
+      "X": 76.143555,
+      "Y": 96,
+      "W": 96.765625,
+      "H": 19
+    },
+    "recorded-line-13": {
+      "X": 76.143555,
+      "Y": 248,
+      "W": 96.765625,
+      "H": 19
+    }
+  },
+  "texts": [
+    "Read src/read.go",
+    "Read",
+    "src/read.go",
+    "src/read.go",
+    "Read content card",
+    "Code block",
+    "src/read.go",
+    "Showing 14 of 180 lines",
+    "Wrap lines",
+    "Copy",
+    "37",
+    "recorded-line-00",
+    "39",
+    "recorded-line-01",
+    "41",
+    "recorded-line-02",
+    "43",
+    "recorded-line-03",
+    "Expand 6 more lines",
+    "… 6 more lines",
+    "57",
+    "recorded-line-10",
+    "59",
+    "recorded-line-11",
+    "61",
+    "recorded-line-12",
+    "63",
+    "recorded-line-13",
+    "Following summary flow"
+  ]
+}

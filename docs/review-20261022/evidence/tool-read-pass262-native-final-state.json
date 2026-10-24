@@ -1,0 +1,71 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T02:31:43.7503199Z",
+    "status":  "failed",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation Invoke. No Host, file opening, code execution, OS clipboard or hardware input.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r118-read-fixture.exe",
+                    "startUtc":  "2026-10-24T02:31:02.8301083Z",
+                    "exited":  true,
+                    "pid":  38436,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "read-open-folded",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-read":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  346.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  271
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T10:31:44.1168779+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "fold-click-space-enter",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-read":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  460.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  385
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T10:31:44.6859608+08:00"
+                                   }
+                   }
+               ],
+    "error":  "Exception calling \"GetCurrentPattern\" with \"1\" argument(s): \"Unsupported Pattern.\"",
+    "finishedAt":  "2026-10-24T02:31:44.9512322Z"
+}

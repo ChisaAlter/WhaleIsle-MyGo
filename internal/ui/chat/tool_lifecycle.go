@@ -125,6 +125,10 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	if !gallery.TextOnly {
 		summary := toolSummaryModelFor(call, gallery.Cwd, gallery.Home)
 		info.summaryModel = &summary
+		info.readFamily = call.Name == "read"
+		if info.readFamily {
+			info.read = toolReadModelFor(call, gallery.Cwd, gallery.Home)
+		}
 		info.openFile = gallery.OnOpenFile
 		info.diffSummary = toolDiffSummaryFor(call)
 		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {
@@ -141,7 +145,7 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		info.Web = call.Result.Web
 	}
 	extra := func() {
-		if !gallery.TextOnly {
+		if !gallery.TextOnly && !info.readFamily {
 			toolFileView(c, call, st, gallery)
 		}
 		if call.ParentIssue != "" {
