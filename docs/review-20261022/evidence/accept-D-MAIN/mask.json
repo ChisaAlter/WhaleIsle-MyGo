@@ -1,0 +1,15 @@
+﻿{
+    "screen":  "D-MAIN",
+    "threshold":  0,
+    "mask":  [
+
+             ],
+    "registry":  [
+                     "caret",
+                     "spinner/progress",
+                     "toast/banner",
+                     "hover state",
+                     "cursor"
+                 ],
+    "note":  "D-MAIN steady state: no caret/spinner/toast, so no mask is registered."
+}
