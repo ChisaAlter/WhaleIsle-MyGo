@@ -132,7 +132,7 @@ test('unknown name 404, bad JSON 400, oversized body 413, mutations 501', async 
   assert.equal(big.statusCode, 413);
   assert.deepEqual(JSON.parse(big.body), { ok: false, error: '请求过大' });
 
-  for (const name of ['gitCommit', 'gitPush', 'gitPull', 'gitSwitchBranch', 'gitCreateBranch', 'gitCreateChangeRequest', 'saveConfig', 'openSettings']) {
+  for (const name of ['gitPush', 'gitPull', 'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery']) {
     const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: '{}' });
     assert.equal(res.statusCode, 501, name);
     assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'shell unavailable' });
@@ -166,4 +166,94 @@ test('mountShellRoutes keeps the existing listener working', async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(spaCalls, 1);
   assert.equal(spa.body, 'spa');
+});
+
+// Gated mutations: the desktop gate stays in charge. A denied authorisation is
+// 403 with the native error text; missing/invalid arguments are 400; a fake
+// authoriser (the desktop saying yes) yields the native 200 {ok,result}.
+function denialGit() {
+  const deny = async () => { throw new Error('Mobile Git desktop workspace permission expired'); };
+  return { gitStatus: deny, gitCommit: deny, gitSwitchBranch: deny, gitCreateBranch: deny };
+}
+
+test('mutations without a desktop authorisation are 403, never run', async () => {
+  const calls = { commit: 0, create: 0, switch: 0 };
+  const git = {
+    async gitCommit() { calls.commit++; throw new Error('Mobile Git desktop workspace permission expired'); },
+    async gitCreateBranch() { calls.create++; throw new Error('Mobile Git desktop workspace permission expired'); },
+    async gitSwitchBranch() { calls.switch++; throw new Error('Mobile Git desktop workspace permission expired'); },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  for (const [name, body] of [
+    ['gitCommit', { cwd: ROOT, message: 'probe' }],
+    ['gitCreateBranch', { cwd: ROOT, name: 'probe-branch' }],
+    ['gitSwitchBranch', { cwd: ROOT, ref: 'probe-branch' }],
+  ]) {
+    const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: JSON.stringify(body) });
+    assert.equal(res.statusCode, 403, name);
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'Mobile Git desktop workspace permission expired' });
+  }
+  assert.equal(calls.commit + calls.create + calls.switch, 3, 'the gate was consulted for each call');
+});
+
+test('mutations validate arguments before touching the gate', async () => {
+  let reached = 0;
+  const git = { async gitCommit() { reached++; return {}; }, async gitCreateBranch() { reached++; return {}; }, async gitSwitchBranch() { reached++; return {}; } };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const cases = [
+    ['gitCommit', { cwd: ROOT }, 'invalid args: message'],
+    ['gitCommit', { cwd: ROOT, message: 'x', filePaths: 'nope' }, 'invalid args: filePaths'],
+    ['gitCreateBranch', { cwd: ROOT }, 'invalid args: name'],
+    ['gitSwitchBranch', { cwd: ROOT }, 'invalid args: ref'],
+  ];
+  for (const [name, body, error] of cases) {
+    const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: JSON.stringify(body) });
+    assert.equal(res.statusCode, 400, name + ' ' + error);
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error });
+  }
+  // A cwd outside the configured roots is a denial, not an argument error.
+  const outside = await run(handler, { url: '/__remote__/shell/gitCommit', headers, body: JSON.stringify({ cwd: require('node:path').parse(ROOT).root, message: 'x' }) });
+  assert.equal(outside.statusCode, 403);
+  assert.equal(JSON.parse(outside.body).error, 'Mobile Git is not authorized for this workspace');
+  assert.equal(reached, 0, 'invalid requests never reached the gate');
+});
+
+test('mutations succeed through the gate with a fake authorizer', async () => {
+  const seen = [];
+  const git = {
+    async gitCommit(cwd, message, filePaths, onProgress, options) {
+      seen.push({ name: 'gitCommit', cwd, message, filePaths, options });
+      return { committed: true, refName: 'probe-branch', message };
+    },
+    async gitCreateBranch(cwd, name) {
+      seen.push({ name: 'gitCreateBranch', cwd, name });
+      return { created: true, refName: name };
+    },
+    async gitSwitchBranch(cwd, ref) {
+      seen.push({ name: 'gitSwitchBranch', cwd, ref });
+      return { switched: true, refName: ref };
+    },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const create = await run(handler, { url: '/__remote__/shell/gitCreateBranch', headers, body: JSON.stringify({ cwd: ROOT, name: 'probe-branch' }) });
+  assert.equal(create.statusCode, 200);
+  assert.deepEqual(JSON.parse(create.body), { ok: true, result: { created: true, refName: 'probe-branch' } });
+
+  const commit = await run(handler, { url: '/__remote__/shell/gitCommit', headers, body: JSON.stringify({ cwd: ROOT, message: 'probe commit', filePaths: ['probe.txt'], options: { signOff: true } }) });
+  assert.equal(commit.statusCode, 200);
+  assert.equal(JSON.parse(commit.body).result.committed, true);
+  const commitSeen = seen.find((entry) => entry.name === 'gitCommit');
+  assert.deepEqual(commitSeen.filePaths, ['probe.txt']);
+  assert.deepEqual(commitSeen.options, { signOff: true });
+
+  const switchRes = await run(handler, { url: '/__remote__/shell/gitSwitchBranch', headers, body: JSON.stringify({ cwd: ROOT, ref: 'probe-branch' }) });
+  assert.equal(switchRes.statusCode, 200);
+  assert.deepEqual(JSON.parse(switchRes.body).result, { switched: true, refName: 'probe-branch' });
+
+  const denied = routes.createShellHandler({ tokens: () => [TOKEN], git: denialGit(), roots: () => [ROOT] });
+  const deniedRes = await run(denied, { url: '/__remote__/shell/gitCommit', headers, body: JSON.stringify({ cwd: ROOT, message: 'x' }) });
+  assert.equal(deniedRes.statusCode, 403);
 });

@@ -19,9 +19,9 @@
 const COOKIE_NAME = 'dsh_remote';
 const MAX_BODY = 262144;
 const READ_ONLY = new Set(['gitStatus', 'gitFetchForStatus', 'gitDiff', 'gitBranchList', 'listDir', 'getConfig']);
+const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch']);
 const GATED_TODO = new Set([
-  'gitCommit', 'gitPush', 'gitPull', 'gitSwitchBranch', 'gitCreateBranch',
-  'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery',
+  'gitPush', 'gitPull', 'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery',
 ]);
 const READ_BODY = Symbol('readBody');
 
@@ -74,6 +74,37 @@ function send(res, status, body, contentType) {
 
 function fail(res, status, error) {
   send(res, status, { ok: false, error });
+}
+
+// Native remote-shell.js:39-45 wrapResult: null -> empty-message failure, an
+// explicit {ok:false} result becomes a failure with its message.
+function wrapResult(res, result, emptyMessage) {
+  if (result == null) {
+    fail(res, 400, emptyMessage || '工作区不可用');
+    return;
+  }
+  if (result && result.ok === false) {
+    fail(res, 400, result.message || result.error || emptyMessage || '工作区不可用');
+    return;
+  }
+  send(res, 200, { ok: true, result });
+}
+
+function nonEmptyString(value, max) {
+  return typeof value === 'string' && value.trim() !== '' && value.length <= (max || 512);
+}
+
+function insideRoots(cwd, roots) {
+  const path = require('node:path');
+  const root = path.resolve(String(cwd || ''));
+  return (roots || []).some((entry) => {
+    const allowed = path.resolve(String(entry));
+    return root === allowed || root.startsWith(allowed + path.sep);
+  });
+}
+
+function denial(error) {
+  return /not authorized|permission expired|denied|forbidden/i.test(String(error || ''));
 }
 
 function readBody(req) {
@@ -134,7 +165,7 @@ function createShellHandler(opts) {
       send(res, 401, 'unauthorized', 'text/plain; charset=utf-8');
       return true;
     }
-    if (!READ_ONLY.has(name) && !GATED_TODO.has(name)) {
+    if (!READ_ONLY.has(name) && !MUTATIONS.has(name) && !GATED_TODO.has(name)) {
       fail(res, 404, 'not found');
       return true;
     }
@@ -158,16 +189,16 @@ function createShellHandler(opts) {
     try {
       switch (name) {
         case 'gitStatus':
-          send(res, 200, { ok: true, result: await git.gitStatus(payload.cwd) });
+          wrapResult(res, await git.gitStatus(payload.cwd));
           return true;
         case 'gitFetchForStatus':
-          send(res, 200, { ok: true, result: await git.gitFetchForStatus(payload.cwd) });
+          wrapResult(res, await git.gitFetchForStatus(payload.cwd));
           return true;
         case 'gitDiff':
-          send(res, 200, { ok: true, result: await git.gitDiff(payload.cwd, payload.options || {}) });
+          wrapResult(res, await git.gitDiff(payload.cwd, payload.options || {}));
           return true;
         case 'gitBranchList':
-          send(res, 200, { ok: true, result: await git.gitBranchList(payload.cwd) });
+          wrapResult(res, await git.gitBranchList(payload.cwd));
           return true;
         case 'listDir': {
           const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
@@ -189,14 +220,60 @@ function createShellHandler(opts) {
           send(res, 200, { ok: true, result: safe });
           return true;
         }
+        case 'gitCommit': {
+          const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
+          if (!nonEmptyString(payload.cwd) || !insideRoots(payload.cwd, roots || [])) {
+            fail(res, 403, 'Mobile Git is not authorized for this workspace');
+            return true;
+          }
+          if (!nonEmptyString(payload.message, 65536)) {
+            fail(res, 400, 'invalid args: message');
+            return true;
+          }
+          const filePaths = payload.filePaths;
+          if (filePaths !== undefined && (!Array.isArray(filePaths) || filePaths.some((f) => !nonEmptyString(f, 4096)))) {
+            fail(res, 400, 'invalid args: filePaths');
+            return true;
+          }
+          wrapResult(res, await git.gitCommit(payload.cwd, payload.message, filePaths, undefined, payload.options || {}));
+          return true;
+        }
+        case 'gitSwitchBranch': {
+          const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
+          if (!nonEmptyString(payload.cwd) || !insideRoots(payload.cwd, roots || [])) {
+            fail(res, 403, 'Mobile Git is not authorized for this workspace');
+            return true;
+          }
+          if (!nonEmptyString(payload.ref, 512)) {
+            fail(res, 400, 'invalid args: ref');
+            return true;
+          }
+          wrapResult(res, await git.gitSwitchBranch(payload.cwd, payload.ref));
+          return true;
+        }
+        case 'gitCreateBranch': {
+          const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
+          if (!nonEmptyString(payload.cwd) || !insideRoots(payload.cwd, roots || [])) {
+            fail(res, 403, 'Mobile Git is not authorized for this workspace');
+            return true;
+          }
+          if (!nonEmptyString(payload.name, 512)) {
+            fail(res, 400, 'invalid args: name');
+            return true;
+          }
+          wrapResult(res, await git.gitCreateBranch(payload.cwd, payload.name));
+          return true;
+        }
         default:
-          // TODO(G46): mutations stay gated; wire them once the desktop
-          // authorisation prompt is proven end to end (bridge git-authorize).
+          // TODO(G46): push/pull/PR/saveConfig/open* need desktop services that
+          // are not proven end to end yet; the native "unavailable" shape keeps
+          // the phone honest instead of half-wiring them.
           fail(res, 501, 'shell unavailable');
           return true;
       }
     } catch (error) {
-      fail(res, 400, String(error && error.message ? error.message : error));
+      const message = String(error && error.message ? error.message : error);
+      fail(res, denial(message) ? 403 : 400, message);
       return true;
     }
   };
@@ -226,11 +303,13 @@ module.exports = {
   COOKIE_NAME,
   MAX_BODY,
   READ_ONLY,
+  MUTATIONS,
   GATED_TODO,
   tokenFromRequest,
   tokensEqual,
   shellNameFromUrl,
   createShellHandler,
+  wrapResult,
   mountShellRoutes,
   rootedListDir,
 };

@@ -79,3 +79,61 @@ Evidence: `docs/review-20261022/evidence/remote-shell-probe.json`.
 - `listDir` is a rooted, name/type-only listing (no sizes, no symlink targets);
   the phone UI's richer fields would need a follow-up.
 - Relay mode and real-phone pairing still unverified in this slice.
+
+## 6. Round 194 addendum — gated git mutations
+
+`gitCommit`, `gitSwitchBranch` and `gitCreateBranch` are now served through the
+existing desktop git gate (never bypassed). `gitPush`, `gitPull`,
+`gitCreateChangeRequest`, `saveConfig` and `open*` remain **501 shell unavailable**
+with `TODO(G46)`: their desktop services are not proven end to end yet.
+
+### Route status
+
+| Route | Status | Notes |
+| --- | --- | --- |
+| gitCommit | **served (gated)** | args: `cwd` (string, must be inside `remoteGitRoots`), `message` (non-empty, ≤64 KiB), optional `filePaths` (string[]), `options` passed through; calls `git.gitCommit(cwd, message, filePaths, undefined, options)` |
+| gitSwitchBranch | **served (gated)** | args: `cwd` in roots, `ref` (non-empty ≤512) |
+| gitCreateBranch | **served (gated)** | args: `cwd` in roots, `name` (non-empty ≤512) |
+| gitPush / gitPull / gitCreateChangeRequest / saveConfig / openSettings / openGallery | 501 + TODO(G46) | reasons recorded in the switch comment |
+
+Status mapping: 401 anonymous/bad token, **403** for a gate denial (native error
+text, e.g. `Mobile Git is not authorized for this workspace` / `Mobile Git desktop
+workspace permission expired`) or a `cwd` outside the configured roots, 400 for
+invalid arguments (`invalid args: message|filePaths|ref|name`) and invalid JSON,
+413 >262 144 B, 404 unknown name, 200 `{ok:true,result}`. Git results with
+`{ok:false,message}` now follow native `wrapResult` (remote-shell.js:39-45): they
+become `{ok:false,error:message}` instead of being nested in a success.
+
+### Tests
+
+`shell_routes.test.cjs` now has 10 passing cases, adding: mutations without a
+desktop authorisation → 403 with the native error text and the gate still
+consulted; bad args (`message`, `filePaths`, `ref`, `name`) → 400 and the gate
+never reached; a `cwd` outside the roots → 403; success through a fake authorizer
+→ 200 with `gitCommit(cwd,message,filePaths,undefined,options)` argument capture,
+plus create/switch results. Go wrapper test unchanged and still green.
+
+### Live probe (temp repo, temp LAN runtime, Bearer token, sha256 only in evidence)
+
+| Request | Result |
+| --- | --- |
+| POST gitCreateBranch `{cwd, name:"g46-branch"}` | 200 `{"ok":true,"result":{"ok":true,…}}` |
+| POST gitCommit `{cwd, message:"probe"}` | 200 `{"ok":true,"result":{"ok":true,"status":"created","commitSha":"3c02b10…","subject":"probe"}}` |
+| POST gitCommit again (nothing staged) | 200 `{"ok":true,"status":"skipped"}` |
+| POST gitSwitchBranch `{cwd, ref:"g46-branch"}` | 200 `{"ok":true,"refName":"g46-branch"}` |
+| POST gitCommit without `message` | 400 `invalid args: message` |
+| POST gitCreateBranch without `name` | 400 `invalid args: name` |
+
+Post-probe repo state: `branches: * g46-branch, probe-branch`, `head: g46-branch`,
+`log: 3c02b10 probe`, `status:` clean, `probe.txt` tracked. The temp repo is deleted
+at the end of the probe (reset); the earlier repo had no commits and now carries the
+probe commit only inside that throwaway directory.
+
+### Residual
+
+- push/pull/PR/saveConfig/open* remain 501 + TODO; they need desktop services
+  (remote/PR generators) proven end to end.
+- Gate denial was exercised by the node table (403) and by round 187's live run
+  without an authoriser (400 then; now mapped to 403); the live mutation run used
+  the probe's `SetGitAuthorizer` as the desktop "allow".
+- Relay mode and real-phone pairing still unverified.
