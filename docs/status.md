@@ -302,6 +302,14 @@
 - 实机证据：pass273 探针 1590×990 px = 1060×660 DIP（dpi 144）可见启动器 + 2160×1380 px = 1440×920 DIP 隐藏主窗；pass272 主窗 2160×1380 = 1440×920。见 evidence/window-geometry-pass273.json。
 - pass273：87,241,216 B / SHA256 `649BBA3D…`；cmd/chat/frame 测试绿。
 
+### round140–143（2026-10-24）
+
+- round140：boot 揭幕 600ms 改用 widgets.DesignEase，用 boot 页面自身背景（62/38 刚体切片、地平线固定）替代合成场景；原生快照文字/动作滑动仍缺（native-UI 无离屏捕获）。
+- round141：托盘图标 32→24（仅 win32）、窗口图标补 48×48（main/welcome/launcher），几何探针新增清理陈旧 mygo-*.sock。
+- round142：i18n 审计（91 key 对齐 / 164 value / 56 行标题），修正 10 处文案（IN/OUT、Token、Cached、Cache created、Ask question、拖放句、轮次）；cmd/ 254 处 inline 文案与设置页全量扫描列为后续。
+- round143：**关键修复** — 主窗首帧自锁（round126 起，mainView 持 state.mu 时调用自锁的 git 生成访问器）。Responding 永久 False；改为 Locked 访问器 + 回归测试。pass274 主窗 --settings Responding=True（CPU 1.22s），启动器 1060×660 响应正常。harness start→ready 仍未验证。
+- pass274：87,529,472 B / SHA256 `2852B7FB…`；几何证据 window-geometry-pass274.json（启动器 1590×990 px = 1060×660 DIP，主窗隐藏 2160×1380 = 1440×920）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

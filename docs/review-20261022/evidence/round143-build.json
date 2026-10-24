@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-24T15:58:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87529472,
+  "productionSHA256": "2852B7FB89212F0AF4D64991ECE5C0AA86DB2493D33781C7B0898DC1371FE51F",
+  "defaultSHA256": "2852B7FB89212F0AF4D64991ECE5C0AA86DB2493D33781C7B0898DC1371FE51F",
+  "note": "pass274 covers rounds 140-143: boot reveal on the design ease, tray/window icon sizes, i18n copy fixes, and the main-window first-paint self-deadlock fix."
+}
