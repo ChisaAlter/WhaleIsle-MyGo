@@ -1,0 +1,216 @@
+{
+  "schema": 1,
+  "smoke": "remote-panel-qr-final",
+  "method": "temp/pass282 build at repo root; throwaway profile with goPreviewNoticeAck=2026-09-28.1, remoteEnabled/lan/3499/127.0.0.1, welcome marker, WHALEISLE_REMOTE_DIAG=1; shell ELECTRON_RUN_AS_NODE unset; deeplink whaleisle://settings?section=remote for the panel; UIA + PrintWindow capture; recursive tree kill",
+  "generatedAt": "2026-10-24T19:16:10.1852796Z",
+  "status": "ok",
+  "error": null,
+  "exe": "C:\\AI\\WhaleIsle-MyGo\\whaleisle-panel-final.exe",
+  "pid": 26740,
+  "userData": "C:\\AI\\WhaleIsle-MyGo\\tmp\\qrfinal-profile-20261025-031514",
+  "config": {
+    "harnessPort": 3099,
+    "remotePort": 3499,
+    "remoteMode": "lan",
+    "remoteBindAddress": "127.0.0.1",
+    "remoteLanTls": false,
+    "remoteEnabled": true,
+    "goPreviewNoticeAck": "2026-09-28.1"
+  },
+  "startedAt": "2026-10-24T19:15:15.1012201Z",
+  "timeline": [
+    {
+      "t": 2,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 4,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 7,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 9,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 11,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 14,
+      "harness": true,
+      "remote": false,
+      "mobile": false,
+      "diagStatus": "",
+      "pairing": false
+    },
+    {
+      "t": 16,
+      "harness": true,
+      "remote": false,
+      "mobile": true,
+      "diagStatus": "starting",
+      "pairing": false
+    },
+    {
+      "t": 18,
+      "harness": true,
+      "remote": true,
+      "mobile": true,
+      "diagStatus": "ready",
+      "pairing": true
+    }
+  ],
+  "phoneSpa": {
+    "url": "http://127.0.0.1:3180/",
+    "statusCode": 200,
+    "length": 16453,
+    "title": "Whale Isle · 手机远程"
+  },
+  "phoneDiag": {
+    "updatedAt": "2026-10-24T19:15:33Z",
+    "status": "ready",
+    "listening": true,
+    "relayConnected": false,
+    "hasPairingURL": true,
+    "pairingURLSha256": "3bdf1cba60e76fda310427d9828e10b219e95760818469c28f3396fc27ffda60",
+    "scheme": "http",
+    "host": "127.0.0.1",
+    "port": "3180",
+    "fragmentPrefix": "#offer=",
+    "offerVersion": 2,
+    "offerExpiresAtMs": 1792869932129,
+    "relayEndpoint": "ayase.cn:443",
+    "relayUseTls": true,
+    "expiresAt": "2026-10-24T19:25:32Z",
+    "devices": 0,
+    "pairingImage": true
+  },
+  "deeplink": {
+    "argument": "whaleisle://settings?section=remote",
+    "nodesBefore": 45,
+    "remoteSectionClicked": false,
+    "nodesAfter": 42
+  },
+  "panelNodeCount": 42,
+  "panelHits": [
+    "局域网：扫码打开本机:3180 网页。服务器：扫码打开公网网页；数据走中继。不要用微信转发链接（会丢掉 #offer=）。 [Text]",
+    "本机 daemon 默认 6767；局域网配对页另用 3180。 [Text]"
+  ],
+  "panel": [
+    "设置 [Text]",
+    "通用设置 [Button]",
+    "外观 [Button]",
+    "界面设置 [Button]",
+    "模型 [Button]",
+    "内置插件 [Button]",
+    "技能 [Button]",
+    "市场 [Button]",
+    "远程 [Button]",
+    "MCP [Button]",
+    "Agent 预设 [Button]",
+    "用量统计 [Button]",
+    "鲸鱼娘 [Button]",
+    "关于 [Button]",
+    "打开配置文件 [Button]",
+    "返回 [Button]",
+    "远程 [Text]",
+    "手机在侧栏扫码配对：Android App 内扫码 = 链接设备，相机 / 浏览器扫码 = 打开 web 端。此处只改连接方式与中继。 [Text]",
+    "网关 [TabItem]",
+    "消息渠道 [TabItem]",
+    "中继主机 [Text]",
+    "默认 ayase.cn:443（TLS），一般不用改。 [Text]",
+    "中继主机输入 [Edit]",
+    "保存中继主机 [Button]",
+    "恢复默认 [Button]",
+    "连接方式 [Text]",
+    "局域网：扫码打开本机:3180 网页。服务器：扫码打开公网网页；数据走中继。不要用微信转发链接（会丢掉 #offer=）。 [Text]",
+    "局域网 [Button]",
+    "服务器 [Button]",
+    "监听端口 [Text]",
+    "本机 daemon 默认 6767；局域网配对页另用 3180。 [Text]",
+    "监听端口输入 [Edit]",
+    "保存监听端口 [Button]",
+    "监听范围 [Text]",
+    "仅本机监听：局域网设备无法直连。 [Text]",
+    "监听范围选择 [ComboBox]",
+    "传输加密 [Text]",
+    "手机全用端到端加密，中继 TLS 由中继主机配置决定；局域网配对页使用 HTTP，只提供应用文件。 [Text]",
+    "刷新配对码 [Text]",
+    "只换二维码；已配对设备仍有效，除非解除配对。 [Text]",
+    "刷新 [Button]",
+    "starting [Text]"
+  ],
+  "capture": {
+    "hwnd": 7801604,
+    "path": "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\screens\\remote-panel-qr-final.png",
+    "exists": true,
+    "bytes": 537846
+  },
+  "afterKill": {
+    "harness": true,
+    "remote": false,
+    "mobile": false,
+    "appAlive": false
+  },
+  "task": "task-51",
+  "verdict": "远程 settings panel captured live in pure LAN mode (relayConnected=false), but the pairing QR/copy/open surface is NOT rendered by the app: viewPhoneSection has no production caller. The QR exists in the runtime snapshot (diag pairingImage=true) yet no mounted view draws it.",
+  "liveVsFixture": {
+    "live": "pure LAN gateway (diag relayConnected=false, hasPairingURL=true, pairingImage=true) — the LAN-only state was live, not a fixture",
+    "fixture": "not required; the gate fallback is covered by internal/ui/remote/phone_offer_gate_test.go"
+  },
+  "panelCapture": {
+    "screenshot": "docs/review-20261022/evidence/screens/remote-panel-qr-final.png",
+    "shows": [
+      "设置 → 远程 page",
+      "网关/消息渠道 tabs",
+      "中继主机 ayase.cn:443",
+      "连接方式 局域网",
+      "监听端口 3499",
+      "监听范围 仅本机",
+      "刷新配对码 + 刷新 button",
+      "status line reads \"starting\""
+    ],
+    "missing": [
+      "pairing QR image",
+      "复制配对链接 / 打开配对链接 buttons",
+      "expiry text"
+    ]
+  },
+  "rootCause": {
+    "missingView": "internal/ui/remote/phone.go:76 viewPhoneSection (the QR/status/devices panel) is referenced only by tests (internal/ui/remote/pass9_acceptance_test.go:24); no production caller mounts it, and settings_body.go only renders the gateway fields.",
+    "staleMessage": "the panel status line under 刷新配对码 shows \"starting\" from the boot-time PhoneActionMsg instead of the ready snapshot."
+  },
+  "deeplinkRoute": {
+    "problem": "applyDeeplink section switch had no remote case; whaleisle://settings?section=remote fell back to the desktop page",
+    "fix": "cmd/whaleisle/main.go: case \"remote\", \"phone\": settingsEmbeddedSection = settings.SectionRemote",
+    "test": "cmd/whaleisle/deeplink_remote_section_test.go"
+  },
+  "residual": [
+    "no mounted QR/pairing surface: the remote settings page must render viewPhoneSection (or an equivalent) and refresh the status text from the live snapshot",
+    "relay mode / real phone pairing still unverified"
+  ]
+}

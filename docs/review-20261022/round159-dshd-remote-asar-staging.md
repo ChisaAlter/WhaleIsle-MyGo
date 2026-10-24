@@ -218,3 +218,20 @@ settle 38 s 后读取 `remote-pairing.json`：
 **面板截图未拿到目标页**：自动点击 `设置 → 远程` 被首启的“预览版说明”模态挡住（模态在两次 run 之间重新出现），截图停在设置通用页（`evidence/screens/remote-panel-qr-lan.png`，settings 外观 + 远程导航可见）。因此：QR 的**渲染条件**由快照（pairingImage/ready/relay）+ 门禁单测证明，**面板像素/文案未取得**。下一轮建议：用 `--settings` 之外的方式直接深链到 remote 段（内部 `applyDeeplink(ActionSettings, Section:"remote")`），或先写 `previewNoticeAcknowledged` 类标记再抓；也可在 UIA 里对“继续”按钮做 Invoke+校验循环。
 
 **说明 live vs tested**：本次实机 `relayConnected=true`，所以 LAN-only（无 relay）分支由**单测**覆盖，不是 live；live 证明的是“面板会显示 QR”的前置条件（配对码存在、ready、未过期）。
+
+### 6.7 Round165 补记（task-51）：远程面板截图的真正结论——配对 QR 没有挂载
+
+**做了什么**：一次性 profile 加 `goPreviewNoticeAck="2026-09-28.1"`（预览版说明不再弹出）、`remoteEnabled/lan/3499/127.0.0.1/lanTls=false`、临时 workspace、welcome 标记、`WHALEISLE_REMOTE_DIAG=1`；用 pass282 常驻启动（shell 未设 `ELECTRON_RUN_AS_NODE`），等 3099/3499/3180 与 diag `ready`，再用 deeplink 打开设置并截 `远程` 页。
+
+**发现的两件事**：
+
+1. **deeplink 缺 remote 段**（已补，最小改动）：`cmd/whaleisle/main.go` 的 `applyDeeplink` section switch 原先没有 `remote`，`whaleisle://settings?section=remote` 会落到“通用设置”。新增 `case "remote", "phone": s.settingsEmbeddedSection = settings.SectionRemote`，配 `cmd/whaleisle/deeplink_remote_section_test.go`（remote/phone/REMOTE 三种大小写都命中）。
+2. **配对 QR 在 app 里根本没有渲染入口**（关键缺口）：`internal/ui/remote/phone.go:76 viewPhoneSection` 只被测试引用（`pass9_acceptance_test.go:24`），生产代码没有任何调用者；设置页只画 `settings_body.go` 的网关字段。所以即使用户打开 `远程`，也看不到二维码/“复制配对链接”/“打开配对链接”。
+
+**实机证据**（`docs/review-20261022/evidence/remote-panel-qr-final.json` + `evidence/screens/remote-panel-qr-final.png`）：
+
+- 时间线：harness 10 s、mobile/remote 10 s；diag 在 ~16 s 变为 **`status=ready, listening=true, relayConnected=false（纯 LAN！）, hasPairingURL=true, pairingImage=true`**，`http://127.0.0.1:3180/#offer=`（offer v2、过期 19:22Z）。**这次 live 就是 LAN-only 路径**，不需要 fixture。
+- 截图内容：设置 → 远程（网关/消息渠道、中继主机 ayase.cn:443、连接方式 局域网、监听端口 3499、监听范围 仅本机、刷新配对码 + 刷新），底部状态行仍显示 **`starting`**（boot 时的 PhoneActionMsg，没有用 ready 快照刷新）。**面板上没有 QR、没有复制/打开链接按钮、没有过期时间**。
+- kill 后 3099/3499/3180 全部关闭。
+
+**结论 / 下一轮**：远程配对的“状态机 + offer + QR 生成”已全部打通（diag 证明 pairingImage=true），只差 UI 挂载：在 `远程` 设置页渲染 `viewPhoneSection`（或等价卡片），并让底部状态来自实时快照而不是 boot 时的 `starting`。这需要 cmd/settings_body 侧的小改动（本轮按“无产品改动”约束未做，只补了确实缺失的 deeplink 路由）。relay 模式与真机扫码仍未验证。

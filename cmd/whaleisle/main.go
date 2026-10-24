@@ -1006,6 +1006,9 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 			s.seedDesktopDraft()
 		case "models", "model":
 			s.settingsModelsActive = true
+		case "remote", "phone":
+			// Remote pairing lives in the embedded 远程 section, not a separate page.
+			s.settingsEmbeddedSection = settings.SectionRemote
 		case "mcp":
 			s.settingsMCPActive = true
 		case "plugins", "plugin":
