@@ -9,6 +9,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/coder/websocket v1.8.15
 	github.com/egoist/mygo v0.3.5
+	github.com/nlnwa/whatwg-url v0.6.2
 	github.com/ronohara/go-xls-reader v0.1.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/tdewolff/parse/v2 v2.7.21
@@ -18,6 +19,7 @@ require (
 )
 
 require (
+	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/extrame/goyymmdd v0.0.0-20210114090516-7cc815f00d1a // indirect

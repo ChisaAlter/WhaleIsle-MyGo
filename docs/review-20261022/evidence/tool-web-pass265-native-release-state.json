@@ -1,0 +1,168 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T04:29:35.4000851Z",
+    "status":  "pass-injected-native-surface",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation link Invoke. No Host, browser opening, web requests, code execution, OS clipboard or hardware input.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r121-web-fixture.exe",
+                    "startUtc":  "2026-10-24T04:29:34.3949078Z",
+                    "exited":  true,
+                    "pid":  18500,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "both-structured-cards",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-web-fetch":  true,
+                                                        "|tool:native-web-search":  true
+                                                    },
+                                       "fetch":  {
+                                                     "X":  20,
+                                                     "Y":  324.28125,
+                                                     "W":  520,
+                                                     "H":  101
+                                                 },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  435.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "https://original.example.test/a",
+                                                      "https://original.example.test/a"
+                                                  ],
+                                       "scale":  1.5,
+                                       "search":  {
+                                                      "X":  20,
+                                                      "Y":  65.28125,
+                                                      "W":  520,
+                                                      "H":  249
+                                                  },
+                                       "time":  "2026-10-24T12:29:35.9077816+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "original-final-source-click-enter-space",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-web-fetch":  true,
+                                                        "|tool:native-web-search":  true
+                                                    },
+                                       "fetch":  {
+                                                     "X":  20,
+                                                     "Y":  324.28125,
+                                                     "W":  520,
+                                                     "H":  101
+                                                 },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  435.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "https://original.example.test/a",
+                                                      "https://original.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://final.example.test/b"
+                                                  ],
+                                       "scale":  1.5,
+                                       "search":  {
+                                                      "X":  20,
+                                                      "Y":  65.28125,
+                                                      "W":  520,
+                                                      "H":  249
+                                                  },
+                                       "time":  "2026-10-24T12:29:36.2779183+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "link-UIA-Invoke",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-web-fetch":  true,
+                                                        "|tool:native-web-search":  true
+                                                    },
+                                       "fetch":  {
+                                                     "X":  20,
+                                                     "Y":  324.28125,
+                                                     "W":  520,
+                                                     "H":  101
+                                                 },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  435.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "https://original.example.test/a",
+                                                      "https://original.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://final.example.test/b",
+                                                      "https://final.example.test/b"
+                                                  ],
+                                       "scale":  1.5,
+                                       "search":  {
+                                                      "X":  20,
+                                                      "Y":  65.28125,
+                                                      "W":  520,
+                                                      "H":  249
+                                                  },
+                                       "time":  "2026-10-24T12:29:36.3112356+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "theme-keeps-bodies",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "|tool:native-web-fetch":  true,
+                                                        "|tool:native-web-search":  true
+                                                    },
+                                       "fetch":  {
+                                                     "X":  20,
+                                                     "Y":  324.28125,
+                                                     "W":  520,
+                                                     "H":  101
+                                                 },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  435.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+                                                      "https://original.example.test/a",
+                                                      "https://original.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://source.example.test/a",
+                                                      "https://final.example.test/b",
+                                                      "https://final.example.test/b"
+                                                  ],
+                                       "scale":  1.5,
+                                       "search":  {
+                                                      "X":  20,
+                                                      "Y":  65.28125,
+                                                      "W":  520,
+                                                      "H":  249
+                                                  },
+                                       "time":  "2026-10-24T12:29:36.3386929+08:00"
+                                   }
+                   }
+               ],
+    "error":  null,
+    "finishedAt":  "2026-10-24T04:29:36.4058573Z"
+}

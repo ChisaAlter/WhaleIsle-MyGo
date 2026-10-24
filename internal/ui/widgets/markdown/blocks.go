@@ -53,7 +53,7 @@ func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets
 							fallback.urlTargets = nil // The enclosing image link owns this activation.
 							render(fallback, nil)
 						})
-						if link.Clicked() || link.Shortcut(0, ui.KeyEnter) || link.Shortcut(0, ui.KeySpace) {
+						if externalURLActivated(link) {
 							st.OnOpenURL(href)
 						}
 					} else {

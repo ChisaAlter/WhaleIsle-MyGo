@@ -270,6 +270,15 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		}
 		return true, true
 	}
+	if info.webFamily && !opts.TextOnly {
+		if info.web != nil {
+			toolWebCard(c, info.web, st, key, opts.OnOpenURL)
+		} else {
+			info.Arguments = ""
+			toolIORows(c, info, st, key+":web-output")
+		}
+		return true, true
+	}
 	if info.Name == "run_code" && !opts.TextOnly {
 		toolCodeBody(c, info, st, key)
 		return true, true

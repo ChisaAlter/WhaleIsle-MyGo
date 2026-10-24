@@ -41,6 +41,7 @@ const (
 	pangoGlyphUnknow = 0x10000000
 
 	pangoWrapWord     = 0
+	pangoWrapChar     = 1
 	pangoWrapWordChar = 2
 	pangoStyleNormal  = 0
 	pangoStyleItalic  = 2
@@ -502,7 +503,7 @@ func (e *pangoEngine) fontOf(font uintptr) *Font {
 	return f
 }
 
-func (e *pangoEngine) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords bool) []shapedLine {
+func (e *pangoEngine) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine {
 	if len(text) == 0 {
 		return nil
 	}
@@ -527,9 +528,12 @@ func (e *pangoEngine) shape(text []rune, style Style, spans []Span, width float3
 	}
 	if width > 0 {
 		l.layoutSetWidth(layout, int32(min(float64(width)*pangoScale, math.MaxInt32)))
-		if wholeWords {
+		switch {
+		case breakAll:
+			l.layoutSetWrap(layout, pangoWrapChar)
+		case wholeWords:
 			l.layoutSetWrap(layout, pangoWrapWord)
-		} else {
+		default:
 			l.layoutSetWrap(layout, pangoWrapWordChar)
 		}
 	}

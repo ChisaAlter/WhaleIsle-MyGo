@@ -2387,6 +2387,19 @@ func (_handle Element) Bounds() Rect {
 	return _node.Bounds()
 }
 
+// BreakAll wraps the element's text at any whole grapheme, without preferring
+// word boundaries, as CSS word-break: break-all does. It preserves the text
+// used for selection and copying. NoWrap takes precedence.
+func (_handle Element) BreakAll() Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.BreakAll())
+}
+
 // Center centers the children along and across the main axis.
 func (_handle Element) Center() Element {
 	_node := _handle.node()

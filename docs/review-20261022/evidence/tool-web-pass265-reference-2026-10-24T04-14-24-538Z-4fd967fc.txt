@@ -1,0 +1,18 @@
+Round121 installed WebBlock FAILED
+Run 2026-10-24T04-14-24-538Z-4fd967fc
+Cases 8/10 assertions 46/48
+FAILED early-natural-geometry-inheritance-marker-scrollbar-theme-cascade 7/8
+PASSED source-vm-model-url-caller-golden-tables 6/6
+PASSED empty-emptyanswer-whitespace-answer-only-differences 4/4
+PASSED canonical-answer-document-typography-and-full-snippet-wrap 5/5
+PASSED source-label-fallback-safe-unsafe-glyphs-and-en-zh 5/5
+PASSED three-digit-list-native-vertical-wheel-scrollbar 4/4
+PASSED fetch-redirect-meta-status-long-breakall-and-no-output 5/5
+FAILED CDP-local-link-click-payload-prevented-no-external-navigation 2/3
+PASSED CDP-Tab-Enter-with-char-Space-anchor-default-and-measured-focus 4/4
+PASSED unchanged-authority-owned-input-network-exclusive-attempt 4/4
+FAIL early-natural-geometry-inheritance-marker-scrollbar-theme-cascade: fetch13 19 mono500 gap6 icon14.3 mr5 vertical-3.25 meta gap12 baseline HTTP13 20 null
+FAIL CDP-local-link-click-payload-prevented-no-external-navigation: only original aboutblank and own fixture targets;all anchorblank noopener null
+Combined JSON 246212
+Cleanup {"target":"Only spawned Chrome PID/profile/port; protected process/GUI never signalled/requested","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":41384},{"type":"renderer","id":45628},{"type":"renderer","id":34208},{"type":"renderer","id":22476},{"type":"renderer","id":10516},{"type":"renderer","id":31932},{"type":"renderer","id":39872},{"type":"GPU","id":33020},{"type":"network.mojom.NetworkService","id":39764},{"type":"storage.mojom.StorageService","id":21564}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null},"portReleased":true,"processes":[{"pid":41384,"alive":false},{"pid":10516,"alive":false},{"pid":39872,"alive":false},{"pid":33020,"alive":false},{"pid":39764,"alive":false},{"pid":21564,"alive":false},{"pid":45628,"alive":false},{"pid":34208,"alive":false},{"pid":22476,"alive":false},{"pid":31932,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r121-tool-web-2026-10-24T04-14-24-538Z-4fd967fc-profile","profileRemoved":true,"pass":true}
+Errors []

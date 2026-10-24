@@ -23,9 +23,10 @@ var (
     <path d="M10.2991 10.3933L14.7783 14.8725" stroke="currentColor" />
   </svg>`))
 	toolIconWeb = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <circle cx="8" cy="8" r="6" stroke="currentColor" />
-    <path d="M2 8H14" stroke="currentColor" />
-    <path d="M8 2C9.9 3.9 10.9 5.9 10.9 8S9.9 12.1 8 14C6.1 12.1 5.1 10.1 5.1 8S6.1 3.9 8 2Z" stroke="currentColor" />
+    <path d="M7.99986 14.0887C11.3626 14.0887 14.0886 11.3627 14.0886 7.99998C14.0886 4.63727 11.3626 1.91125 7.99986 1.91125C4.63715 1.91125 1.91113 4.63727 1.91113 7.99998C1.91113 11.3627 4.63715 14.0887 7.99986 14.0887Z" stroke="currentColor" />
+    <path d="M2.34619 8H13.6538" stroke="currentColor" />
+    <path d="M7.99976 14.0889C9.23509 14.0889 10.1743 11.3629 10.1743 8.00006C10.1743 4.63739 9.23509 1.91138 7.99976 1.91138" stroke="currentColor" />
+    <path d="M7.99973 14.0889C6.76445 14.0889 5.8252 11.3629 5.8252 8.00006C5.8252 4.63739 6.76445 1.91138 7.99973 1.91138" stroke="currentColor" />
   </svg>`))
 	toolIconTodo = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
     <path d="M2 4.5L3.6 6L6 3.5" stroke="currentColor" />

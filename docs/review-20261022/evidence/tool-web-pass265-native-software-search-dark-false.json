@@ -1,0 +1,87 @@
+{
+  "name": "search-dark-false",
+  "rects": {
+    "1.": {
+      "X": 38,
+      "Y": 132,
+      "W": 35,
+      "H": 20
+    },
+    "2.": {
+      "X": 38,
+      "Y": 205,
+      "W": 35,
+      "H": 20
+    },
+    "2026-10-24": {
+      "X": 73,
+      "Y": 175,
+      "W": 533,
+      "H": 20
+    },
+    "Following web flow": {
+      "X": 20,
+      "Y": 269,
+      "W": 600,
+      "H": 1
+    },
+    "Full recorded snippet.": {
+      "X": 73,
+      "Y": 154,
+      "W": 533,
+      "H": 19
+    },
+    "Recorded answer": {
+      "X": 38,
+      "Y": 60,
+      "W": 568,
+      "H": 24
+    },
+    "Recorded source": {
+      "X": 73,
+      "Y": 132,
+      "W": 129.83652,
+      "H": 20
+    },
+    "Second paragraph.": {
+      "X": 38,
+      "Y": 100,
+      "W": 568,
+      "H": 24
+    },
+    "Source list truncated": {
+      "X": 38,
+      "Y": 233,
+      "W": 568,
+      "H": 20
+    },
+    "Web results card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 217
+    },
+    "www.example.test": {
+      "X": 73,
+      "Y": 205,
+      "W": 139.33163,
+      "H": 20
+    }
+  },
+  "texts": [
+    "Search recorded query",
+    "Search",
+    "recorded query",
+    "Web results card",
+    "Recorded answer",
+    "Second paragraph.",
+    "1.",
+    "Recorded source",
+    "Full recorded snippet.",
+    "2026-10-24",
+    "2.",
+    "www.example.test",
+    "Source list truncated",
+    "Following web flow"
+  ]
+}

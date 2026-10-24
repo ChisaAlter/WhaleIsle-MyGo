@@ -156,7 +156,7 @@ func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string,
 				}
 			} else if href := st.urlTargets[offset+index]; href != "" && st.OnOpenURL != nil {
 				el = el.Label(span.Text).Tooltip(href).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
-				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+				if externalURLActivated(el) {
 					st.OnOpenURL(href)
 				}
 			}

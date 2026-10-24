@@ -184,7 +184,7 @@ func (e *node) textParams(width float32) text.Params {
 		style.LineHeight = ts.lineHeight / style.FontSize()
 		style.ExactLineHeight = true
 	}
-	p := text.Params{Text: e.text, Width: width, MaxLines: e.maxLines, Style: style, Spans: e.textSpans(), NoWrap: e.noWrap, Ellipsis: e.ellipsis}
+	p := text.Params{Text: e.text, Width: width, MaxLines: e.maxLines, Style: style, Spans: e.textSpans(), NoWrap: e.noWrap, BreakAll: e.breakAll, Ellipsis: e.ellipsis}
 	switch ts.align {
 	case Center:
 		p.Align = text.Center
@@ -275,7 +275,7 @@ func (e *node) leafWidths() (maxW, minW float32) {
 		case e.noWrap:
 			min = full
 		case !e.single:
-			p.Width, p.NoBreakWords = 1, true
+			p.Width, p.NoBreakWords = 1, !p.BreakAll
 			min = sys.Layout(p).Width
 		}
 		e.leaf, e.leafOK = [2]float32{full, min}, true

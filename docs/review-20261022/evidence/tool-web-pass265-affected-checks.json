@@ -1,0 +1,57 @@
+﻿[
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/chat\t68.874s"
+                   ],
+        "command":  "go test ./internal/ui/chat -count=1",
+        "seconds":  72.7732733,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/frame\t12.112s"
+                   ],
+        "command":  "go test ./internal/ui/frame -count=1",
+        "seconds":  17.2558976,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/widgets/markdown\t3.114s"
+                   ],
+        "command":  "go test ./internal/ui/widgets/markdown -count=1",
+        "seconds":  5.2541017,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/i18n\t0.616s"
+                   ],
+        "command":  "go test ./internal/ui/i18n -count=1",
+        "seconds":  2.1000777,
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+        "seconds":  16.254912,
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets/markdown",
+        "seconds":  1.7231234,
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go vet affected app packages",
+        "exit":  0
+    }
+]

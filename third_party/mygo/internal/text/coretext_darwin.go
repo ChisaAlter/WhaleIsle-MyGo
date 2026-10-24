@@ -126,6 +126,7 @@ var ct struct {
 	paragraphStyleCreate  func(settings *ctParagraphStyleSetting, n int) uintptr
 	typesetterCreate      func(str uintptr) uintptr
 	suggestLineBreak      func(typesetter uintptr, start int, width float64) int
+	suggestClusterBreak   func(typesetter uintptr, start int, width float64) int
 	typesetterCreateLine  func(typesetter uintptr, r cfRange) uintptr
 	lineGetGlyphRuns      func(line uintptr) uintptr
 	lineGetStringRange    func(line uintptr) cfRange
@@ -252,6 +253,7 @@ func loadCoreText() error {
 	bind(text, &ct.fontDrawGlyphs, "CTFontDrawGlyphs")
 	bind(text, &ct.paragraphStyleCreate, "CTParagraphStyleCreate")
 	bind(text, &ct.suggestLineBreak, "CTTypesetterSuggestLineBreak")
+	bind(text, &ct.suggestClusterBreak, "CTTypesetterSuggestClusterBreak")
 	bind(cg, &ct.colorSpaceDeviceRGB, "CGColorSpaceCreateDeviceRGB")
 	bind(cg, &ct.bitmapContextCreate, "CGBitmapContextCreate")
 	bind(cg, &ct.contextRelease, "CGContextRelease")
@@ -394,9 +396,10 @@ type coreText struct {
 	// direction, without tracking or kerning, owned.
 	attrs map[attrsKey]uintptr
 	// seg and breaks find where lines may break (lineBreaks).
-	seg    segmenter.Segmenter
-	breaks []bool
-	color  map[uintptr]bool
+	seg       segmenter.Segmenter
+	breaks    []bool
+	graphemes Boundaries
+	color     map[uintptr]bool
 
 	// Buffers shape reuses: the text in UTF-16 with the rune of each code
 	// unit, the attributes of the string, the code unit of each rune, and
@@ -813,7 +816,7 @@ func (e *coreText) fontOf(font uintptr) *Font {
 	return f
 }
 
-func (e *coreText) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords bool) []shapedLine {
+func (e *coreText) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine {
 	font := e.ctFont(style)
 	if font == 0 || len(text) == 0 {
 		return nil
@@ -863,16 +866,35 @@ func (e *coreText) shape(text []rune, style Style, spans []Span, width float32, 
 	}
 	defer ct.release(typesetter)
 	var breaks []bool
-	if wholeWords && width > 0 {
-		e.breaks = lineBreaks(&e.seg, e.breaks, text)
-		breaks = e.breaks
+	if width > 0 {
+		if breakAll {
+			e.graphemes.Reset(text)
+		} else if wholeWords {
+			e.breaks = lineBreaks(&e.seg, e.breaks, text)
+			breaks = e.breaks
+		}
 	}
 	var lines []shapedLine
 	mark := len(e.shapeScratch.lines)
 	for start := 0; start < n; {
 		count := n - start
 		if width > 0 {
-			count = max(ct.suggestLineBreak(typesetter, start, float64(width)), 1)
+			if breakAll {
+				count = max(ct.suggestClusterBreak(typesetter, start, float64(width)), 1)
+				// An overwide grapheme must still make progress as a whole,
+				// including its UTF-16 surrogate pairs and combining marks.
+				end := min(start+count, n)
+				for end < n {
+					_, boundary := slices.BinarySearch(e.graphemes.graphemes, index[end])
+					if boundary && index[end] != index[end-1] {
+						break
+					}
+					end++
+				}
+				count = end - start
+			} else {
+				count = max(ct.suggestLineBreak(typesetter, start, float64(width)), 1)
+			}
 			// Core Text breaks a word that does not fit a line; carry
 			// on to the next break instead.
 			if breaks != nil {

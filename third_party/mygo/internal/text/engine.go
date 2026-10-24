@@ -29,9 +29,10 @@ type engine interface {
 	// shape breaks text, a paragraph without newlines, into lines of at
 	// most width DIPs, or into one line when width is 0, and shapes them.
 	// rtl sets the paragraph's direction; wholeWords lets a word longer
-	// than a line overflow it instead of breaking it. spans style runs of
-	// the text apart from style, with their ends relative to it.
-	shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords bool) []shapedLine
+	// than a line overflow it instead of breaking it. breakAll instead wraps
+	// at whole graphemes without preferring word boundaries. spans style runs
+	// of the text apart from style, with their ends relative to it.
+	shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine
 	// glyph rasterizes glyph id of f at scale pixels per DIP, its origin
 	// dx pixels (0 ≤ dx < 1) right of the left edge of a pixel, for text
 	// of a shade when f is shaded or the shade is Thick, with subpixel

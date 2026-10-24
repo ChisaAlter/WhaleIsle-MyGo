@@ -136,7 +136,7 @@ func viewMathSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]str
 				}
 			} else if item.atom.url != "" && st.OnOpenURL != nil {
 				el = el.Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink).Label(item.atom.label).Tooltip(item.atom.url)
-				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+				if externalURLActivated(el) {
 					st.OnOpenURL(item.atom.url)
 				}
 			}

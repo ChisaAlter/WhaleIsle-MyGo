@@ -1,0 +1,42 @@
+{
+  "schema": "tool-web-pass265-framework-checks/v1",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "scope": "Added native BreakAll public API, engine flags, minimum text width, Unicode grapheme repair and copy semantics; no full framework suite claim.",
+  "leadObserved": [
+    {
+      "command": "go test ./internal/text ./ui -run '^(TestBreakAll|TestElementBreakAll)' -count=1",
+      "cwd": "third_party/mygo",
+      "job": "pwsh-ce532b63b2374340",
+      "exit": 0,
+      "output": ["ok github.com/egoist/mygo/internal/text 0.713s", "ok github.com/egoist/mygo/ui 1.040s"]
+    }
+  ],
+  "delegatedChecks": {
+    "reportedBy": "3860ce80-e1a1-42b7-99c0-1e5f900ba127",
+    "allBackgroundJobsCompletedAndCollected": true,
+    "commands": [
+      {
+        "command": "go test ./internal/text ./ui -run 'Test(BreakAll|ElementBreakAll|LayoutWraps|LayoutNewlinesAndEmpty|NoBreakWords|KeepSpaces|Carets|VisualCaret|VisualSelection|TextOptions|Selectable|LetterSpacingAndFeatures|ButtonLabelsAtIntrinsicWidth|OptionalElementInput)' -count=1",
+        "status": "passed"
+      },
+      {
+        "command": "go build ./internal/text ./ui; go vet ./internal/text ./ui",
+        "targets": ["windows/amd64", "windows/arm64", "linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "freebsd/amd64"],
+        "status": "passed"
+      },
+      {"command": "go vet -tags mygo_noinspector ./internal/text ./ui", "target": "windows/amd64", "status": "passed"},
+      {"command": "go generate ./ui", "status": "passed; facade hash reproducible"},
+      {"command": "git diff --check", "status": "passed"}
+    ]
+  },
+  "observedDefectAndRepair": "DirectWrite CHARACTER=4 split a regional-indicator flag at width1. The shared layout checks native line ends against grapheme boundaries, keeps valid lines, reshapes the complete grapheme prefix without wrapping and asks native wrapping for the remaining suffix. No inserted characters, fallback approximations or callbacks.",
+  "tests": ["word versus character wrapping with punctuation and spaces", "independent cache entries", "combining marks", "ZWJ family", "regional indicators", "skin tones", "variation selectors", "Indic conjunct", "native repair keeps span font sizes and rune offsets", "NoWrap precedence in both fluent orders", "public UI minimum grapheme width", "partial drag-copy across visual lines", "Select All returns exact original bytes"],
+  "limitations": [
+    "Windows tests use actual DirectWrite plus an explicitly selected stub fallback.",
+    "Linux and macOS native runtime behavior was cross-compiled and vetted, not executed on Windows.",
+    "The fallback now supports normal, whole-word and character wrapping; it remains a fontless approximation.",
+    "Existing full-suite allocation-budget and 24DIP ellipsis failures remain outside this scoped verification.",
+    "Automatic cached Go1.27.1 selection lacked standard-library files; final checks used the intact Go1.27.2 through process environment only."
+  ]
+}

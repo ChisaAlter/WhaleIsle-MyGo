@@ -28,6 +28,12 @@ func toolBodyKind(name string) ToolKind {
 }
 
 func toolKindIconForName(name string) *ui.SVG {
+	if name == "web_fetch" {
+		return toolIconRead
+	}
+	if name == "web_search" {
+		return toolIconWeb
+	}
 	switch toolRowVariant(name) {
 	case "bash":
 		return toolIconTerminal

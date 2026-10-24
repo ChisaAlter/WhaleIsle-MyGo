@@ -1,0 +1,46 @@
+{
+  "name": "fetch-light",
+  "rects": {
+    "Content truncated": {
+      "X": 104.9707,
+      "Y": 85,
+      "W": 104.666504,
+      "H": 20
+    },
+    "Following web flow": {
+      "X": 20,
+      "Y": 121,
+      "W": 600,
+      "H": 1
+    },
+    "HTTP 200": {
+      "X": 38,
+      "Y": 85,
+      "W": 54.970703,
+      "H": 20
+    },
+    "Web results card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 69
+    },
+    "https://final.example.test/b": {
+      "X": 38,
+      "Y": 60,
+      "W": 568,
+      "H": 19
+    }
+  },
+  "texts": [
+    "Fetch https://original.example.test/a",
+    "Fetch",
+    "https://original.example.test/a",
+    "https://original.example.test/a",
+    "Web results card",
+    "https://final.example.test/b",
+    "HTTP 200",
+    "Content truncated",
+    "Following web flow"
+  ]
+}

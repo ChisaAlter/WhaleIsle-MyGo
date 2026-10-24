@@ -12,18 +12,41 @@ import (
 func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text string, size, height float32, ink ui.Color, running, active bool, exitLabel string) {
 	font := theme.RenderPreferences().Chat.Family
 	linked := info.summaryModel != nil && info.summaryModel.FilePath != "" && info.openFile != nil && !toolSummaryHasCue(info.Status) && exitLabel == ""
-	if linked {
+	webLinked := info.webHref != "" && info.openURL != nil && !toolSummaryHasCue(info.Status) && exitLabel == ""
+	if linked || webLinked {
 		// A nested base consumes its own click/Enter/Space. The parent retains
 		// disclosure semantics, while this independently focusable action never
 		// changes expansion and passes only the paired call's navigation data.
 		button := ui.ButtonBase(c.Key("summary-file")).MinWidth(0).Shrink(1).Height(height).Padding(0).Label(text).
 			Background(ui.Transparent).Cursor(ui.CursorPointer).Justify(ui.Start)
-		if button.Clicked() {
-			target := info.summaryModel.FilePath
-			if info.summaryModel.Line > 0 {
-				target += ":" + strconv.Itoa(info.summaryModel.Line)
+		if webLinked {
+			button.Role(ui.RoleLink).FocusRing(false)
+			focused := button.FocusVisible()
+			linkInk := ui.Hex("#4176e6")
+			if darkSurface(st.FG) {
+				linkInk = ui.Hex("#7aaaff")
 			}
-			info.openFile(target)
+			button.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				if focused {
+					p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, linkInk, 3, 2)
+				}
+			})
+		}
+		space := false
+		if webLinked {
+			space = button.Shortcut(0, ui.KeySpace)
+		}
+		clicked := button.Clicked()
+		if clicked && !(webLinked && space) {
+			if webLinked {
+				info.openURL(info.webHref)
+			} else {
+				target := info.summaryModel.FilePath
+				if info.summaryModel.Line > 0 {
+					target += ":" + strconv.Itoa(info.summaryModel.Line)
+				}
+				info.openFile(target)
+			}
 		}
 		button.Children(func() {
 			label := toolSummaryText(c, text, font, size, height, ink, running).MinWidth(0).Shrink(1)

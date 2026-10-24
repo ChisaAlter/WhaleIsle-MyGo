@@ -11,7 +11,9 @@ import (
 // engine MyGo can use: every rune takes half an em and draws nothing.
 type stubEngine struct {
 	shapeScratch
-	fonts map[float32]*Font
+	fonts      map[float32]*Font
+	boundaries Boundaries
+	breaks     []bool
 }
 
 func (e *stubEngine) font(style Style) *Font {
@@ -27,13 +29,59 @@ func (e *stubEngine) font(style Style) *Font {
 	return f
 }
 
-func (e *stubEngine) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords bool) []shapedLine {
-	f := e.font(style)
-	run := shapedRun{font: f, end: len(text)}
-	for i := range text {
-		run.glyphs = append(run.glyphs, Glyph{Font: f, X: float32(i) * f.Size / 2, Advance: f.Size / 2, Cluster: i, RTL: rtl})
+func (e *stubEngine) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine {
+	if len(text) == 0 {
+		return nil
 	}
-	return []shapedLine{{end: len(text), runs: []shapedRun{run}}}
+	f := e.font(style)
+	e.boundaries.Reset(text)
+	graphemes := e.boundaries.graphemes
+	if width > 0 && !breakAll {
+		e.breaks = lineBreaks(&e.boundaries.seg, e.breaks, text)
+	}
+	mark := len(e.lines)
+	var lines []shapedLine
+	for g := 0; g < len(graphemes)-1; {
+		first, end, lastBreak := g, g, g
+		w := float32(0)
+		for end < len(graphemes)-1 {
+			next := end + 1
+			advance := float32(graphemes[next]-graphemes[end]) * f.Size / 2
+			if width > 0 && w+advance > width && end > first {
+				if breakAll {
+					break
+				}
+				if lastBreak > first {
+					end = lastBreak
+					break
+				}
+				if !wholeWords {
+					break
+				}
+			}
+			w += advance
+			end = next
+			if width > 0 && !breakAll && e.breaks[graphemes[end]] {
+				lastBreak = end
+				if wholeWords && w > width {
+					break
+				}
+			}
+		}
+		start, stop := graphemes[first], graphemes[end]
+		run := shapedRun{font: f, start: start, end: stop, glyphs: e.glyphRoom(stop - start)}
+		for i := start; i < stop; i++ {
+			x := float32(i-start) * f.Size / 2
+			if rtl {
+				x = float32(stop-i-1) * f.Size / 2
+			}
+			run.glyphs[i-start] = Glyph{Font: f, X: x, Advance: f.Size / 2, Cluster: i, RTL: rtl}
+		}
+		runs := e.addRun(len(e.runs), run)
+		lines = e.addLine(mark, shapedLine{start: start, end: stop, runs: runs})
+		g = end
+	}
+	return lines
 }
 
 func (e *stubEngine) glyph(f *Font, id uint32, scale, dx float32, _ Shade, _ bool) bitmap {

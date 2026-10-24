@@ -135,6 +135,12 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		if info.searchFamily {
 			info.search = toolSearchModelFor(call)
 		}
+		info.webFamily = call.Name == "web_search" || call.Name == "web_fetch"
+		if info.webFamily {
+			info.web = toolWebModelFor(call)
+			info.webHref = toolWebFetchHref(call)
+			info.openURL = gallery.OnOpenURL
+		}
 		info.openFile = gallery.OnOpenFile
 		info.diffSummary = toolDiffSummaryFor(call)
 		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {

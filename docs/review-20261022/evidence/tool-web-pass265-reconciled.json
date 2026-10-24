@@ -1,0 +1,432 @@
+{
+  "schema": "tool-web-pass265-reconciled/v1",
+  "browserStatus": "failed",
+  "browserSummary": {
+    "passedCases": 8,
+    "failedCases": 2,
+    "passedAssertions": 46,
+    "failedAssertions": 2
+  },
+  "browserFailuresRetained": true,
+  "geometry": {
+    "passed": 26,
+    "total": 26,
+    "checks": [
+      {
+        "name": "ordinary source row height",
+        "actual": 20,
+        "expected": 20,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "full source row height",
+        "actual": 63,
+        "expected": 63,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "two-source truncated card height",
+        "actual": 145,
+        "expected": 145,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "two-source card width",
+        "actual": 616,
+        "expected": 616,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "source list height",
+        "actual": 93,
+        "expected": 93,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "source indentation",
+        "actual": 35,
+        "expected": 35,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "full source snippet top",
+        "actual": 22,
+        "expected": 22,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "full source snippet height",
+        "actual": 19,
+        "expected": 19,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "full source date top",
+        "actual": 43,
+        "expected": 43,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "full source date height",
+        "actual": 20,
+        "expected": 20,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "second source top",
+        "actual": 73,
+        "expected": 73,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "truncation label top",
+        "actual": 101,
+        "expected": 101,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "fetch card height",
+        "actual": 69,
+        "expected": 69,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "fetch URL height",
+        "actual": 19,
+        "expected": 19,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "fetch status top",
+        "actual": 25,
+        "expected": 25,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "fetch metadata height",
+        "actual": 20,
+        "expected": 20,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "fetch metadata gap",
+        "actual": 11.999996999999993,
+        "expected": 12,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "empty height",
+        "actual": 44,
+        "expected": 44,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "empty-truncated height",
+        "actual": 72,
+        "expected": 72,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "whitespace-answer height",
+        "actual": 32,
+        "expected": 32,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "answer-only height",
+        "actual": 56,
+        "expected": 56,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "collapsed empty snippet/date block margins",
+        "actual": 22,
+        "expected": 22,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "ordered marker gutter width 44",
+        "actual": 35,
+        "expected": 35,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "ordered marker gutter width 87",
+        "actual": 35,
+        "expected": 35,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "ordered marker gutter width 46",
+        "actual": 35,
+        "expected": 35,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "ordered marker gutter width 145",
+        "actual": 35,
+        "expected": 35,
+        "tolerance": 0.04,
+        "pass": true
+      }
+    ]
+  },
+  "sourceHashes": {
+    "passed": 20,
+    "total": 20,
+    "files": [
+      {
+        "id": "runner",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-web-reference-chrome.mjs",
+        "sha256": "87be69cc71aa254963f235b5238d06fc10d0ab122146c7a98d51f6c04bd01912",
+        "pass": true
+      },
+      {
+        "id": "webJS",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-wKUmVWbt.js",
+        "sha256": "328188be7381f20aac74717a49c536adda26b52e12f244a36bc34507429d4398",
+        "pass": true
+      },
+      {
+        "id": "webCSS",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-l5jToo6l.css",
+        "sha256": "443ab85817b4ed526b2fa3df2c98a3e9baf577880cc95259c128f0571067a122",
+        "pass": true
+      },
+      {
+        "id": "webHTML",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\index.html",
+        "sha256": "54f56705cdf7ba9598faf0e7e037a5b64cca54f178411f24eb0a59d09d130180",
+        "pass": true
+      },
+      {
+        "id": "tool",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js",
+        "sha256": "15beaa6632f0c2d16c7d84ef25a1ca96725b8f8fc3c74decc79c1801540b994d",
+        "pass": true
+      },
+      {
+        "id": "row",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\components\\ToolRow.js",
+        "sha256": "23f7e957d6332d9218c45175397f366668f44e732e353113815f149658f8e72d",
+        "pass": true
+      },
+      {
+        "id": "model",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\web-card-model.js",
+        "sha256": "b4616554642998851a5e00e3239e99cd0a0d04ae557c5d1b08379323538b24dd",
+        "pass": true
+      },
+      {
+        "id": "raw",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\raw-tool-call.js",
+        "sha256": "c97f8fa5e1b85e63b2bb4c65c1b7bbb265793dd0631ec0a3f32c38b3c15b44a8",
+        "pass": true
+      },
+      {
+        "id": "labels",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\primitive-labels.js",
+        "sha256": "c275b7bff45b3458f06d14d51873f64975acd425d35ffa9f6f46b4f955115624",
+        "pass": true
+      },
+      {
+        "id": "caller",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\toolviews\\web-row.js",
+        "sha256": "9290fd9f46836a4fbc3f898ca8132a457e205c2be97ce1b0aad88fd5b8071296",
+        "pass": true
+      },
+      {
+        "id": "theme",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\client.js",
+        "sha256": "20760845c9aa5a5dcc540b00a8a2ac0f638f6bebbd41abfea34e567e3ec83e2d",
+        "pass": true
+      },
+      {
+        "id": "locale",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-conversation\\lib\\types\\client\\locales.js",
+        "sha256": "9a7d75db4ce85fbf163e77fd99eea6ed30e67d54116ff7a8b6228f09e9720066",
+        "pass": true
+      },
+      {
+        "id": "commonEN",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\locale\\lib\\types\\locales\\en.js",
+        "sha256": "2b9ac466b03203f84c182d5d0f848e42af1e58be4454ad04b9c437cf73a6cf91",
+        "pass": true
+      },
+      {
+        "id": "commonZH",
+        "path": "C:\\\u8f6f\u4ef6\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\locale\\lib\\types\\locales\\zh.js",
+        "sha256": "15f7d79a709f70f72d7d09a2802c89c852847cf9e46287337dd51e6d9a84cc73",
+        "pass": true
+      },
+      {
+        "id": "refWeb",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\WebBlock.tsx",
+        "sha256": "f1a2d2338b246dfdc7e4d70272622a42592212ad41b1132f12878e789fe6a3f8",
+        "pass": true
+      },
+      {
+        "id": "refCSS",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\WebBlock.module.css",
+        "sha256": "65a4f4586c92533ad681f78231ddb6541e7ec6479fb9950eb0cce385bfc4d486",
+        "pass": true
+      },
+      {
+        "id": "refLink",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\LinkIcon.tsx",
+        "sha256": "243b360d7a74b6470bbce6034a3518214bb840a305b0e731bd0600409ddbc3eb",
+        "pass": true
+      },
+      {
+        "id": "refMarkdown",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\markdown\\MarkdownText.tsx",
+        "sha256": "167784eabd3d411ca5b969ca2a509da7675c1a51f16573918f2183b79daf2d8e",
+        "pass": true
+      },
+      {
+        "id": "refMarkdownCSS",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\markdown\\MarkdownText.module.css",
+        "sha256": "d45f99c343dbbaebbb55146ecba01fb1237b553da2e966ee715c61ddc1fa2e3a",
+        "pass": true
+      },
+      {
+        "id": "priorSearch",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-search-reference-chrome.mjs",
+        "sha256": "18ea75095917dd28e0386d8c7525bb4eed5ff3e946a804504179323781d579cb",
+        "pass": true
+      }
+    ]
+  },
+  "browserCleanup": {
+    "target": "Only spawned Chrome PID/profile/port; protected process/GUI never signalled/requested",
+    "protectedProcessesSignalled": false,
+    "protectedGuiRequested": false,
+    "lastProcesses": [
+      {
+        "type": "browser",
+        "id": 41384
+      },
+      {
+        "type": "renderer",
+        "id": 45628
+      },
+      {
+        "type": "renderer",
+        "id": 34208
+      },
+      {
+        "type": "renderer",
+        "id": 22476
+      },
+      {
+        "type": "renderer",
+        "id": 10516
+      },
+      {
+        "type": "renderer",
+        "id": 31932
+      },
+      {
+        "type": "renderer",
+        "id": 39872
+      },
+      {
+        "type": "GPU",
+        "id": 33020
+      },
+      {
+        "type": "network.mojom.NetworkService",
+        "id": 39764
+      },
+      {
+        "type": "storage.mojom.StorageService",
+        "id": 21564
+      }
+    ],
+    "closedBy": "owned Browser.close",
+    "exit": {
+      "code": 0,
+      "signal": null
+    },
+    "portReleased": true,
+    "processes": [
+      {
+        "pid": 41384,
+        "alive": false
+      },
+      {
+        "pid": 10516,
+        "alive": false
+      },
+      {
+        "pid": 39872,
+        "alive": false
+      },
+      {
+        "pid": 33020,
+        "alive": false
+      },
+      {
+        "pid": 39764,
+        "alive": false
+      },
+      {
+        "pid": 21564,
+        "alive": false
+      },
+      {
+        "pid": 45628,
+        "alive": false
+      },
+      {
+        "pid": 34208,
+        "alive": false
+      },
+      {
+        "pid": 22476,
+        "alive": false
+      },
+      {
+        "pid": 31932,
+        "alive": false
+      }
+    ],
+    "allObservedProcessesExited": true,
+    "profileRemovalTarget": "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r121-tool-web-2026-10-24T04-14-24-538Z-4fd967fc-profile",
+    "profileRemoved": true,
+    "pass": true
+  },
+  "combinedSourceMetricsBytes": 246212,
+  "limits": [
+    "Browser acceptance remains FAILED 8/10 cases and46/48 assertions; geometry reconciliation does not change it.",
+    "Browser fixtures use symbolic JSX/manual DOM and canonical answer DOM, not actual React/Markdown/Host/full app.",
+    "Browser fetch header globe is approximate; exact emitted caller source records Browse14.",
+    "Source anchor glyph bounds, marker glyph baselines, multiline hit fragments and link raster parity are not certified by these box comparisons.",
+    "No native scrollbar, physical input, actual browser navigation or OS clipboard certificate."
+  ]
+}

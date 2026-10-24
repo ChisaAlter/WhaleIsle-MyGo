@@ -179,6 +179,7 @@ const (
 	wordWrappingWrap      = 0
 	wordWrappingNoWrap    = 1
 	wordWrappingWholeWord = 3
+	wordWrappingCharacter = 4
 
 	readingDirectionRTL   = 1
 	textAlignmentTrailing = 1
@@ -743,7 +744,7 @@ func collect(run *dwGlyphRun, desc *dwGlyphRunDescription) {
 	drawing = append(drawing, r)
 }
 
-func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords bool) []shapedLine {
+func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine {
 	format := e.format(style)
 	if format == 0 || len(text) == 0 {
 		return nil
@@ -760,6 +761,8 @@ func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rt
 	switch {
 	case width <= 0:
 		wrapping = wordWrappingNoWrap
+	case breakAll:
+		wrapping = wordWrappingCharacter
 	case wholeWords:
 		wrapping = wordWrappingWholeWord
 	}

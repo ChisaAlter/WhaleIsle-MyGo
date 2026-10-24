@@ -285,6 +285,7 @@ type node struct {
 	maxLines  int
 	single    bool
 	noWrap    bool
+	breakAll  bool
 	ellipsis  string
 	image     *Bitmap
 	svg       *SVG // of an Icon, or an Image in its own colors
@@ -1013,6 +1014,11 @@ func (e *node) SingleLine() *node { e.single = true; e.maxLines = 1; return e }
 // NoWrap keeps each line of the element's text whole, breaking it only at
 // newlines, even where it overflows the element.
 func (e *node) NoWrap() *node { e.noWrap = true; return e }
+
+// BreakAll wraps the element's text at any whole grapheme, without preferring
+// word boundaries, as CSS word-break: break-all does. It preserves the text
+// used for selection and copying. NoWrap takes precedence.
+func (e *node) BreakAll() *node { e.breakAll = true; return e }
 
 // Ellipsis sets what ends text that MaxLines or SingleLine cuts, "…" by
 // default.

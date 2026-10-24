@@ -83,6 +83,9 @@ type Params struct {
 	// NoBreakWords only breaks lines between words, letting a long word
 	// overflow the width instead of breaking it.
 	NoBreakWords bool
+	// BreakAll wraps at whole graphemes without preferring word boundaries.
+	// It overrides NoBreakWords; NoWrap takes precedence over both.
+	BreakAll bool
 	// Spans styles runs of the text apart from Style, as EncodeSpans
 	// writes them.
 	Spans string
@@ -757,7 +760,10 @@ func (s *System) paragraph(out []Line, p Params, spans []Span, runes []rune, sta
 		if p.NoWrap {
 			width = 0
 		}
-		shaped = s.engine().shape(text, p.Style, spans, width, rtl, p.NoBreakWords)
+		shaped = s.engine().shape(text, p.Style, spans, width, rtl, p.NoBreakWords, p.BreakAll)
+		if p.BreakAll && width > 0 && len(shaped) > 1 {
+			shaped = s.graphemeLines(text, p.Style, spans, width, rtl, shaped)
+		}
 	}
 	if len(shaped) == 0 {
 		shaped = []shapedLine{{end: len(text)}}
@@ -793,6 +799,74 @@ func (s *System) paragraph(out []Line, p Params, spans []Span, runes []rune, sta
 		lines[len(lines)-1].End = end
 	}
 	return out, truncated
+}
+
+// graphemeLines repairs native character breaks that split a Unicode grapheme.
+// DirectWrite, for example, may split regional-indicator pairs when the pair
+// does not fit. Keep valid native lines, shape the fitting whole-grapheme prefix
+// without wrapping, then let the engine wrap the rest again. An overwide first
+// grapheme takes its own line. Every glyph still comes from native shaping.
+func (s *System) graphemeLines(text []rune, style Style, spans []Span, width float32, rtl bool, lines []shapedLine) []shapedLine {
+	var b Boundaries
+	b.Reset(text)
+	firstBad := len(lines)
+	for i, l := range lines {
+		if _, boundary := slices.BinarySearch(b.graphemes, l.end); !boundary {
+			firstBad = i
+			break
+		}
+	}
+	if firstBad == len(lines) {
+		return lines
+	}
+	out := append(make([]shapedLine, 0, len(lines)), lines[:firstBad]...)
+	lines = lines[firstBad:]
+	offset := 0
+	for {
+		repaired := false
+		for _, l := range lines {
+			if _, boundary := slices.BinarySearch(b.graphemes, offset+l.end); boundary {
+				out = append(out, offsetLine(l, offset))
+				continue
+			}
+			start := offset + l.start
+			end := b.PrevGrapheme(offset + l.end + 1)
+			if end <= start {
+				end = b.NextGrapheme(start)
+			}
+			e := s.engine()
+			part := e.shape(text[start:end], style, spansIn(spans, start, end), 0, rtl, false, false)
+			for _, whole := range part {
+				out = append(out, offsetLine(whole, start))
+			}
+			offset = end
+			if offset == len(text) {
+				return out
+			}
+			lines = e.shape(text[offset:], style, spansIn(spans, offset, len(text)), width, rtl, false, true)
+			repaired = true
+			break
+		}
+		if !repaired {
+			return out
+		}
+	}
+}
+
+// offsetLine moves a shaped substring's rune indices into its paragraph.
+func offsetLine(l shapedLine, offset int) shapedLine {
+	if offset == 0 {
+		return l
+	}
+	l.start, l.end = l.start+offset, l.end+offset
+	for i := range l.runs {
+		r := &l.runs[i]
+		r.start, r.end = r.start+offset, r.end+offset
+		for j := range r.glyphs {
+			r.glyphs[j].Cluster += offset
+		}
+	}
+	return l
 }
 
 // glyphCount returns how many glyphs a shaped line has.
@@ -900,7 +974,7 @@ func (s *System) ellipsize(text []rune, spans []Span, start int, p Params, rtl b
 		key := markKey{p.Style, p.Ellipsis, rtl}
 		ellipsis, ok := s.marks[key]
 		if !ok {
-			for _, l := range e.shape(mark, p.Style, nil, 0, rtl, false) {
+			for _, l := range e.shape(mark, p.Style, nil, 0, rtl, false, false) {
 				ellipsis = max(ellipsis, advance(l))
 			}
 			if len(s.marks) >= 256 {
@@ -912,7 +986,7 @@ func (s *System) ellipsize(text []rune, spans []Span, start int, p Params, rtl b
 		s.advances = slices.Grow(s.advances[:0], len(rest))[:len(rest)]
 		advances := s.advances
 		clear(advances)
-		for _, l := range e.shape(rest, p.Style, restSpans, 0, rtl, false) {
+		for _, l := range e.shape(rest, p.Style, restSpans, 0, rtl, false, false) {
 			for _, run := range l.runs {
 				for _, g := range run.glyphs {
 					if g.Cluster >= 0 && g.Cluster < len(rest) {
@@ -949,7 +1023,7 @@ func (s *System) ellipsize(text []rune, spans []Span, start int, p Params, rtl b
 	if n := len(tSpans); n > 0 && tSpans[n-1].End == cut {
 		tSpans[n-1].End += len(mark)
 	}
-	for _, l := range e.shape(t, p.Style, tSpans, 0, rtl, false) {
+	for _, l := range e.shape(t, p.Style, tSpans, 0, rtl, false, false) {
 		for _, run := range l.runs {
 			run.start, run.end = start+min(run.start, cut), start+min(run.end, cut)
 			for i := range run.glyphs {
