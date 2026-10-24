@@ -99,47 +99,47 @@ import (
 type mainState struct {
 	// pendingToast holds at most one message for the next painted frame; see
 	// notifyUser. It is never read from background timers.
-	pendingToast           string
-	voiceDevices           *composerVoiceDevices
-	workspaceOpenInApp     *frame.WorkspaceOpenInAppState
-	svgImages              *nativeSVGImages
-	svgImagesPaused        bool
-	nativePlugins          nativePluginManagerState
-	customPanels           customPanelState
-	applicationMenu        *desktopApplicationMenu
-	wallpaperControls      *settings.WallpaperEditor
-	wallpaperVisible       bool
-	commandSearchFocus     bool
-	appearanceEditor       *theme.Editor
-	appearanceVisible      bool
-	shortcutEditor         *shortcuts.Editor
-	shortcutPreferences    *shortcutprefs.Store
-	shortcutRevision       string
-	projectWindowHidden    bool
-	startupRecovery        startupRecoveryState
-	voice                  *composerVoiceOperation
-	projectFlow            projectFlowState
-	resumeStore            *recovery.Store
-	resumeCheckpoint       *resumeCheckpoint
-	resumeError            string
-	resumePendingSession   string
-	resumeWorkspace        string
-	mu                     sync.Mutex
-	win                    *mygo.Window
-	taskRestartPending     bool
-	quitting               bool
-	phoneRuntime           *phoneremote.Runtime
-	phoneDeviceEditor      remoteui.PhoneDeviceEditor
-	phoneGatewayEditor     remoteui.GatewayEditor
-	phoneGitSession        string
-	phoneGitRoot           string
-	phoneGitWorkspaces     phoneGitWorkspaceScope
-	phoneOp                sync.Mutex
-	closeToTray            bool
-	desktopTray            *mygo.Tray
-	trayHideNotice         trayHideNotice
-	trayHideNotification   *mygo.Notification
-	welcomeWin             *welcomeWindow
+	pendingToast         string
+	voiceDevices         *composerVoiceDevices
+	workspaceOpenInApp   *frame.WorkspaceOpenInAppState
+	svgImages            *nativeSVGImages
+	svgImagesPaused      bool
+	nativePlugins        nativePluginManagerState
+	customPanels         customPanelState
+	applicationMenu      *desktopApplicationMenu
+	wallpaperControls    *settings.WallpaperEditor
+	wallpaperVisible     bool
+	commandSearchFocus   bool
+	appearanceEditor     *theme.Editor
+	appearanceVisible    bool
+	shortcutEditor       *shortcuts.Editor
+	shortcutPreferences  *shortcutprefs.Store
+	shortcutRevision     string
+	projectWindowHidden  bool
+	startupRecovery      startupRecoveryState
+	voice                *composerVoiceOperation
+	projectFlow          projectFlowState
+	resumeStore          *recovery.Store
+	resumeCheckpoint     *resumeCheckpoint
+	resumeError          string
+	resumePendingSession string
+	resumeWorkspace      string
+	mu                   sync.Mutex
+	win                  *mygo.Window
+	taskRestartPending   bool
+	quitting             bool
+	phoneRuntime         *phoneremote.Runtime
+	phoneDeviceEditor    remoteui.PhoneDeviceEditor
+	phoneGatewayEditor   remoteui.GatewayEditor
+	phoneGitSession      string
+	phoneGitRoot         string
+	phoneGitWorkspaces   phoneGitWorkspaceScope
+	phoneOp              sync.Mutex
+	closeToTray          bool
+	desktopTray          *mygo.Tray
+	trayHideNotice       trayHideNotice
+	trayHideNotification *mygo.Notification
+	welcomeWin           *welcomeWindow
 	// whaleBridgeWin is the single embedded WhaleBridge management window
 	// (port of reference/electron/src/main/whalebridge-window.js).
 	whaleBridgeWin         *whaleBridgeWindow
@@ -162,10 +162,10 @@ type mainState struct {
 	// confirmAskTechnicalOpen is the disclosure state of the queued question's
 	// evidence block; askConfirm resets it for each new request.
 	confirmAskTechnicalOpen bool
-	desktopOnboarding      *settingsstore.DesktopOnboarding
-	sup                    *harness.Supervisor
-	bootStatus             harness.Status
-	bootLogs               []string
+	desktopOnboarding       *settingsstore.DesktopOnboarding
+	sup                     *harness.Supervisor
+	bootStatus              harness.Status
+	bootLogs                []string
 
 	sessions                                *session.Store
 	agentPresetManager                      *session.AgentPresetManager
@@ -342,55 +342,55 @@ type mainState struct {
 	// updateProgress is the visible update row; updateJournal keeps the update
 	// evidence outside the installation directory (port of the reference shell
 	// update dialog and update-journal.js).
-	updateProgress                          *updateProgressState
-	updateJournal                           updateJournalBook
-	launcherPrefsError                      string
-	nativeReleases                          nativeReleaseState
-	launcherUpdateAvailable                 bool
-	launcherUpdateSynced                    bool
-	launcherNote                            string
-	launcherTriedStart                      bool
-	launcherStartBusy                       bool
-	launcherStartPreparing                  bool
-	launcherStartCancel                     context.CancelFunc
-	launcherStartFailed                     bool
-	launcherStartErr                        string
-	launcherPrefsSeeded                     bool
-	launcherQuitAfterStart                  bool
-	launcherAutoStartDesktop                bool
-	launcherAskOnUpdate                     bool
-	launcherDownloadRoute                   string
-	launcherImportOverwrite                 bool
-	launcherImportAttachments               bool
-	launcherImportCategories                map[string]bool
-	launcherImportCatalog                   *importer.Catalog
-	launcherComponents                      []desktopcomponents.Row
-	launcherComponentsFresh                 bool
-	launcherComponentsRefreshBusy           bool
-	launcherComponentStatus                 string
-	launcherHarnessVersion                  string
-	quitRequestPending                      bool
-	quitCleanupFinished                     bool
-	launcherRoutePopOpen                    bool
-	workspaceMenuOpen                       bool
-	workspacePickerAnchor                   ui.Handle
-	workspaceRenameDraft                    string
-	pendingDeeplink                         deeplink.Target
-	settingsDrafts                          []settingsDraftSlot
-	workspaceSessions                       workspaceSessionLayouts
-	layout                                  frame.LayoutSizes
-	chatList                                ui.ListState
-	draft                                   string
-	editMessageSeq                          float64
-	feedbackCommentMsgID                    string
-	feedbackCommentDraft                    string
-	modelPick                               string
-	permissionPick                          string
-	agentPresetPick                         string
-	thinkingExpanded                        map[string]bool
-	renameSessionID                         string
-	renameDraft                             string
-	sessionSearch                           string
+	updateProgress                *updateProgressState
+	updateJournal                 updateJournalBook
+	launcherPrefsError            string
+	nativeReleases                nativeReleaseState
+	launcherUpdateAvailable       bool
+	launcherUpdateSynced          bool
+	launcherNote                  string
+	launcherTriedStart            bool
+	launcherStartBusy             bool
+	launcherStartPreparing        bool
+	launcherStartCancel           context.CancelFunc
+	launcherStartFailed           bool
+	launcherStartErr              string
+	launcherPrefsSeeded           bool
+	launcherQuitAfterStart        bool
+	launcherAutoStartDesktop      bool
+	launcherAskOnUpdate           bool
+	launcherDownloadRoute         string
+	launcherImportOverwrite       bool
+	launcherImportAttachments     bool
+	launcherImportCategories      map[string]bool
+	launcherImportCatalog         *importer.Catalog
+	launcherComponents            []desktopcomponents.Row
+	launcherComponentsFresh       bool
+	launcherComponentsRefreshBusy bool
+	launcherComponentStatus       string
+	launcherHarnessVersion        string
+	quitRequestPending            bool
+	quitCleanupFinished           bool
+	launcherRoutePopOpen          bool
+	workspaceMenuOpen             bool
+	workspacePickerAnchor         ui.Handle
+	workspaceRenameDraft          string
+	pendingDeeplink               deeplink.Target
+	settingsDrafts                []settingsDraftSlot
+	workspaceSessions             workspaceSessionLayouts
+	layout                        frame.LayoutSizes
+	chatList                      ui.ListState
+	draft                         string
+	editMessageSeq                float64
+	feedbackCommentMsgID          string
+	feedbackCommentDraft          string
+	modelPick                     string
+	permissionPick                string
+	agentPresetPick               string
+	thinkingExpanded              map[string]bool
+	renameSessionID               string
+	renameDraft                   string
+	sessionSearch                 string
 
 	gitBranch           string
 	gitDirty            bool
@@ -2190,15 +2190,20 @@ func main() {
 		bgColor := th.BackgroundColor()
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
-			Title:                    i18n.T(i18n.KeyAppName),
-			Width:                    winWidth,
-			Height:                   winHeight,
-			MinWidth:                 winMinWidth,
-			MinHeight:                winMinHeight,
-			StateKey:                 "main",
-			Hidden:                   hidden || background,
-			TitleBarStyle:            mygo.TitleBarHidden,
-			TitleBarHeight:           int(chrome.EffectiveTitleBarHeight()),
+			Title:          i18n.T(i18n.KeyAppName),
+			Width:          winWidth,
+			Height:         winHeight,
+			MinWidth:       winMinWidth,
+			MinHeight:      winMinHeight,
+			StateKey:       "main",
+			Hidden:         hidden || background,
+			TitleBarStyle:  mygo.TitleBarHidden,
+			TitleBarHeight: int(chrome.EffectiveTitleBarHeight()),
+			// The native shell builds an application menu for accelerators but
+			// keeps the OS menu bar hidden (chrome.js:48 autoHideMenuBar,
+			// :69-70 setAutoHideMenuBar/setMenuBarVisibility). Without this the
+			// mygo menu bar would push the 12 DIP title band down.
+			AutoHideMenuBar:          true,
 			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 8, Right: 8, CornerRadius: 8, GlyphSize: 12},
 			WindowsFrameCornerRadius: 20,
 			Transparent:              true,
@@ -4563,11 +4568,11 @@ func mainView(c *ui.Context) {
 							}
 							return set.ProviderEnv(namespace)
 						},
-						Labels:            sessSnap.ModelLabels,
-						Selected:          &state.settingsModelLabel,
-						SessionID:         sessSnap.SelectedID,
-						Err:               sessSnap.ModelsErr,
-						LastAction:        sessSnap.LastAction,
+						Labels:     sessSnap.ModelLabels,
+						Selected:   &state.settingsModelLabel,
+						SessionID:  sessSnap.SelectedID,
+						Err:        sessSnap.ModelsErr,
+						LastAction: sessSnap.LastAction,
 						OnRefresh: func() {
 							if sessions != nil {
 								sessions.RefreshModelCatalog(context.Background())
@@ -5245,7 +5250,7 @@ func mainView(c *ui.Context) {
 				}
 				standaloneScheduleRendered = true
 				state.schedulePanel.View(c, scheduleui.Model{Store: schedStore, SessionID: sid, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
-					SessionLinks:  sessionLinks,
+					SessionLinks: sessionLinks,
 					OnRefresh: func() {
 						if schedStore == nil {
 							state.refuseHostAction()
@@ -7275,7 +7280,7 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnOpenDeliverable:      func(path string) { openDelivered(path, nil) },
+						OnOpenDeliverable: func(path string) { openDelivered(path, nil) },
 						OnOpenFilePicker: func() {
 							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdOpenFile)})
 							if err != nil || len(paths) == 0 || strings.TrimSpace(paths[0]) == "" {

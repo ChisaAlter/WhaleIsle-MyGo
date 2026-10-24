@@ -104,7 +104,9 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		MinWidth:       380,
 		MinHeight:      520,
 		UseContentSize: true,
-		Content:        ui.View(existing.view),
+		// Native whalebridge-window.js:18 sets autoHideMenuBar.
+		AutoHideMenuBar: true,
+		Content:         ui.View(existing.view),
 	})
 	existing.win = win
 	if win == nil || win.IsDestroyed() {

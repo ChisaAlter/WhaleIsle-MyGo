@@ -96,7 +96,10 @@ func (s *mainState) openWelcomeWindow(parent *mygo.Window, cfg config.Config) {
 		DisableResize:            true,
 		DisableMaximize:          true,
 		DisableMinimize:          true,
-		Content:                  ui.View(w.view),
+		// The native welcome window is frame:false (welcome-window.js:36), so no
+		// OS menu bar is visible there either.
+		AutoHideMenuBar: true,
+		Content:         ui.View(w.view),
 	})
 	w.win = win
 	if win == nil || win.IsDestroyed() {
