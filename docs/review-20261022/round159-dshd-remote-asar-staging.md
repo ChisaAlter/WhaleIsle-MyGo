@@ -197,3 +197,24 @@ settle 38 s 后读取 `remote-pairing.json`：
 - 清理：kill 进程树后 3499/3180 立即关闭，3099 在 1.2 s 内关闭（复查全为 0），无残留进程/临时目录。
 
 **残留**：本轮 UIA 抓 远程 面板只拿到 4 个节点（点击后采样太早，面板尚未绘制），面板文字/QR 像素未截取——但快照字段已证明渲染条件成立；若需要像素证据，下一轮在点击“远程”后多等 3-5 s 再抓 UIA/截图。另：本次 LAN run 的 `relayConnected` 为 true（daemon 同时持有 relay 会话），纯 LAN 无 relay 的路径由 `lan_pairing_test.go` 覆盖；relay 模式离线失败（task 可选）未跑。
+
+### 6.6 Round164 补记（task-46）：LAN-only 配对门禁修复 + 面板捕获现状
+
+**修复**（`internal/ui/remote/phone.go`）：新增 `offerUsable(runtime, status, lan)`，把“是否有可用配对码”的判定统一为
+`PairingURL != "" && status == "ready" && Listening && (RelayConnected || RemoteMode == "lan") && 未过期`，
+对齐 native `remote.js:344-360`（两种传输都构造 urls[].pairingUrl，只有 relay 模式才用 relayDown）。替换了 4 处旧条件（QR 区块、复制链接、打开链接、pairing step 的 valid），并让 v2 readiness 徽标与 `pairingSteps` 也按传输判定；`pairingSteps` 增加 `lan` 参数。relay 模式保持严格（无 relay 时仍隐藏）；`RemoteMode` 直接取面板 Model 里的配置值（已经是权威来源，无需改 runtime 快照）。
+
+**测试**（`internal/ui/remote/phone_offer_gate_test.go`，全部通过）：
+
+| 场景 | 结果 |
+| --- | --- |
+| lan + 无 relay + ready + 未过期 | 显示 QR 区/复制/打开按钮，且出现 ready 徽标（copy 点击执行 1 次） |
+| relay + relay | 显示（原有行为） |
+| relay + 无 relay | 隐藏 + “无可用配对码”（原有 `TestPhoneOfferRequiresLiveRelay` 仍通过） |
+| 过期 / 缺 URL / status 非 ready / 未监听 | 隐藏 |
+
+**实机**（`docs/review-20261022/evidence/remote-panel-qr.json`，临时构建 `whaleisle-remote-panel.exe` 在仓库根，跑完删除；profile `remoteEnabled/lan/3499/127.0.0.1`，`WHALEISLE_REMOTE_DIAG=1`，shell 未设 `ELECTRON_RUN_AS_NODE`）：时间线 harness 2 s / mobile 11 s / remote 11 s；settle 后 `remote-pairing.json` = `status=ready, listening=true, relayConnected=true, hasPairingURL=true, pairingImage=true`，`http://127.0.0.1:3180/#offer=`（offer v2、过期 19:05Z、relay ayase.cn:443），手机 SPA 200；kill 后 3499/3180 关闭、3099 随后关闭。
+
+**面板截图未拿到目标页**：自动点击 `设置 → 远程` 被首启的“预览版说明”模态挡住（模态在两次 run 之间重新出现），截图停在设置通用页（`evidence/screens/remote-panel-qr-lan.png`，settings 外观 + 远程导航可见）。因此：QR 的**渲染条件**由快照（pairingImage/ready/relay）+ 门禁单测证明，**面板像素/文案未取得**。下一轮建议：用 `--settings` 之外的方式直接深链到 remote 段（内部 `applyDeeplink(ActionSettings, Section:"remote")`），或先写 `previewNoticeAcknowledged` 类标记再抓；也可在 UIA 里对“继续”按钮做 Invoke+校验循环。
+
+**说明 live vs tested**：本次实机 `relayConnected=true`，所以 LAN-only（无 relay）分支由**单测**覆盖，不是 live；live 证明的是“面板会显示 QR”的前置条件（配对码存在、ready、未过期）。

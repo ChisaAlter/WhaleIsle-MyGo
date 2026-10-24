@@ -51,7 +51,7 @@ func phoneSnapshot(m Model) phoneremote.Snapshot {
 		s.Readiness = phoneremote.ReadinessIncomplete
 		if !s.RemoteEnabled {
 			s.Readiness = phoneremote.ReadinessDisabled
-		} else if m.PhoneRuntime.Status == "ready" && m.PhoneRuntime.Listening && m.PhoneRuntime.RelayConnected {
+		} else if m.PhoneRuntime.Status == "ready" && m.PhoneRuntime.Listening && (m.PhoneRuntime.RelayConnected || m.RemoteMode == "lan") {
 			s.Readiness = phoneremote.ReadinessReady
 		}
 	}
@@ -131,6 +131,8 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	}
 
 	runtime := m.PhoneRuntime
+	// The gateway transport decides whether a relay session is required.
+	lan := m.RemoteMode == "lan"
 	status := runtime.Status
 	if !m.RemoteEnabled {
 		status = "disabled"
@@ -139,11 +141,11 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		status = "offline"
 	}
 	ui.Text(c, "offer v2 · "+status).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-	pairingSteps(c, runtime, status, fg, muted, accent)
+	pairingSteps(c, runtime, status, lan, fg, muted, accent)
 	if runtime.Message != "" {
 		ui.Text(c, runtime.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
-	if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) {
+	if offerUsable(runtime, status, lan) {
 		ui.Text(c, i18n.T(i18n.KeyMiscRemotePairingLinkValid)+runtime.ExpiresAt.Local().Format("15:04:05")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		if runtime.PairingImage != nil {
 			ui.Image(c, ui.NewBitmap(runtime.PairingImage)).Width(320).Height(320).Fit(ui.Contain)
@@ -155,10 +157,10 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Text(c, i18n.T(i18n.KeyMiscRemoteNoUsableOfferEnablingStartsTheInst)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnCopyConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteCopyPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+		if offerUsable(runtime, status, lan) && m.OnCopyConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteCopyPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
 			m.OnCopyConnectURL()
 		}
-		if runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt) && m.OnOpenConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteOpenPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		if offerUsable(runtime, status, lan) && m.OnOpenConnectURL != nil && widgets.Button(c, colors, i18n.T(i18n.KeyMiscRemoteOpenPairingLink), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.OnOpenConnectURL()
 		}
 		if m.OnRefreshPhone != nil && widgets.Button(c, colors, i18n.T(i18n.KeyRemotePhoneRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(runtime.DeviceAction.Busy).Clicked() {
@@ -187,8 +189,8 @@ type pairingStep struct {
 // pairingSteps is the pairing flow as three stages — code, wait, result — with
 // the stage the runtime is in marked, so the page says where the reader is
 // instead of only printing a status word.
-func pairingSteps(c *ui.Context, runtime phoneremote.RuntimeState, status string, fg, muted, accent ui.Color) {
-	valid := runtime.PairingURL != "" && status == "ready" && runtime.Listening && runtime.RelayConnected && time.Now().Before(runtime.ExpiresAt)
+func pairingSteps(c *ui.Context, runtime phoneremote.RuntimeState, status string, lan bool, fg, muted, accent ui.Color) {
+	valid := offerUsable(runtime, status, lan)
 	expired := runtime.PairingURL != "" && !time.Now().Before(runtime.ExpiresAt)
 	steps := []pairingStep{
 		{label("生成配对码", "Create a pairing code"), label("打开手机运行时", "Start the phone runtime"), "pending"},
@@ -232,4 +234,13 @@ func pairingSteps(c *ui.Context, runtime phoneremote.RuntimeState, status string
 			})
 		}
 	})
+}
+
+// offerUsable reports whether the daemon currently exposes a usable pairing
+// offer. Native builds urls[].pairingUrl for both transports and only flags
+// relayDown in relay mode (reference/electron/src/main/remote.js:344-360), so a
+// listening LAN gateway needs no relay session; relay mode stays strict.
+func offerUsable(runtime phoneremote.RuntimeState, status string, lan bool) bool {
+	return runtime.PairingURL != "" && status == "ready" && runtime.Listening &&
+		(runtime.RelayConnected || lan) && time.Now().Before(runtime.ExpiresAt)
 }

@@ -93,7 +93,7 @@ func TestRemotePairingSnapshot(t *testing.T) {
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(16).Gap(10).Children(func() {
-			pairingSteps(c, runtime, "ready", c.Theme().Text, c.Theme().TextMuted, c.Theme().Accent)
+			pairingSteps(c, runtime, "ready", false, c.Theme().Text, c.Theme().TextMuted, c.Theme().Accent)
 		})
 	}, 720, 160)
 	saveSurfaceSnapshot(t, tt, "surface-pairing.png")

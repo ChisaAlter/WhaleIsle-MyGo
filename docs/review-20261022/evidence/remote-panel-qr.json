@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "smoke": "remote-panel-qr",
+  "method": "temp build at repo root, --settings, throwaway remoteEnabled/lan/3499 profile, WHALEISLE_REMOTE_DIAG=1, shell ELECTRON_RUN_AS_NODE unset; TcpClient probes, HTTP GET phone SPA, UIA 杩滅▼ panel after 5 s, PrintWindow capture via scripts/window-capture.ps1; recursive tree kill",
+  "generatedAt": "2026-10-24T19:02:40.1633877Z",
+  "status": "ok",
+  "error": null,
+  "exe": "C:\\AI\\WhaleIsle-MyGo\\whaleisle-remote-panel.exe",
+  "pid": 16072,
+  "userData": "C:\\AI\\WhaleIsle-MyGo\\tmp\\panel-profile-20261025-030124",
+  "config": {
+    "harnessPort": 3099,
+    "remotePort": 3499,
+    "remoteMode": "lan",
+    "remoteBindAddress": "127.0.0.1",
+    "remoteLanTls": false,
+    "remoteEnabled": true
+  },
+  "startedAt": "2026-10-24T19:01:24.6925354Z",
+  "timeline": [
+    {
+      "t": 1,
+      "harness": false,
+      "remote": false,
+      "mobile": false
+    },
+    {
+      "t": 4,
+      "harness": false,
+      "remote": false,
+      "mobile": false
+    },
+    {
+      "t": 7,
+      "harness": false,
+      "remote": false,
+      "mobile": false
+    },
+    {
+      "t": 9,
+      "harness": true,
+      "remote": false,
+      "mobile": true
+    },
+    {
+      "t": 9,
+      "harness": true,
+      "remote": true,
+      "mobile": true
+    }
+  ],
+  "phoneSpa": {
+    "url": "http://127.0.0.1:3180/",
+    "statusCode": 200,
+    "length": 16453,
+    "title": "Whale Isle · 手机远程"
+  },
+  "phoneDiag": {
+    "updatedAt": "2026-10-24T19:02:11Z",
+    "status": "ready",
+    "listening": true,
+    "relayConnected": true,
+    "hasPairingURL": true,
+    "pairingURLSha256": "b1e40985992a3d3d47f7fe7774c8c97d0f5139f9dd57a0b9f6b8b21f25f9ef35",
+    "scheme": "http",
+    "host": "127.0.0.1",
+    "port": "3180",
+    "fragmentPrefix": "#offer=",
+    "offerVersion": 2,
+    "offerExpiresAtMs": 1792869093888,
+    "relayEndpoint": "ayase.cn:443",
+    "relayUseTls": true,
+    "expiresAt": "2026-10-24T19:11:33Z",
+    "devices": 0,
+    "pairingImage": true
+  },
+  "panelNodeCount": 4,
+  "panelHits": [],
+  "panel": [
+    "预览版说明 [Text]",
+    "DeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。 [Text]",
+    "我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。 [Text]",
+    "继续 [Button]"
+  ],
+  "capture": {
+    "hwnd": 4197388,
+    "path": "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\screens\\remote-panel-qr-lan.png",
+    "exists": true,
+    "bytes": 513638
+  },
+  "afterKill": {
+    "harness": false,
+    "remote": false,
+    "mobile": false,
+    "appAlive": false
+  },
+  "task": "task-46",
+  "verdict": "Gate fixed and unit-proven; the live in-app run reached ready with a pairing URL/QR, but the 远程 panel page itself could not be captured (first-run 预览版说明 modal plus a settings-nav UIA race in the automation).",
+  "gate": {
+    "file": "internal/ui/remote/phone.go",
+    "rule": "offerUsable(runtime, status, lan): PairingURL non-empty && status==ready && Listening && (RelayConnected || RemoteMode==lan) && not expired",
+    "sites": [
+      "QR block",
+      "copy-link button",
+      "open-link button",
+      "pairing step valid",
+      "readiness badge"
+    ],
+    "native": "reference/electron/src/main/remote.js:344-360 (pairingUrl for both transports; relayDown only in relay mode)"
+  },
+  "tests": {
+    "file": "internal/ui/remote/phone_offer_gate_test.go",
+    "cases": [
+      "lan without relay shows the offer",
+      "relay with relay shows the offer",
+      "relay without relay hides the offer",
+      "expired hidden",
+      "missing URL hidden",
+      "not ready hidden",
+      "not listening hidden",
+      "offerUsable table"
+    ],
+    "note": "pre-existing TestPhoneOfferRequiresLiveRelay still passes (relay mode stays strict)"
+  },
+  "liveProof": {
+    "updatedAt": "2026-10-24T19:02:11Z",
+    "status": "ready",
+    "listening": true,
+    "relayConnected": true,
+    "hasPairingURL": true,
+    "pairingURLSha256": "b1e40985992a3d3d47f7fe7774c8c97d0f5139f9dd57a0b9f6b8b21f25f9ef35",
+    "scheme": "http",
+    "host": "127.0.0.1",
+    "port": "3180",
+    "fragmentPrefix": "#offer=",
+    "offerVersion": 2,
+    "offerExpiresAtMs": 1792869093888,
+    "relayEndpoint": "ayase.cn:443",
+    "relayUseTls": true,
+    "expiresAt": "2026-10-24T19:11:33Z",
+    "devices": 0,
+    "pairingImage": true
+  },
+  "captureNote": {
+    "shot": "docs/review-20261022/evidence/screens/remote-panel-qr-lan.png",
+    "whatItShows": "MyGo settings window (nav incl. 远程); in the captured run the first-run 预览版说明 modal was still on top, so the 远程 page was not switched",
+    "missing": "QR/link pixels and 远程 panel text"
+  },
+  "residual": [
+    "panel capture blocked by the first-run modal / nav race; the QR render condition is proven by the ready snapshot (pairingImage=true, relayConnected=true) and by the gate tests for the LAN-only branch",
+    "live daemon reported relayConnected=true, so the LAN-only branch was exercised by tests, not live"
+  ]
+}
