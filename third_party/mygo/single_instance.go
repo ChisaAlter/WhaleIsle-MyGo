@@ -30,6 +30,38 @@ type secondInstanceMessage struct {
 	WorkingDir string   `json:"workingDir"`
 }
 
+// secondInstanceAck is what a live owner writes once it has taken a second
+// instance's command line. It is the proof that the socket has a running owner:
+// a socket file left behind by a crash, or a listening handle that a surviving
+// child process inherited, accepts the connection but never answers, and must
+// not be mistaken for a running app. Treating that as "already running" made
+// the launch exit with no window (round145).
+const secondInstanceAck = "ok\n"
+
+// secondInstanceHandshakeTimeout bounds the wait for that proof. A live owner
+// answers at once; only a stale listener runs into it.
+const secondInstanceHandshakeTimeout = 2 * time.Second
+
+// handOverSecondInstance gives msg to the owner on conn and reports whether it
+// acknowledged. conn is closed either way.
+func handOverSecondInstance(conn net.Conn, msg []byte, timeout time.Duration) bool {
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	if _, err := conn.Write(msg); err != nil {
+		return false
+	}
+	if uc, ok := conn.(*net.UnixConn); ok {
+		if err := uc.CloseWrite(); err != nil {
+			return false
+		}
+	}
+	ack := make([]byte, len(secondInstanceAck))
+	if _, err := io.ReadFull(conn, ack); err != nil {
+		return false
+	}
+	return string(ack) == secondInstanceAck
+}
+
 // RequestSingleInstanceLock makes sure a single instance of the app runs.
 // It returns true in the first instance. In any later instance it returns
 // false after forwarding its command line arguments and working directory to
@@ -53,21 +85,20 @@ func (a *Application) RequestSingleInstanceLock() bool {
 	path := singleInstanceSocket(singleInstanceKey(a.Name()))
 	wd, _ := os.Getwd()
 	msg, _ := json.Marshal(secondInstanceMessage{Args: os.Args[1:], WorkingDir: wd})
+	var lastErr error
 	for attempt := 0; attempt < 5; attempt++ {
 		if conn, err := net.DialTimeout("unix", path, time.Second); err == nil {
-			// Another instance owns the lock: hand over our arguments.
-			_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-			_, _ = conn.Write(msg)
-			if uc, ok := conn.(*net.UnixConn); ok {
-				_ = uc.CloseWrite()
+			if handOverSecondInstance(conn, msg, secondInstanceHandshakeTimeout) {
+				if launchedByDev() {
+					// mygo dev would only see the app exit.
+					log.Printf("mygo: %s is already running: handed the command line over to it (RequestSingleInstanceLock)", a.Name())
+				}
+				return false
 			}
-			_, _ = io.Copy(io.Discard, conn) // wait until it was read
-			conn.Close()
-			if launchedByDev() {
-				// mygo dev would only see the app exit.
-				log.Printf("mygo: %s is already running: handed the command line over to it (RequestSingleInstanceLock)", a.Name())
-			}
-			return false
+			// The socket answered but no owner acknowledged: a crash left it
+			// behind, or a surviving child inherited the listening handle. Fall
+			// through and take the lock over, so the launch still shows a window.
+			log.Printf("mygo: %s: the single-instance socket has no live owner; taking it over", a.Name())
 		}
 		// Nobody answers: remove a stale socket left by a crash and take
 		// over. If another instance wins the race, Listen fails and the next
@@ -91,8 +122,13 @@ func (a *Application) RequestSingleInstanceLock() bool {
 			// behave as if this were the only instance.
 			return true
 		}
+		lastErr = err
 		time.Sleep(time.Duration(attempt+1) * 20 * time.Millisecond)
 	}
+	// A stale listener that a surviving process still holds keeps the path
+	// bound. The app must still start: forwarding is unavailable until that
+	// process is gone, but a silent exit with no window is worse.
+	log.Printf("mygo: %s starts without the single-instance socket: %v", a.Name(), lastErr)
 	return true
 }
 
@@ -120,6 +156,9 @@ func acceptSecondInstances(ln net.Listener) {
 			if json.Unmarshal(data, &msg) != nil {
 				return
 			}
+			// Prove to the second instance that this owner is alive before the
+			// main thread runs its handlers: a slow app must not look dead.
+			_, _ = conn.Write([]byte(secondInstanceAck))
 			postMain(func() {
 				for _, fn := range singleInstance.handlers.snapshot() {
 					fn(msg.Args, msg.WorkingDir)
