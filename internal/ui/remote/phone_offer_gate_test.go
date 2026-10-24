@@ -104,7 +104,7 @@ func TestPhoneOfferGateFollowsTransport(t *testing.T) {
 				if copies != 1 {
 					t.Fatalf("copy action ran %d times", copies)
 				}
-				if !pane.HasText(i18n.T(i18n.KeyRemotePhoneReady)) {
+				if !pane.HasText(i18n.T(i18n.KeyRemotePhoneServiceReady)) {
 					t.Fatalf("ready badge missing for %s: %v", tc.mode, pane.Texts())
 				}
 			} else {

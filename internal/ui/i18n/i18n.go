@@ -789,6 +789,7 @@ const (
 	KeyRemotePhoneHowTo                   = "remote.phone_howto"
 	KeyRemotePhoneStatus                  = "remote.phone_status"
 	KeyRemotePhoneReady                   = "remote.phone_ready"
+	KeyRemotePhoneServiceReady            = "remote.phone_service_ready"
 	KeyRemotePhoneIncomplete              = "remote.phone_incomplete"
 	KeyRemotePhoneDisabled                = "remote.phone_disabled"
 	KeyRemotePhoneMissing                 = "remote.phone_missing"
@@ -1770,6 +1771,7 @@ var zhCN = map[string]string{
 	KeyRemotePhoneHowTo:                   "下方入口仅打开已配置的手机网页，不代表服务在线或配对成功。配对 daemon 端口不能作为手机网页地址。",
 	KeyRemotePhoneStatus:                  "手机远程就绪",
 	KeyRemotePhoneReady:                   "配置项齐全（未验证配对服务）",
+	KeyRemotePhoneServiceReady:            "配对服务已就绪",
 	KeyRemotePhoneIncomplete:              "配置不完整",
 	KeyRemotePhoneDisabled:                "配对未启用",
 	KeyRemotePhoneMissing:                 "缺少",
@@ -2732,6 +2734,7 @@ var en = map[string]string{
 	KeyRemotePhoneHowTo:                   "This entry opens the configured mobile website only; it does not verify service availability or pairing. A daemon port is not a mobile website.",
 	KeyRemotePhoneStatus:                  "Phone remote readiness",
 	KeyRemotePhoneReady:                   "Config complete (pairing service unverified)",
+	KeyRemotePhoneServiceReady:            "Pairing service ready",
 	KeyRemotePhoneIncomplete:              "Config incomplete",
 	KeyRemotePhoneDisabled:                "Pairing disabled",
 	KeyRemotePhoneMissing:                 "Missing",

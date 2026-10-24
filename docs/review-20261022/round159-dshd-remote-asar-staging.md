@@ -253,3 +253,15 @@ settle 38 s 后读取 `remote-pairing.json`：
 - kill 后 3099/3499/3180 全部关闭。
 
 **残留**：截图未滚动到 QR 像素（脚本的 ScrollPattern 没命中设置滚动容器）；面板里仍显示“未配置有效手机网页入口（remoteAppBaseUrl…）”警告与旧 readiness 行“配置项齐全（未验证配对服务）”，这两处应跟随 v2 ready 快照（LAN 的 appBaseUrl 没有传进面板 Model）；relay 模式与真机扫码仍未验证。
+
+### 6.9 Round167 补记（task-57）：远程面板 live 收尾（入口/就绪/QR 视觉）
+
+**1) 手机网页入口按 live 快照推导**（`internal/ui/remote/phone.go`）：LAN 模式下若没有配置 `remoteAppBaseUrl`，`ConnectURL` 从实时配对 URL 推导（`scheme://host`，丢弃 `#offer` 片段），因此 ready 的 LAN 面板显示 `http://127.0.0.1:3180` 而不再报“未配置有效手机网页入口”；relay 模式继续使用 `remoteAppBaseUrl`。
+
+**2) 就绪行跟随运行时**：新增 i18n `KeyRemotePhoneServiceReady`（`配对服务已就绪` / `Pairing service ready`）；当运行时 `ready + listening +（relay 或 LAN）` 时，状态行用它，取代旧的、字面即“配置项齐全（未验证配对服务）”的 `KeyRemotePhoneReady`。仅有配置、没有运行时仍显示“配置不完整”+入口警告。
+
+**测试**（`internal/ui/remote/settings_pairing_live_test.go`，全部通过）：LAN ready → 入口 `http://127.0.0.1:3180`、就绪“Pairing service ready”、无警告；relay ready → 入口 = appBaseUrl、同样就绪；无运行时 → “Config incomplete”+入口警告；`TestRemotePairingSurfaceSnapshot` 用 live 形状快照 + QR fixture 渲染整个已挂载区块（`SURFACES_GALLERY_DIR` 输出 PNG）。
+
+**实机**（`docs/review-20261022/evidence/remote-panel-live.json` + `evidence/screens/remote-panel-live.png`；临时构建 `whaleisle-panel-live.exe` 在仓库根、跑完删除；round51 profile + pass283 同款配置，deep-link 打开远程页）：diag `ready/relayConnected=false`；UIA 出现 `配对服务已就绪`、`手机网页入口` + `http://127.0.0.1:3180`、`offer v2 · ready`、`配对链接有效03:45:56`、复制/打开配对链接按钮，**没有**入口警告；kill 后 3099/3499/3180 全关。
+
+**QR 视觉**：应用内设置弹窗把配对区块留在滚动视口之下，mygo 的滚动面在 UIA 里没有 ScrollPattern，脚本无法自动滚到；因此 QR 像素以 headless 渲染作为视觉证据：`evidence/screens/remote-panel-block-headless.png`（780×1700，live 形状 LAN 快照 + QR fixture，275,560 B），图中可见二维码、`Pairing service ready`、`offer v2 · ready`、有效期与复制/打开按钮。**残留**：应用内滚动截图仍缺；relay 与真机扫码未验证。

@@ -66,7 +66,7 @@ func TestPhoneOfferRequiresLiveRelay(t *testing.T) {
 	if !live.HasText(i18n.T(i18n.KeyMiscRemoteCopyPairingLink)) || !live.HasText(i18n.T(i18n.KeyMiscRemoteOpenPairingLink)) {
 		t.Fatalf("live offer actions missing: %v", live.Texts())
 	}
-	if !live.HasText(i18n.T(i18n.KeyRemotePhoneReady)) {
+	if !live.HasText(i18n.T(i18n.KeyRemotePhoneServiceReady)) {
 		t.Fatalf("live readiness missing: %v", live.Texts())
 	}
 	if err := live.Click(i18n.T(i18n.KeyMiscRemoteCopyPairingLink)); err != nil {

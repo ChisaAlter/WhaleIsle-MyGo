@@ -2,6 +2,7 @@ package remote
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +57,30 @@ func phoneSnapshot(m Model) phoneremote.Snapshot {
 		}
 	}
 	s.ConnectURL = phoneremote.ConnectURL(s)
+	// A listening LAN gateway has its own phone page (the daemon's SPA), so the
+	// entry the user opens is that page rather than a relay appBaseUrl. Derive it
+	// from the live pairing URL; the relay path keeps using remoteAppBaseUrl.
+	if s.ConnectURL == "" && lanMode(s.RemoteMode) && m.PhoneRuntime.PairingURL != "" {
+		if u, err := url.Parse(m.PhoneRuntime.PairingURL); err == nil &&
+			(u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" {
+			s.ConnectURL = u.Scheme + "://" + u.Host
+		}
+	}
+	// The readiness row follows the runtime: a gateway that is ready, listening
+	// and reachable over its transport is verified, even when legacy desktop
+	// credentials are absent. The unverified wording stays for "no runtime yet".
+	if s.Readiness != phoneremote.ReadinessDisabled && m.PhoneRuntime.Status == "ready" &&
+		m.PhoneRuntime.Listening && (m.PhoneRuntime.RelayConnected || lanMode(s.RemoteMode)) {
+		s.Readiness = phoneremote.ReadinessReady
+		s.Missing = nil
+	}
 	return s
+}
+
+// lanMode reports whether the gateway transport is a LAN bind.
+func lanMode(mode string) bool {
+	m := strings.ToLower(strings.TrimSpace(mode))
+	return m == "lan" || strings.Contains(m, "lan")
 }
 
 func phoneReadinessLabel(r phoneremote.Readiness) string {
@@ -80,8 +104,17 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 	ui.Text(c, i18n.T(i18n.KeyRemotePhoneTitle)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeyRemotePhoneHowTo)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 
+	serviceLive := m.PhoneRuntime.Status == "ready" && m.PhoneRuntime.Listening &&
+		(m.PhoneRuntime.RelayConnected || lanMode(snap.RemoteMode))
+	readiness := phoneReadinessLabel(snap.Readiness)
+	if serviceLive {
+		// The daemon is listening over its transport, so pairing really is
+		// available; the legacy "config complete, unverified" wording would
+		// contradict the live status line below.
+		readiness = i18n.T(i18n.KeyRemotePhoneServiceReady)
+	}
 	rows := []struct{ label, value string }{
-		{i18n.T(i18n.KeyRemotePhoneStatus), phoneReadinessLabel(snap.Readiness)},
+		{i18n.T(i18n.KeyRemotePhoneStatus), readiness},
 		{i18n.T(i18n.KeyRemotePairingEnabled), onOff(snap.RemoteEnabled)},
 		{i18n.T(i18n.KeyRemoteMode), emptyDash(snap.RemoteMode)},
 	}
