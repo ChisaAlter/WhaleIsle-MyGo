@@ -55,7 +55,7 @@ func TestVisibleDotfilesAndGitIgnoreParity(t *testing.T) {
 }
 
 func TestSearchHasNoIndexOrMatchTruncation(t *testing.T) {
-	root := t.TempDir()
+	root := gitIsolatedRoot(t)
 	for i := 0; i < 2105; i++ {
 		name := fmt.Sprintf("target-%04d.txt", i)
 		if err := os.WriteFile(filepath.Join(root, name), nil, 0600); err != nil {

@@ -9,7 +9,7 @@ import (
 )
 
 func TestProjectFileSearchSubsequence(t *testing.T) {
-	root := t.TempDir()
+	root := gitIsolatedRoot(t)
 	if err := os.MkdirAll(filepath.Join(root, "src", "client"), 0700); err != nil {
 		t.Fatal(err)
 	}
