@@ -121,6 +121,16 @@ try {
   # window this probe measures.
   [System.IO.File]::WriteAllText((Join-Path $profile 'welcome-shown'), '')
 
+  # A force-killed instance can leave mygo's single-instance socket behind; on
+  # Windows a later launch then hands over to the dead instance and exits 0
+  # without a window (mygo single_instance.go:157-165). With no whaleisle running,
+  # sockets older than two minutes are stale, so clear them before starting.
+  if (-not (Get-Process whaleisle -ErrorAction SilentlyContinue)) {
+    Get-ChildItem ([System.IO.Path]::GetTempPath()) -Filter 'mygo-*.sock' -Force -ErrorAction SilentlyContinue |
+      Where-Object { $_.LastWriteTimeUtc -lt (Get-Date).ToUniversalTime().AddMinutes(-2) } |
+      Remove-Item -Force -ErrorAction SilentlyContinue
+  }
+
   $previousProfile = $env:WHALEISLE_USER_DATA
   $env:WHALEISLE_USER_DATA = $profile
   try {
@@ -173,7 +183,7 @@ $result = [ordered]@{
   pid         = if ($null -ne $process) { $process.Id } else { 0 }
   userData    = $profile
   startedAt   = $startedAt.ToString('o')
-  windows     = $windows
+  windows     = [object[]]@($windows)
 }
 $outDir = Split-Path -Parent $outPath
 if ($outDir) { [void](New-Item -ItemType Directory -Path $outDir -Force) }

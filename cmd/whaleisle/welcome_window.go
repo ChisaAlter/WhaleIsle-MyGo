@@ -111,6 +111,8 @@ func (s *mainState) openWelcomeWindow(parent *mygo.Window, cfg config.Config) {
 		w.beginBoot()
 		return
 	}
+	// Native window.js:185 gives the Windows window a 48 DIP icon.
+	applyWindowIcon(win)
 	win.OnClosed(func() { w.finish() })
 	w.startPoll()
 	win.Focus()

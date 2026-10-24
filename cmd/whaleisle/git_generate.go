@@ -15,25 +15,24 @@ import (
 // covers the local Git reads that build its input.
 const gitCommitGenerationTimeout = 60 * time.Second
 
-// gitCommitGenerationState reports the current generation for one frame.
-func (s *mainState) gitCommitGenerationState() (generating bool, failure string) {
+// gitCommitGenerationStateLocked reports the current generation for one frame.
+// The caller must hold s.mu: mainView reads it inside its snapshot, and a
+// re-entrant Lock there hangs the window's first paint (Go mutexes are not
+// re-entrant).
+func (s *mainState) gitCommitGenerationStateLocked() (generating bool, failure string) {
 	if s == nil {
 		return false, ""
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.gitCommitGenerating, s.gitCommitGenErr
 }
 
-// takeGeneratedCommitMessage consumes the generated copy exactly once. The view
-// applies it to its own draft, so a worker finishing mid-frame cannot be
-// overwritten by that frame's draft save.
-func (s *mainState) takeGeneratedCommitMessage() (string, bool) {
+// takeGeneratedCommitMessageLocked consumes the generated copy exactly once.
+// The view applies it to its own draft, so a worker finishing mid-frame cannot
+// be overwritten by that frame's draft save. The caller must hold s.mu.
+func (s *mainState) takeGeneratedCommitMessageLocked() (string, bool) {
 	if s == nil {
 		return "", false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.gitCommitGenPending == nil {
 		return "", false
 	}

@@ -1,0 +1,165 @@
+goroutine 41 [running]:
+runtime/pprof.writeGoroutineStacks({0x7ff6dcff1ac0, 0xfb635a2a2b8})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/pprof/pprof.go:816 +0x69
+runtime/pprof.writeGoroutine({0x7ff6dcff1ac0?, 0xfb635a2a2b8?}, 0x7ff6d94dcad5?)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/pprof/pprof.go:779 +0x25
+runtime/pprof.(*Profile).WriteTo(0x7ff6dac6bef0?, {0x7ff6dcff1ac0?, 0xfb635a2a2b8?}, 0x1b6?)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/pprof/pprof.go:405 +0x149
+main.main.func1()
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/main.go:2119 +0x7d
+created by main.main in goroutine 1
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/main.go:2116 +0x96
+
+goroutine 1 [sync.Mutex.Lock, locked to thread]:
+internal/sync.runtime_SemacquireMutex(0x2e?, 0x3b?, 0x2bb6246bad0?)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x7ff6dd688320)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/sync/mutex.go:149 +0x15a
+internal/sync.(*Mutex).Lock(...)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/sync/mutex.go:46
+main.(*mainState).takeGeneratedCommitMessage(0x10?)
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/git_generate.go:35 +0x5d
+main.mainView(0xfb63558c440)
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/main.go:3251 +0x19ae
+github.com/egoist/mygo/ui.View.1(0xfb635d22348?)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/ui/api_gen.go:2102 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0xfb635d22008)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/ui/runtime.go:407 +0x511
+github.com/egoist/mygo/ui.(*engine).surfaceFrame(0xfb635d22008)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/ui/runtime.go:552 +0xe5
+github.com/egoist/mygo/ui.(*engine).event(0xfb635d22008, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/ui/input.go:35 +0x29f
+github.com/egoist/mygo/ui.(*windowHost).event(0x0?, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/ui/window.go:123 +0x194
+github.com/egoist/mygo.(*windowHandler).SurfaceEvent(0xfb6356020c8, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/content.go:220 +0x103
+github.com/egoist/mygo/internal/windows.(*surface).send(0x0?, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/surface.go:354 +0x10b
+github.com/egoist/mygo/internal/windows.(*surface).message(0xfb635eaa000, 0x2e07ca, 0xf, 0x0, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/surface.go:401 +0x519
+github.com/egoist/mygo/internal/windows.wndProc(0x2e07ca, 0xf, 0x0, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:298 +0x11e
+syscall.syscalln(0x7ff6dd695060?, 0xfb6357de0a0?, {0xfb6357da7e0?, 0x7ff6d95756c9?, 0xfb63554c270?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0x9?, {0xfb6357da7e0?, 0x0?, 0x7ff6d9582fa0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x7ff6dd6497c0?, {0xfb6357da7e0?, 0xfb6357da7e0?, 0x7ff6dd698f00?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd6497c0, {0xfb6357da7e0, 0x4, 0x4})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.(*surface).getObject(0xfb635eaa000, 0xffffffff, 0xfffffffc)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/surface_access.go:348 +0xad
+github.com/egoist/mygo/internal/windows.(*surface).message(0xfb635eaa000, 0x2e07ca, 0x3d, 0xffffffff, 0xfffffffc)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/surface.go:606 +0x636
+github.com/egoist/mygo/internal/windows.wndProc(0x2e07ca, 0x3d, 0xffffffff, 0xfffffffc)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:298 +0x11e
+syscall.syscalln(0xfb6357da5e0?, 0xfb6357de060?, {0xfb6357b4098?, 0x7ff6d95756c9?, 0xfb6359b8b10?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0x7ff6dd699250?, {0xfb6357b4098?, 0x0?, 0x7ff6d9582fa0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x7ff6dd64a440?, {0xfb6357b4098?, 0x0?, 0x7ff6d94f6265?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd64a440, {0xfb6357b4098, 0x1, 0x1})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.(*window).message(0xfb635e7e6c8, 0x7, 0x0, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/window.go:329 +0x236
+github.com/egoist/mygo/internal/windows.wndProc(0x310c3c, 0x7, 0x0, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:290 +0x87
+syscall.syscalln(0xfb635e901a8?, 0x7ff6dbcdd5c0?, {0xfb6357da3e0?, 0x0?, 0x0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0x0?, {0xfb6357da3e0?, 0x0?, 0x7ff6d9bae9a5?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x2bb676e1408?, {0xfb6357da3e0?, 0xfb6357da3e0?, 0x7ff6dd698f00?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd64a030, {0xfb6357da3e0, 0x4, 0x4})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.wndProc(0x310c3c, 0x6, 0x1, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:303 +0x185
+syscall.syscalln(0xfb635ba41d0?, 0xfb6357de040?, {0xfb6357b4040?, 0x7ff6d95756c9?, 0xfb6359b8b10?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0xfb635ba4210?, {0xfb6357b4040?, 0x0?, 0x7ff6d9582fa0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x7ff6dd64a1c0?, {0xfb6357b4040?, 0xfb6357b4040?, 0x7ff6dd698f00?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd64a1c0, {0xfb6357b4040, 0x2, 0x2})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.(*window).Show(0xfb635e7e6c8)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/window.go:684 +0xb2
+github.com/egoist/mygo.(*Window).Show.func1()
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/window.go:662 +0x47
+github.com/egoist/mygo.onMain(0xfb63558c540)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/loop.go:89 +0xc6
+github.com/egoist/mygo.(*Window).Show(...)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/window.go:657
+github.com/egoist/mygo.newWindow({{0x7ff6dac6fa03, 0xa}, {0x0, 0x0}, 0x5a0, 0x360, 0x0, 0x0, 0x0, 0x3c0, ...}, ...)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/window.go:462 +0x825
+github.com/egoist/mygo.NewWindow.func1()
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/window.go:312 +0x8e
+github.com/egoist/mygo.onMain(0xfb6357ae1a0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/loop.go:89 +0xc6
+github.com/egoist/mygo.NewWindow({{0x7ff6dac6fa03, 0xa}, {0x0, 0x0}, 0x5a0, 0x360, 0x0, 0x0, 0x0, 0x3c0, ...})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/window.go:312 +0x199
+main.main.func5()
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/main.go:2303 +0x1c0a
+github.com/egoist/mygo.(*Application).handleReady(0x7ff6dd65fd70)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/app.go:254 +0x162
+github.com/egoist/mygo.appHandler.Ready(...)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/app.go:571
+github.com/egoist/mygo/internal/windows.(*Backend).appMessage(0x7ff6d955fe85?, 0x0?, 0xfb635ba5690?, 0xfb635ba5630?)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:311 +0x296
+github.com/egoist/mygo/internal/windows.wndProc(0x1900ee, 0x8004, 0x0, 0x0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:286 +0x45
+syscall.syscalln(0x3f004000fc64a0?, 0xfb635773380?, {0xfb635754600?, 0x7ff6d95756c9?, 0xfb6359b8b10?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0x9?, {0xfb635754600?, 0x0?, 0x7ff6d94f43dc?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x2bb6770e9a8?, {0xfb635754600?, 0xfb635754600?, 0x7ff6dd698f00?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd64a0d0, {0xfb635754600, 0x1, 0x1})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.(*Backend).Run(0xfb6357009a0)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/app.go:186 +0x10a
+github.com/egoist/mygo.(*Application).Run(0x7ff6dd65fd70)
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/app.go:113 +0x1f8
+main.main()
+	C:/AI/WhaleIsle-MyGo/cmd/whaleisle/main.go:2506 +0x359
+
+goroutine 42 [IO wait]:
+internal/poll.runtime_pollWait(0x2bb6947a000, 0x72)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xfb600000074?, 0x7ff6dcce0d58?, 0x0)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*FD).waitIO(0xfb63573b340, 0xfb635a3a2d0)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/poll/fd_windows.go:233 +0x45
+internal/poll.(*FD).execIO(0xfb63573b340, 0x72, 0xfb635629d00, {0x0, 0x0, 0x7ff600000000?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/poll/fd_windows.go:310 +0x27e
+internal/poll.(*FD).acceptOne(0xfb63573b340, 0x298, {0xfb635e5c000?, 0x0?, 0x0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/poll/fd_windows.go:1133 +0x85
+internal/poll.(*FD).Accept(0xfb63573b340, 0xfb635629ee8)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/internal/poll/fd_windows.go:1168 +0x18d
+net.(*netFD).accept(0xfb63573b340)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/net/fd_windows.go:201 +0x4b
+net.(*UnixListener).accept(0x0?)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/net/unixsock_posix.go:172 +0x16
+net.(*UnixListener).Accept(0xfb6357d93b0)
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/net/unixsock.go:275 +0x30
+github.com/egoist/mygo.acceptSecondInstances({0x7ff6dcff7470, 0xfb6357d93b0})
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/single_instance.go:108 +0x3a
+created by github.com/egoist/mygo.(*Application).RequestSingleInstanceLock in goroutine 1
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/single_instance.go:84 +0x3fe
+
+goroutine 23 [syscall]:
+syscall.syscalln(0x1f80005?, 0xfb6357de000?, {0xfb6357b4000?, 0x7ff6d95756c9?, 0xfb6359b8af8?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/runtime/syscall_windows.go:427 +0x48
+syscall.SyscallN(0x7ff6dd6e0a40?, {0xfb6357b4000?, 0x0?, 0x7ff6d9582fa0?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:99 +0x1e
+syscall.(*Proc).Call(0x7ff6dd649518?, {0xfb6357b4000?, 0xfb6357b4000?, 0xfb635a28808?})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:256 +0x1c
+syscall.(*LazyProc).Call(0x7ff6dd649518, {0xfb6357b4000, 0x2, 0x2})
+	C:/AI/WhaleIsle-MyGo/.toolchain/gopath/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.windows-amd64/src/syscall/dll_windows.go:376 +0x4a
+github.com/egoist/mygo/internal/windows.(*composition).watch.func1()
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/compositor.go:154 +0x65
+created by github.com/egoist/mygo/internal/windows.(*composition).watch in goroutine 1
+	C:/AI/WhaleIsle-MyGo/third_party/mygo/internal/windows/compositor.go:153 +0x195

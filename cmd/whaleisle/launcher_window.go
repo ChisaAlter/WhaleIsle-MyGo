@@ -265,6 +265,8 @@ func (s *mainState) ensureLauncherWindow() *launcherWindow {
 		return nil
 	}
 	lw.win = win
+	// Native window.js:185 gives the Windows window a 48 DIP icon.
+	applyWindowIcon(win)
 	win.OnClose(func(e *mygo.CloseEvent) { s.launcherWindowCloseRequested(e) })
 	win.OnClosed(func() { s.launcherWindowClosed(lw) })
 	s.mu.Lock()

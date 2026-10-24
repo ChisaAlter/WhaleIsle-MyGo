@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
@@ -2108,6 +2109,18 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 }
 
 func main() {
+	// WHALEISLE_STACK_DUMP is a diagnostic hook: after a few seconds it writes
+	// every goroutine's stack to the named file, so a wedged UI thread can be
+	// inspected from a headless run. Unset in normal operation.
+	if dump := strings.TrimSpace(os.Getenv("WHALEISLE_STACK_DUMP")); dump != "" {
+		go func() {
+			time.Sleep(8 * time.Second)
+			if f, err := os.Create(dump); err == nil {
+				_ = pprof.Lookup("goroutine").WriteTo(f, 2)
+				_ = f.Close()
+			}
+		}()
+	}
 	mygo.App.SetName("MyGo鲸屿")
 	if err := preparePortableDesktop(); err != nil {
 		log.Println("portable desktop:", err)
@@ -2288,6 +2301,8 @@ func main() {
 		// Native content paints the accepted appearance; DirectComposition keeps
 		// the outer silhouette transparent without adding a caption content row.
 		win := mygo.NewWindow(winOpts)
+		// Native window.js:185 gives the Windows window a 48 DIP icon.
+		applyWindowIcon(win)
 		state.accountSignOut.SetNotify(win.Invalidate)
 		win.OnClosed(func() { state.accountSignOut.Bind(nil) })
 		state.desktopPet = pet.New(cfgStore)
@@ -3233,10 +3248,12 @@ func mainView(c *ui.Context) {
 	gitBusy := state.gitBusy
 	gitCommitOpen := state.gitCommitOpen
 	gitCommitDraft := state.gitCommitDraft
-	if generated, ok := state.takeGeneratedCommitMessage(); ok {
+	// This frame already holds state.mu (the snapshot above); the Locked
+	// accessors assume that and never re-lock.
+	if generated, ok := state.takeGeneratedCommitMessageLocked(); ok {
 		gitCommitDraft = generated
 	}
-	gitCommitGenerating, gitCommitGenErr := state.gitCommitGenerationState()
+	gitCommitGenerating, gitCommitGenErr := state.gitCommitGenerationStateLocked()
 	gitPROpen := state.gitPROpen
 	gitPRReport := state.gitPRReport
 	gitPRBusy := state.gitPRBusy
@@ -7133,16 +7150,15 @@ func mainView(c *ui.Context) {
 }
 
 func trayIcon() []byte {
-	for _, base := range []string{".", filepath.Dir(os.Args[0])} {
-		data, err := os.ReadFile(filepath.Join(base, "resources", "icon.png"))
-		if err != nil {
-			continue
-		}
-		if icon, err := scalePNG(data, 32); err == nil {
-			return icon
-		}
+	data, ok := readResourceIcon()
+	if !ok {
+		log.Println("tray icon not found; running without one")
+		return nil
+	}
+	// Native tray.js:20 resizes to 24x24 on win32; other platforms keep it.
+	icon, err := resizeTrayIcon(runtime.GOOS, data)
+	if err != nil {
 		return data
 	}
-	log.Println("tray icon not found; running without one")
-	return nil
+	return icon
 }
