@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/deeplink"
+	"whaleisle/internal/desktop/notifications"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/i18n"
@@ -16,6 +18,13 @@ func (s *mainState) setupDesktopTray() {
 	// Windows and macOS use explicit right-click popup so an attached native
 	// menu cannot consume the left-click restore action. AppIndicator on Linux
 	// requires a persistent menu; primary activation depends on indicator and panel support.
+	// Register the Start-menu AUMID before any notification can be shown, so a
+	// toast carries the product name rather than the executable name.
+	if exe, err := os.Executable(); err == nil {
+		if err := (notifications.Shortcut{ProgramsDir: notifications.StartMenuProgramsDir(), Target: exe}).Ensure(); err != nil {
+			log.Println("aumid:", err)
+		}
+	}
 	options := mygo.TrayOptions{Icon: trayIcon(), ToolTip: i18n.T(i18n.KeyAppName)}
 	if runtime.GOOS == "linux" {
 		options.Menu = s.desktopTrayMenu()
