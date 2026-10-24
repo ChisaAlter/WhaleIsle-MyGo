@@ -4,7 +4,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"image"
 	"image/color"
-	"image/draw"
 	"math"
 	"sync"
 	"whaleisle/internal/desktop/wallpapers"
@@ -17,6 +16,17 @@ var backgroundState struct {
 	path        string
 	blur, pixel float64
 	bitmap      *ui.Bitmap
+	// The bitmap is prepared at the window's own pixel size, so its cache key
+	// carries that size alongside the source and the two effect sliders.
+	targetW, targetH int
+	decodedPath      string
+	decoded          *image.RGBA
+	// samp* caches the source-resolution bitmap the glass surfaces sample; the
+	// painted bitmap above is screen-resolution.
+	sampPath  string
+	sampBlur  float64
+	sampPixel float64
+	sampBmp   *ui.Bitmap
 	// pixels is the prepared wallpaper the surfaces sample, the box it was
 	// drawn in, and the scheme that decided its dim mask. version changes
 	// whenever a surface's frozen patch would go stale.
@@ -145,11 +155,15 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	p = backgroundState.prefs
 	reduced := len(reducedMotion) > 0 && reducedMotion[0]
 	if path != "" {
-		bmp := backgroundBitmap(path, p)
 		return func(painter *ui.Painter, r ui.Rect) {
+			w, h := int(math.Round(float64(r.W))), int(math.Round(float64(r.H)))
+			backgroundSamplingBitmap(path, p)
+			bmp := backgroundScreenBitmap(path, p, w, h)
 			if bmp == nil {
 				return
 			}
+			// The bitmap is already the window's pixel size: FillBox keeps the
+			// screen-space pixel blocks and blur radius exact.
 			painter.Image(bmp, r, ui.Cover)
 			s := &backgroundState
 			s.box, s.hasBox, s.dark = r, true, painter.Theme().Dark
@@ -263,50 +277,6 @@ func bloomBitmap(c ui.Color) *ui.Bitmap {
 	bmp := ui.NewBitmap(img)
 	bloomCache.Store(c, bmp)
 	return bmp
-}
-
-func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
-	s := &backgroundState
-	if s.path == path && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil {
-		return s.bitmap
-	}
-	data, err := wallpaperImageBytes(path)
-	if err != nil {
-		s.path, s.pixels, s.bitmap = path, nil, nil
-		s.version++
-		return nil
-	}
-	img, err := wallpapers.Decode(data)
-	if err != nil {
-		s.path, s.pixels, s.bitmap = path, nil, nil
-		s.version++
-		return nil
-	}
-	b := img.Bounds()
-	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
-	block := int(math.Round(wallpaperPixelFactor(p.Pixelate)))
-	if block > 1 {
-		for y := 0; y < b.Dy(); y += block {
-			for x := 0; x < b.Dx(); x += block {
-				col := dst.RGBAAt(min(x+block/2, b.Dx()-1), min(y+block/2, b.Dy()-1))
-				for yy := y; yy < min(y+block, b.Dy()); yy++ {
-					for xx := x; xx < min(x+block, b.Dx()); xx++ {
-						dst.SetRGBA(xx, yy, col)
-					}
-				}
-			}
-		}
-	}
-	radius := wallpaperBlurRadius(p.Blur)
-	if radius > 0 {
-		dst = blurBitmap(dst, radius)
-	}
-	s.path, s.blur, s.pixel = path, p.Blur, p.Pixelate
-	s.bitmap = ui.NewBitmap(dst)
-	s.pixels = dst
-	s.version++
-	return s.bitmap
 }
 
 // Separable running-sum blur keeps slider updates linear in the image size.
