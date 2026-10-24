@@ -69,20 +69,20 @@ func TestToolRowCollapsedKeepsOneLineAndStructuredBody(t *testing.T) {
 	}
 	st := DefaultToolCardStyle(ui.RGB(0, 0, 0), ui.RGB(90, 90, 90), ui.RGB(220, 220, 220), ui.RGB(245, 245, 245), ui.RGB(40, 90, 200))
 	tt := ui.NewTester(func(c *ui.Context) { ToolMessageView(c, msg, st, ToolImageGalleryOptions{ID: msg.ID}) }, 800, 500)
-	if !tt.HasText(toolKindTitle(ToolKindBash)) {
+	if !tt.HasText(toolRowTitle("bash")) {
 		t.Fatalf("localized tool title missing: %q", tt.Texts())
 	}
 	if !tt.HasText("npm test") {
 		t.Fatalf("argument summary missing: %q", tt.Texts())
 	}
-	before, ok := tt.Find(toolKindTitle(ToolKindBash))
+	before, ok := tt.Find(toolRowTitle("bash"))
 	if !ok {
 		t.Fatal("row title seat missing")
 	}
 	if before.H > oneLineHeight+0.5 {
 		t.Fatalf("collapsed tool row height %v, want one 24px line", before.H)
 	}
-	if err := tt.Click(toolKindTitle(ToolKindBash)); err != nil {
+	if err := tt.Click(toolRowTitle("bash")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

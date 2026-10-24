@@ -1,0 +1,46 @@
+{
+  "boxes": {
+    "IN": {
+      "X": 25,
+      "Y": 53,
+      "W": 594,
+      "H": 174
+    },
+    "OUT": {
+      "X": 25,
+      "Y": 227.5,
+      "W": 594,
+      "H": 40
+    },
+    "Tool call": {
+      "X": 46,
+      "Y": 20,
+      "W": 57.109375,
+      "H": 28
+    },
+    "Tool input/output": {
+      "X": 24,
+      "Y": 52,
+      "W": 596,
+      "H": 216.5
+    },
+    "following flow": {
+      "X": 20,
+      "Y": 272.5,
+      "W": 600,
+      "H": 1
+    }
+  },
+  "scope": "MyGo software renderer only; not OS input, hardware hover or live Electron",
+  "texts": [
+    "Tool call custom · input long line",
+    "Tool call",
+    "custom · input long line",
+    "Tool input/output",
+    "IN",
+    "input long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\ninput long line\n",
+    "OUT",
+    "short output",
+    "following flow"
+  ]
+}

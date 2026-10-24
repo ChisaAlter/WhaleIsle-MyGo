@@ -12,6 +12,8 @@ type TextShimmerOptions struct {
 	// Active sweeps a highlight across the text while work runs. Inactive
 	// text stands still and requests no frames.
 	Active bool
+	// Font selects the label's font family; empty follows the interface theme.
+	Font string
 	// Size is the text's size in DIPs, 13 when 0.
 	Size float32
 	// Weight is the text's weight from 100 to 900, 400 when 0.
@@ -48,7 +50,7 @@ func TextShimmer(c *ui.Context, o TextShimmerOptions) ui.Element {
 	if color.A == 0 {
 		color = t.TextMuted
 	}
-	span := ui.Span{Text: o.Text, Size: size, Weight: o.Weight, Color: color}
+	span := ui.Span{Text: o.Text, Font: o.Font, Size: size, Weight: o.Weight, Color: color}
 	w, h := c.MeasureText(0, span)
 	if h <= 0 {
 		h = size * 1.35

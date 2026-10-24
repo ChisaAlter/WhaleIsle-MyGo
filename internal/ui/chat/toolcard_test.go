@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"whaleisle/internal/store/session"
+
 	"whaleisle/internal/dsh/events"
 )
 
@@ -37,6 +39,26 @@ func TestParseToolResultError(t *testing.T) {
 	info := ParseToolCard(events.TypeToolResult, raw)
 	if info.Status != "error" || !contains(info.Detail, "failed") {
 		t.Fatalf("%#v", info)
+	}
+}
+
+func TestToolResultOutputKeepsVerbatimBlocksAndEmptyErrorFallback(t *testing.T) {
+	for _, tc := range []struct{ name, content, want string }{
+		{"whitespace", `[{"type":"text","text":"  first\nsecond\n"}]`, "  first\nsecond\n"},
+		{"empty text", `[{"type":"text","text":""}]`, ""},
+		{"nontext evidence", `[{"type":"extension","text":"caption","key":true}]`, "{\n  \"type\": \"extension\",\n  \"text\": \"caption\",\n  \"key\": true\n}"},
+		{"empty failed result", `[]`, "ReadError: ENOENT"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := json.RawMessage(`{"type":"tool/result","data":{"error":{"name":"ReadError","code":"ENOENT","reason":"No duplicate reason"},"message":{"content":` + tc.content + `}}}`)
+			if got := ParseToolCard(events.TypeToolResult, raw).Output; got != tc.want {
+				t.Fatalf("standalone output=%q want%q", got, tc.want)
+			}
+			call := &session.ToolCallView{State: "error", Result: &session.Message{EventType: events.TypeToolResult, Raw: raw}}
+			if got := toolLifecycleOutput(call); got != tc.want {
+				t.Fatalf("paired output=%q want%q", got, tc.want)
+			}
+		})
 	}
 }
 

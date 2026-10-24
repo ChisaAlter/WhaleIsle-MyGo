@@ -1,0 +1,36 @@
+﻿[
+    {
+        "name":  "chat-lifetime",
+        "args":  [
+                     "run",
+                     "github.com/egoist/mygo/cmd/mygo",
+                     "vet",
+                     "./internal/ui/chat"
+                 ],
+        "exitCode":  0,
+        "seconds":  3.5334569
+    },
+    {
+        "name":  "widgets-lifetime",
+        "args":  [
+                     "run",
+                     "github.com/egoist/mygo/cmd/mygo",
+                     "vet",
+                     "./internal/ui/widgets"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.1140937
+    },
+    {
+        "name":  "ordinary-vet",
+        "args":  [
+                     "vet",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "./internal/ui/i18n",
+                     "./internal/ui/widgets"
+                 ],
+        "exitCode":  0,
+        "seconds":  1.3753876
+    }
+]

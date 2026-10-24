@@ -1,0 +1,49 @@
+﻿{
+    "scope":  "Reference exact installed CSS at Chrome process DPR1; native software renderer at scale1. Synthetic labels/font differences; no pixel identity claim.",
+    "reference":  "docs/review-20261022/evidence/tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8.json",
+    "native":  "docs/review-20261022/evidence/tool-row-pass258-native-software-open-dark-false.json",
+    "rows":  [
+                 {
+                     "reference":  24,
+                     "pass":  true,
+                     "metric":  "row height",
+                     "native":  24,
+                     "delta":  0
+                 },
+                 {
+                     "reference":  596,
+                     "pass":  true,
+                     "metric":  "card width",
+                     "native":  596,
+                     "delta":  0
+                 },
+                 {
+                     "reference":  82.5,
+                     "pass":  true,
+                     "metric":  "card height",
+                     "native":  82.5,
+                     "delta":  0.0
+                 },
+                 {
+                     "reference":  40,
+                     "pass":  true,
+                     "metric":  "input section outer height",
+                     "native":  40,
+                     "delta":  0
+                 },
+                 {
+                     "reference":  40,
+                     "pass":  true,
+                     "metric":  "output section outer height",
+                     "native":  40,
+                     "delta":  0
+                 },
+                 {
+                     "reference":  114.5,
+                     "pass":  true,
+                     "metric":  "own expanded height",
+                     "native":  114.5,
+                     "delta":  0.0
+                 }
+             ]
+}

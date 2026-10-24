@@ -5,6 +5,8 @@ package i18n
 // conversation domain never edits the shared catalog literals in i18n.go.
 const (
 	// Tool card details.
+	KeyChatToolInput       = "chat.tool.input"
+	KeyChatToolIOOutput    = "chat.tool.io_output"
 	KeyChatToolArguments   = "chat.tool.arguments"
 	KeyChatToolResult      = "chat.tool.result"
 	KeyChatToolEvent       = "chat.tool.event"
@@ -148,29 +150,29 @@ const (
 	KeyChatIsolatedVisible = "chat.isolated.visible"
 
 	// Context injection rows.
-	KeyChatContextTitle   = "chat.context.title"
-	KeyChatContextRecall  = "chat.context.recall"
-	KeyChatContextContent = "chat.context.model_content"
-	KeyChatContextCopy    = "chat.context.copy"
-	KeyChatContextClipped = "chat.context.clipped"
-	KeyChatToolAdded = "chat.context.tool_added"
-	KeyChatToolRemoved = "chat.context.tool_removed"
-	KeyChatToolsAdded = "chat.context.tools_added"
-	KeyChatToolsRemoved = "chat.context.tools_removed"
-	KeyChatToolsAddedCount = "chat.context.tools_added_count"
-	KeyChatToolsRemovedCount = "chat.context.tools_removed_count"
-	KeyChatToolsChanged = "chat.context.tools_changed"
-	KeyChatToolsUpdated = "chat.context.tools_updated"
-	KeyChatTriggerRequest = "chat.trigger.request"
-	KeyChatTriggerGoal = "chat.trigger.goal"
-	KeyChatTriggerAgent = "chat.trigger.agent"
-	KeyChatTriggerTeam = "chat.trigger.team"
-	KeyChatTriggerSubagent = "chat.trigger.subagent"
-	KeyChatTriggerGithub = "chat.trigger.github"
-	KeyChatTriggerWebhook = "chat.trigger.webhook"
-	KeyChatTriggerSchedule = "chat.trigger.schedule"
-	KeyChatTriggerJob = "chat.trigger.job"
-	KeyChatTriggerPlugin = "chat.trigger.plugin"
+	KeyChatContextTitle       = "chat.context.title"
+	KeyChatContextRecall      = "chat.context.recall"
+	KeyChatContextContent     = "chat.context.model_content"
+	KeyChatContextCopy        = "chat.context.copy"
+	KeyChatContextClipped     = "chat.context.clipped"
+	KeyChatToolAdded          = "chat.context.tool_added"
+	KeyChatToolRemoved        = "chat.context.tool_removed"
+	KeyChatToolsAdded         = "chat.context.tools_added"
+	KeyChatToolsRemoved       = "chat.context.tools_removed"
+	KeyChatToolsAddedCount    = "chat.context.tools_added_count"
+	KeyChatToolsRemovedCount  = "chat.context.tools_removed_count"
+	KeyChatToolsChanged       = "chat.context.tools_changed"
+	KeyChatToolsUpdated       = "chat.context.tools_updated"
+	KeyChatTriggerRequest     = "chat.trigger.request"
+	KeyChatTriggerGoal        = "chat.trigger.goal"
+	KeyChatTriggerAgent       = "chat.trigger.agent"
+	KeyChatTriggerTeam        = "chat.trigger.team"
+	KeyChatTriggerSubagent    = "chat.trigger.subagent"
+	KeyChatTriggerGithub      = "chat.trigger.github"
+	KeyChatTriggerWebhook     = "chat.trigger.webhook"
+	KeyChatTriggerSchedule    = "chat.trigger.schedule"
+	KeyChatTriggerJob         = "chat.trigger.job"
+	KeyChatTriggerPlugin      = "chat.trigger.plugin"
 	KeyChatTriggerExplanation = "chat.trigger.explanation"
 
 	// Group room transcript.
@@ -235,7 +237,7 @@ const (
 	KeyChatDeliveryRetryDiff   = "chat.delivery.retry_diff"
 	KeyChatDeliveryReadDiff    = "chat.delivery.reading_diff"
 	KeyChatDeliveryBinary      = "chat.delivery.binary"
-	KeyChatDeliveryDiffClip  = "chat.delivery.diff_clip"
+	KeyChatDeliveryDiffClip    = "chat.delivery.diff_clip"
 	KeyChatDeliveryTooLarge    = "chat.delivery.too_large"
 	KeyChatDeliveryShowAll     = "chat.delivery.show_all"
 	KeyChatDeliveryCollapse    = "chat.delivery.collapse"
@@ -265,43 +267,43 @@ const (
 	KeyChatWorkbookCopyShown = "chat.workbook.copy_shown"
 	KeyChatWorkbookCopyRaw   = "chat.workbook.copy_raw"
 
-// Second localization sweep: workbook TSV, inline OpenUI, retry copy, visual
+	// Second localization sweep: workbook TSV, inline OpenUI, retry copy, visual
 	// reply and workflow notes.
-	KeyChatWorkbookCopyRawTSV  = "chat.workbook.copy_raw_tsv"
-	KeyChatWorkbookCopyShownTSV = "chat.workbook.copy_shown_tsv"
-	KeyChatOpenUIRetry         = "chat.openui.retry"
-	KeyChatOpenUIClose         = "chat.openui.close"
-	KeyChatRetryAuthFailed     = "chat.retry.auth_failed"
-	KeyChatRetrySignedOut      = "chat.retry.signed_out"
-	KeyChatRetrySignIn         = "chat.retry.sign_in"
-	KeyChatRetryQuota          = "chat.retry.quota"
-	KeyChatRetryAwaitingHost   = "chat.retry.awaiting_host"
-	KeyChatVisualPublished     = "chat.visual.published"
-	KeyChatVisualIsolatedNote  = "chat.visual.isolated_note"
-	KeyChatVisualSaveAs        = "chat.visual.save_as"
-	KeyChatVisualReading       = "chat.visual.reading"
-	KeyChatVisualPreparing     = "chat.visual.preparing"
-	KeyChatVisualChecking      = "chat.visual.checking"
-	KeyChatVisualLoadingPage   = "chat.visual.loading_page"
+	KeyChatWorkbookCopyRawTSV    = "chat.workbook.copy_raw_tsv"
+	KeyChatWorkbookCopyShownTSV  = "chat.workbook.copy_shown_tsv"
+	KeyChatOpenUIRetry           = "chat.openui.retry"
+	KeyChatOpenUIClose           = "chat.openui.close"
+	KeyChatRetryAuthFailed       = "chat.retry.auth_failed"
+	KeyChatRetrySignedOut        = "chat.retry.signed_out"
+	KeyChatRetrySignIn           = "chat.retry.sign_in"
+	KeyChatRetryQuota            = "chat.retry.quota"
+	KeyChatRetryAwaitingHost     = "chat.retry.awaiting_host"
+	KeyChatVisualPublished       = "chat.visual.published"
+	KeyChatVisualIsolatedNote    = "chat.visual.isolated_note"
+	KeyChatVisualSaveAs          = "chat.visual.save_as"
+	KeyChatVisualReading         = "chat.visual.reading"
+	KeyChatVisualPreparing       = "chat.visual.preparing"
+	KeyChatVisualChecking        = "chat.visual.checking"
+	KeyChatVisualLoadingPage     = "chat.visual.loading_page"
 	KeyChatVisualIsolatedTooltip = "chat.visual.isolated_tooltip"
-	KeyChatVisualSourceNote    = "chat.visual.source_note"
-	KeyChatWorkflowEndedNote   = "chat.workflow.ended_note"
+	KeyChatVisualSourceNote      = "chat.visual.source_note"
+	KeyChatWorkflowEndedNote     = "chat.workflow.ended_note"
 
 	// Turn rail.
 	KeyChatTurnRailLabel = "chat.turn_rail.label"
-	KeyChatTurnRailJump = "chat.turn_rail.jump"
-	KeyChatTurnRailTurn = "chat.turn_rail.turn"
+	KeyChatTurnRailJump  = "chat.turn_rail.jump"
+	KeyChatTurnRailTurn  = "chat.turn_rail.turn"
 	KeyChatTurnRailEmpty = "chat.turn_rail.empty"
 
 	// Queue dock.
-	KeyChatQueueTitle = "chat.queue.title"
+	KeyChatQueueTitle        = "chat.queue.title"
 	KeyChatQueueEmptyPreview = "chat.queue.empty_preview"
 
 	// Interaction cards.
-	KeyChatApprovalWaiting = "chat.approval.waiting"
-	KeyChatQuestionWaiting = "chat.question.waiting"
+	KeyChatApprovalWaiting           = "chat.approval.waiting"
+	KeyChatQuestionWaiting           = "chat.question.waiting"
 	KeyChatQuestionCustomPlaceholder = "chat.question.custom_placeholder"
-	KeyChatQuestionTakeTime = "chat.question.take_time"
+	KeyChatQuestionTakeTime          = "chat.question.take_time"
 
 	KeyChatAccountStopped = "chat.failure.account_stopped"
 
@@ -330,6 +332,8 @@ const (
 
 func init() {
 	// Tool card.
+	Register(KeyChatToolInput, "输入", "IN")
+	Register(KeyChatToolIOOutput, "输出", "OUT")
 	Register(KeyChatToolArguments, "参数", "Arguments")
 	Register(KeyChatToolResult, "结果", "Result")
 	Register(KeyChatToolEvent, "原始记录", "Raw event")
@@ -597,7 +601,7 @@ func init() {
 	Register(KeyChatTurnRailJump, "跳到第", "Jump to")
 	Register(KeyChatTurnRailTurn, "回合", "Turn")
 	Register(KeyChatTurnRailEmpty, "（空白回合）", "(empty turn)")
-Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV")
+	Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV")
 	Register(KeyChatWorkbookCopyShownTSV, "复制本页显示 TSV", "Copy displayed page TSV")
 	Register(KeyChatOpenUIRetry, "重试内联 UI", "Retry inline UI")
 	Register(KeyChatOpenUIClose, "关闭交互 UI", "Close interactive UI")

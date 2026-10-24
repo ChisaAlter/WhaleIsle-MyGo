@@ -1,0 +1,3 @@
+﻿System.Management.Automation.RemoteException
+  error: vet accepts one app directory
+exit status 1

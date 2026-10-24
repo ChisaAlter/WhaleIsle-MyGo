@@ -287,7 +287,7 @@ func View(c *ui.Context, m Model) {
 					case session.MessageKindCommand:
 						CommandCardView(row.Context, msg, m, toolCardStyle(colors, fg, muted, border))
 					case session.MessageKindTool:
-						tc := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
+						tc := toolCardStyle(colors, fg, muted, border)
 						ToolMessageView(row.Context, msg, tc, ToolImageGalleryOptions{
 							ID: msg.ID, Expanded: m.ThinkingExpanded, Inspector: inspectorChatNavigation(m),
 							OnOpenURL:     m.OnOpenCitationURL,

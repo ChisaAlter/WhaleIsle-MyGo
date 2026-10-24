@@ -1,0 +1,46 @@
+{
+  "boxes": {
+    "IN": {
+      "X": 25,
+      "Y": 49,
+      "W": 594,
+      "H": 40
+    },
+    "OUT": {
+      "X": 25,
+      "Y": 89.5,
+      "W": 594,
+      "H": 40
+    },
+    "Tool call": {
+      "X": 42,
+      "Y": 20,
+      "W": 46.401367,
+      "H": 24
+    },
+    "Tool input/output": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 82.5
+    },
+    "following flow": {
+      "X": 20,
+      "Y": 134.5,
+      "W": 600,
+      "H": 1
+    }
+  },
+  "scope": "MyGo software renderer only; not OS input, hardware hover or live Electron",
+  "texts": [
+    "Tool call custom · argument",
+    "Tool call",
+    "custom · argument",
+    "Tool input/output",
+    "IN",
+    "argument",
+    "OUT",
+    "result",
+    "following flow"
+  ]
+}

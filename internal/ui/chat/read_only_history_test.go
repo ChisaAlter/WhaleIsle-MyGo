@@ -57,14 +57,14 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	}
 	current := messages
 	tt := ui.NewTester(func(c *ui.Context) { ReadOnlyHistoryView(c, scope, current, "", style) }, 800, 1200)
-	if !tt.HasText(i18n.T(i18n.KeyChatToolRead)) || !tt.HasText(i18n.T(i18n.KeyChatToolSearch)) {
+	if !tt.HasText(toolRowTitle("read")) || !tt.HasText(toolRowTitle("grep")) {
 		t.Fatalf("tree not rendered: %q", tt.Texts())
 	}
 	if tt.HasText("↳ root-call") {
 		t.Fatal("parent identity leaked into the compact tool tree")
 	}
 	// Tool rows are disclosures: the result evidence mounts with the body.
-	if err := tt.Click(i18n.T(i18n.KeyChatToolRead)); err != nil {
+	if err := tt.Click(toolRowTitle("read")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

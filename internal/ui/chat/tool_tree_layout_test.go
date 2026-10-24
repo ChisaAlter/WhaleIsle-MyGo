@@ -116,6 +116,8 @@ func TestToolTreeExpandParentPreservesChildrenAndSiblingSpacing(t *testing.T) {
 	toolTreeExport(t, tt, after, "expanded-root")
 	tt.ClickAt(root.X+12, root.Y+12)
 	tt.Frame()
+	// The original keeps the inert exiting body in flow for200ms.
+	tt.SetTime(time.Unix(7300, 0).Add(250 * time.Millisecond))
 	for id, box := range toolTreeBoxes(n) {
 		if box != before[id] {
 			t.Fatalf("closing parent hid or repositioned child: %s %+v want %+v", id, box, before[id])

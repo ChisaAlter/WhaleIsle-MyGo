@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -11,9 +12,8 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-// Tool rows follow the Original ToolRow: one 24px disclosure line 鈥?kind icon,
-// localized title, 2px separator, truncated argument summary, status dot and
-// chevron 鈥?and a structured body that only mounts once the row is open.
+// Tool rows share the original24px business-icon line and lazily mounted body.
+// Lifecycle text remains accessible without replacing the business glyph.
 
 const (
 	toolRowBlockMaxHeight = 220
@@ -147,44 +147,49 @@ func collapseSpace(text string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-// paintToolRow draws the single-line row plus its body when open.
-func paintToolRow(c *ui.Context, kind ToolKind, title, summary string, status rowStatus, st ToolCardStyle, key string, shared *map[string]bool, body func()) {
-	root := ui.Column(c).FillWidth().MinWidth(0).Gap(2)
+// paintToolRow holds the exiting body's layout for200ms, while the toolkit
+// retains an inert paint copy. Disclosure changes opacity rather than height.
+func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, shared *map[string]bool, expandable bool, body func()) {
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0).Font(theme.RenderPreferences().Chat.Family)
 	open := false
 	if shared != nil && key != "" {
 		open = (*shared)[key]
 	} else if key != "" {
 		open = *rowOpenState(root, key, false)
 	}
+	open = open && expandable
 	root.Children(func() {
-		paintDisclosureRow(c, disclosureRow{
-			Key:        "tool-row:" + key,
-			Icon:       toolKindIcon(kind),
-			Title:      title,
-			Summary:    summary,
-			KeepSummary: true,
-			Status:     status,
-			Running:    status == statusRunning,
-			Open:       open,
-			Expandable: body != nil,
-			OnToggle: func() {
-				if body == nil {
-					return
+		before := open
+		toolHeader(c, info, st, key, &open, expandable)
+		if open != before {
+			if shared != nil && key != "" {
+				if *shared == nil {
+					*shared = map[string]bool{}
 				}
-				if shared != nil && key != "" {
-					if *shared == nil {
-						*shared = map[string]bool{}
-					}
-					(*shared)[key] = !open
-					return
-				}
-				state := rowOpenState(root, key, false)
-				*state = !*state
-			},
-		}, toolRowStyle(st))
-		if body != nil && open {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(0, 0, 2, 6).Children(body)
+				(*shared)[key] = open
+			} else {
+				*rowOpenState(root, key, false) = open
+			}
 		}
+		presence := ui.Local(root, "tool-presence", func() contextPresence { return contextPresence{} })
+		if presence.open != open {
+			presence.open = open
+			if !open {
+				presence.until = c.Now().Add(200 * time.Millisecond)
+			}
+		}
+		if !open {
+			if !c.Preferences().ReduceMotion && c.Now().Before(presence.until) {
+				ui.Box(c).Key("tool-exit-space").FillWidth().Height(presence.height).PassThrough()
+				c.After(presence.until.Sub(c.Now()))
+			}
+			return
+		}
+		panel := ui.Column(c).Key("tool-body").FillWidth().MinWidth(0).
+			Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Ease: contextFadeEase, Colors: true,
+				Enter: &ui.Motion{Opacity: 0}, Exit: &ui.Motion{Opacity: 0}})
+		panel.ObserveLayout(func(r ui.Rect) { presence.height = r.H })
+		panel.Children(body)
 	})
 }
 

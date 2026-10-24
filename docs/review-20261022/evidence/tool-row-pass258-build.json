@@ -1,0 +1,42 @@
+﻿{
+    "at":  "2026-10-24T00:26:29.5715277Z",
+    "go":  "go1.27.2",
+    "cgo":  0,
+    "artifacts":  [
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass258.exe",
+                          "bytes":  85344256,
+                          "sha256":  "5C3F6B042DE9DA7D3F6E56D0F9B0CB5AB9D0FF487B48D25FF048EFE50DBD6F87"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+                          "bytes":  85344256,
+                          "sha256":  "5C3F6B042DE9DA7D3F6E56D0F9B0CB5AB9D0FF487B48D25FF048EFE50DBD6F87"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r114-inspector-fixture.exe",
+                          "bytes":  58550784,
+                          "sha256":  "5F5A48487B308EC72F0D7A1ACFE38B4B9BFEC032BC05E2B80142A2A78F42FB51"
+                      }
+                  ],
+    "nativeFixtureScope":  "Compiled before final caption baseline and accessible group-label changes; native probe covered Inspector targeting and closed rows only.",
+    "originalToolSHA256":  "15BEAA6632F0C2D16C7D84EF25A1CA96725B8F8FC3C74DECC79C1801540B994D",
+    "protected":  [
+                      {
+                          "ProcessId":  20012,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\Whale Isle.exe"
+                      },
+                      {
+                          "ProcessId":  16008,
+                          "ExecutablePath":  "C:\\软件\\Whale Isle\\resources\\runtime\\primary-runtime\\dependencies\\node\\bin\\node.exe"
+                      }
+                  ],
+    "guiListener":  [
+                        {
+                            "LocalAddress":  "127.0.0.1",
+                            "LocalPort":  3080,
+                            "OwningProcess":  16008
+                        }
+                    ],
+    "ownedFixtureCount":  0
+}

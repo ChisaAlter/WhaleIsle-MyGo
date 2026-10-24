@@ -120,8 +120,6 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		if call.Result != nil {
 			info.Detail = truncateToolText(output, 200)
 		}
-	} else {
-		arguments = prettyToolPayload(arguments)
 	}
 	info.Arguments = arguments
 	if call.Result != nil {
@@ -251,19 +249,12 @@ func toolLifecycleOutputFor(call *session.ToolCallView, allowGallery bool) strin
 	// Images still use the validated native gallery. On error/invalid references,
 	// keep their full JSON evidence, matching the existing renderer's behavior.
 	gallery := allowGallery && call.State == "ok" && len(toolImageReferences(content)) > 0
-	body := toolImageText(content, gallery)
+	body := toolResultBlocksText(content, gallery)
 	if !allowGallery {
 		body = readOnlyToolContent(content)
 	}
-	parts := []string{body}
-	if e := event.Data.Error; e != nil {
-		detail := strings.TrimSpace(e.Reason)
-		if detail == "" {
-			detail = strings.Trim(strings.TrimSpace(e.Name)+": "+strings.TrimSpace(e.Code), ": ")
-		}
-		if detail != "" {
-			parts = append(parts, detail)
-		}
+	if len(content) == 0 && event.Data.Error != nil {
+		return event.Data.Error.Name + ": " + event.Data.Error.Code
 	}
-	return strings.TrimSpace(strings.Join(parts, "\n"))
+	return body
 }

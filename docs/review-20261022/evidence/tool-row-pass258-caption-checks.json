@@ -1,0 +1,43 @@
+﻿[
+    {
+        "name":  "caption-tests",
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/i18n",
+                     "-run",
+                     "^TestToolRowView|^TestToolRowModel|^TestToolResultOutput",
+                     "-count=1"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  9.368395
+    },
+    {
+        "name":  "caption-lifetime",
+        "args":  [
+                     "run",
+                     "github.com/egoist/mygo/cmd/mygo",
+                     "vet",
+                     "./internal/ui/chat"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  2.7957769999999997
+    },
+    {
+        "name":  "final-production-build",
+        "args":  [
+                     "build",
+                     "-o",
+                     "whaleisle-pass258.exe",
+                     "./cmd/whaleisle"
+                 ],
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "exitCode":  0,
+        "seconds":  9.418407
+    }
+]

@@ -1,7 +1,8 @@
-param([Parameter(Mandatory=$true)][int]$OwnerId,[switch]$VerifyTreeLayout)
+param([Parameter(Mandatory=$true)][int]$OwnerId,[switch]$VerifyTreeLayout,[switch]$VerifyToolRows)
 $ErrorActionPreference='Stop'
-$fixturePath=if($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\.devdata\r113-inspector-fixture.exe'}else{'C:\AI\WhaleIsle-MyGo\.devdata\r112-inspector-fixture.exe'}
-$prefix=if($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-tree-pass257-native-layout'}else{'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass256-native-nested-tools'}
+if($VerifyTreeLayout -and $VerifyToolRows){throw 'Choose one fixture revision'}
+$fixturePath=if($VerifyToolRows){'C:\AI\WhaleIsle-MyGo\.devdata\r114-inspector-fixture.exe'}elseif($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\.devdata\r113-inspector-fixture.exe'}else{'C:\AI\WhaleIsle-MyGo\.devdata\r112-inspector-fixture.exe'}
+$prefix=if($VerifyToolRows){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-row-pass258-native'}elseif($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-tree-pass257-native-layout'}else{'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass256-native-nested-tools'}
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId='+$OwnerId)
 if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in 20012,16008){throw 'Wrong owned fixture'}
 $ownedStart=(Get-Process -Id $OwnerId).StartTime.ToUniversalTime()
@@ -95,7 +96,7 @@ try {
  $byCall=@{};foreach($state in $run.states){$byCall[$state.call]=$state.metrics.reveal.rect}
  $parent=$byCall['child'];$leaf=$byCall['opaque-grandchild'];$whole=$byCall['root']
  if($parent.H -le $leaf.H -or $parent.Y -gt $leaf.Y -or $parent.Y+$parent.H -lt $leaf.Y+$leaf.H -or $whole.H -le $parent.H){throw 'Parent subtree ancestry was lost'}
- if($VerifyTreeLayout){
+ if($VerifyTreeLayout -or $VerifyToolRows){
   $scale=$run.states[0].metrics.reveal.scale
   $indent=30+[Math]::Max(1,[Math]::Floor(.5*$scale))/$scale
   $sibling=$byCall['unrelated-sibling']

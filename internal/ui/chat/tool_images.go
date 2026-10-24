@@ -121,3 +121,26 @@ func toolImageText(content []json.RawMessage, gallery bool) string {
 	}
 	return strings.Join(parts, "\n")
 }
+
+// Generic output keeps text blocks verbatim; nontext blocks retain their full
+// JSON evidence unless the image gallery owns their display.
+func toolResultBlocksText(content []json.RawMessage, gallery bool) string {
+	parts := make([]string, 0, len(content))
+	for _, raw := range content {
+		var block struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}
+		if json.Unmarshal(raw, &block) == nil {
+			if gallery && block.Type == "image" {
+				continue
+			}
+			if block.Type == "text" {
+				parts = append(parts, block.Text)
+				continue
+			}
+		}
+		parts = append(parts, prettyToolPayload(string(raw)))
+	}
+	return strings.Join(parts, "\n")
+}

@@ -1,0 +1,31 @@
+﻿[
+    {
+        "name":  "final-tests",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "test",
+                     "./internal/ui/chat",
+                     "./internal/ui/frame",
+                     "./internal/ui/i18n",
+                     "./internal/ui/widgets",
+                     "-count=1"
+                 ],
+        "exitCode":  0,
+        "seconds":  19.4089582
+    },
+    {
+        "name":  "final-lifetime-vet",
+        "go":  "go1.27.2",
+        "cgo":  0,
+        "args":  [
+                     "run",
+                     "github.com/egoist/mygo/cmd/mygo",
+                     "vet",
+                     "./internal/ui/chat",
+                     "./internal/ui/widgets"
+                 ],
+        "exitCode":  1,
+        "seconds":  3.3096853999999998
+    }
+]

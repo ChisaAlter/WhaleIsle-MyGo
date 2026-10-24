@@ -1,0 +1,7 @@
+﻿--- FAIL: TestBrowserLinksFixture (0.00s)
+    browser_links_test.go:34: ui: no element shows "调用工具"
+FAIL
+FAIL	whaleisle/internal/ui/chat	11.963s
+ok  	whaleisle/internal/ui/frame	12.994s
+ok  	whaleisle/internal/ui/i18n	0.408s
+FAIL

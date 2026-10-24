@@ -1,0 +1,12 @@
+﻿{
+    "name":  "affected-tests",
+    "args":  [
+                 "test",
+                 "./internal/ui/chat",
+                 "./internal/ui/frame",
+                 "./internal/ui/i18n",
+                 "-count=1"
+             ],
+    "exitCode":  1,
+    "seconds":  22.069229099999998
+}

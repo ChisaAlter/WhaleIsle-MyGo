@@ -10,7 +10,7 @@ import (
 
 func TestToolInspectActionIsPresent(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
-		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "c", Name: "shell"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(string) {}})
+		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "c", Name: "shell", Arguments: "{}"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(string) {}})
 	}, 600, 500)
 	// The inspect seat lives in the expanded body of the single-line row.
 	if err := tt.Click(i18n.T(i18n.KeyChatToolRun)); err != nil {
@@ -25,10 +25,10 @@ func TestToolInspectActionIsPresent(t *testing.T) {
 func TestToolInspectActionDispatchesRealCallID(t *testing.T) {
 	opened := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "sub-opaque", Name: "same name"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(id string) { opened = id }})
+		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "sub-opaque", Name: "same name", Arguments: "{}"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnInspectCall: func(id string) { opened = id }})
 	}, 600, 500)
 	tt.Frame()
-	if err := tt.Click(toolKindTitle(ToolKindGeneric)); err != nil {
+	if err := tt.Click(toolRowTitle("same name")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -37,10 +37,10 @@ func TestToolInspectActionDispatchesRealCallID(t *testing.T) {
 		t.Fatalf("inspect target %q", opened)
 	}
 	tt = ui.NewTester(func(c *ui.Context) {
-		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "private", Name: "same name"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{TextOnly: true, OnInspectCall: func(id string) { opened = id }})
+		ToolMessageView(c, session.Message{Tool: &session.ToolCallView{CallID: "private", Name: "same name", Arguments: "{}"}}, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{TextOnly: true, OnInspectCall: func(id string) { opened = id }})
 	}, 600, 500)
 	tt.Frame()
-	_ = tt.Click(toolKindTitle(ToolKindGeneric))
+	_ = tt.Click(toolRowTitle("same name"))
 	tt.Frame()
 	if _, ok := tt.Find(i18n.T(i18n.KeyChatToolInspect)); ok {
 		t.Fatal("read-only addressed seat exposed main navigation")

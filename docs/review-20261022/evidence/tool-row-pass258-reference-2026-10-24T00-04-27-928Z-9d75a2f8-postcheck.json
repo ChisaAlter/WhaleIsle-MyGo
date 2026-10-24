@@ -1,0 +1,98 @@
+﻿{
+    "status":  "passed-read-only-postcheck",
+    "at":  "2026-10-24T00:07:06.6049840Z",
+    "runId":  "2026-10-24T00-04-27-928Z-9d75a2f8",
+    "summary":  {
+                    "passedCases":  9,
+                    "failedCases":  0,
+                    "passedAssertions":  42,
+                    "failedAssertions":  0
+                },
+    "reportLinks":  6,
+    "runnerAndInstalledHashesMatch":  [
+                                          {
+                                              "path":  "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-row-reference-chrome.mjs",
+                                              "sha256":  "e20011e57ae3f7aa29d0584d8cc47fb49947adae1f34762bc790efc0e1a16f18"
+                                          },
+                                          {
+                                              "path":  "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-tree-reference-layout.mjs",
+                                              "sha256":  "6d9367862e7c6612f891723f626202e890d24666743f8649af97601c37ad6854"
+                                          },
+                                          {
+                                              "path":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js",
+                                              "sha256":  "15beaa6632f0c2d16c7d84ef25a1ca96725b8f8fc3c74decc79c1801540b994d"
+                                          },
+                                          {
+                                              "path":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\client.js",
+                                              "sha256":  "20760845c9aa5a5dcc540b00a8a2ac0f638f6bebbd41abfea34e567e3ec83e2d"
+                                          },
+                                          {
+                                              "path":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-l5jToo6l.css",
+                                              "sha256":  "443ab85817b4ed526b2fa3df2c98a3e9baf577880cc95259c128f0571067a122"
+                                          },
+                                          {
+                                              "path":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-wKUmVWbt.js",
+                                              "sha256":  "328188be7381f20aac74717a49c536adda26b52e12f244a36bc34507429d4398"
+                                          },
+                                          {
+                                              "path":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-conversation\\lib\\types\\client\\locales.js",
+                                              "sha256":  "9a7d75db4ce85fbf163e77fd99eea6ed30e67d54116ff7a8b6228f09e9720066"
+                                          },
+                                          {
+                                              "path":  "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\icons\\index.tsx",
+                                              "sha256":  "4340d97af05f1b9f01c57aa995cd235fc27035c4a545e50535c67bca037fe06a"
+                                          },
+                                          {
+                                              "path":  "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-primitives\\src\\icons\\shared-artwork.tsx",
+                                              "sha256":  "25c995efd540d047afcee7dbf54742ca62dc0d159bdbf93794cb617419b08f84"
+                                          }
+                                      ],
+    "ownedProfileAbsent":  true,
+    "ownedBrowserAbsent":  true,
+    "browserPID":  24936,
+    "debugPort":  59647,
+    "browserExit":  {
+                        "code":  0,
+                        "signal":  null,
+                        "at":  "2026-10-24T00:04:33.231Z"
+                    },
+    "inputEvents":  40,
+    "jsonBytes":  222523,
+    "artifacts":  [
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8.json",
+                          "bytes":  222523,
+                          "sha256":  "7A3D5E96BF032110F5CDF4DA2C8B1379B244AC7E8AAFED23B874273B52E3C2B2"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8.txt",
+                          "bytes":  7143,
+                          "sha256":  "E93086000EBA4320D54044EC9B6137814CAB27FCB8AFE2B77872C8E8F2A71085"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8-report.md",
+                          "bytes":  4835,
+                          "sha256":  "B72360709E537157F7E86CCA1135139322E8EFA97E4C46B7F1CACA210F1507CD"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8-idle.png",
+                          "bytes":  57458,
+                          "sha256":  "98F01E62EF8046F803F6C53A78430D2563217C5699DDA463D1AA4A0B791F7958"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8-hover.png",
+                          "bytes":  57920,
+                          "sha256":  "C3187192A6ED364C6ABD8E2C5C2A349A6E12A506BEFE670CA12356DA95B16283"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8-open.png",
+                          "bytes":  58190,
+                          "sha256":  "2DBC8704EC281F67F9DEB627ADC2B9304C1B0E5C44CB99B0F38C0CD7700BB1E7"
+                      },
+                      {
+                          "path":  "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-row-pass258-reference-2026-10-24T00-04-27-928Z-9d75a2f8-font18.png",
+                          "bytes":  64325,
+                          "sha256":  "526F6705047902D12B856A3D1383A30762E72B51F3DB09269B30949B89E918ED"
+                      }
+                  ]
+}

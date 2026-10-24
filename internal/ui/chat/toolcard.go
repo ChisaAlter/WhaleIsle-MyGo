@@ -9,8 +9,8 @@ import (
 	"whaleisle/internal/dsh/events"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -38,8 +38,8 @@ type ToolCardInfo struct {
 	Links  []markdown.Link
 	// Web is the typed presentation metadata of a web tool/result.
 	Web *session.WebResult
-	// Arguments and Output keep the full payloads for the expanded body. Detail
-	// stays the one-line summary the collapsed row uses.
+	// Arguments and Output keep the full payloads for the expanded body and row
+	// summaries. Detail remains a compact event preview for legacy callers.
 	Arguments string
 	Output    string
 }
@@ -119,8 +119,8 @@ func ToolCardView(c *ui.Context, eventType string, raw json.RawMessage, st ToolC
 }
 
 // toolCardInfoView paints one tool call as the Original ToolRow does: a single
-// 24px disclosure line (kind icon, title, argument summary, status dot,
-// chevron) whose structured body mounts only when opened.
+// 24px disclosure line with its business icon, title and argument summary.
+// The structured body mounts only when opened.
 func toolCardInfoView(c *ui.Context, info ToolCardInfo, st ToolCardStyle, gallery ...ToolImageGalleryOptions) {
 	toolCardInfoViewExtra(c, info, st, nil, gallery...)
 }
@@ -132,7 +132,6 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 	if len(gallery) > 0 {
 		opts = gallery[0]
 	}
-	kind, _ := ClassifyToolName(info.Name)
 	size := st.FontSize
 	if size <= 0 {
 		size = 12
@@ -141,15 +140,8 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 	if key == "" {
 		key = info.Name + ":" + info.Status + ":" + info.Detail
 	}
-	summary := toolArgSummary(info.Arguments, info.Name)
-	if summary == "" {
-		summary = toolArgSummary(info.Detail, info.Name)
-	}
-	if toolRowStatus(info.Status) == statusError {
-		if line := firstDetailLine(info.Detail); line != "" {
-			summary = line
-		}
-	}
+	// Coarse legacy names do not select a first-party result renderer.
+	kind := toolBodyKind(info.Name)
 	body := func() {
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
@@ -157,22 +149,13 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if !opts.TextOnly {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
-		if extra != nil {
-			extra()
-		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
 		if !handled {
-			if info.Arguments != "" {
-				toolLifecycleDetail(c, key+":args", i18n.T(i18n.KeyChatToolArguments), prettyToolPayload(info.Arguments), st, nil, opts.TextOnly)
-			}
-			if info.Output != "" {
-				toolLifecycleDetail(c, key+":result", i18n.T(i18n.KeyChatToolResult), info.Output, st, nil, opts.TextOnly)
-			}
+			toolIORows(c, info, st, key)
 		}
-		// One copy seat keeps the whole call (arguments + output) reachable, as
-		// the Original detail cards expose their own clipboard action. The
-		// terminal seat already carries its own, so it does not get a second.
-		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" && !ownsCopy {
+		// The read-only evidence seat retains its whole-call clipboard action;
+		// main generic IN/OUT sections expose selectable text without extra chrome.
+		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" && !ownsCopy && (handled || opts.TextOnly) {
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
 				copySeat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).
 					Height(22).Padding(0, 8, 0, 8).Radius(6).Border(0.5, st.Border).
@@ -186,8 +169,12 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 				}
 			})
 		}
+		if extra != nil {
+			extra()
+		}
 	}
-	paintToolRow(c, kind, toolKindTitle(kind), summary, toolRowStatus(info.Status), st, key, opts.Expanded, body)
+	expandable := info.Status != "preparing" && (info.Arguments != "" || info.Output != "" || len(info.Images) > 0 || info.Web != nil)
+	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 
 // toolCopyPayload joins the call evidence for the copy action.
@@ -226,11 +213,10 @@ func toolResultStatus(ev events.ToolResult) string {
 }
 
 func toolResultText(ev events.ToolResult) string {
-	parts := []string{toolImageText(ev.Data.Message.Content, len(toolImageReferences(ev.Data.Message.Content)) > 0 && toolResultStatus(ev) != "error")}
-	if ev.Data.Error != nil && ev.Data.Error.Reason != nil {
-		parts = append(parts, *ev.Data.Error.Reason)
+	if len(ev.Data.Message.Content) == 0 && ev.Data.Error != nil {
+		return ev.Data.Error.Name + ": " + ev.Data.Error.Code
 	}
-	return strings.Join(parts, "\n")
+	return toolResultBlocksText(ev.Data.Message.Content, len(toolImageReferences(ev.Data.Message.Content)) > 0 && toolResultStatus(ev) != "error")
 }
 
 func ptcStatus(isErr bool) string {
@@ -293,6 +279,7 @@ func truncateToolText(s string, max int) string {
 func toolCardStyle(colors theme.Colors, fg, muted, border ui.Color) ToolCardStyle {
 	style := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 	style.Colors = colors
+	style.Err = chrome.Color(colors.Danger)
 	return style
 }
 

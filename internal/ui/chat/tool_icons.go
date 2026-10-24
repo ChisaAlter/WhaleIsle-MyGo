@@ -2,26 +2,25 @@ package chat
 
 import "github.com/egoist/mygo/ui"
 
-// Tool-kind artwork for the conversation rows. The Original ships one icon per
-// tool family; these 16-unit outline glyphs stand in for that vocabulary until
-// the tool packages publish their own marks.
+// Tool-row artwork uses the original ui-primitives16-unit regular paths.
+// Specialized task/agent glyphs remain owned by their existing renderers.
 var (
 	toolIconTerminal = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
-    <path d="M4.5 6L7 8L4.5 10" stroke="currentColor" />
-    <path d="M8.5 10H11.5" stroke="currentColor" />
+    <path d="M3 4L7 8L3 12" stroke="currentColor" />
+    <path d="M9 12H13" stroke="currentColor" />
   </svg>`))
 	toolIconRead = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <path d="M4 1.5H9.5L13 5V14.5H4V1.5Z" stroke="currentColor" />
-    <path d="M9.5 1.5V5H13" stroke="currentColor" />
+    <path d="M4.9375 5.90295H11.0625" stroke="currentColor" />
+    <path d="M4.9375 9.02991H8.27841" stroke="currentColor" />
+    <path d="M12.5 1.32617C13.3039 1.32617 14 1.95171 14 2.77637V13.2246C13.9996 14.0489 13.3036 14.6738 12.5 14.6738H3.5C2.69637 14.6738 2.00042 14.0489 2 13.2246V2.77637C2 1.95171 2.69613 1.32617 3.5 1.32617H12.5ZM3.5 2.32617C3.1993 2.32617 3 2.55186 3 2.77637V13.2246C3.00044 13.4489 3.19963 13.6738 3.5 13.6738H12.5C12.8004 13.6738 12.9996 13.4489 13 13.2246V2.77637C13 2.55186 12.8007 2.32617 12.5 2.32617H3.5Z" fill="currentColor" />
   </svg>`))
 	toolIconWrite = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <path d="M2.5 13.5L3.5 10.2L10.8 2.9L13.1 5.2L5.8 12.5L2.5 13.5Z" stroke="currentColor" />
-    <path d="M9.6 4.1L11.9 6.4" stroke="currentColor" />
+    <path d="M8.85596 2.69971H4.19971C3.37141 2.69971 2.69992 3.37146 2.69971 4.19971V11.8003C2.69992 12.6285 3.37141 13.3003 4.19971 13.3003H11.8003C12.6283 13.2999 13.3001 12.6283 13.3003 11.8003V7.89893H14.3003V11.8003C14.3001 13.1806 13.1806 14.2999 11.8003 14.3003H4.19971C2.81913 14.3003 1.69992 13.1808 1.69971 11.8003V4.19971C1.69992 2.81918 2.81913 1.69971 4.19971 1.69971H8.85596V2.69971Z" fill="currentColor" />
+    <path d="M7.7849 8.23878L13.888 2.13574" stroke="currentColor" />
   </svg>`))
 	toolIconSearch = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <circle cx="6.8" cy="6.8" r="4.6" stroke="currentColor" />
-    <path d="M10.4 10.4L14 14" stroke="currentColor" />
+    <path d="M6.58727 11.8586C9.55061 11.8586 11.9529 9.45637 11.9529 6.49304C11.9529 3.5297 9.55061 1.12744 6.58727 1.12744C3.62394 1.12744 1.22168 3.5297 1.22168 6.49304C1.22168 9.45637 3.62394 11.8586 6.58727 11.8586Z" stroke="currentColor" />
+    <path d="M10.2991 10.3933L14.7783 14.8725" stroke="currentColor" />
   </svg>`))
 	toolIconWeb = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
     <circle cx="8" cy="8" r="6" stroke="currentColor" />
@@ -43,8 +42,9 @@ var (
     <path d="M4 6.2V9C4 10.1 4.9 11 6 11H9.6" stroke="currentColor" />
   </svg>`))
 	toolIconGeneric = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1">
-    <circle cx="8" cy="8" r="2.4" stroke="currentColor" />
-    <path d="M8 1.6V3.4M8 12.6V14.4M1.6 8H3.4M12.6 8H14.4M3.5 3.5L4.8 4.8M11.2 11.2L12.5 12.5M12.5 3.5L11.2 4.8M4.8 11.2L3.5 12.5" stroke="currentColor" />
+    <path d="M5.875 3C5.875 6.33333 7.54167 8 10.875 8C7.54167 8 5.875 9.66667 5.875 13C5.875 9.66667 4.20833 8 0.875 8C4.20833 8 5.875 6.33333 5.875 3Z" stroke="currentColor" />
+    <path d="M12.375 1.55823C12.375 3.39156 13.2917 4.30823 15.125 4.30823C13.2917 4.30823 12.375 5.22489 12.375 7.05823C12.375 5.22489 11.4583 4.30823 9.625 4.30823C11.4583 4.30823 12.375 3.39156 12.375 1.55823Z" stroke="currentColor" />
+    <path d="M12.375 10.4418C12.375 11.7751 13.0417 12.4418 14.375 12.4418C13.0417 12.4418 12.375 13.1084 12.375 14.4418C12.375 13.1084 11.7083 12.4418 10.375 12.4418C11.7083 12.4418 12.375 11.7751 12.375 10.4418Z" stroke="currentColor" />
   </svg>`))
 )
 
