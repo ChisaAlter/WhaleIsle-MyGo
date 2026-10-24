@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T00:16:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87531520,
+  "productionSHA256": "08FB561FC5864DB06EC0CCB3D838D4B31CD1F7802961CC11437366765CCB28E3",
+  "defaultSHA256": "08FB561FC5864DB06EC0CCB3D838D4B31CD1F7802961CC11437366765CCB28E3",
+  "note": "pass275 covers rounds 144-146: settings copy, stale single-instance fix and the rc.2 runtime staging; verified start->boot->ready in 6s (harness-start-pass275.json)."
+}

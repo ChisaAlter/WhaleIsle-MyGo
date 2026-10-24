@@ -31,3 +31,8 @@ Go 的 `sync.Mutex` 不可重入，于是首帧在 `Lock` 处永久等待，窗�
 - harness 启动未跑通：临时 profile 复制了真实 `config.json`（dshBin/nodeBin 指向安装版运行时），但 90s 内端口未监听、启动器未关闭；需要一轮带日志的 harness 启动诊断。
 - 强制结束会留下 `%TEMP%\mygo-*.sock`（mygo 单实例缺陷），下一次启动会「交给死实例」并静默退出；`scripts/window-geometry-probe.ps1` 已加清理，产品侧未修（工具包问题）。
 - 该死锁自 round126 起存在，round126–round142 的“实机窗口”结论均只基于几何（GetWindowRect），不代表窗口可交互；后续实机验收需以 Responding + 交互为准。
+
+## 6. 补充（round146 实机就绪验证）
+
+- round146 用暂存 rc.2 runtime 跑通 start→boot→ready（6s）：主窗 1440×920 可见、启动器关闭、UIA 读到完整聊天壳（侧栏/工作区/探索未至之境/composer/发送消息），无启动错误。
+- 更正一个观测口径：Process.Responding / MainWindowHandle 会缓存启动器句柄，启动器销毁后可能误报 False；应以新 Process 实例的 MainWindowHandle + 直接 WM_NULL 探测 + UIA 文本为准。本轮的**死锁本身**由 goroutine 栈（	akeGeneratedCommitMessage 处阻塞）与首帧不绘制共同证明，修复后 UI 真实渲染，结论不受该口径影响。
