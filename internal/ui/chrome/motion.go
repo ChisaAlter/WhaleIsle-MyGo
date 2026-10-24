@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/widgets"
 )
 
 // The motion tokens of the design system, matching internal/ui/widgets so a
 // surface painted from chrome enters in step with the widget primitives
-// (ui-theme/src/styles/motion.css: overlay, popover). The framework skips both
-// under reduce motion, so a surface needs no switch of its own.
+// (ui-theme/src/styles/motion.css: overlay, popover). Both ride the design
+// curve, cubic-bezier(0.4, 0, 0.2, 1). The framework skips both under reduce
+// motion, so a surface needs no switch of its own.
 const (
 	// OverlayDuration is how long a modal or a page takes to appear.
 	OverlayDuration = 200 * time.Millisecond
@@ -42,7 +45,7 @@ const (
 func PopoverTransition() ui.ElementTransition {
 	return ui.ElementTransition{
 		Duration: PopoverDuration,
-		Ease:     ui.EaseInOut,
+		Ease:     widgets.DesignEase,
 		Enter:    &ui.Motion{Y: popoverRise, Opacity: 0},
 		Exit:     &ui.Motion{Y: popoverRise, Opacity: 0},
 	}
@@ -60,7 +63,7 @@ func PopoverTransition() ui.ElementTransition {
 func OverlayTransition() ui.ElementTransition {
 	return ui.ElementTransition{
 		Duration: OverlayDuration,
-		Ease:     ui.EaseInOut,
+		Ease:     widgets.DesignEase,
 		Enter:    &ui.Motion{Y: overlayRise, Opacity: 0},
 		Exit:     &ui.Motion{Y: overlayRise, Opacity: 0},
 	}
@@ -106,7 +109,7 @@ func Reveal(c *ui.Context, host ui.Element, d time.Duration) float32 {
 		return 1
 	}
 	c.AnimationFrame()
-	return ui.EaseInOut(max(0, float32(elapsed)/float32(d)))
+	return widgets.DesignEase(max(0, float32(elapsed)/float32(d)))
 }
 
 // RevealMask paints an overlay's dim mask over the whole window at progress, so

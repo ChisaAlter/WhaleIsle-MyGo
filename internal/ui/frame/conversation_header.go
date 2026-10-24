@@ -37,10 +37,13 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 		leftInset = 48
 	}
 	// One 48px band: title, the optional 对话/轨迹 switcher and the status
-	// actions share it; rc.2 has no tab row under the caption.
-	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionHeight).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
+	// actions share its 32 DIP content row (y = 12..44); rc.2 has no tab row
+	// under the caption.
+	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionContent).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
 		ui.Row(c).Key("conversation-title-cluster").Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
-			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Clip().Children(func() {
+			// The crumb seat spans the band's whole content row (y = 12..44) and
+			// centres its 20px line in it, as .titleRow's min-height 32 does.
+			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Height(workspaceCaptionContent).Justify(ui.Center).Clip().Children(func() {
 				if snap.SelectedID != "" {
 					sessionAncestryHeader(c, m, snap)
 				} else {

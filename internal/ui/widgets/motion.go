@@ -16,18 +16,19 @@ type Motion struct {
 	// Duration is how long the motion takes.
 	Duration time.Duration
 	// Ease maps the time run, from 0 to 1, to how far the motion has gone.
-	// Nil means EaseInOut.
+	// Nil means DesignEase.
 	Ease ui.Easing
 }
 
 // The motion tokens. Overlay is a modal or a page, Popover a menu or a
 // floating card, Swap a control changing its face (a chevron turning, a
-// switch's thumb sliding) and Flip a whole surface turning over.
+// switch's thumb sliding) and Flip a whole surface turning over. All ride the
+// design system's shared curve (ui-theme/src/styles/base.css:12).
 var (
-	OverlayMotion = Motion{Duration: 200 * time.Millisecond, Ease: ui.EaseInOut}
-	PopoverMotion = Motion{Duration: 160 * time.Millisecond, Ease: ui.EaseInOut}
-	SwapMotion    = Motion{Duration: 120 * time.Millisecond, Ease: ui.EaseInOut}
-	FlipMotion    = Motion{Duration: 300 * time.Millisecond, Ease: ui.EaseInOut}
+	OverlayMotion = Motion{Duration: 200 * time.Millisecond, Ease: DesignEase}
+	PopoverMotion = Motion{Duration: 160 * time.Millisecond, Ease: DesignEase}
+	SwapMotion    = Motion{Duration: 120 * time.Millisecond, Ease: DesignEase}
+	FlipMotion    = Motion{Duration: 300 * time.Millisecond, Ease: DesignEase}
 )
 
 // The durations of the motion tokens, for code that builds its own
@@ -52,7 +53,7 @@ const (
 func (m Motion) Animate(e ui.Element, key any, target float32) float32 {
 	ease := m.Ease
 	if ease == nil {
-		ease = ui.EaseInOut
+		ease = DesignEase
 	}
 	return e.AnimateWith(key, target, m.Duration, ease)
 }

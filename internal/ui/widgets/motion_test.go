@@ -28,7 +28,8 @@ func TestMotionTokens(t *testing.T) {
 		SwapDuration != SwapMotion.Duration || FlipDuration != FlipMotion.Duration {
 		t.Fatal("the duration constants and the motion tokens disagree")
 	}
-	// The easings run from 0 to 1, and start and end slowly.
+	// Every token rides the design system's shared curve, cubic-bezier(0.4, 0,
+	// 0.2, 1): 0 to 1 over the duration, ahead of the midpoint in the middle.
 	for _, m := range []Motion{OverlayMotion, PopoverMotion, SwapMotion, FlipMotion} {
 		if got := m.Ease(0); got != 0 {
 			t.Errorf("easing at 0 is %v", got)
@@ -36,8 +37,17 @@ func TestMotionTokens(t *testing.T) {
 		if got := m.Ease(1); got != 1 {
 			t.Errorf("easing at 1 is %v", got)
 		}
-		if got := m.Ease(0.5); got != 0.5 {
-			t.Errorf("easing at 0.5 is %v, want the middle", got)
+		for _, at := range []float32{0.25, 0.5} {
+			if got, want := m.Ease(at), DesignEase(at); got != want {
+				t.Errorf("easing at %v is %v, want the design curve's %v", at, got, want)
+			}
 		}
+		if got := m.Ease(0.5); got <= 0.5 {
+			t.Errorf("easing at 0.5 is %v, want the design curve ahead of the middle", got)
+		}
+	}
+	// A token with no curve of its own animates on the design curve too.
+	if got := (Motion{Duration: time.Second}).Ease; got != nil {
+		t.Fatalf("a bare motion should leave its ease nil, got %v", got)
 	}
 }

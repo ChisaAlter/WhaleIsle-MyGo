@@ -14,11 +14,14 @@ func TestSharedCaptionIsOneRowAcrossEveryRoute(t *testing.T) {
 		name                   string
 		hero, hideTabs, global bool
 		want                   float32
+		// hasTitle is false on the routes whose header is the hero row or the
+		// global page's blank seat instead of the conversation title row.
+		hasTitle bool
 	}{
-		{"conversation", false, false, false, 48},
-		{"without tabs", false, true, false, 48},
-		{"hero", true, false, false, 48},
-		{"global panel", false, false, true, 48},
+		{"conversation", false, false, false, 48, true},
+		{"without tabs", false, true, false, 48, true},
+		{"hero", true, false, false, 48, false},
+		{"global panel", false, false, true, 48, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sizes := DefaultLayout()
@@ -53,6 +56,23 @@ func TestSharedCaptionIsOneRowAcrossEveryRoute(t *testing.T) {
 			if trailing.Y != 12 || trailing.H != 32 || trailing.X+trailing.W != 1200-112 {
 				t.Fatalf("native control reserve/trailing: %+v", trailing)
 			}
+			// The reference's content row is the plate's 12 top / 4 bottom inset
+			// around a 32 DIP row (harness-chrome-inject.js:89; ConversationRoot
+			// .module.css:49-66,169-173), so the title seat is y = 12..44 and not
+			// centred on 24.
+			if tc.hasTitle {
+				seat, ok := tt.Find("Conversation session title")
+				if !ok {
+					t.Fatalf("%s: missing conversation title seat", tc.name)
+				}
+				if seat.Y != 12 || seat.H != 32 {
+					t.Fatalf("%s: title seat=%+v, want y=12 h=32 inside the 48 band", tc.name, seat)
+				}
+				band, ok := tt.Find("Conversation title band")
+				if !ok || band.Y != 12 || band.H != 32 {
+					t.Fatalf("%s: title band=%+v (found %v), want y=12 h=32", tc.name, band, ok)
+				}
+			}
 			if density != "compact" {
 				t.Fatalf("density=%q for center400/details518", density)
 			}
@@ -80,8 +100,8 @@ func TestConversationViewTabsStayInsideTheBand(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing view tab %q; texts=%q", label, tt.Texts())
 		}
-		if r.Y < 0 || r.Y+r.H > 48 {
-			t.Fatalf("view tab %q escaped the band: %+v", label, r)
+		if r.Y < 12 || r.Y+r.H > 44 {
+			t.Fatalf("view tab %q left the 12..44 content row: %+v", label, r)
 		}
 	}
 	if err := tt.Click(i18n.T(i18n.KeyChatPaneTabTrajectory)); err != nil {

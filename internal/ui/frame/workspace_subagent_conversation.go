@@ -94,7 +94,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 	if len(rightInset) > 0 {
 		paddingRight = rightInset[0]
 	}
-	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(40).Padding(8, paddingRight, 0, 20).Gap(8).DragWindow().Children(func() {
+	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(workspaceCaptionContent).Padding(0, paddingRight, 0, 20).Gap(8).DragWindow().Children(func() {
 		if ui.Button(c, paneLabel("返回父会话", "Back to parent conversation")).Clicked() {
 			w.closeMainChild()
 		}

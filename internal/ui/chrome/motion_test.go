@@ -37,6 +37,11 @@ func TestMotionTokensMatchWidgets(t *testing.T) {
 		if got := transition.Ease(.5); got <= 0 || got >= 1 {
 			t.Fatalf("%s easing(0.5) = %v", name, got)
 		}
+		// A surface rides the design system's cubic-bezier(0.4, 0, 0.2, 1), not
+		// the framework's cubic in-out (which is far behind early).
+		if got, want := transition.Ease(.25), widgets.DesignEase(.25); got != want {
+			t.Fatalf("%s easing(0.25) = %v, want the design curve's %v", name, got, want)
+		}
 	}
 	if PopoverTransition().Duration != PopoverDuration || OverlayTransition().Duration != OverlayDuration {
 		t.Fatal("a transition did not use its motion token's duration")
@@ -112,12 +117,19 @@ func TestOverlayRevealFadesPanelAndMask(t *testing.T) {
 	}, 60, 40)
 	tt.SetTime(start)
 	hidden := tt.Image().RGBAAt(30, 20)
+	tt.SetTime(start.Add(OverlayDuration / 4))
+	quarter := tt.Image().RGBAAt(30, 20)
 	tt.SetTime(start.Add(OverlayDuration / 2))
 	half := tt.Image().RGBAAt(30, 20)
 	tt.SetTime(start.Add(OverlayDuration))
 	settled := tt.Image().RGBAAt(30, 20)
-	if !(hidden.R < half.R && half.R < settled.R) {
-		t.Fatalf("overlay fade did not progress: %d → %d → %d", hidden.R, half.R, settled.R)
+	if !(hidden.R < quarter.R && quarter.R < half.R && half.R < settled.R) {
+		t.Fatalf("overlay fade did not progress: %d → %d → %d → %d", hidden.R, quarter.R, half.R, settled.R)
+	}
+	// The design curve is already ~0.24 along a quarter into the fade; the
+	// framework's cubic in-out would only be at 0.06 (about 1/4 of this).
+	if quarter.R < 40 {
+		t.Fatalf("overlay eased in on the cubic in-out, not the design curve: quarter=%d", quarter.R)
 	}
 	if settled.R < 250 {
 		t.Fatalf("dialog never reached full opacity: %d", settled.R)
