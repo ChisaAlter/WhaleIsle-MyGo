@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T06:20:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87738880,
+  "productionSHA256": "4727B23EE6539B15B1FF26B77968D7DA2E932A6AB3496934DFDA5D00AA954665",
+  "defaultSHA256": "4727B23EE6539B15B1FF26B77968D7DA2E932A6AB3496934DFDA5D00AA954665",
+  "note": "pass297 covers rounds 225-232: host-explicit wallpaper, first-run preset clearing, opaque flat canvas keyed to the resolved scheme, hero foot 22.3 (slogan/preset/card exact) and the improved structure matcher. Readiness verified."
+}
