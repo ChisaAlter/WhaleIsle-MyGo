@@ -88,8 +88,7 @@ func TestSavedAppearanceSurvivesAFreshOpen(t *testing.T) {
 	if appearance.Effect != "none" || appearance.Glass != 35 || appearance.Blur != 40 {
 		t.Fatalf("saved appearance overridden: %+v", appearance)
 	}
-	defaults := theme.FirstRunAppearance()
-	if appearance.Effect == defaults.Effect && appearance.Colors == defaults.Colors {
-		t.Fatal("a profile that chose no backdrop got the first-run backdrop")
+	if !appearance.EffectExplicit {
+		t.Fatal("a stored backgroundEffect must stay explicit")
 	}
 }

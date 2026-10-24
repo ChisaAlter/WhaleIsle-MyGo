@@ -126,6 +126,21 @@ func flatDarkCanvasPreview(cfgStore *config.Store, cfg config.Config, th theme.T
 // wallpaper and no explicit gradient sits under the native bg-mask-1, so the
 // canvas reads ~12,12,12 instead of the raw 21,21,23 token; panels keep their
 // own tokens because only this canvas is masked.
+// wallpaperCanvasFlatFor decides the flat masked canvas from the stored config
+// only, so the render route does not depend on the settings editor being built.
+func (s *mainState) wallpaperCanvasFlatFor(path string) bool {
+	if strings.TrimSpace(s.resolvedWallpaperPath(path)) != "" {
+		return false
+	}
+	prefs := wallpapers.Defaults()
+	if s.cfgStore != nil {
+		if stored, err := s.cfgStore.WallpaperBackground(); err == nil {
+			prefs = stored
+		}
+	}
+	return wallpapers.NormalizeEffect("", prefs).Effect != "gradient"
+}
+
 func maskedCanvasHex(hex string) string {
 	c := chrome.FlatBackdropFill(chrome.Color(hex), true)
 	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
@@ -143,7 +158,15 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 	path = s.resolvedWallpaperPath(path)
 	if os.Getenv("WHALEISLE_BACKDROP_PROBE") != "" {
 		if g := s.wallpaperEditor(); g != nil {
-			log.Printf("backdrop probe: path=%q effect=%q preset=%q colors0=%q explicit=%v active=%v", path, g.Prefs.Effect, g.Prefs.Preset, g.Prefs.Colors[0], g.Prefs.EffectExplicit, chrome.BackdropActive())
+			norm := wallpapers.NormalizeEffect(path, g.Prefs)
+			line := fmt.Sprintf("backdrop probe: path=%q effect=%q normalized=%q preset=%q colors0=%q explicit=%v active=%v canvasFlat=%d scheme=%q", path, g.Prefs.Effect, norm.Effect, g.Prefs.Preset, g.Prefs.Colors[0], g.Prefs.EffectExplicit, chrome.BackdropActive(), wallpaperCanvasFill(chrome.Color("#151517"), true, path, g.Prefs).R, s.cfgStore.Get().Theme)
+			log.Print(line)
+			if file := os.Getenv("WHALEISLE_BACKDROP_LOG"); file != "" {
+				if f, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+					fmt.Fprintln(f, line)
+					f.Close()
+				}
+			}
 		}
 	}
 	g := s.wallpaperEditor()

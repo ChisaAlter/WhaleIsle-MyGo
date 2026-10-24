@@ -3550,8 +3550,9 @@ func mainView(c *ui.Context) {
 	// The canvas alone carries the native flat mask; the sidebar, cards and
 	// caption keep their own tokens (round228/229).
 	canvasFill := chrome.Color(colors.BG)
-	if g := state.wallpaperEditor(); g != nil {
-		canvasFill = wallpaperCanvasFill(canvasFill, th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark), state.resolvedWallpaperPath(wallpaperPath), g.Prefs)
+	darkCanvas := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark)
+	if darkCanvas && state.wallpaperCanvasFlatFor(wallpaperPath) {
+		canvasFill = chrome.FlatBackdropFill(canvasFill, true)
 	}
 	ui.Column(c).Fill().Background(canvasFill).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {
