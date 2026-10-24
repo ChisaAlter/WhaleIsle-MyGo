@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -70,7 +71,7 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 		return
 	}
 	if client == nil || f.client != client || !f.listing.Available {
-		f.err = resumeText("请先刷新交付详情。", "Refresh the delivery details first.")
+		f.err = i18n.T(i18n.KeyCmdRefreshTheDeliveryDetailsFirst)
 		s.mu.Unlock()
 		return
 	}
@@ -146,17 +147,17 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 			}
 			switch action {
 			case "directory":
-				f.assetNote = resumeText("已请求打开项目目录。", "Requested opening the Project directory.")
+				f.assetNote = i18n.T(i18n.KeyCmdRequestedOpeningTheProjectDirectory)
 			case "diff":
 				f.assetDiff = &diff
 			case "file":
 				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
-					f.err = resumeText("导航已改变，未打开文件。", "Navigation changed; the file was not opened.")
+					f.err = i18n.T(i18n.KeyCmdNavigationChangedTheFileWasNotOpened)
 					s.mu.Unlock()
 					return
 				}
 				if resolved.ModifiedSinceReport {
-					f.assetNote = resumeText("此文件在报告后已修改，打开的是当前内容。", "This file changed after the report; opening its current contents.")
+					f.assetNote = i18n.T(i18n.KeyCmdThisFileChangedAfterTheReportOpeningI)
 				}
 				// Route through the same native presented-file entry as chat deliverables.
 				// Its dirty-editor guard owns admission; never bypass it with an OS opener.

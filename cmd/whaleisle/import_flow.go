@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
@@ -43,7 +44,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 		return
 	}
 	if s.launcherStartBusy {
-		s.launcherImport = resumeText("内核正在启动，请稍后再确认导入。", "The runtime is starting. Retry import after startup settles.")
+		s.launcherImport = i18n.T(i18n.KeyCmdTheRuntimeIsStartingRetryImportAfterS)
 		s.mu.Unlock()
 		refresh()
 		return
@@ -61,10 +62,10 @@ func (s *mainState) startImport(win *mygo.Window) {
 		return
 	}
 	s.askConfirm(confirmAskRequest{
-		Title:        resumeText("确认导入数据", "Confirm data import"),
-		Body:         importer.Confirmation(cat, sel) + "\n\n" + resumeText("导入前会检查当前任务并停止 Host 内核；如有运行中的工作，会继续显示现有任务确认。桌面窗口保持打开，导入结束后内核保持停止，可稍后手动启动。", "Before importing, current tasks are checked and the Host runtime is stopped. Active work uses the existing task confirmation. The desktop window stays open and the runtime stays stopped after import until you start it again."),
-		ConfirmLabel: resumeText("确认并继续", "Confirm and continue"),
-		CancelLabel:  resumeText("取消", "Cancel"),
+		Title:        i18n.T(i18n.KeyCmdConfirmDataImport),
+		Body:         importer.Confirmation(cat, sel) + "\n\n" + i18n.T(i18n.KeyCmdBeforeImportingCurrentTasksAreCheckedA),
+		ConfirmLabel: i18n.T(i18n.KeyCmdConfirmAndContinue),
+		CancelLabel:  i18n.T(i18n.KeyCmdCancel),
 		Danger:       true,
 		Run:          func() { s.continueImport(win, sup, cat, sel) },
 		Cancel:       release,
@@ -82,7 +83,7 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
 	s.launcherImportCancel = cancel
-	s.launcherImport = resumeText("正在检查当前任务，随后停止内核并导入；可取消后续导入。", "Checking current tasks before stopping the runtime and importing. You can cancel the remaining import.")
+	s.launcherImport = i18n.T(i18n.KeyCmdCheckingCurrentTasksBeforeStoppingTheR)
 	s.launcherImportJournal = nil
 	node := ""
 	if s.cfgStore != nil {
@@ -103,7 +104,7 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 			changed := s.sup != sup || s.quitting || s.launcherStartBusy
 			s.mu.Unlock()
 			if changed {
-				return errors.New(resumeText("运行环境已改变，请重新确认导入。", "The runtime changed. Confirm the import again."))
+				return errors.New(i18n.T(i18n.KeyCmdTheRuntimeChangedConfirmTheImportAgain))
 			}
 			if err := s.closeTaskProtectedResources(); err != nil {
 				return err
@@ -116,7 +117,7 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 			s.launcherStartBusy = false
 			s.launcherStartFailed = false
 			s.launcherStartErr = ""
-			s.launcherImport = resumeText("内核已停止，正在导入；已完成项目将保留。", "The runtime is stopped. Importing; completed items will be retained.")
+			s.launcherImport = i18n.T(i18n.KeyCmdTheRuntimeIsStoppedImportingCompletedI)
 			s.mu.Unlock()
 			refresh()
 			result, applyErr = importer.ApplyCatalogWithPlugins(ctx, cat, sel, s.importPluginInstaller(win, cat.DestHome, node), func(progress importer.ApplyResult) {
@@ -136,9 +137,9 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 		if err == nil {
 			err = applyErr
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, taskcontrol.ErrCancelled) {
-			result.Message = resumeText("已取消导入，未写入导入数据。", "Import cancelled. No import data was written.")
+			result.Message = i18n.T(i18n.KeyCmdImportCancelledNoImportDataWasWritten)
 		} else {
-			result.Message = resumeText("导入未开始：", "Import did not start: ") + err.Error()
+			result.Message = i18n.T(i18n.KeyCmdImportDidNotStart) + err.Error()
 		}
 		s.mu.Lock()
 		s.launcherImport = result.Message
@@ -148,7 +149,7 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 			s.launcherImportJournal = []string{err.Error()}
 		}
 		if kernelStopped {
-			s.launcherImport += resumeText(" 内核保持停止，可在导入结果确认后手动启动。", " The runtime remains stopped; start it manually after checking the import result.")
+			s.launcherImport += i18n.T(i18n.KeyCmdTheRuntimeRemainsStoppedStartItManuall)
 		}
 		s.launcherImportCancel = nil
 		s.launcherImportBusy = false

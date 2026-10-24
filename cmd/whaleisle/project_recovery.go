@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/projectflow"
@@ -31,7 +32,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 		}
 	}
 	if project.ID == "" || project.CoordinatorSessionID == "" || project.Lifecycle != "ready" || project.Archiving {
-		f.err = resumeText("请先刷新或恢复原 Project。", "Refresh or restore the original Project first.")
+		f.err = i18n.T(i18n.KeyCmdRefreshOrRestoreTheOriginalProjectFirs)
 		s.mu.Unlock()
 		return
 	}
@@ -131,17 +132,17 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 				return
 			}
 			if !f.visible() || f.navigation != navigation || sessions.Snapshot().SelectedID != selectedSession {
-				f.err = resumeText("导航已改变，尚未写入恢复草稿。", "Navigation changed; the recovery draft was not inserted.")
+				f.err = i18n.T(i18n.KeyCmdNavigationChangedTheRecoveryDraftWasNo)
 				s.mu.Unlock()
 				return
 			}
 			target := s.composerDraftLocked(project.CoordinatorSessionID)
 			if target.Text != "" || len(target.Attachments) > 0 || target.Sending || target.Preparing > 0 || target.EditSeq > 0 || target.EditSessionID != "" {
-				f.err = resumeText("Lead 中已有草稿或正在发送，已保留。请先处理现有草稿。", "The Lead has a draft or pending send; it was preserved. Finish that draft first.")
+				f.err = i18n.T(i18n.KeyCmdTheLeadHasADraftOrPendingSendItWas)
 				s.mu.Unlock()
 				return
 			}
-			notice := resumeText("正在向原 Lead 发送重新汇总请求；发送结果见主会话。", "Sending the recovery request to the original Lead; the main conversation shows submission status.")
+			notice := i18n.T(i18n.KeyCmdSendingTheRecoveryRequestToTheOriginal)
 			if kind == "summary" {
 				f.teamNote = notice
 			} else {

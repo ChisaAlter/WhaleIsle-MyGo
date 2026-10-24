@@ -267,7 +267,7 @@ func (w *welcomeWindow) saveAPIKey() {
 		dir := paths.UserDataDir()
 		existing, err := credentials.Load(dir)
 		if err != nil {
-			err = fmt.Errorf("%s: %w", resumeText("无法读取现有凭据", "Could not read the existing credentials"), err)
+			err = fmt.Errorf("%s: %w", i18n.T(i18n.KeyCmdCouldNotReadTheExistingCredentials), err)
 		}
 		if err == nil {
 			existing.APIKey = key

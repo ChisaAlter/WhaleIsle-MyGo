@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workID, memberID string) {
@@ -20,7 +21,7 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 		return
 	}
 	if client == nil || f.client != client || !f.listing.Available || f.teamID != id || f.team == nil || f.team.Team == nil {
-		f.err = resumeText("请先刷新 Project Team。", "Refresh the Project Team first.")
+		f.err = i18n.T(i18n.KeyCmdRefreshTheProjectTeamFirst)
 		s.mu.Unlock()
 		return
 	}
@@ -118,18 +119,18 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 				return
 			}
 			if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
-				f.err = resumeText("导航已改变，尚未写入重试草稿。", "Navigation changed; the retry draft was not inserted.")
+				f.err = i18n.T(i18n.KeyCmdNavigationChangedTheRetryDraftWasNotI)
 				s.mu.Unlock()
 				return
 			}
 			target := s.composerDraftLocked(p.CoordinatorSessionID)
 			if target.Text != "" || len(target.Attachments) > 0 || target.Sending || target.Preparing > 0 || target.EditSeq > 0 {
-				f.err = resumeText("Lead 中已有草稿或正在发送，已保留。请打开 Lead 处理现有草稿后再准备重试。", "The Lead has a draft or pending send; it was preserved. Open the Lead and finish that draft before preparing a retry.")
+				f.err = i18n.T(i18n.KeyCmdTheLeadHasADraftOrPendingSendItWas)
 				s.mu.Unlock()
 				return
 			}
 			target.Text = draft
-			f.teamNote = resumeText("重试指令已放入原 Lead 草稿，尚未发送或重试。", "Retry request placed in the original Lead draft. It has not been sent or retried.")
+			f.teamNote = i18n.T(i18n.KeyCmdRetryRequestPlacedInTheOriginalLeadDr)
 			s.mu.Unlock()
 			sessions.Select(p.CoordinatorSessionID)
 		})

@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -341,12 +342,12 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 		return
 	}
 	if client == nil || f.client != client {
-		f.err = resumeText("Host 尚未连接，请刷新。", "Host is not connected; refresh when ready.")
+		f.err = i18n.T(i18n.KeyCmdHostIsNotConnectedRefreshWhenReady)
 		s.mu.Unlock()
 		return
 	}
 	if action != "list" && !f.listing.Available {
-		f.err = resumeText("Project Host 不可用。", "Project Host is unavailable.")
+		f.err = i18n.T(i18n.KeyCmdProjectHostIsUnavailable)
 		s.mu.Unlock()
 		return
 	}

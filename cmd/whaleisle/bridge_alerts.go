@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/bridgealerts"
@@ -180,7 +181,7 @@ func (s *mainState) openWhaleBridgeAlert(run *bridgeAlertUI, ticket bridgealerts
 				return
 			}
 			if err != nil {
-				run.actionError = resumeText("鲸桥实例已改变或暂不可用，未打开其他实例。", "The WhaleBridge instance changed or is unavailable. No other instance was opened.")
+				run.actionError = i18n.T(i18n.KeyCmdTheWhalebridgeInstanceChangedOrIsUnava)
 			} else {
 				run.actionError = ""
 			}
@@ -207,7 +208,7 @@ func (s *mainState) withWhaleBridgeAlerts(m launcher.Model) launcher.Model {
 						return
 					}
 					if err != nil {
-						run.actionError = resumeText("鲸桥实例已改变，请重新查看提醒。", "The WhaleBridge instance changed. Review its reminders again.")
+						run.actionError = i18n.T(i18n.KeyCmdTheWhalebridgeInstanceChangedReviewIts)
 					} else {
 						run.actionError = ""
 					}

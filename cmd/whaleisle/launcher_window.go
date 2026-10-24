@@ -477,7 +477,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 				state.mu.Lock()
 				state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"
 				if action != "start" {
-					state.launcherUpdate = resumeText("正在打开鲸桥设置…", "Opening WhaleBridge settings…")
+					state.launcherUpdate = i18n.T(i18n.KeyCmdOpeningWhalebridgeSettings)
 				}
 				state.launcherComponentStatus = state.launcherUpdate
 				state.mu.Unlock()

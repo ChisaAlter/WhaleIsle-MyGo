@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -52,7 +53,7 @@ func (s *mainState) refuseHostAction() {
 
 // hostNotReadyToast is the shared wording for "no Host yet" refusals.
 func hostNotReadyToast() string {
-	return resumeText("尚未连接 Host，请稍后重试", "Not connected to the Host yet — try again shortly")
+	return i18n.T(i18n.KeyCmdNotConnectedToTheHostYetTryAgainShor)
 }
 
 // saveFailedToast names the action that failed and keeps the Host's reason.
@@ -62,9 +63,9 @@ func saveFailedToast(action string, err error) string {
 		reason = strings.TrimSpace(err.Error())
 	}
 	if reason == "" {
-		return action + resumeText("失败", " failed")
+		return action + i18n.T(i18n.KeyCmdFailed)
 	}
-	return action + resumeText("失败：", " failed: ") + reason
+	return action + i18n.T(i18n.KeyCmdFailed) + reason
 }
 
 // consumePendingToast paints the queued message once, before anything else in

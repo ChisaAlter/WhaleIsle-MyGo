@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -213,7 +214,7 @@ func (s *projectController) revertProjectRequestOwned(win *mygo.Window, state *p
 					if f.requestCard != nil && f.requestCard.ID == requestID {
 						f.requestCard = nil
 					}
-					f.err = resumeText("改动已撤销，但读取结果失败；请刷新，不要重复撤销。", "Changes were reverted, but refreshing failed; refresh without repeating the revert.") + " " + err.Error()
+					f.err = i18n.T(i18n.KeyCmdChangesWereRevertedButRefreshingFailed) + " " + err.Error()
 				}
 				return
 			}
@@ -226,7 +227,7 @@ func (s *projectController) revertProjectRequestOwned(win *mygo.Window, state *p
 				}
 			}
 			f.assetDiff = nil
-			f.assetNote = resumeText("已撤销此要求的改动。", "This requirement’s changes were reverted.")
+			f.assetNote = i18n.T(i18n.KeyCmdThisRequirementSChangesWereReverted)
 		})
 	}()
 	win.Update(func() {})

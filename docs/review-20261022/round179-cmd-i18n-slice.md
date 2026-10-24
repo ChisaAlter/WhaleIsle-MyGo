@@ -102,3 +102,17 @@
 
   注：`187 − 101 = 86`，当前扫描为 99，差额来自本批之外的文件（`application_menu.go` 由 1 增至 4 等），属并行改动的增量，列在这里备下一批核对。
 - 门禁：`go test ./internal/ui/i18n ./cmd/whaleisle -count=1` → i18n 0.610s、cmd 27.451s，全部 ok；`go vet ./cmd/whaleisle ./internal/ui/i18n` → 退出 0；`go build ./cmd/whaleisle` → 退出 0。未提交、未构建 passN，未改 settings/chat/remote/frame、runtime/vendor、third_party。
+
+## 8. 第三批（task-69）：收尾，cmd 已无 UI 文案内联
+
+- 迁移剩余 24 个文件的 **94 处 `resumeText` 调用**（import_flow 11、whalebridge_window 8、generic_components/project_live_refresh/application_uninstall 各 7、startup_recovery 6、project_lifecycle/startup_diagnostics 各 5、project_detail/project_requests/project_recovery/project_assets/application_menu 各 4，notify 3，尾部文件各 1–2），新增 83 个键。
+- 另把两条菜单构造器改成「只接收已本地化标签」：`application_menu.go` 的 `item/plain/group(id, zh, en …)` → `(id, label …)`，`desktop_tray_menu.go` 的 `row(id, zh, en, fn)` → `(id, label, fn)`；27 处调用点（文件/帮助/视图/窗口/托盘菜单项）改为 `i18n.T(i18n.KeyCmd…)`，新增 21 个键；`MCP…`、`Python SDK` 两个中英同形的缩写标签保持字面量传递。
+- 目录：`catalog_cmd.go` 现在 **322 个 `cmd.*` 键**、322 条 Register、0 重复。
+- 全量扫描（`cmd/whaleisle` 全部文件）剩余 `resumeText(` 仅 4 处，**没有 UI 文案**：
+  1. `application_menu.go:73` 的菜单缓存签名 `string(encoded) + resumeText("zh","en") + revision`（对语言无关串取哈希，不是可见文案）；
+  2. `application_commands_acceptance_windows_test.go:57`（上面签名的测试镜像）；
+  3. `cmd_i18n_slice_test.go:450` 自身扫描用的字面量；
+  4. `recovery.go:16` 的 `func resumeText(zh, en string)` 定义。
+- **86 vs 99 差额的核对结论**：单位不一致。round179 的 187 是「行数」，第二批的 101 是「调用次数」（同一行可有两次调用），且期间 `application_menu.go` 等被并行改动新增了 3 处，所以不能直接相减。权威口径是本批开始前的逐文件行扫描 = 99；本批移除了 94 行 `resumeText` 调用 + 27 处菜单 helper 调用点，最终剩 4 个非文案 token。
+- 测试：[cmd_i18n_slice_test.go](<C:/AI/WhaleIsle-MyGo/cmd/whaleisle/cmd_i18n_slice_test.go>) 的键清单改为目录全量 **322 个键**，覆盖文件清单改为自动取「引用 `i18n.KeyCmd` 的源文件」共 **62 个**；`TestCmdI18nSliceCatalog`（双语、非空、zh≠en、动词数一致）与 `TestCmdI18nSliceCallSites`（62 个文件不得残留被迁移中文）均通过。
+- 门禁：`go test ./internal/ui/i18n ./cmd/whaleisle -count=1` → i18n 0.817s、cmd 35.335s，全部 ok；`go vet ./cmd/whaleisle ./internal/ui/i18n` → 退出 0；`go build ./cmd/whaleisle` → 退出 0。未提交、未构建 passN，未改 settings/chat/remote/frame、runtime/vendor、third_party。

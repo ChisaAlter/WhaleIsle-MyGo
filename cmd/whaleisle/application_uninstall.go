@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"runtime"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/appuninstall"
@@ -22,8 +23,8 @@ func (s *mainState) withApplicationUninstall(win *mygo.Window, m launcher.Model)
 			_, _ = mygo.Dialog.Message(mygo.MessageOptions{
 				Parent:  win,
 				Type:    mygo.MessageWarning,
-				Title:   resumeText("无法打开已安装应用", "Could not open Installed apps"),
-				Message: resumeText("请手动进入 Windows 设置 → 应用 → 已安装应用，核对应用后再自行卸载。当前应用和安装状态未更改。", "Open Windows Settings > Apps > Installed apps manually, check the application, then uninstall it there. The current app and installation state are unchanged.") + "\n\n" + err.Error(),
+				Title:   i18n.T(i18n.KeyCmdCouldNotOpenInstalledApps),
+				Message: i18n.T(i18n.KeyCmdOpenWindowsSettingsAppsInstalledAppsMa) + "\n\n" + err.Error(),
 			})
 		}
 	}
@@ -52,14 +53,14 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 		}()
 		plan, err := appuninstall.DetectCurrent()
 		if err != nil {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("未检测到可安全启动的卸载器", "No verified uninstaller found"), Message: resumeText("当前程序可能为便携版、源码构建或没有新版原生安装标记。未启动任何卸载器。请使用“已安装应用”并核对安装位置。", "This may be a portable/source build or an installation without the native marker. No uninstaller was started. Use Installed apps and check the installation location.") + "\n\n" + err.Error()})
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdNoVerifiedUninstallerFound), Message: i18n.T(i18n.KeyCmdThisMayBeAPortableSourceBuildOrAnIn) + "\n\n" + err.Error()})
 			return
 		}
 		approved := s.askConfirmBlocking(confirmAskRequest{
-			Title:        resumeText("卸载当前原生应用", "Uninstall current native app"),
-			Body:         resumeText("继续将检查并停止任务、启动此安装的卸载器并退出应用。卸载器仍会要求确认；在其中取消不会恢复已退出的应用。不会清理用户数据目录。安装位置：", "Continuing checks and stops tasks, opens this installation's uninstaller and quits the app. The uninstaller still asks for confirmation; cancelling there will not reopen the app. User data directories are retained. Install location: ") + plan.InstallLocation(),
-			ConfirmLabel: resumeText("启动卸载器并退出", "Start uninstaller and quit"),
-			CancelLabel:  resumeText("取消", "Cancel"),
+			Title:        i18n.T(i18n.KeyCmdUninstallCurrentNativeApp),
+			Body:         i18n.T(i18n.KeyCmdContinuingChecksAndStopsTasksOpensThis) + plan.InstallLocation(),
+			ConfirmLabel: i18n.T(i18n.KeyCmdStartUninstallerAndQuit),
+			CancelLabel:  i18n.T(i18n.KeyCmdCancel),
 			Danger:       true,
 		})
 		if !approved || !s.saveResumeBeforeClose(win) {

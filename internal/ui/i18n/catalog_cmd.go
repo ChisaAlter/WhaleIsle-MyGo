@@ -219,6 +219,110 @@ const (
 	KeyCmdRemoteWorkspace                        = "cmd.remote_workspace"
 	KeyCmdOpenTheDownloadPage                    = "cmd.open_the_download_page"
 	KeyCmdAutoAllowTools                         = "cmd.auto_allow_tools"
+	KeyCmdCouldNotOpenInstalledApps              = "cmd.could_not_open_installed_apps"
+	KeyCmdOpenWindowsSettingsAppsInstalledAppsMa = "cmd.open_windows_settings_apps_installed_apps_ma"
+	KeyCmdNoVerifiedUninstallerFound             = "cmd.no_verified_uninstaller_found"
+	KeyCmdThisMayBeAPortableSourceBuildOrAnIn    = "cmd.this_may_be_a_portable_source_build_or_an_in"
+	KeyCmdUninstallCurrentNativeApp              = "cmd.uninstall_current_native_app"
+	KeyCmdContinuingChecksAndStopsTasksOpensThis = "cmd.continuing_checks_and_stops_tasks_opens_this"
+	KeyCmdStartUninstallerAndQuit                = "cmd.start_uninstaller_and_quit"
+	KeyCmdTheWhalebridgeInstanceChangedOrIsUnava = "cmd.the_whalebridge_instance_changed_or_is_unava"
+	KeyCmdTheWhalebridgeInstanceChangedReviewIts = "cmd.the_whalebridge_instance_changed_review_its"
+	KeyCmdUninstallComponent                     = "cmd.uninstall_component"
+	KeyCmdStopAndRemoveAndItsProgramFilesConfig  = "cmd.stop_and_remove_and_its_program_files_config"
+	KeyCmdUninstall                              = "cmd.uninstall"
+	KeyCmdRollBackComponent                      = "cmd.roll_back_component"
+	KeyCmdRollBackToVItsRunningProcessWillBeS    = "cmd.roll_back_to_v_its_running_process_will_be_s"
+	KeyCmdTheRuntimeIsStartingRetryImportAfterS  = "cmd.the_runtime_is_starting_retry_import_after_s"
+	KeyCmdConfirmDataImport                      = "cmd.confirm_data_import"
+	KeyCmdBeforeImportingCurrentTasksAreCheckedA = "cmd.before_importing_current_tasks_are_checked_a"
+	KeyCmdConfirmAndContinue                     = "cmd.confirm_and_continue"
+	KeyCmdCheckingCurrentTasksBeforeStoppingTheR = "cmd.checking_current_tasks_before_stopping_the_r"
+	KeyCmdTheRuntimeChangedConfirmTheImportAgain = "cmd.the_runtime_changed_confirm_the_import_again"
+	KeyCmdTheRuntimeIsStoppedImportingCompletedI = "cmd.the_runtime_is_stopped_importing_completed_i"
+	KeyCmdImportCancelledNoImportDataWasWritten  = "cmd.import_cancelled_no_import_data_was_written"
+	KeyCmdImportDidNotStart                      = "cmd.import_did_not_start"
+	KeyCmdTheRuntimeRemainsStoppedStartItManuall = "cmd.the_runtime_remains_stopped_start_it_manuall"
+	KeyCmdImportRecoveryIsIncompleteAllCopiesWer = "cmd.import_recovery_is_incomplete_all_copies_wer"
+	KeyCmdAnInterruptedImportWasRecoveredComplet = "cmd.an_interrupted_import_was_recovered_complete"
+	KeyCmdOpeningWhalebridgeSettings             = "cmd.opening_whalebridge_settings"
+	KeyCmdOfflineWaitingForNetworkAvailability   = "cmd.offline_waiting_for_network_availability"
+	KeyCmdNotConnectedToTheHostYetTryAgainShor   = "cmd.not_connected_to_the_host_yet_try_again_shor"
+	KeyCmdFailed                                 = "cmd.failed"
+	KeyCmdRefreshTheDeliveryDetailsFirst         = "cmd.refresh_the_delivery_details_first"
+	KeyCmdRequestedOpeningTheProjectDirectory    = "cmd.requested_opening_the_project_directory"
+	KeyCmdNavigationChangedTheFileWasNotOpened   = "cmd.navigation_changed_the_file_was_not_opened"
+	KeyCmdThisFileChangedAfterTheReportOpeningI  = "cmd.this_file_changed_after_the_report_opening_i"
+	KeyCmdRefreshTheProjectTeamFirst             = "cmd.refresh_the_project_team_first"
+	KeyCmdNavigationChangedTheRetryDraftWasNotI  = "cmd.navigation_changed_the_retry_draft_was_not_i"
+	KeyCmdTheLeadHasADraftOrPendingSendItWas     = "cmd.the_lead_has_a_draft_or_pending_send_it_was"
+	KeyCmdRetryRequestPlacedInTheOriginalLeadDr  = "cmd.retry_request_placed_in_the_original_lead_dr"
+	KeyCmdHostIsNotConnectedRefreshWhenReady     = "cmd.host_is_not_connected_refresh_when_ready"
+	KeyCmdProjectHostIsUnavailable               = "cmd.project_host_is_unavailable"
+	KeyCmdProjectHostUnavailableRefreshToRetry   = "cmd.project_host_unavailable_refresh_to_retry"
+	KeyCmdProjectUnavailableOrArchivingRefreshTo = "cmd.project_unavailable_or_archiving_refresh_to"
+	KeyCmdProjectStateUpdatedButListRefreshFaile = "cmd.project_state_updated_but_list_refresh_faile"
+	KeyCmdProjectArchivedWorkHasStoppedConversat = "cmd.project_archived_work_has_stopped_conversati"
+	KeyCmdProjectRestoredSendANewInstructionInT  = "cmd.project_restored_send_a_new_instruction_in_t"
+	KeyCmdAutomaticRefreshFailedShowingPreviousS = "cmd.automatic_refresh_failed_showing_previous_st"
+	KeyCmdAutoRefreshEvery5s                     = "cmd.auto_refresh_every_5s"
+	KeyCmdThisProjectIsNoLongerInTheHostList     = "cmd.this_project_is_no_longer_in_the_host_list"
+	KeyCmdTeamRefreshFailedShowingPreviousState  = "cmd.team_refresh_failed_showing_previous_state"
+	KeyCmdMemberDetailRefreshFailed              = "cmd.member_detail_refresh_failed"
+	KeyCmdTheMemberRunChangedPreviousRecordsAre  = "cmd.the_member_run_changed_previous_records_are"
+	KeyCmdProjectAndTeamStateRefreshAutomaticall = "cmd.project_and_team_state_refresh_automatically"
+	KeyCmdRefreshOrRestoreTheOriginalProjectFirs = "cmd.refresh_or_restore_the_original_project_firs"
+	KeyCmdNavigationChangedTheRecoveryDraftWasNo = "cmd.navigation_changed_the_recovery_draft_was_no"
+	KeyCmdSendingTheRecoveryRequestToTheOriginal = "cmd.sending_the_recovery_request_to_the_original"
+	KeyCmdChangesWereRevertedButRefreshingFailed = "cmd.changes_were_reverted_but_refreshing_failed"
+	KeyCmdThisRequirementSChangesWereReverted    = "cmd.this_requirement_s_changes_were_reverted"
+	KeyCmdProjectHostIsUnavailableRefreshToRetry = "cmd.project_host_is_unavailable_refresh_to_retry"
+	KeyCmdProjectIsNoLongerInTheCurrentListRef   = "cmd.project_is_no_longer_in_the_current_list_ref"
+	KeyCmdRestoreTheProjectBeforeChangingRequest = "cmd.restore_the_project_before_changing_request"
+	KeyCmdCardUpdatedButListRefreshFailedRefresh = "cmd.card_updated_but_list_refresh_failed_refresh"
+	KeyCmdThisProjectIsNotInTheCurrentListRefr   = "cmd.this_project_is_not_in_the_current_list_refr"
+	KeyCmdResumeStateWasNotSaved                 = "cmd.resume_state_was_not_saved"
+	KeyCmdTaskDeleted                            = "cmd.task_deleted"
+	KeyCmdCouldNotDeleteTheTask                  = "cmd.could_not_delete_the_task"
+	KeyCmdDiagnosticsOrPluginInventoryChangedRef = "cmd.diagnostics_or_plugin_inventory_changed_refr"
+	KeyCmdPluginOperationDidNotComplete          = "cmd.plugin_operation_did_not_complete"
+	KeyCmdApplied                                = "cmd.applied"
+	KeyCmdUpdatedPlugins                         = "cmd.updated_plugins"
+	KeyCmdRetryingFullStartupRecoveryCompletesOn = "cmd.retrying_full_startup_recovery_completes_onl"
+	KeyCmdThePreviousStartDidNotFullyRecoverAut  = "cmd.the_previous_start_did_not_fully_recover_aut"
+	KeyCmdTheRecoveryFileWasPreservedRepairItAn  = "cmd.the_recovery_file_was_preserved_repair_it_an"
+	KeyCmdSkipUserPluginsRecoveryIsSavedStartIn  = "cmd.skip_user_plugins_recovery_is_saved_start_in"
+	KeyCmdRecoveryModeIsReadyUserPluginsRemainS  = "cmd.recovery_mode_is_ready_user_plugins_remain_s"
+	KeyCmdCouldNotSaveStartupOutcome             = "cmd.could_not_save_startup_outcome"
+	KeyCmdRecoveryModeIsReadyUserPluginsAreStil  = "cmd.recovery_mode_is_ready_user_plugins_are_stil"
+	KeyCmdCouldNotReadTheExistingCredentials     = "cmd.could_not_read_the_existing_credentials"
+	KeyCmdWhalebridge                            = "cmd.whalebridge"
+	KeyCmdCouldNotOpenTheWhalebridgeWindow       = "cmd.could_not_open_the_whalebridge_window"
+	KeyCmdCouldNotCreateTheWhalebridgePage       = "cmd.could_not_create_the_whalebridge_page"
+	KeyCmdAccounts                               = "cmd.accounts"
+	KeyCmdReload                                 = "cmd.reload"
+	KeyCmdOpeningTheWhalebridgeManagementPage    = "cmd.opening_the_whalebridge_management_page"
+	KeyCmdRestartHarness                         = "cmd.restart_harness"
+	KeyCmdShowWindow                             = "cmd.show_window"
+	KeyCmdOpenLauncher                           = "cmd.open_launcher"
+	KeyCmdSettings                               = "cmd.settings"
+	KeyCmdPluginMarketplace                      = "cmd.plugin_marketplace"
+	KeyCmdCloseWindow                            = "cmd.close_window"
+	KeyCmdAbout                                  = "cmd.about"
+	KeyCmdFile                                   = "cmd.file"
+	KeyCmdOpenWorkspace                          = "cmd.open_workspace"
+	KeyCmdOpenWorkspaceInExplorer                = "cmd.open_workspace_in_explorer"
+	KeyCmdMarketplace                            = "cmd.marketplace"
+	KeyCmdSkills                                 = "cmd.skills"
+	KeyCmdRun                                    = "cmd.run"
+	KeyCmdReloadInterface                        = "cmd.reload_interface"
+	KeyCmdView                                   = "cmd.view"
+	KeyCmdActualSize                             = "cmd.actual_size"
+	KeyCmdZoomIn                                 = "cmd.zoom_in"
+	KeyCmdZoomOut                                = "cmd.zoom_out"
+	KeyCmdFullscreen                             = "cmd.fullscreen"
+	KeyCmdHelp                                   = "cmd.help"
+	KeyCmdWebUiGuide                             = "cmd.web_ui_guide"
 )
 
 func init() {
@@ -437,6 +541,110 @@ func init() {
 	Register(KeyCmdRemoteWorkspace, "远程工作区", "Remote workspace")
 	Register(KeyCmdOpenTheDownloadPage, "打开下载页", "Open the download page")
 	Register(KeyCmdAutoAllowTools, "自动允许工具", "Auto-allow tools")
+	Register(KeyCmdCouldNotOpenInstalledApps, "无法打开已安装应用", "Could not open Installed apps")
+	Register(KeyCmdOpenWindowsSettingsAppsInstalledAppsMa, "请手动进入 Windows 设置 → 应用 → 已安装应用，核对应用后再自行卸载。当前应用和安装状态未更改。", "Open Windows Settings > Apps > Installed apps manually, check the application, then uninstall it there. The current app and installation state are unchanged.")
+	Register(KeyCmdNoVerifiedUninstallerFound, "未检测到可安全启动的卸载器", "No verified uninstaller found")
+	Register(KeyCmdThisMayBeAPortableSourceBuildOrAnIn, "当前程序可能为便携版、源码构建或没有新版原生安装标记。未启动任何卸载器。请使用“已安装应用”并核对安装位置。", "This may be a portable/source build or an installation without the native marker. No uninstaller was started. Use Installed apps and check the installation location.")
+	Register(KeyCmdUninstallCurrentNativeApp, "卸载当前原生应用", "Uninstall current native app")
+	Register(KeyCmdContinuingChecksAndStopsTasksOpensThis, "继续将检查并停止任务、启动此安装的卸载器并退出应用。卸载器仍会要求确认；在其中取消不会恢复已退出的应用。不会清理用户数据目录。安装位置：", "Continuing checks and stops tasks, opens this installation's uninstaller and quits the app. The uninstaller still asks for confirmation; cancelling there will not reopen the app. User data directories are retained. Install location: ")
+	Register(KeyCmdStartUninstallerAndQuit, "启动卸载器并退出", "Start uninstaller and quit")
+	Register(KeyCmdTheWhalebridgeInstanceChangedOrIsUnava, "鲸桥实例已改变或暂不可用，未打开其他实例。", "The WhaleBridge instance changed or is unavailable. No other instance was opened.")
+	Register(KeyCmdTheWhalebridgeInstanceChangedReviewIts, "鲸桥实例已改变，请重新查看提醒。", "The WhaleBridge instance changed. Review its reminders again.")
+	Register(KeyCmdUninstallComponent, "卸载组件", "Uninstall component")
+	Register(KeyCmdStopAndRemoveAndItsProgramFilesConfig, "将停止并删除组件「%s」及其程序文件，其配置数据会保留。", "Stop and remove %s and its program files. Configuration data will be retained.")
+	Register(KeyCmdUninstall, "卸载", "Uninstall")
+	Register(KeyCmdRollBackComponent, "回滚组件", "Roll back component")
+	Register(KeyCmdRollBackToVItsRunningProcessWillBeS, "将把组件「%s」回滚到 v%s，当前进程会先停止。", "Roll back %s to v%s. Its running process will be stopped first.")
+	Register(KeyCmdTheRuntimeIsStartingRetryImportAfterS, "内核正在启动，请稍后再确认导入。", "The runtime is starting. Retry import after startup settles.")
+	Register(KeyCmdConfirmDataImport, "确认导入数据", "Confirm data import")
+	Register(KeyCmdBeforeImportingCurrentTasksAreCheckedA, "导入前会检查当前任务并停止 Host 内核；如有运行中的工作，会继续显示现有任务确认。桌面窗口保持打开，导入结束后内核保持停止，可稍后手动启动。", "Before importing, current tasks are checked and the Host runtime is stopped. Active work uses the existing task confirmation. The desktop window stays open and the runtime stays stopped after import until you start it again.")
+	Register(KeyCmdConfirmAndContinue, "确认并继续", "Confirm and continue")
+	Register(KeyCmdCheckingCurrentTasksBeforeStoppingTheR, "正在检查当前任务，随后停止内核并导入；可取消后续导入。", "Checking current tasks before stopping the runtime and importing. You can cancel the remaining import.")
+	Register(KeyCmdTheRuntimeChangedConfirmTheImportAgain, "运行环境已改变，请重新确认导入。", "The runtime changed. Confirm the import again.")
+	Register(KeyCmdTheRuntimeIsStoppedImportingCompletedI, "内核已停止，正在导入；已完成项目将保留。", "The runtime is stopped. Importing; completed items will be retained.")
+	Register(KeyCmdImportCancelledNoImportDataWasWritten, "已取消导入，未写入导入数据。", "Import cancelled. No import data was written.")
+	Register(KeyCmdImportDidNotStart, "导入未开始：", "Import did not start: ")
+	Register(KeyCmdTheRuntimeRemainsStoppedStartItManuall, " 内核保持停止，可在导入结果确认后手动启动。", " The runtime remains stopped; start it manually after checking the import result.")
+	Register(KeyCmdImportRecoveryIsIncompleteAllCopiesWer, "导入恢复尚未完成，已保留所有副本，暂不能启动内核：", "Import recovery is incomplete. All copies were preserved and runtime startup is blocked: ")
+	Register(KeyCmdAnInterruptedImportWasRecoveredComplet, "已恢复中断的导入。已完成项目保留；未完成目录已回到原状。请检查选择后继续导入，或点击启动内核。", "An interrupted import was recovered. Completed items were kept and incomplete directories were restored. Review your selection to continue importing, or start the runtime.")
+	Register(KeyCmdOpeningWhalebridgeSettings, "正在打开鲸桥设置…", "Opening WhaleBridge settings…")
+	Register(KeyCmdOfflineWaitingForNetworkAvailability, "网络已离线，等待网络恢复。", "Offline. Waiting for network availability.")
+	Register(KeyCmdNotConnectedToTheHostYetTryAgainShor, "尚未连接 Host，请稍后重试", "Not connected to the Host yet — try again shortly")
+	Register(KeyCmdFailed, "失败", " failed")
+	Register(KeyCmdRefreshTheDeliveryDetailsFirst, "请先刷新交付详情。", "Refresh the delivery details first.")
+	Register(KeyCmdRequestedOpeningTheProjectDirectory, "已请求打开项目目录。", "Requested opening the Project directory.")
+	Register(KeyCmdNavigationChangedTheFileWasNotOpened, "导航已改变，未打开文件。", "Navigation changed; the file was not opened.")
+	Register(KeyCmdThisFileChangedAfterTheReportOpeningI, "此文件在报告后已修改，打开的是当前内容。", "This file changed after the report; opening its current contents.")
+	Register(KeyCmdRefreshTheProjectTeamFirst, "请先刷新 Project Team。", "Refresh the Project Team first.")
+	Register(KeyCmdNavigationChangedTheRetryDraftWasNotI, "导航已改变，尚未写入重试草稿。", "Navigation changed; the retry draft was not inserted.")
+	Register(KeyCmdTheLeadHasADraftOrPendingSendItWas, "Lead 中已有草稿或正在发送，已保留。请打开 Lead 处理现有草稿后再准备重试。", "The Lead has a draft or pending send; it was preserved. Open the Lead and finish that draft before preparing a retry.")
+	Register(KeyCmdRetryRequestPlacedInTheOriginalLeadDr, "重试指令已放入原 Lead 草稿，尚未发送或重试。", "Retry request placed in the original Lead draft. It has not been sent or retried.")
+	Register(KeyCmdHostIsNotConnectedRefreshWhenReady, "Host 尚未连接，请刷新。", "Host is not connected; refresh when ready.")
+	Register(KeyCmdProjectHostIsUnavailable, "Project Host 不可用。", "Project Host is unavailable.")
+	Register(KeyCmdProjectHostUnavailableRefreshToRetry, "Project Host不可用，请刷新。", "Project Host unavailable; refresh to retry.")
+	Register(KeyCmdProjectUnavailableOrArchivingRefreshTo, "Project不可用或正在归档，请刷新。", "Project unavailable or archiving; refresh to retry.")
+	Register(KeyCmdProjectStateUpdatedButListRefreshFaile, "Project状态已更新，但列表刷新失败：", "Project state updated, but list refresh failed: ")
+	Register(KeyCmdProjectArchivedWorkHasStoppedConversat, "Project已归档。工作已停止，对话、工作目录和成果保留。", "Project archived. Work has stopped; conversation, working directory and results are retained.")
+	Register(KeyCmdProjectRestoredSendANewInstructionInT, "Project已恢复。请在原Lead对话发送新指令，旧任务不会自动重启。", "Project restored. Send a new instruction in the original Lead conversation; old work does not restart automatically.")
+	Register(KeyCmdAutomaticRefreshFailedShowingPreviousS, "自动刷新失败，保留上次状态：", "Automatic refresh failed; showing previous state: ")
+	Register(KeyCmdAutoRefreshEvery5s, "每5秒自动刷新 · ", "Auto-refresh every 5s · ")
+	Register(KeyCmdThisProjectIsNoLongerInTheHostList, "此Project已不在Host列表中。", "This Project is no longer in the Host list.")
+	Register(KeyCmdTeamRefreshFailedShowingPreviousState, "Team刷新失败，保留上次状态：", "Team refresh failed; showing previous state: ")
+	Register(KeyCmdMemberDetailRefreshFailed, "成员详情刷新失败：", "Member detail refresh failed: ")
+	Register(KeyCmdTheMemberRunChangedPreviousRecordsAre, "成员执行轮次已变化；保留旧过程，可重新选择实时跟进。", "The member run changed; previous records are preserved. Select live follow again for the new run.")
+	Register(KeyCmdProjectAndTeamStateRefreshAutomaticall, "每5秒自动刷新项目与Team状态。", "Project and Team state refresh automatically every 5 seconds.")
+	Register(KeyCmdRefreshOrRestoreTheOriginalProjectFirs, "请先刷新或恢复原 Project。", "Refresh or restore the original Project first.")
+	Register(KeyCmdNavigationChangedTheRecoveryDraftWasNo, "导航已改变，尚未写入恢复草稿。", "Navigation changed; the recovery draft was not inserted.")
+	Register(KeyCmdSendingTheRecoveryRequestToTheOriginal, "正在向原 Lead 发送重新汇总请求；发送结果见主会话。", "Sending the recovery request to the original Lead; the main conversation shows submission status.")
+	Register(KeyCmdChangesWereRevertedButRefreshingFailed, "改动已撤销，但读取结果失败；请刷新，不要重复撤销。", "Changes were reverted, but refreshing failed; refresh without repeating the revert.")
+	Register(KeyCmdThisRequirementSChangesWereReverted, "已撤销此要求的改动。", "This requirement’s changes were reverted.")
+	Register(KeyCmdProjectHostIsUnavailableRefreshToRetry, "Project Host 不可用，请刷新。", "Project Host is unavailable; refresh to retry.")
+	Register(KeyCmdProjectIsNoLongerInTheCurrentListRef, "Project 已不在当前列表，请刷新。", "Project is no longer in the current list; refresh to retry.")
+	Register(KeyCmdRestoreTheProjectBeforeChangingRequest, "恢复 Project 后才能修改要求卡片。", "Restore the Project before changing request cards.")
+	Register(KeyCmdCardUpdatedButListRefreshFailedRefresh, "卡片已更新，但列表刷新失败；请刷新，勿重复操作", "Card updated, but list refresh failed; refresh without repeating the mutation")
+	Register(KeyCmdThisProjectIsNotInTheCurrentListRefr, "此 Project 已不在当前列表，请刷新。", "This Project is not in the current list; refresh to retry.")
+	Register(KeyCmdResumeStateWasNotSaved, "恢复状态未保存", "Resume state was not saved")
+	Register(KeyCmdTaskDeleted, "任务已删除", "Task deleted.")
+	Register(KeyCmdCouldNotDeleteTheTask, "无法删除任务", "Could not delete the task.")
+	Register(KeyCmdDiagnosticsOrPluginInventoryChangedRef, "诊断或插件库存已变化，请刷新后重试。", "Diagnostics or plugin inventory changed; refresh and retry.")
+	Register(KeyCmdPluginOperationDidNotComplete, "插件操作未完成。", "Plugin operation did not complete.")
+	Register(KeyCmdApplied, "已应用：", "Applied: ")
+	Register(KeyCmdUpdatedPlugins, "已更新插件：", "Updated plugins: ")
+	Register(KeyCmdRetryingFullStartupRecoveryCompletesOn, "。正在完整重试；Host 健康就绪后才算恢复完成。", ". Retrying full startup; recovery completes only after the Host is healthy.")
+	Register(KeyCmdThePreviousStartDidNotFullyRecoverAut, "上次启动未完整恢复，已暂停自动启动。请查看诊断后重试。", "The previous start did not fully recover. Auto-start is paused; review diagnostics and retry.")
+	Register(KeyCmdTheRecoveryFileWasPreservedRepairItAn, "恢复文件已保留，请修复后重新打开应用。", "The recovery file was preserved; repair it and reopen the app.")
+	Register(KeyCmdSkipUserPluginsRecoveryIsSavedStartIn, "已保留跳过用户插件的恢复模式。可继续以恢复模式启动，或清除恢复标记后重试全部插件。", "Skip-user-plugins recovery is saved. Start in recovery mode, or clear recovery and retry all plugins.")
+	Register(KeyCmdRecoveryModeIsReadyUserPluginsRemainS, "仅恢复模式就绪；用户插件仍被跳过。", "Recovery mode is ready; user plugins remain skipped.")
+	Register(KeyCmdCouldNotSaveStartupOutcome, "启动结果未能保存：", "Could not save startup outcome: ")
+	Register(KeyCmdRecoveryModeIsReadyUserPluginsAreStil, "恢复模式已就绪；用户插件仍被跳过。请在插件页检查原因并明确恢复。", "Recovery mode is ready; user plugins are still skipped. Review the cause on the Plugins page before restoring them.")
+	Register(KeyCmdCouldNotReadTheExistingCredentials, "无法读取现有凭据", "Could not read the existing credentials")
+	Register(KeyCmdWhalebridge, "鲸桥 · WhaleBridge", "WhaleBridge")
+	Register(KeyCmdCouldNotOpenTheWhalebridgeWindow, "无法打开鲸桥管理窗口", "Could not open the WhaleBridge window")
+	Register(KeyCmdCouldNotCreateTheWhalebridgePage, "无法创建鲸桥页面：", "Could not create the WhaleBridge page: ")
+	Register(KeyCmdAccounts, "账号页", "Accounts")
+	Register(KeyCmdReload, "重新载入", "Reload")
+	Register(KeyCmdOpeningTheWhalebridgeManagementPage, "正在打开鲸桥管理页…", "Opening the WhaleBridge management page…")
+	Register(KeyCmdRestartHarness, "重启 Harness", "Restart Harness")
+	Register(KeyCmdShowWindow, "显示窗口", "Show window")
+	Register(KeyCmdOpenLauncher, "打开启动器", "Open launcher")
+	Register(KeyCmdSettings, "设置…", "Settings…")
+	Register(KeyCmdPluginMarketplace, "插件市场", "Plugin marketplace")
+	Register(KeyCmdCloseWindow, "关闭窗口", "Close window")
+	Register(KeyCmdAbout, "关于", "About")
+	Register(KeyCmdFile, "文件", "File")
+	Register(KeyCmdOpenWorkspace, "打开工作区…", "Open workspace…")
+	Register(KeyCmdOpenWorkspaceInExplorer, "在资源管理器中打开工作区", "Open workspace in explorer")
+	Register(KeyCmdMarketplace, "插件市场…", "Marketplace…")
+	Register(KeyCmdSkills, "技能…", "Skills…")
+	Register(KeyCmdRun, "运行", "Run")
+	Register(KeyCmdReloadInterface, "重新加载界面", "Reload interface")
+	Register(KeyCmdView, "视图", "View")
+	Register(KeyCmdActualSize, "实际大小", "Actual size")
+	Register(KeyCmdZoomIn, "放大", "Zoom in")
+	Register(KeyCmdZoomOut, "缩小", "Zoom out")
+	Register(KeyCmdFullscreen, "全屏", "Fullscreen")
+	Register(KeyCmdHelp, "帮助", "Help")
+	Register(KeyCmdWebUiGuide, "Web UI 指南", "Web UI guide")
 }
 
 // Window titles, dialog titles and notifications opened from the desktop

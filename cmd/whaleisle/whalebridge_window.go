@@ -3,6 +3,7 @@ package main
 import (
 	"net/url"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -98,7 +99,7 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		target = address + whaleBridgeAccountsAnchor
 	}
 	win := mygo.NewWindow(mygo.WindowOptions{
-		Title:          resumeText("鲸桥 · WhaleBridge", "WhaleBridge"),
+		Title:          i18n.T(i18n.KeyCmdWhalebridge),
 		Width:          whaleBridgeWindowWidth,
 		Height:         whaleBridgeWindowHeight,
 		MinWidth:       380,
@@ -116,7 +117,7 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		}
 		s.mu.Unlock()
 		if parent != nil && !parent.IsDestroyed() {
-			s.notifyUser(parent, resumeText("无法打开鲸桥管理窗口", "Could not open the WhaleBridge window"))
+			s.notifyUser(parent, i18n.T(i18n.KeyCmdCouldNotOpenTheWhalebridgeWindow))
 		}
 		return
 	}
@@ -150,7 +151,7 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		OnChange: func() { win.Update(func() {}) },
 	})
 	if err != nil {
-		existing.note = resumeText("无法创建鲸桥页面：", "Could not create the WhaleBridge page: ") + err.Error()
+		existing.note = i18n.T(i18n.KeyCmdCouldNotCreateTheWhalebridgePage) + err.Error()
 		win.Update(func() {})
 		return
 	}
@@ -208,16 +209,16 @@ func (w *whaleBridgeWindow) view(c *ui.Context) {
 		ui.Row(c).Fill().Height(whaleBridgeToolbarHeight).
 			Padding(0, 12, 0, 12).AlignItems(ui.Center).Gap(8).
 			Background(colors.Surface).Children(func() {
-			ui.Text(c, resumeText("鲸桥管理", "WhaleBridge")).FontSize(13).TextColor(colors.Text).Grow(1)
+			ui.Text(c, i18n.T(i18n.KeyCmdWhalebridge)).FontSize(13).TextColor(colors.Text).Grow(1)
 			if w.host != nil {
-				if ui.Button(c, resumeText("账号页", "Accounts")).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyCmdAccounts)).Clicked() {
 					_ = w.host.Navigate(w.url + whaleBridgeAccountsAnchor)
 				}
-				if ui.Button(c, resumeText("重新载入", "Reload")).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyCmdReload)).Clicked() {
 					w.host.Reload()
 				}
 			}
-			if ui.Button(c, resumeText("关闭", "Close")).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyCmdClose)).Clicked() {
 				if w.win != nil && !w.win.IsDestroyed() {
 					w.win.Close()
 				}
@@ -227,7 +228,7 @@ func (w *whaleBridgeWindow) view(c *ui.Context) {
 			if w.note != "" {
 				ui.Text(c, w.note).FontSize(13).TextColor(colors.Text)
 			} else {
-				ui.Text(c, resumeText("正在打开鲸桥管理页…", "Opening the WhaleBridge management page…")).FontSize(13).TextColor(colors.TextMuted)
+				ui.Text(c, i18n.T(i18n.KeyCmdOpeningTheWhalebridgeManagementPage)).FontSize(13).TextColor(colors.TextMuted)
 			}
 		})
 	})

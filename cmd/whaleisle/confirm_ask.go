@@ -2,6 +2,7 @@ package main
 
 import (
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/settings"
@@ -101,7 +102,7 @@ func (s *mainState) syncConfirmAsk(c *ui.Context) {
 		ConfirmLabel:     req.ConfirmLabel,
 		CancelLabel:      req.CancelLabel,
 		TechnicalDetails: req.TechnicalDetails,
-		TechnicalLabel:   resumeText("技术细节", "Technical details"),
+		TechnicalLabel:   i18n.T(i18n.KeyCmdTechnicalDetails),
 		TechnicalOpen:    &s.confirmAskTechnicalOpen,
 		Danger:           req.Danger,
 		OnConfirm:        func() { settle(true) },

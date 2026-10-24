@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
@@ -50,12 +51,12 @@ func (s *mainState) coldStartupAllowed(cfg config.Config, importReady bool) bool
 	}
 	if failed || cfg.SkipUserPlugins {
 		s.launcherStartFailed = failed
-		s.launcherStartErr = resumeText("上次启动未完整恢复，已暂停自动启动。请查看诊断后重试。", "The previous start did not fully recover. Auto-start is paused; review diagnostics and retry.")
+		s.launcherStartErr = i18n.T(i18n.KeyCmdThePreviousStartDidNotFullyRecoverAut)
 		if r.loadError != "" {
-			s.launcherStartErr = r.loadError + "\n" + resumeText("恢复文件已保留，请修复后重新打开应用。", "The recovery file was preserved; repair it and reopen the app.")
+			s.launcherStartErr = r.loadError + "\n" + i18n.T(i18n.KeyCmdTheRecoveryFileWasPreservedRepairItAn)
 		}
 		if cfg.SkipUserPlugins {
-			s.launcherNote = resumeText("已保留跳过用户插件的恢复模式。可继续以恢复模式启动，或清除恢复标记后重试全部插件。", "Skip-user-plugins recovery is saved. Start in recovery mode, or clear recovery and retry all plugins.")
+			s.launcherNote = i18n.T(i18n.KeyCmdSkipUserPluginsRecoveryIsSavedStartIn)
 		}
 	}
 	return startuprec.ShouldAutoStart(cfg.Workspace, cfg.AutoStartDesktop, importReady, failed, cfg.SkipUserPlugins)
@@ -84,7 +85,7 @@ func (s *mainState) recordStartupStatusLocked(st harness.Status) bool {
 	}
 	fullReady := st.State == harness.Ready && !st.Recovery
 	if st.Recovery && reason == "" {
-		reason = resumeText("仅恢复模式就绪；用户插件仍被跳过。", "Recovery mode is ready; user plugins remain skipped.")
+		reason = i18n.T(i18n.KeyCmdRecoveryModeIsReadyUserPluginsRemainS)
 	}
 	var err error
 	if r.store == nil {
@@ -95,10 +96,10 @@ func (s *mainState) recordStartupStatusLocked(st harness.Status) bool {
 	r.saveError = ""
 	if err != nil {
 		r.saveError = startuprec.RedactLine(err.Error())
-		s.launcherNote = resumeText("启动结果未能保存：", "Could not save startup outcome: ") + r.saveError
+		s.launcherNote = i18n.T(i18n.KeyCmdCouldNotSaveStartupOutcome) + r.saveError
 	}
 	if st.Recovery {
-		s.launcherNote = resumeText("恢复模式已就绪；用户插件仍被跳过。请在插件页检查原因并明确恢复。", "Recovery mode is ready; user plugins are still skipped. Review the cause on the Plugins page before restoring them.")
+		s.launcherNote = i18n.T(i18n.KeyCmdRecoveryModeIsReadyUserPluginsAreStil)
 	}
 	return r.loadError != "" || r.saveError != ""
 }

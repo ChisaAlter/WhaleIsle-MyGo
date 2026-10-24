@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *projectController) runProjectTeam(win *mygo.Window, id, action, arg string) {
@@ -20,7 +21,7 @@ func (s *projectController) runProjectTeam(win *mygo.Window, id, action, arg str
 		return
 	}
 	if client == nil || f.client != client || !f.listing.Available {
-		f.err = resumeText("Project Host 不可用，请刷新。", "Project Host is unavailable; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdProjectHostIsUnavailableRefreshToRetry)
 		s.mu.Unlock()
 		return
 	}
@@ -31,7 +32,7 @@ func (s *projectController) runProjectTeam(win *mygo.Window, id, action, arg str
 		}
 	}
 	if !known {
-		f.err = resumeText("此 Project 已不在当前列表，请刷新。", "This Project is not in the current list; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdThisProjectIsNotInTheCurrentListRefr)
 		s.mu.Unlock()
 		return
 	}

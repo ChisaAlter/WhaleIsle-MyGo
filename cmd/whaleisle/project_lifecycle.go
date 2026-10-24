@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action string) {
@@ -20,7 +21,7 @@ func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action str
 		return
 	}
 	if client == nil || f.client != client || !f.listing.Available {
-		f.err = resumeText("Project Host不可用，请刷新。", "Project Host unavailable; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdProjectHostUnavailableRefreshToRetry)
 		s.mu.Unlock()
 		return
 	}
@@ -32,7 +33,7 @@ func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action str
 		}
 	}
 	if selected.ID == "" || selected.Archiving {
-		f.err = resumeText("Project不可用或正在归档，请刷新。", "Project unavailable or archiving; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdProjectUnavailableOrArchivingRefreshTo)
 		s.mu.Unlock()
 		return
 	}
@@ -113,7 +114,7 @@ func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action str
 							f.listing.Projects[i] = result.Project
 						}
 					}
-					f.err = resumeText("Project状态已更新，但列表刷新失败：", "Project state updated, but list refresh failed: ") + refreshErr.Error()
+					f.err = i18n.T(i18n.KeyCmdProjectStateUpdatedButListRefreshFaile) + refreshErr.Error()
 				}
 				// Clear stale snapshots whose controls depend on Project lifecycle.
 				if f.teamID == id {
@@ -129,9 +130,9 @@ func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action str
 					f.requestGeneration++
 				}
 				if result.Project.Lifecycle == "archived" {
-					f.lifecycleNote = resumeText("Project已归档。工作已停止，对话、工作目录和成果保留。", "Project archived. Work has stopped; conversation, working directory and results are retained.")
+					f.lifecycleNote = i18n.T(i18n.KeyCmdProjectArchivedWorkHasStoppedConversat)
 				} else {
-					f.lifecycleNote = resumeText("Project已恢复。请在原Lead对话发送新指令，旧任务不会自动重启。", "Project restored. Send a new instruction in the original Lead conversation; old work does not restart automatically.")
+					f.lifecycleNote = i18n.T(i18n.KeyCmdProjectRestoredSendANewInstructionInT)
 				}
 			}
 		})

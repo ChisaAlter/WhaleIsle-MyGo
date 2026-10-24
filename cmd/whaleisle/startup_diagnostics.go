@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/importer"
@@ -97,7 +98,7 @@ func (s *mainState) repairStartupSuspects(receipt string, names []string) {
 func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled, remove, retry bool) {
 	report, busy := s.startupDiagnostics()
 	if busy || !report.InventoryReady || report.Receipt != receipt || (retry && (!report.CanRepair || !slices.Equal(names, report.RepairNames))) {
-		s.startupRepairNote(resumeText("诊断或插件库存已变化，请刷新后重试。", "Diagnostics or plugin inventory changed; refresh and retry."))
+		s.startupRepairNote(i18n.T(i18n.KeyCmdDiagnosticsOrPluginInventoryChangedRef))
 		return
 	}
 	if err := importer.CheckImportReady(paths.DshHome()); err != nil {
@@ -188,9 +189,9 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 			return nil
 		})
 		if !did {
-			message := resumeText("插件操作未完成。", "Plugin operation did not complete.")
+			message := i18n.T(i18n.KeyCmdPluginOperationDidNotComplete)
 			if len(applied) > 0 {
-				message += " " + resumeText("已应用：", "Applied: ") + strings.Join(applied, ", ")
+				message += " " + i18n.T(i18n.KeyCmdApplied) + strings.Join(applied, ", ")
 			}
 			if actionErr != nil {
 				message += " " + startuprec.RedactLine(actionErr.Error())
@@ -198,9 +199,9 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 			s.startupRepairNote(message)
 			return
 		}
-		message := resumeText("已更新插件：", "Updated plugins: ") + strings.Join(applied, ", ")
+		message := i18n.T(i18n.KeyCmdUpdatedPlugins) + strings.Join(applied, ", ")
 		if retry {
-			message += resumeText("。正在完整重试；Host 健康就绪后才算恢复完成。", ". Retrying full startup; recovery completes only after the Host is healthy.")
+			message += i18n.T(i18n.KeyCmdRetryingFullStartupRecoveryCompletesOn)
 		}
 		s.startupRepairNote(message)
 	}()

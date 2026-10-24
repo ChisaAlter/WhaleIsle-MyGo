@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 type projectRefreshLoop struct {
@@ -121,11 +122,11 @@ func (s *projectController) refreshProjectSnapshot(ctx context.Context, win *myg
 		// Keep separate live-refresh feedback so a read never clears an unsent
 		// draft error or a completed mutation's follow-up notice.
 		if listErr != nil {
-			f.refreshNote = resumeText("自动刷新失败，保留上次状态：", "Automatic refresh failed; showing previous state: ") + listErr.Error()
+			f.refreshNote = i18n.T(i18n.KeyCmdAutomaticRefreshFailedShowingPreviousS) + listErr.Error()
 			return
 		}
 		f.listing = listing
-		f.refreshNote = resumeText("每5秒自动刷新 · ", "Auto-refresh every 5s · ") + time.Now().Format("15:04:05")
+		f.refreshNote = i18n.T(i18n.KeyCmdAutoRefreshEvery5s) + time.Now().Format("15:04:05")
 		if !listing.Available {
 			f.refreshNote = listing.Error
 			s.stopProjectProcessLocked()
@@ -137,11 +138,11 @@ func (s *projectController) refreshProjectSnapshot(ctx context.Context, win *myg
 		if !found {
 			s.stopProjectProcessLocked()
 			f.team = nil
-			f.refreshNote = resumeText("此Project已不在Host列表中。", "This Project is no longer in the Host list.")
+			f.refreshNote = i18n.T(i18n.KeyCmdThisProjectIsNoLongerInTheHostList)
 			return
 		}
 		if teamErr != nil {
-			f.refreshNote = resumeText("Team刷新失败，保留上次状态：", "Team refresh failed; showing previous state: ") + teamErr.Error()
+			f.refreshNote = i18n.T(i18n.KeyCmdTeamRefreshFailedShowingPreviousState) + teamErr.Error()
 			return
 		}
 		if overview.WorkPage.CurrentCursor != nil && *overview.WorkPage.CurrentCursor == cursor && len(cursors) > 0 {
@@ -152,7 +153,7 @@ func (s *projectController) refreshProjectSnapshot(ctx context.Context, win *myg
 			return
 		}
 		if detailErr != nil {
-			f.refreshNote = resumeText("成员详情刷新失败：", "Member detail refresh failed: ") + detailErr.Error()
+			f.refreshNote = i18n.T(i18n.KeyCmdMemberDetailRefreshFailed) + detailErr.Error()
 			return
 		}
 		// A successor delegation is a new run. Release the previous observer rather
@@ -161,7 +162,7 @@ func (s *projectController) refreshProjectSnapshot(ctx context.Context, win *myg
 			s.stopProjectProcessLocked()
 			if f.process != nil {
 				previous := *f.process
-				previous.Error = resumeText("成员执行轮次已变化；保留旧过程，可重新选择实时跟进。", "The member run changed; previous records are preserved. Select live follow again for the new run.")
+				previous.Error = i18n.T(i18n.KeyCmdTheMemberRunChangedPreviousRecordsAre)
 				f.process = &previous
 			}
 			f.detailGeneration++
@@ -181,7 +182,7 @@ func projectRefreshStatus(enabled bool, note string) string {
 		return note
 	}
 	if enabled {
-		return resumeText("每5秒自动刷新项目与Team状态。", "Project and Team state refresh automatically every 5 seconds.")
+		return i18n.T(i18n.KeyCmdProjectAndTeamStateRefreshAutomaticall)
 	}
 	return ""
 }

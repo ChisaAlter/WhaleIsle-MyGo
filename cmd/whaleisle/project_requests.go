@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg string, queueChanges ...projectQueueSubmission) {
@@ -24,7 +25,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 		return
 	}
 	if client == nil || f.client != client || !f.listing.Available {
-		f.err = resumeText("Project Host 不可用，请刷新。", "Project Host is unavailable; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdProjectHostIsUnavailableRefreshToRetry)
 		s.mu.Unlock()
 		return
 	}
@@ -36,12 +37,12 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 		}
 	}
 	if project.ID == "" {
-		f.err = resumeText("Project 已不在当前列表，请刷新。", "Project is no longer in the current list; refresh to retry.")
+		f.err = i18n.T(i18n.KeyCmdProjectIsNoLongerInTheCurrentListRef)
 		s.mu.Unlock()
 		return
 	}
 	if (action == "archive" || action == "restore" || action == "queue") && (project.Lifecycle != "ready" || project.Archiving) {
-		f.err = resumeText("恢复 Project 后才能修改要求卡片。", "Restore the Project before changing request cards.")
+		f.err = i18n.T(i18n.KeyCmdRestoreTheProjectBeforeChangingRequest)
 		s.mu.Unlock()
 		return
 	}
@@ -151,7 +152,7 @@ func (s *projectController) runProjectRequests(win *mygo.Window, id, action, arg
 					f.requestCard = nil
 					f.requestPage = projectflow.RequestPage{}
 					f.requestLoaded = false
-					f.err = fmt.Sprintf("%s: %s", resumeText("卡片已更新，但列表刷新失败；请刷新，勿重复操作", "Card updated, but list refresh failed; refresh without repeating the mutation"), err)
+					f.err = fmt.Sprintf("%s: %s", i18n.T(i18n.KeyCmdCardUpdatedButListRefreshFailedRefresh), err)
 				}
 				return
 			}

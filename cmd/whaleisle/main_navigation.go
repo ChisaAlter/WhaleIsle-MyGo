@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 	desktopcomponents "whaleisle/internal/desktop/components"
@@ -17,7 +18,7 @@ func connectionUnavailableMessage(bootstrapError string, offline, lost bool) str
 		return bootstrapError
 	}
 	if offline && lost {
-		return resumeText("网络已离线，等待网络恢复。", "Offline. Waiting for network availability.")
+		return i18n.T(i18n.KeyCmdOfflineWaitingForNetworkAvailability)
 	}
 	return ""
 }

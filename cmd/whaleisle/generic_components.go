@@ -8,6 +8,7 @@ import (
 	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/i18n"
 )
 
 var launcherComponentPending sync.Map
@@ -104,15 +105,15 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 			if win == nil {
 				return
 			}
-			title := resumeText("卸载组件", "Uninstall component")
-			message := fmt.Sprintf(resumeText("将停止并删除组件「%s」及其程序文件，其配置数据会保留。", "Stop and remove %s and its program files. Configuration data will be retained."), row.Name)
-			button := resumeText("卸载", "Uninstall")
+			title := i18n.T(i18n.KeyCmdUninstallComponent)
+			message := fmt.Sprintf(i18n.T(i18n.KeyCmdStopAndRemoveAndItsProgramFilesConfig), row.Name)
+			button := i18n.T(i18n.KeyCmdUninstall)
 			if action == "rollback" {
-				title = resumeText("回滚组件", "Roll back component")
-				button = resumeText("回滚", "Roll back")
-				message = fmt.Sprintf(resumeText("将把组件「%s」回滚到 v%s，当前进程会先停止。", "Roll back %s to v%s. Its running process will be stopped first."), row.Name, row.PreviousVersion)
+				title = i18n.T(i18n.KeyCmdRollBackComponent)
+				button = i18n.T(i18n.KeyCmdRollBack)
+				message = fmt.Sprintf(i18n.T(i18n.KeyCmdRollBackToVItsRunningProcessWillBeS), row.Name, row.PreviousVersion)
 			}
-			answer, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: title, Message: message, Buttons: []string{resumeText("取消", "Cancel"), button}, DefaultButton: 0, CancelButton: 0})
+			answer, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: title, Message: message, Buttons: []string{i18n.T(i18n.KeyCmdCancel), button}, DefaultButton: 0, CancelButton: 0})
 			if err != nil || answer.Button != 1 {
 				return
 			}

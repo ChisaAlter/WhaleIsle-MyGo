@@ -194,8 +194,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 	// item carries the command keycap; plain is a row the native template gives
 	// no accelerator to (the launcher, reveal, MCP, skills, help links, quit).
-	item := func(id, zh, en string) *mygo.MenuItem {
-		label := resumeText(zh, en)
+	item := func(id, label string) *mygo.MenuItem {
 		if chord := spec.keycap(id); chord != "" {
 			label += applicationMenuKeycapGap + chord
 		}
@@ -205,55 +204,55 @@ func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 			}
 		}}
 	}
-	plain := func(id, zh, en string) *mygo.MenuItem {
-		return &mygo.MenuItem{ID: id, Label: resumeText(zh, en), Click: func(*mygo.MenuItem, *mygo.Window) {
+	plain := func(id, label string) *mygo.MenuItem {
+		return &mygo.MenuItem{ID: id, Label: label, Click: func(*mygo.MenuItem, *mygo.Window) {
 			if spec.Dispatch != nil {
 				spec.Dispatch(id)
 			}
 		}}
 	}
-	group := func(id, zh, en string, items ...*mygo.MenuItem) *mygo.MenuItem {
-		return &mygo.MenuItem{ID: id, Label: resumeText(zh, en), Submenu: items}
+	group := func(id, label string, items ...*mygo.MenuItem) *mygo.MenuItem {
+		return &mygo.MenuItem{ID: id, Label: label, Submenu: items}
 	}
-	quit := plain("app.quit", "退出", "Quit")
+	quit := plain("app.quit", i18n.T(i18n.KeyCmdQuit))
 	last := quit
 	if spec.Platform == "darwin" {
-		last = plain("window.close", "关闭窗口", "Close window")
+		last = plain("window.close", i18n.T(i18n.KeyCmdCloseWindow))
 	}
 	menu := []*mygo.MenuItem{}
 	if spec.Platform == "darwin" {
 		// The native macOS app menu (menu.js:23-32) names the product, then About
 		// and Quit. MyGo has no native About panel: its About page is the command.
-		menu = append(menu, group("app", i18n.T(i18n.KeyAppName), i18n.T(i18n.KeyAppName),
-			plain("settings.about", "关于", "About"), mygo.Separator(), quit))
+		menu = append(menu, group("app", i18n.T(i18n.KeyAppName),
+			plain("settings.about", i18n.T(i18n.KeyCmdAbout)), mygo.Separator(), quit))
 	}
 	menu = append(menu,
-		group("file", "文件", "File",
-			item("workspace.add", "打开工作区…", "Open workspace…"),
-			plain("launcher.open", "打开启动器", "Open launcher"),
-			plain("workspace.reveal", "在资源管理器中打开工作区", "Open workspace in explorer"),
+		group("file", i18n.T(i18n.KeyCmdFile),
+			item("workspace.add", i18n.T(i18n.KeyCmdOpenWorkspace)),
+			plain("launcher.open", i18n.T(i18n.KeyCmdOpenLauncher)),
+			plain("workspace.reveal", i18n.T(i18n.KeyCmdOpenWorkspaceInExplorer)),
 			mygo.Separator(),
-			item("settings.open", "设置…", "Settings…"),
-			item("market.open", "插件市场…", "Marketplace…"),
-			plain("settings.mcp", "MCP…", "MCP…"),
-			plain("settings.skills", "技能…", "Skills…"),
+			item("settings.open", i18n.T(i18n.KeyCmdSettings)),
+			item("market.open", i18n.T(i18n.KeyCmdMarketplace)),
+			plain("settings.mcp", "MCP…"),
+			plain("settings.skills", i18n.T(i18n.KeyCmdSkills)),
 			mygo.Separator(),
 			last),
-		group("run", "运行", "Run",
-			item("harness.restart", "重启 Harness", "Restart Harness"),
-			item("window.refresh", "重新加载界面", "Reload interface")),
-		group("view", "视图", "View",
-			item("window.actualSize", "实际大小", "Actual size"),
-			item("window.zoomIn", "放大", "Zoom in"),
-			item("window.zoomOut", "缩小", "Zoom out"),
+		group("run", i18n.T(i18n.KeyCmdRun),
+			item("harness.restart", i18n.T(i18n.KeyCmdRestartHarness)),
+			item("window.refresh", i18n.T(i18n.KeyCmdReloadInterface))),
+		group("view", i18n.T(i18n.KeyCmdView),
+			item("window.actualSize", i18n.T(i18n.KeyCmdActualSize)),
+			item("window.zoomIn", i18n.T(i18n.KeyCmdZoomIn)),
+			item("window.zoomOut", i18n.T(i18n.KeyCmdZoomOut)),
 			mygo.Separator(),
-			item("window.fullscreen", "全屏", "Fullscreen"),
+			item("window.fullscreen", i18n.T(i18n.KeyCmdFullscreen)),
 			&mygo.MenuItem{ID: "window.inspector", Label: i18n.T(i18n.KeyCmdDeveloperTools), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}),
-		group("help", "帮助", "Help",
-			plain("help.web", "Web UI 指南", "Web UI guide"),
-			plain("help.sdk", "Python SDK", "Python SDK"),
+		group("help", i18n.T(i18n.KeyCmdHelp),
+			plain("help.web", i18n.T(i18n.KeyCmdWebUiGuide)),
+			plain("help.sdk", "Python SDK"),
 			mygo.Separator(),
-			plain("settings.about", "关于", "About")),
+			plain("settings.about", i18n.T(i18n.KeyCmdAbout))),
 	)
 	return mygo.NewMenu(menu)
 }

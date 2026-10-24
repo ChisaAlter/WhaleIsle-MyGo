@@ -2,6 +2,7 @@ package main
 
 import (
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -26,9 +27,9 @@ func (s *mainState) syncScheduleDeleteNotice(c *ui.Context) {
 	if !fresh {
 		return
 	}
-	text, tone := resumeText("任务已删除", "Task deleted."), "success"
+	text, tone := i18n.T(i18n.KeyCmdTaskDeleted), "success"
 	if notice.Outcome == "failed" {
-		text, tone = resumeText("无法删除任务", "Could not delete the task."), "warning"
+		text, tone = i18n.T(i18n.KeyCmdCouldNotDeleteTheTask), "warning"
 	}
 	c.AddToast(ui.Toast{ID: scheduleDeleteToastID, Description: text, Type: tone, Timeout: 4 * time.Second,
 		OnClose: func() { store.DismissDeletionNotice(notice) },
