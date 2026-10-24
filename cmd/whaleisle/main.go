@@ -2340,7 +2340,7 @@ func main() {
 			// Native controls plate: 48 tall with 12 top / 4 bottom padding and
 			// 32x32 buttons, so the buttons occupy y=12..44
 			// (harness-chrome-inject.js:12,89,96-97).
-			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 12, Right: 8, CornerRadius: 8, GlyphSize: 12},
+			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 8, Right: 8, CornerRadius: 8, GlyphSize: 12},
 			WindowsFrameCornerRadius: 20,
 			Transparent:              true,
 			BackgroundColor:          bgColor,

@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -78,8 +79,13 @@ func TestSidebarChromeMatchesTheNativePage(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing view-options control; texts=%q", tt.Texts())
 	}
-	if options.X != 240 || options.W != 28 || options.H != 28 {
+	if options.X != 240 || math.Abs(float64(options.W-28)) > 0.01 || math.Abs(float64(options.H-28)) > 0.01 {
 		t.Fatalf("view options=%+v, want x=240 28x28", options)
+	}
+	// round182: the whole heading row (工作区/多选会话/视图选项/添加工作区/搜索会话)
+	// sat 6.67 DIP low; it must now sit within 1 DIP of the native y=250.
+	if math.Abs(float64(options.Y-250)) > 1 {
+		t.Fatalf("view options y=%.2f, want 250±1 (native heading row)", options.Y)
 	}
 }
 

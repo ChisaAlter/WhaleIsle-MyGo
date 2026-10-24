@@ -8,10 +8,15 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// workspaceHeadingLift raises the whole heading row (工作区/多选会话/视图选项/
+// 添加工作区/搜索会话) to the native y: round182 measured MyGo 6.67 DIP low
+// (native 250 vs 256.67 window-relative).
+const workspaceHeadingLift float32 = 6.67
+
 // WorkspaceBrowser's section header contains search and selection in the same
 // 36 DIP line. Expanding search takes the label and trailing actions' room.
 func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color) {
-	header := ui.Row(c).FillWidth().Height(36).Gap(4).Padding(0, 0, 0, 4).AlignItems(ui.Center)
+	header := ui.Row(c).FillWidth().Height(36).Gap(4).Padding(0, 0, 0, 4).AlignItems(ui.Center).OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: -workspaceHeadingLift} })
 	expanded := ui.Local(header, "search-expanded", func() bool {
 		return m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != ""
 	})

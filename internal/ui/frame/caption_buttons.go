@@ -11,11 +11,11 @@ import (
 )
 
 // captionButtonSize and the three right offsets are the native hit geometry:
-// 32x32 at Top 12, measured from the right edge (close 8, maximize 40,
+// 32x32 at Top 8 (native y=8, h=32, bottom 40), measured from the right edge (close 8, maximize 40,
 // minimize 72).
 const (
 	captionButtonSize = 32
-	captionButtonTop  = 12
+	captionButtonTop  = 8
 )
 
 // captionCloseHover is the close button's hover fill: #e81123 with a white
