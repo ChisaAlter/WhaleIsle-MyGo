@@ -39,6 +39,7 @@ type window struct {
 	productIM        ptr
 	productComposing bool
 	productDown      map[uint16]bool
+	beforeInput      func(platform.KeyInput) bool
 	b                *Backend
 	id               int
 	h                platform.WindowHandler

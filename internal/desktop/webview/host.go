@@ -69,6 +69,8 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
+	devToolsMu   sync.Mutex
+	devToolsOpen bool
 	// mediaSeat is opt-in for a trusted native paint-owned, clipped surface.
 	// Its geometry must never be replaced by the ordinary whole-panel sync.
 	mediaSeat             bool
@@ -282,6 +284,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		child.OnFocus(opts.OnFocus)
 	}
 	pg := child.Page()
+	h.installDevToolsShortcut(pg)
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if (opts.AllowNavigation != nil && !opts.AllowNavigation(e.URL)) || (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
 			e.PreventDefault()
@@ -438,6 +441,7 @@ func (h *Host) Navigate(raw string) error {
 		return errors.New("webview: host closed")
 	}
 	pg := win.Page()
+	h.installDevToolsShortcut(pg)
 	if pg == nil {
 		return errors.New("webview: no page")
 	}

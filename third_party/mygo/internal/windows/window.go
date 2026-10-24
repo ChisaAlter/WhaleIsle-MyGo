@@ -21,6 +21,7 @@ type window struct {
 	// The WebView2 controller is created asynchronously; calls that need
 	// it wait in pending until it exists, or fail with webViewErr, why it
 	// could not be created.
+	beforeInput func(platform.KeyInput) bool
 	browser      *browserEnvironment
 	isolated     *previewEnvironment
 	controller   uintptr // ICoreWebView2Controller

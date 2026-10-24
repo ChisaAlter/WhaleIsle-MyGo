@@ -576,6 +576,12 @@ func (w *window) acceleratorKeyPressed(_, args uintptr) {
 	}
 	var vk uint32
 	comCall(args, accelGetVirtualKey, uintptr(unsafe.Pointer(&vk)))
+	// The app sees the key before the page (Page.OnBeforeInput): a handled key
+	// is marked as such, like Electron before-input-event preventDefault.
+	if w.fireBeforeInput(vk, kind == 0 || kind == 2) {
+		comCall(args, accelPutHandled, 1)
+		return
+	}
 	if w.reportWebApplicationKey(args, vk, kind == 0 || kind == 2) {
 		comCall(args, accelPutHandled, 1)
 		return

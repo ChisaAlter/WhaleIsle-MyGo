@@ -2256,6 +2256,12 @@ func main() {
 		if p, err := cfgStore.Appearance(); err == nil {
 			theme.SetPreferences(p)
 		}
+		// Window-scoped Ctrl+Shift+I / Cmd+Alt+I, gated like the native shell
+		// (devtools-shortcut.js:16-19): development always allows it, packaged
+		// builds only with the openDevTools setting on.
+		desktopwebview.SetDevToolsShortcutAllowed(func() bool {
+			return !mygo.App.IsPackaged() || cfgStore.Get().OpenDevTools
+		})
 		state.openStartupRecovery(userData, cfgStore)
 		cfg := cfgStore.Get()
 		state.hostTerminals.ConfigureShellPreference(cfg.HostTerminalShell, func(path string) error {
