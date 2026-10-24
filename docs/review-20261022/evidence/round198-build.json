@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T04:52:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87684608,
+  "productionSHA256": "9AB5CB97E0A62BDF03660F929B49FB7EA5D8D8689C8A2E46FC28FB8A32C52EB4",
+  "defaultSHA256": "9AB5CB97E0A62BDF03660F929B49FB7EA5D8D8689C8A2E46FC28FB8A32C52EB4",
+  "note": "pass288 covers rounds 192-196: remote git commit/branch mutations, pet quick-chat native card geometry, UTF-8 BOM tolerance, config-wallpaper retention and live seeded wallpaper capture. Readiness verified."
+}

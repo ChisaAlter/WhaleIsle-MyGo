@@ -413,6 +413,16 @@
 - pass287：87,678,976 B / SHA256 `C1A158B7…`；harness-start-pass287.json ready=True。
 - 残留：Host webview 的 S03 实按、宠物 devtools 决策、壁纸 live seed（启动对话框）、G46 变更类、caption-relative within-1-DIP 重算、D1–D4 决策与双签。
 
+### round192–198（2026-10-25）
+
+- round192：验收 fixture 三个未知量解开——最小 config 被重写后 quitAfterStart=true 是 ~50s 退出元凶；持久化布局在 <profile>/go-resume.json（删掉即回到 axis=742.4→card 774.4）；壁纸 data URL 不是磁盘文本，暂用洗色蒙版。fixture 修正后可见窗口是启动器，聊天窗口 hand-off 仍阻塞，未伪造 pair。
+- round193：**S03 真相**——主窗是 Go 绘制的 mygo.Window（非 Host）；Host 子页上合成 Ctrl+Shift+I 能打开 WebView2 自带 DevTools，MyGo 的 Go chord 从未触发；**门禁关不掉 inspector**（Host 页 PageOptions.DevTools=Auto），打包态门禁不安全，需页面级开关（task-78）。宠物 devtools 为记录在案的刻意缺口。
+- round195：**两个真 bug 修复**——config.Open 容忍 UTF-8 BOM（PowerShell 5.1 写入的 BOM 曾导致 549×460「配置读取失败」后退出）；Host 壁纸为空时不再覆盖配置 goWallpaperPath（wallpaperSourcePath 7 例测试）。live 1440×860 深色种子壁纸截图已取得；wallpaperBlur/Pixelate/transparentTheme 仍未应用（页面级结构差异）。
+- round196：**宠物快捷聊天对齐**——原生 #pet-chat 为 248px 固定卡、锚定头顶 8px、翻转/择边/4px 夹取；MyGo 独立子窗改为 248×360（min 248×220）并镜像锚点算法与字号，wander 已暂停；结构差异（DOM overlay vs 子窗、固定高度）记录。
+- round187/194：**G46 变更类打通**——gitCommit/gitSwitchBranch/gitCreateBranch 经既有 git gate（403/400 校验、native wrapResult），live 临时仓库 commit/branch/switch 全 200；push/pull/PR/saveConfig 仍 501+TODO。
+- pass288：87,684,608 B / SHA256 `9AB5CB97…`；harness-start-pass288.json ready=True。
+- 残留：S03 页面级门禁（进行中）、验收聊天窗口 hand-off、壁纸页面级 blur/pixelate、G46 push/pull、宠物 overlay 结构、D1–D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
