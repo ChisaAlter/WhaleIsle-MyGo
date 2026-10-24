@@ -3543,7 +3543,13 @@ func mainView(c *ui.Context) {
 	if !systemDark {
 		titleColors.Background = chrome.Color("#ffffff")
 	}
-	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
+	// The canvas alone carries the native flat mask; the sidebar, cards and
+	// caption keep their own tokens (round228/229).
+	canvasFill := chrome.Color(colors.BG)
+	if g := state.wallpaperEditor(); g != nil {
+		canvasFill = wallpaperCanvasFill(canvasFill, systemDark, state.resolvedWallpaperPath(wallpaperPath), g.Prefs)
+	}
+	ui.Column(c).Fill().Background(canvasFill).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {
 			// One launcher model, two surfaces: the separate 1060x660 launcher
 			// window and this in-window fallback panel (launcher_window.go).

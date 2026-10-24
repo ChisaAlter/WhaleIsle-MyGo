@@ -20,10 +20,12 @@ import "whaleisle/internal/desktop/wallpapers"
 // choice (including "no backdrop") survives.
 func FirstRunAppearance() wallpapers.Preferences {
 	p := wallpapers.Defaults()
+	// Flat until the user chooses a backdrop: no preset colours may leak into a
+	// first-run profile (round102 still painted aurora from a seeded preset).
 	p.Effect = "none"
-	p.Preset = "dune"
+	p.Preset = ""
 	p.Variant = "orbs"
-	p.Colors = wallpapers.PresetColors("dune")
+	p.Colors = [7]string{}
 	p.Speed = 190
 	p.Count = 5
 	return p

@@ -174,6 +174,8 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 			painter.Fill(r, ui.RGBA(0, 0, 0, MaskAlpha(s.dark)), 0)
 		}
 	}
+	// Strict gate: a preset or colours alone must never paint; only an explicit
+	// gradient does (NormalizeEffect has already resolved unset -> none).
 	if p.Effect != "gradient" {
 		return func(*ui.Painter, ui.Rect) {}
 	}

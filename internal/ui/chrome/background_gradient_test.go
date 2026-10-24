@@ -21,6 +21,8 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 	prefs := theme.FirstRunAppearance()
 	prefs.Effect = "gradient"
 	prefs.EffectExplicit = true
+	prefs.Preset = "dune"
+	prefs.Colors = wallpapers.PresetColors("dune")
 	tt := ui.NewTester(func(c *ui.Context) {
 		paint := WallpaperBackgroundPainter("", prefs, c.Preferences().ReduceMotion)
 		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })

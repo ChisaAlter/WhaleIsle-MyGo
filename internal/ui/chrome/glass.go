@@ -616,5 +616,5 @@ func FlatBackdropFill(base ui.Color, dark bool) ui.Color {
 	if !dark {
 		return base
 	}
-	return ui.RGBA(0, 0, 0, 128).Over(base)
+	return ui.RGBA(0, 0, 0, 0.5).Over(base)
 }

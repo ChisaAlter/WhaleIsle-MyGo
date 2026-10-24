@@ -14,17 +14,17 @@ import (
 // preference: dark); the dune preset stays ready for an explicit gradient.
 func TestFirstRunAppearanceMatchesHarnessDefaults(t *testing.T) {
 	p := FirstRunAppearance()
-	if p.Effect != "none" || p.Preset != "dune" || p.Variant != "orbs" {
-		t.Fatalf("first-run backdrop = %q/%q/%q, want none/dune/orbs", p.Effect, p.Preset, p.Variant)
+	if p.Effect != "none" || p.Preset != "" || p.Variant != "orbs" {
+		t.Fatalf("first-run backdrop = %q/%q/%q, want none/empty/orbs", p.Effect, p.Preset, p.Variant)
 	}
 	if p.Speed != 190 || p.Count != 5 {
 		t.Fatalf("first-run ambient speed/count = %v/%v, want 190/5", p.Speed, p.Count)
 	}
-	if p.Colors != ([7]string{"#D1D6DC", "#C6C4DB", "#F4F4F8", "#B7D4C8", "#B2D0CB", "#D0D4DD", "#CED5DD"}) {
-		t.Fatalf("first-run gradient colors drift: %v", p.Colors)
+	if p.Colors != ([7]string{}) {
+		t.Fatalf("first-run preset colours must stay empty, got %v", p.Colors)
 	}
-	if p.Colors != wallpapers.PresetColors("dune") {
-		t.Fatalf("first-run colors disagree with the dune preset: %v", p.Colors)
+	if p.Colors != ([7]string{}) {
+		t.Fatalf("first-run colours drift: %v", p.Colors)
 	}
 	if p.Glass != 80 || p.Terminal != 75 {
 		t.Fatalf("first-run glass/terminal = %v/%v, want 80/75", p.Glass, p.Terminal)

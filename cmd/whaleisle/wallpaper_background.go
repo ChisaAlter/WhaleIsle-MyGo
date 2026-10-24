@@ -102,10 +102,28 @@ func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpaper
 	return wallpapers.NormalizeEffect(path, prefs)
 }
 
+func (s *mainState) resolvedWallpaperPath(path string) string {
+	return wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
+}
+
+// wallpaperCanvasFill is the colour painted under everything else. Dark, no
+// wallpaper and no explicit gradient sits under the native bg-mask-1, so the
+// canvas reads ~12,12,12 instead of the raw 21,21,23 token; panels keep their
+// own tokens because only this canvas is masked.
+func wallpaperCanvasFill(base ui.Color, dark bool, path string, prefs wallpapers.Preferences) ui.Color {
+	prefs = wallpapers.NormalizeEffect(path, prefs)
+	if !dark || strings.TrimSpace(path) != "" || prefs.Effect == "gradient" {
+		return base
+	}
+	return chrome.FlatBackdropFill(base, true)
+}
+
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
-	path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
+	path = s.resolvedWallpaperPath(path)
 	if os.Getenv("WHALEISLE_BACKDROP_PROBE") != "" {
-		log.Printf("backdrop probe: path=%q hostAccepted=%v hostImageLen=%d configSource=%q", path, s.hostAppearanceAccepted, len(s.hostWallpaperImage), path)
+		if g := s.wallpaperEditor(); g != nil {
+			log.Printf("backdrop probe: path=%q effect=%q preset=%q colors0=%q explicit=%v active=%v", path, g.Prefs.Effect, g.Prefs.Preset, g.Prefs.Colors[0], g.Prefs.EffectExplicit, chrome.BackdropActive())
+		}
 	}
 	g := s.wallpaperEditor()
 	if g == nil {
