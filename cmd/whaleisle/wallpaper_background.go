@@ -186,7 +186,19 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 		chrome.ConfigureBackdrop("", wallpapers.Defaults())
 		return func(*ui.Painter, ui.Rect) {}
 	}
-	return chrome.WallpaperBackgroundPainter(path, wallpaperBackdropPrefs(path, g.Prefs), reducedMotion...)
+	prefs := g.Prefs
+	// The Host appearance may carry a gradient seed; only a locally stored
+	// backgroundEffect counts as the user choice, so a dark profile without a
+	// wallpaper stays flat instead of painting the host wash (round239).
+	if path == "" && s.cfgStore != nil {
+		if local, err := s.cfgStore.WallpaperBackground(); err == nil && !local.EffectExplicit {
+			prefs.Effect = "none"
+			prefs.EffectExplicit = false
+		}
+	}
+	prefs = wallpaperBackdropPrefs(path, prefs)
+	appendBackdropLog(fmt.Sprintf("painter: path=%q effect=%q localExplicit=%v active=%v", path, prefs.Effect, g.Prefs.EffectExplicit, chrome.BackdropActive()))
+	return chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...)
 }
 
 // Existing local-dropdown selections also become durable app-owned copies on save.
