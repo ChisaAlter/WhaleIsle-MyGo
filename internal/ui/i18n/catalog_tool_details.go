@@ -143,6 +143,16 @@ const (
 	KeyToolDetailTraceDescendants      = "chat.tool.detail.trace.descendants"
 	KeyToolDetailEventNeighbors        = "chat.tool.detail.event.neighbors"
 
+	// Terminal sessions, language-server locations and todo row markers.
+	KeyToolDetailTerminalsCount = "chat.tool.detail.terminals.count"
+	KeyToolDetailFieldExitCode  = "chat.tool.detail.field.exit_code"
+	KeyToolDetailFieldSignal    = "chat.tool.detail.field.signal"
+	KeyToolDetailLocationsCount = "chat.tool.detail.locations.count"
+	KeyToolDetailLocation       = "chat.tool.detail.location"
+	KeyToolDetailTodoAdded      = "chat.tool.detail.todo.added"
+	KeyToolDetailTodoUpdated    = "chat.tool.detail.todo.updated"
+	KeyToolDetailTodoRemoved    = "chat.tool.detail.todo.removed"
+
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
 	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
@@ -317,4 +327,12 @@ func init() {
 	Register(KeyToolDetailTraceAncestors, "祖先会话", "Ancestor sessions")
 	Register(KeyToolDetailTraceDescendants, "后代会话", "Descendant sessions")
 	Register(KeyToolDetailEventNeighbors, "前后事件", "Surrounding events")
+	Register(KeyToolDetailTerminalsCount, "%d 个终端", "%d terminals")
+	Register(KeyToolDetailFieldExitCode, "退出码", "Exit code")
+	Register(KeyToolDetailFieldSignal, "信号", "Signal")
+	Register(KeyToolDetailLocationsCount, "%d 个位置", "%d locations")
+	Register(KeyToolDetailLocation, "第 %s 行，第 %s 列", "Line %s, column %s")
+	Register(KeyToolDetailTodoAdded, "新增", "Added")
+	Register(KeyToolDetailTodoUpdated, "状态变化", "Status changed")
+	Register(KeyToolDetailTodoRemoved, "移除", "Removed")
 }

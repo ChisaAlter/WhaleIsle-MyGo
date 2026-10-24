@@ -209,7 +209,7 @@ func TestToolDetailsViewPresetsScrollAndGeometry(t *testing.T) {
 				palette := theme.Resolve(theme.DefaultID).Active(false)
 				st := toolCardStyle(palette, chrome.Color(palette.FG), chrome.Color(palette.Muted), chrome.Color(palette.Border))
 				ui.Column(c).Width(420).Children(func() {
-					ui.Column(c).FillWidth().ObserveLayout(func(r ui.Rect) { body = r }).Children(func() { toolDetailsCard(c, models[name], st, "preset", name != "no-inspect") })
+					ui.Column(c).FillWidth().ObserveLayout(func(r ui.Rect) { body = r }).Children(func() { toolDetailsCard(c, models[name], st, "preset", name != "no-inspect", nil) })
 					ui.Box(c).Height(1).ObserveLayout(func(r ui.Rect) { following = r })
 				})
 			}, 420, 700)
@@ -355,10 +355,14 @@ func TestToolDetailsViewJobOutput(t *testing.T) {
 			t.Fatal("missing", want, tt.Texts())
 		}
 	}
-	for _, absent := range []string{"OUT", "Copy"} {
-		if tt.HasText(absent) {
-			t.Fatal("unexpected", absent, tt.Texts())
+	// The background-job output now uses the installed CodeBlock chrome.
+	for _, want := range []string{"Copy", "Code block", "Wrap lines"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing code chrome", want, tt.Texts())
 		}
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("unexpected evidence body", tt.Texts())
 	}
 }
 
@@ -405,7 +409,7 @@ func toolDetailsCardFixture(t *testing.T, model *toolDetailsModel, hasInspect bo
 		st := toolCardStyle(palette, chrome.Color(palette.FG), chrome.Color(palette.Muted), chrome.Color(palette.Border))
 		ui.Column(c).Width(420).Children(func() {
 			ui.Column(c).FillWidth().ObserveLayout(func(r ui.Rect) { body = r }).Children(func() {
-				toolDetailsCard(c, model, st, "job-geometry", hasInspect)
+				toolDetailsCard(c, model, st, "job-geometry", hasInspect, nil)
 			})
 			ui.Box(c).Height(1).Label("after job details")
 		})
@@ -458,7 +462,7 @@ func TestToolDetailsViewJobGeometryAndInspectReserve(t *testing.T) {
 	if code.W != 390 {
 		t.Fatalf("code width with caption %v", code.W)
 	}
-	toolTreeNear(t, "code top", code.Y, description.Y+20+6+20+8)
+	toolTreeNear(t, "code top", code.Y, description.Y+20+6+20+8+42)
 	// The 5px round dot sits on the badge's first line with a 5px label gap.
 	image := tt.Image()
 	centerY := int(badge.Y + badge.H/2)
@@ -492,8 +496,9 @@ func TestToolDetailsViewJobGeometryAndInspectReserve(t *testing.T) {
 		t.Fatalf("badge label gap %d (dot end %d, text %d, badge %+v)", gap, dotEnd, textStart, badge)
 	}
 	// The card lays out the caption, the item's heading/subtitle/description,
-	// the field row and the two-line code region plus its margins and border.
-	toolTreeNear(t, "card height", body.H, 4+1+36+10+20+3+20+6+20+6+20+8+36+10+1+4)
+	// the field row and the two-line code card: its 42px banner plus the code
+	// text's 6/20 padding around two 19px lines, inside the 240px viewport.
+	toolTreeNear(t, "card height", body.H, 4+1+36+10+20+3+20+6+20+6+20+8+106+10+1+4)
 }
 
 func TestToolDetailsViewJobCaptionReserve(t *testing.T) {
@@ -796,5 +801,92 @@ func TestToolDetailsViewInspectionReports(t *testing.T) {
 	}
 	if tt.HasText("OUT") {
 		t.Fatal("inspection card fell back to evidence", tt.Texts())
+	}
+}
+
+// toolDetailsKindsFixture renders a model card with an optional file opener so
+// the clickable location heading can be exercised.
+func toolDetailsKindsFixture(t *testing.T, model *toolDetailsModel, open func(string)) *ui.Tester {
+	t.Helper()
+	oldLocale, oldPrefs := i18n.Locale(), theme.CurrentPreferences()
+	i18n.SetLocale(i18n.LocaleEN)
+	theme.SetPreferences(theme.Defaults())
+	t.Cleanup(func() { i18n.SetLocale(oldLocale); theme.SetPreferences(oldPrefs) })
+	tt := ui.NewTester(func(c *ui.Context) {
+		theme.ApplyInterface(c)
+		palette := theme.Resolve(theme.DefaultID).Active(false)
+		st := toolCardStyle(palette, chrome.Color(palette.FG), chrome.Color(palette.Muted), chrome.Color(palette.Border))
+		ui.Column(c).Width(420).Children(func() {
+			toolDetailsCard(c, model, st, "kinds", false, open)
+			ui.Box(c).Height(1).Label("after kinds")
+		})
+	}, 420, 700)
+	tt.Frame()
+	return tt
+}
+
+// The installed status markers, the trailing status text, the Markdown entry and
+// the clickable location heading.
+func TestToolDetailsViewVocabularyKinds(t *testing.T) {
+	line := 12
+	previous, markdown := "Pending", "**bold** reply"
+	model := &toolDetailsModel{Items: []toolDetailItem{
+		{Title: "Added", Fields: []toolDetailField{}, Status: &toolDetailStatus{Value: "completed", Label: "Completed"}, Change: &toolDetailChange{Value: "added", Label: "Added"}},
+		{Title: "Moved", Fields: []toolDetailField{}, Status: &toolDetailStatus{Value: "in_progress", Label: "In progress"}, PreviousStatus: &previous, Change: &toolDetailChange{Value: "updated", Label: "Status changed"}},
+		{Title: "Gone", Fields: []toolDetailField{}, Status: &toolDetailStatus{Value: "pending", Label: "Pending"}, Change: &toolDetailChange{Value: "removed", Label: "Removed"}},
+		{Title: "Suffix", Fields: []toolDetailField{}, Status: &toolDetailStatus{Value: "pending", Label: "Pending"}, Change: &toolDetailChange{Value: "updated", Label: "Status changed"}},
+		{Title: "src/a.ts", Fields: []toolDetailField{}, Status: &toolDetailStatus{Value: "pending", Label: "Pending"}, Location: &toolDetailLocation{Path: "src/a.ts", Line: &line}},
+		{Title: "Hover", Fields: []toolDetailField{}, Markdown: &markdown},
+	}}
+	opened := []string{}
+	tt := toolDetailsKindsFixture(t, model, func(path string) { opened = append(opened, path) })
+	for _, want := range []string{"+", "−", "→", "In progress", "Status changed", "bold reply"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	// The updated row with a previous status omits the change suffix; the row
+	// without one keeps it.
+	if err := tt.Click("src/a.ts"); err != nil {
+		t.Fatal(err)
+	}
+	if len(opened) != 1 || opened[0] != "src/a.ts:12" {
+		t.Fatalf("location open %v", opened)
+	}
+}
+
+// The terminal roster and the language-server reference rows reuse the card.
+func TestToolDetailsViewTerminalListAndLSP(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	terminal := toolDetailsReceiptCallForTest(t, "terminal_list", `{}`, "pty-1 [shell] running pid=4\npty-2 (done) [shell] exited code=2 signal=null pid=5")
+	if terminal == nil {
+		t.Fatal("terminal model")
+	}
+	tt := toolDetailsKindsFixture(t, terminal, nil)
+	for _, want := range []string{"pty-1", "Running", "shell", "Process ID", "done", "Exited", "Exit code", "2"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("terminal roster fell back to evidence", tt.Texts())
+	}
+
+	lsp := toolDetailsReceiptCallForTest(t, "lsp", `{"file_path":"src/main.ts","line":2,"character":3,"operation":"findReferences"}`, "src/a.ts:2:3")
+	if lsp == nil {
+		t.Fatal("lsp model")
+	}
+	opened := []string{}
+	tt = toolDetailsKindsFixture(t, lsp, func(path string) { opened = append(opened, path) })
+	for _, want := range []string{"src/a.ts", "Line 2, column 3"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	if err := tt.Click("src/a.ts"); err != nil {
+		t.Fatal(err)
+	}
+	if len(opened) != 1 || opened[0] != "src/a.ts:2" {
+		t.Fatalf("reference open %v", opened)
 	}
 }

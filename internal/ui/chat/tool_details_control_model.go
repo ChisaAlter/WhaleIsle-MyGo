@@ -332,7 +332,11 @@ var (
 func toolDetailsModelControl(name string, args map[string]json.RawMessage, text string) *toolDetailsModel {
 	switch name {
 	case "list_agents":
-		return toolDetailsModelAgentList(text, text)
+		return toolDetailsModelAgentList(text)
+	case "terminal_list":
+		return toolDetailsModelTerminalList(text)
+	case "lsp":
+		return toolDetailsModelLSP(args, text)
 	case "spawn_teammate":
 		return toolDetailsModelSpawn(args, text)
 	case "team_task_create", "team_task_get", "team_task_update":
@@ -363,8 +367,8 @@ func toolDetailsDecoded(text string) *toolDetailsValue {
 // toolDetailsModelAgentList mirrors the installed agentList: a JSON roster
 // projects like any entity list, the empty text keeps the zero count, and the
 // line format carries the target, state, optional parent/depth and title.
-func toolDetailsModelAgentList(text, recorded string) *toolDetailsModel {
-	if value := toolDetailsDecoded(recorded); value != nil && value.kind == 'a' {
+func toolDetailsModelAgentList(text string) *toolDetailsModel {
+	if value := toolDetailsDecoded(text); value != nil && value.kind == 'a' {
 		return toolDetailsModelRecordedList(toolDetailsInspectionItems(value, 0),
 			fmt.Sprintf(i18n.T(i18n.KeyToolDetailAgentsCount), len(value.list)))
 	}
@@ -608,4 +612,122 @@ var toolDetailsFieldKeys = map[string]string{
 	"agentsStarted":      i18n.KeyToolDetailFieldAgents,
 	"output":             i18n.KeyToolDetailRowOutput,
 	"result":             i18n.KeyToolDetailFieldResult,
+}
+
+var toolDetailsTerminalLine = regexp.MustCompile(`^(\S+)(?: \((.*?)\))? \[([^\]]+)\] (running|exited code=(\S+) signal=(\S+))(?: pid=(\d+))?$`)
+var toolDetailsLocationLine = regexp.MustCompile(`^(.*):(\d+):(\d+)$`)
+var toolDetailsLocationURI = regexp.MustCompile(`^[a-z][a-z\d+.-]*:`)
+var toolDetailsLocationDrive = regexp.MustCompile(`^[a-z]:[\\/]`)
+
+// toolDetailsModelTerminalList mirrors the installed terminal roster: the
+// session id, its optional name, the recorded type and the state line, with the
+// exit code and signal only for an exited session.
+func toolDetailsModelTerminalList(text string) *toolDetailsModel {
+	if text == "(no terminal sessions)" {
+		return toolDetailsModelRecordedList([]toolDetailItem{}, fmt.Sprintf(i18n.T(i18n.KeyToolDetailTerminalsCount), 0))
+	}
+	items := make([]toolDetailItem, 0)
+	for _, line := range strings.Split(text, "\n") {
+		match := toolDetailsTerminalLine.FindStringSubmatch(line)
+		if match == nil {
+			return nil
+		}
+		id, name, kind, state, exitCode, signal, pid := match[1], match[2], match[3], match[4], match[5], match[6], match[7]
+		fields := []toolDetailField{{Label: i18n.T(i18n.KeyToolDetailFieldType), Value: kind}}
+		if pid != "" {
+			fields = append(fields, toolDetailField{Label: i18n.T(i18n.KeyToolDetailFieldPID), Value: pid})
+		}
+		if exitCode != "" {
+			fields = append(fields, toolDetailField{Label: i18n.T(i18n.KeyToolDetailFieldExitCode), Value: exitCode})
+		}
+		if signal != "" && signal != "null" {
+			fields = append(fields, toolDetailField{Label: i18n.T(i18n.KeyToolDetailFieldSignal), Value: signal})
+		}
+		item := toolDetailItem{Title: id, Fields: fields}
+		if name != "" {
+			item.Title, item.Subtitle = name, toolDetailsModelString(id)
+		}
+		if state == "running" {
+			badge := toolDetailsModelBadge("running")
+			item.Badge = &badge
+		} else {
+			tone := "neutral"
+			if exitCode == "0" {
+				tone = "success"
+			}
+			item.Badge = &toolDetailBadge{Label: i18n.T(i18n.KeyToolDetailStatusExited), Tone: tone}
+		}
+		items = append(items, item)
+	}
+	return toolDetailsModelRecordedList(items, fmt.Sprintf(i18n.T(i18n.KeyToolDetailTerminalsCount), len(items)))
+}
+
+// toolDetailsNumberArg reports a recorded numeric argument as its display text,
+// as the installed lsp adapter requires `typeof args.line === 'number'`.
+func toolDetailsNumberArg(args map[string]json.RawMessage, key string) (string, bool) {
+	raw, ok := args[key]
+	if !ok {
+		return "", false
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return "", false
+	}
+	number, ok := value.(float64)
+	if !ok {
+		return "", false
+	}
+	return strconv.FormatFloat(number, 'f', -1, 64), true
+}
+
+// toolDetailsModelLSP mirrors the installed language-server card: hover text is a
+// Markdown entry on a clickable location, and references are location rows whose
+// non-URI paths stay openable.
+func toolDetailsModelLSP(args map[string]json.RawMessage, text string) *toolDetailsModel {
+	file := toolDetailsArgText(args, "file_path")
+	operation := toolDetailsArgText(args, "operation")
+	lineText, okLine := toolDetailsNumberArg(args, "line")
+	columnText, okColumn := toolDetailsNumberArg(args, "character")
+	if file == "" || !okLine || !okColumn {
+		return nil
+	}
+	source := file + ":" + lineText + ":" + columnText
+	if operation == "hover" {
+		line, err := strconv.Atoi(lineText)
+		location := &toolDetailLocation{Path: file}
+		if err == nil {
+			location.Line = &line
+		}
+		return toolDetailsModelRecordedList([]toolDetailItem{{
+			Title: source, Fields: []toolDetailField{}, Location: location, Markdown: toolDetailsModelString(text),
+		}}, source)
+	}
+	if text == "No results." {
+		return toolDetailsModelRecordedList([]toolDetailItem{}, fmt.Sprintf(i18n.T(i18n.KeyToolDetailLocationsCount), 0))
+	}
+	items := make([]toolDetailItem, 0)
+	titled := 0
+	for _, entry := range strings.Split(text, "\n") {
+		if strings.HasPrefix(entry, "… ") {
+			items = append(items, toolDetailItem{Fields: []toolDetailField{}, Description: toolDetailsModelString(entry)})
+			continue
+		}
+		match := toolDetailsLocationLine.FindStringSubmatch(entry)
+		if match == nil {
+			return nil
+		}
+		path, row, column := match[1], match[2], match[3]
+		item := toolDetailItem{Title: path, Fields: []toolDetailField{},
+			Subtitle: toolDetailsModelString(fmt.Sprintf(i18n.T(i18n.KeyToolDetailLocation), row, column))}
+		if !(toolDetailsLocationURI.MatchString(path) && !toolDetailsLocationDrive.MatchString(path)) {
+			line, err := strconv.Atoi(row)
+			if err == nil {
+				item.Location = &toolDetailLocation{Path: path, Line: &line}
+			}
+		}
+		titled++
+		items = append(items, item)
+	}
+	return toolDetailsModelRecordedList(items, file+" · "+
+		fmt.Sprintf(i18n.T(i18n.KeyToolDetailLocationsCount), titled))
 }

@@ -945,7 +945,7 @@ func TestToolDetailsGenericEntryModelGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const want = `{"Items":[{"Title":"Workflow","Fields":[{"Label":"Agents","Value":"2"}],"Badge":{"Label":"Completed","Tone":"success"},"Subtitle":"subtitle","Description":" recorded description ","Code":{"Text":"console.log(1)","Language":"javascript"},"Lines":["first evidence","second evidence"],"Groups":[{"Label":"Remaining work","Items":[{"Title":"","Fields":[],"Badge":null,"Subtitle":null,"Description":null,"Code":null,"Lines":["next step"],"Groups":null}]}]}],"Empty":"No results","Summary":"Workflow","Caption":"Recorded result","ExpandedSummary":"","Unchanged":{"Label":"1 unchanged","Items":[{"Title":"Review","Fields":[],"Badge":{"Label":"Pending","Tone":"warning"},"Subtitle":null,"Description":null,"Code":null,"Lines":null,"Groups":null}]}}`
+	const want = `{"Items":[{"Title":"Workflow","Fields":[{"Label":"Agents","Value":"2"}],"Badge":{"Label":"Completed","Tone":"success"},"Subtitle":"subtitle","Description":" recorded description ","Code":{"Text":"console.log(1)","Language":"javascript"},"Lines":["first evidence","second evidence"],"Groups":[{"Label":"Remaining work","Items":[{"Title":"","Fields":[],"Badge":null,"Subtitle":null,"Description":null,"Code":null,"Lines":["next step"],"Groups":null,"Markdown":null,"Location":null,"Status":null,"PreviousStatus":null,"Change":null}]}],"Markdown":null,"Location":null,"Status":null,"PreviousStatus":null,"Change":null}],"Empty":"No results","Summary":"Workflow","Caption":"Recorded result","ExpandedSummary":"","Unchanged":{"Label":"1 unchanged","Items":[{"Title":"Review","Fields":[],"Badge":{"Label":"Pending","Tone":"warning"},"Subtitle":null,"Description":null,"Code":null,"Lines":null,"Groups":null,"Markdown":null,"Location":null,"Status":null,"PreviousStatus":null,"Change":null}]}}`
 	if string(raw) != want {
 		t.Fatalf("generic entries = %s", raw)
 	}
@@ -1446,5 +1446,118 @@ func TestToolDetailsModelInspectionReadsAndTraces(t *testing.T) {
 	}
 	if got := toolDetailsReceiptCallForTest(t, "session_trace", `{}`, "Session s1 — title\nCreated: x\n\nOther:\n- y"); got != nil {
 		t.Fatalf("unknown trace section produced %#v", got)
+	}
+}
+
+// control-details-model.ts:56-74 (terminal roster) and :76-98 (language server).
+func TestToolDetailsModelTerminalList(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	text := "pty-1 [shell] running pid=4\npty-2 (done) [shell] exited code=2 signal=null pid=5\npty-3 [shell] exited code=0 signal=TERM"
+	list := toolDetailsReceiptCallForTest(t, "terminal_list", `{}`, text)
+	if list == nil || list.Summary != "3 terminals" || len(list.Items) != 3 {
+		t.Fatalf("terminal list = %#v", list)
+	}
+	running := list.Items[0]
+	if running.Title != "pty-1" || running.Subtitle != nil || running.Badge.Label != "Running" || running.Badge.Tone != "info" ||
+		len(running.Fields) != 2 || running.Fields[0].Label != "Type" || running.Fields[0].Value != "shell" ||
+		running.Fields[1].Label != "Process ID" || running.Fields[1].Value != "4" {
+		t.Fatalf("running terminal = %#v", running)
+	}
+	exited := list.Items[1]
+	if exited.Title != "done" || exited.Subtitle == nil || *exited.Subtitle != "pty-2" ||
+		exited.Badge.Label != "Exited" || exited.Badge.Tone != "neutral" ||
+		len(exited.Fields) != 3 || exited.Fields[1].Label != "Process ID" ||
+		exited.Fields[2].Label != "Exit code" || exited.Fields[2].Value != "2" {
+		t.Fatalf("exited terminal = %#v", exited)
+	}
+	// A null signal is dropped; a zero exit code reads as success.
+	clean := list.Items[2]
+	if clean.Badge.Tone != "success" || len(clean.Fields) != 3 || clean.Fields[1].Label != "Exit code" || clean.Fields[1].Value != "0" ||
+		clean.Fields[2].Label != "Signal" || clean.Fields[2].Value != "TERM" {
+		t.Fatalf("clean exit = %#v", clean)
+	}
+	empty := toolDetailsReceiptCallForTest(t, "terminal_list", `{}`, "(no terminal sessions)")
+	if empty == nil || empty.Summary != "0 terminals" || empty.Items == nil || len(empty.Items) != 0 {
+		t.Fatalf("empty terminal list = %#v", empty)
+	}
+	for _, bad := range []string{"", "pty-1 [shell]", "pty-1 shell running", "pty-1 [shell] running pid=x"} {
+		if got := toolDetailsReceiptCallForTest(t, "terminal_list", `{}`, bad); got != nil {
+			t.Fatalf("invalid terminal list %q produced %#v", bad, got)
+		}
+	}
+}
+
+func TestToolDetailsModelLSP(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	args := `{"file_path":"src/main.ts","line":2,"character":3,"operation":"findReferences"}`
+	references := "src/a.ts:2:3\nhttps://example.test/a.ts:4:5\nuntitled:Untitled-1:6:7\nC:\\src\\a.ts:8:9\nD:/lib/a.ts:10:11"
+	list := toolDetailsReceiptCallForTest(t, "lsp", args, references)
+	if list == nil || list.Summary != "src/main.ts · 5 locations" || len(list.Items) != 5 {
+		t.Fatalf("lsp references = %#v", list)
+	}
+	first := list.Items[0]
+	if first.Title != "src/a.ts" || first.Subtitle == nil || *first.Subtitle != "Line 2, column 3" ||
+		first.Location == nil || first.Location.Path != "src/a.ts" || first.Location.Line == nil || *first.Location.Line != 2 {
+		t.Fatalf("first reference = %#v", first)
+	}
+	// URI rows and Windows drive paths keep their recorded form; only the URI
+	// loses its file link.
+	if list.Items[1].Location != nil || list.Items[2].Location != nil {
+		t.Fatalf("uri rows stayed linked: %#v %#v", list.Items[1].Location, list.Items[2].Location)
+	}
+	if list.Items[3].Location == nil || list.Items[3].Location.Path != "C:\\src\\a.ts" || list.Items[4].Location == nil {
+		t.Fatalf("drive rows lost their link: %#v %#v", list.Items[3].Location, list.Items[4].Location)
+	}
+
+	hover := toolDetailsReceiptCallForTest(t, "lsp", `{"file_path":"src/main.ts","line":2,"character":3,"operation":"hover"}`, "hover text")
+	if hover == nil || hover.Summary != "src/main.ts:2:3" || hover.Items[0].Markdown == nil || *hover.Items[0].Markdown != "hover text" ||
+		hover.Items[0].Location == nil || *hover.Items[0].Location.Line != 2 {
+		t.Fatalf("lsp hover = %#v", hover)
+	}
+	empty := toolDetailsReceiptCallForTest(t, "lsp", args, "No results.")
+	if empty == nil || empty.Summary != "0 locations" || len(empty.Items) != 0 {
+		t.Fatalf("lsp empty = %#v", empty)
+	}
+	// The symbol list keeps its ellipsis row and counts only titled rows.
+	symbols := toolDetailsReceiptCallForTest(t, "lsp", args, "… 3 more\nsrc/a.ts:2:3")
+	if symbols == nil || symbols.Summary != "src/main.ts · 1 locations" || symbols.Items[0].Description == nil ||
+		*symbols.Items[0].Description != "… 3 more" {
+		t.Fatalf("lsp symbols = %#v", symbols)
+	}
+	for _, tc := range []struct {
+		args, text string
+	}{
+		{`{"file_path":"","line":2,"character":3,"operation":"hover"}`, "x"},
+		{`{"file_path":"a.ts","line":"2","character":3,"operation":"hover"}`, "x"},
+		{`{"file_path":"a.ts","character":3}`, "x"},
+		{args, "not a location"},
+	} {
+		if got := toolDetailsReceiptCallForTest(t, "lsp", tc.args, tc.text); got != nil {
+			t.Fatalf("invalid lsp %s produced %#v", tc.text, got)
+		}
+	}
+}
+
+// The vocabulary kinds carry the installed fields for the todo row markers and
+// the hover/location entries.
+func TestToolDetailsModelVocabularyKindsGolden(t *testing.T) {
+	line := 12
+	markdown := "**bold** reply"
+	previous := "Pending"
+	model := &toolDetailsModel{Summary: "Review", Items: []toolDetailItem{{
+		Title: "Review", Fields: []toolDetailField{},
+		Status:         &toolDetailStatus{Value: "in_progress", Label: "In progress"},
+		PreviousStatus: &previous,
+		Change:         &toolDetailChange{Value: "updated", Label: "Status changed"},
+		Markdown:       &markdown,
+		Location:       &toolDetailLocation{Path: "src/a.ts", Line: &line},
+	}}}
+	raw, err := json.Marshal(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"Items":[{"Title":"Review","Fields":[],"Badge":null,"Subtitle":null,"Description":null,"Code":null,"Lines":null,"Groups":null,"Markdown":"**bold** reply","Location":{"Path":"src/a.ts","Line":12},"Status":{"Value":"in_progress","Label":"In progress"},"PreviousStatus":"Pending","Change":{"Value":"updated","Label":"Status changed"}}],"Empty":"","Summary":"Review","Caption":"","ExpandedSummary":"","Unchanged":null}`
+	if string(raw) != want {
+		t.Fatalf("vocabulary kinds = %s", raw)
 	}
 }

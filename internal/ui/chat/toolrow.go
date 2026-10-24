@@ -301,7 +301,7 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		return true, true
 	}
 	if info.details != nil && !opts.TextOnly {
-		toolDetailsCard(c, info.details, st, key, info.inspect != nil)
+		toolDetailsCard(c, info.details, st, key, info.inspect != nil, info.openFile)
 		return true, true
 	}
 	if info.Name == "run_code" && !opts.TextOnly {

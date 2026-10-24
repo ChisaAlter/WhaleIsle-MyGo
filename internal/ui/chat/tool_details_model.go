@@ -57,6 +57,34 @@ type toolDetailItem struct {
 	Lines []string
 	// Groups are the installed `groups` disclosures, in recorded order.
 	Groups []toolDetailGroup
+	// Markdown is the installed `markdown` prose entry.
+	Markdown *string
+	// Location turns the heading into a file link, as the installed `.path`
+	// button does.
+	Location *toolDetailLocation
+	// Status, PreviousStatus and Change are the installed todo row markers.
+	Status         *toolDetailStatus
+	PreviousStatus *string
+	Change         *toolDetailChange
+}
+
+// toolDetailLocation is a recorded file reference: the path and, when known, the
+// line the reference points at.
+type toolDetailLocation struct {
+	Path string
+	Line *int
+}
+
+// toolDetailStatus is the installed completed/in_progress/pending marker with
+// its localized label.
+type toolDetailStatus struct {
+	Value, Label string
+}
+
+// toolDetailChange is the installed added/removed/updated marker with its
+// localized label.
+type toolDetailChange struct {
+	Value, Label string
 }
 
 // toolDetailGroup is one installed nested disclosure. Its children keep the

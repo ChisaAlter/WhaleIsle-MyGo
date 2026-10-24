@@ -17,11 +17,13 @@ type toolDetailsPalette struct {
 	font, codeFont               string
 	secondary, tertiary, caption ui.Color
 	background                   ui.Color
+	// openFile opens a recorded file location; nil keeps the heading inert.
+	openFile func(string)
 }
 
 // Goal details are a subset of the installed ToolDetails entity renderer. Values
 // come from the immutable logged result, independently of the live Goals store.
-func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, key string, hasInspect bool) {
+func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, key string, hasInspect bool, openFile func(string)) {
 	background, borderInk, secondary, caption := st.Field, st.Border.Alpha(.4), st.Muted, st.Muted.Alpha(.6)
 	tertiary := st.Muted
 	if st.Colors.CodeBlock != "" {
@@ -30,7 +32,7 @@ func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, k
 		tertiary = chrome.Color(st.Colors.Muted)
 	}
 	ink := toolDetailsPalette{font: theme.RenderPreferences().Interface.Family, codeFont: theme.RenderPreferences().Code.Family,
-		secondary: secondary, tertiary: tertiary, caption: caption, background: background}
+		secondary: secondary, tertiary: tertiary, caption: caption, background: background, openFile: openFile}
 	border := toolCSSHalfBorder(c)
 	// The installed 88px reserve clears the row's Inspect button. It applies to
 	// the caption when a caption exists, and to the items only when the card has
@@ -87,7 +89,7 @@ func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink t
 	// as the installed `title !== undefined` check does.
 	hasHeading := item.Title != "" || item.Badge != nil
 	codeOnly := item.Code != nil && !hasHeading && item.Subtitle == nil && item.Description == nil &&
-		len(item.Fields) == 0 && len(item.Lines) == 0 && len(item.Groups) == 0
+		item.Markdown == nil && len(item.Fields) == 0 && len(item.Lines) == 0 && len(item.Groups) == 0
 	body := ui.Column(c.Key(index)).FillWidth().MinWidth(0)
 	switch {
 	case nested && codeOnly:
@@ -102,10 +104,19 @@ func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink t
 	}
 	body.Children(func() {
 		if hasHeading {
+			// The installed heading keeps the status glyph, the title (or its file
+			// link), the badge and the trailing status text on one wrapping line.
+			hasStatusText := item.Status != nil
 			ui.Row(c.Key("heading")).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
-				toolDetailsText(c, item.Title, ink.font, ink.secondary).Grow(1)
+				if item.Status != nil {
+					toolDetailsStatusGlyph(c, item, st, ink)
+				}
+				toolDetailsHeadingTitle(c, item, st, ink, hasStatusText)
 				if item.Badge != nil {
 					toolDetailsBadgeView(c, *item.Badge, st, ink.caption, ink.font, toolDetailsBadgeKey(index))
+				}
+				if item.Status != nil {
+					toolDetailsStatusText(c, item, ink)
 				}
 			})
 		}
@@ -135,6 +146,9 @@ func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink t
 		}
 		if len(item.Lines) > 0 {
 			toolDetailsLines(c, item.Lines, ink.font, ink.secondary)
+		}
+		if item.Markdown != nil {
+			toolDetailsMarkdown(c, *item.Markdown, st, ink)
 		}
 		if item.Code != nil {
 			toolDetailsCode(c, *item.Code, st, ink, codeOnly)
