@@ -1,0 +1,5 @@
+gate=deny probeWindow=True
+foregroundIsProbe=False
+beforeDevTools=0
+afterPress1DevTools=0
+log=04:37:39.398 install skipped h=true pg=true allowed=false
