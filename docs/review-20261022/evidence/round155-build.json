@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T01:40:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87543808,
+  "productionSHA256": "5A708C13C6A52835D2BD22A14D6B00F86F651EBEFD1505F307959357ED405C90",
+  "defaultSHA256": "5A708C13C6A52835D2BD22A14D6B00F86F651EBEFD1505F307959357ED405C90",
+  "note": "pass278 covers round 151-155: native launcher icons, welcome grid rewrite, pet geometry/lifecycle, measured chat chrome, the first-run preview notice and the native harness reference pipeline. Readiness plus notice/hero captures verified."
+}

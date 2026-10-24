@@ -328,6 +328,17 @@
 - pass276：87,539,712 B / SHA256 `EDD075B5…`；harness-start-pass276.json ready=True。
 - 残留：启动器导航图标/品牌资产/首页标题文案（task-25 进行中）、welcome 指标比对、聊天界面逐表面像素审计、per-profile project stage 成本、current-host.mjs verify 仍只认源码构建。
 
+### round151–155（2026-10-25）
+
+- round151：启动器 6 个导航图标改为原生 launcher.html 的 16×16 SVG path 精确绘制；首页标题「鲸屿桌面端」；品牌头像与原生 whale-head.png 逐字节一致。
+- round152：打通**原生 harness Web UI 参考管线**（token URL + CDP 截图 + DOM rect 测量），实测修正：侧栏底部合并为「设置与账号」36 DIP 座位、导航行距 36→40、hero 徽标「大肥鱼版」、composer 全角标点、模型 provider/model 无空格；并实现**首次运行「预览版说明」**（600×344、120×36 继续、goPreviewNoticeAck 持久化、保存失败提示）。pass278 实拍确认。
+- round153：欢迎窗按原生 welcome-layout.css 网格重写（36 拖拽条 + 40 品牌行、24/48/76 内边距、26/40 标题、240 宽动作列 44 高按钮、440 宽 key 表单），17 项指标测试钉住。
+- round154：桌宠几何对齐原生 desktop-live2d.js 的 240×260 足迹 / 24 边距（原生窗口实为全屏透明 overlay，不随成长改尺寸）；MyGo 窗口 240×438（含页面状态面板）。
+- 桌宠启动缺陷：窗口确实创建，但 whale-pet:// 导航被 WebView2 中止（status 14）后窗口被关闭且无重试；已加 openCompanionWindow 缝隙、加载失败重试一次 + 记录、主窗 OnShow 重新 SetReady。**实机桌宠仍不显示**（scheme 导航待修）。
+- round155：原生参考管线文档与脚本 scripts/native-web-shot.mjs。
+- pass278：87,543,808 B / SHA256 `5A708C13…`；harness-start-pass278.json ready=True；实拍 mygo-chat-notice-pass278-150dpi.png、mygo-chat-hero-pass278-150dpi.png。
+- 残留：composer 高 126 vs 原生 114（+12）、页头 48 vs 52、折叠按钮 ±2 DIP、新会话/工作区工具组未复测；桌宠 scheme；欢迎窗品牌内容/tint；升级路径。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
