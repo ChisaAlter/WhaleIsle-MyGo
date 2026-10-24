@@ -339,6 +339,15 @@
 - pass278：87,543,808 B / SHA256 `5A708C13…`；harness-start-pass278.json ready=True；实拍 mygo-chat-notice-pass278-150dpi.png、mygo-chat-hero-pass278-150dpi.png。
 - 残留：composer 高 126 vs 原生 114（+12）、页头 48 vs 52、折叠按钮 ±2 DIP、新会话/工作区工具组未复测；桌宠 scheme；欢迎窗品牌内容/tint；升级路径。
 
+### round156–159（2026-10-25）
+
+- round156：composer 卡片 126→**114**（原生 padding 8/0/8、gap 12、34 控制行、8 侧 inset）；新会话 **252×38 @ (14,70)**、页行 252 宽 x14、标签 x46、pitch 40；折叠 **28×28 @ (240,22)**；页头 52 仅浏览器，桌面注入 CAPTION_HEIGHT=48，保持 48 合并标题带。
+- round157：远程/中继功能矩阵——配置默认值/归一化一致、协议复用原生 dshd-remote；G1 无 mobile runtime、G2 LAN 配对被 relay 门禁卡死、G3 relay token 未注入、G4 ssh 模式、G5 LAN 发现、G6 TLS/SSH。
+- round158：修复 G4（仅 lan，其它→relay）、G3（凭据中的 remoteToken/remoteRelayToken 注入 daemon 配置）、G2（LAN 监听即 ready 并保留 pairing URL；bridge.cjs 同步）；G1/G5/G6 需真实 daemon。
+- **桌宠可见性修复**：根因是创建时 Hidden:true 且从未 Show()，隐藏的 WebView2 控制器中止自定义 scheme（status 14）→ 窗口被关闭。现在加载前 Show、原生右下 24 gap 定位、加载完成后忽略后续 abort；实机 **360×657 px = 240×438 DIP**，页面 hit-region 240×438。渲染层差异（web 页+状态面板 vs live2d 全屏 overlay）保留。
+- pass279：87,550,976 B / SHA256 `063DD647…`；harness-start-pass279.json ready=True。
+- 残留：composer 宽 772 vs 774.4、导航文字基线 1.7 DIP、hero 纵向 seat 需桌面参考；G1 mobile runtime、G5 LAN 发现、G6 TLS/SSH；验收合同双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

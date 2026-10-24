@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T02:12:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87550976,
+  "productionSHA256": "063DD647677E45698C2DFC053A6B016255A80C6C957C1E37FE49E274A4E3A96F",
+  "defaultSHA256": "063DD647677E45698C2DFC053A6B016255A80C6C957C1E37FE49E274A4E3A96F",
+  "note": "pass279 covers round 156-159: composer/new-session/collapse geometry, remote mode/token/LAN pairing fixes, and the pet visibility fix (240x438 DIP measured). Readiness verified."
+}

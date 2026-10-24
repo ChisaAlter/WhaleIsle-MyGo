@@ -124,6 +124,13 @@ The native browser reference has no WhaleIsle desktop shell, so these are absent
 
 ## 5. Open / blocked
 
+> Closed by round156 (`round156-chat-chrome-closeout.md`): the composer card is now 114 DIP on the
+> native `padding: 8px 0 0` recipe, the new-session button is 252×38 at (14,70), the page rows and the
+> footer seat sit on the 14-DIP / 252-DIP inset, the collapse control is the 28×28 seat at (240,22),
+> the workspace toolbar icons measured equal, and the 52/48 header band is documented as the injected
+> 48-DIP caption plate covering the browser's 52-DIP page header. The after-capture is
+> `evidence/screens/mygo-chat-after-round156-150dpi.png`. Everything below is the round152 record.
+
 - **Composer card height +12 DIP** (native 114 vs MyGo 126 at the same 774 width). The native card is
   `padding: 8px 0 0` with a fixed 28-DIP control row; MyGo's composer adds its own vertical padding and
   a taller input row. Owner: `internal/ui/composer` — not touched this round because the composer is
