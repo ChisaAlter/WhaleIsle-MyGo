@@ -128,8 +128,8 @@ func TestComposerPhaseAndPanelsRetainMarkedIMEOwner(t *testing.T) {
 // One 28px row above the card carries both entries: the workspace picker on
 // the left and the agent preset on the right.
 func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
-	for _, width := range []int{432, 800} {
-		for _, root := range []string{`C:\fixture`, ""} {
+	for _, width := range []int{432, 800, 1440} {
+		for _, root := range []string{`C:\fixture`, "", `C:\a-very-long-workspace-name-that-must-truncate\inside-the-chip`} {
 			d := NewDraftState("")
 			preset := "Fixture agent"
 			picked := 0
@@ -163,18 +163,31 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			// The installed hero keeps the preset chip in the left flow right after
 			// the workspace chip (probe: 标准模式 at x=638.3, ~18 DIP past the workspace
 			// chip), not flush to the row's right edge.
+			// Native rule (round205/round211): a fixed 150-DIP workspace chip, so
+			// short and long names share the width and the preset chip after it
+			// keeps the native x.
+			closeMetric(t, workspace.W, 150, "workspace chip width")
+			closeMetric(t, presetChip.X, workspace.X+workspace.W+18, "preset chip sits 18 DIP after the chip")
+			t.Logf("width=%d workspace=%v preset=%v", width, workspace, presetChip)
 			if gap := presetChip.X - (workspace.X + workspace.W); gap < 0 || gap > 24 {
 				t.Fatalf("preset chip gap=%.2f, want it right after the workspace chip: %v %v", gap, workspace, presetChip)
 			}
 			if presetChip.X+presetChip.W > row.X+row.W-16 {
 				t.Fatalf("preset chip overflows the row: %v row=%v", presetChip, row)
 			}
-			want := "fixture"
-			if root == "" {
-				want = i18n.T(i18n.KeyChatHeroChooseWorkspace)
+			if len(root) > 30 && workspace.W != 150 {
+				t.Fatalf("long workspace name changed the chip width: %v", workspace)
 			}
-			if !tt.HasText(want) {
-				t.Fatalf("workspace label = %v, want %q", tt.Texts(), want)
+			// The chip shows the workspace basename; the long case only pins the
+			// width rule, so it skips the label assertion.
+			if len(root) <= 30 {
+				want := "fixture"
+				if root == "" {
+					want = i18n.T(i18n.KeyChatHeroChooseWorkspace)
+				}
+				if !tt.HasText(want) {
+					t.Fatalf("workspace label = %v, want %q", tt.Texts(), want)
+				}
 			}
 			if tt.HasText(i18n.T(i18n.KeyNoDirectory)) {
 				t.Fatalf("hero row added a second no-directory button: %v", tt.Texts())

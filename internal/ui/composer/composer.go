@@ -268,7 +268,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if m.Hero {
 			// One 28px row above the card carries both entries: the workspace
 			// picker on the left and the agent preset on the right.
-			ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(2).AlignItems(ui.Center).
+			// Gap 18 (native: workspace chip ends ~620, 标准模式 at 638.3); it only
+				// separates the two chips, so it is the native chip-to-chip inset.
+				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(18).AlignItems(ui.Center).
 				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
 				wsLabel := strings.TrimSpace(m.WorkspaceRoot)
 				// Session groups without a directory carry sentinel ids such as
@@ -286,7 +288,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if m.Inert || wsLabel == "" {
 					wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
 				}
-				workspace := chip(c, colors, false, fg).Label("Composer workspace").Padding(0, 8, 0, 8)
+				// Native rule (round205/round211): the workspace chip is a fixed 150
+				// DIP wide with 8 DIP side padding, a 16 DIP folder icon, a 4 DIP
+				// gap, and a trailing chevron; longer names truncate, shorter ones
+				// keep the width so the preset chip lands at the native x.
+				workspace := chip(c, colors, false, fg).Label("Composer workspace").Padding(0, 8, 0, 8).Width(150)
 				if m.WorkspacePickerAnchor != nil {
 					workspace.Bind(m.WorkspacePickerAnchor)
 				}
@@ -295,7 +301,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				}
 				workspace.Children(func() {
 					ui.Icon(c, folderIcon).Size(16, 16).TextColor(muted).Shrink(0)
-					ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg).SingleLine().MaxLines(1)
+					// Long names truncate inside the fixed 150-DIP chip instead of
+					// pushing the chevron or the preset chip.
+					ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg).SingleLine().MaxLines(1).Shrink(1).Grow(1)
 					chevron(c, false)
 				})
 				if workspace.Clicked() && m.OnPickHeroWorkspace != nil {
