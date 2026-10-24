@@ -500,6 +500,16 @@
 - 剩余集群：draft insets +28.67、fish 34×24.67 vs 48.67×15.33、账号菜单 h−8、preset chip −3.33、会话树数据/名称冲突。
 - pass301：87,742,976 B / SHA256 `0DFB1BB1…`；ready=True。
 
+### round249–257（2026-10-25）
+
+- **Composer 全部对齐**：hero 卡 **155.34**、draft 盒 **745.33 @ x+12.67**、send **521.33**（卡顶+112.67）、鱼徽标 **48.67×15.33**（x=936）、preset chip **655.33**；pass303 实机 UIA 与原生差 ≤0.67。
+- **Headline 行完全对齐**：原生把 17 DIP 拆成 fish→slogan **2.69** / slogan→badge **14.31**，我方原为 10/7；改后 slogan x **765.33 = 原生**、badge x/w/h 全对（y 314.67 不变）。
+- **AA 口径实现**：scripts/score-aa.py（3×3 对比 ink mask + 2px 膨胀、kept/frame 双分母）；light 有效 pair：raw 1.685%、caption-masked 1.363%、**AA-excluded 0.007%（hero 0.000 / composer 0.036 / Δ>16=0）**——≤0.1% 可达。
+- **matcher context**：同名控件按窗口区域/宽度/id 分桶，新建会话 真配对 Δ0.67，within-1-DIP window **13** / caption **9**；原生 caption rail pill 为真实缺失项。
+- **G46 完成 PR 路由**：gitCreateChangeRequest 经 gate（push→create、原生 400 原因透传），node 17/17；saveConfig/open* 仍 501。
+- **最终 AA 评分受阻**：原生 dark 身体稳定但窗口透出桌面壁纸（card 22,68,51），MyGo no-wallpaper 为 flat；需 D3 决策（原生 flat / 壁纸蒙版 / 两边同壁纸）。
+- pass303：87,745,024 B / SHA256 `2D0B3668…`；ready=True。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
