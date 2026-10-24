@@ -65,6 +65,11 @@ func TestSidebarChromeMatchesTheNativePage(t *testing.T) {
 	if market.X != 46 || market.Y < 125.5 || market.Y > 129.5 {
 		t.Fatalf("插件 label=%+v, want x=46 y≈127", market)
 	}
+	// The native row is a 22-DIP line box under 7-DIP padding, so the label box is
+	// 22 tall; an 18.7 box centres the ink ~1.7 DIP lower.
+	if market.H != 22 {
+		t.Fatalf("插件 label height=%.1f, want the native 22-DIP line box", market.H)
+	}
 	if pitch := schedule.Y - market.Y; pitch < 39.5 || pitch > 40.5 {
 		t.Fatalf("page row pitch=%.1f, want 40", pitch)
 	}

@@ -258,7 +258,13 @@ func View(c *ui.Context, m Model) {
 								if drawIcon != nil {
 									drawIcon()
 								}
-								ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
+								// Native rows carry a 22-DIP line box under the 7-DIP
+								// padding, so the label ink starts at 7 + (22-14)/2 below
+								// the row; a plain text box is 18.7 tall and its centred
+								// ink sits ~1.7 DIP lower than the reference.
+								ui.Text(c, label).FontSize(theme.InterfaceSize(14)).
+									FixedLineHeight(theme.InterfaceSize(22)).
+									TextColor(fg).Grow(1)
 							})
 						})
 						if fn != nil && row.Clicked() {
@@ -309,7 +315,8 @@ func View(c *ui.Context, m Model) {
 							} else {
 								ui.Text(c, "◉").FontSize(theme.InterfaceSize(14)).TextColor(muted)
 							}
-							ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(theme.InterfaceSize(14)).TextColor(fg).Grow(1)
+							ui.Text(c, i18n.T(i18n.KeySidebarAssistant)).FontSize(theme.InterfaceSize(14)).
+								FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg).Grow(1)
 						})
 					})
 					if m.OnOpenAssistant != nil && assist.Clicked() {
