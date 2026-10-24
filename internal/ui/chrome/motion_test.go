@@ -48,6 +48,85 @@ func TestMotionTokensMatchWidgets(t *testing.T) {
 	}
 }
 
+// TestOverlayRecipeMatchesTheDesignSystem pins the overlay's exact recipe:
+// its enter rises 8 DIP from 96% of its size over 200 ms, and it goes on the
+// fast 100 ms token (ui-theme/src/styles/base.css:16-17,21,23). A popover keeps
+// its 160 ms and 4 DIP and never shrinks.
+func TestOverlayRecipeMatchesTheDesignSystem(t *testing.T) {
+	overlay := OverlayTransition()
+	if overlay.Enter.Y != 8 || overlay.Exit.Y != 8 {
+		t.Fatalf("overlay rise = %v in, %v out, want 8", overlay.Enter.Y, overlay.Exit.Y)
+	}
+	if overlay.Enter.Scale != 0.96 || overlay.Exit.Scale != 0.96 {
+		t.Fatalf("overlay scale = %v in, %v out, want 0.96", overlay.Enter.Scale, overlay.Exit.Scale)
+	}
+	if overlay.Duration != 200*time.Millisecond || overlay.ExitDuration != 100*time.Millisecond {
+		t.Fatalf("overlay %v in, %v out, want 200ms in and the 100ms fast token out", overlay.Duration, overlay.ExitDuration)
+	}
+	popover := PopoverTransition()
+	if popover.Enter.Y != 4 || popover.Exit.Y != 4 {
+		t.Fatalf("popover rise = %v, want 4", popover.Enter.Y)
+	}
+	if popover.Enter.Scale > 0 && popover.Enter.Scale != 1 {
+		t.Fatalf("popover shrinks to %v, want no scale", popover.Enter.Scale)
+	}
+	if popover.Duration != 160*time.Millisecond || popover.ExitDuration != 0 {
+		t.Fatalf("popover %v with a %v exit, want its own 160ms both ways", popover.Duration, popover.ExitDuration)
+	}
+}
+
+// TestOverlayTransitionScalesInAndExitsFast drives the recipe through the
+// renderer: the panel starts at 96% of its width, settles at its own, and its
+// copy is gone 100 ms after it closes rather than 200.
+func TestOverlayTransitionScalesInAndExitsFast(t *testing.T) {
+	open := false
+	start := time.Unix(1000, 0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Background(ui.RGB(0, 0, 0)).Children(func() {
+			if !open {
+				return
+			}
+			ui.Box(c).Key("overlay-panel").Label("overlay panel").Width(100).Height(60).
+				Background(ui.RGB(255, 0, 0)).Transition(OverlayTransition())
+		})
+	}, 200, 120)
+	tt.SetTime(start)
+	open = true
+	tt.SetTime(start.Add(time.Millisecond))
+	panel, ok := tt.Find("overlay panel")
+	if !ok {
+		t.Fatal("the overlay panel never showed")
+	}
+	if panel.W > 98 || panel.W < 95 || panel.X < 1 {
+		t.Fatalf("the panel starts at %+v, want 96%% of 100 wide, centred", panel)
+	}
+	tt.SetTime(start.Add(OverlayDuration / 2))
+	half, _ := tt.Find("overlay panel")
+	if half.W <= panel.W || half.W >= 100 {
+		t.Fatalf("halfway the panel is %v wide, want between %v and 100", half.W, panel.W)
+	}
+	tt.SetTime(start.Add(OverlayDuration + time.Millisecond))
+	if settled, _ := tt.Find("overlay panel"); settled.W != 100 || settled.X != 0 {
+		t.Fatalf("the panel settled at %+v, want its own box", settled)
+	}
+	// Closing: the copy is still painted halfway through the 100 ms exit, and
+	// gone once that ends, before the 200 ms enter token would have finished.
+	open = false
+	tt.SetTime(start.Add(OverlayDuration + 2*time.Millisecond))
+	tt.Frame()
+	x, y := 50, 30
+	closing := tt.Image().RGBAAt(x, y).R
+	tt.SetTime(start.Add(OverlayDuration + 2*time.Millisecond + OverlayExitDuration/2))
+	mid := tt.Image().RGBAAt(x, y).R
+	tt.SetTime(start.Add(OverlayDuration + 2*time.Millisecond + OverlayExitDuration))
+	if done := tt.Image().RGBAAt(x, y).R; done != 0 {
+		t.Fatalf("the copy is still painted %v after a %v exit: %d", OverlayExitDuration, OverlayExitDuration, done)
+	}
+	if !(closing > mid) {
+		t.Fatalf("the exit did not fade: %d → %d", closing, mid)
+	}
+}
+
 // TestPopoverEnterFadesOverItsDuration drives a menu panel through the
 // renderer: it appears transparent and settles opaque one popover duration
 // later.

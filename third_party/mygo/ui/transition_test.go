@@ -406,6 +406,121 @@ func TestTransitionResizesAList(t *testing.T) {
 	}
 }
 
+// TestTransitionScalesTheBoxAroundItsCentre covers Motion.Scale: an element
+// appearing at half size grows from its middle out, clipping what it holds
+// and keeping its content's own layout, and lands at its own box.
+func TestTransitionScalesTheBoxAroundItsCentre(t *testing.T) {
+	items := []string{"Keep"}
+	motion := ElementTransition{Ease: Linear, Enter: &Motion{Scale: 0.5}}
+	tt, now := clockTester(func(c *context) {
+		coreColumn(c).Fill().Children(func() {
+			for _, s := range items {
+				coreRow(c).Key(s).Height(40).Transition(motion).Children(func() { coreText(c, s) })
+			}
+		})
+	}, 200, 200)
+	node := func(s string) *node {
+		for e := tt.rt.c.root.first.first; e != nil; e = e.next {
+			if e.first != nil && e.first.text == s {
+				return e
+			}
+		}
+		return nil
+	}
+	items = []string{"Keep", "Scaled"}
+	tt.Frame()
+	if e := node("Scaled"); e == nil || e.w != 100 || e.x != 50 {
+		t.Fatalf("half-size start: %+v, want w=100 at x=50", e)
+	} else if e.flags&flagClip == 0 {
+		t.Error("a scaled box does not clip what it holds")
+	}
+	*now = now.Add(100 * time.Millisecond)
+	tt.Frame()
+	if e := node("Scaled"); e.w != 150 || e.x != 25 {
+		t.Errorf("halfway: w=%v at x=%v, want 150 at 25", e.w, e.x)
+	}
+	*now = now.Add(150 * time.Millisecond)
+	tt.Frame()
+	if e := node("Scaled"); e.w != 200 || e.x != 0 || e.flags&flagClip != 0 {
+		t.Errorf("full size: w=%v at x=%v clip=%v", e.w, e.x, e.flags&flagClip != 0)
+	}
+	// The content was never laid out at the smaller size: it shows at its own
+	// place and is clipped, as the toolkit paints no scaled subtree.
+	if r := at(t, tt, "Scaled"); r.X != 0 {
+		t.Errorf("the content of a scaled box moved to %v", r.X)
+	}
+	// Reduce motion jumps straight to the full box.
+	items = []string{"Keep", "Scaled", "Snap"}
+	tt.SetPreferences(Preferences{ReduceMotion: true})
+	tt.Frame()
+	if e := node("Snap"); e.w != 200 {
+		t.Errorf("with reduce motion, a scaled box came in at %v wide", e.w)
+	}
+}
+
+// TestTransitionExitUsesItsOwnDuration covers ElementTransition.ExitDuration:
+// an exit shorter than the enter goes in that time, while an element coming
+// in keeps the enter duration.
+func TestTransitionExitUsesItsOwnDuration(t *testing.T) {
+	items := []string{"A"}
+	motion := ElementTransition{Duration: 200 * time.Millisecond, ExitDuration: 100 * time.Millisecond, Ease: Linear,
+		Enter: &Motion{Scale: 0.9}, Exit: &Motion{Scale: 0.9, Opacity: 0}}
+	tt, now := clockTester(func(c *context) {
+		coreColumn(c).Fill().Children(func() {
+			for _, s := range items {
+				coreRow(c).Key(s).Height(40).Transition(motion).Children(func() { coreText(c, s) })
+			}
+		})
+	}, 200, 200)
+	ghost := func() *node {
+		for e := tt.rt.c.root.first.first; e != nil; e = e.next {
+			if e.leaving != 0 {
+				return e
+			}
+		}
+		return nil
+	}
+	items = nil
+	tt.Frame()
+	if g := ghost(); g == nil {
+		t.Fatal("the row going left no copy")
+	} else if g.w != 200 {
+		t.Errorf("the copy starts %v wide, want its own box", g.w)
+	}
+	*now = now.Add(50 * time.Millisecond)
+	tt.Frame()
+	if g := ghost(); g == nil || g.w != 190 {
+		t.Errorf("halfway out: %+v, want 190 wide at the design curve's start of the 100 ms exit", g)
+	}
+	*now = now.Add(60 * time.Millisecond)
+	tt.Frame()
+	if g := ghost(); g != nil {
+		t.Errorf("the copy is still there 110 ms into a 100 ms exit: %+v", g)
+	}
+	// The enter keeps Duration: a row appearing fresh is still growing 110 ms
+	// in, and lands at 200 ms.
+	node := func(s string) *node {
+		for e := tt.rt.c.root.first.first; e != nil; e = e.next {
+			if e.first != nil && e.first.text == s {
+				return e
+			}
+		}
+		return nil
+	}
+	items = []string{"Fresh"}
+	tt.Frame()
+	*now = now.Add(110 * time.Millisecond)
+	tt.Frame()
+	if e := node("Fresh"); e == nil || e.w >= 200 || e.w <= 180 {
+		t.Fatalf("110 ms into the 200 ms enter, the row is %+v", e)
+	}
+	*now = now.Add(100 * time.Millisecond)
+	tt.Frame()
+	if e := node("Fresh"); e == nil || e.w != 200 {
+		t.Errorf("the enter ended at %+v, want its own 200 ms and full width", e)
+	}
+}
+
 // lenientTester is NewTester as an app's window is: duplicate keys only
 // log.
 func lenientTester(view func(c *context), width, height int) *Tester {

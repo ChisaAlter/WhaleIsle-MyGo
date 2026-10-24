@@ -16,16 +16,22 @@ import (
 const (
 	// OverlayDuration is how long a modal or a page takes to appear.
 	OverlayDuration = 200 * time.Millisecond
+	// OverlayExitDuration is how long one takes to go: the design system's
+	// overlay-out rides the fast token, 100 ms (ui-theme/src/styles/base.css:17
+	// --ds-motion-duration-overlay-out), half the enter.
+	OverlayExitDuration = 100 * time.Millisecond
 	// PopoverDuration is how long a menu or a floating card takes.
 	PopoverDuration = 160 * time.Millisecond
 )
 
-// How far a surface rises as it appears, in DIPs: a menu grows up out of its
-// anchor by 4, a modal by 8, matching --ds-motion-distance-popover and
-// --ds-motion-distance-overlay (ui-theme/src/styles/base.css:21-22).
+// How far a surface rises as it appears, in DIPs, and how much smaller it is
+// when it starts: a menu grows up out of its anchor by 4, a modal rises 8 and
+// starts at 96% (--ds-motion-distance-overlay, --ds-motion-scale-overlay;
+// ui-theme/src/styles/base.css:21,23).
 const (
-	popoverRise = 4
-	overlayRise = 8
+	popoverRise  = 4
+	overlayRise  = 8
+	overlayScale = 0.96
 )
 
 // PopoverTransition is the enter and exit motion of a menu, popover or floating
@@ -51,21 +57,23 @@ func PopoverTransition() ui.ElementTransition {
 	}
 }
 
-// OverlayTransition is the enter and exit motion of a modal panel: a short fade
-// with almost no travel, as motion.css's overlay recipe. The dialog frame
-// (ui.DialogBase) supplies its own mounted lifetime, so apply this to the panel
-// it hands over, with a Key.
+// OverlayTransition is the enter and exit motion of a modal panel: motion.css's
+// overlay recipe, rising 8 DIP from 96% of its size and leaving on the fast
+// 100 ms token (base.css:16-17,21,23). The dialog frame (ui.DialogBase) supplies
+// its own mounted lifetime, so apply this to the panel it hands over, with a
+// Key.
 //
 // A DialogBase or PopoverBase panel cannot play it: those bases return nil while
 // closed, and the framework skips Transition.Enter for an element whose parent
 // is new in the same frame, which is exactly an overlay's first frame. Call
-// Reveal for such a panel instead; it runs the same token by hand.
+// Reveal for such a panel instead; it runs the enter token by hand.
 func OverlayTransition() ui.ElementTransition {
 	return ui.ElementTransition{
-		Duration: OverlayDuration,
-		Ease:     widgets.DesignEase,
-		Enter:    &ui.Motion{Y: overlayRise, Opacity: 0},
-		Exit:     &ui.Motion{Y: overlayRise, Opacity: 0},
+		Duration:     OverlayDuration,
+		ExitDuration: OverlayExitDuration,
+		Ease:         widgets.DesignEase,
+		Enter:        &ui.Motion{Y: overlayRise, Scale: overlayScale, Opacity: 0},
+		Exit:         &ui.Motion{Y: overlayRise, Scale: overlayScale, Opacity: 0},
 	}
 }
 

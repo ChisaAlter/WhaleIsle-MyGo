@@ -17,6 +17,10 @@ import (
 type ElementTransition struct {
 	// Duration is how long a change takes: 200 ms when zero.
 	Duration time.Duration
+	// ExitDuration is how long an exit takes: Duration when zero, so that an
+	// element can go faster than it came, as the design system's overlay does
+	// (200 ms in, 100 ms out).
+	ExitDuration time.Duration
 	// Ease is how the element goes, as for AnimateWith: EaseOut when nil.
 	Ease Easing
 	// Position, Size and Colors choose what animates: where the element is
@@ -46,6 +50,13 @@ type Motion struct {
 	// Collapse makes it nothing along its parent's direction: no height in
 	// a column, no width in a row. Its content keeps its layout, clipped.
 	Collapse bool
+	// Scale shrinks (below 1) or grows (above 1) the element's box around
+	// its centre there: 1, and 0, leave it at its size. The box clips what
+	// it holds while it is not 1, so a panel shrinking in shows its middle
+	// rather than spilling past its edges; the toolkit paints no scaled
+	// subtree, so content keeps its own layout instead of shrinking with
+	// the box.
+	Scale float32
 }
 
 // defaultDuration is the Duration of a Transition without one.
@@ -78,14 +89,17 @@ type transitionUse struct {
 }
 
 // tbox is what a transition moves: an element's place in its parent's
-// box, its size, and its opacity.
-type tbox struct{ x, y, w, h, alpha float32 }
+// box, its size, its opacity and how much of its box it takes up.
+type tbox struct {
+	x, y, w, h, alpha, scale float32
+}
 
 // What a transition moves now.
 const (
 	movePos uint8 = 1 << iota
 	moveSize
 	moveAlpha
+	moveScale
 )
 
 // The axes a Motion collapses an element along.
@@ -134,10 +148,30 @@ func (r *transition) duration() time.Duration {
 	return defaultDuration
 }
 
+// exitDuration is how long the element takes to go: its own ExitDuration
+// when it has one, and Duration otherwise.
+func (r *transition) exitDuration() time.Duration {
+	if r.t.ExitDuration > 0 {
+		return r.t.ExitDuration
+	}
+	return r.duration()
+}
+
 // progress returns how far a move started at start has gone at now along
 // the easing, and whether it is over.
 func (r *transition) progress(start, now time.Time) (float32, bool) {
-	t := float32(now.Sub(start)) / float32(r.duration())
+	return r.progressOver(r.duration(), start, now)
+}
+
+// progressExit is progress over the exit duration.
+func (r *transition) progressExit(start, now time.Time) (float32, bool) {
+	return r.progressOver(r.exitDuration(), start, now)
+}
+
+// progressOver returns how far a move of length d started at start has gone
+// at now along the easing, and whether it is over.
+func (r *transition) progressOver(d time.Duration, start, now time.Time) (float32, bool) {
+	t := float32(now.Sub(start)) / float32(d)
 	if t >= 1 {
 		return 1, true
 	}
@@ -192,6 +226,11 @@ func (b tbox) at(o tbox, k float32, move uint8) tbox {
 	} else {
 		b.alpha = o.alpha
 	}
+	if move&moveScale != 0 {
+		b.scale = lerp(b.scale, o.scale, k)
+	} else {
+		b.scale = o.scale
+	}
 	return b
 }
 
@@ -200,6 +239,10 @@ func (b tbox) moved(m *Motion, axis uint8) tbox {
 	b.x += m.X
 	b.y += m.Y
 	b.alpha = max(0, min(m.Opacity, 1))
+	b.scale = m.Scale
+	if b.scale <= 0 {
+		b.scale = 1
+	}
 	switch axis {
 	case collapseWidth:
 		b.w = 0
@@ -263,10 +306,10 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 			// Built again as a copy of it was going: it comes back from
 			// where the copy shows.
 			r.ghost, r.fresh = nil, false
-			r.from, r.start, r.moving, r.collapse = r.shown, now, movePos|moveSize|moveAlpha, 0
+			r.from, r.start, r.moving, r.collapse = r.shown, now, movePos|moveSize|moveAlpha|moveScale, 0
 		}
 		r.t, r.elem, r.parent, r.built = u.t, e, e.parent.id, rt.frame
-		r.next = tbox{e.x, e.y, e.w, e.h, 1}
+		r.next = tbox{x: e.x, y: e.y, w: e.w, h: e.h, alpha: 1, scale: 1}
 		e.st.trec = r
 		if u.t.Exit != nil {
 			rt.exitsBuilt = true
@@ -286,7 +329,7 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 			if m := r.t.Enter; m != nil && !still && !resized && e.st.born == rt.frame && e.parent.st.born != rt.frame {
 				r.collapse = collapseAxis(m, e.parent)
 				r.from = next.moved(m, r.collapse)
-				r.start, r.moving = now, movePos|moveSize|moveAlpha
+				r.start, r.moving = now, movePos|moveSize|moveAlpha|moveScale
 			}
 		case still || resized:
 			r.moving, r.collapse = 0, 0
@@ -353,13 +396,23 @@ func (c *context) byDepth(uses []transitionUse) []transitionUse {
 
 // apply shows e at s.
 func (r *transition) apply(e *node, s tbox) {
-	if s.w != e.w || s.h != e.h {
+	w, h := max(s.w, 0), max(s.h, 0)
+	switch {
+	case s.scale != 1:
+		// Scaled: the box keeps its centre, paints smaller and clips what it
+		// holds, which keeps its own layout.
+		scaledW, scaledH := w*max(s.scale, 0), h*max(s.scale, 0)
+		s.x, s.y = s.x+(w-scaledW)/2, s.y+(h-scaledH)/2
+		w, h = scaledW, scaledH
+		e.w, e.h = w, h
+		e.flags |= flagClip
+	case w != e.w || h != e.h:
 		if r.collapse != 0 {
 			// Collapsing: the content keeps its layout, clipped.
-			e.w, e.h = max(s.w, 0), max(s.h, 0)
+			e.w, e.h = w, h
 			e.flags |= flagClip
 		} else {
-			layoutBox(e, max(s.w, 0), max(s.h, 0))
+			layoutBox(e, w, h)
 		}
 	}
 	e.x, e.y = s.x, s.y
@@ -410,18 +463,23 @@ func (rt *engine) animateExits(root *node, now time.Time, still bool) {
 			r.gone, r.start = r.shown, now
 			r.collapse = collapseAxis(r.t.Exit, p)
 		}
-		k, done := r.progress(r.start, now)
+		k, done := r.progressExit(r.start, now)
 		if done {
 			delete(rt.trans, id)
 			continue
 		}
-		s := r.gone.at(r.gone.moved(r.t.Exit, r.collapse), k, movePos|moveSize|moveAlpha)
+		s := r.gone.at(r.gone.moved(r.t.Exit, r.collapse), k, movePos|moveSize|moveAlpha|moveScale)
 		g := r.ghost
 		g.next = nil
 		p.add(g)
 		p.ghosts = true
 		layoutBox(g, r.gone.w, r.gone.h)
-		if s.w != r.gone.w || s.h != r.gone.h {
+		if s.scale != 1 {
+			w, h := max(s.w, 0)*max(s.scale, 0), max(s.h, 0)*max(s.scale, 0)
+			s.x, s.y = s.x+(max(s.w, 0)-w)/2, s.y+(max(s.h, 0)-h)/2
+			g.w, g.h = w, h
+			g.flags |= flagClip
+		} else if s.w != r.gone.w || s.h != r.gone.h {
 			g.w, g.h = max(s.w, 0), max(s.h, 0)
 			g.flags |= flagClip
 		}
