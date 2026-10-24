@@ -1,0 +1,39 @@
+{
+  "dark": true,
+  "expanded": {
+    "|tool:native-image": true,
+    "|tool:native-image-retry": true
+  },
+  "files": [
+    "/work/recorded.png"
+  ],
+  "following": {
+    "X": 20,
+    "Y": 579.28125,
+    "W": 705.3333,
+    "H": 1
+  },
+  "lightbox": false,
+  "loads": 2,
+  "opened": [
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-image-pass266-fixture-raster.png",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-image-pass266-fixture-raster.png",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-image-pass266-fixture-raster.png",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-image-pass266-fixture-raster.png",
+    "C:\\AI\\WhaleIsle-MyGo\\docs\\review-20261022\\evidence\\tool-image-pass266-fixture-raster.png"
+  ],
+  "retry": {
+    "X": 20,
+    "Y": 322.28125,
+    "W": 520,
+    "H": 247
+  },
+  "row": {
+    "X": 20,
+    "Y": 65.28125,
+    "W": 520,
+    "H": 247
+  },
+  "scale": 1.5,
+  "time": "2026-10-24T13:11:45.1017014+08:00"
+}

@@ -1,0 +1,19 @@
+{
+    "time":  "2026-10-24T05:11:23.2809543Z",
+    "change":  "Installed lightbox stage excludes titlebar, mask starts below caption; close fixed below caption",
+    "focusedImageLightboxAndView":  "PASS",
+    "chatLifetime":  "PASS",
+    "chatVet":  "PASS",
+    "productionBuild":  "PASS",
+    "fixtureBuild":  "PASS",
+    "defaultBinaryMatches":  true,
+    "exactLocaleFollowup": {
+        "chatCommand": "go test ./internal/ui/chat -run '^TestToolImageLightbox|^TestCatalog' -count=1",
+        "chatOutput": "ok whaleisle/internal/ui/chat 2.796s",
+        "i18nOutput": "ok whaleisle/internal/ui/i18n 0.486s [no tests to run]",
+        "i18nScope": "Compilation only for this regex; earlier full i18n package passed0.530s",
+        "productionAndFixtureBuild": "PASS; final hashes in tool-image-pass266-build.json",
+        "nativeFinalPID": 29124,
+        "nativeFinalResult": "PASS injected native surface; closed and exited"
+    }
+}

@@ -32,7 +32,6 @@ func SetAttachmentCacheDir(dir string) {
 
 // CachedAttachmentPath returns a previously fetched local path for attachmentId.
 func CachedAttachmentPath(attachmentID string) string {
-	attachmentID = strings.TrimSpace(attachmentID)
 	if attachmentID == "" {
 		return ""
 	}
@@ -41,9 +40,9 @@ func CachedAttachmentPath(attachmentID string) string {
 	return attachmentCache.paths[attachmentID]
 }
 
-// FetchAttachment calls session/attachment and writes decoded bytes to the cache dir.
+// FetchAttachment calls session/attachment with the exact provider-owned ID and
+// writes decoded bytes to the cache dir. Whitespace is part of an opaque ID.
 func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (string, error) {
-	attachmentID = strings.TrimSpace(attachmentID)
 	if attachmentID == "" {
 		return "", os.ErrInvalid
 	}
@@ -129,6 +128,6 @@ func decodeAttachmentData(data string) ([]byte, error) {
 // content. The next read still goes through the session-authorized endpoint.
 func ForgetCachedAttachment(attachmentID string) {
 	attachmentCache.mu.Lock()
-	delete(attachmentCache.paths, strings.TrimSpace(attachmentID))
+	delete(attachmentCache.paths, attachmentID)
 	attachmentCache.mu.Unlock()
 }

@@ -1,0 +1,98 @@
+{
+  "multi5": {
+    "640x360px, 12345 bytes": {
+      "X": 4,
+      "Y": 220,
+      "W": 206,
+      "H": 16
+    },
+    "body": {
+      "X": 0,
+      "Y": 0,
+      "W": 210,
+      "H": 304
+    },
+    "following": {
+      "X": 0,
+      "Y": 304,
+      "W": 210,
+      "H": 1
+    },
+    "scene.png, click to view original": {
+      "X": 4,
+      "Y": 4,
+      "W": 64,
+      "H": 64
+    }
+  },
+  "no-extra": {
+    "640x360px, 12345 bytes": {
+      "X": 4,
+      "Y": 159,
+      "W": 416,
+      "H": 16
+    },
+    "C:\\fixture\\scene.png": {
+      "X": 4,
+      "Y": 143,
+      "W": 416,
+      "H": 16
+    },
+    "body": {
+      "X": 0,
+      "Y": 0,
+      "W": 420,
+      "H": 179
+    },
+    "following": {
+      "X": 0,
+      "Y": 179,
+      "W": 420,
+      "H": 1
+    },
+    "scene.png, click to view original": {
+      "X": 4,
+      "Y": 4,
+      "W": 240,
+      "H": 135
+    }
+  },
+  "single-en": {
+    "  leading spaces  \n\tTabbed line\n\ntrailing  ": {
+      "X": 4,
+      "Y": 179,
+      "W": 416,
+      "H": 80
+    },
+    "640x360px, 12345 bytes": {
+      "X": 4,
+      "Y": 159,
+      "W": 416,
+      "H": 16
+    },
+    "C:\\fixture\\scene.png": {
+      "X": 4,
+      "Y": 143,
+      "W": 416,
+      "H": 16
+    },
+    "body": {
+      "X": 0,
+      "Y": 0,
+      "W": 420,
+      "H": 263
+    },
+    "following": {
+      "X": 0,
+      "Y": 263,
+      "W": 420,
+      "H": 1
+    },
+    "scene.png, click to view original": {
+      "X": 4,
+      "Y": 4,
+      "W": 240,
+      "H": 135
+    }
+  }
+}

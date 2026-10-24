@@ -302,24 +302,53 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	}
 	th := theme.Resolve(themeID)
 	colors := th.Active(systemDark)
-	muted := chrome.Color(colors.Muted)
-	ui.Overlay(c, func() {
-		ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Children(func() {
-			dim := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Background(ui.RGBA(0, 0, 0, .66))
-			if dim.Clicked() {
-				onClose()
+	width, height := c.Size()
+	border := chrome.Color(colors.Border)
+	if darkSurface(chrome.Color(colors.FG)) {
+		border = chrome.Color(colors.BorderL1)
+	}
+	caption := c.TitleBar().Height
+	pw, ph := imageLightboxSize(bmp, width, height-caption)
+	open := true
+	ui.DialogBase(c.Key("image-lightbox"), &open, func(backdrop, panel ui.Element) {
+		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
+		mask := ui.RGBA(0, 0, 0, chrome.MaskAlpha(darkSurface(chrome.Color(colors.FG))))
+		backdrop.Draw(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X, Y: r.Y + caption, W: r.W, H: max(0, r.H-caption)}, mask.Alpha(progress), 0)
+		})
+		backdrop.Padding(40+caption, 40, 40, 40)
+		panel.Label(i18n.T(i18n.KeyToolImagePreview)).Size(pw, ph).Padding(0).Radius(16).
+			Background(chrome.Color(colors.InputMajor)).Opacity(progress).
+			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+			ui.Image(c, bmp).Fill().Fit(ui.Contain).Radius(16).Label(filepath.Base(displayPath))
+		})
+		// A sibling of the centered image stays anchored to the window, and the
+		// modal scope keeps Tab on this sole control and restores the opener.
+		backdrop.Children(func() {
+			close := ui.ButtonBase(c.Key("close")).Absolute().Top(20+c.TitleBar().Height).Right(20).Size(36, 36).Padding(0).
+				Radius(18).Border(.5, border).Background(chrome.Color(colors.InputMajor)).TextColor(chrome.Color(colors.FG)).
+				Label(i18n.T(i18n.KeyToolImageClosePreview)).Cursor(ui.CursorPointer).Center().FocusRing(false).Opacity(progress)
+			if close.Clicked() {
+				open = false
 			}
-			ui.Column(c).Fill().Padding(20, 24, 20, 24).Gap(10).Children(func() {
-				ui.Image(c, bmp).Width(880).Height(620).Fit(ui.Contain)
-				ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, filepath.Base(displayPath)).FontSize(12).TextColor(muted).Grow(1)
-					if ui.Button(c, i18n.T(i18n.KeyChatImageClose)).Clicked() {
-						onClose()
-					}
-				})
+			focused := close.FocusVisible()
+			close.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				if focused {
+					p.Stroke(ui.Rect{X: r.X - 5, Y: r.Y - 5, W: r.W + 10, H: r.H + 10}, chrome.Color(colors.Accent), 23, 2)
+				}
 			})
+			close.Children(func() { ui.Icon(c, messageIconCloseOutline).Size(16, 16).PassThrough() })
 		})
 	})
+	if !open {
+		onClose()
+	}
+}
+
+func imageLightboxSize(bitmap *ui.Bitmap, width, height float32) (float32, float32) {
+	bw, bh := bitmap.Size()
+	scale := min(float32(1), max(0, min(width-80, 1600))/float32(bw), max(0, height-80)/float32(bh))
+	return float32(bw) * scale, float32(bh) * scale
 }
 
 func localImagePath(raw string) string {

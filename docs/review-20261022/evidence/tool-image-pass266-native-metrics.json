@@ -1,0 +1,32 @@
+{
+  "dark": false,
+  "expanded": {
+    "|tool:native-image": true
+  },
+  "files": [
+    "/work/recorded.png"
+  ],
+  "following": {
+    "X": 20,
+    "Y": 356.28125,
+    "W": 705.3333,
+    "H": 1
+  },
+  "lightbox": false,
+  "loads": 0,
+  "opened": [],
+  "retry": {
+    "X": 20,
+    "Y": 322.28125,
+    "W": 520,
+    "H": 24
+  },
+  "row": {
+    "X": 20,
+    "Y": 65.28125,
+    "W": 520,
+    "H": 247
+  },
+  "scale": 1.5,
+  "time": "2026-10-24T13:05:52.9463844+08:00"
+}

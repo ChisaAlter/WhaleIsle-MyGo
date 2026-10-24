@@ -43,14 +43,17 @@ type ToolCardInfo struct {
 	Arguments string
 	Output    string
 	// terminal is derived from a validated paired call/result, never its name alone.
-	terminal  *toolTerminalModel
-	read      *toolReadModel
-	diff      *toolDiffModel
-	search    *toolSearchModel
-	web       *toolWebModel
-	webFamily bool
-	webHref   string
-	openURL   func(string)
+	terminal *toolTerminalModel
+	read     *toolReadModel
+	diff     *toolDiffModel
+	search   *toolSearchModel
+	web      *toolWebModel
+	image    *toolImageModel
+	// imageFamily is the keyed read_image caller, which owns no args body.
+	imageFamily bool
+	webFamily   bool
+	webHref     string
+	openURL     func(string)
 	// searchFamily is the keyed grep/glob caller, which owns no args body.
 	searchFamily bool
 	// mutationFamily is the keyed write/edit caller, which owns no args body.
@@ -167,7 +170,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		if len(info.Images) > 0 && !opts.TextOnly {
 			toolImageGallery(c, info.Images, st, opts)
 		}
-		if !opts.TextOnly && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && info.diff == nil {
+		if !opts.TextOnly && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil && info.diff == nil {
 			markdown.LinkActions(c, info.Links, markdown.Style{FontSize: size, Accent: st.Accent}, opts.OnOpenURL)
 		}
 		handled, ownsCopy := toolStructuredBody(c, kind, info, st, key, opts)
@@ -194,8 +197,8 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 			extra()
 		}
 	}
-	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily
-	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil)
+	hasInput := info.Arguments != "" && !info.readFamily && !info.mutationFamily && !info.searchFamily && !info.webFamily && !info.imageFamily && info.image == nil
+	expandable := info.Status != "preparing" && (hasInput || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil || info.read != nil || info.diff != nil || info.search != nil || info.web != nil || info.image != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

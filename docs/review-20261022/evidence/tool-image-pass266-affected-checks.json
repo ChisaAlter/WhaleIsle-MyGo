@@ -1,0 +1,48 @@
+﻿[
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/chat\t55.160s"
+                   ],
+        "command":  "go test ./internal/ui/chat -count=1",
+        "seconds":  57.373503,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/frame\t12.317s"
+                   ],
+        "command":  "go test ./internal/ui/frame -count=1",
+        "seconds":  18.6777534,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/store/session\t6.883s"
+                   ],
+        "command":  "go test ./internal/store/session -count=1",
+        "seconds":  12.0209727,
+        "exit":  0
+    },
+    {
+        "output":  [
+                       "ok  \twhaleisle/internal/ui/i18n\t0.530s"
+                   ],
+        "command":  "go test ./internal/ui/i18n -count=1",
+        "seconds":  1.6545954999999999,
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+        "exit":  0
+    },
+    {
+        "output":  [
+
+                   ],
+        "command":  "go vet affected app packages",
+        "exit":  0
+    }
+]

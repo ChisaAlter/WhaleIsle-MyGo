@@ -261,6 +261,19 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		toolIORows(c, info, st, key+":mutation-output")
 		return true, true
 	}
+	if info.imageFamily && !opts.TextOnly {
+		if info.image != nil {
+			toolImageCard(c, info.image, st, key, opts.OnOpen)
+		} else {
+			info.Arguments = ""
+			toolIORows(c, info, st, key+":image-output")
+		}
+		return true, true
+	}
+	if info.image != nil && !opts.TextOnly {
+		toolImageCard(c, info.image, st, key, opts.OnOpen)
+		return true, true
+	}
 	if info.searchFamily && !opts.TextOnly {
 		if info.search != nil {
 			toolSearchCard(c, info.search, st, key)

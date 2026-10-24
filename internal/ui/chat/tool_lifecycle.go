@@ -125,6 +125,17 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 	if !gallery.TextOnly {
 		summary := toolSummaryModelFor(call, gallery.Cwd, gallery.Home)
 		info.summaryModel = &summary
+		info.imageFamily = call.Name == "read_image"
+		if info.imageFamily {
+			info.image = toolImageModelFor(call)
+		} else if toolUsesGenericImageCard(call.Name) {
+			info.image = toolGenericImageModelFor(call)
+		}
+		if !toolImageLoaderAvailable() {
+			info.image = nil
+		}
+		// Paired calls use one typed result body; malformed images remain in OUT.
+		info.Images = nil
 		info.readFamily = call.Name == "read"
 		if info.readFamily {
 			info.read = toolReadModelFor(call, gallery.Cwd, gallery.Home)
@@ -148,6 +159,9 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		}
 	}
 	info.terminal = terminalModelFor(call, gallery.Cwd)
+	if info.terminal != nil || info.diff != nil || info.read != nil {
+		info.image = nil
+	}
 	if info.Status == "ok" && terminalModelFailed(info.terminal) {
 		info.Status = "error"
 	}
@@ -157,7 +171,7 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		info.Web = call.Result.Web
 	}
 	extra := func() {
-		if !gallery.TextOnly && !info.readFamily && !info.mutationFamily && call.Name != "str_replace_editor" {
+		if !gallery.TextOnly && !info.readFamily && !info.imageFamily && !info.mutationFamily && call.Name != "str_replace_editor" {
 			toolFileView(c, call, st, gallery)
 		}
 		if call.ParentIssue != "" {
@@ -275,10 +289,9 @@ func toolLifecycleOutputFor(call *session.ToolCallView, allowGallery bool) strin
 	if call.Result.EventType == "tool/result" {
 		content = event.Data.Message.Content
 	}
-	// Images still use the validated native gallery. On error/invalid references,
-	// keep their full JSON evidence, matching the existing renderer's behavior.
-	gallery := allowGallery && call.State == "ok" && len(toolImageReferences(content)) > 0
-	body := toolResultBlocksText(content, gallery)
+	// Only a chosen result card consumes image blocks. OUT always retains the
+	// full evidence when validation or the attachment loader is unavailable.
+	body := toolResultBlocksText(content, false)
 	if !allowGallery {
 		body = readOnlyToolContent(content)
 	}

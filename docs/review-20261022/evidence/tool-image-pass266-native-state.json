@@ -1,0 +1,18 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T05:05:52.6700049Z",
+    "status":  "failed",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation link Invoke. No Host, browser opening, web requests, code execution, OS clipboard or hardware input. Recorded local PNG and injected attachment loader only.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r122-image-fixture.exe",
+                    "startUtc":  "2026-10-24T05:05:51.4963336Z",
+                    "exited":  true,
+                    "pid":  18272,
+                    "closed":  true
+                },
+    "states":  [
+
+               ],
+    "error":  "Missing owned accessible label   Recorded extra text",
+    "finishedAt":  "2026-10-24T05:05:53.2241863Z"
+}

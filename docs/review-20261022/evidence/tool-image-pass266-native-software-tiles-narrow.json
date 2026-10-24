@@ -1,0 +1,47 @@
+{
+  "boxes": {
+    "480x240px (downscaled from 960x480px), 2048 bytes": {
+      "X": 24,
+      "Y": 190,
+      "W": 180,
+      "H": 32
+    },
+    "Following image flow": {
+      "X": 20,
+      "Y": 290,
+      "W": 180,
+      "H": 1
+    },
+    "sample-a, click to view original": {
+      "X": 24,
+      "Y": 48,
+      "W": 64,
+      "H": 64
+    },
+    "sample-b, click to view original": {
+      "X": 98,
+      "Y": 48,
+      "W": 64,
+      "H": 64
+    },
+    "sample-c, click to view original": {
+      "X": 24,
+      "Y": 122,
+      "W": 64,
+      "H": 64
+    }
+  },
+  "texts": [
+    "Tool call render_plot · argument.png",
+    "Tool call",
+    "render_plot · argument.png",
+    "Image (3)",
+    "sample-a, click to view original",
+    "sample-b, click to view original",
+    "sample-c, click to view original",
+    "480x240px (downscaled from 960x480px), 2048 bytes",
+    "480x240px (downscaled from 960x480px), 2048 bytes",
+    "480x240px (downscaled from 960x480px), 2048 bytes",
+    "Following image flow"
+  ]
+}

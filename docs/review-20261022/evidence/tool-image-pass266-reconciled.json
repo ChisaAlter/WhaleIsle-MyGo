@@ -1,0 +1,267 @@
+{
+  "schema": "tool-image-pass266-reconciled/v1",
+  "browserStatus": "failed",
+  "browserSummary": {
+    "passedCases": 8,
+    "failedCases": 1,
+    "passedAssertions": 221,
+    "failedAssertions": 1
+  },
+  "browserFailuresRetained": true,
+  "geometry": {
+    "passed": 17,
+    "total": 17,
+    "checks": [
+      {
+        "name": "single row width",
+        "actual": 420,
+        "expected": 420,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "single image width",
+        "actual": 240,
+        "expected": 240,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "single image height",
+        "actual": 135,
+        "expected": 135,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "image left margin",
+        "actual": 4,
+        "expected": 4,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "image top margin",
+        "actual": 4,
+        "expected": 4,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "metadata path y",
+        "actual": 143,
+        "expected": 143,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "metadata path line height",
+        "actual": 16,
+        "expected": 16,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "metadata measure y",
+        "actual": 159,
+        "expected": 159,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "metadata measure height",
+        "actual": 16,
+        "expected": 16,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "extra raw text height",
+        "actual": 80,
+        "expected": 80,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "extra top position",
+        "actual": 179,
+        "expected": 179,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "complete body including margins",
+        "actual": 263,
+        "expected": 263,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "multi row width",
+        "actual": 210,
+        "expected": 210,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "multi tile width",
+        "actual": 64,
+        "expected": 64,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "multi tile height",
+        "actual": 64,
+        "expected": 64,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "multi metadata begins after wrap",
+        "actual": 220,
+        "expected": 220,
+        "tolerance": 0.04,
+        "pass": true
+      },
+      {
+        "name": "multi complete body",
+        "actual": 304,
+        "expected": 304,
+        "tolerance": 0.04,
+        "pass": true
+      }
+    ]
+  },
+  "sources": {
+    "passed": 24,
+    "total": 24,
+    "checks": [
+      {
+        "id": "runner",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\scripts\\tool-image-reference-chrome.mjs",
+        "pass": true
+      },
+      {
+        "id": "tool",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\client.js",
+        "pass": true
+      },
+      {
+        "id": "row",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\components\\ToolRow.js",
+        "pass": true
+      },
+      {
+        "id": "imageModel",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\image-card-model.js",
+        "pass": true
+      },
+      {
+        "id": "raw",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\raw-tool-call.js",
+        "pass": true
+      },
+      {
+        "id": "caller",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\toolviews\\read-image-row.js",
+        "pass": true
+      },
+      {
+        "id": "family",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\toolviews\\read-family-row.js",
+        "pass": true
+      },
+      {
+        "id": "generic",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\toolviews\\GenericToolCard.js",
+        "pass": true
+      },
+      {
+        "id": "tree",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\ToolCallTree.js",
+        "pass": true
+      },
+      {
+        "id": "primitiveLabels",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\primitive-labels.js",
+        "pass": true
+      },
+      {
+        "id": "terminal",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-tool\\lib\\types\\client\\tool\\models\\terminal-card-model.js",
+        "pass": true
+      },
+      {
+        "id": "attachment",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\lib\\client.js",
+        "pass": true
+      },
+      {
+        "id": "gallery",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\lib\\types\\MessageImage.js",
+        "pass": true
+      },
+      {
+        "id": "adapter",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\lib\\types\\client\\MessageImages.js",
+        "pass": true
+      },
+      {
+        "id": "attachmentIndex",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\lib\\types\\client\\index.js",
+        "pass": true
+      },
+      {
+        "id": "imageLabels",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\lib\\types\\client\\labels.js",
+        "pass": true
+      },
+      {
+        "id": "locale",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-conversation\\lib\\types\\client\\locales.js",
+        "pass": true
+      },
+      {
+        "id": "commonEN",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\locale\\lib\\types\\locales\\en.js",
+        "pass": true
+      },
+      {
+        "id": "commonZH",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\locale\\lib\\types\\locales\\zh.js",
+        "pass": true
+      },
+      {
+        "id": "theme",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\client.js",
+        "pass": true
+      },
+      {
+        "id": "webCSS",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-l5jToo6l.css",
+        "pass": true
+      },
+      {
+        "id": "webJS",
+        "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-wKUmVWbt.js",
+        "pass": true
+      },
+      {
+        "id": "refGallery",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\src\\MessageImage.tsx",
+        "pass": true
+      },
+      {
+        "id": "refCSS",
+        "path": "C:\\AI\\WhaleIsle-MyGo\\reference\\electron\\vendor\\deepseek-harness\\packages\\client\\ui-attachment\\src\\MessageImage.module.css",
+        "pass": true
+      }
+    ]
+  },
+  "limits": [
+    "Native source images use recorded fixture rasters and the existing session loader; no Host service executed.",
+    "Line boxes and frame dimensions do not certify text glyph or crop pixel equality.",
+    "Retained browser inventory failure is not cleared by this independent comparison."
+  ]
+}

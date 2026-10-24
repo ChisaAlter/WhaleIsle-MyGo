@@ -1,0 +1,29 @@
+{
+  "schema": "tool-image-pass266-preview-authority/v1",
+  "method": "Post-acceptance readonly exact installed source extraction; no browser execution or acceptance modification",
+  "files": [
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-l5jToo6l.css",
+      "sha256": "443ab85817b4ed526b2fa3df2c98a3e9baf577880cc95259c128f0571067a122"
+    },
+    {
+      "path": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\apps\\web\\dist\\assets\\index-wKUmVWbt.js",
+      "sha256": "328188be7381f20aac74717a49c536adda26b52e12f244a36bc34507429d4398"
+    }
+  ],
+  "component": "function ax({open:e=!0,src:t,alt:r,labels:i,onClose:n}){const s=$.useRef(null),l=$.useRef(null),{mounted:d,state:f}=Ti(e);return $.useEffect(()=>{if(!e)return;l.current=document.activeElement instanceof HTMLElement?document.activeElement:null,s.current?.focus();const h=g=>{g.key===\"Escape\"&&(g.stopPropagation(),n()),g.key===\"Tab\"&&(g.preventDefault(),s.current?.focus())};return window.addEventListener(\"keydown\",h,!0),()=>{window.removeEventListener(\"keydown\",h,!0),l.current?.focus()}},[e,n]),d?Fn.createPortal(c.jsx(\"div\",{className:Vs.backdrop,role:\"dialog\",\"aria-modal\":\"true\",\"aria-label\":i.dialog,\"data-dsh-motion\":\"overlay\",\"data-state\":f,\"aria-hidden\":e?void 0:!0,children:c.jsxs(\"div\",{className:Vs.stage,children:[c.jsx(\"div\",{className:Vs.mask,\"data-dsh-motion-part\":\"mask\",\"aria-hidden\":\"true\",onMouseDown:n}),c.jsx(\"img\",{className:Vs.image,\"data-dsh-motion-part\":\"panel\",src:t,alt:r}),c.jsx(\"button\",{ref:s,type:\"button\",className:Vs.close,\"aria-label\":i.close,onClick:n,children:c.jsx(fl,{size:16})})]})}),document.body):null}",
+  "css": [
+    "._backdrop_8tg4a_2{position:fixed;-webkit-app-region:no-drag;inset:0;z-index:1000}",
+    "._stage_8tg4a_10{position:absolute;inset:max(var(--dsh-frame-chrome-top, 0px),var(--dshd-wco-caption, 0px)) 0 0;display:flex;align-items:center;justify-content:center;padding:40px}",
+    "._mask_8tg4a_20{position:absolute;inset:0;background:var(--dsw-alias-bg-mask-1);backdrop-filter:var(--dsw-mask-blur)}",
+    "._image_8tg4a_27{position:relative;max-width:min(100%,1600px);max-height:100%;object-fit:contain;border-radius:var(--dsw-radius-lg);background:var(--dsw-specific-input-major);border:0;box-shadow:var(--dsw-elevation-prominent)}",
+    "._close_8tg4a_38{position:fixed;-webkit-app-region:no-drag;top:calc(20px + var(--dshd-wco-caption, 0px));right:20px;z-index:1;display:grid;place-items:center;width:36px;height:36px;border:.5px solid var(--dsw-alias-border-l2-darkmode-thin);border-radius:999px;corner-shape:round;background:var(--dsw-specific-input-major);color:var(--dsw-alias-label-primary);cursor:pointer}",
+    "._close_8tg4a_38:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));outline-offset:3px}"
+  ],
+  "nativeTest": "TestToolImageLightboxFitsModalAndRestoresOpener sets TitleBar48 and verifies image center y106.5 and close y68 at640x480",
+  "limits": [
+    "Native mask uses exact tone and stage placement but no CSS backdrop-filter blur",
+    "Native preview uses shared enter reveal; browser usePresence exit hold and exact easing remain unverified",
+    "Alt/display name remains local cache basename in preview; thumbnail accessible name uses durable attachment name"
+  ]
+}

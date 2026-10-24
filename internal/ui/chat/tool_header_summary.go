@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -75,7 +76,9 @@ func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text 
 	if toolSummaryHasCue(info.Status) {
 		return
 	}
-	if info.contentKB != nil {
+	if info.image != nil {
+		toolSummaryText(c, fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyToolImageLabel), len(info.image.Images)), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, 4)
+	} else if info.contentKB != nil {
 		toolSummaryText(c, fmt.Sprintf("%dKB", *info.contentKB), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, 4)
 	}
 	if info.diffSummary != nil {
