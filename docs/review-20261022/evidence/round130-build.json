@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-24T14:40:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 86862848,
+  "productionSHA256": "E3D63B46DEE1F0949943759CA060388A590A1044A3D5F337A342C8788D250D3A",
+  "defaultSHA256": "E3D63B46DEE1F0949943759CA060388A590A1044A3D5F337A342C8788D250D3A",
+  "note": "pass270 covers rounds 127-130 (ToolDetails generic entries, control receipts, closing overlay, inspection details)."
+}

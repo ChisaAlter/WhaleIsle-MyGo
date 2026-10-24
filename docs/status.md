@@ -273,6 +273,13 @@
 - 关闭遮罩（G40）：退出时先画「关闭中 / 正在停止本机 Harness 服务，请稍候」，恢复/显示托盘窗口，绘制上限 500ms，失败不阻塞停服；详见 [round129](review-20261022/round129-closing-overlay.md)。
 - 证据：`cmd/whaleisle`、`chrome`、`i18n`、`frame` 四包测试全绿、`go vet` 0；浅/深色渲染图已入证据目录。spinner 旋转与实机截图仍未做。
 
+### round127–130 详情卡（2026-10-24）
+
+- round127：ToolDetails 通用条目（lines / groups / unchanged / 共享 CodeBlock）。
+- round128：agent/team 控制收据（list_agents、spawn_teammate、team_task_*、send_message、interrupt_agent、wait_agent、subagent、list_subagent_models）。
+- round130：inspection 族（cordis_inspect_*、workflow、ralph、session_search/event_search/event_read、session_trace/event_trace）。
+- 仍缺：Inspect 面板、markdown/location 条目、lsp、terminal_list；pass270 已构建（86,862,848 字节 / SHA256 `E3D63B46…`）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

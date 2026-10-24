@@ -41,4 +41,8 @@
 - 显式延后：`lsp`（悬停需要 `markdown` 条目、引用列表需要可点击 `location` 条目，两者 round127 都还没有；本轮不发明新条目类型）与 `terminal_list`（属控制收据族，已在 round128 记录延后）。
 - 日期文本只对 en / zh-CN 用安装版格式；MyGo 的语言枚举只有这两种，其它语言记录保留原文（原生会按传入 locale 格式化，这是既有平台差异）。
 - 数值到文本沿用 round128 的最短形式；仅极端小数/超安全整数可能与 `JSON.stringify` 不同。
-- 本轮未构建 exe、未跑原生窗口验收；卡片文案逐条对照 harness 期望用例，几何复用既有详情卡布局与 `ui.NewTester`。
+- 本轮实现阶段未构建 exe；收口时统一构建 pass270（见 §5），仍未跑原生窗口验收。卡片文案逐条对照 harness 期望用例，几何复用既有详情卡布局与 `ui.NewTester`。
+
+## 5. 构建
+
+默认与版本化产物均为 **86,862,848 字节**、SHA256 `E3D63B46DEE1F0949943759CA060388A590A1044A3D5F337A342C8788D250D3A`（pass270，覆盖 round127–130），见 [构建记录](<C:/AI/WhaleIsle-MyGo/docs/review-20261022/evidence/round130-build.json>)。`go build ./internal/... ./cmd/...` 退出 0。
