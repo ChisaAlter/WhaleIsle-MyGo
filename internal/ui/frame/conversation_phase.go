@@ -19,6 +19,9 @@ const (
 	conversationScrollMargin   = float32(2)
 	conversationScrollbarWidth = float32(5)
 	conversationScrollGutter   = conversationScrollMargin + conversationScrollbarWidth
+	// composerCardMaxWidth is the installed InputBar card's `max-width: 774.4px`
+	// (probed at 1440x860 and 1440x920: card 774.39 wide, 114 tall).
+	composerCardMaxWidth = float32(774.39)
 )
 
 const (
@@ -80,8 +83,11 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 
 // ConversationRoot.composerHero centers the entire stack inside scrollBody,
 // with a 32 DIP foot; HeroShell supplies the title's 10/7 spacing and 26/32 type.
+// The installed hero measures headline row 337..369 and preset row at 398
+// (1440x860 probe), so 29 DIP pass between them; the previous 12-DIP foot left
+// the preset row 13 DIP high.
 func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
-	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, 12, 16).Children(func() {
+	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, 25, 16).Children(func() {
 		conversationHeroFish(c, chrome.Color(colors.FG))
 		ui.Row(c).Wrap().Gap(7).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FixedLineHeight(theme.InterfaceSize(32)).FontWeight(500).TextColor(chrome.Color(colors.FG))

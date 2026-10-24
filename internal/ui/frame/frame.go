@@ -861,7 +861,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					contentAxis = m.Sizes.conversationWidth(colW)
 				}
 				// ConversationRoot owns W. InputBar alone owns the 16 DIP side
-				// clearances, so both phases receive the same W+64 seat.
+				// clearances, so both phases receive the same W+64 seat. The installed
+				// card is `max-width: 774.4px` (probed at 1440x860 and 1440x920: card
+				// 774.39 wide, 114 tall, `padding: 8px 0 0`); at 1440 the axis-derived
+				// seat is 773.33, so the 1.06 DIP gap lives in the column width, not in
+				// this formula (capping or flooring the seat here breaks the
+				// hero/docked width identity the phase tests pin).
 				contentViewportW := maxf(0, colW-conversationScrollGutter)
 				chatContentW := min(contentAxis, maxf(0, contentViewportW-64))
 				composerOuterW := min(contentAxis+64, contentViewportW)
