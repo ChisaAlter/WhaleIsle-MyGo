@@ -394,6 +394,15 @@
 - pass285：87,623,168 B / SHA256 `6A2148B6…`；harness-start-pass285.json ready=True。
 - 残留：壁纸/mica（D3）仍是像素主差；原生 860 卡高/正文轴探针；G52 余量；cases-<ID>.md；G44/G45 真机；G31b Live2D；深色 pill token；双签（用户）。
 
+### round181–185（2026-10-25）
+
+- round181：**S27 探针纠错**——1440×860 与 920 下 composer 卡都是 774.39×114（max-width 774.4 字面量），round177 的「860 下 155」是把停在 x=−4200 的 UIA 坐标混帧；真正偏差是 hero headline 到 preset 的间距：原生 29 DIP，MyGo 12 DIP → 改 25，preset/card 不再高 13 DIP。composer 余 1.06 DIP 在列宽链（contentAxis 709.33 vs 710.39），三种 cap/floor 方案都会破坏 hero/docked 同一性，已回退并记录；标准模式 chip 应左对齐 workspace chip（待修）。
+- round182：**结构验收改为 caption 相对坐标**——0/17 实为坐标系 bug（原生 UIA 屏幕坐标 vs MyGo 客户区，dx+2800）；绝对/窗口/标题相对三空间匹配 22 项，1 DIP 内 0/4/5；标题底 40.0 vs 44.67（+4.67）、侧栏标题行 +6.67。新增低频洗色蒙版（覆盖 91.35%），阈值失配 99.9908% → 8.6381%，剩余集中在真实内容差异。
+- round183：G03 菜单栏实测双方 GetMenu=0/GetMenuBarInfo=false、客户区无菜单带（仅 1px 取整）→ 无差异已核实；S03 实按未取证（首跑用了早于接线的 pass285，二次被 sqlite 占用中断，步骤已记录）；G10 glyph 14 vs 16–18 仍待 3–4× 放大。
+- round184：G46 实测——原生 POST /__remote__/shell/<name>（Bearer/cookie、14 路由），MyGo 3499 返回 404、3180 返回 405，因 bridge.cjs 构造 DshdRemote 时没有 invokeShell/fs/host；给出「挂载 Remote gateway」或「bridge 前置 shell 路由」两条路径，未半接线。
+- pass286：87,643,136 B / SHA256 `DAAA5E81…`；harness-start-pass286.json ready=True。
+- 残留：caption 三钮 +4.67（F1）、侧栏标题行 +6.67（F2）、composer 列宽、标准模式 chip 对齐；G52 余 99 处；S03 实按、G10 glyph；G46 接线；壁纸/mica（D3）；D1/D2/D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
