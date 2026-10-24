@@ -61,6 +61,12 @@ func InstallSpecContext(ctx context.Context, spec string, allowBuilds []string, 
 	if node, err := resolveNode(opts.NodeBin); err == nil {
 		cfg.NodeBin = node
 	}
+	// Native install-space.js:6-11 preflight: refuse before downloading when the
+	// destination volume cannot hold the install plus the 256 MiB reserve. The
+	// exact download size is unknown here, so the reserve is what is enforced.
+	if _, spaceErr := CheckInstallSpace(cfg.ProfileDir, 0); spaceErr != nil {
+		return installctrl.Result{Spec: spec, Error: spaceErr.Error()}
+	}
 	if !installctrl.InstallReady(cfg) {
 		msg := "desktop plugin install requires Node.js and a built vendored harness (setup-harness)"
 		if _, err := resolveNode(opts.NodeBin); err != nil {

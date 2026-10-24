@@ -38,6 +38,15 @@ var evidencePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)err_module_not_found[^\n'"]*['"]([^'"]+)['"]`),
 	regexp.MustCompile(`(?i)failed to compose[^\n]*['"](@?[\w./-]+)['"]`),
 }
+
+// Failures no plugin choice can fix; worded like the native classifier
+// (reference/electron/src/main/plugin-forensics.js:12-16).
+var (
+	genericOOM          = regexp.MustCompile(`(?i)heap out of memory|js heap|allocation failed|oom\b`)
+	genericPortExcluded = regexp.MustCompile(`(?i)\blisten\s+eacces\b`)
+	genericPortInUse    = regexp.MustCompile(`(?i)eaddrinuse|address already in use`)
+	genericMissingNode  = regexp.MustCompile(`(?i)cannot find node|node['"]?\s+is not recognized|enoent.*node(\.exe)?\b`)
+)
 var bootAuditHeader = regexp.MustCompile(`(?i)\bweb boot:\s+([1-9][0-9]*) entr(?:y|ies) did not activate\b`)
 var bootAuditEntry = regexp.MustCompile(`(?i)^\s*(?:\[(?:app|error|dsh)\]\s*)?(@?[\w.-]+(?:/[\w.-]+)*): (?:import failed.*|pending \(waiting for services?.*|failed|disposed|loading|unloading)\s*$`)
 var packageName = regexp.MustCompile(`^(@[a-zA-Z0-9_.-]+/)?[a-zA-Z0-9_.-]+$`)
@@ -56,21 +65,19 @@ var builtinNames = map[string]bool{
 }
 
 func genericCause(text string) string {
-	lower := strings.ToLower(text)
-	for _, c := range []struct {
-		kind  string
-		words []string
-	}{
-		{"oom", []string{"heap out of memory", "js heap", "allocation failed"}},
-		{"port-excluded", []string{"listen eacces"}}, {"port-in-use", []string{"eaddrinuse", "address already in use"}},
-		{"missing-node", []string{"cannot find node", "node is not recognized", "node' is not recognized", "node.exe: no such file"}},
-	} {
-		for _, word := range c.words {
-			if strings.Contains(lower, word) {
-				return c.kind
-			}
-		}
+	// Patterns mirror reference/electron/src/main/plugin-forensics.js:12-16,
+	// including the bare "oom" word and the ENOENT form for a missing Node.
+	switch {
+	case genericOOM.MatchString(text):
+		return "oom"
+	case genericPortExcluded.MatchString(text):
+		return "port-excluded"
+	case genericPortInUse.MatchString(text):
+		return "port-in-use"
+	case genericMissingNode.MatchString(text):
+		return "missing-node"
 	}
+	lower := strings.ToLower(text)
 	if strings.Contains(lower, "session_projcache") && strings.Contains(lower, "does not match its schema") {
 		return "session-cache"
 	}
