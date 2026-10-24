@@ -37,6 +37,7 @@ const (
 	KeyQuitConfirmCancel                  = "quit_confirm.cancel"
 	KeyClosingTitle                       = "closing.title"
 	KeyClosingDetail                      = "closing.detail"
+	KeyCrashReportWritten                 = "crash.report_written"
 	KeyTitlebarClose                      = "titlebar.close"
 	KeyTitlebarMinimize                   = "titlebar.minimize"
 	KeyTitlebarMaximize                   = "titlebar.maximize"
@@ -2980,6 +2981,8 @@ func init() {
 	// (reference/electron/src/main/closing-overlay.js:59-70).
 	Register(KeyClosingTitle, "关闭中", "Closing")
 	Register(KeyClosingDetail, "正在停止本机 Harness 服务，请稍候", "Stopping the local Harness service…")
+	// The crash report line a failure surface appends, as window.js writes it.
+	Register(KeyCrashReportWritten, "诊断已写入 %s", "Diagnostic written to %s")
 	Register(KeyLauncherCompBundled, "内置", "Bundled")
 	Register(KeyPluginPreviewRetry, "重试", "Retry")
 	Register(KeyThemeEditorPreview, "预览中，尚未保存", "Preview, not saved")

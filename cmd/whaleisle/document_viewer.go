@@ -25,6 +25,11 @@ func (s *mainState) openDocumentViewer(client *dsh.Client, sessionID, path strin
 	return desktopwebview.NewHost(desktopwebview.HostOptions{
 		Parent: win, URL: target, Title: path, Untrusted: true,
 		SessionOrigin: client.Endpoint.Origin, SessionCookie: client.Endpoint.Cookie,
+		// A document preview is not the Harness view: no microphone, no camera;
+		// notifications follow the shell gate.
+		PermissionPolicy: desktopwebview.PermissionPolicy{
+			NotificationsAllowed: systemNotificationsSupported,
+		}.Decide,
 		ShortcutPreferences:   s.pageShortcutPreferences(),
 		OnShortcutCloseWindow: s.queueProductShortcutClose,
 		OnChange:              func() { win.Update(func() {}) },

@@ -127,6 +127,11 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		URL:       target,
 		Title:     "WhaleBridge",
 		TopInset:  whaleBridgeToolbarHeight,
+		// The management page is not the Harness view, so it never gets the
+		// microphone; notifications still follow the shell gate.
+		PermissionPolicy: desktopwebview.PermissionPolicy{
+			NotificationsAllowed: systemNotificationsSupported,
+		}.Decide,
 		// Only this loopback management origin may load; a link to anything else
 		// is handed to the browser, exactly as the reference window does.
 		AllowNavigation: func(next string) bool {

@@ -61,6 +61,9 @@ type HostOptions struct {
 	TopInset int
 	// TrustedOrigins passed to PageOptions (defaults to the URL origin).
 	TrustedOrigins []string
+	// PermissionPolicy narrows what this page may use; nil keeps the engine
+	// default, and a transient profile always denies everything.
+	PermissionPolicy func(mygo.PermissionRequest) bool
 }
 
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
@@ -358,9 +361,14 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		})
 	}
 	if opts.TransientProfile {
-		pg.SetPermissionHandler(func(mygo.PermissionRequest) bool { return false })
+		pg.SetPermissionHandler(DenyAllPermissions)
 		pg.OnWillDownload(func(e *mygo.DownloadEvent) { e.PreventDefault() })
 		h.url = opts.DisplayURL
+	} else if opts.PermissionPolicy != nil {
+		// The shell's media/notification policy replaces the engine default,
+		// which would grant a trusted loopback page anything it asked for
+		// (native installMediaPermissions, media-permissions.js:24-60).
+		pg.SetPermissionHandler(opts.PermissionPolicy)
 	}
 	h.offMove = opts.Parent.OnMove(h.SyncBounds)
 	h.offResize = opts.Parent.OnResize(func() {

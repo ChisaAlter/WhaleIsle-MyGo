@@ -166,6 +166,10 @@ type mainState struct {
 	sup                     *harness.Supervisor
 	bootStatus              harness.Status
 	bootLogs                []string
+	// crashReportGeneration is the failed supervisor generation that already
+	// wrote a host crash report, so one failure writes one file.
+	crashReportGeneration int
+	crashReportPath       string
 
 	sessions                                *session.Store
 	agentPresetManager                      *session.AgentPresetManager
@@ -1323,12 +1327,21 @@ func (s *mainState) openWebViewURL(browse string) {
 		URL:                   browse,
 		Title:                 hostTitle,
 		TopInset:              inset,
+		// Native media policy: the loopback Harness session may ask for the
+		// microphone, the camera is refused, notifications follow the shell gate.
+		PermissionPolicy: desktopwebview.PermissionPolicy{
+			SessionHost:          strings.TrimSpace(sessionOrigin) != "",
+			NotificationsAllowed: systemNotificationsSupported,
+		}.Decide,
 	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
 		s.webviewHost = nil
 		s.webviewHostErr = err.Error()
+		// A hosted document that never came up is this shell's nearest
+		// web-boot surface (MyGo has no boot web process): keep a diagnostic.
+		go state.recordWebBootFailure(err.Error())
 		return
 	}
 	s.webviewHost = host
@@ -1630,6 +1643,22 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	// The actual supervisor generation/state check above rejects late snapshots.
 	s.bootStatus = st
 	persistenceFailed := s.recordStartupStatusLocked(st)
+	// A fatal local-service failure writes one bounded diagnostic for the error
+	// surface to name (native crash-report.js). One file per failure: keyed by
+	// the supervisor generation, and by the pre-supervisor error text otherwise.
+	failedMessage := ""
+	if st.State == harness.Failed {
+		key := st.Generation
+		if key == 0 {
+			key = -1
+		}
+		if st.Err != nil && key != s.crashReportGeneration {
+			s.crashReportGeneration = key
+			failedMessage = st.Err.Error()
+		}
+	} else {
+		s.crashReportGeneration = 0
+	}
 	switch st.State {
 	case harness.Starting:
 		s.launcherStartBusy = true
@@ -1666,8 +1695,15 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	if s.sup != nil {
 		s.bootLogs = s.sup.Logs()
 	}
+	logs := append([]string(nil), s.bootLogs...)
 	win := s.win
 	s.mu.Unlock()
+	if failedMessage != "" {
+		// Best effort: a report that cannot be written never masks the failure.
+		if path := recordShellCrash("host", failedMessage, strings.Join(logs, "\n")); path != "" {
+			s.publishCrashReport(win, path)
+		}
+	}
 	s.syncPluginViewHost(st)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
@@ -2414,6 +2450,11 @@ func main() {
 	})
 
 	if err := mygo.App.Run(); err != nil {
+		// The event loop failing is a fatal main-process failure: keep the
+		// diagnostic, then still report the original error.
+		if path := recordShellCrash("main", err.Error(), ""); path != "" {
+			log.Println(i18n.T(i18n.KeyCrashReportWritten), path)
+		}
 		log.Fatal(err)
 	}
 }
