@@ -19,10 +19,8 @@
 const COOKIE_NAME = 'dsh_remote';
 const MAX_BODY = 262144;
 const READ_ONLY = new Set(['gitStatus', 'gitFetchForStatus', 'gitDiff', 'gitBranchList', 'listDir', 'getConfig']);
-const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch', 'gitPush', 'gitPull']);
-const GATED_TODO = new Set([
-  'gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery',
-]);
+const MUTATIONS = new Set(['gitCommit', 'gitSwitchBranch', 'gitCreateBranch', 'gitPush', 'gitPull', 'gitCreateChangeRequest']);
+const GATED_TODO = new Set(['saveConfig', 'openSettings', 'openGallery']);
 const READ_BODY = Symbol('readBody');
 
 function tokenFromRequest(headers) {
@@ -285,8 +283,35 @@ function createShellHandler(opts) {
             : await git.gitPull(payload.cwd));
           return true;
         }
+        case 'gitCreateChangeRequest': {
+          const roots = typeof options.roots === 'function' ? options.roots() : options.roots;
+          if (!nonEmptyString(payload.cwd) || !insideRoots(payload.cwd, roots || [])) {
+            fail(res, 403, 'Mobile Git is not authorized for this workspace');
+            return true;
+          }
+          const input = payload.input === undefined ? {} : payload.input;
+          if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+            fail(res, 400, 'invalid args: input');
+            return true;
+          }
+          for (const key of ['title', 'body', 'base', 'branch']) {
+            if (input[key] !== undefined && !nonEmptyString(input[key], key === 'body' ? 65536 : 4096)) {
+              fail(res, 400, 'invalid args: input.' + key);
+              return true;
+            }
+          }
+          // Native git.js:949-969 needs the branch upstream first; a no-op push
+          // is harmless and a failure is reported by the create call itself.
+          try {
+            await git.gitPush(payload.cwd);
+          } catch {
+            /* the create call owns the final reason */
+          }
+          wrapResult(res, await git.gitCreateChangeRequest(payload.cwd, input));
+          return true;
+        }
         default:
-          // TODO(G46): PR/saveConfig/open* need desktop services that
+          // TODO(G46): saveConfig/open* need desktop services that
           // are not proven end to end yet; the native "unavailable" shape keeps
           // the phone honest instead of half-wiring them.
           fail(res, 501, 'shell unavailable');

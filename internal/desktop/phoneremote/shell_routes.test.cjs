@@ -132,7 +132,7 @@ test('unknown name 404, bad JSON 400, oversized body 413, mutations 501', async 
   assert.equal(big.statusCode, 413);
   assert.deepEqual(JSON.parse(big.body), { ok: false, error: '请求过大' });
 
-  for (const name of ['gitCreateChangeRequest', 'saveConfig', 'openSettings', 'openGallery']) {
+  for (const name of ['saveConfig', 'openSettings', 'openGallery']) {
     const res = await run(handler, { url: '/__remote__/shell/' + name, headers, body: '{}' });
     assert.equal(res.statusCode, 501, name);
     assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'shell unavailable' });
@@ -323,4 +323,76 @@ test('push/pull succeed through the gate with a fake authorizer', async () => {
   const failed = await run(failing, { url: '/__remote__/shell/gitPush', headers, body: JSON.stringify({ cwd: ROOT }) });
   assert.equal(failed.statusCode, 400);
   assert.deepEqual(JSON.parse(failed.body), { ok: false, error: 'no upstream configured' });
+});
+
+// gitCreateChangeRequest (native remote-shell.js:80-81, git.js:949-1120): the
+// gate owns authorisation and desktop review; unsupported providers and gh
+// failures come back as native failures, never as fake success.
+test('change request is 403 without a desktop authorisation', async () => {
+  const calls = { create: 0 };
+  const git = {
+    async gitPush() { throw new Error('Mobile Git desktop workspace permission expired'); },
+    async gitCreateChangeRequest() { calls.create++; throw new Error('Mobile Git desktop workspace permission expired'); },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const res = await run(handler, { url: '/__remote__/shell/gitCreateChangeRequest', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ cwd: ROOT, input: { title: 'x' } }) });
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'Mobile Git desktop workspace permission expired' });
+  assert.equal(calls.create, 1, 'the gate was consulted for the create call');
+});
+
+test('change request validates cwd and input before the gate', async () => {
+  let reached = 0;
+  const git = { async gitPush() { reached++; return { ok: true }; }, async gitCreateChangeRequest() { reached++; return { ok: true }; } };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  const root = require('node:path').parse(ROOT).root;
+  const outside = await run(handler, { url: '/__remote__/shell/gitCreateChangeRequest', headers, body: JSON.stringify({ cwd: root, input: {} }) });
+  assert.equal(outside.statusCode, 403);
+  assert.equal(JSON.parse(outside.body).error, 'Mobile Git is not authorized for this workspace');
+
+  for (const [input, error] of [
+    ['nope', 'invalid args: input'],
+    [[], 'invalid args: input'],
+    [{ title: '' }, 'invalid args: input.title'],
+    [{ body: 42 }, 'invalid args: input.body'],
+    [{ base: '' }, 'invalid args: input.base'],
+  ]) {
+    const res = await run(handler, { url: '/__remote__/shell/gitCreateChangeRequest', headers, body: JSON.stringify({ cwd: ROOT, input }) });
+    assert.equal(res.statusCode, 400, JSON.stringify(input));
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error });
+  }
+  assert.equal(reached, 0, 'invalid requests never reached the gate');
+});
+
+test('change request pushes first, then returns the created URL', async () => {
+  const order = [];
+  const git = {
+    async gitPush(cwd) { order.push(['push', cwd]); return { ok: true, status: 'pushed' }; },
+    async gitCreateChangeRequest(cwd, input) {
+      order.push(['create', cwd, input]);
+      return { ok: true, status: 'created', url: 'https://github.com/o/r/pull/7', number: 7 };
+    },
+  };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const res = await run(handler, { url: '/__remote__/shell/gitCreateChangeRequest', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ cwd: ROOT, input: { title: 'Probe PR', body: 'body', base: 'main', preserveProvided: true } }) });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(JSON.parse(res.body), { ok: true, result: { ok: true, status: 'created', url: 'https://github.com/o/r/pull/7', number: 7 } });
+  assert.deepEqual(order[0], ['push', ROOT], 'the branch is pushed before the create call');
+  assert.equal(order[1][0], 'create');
+  assert.deepEqual(order[1][2], { title: 'Probe PR', body: 'body', base: 'main', preserveProvided: true });
+});
+
+test('change request failures keep the native reason (no fake success)', async () => {
+  const unsupported = { async gitPush() { return { ok: true }; }, async gitCreateChangeRequest() { return { ok: false, message: 'Creating a pull request for local is not supported yet (requires GitHub via gh).' }; } };
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git: unsupported, roots: () => [ROOT] });
+  const res = await run(handler, { url: '/__remote__/shell/gitCreateChangeRequest', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ cwd: ROOT, input: { title: 'x' } }) });
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'Creating a pull request for local is not supported yet (requires GitHub via gh).' });
+
+  const review = { async gitPush() { return { ok: true }; }, async gitCreateChangeRequest() { throw new Error('Review and confirm a change-request title/body before creating it'); } };
+  const reviewHandler = routes.createShellHandler({ tokens: () => [TOKEN], git: review, roots: () => [ROOT] });
+  const reviewRes = await run(reviewHandler, { url: '/__remote__/shell/gitCreateChangeRequest', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ cwd: ROOT, input: {} }) });
+  assert.equal(reviewRes.statusCode, 400);
+  assert.deepEqual(JSON.parse(reviewRes.body), { ok: false, error: 'Review and confirm a change-request title/body before creating it' });
 });

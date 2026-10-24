@@ -188,3 +188,62 @@ Temp repo, bare remote and the second clone are deleted at the end of the probe
 - Gate denial: 403 proven in the node table; the live push/pull run used the
   probe's `SetGitAuthorizer` as the desktop "allow".
 - Relay mode and real-phone pairing still unverified.
+
+## 8. Round 252 addendum — gated gitCreateChangeRequest
+
+`gitCreateChangeRequest` is now served through the desktop git gate; `saveConfig`,
+`openSettings` and `openGallery` remain 501 + TODO(G46).
+
+### Native shape (citations)
+
+- `reference/electron/src/main/remote-shell.js:80-81` — `gitCreateChangeRequest`
+  delegates `git.gitCreateChangeRequest(body.cwd, body.input || {})`.
+- `internal/desktop/phoneremote/git-source/main/git.js:949-1120` — the module
+  rejects detached HEAD, dirty trees, missing upstream and non-GitHub providers
+  (`Creating a <term> for <provider> is not supported yet (requires GitHub via gh).`),
+  looks up an existing open PR (`Could not look up existing pull requests (gh failed). Try again.`),
+  and returns `{ok:true,status:'created'|'opened_existing'|'remote_added',url,number,…}`.
+- Gate (`git-gate.cjs:26-28`): unless the request is `generateOnly` or carries
+  `preserveProvided` with a title, the gate asks the desktop review flow first;
+  the phone route never bypasses that.
+
+### MyGo route
+
+`POST /__remote__/shell/gitCreateChangeRequest` with `{cwd, input}`:
+
+- 401 anonymous/bad token; 403 when the gate denies or `cwd` is outside
+  `remoteGitRoots`; 400 for `input` that is not an object or a non-string
+  `title`/`body`/`base`/`branch` (`invalid args: input[.field]`).
+- The route pushes the branch first through the same gated `gitPush` (native
+  requires an upstream), then calls `git.gitCreateChangeRequest(cwd, input)` and
+  wraps the result with the native `wrapResult` rules: success →
+  `{ok:true,result:{status,url,…}}`; module failure → 400 `{ok:false,error:<native reason>}`.
+  Never a fabricated success.
+
+### Tests
+
+`shell_routes.test.cjs` is now 17/17, adding: 403 without a desktop authorisation
+with the gate consulted; `cwd` outside roots → 403; `input` not an object and
+empty/wrong-typed `title`/`body`/`base` → 400 before the gate; the push happens
+before the create and the created URL is returned verbatim; the unsupported-provider
+and desktop-review reasons are surfaced as 400 failures (no fake success).
+
+### Live probe (temp repo + temp bare remote, then a github-shaped origin)
+
+| Request | Result |
+| --- | --- |
+| POST gitCreateChangeRequest, local bare origin | 400 `{"ok":false,"error":"Creating a change request for source control is not supported yet (requires GitHub via gh)."}` |
+| POST gitCreateChangeRequest after `origin` → `https://github.com/example/probe.git` | 400 `{"ok":false,"error":"Could not look up existing pull requests (gh failed). Try again."}` (`gh version 2.102.0` is installed; the probe remote is not reachable/authenticated) |
+| earlier push/pull steps | unchanged (push 200, pull 200 fast-forward) |
+
+Temp repo, bare remote and clone are deleted at the end of the probe.
+
+### Residual
+
+- A real created PR needs an authenticated `gh` plus a reachable GitHub remote;
+  the route passes the native reason through instead of faking it, and the live
+  probe records both unsupported branches (non-GitHub provider, gh failure).
+- The gate's desktop review prompt (`Review and confirm a change-request
+  title/body before creating it`) cannot be answered from the loopback probe; a
+  phone request without `preserveProvided`+title returns that 400 reason.
+- `saveConfig`/`open*` still 501; relay mode and real-phone pairing unverified.
