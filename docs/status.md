@@ -456,6 +456,16 @@
 - pass292：87,725,568 B / SHA256 `55C74F15…`；ready=True。
 - 残留：原生 chat 壁纸缺失（#dsh-wallpaper 检查）、structure walk 稳定化、键盘 deny 打包态、G46 PR、D1–D4 决策与双签。
 
+### round216–223（2026-10-25）
+
+- **壁纸真相**：原生 profile cordis.patch.yml 的 ui-theme 仅有 preference: dark、无 wallpaperImage → 原生是**纯色底**（flat 12,12,12），不是壁纸；MyGo 无壁纸时仍画 aurora，是 D-MAIN 像素主差。round216 让空路径强制 Effect=none；round217 发现首启/host 默认仍塞 BackgroundEffect: gradient，故修复未生效（task-97 继续）。
+- round219：**workspacefs 搜索测试修复**——根因是 env.ps1 的 GOTMPDIR 在 git-ignored .toolchain/gotmp 内，t.TempDir 落在本仓库导致 git check-ignore 把 fixture 全过滤；新增 gitIsolatedRoot（GIT_CEILING_DIRECTORIES）+ 回归测试。
+- round220：**components 非 Windows 交叉编译修复**——lerts_process_other.go/process_other.go 缺 errors/storelocale 导入；linux/darwin 构建恢复 0。
+- round220：**L-HOME 深色参考**——CDP 设 data-ds-dark-theme 渲染 1060×660 深色参考，深色对 8.71% wash（light 8.01%），差异为文字 AA + 预载缺失数据，无样式差。
+- round217：**D-MAIN 结构首次移动**——稳定 UIA（原生先采、whaleisle://open hand-off）后 window-relative **0/22 → 11/22**（caption 7/22）；composer 774×114 @469.33（−0.39）；chip 行两处偏差（工作区 chip x 489.33 vs 502；标准模式 675.33 vs 655.33，gap 36 vs 3.3）待修。
+- pass293：87,728,640 B / SHA256 `5DA9E2B2…`；ready=True（幂等 smoke 首跑因共享单实例失败，锁释放后通过）。
+- 进行中：task-97 首启 flat 默认、task-98 chip 行、task-99 重采。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

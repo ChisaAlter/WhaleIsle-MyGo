@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T05:32:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87728640,
+  "productionSHA256": "5DA9E2B2B3E5A15912F133DEF450F565244AC6FC9B4771CD3EA0E999A7BC76F6",
+  "defaultSHA256": "5DA9E2B2B3E5A15912F133DEF450F565244AC6FC9B4771CD3EA0E999A7BC76F6",
+  "note": "pass293 covers the flat no-wallpaper backdrop, workspacefs fixture isolation, components cross-builds and the dark launcher reference; D-MAIN structure reached 11/22. Readiness verified after the shared single-instance lock was released."
+}
