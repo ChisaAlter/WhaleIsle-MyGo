@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T02:48:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87558144,
+  "productionSHA256": "A6AC099EA867662DBB19A68C6B49B64D68D04DBE622492EECED85E5DC280E0BB",
+  "defaultSHA256": "A6AC099EA867662DBB19A68C6B49B64D68D04DBE622492EECED85E5DC280E0BB",
+  "note": "pass280 covers rounds 160-162: settings row geometry, resting pet chrome, the asar-staged dshd-remote daemon, ELECTRON_RUN_AS_NODE env and the one-shot phone gateway start on harness Ready. Readiness and in-app remote listeners verified."
+}

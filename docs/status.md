@@ -348,6 +348,15 @@
 - pass279：87,550,976 B / SHA256 `063DD647…`；harness-start-pass279.json ready=True。
 - 残留：composer 宽 772 vs 774.4、导航文字基线 1.7 DIP、hero 纵向 seat 需桌面参考；G1 mobile runtime、G5 LAN 发现、G6 TLS/SSH；验收合同双签。
 
+### round160–162（2026-10-25）
+
+- round160：设置页按原生 DOM 实测收口——导航项 38→40 高、padding 8→9、gap 8→4；行高下限 64→68；值控件右对齐（药丸与列表右缘齐平）；对话框 800×800 r28、行 16 padding、14/22 标题 + 12/18 描述、36×20 开关等已相等。
+- round161：桌宠静息呈现对齐原生——不再常驻「原版分层动画」标签与「状态」按钮；标签仅在渲染降级时出现，状态改为 hover/键盘/右键/长按唤出，焦点与 Esc/外点关闭；窗口仍 240×438。
+- **手机远程打通**：从安装版 app.asar 提取 dshd-remote（src/main + shared + mobile/web + 解包条目 + node_modules），better-sqlite3 为 Electron ABI 149，故 daemon 以 ELECTRON_RUN_AS_NODE=1 运行（已写入 spawn env）；并修复启动路径——efreshBoot 首次 Ready 时一次性启动网关。实机 pass280：3099/3499/3180 全部监听，手机 SPA Whale Isle · 手机远程 200（16,453 B），kill 后全部关闭。
+- round162：gap 矩阵刷新为 89 行（63 closed / 25 open / 1 measurement-error，新增 S01–S05 小缺口）。
+- pass280：87,558,144 B / SHA256 `A6AC099E…`；harness-start-pass280.json ready=True。
+- 残留：app 内配对码未断言（daemon ~28s 才生成 offer）、relay/0.0.0.0/真机未验证；桌宠 260 高度需 popover；设置页仅 General 做了原生 DOM 逐项；S01–S05；验收合同双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
