@@ -366,6 +366,15 @@
 - pass281：87,578,624 B / SHA256 `DF858D80…`；harness-start-pass281.json ready=True。
 - 残留：app 内 QR 像素/UIA 面板未截（采样过早）；远程面板 offer 仍以 relayConnected 为门（LAN-only 门禁一行修复）；S02–S05；验收工件体系；双签只能由用户完成。
 
+### round166–169（2026-10-25）
+
+- round166：**S02 安装空间预检**（256 MiB 预留、%.2f GiB、祖先目录探测、unsupported FS、Windows GetDiskFreeSpaceEx/Unix Statfs）；**S05 插件取证**改用原生四条正则（裸 oom、ENOENT node）；S04 浏览器预览缩放核实为已实现（17 档 + find/next，补钉测试）；S03 仍缺 mygo Page 键盘钩子。
+- round167：**验收工件管线**（scripts/acceptance-capture.ps1 + acceptance-diff.py）跑通 D-MAIN 试点，产出 baseline/actual/diff + geom/controls/accept-log/mask；Electron UIA 懒加载、子 HWND、任务栏占高、1px 尺寸差、PS UTF8 BOM 等坑已记录。**严格 threshold 0 对 Go 原生渲染 vs Chromium 不可达**（试点 99.99% 主要因主题/数据状态不同；即便同夹具，字形抗锯齿与壁纸动画仍必然不同），文档提出「蒙版内 0 + 结构 1 DIP + 每区域 ≤0.1% + 文本 AA 单列」的实用准则待用户确认，合同未改。
+- round168：设置剩余 tab（内置插件/技能/MCP/Agent 预设）中英 + 深色 token 实测；修 4 处文案（插件英文描述、技能计数前置、MCP 空态第二行、预设「新任务默认」）。
+- round169：**LAN-only 远程 offer 门禁修复**——offerUsable 按 (relayConnected 或 mode lan) 放行 QR/复制/打开；测试覆盖 lan-no-relay/relay/过期/缺 URL；面板截图仍被首次预览弹窗挡住。
+- pass282：87,587,328 B / SHA256 `32C39781…`；harness-start-pass282.json ready=True。
+- 残留：验收准则需用户决策；fixture 尚未播种（原生深色/真实 profile vs MyGo 浅色/空 profile，MyGo 深色主题未生效待查）；L-HOME 启动器窗口与 MyGo 面板形态不同；S03；QR 面板像素；逐行验收工件与双签（用户）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

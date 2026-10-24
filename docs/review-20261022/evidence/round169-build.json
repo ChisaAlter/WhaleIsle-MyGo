@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T03:20:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87587328,
+  "productionSHA256": "32C3978166AA876E036FEA2681D10D67C8D8634B274E3242DF6E0F06D3E7BA3C",
+  "defaultSHA256": "32C3978166AA876E036FEA2681D10D67C8D8634B274E3242DF6E0F06D3E7BA3C",
+  "note": "pass282 covers rounds 166-169: install-space preflight, forensics/zoom pin, remaining settings tabs, LAN-only remote offer gate and the acceptance artifact pipeline with a D-MAIN pilot. Harness readiness verified."
+}
