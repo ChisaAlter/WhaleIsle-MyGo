@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T03:00:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87578624,
+  "productionSHA256": "DF858D807DE3026F298FDAAA25BAF8A57AB3240BB93B31EDD79909ED09D0D5FB",
+  "defaultSHA256": "DF858D807DE3026F298FDAAA25BAF8A57AB3240BB93B31EDD79909ED09D0D5FB",
+  "note": "pass281 covers rounds 163-165: S01 downloads, remaining settings tabs copy, the in-app pairing diagnostic and the acceptance evidence index. Harness readiness verified."
+}

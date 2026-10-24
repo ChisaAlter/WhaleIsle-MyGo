@@ -357,6 +357,15 @@
 - pass280：87,558,144 B / SHA256 `A6AC099E…`；harness-start-pass280.json ready=True。
 - 残留：app 内配对码未断言（daemon ~28s 才生成 offer）、relay/0.0.0.0/真机未验证；桌宠 260 高度需 popover；设置页仅 General 做了原生 DOM 逐项；S01–S05；验收合同双签。
 
+### round163–165（2026-10-25）
+
+- round163：**S01 下载处理**——移植原生 download-path.js 名称清洗（非法/控制字符、尾部点空格、DOS 设备名、180 rune 上限、`download` 兜底）+ `name (2).ext` 去重，并给所有非临时 webview 安装 OnWillDownload；S02–S05 记录原生规格与精确阻塞（安装空间预检需平台 statfs；Ctrl+Shift+I 需 mygo Page 输入钩子；预览缩放 17 档待接线；插件取证分类待逐条比对）。
+- round164：设置页剩余 tab 原生 DOM 实测（外观/界面/模型/关于；账户在未登录时不存在）；修正两处文案：外观标题「色制」→「颜色模式」（参考源码快照过时，安装版即 DOM 一致）、模型 intro 对齐安装版；界面开关 44×28 命中区 vs MyGo 36×20 视觉按钮、主题/模型卡片结构差异已记录。
+- **app 内配对已证**：WHALEISLE_REMOTE_DIAG=1 输出无 token 快照；in-app ready、hasPairingURL、offer v2、QR 条件全真、SPA 200；监听关闭正常。
+- **验收索引**：96 行合同 0 行 contract-ready / 57 部分证据 / 39 无证据；top blockers：无每屏 baseline/actual/diff/geom/controls、无 cases-<ID>.md、无 accept-log/fixture、原生基线为 harness-Web 而非 Electron 壳、无 E7 mask registry。
+- pass281：87,578,624 B / SHA256 `DF858D80…`；harness-start-pass281.json ready=True。
+- 残留：app 内 QR 像素/UIA 面板未截（采样过早）；远程面板 offer 仍以 relayConnected 为门（LAN-only 门禁一行修复）；S02–S05；验收工件体系；双签只能由用户完成。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
