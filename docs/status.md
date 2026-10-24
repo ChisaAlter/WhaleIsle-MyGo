@@ -385,6 +385,15 @@
 - pass284：87,595,520 B / SHA256 `AF437872…`；harness-start-pass284.json ready=True。
 - 残留：**壁纸/材质层尚不一致**（原生用户壁纸 + mica vs MyGo 渐变）；验收准则需用户决策；结构比较需标题相对坐标；L-HOME 原生冷启动需授权；S03 macOS/Linux；深色 pill/nav token；QR 应用内滚动截图；relay/真机；双签（用户）。
 
+### round177–180（2026-10-25）
+
+- round177：**S28 导航标签基线修复**——页面行与鲸鱼娘行改用原生 22-DIP 行盒（7 padding 下），标签 ink 不再低 ~1.7 DIP，frame 测试断言 22 盒。S27 composer 卡 773.33 vs 原生 774.39（差 1.06 DIP），根因在 contentAxis 同时驱动正文轴，需先量原生正文轴；hero 栈 +24.7 DIP 因原生 860 高度下卡片约 155 DIP，而 MyGo 仍是 920 高下的 114 配方——需原生卡内行 rect 的 --eval 探针。
+- round178：G10 标题栏右侧簇逐项实测（顺序/27-DIP 分支胶囊/32×32 面板钮/4 间隙/8 胶囊间隙/32×32 窗口钮全匹配），面板钮字形 14 vs 可能 16–18 未敢猜改，记录 3× 放大复核法。
+- round179：**G52 首批 63 处 cmd 文案迁入 i18n**（12 文件/55 键，托盘/菜单/更新/账号/恢复），测试覆盖双 locale、非空/不等、%s/%d 参数数与会话残留检查；余 187 处按文件列清单。
+- round180：验收索引刷新——96 行中 1 行证据完整（D-MAIN）、59 部分、36 无，0 可签；新增 D1–D4 决策（实用准则、L-HOME 原生冷启动、壁纸策略、分层 CDP 基线）与 top-10 阻塞。
+- pass285：87,623,168 B / SHA256 `6A2148B6…`；harness-start-pass285.json ready=True。
+- 残留：壁纸/mica（D3）仍是像素主差；原生 860 卡高/正文轴探针；G52 余量；cases-<ID>.md；G44/G45 真机；G31b Live2D；深色 pill token；双签（用户）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

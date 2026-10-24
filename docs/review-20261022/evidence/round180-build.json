@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T03:58:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87623168,
+  "productionSHA256": "6A2148B679D0A60C7752BEBD51D6EBC2FA1A4A27A3DCBF18F889DC7B2E469074",
+  "defaultSHA256": "6A2148B679D0A60C7752BEBD51D6EBC2FA1A4A27A3DCBF18F889DC7B2E469074",
+  "note": "pass285 covers rounds 177-180: sidebar label 22-DIP line box, first cmd i18n migration slice (63 sites), refreshed acceptance index/decisions and the titlebar trailing audit. Readiness verified."
+}
