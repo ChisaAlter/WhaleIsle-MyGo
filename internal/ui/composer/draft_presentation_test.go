@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -28,8 +29,11 @@ func heroCardTopInset(hero bool) float32 {
 }
 
 func heroSidePadding(hero bool) float32 {
-	// HeroShell.card keeps 0 side padding; the writing well owns the 12-DIP text
-	// inset, so the draft spans the full card width.
+	// round242/249: the hero card carries the native writing-well insets
+	// (12.67 left + 16.39 right = 29.06), so the draft box is that much narrower.
+	if hero {
+		return 29.06
+	}
 	return 0
 }
 
@@ -377,7 +381,9 @@ func TestShippedEmptyDraftPaintsFocusedCaretBesidePlaceholder(t *testing.T) {
 		if !active {
 			t.Fatal("empty draft native input method inactive")
 		}
-		p := tt.Image().RGBAAt(int(caret.X), int(caret.Y+1))
+		// The caret sits at a fractional x now that the hero draft is inset; sample
+		// the nearest covered pixel instead of truncating onto its left edge.
+		p := tt.Image().RGBAAt(int(math.Ceil(float64(caret.X))), int(caret.Y+1))
 		t.Logf("hero=%v input=%v caret=%v pixel=%v", hero, input, caret, p)
 		if int(p.B) <= int(p.R)+50 || int(p.B) <= int(p.G)+50 {
 			t.Errorf("empty focused caret ink absent: %v", p)

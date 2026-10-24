@@ -114,7 +114,9 @@ func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
 				badgeBackground = chrome.Color("rgba(103, 158, 254, 0.16)")
 				badgeBorder = chrome.Color("rgba(103, 158, 254, 0.35)")
 			}
-			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).
+			// round242/249: native badge is 48.67x15.33 against our 63x20, i.e. a
+			// 0.777 font/line-height ratio, not a padding change.
+			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(13.4)).FontWeight(500).
 				TextColor(badgeForeground).Padding(1, 7, 0, 7).
 				Background(badgeBackground).Border(0.5, badgeBorder).Radius(999)
 		})

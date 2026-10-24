@@ -31,7 +31,7 @@ func TestHeroChipRowKeepsTheNativeInsets(t *testing.T) {
 	}
 	close("workspace chip width", float64(workspace.W), 150)
 	close("workspace left inset", float64(workspace.X-row.X), 32.67)
-	if gap := preset.X - (workspace.X + workspace.W); gap < 0 || gap > 0.01 {
+	if gap := preset.X - (workspace.X + workspace.W); gap < 3.2 || gap > 3.5 {
 		t.Fatalf("chip-to-preset gap = %.2f, want no row gap", gap)
 	}
 	if preset.X+preset.W > row.X+row.W {

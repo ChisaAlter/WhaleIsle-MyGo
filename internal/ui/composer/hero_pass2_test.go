@@ -53,7 +53,7 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	closeMetric(t, card.H, 155.34, "hero card height")
 	input, _ := tt.Find("Composer draft")
 	closeMetric(t, input.Y-card.Y, 8, "hero top padding")
-	closeMetric(t, input.X-card.X, 0, "hero card side padding")
+	closeMetric(t, input.X-card.X, 12.67, "hero card side padding")
 	closeMetric(t, input.H, 52, "hero writing well height")
 	send, ok := tt.Find(i18n.T(i18n.KeyComposerSend))
 	if !ok {
@@ -61,7 +61,7 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	}
 	closeMetric(t, send.W, 34, "hero primary width")
 	closeMetric(t, send.H, 34, "hero primary height")
-	closeMetric(t, card.X+card.W-(send.X+send.W), 8, "hero primary right inset")
+	closeMetric(t, card.X+card.W-(send.X+send.W), 20.38, "hero primary right inset")
 	if !tt.HasText("+") || !tt.HasText(i18n.T(i18n.KeyComposerPermissionWorkspace)) {
 		t.Fatalf("hero control row lost its launcher or permission pill: %v", tt.Texts())
 	}

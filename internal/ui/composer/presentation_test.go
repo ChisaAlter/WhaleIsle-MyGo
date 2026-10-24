@@ -36,7 +36,9 @@ func TestComposerCurrentCardGeometry(t *testing.T) {
 		// primary disc sits 8 from the card edge and 10 above the bottom edge.
 		topPad, sideInset, draftShrink, rightInset, bottomInset := float32(8), float32(0), float32(0), float32(8), float32(8)
 		if hero {
-			topPad, sideInset, draftShrink, rightInset, bottomInset = 8, 0, 0, 8, 8.67
+			// round242/249: the native draft box is inset 12.67 left / 16.39 right
+			// (745.33 inside 774.39) and the send sits 20.38 from the card right.
+			topPad, sideInset, draftShrink, rightInset, bottomInset = 8, 12.67, 29.06, 20.38, 8.67
 		}
 		closeMetric(t, input.Y-card.Y, topPad, "card top padding")
 		closeMetric(t, input.X-card.X, sideInset, "input owns horizontal inset")

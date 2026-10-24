@@ -271,7 +271,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// Round237 measured the live rects: the workspace chip ends at 652 and the
 				// preset chip landed at 658.67 with Gap(3.33), i.e. an effective 6.67
 				// offset; the native preset starts at 655.33, so the row adds no gap.
-				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(0).AlignItems(ui.Center).
+				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(3.33).AlignItems(ui.Center).
 				// Round217 UIA (1440x860): the native workspace chip starts at x=502
 				// (33 DIP leading inset) and 标准模式 follows at 655.33, i.e. a 3.33 DIP
 				// chip-to-chip gap; the old 20/18 pair is what put us at 489.33/675.33.
@@ -363,7 +363,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// Native card 155.34 = 8 + 52.67 draft + 54 toolbar gap + 34 row + 6.67
 			// bottom (the native send disc is 34.67 tall, ours 34, so the 0.67 lands
 			// in the bottom padding instead of the disc).
-			card = card.Padding(8, 0, 6.67, 0).Gap(54).MinHeight(155.34)
+			// Round242/249: the writing well is inset 12.67 left / 16.39 right inside
+			// the 774.39 card (draft box 745.33 at x=card+12.67), so the hero card
+			// carries those side insets and the toolbar compensates to keep the
+			// send 20.38 from the card right edge.
+			card = card.Padding(8, 16.39, 6.67, 12.67).Gap(54).MinHeight(155.34)
 		} else {
 			card = card.Padding(8, 0, 0, 0).Gap(12)
 		}
@@ -490,7 +494,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			if m.Hero {
 				// HeroShell: the 34-DIP control row carries the card's 8-DIP side
 				// inset, so the 34px primary disc fills its height.
-				tools = tools.Padding(0, 8, 0, 8).Height(34)
+				tools = tools.Padding(0, 4, 0, 4).Height(34)
 			} else {
 				tools = tools.Padding(2, 8, 6, 8)
 			}
