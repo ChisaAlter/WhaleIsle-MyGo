@@ -1385,7 +1385,7 @@ var zhCN = map[string]string{
 	KeyLauncherTabSettings:                "设置",
 	KeyLauncherHomeLede:                   "桌面端与组件，一处管理。",
 	KeyLauncherGotoVersions:               "版本管理",
-	KeyLauncherDesktopTitle:               "Whale Isle 桌面端",
+	KeyLauncherDesktopTitle:               "鲸屿桌面端",
 	KeyLauncherDesktopDesc:                "在桌面端开始对话，管理模型与工作区。",
 	KeyLauncherDesktopRunning:             "桌面端已就绪",
 	KeyLauncherDesktopStopped:             "桌面端未运行",
