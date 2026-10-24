@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T05:12:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87697408,
+  "productionSHA256": "5CB93E9C0F50D1A78E6E0C79598C66BE07AAAFCA8721DA0D8FB47B9383B77B83",
+  "defaultSHA256": "5CB93E9C0F50D1A78E6E0C79598C66BE07AAAFCA8721DA0D8FB47B9383B77B83",
+  "note": "pass290 covers rounds 200-204: gated remote git push/pull, wallpaper blur/pixelate semantics, the D-MAIN hand-off map and the S03 live allow/deny probe. Readiness verified."
+}

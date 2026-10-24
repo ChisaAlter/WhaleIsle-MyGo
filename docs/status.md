@@ -428,6 +428,15 @@
 - **S03 页面级门禁**：mygo 新增 Page.SetDevToolsEnabled(bool)（可选平台能力；Windows 立即 put_AreDevToolsEnabled，setup 后运行时值覆盖静态选项；linux/darwin 仅存值；fake 可查询）；webview 在两个 Host 建页点注册并把门禁推送到已开页面，SetDevToolsShortcutAllowed 变更即时生效；Go chord 保留为次要路径（round193 已证 accelerator 优先）。测试覆盖注册/关闭后已开页/创建即拒绝/重新开启/nil；webview 1.7s，mygo 三平台构建+vet 干净。**live 拒绝态 inspector 证据仍未取**（探针重建配方已记录）；打包件本地不可测。
 - pass289：87,693,312 B / SHA256 `F2E0B8C9…`；ready=True。
 
+### round200–204（2026-10-25）
+
+- round200：**D-MAIN hand-off 精确定位**——普通启动开两个 MyGoWindow，二者都渲染启动器；WM_CLOSE/isolated/第二实例都不能 hand off；聊天是同一窗口 launcherOpen=false，真正入口是 pplyLauncherStage->showMain、托盘 KeyCmdShowWindow 或 desktop 深链；fixture.md 记录 handle 定位步骤。未用启动器帧伪造 D-MAIN 数字。
+- round201：**S03 实机 allow/deny**——Host 页是子窗口（EnumWindows 不可见），合成按键无法聚焦；直接探针显示 allow/deny 都被 WebView2 接受，但 deny 仍能通过**程序化 OpenDevToolsWindow** 打开（用户加速键才受 AreDevToolsEnabled 约束）。方向正确，但需让 mygo OpenDevTools() 尊重门控（follow-up）。
+- round202：**G46 完成 push/pull**——gitPush/gitPull 经既有 gate（cwd/root、remote/branch 校验、native wrapResult），node 13/13；live 临时 bare remote：push 200 到 g46-branch、外部 clone 提交后 pull 200 快进、工作树干净；PR/saveConfig/open* 仍 501。
+- round203：**壁纸模糊/像素化语义对齐**——原生 clamp(round,0..100)、blur=p/100*40、pixelate=1+p/100*19、transparent 去蒙版并对 <20 blur 提升到 20；Go 新增同公式 helpers 并修正 ConfigureBackdrop/backgroundBitmap 的截断，11 例表 + 0/0、8/12 快照。残留：源空间像素化（应按屏幕空间 cover 后处理）、box vs gaussian 无 bleed、透明提升未持久化。
+- pass290：87,697,408 B / SHA256 `5CB93E9C…`；ready=True。
+- 残留：D-MAIN 聊天窗口驱动、S03 OpenDevTools 门控、G46 PR、壁纸屏幕空间像素化、D1–D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
