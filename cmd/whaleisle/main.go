@@ -357,21 +357,26 @@ type mainState struct {
 	// updateProgress is the visible update row; updateJournal keeps the update
 	// evidence outside the installation directory (port of the reference shell
 	// update dialog and update-journal.js).
-	updateProgress                *updateProgressState
-	updateJournal                 updateJournalBook
-	launcherPrefsError            string
-	nativeReleases                nativeReleaseState
-	launcherUpdateAvailable       bool
-	launcherUpdateSynced          bool
-	launcherNote                  string
-	launcherTriedStart            bool
-	launcherStartBusy             bool
-	launcherStartPreparing        bool
-	launcherStartCancel           context.CancelFunc
-	launcherStartFailed           bool
-	launcherStartErr              string
-	launcherPrefsSeeded           bool
-	launcherQuitAfterStart        bool
+	updateProgress          *updateProgressState
+	updateJournal           updateJournalBook
+	launcherPrefsError      string
+	nativeReleases          nativeReleaseState
+	launcherUpdateAvailable bool
+	launcherUpdateSynced    bool
+	launcherNote            string
+	launcherTriedStart      bool
+	launcherStartBusy       bool
+	launcherStartPreparing  bool
+	launcherStartCancel     context.CancelFunc
+	launcherStartFailed     bool
+	launcherStartErr        string
+	launcherPrefsSeeded     bool
+	launcherQuitAfterStart  bool
+	// phoneBootStarted gates the once-per-session phone gateway start when the
+	// harness first becomes ready; phoneBootStartAction is nil in production
+	// (the real start) and replaced by a counter in tests.
+	phoneBootStarted              bool
+	phoneBootStartAction          func()
 	launcherAutoStartDesktop      bool
 	launcherAskOnUpdate           bool
 	launcherDownloadRoute         string
@@ -1679,6 +1684,9 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	} else {
 		s.crashReportGeneration = 0
 	}
+	// Starting the phone gateway is decided under the same lock as the ready
+	// transition, then run after unlock (it spawns the daemon and takes phoneOp).
+	startPhone := false
 	switch st.State {
 	case harness.Starting:
 		s.launcherStartBusy = true
@@ -1700,6 +1708,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		} else {
 			s.launcherOpen = true
 		}
+		startPhone = s.claimPhoneBootStartLocked()
 	case harness.Failed:
 		s.launcherStartBusy = false
 		if !st.RecoveryCancelled {
@@ -1722,6 +1731,16 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	// window exactly then, with the boot page behind the launcher.
 	revealMain := s.launcherWindowAllowed && st.State == harness.Starting
 	s.mu.Unlock()
+	// The native shell starts its phone gateway as soon as the config with
+	// remoteEnabled is in effect; MyGo had no such call, so a boot-time enable
+	// never started the daemon. Start it once per session, on the first Ready.
+	if startPhone {
+		if s.phoneBootStartAction != nil {
+			s.phoneBootStartAction()
+		} else {
+			go s.refreshPhoneRemote()
+		}
+	}
 	if failedMessage != "" {
 		// Best effort: a report that cannot be written never masks the failure.
 		if path := recordShellCrash("host", failedMessage, strings.Join(logs, "\n")); path != "" {
@@ -1741,6 +1760,23 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	// update: creating or destroying a native window from a paint callback
 	// re-enters the message loop and wedges it.
 	mygo.RunOnMain(func() { s.syncLauncherStage() })
+}
+
+// claimPhoneBootStartLocked decides the once-per-session phone gateway start
+// when the harness first reports ready. It mirrors the native shell, which
+// starts the remote daemon from the effective config rather than waiting for a
+// settings action. Caller must hold s.mu. Disabled config, a quitting shell and
+// repeated Ready frames (harness restarts included) must not start it again;
+// the user-facing enable/disable path keeps owning later changes.
+func (s *mainState) claimPhoneBootStartLocked() bool {
+	if s.phoneBootStarted || s.quitting || s.cfgStore == nil {
+		return false
+	}
+	if !s.cfgStore.Get().RemoteEnabled {
+		return false
+	}
+	s.phoneBootStarted = true
+	return true
 }
 
 func (s *mainState) syncDialogue(st harness.Status) {

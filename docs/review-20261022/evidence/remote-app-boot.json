@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "smoke": "remote-app-live",
+  "method": "temp build + throwaway profile; app started without ELECTRON_RUN_AS_NODE in the shell; sampled TcpClient probes (harness/remote SPA), EnumWindows GetWindowRect (per-monitor-v2), UIA names; recursive parent-tree kill",
+  "generatedAt": "2026-10-24T18:34:31.3643092Z",
+  "status": "ok",
+  "error": null,
+  "exe": "C:\\AI\\WhaleIsle-MyGo\\whaleisle-remote-boot.exe",
+  "pid": 18488,
+  "userData": "C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413",
+  "workspace": "C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-workspace-20261025-023413",
+  "config": {
+    "harnessPort": 3099,
+    "remotePort": 3499,
+    "remoteMode": "lan",
+    "remoteBindAddress": "127.0.0.1",
+    "remoteLanTls": false,
+    "remoteEnabled": true
+  },
+  "shellElectronRunAsNode": false,
+  "startedAt": "2026-10-24T18:34:13.6847612Z",
+  "timeline": [
+    {
+      "t": 2,
+      "harness": false,
+      "remote": false,
+      "mobile": false,
+      "mainVisible": false,
+      "launcherVisible": true
+    },
+    {
+      "t": 5,
+      "harness": false,
+      "remote": false,
+      "mobile": false,
+      "mainVisible": true,
+      "launcherVisible": true
+    },
+    {
+      "t": 7,
+      "harness": false,
+      "remote": false,
+      "mobile": false,
+      "mainVisible": true,
+      "launcherVisible": true
+    },
+    {
+      "t": 10,
+      "harness": true,
+      "remote": false,
+      "mobile": true,
+      "mainVisible": true,
+      "launcherVisible": false
+    },
+    {
+      "t": 12,
+      "harness": true,
+      "remote": true,
+      "mobile": true,
+      "mainVisible": true,
+      "launcherVisible": false
+    }
+  ],
+  "listeners": {
+    "harness": true,
+    "remote": true,
+    "mobile": true
+  },
+  "phoneSpa": {
+    "url": "http://127.0.0.1:3180/",
+    "statusCode": 200,
+    "contentType": "text/html; charset=utf-8",
+    "length": 16453,
+    "title": "Whale Isle · 手机远程"
+  },
+  "uiaNodeCount": 4,
+  "uiaPairingHits": [],
+  "hostChildren": [
+    {
+      "pid": 5328,
+      "name": "conhost.exe",
+      "commandLine": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+    },
+    {
+      "pid": 8548,
+      "name": "node.exe",
+      "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\node\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-market\\desktop-dsh-market.patch.yml --host 127.0.0.1 --port 3099 --no-open"
+    },
+    {
+      "pid": 4148,
+      "name": "conhost.exe",
+      "commandLine": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+    },
+    {
+      "pid": 22308,
+      "name": "powershell.exe",
+      "commandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-2b6HZf\\extract-icon.ps1 \"C:\\Program Files/Git/git-bash.exe\" C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-2b6HZf\\icon.png"
+    },
+    {
+      "pid": 8896,
+      "name": "powershell.exe",
+      "commandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-3H86dg\\extract-icon.ps1 C:\\WINDOWS/explorer.exe C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-3H86dg\\icon.png"
+    },
+    {
+      "pid": 33356,
+      "name": "node.exe",
+      "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe -e \"const file=process.argv[1];process.argv.splice(1,1);require(file)\" C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\.mygo-phone-bridge-74288751.cjs C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-remote.js C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home"
+    },
+    {
+      "pid": 33468,
+      "name": "node.exe",
+      "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-daemon-runner.mjs C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\daemon-launch.json"
+    },
+    {
+      "pid": 32848,
+      "name": "node.exe",
+      "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\@chisacode\\server\\dist\\server\\terminal\\terminal-worker-process.js"
+    },
+    {
+      "pid": 34684,
+      "name": "gh.exe",
+      "commandLine": null
+    }
+  ],
+  "afterKill": {
+    "harness": false,
+    "remote": false,
+    "mobile": false,
+    "appAlive": false
+  },
+  "task": "task-40",
+  "verdict": "The phone gateway now starts by itself from the app on the first harness Ready (boot wiring), with no ELECTRON_RUN_AS_NODE in the shell.",
+  "bootWiring": {
+    "file": "cmd/whaleisle/main.go",
+    "gate": "claimPhoneBootStartLocked (called in refreshBoot Ready branch under s.mu, action run after unlock; once per session, skipped when quitting or RemoteEnabled=false)",
+    "action": "go s.refreshPhoneRemote() (or phoneBootStartAction in tests)",
+    "test": "cmd/whaleisle/phone_boot_test.go (enabled once, repeated frames never restart, disabled never, quitting skips)"
+  },
+  "appRun": {
+    "exe": "whaleisle-remote-boot.exe (temp build at repo root, deleted)",
+    "shellElectronRunAsNode": false,
+    "config": {
+      "harnessPort": 3099,
+      "remotePort": 3499,
+      "remoteMode": "lan",
+      "remoteBindAddress": "127.0.0.1",
+      "remoteLanTls": false,
+      "remoteEnabled": true
+    },
+    "timeline": [
+      {
+        "t": 2,
+        "harness": false,
+        "remote": false,
+        "mobile": false,
+        "mainVisible": false,
+        "launcherVisible": true
+      },
+      {
+        "t": 5,
+        "harness": false,
+        "remote": false,
+        "mobile": false,
+        "mainVisible": true,
+        "launcherVisible": true
+      },
+      {
+        "t": 7,
+        "harness": false,
+        "remote": false,
+        "mobile": false,
+        "mainVisible": true,
+        "launcherVisible": true
+      },
+      {
+        "t": 10,
+        "harness": true,
+        "remote": false,
+        "mobile": true,
+        "mainVisible": true,
+        "launcherVisible": false
+      },
+      {
+        "t": 12,
+        "harness": true,
+        "remote": true,
+        "mobile": true,
+        "mainVisible": true,
+        "launcherVisible": false
+      }
+    ],
+    "listeners": {
+      "harness": true,
+      "remote": true,
+      "mobile": true
+    },
+    "phoneSpa": {
+      "url": "http://127.0.0.1:3180/",
+      "statusCode": 200,
+      "contentType": "text/html; charset=utf-8",
+      "length": 16453,
+      "title": "Whale Isle · 手机远程"
+    },
+    "hostChildren": [
+      {
+        "pid": 5328,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+      },
+      {
+        "pid": 8548,
+        "name": "node.exe",
+        "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\node\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --patch C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-market\\desktop-dsh-market.patch.yml --host 127.0.0.1 --port 3099 --no-open"
+      },
+      {
+        "pid": 4148,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+      },
+      {
+        "pid": 22308,
+        "name": "powershell.exe",
+        "commandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-2b6HZf\\extract-icon.ps1 \"C:\\Program Files/Git/git-bash.exe\" C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-2b6HZf\\icon.png"
+      },
+      {
+        "pid": 8896,
+        "name": "powershell.exe",
+        "commandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-3H86dg\\extract-icon.ps1 C:\\WINDOWS/explorer.exe C:\\Users\\48818\\AppData\\Local\\Temp\\dsh-open-in-app-3H86dg\\icon.png"
+      },
+      {
+        "pid": 33356,
+        "name": "node.exe",
+        "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe -e \"const file=process.argv[1];process.argv.splice(1,1);require(file)\" C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\.mygo-phone-bridge-74288751.cjs C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-remote.js C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home"
+      },
+      {
+        "pid": 33468,
+        "name": "node.exe",
+        "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\src\\main\\dshd-daemon-runner.mjs C:\\AI\\WhaleIsle-MyGo\\tmp\\remote-app-profile-20261025-023413\\dsh-home\\daemon-launch.json"
+      },
+      {
+        "pid": 32848,
+        "name": "node.exe",
+        "commandLine": "C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\dshd-remote\\node_modules\\@chisacode\\server\\dist\\server\\terminal\\terminal-worker-process.js"
+      },
+      {
+        "pid": 34684,
+        "name": "gh.exe",
+        "commandLine": null
+      }
+    ],
+    "afterKill": {
+      "harness": false,
+      "remote": false,
+      "mobile": false,
+      "appAlive": false
+    }
+  },
+  "pairingProof": {
+    "inAppAsserted": false,
+    "note": "the run left before the daemon finished its ~28 s offer generation (window shell ready at 12 s, killed at 14 s), so no pairing string was captured in-app; the same spawn path was proven ready-with-pairing-URL in docs/review-20261022/evidence/remote-daemon-live.json (firstStart.status=ready, pairingURLShape present, SPA 200)",
+    "followUp": "assert pairing in-app by settling ~35 s after the listeners appear and reading the 远程 panel QR/link, or by exposing the PhoneRuntime snapshot to the smoke harness"
+  },
+  "residual": [
+    "retries after a force-killed temp app were lost to the stale single-instance socket (%TEMP%\\mygo-*.sock, task-20): the new process handed over to a dead instance and exited silently; the socket from the successful run was cleared afterwards",
+    "relay mode, 0.0.0.0 bind and real-phone pairing remain unverified",
+    "the in-app pairing string was not captured in the 14 s run (see pairingProof)"
+  ]
+}

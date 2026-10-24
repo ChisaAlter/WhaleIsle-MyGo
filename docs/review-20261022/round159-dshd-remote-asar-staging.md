@@ -146,3 +146,25 @@ cmd.Env = daemonEnv(os.Environ())
 
 - 证据：`docs/review-20261022/evidence/remote-app-live.json` —— env helper/测试、无 shell 变量的 spawn 路径结果（ready/SPA/二次启动/清理）、app 运行记录（两次尝试、settings 面板、点击结果、无监听/无子进程）、afterKill 全 false。
 - 残留：app 内 daemon 启动需 §6.2 的 boot 调用；relay 模式、0.0.0.0、真机扫码仍未验证；打包仍走 `scripts/build-mobile-runtime.ps1`（在线）；临时构建必须与 `runtime/` 同级。
+
+### 6.4 Round161 补记（task-40）：boot 时拉起网关（已落地并实机验证）
+
+**接线点**：`cmd/whaleisle/main.go` 的 `refreshBoot` 在 `harness.Ready` 分支里（持 `s.mu`）调用新方法 `claimPhoneBootStartLocked()`，解锁后执行一次 `go s.refreshPhoneRemote()`：
+
+- `claimPhoneBootStartLocked`：`phoneBootStarted` 一次性门闩；`quitting`、`cfgStore == nil`、`cfg.RemoteEnabled == false` 都直接返回 false（不消耗门闩）；只有“第一次 Ready + 已启用 + 未退出”才置位并返回 true。
+- 语义：每次会话最多一次；harness 重启/恢复模式再次 Ready 不会重启 daemon；用户之后开关远程仍走既有 UI 路径（`refreshPhoneRemote`，禁用时会 `manager.Stop()`）。
+- 测试：`cmd/whaleisle/phone_boot_test.go` —— `TestClaimPhoneBootStartLocked`（enabled 只成功一次、重复 Ready 不重启、disabled 永不、quitting 跳过、门闩状态正确）与 `TestPhoneBootStartActionRunsOutsideTheGate`（决策不直接执行动作；第二次 Ready 不再触发）。`refreshBoot` 本身不在单测里跑：其尾部经 `mygo.RunOnMain` 等待事件循环，单测没有循环会挂住（已在测试注释里写明）。
+
+**实机证据**（`docs/review-20261022/evidence/remote-app-boot.json`，临时构建 `whaleisle-remote-boot.exe` 放仓库根，跑完删除；shell 未设 `ELECTRON_RUN_AS_NODE`；一次性 profile：`remoteEnabled=true / lan / 3499 / 127.0.0.1 / lanTls=false`，临时 workspace，welcome 标记，真实 `runtime/`）：
+
+| t | 3099 | 3499 | 3180 | 窗口 |
+| --- | --- | --- | --- | --- |
+| 2 s | – | – | – | 启动器 1060×660 |
+| 5 s | – | – | – | 主窗 1440×920 揭示（启动器仍在） |
+| 10 s | **✓** | – | **✓** | 启动器关闭 |
+| **12 s** | ✓ | **✓** | ✓ | ready（主窗可见） |
+
+- `GET http://127.0.0.1:3180/` → **200**、`Whale Isle · 手机远程`；kill 后 `afterKill` 的 3099/3499/3180 全为 false，进程树清理干净。
+- 对比：同一脚本在 task-39（无 boot 接线）跑满 150 s 仍无 3499/3180；现在 12 s 就出现 → 证明是本次接线生效，而不是环境或 staging 的偶然。
+- 限制：该次 run 在 14 s 就结束了（脚本以“listeners + shell ready”为达标），daemon 生成 pairing offer 约需 28 s，所以 **app 内的配对码字符串没有抓到**；同一 spawn 路径的 ready+PairingURL 已在 `evidence/remote-daemon-live.json` 证明（`firstStart.status=ready`、`pairingURLShape` 有 `#offer=`、过期时间）。下一轮若要 app 内配对断言：listeners 出现后再 settle ~35 s，然后打开 `远程` 面板读 QR/链接。
+- 复跑注意：强制杀掉的临时 app 会留下 `%TEMP%\mygo-*.sock`（task-20 的已知缺陷），下一个实例会“交接给死实例”并静默退出；本次复跑就被它挡过，清理 socket 后恢复。临时构建必须与 `runtime/` 同级。
