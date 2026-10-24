@@ -37,11 +37,39 @@ var backgroundState struct {
 // effective, so text is not left on a sharp image with 0% surfaces.
 const transparentMinBlur = 20
 
+// clampWallpaperEffect matches the harness clampWallpaperEffect(): non-finite
+// input becomes 0, everything else is rounded and clamped to the 0–100 slider.
+func clampWallpaperEffect(value float64) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	return math.Min(100, math.Max(0, math.Round(value)))
+}
+
+// wallpaperBlurRadius maps the blur slider the way ui-theme does: the page sets
+// filter: blur(percent/100*40), so the shell blurs by the same radius.
+func wallpaperBlurRadius(percent float64) int {
+	return int(math.Round(clampWallpaperEffect(percent) / 100 * 40))
+}
+
+// wallpaperPixelFactor maps the pixelate slider to the harness's scale factor:
+// 1 at 0, up to 20 at 100 (the page draws the bitmap at size/factor and stretches
+// it back with image-rendering: pixelated).
+func wallpaperPixelFactor(percent float64) float64 {
+	clamped := clampWallpaperEffect(percent)
+	if clamped <= 0 {
+		return 1
+	}
+	return 1 + clamped/100*19
+}
+
 func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	// The harness raises a too-sharp wallpaper once, when the transparent theme
 	// becomes effective, and the raise holds while it stays effective: the saved
 	// preferences keep the user's own blur, so this only changes what the window
 	// paints, and turning the theme off restores it.
+	p.Blur = clampWallpaperEffect(p.Blur)
+	p.Pixelate = clampWallpaperEffect(p.Pixelate)
 	transparent := p.Transparent && path != ""
 	if transparent && !backgroundState.transparent && p.Blur < transparentMinBlur {
 		backgroundState.liftedBlur = transparentMinBlur
@@ -257,7 +285,7 @@ func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
 	b := img.Bounds()
 	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
-	block := 1 + int(p.Pixelate/100*19)
+	block := int(math.Round(wallpaperPixelFactor(p.Pixelate)))
 	if block > 1 {
 		for y := 0; y < b.Dy(); y += block {
 			for x := 0; x < b.Dx(); x += block {
@@ -270,7 +298,7 @@ func backgroundBitmap(path string, p wallpapers.Preferences) *ui.Bitmap {
 			}
 		}
 	}
-	radius := int(p.Blur * .4)
+	radius := wallpaperBlurRadius(p.Blur)
 	if radius > 0 {
 		dst = blurBitmap(dst, radius)
 	}
