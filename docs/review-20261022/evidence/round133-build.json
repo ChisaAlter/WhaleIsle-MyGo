@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-24T14:54:49.912Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 86918656,
+  "productionSHA256": "FE73AE326158FD9FC48467950BF2A2736B989A59CA459636C9DA55BBC1B86298",
+  "defaultSHA256": "FE73AE326158FD9FC48467950BF2A2736B989A59CA459636C9DA55BBC1B86298",
+  "note": "pass271 covers rounds 131-133: crash report, media permissions, ToolDetails terminal_list/lsp/job CodeBlock, caption top inset and popover/overlay motion tokens."
+}

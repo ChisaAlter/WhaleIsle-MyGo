@@ -235,8 +235,8 @@
 | 3 | Welcome 首次运行窗口 | `main/welcome-window.js:59`、`renderer/welcome.html`、`main/welcome-backend.js` | ✅ round126：`cmd/whaleisle/welcome_window.go` + `internal/ui/welcome`；无 API Key 且无标记时先于 launcher 打开，登录/API Key/跳过三条路径 |
 | 4 | 系统通知 | `main/system-notifications.js`、`main/background-notice.js`、`main/legacy-notification-shortcut.js` | ✅ round126：`cmd/whaleisle/system_notifications.go`（托盘气泡，不注册 Electron.lnk） |
 | 5 | 全局快捷键服务 | `main/shortcuts.js`、`main/shortcuts-protocol.mjs`、`main/menu.js:11-22` | ✅ 主体（G37/G38）：`internal/shortcuts/*` + `cmd/whaleisle/application_menu.go`；原生也没有 OS 级 `globalShortcut`；菜单命令覆盖与加速键刷新未逐项 |
-| 6 | 崩溃报告 | `main/crash-report.js` | 🔧 round131 在办（G41）：四源报告、保留 10 份、恢复对话框点名 |
-| 7 | 媒体权限处理 | `main/media-permissions.js` | 🔧 round131 在办（G42）：现为 `internal/desktop/webview/host.go:361` 一律拒绝；改为 loopback 麦克风 + 通知门控 |
+| 6 | 崩溃报告 | `main/crash-report.js` | ✅ round131（G41）：`cmd/whaleisle/crash_report.go`；`crash-<ISO>-<source>.log`、保留 10 份、256K 错误段、64K 控制台尾、O_EXCL 0600、失败不掩盖原错误；host/main/web-boot 已接，renderer 源不存在 |
+| 7 | 媒体权限处理 | `main/media-permissions.js` | ✅ round131（G42）：`internal/desktop/webview/permissions.go`；loopback 会话宿主才给麦克风，camera/geolocation 拒绝，通知门控，其余走引擎默认；`PermissionRequest` 无帧/mediaType 信息，已登记残留 |
 | 8 | 关闭遮罩 / curtain 窗口 | `main/closing-overlay.js`、`main/window.js:486` | ✅ round129：`internal/ui/chrome/closing.go` + `finalizeQuit` 停服前显示（500ms 绘制预算、失败不阻塞）；spinner 旋转未做（静态环） |
 | 9 | 应用级菜单 | `main/menu.js:26-113` | ⚠ 部分（G37）：`cmd/whaleisle/application_menu.go:34` 已接应用菜单；命令覆盖与运行时加速键刷新未逐项 |
 | 10 | 外部编辑器打开 | `main/editors.js:5-26,105-150` | ✅ round126：`internal/desktop/editors` + `cmd/whaleisle/open_editor.go`；文件预览「打开方式」直接带行列打开 |
@@ -266,7 +266,7 @@
 - 更新过程补上标题栏进度行（checking / downloading / staged）、确认卡技术详情折叠与 `update-journal/` 证据；journal 失败只丢证据，不阻塞更新。
 - 详情卡 badge 按安装版 `STATUS_KEYS` 词表本地化，未知状态保留原文。
 - 证据：受影响 11 个包测试全绿、`go vet` 0、`go build ./internal/... ./cmd/...` 0；构建 86,703,104 字节 / SHA256 `7BAF783A…`（`round126-checks.json`、`round126-build.json`）。
-- 仍剩 10 项缺失（round129 已补关闭遮罩）、7 项空壳（`terminal/follow` 已修），验收合同仍零双签。
+- 仍剩 8 项部分/差异（桌宠渲染、手机远程、菜单覆盖、dsh-remote、relay、通知呈现、标题行中心、动效残项）；缺失项本身已补齐，验收合同仍零双签。
 
 ### round129 补全（2026-10-24）
 
@@ -279,6 +279,13 @@
 - round128：agent/team 控制收据（list_agents、spawn_teammate、team_task_*、send_message、interrupt_agent、wait_agent、subagent、list_subagent_models）。
 - round130：inspection 族（cordis_inspect_*、workflow、ralph、session_search/event_search/event_read、session_trace/event_trace）。
 - 仍缺：Inspect 面板、markdown/location 条目、lsp、terminal_list；pass270 已构建（86,862,848 字节 / SHA256 `E3D63B46…`）。
+
+### round131–133（2026-10-24）
+
+- round131：崩溃报告（G41）+ 媒体权限（G42）落地；四源报告、保留 10 份、恢复面点名；loopback 麦克风/通知门控（帧级限制已登记）。
+- round132：ToolDetails 条目收尾（markdown、可点 location、todo status/change 记号）；job_output 改共享 CodeBlock；新增 terminal_list、lsp 卡。
+- round133：标题带按钮上沿 8→12（y=12..44），popover 150→160ms / 位移 4、overlay 位移 8；G01 经核对是测量错误（带高本就 48）。
+- 证据：pass271（86,918,656 B / SHA256 `FE73AE32…`），四包测试全绿；残留：overlay-out 100ms、scale(0.96)、标题行中心 24→28、todo_write 族、实机像素。
 
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
