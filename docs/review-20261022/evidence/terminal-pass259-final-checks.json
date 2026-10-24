@@ -1,0 +1,41 @@
+﻿{
+    "started":  "2026-10-24T00:53:05.6243712Z",
+    "checks":  [
+                   {
+                       "output":  [
+                                      "ok  \twhaleisle/internal/ui/chat\t61.704s"
+                                  ],
+                       "command":  "go test ./internal/ui/chat -run ^TestTerminal(Card|Command|Header|Prompt) -count=1",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/pluginmanager",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go vet ./internal/ui/chat ./internal/ui/frame ./internal/ui/widgets/... ./internal/ui/pluginmanager ./internal/ui/i18n",
+                       "exit":  0
+                   }
+               ],
+    "finished":  "2026-10-24T00:54:17.7596672Z"
+}

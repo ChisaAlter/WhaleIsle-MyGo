@@ -1,0 +1,41 @@
+{
+  "body": {
+    "X": 20,
+    "Y": 515.28125,
+    "W": 600,
+    "H": 1
+  },
+  "dark": true,
+  "expanded": {
+    "foreground": true
+  },
+  "following": {
+    "X": 20,
+    "Y": 526.28125,
+    "W": 705.3333,
+    "H": 1
+  },
+  "foreground": {
+    "Command": "fixture-command-01\nfixture-command-02\nfixture-command-03\nfixture-command-04\nfixture-command-05\nfixture-command-06\nfixture-command-07\nfixture-command-08\nfixture-command-09\nfixture-command-10\nfixture-command-11\nfixture-command-12\nfixture-command-13\nfixture-command-14\nfixture-command-15\nfixture-command-16\nfixture-command-17\nfixture-command-18\nfixture-command-19\nfixture-command-20\nfixture-command-21\nfixture-command-22\nfixture-command-23\nfixture-command-24\nfixture-command-25\nfixture-command-26\nfixture-command-27\nfixture-command-28\nfixture-command-29\nfixture-command-30\nfixture-command-31\nfixture-command-32\nfixture-command-33\nfixture-command-34\nfixture-command-35",
+    "Description": "Inspect recorded terminal",
+    "Cwd": "C:\\fixture\\repo",
+    "Output": "\u001b[31mfixture-output-01\nfixture-output-02\nfixture-output-03\nfixture-output-04\nfixture-output-05\nfixture-output-06\nfixture-output-07\nfixture-output-08\nfixture-output-09\nfixture-output-10\nfixture-output-11\nfixture-output-12\nfixture-output-13\nfixture-output-14\nfixture-output-15\nfixture-output-16\nfixture-output-17\nfixture-output-18\nfixture-output-19\nfixture-output-20\nfixture-output-21\nfixture-output-22\nfixture-output-23\nfixture-output-24\nfixture-output-25\nfixture-output-26\nfixture-output-27\nfixture-output-28\nfixture-output-29\nfixture-output-30\nfixture-output-31\nfixture-output-32\nfixture-output-33\nfixture-output-34\nfixture-output-35\u001b[0m",
+    "Signal": "",
+    "SessionID": "",
+    "Running": false,
+    "Background": false,
+    "HasOutput": true,
+    "HasSignal": false,
+    "HasExit": true,
+    "MissingExit": false,
+    "ExitCode": 7
+  },
+  "row": {
+    "X": 20,
+    "Y": 65.28125,
+    "W": 600,
+    "H": 451.00003
+  },
+  "scale": 1.5,
+  "time": "2026-10-24T08:58:09.7521792+08:00"
+}

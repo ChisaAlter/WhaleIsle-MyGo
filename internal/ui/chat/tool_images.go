@@ -20,6 +20,8 @@ type ToolImageGalleryOptions struct {
 	// and retain image attachment evidence in expanded tool output.
 	TextOnly  bool
 	ID        string
+	Cwd       string
+	Home      string
 	Expanded  *map[string]bool
 	OnOpen    func(string)
 	OnOpenURL func(string)

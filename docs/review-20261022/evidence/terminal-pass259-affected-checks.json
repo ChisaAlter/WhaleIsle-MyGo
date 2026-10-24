@@ -1,0 +1,49 @@
+﻿{
+    "started":  "2026-10-24T00:49:23.5743647Z",
+    "checks":  [
+                   {
+                       "output":  [
+                                      "ok  \twhaleisle/internal/ui/chat\t55.982s",
+                                      "ok  \twhaleisle/internal/ui/frame\t13.246s",
+                                      "ok  \twhaleisle/internal/ui/i18n\t0.436s",
+                                      "ok  \twhaleisle/internal/ui/widgets\t1.074s",
+                                      "ok  \twhaleisle/internal/ui/widgets/ansi\t0.572s",
+                                      "ok  \twhaleisle/internal/ui/widgets/diff\t0.918s",
+                                      "ok  \twhaleisle/internal/ui/widgets/markdown\t1.399s",
+                                      "ok  \twhaleisle/internal/ui/pluginmanager\t7.991s"
+                                  ],
+                       "command":  "go test ./internal/ui/chat ./internal/ui/frame ./internal/ui/i18n ./internal/ui/widgets/... ./internal/ui/pluginmanager -count=1",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/chat",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/widgets",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go run github.com/egoist/mygo/cmd/mygo vet ./internal/ui/pluginmanager",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+                                      "# whaleisle/internal/ui/chat",
+                                      "vet.exe: open internal\\ui\\chat\\terminal.go: The process cannot access the file because it is being used by another process."
+                                  ],
+                       "command":  "go vet ./internal/ui/chat ./internal/ui/frame ./internal/ui/widgets/... ./internal/ui/pluginmanager ./internal/ui/i18n",
+                       "exit":  1
+                   }
+               ],
+    "finished":  "2026-10-24T00:50:36.9864290Z"
+}

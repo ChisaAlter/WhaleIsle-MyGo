@@ -55,11 +55,15 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 		caption = chrome.Color(st.Colors.Caption)
 	}
 	summaryInk := ink
+	exitLabel := terminalExitText(info.terminal)
 	switch toolRowStatus(info.Status) {
 	case statusError:
 		summaryInk = st.Err
 	case statusWarning:
 		summaryInk = ui.Hex("#dd8629")
+	}
+	if exitLabel != "" {
+		summaryInk = ink
 	}
 	running := toolRowStatus(info.Status) == statusRunning
 	font := theme.RenderPreferences().Chat.Family
@@ -92,7 +96,15 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 			if running {
 				widgets.TextShimmer(c, widgets.TextShimmerOptions{Text: summary, Active: true, Font: font, Size: size, Color: summaryInk}).Grow(1).MinWidth(0)
 			} else {
-				ui.Text(c, summary).Font(font).FontSize(size).FixedLineHeight(height).TextColor(summaryInk).SingleLine().Grow(1).MinWidth(0)
+				summaryText := ui.Text(c, summary).Font(font).FontSize(size).FixedLineHeight(height).TextColor(summaryInk).SingleLine().MinWidth(0)
+				if exitLabel == "" {
+					summaryText.Grow(1)
+				} else {
+					summaryText.Shrink(1)
+				}
+			}
+			if exitLabel != "" {
+				terminalExitBadge(c, exitLabel, st)
 			}
 		}
 	})

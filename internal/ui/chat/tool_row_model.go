@@ -84,6 +84,9 @@ func toolRowStatusLabel(status string) string {
 // Preparing calls currently expose only raw JSON, not the original lazy argument
 // view; incomplete payloads therefore retain their literal first line.
 func toolRowSummary(info ToolCardInfo) string {
+	if info.terminal != nil && terminalDescription(info.terminal) != "" {
+		return terminalDescription(info.terminal)
+	}
 	if (info.Status == "error" || info.Status == "failed") && info.Output != "" {
 		return toolRowFirstLine(info.Output)
 	}

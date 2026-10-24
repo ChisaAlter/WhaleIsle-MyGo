@@ -42,6 +42,8 @@ type ToolCardInfo struct {
 	// summaries. Detail remains a compact event preview for legacy callers.
 	Arguments string
 	Output    string
+	// terminal is derived from a validated paired call/result, never its name alone.
+	terminal *toolTerminalModel
 }
 
 // ParseToolCard extracts name, status, and truncated args/result from raw JSON.
@@ -173,7 +175,7 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 			extra()
 		}
 	}
-	expandable := info.Status != "preparing" && (info.Arguments != "" || info.Output != "" || len(info.Images) > 0 || info.Web != nil)
+	expandable := info.Status != "preparing" && (info.Arguments != "" || info.Output != "" || len(info.Images) > 0 || info.Web != nil || info.terminal != nil)
 	paintToolRow(c, info, st, key, opts.Expanded, expandable, body)
 }
 

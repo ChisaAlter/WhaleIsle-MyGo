@@ -1,0 +1,20 @@
+﻿{
+    "started":  "2026-10-24T00:54:50.0143801Z",
+    "checks":  [
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go test -tags terminalfixture -c -o .devdata/r115-terminal-fixture.exe ./internal/ui/chat",
+                       "exit":  0
+                   },
+                   {
+                       "output":  [
+
+                                  ],
+                       "command":  "go build -o whaleisle-pass259.exe ./cmd/whaleisle",
+                       "exit":  0
+                   }
+               ],
+    "finished":  "2026-10-24T00:55:07.2400151Z"
+}

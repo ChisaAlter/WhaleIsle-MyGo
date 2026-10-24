@@ -1,0 +1,3 @@
+﻿ok  	whaleisle/internal/ui/chat	53.724s
+ok  	whaleisle/internal/ui/widgets/ansi	0.488s
+ok  	whaleisle/internal/ui/pluginmanager	1.504s

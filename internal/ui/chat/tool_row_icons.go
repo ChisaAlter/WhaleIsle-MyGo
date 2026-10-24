@@ -10,7 +10,7 @@ var (
 
 func toolBodyKind(name string) ToolKind {
 	switch name {
-	case "bash", "pwsh", "shell":
+	case "bash", "pwsh":
 		return ToolKindBash
 	case "read", "read_image":
 		return ToolKindRead

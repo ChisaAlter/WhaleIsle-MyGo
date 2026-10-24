@@ -237,18 +237,14 @@ func padLine(n, total int) string {
 // the family was handled (the caller otherwise falls back to the argument and
 // result disclosures) and whether that body already owns the copy action.
 func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string, opts ToolImageGalleryOptions) (handled, ownsCopy bool) {
+	if info.terminal != nil {
+		terminalCard(c, st, key, info.terminal, opts.Home, opts.TextOnly)
+		// The addressed reader also exposes the full unmodified call evidence.
+		return true, !opts.TextOnly
+	}
 	switch kind {
 	case ToolKindBash:
-		command := toolArgField(info.Arguments, argumentFields[kind])
-		if command == "" && info.Output == "" {
-			return false, false
-		}
-		// One terminal seat holds the command and its output, as the Original
-		// TerminalBlock does; long lines scroll inside it instead of widening
-		// the bubble.
-		terminalBlock(c, terminalBlockStyle{FG: st.FG, Muted: st.Muted, Field: st.Field, Size: CodeSizeFor(st)},
-			key, command, info.Output, func(text string) { c.WriteClipboard(text) })
-		return true, true
+		return false, false
 	case ToolKindRead:
 		path := toolArgField(info.Arguments, argumentFields[kind])
 		if path == "" && info.Output == "" {

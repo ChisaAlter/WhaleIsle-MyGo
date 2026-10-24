@@ -1,0 +1,86 @@
+{
+  "scope": "Dimensions only from retained original manual-DOM Chrome DPR1 and MyGo software DPR1 JSON; different fixture text/fonts. Not pixel identity or a full-app acceptance result.",
+  "originalAcceptance": {
+    "passedCases": 10,
+    "failedCases": 1,
+    "passedAssertions": 49,
+    "failedAssertions": 1
+  },
+  "referencePath": "docs\\review-20261022\\evidence\\terminal-pass259-reference-2026-10-24T00-45-49-305Z-2fa10dee.json",
+  "checks": [
+    {
+      "name": "row width600 -> terminal width",
+      "original": 596,
+      "native": 596,
+      "pass": true
+    },
+    {
+      "name": "running banner-only card height",
+      "original": 38,
+      "native": 38,
+      "pass": true
+    },
+    {
+      "name": "settled empty card height",
+      "original": 79,
+      "native": 79,
+      "pass": true
+    },
+    {
+      "name": "empty section outer height",
+      "original": 40,
+      "native": 40,
+      "pass": true
+    },
+    {
+      "name": "empty section own gutter",
+      "original": 31,
+      "native": 31,
+      "pass": true
+    },
+    {
+      "name": "single-line failure card height",
+      "original": 81,
+      "native": 81,
+      "pass": true
+    },
+    {
+      "name": "single-line output outer height",
+      "original": 42,
+      "native": 42,
+      "pass": true
+    },
+    {
+      "name": "neutral row exit badge height",
+      "original": 19,
+      "native": 19,
+      "pass": true
+    },
+    {
+      "name": "long header including divider",
+      "original": 169,
+      "native": 169,
+      "pass": true
+    },
+    {
+      "name": "long output content-box cap",
+      "original": 248,
+      "native": 248,
+      "pass": true
+    },
+    {
+      "name": "long terminal card height",
+      "original": 419,
+      "native": 419,
+      "pass": true
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "limitations": [
+    "Original browser acceptance retains one failed extra Enter-on-copy assertion.",
+    "The header divider is a separate native element; add its measured1DIP at DPR1 for comparison.",
+    "The originals use output font11/16 with18px minimum line boxes; native joined selectable output uses fixed18px line height.",
+    "Original superellipse corner shaping and exact spinner arc easing are not certified by dimension checks."
+  ]
+}

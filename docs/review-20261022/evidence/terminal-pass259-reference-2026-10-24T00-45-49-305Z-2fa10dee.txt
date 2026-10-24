@@ -1,0 +1,19 @@
+Round115 exact installed TerminalBlock: FAILED
+Run 2026-10-24T00-45-49-305Z-2fa10dee
+Cases 10/11 assertions 49/50
+PASSED current-idle-running-no-output 5/5
+PASSED foreground-success-empty 3/3
+PASSED nonzero-signal-missing-neutral-capsules 5/5
+PASSED short-output-exact-installed-geometry 8/8
+PASSED multiline-command-prompt-relationships 4/4
+PASSED twenty-lines-infinity-no-expand-control 4/4
+PASSED narrow220-current-command-wrap 3/3
+FAILED copy-current-raw-output-accessible-feedback 4/5
+PASSED single-footer-trusted-hover-click-disclosure-key 5/5
+PASSED trusted-wheel-header-output-independent 3/3
+PASSED background-source-input-network-custody 5/5
+FAIL copy-current-raw-output-accessible-feedback native focused button Enter invokes fixture copy handler actual=[{"id":"short","text":"fixture output line 1\nfixture output line 2\n","adapter":"successful in-memory fixture clipboard"}] expected="second raw-output record"
+Installed current ToolRow: maxLinesInfinity, no copyText override, no runStateDot override. Raw output copies only after nonempty settlement; no command copy.
+Cleanup {"target":"Only spawned Chrome PID/profile/port; no protected processes queried or signalled","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":29396,"cpuTime":1.690205},{"type":"renderer","id":37340,"cpuTime":0.037568},{"type":"renderer","id":34820,"cpuTime":0.05425},{"type":"renderer","id":27616,"cpuTime":0.757857},{"type":"renderer","id":41432,"cpuTime":0.050347},{"type":"renderer","id":34136,"cpuTime":0.041875},{"type":"renderer","id":27808,"cpuTime":0.297772},{"type":"GPU","id":45704,"cpuTime":0.637134},{"type":"network.mojom.NetworkService","id":6384,"cpuTime":0.103378},{"type":"storage.mojom.StorageService","id":27992,"cpuTime":0.031169}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null,"at":"2026-10-24T00:46:10.811Z"},"portReleased":true,"processes":[{"pid":29396,"alive":false},{"pid":34820,"alive":false},{"pid":27616,"alive":false},{"pid":41432,"alive":false},{"pid":27808,"alive":false},{"pid":45704,"alive":false},{"pid":6384,"alive":false},{"pid":27992,"alive":false},{"pid":37340,"alive":false},{"pid":34136,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r115-terminal-2026-10-24T00-45-49-305Z-2fa10dee-profile","profileRemoved":true,"pass":true}
+Errors []
+Scope Verbatim current installed TerminalBlock, CommandText, Pill, Tag, StateDot, DisclosureRow/TextShimmer, ToolRow and ExitCodeBadge CSS. Installed DOM relationships manually assembled with synthetic data. Fixture-only local disclosure, copy-feedback and Inspect handlers. No React/full-app/usePresence or motion-pixel claim.

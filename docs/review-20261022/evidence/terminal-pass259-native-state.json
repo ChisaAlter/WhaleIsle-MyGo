@@ -1,0 +1,23 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T00:55:56.6854117Z",
+    "status":  "failed",
+    "scope":  "Injected WM_SETFOCUS/click/key events on the exact owned MyGoSurface. No OS hardware hover/keyboard or original Electron claim. No clipboard write or displayed command execution.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r115-terminal-fixture.exe",
+                    "startUtc":  "2026-10-24T00:55:47.4073674Z",
+                    "exited":  true,
+                    "pid":  8088,
+                    "closed":  true
+                },
+    "states":  [
+
+               ],
+    "error":  "Missing visible owned label Pwsh",
+    "activation":  {
+                       "returned":  false,
+                       "foregroundVerified":  false,
+                       "foregroundOwner":  12516
+                   },
+    "finishedAt":  "2026-10-24T00:56:05.8420849Z"
+}

@@ -1,0 +1,31 @@
+{
+  "boxes": {
+    "Terminal command banner": {
+      "X": 25,
+      "Y": 25,
+      "W": 594,
+      "H": 36
+    },
+    "Terminal output": {
+      "X": 24,
+      "Y": 24,
+      "W": 596,
+      "H": 38
+    },
+    "following terminal": {
+      "X": 20,
+      "Y": 66,
+      "W": 600,
+      "H": 1
+    }
+  },
+  "scope": "MyGo software renderer only; no live Electron, OS input or hardware hover claim",
+  "texts": [
+    "Terminal output",
+    "Terminal command banner",
+    "$",
+    "sleep 5",
+    "Running",
+    "following terminal"
+  ]
+}

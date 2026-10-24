@@ -122,6 +122,10 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		}
 	}
 	info.Arguments = arguments
+	info.terminal = terminalModelFor(call, gallery.Cwd)
+	if info.Status == "ok" && terminalModelFailed(info.terminal) {
+		info.Status = "error"
+	}
 	if call.Result != nil {
 		info.Output = output
 		// Typed sources/fetch URL belong to the result, not the raw JSON.
