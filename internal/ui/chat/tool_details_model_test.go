@@ -279,7 +279,7 @@ func TestToolDetailsModelBlockerAndJavaScriptTrim(t *testing.T) {
 func TestToolDetailsModelCallAndContentGates(t *testing.T) {
 	valid := toolDetailsModelValueForTest(toolDetailsModelGoalForTest)
 	for _, nested := range []bool{false, true} {
-		for _, name := range []string{"", "Create_goal", "get_goal ", "functions.get_goal", "plugin:get_goal", "schedule_create", "schedule_list", "job_list", "cordis_inspect_self", "todo_write", "unknown"} {
+		for _, name := range []string{"", "Create_goal", "get_goal ", "functions.get_goal", "plugin:get_goal", "schedule_create", "schedule_list", "job_list", "cordis_inspect_self ", "todo_write", "unknown"} {
 			if got := toolDetailsModelFor(toolDetailsModelCallForTest(t, nested, name, `{}`, valid)); got != nil {
 				t.Fatalf("unsupported exact name %q produced %#v", name, got)
 			}
@@ -1243,4 +1243,208 @@ func mustToolDetailsJSONForTest(t *testing.T, text string) *toolDetailsValue {
 		t.Fatalf("decode %q", text)
 	}
 	return value
+}
+
+// inspection-details-model.ts:19-34,36-72,92-150 and the harness expectation
+// spec packages/client/ui-tool/tests/details-models.client.spec.ts:120-219 pin
+// these cards.
+func toolDetailsInspectionLocaleForTest(t *testing.T, locale string) {
+	t.Helper()
+	toolDetailsModelLocaleForTest(t, locale)
+	previous := time.Local
+	time.Local = time.FixedZone("GMT+8", 8*60*60)
+	t.Cleanup(func() { time.Local = previous })
+}
+
+func TestToolDetailsModelInspectionCordis(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	list := toolDetailsReceiptCallForTest(t, "cordis_inspect_list", `{}`, `{"providers":[{"name":"Service","status":"ready"}]}`)
+	if list == nil || list.Summary != "1 inspect providers" || list.Items[0].Title != "Service" || list.Items[0].Badge.Label != "Ready" {
+		t.Fatalf("cordis list = %#v", list)
+	}
+	query := toolDetailsReceiptCallForTest(t, "cordis_inspect_query", `{}`, `{"provider":"Service","method":"get","data":{"value":1}}`)
+	if query == nil || query.Summary != "Service.get" || len(query.Items) != 1 || query.Items[0].Fields[0].Label != "value" || query.Items[0].Fields[0].Value != "1" {
+		t.Fatalf("cordis query = %#v", query)
+	}
+	plugins := toolDetailsReceiptCallForTest(t, "cordis_inspect_self", `{}`, `{"mode":"client","plugins":[]}`)
+	if plugins == nil || plugins.Summary != "0 dynamic plugins" || len(plugins.Items) != 1 || *plugins.Items[0].Description != "No results" {
+		t.Fatalf("cordis plugins = %#v", plugins)
+	}
+	mode := toolDetailsReceiptCallForTest(t, "cordis_inspect_self", `{}`, `{"mode":"host","packageId":"pkg","value":1}`)
+	if mode == nil || mode.Summary != "host" {
+		t.Fatalf("cordis mode = %#v", mode)
+	}
+	plugin := toolDetailsReceiptCallForTest(t, "cordis_inspect_self", `{"pluginId":"plugin-1"}`, `{"mode":"host","value":1}`)
+	if plugin == nil || plugin.Summary != "plugin-1" {
+		t.Fatalf("cordis plugin arg = %#v", plugin)
+	}
+	for _, text := range []string{`[]`, `{"providers":{}}`, `bad`} {
+		if got := toolDetailsReceiptCallForTest(t, "cordis_inspect_list", `{}`, text); got != nil {
+			t.Fatalf("invalid cordis list %q produced %#v", text, got)
+		}
+	}
+}
+
+func TestToolDetailsModelInspectionWorkflowAndRalph(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	workflow := toolDetailsReceiptCallForTest(t, "workflow", `{"code":"return true"}`, "workflow \"flow\" completed (1 agent).\nReturn value:\n{\"ok\":true}")
+	if workflow == nil || workflow.Summary != "flow" || len(workflow.Items) != 2 {
+		t.Fatalf("workflow = %#v", workflow)
+	}
+	header := workflow.Items[0]
+	if header.Title != "flow" || header.Badge.Label != "Completed" || header.Fields[0].Label != "Agents started" || header.Fields[0].Value != "1" {
+		t.Fatalf("workflow header = %#v", header)
+	}
+	if len(header.Groups) != 1 || header.Groups[0].Label != "Workflow script" || header.Groups[0].Items[0].Code.Language != "javascript" ||
+		header.Groups[0].Items[0].Code.Text != "return true" {
+		t.Fatalf("workflow script = %#v", header.Groups)
+	}
+	if workflow.Items[1].Fields[0].Label != "ok" || workflow.Items[1].Fields[0].Value != "Yes" {
+		t.Fatalf("workflow value = %#v", workflow.Items[1])
+	}
+	for _, text := range []string{"bad", "workflow \"flow\" completed (1 agent).\nReturn value:\nnot-json"} {
+		if got := toolDetailsReceiptCallForTest(t, "workflow", `{}`, text); got != nil {
+			t.Fatalf("invalid workflow %q produced %#v", text, got)
+		}
+	}
+
+	report := `{"summary":"Done","evidence":["checked"],"nextSteps":["ship"],"blocker":""}`
+	ralph := toolDetailsReceiptCallForTest(t, "ralph", `{"objective":"Ship"}`, "Ralph worker reported completion after 2 rounds.\nFinal report:\n"+report)
+	if ralph == nil || ralph.Summary != "Done" || ralph.Items[0].Badge.Label != "Worker reported completion" ||
+		ralph.Items[0].Badge.Tone != "success" || len(ralph.Items[0].Lines) != 1 || ralph.Items[0].Lines[0] != "checked" {
+		t.Fatalf("ralph = %#v", ralph)
+	}
+	if ralph.Items[0].Fields[0].Label != "Rounds" || ralph.Items[0].Fields[0].Value != "2" {
+		t.Fatalf("ralph rounds = %#v", ralph.Items[0].Fields)
+	}
+	if len(ralph.Items[0].Groups) != 2 || ralph.Items[0].Groups[0].Label != "Remaining work" ||
+		ralph.Items[0].Groups[0].Items[0].Lines[0] != "ship" || ralph.Items[0].Groups[1].Label != "Task" ||
+		*ralph.Items[0].Groups[1].Items[0].Description != "Ship" {
+		t.Fatalf("ralph groups = %#v", ralph.Items[0].Groups)
+	}
+	blocked := toolDetailsReceiptCallForTest(t, "ralph", `{}`, `Ralph worker reported a blocker after 1 round.`+"\nFinal report:\n"+`{"summary":"Blocked","evidence":[],"nextSteps":[],"blocker":"No key"}`)
+	if blocked == nil || blocked.Items[0].Badge.Label != "Worker reported a blocker" ||
+		len(blocked.Items[0].Fields) != 2 || blocked.Items[0].Fields[0].Label != "Rounds" ||
+		blocked.Items[0].Fields[1].Label != "Blocker" || blocked.Items[0].Fields[1].Value != "No key" ||
+		blocked.Items[0].Lines != nil || len(blocked.Items[0].Groups) != 0 {
+		t.Fatalf("ralph blocker = %#v", blocked)
+	}
+	limited := toolDetailsReceiptCallForTest(t, "ralph", `{}`, `Ralph reached its 3 rounds limit; the worker reported work remaining.`+"\nFinal report:\n"+`{"summary":"Limited","evidence":[],"nextSteps":[],"blocker":""}`)
+	if limited == nil || limited.Items[0].Badge.Label != "Round limit reached" {
+		t.Fatalf("ralph limit = %#v", limited)
+	}
+	for _, text := range []string{
+		"Ralph worker reported completion after 1 round.\nFinal report:\nnot-json",
+		`Ralph worker reported completion after 1 round.` + "\nFinal report:\n" + `{"summary":"x","evidence":[1],"nextSteps":[],"blocker":""}`,
+		`Ralph worker reported completion after 1 round.` + "\nFinal report:\n" + `{"summary":"x","evidence":[],"nextSteps":[1],"blocker":""}`,
+		`Unknown result` + "\nFinal report:\n" + `{"summary":"x","evidence":[],"nextSteps":[],"blocker":""}`,
+	} {
+		if got := toolDetailsReceiptCallForTest(t, "ralph", `{}`, text); got != nil {
+			t.Fatalf("invalid ralph produced %#v", got)
+		}
+	}
+}
+
+func TestToolDetailsModelInspectionSearches(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	const sessionHit = "1. Session s1 — Session one\n   Created: 2026-01-01T00:00:00.000Z\n   Snippet: needle\n\nResult cap reached."
+	search := toolDetailsReceiptCallForTest(t, "session_search", `{}`, sessionHit)
+	if search == nil || search.Summary != "1 matches" || search.Caption != "Result limit reached; narrow the search for more" {
+		t.Fatalf("session search = %#v", search)
+	}
+	if search.Items[0].Title != "Session one" || search.Items[0].Subtitle == nil || *search.Items[0].Subtitle != "s1" ||
+		search.Items[0].Description == nil || *search.Items[0].Description != "needle" {
+		t.Fatalf("session hit = %#v", search.Items[0])
+	}
+	if search.Items[0].Fields[0].Label != "Time" || search.Items[0].Fields[0].Value != "Jan 1, 2026, 8:00 AM" {
+		t.Fatalf("session created = %#v", search.Items[0].Fields)
+	}
+	empty := toolDetailsReceiptCallForTest(t, "session_search", `{}`, "No prior session matches found.")
+	if empty == nil || empty.Summary != "0 matches" || empty.Caption != "Recorded result" || len(empty.Items) != 0 {
+		t.Fatalf("empty search = %#v", empty)
+	}
+	noEventHits := toolDetailsReceiptCallForTest(t, "session_event_search", `{}`, "Session s1 — Session one\n\nNo prior event matches found.")
+	if noEventHits == nil || noEventHits.Summary != "0 matches" {
+		t.Fatalf("empty event search = %#v", noEventHits)
+	}
+	const eventHit = "Session s1 — Session one\n\n1. seq 2 | tool/call | current | 2026-01-01T00:00:00.000Z\n   Snippet: needle"
+	eventSearch := toolDetailsReceiptCallForTest(t, "session_event_search", `{}`, eventHit)
+	if eventSearch == nil || eventSearch.Items[0].Title != "needle" ||
+		*eventSearch.Items[0].Subtitle != "tool/call · #2" ||
+		eventSearch.Items[0].Fields[0].Label != "Time" || eventSearch.Items[0].Fields[0].Value != "Jan 1, 2026, 8:00 AM" ||
+		eventSearch.Items[0].Fields[1].Value != "current" {
+		t.Fatalf("event search = %#v", eventSearch)
+	}
+	if search.Items[0].Fields == nil {
+		t.Fatal("session hit lost its field slice")
+	}
+	for _, tc := range []struct{ name, text string }{
+		{"session_search", "not a result"},
+		{"session_search", "1. Session — title"},
+		{"session_event_search", "1. seq bad | tool/call | current | 2026-01-01T00:00:00.000Z"},
+	} {
+		if got := toolDetailsReceiptCallForTest(t, tc.name, `{}`, tc.text); got != nil {
+			t.Fatalf("invalid %s %q produced %#v", tc.name, tc.text, got)
+		}
+	}
+}
+
+func TestToolDetailsModelInspectionReadsAndTraces(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	const read = "Session s1 — Session one\nTarget event seq 2:\n```json\n{\"seq\":2,\"time\":2000,\"type\":\"tool/call\",\"data\":{\"name\":\"x\"}}\n```\nAdjacent events: 1, 3"
+	event := toolDetailsReceiptCallForTest(t, "session_event_read", `{}`, read)
+	if event == nil || event.Summary != "tool/call · #2" || len(event.Items) != 3 {
+		t.Fatalf("event read = %#v", event)
+	}
+	head := event.Items[0]
+	if head.Title != "tool/call" || *head.Subtitle != "Session one · s1" || head.Fields[0].Label != "Sequence" && head.Fields[0].Label != "Event sequence" {
+		t.Fatalf("event head = %#v", head)
+	}
+	if head.Fields[1].Label != "Time" || head.Fields[1].Value != "Jan 1, 1970, 8:00 AM" {
+		t.Fatalf("event time = %#v", head.Fields)
+	}
+	if event.Items[1].Title != "x" {
+		t.Fatalf("event data = %#v", event.Items[1])
+	}
+	if len(event.Items[2].Groups) != 1 || event.Items[2].Groups[0].Label != "Surrounding events" ||
+		*event.Items[2].Groups[0].Items[0].Description != "Adjacent events: 1, 3" {
+		t.Fatalf("event neighbors = %#v", event.Items[2])
+	}
+	for _, text := range []string{"not a result", "Session s1 — t\nTarget event seq 2:\n```json\nnot-json\n```"} {
+		if got := toolDetailsReceiptCallForTest(t, "session_event_read", `{}`, text); got != nil {
+			t.Fatalf("invalid event read %q produced %#v", text, got)
+		}
+	}
+
+	const traceBody = "Session s1 — Session one\nCreated: 1970-01-01T00:00:00.000Z\nAvailability: unavailable\n\nAncestors (nearest first):\n- none (target is a root session)\n\nDescendants:\n- s2 — Child | 1970-01-01T00:00:01.000Z | live, persisted\n  - s3 — Grandchild | 1970-01-01T00:00:01.000Z | live, persisted"
+	trace := toolDetailsReceiptCallForTest(t, "session_trace", `{}`, traceBody)
+	if trace == nil || trace.Summary != "Session one" || len(trace.Items) != 3 {
+		t.Fatalf("trace = %#v", trace)
+	}
+	if trace.Items[0].Title != "Session one" || *trace.Items[0].Subtitle != "s1" ||
+		trace.Items[0].Fields[0].Label != "Time" || trace.Items[0].Fields[0].Value != "Jan 1, 1970, 8:00 AM" ||
+		trace.Items[0].Fields[1].Value != "unavailable" {
+		t.Fatalf("trace head = %#v", trace.Items[0])
+	}
+	if trace.Items[1].Title != "Ancestor sessions" || *trace.Items[1].Description != "None" {
+		t.Fatalf("trace ancestors = %#v", trace.Items[1])
+	}
+	if trace.Items[2].Title != "Descendant sessions" || len(trace.Items[2].Lines) != 2 ||
+		trace.Items[2].Lines[0] != "s2 — Child | 1970-01-01T00:00:01.000Z | live, persisted" ||
+		trace.Items[2].Lines[1] != "  s3 — Grandchild | 1970-01-01T00:00:01.000Z | live, persisted" {
+		t.Fatalf("trace descendants = %#v", trace.Items[2].Lines)
+	}
+	eventTrace := toolDetailsReceiptCallForTest(t, "session_event_trace", `{}`, "Session s1 — title\nCreated: invalid\nAvailability: unavailable")
+	if eventTrace == nil || len(eventTrace.Items) != 1 || eventTrace.Items[0].Fields[0].Value != "invalid" {
+		t.Fatalf("event trace = %#v", eventTrace)
+	}
+	// A spill notice keeps the generic evidence body, and an unknown section or
+	// malformed Created line rejects a full trace.
+	spilled := "Session s1 — title\nCreated: 1970-01-01T00:00:00.000Z\n\n(Omitted 50000 bytes. Full formatted result stored at: /spill/output.txt. Read the file.)"
+	if got := toolDetailsReceiptCallForTest(t, "session_event_trace", `{}`, spilled); got != nil {
+		t.Fatalf("spilled trace produced %#v", got)
+	}
+	if got := toolDetailsReceiptCallForTest(t, "session_trace", `{}`, "Session s1 — title\nCreated: x\n\nOther:\n- y"); got != nil {
+		t.Fatalf("unknown trace section produced %#v", got)
+	}
 }

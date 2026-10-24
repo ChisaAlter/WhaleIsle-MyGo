@@ -735,3 +735,66 @@ func TestToolDetailsViewAgentRoster(t *testing.T) {
 		t.Fatal("roster fell back to evidence", tt.Texts())
 	}
 }
+
+// Ralph and workflow cards use the round127 vocabulary: evidence lines, the
+// remaining-work disclosure and the workflow script code card.
+func TestToolDetailsViewInspectionReports(t *testing.T) {
+	toolDetailsInspectionLocaleForTest(t, i18n.LocaleEN)
+	report := `{"summary":"Done","evidence":["checked"],"nextSteps":["ship"],"blocker":""}`
+	ralph := toolDetailsReceiptCallForTest(t, "ralph", `{"objective":"Ship it"}`, "Ralph worker reported completion after 2 rounds.\nFinal report:\n"+report)
+	if ralph == nil {
+		t.Fatal("ralph model")
+	}
+	tt, _ := toolDetailsCardFixture(t, ralph, false)
+	for _, want := range []string{"Done", "Worker reported completion", "Rounds", "2", "checked", "Remaining work", "Task"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	for _, hidden := range []string{"ship", "Ship it"} {
+		if tt.HasText(hidden) {
+			t.Fatal("collapsed report entry painted", hidden, tt.Texts())
+		}
+	}
+	if err := tt.Click("Remaining work"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("ship") {
+		t.Fatal("remaining work did not open", tt.Texts())
+	}
+	if err := tt.Click("Task"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Ship it") {
+		t.Fatal("task group did not open", tt.Texts())
+	}
+
+	workflow := toolDetailsReceiptCallForTest(t, "workflow", `{"code":"return true"}`, "workflow \"flow\" completed (1 agent).\nReturn value:\n{\"ok\":true}")
+	if workflow == nil {
+		t.Fatal("workflow model")
+	}
+	tt, _ = toolDetailsCardFixture(t, workflow, false)
+	for _, want := range []string{"flow", "Completed", "Agents started", "1", "Workflow script"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	if tt.HasText("return true") {
+		t.Fatal("script painted while closed", tt.Texts())
+	}
+	if err := tt.Click("Workflow script"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("return true") || !tt.HasText("javascript") {
+		t.Fatal("script did not open", tt.Texts())
+	}
+	if _, ok := tt.Find("Copy"); !ok {
+		t.Fatal("script copy action", tt.Texts())
+	}
+	if tt.HasText("OUT") {
+		t.Fatal("inspection card fell back to evidence", tt.Texts())
+	}
+}

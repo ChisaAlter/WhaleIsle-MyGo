@@ -105,9 +105,12 @@ func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 	if !ok {
 		return nil
 	}
-	// The installed dispatcher runs its agent/team control receipts before the
-	// goal and reminder JSON families.
+	// The installed dispatcher runs its agent/team control receipts, then the
+	// inspection families, before the goal and reminder JSON fallbacks.
 	if model := toolDetailsModelControl(name, args, text); model != nil {
+		return model
+	}
+	if model := toolDetailsInspectionDispatch(name, args, text); model != nil {
 		return model
 	}
 	value := json.RawMessage(text)

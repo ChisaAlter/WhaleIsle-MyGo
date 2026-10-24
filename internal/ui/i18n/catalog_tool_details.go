@@ -119,6 +119,30 @@ const (
 	KeyToolDetailFieldPreviousStatus = "chat.tool.detail.field.previous_status"
 	KeyToolDetailFieldTask           = "chat.tool.detail.field.task"
 
+	// Inspection families: Cordis counts, workflow/ralph reports, session-query
+	// searches and traces.
+	KeyToolDetailProvidersCount        = "chat.tool.detail.providers.count"
+	KeyToolDetailPluginsCount          = "chat.tool.detail.plugins.count"
+	KeyToolDetailWorkflowScript        = "chat.tool.detail.workflow.script"
+	KeyToolDetailRalphComplete         = "chat.tool.detail.ralph.complete"
+	KeyToolDetailRalphBlocker          = "chat.tool.detail.ralph.blocker"
+	KeyToolDetailRalphLimit            = "chat.tool.detail.ralph.limit"
+	KeyToolDetailReportNextSteps       = "chat.tool.detail.report.next_steps"
+	KeyToolDetailMatchesCount          = "chat.tool.detail.matches.count"
+	KeyToolDetailMatchesCapped         = "chat.tool.detail.matches.capped"
+	KeyToolDetailFieldAvailability     = "chat.tool.detail.field.availability"
+	KeyToolDetailFieldBestMatch        = "chat.tool.detail.field.best_match"
+	KeyToolDetailFieldTarget           = "chat.tool.detail.field.target"
+	KeyToolDetailFieldSurface          = "chat.tool.detail.field.surface"
+	KeyToolDetailTraceReplacedBy       = "chat.tool.detail.trace.replaced_by"
+	KeyToolDetailTraceReplacementChain = "chat.tool.detail.trace.replacement_chain"
+	KeyToolDetailTraceReplaces         = "chat.tool.detail.trace.replaces"
+	KeyToolDetailTraceSources          = "chat.tool.detail.trace.sources"
+	KeyToolDetailTraceDerived          = "chat.tool.detail.trace.derived"
+	KeyToolDetailTraceAncestors        = "chat.tool.detail.trace.ancestors"
+	KeyToolDetailTraceDescendants      = "chat.tool.detail.trace.descendants"
+	KeyToolDetailEventNeighbors        = "chat.tool.detail.event.neighbors"
+
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
 	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
@@ -270,4 +294,27 @@ func init() {
 	Register(KeyToolDetailStatusAccepted, "已接收", "Accepted")
 	Register(KeyToolDetailStatusQueued, "已入队", "Queued")
 	Register(KeyToolDetailStatusExited, "已退出", "Exited")
+
+	// Inspection families, recorded from the installed conversation dictionary.
+	Register(KeyToolDetailProvidersCount, "%d 个检查提供方", "%d inspect providers")
+	Register(KeyToolDetailPluginsCount, "%d 个动态插件", "%d dynamic plugins")
+	Register(KeyToolDetailWorkflowScript, "工作流脚本", "Workflow script")
+	Register(KeyToolDetailRalphComplete, "智能体报告完成", "Worker reported completion")
+	Register(KeyToolDetailRalphBlocker, "智能体报告受阻", "Worker reported a blocker")
+	Register(KeyToolDetailRalphLimit, "已达到轮次上限", "Round limit reached")
+	Register(KeyToolDetailReportNextSteps, "待完成事项", "Remaining work")
+	Register(KeyToolDetailMatchesCount, "%d 条匹配", "%d matches")
+	Register(KeyToolDetailMatchesCapped, "已达到结果上限，可缩小搜索范围", "Result limit reached; narrow the search for more")
+	Register(KeyToolDetailFieldAvailability, "可用状态", "Availability")
+	Register(KeyToolDetailFieldBestMatch, "最相关事件", "Best match")
+	Register(KeyToolDetailFieldTarget, "目标事件", "Target event")
+	Register(KeyToolDetailFieldSurface, "记录状态", "Record status")
+	Register(KeyToolDetailTraceReplacedBy, "被替换为", "Replaced by")
+	Register(KeyToolDetailTraceReplacementChain, "替换链", "Replacement chain")
+	Register(KeyToolDetailTraceReplaces, "替换的事件", "Replaced events")
+	Register(KeyToolDetailTraceSources, "引用来源", "Source events")
+	Register(KeyToolDetailTraceDerived, "派生事件", "Derived events")
+	Register(KeyToolDetailTraceAncestors, "祖先会话", "Ancestor sessions")
+	Register(KeyToolDetailTraceDescendants, "后代会话", "Descendant sessions")
+	Register(KeyToolDetailEventNeighbors, "前后事件", "Surrounding events")
 }
