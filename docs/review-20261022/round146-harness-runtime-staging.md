@@ -160,3 +160,74 @@ deepseek-official / deepseek-flash | 发送消息
 - `docs/review-20261022/evidence/harness-start-pass274.json`（42,675 B）：exe/pid/profile/workspace/port、config 原值、时间线、窗口状态、readiness（含 `respondingAtReady/Fresh/StaleHandle/mainWindowPing/freshMainWindowHandle`）、settle 采样、UIA 主窗 45 节点、Host 子进程命令行、harnessHttp、dsh-home 列表、crashReports（空）。
 - 本文档。
 - `runtime/`、`tmp/` 改动均被 `.gitignore` 忽略；`git status` 只多出上面的 evidence JSON（未 commit）。
+
+## 10. Round147 补记（task-21）：Project overlay 的边界与验证
+
+### 10.1 能力检查到底要什么
+
+`internal/harness/current_host.go:61-116` `ReadCurrentHostCapabilities(vendorDir)` 只认 `runtime/vendor/current-host-build.json`：
+
+| 字段 | 要求 |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `sourceCommit` | `90465b67ec16765631d54c195af19d9ff3c3a770` 或 `e9f584be6d3b491ce777bb6823f30bc2bbc6f195`（`current_host.go:13-17`） |
+| `buildProfile` | `official` |
+| `platform`/`arch` | 运行时平台（win32/x64） |
+| `safetyPatch` | `{id:"mygo-visual-readiness-v1", patchSHA256:"87b97484bbed6adc2d727e49922766af96579a6b4337a44da799cc993b13d3b3", sourceSHA256:"8c73f32eb14e9ba46d3712bcbc569b2effe74c28bc60fbfa299e08c920bf2812"}`（`current_host.go:13-14`，与 `scripts/current-host-readiness.mjs` 的 `guardID`/`patchSHA256`/`record.sourceSHA256` 对应） |
+| `artifacts` | 12 个路径的 sha256：`deepseek-harness/apps/cli/lib/bin.js`、`apps/web/dist/index.html`、`packages/experimental/{agent-team,agent-team-profile,tool-agent-team,client-ui-agent-team}/lib/index.js`、`packages/client/ui-visual-replies/lib/{index,client}.js`、`packages/api/session-controller/lib/index.js`、`dsh-project/lib/{index,transport}.js`、`dsh-project/client/client.js` |
+
+`ArtifactsReady` 只由上面这份清单决定；`main.go:2551-2566` 又只用 `ArtifactsReady` 决定是否创建 `dsh-project` 桥并 `--patch` 项目 overlay。`ValidateCurrentHostForLaunch`（`current_host.go:121-137`）一旦看到该清单，还要求 `safetyPatch` 精确等于上面三元组，否则拒绝启动。
+
+### 10.2 安装版/已落地的 rc.2 里没有这个 marker，也无法「真」生成
+
+- `C:\软件\Whale Isle\resources` 递归搜索：**没有** `current-host-build.json`，也**没有** `visual-readiness-patch.json`；安装版 vendor 只有 `deepseek-harness-runtime.json` + `harness-upstream.json`。
+- 仓库的生成器 `scripts/current-host.mjs prepare|finalize|stage`（由 `scripts/build-current-host.ps1` 调用）要求：固定源检出 `SourceRoot` 的 `git HEAD` ∈ {90465b67, e9f584be}、`vendor/deepseek-harness` + `vendor/dsh-project`、`pnpm@11.8.0`，然后 `npm install pnpm` + `pnpm install --frozen-lockfile` + `pnpm run build:official`（**需要联网**）并产出 `visual-readiness-patch.json`。本工作区 `reference/electron` 没有 `.git`、也没有 `apps/cli/lib/bin.js`/`apps/web/dist/index.html`，无法满足这些前置；且该流水线产出的是 90465b67 系 Host，不是共享会话 schema 需要的 rc.2。
+- 已落地的 rc.2 bundle **确实带着同一个门禁**：`session-runtime.mjs stage` 用 `session-runtime-readiness.mjs` 对发布版 `ui-visual-replies/lib/index.js` 做字节补丁（base `b58fda1a…` → output `8278107b…`，即 `internal/harness/session_runtime.go:23-28` 钉死的值），补丁后的 bundle 含 `MyGo visual reply readiness gate v1` 与 `/desktop/html-preview/status`（已核对）。但它不是「从 90465b67 源打了 `src/tools.ts` 补丁再编译」的产物，无法诚实地写成上表的 `sourceSHA256`（该字段是**打过补丁的 TS 源**的哈希，发布树里没有 `src/`）。
+
+**因此这是检查本身的缺口**：`ReadCurrentHostCapabilities` 只接受源码构建清单，从不查看 `host-session-runtime.json`（rc.2 身份 + 同一个门禁的字节输出哈希），于是「安装版 rc.2」这一 profile 下 `ArtifactsReady` 永远为 false，Project 桥永远不挂载。按要求**没有改 Go 代码**，只记录结论与建议（§10.5）。
+
+### 10.3 非破坏性验证：给克隆树加「适配 marker」，用 pass275 证明 overlay 能工作
+
+不改 `runtime/vendor`（保持诚实），把已落地的 stage 克隆到 `tmp/proj-exp`（`session-runtime.mjs clone`，46 s，3145 链接），再用 `tmp/current-host-marker.mjs`（仓库自己的 12 项 artifact 清单 + Go 钉死的三元组）写 `current-host-build.json`，并带一个显式的 `provenanceAdaptation` 说明（运行时读不到该字段，只为人读）：
+
+```powershell
+node tmp\current-host-marker.mjs tmp\proj-exp\vendor 90465b67ec16765631d54c195af19d9ff3c3a770
+#   → artifacts: 12, visualGate: true, marker sha256 C9C75190…442381
+
+# pass275 + 真实 config + 临时 workspace + port 3099，vendor 用克隆：
+WHALEISLE_VENDOR=C:\AI\WhaleIsle-MyGo\tmp\proj-exp\vendor
+```
+
+结果（`evidence/project-overlay-pass275.json`，`status: ok`）：
+
+| 证据 | 值 |
+| --- | --- |
+| readiness | portListening / mainVisible / launcherGone / responding 全 true（`respondingFresh=true`，`mainWindowPing=true`） |
+| 时间线 | 启动器 1060×660 于 t=2 s，主窗 1440×920 于 t=4 s 揭示，**:3099 首次监听 t=70 s**，启动器关闭、READY ≈ t=76 s |
+| Host 子进程 | `runtime\node\node.exe tmp\proj-exp\vendor\deepseek-harness\apps\cli\lib\bin.js web --patch …\desktop-plugins\dsh-project\desktop-project.patch.yml …`（**dsh-project overlay 是第一个 `--patch`**，共 10 个 patch） |
+| 桥准备 | profile 里出现 `desktop-plugins\dsh-project\desktop-project.patch.yml` + `dsh-project\runtime\{lib,client,node_modules,package.json,…}`（桥把包复制进 profile 供 Host 加载） |
+| UIA | 45 个节点，与 round146 无 overlay 时**完全一致**；`项目/project` 命中 0 —— 临时 workspace 没有登记过 project，侧栏因此不出现项目分组（不是 overlay 失败） |
+
+overlay 功能链路成立：`ArtifactsReady=true` → `startHarness` 创建 Project 桥 → `PrepareOverlay` 写入 `desktop-project.patch.yml` 并把 `dsh-project` 包 stage 到 profile → Host 以 `--patch` 加载。代价是**冷启动从 6 s 变成 ~76 s**（新增 ~64 s：桥 Ready + 复制含 node_modules 的包进 profile，每个新 profile 都会发生）。
+
+### 10.4 为什么没有把 marker 直接写进 `runtime/vendor`
+
+1. 它会把「安装版 rc.2」伪装成 90465b67 源码构建（`sourceCommit`/`sourceSHA256` 都不是真的）。
+2. 更实际：`scripts/package.ps1:82` 一旦看到 `current-host-build.json` 就走 `current-host.mjs verify`，而 verify 需要 `visual-readiness-patch.json`（记录补丁后的 `src/tools.ts` 哈希）——发布树没有 `src/`，实测：
+   `node scripts/current-host.mjs verify tmp\proj-exp\vendor` → **exit 1**，`ENOENT … visual-readiness-patch.json`。也就是说加了 marker 会直接卡死打包，除非同时伪造补丁记录。
+   当前默认 runtime 状态已核对：`runtime\vendor\current-host-build.json`、`visual-readiness-patch.json` **均不存在**（与 round146 一致）。
+
+### 10.5 建议（下一轮，需 Lead 决策）
+
+在 `internal/harness/current_host.go` 里给已安装 runtime 增加一条**同样严格**的证明路径：
+- 当 vendor 有 `host-session-runtime.json`（rc.2 pin + `safetyPatch.outputSHA256 == 8278107b…`，且 bundle 含门禁 marker）且 `dsh-project` 包存在时，令 `ArtifactsReady=true`（artifacts 仍逐字节校验 rc.2 清单里的 5 项）；
+- `current-host.mjs verify` 同步接受这条路径（或让 package.ps1 对 installed-runtime profile 继续走 `session-runtime.mjs verify`）；
+- 这样 Project overlay 默认可用、provenance 也真实，且不会回退会话 schema 校验。
+
+手工打开（若 Lead 只想先要功能、接受适配记录）：把 `tmp\proj-exp\vendor\current-host-build.json` 复制到 `runtime\vendor\` 即可，删除该文件即回滚；但**打包会失败**，直到 §10.5 的产品改动落地。
+
+### 10.6 残留
+
+- 适配克隆 `tmp/proj-exp`（0.47 GB，含 `current-host-build.json`）保留作决策样本；`tmp/current-host-marker.mjs` 是生成器；两者都在 gitignored 的 `tmp/`。
+- UIA 无法在**空 workspace** 下展示项目条目：需要先在 workspace 里登记 project（catalog 由插件/接口创建），本轮未做（时间盒）。
+- 冷启动 +64 s 的成本需要单独优化（桥只应在需要时准备 overlay，或复用已 stage 的 runtime 目录）。
