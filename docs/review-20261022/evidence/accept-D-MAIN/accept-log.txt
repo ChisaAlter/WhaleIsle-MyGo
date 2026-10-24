@@ -1,11 +1,9 @@
-﻿2026-10-24T19:03:22.1110833Z  native hwnd=133676 pid=15560 class=Chrome_WidgetWin_1
-2026-10-24T19:03:22.1246068Z  mygo hwnd=3539210 pid=5136
-2026-10-24T19:03:22.1333990Z  target client 1440x860 DIP = 2160x1290 px @ dpi 144
-2026-10-24T19:03:23.2295448Z  after resize native 2160x1290 mygo 2160x1291
-2026-10-24T19:03:27.0417794Z  baseline 2160x1290 actual 2160x1291
-2026-10-24T19:03:33.6887588Z  uia nodes native=84 mygo=49
-2026-10-24T19:03:33.9706064Z  native exe=C:\软件\Whale Isle\Whale Isle.exe version=0.3.10
-2026-10-24T19:03:33.9777023Z  mygo exe=C:\AI\WhaleIsle-MyGo\tmp\whaleisle-accept.exe git=e96c0543 dirty=23
-2026-10-24T19:03:33.9787587Z  client 1440x860 DIP; captured 2160x1290 / 2160x1291; dpi=144
-2026-10-24T19:03:33.9799030Z  out=C:\Users\48818\AppData\Local\Temp\whaleisle-accept-2026-10-24\D-MAIN
-2026-10-24T19:03:34.0028490Z  restored native to 2268x1366
+﻿2026-10-24T19:37:24.4661535Z  native hwnd=133676 pid=15560; mygo hwnd=7471938 pid=8552; dpi=144
+2026-10-24T19:37:26.4860676Z  baseline 2160x1290
+2026-10-24T19:37:28.8034548Z  actual 2160x1291
+2026-10-24T19:37:35.4949360Z  uia native=84 mygo=49
+2026-10-24T19:37:35.6613459Z  native exe=C:\软件\Whale Isle\Whale Isle.exe version=0.3.10
+2026-10-24T19:37:35.6693046Z  mygo exe=C:\AI\WhaleIsle-MyGo\whaleisle-pass283.exe git=3e8fd30b
+2026-10-24T19:37:35.6730401Z  client 1440x860 DIP; captured 2160x1290 / 2160x1291 px; dpi=144
+2026-10-24T19:37:35.6742484Z  out=C:\Users\48818\AppData\Local\Temp\whaleisle-accept-2026-10-24\D-MAIN
+2026-10-24T19:37:35.7570475Z  restored native 2268x1366 and mygo 237x39

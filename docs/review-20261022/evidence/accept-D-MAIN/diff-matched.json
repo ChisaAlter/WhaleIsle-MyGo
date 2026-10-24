@@ -20,14 +20,14 @@
   },
   "threshold": 0,
   "pixels_total": 2786400,
-  "mismatch_pixels": 2786097,
-  "mismatch_ratio": 0.999891,
+  "mismatch_pixels": 2786143,
+  "mismatch_ratio": 0.999908,
   "masked_pixels": 0,
   "mask_regions": 0,
-  "channel_max_delta": 240,
+  "channel_max_delta": 243,
   "channel_max": {
-    "r": 240,
-    "g": 233,
-    "b": 230
+    "r": 238,
+    "g": 239,
+    "b": 243
   }
 }

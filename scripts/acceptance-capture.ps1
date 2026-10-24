@@ -175,10 +175,16 @@ try {
   $nS = [Aw]::Rect($native.Hwnd); $mS = [Aw]::Rect($mygo.Hwnd)
   Log "after resize native $($nS[2])x$($nS[3]) mygo $($mS[2])x$($mS[3])"
   if ([math]::Abs($nS[2] - $mS[2]) -gt 1 -or [math]::Abs($nS[3] - $mS[3]) -gt 1) { throw 'client sizes differ by more than 1 px' }
+  # Both windows share (0,0) for a clean client rect, so minimise the other side
+  # before each capture instead of letting it occlude the target.
+  [void][Aw]::ShowWindow($mygo.Hwnd, 6)
+  Start-Sleep -Milliseconds 400
   [void][Aw]::ShowWindow($native.Hwnd, 9); [void][Aw]::SetForegroundWindow($native.Hwnd)
   Start-Sleep -Milliseconds 1500
   Check-Occlusion $native.Hwnd 'native'
   $nb = Capture $native.Hwnd (Join-Path $dir 'baseline.png')
+  [void][Aw]::ShowWindow($native.Hwnd, 6)
+  Start-Sleep -Milliseconds 400
   [void][Aw]::ShowWindow($mygo.Hwnd, 9); [void][Aw]::SetForegroundWindow($mygo.Hwnd)
   Start-Sleep -Seconds $SettleSeconds
   Check-Occlusion $mygo.Hwnd 'mygo'
