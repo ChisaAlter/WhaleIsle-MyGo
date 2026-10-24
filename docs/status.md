@@ -319,6 +319,15 @@
 - 证据：pass275（87,531,520 B / SHA256 `08FB561F…`）；scripts/harness-start-smoke.ps1 可重复；harness-start-pass275.json ready=True。
 - 残留：Project overlay 未挂（staged vendor 无 current-host-build.json，dsh-project bridge 跳过）；runtime 路径绑定，移动仓库需重新 stage；.runtime-rc2/ 旧暂存可删。
 
+### round147–150（2026-10-25）
+
+- round147：启动器首页产品行补齐原生 48px 头像 + 12 gap + eyebrow 10/16 + 标题 16/24；26 项 shell 指标中 25 项已相等。welcome 参考页由 preload 动态填充，静态渲染不可用，仅留指标路径。
+- round148：ui.Motion.Scale（0/1 为 identity，中心缩放 + clip）与 ElementTransition.ExitDuration；chrome overlay 变为 200ms 进（Y8/scale .96）、100ms 出，popover 仍 160ms/4。
+- round149：PrintWindow 在死锁修复后恢复可用，scripts/window-capture.ps1 以 per-monitor-v2 物理像素截图；建立启动器浅/深色、欢迎窗、聊天主窗 150% 基线。
+- round150：**安装版 rc.2 readiness 被接受**（复用 validateStagedSessionRuntime + 8278107b 门禁 + dsh-project 存在性），默认 runtime 无需伪造 marker 即挂载 Project overlay；Host 第一个 --patch 为 desktop-project.patch.yml，就绪约 8s。
+- pass276：87,539,712 B / SHA256 `EDD075B5…`；harness-start-pass276.json ready=True。
+- 残留：启动器导航图标/品牌资产/首页标题文案（task-25 进行中）、welcome 指标比对、聊天界面逐表面像素审计、per-profile project stage 成本、current-host.mjs verify 仍只认源码构建。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

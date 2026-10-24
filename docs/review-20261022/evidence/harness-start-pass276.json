@@ -1,0 +1,832 @@
+{
+    "schema":  1,
+    "smoke":  "harness-start",
+    "method":  "Start-Process with WHALEISLE_USER_DATA temp profile; sampled TcpClient port probe, EnumWindows+GetWindowText+GetWindowRect (per-monitor-v2 physical px, DIP derived from GetDpiForWindow), Process.Responding; UIAutomation descendants of the main/launcher HWND; recursive ParentProcessId tree kill; no PrintWindow",
+    "generatedAt":  "2026-10-24T16:40:06.4928608Z",
+    "status":  "ok",
+    "error":  null,
+    "exe":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle-pass276.exe",
+    "pid":  28188,
+    "userData":  "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile",
+    "workspace":  "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\workspace",
+    "port":  3099,
+    "realConfig":  "C:\\Users\\48818\\AppData\\Roaming\\Deepseek-Harness-Desktop\\config.json",
+    "configOriginal":  {
+                           "workspace":  "C:\\Users\\48818\\Documents\\Whale Isle",
+                           "port":  3080
+                       },
+    "clearedSockets":  [
+
+                       ],
+    "startedAt":  "2026-10-24T16:39:44.2587158Z",
+    "finishedAt":  "2026-10-24T16:40:06.4968755Z",
+    "readiness":  {
+                      "portListening":  true,
+                      "mainVisible":  true,
+                      "launcherGone":  true,
+                      "responding":  true,
+                      "respondingAtReady":  true,
+                      "respondingFresh":  true,
+                      "respondingStaleHandle":  false,
+                      "freshMainWindowHandle":  8129336,
+                      "mainWindowPing":  true
+                  },
+    "settleSamples":  [
+                          {
+                              "t":  0,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  1,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  2,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  3,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  4,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          },
+                          {
+                              "t":  5,
+                              "processResponding":  false,
+                              "mainWindowHandle":  4065756,
+                              "mainHwnd":  8129336,
+                              "mainPing":  true
+                          }
+                      ],
+    "timeline":  [
+                     {
+                         "t":  1,
+                         "at":  "2026-10-24T16:39:45.4351663Z",
+                         "portListening":  false,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  3,
+                         "at":  "2026-10-24T16:39:46.9532751Z",
+                         "portListening":  false,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  4,
+                         "at":  "2026-10-24T16:39:48.3146940Z",
+                         "portListening":  false,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  5,
+                         "at":  "2026-10-24T16:39:49.6596602Z",
+                         "portListening":  false,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  7,
+                         "at":  "2026-10-24T16:39:51.0059003Z",
+                         "portListening":  false,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  8,
+                         "at":  "2026-10-24T16:39:52.1180355Z",
+                         "portListening":  true,
+                         "responding":  true,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1060x660",
+                                             "px":  "1590x990",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "t":  8,
+                         "at":  "2026-10-24T16:39:52.5339742Z",
+                         "portListening":  true,
+                         "responding":  false,
+                         "windows":  [
+                                         {
+                                             "title":  "Whale Isle",
+                                             "dip":  "1440x920",
+                                             "px":  "2160x1380",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "135x37",
+                                             "px":  "202x56",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  true
+                                         },
+                                         {
+                                             "title":  "MSCTFIME UI",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         },
+                                         {
+                                             "title":  "Default IME",
+                                             "dip":  "0x0",
+                                             "px":  "0x0",
+                                             "visible":  false
+                                         }
+                                     ]
+                     }
+                 ],
+    "windowStates":  [
+                         {
+                             "hwnd":  8129336,
+                             "title":  "Whale Isle",
+                             "class":  "MyGoWindow",
+                             "rect":  {
+                                          "left":  200,
+                                          "top":  0,
+                                          "width":  2160,
+                                          "height":  1380
+                                      },
+                             "dip":  {
+                                         "width":  1440,
+                                         "height":  920
+                                     },
+                             "visible":  true,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  6097000,
+                             "title":  "",
+                             "class":  "MyGoApp",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  202,
+                                          "height":  56
+                                      },
+                             "dip":  {
+                                         "width":  135,
+                                         "height":  37
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  9243264,
+                             "title":  "",
+                             "class":  "PseudoConsoleWindow",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  true,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  3083002,
+                             "title":  "MSCTFIME UI",
+                             "class":  "MSCTFIME UI",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         },
+                         {
+                             "hwnd":  5835452,
+                             "title":  "Default IME",
+                             "class":  "IME",
+                             "rect":  {
+                                          "left":  0,
+                                          "top":  0,
+                                          "width":  0,
+                                          "height":  0
+                                      },
+                             "dip":  {
+                                         "width":  0,
+                                         "height":  0
+                                     },
+                             "visible":  false,
+                             "minimized":  false,
+                             "dpi":  144
+                         }
+                     ],
+    "mainHwnd":  8129336,
+    "launcherHwnd":  0,
+    "uia":  {
+                "hwnd":  8129336,
+                "available":  true,
+                "nodes":  [
+                              {
+                                  "name":  "鲸",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "屿",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "WHALE ISLE",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "BASED ON DEEPSEEK HARNESS",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "收起左侧栏",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "新会话",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "插件",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "自动化任务",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "鲸鱼娘",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "工作区",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "搜索会话…",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "多选会话",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "视图选项",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "选择工作区…",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "折叠工作区 e1570b5a-f21a-49a8-a48e-5edba5587c48",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "workspace",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "工作区操作 e1570b5a-f21a-49a8-a48e-5edba5587c48",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "折叠工作区 ::scratch",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "无工作目录",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "无目录会话",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "新会话",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "已归档",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "账号与登录",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Sidebar divider",
+                                  "controlType":  "ControlType.Separator",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "初始化 Git",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "切换终端抽屉",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "切换右侧面板",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "关闭",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "最小化",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "最大化",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Conversation hero fish",
+                                  "controlType":  "ControlType.Image",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "探索未至之境",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "预览版",
+                                  "controlType":  "ControlType.Text",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Composer hero preset row",
+                                  "controlType":  "ControlType.Group",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Composer workspace",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "标准模式",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Composer card",
+                                  "controlType":  "ControlType.Group",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Composer draft",
+                                  "controlType":  "ControlType.Edit",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "命令列表",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "工作区内修改",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "Composer trailing controls",
+                                  "controlType":  "ControlType.Group",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "deepseek-official / deepseek-flash",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              },
+                              {
+                                  "name":  "发送消息",
+                                  "controlType":  "ControlType.Button",
+                                  "className":  "",
+                                  "automationId":  "",
+                                  "offscreen":  false
+                              }
+                          ],
+                "error":  null
+            },
+    "uiaLauncher":  null,
+    "hostChildren":  [
+                         {
+                             "pid":  35168,
+                             "name":  "conhost.exe",
+                             "commandLine":  "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+                         },
+                         {
+                             "pid":  34876,
+                             "name":  "node.exe",
+                             "commandLine":  "C:\\AI\\WhaleIsle-MyGo\\runtime\\node\\node.exe C:\\AI\\WhaleIsle-MyGo\\runtime\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-start-20261025-003944\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-market\\desktop-dsh-market.patch.yml --host 127.0.0.1 --port 3099 --no-open"
+                         },
+                         {
+                             "pid":  28312,
+                             "name":  "conhost.exe",
+                             "commandLine":  "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4"
+                         }
+                     ],
+    "harnessHttp":  {
+                        "error":  "远程服务器返回错误: (401) 未经授权。"
+                    },
+    "dshHome":  [
+                    {
+                        "name":  ".agent-presets",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "cache",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "data",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "no-workspace",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "profiles",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "sessions",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  "storages",
+                        "mode":  "d-----"
+                    },
+                    {
+                        "name":  ".anonymous-user-id",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  ".credentials.yaml",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite-shm",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "dsh-usage-panel.sqlite-wal",
+                        "mode":  "-a----"
+                    },
+                    {
+                        "name":  "project-writer.lock",
+                        "mode":  "-a----"
+                    }
+                ],
+    "crashReports":  [
+
+                     ]
+}

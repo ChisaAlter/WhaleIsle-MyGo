@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T00:48:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87539712,
+  "productionSHA256": "EDD075B5D67A411D696302724059F790226868A5E8460871A38DB34F9D7938D0",
+  "defaultSHA256": "EDD075B5D67A411D696302724059F790226868A5E8460871A38DB34F9D7938D0",
+  "note": "pass276 covers rounds 147-150: launcher home-card metrics, Motion.Scale/exit duration, real-window pixel baselines, and the installed rc.2 readiness gate that mounts the Project overlay by default; readiness verified in 8s."
+}
