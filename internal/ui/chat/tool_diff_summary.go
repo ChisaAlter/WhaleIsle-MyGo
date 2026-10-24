@@ -16,44 +16,12 @@ type toolDiffSummary struct {
 // intent, or applied successful write/edit metadata with write's full-file
 // fallback. Counting never reads the current file or rewrites recorded hunks.
 func toolDiffSummaryFor(call *session.ToolCallView) *toolDiffSummary {
-	if call == nil || call.ParentCallID != "" || call.State == "preparing" || toolSummaryHasCue(call.State) || call.Result != nil && call.Call == nil {
+	model := toolDiffModelFor(call)
+	if model == nil {
 		return nil
-	}
-	args, ok := terminalModelObject(json.RawMessage(call.Arguments))
-	if !ok {
-		return nil
-	}
-	pathKey := "file_path"
-	if call.Name == "str_replace_editor" {
-		pathKey = "path"
-	}
-	path, ok := toolField(args, pathKey)
-	if !ok || strings.TrimSpace(path) == "" {
-		return nil
-	}
-	intended, ok := intendedToolDiff(call.Name, args, path)
-	if !ok {
-		return nil
-	}
-	diffs := []toolFileDiff{intended}
-	if call.Result != nil {
-		if call.Name == "str_replace_editor" {
-			return nil
-		}
-		result := toolSummaryReadResult(call.Result)
-		if call.Result.EventType != "tool/result" || result.nested || result.failed || result.stopped {
-			return nil
-		}
-		meta, _ := terminalModelObject(result.meta)
-		applied, valid := toolSummaryAppliedDiffs(meta["diffs"])
-		if valid && len(applied) > 0 {
-			diffs = applied
-		} else if call.Name != "write" {
-			return nil
-		}
 	}
 	total := toolDiffSummary{}
-	for _, d := range diffs {
+	for _, d := range model.Diffs {
 		old := ""
 		if d.OldText != nil {
 			old = *d.OldText

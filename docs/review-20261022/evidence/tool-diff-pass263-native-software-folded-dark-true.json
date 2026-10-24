@@ -1,0 +1,83 @@
+{
+  "name": "folded-dark-true",
+  "rects": {
+    "+ created-00": {
+      "X": 24,
+      "Y": 115,
+      "W": 596,
+      "H": 19
+    },
+    "+ created-12": {
+      "X": 24,
+      "Y": 267,
+      "W": 596,
+      "H": 19
+    },
+    "+13 -0": {
+      "X": 201.35303,
+      "Y": 20.5,
+      "W": 36.28711,
+      "H": 23.5
+    },
+    "Copy": {
+      "X": 578,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "Diff content card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 258
+    },
+    "Expand 5 more diff lines": {
+      "X": 24,
+      "Y": 191,
+      "W": 596,
+      "H": 19
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 310,
+      "W": 600,
+      "H": 1
+    },
+    "Wrap lines": {
+      "X": 550,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "go": {
+      "X": 46,
+      "Y": 61,
+      "W": 492,
+      "H": 18
+    }
+  },
+  "texts": [
+    "Write src/create.go",
+    "Write",
+    "src/create.go",
+    "src/create.go",
+    "1KB",
+    "+13 -0",
+    "Diff content card",
+    "go",
+    "Wrap lines",
+    "Copy",
+    "/work/src/create.go",
+    "+ created-00",
+    "+ created-01",
+    "+ created-02",
+    "+ created-03",
+    "Expand 5 more diff lines",
+    "… 5 more lines",
+    "+ created-09",
+    "+ created-10",
+    "+ created-11",
+    "+ created-12",
+    "Following summary flow"
+  ]
+}

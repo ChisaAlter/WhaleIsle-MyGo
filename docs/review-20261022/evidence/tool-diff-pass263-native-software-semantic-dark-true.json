@@ -1,0 +1,53 @@
+{
+  "name": "semantic-dark-true",
+  "rects": {
+    "Copy": {
+      "X": 578,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "Diff content card": {
+      "X": 24,
+      "Y": 48,
+      "W": 596,
+      "H": 163
+    },
+    "Following summary flow": {
+      "X": 20,
+      "Y": 215,
+      "W": 600,
+      "H": 1
+    },
+    "Wrap lines": {
+      "X": 550,
+      "Y": 58,
+      "W": 24,
+      "H": 24
+    },
+    "go": {
+      "X": 46,
+      "Y": 61,
+      "W": 492,
+      "H": 18
+    }
+  },
+  "texts": [
+    "Edit a.go",
+    "Edit",
+    "a.go",
+    "a.go",
+    "1KB",
+    "+1 -1",
+    "Diff content card",
+    "go",
+    "Wrap lines",
+    "Copy",
+    "a.go",
+    "  before",
+    "- old",
+    "+ new",
+    "  after",
+    "Following summary flow"
+  ]
+}

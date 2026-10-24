@@ -129,6 +129,8 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		if info.readFamily {
 			info.read = toolReadModelFor(call, gallery.Cwd, gallery.Home)
 		}
+		info.mutationFamily = call.Name == "write" || call.Name == "edit"
+		info.diff = toolDiffModelFor(call)
 		info.openFile = gallery.OnOpenFile
 		info.diffSummary = toolDiffSummaryFor(call)
 		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {
@@ -145,7 +147,7 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		info.Web = call.Result.Web
 	}
 	extra := func() {
-		if !gallery.TextOnly && !info.readFamily {
+		if !gallery.TextOnly && !info.readFamily && !info.mutationFamily && call.Name != "str_replace_editor" {
 			toolFileView(c, call, st, gallery)
 		}
 		if call.ParentIssue != "" {

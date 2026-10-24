@@ -1,0 +1,16 @@
+Round119 installed DiffBlock: PASSED
+Run 2026-10-24T02-59-11-581Z-a002f68a
+Cases 10/10; assertions 50/50
+PASSED early-light-dark-installed-metrics 5/5
+PASSED exact-source-vm-jsdiff-model-language-labels 7/7
+PASSED short-toolbar-body-grid-prefix-metrics 7/7
+PASSED empty-array-path-only-blank-and-languages 4/4
+PASSED threshold9-10-head5-tail4-chinese-AX 5/5
+PASSED full-row-copy-prefix-path-gap-feedback-guard-refusal 5/5
+PASSED multiple-file-fold-expand-collapse-path-gap 5/5
+PASSED horizontal-scroll-grid-background-fill-versus-wrap 5/5
+PASSED Tab-focus-visible-and-named-toolbar 3/3
+PASSED source-integrity-input-network-exclusive-attempt 4/4
+Combined JSON bytes 197340
+Cleanup {"target":"Only spawned exact Chrome PID/profile/port; no protected process queries/signals or original GUI requests","protectedProcessesSignalled":false,"protectedGuiRequested":false,"lastProcesses":[{"type":"browser","id":21044},{"type":"renderer","id":46916},{"type":"renderer","id":13536},{"type":"renderer","id":47732},{"type":"renderer","id":2280},{"type":"renderer","id":42948},{"type":"renderer","id":3212},{"type":"GPU","id":8372},{"type":"network.mojom.NetworkService","id":46872},{"type":"storage.mojom.StorageService","id":46088}],"closedBy":"owned Browser.close","exit":{"code":0,"signal":null},"portReleased":true,"processes":[{"pid":21044,"alive":false},{"pid":13536,"alive":false},{"pid":47732,"alive":false},{"pid":2280,"alive":false},{"pid":3212,"alive":false},{"pid":8372,"alive":false},{"pid":46872,"alive":false},{"pid":46088,"alive":false},{"pid":46916,"alive":false},{"pid":42948,"alive":false}],"allObservedProcessesExited":true,"profileRemovalTarget":"C:\\AI\\WhaleIsle-MyGo\\.devdata\\r119-tool-diff-2026-10-24T02-59-11-581Z-a002f68a-profile","profileRemoved":true,"pass":true}
+Errors []

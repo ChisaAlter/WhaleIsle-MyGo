@@ -1,0 +1,152 @@
+﻿{
+    "schema":  1,
+    "startedAt":  "2026-10-24T03:11:41.1145716Z",
+    "status":  "pass-injected-native-surface",
+    "scope":  "Injected focus/click/key on exact owned MyGoSurface and UIAutomation ExpandCollapse. No Host, file opening, code execution, OS clipboard or hardware input.",
+    "fixture":  {
+                    "path":  "C:\\AI\\WhaleIsle-MyGo\\.devdata\\r119-diff-fixture.exe",
+                    "startUtc":  "2026-10-24T03:11:12.9994145Z",
+                    "exited":  true,
+                    "pid":  32988,
+                    "closed":  true
+                },
+    "states":  [
+                   {
+                       "pass":  true,
+                       "name":  "diff-open-folded",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-diff":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  365.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  290
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T11:11:41.4802852+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "fold-click-space-enter",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-diff":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  460.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  385
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T11:11:41.9458133+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "wrap-click-enter",
+                       "metrics":  {
+                                       "dark":  false,
+                                       "expanded":  {
+                                                        "|tool:native-diff":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  365.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  290
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T11:11:42.155711+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "dark-keeps-fold-wrap",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "|tool:native-diff":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  365.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  290
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T11:11:42.2232029+08:00"
+                                   }
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "row-space-reopens",
+                       "metrics":  {
+                                       "dark":  true,
+                                       "expanded":  {
+                                                        "|tool:native-diff":  true
+                                                    },
+                                       "following":  {
+                                                         "X":  20,
+                                                         "Y":  365.28125,
+                                                         "W":  705.3333,
+                                                         "H":  1
+                                                     },
+                                       "opened":  [
+
+                                                  ],
+                                       "row":  {
+                                                   "X":  20,
+                                                   "Y":  65.28125,
+                                                   "W":  520,
+                                                   "H":  290
+                                               },
+                                       "scale":  1.5,
+                                       "time":  "2026-10-24T11:11:42.6514727+08:00"
+                                   }
+                   }
+               ],
+    "error":  null,
+    "finishedAt":  "2026-10-24T03:11:42.8783980Z"
+}

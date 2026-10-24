@@ -1,0 +1,459 @@
+{
+  "schema": 1,
+  "reference": "tool-diff-pass263-reference-2026-10-24T02-59-11-581Z-a002f68a.json",
+  "scope": "Retained dimensions from actual installed-CSS manual DOM versus native software UI; excludes font rasterization, OS clipboard, physical input and motion.",
+  "passed": 58,
+  "total": 58,
+  "sourceHashes": [
+    {
+      "id": "runner",
+      "pass": true
+    },
+    {
+      "id": "webJS",
+      "pass": true
+    },
+    {
+      "id": "webCSS",
+      "pass": true
+    },
+    {
+      "id": "tool",
+      "pass": true
+    },
+    {
+      "id": "row",
+      "pass": true
+    },
+    {
+      "id": "diff",
+      "pass": true
+    },
+    {
+      "id": "labels",
+      "pass": true
+    },
+    {
+      "id": "raw",
+      "pass": true
+    },
+    {
+      "id": "recorded",
+      "pass": true
+    },
+    {
+      "id": "mutation",
+      "pass": true
+    },
+    {
+      "id": "generic",
+      "pass": true
+    },
+    {
+      "id": "paths",
+      "pass": true
+    },
+    {
+      "id": "language",
+      "pass": true
+    },
+    {
+      "id": "theme",
+      "pass": true
+    },
+    {
+      "id": "locale",
+      "pass": true
+    },
+    {
+      "id": "commonEN",
+      "pass": true
+    },
+    {
+      "id": "commonZH",
+      "pass": true
+    },
+    {
+      "id": "refDiff",
+      "pass": true
+    },
+    {
+      "id": "refDiffCSS",
+      "pass": true
+    },
+    {
+      "id": "refCardCSS",
+      "pass": true
+    },
+    {
+      "id": "refToolbar",
+      "pass": true
+    },
+    {
+      "id": "refFold",
+      "pass": true
+    },
+    {
+      "id": "icons",
+      "pass": true
+    },
+    {
+      "id": "priorRead",
+      "pass": true
+    },
+    {
+      "id": "priorSummary",
+      "pass": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "unchanged: card width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "unchanged: card height",
+      "native": 87,
+      "browser": 87,
+      "pass": true
+    },
+    {
+      "name": "unchanged: full row width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "unchanged: first row offset",
+      "native": 48,
+      "browser": 48,
+      "pass": true
+    },
+    {
+      "name": "unchanged: line height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "unchanged: wrap width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "unchanged: wrap height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "unchanged: wrap top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "unchanged: wrap right",
+      "native": 46,
+      "browser": 46,
+      "pass": true
+    },
+    {
+      "name": "unchanged: copy width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "unchanged: copy height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "unchanged: copy top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "unchanged: copy right",
+      "native": 18,
+      "browser": 18,
+      "pass": true
+    },
+    {
+      "name": "blank-added: card width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "blank-added: card height",
+      "native": 106,
+      "browser": 106,
+      "pass": true
+    },
+    {
+      "name": "blank-added: full row width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "blank-added: first row offset",
+      "native": 48,
+      "browser": 48,
+      "pass": true
+    },
+    {
+      "name": "blank-added: line height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "blank-added: wrap width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "blank-added: wrap height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "blank-added: wrap top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "blank-added: wrap right",
+      "native": 46,
+      "browser": 46,
+      "pass": true
+    },
+    {
+      "name": "blank-added: copy width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "blank-added: copy height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "blank-added: copy top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "blank-added: copy right",
+      "native": 18,
+      "browser": 18,
+      "pass": true
+    },
+    {
+      "name": "nine: card width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "nine: card height",
+      "native": 239,
+      "browser": 239,
+      "pass": true
+    },
+    {
+      "name": "nine: full row width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "nine: first row offset",
+      "native": 48,
+      "browser": 48,
+      "pass": true
+    },
+    {
+      "name": "nine: line height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "nine: wrap width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "nine: wrap height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "nine: wrap top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "nine: wrap right",
+      "native": 46,
+      "browser": 46,
+      "pass": true
+    },
+    {
+      "name": "nine: copy width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "nine: copy height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "nine: copy top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "nine: copy right",
+      "native": 18,
+      "browser": 18,
+      "pass": true
+    },
+    {
+      "name": "ten: card width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "ten: card height",
+      "native": 258,
+      "browser": 258,
+      "pass": true
+    },
+    {
+      "name": "ten: full row width",
+      "native": 616,
+      "browser": 616,
+      "pass": true
+    },
+    {
+      "name": "ten: first row offset",
+      "native": 48,
+      "browser": 48,
+      "pass": true
+    },
+    {
+      "name": "ten: line height",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "ten: wrap width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "ten: wrap height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "ten: wrap top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "ten: wrap right",
+      "native": 46,
+      "browser": 46,
+      "pass": true
+    },
+    {
+      "name": "ten: copy width",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "ten: copy height",
+      "native": 24,
+      "browser": 24,
+      "pass": true
+    },
+    {
+      "name": "ten: copy top",
+      "native": 10,
+      "browser": 10,
+      "pass": true
+    },
+    {
+      "name": "ten: copy right",
+      "native": 18,
+      "browser": 18,
+      "pass": true
+    },
+    {
+      "name": "False: chat card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "False: chat folded card height",
+      "native": 258,
+      "browser": 258,
+      "pass": true
+    },
+    {
+      "name": "False: fold control row",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    },
+    {
+      "name": "True: chat card left margin",
+      "native": 4,
+      "browser": 4,
+      "pass": true
+    },
+    {
+      "name": "True: chat folded card height",
+      "native": 258,
+      "browser": 258,
+      "pass": true
+    },
+    {
+      "name": "True: fold control row",
+      "native": 19,
+      "browser": 19,
+      "pass": true
+    }
+  ]
+}

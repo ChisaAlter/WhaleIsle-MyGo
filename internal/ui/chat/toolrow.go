@@ -252,6 +252,15 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		}
 		return true, true
 	}
+	if info.diff != nil && !opts.TextOnly {
+		toolDiffCard(c, info.diff, st, key)
+		return true, true
+	}
+	if info.mutationFamily && !opts.TextOnly {
+		info.Arguments = ""
+		toolIORows(c, info, st, key+":mutation-output")
+		return true, true
+	}
 	if info.Name == "run_code" && !opts.TextOnly {
 		toolCodeBody(c, info, st, key)
 		return true, true
