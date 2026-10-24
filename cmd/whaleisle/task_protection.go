@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/taskcontrol"
@@ -19,7 +20,7 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 		return
 	}
 	s.mu.Lock()
-	s.launcherStartErr = resumeText("操作未完成，已保留当前窗口：", "Action did not complete; the window was kept open: ") + err.Error()
+	s.launcherStartErr = i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept) + err.Error()
 	s.launcherStartFailed = true
 	s.launcherOpen = true
 	s.mu.Unlock()
@@ -35,27 +36,27 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	if win == nil || !hasWindow {
 		return false, errors.New("no desktop window for the task confirmation")
 	}
-	label := resumeText("退出", "Quit")
+	label := i18n.T(i18n.KeyCmdQuit)
 	if operation == "restart" {
-		label = resumeText("重启", "Restart")
+		label = i18n.T(i18n.KeyCmdRestart)
 	} else if operation == "update" {
-		label = resumeText("安装更新并退出", "Install update and quit")
+		label = i18n.T(i18n.KeyCmdInstallUpdateAndQuit)
 	} else if operation == "component" {
-		label = resumeText("更改鲸桥组件", "Change WhaleBridge component")
+		label = i18n.T(i18n.KeyCmdChangeWhalebridgeComponent)
 	} else if operation == "stop" {
-		label = resumeText("停止内核", "Stop runtime")
+		label = i18n.T(i18n.KeyCmdStopRuntime)
 	}
 	lines := []string{}
 	if operation == "stop" {
-		lines = append(lines, resumeText("这会停止 Host 内核，桌面应用窗口将保持打开。", "This stops the Host runtime. The desktop application window will stay open."))
+		lines = append(lines, i18n.T(i18n.KeyCmdThisStopsTheHostRuntimeTheDesktopAppl))
 	}
 	if i.Unknown != "" {
-		lines = append(lines, resumeText("Host 任务保护不可用，无法确认后台任务、定时任务或在途请求是否已排空。继续将仅依赖本地会话信息，可能中断未显示的工作。", "Host task protection is unavailable. Background work, scheduled tasks and in-flight requests cannot be verified or drained. Continuing relies only on local session information and may interrupt unseen work."), i.Unknown)
+		lines = append(lines, i18n.T(i18n.KeyCmdHostTaskProtectionIsUnavailableBackgro), i.Unknown)
 	}
 	if i.Unknown != "" {
-		lines = append(lines, fmt.Sprintf(resumeText("本地运行工作（会话和终端）：%d；Host 活动和计划工作：未知。", "Known local running work (sessions and terminals): %d; Host active and scheduled work: unknown."), i.LocalRunning))
+		lines = append(lines, fmt.Sprintf(i18n.T(i18n.KeyCmdKnownLocalRunningWorkSessionsAndTermin), i.LocalRunning))
 	} else {
-		lines = append(lines, fmt.Sprintf(resumeText("本地运行工作（会话和终端）：%d；Host 活动工作：%d；计划工作：%d。", "Known local running work (sessions and terminals): %d; Host active work: %d; scheduled work: %d."), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
+		lines = append(lines, fmt.Sprintf(i18n.T(i18n.KeyCmdKnownLocalRunningWorkSessionsAndTermin), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
 	}
 	missing := []string{}
 	for key, value := range i.Coverage {
@@ -72,16 +73,16 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
-		lines = append(lines, resumeText("以下检查状态未知：", "These checks are unknown: ")+strings.Join(missing, ", "))
+		lines = append(lines, i18n.T(i18n.KeyCmdTheseChecksAreUnknown)+strings.Join(missing, ", "))
 	}
-	lines = append(lines, resumeText("继续可能中断任务；这不代表任务已经完成。是否仍要", "Continuing may interrupt work; this does not mean it has finished. Continue with ")+label+"?")
+	lines = append(lines, i18n.T(i18n.KeyCmdContinuingMayInterruptWorkThisDoesNot)+label+"?")
 	// Every caller reaches this through a background goroutine, so the in-app
 	// confirmation can be awaited here; a UI-thread caller would deadlock.
 	approved := s.askConfirmBlocking(confirmAskRequest{
 		Title:        label,
 		Body:         strings.Join(lines, "\n\n"),
-		ConfirmLabel: resumeText("仍要", "Continue: ") + label,
-		CancelLabel:  resumeText("取消", "Cancel"),
+		ConfirmLabel: i18n.T(i18n.KeyCmdContinue) + label,
+		CancelLabel:  i18n.T(i18n.KeyCmdCancel),
 		Danger:       true,
 	})
 	return approved, nil
@@ -92,7 +93,7 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 	busy := s.launcherImportBusy
 	s.mu.Unlock()
 	if busy {
-		s.taskProtectionError(win, errors.New(resumeText("导入尚未结束，请等待完成或取消后重试。", "Import is still running; wait for completion or cancel it before retrying.")))
+		s.taskProtectionError(win, errors.New(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion)))
 		return false
 	}
 	did, err := s.protectTaskAction(context.Background(), win, sup, operation, commit)
@@ -149,17 +150,17 @@ func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup
 		did, err = sup.ProtectTaskAction(ctx, operation, s.localTaskRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
 	} else {
 		// No owned Host exists. Preserve the original local-session confirmation.
-		label := resumeText("退出", "Quit")
+		label := i18n.T(i18n.KeyCmdQuit)
 		if operation == "restart" {
-			label = resumeText("重启", "Restart")
+			label = i18n.T(i18n.KeyCmdRestart)
 		} else if operation == "update" {
-			label = resumeText("安装更新并退出", "Install update and quit")
+			label = i18n.T(i18n.KeyCmdInstallUpdateAndQuit)
 		} else if operation == "component" {
-			label = resumeText("更改鲸桥组件", "Change WhaleBridge component")
+			label = i18n.T(i18n.KeyCmdChangeWhalebridgeComponent)
 		} else if operation == "stop" {
-			label = resumeText("停止内核", "Stop runtime")
+			label = i18n.T(i18n.KeyCmdStopRuntime)
 		}
-		did, err = taskguard.ConfirmAction(win, s.localTaskRunningCount(), label, resumeText("当前有 %d 个本地工作（会话和终端）仍在运行。继续会中断任务，仍要继续吗？", "%d local work items (sessions and terminals) are still running. Continuing will interrupt work. Continue?"), label, resumeText("取消", "Cancel"))
+		did, err = taskguard.ConfirmAction(win, s.localTaskRunningCount(), label, i18n.T(i18n.KeyCmdLocalWorkItemsSessionsAndTerminalsAre), label, i18n.T(i18n.KeyCmdCancel))
 		if did && err == nil {
 			err = commit()
 			did = err == nil
@@ -260,9 +261,9 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
 	if !confirmedByInstallButton {
 		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   resumeText("安装更新", "Install update"),
-			Message: resumeText("更新已下载并校验。继续会启动安装器，停止 Host 并退出桌面应用。", "The update has been downloaded and verified. Continuing starts the installer, stops the Host and quits the desktop application."),
-			Buttons: []string{resumeText("稍后", "Later"), resumeText("安装并退出", "Install and quit")}, DefaultButton: 0, CancelButton: 0})
+			Title:   i18n.T(i18n.KeyCmdInstallUpdate),
+			Message: i18n.T(i18n.KeyCmdTheUpdateHasBeenDownloadedAndVerified),
+			Buttons: []string{i18n.T(i18n.KeyCmdLater), i18n.T(i18n.KeyCmdInstallAndQuit)}, DefaultButton: 0, CancelButton: 0})
 		if err != nil {
 			s.taskProtectionError(win, err)
 			return false

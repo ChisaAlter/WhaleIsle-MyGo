@@ -879,7 +879,7 @@ func (s *mainState) saveDesktopConfig() {
 	}
 	if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 		s.desktopLastAction = ""
-		s.desktopSaveErr = fmt.Sprintf("%s: %v", resumeText("设置已保存，但开机启动未生效", "Settings saved, but startup registration failed"), err)
+		s.desktopSaveErr = fmt.Sprintf("%s: %v", i18n.T(i18n.KeyCmdSettingsSavedButStartupRegistrationFai), err)
 		log.Println("openAtLogin:", err)
 	}
 	if s.sessions != nil {
@@ -2538,7 +2538,7 @@ func main() {
 		resumeErr := state.resumeError
 		state.mu.Unlock()
 		if resumeErr != "" {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: resumeText("恢复状态需要处理", "Resume state needs attention"), Message: resumeErr + "\n\n" + resumeText("原文件已保留，请备份后修复。当前窗口不会自动覆盖该文件。", "The original file is preserved. Back it up before repairing it. This window will not automatically overwrite it.")})
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdResumeStateNeedsAttention), Message: resumeErr + "\n\n" + i18n.T(i18n.KeyCmdTheOriginalFileIsPreservedBackItUpBe)})
 		}
 
 		if !isolatedDesktopRun() {
@@ -3702,7 +3702,7 @@ func mainView(c *ui.Context) {
 				Placeholder:   i18n.T(i18n.KeyGitCommitPlaceholder),
 				CommitLabel:   i18n.T(i18n.KeyGitCommit),
 				CancelLabel:   i18n.T(i18n.KeyGitCommitCancel),
-				GenerateLabel: resumeText("自动生成", "Generate"),
+				GenerateLabel: i18n.T(i18n.KeyCmdGenerate),
 				Generating:    gitCommitGenerating,
 				GenerateError: gitCommitGenErr,
 				OnGenerate: func() {
@@ -4975,7 +4975,7 @@ func mainView(c *ui.Context) {
 							text, err := scheduler.History(context.Background(), sid, id)
 							state.mu.Lock()
 							if err != nil {
-								state.pendingToast = saveFailedToast(resumeText("读取任务历史", "Read task history"), err)
+								state.pendingToast = saveFailedToast(i18n.T(i18n.KeyCmdReadTaskHistory), err)
 							} else {
 								state.scheduleHistoryText = text
 							}
@@ -4994,7 +4994,7 @@ func mainView(c *ui.Context) {
 						scheduler := schedStore
 						go func() {
 							if err := scheduler.UpdateTitle(context.Background(), sid, id, title); err != nil {
-								state.notifyUser(win, saveFailedToast(resumeText("保存标题", "Save title"), err))
+								state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdSaveTitle), err))
 								return
 							}
 							if win != nil {
@@ -5010,7 +5010,7 @@ func mainView(c *ui.Context) {
 						scheduler := schedStore
 						go func() {
 							if err := scheduler.UpdatePrompt(context.Background(), sid, id, prompt); err != nil {
-								state.notifyUser(win, saveFailedToast(resumeText("保存提示词", "Save prompt"), err))
+								state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdSavePrompt), err))
 								return
 							}
 							if win != nil {
@@ -5026,7 +5026,7 @@ func mainView(c *ui.Context) {
 						// The schedule service has no local create RPC: the
 						// reference flow is to describe the task to the agent.
 						// Say so instead of dropping the user on an empty hero.
-						state.notifyUser(win, resumeText("在会话中描述要定时的任务，Agent 会创建并显示在此页。", "Describe the task in the conversation; the agent creates it and it appears here."))
+						state.notifyUser(win, i18n.T(i18n.KeyCmdDescribeTheTaskInTheConversationTheAg))
 					},
 					OnClose: func() {
 						state.mu.Lock()
@@ -5099,7 +5099,7 @@ func mainView(c *ui.Context) {
 							ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 							defer cancel()
 							if _, err := callDesktopPlugin(ctx, "pluginManager/setBundleEnabled", map[string]any{"name": "dsh-im", "enabled": true}); err != nil {
-								state.notifyUser(win, saveFailedToast(resumeText("启用 dsh-im", "Enable dsh-im"), err))
+								state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdEnableDshIm), err))
 								return
 							}
 							if state.cfgStore != nil {
@@ -5113,7 +5113,7 @@ func mainView(c *ui.Context) {
 									c.DisabledPlugins = kept
 								})
 							}
-							state.notifyUser(win, resumeText("已启用 dsh-im 插件；若页面仍为空请重启应用", "dsh-im enabled; restart the app if the page stays empty"))
+							state.notifyUser(win, i18n.T(i18n.KeyCmdDshImEnabledRestartTheAppIfThePageS))
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -5241,7 +5241,7 @@ func mainView(c *ui.Context) {
 						if err := state.cfgStore.Update(func(c *config.Config) {
 							c.RemoteWorkspaceEnabled = enabled
 						}); err != nil {
-							state.notifyUser(win, saveFailedToast(resumeText("远程工作区", "Remote workspace"), err))
+							state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdRemoteWorkspace), err))
 						}
 						if win != nil {
 							win.Update(func() {})
@@ -5883,7 +5883,7 @@ func mainView(c *ui.Context) {
 					HostError:     hostErr,
 					OnOpenURL: func(u string) {
 						if err := mygo.Shell.OpenExternal(u); err != nil {
-							state.notifyUser(win, saveFailedToast(resumeText("打开下载页", "Open the download page"), err))
+							state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdOpenTheDownloadPage), err))
 						}
 					},
 					OnClose: func() {
@@ -6310,7 +6310,7 @@ func mainView(c *ui.Context) {
 							if missing {
 								state.refuseHostAction()
 							} else if err != nil {
-								state.notifyUser(win, saveFailedToast(resumeText("自动允许工具", "Auto-allow tools"), err))
+								state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdAutoAllowTools), err))
 							}
 						},
 						ConnectionBanner: connBanner,

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/update"
@@ -87,7 +88,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	for _, row := range snapshot.rows {
 		if row.UnavailableReason == "" && (m.VendorReady || row.RuntimeIncluded) && !row.Prerelease && update.CompareVersions(row.Version, buildVersion) > 0 {
 			m.UpdateAvailable = true
-			m.UpdateStatus = fmt.Sprintf(resumeText("可安装 MyGo %s", "MyGo %s is available"), row.Version)
+			m.UpdateStatus = fmt.Sprintf(i18n.T(i18n.KeyCmdMygoIsAvailable), row.Version)
 			break
 		}
 	}
@@ -96,7 +97,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	pendingUpdate := s.startupRecovery.updateAttention.Pending()
 	s.mu.Unlock()
 	if pendingUpdate && m.UpdateAvailable {
-		m.UpdateStatus += resumeText("，等待确认。可在启动器中选择稍后或下载。", "; awaiting confirmation. Choose Later or Download in the launcher.")
+		m.UpdateStatus += i18n.T(i18n.KeyCmdAwaitingConfirmationChooseLaterOrDownl)
 	}
 	return s.withApplicationUninstall(win, s.withStartupDiagnostics(s.withWhaleBridgeAlerts(m)))
 }
@@ -119,7 +120,7 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 	s.nativeReleases.initialized = true
 	s.nativeReleases.route = route
 	s.nativeReleases.busy, s.nativeReleases.cancel = true, cancel
-	s.nativeReleases.status = resumeText("正在读取 MyGo 发布目录…", "Loading MyGo release catalog…")
+	s.nativeReleases.status = i18n.T(i18n.KeyCmdLoadingMygoReleaseCatalog)
 	s.nativeReleases.phase = "checking"
 	s.nativeReleases.err = ""
 	s.nativeReleases.received, s.nativeReleases.total = 0, 0
@@ -135,16 +136,16 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 		r.busy, r.cancel = false, nil
 		if err != nil {
 			r.err = err.Error()
-			r.status = resumeText("目录读取失败；已保留此前列表和下载。", "Catalog lookup failed; the previous list and download were kept.")
+			r.status = i18n.T(i18n.KeyCmdCatalogLookupFailedThePreviousListAnd)
 			if errors.Is(err, context.Canceled) {
-				r.status = resumeText("已取消读取发布目录。", "Release lookup cancelled.")
+				r.status = i18n.T(i18n.KeyCmdReleaseLookupCancelled)
 			}
 		} else {
 			r.rows = rows
 			r.catalogRoute = route
-			r.status = fmt.Sprintf(resumeText("已读取 %d 个 MyGo 发布条目。", "Loaded %d MyGo releases."), len(rows))
+			r.status = fmt.Sprintf(i18n.T(i18n.KeyCmdLoadedMygoReleases), len(rows))
 			if len(rows) == 0 {
-				r.status = resumeText("尚未发布兼容的 MyGo 安装包。", "No compatible MyGo installer has been published.")
+				r.status = i18n.T(i18n.KeyCmdNoCompatibleMygoInstallerHasBeenPublis)
 			}
 			found := false
 			for _, row := range rows {
@@ -187,7 +188,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		return
 	}
 	if requireRuntime && strings.TrimSpace(os.Getenv(paths.EnvVendor)) != "" {
-		r.err = resumeText("当前设置了 WHALEISLE_VENDOR；原生安装器不会覆盖自定义运行时目录。请修复该目录或取消此覆盖后重试。", "WHALEISLE_VENDOR overrides the runtime path. The native installer cannot replace that custom directory; repair it or remove the override before retrying.")
+		r.err = i18n.T(i18n.KeyCmdWhaleisleVendorOverridesTheRuntimePath)
 		r.phase = "error"
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
@@ -201,7 +202,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 	r.attentionGeneration++
 	s.startupRecovery.updateAttention.DismissCurrent()
 	r.initialized, r.route, r.busy, r.cancel = true, route, true, cancel
-	r.status, r.err = resumeText("正在选择并校验 MyGo 安装包…", "Selecting and verifying a MyGo installer…"), ""
+	r.status, r.err = i18n.T(i18n.KeyCmdSelectingAndVerifyingAMygoInstaller), ""
 	r.phase = ""
 	if len(rows) == 0 {
 		r.phase = "checking"
@@ -230,9 +231,9 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 			s.mu.Lock()
 			s.nativeReleases.selected = selected.PackageKey()
-			s.nativeReleases.status = resumeText("正在下载并校验完整安装包：", "Downloading and verifying full installer: ") + selected.Tag
+			s.nativeReleases.status = i18n.T(i18n.KeyCmdDownloadingAndVerifyingFullInstaller) + selected.Tag
 			if selected.IsDelta() {
-				s.nativeReleases.status = resumeText("正在复用已缓存安装包并下载变化区块：", "Reusing cached installer and downloading changed blocks: ") + selected.Tag
+				s.nativeReleases.status = i18n.T(i18n.KeyCmdReusingCachedInstallerAndDownloadingCh) + selected.Tag
 			}
 			s.mu.Unlock()
 			// The launcher's native release download keeps the same evidence as
@@ -282,9 +283,9 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		journal.Version = selected.Version
 		if err != nil {
 			r.err = err.Error()
-			r.status = resumeText("安装准备失败；当前安装、选择和此前已校验下载均保留。", "Installation preparation failed; the current installation, selection and previous verified download were kept.")
+			r.status = i18n.T(i18n.KeyCmdInstallationPreparationFailedTheCurren)
 			if errors.Is(err, context.Canceled) {
-				r.status = resumeText("已取消下载，未更改当前安装。", "Download cancelled; the current installation was not changed.")
+				r.status = i18n.T(i18n.KeyCmdDownloadCancelledTheCurrentInstallatio)
 				r.err = ""
 				journal = update.JournalState{}
 			} else {
@@ -292,24 +293,24 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 		} else {
 			r.staged, r.stagedTag = staged, selected.Tag
-			variant := resumeText("仅桌面端", "Desktop only")
+			variant := i18n.T(i18n.KeyCmdDesktopOnly)
 			if selected.RuntimeIncluded {
-				variant = resumeText("包含运行时", "Includes runtime")
+				variant = i18n.T(i18n.KeyCmdIncludesRuntime)
 			}
-			kind := resumeText("完整包", "Full package")
+			kind := i18n.T(i18n.KeyCmdFullPackage)
 			if selected.IsDelta() {
-				kind = resumeText("差量重建", "Delta reconstruction")
+				kind = i18n.T(i18n.KeyCmdDeltaReconstruction)
 			}
 			r.stagedTitle = selected.Tag + " · " + kind + " · " + variant
-			r.status = resumeText("安装包已下载并校验。点击“安装并退出”继续；仅安装所选发布明确列出的内容。", "Installer downloaded and verified. Choose Install and quit to install the contents declared by the selected release.")
+			r.status = i18n.T(i18n.KeyCmdInstallerDownloadedAndVerifiedChooseIn)
 			if selected.Platform == "darwin" {
-				r.status = resumeText("磁盘映像已下载并校验。点击“打开磁盘映像并退出”，再将 Whale Isle.app 拖到 Applications 完成安装。", "Disk image downloaded and verified. Choose Open disk image and quit, then drag Whale Isle.app to Applications to finish installation.")
+				r.status = i18n.T(i18n.KeyCmdDiskImageDownloadedAndVerifiedChooseOp)
 			}
 			if selected.IsDelta() && !staged.UsedRange && staged.CopiedBlocks == 0 {
-				r.status += resumeText(" 下载源未提供范围请求，已回退完整下载并校验。", " The source did not support ranges; the complete installer was downloaded and verified.")
+				r.status += i18n.T(i18n.KeyCmdTheSourceDidNotSupportRangesTheComple)
 			}
 			if strings.Contains(staged.Message, "native base cache unavailable:") {
-				r.status += resumeText(" 安装包已保留，但未能缓存后续差量更新基包；后续仍可使用完整包。", " The installer is retained, but caching it for future deltas failed; full packages remain available.")
+				r.status += i18n.T(i18n.KeyCmdTheInstallerIsRetainedButCachingItFor)
 			}
 			r.err = ""
 		}
@@ -335,7 +336,7 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 	if !update.CanStartStaged(staged) {
 		s.mu.Lock()
 		s.nativeReleases.phase = "error"
-		s.nativeReleases.err = resumeText("当前平台无法启动此安装器。", "This platform cannot start the installer.")
+		s.nativeReleases.err = i18n.T(i18n.KeyCmdThisPlatformCannotStartTheInstaller)
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
 		return
@@ -362,7 +363,7 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 		}()
 		if !s.installStagedUpdateWithConsent(win, staged, true) {
 			s.mu.Lock()
-			s.nativeReleases.status = resumeText("已保留校验后的安装包，可稍后重试安装；当前窗口未关闭。", "Verified installer retained for retry; the current window remains open.")
+			s.nativeReleases.status = i18n.T(i18n.KeyCmdVerifiedInstallerRetainedForRetryTheCu)
 			s.mu.Unlock()
 			s.nativeReleaseNotify(win)
 		}

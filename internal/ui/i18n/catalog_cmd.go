@@ -130,6 +130,95 @@ const (
 	KeyCmdTheOriginalFileWasNotOverwrittenKeepT  = "cmd.the_original_file_was_not_overwritten_keep_t"
 	KeyCmdKeepWindowOpen                         = "cmd.keep_window_open"
 	KeyCmdQuitWithoutSaving                      = "cmd.quit_without_saving"
+	KeyCmdActionDidNotCompleteTheWindowWasKept   = "cmd.action_did_not_complete_the_window_was_kept"
+	KeyCmdQuit                                   = "cmd.quit"
+	KeyCmdRestart                                = "cmd.restart"
+	KeyCmdInstallUpdateAndQuit                   = "cmd.install_update_and_quit"
+	KeyCmdChangeWhalebridgeComponent             = "cmd.change_whalebridge_component"
+	KeyCmdStopRuntime                            = "cmd.stop_runtime"
+	KeyCmdThisStopsTheHostRuntimeTheDesktopAppl  = "cmd.this_stops_the_host_runtime_the_desktop_appl"
+	KeyCmdHostTaskProtectionIsUnavailableBackgro = "cmd.host_task_protection_is_unavailable_backgrou"
+	KeyCmdKnownLocalRunningWorkSessionsAndTermin = "cmd.known_local_running_work_sessions_and_termin"
+	KeyCmdTheseChecksAreUnknown                  = "cmd.these_checks_are_unknown"
+	KeyCmdContinuingMayInterruptWorkThisDoesNot  = "cmd.continuing_may_interrupt_work_this_does_not"
+	KeyCmdContinue                               = "cmd.continue"
+	KeyCmdImportIsStillRunningWaitForCompletion  = "cmd.import_is_still_running_wait_for_completion"
+	KeyCmdLocalWorkItemsSessionsAndTerminalsAre  = "cmd.local_work_items_sessions_and_terminals_are"
+	KeyCmdInstallUpdate                          = "cmd.install_update"
+	KeyCmdTheUpdateHasBeenDownloadedAndVerified  = "cmd.the_update_has_been_downloaded_and_verified"
+	KeyCmdInstallAndQuit                         = "cmd.install_and_quit"
+	KeyCmdMygoIsAvailable                        = "cmd.mygo_is_available"
+	KeyCmdAwaitingConfirmationChooseLaterOrDownl = "cmd.awaiting_confirmation_choose_later_or_downlo"
+	KeyCmdLoadingMygoReleaseCatalog              = "cmd.loading_mygo_release_catalog"
+	KeyCmdCatalogLookupFailedThePreviousListAnd  = "cmd.catalog_lookup_failed_the_previous_list_and"
+	KeyCmdReleaseLookupCancelled                 = "cmd.release_lookup_cancelled"
+	KeyCmdLoadedMygoReleases                     = "cmd.loaded_mygo_releases"
+	KeyCmdNoCompatibleMygoInstallerHasBeenPublis = "cmd.no_compatible_mygo_installer_has_been_publis"
+	KeyCmdWhaleisleVendorOverridesTheRuntimePath = "cmd.whaleisle_vendor_overrides_the_runtime_path"
+	KeyCmdSelectingAndVerifyingAMygoInstaller    = "cmd.selecting_and_verifying_a_mygo_installer"
+	KeyCmdDownloadingAndVerifyingFullInstaller   = "cmd.downloading_and_verifying_full_installer"
+	KeyCmdReusingCachedInstallerAndDownloadingCh = "cmd.reusing_cached_installer_and_downloading_cha"
+	KeyCmdInstallationPreparationFailedTheCurren = "cmd.installation_preparation_failed_the_current"
+	KeyCmdDownloadCancelledTheCurrentInstallatio = "cmd.download_cancelled_the_current_installation"
+	KeyCmdDesktopOnly                            = "cmd.desktop_only"
+	KeyCmdIncludesRuntime                        = "cmd.includes_runtime"
+	KeyCmdFullPackage                            = "cmd.full_package"
+	KeyCmdDeltaReconstruction                    = "cmd.delta_reconstruction"
+	KeyCmdInstallerDownloadedAndVerifiedChooseIn = "cmd.installer_downloaded_and_verified_choose_ins"
+	KeyCmdDiskImageDownloadedAndVerifiedChooseOp = "cmd.disk_image_downloaded_and_verified_choose_op"
+	KeyCmdTheSourceDidNotSupportRangesTheComple  = "cmd.the_source_did_not_support_ranges_the_comple"
+	KeyCmdTheInstallerIsRetainedButCachingItFor  = "cmd.the_installer_is_retained_but_caching_it_for"
+	KeyCmdThisPlatformCannotStartTheInstaller    = "cmd.this_platform_cannot_start_the_installer"
+	KeyCmdVerifiedInstallerRetainedForRetryTheCu = "cmd.verified_installer_retained_for_retry_the_cu"
+	KeyCmdVerifyingWhalebridgeVersionAndImpactTh = "cmd.verifying_whalebridge_version_and_impact_the"
+	KeyCmdCancelledTheInstalledVersionConnection = "cmd.cancelled_the_installed_version_connections"
+	KeyCmdWhalebridgeV                           = "cmd.whalebridge_v"
+	KeyCmdWasUninstalledAndDisconnectedChatsAndO = "cmd.was_uninstalled_and_disconnected_chats_and_o"
+	KeyCmdProviderSettingsKeysAccountsAndUsageWe = "cmd.provider_settings_keys_accounts_and_usage_we"
+	KeyCmdWhalebridgeProviderSettingsKeysAccount = "cmd.whalebridge_provider_settings_keys_accounts"
+	KeyCmdSelectANewDefaultModel                 = "cmd.select_a_new_default_model"
+	KeyCmdWhalebridgeSwitchedToV                 = "cmd.whalebridge_switched_to_v"
+	KeyCmdUserDataAndTheOriginalRunningStateWer  = "cmd.user_data_and_the_original_running_state_wer"
+	KeyCmdConfirmWhalebridgeUninstall            = "cmd.confirm_whalebridge_uninstall"
+	KeyCmdContinueUninstall                      = "cmd.continue_uninstall"
+	KeyCmdTargetWhalebridgeVThisStopsTheService  = "cmd.target_whalebridge_v_this_stops_the_service"
+	KeyCmdYourCurrentDefaultModelUsesWhalebridge = "cmd.your_current_default_model_uses_whalebridge"
+	KeyCmdConfirmWhalebridgeVersionChange        = "cmd.confirm_whalebridge_version_change"
+	KeyCmdSwitchVersion                          = "cmd.switch_version"
+	KeyCmdConfirmWhalebridgeRollback             = "cmd.confirm_whalebridge_rollback"
+	KeyCmdRollBack                               = "cmd.roll_back"
+	KeyCmdTargetWhalebridgeVARunningServiceWill  = "cmd.target_whalebridge_v_a_running_service_will"
+	KeyCmdAlsoDeleteWhalebridgeConfiguration     = "cmd.also_delete_whalebridge_configuration"
+	KeyCmdTargetNNdeletionPermanentlyRemovesWhal = "cmd.target_n_ndeletion_permanently_removes_whale"
+	KeyCmdDeleteConfiguration                    = "cmd.delete_configuration"
+	KeyCmdKeepConfiguration                      = "cmd.keep_configuration"
+	KeyCmdChooseAMacosHostOfflineBundle          = "cmd.choose_a_macos_host_offline_bundle"
+	KeyCmdInstallHostOfflineBundle               = "cmd.install_host_offline_bundle"
+	KeyCmdSourceNdestinationNNextractAndInstallT = "cmd.source_ndestination_n_nextract_and_install_t"
+	KeyCmdInstall                                = "cmd.install"
+	KeyCmdExtractingAndCheckingHostAndItsMatchin = "cmd.extracting_and_checking_host_and_its_matchin"
+	KeyCmdHostVWasInstalledInChooseSelectInstal  = "cmd.host_v_was_installed_in_choose_select_instal"
+	KeyCmdSelectAnInstalledHostVersionDirectory  = "cmd.select_an_installed_host_version_directory"
+	KeyCmdReadingTheSelectedHostVersion          = "cmd.reading_the_selected_host_version"
+	KeyCmdHostSelectionWasNotChangedIfTaskProte  = "cmd.host_selection_was_not_changed_if_task_prote"
+	KeyCmdHostVIsSelectedTheRuntimeRemainsStopp  = "cmd.host_v_is_selected_the_runtime_remains_stopp"
+	KeyCmdHostActionDidNotComplete               = "cmd.host_action_did_not_complete"
+	KeyCmdSelectHostVersion                      = "cmd.select_host_version"
+	KeyCmdTargetHostVNNtheExistingTaskProtectio  = "cmd.target_host_v_n_nthe_existing_task_protectio"
+	KeyCmdStopAndSelect                          = "cmd.stop_and_select"
+	KeyCmdSettingsSavedButStartupRegistrationFai = "cmd.settings_saved_but_startup_registration_fail"
+	KeyCmdResumeStateNeedsAttention              = "cmd.resume_state_needs_attention"
+	KeyCmdTheOriginalFileIsPreservedBackItUpBe   = "cmd.the_original_file_is_preserved_back_it_up_be"
+	KeyCmdGenerate                               = "cmd.generate"
+	KeyCmdReadTaskHistory                        = "cmd.read_task_history"
+	KeyCmdSaveTitle                              = "cmd.save_title"
+	KeyCmdSavePrompt                             = "cmd.save_prompt"
+	KeyCmdDescribeTheTaskInTheConversationTheAg  = "cmd.describe_the_task_in_the_conversation_the_ag"
+	KeyCmdEnableDshIm                            = "cmd.enable_dsh_im"
+	KeyCmdDshImEnabledRestartTheAppIfThePageS    = "cmd.dsh_im_enabled_restart_the_app_if_the_page_s"
+	KeyCmdRemoteWorkspace                        = "cmd.remote_workspace"
+	KeyCmdOpenTheDownloadPage                    = "cmd.open_the_download_page"
+	KeyCmdAutoAllowTools                         = "cmd.auto_allow_tools"
 )
 
 func init() {
@@ -259,6 +348,95 @@ func init() {
 	Register(KeyCmdTheOriginalFileWasNotOverwrittenKeepT, "原文件未被覆盖。请保留窗口、备份草稿并解决磁盘或多实例冲突后重试。直接退出可能丢失本次未保存内容。", "The original file was not overwritten. Keep this window open, back up drafts, and resolve disk or other-instance conflicts before retrying. Quitting now may lose unsaved changes.")
 	Register(KeyCmdKeepWindowOpen, "保留窗口", "Keep window open")
 	Register(KeyCmdQuitWithoutSaving, "不保存并退出", "Quit without saving")
+	Register(KeyCmdActionDidNotCompleteTheWindowWasKept, "操作未完成，已保留当前窗口：", "Action did not complete; the window was kept open: ")
+	Register(KeyCmdQuit, "退出", "Quit")
+	Register(KeyCmdRestart, "重启", "Restart")
+	Register(KeyCmdInstallUpdateAndQuit, "安装更新并退出", "Install update and quit")
+	Register(KeyCmdChangeWhalebridgeComponent, "更改鲸桥组件", "Change WhaleBridge component")
+	Register(KeyCmdStopRuntime, "停止内核", "Stop runtime")
+	Register(KeyCmdThisStopsTheHostRuntimeTheDesktopAppl, "这会停止 Host 内核，桌面应用窗口将保持打开。", "This stops the Host runtime. The desktop application window will stay open.")
+	Register(KeyCmdHostTaskProtectionIsUnavailableBackgro, "Host 任务保护不可用，无法确认后台任务、定时任务或在途请求是否已排空。继续将仅依赖本地会话信息，可能中断未显示的工作。", "Host task protection is unavailable. Background work, scheduled tasks and in-flight requests cannot be verified or drained. Continuing relies only on local session information and may interrupt unseen work.")
+	Register(KeyCmdKnownLocalRunningWorkSessionsAndTermin, "本地运行工作（会话和终端）：%d；Host 活动和计划工作：未知。", "Known local running work (sessions and terminals): %d; Host active and scheduled work: unknown.")
+	Register(KeyCmdTheseChecksAreUnknown, "以下检查状态未知：", "These checks are unknown: ")
+	Register(KeyCmdContinuingMayInterruptWorkThisDoesNot, "继续可能中断任务；这不代表任务已经完成。是否仍要", "Continuing may interrupt work; this does not mean it has finished. Continue with ")
+	Register(KeyCmdContinue, "仍要", "Continue: ")
+	Register(KeyCmdImportIsStillRunningWaitForCompletion, "导入尚未结束，请等待完成或取消后重试。", "Import is still running; wait for completion or cancel it before retrying.")
+	Register(KeyCmdLocalWorkItemsSessionsAndTerminalsAre, "当前有 %d 个本地工作（会话和终端）仍在运行。继续会中断任务，仍要继续吗？", "%d local work items (sessions and terminals) are still running. Continuing will interrupt work. Continue?")
+	Register(KeyCmdInstallUpdate, "安装更新", "Install update")
+	Register(KeyCmdTheUpdateHasBeenDownloadedAndVerified, "更新已下载并校验。继续会启动安装器，停止 Host 并退出桌面应用。", "The update has been downloaded and verified. Continuing starts the installer, stops the Host and quits the desktop application.")
+	Register(KeyCmdInstallAndQuit, "安装并退出", "Install and quit")
+	Register(KeyCmdMygoIsAvailable, "可安装 MyGo %s", "MyGo %s is available")
+	Register(KeyCmdAwaitingConfirmationChooseLaterOrDownl, "，等待确认。可在启动器中选择稍后或下载。", "; awaiting confirmation. Choose Later or Download in the launcher.")
+	Register(KeyCmdLoadingMygoReleaseCatalog, "正在读取 MyGo 发布目录…", "Loading MyGo release catalog…")
+	Register(KeyCmdCatalogLookupFailedThePreviousListAnd, "目录读取失败；已保留此前列表和下载。", "Catalog lookup failed; the previous list and download were kept.")
+	Register(KeyCmdReleaseLookupCancelled, "已取消读取发布目录。", "Release lookup cancelled.")
+	Register(KeyCmdLoadedMygoReleases, "已读取 %d 个 MyGo 发布条目。", "Loaded %d MyGo releases.")
+	Register(KeyCmdNoCompatibleMygoInstallerHasBeenPublis, "尚未发布兼容的 MyGo 安装包。", "No compatible MyGo installer has been published.")
+	Register(KeyCmdWhaleisleVendorOverridesTheRuntimePath, "当前设置了 WHALEISLE_VENDOR；原生安装器不会覆盖自定义运行时目录。请修复该目录或取消此覆盖后重试。", "WHALEISLE_VENDOR overrides the runtime path. The native installer cannot replace that custom directory; repair it or remove the override before retrying.")
+	Register(KeyCmdSelectingAndVerifyingAMygoInstaller, "正在选择并校验 MyGo 安装包…", "Selecting and verifying a MyGo installer…")
+	Register(KeyCmdDownloadingAndVerifyingFullInstaller, "正在下载并校验完整安装包：", "Downloading and verifying full installer: ")
+	Register(KeyCmdReusingCachedInstallerAndDownloadingCh, "正在复用已缓存安装包并下载变化区块：", "Reusing cached installer and downloading changed blocks: ")
+	Register(KeyCmdInstallationPreparationFailedTheCurren, "安装准备失败；当前安装、选择和此前已校验下载均保留。", "Installation preparation failed; the current installation, selection and previous verified download were kept.")
+	Register(KeyCmdDownloadCancelledTheCurrentInstallatio, "已取消下载，未更改当前安装。", "Download cancelled; the current installation was not changed.")
+	Register(KeyCmdDesktopOnly, "仅桌面端", "Desktop only")
+	Register(KeyCmdIncludesRuntime, "包含运行时", "Includes runtime")
+	Register(KeyCmdFullPackage, "完整包", "Full package")
+	Register(KeyCmdDeltaReconstruction, "差量重建", "Delta reconstruction")
+	Register(KeyCmdInstallerDownloadedAndVerifiedChooseIn, "安装包已下载并校验。点击“安装并退出”继续；仅安装所选发布明确列出的内容。", "Installer downloaded and verified. Choose Install and quit to install the contents declared by the selected release.")
+	Register(KeyCmdDiskImageDownloadedAndVerifiedChooseOp, "磁盘映像已下载并校验。点击“打开磁盘映像并退出”，再将 Whale Isle.app 拖到 Applications 完成安装。", "Disk image downloaded and verified. Choose Open disk image and quit, then drag Whale Isle.app to Applications to finish installation.")
+	Register(KeyCmdTheSourceDidNotSupportRangesTheComple, " 下载源未提供范围请求，已回退完整下载并校验。", " The source did not support ranges; the complete installer was downloaded and verified.")
+	Register(KeyCmdTheInstallerIsRetainedButCachingItFor, " 安装包已保留，但未能缓存后续差量更新基包；后续仍可使用完整包。", " The installer is retained, but caching it for future deltas failed; full packages remain available.")
+	Register(KeyCmdThisPlatformCannotStartTheInstaller, "当前平台无法启动此安装器。", "This platform cannot start the installer.")
+	Register(KeyCmdVerifiedInstallerRetainedForRetryTheCu, "已保留校验后的安装包，可稍后重试安装；当前窗口未关闭。", "Verified installer retained for retry; the current window remains open.")
+	Register(KeyCmdVerifyingWhalebridgeVersionAndImpactTh, "正在校验鲸桥版本和操作影响；现有实例保持运行…", "Verifying WhaleBridge version and impact; the current instance stays running…")
+	Register(KeyCmdCancelledTheInstalledVersionConnection, "已取消；现有版本、连接和配置保持不变。", "Cancelled; the installed version, connections and configuration are unchanged.")
+	Register(KeyCmdWhalebridgeV, "鲸桥 v", "WhaleBridge v")
+	Register(KeyCmdWasUninstalledAndDisconnectedChatsAndO, " 已卸载并断开。聊天记录和其他渠道已保留。", " was uninstalled and disconnected. Chats and other channels were retained.")
+	Register(KeyCmdProviderSettingsKeysAccountsAndUsageWe, " 供应商配置、密钥、账户和用量数据已保留。", " Provider settings, keys, accounts and usage were retained.")
+	Register(KeyCmdWhalebridgeProviderSettingsKeysAccount, " 鲸桥供应商配置、密钥、账户和用量数据已删除。", " WhaleBridge provider settings, keys, accounts and usage were deleted.")
+	Register(KeyCmdSelectANewDefaultModel, " 请重新选择默认模型。", " Select a new default model.")
+	Register(KeyCmdWhalebridgeSwitchedToV, "鲸桥已切换至 v", "WhaleBridge switched to v")
+	Register(KeyCmdUserDataAndTheOriginalRunningStateWer, "；用户数据和原运行状态已保留", "; user data and the original running state were retained")
+	Register(KeyCmdConfirmWhalebridgeUninstall, "确认卸载鲸桥", "Confirm WhaleBridge uninstall")
+	Register(KeyCmdContinueUninstall, "继续卸载", "Continue uninstall")
+	Register(KeyCmdTargetWhalebridgeVThisStopsTheService, "目标：鲸桥 v%s。将停止服务、断开鲸桥渠道并删除程序文件；现有连接会中断。将移除桌面端的鲸桥网关凭据引用。支持外部代理托管的版本还会撤销鲸桥代管的代理接入设置。默认保留供应商配置和密钥、账户及用量；下一步可选择是否删除鲸桥配置。聊天记录和其他渠道会保留。官方断开命令如果中途失败，程序恢复不代表全部接入设置已恢复，请检查默认模型和受管代理。", "Target: WhaleBridge v%s. This stops the service, disconnects its channel and removes program files. Existing connections will be interrupted. The desktop WhaleBridge gateway credential reference is removed. Versions with managed external agents also undo their WhaleBridge-managed connection settings. Provider settings and keys, accounts and usage are retained by default; the next step lets you choose whether to delete WhaleBridge configuration. Chats and other channels are retained. If the official disconnect command fails partway, restoring program files does not restore every connection setting. Check the default model and managed agents.")
+	Register(KeyCmdYourCurrentDefaultModelUsesWhalebridge, "当前默认模型使用鲸桥。卸载后必须重新选择默认模型。", "Your current default model uses WhaleBridge. Select a new default model after uninstalling.")
+	Register(KeyCmdConfirmWhalebridgeVersionChange, "确认切换鲸桥版本", "Confirm WhaleBridge version change")
+	Register(KeyCmdSwitchVersion, "切换版本", "Switch version")
+	Register(KeyCmdConfirmWhalebridgeRollback, "确认回滚鲸桥", "Confirm WhaleBridge rollback")
+	Register(KeyCmdRollBack, "回滚", "Roll back")
+	Register(KeyCmdTargetWhalebridgeVARunningServiceWill, "目标：鲸桥 v%s。正在运行的服务会先停止再重新启动，连接会暂时中断；原本停止的组件会保持停止。配置和用户数据会保留；切换失败会尝试恢复原版本。", "Target: WhaleBridge v%s. A running service will stop and restart, temporarily interrupting connections. A stopped component stays stopped. Configuration and user data are retained; a failed switch attempts to restore the original version.")
+	Register(KeyCmdAlsoDeleteWhalebridgeConfiguration, "是否同时删除鲸桥配置？", "Also delete WhaleBridge configuration?")
+	Register(KeyCmdTargetNNdeletionPermanentlyRemovesWhal, "目标：%s\n\n删除会永久清除该目录内鲸桥的供应商配置和密钥、账户及用量数据，无法在应用内恢复。保留后重新安装可继续使用。聊天记录和其他渠道不会删除。", "Target: %s\n\nDeletion permanently removes WhaleBridge provider settings and keys, accounts and usage in this directory. It cannot be undone in the app. Keeping it lets you reuse it after reinstalling. Chats and other channels are not deleted.")
+	Register(KeyCmdDeleteConfiguration, "删除配置", "Delete configuration")
+	Register(KeyCmdKeepConfiguration, "保留配置", "Keep configuration")
+	Register(KeyCmdChooseAMacosHostOfflineBundle, "选择 macOS Host 离线包", "Choose a macOS Host offline bundle")
+	Register(KeyCmdInstallHostOfflineBundle, "安装 Host 离线包", "Install Host offline bundle")
+	Register(KeyCmdSourceNdestinationNNextractAndInstallT, "来源：%s\n目标：%s\n\n将解包并安装这个本地原生 Host 与配套 Node。请确认文件来源可信。安装不会运行包内程序，也不会停止当前 Host；安装后可选择版本并单独启动。", "Source: %s\nDestination: %s\n\nExtract and install this local native Host and its matching Node. Confirm that you trust the source. Installation does not execute the bundle or stop the current Host. Select a version and start it separately after installation.")
+	Register(KeyCmdInstall, "安装", "Install")
+	Register(KeyCmdExtractingAndCheckingHostAndItsMatchin, "正在解包并校验 Host 与配套 Node；当前 Host 保持运行…", "Extracting and checking Host and its matching Node; the current Host stays running…")
+	Register(KeyCmdHostVWasInstalledInChooseSelectInstal, "Host v%s 已安装到 %s。点击“选择已安装版本”，确认选择后再启动。", "Host v%s was installed in %s. Choose “Select installed version”, confirm the selection, then start it.")
+	Register(KeyCmdSelectAnInstalledHostVersionDirectory, "选择已安装的 Host 版本目录", "Select an installed Host version directory")
+	Register(KeyCmdReadingTheSelectedHostVersion, "正在读取所选 Host 版本…", "Reading the selected Host version…")
+	Register(KeyCmdHostSelectionWasNotChangedIfTaskProte, "Host 选择未更改；如操作被任务保护阻止，请查看启动器提示。", "Host selection was not changed. If task protection blocked the action, check the launcher notice.")
+	Register(KeyCmdHostVIsSelectedTheRuntimeRemainsStopp, "已选择 Host v%s。内核保持停止；点击“启动 Host”使用该版本。", "Host v%s is selected. The runtime remains stopped; click “Start Host” to use this version.")
+	Register(KeyCmdHostActionDidNotComplete, "Host 操作未完成：", "Host action did not complete: ")
+	Register(KeyCmdSelectHostVersion, "选择 Host 版本", "Select Host version")
+	Register(KeyCmdTargetHostVNNtheExistingTaskProtectio, "目标：Host v%s (%s)\n\n会通过现有任务保护停止当前 Host 和手机连接，再保存该版本供下次启动使用。旧运行时、会话及配置会保留。选择完成后内核保持停止，需单独点击“启动 Host”。", "Target: Host v%s (%s)\n\nThe existing task protection will stop the current Host and phone connection before saving this version for the next start. Previous runtimes, sessions and settings are retained. The runtime stays stopped until you click “Start Host”.")
+	Register(KeyCmdStopAndSelect, "停止并选择", "Stop and select")
+	Register(KeyCmdSettingsSavedButStartupRegistrationFai, "设置已保存，但开机启动未生效", "Settings saved, but startup registration failed")
+	Register(KeyCmdResumeStateNeedsAttention, "恢复状态需要处理", "Resume state needs attention")
+	Register(KeyCmdTheOriginalFileIsPreservedBackItUpBe, "原文件已保留，请备份后修复。当前窗口不会自动覆盖该文件。", "The original file is preserved. Back it up before repairing it. This window will not automatically overwrite it.")
+	Register(KeyCmdGenerate, "自动生成", "Generate")
+	Register(KeyCmdReadTaskHistory, "读取任务历史", "Read task history")
+	Register(KeyCmdSaveTitle, "保存标题", "Save title")
+	Register(KeyCmdSavePrompt, "保存提示词", "Save prompt")
+	Register(KeyCmdDescribeTheTaskInTheConversationTheAg, "在会话中描述要定时的任务，Agent 会创建并显示在此页。", "Describe the task in the conversation; the agent creates it and it appears here.")
+	Register(KeyCmdEnableDshIm, "启用 dsh-im", "Enable dsh-im")
+	Register(KeyCmdDshImEnabledRestartTheAppIfThePageS, "已启用 dsh-im 插件；若页面仍为空请重启应用", "dsh-im enabled; restart the app if the page stays empty")
+	Register(KeyCmdRemoteWorkspace, "远程工作区", "Remote workspace")
+	Register(KeyCmdOpenTheDownloadPage, "打开下载页", "Open the download page")
+	Register(KeyCmdAutoAllowTools, "自动允许工具", "Auto-allow tools")
 }
 
 // Window titles, dialog titles and notifications opened from the desktop

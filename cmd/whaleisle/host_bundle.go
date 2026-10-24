@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	desktopcomponents "whaleisle/internal/desktop/components"
@@ -41,7 +42,7 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 		case "install":
 			var picked []string
 			picked, err = mygo.Dialog.Open(mygo.OpenDialogOptions{
-				Parent: win, Title: resumeText("选择 macOS Host 离线包", "Choose a macOS Host offline bundle"),
+				Parent: win, Title: i18n.T(i18n.KeyCmdChooseAMacosHostOfflineBundle),
 				Filters: []mygo.FileFilter{{Name: "WhaleIsle Host (.tar.gz)", Extensions: []string{"gz"}}},
 			})
 			if err != nil || len(picked) == 0 {
@@ -50,41 +51,41 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 			var answer mygo.MessageResult
 			answer, err = mygo.Dialog.Message(mygo.MessageOptions{
 				Parent: win, Type: mygo.MessageQuestion,
-				Title:   resumeText("安装 Host 离线包", "Install Host offline bundle"),
-				Message: fmt.Sprintf(resumeText("来源：%s\n目标：%s\n\n将解包并安装这个本地原生 Host 与配套 Node。请确认文件来源可信。安装不会运行包内程序，也不会停止当前 Host；安装后可选择版本并单独启动。", "Source: %s\nDestination: %s\n\nExtract and install this local native Host and its matching Node. Confirm that you trust the source. Installation does not execute the bundle or stop the current Host. Select a version and start it separately after installation."), picked[0], desktopcomponents.HostBundleVersionsDir(paths.UserDataDir())),
-				Buttons: []string{resumeText("取消", "Cancel"), resumeText("安装", "Install")}, DefaultButton: 0, CancelButton: 0,
+				Title:   i18n.T(i18n.KeyCmdInstallHostOfflineBundle),
+				Message: fmt.Sprintf(i18n.T(i18n.KeyCmdSourceNdestinationNNextractAndInstallT), picked[0], desktopcomponents.HostBundleVersionsDir(paths.UserDataDir())),
+				Buttons: []string{i18n.T(i18n.KeyCmdCancel), i18n.T(i18n.KeyCmdInstall)}, DefaultButton: 0, CancelButton: 0,
 			})
 			if err != nil || answer.Button != 1 {
 				break
 			}
-			s.hostBundleMessage(win, resumeText("正在解包并校验 Host 与配套 Node；当前 Host 保持运行…", "Extracting and checking Host and its matching Node; the current Host stays running…"))
+			s.hostBundleMessage(win, i18n.T(i18n.KeyCmdExtractingAndCheckingHostAndItsMatchin))
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 			var bundle desktopcomponents.HostBundle
 			bundle, err = desktopcomponents.InstallHostBundle(ctx, paths.UserDataDir(), picked[0])
 			cancel()
 			if err == nil {
-				message = fmt.Sprintf(resumeText("Host v%s 已安装到 %s。点击“选择已安装版本”，确认选择后再启动。", "Host v%s was installed in %s. Choose “Select installed version”, confirm the selection, then start it."), bundle.Manifest.Version, bundle.Directory)
+				message = fmt.Sprintf(i18n.T(i18n.KeyCmdHostVWasInstalledInChooseSelectInstal), bundle.Manifest.Version, bundle.Directory)
 			}
 		case "select":
 			var picked []string
 			picked, err = mygo.Dialog.Open(mygo.OpenDialogOptions{
-				Parent: win, Title: resumeText("选择已安装的 Host 版本目录", "Select an installed Host version directory"),
+				Parent: win, Title: i18n.T(i18n.KeyCmdSelectAnInstalledHostVersionDirectory),
 				Directory: true, DefaultPath: desktopcomponents.HostBundleVersionsDir(paths.UserDataDir()),
 			})
 			if err != nil || len(picked) == 0 {
 				break
 			}
-			s.hostBundleMessage(win, resumeText("正在读取所选 Host 版本…", "Reading the selected Host version…"))
+			s.hostBundleMessage(win, i18n.T(i18n.KeyCmdReadingTheSelectedHostVersion))
 			var bundle desktopcomponents.HostBundle
 			bundle, err = desktopcomponents.LoadHostBundle(paths.UserDataDir(), picked[0])
 			if err == nil {
 				var selected bool
 				selected, err = s.selectHostBundle(win, bundle)
 				if !selected && err == nil {
-					message = resumeText("Host 选择未更改；如操作被任务保护阻止，请查看启动器提示。", "Host selection was not changed. If task protection blocked the action, check the launcher notice.")
+					message = i18n.T(i18n.KeyCmdHostSelectionWasNotChangedIfTaskProte)
 				}
 				if selected {
-					message = fmt.Sprintf(resumeText("已选择 Host v%s。内核保持停止；点击“启动 Host”使用该版本。", "Host v%s is selected. The runtime remains stopped; click “Start Host” to use this version."), bundle.Manifest.Version)
+					message = fmt.Sprintf(i18n.T(i18n.KeyCmdHostVIsSelectedTheRuntimeRemainsStopp), bundle.Manifest.Version)
 				}
 			}
 		case "open", "manage":
@@ -93,7 +94,7 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 			err = desktopcomponents.ErrUnknownAction
 		}
 		if err != nil {
-			message = resumeText("Host 操作未完成：", "Host action did not complete: ") + err.Error()
+			message = i18n.T(i18n.KeyCmdHostActionDidNotComplete) + err.Error()
 		}
 		if message != "" {
 			s.hostBundleMessage(win, message)
@@ -136,10 +137,10 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 		generation = sup.Status().Generation
 	}
 	approved := s.askConfirmBlocking(confirmAskRequest{
-		Title:        resumeText("选择 Host 版本", "Select Host version"),
-		Body:         fmt.Sprintf(resumeText("目标：Host v%s (%s)\n\n会通过现有任务保护停止当前 Host 和手机连接，再保存该版本供下次启动使用。旧运行时、会话及配置会保留。选择完成后内核保持停止，需单独点击“启动 Host”。", "Target: Host v%s (%s)\n\nThe existing task protection will stop the current Host and phone connection before saving this version for the next start. Previous runtimes, sessions and settings are retained. The runtime stays stopped until you click “Start Host”."), bundle.Manifest.Version, bundle.Directory),
-		ConfirmLabel: resumeText("停止并选择", "Stop and select"),
-		CancelLabel:  resumeText("取消", "Cancel"),
+		Title:        i18n.T(i18n.KeyCmdSelectHostVersion),
+		Body:         fmt.Sprintf(i18n.T(i18n.KeyCmdTargetHostVNNtheExistingTaskProtectio), bundle.Manifest.Version, bundle.Directory),
+		ConfirmLabel: i18n.T(i18n.KeyCmdStopAndSelect),
+		CancelLabel:  i18n.T(i18n.KeyCmdCancel),
 		Danger:       true,
 	})
 	if !approved {

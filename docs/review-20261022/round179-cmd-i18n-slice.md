@@ -79,3 +79,26 @@
 - `go test ./internal/ui/i18n ./cmd/whaleisle -count=1` → i18n 0.777s、cmd 23.416s，全部 ok。
 - `go vet ./cmd/whaleisle ./internal/ui/i18n` → 退出 0；`go build ./cmd/whaleisle` → 退出 0（临时产物未进仓库）。
 - 未提交、未构建 passN；未改原生应用、settings/chat/remote 表面、runtime/vendor、third_party。
+
+## 7. 第二批（task-63）：任务保护/发布/组件/宿主/主流程
+
+- 迁移 5 个文件：`task_protection.go`(24)、`native_releases.go`(23)、`component_changes.go`(19)、`host_bundle.go`(15)、`main.go`(12)，实际 **101 处调用**（同一行多个调用按次计），新增 **89 个 `cmd.*` 键**；`catalog_cmd.go` 的 cmd 键总数 129 → **218**。
+- 全部为字面 `resumeText("中文","English")`；`fmt.Sprintf(resumeText(...), …)`、`+ err.Error()`、拼接与 `%s/%d` 参数保持原样。这 5 个文件现在 **0 处** `resumeText(` 残留。
+- 非 UI 文案的跳过规则（脚本内置，本批命中 0 处）：`resumeText("zh","en")` 缓存签名、以及中文侧不含 CJK 的标识符/协议串（如 `GET`、`application/json`）都留在原处并计数；`application_menu.go` 的菜单缓存签名按 round179 规则继续保留。
+- 测试扩展：[cmd_i18n_slice_test.go](<C:/AI/WhaleIsle-MyGo/cmd/whaleisle/cmd_i18n_slice_test.go>) 的键清单改为直接取目录里的全部 218 个 `cmd.*` 键（不再两批手工维护），文件清单扩展到 17 个；`TestCmdI18nSliceCatalog`（双语存在/非空/zh≠en/动词数一致）与 `TestCmdI18nSliceCallSites`（17 个源文件里不得残留被迁移的中文）均通过。
+- 剩余（当前扫描，非测试）**99 处**：
+
+| 文件 | 处数 |
+|---|---|
+| import_flow.go | 11 |
+| whalebridge_window.go | 8 |
+| generic_components.go / project_live_refresh.go / application_uninstall.go | 各 7 |
+| startup_recovery.go | 6 |
+| project_lifecycle.go / startup_diagnostics.go | 各 5 |
+| application_menu.go | 4 |
+| project_detail.go / project_requests.go / project_recovery.go / project_assets.go | 各 4 |
+| notify.go | 3 |
+| 其余 ≤2 的文件（schedule_delete_notice、resume_checkpoint、bridge_alerts、import_recovery、project_team、project_flow、project_request_revert、welcome_window、launcher_window、main_navigation、confirm_ask 等） | 各 1–2 |
+
+  注：`187 − 101 = 86`，当前扫描为 99，差额来自本批之外的文件（`application_menu.go` 由 1 增至 4 等），属并行改动的增量，列在这里备下一批核对。
+- 门禁：`go test ./internal/ui/i18n ./cmd/whaleisle -count=1` → i18n 0.610s、cmd 27.451s，全部 ok；`go vet ./cmd/whaleisle ./internal/ui/i18n` → 退出 0；`go build ./cmd/whaleisle` → 退出 0。未提交、未构建 passN，未改 settings/chat/remote/frame、runtime/vendor、third_party。
