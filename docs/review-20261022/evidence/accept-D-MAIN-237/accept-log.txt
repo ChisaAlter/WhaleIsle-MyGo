@@ -1,0 +1,9 @@
+﻿2026-10-24T22:31:18.0779661Z  native hwnd=133676 pid=15560; mygo hwnd=9372302 pid=33196; dpi=144
+2026-10-24T22:31:20.7538128Z  baseline 2160x1290
+2026-10-24T22:31:22.9273974Z  actual 2160x1290
+2026-10-24T22:31:29.2785381Z  uia native=84 mygo=49
+2026-10-24T22:31:29.4383294Z  native exe=C:\软件\Whale Isle\Whale Isle.exe version=0.3.10
+2026-10-24T22:31:29.4454922Z  mygo exe=C:\AI\WhaleIsle-MyGo\whaleisle-pass298.exe git=61150e37
+2026-10-24T22:31:29.4487447Z  client 1440x860 DIP; captured 2160x1290 / 2160x1290 px; dpi=144
+2026-10-24T22:31:29.4492731Z  out=C:\Users\48818\AppData\Local\Temp\whaleisle-accept-2026-10-24\D-MAIN-237
+2026-10-24T22:31:29.4634718Z  restored native 2268x1366 and mygo 2160x1290
