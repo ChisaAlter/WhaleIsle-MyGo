@@ -403,6 +403,16 @@
 - pass286：87,643,136 B / SHA256 `DAAA5E81…`；harness-start-pass286.json ready=True。
 - 残留：caption 三钮 +4.67（F1）、侧栏标题行 +6.67（F2）、composer 列宽、标准模式 chip 对齐；G52 余 99 处；S03 实按、G10 glyph；G46 接线；壁纸/mica（D3）；D1/D2/D4 决策与双签。
 
+### round186–191（2026-10-25）
+
+- round186：**标准模式 chip 修复**——原生在 workspace chip 后左对齐（x≈638），MyGo 原来被 spacer 推右；去掉 spacer，hero 行测试改为「chip 后 0–24 DIP」。composer 1.06 DIP 查明**不是公式 bug**：原生 axis=0.64×1160=742.4 → stack 806.4 → card 774.4；MyGo 的 773.33 来自临时 profile 恢复了持久化的 TranscriptWidth≈741.33，验收 fixture 必须重置该偏好（写进 fixture.md 待办）。
+- round187：**G46 只读 shell 路由打通**——新 shell_routes.cjs 提供 Bearer/dsh_remote cookie 鉴权、原生状态码、rooted listDir、脱敏 getConfig，bridge.cjs 挂在 mobile server；live 3180：gitStatus/gitDiff/gitBranchList/gitFetchForStatus/listDir/getConfig 200，匿名 401，变更类 501 + TODO(G46)。
+- round188：**G10 定案 14 DIP**（4× 放大二值扫描：原生 14.00×12.67 vs MyGo 14.00×14.00，Δh 1.33=2 物理像素 AA），不改代码；**S03 实按未取证**——宠物是普通 mygo.Window + DevToolsDisabled，不是 webview.Host，chord 安装器从未运行（插桩无日志）；原生按 webContents 给宠物 devtools，属真实小缺口待决策。
+- round189：**壁纸存储定位**——原生将 wallpaperImage 以 data:image URL 存在 per-profile settings（ui-theme 命名空间，host.set 写入）；MyGo 从 HostSettings 读取但窗口背景用 config goWallpaperPath（可接受文件或 data URL），因而可原样 seed；shell-painter 验证了 seed 配方，live pass286 因 549×460 启动对话框提前退出（blocker 已记录）。
+- round190：**F1/F2 结构修复**——caption 三钮 12.67→8（原生 bottom 40.0，方向由 round182 数据纠正）；侧栏标题行用 OffsetAfterLayout 抬 6.67，视图选项 249.33 vs 原生 250（0.67 DIP）。
+- pass287：87,678,976 B / SHA256 `C1A158B7…`；harness-start-pass287.json ready=True。
+- 残留：Host webview 的 S03 实按、宠物 devtools 决策、壁纸 live seed（启动对话框）、G46 变更类、caption-relative within-1-DIP 重算、D1–D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T04:30:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87678976,
+  "productionSHA256": "C1A158B7F83E872E82A4DF060770ED1C306B09101A448C369BDC703B7C7B15C9",
+  "defaultSHA256": "C1A158B7F83E872E82A4DF060770ED1C306B09101A448C369BDC703B7C7B15C9",
+  "note": "pass287 covers rounds 186-191: preset-chip flow, read-only remote shell routes, caption/sidebar structural fixes, finished cmd i18n, G10/S03 evidence and the wallpaper store trace. Readiness verified."
+}
