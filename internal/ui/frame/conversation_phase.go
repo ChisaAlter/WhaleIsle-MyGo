@@ -22,6 +22,9 @@ const (
 	// composerCardMaxWidth is the installed InputBar card's `max-width: 774.4px`
 	// (probed at 1440x860 and 1440x920: card 774.39 wide, 114 tall).
 	composerCardMaxWidth = float32(774.39)
+	// conversationHeroStackFoot lifts the centred hero stack to the installed seat: the
+	// window's slogan/preset/card sit 19 DIP higher than an even vertical split.
+	conversationHeroStackFoot = float32(38)
 )
 
 const (

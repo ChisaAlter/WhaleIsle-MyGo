@@ -1225,6 +1225,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					// mirrors the growing space above so the column stays centered.
 					if emptyHero || phase == conversationSettling {
 						ui.Box(c).Key("conversation-hero-bottom-space").Grow(1).MinHeight(0)
+						// The installed window centres this stack 19 DIP higher than an even
+						// split does: its slogan sits at y=314.67, the preset row at 373.33
+						// and the card top at 409.33 (1440x860 UIA), against 332.67 /
+						// 393.33 / 429.33 for an even split. A fixed foot under the lower
+						// grow spacer lifts the whole stack by half of its height.
+						ui.Box(c).Key("conversation-hero-stack-foot").Height(conversationHeroStackFoot)
 					}
 				})
 			})
