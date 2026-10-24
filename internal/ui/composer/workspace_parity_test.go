@@ -169,9 +169,13 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			// short and long names share the width and the preset chip after it
 			// keeps the native x.
 			closeMetric(t, workspace.W, 150, "workspace chip width")
-			closeMetric(t, presetChip.X, workspace.X+workspace.W+3.33, "preset chip sits 3.33 DIP after the chip")
+			// The row adds no gap: the live +3.33 offset comes from the preset
+			// control itself (round237: chip end 652 -> native 655.33).
+			if gap := presetChip.X - (workspace.X + workspace.W); gap < 0 || gap > 0.01 {
+				t.Fatalf("preset chip gap=%.2f, want no row gap", gap)
+			}
 			t.Logf("width=%d workspace=%v preset=%v", width, workspace, presetChip)
-			if gap := presetChip.X - (workspace.X + workspace.W); gap < 3 || gap > 3.7 {
+			if gap := presetChip.X - (workspace.X + workspace.W); gap < 0 || gap > 0.01 {
 				t.Fatalf("preset chip gap=%.2f, want it right after the workspace chip: %v %v", gap, workspace, presetChip)
 			}
 			if presetChip.X+presetChip.W > row.X+row.W-16 {

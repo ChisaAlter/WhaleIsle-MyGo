@@ -268,9 +268,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if m.Hero {
 			// One 28px row above the card carries both entries: the workspace
 			// picker on the left and the agent preset on the right.
-			// Gap 18 (native: workspace chip ends ~620, 标准模式 at 638.3); it only
-				// separates the two chips, so it is the native chip-to-chip inset.
-				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(3.33).AlignItems(ui.Center).
+			// Round237 measured the live rects: the workspace chip ends at 652 and the
+				// preset chip landed at 658.67 with Gap(3.33), i.e. an effective 6.67
+				// offset; the native preset starts at 655.33, so the row adds no gap.
+				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(0).AlignItems(ui.Center).
 				// Round217 UIA (1440x860): the native workspace chip starts at x=502
 				// (33 DIP leading inset) and 标准模式 follows at 655.33, i.e. a 3.33 DIP
 				// chip-to-chip gap; the old 20/18 pair is what put us at 489.33/675.33.
