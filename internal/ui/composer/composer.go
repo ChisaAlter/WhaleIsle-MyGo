@@ -307,8 +307,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if m.AgentPresetSelection.Error != "" {
 					ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
 				}
-				ui.Box(c).Grow(1).MinWidth(0)
-				// Hero options follow margin-left:auto after the workspace control.
+				// The installed hero keeps the preset chip in the left flow right
+				// after the workspace chip (probe at 1440x860: the workspace chip ends
+				// near x=620 and 标准模式 sits at x=638.3); a grow spacer here
+				// right-aligned it at x≈1127.
 				presetLabel := i18n.T(i18n.KeyComposerPresetDefault)
 				if m.AgentPresetPick != nil && strings.TrimSpace(*m.AgentPresetPick) != "" {
 					presetLabel = presetDisplayName(*m.AgentPresetPick)

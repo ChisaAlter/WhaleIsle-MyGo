@@ -160,9 +160,14 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			closeMetric(t, workspace.H, 28, "workspace chip height")
 			closeMetric(t, presetChip.H, 28, "preset chip height")
 			closeMetric(t, (workspace.Y+workspace.H/2)-(presetChip.Y+presetChip.H/2), 0, "both chips share the row")
-			closeMetric(t, row.X+row.W-16-(presetChip.X+presetChip.W), 0, "preset right inset")
-			if presetChip.X <= workspace.X+workspace.W {
-				t.Fatalf("preset was not pushed to the row's right edge: %v %v", workspace, presetChip)
+			// The installed hero keeps the preset chip in the left flow right after
+			// the workspace chip (probe: 标准模式 at x=638.3, ~18 DIP past the workspace
+			// chip), not flush to the row's right edge.
+			if gap := presetChip.X - (workspace.X + workspace.W); gap < 0 || gap > 24 {
+				t.Fatalf("preset chip gap=%.2f, want it right after the workspace chip: %v %v", gap, workspace, presetChip)
+			}
+			if presetChip.X+presetChip.W > row.X+row.W-16 {
+				t.Fatalf("preset chip overflows the row: %v row=%v", presetChip, row)
 			}
 			want := "fixture"
 			if root == "" {
