@@ -44,7 +44,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	schemeError := ui.Local(scheme, "error", func() string { return "" })
 	scheme.Children(func() {
-		ui.Text(c, providerCopy("色彩模式", "Color scheme")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+		ui.Text(c, providerCopy("色制", "Color scheme")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 		ui.Text(c, providerCopy("选择浅色、深色或跟随系统。", "Choose light, dark, or follow the system.")).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 		if a.Theme != nil {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {

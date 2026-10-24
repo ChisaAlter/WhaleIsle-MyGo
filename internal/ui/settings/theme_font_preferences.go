@@ -214,7 +214,7 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				for _, color := range []struct {
 					label string
 					value *string
-				}{{providerCopy("背景", "Background"), &variant.seed.Background}, {providerCopy("文字", "Foreground"), &variant.seed.Foreground}, {providerCopy("强调色", "Accent"), &variant.seed.Accent}} {
+				}{{providerCopy("背景", "Background"), &variant.seed.Background}, {providerCopy("前景", "Foreground"), &variant.seed.Foreground}, {providerCopy("强调色", "Accent"), &variant.seed.Accent}} {
 					bodyPreferenceRow(c, "color-"+variant.label+color.label, color.label, "#RRGGBB", fg, muted, func() { ui.TextInput(c, color.value).FillWidth().Label(variant.label + " " + color.label) })
 				}
 				contrast := variant.seed.ContrastValue()
@@ -261,11 +261,11 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 	group := ui.Column(c.Key("general-font-settings")).FillWidth().MinWidth(0).Gap(0)
 	open := ui.Local(group, "expanded", func() bool { return false })
 	group.Children(func() {
-		generalFontSizeRow(c, e, "text", providerCopy("字号大小", "Font size"), providerCopy("只影响会话内容的字号", "Only affects conversation content"), e.Draft.Chat.Size, 10, 22, open, fg, muted)
+		generalFontSizeRow(c, e, "text", providerCopy("字号大小", "Font size"), providerCopy("仅影响会话内容的字号", "Only affects conversation content"), e.Draft.Chat.Size, 10, 22, open, fg, muted)
 		if *open {
 			generalFontFamilyRow(c, e, "text", providerCopy("文本字体", "Text font"), providerCopy("用于界面与会话正文。多个字体用逗号分隔，留空使用默认", "Used for the interface and conversation text. Separate fonts with commas; leave empty for the default"), e.Saved.Interface.Family, fg, muted)
 			generalFontFamilyRow(c, e, "code", providerCopy("代码字体", "Code font"), providerCopy("用于代码块、行内代码与工具输出。多个字体用逗号分隔，留空使用默认", "Used for code blocks, inline code, and tool output. Separate fonts with commas; leave empty for the default"), e.Saved.Code.Family, fg, muted)
-			generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code font size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Draft.Code.Size, 10, 20, nil, fg, muted)
+			generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Draft.Code.Size, 10, 20, nil, fg, muted)
 			generalFontFamilyRow(c, e, "terminal", providerCopy("终端字体", "Terminal font"), providerCopy("用于侧栏终端。多个字体用逗号分隔，留空使用默认", "Used for the sidebar terminal. Separate fonts with commas; leave empty for the default"), e.Saved.Terminal.Family, fg, muted)
 			generalFontSizeRow(c, e, "terminal", providerCopy("终端字号", "Terminal font size"), providerCopy("用于侧栏终端", "Used for the sidebar terminal"), e.Draft.Terminal.Size, 10, 20, nil, fg, muted)
 		}
@@ -383,7 +383,7 @@ func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	if e == nil {
 		return
 	}
-	bodyHeading(c, providerCopy("字体与字号", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
+	bodyHeading(c, providerCopy("字体", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
 	render := func(role, label string, f *theme.FontPreference, family func(string) string, lo, hi float64, size bool) {
 		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() {
 			if ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")).Placeholder(providerCopy("系统字体", "System font")).Disabled(e.OnSave == nil).Changed() {

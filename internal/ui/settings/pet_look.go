@@ -58,7 +58,7 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 		selected = providerCopy("已存但当前不可用：", "Saved, unavailable: ") + value.LookProvider + " · " + value.LookModel
 		labels = append(labels, selected) // display-only sentinel, never saved implicitly
 	}
-	bodyPreferenceRow(c, "pet-look-model", providerCopy("看一眼模型", "Look model"), providerCopy("独立于全局视觉模型保存。每次截图和发送前仍需确认。", "Saved separately from the global vision model. Each screenshot and send still asks for confirmation."), fg, muted, func() {
+	bodyPreferenceRow(c, "pet-look-model", providerCopy("看看模型", "Look model"), providerCopy("独立于全局视觉模型保存。每次截图和发送前仍需确认。", "Saved separately from the global vision model. Each screenshot and send still asks for confirmation."), fg, muted, func() {
 		if ui.Button(c, providerCopy("刷新模型目录", "Refresh models")).Disabled(disabled || store == nil || catalog.Loading).Clicked() {
 			store.RefreshImageCatalog(context.Background())
 		}

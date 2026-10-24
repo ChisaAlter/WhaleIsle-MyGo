@@ -290,7 +290,7 @@ func wallpaperGalleryPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 	}
 	ui.Text(c, "壁纸图库与背景").Bold().TextColor(fg)
 	ui.Text(c, g.Status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	labels := []string{providerCopy("收藏夹", "Favorites")}
+	labels := []string{providerCopy("收藏", "Favorites")}
 	ids := []string{"收藏"}
 	for _, s := range g.Prefs.Sources {
 		name := strings.TrimSpace(s.Name)
@@ -514,7 +514,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		ui.Text(c, providerCopy("正在读取图库…", "Loading wallpaper library…")).FillWidth().TextColor(muted)
 	}
 	bodyDisclosure(c, "wallpaper-library", providerCopy("壁纸图库", "Wallpaper library"), func() { wallpaperGalleryPane(c, g, fg, muted) })
-	bodyDisclosure(c, "background-effects", providerCopy("背景特效", "Background effects"), func() {
+	bodyDisclosure(c, "background-effects", providerCopy("背景特效", "Background effect"), func() {
 		bodyPreferenceRow(c, "background-effect-mode", providerCopy("动态背景", "Animated background"), providerCopy("壁纸优先于动态背景。", "Wallpaper takes precedence over the animated background."), fg, muted, func() {
 			wallpaperChoiceSelect(c, &g.Prefs.Effect, providerCopy("动态背景", "Animated background"), [][2]string{{"none", providerCopy("无", "None")}, {"gradient", providerCopy("渐变", "Gradient")}}, g.Save == nil)
 		})
@@ -530,7 +530,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			})
 			bodyPreferenceRow(c, "background-variant", providerCopy("动画样式", "Animation style"), "", fg, muted, func() {
 				wallpaperChoiceSelect(c, &g.Prefs.Variant, providerCopy("动画样式", "Animation style"), [][2]string{
-					{"orbs", providerCopy("光团", "Orbs")}, {"aurora", providerCopy("极光", "Aurora")}, {"chaos", providerCopy("混沌", "Chaos")}, {"rays", providerCopy("射线", "Rays")},
+					{"orbs", providerCopy("光球", "Orbs")}, {"aurora", providerCopy("极光", "Aurora")}, {"chaos", providerCopy("混沌", "Chaos")}, {"rays", providerCopy("光束", "Rays")},
 				}, g.Save == nil)
 			})
 			wallpaperSlider(c, "background-speed", providerCopy("速度", "Speed"), &g.Prefs.Speed, 20, 300, g.Save == nil, fg, muted)
@@ -545,18 +545,18 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		}
 	})
 	pointerEffectsPane(c, g, fg, muted)
-	bodyLocalToggle(c, "metallic-buttons", providerCopy("按钮悬停光泽", "Button hover sheen"), providerCopy("减少动态效果时显示静态光泽。", "Uses a static sheen when reduced motion is enabled."), &g.Prefs.MetallicButtons, g.Save == nil, fg, muted, nil)
+	bodyLocalToggle(c, "metallic-buttons", providerCopy("按钮悬停光泽", "Button sheen"), providerCopy("减少动态效果时显示静态光泽。", "Uses a static sheen when reduced motion is enabled."), &g.Prefs.MetallicButtons, g.Save == nil, fg, muted, nil)
 	bodyHeading(c, providerCopy("玻璃与透明度", "Glass and transparency"), "", fg, muted)
 	wallpaperSlider(c, "wallpaper-blur", providerCopy("壁纸模糊", "Wallpaper blur"), &g.Prefs.Blur, 0, 100, g.Save == nil, fg, muted)
 	wallpaperSlider(c, "wallpaper-pixelate", providerCopy("壁纸像素化", "Wallpaper pixelation"), &g.Prefs.Pixelate, 0, 100, g.Save == nil, fg, muted)
-	bodyPreferenceRow(c, "glass-opacity", providerCopy("玻璃不透明度", "Glass opacity"), "", fg, muted, func() {
+	bodyPreferenceRow(c, "glass-opacity", providerCopy("玻璃透明度", "Glass opacity"), "", fg, muted, func() {
 		ui.Text(c, fmt.Sprintf("%.0f%%", g.Prefs.Glass)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		ui.StepSlider(c, &g.Prefs.Glass, 40, 100, 5).FillWidth().Label(providerCopy("玻璃不透明度", "Glass opacity")).Disabled(g.Save == nil || g.Prefs.Transparent && g.Prefs.Original != "")
+		ui.StepSlider(c, &g.Prefs.Glass, 40, 100, 5).FillWidth().Label(providerCopy("玻璃透明度", "Glass opacity")).Disabled(g.Save == nil || g.Prefs.Transparent && g.Prefs.Original != "")
 		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil).Clicked() {
 			g.Prefs.Glass = 80
 		}
 	})
-	wallpaperSlider(c, "terminal-opacity", providerCopy("终端不透明度", "Terminal opacity"), &g.Prefs.Terminal, 40, 100, g.Save == nil, fg, muted)
+	wallpaperSlider(c, "terminal-opacity", providerCopy("终端透明度", "Terminal opacity"), &g.Prefs.Terminal, 40, 100, g.Save == nil, fg, muted)
 	bodyLocalToggle(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), providerCopy("需要壁纸；模糊至少为 20。", "Requires wallpaper with a blur of at least 20."), &g.Prefs.Transparent, g.Save == nil, fg, muted, func(enabled bool) {
 		if enabled && g.Prefs.Blur < 20 {
 			g.Prefs.Blur = 20

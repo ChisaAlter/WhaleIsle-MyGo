@@ -129,13 +129,13 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	if *confirming {
 		ui.DialogBase(c, confirming, func(backdrop, panel ui.Element) {
 			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 24).Gap(12).Children(func() {
-				bodyHeading(c, providerCopy("启用完全访问权限？", "Enable full access?"), providerCopy("新任务将可以访问工作区之外的文件并执行命令。", "New tasks can access files outside the workspace and execute commands."), fg, muted)
+				bodyHeading(c, providerCopy("确认启用完全权限？", "Enable Full access?"), providerCopy("新任务将可以访问工作区之外的文件并执行命令。", "New tasks can access files outside the workspace and execute commands."), fg, muted)
 				ui.Checkbox(c, acknowledged, providerCopy("我了解这些权限的影响", "I understand the impact of these permissions")).Label("permission-full-access-acknowledgement")
 				ui.Row(c).Wrap().Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
 						*confirming = false
 					}
-					if ui.Button(c, providerCopy("启用完全访问", "Enable full access")).Disabled(!*acknowledged).Clicked() {
+					if ui.Button(c, providerCopy("启用完全权限", "Enable Full access")).Disabled(!*acknowledged).Clicked() {
 						*confirming = false
 						a.OnChange("permission", "defaultPreset", "danger-full-access")
 					}

@@ -81,20 +81,20 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "transcriptView", providerCopy("工作步骤展示", "Work step display"), providerCopy("选择希望看到多少工具调用细节", "Choose how much tool-call detail to show"), fg, muted)
 	bodyHostPreference(c, d.Host, "ui-chat", "collapseTiming", providerCopy("工作步骤收起时机", "Collapse completed work steps"), providerCopy("选择何时自动收起工作步骤", "Choose when completed work steps collapse"), fg, muted)
-	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show the code work view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换。", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
+	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show coding view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换。", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
 	if d.Shortcuts != nil {
 		bodyShortcutPreference(c, d.Shortcuts, fg, muted)
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "linkOpening", providerCopy("网页链接默认打开方式", "Default link opening"), providerCopy("对话中网页链接的打开位置", "Where links in the conversation open"), fg, muted)
-	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("繁忙时的发送行为", "Sending while busy"), providerCopy("智能体运行时 Enter 和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为。", "What Enter and Send do while the agent runs; Cmd/Ctrl+Enter uses the other action."), fg, muted)
+	bodyHostPreference(c, d.Host, "ui-conversation", "busyEnter", providerCopy("繁忙时的发送行为", "Send behavior while busy"), providerCopy("智能体运行时 Enter 和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为。", "What Enter and Send do while the agent runs; Cmd/Ctrl+Enter uses the other action."), fg, muted)
 	if d.Fields.CloseToTray != nil {
-		bodyPreferenceRow(c, "general-close", providerCopy("关闭窗口时", "Closing the window"), providerCopy("点标题栏关闭时：最小化到托盘，或退出并停止本机 Harness 服务。", "On the title-bar close button: minimize to the tray, or quit and stop the local Harness service."), fg, muted, func() {
+		bodyPreferenceRow(c, "general-close", providerCopy("关闭窗口时", "When closing the window"), providerCopy("点标题栏关闭时：最小化到托盘，或退出并停止本机 Harness 服务。", "The title-bar close button can hide the app in the tray, or quit and stop the local Harness service."), fg, muted, func() {
 			options := []string{providerCopy("最小化到托盘", "Minimize to tray"), providerCopy("直接退出", "Quit")}
 			choice := options[1]
 			if *d.Fields.CloseToTray {
 				choice = options[0]
 			}
-			if ui.Select(c, &choice, options).MinWidth(84).MaxWidth(140).Disabled(d.OnSave == nil).Label(providerCopy("关闭窗口时", "Closing the window")).Changed() {
+			if ui.Select(c, &choice, options).MinWidth(84).MaxWidth(140).Disabled(d.OnSave == nil).Label(providerCopy("关闭窗口时", "When closing the window")).Changed() {
 				*d.Fields.CloseToTray = choice == options[0]
 			}
 		})
@@ -102,7 +102,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	bodyLocalToggle(c, "general-login", i18n.T(i18n.KeySettingsDesktopOpenAtLogin), "", d.Fields.OpenAtLogin, d.OnSave == nil, fg, muted, nil)
 	if d.AutoStartDesktop != nil {
 		bodyPreferenceRow(c, "general-autostart", i18n.T(i18n.KeySettingsInterfaceAutoStart), providerCopy("是：直接打开桌面端；否：先打开启动器，再手动启动桌面端。", "Yes: open the desktop directly; No: open the launcher first and start the desktop manually."), fg, muted, func() {
-			options := []string{providerCopy("直接启动桌面端", "Open the desktop"), providerCopy("先打开启动器", "Open the launcher")}
+			options := []string{providerCopy("直接启动桌面端", "Start desktop directly"), providerCopy("先打开启动器", "Open launcher first")}
 			choice := options[1]
 			if *d.AutoStartDesktop {
 				choice = options[0]

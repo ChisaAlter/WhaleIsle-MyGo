@@ -11,7 +11,7 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 		return
 	}
 	p := &g.Prefs
-	bodyLocalToggle(c, "cursor-enabled", providerCopy("指针特效", "Pointer effects"), providerCopy("移动指针即可预览；系统减少动态效果会关闭动画。", "Move the pointer to preview. Reduced motion disables the animation."), &p.CursorEnabled, g.Save == nil, fg, muted, nil)
+	bodyLocalToggle(c, "cursor-enabled", providerCopy("指针特效", "Cursor effects"), providerCopy("移动指针即可预览；系统减少动态效果会关闭动画。", "Move the pointer to preview. Reduced motion disables the animation."), &p.CursorEnabled, g.Save == nil, fg, muted, nil)
 	bodyDisclosure(c, "pointer-effects-options", providerCopy("指针特效设置", "Pointer effect settings"), func() {
 		bodyPreferenceRow(c, "cursor-effect", providerCopy("指针效果", "Pointer effect"), "", fg, muted, func() { ui.Select(c, &p.CursorEffect, []string{"trail", "splash"}).FillWidth().Disabled(g.Save == nil) })
 		bodyPreferenceRow(c, "cursor-preset", providerCopy("指针配色", "Pointer colors"), "", fg, muted, func() {

@@ -123,7 +123,7 @@ func modelProviderTitle(namespace string) string {
 	case "llm-deepseek", "llm-deepseek-api-key":
 		return "DeepSeek API"
 	case "llm-deepseek-account":
-		return providerCopy("DeepSeek 账户", "DeepSeek Account")
+		return providerCopy("DeepSeek 账号", "DeepSeek Account")
 	case "llm-pi-ai":
 		return providerCopy("自定义供应商", "Custom providers")
 	case "subagent-model-selection-settings":

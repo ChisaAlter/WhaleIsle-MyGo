@@ -193,15 +193,15 @@ func hostEnumLabel(value string) string {
 	case "workspace-write":
 		return providerCopy("工作区内修改", "Workspace write")
 	case "danger-full-access":
-		return providerCopy("完全访问", "Full access")
+		return providerCopy("完全权限", "Full access")
 	case "read-only":
-		return providerCopy("只读", "Read only")
+		return providerCopy("仅可查看", "Read Only")
 	case "normal", "standard":
 		return providerCopy("标准", "Standard")
 	case "detailed":
 		return providerCopy("详细", "Detailed")
 	case "compact":
-		return providerCopy("简洁", "Compact")
+		return providerCopy("压缩", "Compact")
 	case "verbose":
 		return providerCopy("完整", "Verbose")
 	case "expanded":
@@ -217,7 +217,7 @@ func hostEnumLabel(value string) string {
 	case "queue":
 		return providerCopy("排队发送", "Queue")
 	case "steer":
-		return providerCopy("引导运行", "Steer")
+		return providerCopy("插话发送", "Steer")
 	case "new-tab":
 		return providerCopy("新标签页", "New tab")
 	case "system":

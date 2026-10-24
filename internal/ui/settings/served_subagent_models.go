@@ -69,6 +69,6 @@ func servedSubagentModels(c *ui.Context, s *store.Store, b *store.NamespaceBindi
 		}
 	}
 	if len(routes) == 0 && !loading {
-		ui.Text(c, providerCopy("没有可用模型。", "No models available.")).TextColor(muted)
+		ui.Text(c, providerCopy("没有可用的模型。", "No models available.")).TextColor(muted)
 	}
 }

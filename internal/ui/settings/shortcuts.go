@@ -331,7 +331,7 @@ func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette,
 		}
 		ui.Box(c).Grow(1)
 		if e.Dirty() || e.ReadError != "" {
-			if shortcutTextAction(c, providerCopy("重新读取", "Reload"), "reload-shortcuts", p.muted, false) {
+			if shortcutTextAction(c, providerCopy("重新加载", "Reload"), "reload-shortcuts", p.muted, false) {
 				e.Reload()
 			}
 		}

@@ -286,10 +286,10 @@ func acknowledgeEffect(a *BodySettingsAccess, draft *effectDraft) bool {
 
 func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg, muted ui.Color) {
 	enabledKey, styleKey, presetsKey := "composerBeam", "composerBeamStyle", "composerBeamPresets"
-	title := providerCopy("发送消息时的思考炫光", "Thinking glow while sending")
+	title := providerCopy("发送消息时的思考炫光", "Thinking glow when sending")
 	if typing {
 		enabledKey, styleKey, presetsKey = "typingFx", "typingFxStyle", "typingFxPresets"
-		title = providerCopy("打字特效", "Typing effects")
+		title = providerCopy("输入特效", "Typing effects")
 	}
 	_, enabled, found := bodyHostValue(a, "ui-conversation", enabledKey)
 	if !found {
@@ -391,7 +391,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					}
 					ui.TextInput(c, &draft.Name).FillWidth().Label("effect-preset-name").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Placeholder(providerCopy("预设名称", "Preset name"))
 					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-						if ui.Button(c, providerCopy("保存为预设", "Save preset")).Label("effect-save-preset").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0 || !presetsFound || a.OnPatch == nil).Clicked() {
+						if ui.Button(c, providerCopy("保存预设", "Save preset")).Label("effect-save-preset").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0 || !presetsFound || a.OnPatch == nil).Clicked() {
 							name := strings.TrimSpace(draft.Name)
 							units := utf16.Encode([]rune(name))
 							if len(units) > 32 {
@@ -431,7 +431,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 								*draft = imported
 							}
 						}
-						if ui.Button(c, providerCopy("恢复默认", "Reset to defaults")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
+						if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 							draft.Style = effectDefaults(typing)
 							draft.Selected = ""
 							draft.Err = ""
