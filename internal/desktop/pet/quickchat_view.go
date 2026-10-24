@@ -23,9 +23,9 @@ func (q *QuickChat) view(c *ui.Context) {
 	direct := q.options.Direct != nil
 	active := q.win != nil && q.check()
 	theme := c.Theme()
-	ui.Column(c).Fill().Padding(14).Gap(10).Children(func() {
+	ui.Column(c).Fill().Padding(10).Gap(6).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, quickChatName(q.state.Name, storelocale.T(storelocale.KeyStorePetWhale))+storelocale.T(storelocale.KeyStorePetChat)).Bold().FontSize(fonttheme.InterfaceSize(17)).Grow(1)
+			ui.Text(c, quickChatName(q.state.Name, storelocale.T(storelocale.KeyStorePetWhale))+storelocale.T(storelocale.KeyStorePetChat)).FontWeight(600).FontSize(fonttheme.InterfaceSize(12)).Grow(1).SingleLine()
 			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetOpen)).Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
@@ -78,7 +78,7 @@ func (q *QuickChat) view(c *ui.Context) {
 				}
 				ui.Column(row.Context).Padding(8).Gap(3).FillWidth().Children(func() {
 					ui.Text(row.Context, label).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
-					ui.Text(row.Context, message.Text).Font(fonttheme.RenderPreferences().Chat.Family).FontSize(fonttheme.CurrentPreferences().Chat.Size).TextColor(color).Selectable()
+					ui.Text(row.Context, message.Text).Font(fonttheme.RenderPreferences().Chat.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(color).Selectable()
 				})
 			})
 		}
@@ -86,7 +86,7 @@ func (q *QuickChat) view(c *ui.Context) {
 			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
 		}
 		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.CurrentPreferences().Composer.Size).Label(storelocale.T(storelocale.KeyDesktopPetQuickChatDraft)).FillWidth().Lines(2, 4).Placeholder(storelocale.T(storelocale.KeyDesktopPetEnterSendsShiftEnterNewline))
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.InterfaceSize(12)).Label(storelocale.T(storelocale.KeyDesktopPetQuickChatDraft)).FillWidth().Lines(2, 4).Placeholder(storelocale.T(storelocale.KeyDesktopPetEnterSendsShiftEnterNewline))
 		// Read the IME composition state during the build: input callbacks run
 		// outside the build pass, where an Element query panics ("element from
 		// pass N used in pass N"). The next frame refreshes it.
