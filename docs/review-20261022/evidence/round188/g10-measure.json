@@ -1,0 +1,40 @@
+{
+  "native": {
+    "buttonTopDip": 8.0,
+    "plateMedian": 156.0,
+    "darkest": 101,
+    "threshold": 146.0,
+    "ink": 179,
+    "bboxPxInBox": {
+      "x": 14,
+      "y": 19,
+      "w": 21,
+      "h": 19
+    },
+    "bboxDip": {
+      "w": 14.0,
+      "h": 12.67
+    }
+  },
+  "mygo": {
+    "buttonTopDip": 12.67,
+    "plateMedian": 156.0,
+    "darkest": 101,
+    "threshold": 146.0,
+    "ink": 211,
+    "bboxPxInBox": {
+      "x": 14,
+      "y": 14,
+      "w": 21,
+      "h": 21
+    },
+    "bboxDip": {
+      "w": 14.0,
+      "h": 14.0
+    }
+  },
+  "deltaDip": {
+    "w": 0.0,
+    "h": 1.33
+  }
+}

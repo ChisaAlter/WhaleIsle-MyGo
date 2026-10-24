@@ -1,0 +1,31 @@
+{
+  "bandEqualSize": [
+    [
+      96,
+      84
+    ],
+    [
+      96,
+      84
+    ]
+  ],
+  "channelMax": [
+    125,
+    146,
+    154
+  ],
+  "pixelsOver8": 811,
+  "ofBandPixels": 8064,
+  "over8bboxPx": [
+    0,
+    0,
+    96,
+    73
+  ],
+  "over8bboxDip": [
+    0.0,
+    0.0,
+    64.0,
+    48.67
+  ]
+}
