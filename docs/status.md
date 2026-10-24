@@ -491,6 +491,15 @@
 - pass299：87,741,952 B / SHA256 `7DD2940D…`；ready=True。
 - 进行中：task-115 composer 卡/工具行/send/fish 结构（原生 light DOM 探针）。
 
+### round244–248（2026-10-25）
+
+- **composer 结构实现**：hero 卡 114→**155.34**（显式可用高度 + MinHeight）、草稿固定 **52.67**、send 顶 = 卡顶+**112.67**（原生 522 @409.33），0.67 差来自原生 34.67 vs 我方 34 圆盘并放入底内边距；docked 不动，测试同步重钉。
+- **hero 栈座位恢复**：卡片长高 41.34 使居中栈上移 20.67；新增固定 **41.34** 顶部块后 harness 860 基准 slogan 314.85 / preset 373.15 / card 409.15，pass301 实机 UIA **314.67 / 373.33 / 409.33（均 0.00）**，send **521.33（−0.67，原 −42.67）**，ws chip 502 精确。
+- **像素评分**：最后有效 light pair（round245）threshold0 **1.36%**（caption 蒙版）/1.685%（无蒙版）、Δ>8 1.57%、Δ>16 1.46%、mean 1.23；hero 1.02 / composer **0.33**。本轮原生处于 light 标题+dark 主体的混合态，故未重算像素（不把原生自身过渡算到 MyGo 头上）。
+- **AA 地板**：几何已精确，余下为文字 AA + 两项 composer 残差；hero/composer ≤0.1% 需「1-DIP 膨胀后再比」或 ~0.5% 分区容差——合同决策。
+- 剩余集群：draft insets +28.67、fish 34×24.67 vs 48.67×15.33、账号菜单 h−8、preset chip −3.33、会话树数据/名称冲突。
+- pass301：87,742,976 B / SHA256 `0DFB1BB1…`；ready=True。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

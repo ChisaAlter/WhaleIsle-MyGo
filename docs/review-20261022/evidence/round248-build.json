@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T07:32:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87742976,
+  "productionSHA256": "0DFB1BB1550F89E2EE82F05B5060DC5E823305C133D1AD375D33F2847C0C5CD6",
+  "defaultSHA256": "0DFB1BB1550F89E2EE82F05B5060DC5E823305C133D1AD375D33F2847C0C5CD6",
+  "note": "pass301 covers rounds 244-248: native 155.34 composer card + toolbar seat, 41.34 hero top block restoring slogan/preset/card to exact native y, chip 502 exact and the final light geometry verification. Readiness verified."
+}
