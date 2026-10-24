@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/json"
 	"runtime"
+	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/components"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/shortcuts"
+	"whaleisle/internal/ui/i18n"
 )
 
 type desktopApplicationMenu struct {
@@ -15,6 +18,42 @@ type desktopApplicationMenu struct {
 	pending   []desktopMenuGesture
 }
 type desktopMenuGesture struct{ id, revision string }
+
+// applicationMenuKeycapGap separates a label from its keycap. MyGo shows the
+// accepted chord in the label instead of installing a second accelerator owner
+// (mygo.MenuItem.SuppressAccelerator documents this pattern), so the keycap
+// always names the chord that actually fires.
+const applicationMenuKeycapGap = "    "
+
+// applicationMenuSpec is what the application menu needs from the shell.
+type applicationMenuSpec struct {
+	// Bindings are the accepted page-shortcut chords.
+	Bindings map[string]shortcuts.Chord
+	// HasRevision reports that a configuration snapshot was accepted. From then
+	// on an unbound command shows no keycap; before the first snapshot the
+	// shipped default keeps the menu readable, exactly as the native
+	// commandItem does (reference/electron/src/main/menu.js:9-19).
+	HasRevision bool
+	// Fallbacks are the shipped defaults, used only before the first snapshot.
+	Fallbacks map[string]shortcuts.Chord
+	Platform  string
+	Dispatch  func(string)
+}
+
+// keycap is the native commandItem resolution: the accepted binding once a
+// revision exists (none when unbound), the shipped default before it.
+func (spec applicationMenuSpec) keycap(id string) string {
+	if spec.HasRevision {
+		if chord, ok := spec.Bindings[id]; ok {
+			return chord.String()
+		}
+		return ""
+	}
+	if chord, ok := spec.Fallbacks[id]; ok {
+		return chord.String()
+	}
+	return ""
+}
 
 // Menu gestures execute in the next native frame, using the same live actions
 // as page shortcuts. Labels show accepted bindings; no second accelerator
@@ -24,21 +63,34 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 		s.applicationMenu = &desktopApplicationMenu{}
 	}
 	state := s.applicationMenu
+	prefs := s.pageShortcutPreferences()
+	// "ready" is the accepted configuration revision; before it the menu shows
+	// the shipped defaults instead of blank keycaps.
+	hasRevision := prefs.Get().Status == "ready"
 	bindings := shortcuts.Resolve(s.pageShortcutBindings())
 	encoded, _ := json.Marshal(bindings)
-	revision := s.pageShortcutPreferences().Get().Revision
+	revision := prefs.Get().Revision
 	signature := string(encoded) + resumeText("zh", "en") + revision
+	if hasRevision {
+		signature += "|ready"
+	}
 	if state.signature != signature {
 		state.signature = signature
 		s.syncWebApplicationShortcuts(bindings)
-		mygo.App.SetMenu(buildApplicationMenu(bindings, runtime.GOOS, func(id string) {
-			state.pending = append(state.pending, desktopMenuGesture{id, revision})
-			s.mu.Lock()
-			w := s.win
-			s.mu.Unlock()
-			if w != nil {
-				w.Update(func() {})
-			}
+		mygo.App.SetMenu(buildApplicationMenu(applicationMenuSpec{
+			Bindings:    bindings,
+			HasRevision: hasRevision,
+			Fallbacks:   shortcuts.Resolve(shortcuts.SharedDefaults()),
+			Platform:    runtime.GOOS,
+			Dispatch: func(id string) {
+				state.pending = append(state.pending, desktopMenuGesture{id, revision})
+				s.mu.Lock()
+				w := s.win
+				s.mu.Unlock()
+				if w != nil {
+					w.Update(func() {})
+				}
+			},
 		}))
 	}
 }
@@ -78,6 +130,19 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		s.launcherOpen = false
 		s.mu.Unlock()
 		s.openDirectoryPicker(sessions, w, "workspace")
+	}
+	// The File menu's third row, native menu.js:44-52: reveal the configured
+	// workspace, and do nothing when none is configured.
+	actions["workspace.reveal"] = func() {
+		s.mu.Lock()
+		cfgStore := s.cfgStore
+		s.mu.Unlock()
+		if cfgStore == nil {
+			return
+		}
+		if root := strings.TrimSpace(cfgStore.Get().Workspace); root != "" {
+			_ = components.OpenInFileManager(root)
+		}
 	}
 	actions["workspace.openLocal"] = func() {
 		s.mu.Lock()
@@ -122,36 +187,73 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 	return actions
 }
 
-func buildApplicationMenu(bindings map[string]shortcuts.Chord, platform string, dispatch func(string)) *mygo.Menu {
+// buildApplicationMenu is the item-by-item port of the native template
+// (reference/electron/src/main/menu.js:22-121): File / Run / View / Help on every
+// platform, plus the macOS application menu. No item without a native
+// counterpart is added, and every row keeps the native order and separators.
+func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
+	// item carries the command keycap; plain is a row the native template gives
+	// no accelerator to (the launcher, reveal, MCP, skills, help links, quit).
 	item := func(id, zh, en string) *mygo.MenuItem {
 		label := resumeText(zh, en)
-		if chord, ok := bindings[id]; ok {
-			label += "    " + chord.String()
+		if chord := spec.keycap(id); chord != "" {
+			label += applicationMenuKeycapGap + chord
 		}
 		return &mygo.MenuItem{ID: id, Label: label, Click: func(*mygo.MenuItem, *mygo.Window) {
-			if dispatch != nil {
-				dispatch(id)
+			if spec.Dispatch != nil {
+				spec.Dispatch(id)
+			}
+		}}
+	}
+	plain := func(id, zh, en string) *mygo.MenuItem {
+		return &mygo.MenuItem{ID: id, Label: resumeText(zh, en), Click: func(*mygo.MenuItem, *mygo.Window) {
+			if spec.Dispatch != nil {
+				spec.Dispatch(id)
 			}
 		}}
 	}
 	group := func(id, zh, en string, items ...*mygo.MenuItem) *mygo.MenuItem {
 		return &mygo.MenuItem{ID: id, Label: resumeText(zh, en), Submenu: items}
 	}
-	quit := item("app.quit", "退出", "Quit")
+	quit := plain("app.quit", "退出", "Quit")
 	last := quit
-	if platform == "darwin" {
-		last = item("window.close", "关闭窗口", "Close window")
+	if spec.Platform == "darwin" {
+		last = plain("window.close", "关闭窗口", "Close window")
 	}
 	menu := []*mygo.MenuItem{}
-	if platform == "darwin" {
-		menu = append(menu, group("app", "MyGo鲸屿", "MyGo鲸屿", item("settings.about", "关于", "About"), mygo.Separator(), quit))
+	if spec.Platform == "darwin" {
+		// The native macOS app menu (menu.js:23-32) names the product, then About
+		// and Quit. MyGo has no native About panel: its About page is the command.
+		menu = append(menu, group("app", i18n.T(i18n.KeyAppName), i18n.T(i18n.KeyAppName),
+			plain("settings.about", "关于", "About"), mygo.Separator(), quit))
 	}
 	menu = append(menu,
-		group("file", "文件", "File", item("workspace.add", "打开工作区…", "Open workspace…"), item("launcher.open", "打开启动器", "Open launcher"), item("workspace.openLocal", "在本地打开", "Open locally"), mygo.Separator(), item("settings.open", "设置…", "Settings…"), item("market.open", "插件市场…", "Marketplace…"), item("settings.mcp", "MCP…", "MCP…"), item("settings.skills", "技能…", "Skills…"), mygo.Separator(), last),
-		&mygo.MenuItem{ID: "edit", Role: mygo.RoleEditMenu},
-		group("run", "运行", "Run", item("harness.restart", "重启 Harness", "Restart Harness"), item("window.refresh", "重新绘制界面", "Refresh interface")),
-		group("view", "视图", "View", item("window.actualSize", "实际大小", "Actual size"), item("window.zoomIn", "放大", "Zoom in"), item("window.zoomOut", "缩小", "Zoom out"), mygo.Separator(), item("window.fullscreen", "全屏", "Fullscreen"), &mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}, item("shortcuts.open", "快捷键…", "Keyboard shortcuts…")),
-		group("help", "帮助", "Help", item("help.web", "Web UI 指南", "Web UI guide"), item("help.sdk", "Python SDK", "Python SDK"), mygo.Separator(), item("settings.about", "关于", "About")),
+		group("file", "文件", "File",
+			item("workspace.add", "打开工作区…", "Open workspace…"),
+			plain("launcher.open", "打开启动器", "Open launcher"),
+			plain("workspace.reveal", "在资源管理器中打开工作区", "Open workspace in explorer"),
+			mygo.Separator(),
+			item("settings.open", "设置…", "Settings…"),
+			item("market.open", "插件市场…", "Marketplace…"),
+			plain("settings.mcp", "MCP…", "MCP…"),
+			plain("settings.skills", "技能…", "Skills…"),
+			mygo.Separator(),
+			last),
+		group("run", "运行", "Run",
+			item("harness.restart", "重启 Harness", "Restart Harness"),
+			item("window.refresh", "重新加载界面", "Reload interface")),
+		group("view", "视图", "View",
+			item("window.actualSize", "实际大小", "Actual size"),
+			item("window.zoomIn", "放大", "Zoom in"),
+			item("window.zoomOut", "缩小", "Zoom out"),
+			mygo.Separator(),
+			item("window.fullscreen", "全屏", "Fullscreen"),
+			&mygo.MenuItem{ID: "window.inspector", Label: resumeText("开发者工具", "Developer tools"), Role: mygo.RoleToggleDevTools, SuppressAccelerator: true}),
+		group("help", "帮助", "Help",
+			plain("help.web", "Web UI 指南", "Web UI guide"),
+			plain("help.sdk", "Python SDK", "Python SDK"),
+			mygo.Separator(),
+			plain("settings.about", "关于", "About")),
 	)
 	return mygo.NewMenu(menu)
 }

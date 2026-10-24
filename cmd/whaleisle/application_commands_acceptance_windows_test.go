@@ -55,15 +55,21 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		// Only the platform's menu installation is excluded. Real production
 		// pending-command consumption below still runs on each native frame.
 		s.applicationMenu = &desktopApplicationMenu{signature: string(encoded) + resumeText("zh", "en") + revision}
-		menu := buildApplicationMenu(bindings, "windows", func(id string) {
-			s.applicationMenu.pending = append(s.applicationMenu.pending, desktopMenuGesture{id: id, revision: revision})
+		menu := buildApplicationMenu(applicationMenuSpec{
+			Bindings:    bindings,
+			HasRevision: s.pageShortcutPreferences().Get().Status == "ready",
+			Fallbacks:   shortcuts.Resolve(shortcuts.SharedDefaults()),
+			Platform:    "windows",
+			Dispatch: func(id string) {
+				s.applicationMenu.pending = append(s.applicationMenu.pending, desktopMenuGesture{id: id, revision: revision})
+			},
 		})
 		tt := ui.NewTester(func(c *ui.Context) {
 			s.syncApplicationMenu(c)
 			defer s.processApplicationMenu(c)
 			ui.Button(c, "Owned main command scope").Width(220).Height(32)
 		}, 600, 300)
-		for _, id := range []string{"file", "edit", "run", "view", "help", "workspace.add", "workspace.openLocal", "harness.restart", "window.refresh", "window.actualSize", "window.zoomIn", "window.zoomOut", "window.fullscreen", "window.inspector", "help.web", "help.sdk", "app.quit"} {
+		for _, id := range []string{"file", "run", "view", "help", "workspace.add", "launcher.open", "workspace.reveal", "settings.open", "market.open", "harness.restart", "window.refresh", "window.actualSize", "window.zoomIn", "window.zoomOut", "window.fullscreen", "window.inspector", "help.web", "help.sdk", "app.quit"} {
 			item := menu.ItemByID(id)
 			if item == nil {
 				t.Fatalf("missing menu identity %s", id)
@@ -72,10 +78,10 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 				t.Fatalf("menu creates second keyboard owner: %s", id)
 			}
 		}
-		if menu.ItemByID("edit").Role != mygo.RoleEditMenu || menu.ItemByID("window.inspector").Role != mygo.RoleToggleDevTools {
+		if menu.ItemByID("window.inspector").Role != mygo.RoleToggleDevTools {
 			t.Fatal("native role identity changed")
 		}
-		for _, id := range []string{"launcher.open", "settings.open", "market.open", "settings.mcp", "settings.skills", "shortcuts.open", "settings.about"} {
+		for _, id := range []string{"launcher.open", "settings.open", "market.open", "settings.mcp", "settings.skills", "settings.about"} {
 			s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen, s.assistantOpen = true, true, true, true, true
 			item := menu.ItemByID(id)
 			if item == nil || item.Disabled || item.Click == nil {
@@ -121,6 +127,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		e := s.pageShortcutEditor()
 		*e.Draft("settings.mcp"), *e.Draft("settings.skills") = "Mod+Alt+F8", "Mod+Alt+F9"
 		*e.Draft("launcher.open") = ""
+		*e.Draft("settings.open") = "Mod+Alt+F7"
 		if s.pageShortcutBindings()["settings.mcp"] != "" {
 			t.Fatal("unsaved draft became active")
 		}
@@ -132,12 +139,21 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal(err)
 		}
 		fresh := &mainState{cfgStore: freshCfg}
-		if got := fresh.pageShortcutBindings(); got["settings.mcp"] != "Mod+Alt+F8" || got["settings.skills"] != "Mod+Alt+F9" || got["launcher.open"] != "" {
+		if got := fresh.pageShortcutBindings(); got["settings.mcp"] != "Mod+Alt+F8" || got["settings.skills"] != "Mod+Alt+F9" || got["launcher.open"] != "" || got["settings.open"] != "Mod+Alt+F7" {
 			t.Fatalf("reopen changed accepted binding: %v", got)
 		}
-		menu := buildApplicationMenu(shortcuts.Resolve(fresh.pageShortcutBindings()), "windows", nil)
-		if !strings.Contains(menu.ItemByID("settings.mcp").Label, "Mod+Alt+F8") || strings.Contains(menu.ItemByID("launcher.open").Label, "Mod+") {
-			t.Fatal("menu keycaps did not reflect binding/unbind")
+		menu := buildApplicationMenu(applicationMenuSpec{
+			Bindings:    shortcuts.Resolve(fresh.pageShortcutBindings()),
+			HasRevision: true,
+			Platform:    "windows",
+		})
+		// The native commandItem rows follow the accepted revision; rows the
+		// template gives no accelerator stay bare even though they are bound.
+		if !strings.Contains(menu.ItemByID("settings.open").Label, "Mod+Alt+F7") {
+			t.Fatal("menu keycap did not follow the accepted revision")
+		}
+		if strings.Contains(menu.ItemByID("settings.mcp").Label, "Mod+") || strings.Contains(menu.ItemByID("launcher.open").Label, "Mod+") {
+			t.Fatal("a native row without an accelerator showed one")
 		}
 		before, _ := cfg.ShortcutDocument()
 		*e.Draft("settings.mcp") = "Mod+Alt+F9"
@@ -317,7 +333,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		}
 		s := &mainState{cfgStore: cfg}
 		bindings := shortcuts.Resolve(s.pageShortcutBindings())
-		menu := buildApplicationMenu(bindings, "windows", nil)
+		menu := buildApplicationMenu(applicationMenuSpec{Bindings: bindings, HasRevision: true, Platform: "windows"})
 		inspector := menu.ItemByID("window.inspector")
 		if inspector == nil {
 			t.Fatal("inspector menu item missing")
