@@ -285,6 +285,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	}
 	pg := child.Page()
 	h.installDevToolsShortcut(pg)
+	registerDevToolsPage(pg)
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if (opts.AllowNavigation != nil && !opts.AllowNavigation(e.URL)) || (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
 			e.PreventDefault()
@@ -442,6 +443,7 @@ func (h *Host) Navigate(raw string) error {
 	}
 	pg := win.Page()
 	h.installDevToolsShortcut(pg)
+	registerDevToolsPage(pg)
 	if pg == nil {
 		return errors.New("webview: no page")
 	}

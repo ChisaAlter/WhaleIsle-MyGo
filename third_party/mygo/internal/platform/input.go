@@ -26,3 +26,21 @@ func SetBeforeInput(w any, fn func(KeyInput) bool) bool {
 	k.SetBeforeInput(fn)
 	return true
 }
+
+// devToolsGater is implemented by backend windows that can turn the web
+// inspector on or off at runtime (Windows: ICoreWebView2Settings
+// AreDevToolsEnabled). A backend without it does not implement the method.
+type devToolsGater interface {
+	SetDevToolsEnabled(enabled bool)
+}
+
+// SetDevToolsEnabled applies enabled to w and reports whether the backend
+// supports it, so callers can tell "gated" from "not available here".
+func SetDevToolsEnabled(w any, enabled bool) bool {
+	g, ok := w.(devToolsGater)
+	if !ok {
+		return false
+	}
+	g.SetDevToolsEnabled(enabled)
+	return true
+}

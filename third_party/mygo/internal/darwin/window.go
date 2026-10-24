@@ -45,6 +45,7 @@ var (
 
 type window struct {
 	beforeInput  func(platform.KeyInput) bool
+	devToolsEnabled *bool
 	b            *Backend
 	h            platform.WindowHandler
 	opts         *platform.WindowOptions

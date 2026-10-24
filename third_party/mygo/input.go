@@ -35,3 +35,20 @@ func (p *Page) OnBeforeInput(fn func(KeyInput) bool) bool {
 	})
 	return supported
 }
+
+// SetDevToolsEnabled turns this page's web inspector on or off at runtime. It
+// reports whether the platform supports it. Windows applies it to WebView2's
+// AreDevToolsEnabled, which is what the built-in Ctrl+Shift+I accelerator
+// consults, so a denied page cannot open the inspector even though the
+// accelerator still reaches the webview. Other backends keep the value but do
+// not implement the switch yet.
+func (p *Page) SetDevToolsEnabled(enabled bool) bool {
+	if p == nil || p.w == nil {
+		return false
+	}
+	supported := false
+	p.w.page(func(n platform.Window) {
+		supported = platform.SetDevToolsEnabled(n, enabled)
+	})
+	return supported
+}

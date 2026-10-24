@@ -230,6 +230,11 @@ func (w *window) setUp(controller uintptr) {
 	comCall(s, setPutAreDefaultScriptDialogsEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsStatusBarEnabled, 0)
 	comCall(s, setPutAreDevToolsEnabled, boolArg(o.DevTools))
+	// A runtime gate (Page.SetDevToolsEnabled) wins over the creation option: the
+	// shell may only learn its openDevTools setting after the page exists.
+	if gate := w.devToolsGate; gate != nil {
+		comCall(s, setPutAreDevToolsEnabled, boolArg(*gate))
+	}
 	comCall(s, setPutAreDefaultContextMenusEnabled, boolArg(!o.IsolatedPreview))
 	comCall(s, setPutIsZoomControlEnabled, 1)
 	if o.UserAgent != "" {

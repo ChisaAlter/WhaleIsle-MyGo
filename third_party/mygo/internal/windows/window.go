@@ -22,6 +22,7 @@ type window struct {
 	// it wait in pending until it exists, or fail with webViewErr, why it
 	// could not be created.
 	beforeInput func(platform.KeyInput) bool
+	devToolsGate *bool
 	browser      *browserEnvironment
 	isolated     *previewEnvironment
 	controller   uintptr // ICoreWebView2Controller
