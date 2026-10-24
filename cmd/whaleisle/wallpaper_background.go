@@ -141,6 +141,15 @@ func (s *mainState) wallpaperCanvasFlatFor(path string) bool {
 	return wallpapers.NormalizeEffect("", prefs).Effect != "gradient"
 }
 
+func appendBackdropLog(line string) {
+	if file := os.Getenv("WHALEISLE_BACKDROP_LOG"); file != "" {
+		if f, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+			fmt.Fprintln(f, line)
+			f.Close()
+		}
+	}
+}
+
 func maskedCanvasHex(hex string) string {
 	c := chrome.FlatBackdropFill(chrome.Color(hex), true)
 	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)

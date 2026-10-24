@@ -2319,6 +2319,9 @@ func main() {
 		// separate 1060x660 launcher window instead. Isolated/QA desktops, login
 		// starts, --background and --settings keep the single-window panel path.
 		launcherFirst := launcherFirstWindow(isolatedDesktopRun(), hidden, background, slices.Contains(os.Args, "--settings"))
+		if os.Getenv("WHALEISLE_FORCE_MAIN") != "" {
+			launcherFirst = false
+		}
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
@@ -3551,10 +3554,18 @@ func mainView(c *ui.Context) {
 	// caption keep their own tokens (round228/229).
 	canvasFill := chrome.Color(colors.BG)
 	darkCanvas := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark)
-	if darkCanvas && state.wallpaperCanvasFlatFor(wallpaperPath) {
+	flatCanvas := state.wallpaperCanvasFlatFor(wallpaperPath)
+	if darkCanvas && flatCanvas {
 		canvasFill = chrome.FlatBackdropFill(canvasFill, true)
 	}
-	ui.Column(c).Fill().Background(canvasFill).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
+	appendBackdropLog(fmt.Sprintf("view: scheme=%q systemDark=%v darkCanvas=%v path=%q flat=%v bg=%q fill=%v", th.Scheme, systemDark, darkCanvas, state.resolvedWallpaperPath(wallpaperPath), flatCanvas, colors.BG, canvasFill))
+	ui.Column(c).Fill().Background(canvasFill).Draw(func(p *ui.Painter, r ui.Rect) {
+		// Opaque window-layer fill: a Transparent DirectComposition window
+		// ignores BackgroundColor, so the masked canvas must be painted here.
+		if darkCanvas && flatCanvas {
+			p.Fill(r, canvasFill, 0)
+		}
+	}).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {
 			// One launcher model, two surfaces: the separate 1060x660 launcher
 			// window and this in-window fallback panel (launcher_window.go).
