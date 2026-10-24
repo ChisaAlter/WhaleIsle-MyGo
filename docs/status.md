@@ -446,6 +446,16 @@
 - pass291：87,708,160 B / SHA256 `2672AEAB…`；ready=True。
 - 残留：settled pair 重采（原生先重绘/壁纸）、TranscriptWidth 来源、workspace chip 宽 116.67 vs 150、键盘 deny 观测、G46 PR、D1–D4 决策与双签。
 
+### round210–215（2026-10-25）
+
+- round210：**对话轴根因修复**——MyGo 宽度公式用 Sizes.Center（已扣左右 divider 2 DIP）=1158 → 0.64×1158=741.12 → 卡 773.12；原生无 divider 预留=1160 → 742.4 → 774.4。frame.go 在无右 dock 时改用原生列，hero_axis_test 钉 774.39（有 dock 时 773.12 不变）；live 卡 **774×114 @469.33 vs 原生 774.39（−0.39，原 −1.06）**。settled 抓取仍受原生壁纸缺失限制（chat 页 flat 12,12,12，DWM nudge 无效），结构 0/22 为切换中采样。
+- round211：**工作区 chip 150 DIP**——内容驱动 116.67 → 固定 150，长名截断，hero 行 gap 18；测试 432/800/1440 + 超长名 + preset x=chip.X+150+18；实测 workspace 150、preset 204。残留：无 pass291 截图、无 CDP 确认 min-width。
+- round212：**S03 键盘 deny 直接观测**——同一 chord 在 allow/deny 都送达（Control/Shift/I），focus 前置条件一致：allow 开 1 个 DevTools、deny 收到按键但 0 窗口。经验：有效开关是 WebView2 AreDevToolsEnabled；UIA SetFocus 顶层窗口无效（topmost+click+focus 断言可行）；keybd_event 可送达而 SendInput 无 scan code 不行。
+- round213：**L-HOME pass291 实拍**——lock 空闲 + fixture 修正（BOM-free、port 数字）后取得 dark/light 1060×660（1590×990）；light vs headless reference：未蒙版 8.64%、洗色 8.01%，差异全为数据态；dark 因 reference 仅 light 只作结构；rail 188、nav 116.7/h40/pitch44、avatar 48+12、34 按钮、caption 48 全部匹配。
+- round214：**通知 AUMID 对齐**——原生 i.deepseek.harness.gui，经 Start-menu 快捷方式学习；新 notifications 包用 COM（IShellLink/IPersistFile/IPropertyStore，syscall 无 cgo）创建/更新 <Programs>\\Whale Isle.lnk 并写 PKEY_AppUserModel_ID（需二次 Save）；tray 前注册、失败仅记录，保留 balloon 回退；测试含真实 .lnk UTF-16 字节校验。残留：toast 本体仍 mygo.Notification（WinRT 绑定超范围）、legacy Electron.lnk 迁移、点击路由。
+- pass292：87,725,568 B / SHA256 `55C74F15…`；ready=True。
+- 残留：原生 chat 壁纸缺失（#dsh-wallpaper 检查）、structure walk 稳定化、键盘 deny 打包态、G46 PR、D1–D4 决策与双签。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。

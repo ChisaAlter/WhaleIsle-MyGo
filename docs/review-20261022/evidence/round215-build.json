@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T05:22:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87725568,
+  "productionSHA256": "55C74F152B53258A0A39EAF2C90C7602464376B0C057A3C8BB1465824690A11F",
+  "defaultSHA256": "55C74F152B53258A0A39EAF2C90C7602464376B0C057A3C8BB1465824690A11F",
+  "note": "pass292 covers rounds 210-215: native-column conversation axis, 150-DIP workspace chip, direct S03 keyboard deny, the fresh pass291 L-HOME pair and the native AUMID notification identity. Readiness verified."
+}
