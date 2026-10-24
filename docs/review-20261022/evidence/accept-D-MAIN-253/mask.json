@@ -1,0 +1,15 @@
+{
+    "threshold":  0,
+    "screen":  "D-MAIN",
+    "mask":  [
+                 {
+                     "reason":  "caption band: native injects branch pill / terminal / right-panel controls (injection-only)",
+                     "rect":  {
+                                  "y":  0,
+                                  "w":  2160,
+                                  "h":  61,
+                                  "x":  0
+                              }
+                 }
+             ]
+}
