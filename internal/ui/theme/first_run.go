@@ -20,7 +20,7 @@ import "whaleisle/internal/desktop/wallpapers"
 // choice (including "no backdrop") survives.
 func FirstRunAppearance() wallpapers.Preferences {
 	p := wallpapers.Defaults()
-	p.Effect = "gradient"
+	p.Effect = "none"
 	p.Preset = "dune"
 	p.Variant = "orbs"
 	p.Colors = wallpapers.PresetColors("dune")

@@ -74,6 +74,7 @@ func wallpaperPixelFactor(percent float64) float64 {
 }
 
 func ConfigureBackdrop(path string, p wallpapers.Preferences) {
+	p = wallpapers.NormalizeEffect(path, p)
 	// The harness raises a too-sharp wallpaper once, when the transparent theme
 	// becomes effective, and the raise holds while it stays effective: the saved
 	// preferences keep the user's own blur, so this only changes what the window

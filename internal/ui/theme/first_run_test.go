@@ -9,13 +9,13 @@ import (
 
 // TestFirstRunAppearanceMatchesHarnessDefaults pins the install defaults of
 // ui-theme/src/theme-settings.ts DEFAULT_THEME_SETTINGS, so a fresh profile
-// matches the harness look instead of starting from an empty backdrop. The
-// gradient preset is the installed build's own backdrop, sampled for Pass 2
-// (wallpapers.PresetColors("dune")).
+// matches the harness profile: no wallpaper and no explicit background effect,
+// so the backdrop is the flat theme base (the native profile only stores
+// preference: dark); the dune preset stays ready for an explicit gradient.
 func TestFirstRunAppearanceMatchesHarnessDefaults(t *testing.T) {
 	p := FirstRunAppearance()
-	if p.Effect != "gradient" || p.Preset != "dune" || p.Variant != "orbs" {
-		t.Fatalf("first-run backdrop = %q/%q/%q, want gradient/dune/orbs", p.Effect, p.Preset, p.Variant)
+	if p.Effect != "none" || p.Preset != "dune" || p.Variant != "orbs" {
+		t.Fatalf("first-run backdrop = %q/%q/%q, want none/dune/orbs", p.Effect, p.Preset, p.Variant)
 	}
 	if p.Speed != 190 || p.Count != 5 {
 		t.Fatalf("first-run ambient speed/count = %v/%v, want 190/5", p.Speed, p.Count)

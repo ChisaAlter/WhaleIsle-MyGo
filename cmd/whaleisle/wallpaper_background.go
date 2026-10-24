@@ -25,7 +25,7 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 	// A fresh profile starts on the product's dark appearance with the default
 	// aurora background, matching the shipped Electron first-run look. Saved
 	// profiles keep whatever they already stored.
-	if !s.cfgStore.HasWallpaperBackground() || s.cfgStore.IsFirstRun() {
+	if !s.cfgStore.HasWallpaperBackground() {
 		p = theme.FirstRunAppearance()
 	}
 	g := settings.NewWallpaperEditor(p, filepath.Join(paths.UserDataDir(), "wallpapers"), func(p wallpapers.Preferences) error {
@@ -98,10 +98,7 @@ func wallpaperSourcePath(hostAccepted bool, hostImage, configPath string) string
 // the ambient aurora must not paint when no image is set; a seeded or Host
 // image keeps the stored effect.
 func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpapers.Preferences {
-	if strings.TrimSpace(path) == "" {
-		prefs.Effect = "none"
-	}
-	return prefs
+	return wallpapers.NormalizeEffect(path, prefs)
 }
 
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {

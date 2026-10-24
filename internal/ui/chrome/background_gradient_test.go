@@ -16,10 +16,11 @@ import (
 // old "aurora" blooms used left hard-edged circles over the wallpaper.
 func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	// An explicit gradient choice (first run is flat now): the sampled wash is
+	// what this test covers, not the default effect.
 	prefs := theme.FirstRunAppearance()
-	if prefs.Effect != "gradient" {
-		t.Fatalf("first-run backdrop is %q, want the ambient gradient", prefs.Effect)
-	}
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
 	tt := ui.NewTester(func(c *ui.Context) {
 		paint := WallpaperBackgroundPainter("", prefs, c.Preferences().ReduceMotion)
 		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })

@@ -335,7 +335,7 @@ func TestGlassDrawsNothingUnderTransparentTheme(t *testing.T) {
 func TestTransparentThemeNeedsAWallpaper(t *testing.T) {
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
 	p := wallpapers.Defaults()
-	p.Transparent, p.Effect = true, "gradient"
+	p.Transparent, p.Effect, p.EffectExplicit = true, "gradient", true
 	base := ui.RGB(20, 20, 20)
 	ConfigureBackdrop("", p)
 	if got := BackdropCanvas(base); got.A != base.Alpha(.45).A {

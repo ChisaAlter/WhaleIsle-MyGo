@@ -14,6 +14,7 @@ import (
 func TestWallpaperReducedMotionStopsSchedulingAndHoldsPhase(t *testing.T) {
 	prefs := wallpapers.Defaults()
 	prefs.Effect, prefs.Speed, prefs.Count = "gradient", 190, 5
+	prefs.EffectExplicit = true
 	paints := 0
 	tt := ui.NewTester(func(c *ui.Context) {
 		paint := WallpaperBackgroundPainter("", prefs, c.Preferences().ReduceMotion)

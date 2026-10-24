@@ -124,7 +124,7 @@ func TestTransparentThemeLiftsASharpWallpaper(t *testing.T) {
 	// Over the ambient gradient the theme is not effective (no wallpaper), so a
 	// sharp look stays the user's call.
 	transparent := prefs
-	transparent.Transparent, transparent.Effect = true, "gradient"
+	transparent.Transparent, transparent.Effect, transparent.EffectExplicit = true, "gradient", true
 	ConfigureBackdrop("", transparent)
 	if got := backgroundState.prefs.Blur; got != 0 {
 		t.Fatalf("the theme lifted the blur without a wallpaper: %v", got)

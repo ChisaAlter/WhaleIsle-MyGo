@@ -24,6 +24,12 @@ func (s *Store) WallpaperBackground() (wallpapers.Preferences, error) {
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return p, err
 		}
+		// A stored backgroundEffect key — including "none" — is an explicit
+		// choice, so it survives the flat no-wallpaper default.
+		var stored map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &stored); err == nil {
+			_, p.EffectExplicit = stored["backgroundEffect"]
+		}
 	}
 	return p, nil
 }

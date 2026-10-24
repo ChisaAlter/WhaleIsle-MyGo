@@ -57,6 +57,7 @@ func TestNoWallpaperFlatBackdrop(t *testing.T) {
 		// Control: the aurora still paints, so the probe above is meaningful.
 		gradient := wallpapers.Defaults()
 		gradient.Effect = "gradient"
+		gradient.EffectExplicit = true
 		gradient.Preset = "dune"
 		if got := renderFlat(t, dark, 64, 40, chrome.WallpaperBackgroundPainter("", gradient)).RGBAAt(32, 20); got == with.RGBAAt(32, 20) {
 			t.Fatalf("%s: aurora control did not paint", name)

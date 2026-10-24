@@ -1,5 +1,7 @@
 package wallpapers
 
+import "strings"
+
 type Preferences struct {
 	CursorEnabled   bool      `json:"cursorEffectEnabled"`
 	CursorEffect    string    `json:"cursorEffect"`
@@ -20,14 +22,31 @@ type Preferences struct {
 	HideSidebarMask bool      `json:"sidebarMaskHidden"`
 	Preset          string    `json:"backgroundEffectPreset"`
 	Effect          string    `json:"backgroundEffect"`
-	Variant         string    `json:"backgroundEffectVariant"`
-	Speed           float64   `json:"backgroundEffectSpeed"`
-	Count           float64   `json:"backgroundEffectCount"`
-	Colors          [7]string `json:"backgroundEffectColors"`
+	// EffectExplicit records that the user/Host chose backgroundEffect, so an
+	// untouched profile stays flat instead of inheriting a seeded gradient.
+	EffectExplicit bool      `json:"-"`
+	Variant        string    `json:"backgroundEffectVariant"`
+	Speed          float64   `json:"backgroundEffectSpeed"`
+	Count          float64   `json:"backgroundEffectCount"`
+	Colors         [7]string `json:"backgroundEffectColors"`
 }
 
 func Defaults() Preferences {
 	return Preferences{CursorEffect: "trail", CursorPreset: "default", CursorSpeed: 100, CursorSize: 100, Sources: Sources(), Crop: DefaultCrop(), Glass: 80, Terminal: 75, HideSidebarMask: true, Preset: "default", Effect: "none", Variant: "orbs", Speed: 190, Count: 5, Colors: [7]string{}}
+}
+
+// NormalizeEffect resolves the backdrop effect for a profile: without a
+// wallpaper image only an explicit choice can paint the ambient gradient; an
+// unset or empty effect falls back to the flat theme base.
+func NormalizeEffect(path string, p Preferences) Preferences {
+	p.Effect = strings.TrimSpace(p.Effect)
+	if strings.TrimSpace(path) != "" {
+		return p
+	}
+	if !p.EffectExplicit || p.Effect == "" {
+		p.Effect = "none"
+	}
+	return p
 }
 
 func (p Preferences) Clone() Preferences {
