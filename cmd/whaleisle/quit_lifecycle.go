@@ -76,6 +76,9 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	// The management window is a separate top-level window; quitting must not
 	// leave it behind its own webview child.
 	s.closeWhaleBridgeWindow()
+	// The launcher window is independent too: a quit from the launcher stage
+	// must not leave it behind.
+	s.closeLauncherWindow()
 	s.closeDesktopTray()
 	s.cancelComposerVoice()
 	if err := desktopcomponents.ShutdownGeneric(paths.UserDataDir()); err != nil {

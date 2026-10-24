@@ -191,6 +191,11 @@ func (w *welcomeWindow) showParent() {
 	if w.parent == nil || w.parent.IsDestroyed() {
 		return
 	}
+	// When the launcher owns its own window, the welcome flow hands over to it
+	// (launcher_window.go); the main window stays hidden until the start.
+	if state.launcherStageHasWindow() {
+		return
+	}
 	w.parent.Show()
 	w.parent.Restore()
 	w.parent.Focus()

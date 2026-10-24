@@ -47,7 +47,6 @@ import (
 	"whaleisle/internal/desktop/providerprofiles"
 	"whaleisle/internal/desktop/sshremote"
 	"whaleisle/internal/desktop/taskguard"
-	desktopupdate "whaleisle/internal/desktop/update"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/dsh"
@@ -332,17 +331,24 @@ type mainState struct {
 	assistantPluginBusy                     bool
 	assistantPluginDetail                   string
 	launcherOpen                            bool
-	toolsMenuOpen                           bool
-	filesPaneOpen                           bool // Electron tools → files/diff right dock
-	launcherTab                             string
-	launcherWorkspaceDraft                  string
-	launcherImport                          string
-	launcherImportJournal                   []string
-	launcherImportBusy                      bool
-	launcherImportCancel                    context.CancelFunc
-	launcherUpdate                          string
-	launcherUpdateCheckBusy                 bool
-	updateCheckPending                      bool
+	// launcherWin is the separate 1060x660 launcher window (G04). Nil keeps the
+	// in-window launcher panel: isolated/QA desktops, --background, --settings,
+	// headless tests and a failed window creation all stay on that fallback.
+	launcherWin *launcherWindow
+	// launcherWindowAllowed is decided once at startup: only a cold foreground
+	// start hides the main window behind a separate launcher window.
+	launcherWindowAllowed   bool
+	toolsMenuOpen           bool
+	filesPaneOpen           bool // Electron tools → files/diff right dock
+	launcherTab             string
+	launcherWorkspaceDraft  string
+	launcherImport          string
+	launcherImportJournal   []string
+	launcherImportBusy      bool
+	launcherImportCancel    context.CancelFunc
+	launcherUpdate          string
+	launcherUpdateCheckBusy bool
+	updateCheckPending      bool
 	// updateProgress is the visible update row; updateJournal keeps the update
 	// evidence outside the installation directory (port of the reference shell
 	// update dialog and update-journal.js).
@@ -1086,7 +1092,16 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	usage := s.usage
 	sessions := s.sessions
 	s.mu.Unlock()
-	s.showMainWindow()
+	if t.Action == deeplink.ActionLauncher {
+		// The launcher deep link opens/reuses the one launcher window
+		// (index.js:340-348); the panel fallback still needs the main window.
+		s.syncLauncherStage()
+	} else {
+		// Every other route lands on the main window; an open launcher window
+		// would mask it.
+		s.closeLauncherWindow()
+		s.showMainWindow()
+	}
 	if t.Action == deeplink.ActionAuth && usage != nil {
 		sid := ""
 		if sessions != nil {
@@ -1620,6 +1635,10 @@ func (s *mainState) watchAcceptOpenHook() {
 				if w != nil {
 					w.Update(func() {})
 				}
+				// A route may hand the window to the launcher or back to the
+				// desktop; the move is its own main-thread task, never a nested
+				// content update.
+				mygo.RunOnMain(func() { s.syncLauncherStage() })
 			}
 		}
 	}()
@@ -1697,6 +1716,10 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	}
 	logs := append([]string(nil), s.bootLogs...)
 	win := s.win
+	// A cold start that owns a launcher window keeps the main window hidden
+	// until the desktop start begins; the reference shell creates the main
+	// window exactly then, with the boot page behind the launcher.
+	revealMain := s.launcherWindowAllowed && st.State == harness.Starting
 	s.mu.Unlock()
 	if failedMessage != "" {
 		// Best effort: a report that cannot be written never masks the failure.
@@ -1707,9 +1730,16 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncPluginViewHost(st)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
+	if revealMain && win != nil && !win.IsVisible() {
+		s.showMainWindow()
+	}
 	if win != nil {
 		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray(); s.refreshStartupUpdateAttention(win) })
 	}
+	// Window moves run as their own main-thread task, never inside a content
+	// update: creating or destroying a native window from a paint callback
+	// re-enters the message loop and wedges it.
+	mygo.RunOnMain(func() { s.syncLauncherStage() })
 }
 
 func (s *mainState) syncDialogue(st harness.Status) {
@@ -2223,6 +2253,11 @@ func main() {
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
 		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
+		// The reference shell never creates the main window while the launcher
+		// owns the stage (window.js:900-952); MyGo creates it hidden and shows a
+		// separate 1060x660 launcher window instead. Isolated/QA desktops, login
+		// starts, --background and --settings keep the single-window panel path.
+		launcherFirst := launcherFirstWindow(isolatedDesktopRun(), hidden, background, slices.Contains(os.Args, "--settings"))
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
@@ -2233,14 +2268,14 @@ func main() {
 			MinWidth:       winMinWidth,
 			MinHeight:      winMinHeight,
 			StateKey:       "main",
-			Hidden:         hidden || background,
+			Hidden:         hidden || background || launcherFirst,
 			TitleBarStyle:  mygo.TitleBarHidden,
 			TitleBarHeight: int(chrome.EffectiveTitleBarHeight()),
 			// The native shell builds an application menu for accelerators but
 			// keeps the OS menu bar hidden (chrome.js:48 autoHideMenuBar,
 			// :69-70 setAutoHideMenuBar/setMenuBarVisibility). Without this the
 			// mygo menu bar would push the 12 DIP title band down.
-			AutoHideMenuBar:          true,
+			AutoHideMenuBar: true,
 			// Native controls plate: 48 tall with 12 top / 4 bottom padding and
 			// 32x32 buttons, so the buttons occupy y=12..44
 			// (harness-chrome-inject.js:12,89,96-97).
@@ -2403,6 +2438,7 @@ func main() {
 
 		state.mu.Lock()
 		state.win = win
+		state.launcherWindowAllowed = launcherFirst
 		state.watchAcceptOpenHook()
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
@@ -2638,6 +2674,9 @@ func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
 	s.launcherOpen = true
 	s.launcherStartPreparing = true
 	s.mu.Unlock()
+	// launcher.js opens the launcher before any start decision. UI thread only:
+	// the startup callback and the welcome window's completion both run there.
+	s.syncLauncherStage()
 	go func() {
 		defer s.finishLauncherPreparation(win)
 		canStartAfterRecovery := s.recoverImportBeforeStart()
@@ -3123,20 +3162,6 @@ func mainView(c *ui.Context) {
 	}
 	launcherOpen := state.launcherOpen
 	toolsMenuOpen := state.toolsMenuOpen
-	launcherTab := state.launcherTab
-	if launcherTab == "" {
-		launcherTab = launcher.TabHome
-	}
-	launcherImport := state.launcherImport
-	launcherImportJournal := append([]string(nil), state.launcherImportJournal...)
-	launcherImportBusy := state.launcherImportBusy
-	launcherUpdate := state.launcherUpdate
-	launcherUpdateAvailable := state.launcherUpdateAvailable
-	launcherNote := state.launcherNote
-	launcherStartBusy := state.launcherStartBusy
-	launcherRuntimeBusy := state.taskRestartPending || state.quitRequestPending || state.quitting
-	launcherStartFailed := state.launcherStartFailed
-	launcherStartErr := state.launcherStartErr
 	cfgHideArchivedList := false
 	cfgRemoteWorkspace := false
 	cfgPhoneGitEnabled := state.phoneGitSession != ""
@@ -3447,470 +3472,17 @@ func mainView(c *ui.Context) {
 	}
 	ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {
-			// The pinned native release catalog owns the one background lookup.
-			// Full-window launcher shell (Electron parity): no main chrome.
-			vendorReady := false
-			if info, err := os.Stat(filepath.Join(paths.VendorDir(), "deepseek-harness", "apps", "cli", "lib", "bin.js")); err == nil && !info.IsDir() {
-				vendorReady = true
-			}
-			disabled := []string(nil)
-			skipUserPlugins := false
-			pluginRecoveryReason := ""
-			cfgStore := state.cfgStore
-			harnessSup := sup
-			if cfgStore != nil {
-				cfg := cfgStore.Get()
-				disabled = append([]string(nil), cfg.DisabledPlugins...)
-				rec := cfgStore.PluginRecoveryEvidence()
-				skipUserPlugins = rec.SkipUserPlugins
-				pluginRecoveryReason = rec.Reason
-			}
-			if strings.TrimSpace(state.launcherWorkspaceDraft) == "" {
-				seed := workspaceRoot
-				if seed == "" && cfgStore != nil {
-					seed = cfgStore.Get().Workspace
-				}
-				state.launcherWorkspaceDraft = seed
-			}
-			wsDraft := &state.launcherWorkspaceDraft
-			if !state.launcherPrefsSeeded && cfgStore != nil {
-				cfg := cfgStore.Get()
-				state.launcherQuitAfterStart = cfg.QuitAfterStart
-				state.launcherAutoStartDesktop = cfg.AutoStartDesktop
-				state.launcherAskOnUpdate = cfg.AskOnUpdate
-				state.launcherDownloadRoute = cfg.DownloadRoute
-				state.closeToTray = cfg.CloseToTray
-				state.launcherPrefsSeeded = true
-			}
-			state.mu.Lock()
-			componentsFresh := state.launcherComponentsFresh
-			state.mu.Unlock()
-			if !componentsFresh {
-				state.refreshLauncherComponents()
-			}
-			state.mu.Lock()
-			compRows := append([]desktopcomponents.Row(nil), state.launcherComponents...)
-			prefsError := state.launcherPrefsError
-			state.mu.Unlock()
-			componentActivity := state.launcherComponentActivitySnapshot()
-			quitPtr := &state.launcherQuitAfterStart
-			trayPtr := &state.closeToTray
-			autoPtr := &state.launcherAutoStartDesktop
-			askPtr := &state.launcherAskOnUpdate
-			routePtr := &state.launcherDownloadRoute
-			// Retained session stores keep the shell alive after Stop; they do not
-			// mean that a stopped or failed runtime can still accept work.
-			deskRunning := st.State == harness.Ready || st.State == harness.Starting && sessions != nil
-			launcher.View(c, state.withNativeReleases(win, launcher.Model{
-				ThemeID:         themeID,
-				SystemDark:      mygo.Theme.IsDark(),
-				Version:         buildVersion,
-				Workspace:       *wsDraft,
-				WorkspacePtr:    wsDraft,
-				VendorReady:     vendorReady,
-				LauncherPackage: isLauncherPackage(),
-				DesktopRunning:  deskRunning,
-				// Keep the running chrome even while harness is still Starting.
-				StartBusy:            launcherStartBusy,
-				RuntimeBusy:          launcherRuntimeBusy,
-				StartFailed:          launcherStartFailed,
-				StartError:           launcherStartErr,
-				BootLogs:             logs,
-				PluginLoad:           st.PluginLoad,
-				ActiveTab:            launcherTab,
-				ImportSummary:        launcherImport,
-				ImportJournal:        launcherImportJournal,
-				UpdateStatus:         launcherUpdate,
-				UpdateAvailable:      launcherUpdateAvailable,
-				DisabledPlugins:      disabled,
-				SkipUserPlugins:      skipUserPlugins,
-				PluginRecoveryReason: pluginRecoveryReason,
-				StatusNote:           launcherNote,
-				QuitAfterStart:       quitPtr,
-				CloseToTray:          trayPtr,
-				AutoStartDesktop:     autoPtr,
-				AskOnUpdate:          askPtr,
-				DownloadRoute:        routePtr,
-				RoutePopOpen:         &state.launcherRoutePopOpen,
-				ImportOverwrite:      &state.launcherImportOverwrite,
-				ImportAttachments:    &state.launcherImportAttachments,
-				ImportCategories:     state.launcherImportCategories,
-				ImportCatalog:        state.launcherImportCatalog,
-				Components:           compRows,
-				ComponentPending:     componentActivity.Pending,
-				ComponentStatus:      componentActivity.Status,
-				LauncherPrefsError:   prefsError,
-				ComponentBusy:        bridgeChangeActive.Load(),
-				HostRuntimeState:     st.State,
-				OnRefreshComponents: func() {
-					state.refreshLauncherComponents()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnComponentAction: func(id, action string) {
-					if bridgeChangeActive.Load() {
-						return
-					}
-					if id == desktopcomponents.HostComponentID {
-						state.changeHostBundle(win, action)
-						return
-					}
-					if id == "whalebridge" && (action == "update" || action == "rollback" || action == "uninstall" || action == "stop") {
-						state.changeWhaleBridge(win, action)
-						return
-					}
-					if id == "whalebridge" && (action == "start" || action == "open" || action == "manage") {
-						release, ok := state.claimLauncherComponentAction(win, id, action)
-						if !ok {
-							return
-						}
-						state.mu.Lock()
-						state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"
-						if action != "start" {
-							state.launcherUpdate = resumeText("正在打开鲸桥设置…", "Opening WhaleBridge settings…")
-						}
-						state.launcherComponentStatus = state.launcherUpdate
-						state.mu.Unlock()
-						go func() {
-							defer release()
-							// open/manage start the instance and then own the embedded
-							// management window; the shell never hands the page to the
-							// system browser (reference whalebridge-window.js).
-							run := action
-							if action != "start" {
-								run = "start"
-							}
-							err := desktopcomponents.RunAction(paths.UserDataDir(), id, run)
-							state.mu.Lock()
-							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
-							state.launcherComponentStatus = state.launcherUpdate
-							state.mu.Unlock()
-							state.refreshLauncherComponents()
-							if win != nil {
-								win.Update(func() {})
-								if err == nil && action != "start" {
-									win.Update(func() { state.openWhaleBridgeWindow(win, action == "manage") })
-								}
-							}
-						}()
-						return
-					}
-					if id == "whalebridge" && action == "install" {
-						release, ok := state.claimLauncherComponentAction(win, id, action)
-						if !ok {
-							return
-						}
-						route := state.updateDownloadRoute()
-						state.mu.Lock()
-						state.launcherUpdate = "正在下载并校验鲸桥组件…"
-						state.launcherComponentStatus = state.launcherUpdate
-						state.mu.Unlock()
-						go func() {
-							defer release()
-							err := desktopcomponents.InstallWhaleBridge(context.Background(), paths.UserDataDir(), route)
-							state.mu.Lock()
-							state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
-							state.launcherComponentStatus = state.launcherUpdate
-							if err == nil {
-								state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行"
-								state.launcherComponentStatus = state.launcherUpdate
-							}
-							state.mu.Unlock()
-							state.refreshLauncherComponents()
-							if win != nil {
-								win.Update(func() {})
-							}
-						}()
-						return
-					}
-					state.runGenericComponentAction(win, id, action)
-				},
-				OnSaveLauncherPrefs: func() {
-					if cfgStore == nil {
-						state.refuseHostAction()
-						return
-					}
-					state.mu.Lock()
-					quit := state.launcherQuitAfterStart
-					tray := state.closeToTray
-					auto := state.launcherAutoStartDesktop
-					ask := state.launcherAskOnUpdate
-					route := state.launcherDownloadRoute
-					state.mu.Unlock()
-					err := cfgStore.Update(func(c *config.Config) {
-						c.QuitAfterStart = quit
-						c.CloseToTray = tray
-						c.AutoStartDesktop = auto
-						c.AskOnUpdate = ask
-						c.DownloadRoute = route
-					})
-					state.mu.Lock()
-					state.launcherPrefsError = ""
-					if err != nil {
-						state.launcherPrefsError = err.Error()
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnTab: func(tab string) {
-					state.mu.Lock()
-					state.launcherTab = tab
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnClose: func() {
-					state.mu.Lock()
-					state.launcherOpen = false
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnStop: func() {
-					state.mu.Lock()
-					sup := state.sup
-					state.mu.Unlock()
-					state.stopProtected(win, sup)
-				},
-				OnStart: func() {
-					state.mu.Lock()
-					if state.launcherStartPreparing || state.launcherStartBusy || state.launcherImportBusy || state.taskRestartPending || state.quitRequestPending || state.quitting {
-						state.mu.Unlock()
-						return
-					}
-					state.launcherStartPreparing = true
-					store := state.cfgStore
-					ws := strings.TrimSpace(state.launcherWorkspaceDraft)
-					state.launcherTriedStart = true
-					state.launcherStartBusy = true
-					state.launcherStartErr = ""
-					state.startupRecovery.updateHold = false
-					state.mu.Unlock()
-					go func() {
-						defer state.finishLauncherPreparation(win)
-						if store == nil {
-							state.mu.Lock()
-							state.launcherStartBusy = false
-							state.launcherStartFailed = true
-							state.launcherStartErr = "config store is not ready"
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-							return
-						}
-						if ws == "" {
-							ws = paths.DefaultWorkspace()
-						}
-						if err := os.MkdirAll(ws, 0o755); err != nil {
-							state.mu.Lock()
-							state.launcherStartBusy = false
-							state.launcherStartFailed = true
-							state.launcherStartErr = err.Error()
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-							return
-						}
-						if err := store.Update(func(c *config.Config) {
-							c.Workspace = ws
-						}); err != nil {
-							state.mu.Lock()
-							state.launcherStartBusy = false
-							state.launcherStartFailed = true
-							state.launcherStartErr = err.Error()
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-							return
-						}
-						state.mu.Lock()
-						state.launcherWorkspaceDraft = ws
-						state.launcherOpen = true
-						state.mu.Unlock()
-						startHarness(store.Get())
-						if win != nil {
-							win.Update(func() {})
-						}
-					}()
-				},
-				OnScanImport: func() {
-					state.applyImportCatalog(win, "")
-				},
-				OnPickImportSource: func() {
-					picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-						Parent:    win,
-						Title:     i18n.T(i18n.KeyLauncherImportPickSourceTitle),
-						Directory: true,
-					})
-					if err != nil || len(picked) == 0 {
-						return
-					}
-					state.applyImportCatalog(win, picked[0])
-				},
-				OnAddSkillImportDir: func() {
-					picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-						Parent:    win,
-						Title:     i18n.T(i18n.KeyLauncherImportAddSkillTitle),
-						Directory: true,
-					})
-					if err != nil || len(picked) == 0 {
-						return
-					}
-					state.mu.Lock()
-					cat := state.launcherImportCatalog
-					state.mu.Unlock()
-					if cat == nil {
-						state.applyImportCatalog(win, "")
-						state.mu.Lock()
-						cat = state.launcherImportCatalog
-						state.mu.Unlock()
-					}
-					if cat == nil {
-						return
-					}
-					n := importer.AppendSkillDirectory(cat, picked[0])
-					state.mu.Lock()
-					state.launcherImportCatalog = cat
-					state.launcherImport = fmt.Sprintf(i18n.T(i18n.KeyLauncherImportSummarySkillDir),
-						cat.SourceHome, cat.DestHome,
-						len(cat.Sessions), len(cat.Skills), len(cat.Plugins),
-						len(cat.MCP), len(cat.Settings), len(cat.Presets),
-						picked[0], n)
-					counts := cat.CategoryCounts()
-					state.launcherImportCategories = map[string]bool{}
-					for id, pair := range counts {
-						state.launcherImportCategories[id] = pair[1] > 0
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCopyImportJournal: func(lines []string) {
-					if len(lines) == 0 {
-						return
-					}
-					mygo.Clipboard.WriteText(strings.Join(lines, "\n"))
-				},
-				OnStartImport: func() { state.startImport(win) },
-				ImportBusy:    launcherImportBusy,
-				OnCancelImport: func() {
-					state.mu.Lock()
-					cancel := state.launcherImportCancel
-					state.mu.Unlock()
-					if cancel != nil {
-						cancel()
-					}
-				},
-				OnInstallUpdate: func() {
-					// Electron #btn-home-update → check + download/stage (same as settings update).
-					state.showUpdateCheck(win)
-					res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, state.updateDownloadRoute())
-					state.mu.Lock()
-					if err != nil {
-						state.launcherUpdateAvailable = false
-					} else {
-						state.launcherUpdateAvailable = res.Status == desktopupdate.StatusUpdateAvailable
-						if state.launcherUpdateAvailable {
-							state.launcherUpdate = fmt.Sprintf(i18n.T(i18n.KeyLauncherUpdateAvailable), res.Version, buildVersion)
-						}
-					}
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnCheckUpdate: func() {
-					state.checkLauncherUpdate(win)
-				},
-				OnOpenSettings: func() {
-					state.mu.Lock()
-					state.launcherOpen = false
-					state.settingsEmbeddedSection = ""
-					state.settingsOpen = true
-					state.settingsDesktopActive = true
-					state.seedDesktopDraft()
-					state.mu.Unlock()
-					if state.settings != nil {
-						state.settings.OpenSettingsDocument(context.Background())
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnEnableSkipUserPlugins: func() {
-					if cfgStore == nil {
-						state.refuseHostAction()
-						return
-					}
-					err := cfgStore.UpdatePluginRecovery(func(m map[string]any) {
-						m["skipUserPlugins"] = true
-						m["appVersion"] = "" // explicit manual recovery survives upgrades
-						if _, ok := m["reason"]; !ok {
-							m["reason"] = "launcher"
-						}
-					})
-					state.mu.Lock()
-					if err != nil {
-						state.launcherNote = err.Error()
-					} else {
-						state.launcherNote = i18n.T(i18n.KeyLauncherSkipUserPluginsOn)
-					}
-					state.mu.Unlock()
-					if err == nil {
-						state.syncHarnessFromConfig()
-						if harnessSup != nil {
-							state.restartUnlessImport(harnessSup)
-						}
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnClearPluginRecovery: func() {
-					if cfgStore == nil {
-						state.refuseHostAction()
-						return
-					}
-					err := cfgStore.ClearPluginRecovery()
-					state.mu.Lock()
-					if err != nil {
-						state.launcherNote = err.Error()
-					} else {
-						state.launcherNote = i18n.T(i18n.KeyLauncherSkipUserPluginsOff)
-					}
-					state.mu.Unlock()
-					if err == nil {
-						state.syncHarnessFromConfig()
-						if harnessSup != nil {
-							state.restartUnlessImport(harnessSup)
-						}
-					}
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				OnRestartHarness: func() {
-					state.syncHarnessFromConfig()
-					if harnessSup != nil {
-						state.restartUnlessImport(harnessSup)
-					}
-					state.mu.Lock()
-					state.launcherNote = i18n.T(i18n.KeyLauncherRestartHarness)
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-			}))
+			// One launcher model, two surfaces: the separate 1060x660 launcher
+			// window and this in-window fallback panel (launcher_window.go).
+			state.launcherPanel(c, win, launcherPanelHost{
+				ThemeID:    themeID,
+				Version:    buildVersion,
+				Status:     st,
+				Logs:       logs,
+				Workspace:  workspaceRoot,
+				Supervisor: sup,
+				Sessions:   sessions != nil,
+			})
 			return
 		}
 		// Exclusive panels (settings/market/…) must not keep desktop title actions.
