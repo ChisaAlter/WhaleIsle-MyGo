@@ -231,3 +231,48 @@ overlay 功能链路成立：`ArtifactsReady=true` → `startHarness` 创建 Pro
 - 适配克隆 `tmp/proj-exp`（0.47 GB，含 `current-host-build.json`）保留作决策样本；`tmp/current-host-marker.mjs` 是生成器；两者都在 gitignored 的 `tmp/`。
 - UIA 无法在**空 workspace** 下展示项目条目：需要先在 workspace 里登记 project（catalog 由插件/接口创建），本轮未做（时间盒）。
 - 冷启动 +64 s 的成本需要单独优化（桥只应在需要时准备 overlay，或复用已 stage 的 runtime 目录）。
+
+## 11. Round149 补记（task-24）：安装版 rc.2 默认可用，Project overlay 默认挂载
+
+**决策**：不改写 `runtime/vendor`（不伪造 `current-host-build.json`），而是把这个缺口当作检查本身的缺陷修掉——`ReadCurrentHostCapabilities` 增加一条**同样严格**的安装版证明路径。
+
+### 11.1 门禁逻辑（`internal/harness/current_host.go`）
+
+`current-host-build.json` 存在时仍走原分支，代码与语义逐字不变（`TestCurrentHostPinnedAssemblies`、`TestSourceBuildManifestKeepsItsBranch` 都钉住）。只有它**不存在**时才尝试安装版证明 `readInstalledRuntimeCapabilities`，任一项不满足即 `ArtifactsReady=false` + 具体 `Reason`（fail closed）：
+
+| 检查 | 复用/来源 | 失败示例 |
+| --- | --- | --- |
+| rc.2 身份 + 5 项 artifact 哈希 + 内置 Node 哈希 + 桌面会话事件词表 | 直接调用既有 `validateStagedSessionRuntime`（不复制任何 pin 常量） | `Installed Host runtime does not prove the pinned rc.2 assembly: … artifact changed` |
+| `ui-visual-replies/lib/index.js` 必须等于 `rc2SessionRuntimeSafety.OutputSHA256`（`8278107b…`） | 同上（`sessionRuntimeArtifacts[4]` 分支） | `…visual-readiness gate is not the pinned build` |
+| `session-runtime-readiness.json` 四元组必须等于同一 pin | 新增读取，与 `rc2SessionRuntimeSafety` 全等比较 | `readiness record does not pin the visual-readiness gate` |
+| bundle 内含门禁字符串 `MyGo visual reply readiness gate v1` 与 `/desktop/html-preview/status` | 新增（证明「哈希到的是哪个构建」） | `lacks the readiness gate: …` |
+| `dsh-project/{lib/index.js,lib/transport.js,client/client.js,package.json}` 存在 | 新增（无 manifest 覆盖，只查存在性；桥自己再 fail closed） | `Project package is incomplete: …` |
+
+通过后的能力字段（真实、不冒充源码构建）：`SourceCommit = 687f282e…`（rc.2 的 `harnessPin.sha`）、`ArtifactsReady=true`、`ReadinessGuardReady=true`、`VisualReplyReader=true`、`Project/Team = bridges.Project && bridges.ProjectOverlay`、`VisualReplies = ReadinessGuardReady && HTMLPreview && VisualReplyIsolation`，公式与源码分支一致。`ValidateCurrentHostForLaunch` **未改动**：源码构建仍要求 `mygo-visual-readiness-v1` 三元组。
+
+### 11.2 测试（`internal/harness/current_host_installed_test.go`，temp fixture）
+
+- 有效安装版证明 → `ArtifactsReady/ReadinessGuardReady/VisualReplyReader=true`、`SourceCommit=687f282e…`；给全 bridges 时 `Project/Team/VisualReplies=true` 且无 Reason；`ValidateCurrentHostForLaunch` 仍通过。
+- fail closed：readiness 记录哈希被改、记录缺失、bundle 缺门禁标记（把 pin 改成无标记字节，保证只有标记检查能拒绝）、缺 `dsh-project/package.json`、空 vendor 无任何 manifest、5 项 artifact 之一被改——全部 false 且 Reason 命中具体项。
+- 源码分支不变：同时存在伪造的 `current-host-build.json`（未知 commit）时，仍只由它决定 → `provenance is unsupported`，安装版证明不会替它背书。
+
+命令：`go test ./internal/harness` → ok 20.4 s；`go test ./cmd/whaleisle` → ok 19.0 s；`go vet ./internal/harness ./cmd/whaleisle` → 0。
+
+### 11.3 端到端（默认 `runtime/vendor`，无 marker；pass275 不覆盖）
+
+临时构建 `tmp/whaleisle-default-overlay.exe`（当前树 + 本轮改动），`node scripts/session-runtime.mjs verify runtime\vendor` **exit 0**，`runtime\vendor\current-host-build.json` 不存在。`tmp/harness-start-smoke.ps1`（临时 profile + 真实 config 改 workspace/port=3099 + `-Vendor runtime\vendor`）：
+
+| 证据 | 值（`evidence/project-overlay-default.json`，status=ok） |
+| --- | --- |
+| readiness | portListening / mainVisible / launcherGone / responding 全 true；主窗 1440×920 可见，启动器已消失 |
+| 时间线 | 主窗可见 **t≈3.3 s**，:3099 首次监听 **t≈7.3 s**，启动器消失 **t≈8.1 s**，整轮探针 24.7 s |
+| Host 子进程 | `node.exe …\bin.js web --patch …\desktop-plugins\dsh-project\desktop-project.patch.yml --patch …dsh-task-control…`（**dsh-project 是第一个 `--patch`**，共 10 个） |
+| profile | `projectOverlayFiles = ["desktop-project.patch.yml"]`（桥把 `desktop-plugins\dsh-project` + runtime 包 stage 进 profile） |
+
+**冷启动成本**：本轮默认 vendor 下从启动到端口就绪约 **7 s**（对比 §10.3 克隆树实验的 ~76 s）。差异来自实验环境：当时 profile 里要新 stage 整个克隆的 `dsh-project`（含 node_modules）并额外解引用 3145 个链接；默认 vendor 的包更小、且已有缓存目录，一轮 ~25 s 即可完成探针全流程。仍应按「每个新 profile 首次启动」预留数秒级代价，后续可用已 stage 目录复用进一步降低。
+
+### 11.4 残留
+
+- `scripts/current-host.mjs verify` 仍只认源码构建清单；`package.ps1:82` 对安装版 profile 应改走 `session-runtime.mjs verify`（本轮未改脚本，避免动打包流程）。
+- `dsh-project` 无 manifest 覆盖，只做存在性检查；若发布版包内容变化，桥的 `PrepareOverlay` 仍会 fail closed（日志 + 不挂载），但不会有哈希级证明。
+- 空 workspace 下 UIA 仍不显示项目分组（§10.6），本轮未改变。

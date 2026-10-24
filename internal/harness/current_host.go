@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -54,11 +55,96 @@ var currentHostArtifacts = []string{
 	"dsh-project/lib/index.js", "dsh-project/lib/transport.js", "dsh-project/client/client.js",
 }
 
+// The installed rc.2 runtime ships no source-build manifest. Its own staged-
+// session proof is at least as strict: the rc.2 pins and artifact hashes in
+// host-session-runtime.json (validated by validateStagedSessionRuntime, which
+// already requires the visual-readiness output hash), the readiness record that
+// names the same pinned triple, the gate marker inside that bundle, and the
+// Project package the desktop bridge stages into the profile.
+const installedReadinessRecordName = "session-runtime-readiness.json"
+const installedVisualRepliesBundle = "deepseek-harness/packages/client/ui-visual-replies/lib/index.js"
+
+// installedVisualReplyGateMarkers are the strings the rc.2 readiness stage adds
+// to the released bundle (round146 §10.2). A hash alone proves the bytes are the
+// pinned build; the markers prove we know which build that is.
+var installedVisualReplyGateMarkers = []string{
+	"MyGo visual reply readiness gate v1",
+	"/desktop/html-preview/status",
+}
+
+// installedProjectArtifacts are the files ProjectBridge.PrepareOverlay needs. No
+// manifest covers dsh-project, so they are checked for presence here; the bridge
+// fails closed on its own when the staged copy is incomplete.
+var installedProjectArtifacts = []string{
+	"dsh-project/lib/index.js",
+	"dsh-project/lib/transport.js",
+	"dsh-project/client/client.js",
+	"dsh-project/package.json",
+}
+
+// readInstalledRuntimeCapabilities proves an installed rc.2 runtime. Every check
+// fails closed with a Reason; nothing here trusts a self-declared file alone.
+func readInstalledRuntimeCapabilities(vendorDir string, bridges CurrentHostBridges) CurrentHostCapabilities {
+	c := CurrentHostCapabilities{}
+	fail := func(reason string) CurrentHostCapabilities { c.Reason = reason; return c }
+	// 1. The staged session runtime: rc.2 pins, bundled Node, its five hashed
+	// artifacts (ui-visual-replies must be the pinned readiness output) and the
+	// desktop session event vocabulary. Reused, never duplicated.
+	if err := validateStagedSessionRuntime(vendorDir); err != nil {
+		return fail("Installed Host runtime does not prove the pinned rc.2 assembly: " + err.Error())
+	}
+	// 2. The readiness record must name the same pinned triple.
+	raw, err := os.ReadFile(filepath.Join(vendorDir, installedReadinessRecordName))
+	if err != nil {
+		return fail("Installed Host readiness record is missing: " + installedReadinessRecordName)
+	}
+	var record sessionRuntimeSafety
+	if err := json.Unmarshal(raw, &record); err != nil || record != rc2SessionRuntimeSafety {
+		return fail("Installed Host readiness record does not pin the visual-readiness gate")
+	}
+	// 3. The hashed bundle must still carry the gate itself.
+	bundle, err := os.ReadFile(filepath.Join(vendorDir, filepath.FromSlash(installedVisualRepliesBundle)))
+	if err != nil {
+		return fail("Installed Host visual-replies bundle is missing")
+	}
+	for _, marker := range installedVisualReplyGateMarkers {
+		if !bytes.Contains(bundle, []byte(marker)) {
+			return fail("Installed Host visual-replies bundle lacks the readiness gate: " + marker)
+		}
+	}
+	// 4. The Project package the desktop bridge stages into the profile.
+	for _, name := range installedProjectArtifacts {
+		if st, err := os.Stat(filepath.Join(vendorDir, filepath.FromSlash(name))); err != nil || st.IsDir() {
+			return fail("Installed Host Project package is incomplete: " + name)
+		}
+	}
+	// Provenance is the rc.2 release commit the session runtime pins; the source
+	// build's sourceCommit is not claimed here.
+	c.SourceCommit = sessionRuntimeHarnessCommit
+	c.ArtifactsReady = true
+	c.VisualReplyReader = true
+	c.ReadinessGuardReady = true
+	c.Project = bridges.Project && bridges.ProjectOverlay
+	c.Team = c.Project
+	c.VisualReplies = c.ReadinessGuardReady && bridges.HTMLPreview && bridges.VisualReplyIsolation
+	if !c.Project || !c.VisualReplies {
+		c.Reason = "Installed Host artifacts are staged; desktop bridge, Project overlay, or HTML isolation is not ready"
+	}
+	return c
+}
+
 // ReadCurrentHostCapabilities reports only the pinned, successfully built
 // assembly. It does not start Host or assume that a bridge is available.
 // Call at startup/selection, not once per render: hashes intentionally fail
 // closed when an installed artifact differs from the selected build.
+//
+// A source build is proven by current-host-build.json. Without it, an installed
+// rc.2 runtime is proven by its own staged-session record (round146 §10.5), so
+// Project mounts on the installed runtime too.
 func ReadCurrentHostCapabilities(vendorDir string, bridges CurrentHostBridges) CurrentHostCapabilities {
+	if _, err := os.Stat(filepath.Join(vendorDir, "current-host-build.json")); os.IsNotExist(err) {
+		return readInstalledRuntimeCapabilities(vendorDir, bridges)
+	}
 	c := CurrentHostCapabilities{}
 	fail := func(reason string) CurrentHostCapabilities { c.Reason = reason; return c }
 	raw, err := os.ReadFile(filepath.Join(vendorDir, "current-host-build.json"))
