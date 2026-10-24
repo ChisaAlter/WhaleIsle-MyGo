@@ -258,8 +258,8 @@ func init() {
 	Register(KeyToolDetailYes, "是", "Yes")
 	Register(KeyToolDetailNo, "否", "No")
 	Register(KeyToolDetailMoreInInspect, "另有 %d 项，可在「查看」中读取", "%d more items available in Inspect")
-	Register(KeyToolDetailRowInput, "输入", "Input")
-	Register(KeyToolDetailRowOutput, "输出", "Output")
+	Register(KeyToolDetailRowInput, "输入", "IN")
+	Register(KeyToolDetailRowOutput, "输出", "OUT")
 
 	Register(KeyToolDetailFieldID, "ID", "ID")
 	Register(KeyToolDetailFieldRevision, "版本", "Revision")

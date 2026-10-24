@@ -351,7 +351,7 @@ func init() {
 	Register(KeyChatToolSearch, "搜索", "Search")
 	Register(KeyChatToolWeb, "访问网页", "Browse")
 	Register(KeyChatToolTodo, "更新计划", "Update plan")
-	Register(KeyChatToolAsk, "提问", "Ask")
+	Register(KeyChatToolAsk, "提问", "Ask question")
 	Register(KeyChatToolAgent, "子代理", "Subagent")
 	Register(KeyChatToolGeneric, "调用工具", "Use tool")
 	Register(KeyChatToolCommand, "命令", "Command")
@@ -396,13 +396,13 @@ func init() {
 
 	// Usage.
 	Register(KeyChatUsageTitle, "本轮用量", "Turn usage")
-	Register(KeyChatUsageTokens, "tokens", "tokens")
+	Register(KeyChatUsageTokens, "Token", "Tokens")
 	Register(KeyChatUsageCache, "缓存命中", "Cache")
 	Register(KeyChatUsageUncached, "未缓存输入", "Uncached input")
 	Register(KeyChatUsageOutput, "输出", "Output")
 	Register(KeyChatUsageTotal, "总计", "Total")
-	Register(KeyChatUsageCacheRead, "缓存读取", "Cache read")
-	Register(KeyChatUsageCacheWrit, "缓存写入", "Cache write")
+	Register(KeyChatUsageCacheRead, "缓存读取", "Cached")
+	Register(KeyChatUsageCacheWrit, "缓存写入", "Cache created")
 	Register(KeyChatUsageReasoning, "其中思考", "Reasoning subset")
 	Register(KeyChatUsageCachePct, "缓存命中 %.1f%%", "Cache %.1f%%")
 	Register(KeyChatStatusLoaded, "已加载 %d 轮 · %d 步", "%d turns · %d steps")
@@ -597,9 +597,9 @@ func init() {
 	Register(KeyChatWorkbookCopyRaw, "复制单元格原文", "Copy cell value")
 
 	// Attachment cards.
-	Register(KeyChatTurnRailLabel, "回合", "Turns")
+	Register(KeyChatTurnRailLabel, "轮次", "Turns")
 	Register(KeyChatTurnRailJump, "跳到第", "Jump to")
-	Register(KeyChatTurnRailTurn, "回合", "Turn")
+	Register(KeyChatTurnRailTurn, "轮次", "Turn")
 	Register(KeyChatTurnRailEmpty, "（空白回合）", "(empty turn)")
 	Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV")
 	Register(KeyChatWorkbookCopyShownTSV, "复制本页显示 TSV", "Copy displayed page TSV")

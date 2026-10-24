@@ -161,7 +161,7 @@ func init() {
 	Register(KeyComposerRetryUpload, "重试上传", "Retry upload")
 	Register(KeyComposerRemoveAttachment, "移除附件", "Remove attachment")
 	Register(KeyComposerRemoveReference, "移除引用", "Remove reference")
-	Register(KeyComposerDropTitle, "文件或图片拖动到此处即可添加", "Drop files or images here")
+	Register(KeyComposerDropTitle, "文件或图片拖动到此处即可添加", "Drag files or images here to add them")
 	Register(KeyComposerDropDetail, "松手即加入输入区，随消息一起发送", "Release to add them to the message")
 	Register(KeyComposerShortcutEnter, "Enter", "Enter")
 	Register(KeyComposerShortcutEsc, "Esc", "Esc")

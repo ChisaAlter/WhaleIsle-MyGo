@@ -1212,7 +1212,7 @@ func TestToolDetailsModelInspectionProjection(t *testing.T) {
 		t.Fatalf("record fields = %#v", record.Fields)
 	}
 	if len(record.Groups) != 2 || record.Groups[0].Label != "Input schema" || record.Groups[0].Items[0].Code == nil ||
-		record.Groups[0].Items[0].Code.Language != "json" || record.Groups[1].Label != "Input" ||
+		record.Groups[0].Items[0].Code.Language != "json" || record.Groups[1].Label != "IN" ||
 		record.Groups[1].Items[0].Fields[0].Label != "x" || record.Groups[1].Items[0].Fields[0].Value != "1" {
 		t.Fatalf("record groups = %#v", record.Groups)
 	}

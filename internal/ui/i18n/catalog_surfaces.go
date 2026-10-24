@@ -150,7 +150,7 @@ func init() {
 	Register(KeySurfacesUsageUpdated, "最近更新", "Last updated")
 	Register(KeySurfacesUsageCoverage, "统计覆盖", "Coverage")
 	Register(KeySurfacesUsageCoverageOK, "%d/%d 个会话可读", "%d/%d sessions readable")
-	Register(KeySurfacesUsageTokens, "tokens", "tokens")
+	Register(KeySurfacesUsageTokens, "Token", "Tokens")
 	Register(KeySurfacesUsageStale, "正在显示上次结果，可能已过期。", "Showing the previous result; it may be stale.")
 	Register(KeySurfacesUsageError, "读取用量统计失败", "Could not read usage statistics")
 	Register(KeySurfacesUsageRetryHint, "。可稍后重试。", ". Try again later.")
