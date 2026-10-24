@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T03:44:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87595520,
+  "productionSHA256": "AF43787296D3FD36197B5C289957844C221223429F250526485A5806EF0A9696",
+  "defaultSHA256": "AF43787296D3FD36197B5C289957844C221223429F250526485A5806EF0A9696",
+  "note": "pass284 covers rounds 170-176: S03 devtools shortcut, theme render-path precedence, the mounted live pairing QR surface, the dark-matched D-MAIN pair and MyGo's separate 1060x660 launcher. Readiness verified."
+}

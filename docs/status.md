@@ -375,6 +375,16 @@
 - pass282：87,587,328 B / SHA256 `32C39781…`；harness-start-pass282.json ready=True。
 - 残留：验收准则需用户决策；fixture 尚未播种（原生深色/真实 profile vs MyGo 浅色/空 profile，MyGo 深色主题未生效待查）；L-HOME 启动器窗口与 MyGo 面板形态不同；S03；QR 面板像素；逐行验收工件与双签（用户）。
 
+### round170–176（2026-10-25）
+
+- round171：**S03 DevTools 快捷键**——mygo 新增 Page.OnBeforeInput（可选平台能力，Windows 用 AcceleratorKeyPressed 实现；linux/darwin 如实返回不支持；fake 可测试），webview 按原生 !packaged || openDevTools 门禁每窗切换，保留菜单项。
+- round174：**主题渲染路径修复**——原生 config.theme 只存 family，明暗在 Host appearance preference；新 startupTheme 让配置里的 scheme 在用户未显式选择前生效，用户选择后持久化并优先；10 例表测试；实拍 deepseek.dark 启动器/欢迎窗为深色。
+- round172/175：深色匹配的 D-MAIN 对照在 pass283 上完成：两边均深色；threshold-0 仍 99.99%（**壁纸不同 + 半透明 mica**），容差区域统计已记录；结构 17 项（含别名）但 0 项在 1 DIP 内，因 MyGo 合并 48-DIP 标题带 vs 原生页+标题堆叠——建议改按标题相对坐标比较。
+- **L-HOME MyGo 半边**：无 workspace 冷启动确认为独立 1060×660 MyGoWindow（深色），已实拍；原生启动器需以临时 user-data 冷启动（Option A 待用户同意重启原生应用）。
+- **远程配对 UI 挂载**：iewPhoneSection 原本无生产调用者，用户永远看不到二维码；现已挂到设置「远程」页，状态/入口/就绪行全部来自 live snapshot，LAN 入口从 pairing URL 推导；headless 渲染出 QR 视觉证据，live 面板显示 offer v2 · ready/有效期/复制/打开；新增 whaleisle://settings?section=remote 深链。
+- pass284：87,595,520 B / SHA256 `AF437872…`；harness-start-pass284.json ready=True。
+- 残留：**壁纸/材质层尚不一致**（原生用户壁纸 + mica vs MyGo 渐变）；验收准则需用户决策；结构比较需标题相对坐标；L-HOME 原生冷启动需授权；S03 macOS/Linux；深色 pill/nav token；QR 应用内滚动截图；relay/真机；双签（用户）。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
