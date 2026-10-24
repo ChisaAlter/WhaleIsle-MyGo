@@ -226,7 +226,7 @@
 
 **验收状态：`docs/acceptance-ui-parity.md`（像素级 1:1 + 功能全量穷举验收合同）当前零双签。** §0.3 环境 E1–E7、§2 画面 L-*/D-*/P-*/S-*、§3 功能 FL-*/FD-*/FS-*、§4 门禁 G1–G6 与 §6 总签署的「完成 / 审查完成」列全部为空；按该合同 §5，未双签的历史结论作废——项目尚未通过验收，不得标记目标完成。
 
-### 缺失项（原版有、Go 无实现；审计报告 §1.2，16 项；round126 已补 5 项）
+### 缺失项（原版有、Go 无实现；审计报告 §1.2，16 项；round126 已补 5 项，round129 已补 1 项）
 
 | # | 功能 | 原版证据 | Go 侧证据 |
 |---|------|----------|-----------|
@@ -237,7 +237,7 @@
 | 5 | 全局快捷键服务 | `main/shortcuts.js`、`main/shortcuts-protocol.mjs`、`main/menu.js:11-22` | 无快捷键包；无应用菜单 |
 | 6 | 崩溃报告 | `main/crash-report.js` | 无 |
 | 7 | 媒体权限处理 | `main/media-permissions.js` | 无（WebView2 权限走 MyGo 默认） |
-| 8 | 关闭遮罩 / curtain 窗口 | `main/closing-overlay.js`、`main/window.js:486` | 无；仅 `internal/desktop/taskguard` ConfirmQuit 对话框 |
+| 8 | 关闭遮罩 / curtain 窗口 | `main/closing-overlay.js`、`main/window.js:486` | ✅ round129：`internal/ui/chrome/closing.go` + `finalizeQuit` 停服前显示（500ms 绘制预算、失败不阻塞）；spinner 旋转未做（静态环） |
 | 9 | 应用级菜单 | `main/menu.js:26-113` | Go 无应用菜单；标题栏仅有 ⚙/▤/▦/⌂/··· 按钮 + 托盘菜单 |
 | 10 | 外部编辑器打开 | `main/editors.js:5-26,105-150` | ✅ round126：`internal/desktop/editors` + `cmd/whaleisle/open_editor.go`；文件预览「打开方式」直接带行列打开 |
 | 11 | WhaleBridge 账号窗口 | `main/whalebridge-window.js:16`、`renderer/whalebridge-accounts.child.cjs`、`main/account-backend.js` | ✅ round126：`cmd/whaleisle/whalebridge_window.go`（1120×780、仅本机管理地址）+ `components/management.go` 地址校验 |
@@ -266,7 +266,12 @@
 - 更新过程补上标题栏进度行（checking / downloading / staged）、确认卡技术详情折叠与 `update-journal/` 证据；journal 失败只丢证据，不阻塞更新。
 - 详情卡 badge 按安装版 `STATUS_KEYS` 词表本地化，未知状态保留原文。
 - 证据：受影响 11 个包测试全绿、`go vet` 0、`go build ./internal/... ./cmd/...` 0；构建 86,703,104 字节 / SHA256 `7BAF783A…`（`round126-checks.json`、`round126-build.json`）。
-- 仍剩 11 项缺失、7 项空壳（`terminal/follow` 已修），验收合同仍零双签。
+- 仍剩 10 项缺失（round129 已补关闭遮罩）、7 项空壳（`terminal/follow` 已修），验收合同仍零双签。
+
+### round129 补全（2026-10-24）
+
+- 关闭遮罩（G40）：退出时先画「关闭中 / 正在停止本机 Harness 服务，请稍候」，恢复/显示托盘窗口，绘制上限 500ms，失败不阻塞停服；详见 [round129](review-20261022/round129-closing-overlay.md)。
+- 证据：`cmd/whaleisle`、`chrome`、`i18n`、`frame` 四包测试全绿、`go vet` 0；浅/深色渲染图已入证据目录。spinner 旋转与实机截图仍未做。
 
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 

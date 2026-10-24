@@ -371,6 +371,7 @@ type mainState struct {
 	launcherHarnessVersion        string
 	quitRequestPending            bool
 	quitCleanupFinished           bool
+	closingOverlay                bool
 	launcherRoutePopOpen          bool
 	workspaceMenuOpen             bool
 	workspacePickerAnchor         ui.Handle
@@ -2938,6 +2939,12 @@ func marketInstallRequestID() string {
 }
 
 func mainView(c *ui.Context) {
+	// Registered first so it runs last: the closing layer must sit above chat,
+	// dialogs, settings and the launcher on every return path below. It takes
+	// the palette this frame resolved below, so it cannot disagree with the
+	// window it covers.
+	var closingColors theme.Colors
+	defer func() { state.paintClosingOverlayLayer(c, closingColors) }()
 	consumePendingToast(c)
 	state.syncHostAppearance()
 	openInApp := state.observeWorkspaceOpenInApp()
@@ -3314,6 +3321,8 @@ func mainView(c *ui.Context) {
 	svgImages := state.svgImageOwner(win, sessions)
 	defer state.renderDesktopOnboarding(c, themeID, systemDark)
 	colors := th.Active(systemDark)
+	// The quit layer paints from the same palette as everything above it.
+	closingColors = colors
 	var gitBadge *chrome.GitBadge
 	if gitBranch != "" {
 		gitBadge = &chrome.GitBadge{

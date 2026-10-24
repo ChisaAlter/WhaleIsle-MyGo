@@ -35,6 +35,8 @@ const (
 	KeyQuitConfirmMessage                 = "quit_confirm.message"
 	KeyQuitConfirmQuit                    = "quit_confirm.quit"
 	KeyQuitConfirmCancel                  = "quit_confirm.cancel"
+	KeyClosingTitle                       = "closing.title"
+	KeyClosingDetail                      = "closing.detail"
 	KeyTitlebarClose                      = "titlebar.close"
 	KeyTitlebarMinimize                   = "titlebar.minimize"
 	KeyTitlebarMaximize                   = "titlebar.maximize"
@@ -2974,6 +2976,10 @@ const (
 )
 
 func init() {
+	// Closing overlay copy, verbatim from the native closingCopy
+	// (reference/electron/src/main/closing-overlay.js:59-70).
+	Register(KeyClosingTitle, "关闭中", "Closing")
+	Register(KeyClosingDetail, "正在停止本机 Harness 服务，请稍候", "Stopping the local Harness service…")
 	Register(KeyLauncherCompBundled, "内置", "Bundled")
 	Register(KeyPluginPreviewRetry, "重试", "Retry")
 	Register(KeyThemeEditorPreview, "预览中，尚未保存", "Preview, not saved")
