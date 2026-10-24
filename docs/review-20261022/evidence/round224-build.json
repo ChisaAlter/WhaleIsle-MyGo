@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T05:45:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87729152,
+  "productionSHA256": "0937B63CCB8B22CF7C8196307E55DE5E2080B8EF21C566E368D3C8617C7BCDF2",
+  "defaultSHA256": "0937B63CCB8B22CF7C8196307E55DE5E2080B8EF21C566E368D3C8617C7BCDF2",
+  "note": "pass294 = pass293 plus flat first-run/effect defaults (explicit gradient survives) and the native hero chip inset/gap. Readiness verified."
+}

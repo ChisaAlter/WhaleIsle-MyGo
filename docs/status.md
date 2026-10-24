@@ -466,6 +466,13 @@
 - pass293：87,728,640 B / SHA256 `5DA9E2B2…`；ready=True（幂等 smoke 首跑因共享单实例失败，锁释放后通过）。
 - 进行中：task-97 首启 flat 默认、task-98 chip 行、task-99 重采。
 
+### round221–224（2026-10-25）
+
+- round221：**首启 flat 默认修复**——三处叠加：Host 种子无 key 仍塞 gradient+aurora、FirstRunAppearance 设 gradient、cmd 在 IsFirstRun 时覆盖已存配置（导致 backgroundEffect:none 被忽略）。引入 EffectExplicit（Host/config 按 key 是否存在推断）+ NormalizeEffect：无路径且非显式 → none；显式 gradient 保留；图片路径原样。首启深色 1440×860 采样 hero/sidebar/footer/card 均 #151517，无青色带。
+- round222：**hero chip 行**——原生 UIA：chip x=502、preset 655.33（行起点 469.33）→ inset 32.67、gap 3.33；composer 行改用该规则，workspace_parity_test 与 frame 级 hero_chip_row_test 双钉；headless 绝对 x +67.17 因测试卡片宽 641（live 774 @469.33 时为 502），列为独立居中残项。
+- **进行中**：task-99 用 pass294 重采 flat D-MAIN 并计算首个有意义的 masked ratio（结构已到 11/22）。
+- pass294：87,729,152 B / SHA256 `0937B63C…`；ready=True。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
