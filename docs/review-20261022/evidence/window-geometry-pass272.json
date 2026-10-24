@@ -1,0 +1,79 @@
+{
+    "schema":  1,
+    "probe":  "window-geometry",
+    "method":  "EnumWindows + GetWindowThreadProcessId + GetWindowText + GetWindowRect + IsWindowVisible + IsIconic (per-monitor-v2 physical pixels); never PrintWindow",
+    "generatedAt":  "2026-10-24T15:19:17.9708042Z",
+    "status":  "ok",
+    "error":  null,
+    "exe":  "C:\\AI\\WhaleIsle-MyGo\\whaleisle.exe",
+    "pid":  32864,
+    "userData":  "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-geometry-72ddf64c2544457bade3c0fcbedd74ec",
+    "startedAt":  "2026-10-24T15:19:08.5245953Z",
+    "windows":  [
+                    {
+                        "title":  "Whale Isle",
+                        "class":  "MyGoWindow",
+                        "rect":  {
+                                     "left":  200,
+                                     "top":  0,
+                                     "width":  2160,
+                                     "height":  1380
+                                 },
+                        "visible":  true,
+                        "minimized":  false,
+                        "dpi":  144
+                    },
+                    {
+                        "title":  "",
+                        "class":  "MyGoApp",
+                        "rect":  {
+                                     "left":  0,
+                                     "top":  0,
+                                     "width":  202,
+                                     "height":  56
+                                 },
+                        "visible":  false,
+                        "minimized":  false,
+                        "dpi":  144
+                    },
+                    {
+                        "title":  "",
+                        "class":  "PseudoConsoleWindow",
+                        "rect":  {
+                                     "left":  0,
+                                     "top":  0,
+                                     "width":  0,
+                                     "height":  0
+                                 },
+                        "visible":  true,
+                        "minimized":  false,
+                        "dpi":  144
+                    },
+                    {
+                        "title":  "MSCTFIME UI",
+                        "class":  "MSCTFIME UI",
+                        "rect":  {
+                                     "left":  0,
+                                     "top":  0,
+                                     "width":  0,
+                                     "height":  0
+                                 },
+                        "visible":  false,
+                        "minimized":  false,
+                        "dpi":  144
+                    },
+                    {
+                        "title":  "Default IME",
+                        "class":  "IME",
+                        "rect":  {
+                                     "left":  0,
+                                     "top":  0,
+                                     "width":  0,
+                                     "height":  0
+                                 },
+                        "visible":  false,
+                        "minimized":  false,
+                        "dpi":  144
+                    }
+                ]
+}
