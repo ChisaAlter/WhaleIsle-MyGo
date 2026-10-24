@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "probe": "pet-window-live",
+  "generatedAt": "2026-10-24T17:48:46.072Z",
+  "method": "temp build (no passN exe), throwaway profile with mygoDesktopPet.enabled=true + welcome marker + temp workspace, default runtime/vendor, port 3089; EnumWindows+GetWindowRect+GetDpiForWindow (per-monitor-v2, physical px) then scripts/window-capture.ps1; no PrintWindow",
+  "exe": "tmp\\\\whaleisle-pet11.exe",
+  "profile": "%TEMP%\\\\wl-petA",
+  "window": {
+    "hwnd": 6294250,
+    "title": "Whale Isle companion",
+    "class": "MyGoWindow",
+    "visible": true,
+    "dpi": 144,
+    "physicalWidth": 360,
+    "physicalHeight": 657,
+    "dipWidth": 240,
+    "dipHeight": 438,
+    "x": 2165,
+    "y": 675
+  },
+  "expected": {
+    "dipWidth": 240,
+    "dipHeight": 438,
+    "physicalAt150Percent": "360x657"
+  },
+  "matchesNativeFootprint": true,
+  "load": {
+    "didFinishLoad": true,
+    "laterAbortedNavigationsIgnored": true,
+    "pageReportedRegions": true,
+    "note": "the page reported hit regions with Width 240 / Height 438, matching the window"
+  },
+  "pageServedBy": "whale-pet:// (package-init dispatcher, task-30)",
+  "screenshot": "docs/review-20261022/evidence/screens/pet-window-240x438.png",
+  "rootCause": "the companion was created Hidden:true and nothing ever called Show(); a hidden WebView2 controller aborts the custom-scheme navigation (status 14). Showing it makes the page load; the pet then renders.",
+  "placement": "bottom-right of the primary work area with PetEdgeGap=24 (desktop-live2d.js:82-88), clamped remembered position otherwise"
+}

@@ -1,6 +1,10 @@
-package pet
+﻿package pet
 
-import "github.com/egoist/mygo"
+import (
+	"github.com/egoist/mygo"
+
+	"whaleisle/internal/config"
+)
 
 // Window geometry mirrors the native desktop pet. The modern pet is the live2d
 // overlay: reference/electron/src/main/desktop-live2d.js:35-37 pins the sprite
@@ -45,5 +49,59 @@ func petWindowSize() (int, int) {
 // lifecycle without a GUI.
 var openCompanionWindow = func(opts mygo.WindowOptions) *mygo.Window {
 	return mygo.NewWindow(opts)
+}
+
+
+// defaultPetPosition places the pet at the native default: the bottom-right of
+// the work area, EDGE_GAP from both edges (desktop-live2d.js:82-88). Coordinates
+// are DIPs in the same space as the window API.
+func defaultPetPosition(workArea mygo.Rectangle) (int, int) {
+	x := workArea.X + max(0, workArea.Width-PetWindowWidth-PetEdgeGap)
+	y := workArea.Y + max(0, workArea.Height-PetWindowHeight-PetEdgeGap)
+	return x, y
+}
+
+// clampPetPosition keeps a remembered position fully on the work area, like the
+// native clamp into the home display (desktop-live2d.js:950-956). A remembered
+// position off every display falls back to the default, so the pet cannot be
+// lost after a monitor change.
+func clampPetPosition(workArea mygo.Rectangle, x, y int) (int, int) {
+	if workArea.Width <= 0 || workArea.Height <= 0 {
+		return x, y
+	}
+	maxX := workArea.X + max(0, workArea.Width-PetWindowWidth)
+	maxY := workArea.Y + max(0, workArea.Height-PetWindowHeight)
+	return min(max(x, workArea.X), maxX), min(max(y, workArea.Y), maxY)
+}
+
+// petWorkArea is the primary display's usable area, falling back to the display
+// bounds and then to no clamping.
+func petWorkArea() mygo.Rectangle {
+	displays := mygo.Screen.Displays()
+	for _, d := range displays {
+		if d.Primary && d.WorkArea.Width > 0 && d.WorkArea.Height > 0 {
+			return d.WorkArea
+		}
+	}
+	for _, d := range displays {
+		if d.WorkArea.Width > 0 && d.WorkArea.Height > 0 {
+			return d.WorkArea
+		}
+	}
+	return mygo.Rectangle{}
+}
+
+// placePetWindow positions a pet window: the remembered anchor when the user
+// dragged it, otherwise the native bottom-right default.
+func placePetWindow(w *mygo.Window, remembered *config.PetPosition) {
+	if w == nil || w.IsDestroyed() {
+		return
+	}
+	area := petWorkArea()
+	x, y := defaultPetPosition(area)
+	if remembered != nil {
+		x, y = clampPetPosition(area, remembered.X, remembered.Y)
+	}
+	w.SetPosition(x, y)
 }
 

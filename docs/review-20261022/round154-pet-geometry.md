@@ -94,4 +94,65 @@ close: destroy window                    <- 自家 OnDidFailLoad 里 p.close()
 
 **仍未完成**：`whale-pet://` 导航中止的根因要在 WebView2/自定义 scheme 层继续查（mygo 约定「scheme 必须在使用它的窗口创建前注册」，而 pet 的 `Protocol.Handle` 在 `New()` 里、建窗前执行；需要对比主窗 `whaleisle://` 的注册时机与 webview 初始化顺序）。因此**实测 240×438（150% → 360×657）依然缺失**，本轮没有 `pet-window-live.json`，不把它当作已验证。
 
+## 8. task-30 补记：提前注册无效，问题在窗口的 WebResourceRequested 过滤器
+
+**假设**（task-30）：注册发生在主窗 WhenReady 回调里太晚，scheme 列表已被快照，于是 `whale-pet` 没进 WebView2 过滤器。
+
+**改动**：新增 `internal/desktop/pet/protocol.go`——包 `init()` 在 `mygo.App.Run` 之前调用 `Protocol.Handle("whale-pet", petProtocol{})`，`New()` 只把当前 Companion 发布到 `atomic.Pointer`；`petProtocol` 每次请求读当前实例，无 Companion 时 404。`protocol_test.go` 覆盖：包初始化后 `IsHandled("whale-pet")`；无 Companion 时 404；`New()` 后返回 200 且是宠物页面；替换实例后分发到新实例。
+
+**验证结论**：提前注册**没有修复**导航中止。实测日志（temp build）：
+
+```
+sync ready win=false
+newWindow nil=false destroyed=false
+sync ready win=true
+didFailLoad url=whale-pet://localhost/index.html code=14 COREWEBVIEW2_WEB_ERROR_STATUS 14
+didFailLoad: loading http://whale-pet.localhost/index.html   <- mygo 在 Windows 上的映射形式
+didFailLoad url=whale-pet://localhost/index.html code=14      <- 仍然 14
+close: destroy window
+```
+
+映射后的 `http://whale-pet.localhost/index.html` 同样 14，说明该窗口的请求根本没进 WebResourceRequested：mygo 的 Windows 后端（`internal/windows/webview.go:26-33` 映射、`:312` 按 `o.Schemes` 逐个 `addFilter("http://<scheme>.localhost/*")`）拿到的 `o.Schemes`（`window.go:510` 由 `Protocol.schemes()` 求值）不含 `whale-pet`。而 `schemes()` 是动态读 map、init 已注册，所以「注册晚」不是原因；剩下最可能的是过滤器只按 WebView2 环境/首个 webview 生效，或 pet 窗口的 platform 选项来自另一份快照。
+
+**mygo 需要暴露/修正的两点**（本轮不动 third_party）：
+1. 记录或提供查询：每个窗口实际生效的 `Schemes` 列表（便于像本轮这样一次定位）。
+2. 保证「注册早于任何窗口创建」的 scheme 一定带上过滤器；若过滤器确实只在环境创建时生效，则要求在环境创建前完成注册（或在窗口创建时对新增 scheme 追加 `AddWebResourceRequestedFilter`）。
+
+**因此实测仍缺失**（240×438 DIP / 150% → 360×657 px 与截图），未生成 `pet-window-live.json`，不记录任何未测数字。本轮的实际产出：scheme 分发器（注册与实例解耦、幂等、可测试）、失败可观测（URL/code/desc 落日志）、映射 URL 的一次兜底重试，以及把问题精确定位到「窗口过滤器里没有 Whale-pet」。
+
 测试：`go test ./internal/desktop/pet` ok 3.2 s；`go test ./cmd/whaleisle -run "Pet|Companion"` ok 5.9 s；`go vet ./internal/desktop/pet ./cmd/whaleisle` → 0。
+
+## 9. task-34 补记：真正的原因就是「建了窗口但从不 Show」，实测已拿到
+
+**根因（已证实）**：`companion.go` 建窗时 `Hidden: true`，而 pet 包里**从来没有调用过 `Show()`**。实测把窗口在加载前 `Show()` 之后：
+
+```
+sync ready win=false
+newWindow nil=false destroyed=false
+showing before load
+didFinishLoad: showing the companion      <- 页面加载成功（240×438 的页面）
+willNavigate whale-pet://localhost/interactive-regions?data={…Width:240,Height:438…}
+didFailLoad ... code=14
+didFailLoad: ignored, the page already loaded
+```
+
+即：**隐藏的 WebView2 controller 会中止自定义 scheme 的导航（状态 14）**；一旦窗口可见，`whale-pet://` 正常加载，页面自己上报的命中区域宽度/高度正是 240/438。之后页面加载完成的再导航失败（`interactive-regions` 触发的同 URL 14）不再关闭窗口（`p.loaded` 保护）。
+
+**生命周期（本轮落地，`internal/desktop/pet/`）**
+- `sync()` 建窗后立即**按原生默认位置摆位**：主屏工作区右下角、四边留 `PetEdgeGap = 24`（`desktop-live2d.js:37,82-88`）；有记忆位置时按工作区 clamp（`clampPetPosition`，对应 `desktop-live2d.js:950-956`），显示器变化不会把桌宠丢到屏外。
+- 为避免白闪：先保持 `Hidden: true`，页面 `OnDidFinishLoad` 后 `p.loaded = true` 再 `Show()`；加载失败（且未加载成功过）仍按旧逻辑重试一次映射 URL，再失败才 `p.Error` + 关闭。
+- 禁用/`Close()` 仍走 `p.close()` 销毁窗口；重新启用/主窗重建后由 `SetReady` + `OnShow` 重新建窗并显示（task-29 的 seam）。
+- 新增/更新测试：`TestDefaultPetPositionMatchesNative`（右下角 24 间距、负坐标屏、越界 clamp、区内不动）、既有 `geometry_test.go` / `lifecycle_test.go` / `protocol_test.go` 全绿；`go test ./internal/desktop/pet` ok 3.5 s，`go test ./cmd/whaleisle -run "Pet|Companion"` ok 3.7 s，`go vet` → 0。
+
+**实测（temp build，pass278 未覆盖；throwaway profile + `mygoDesktopPet.enabled=true` + welcome marker + 临时 workspace，默认 runtime/vendor，port 3089）** —— `evidence/pet-window-live.json`：
+
+| 项 | 值 |
+| --- | --- |
+| HWND / 类 / 标题 | 6294250 / `MyGoWindow` / `Whale Isle companion` |
+| 可见性 | **visible = true**（加载后显示） |
+| 物理矩形 | **360×657 px**，位于 (2165, 675)，dpi 144 |
+| DIP | **240×438**（= 240×260 原生舞台 + 178 页面状态面板） |
+| 页面 | `didFinishLoad` 成功；页面命中区域自报 `Width 240 / Height 438` |
+| 截图 | `evidence/screens/pet-window-240x438.png`（鲸鱼娘分层 rig + 状态按钮，见文档旁附图） |
+
+结论：**窗口几何与可见性已实测对齐**（240 宽=原生足迹、438 高=原生 260 + 页面面板 178），位置符合原生右下角 24 间距规则；渲染层差异（web 页面 + 状态面板 vs live2d 整屏 overlay）继续保留为已知差异，未伪造渲染器。

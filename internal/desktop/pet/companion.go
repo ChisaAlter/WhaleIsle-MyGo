@@ -37,6 +37,7 @@ type Companion struct {
 	neuralActive              bool
 	renderNotice              string
 	loadRetried                bool
+	loaded                     bool
 	notifications             notificationState
 	OnNotificationsClosed     func()
 	OnNotificationsReady      func()
@@ -71,9 +72,12 @@ type Companion struct {
 func New(store *config.Store) *Companion {
 	cfg := store.DesktopPet()
 	p := &Companion{Store: store, Enabled: cfg.Enabled, SkinID: cfg.SkinID, Neural: cfg.Neural, Behavior: cfg.Behavior, ready: true}
-	if err := mygo.Protocol.Handle("whale-pet", p); err != nil {
+	if err := RegisterProtocol(); err != nil {
 		p.Error = err.Error()
 	}
+	// The scheme is registered at package init (protocol.go); New only
+	// publishes the companion that the stable dispatcher forwards to.
+	setCurrent(p)
 	return p
 }
 func (p *Companion) Refresh() {
@@ -200,9 +204,19 @@ func (p *Companion) sync() {
 	// Apply the footprint before restoring the deliberate drag anchor. Roaming
 	// is transient and must not be saved by MyGo automatic window state.
 	w.SetSize(petWindowSize())
+	// Native default placement is the bottom-right of the work area with
+	// EDGE_GAP (desktop-live2d.js:82-88); a remembered drag anchor wins, clamped
+	// onto the work area so a monitor change cannot lose the pet.
+	placePetWindow(w, cfg.Position)
+	// A hidden WebView2 controller aborts a custom-scheme navigation
+	// (COREWEBVIEW2_WEB_ERROR_STATUS 14), so the window must be shown before the
+	// page starts loading; it paints transparently until the page renders.
+	petDebug("showing before load")
+	w.Show()
 	p.startMotion(w)
 	p.watchRecovery(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
+		petDebug("willNavigate %s", e.URL)
 		if e.URL == "whale-pet://localhost/index.html" {
 			p.stopGrowthClock()
 			return
@@ -278,6 +292,12 @@ func (p *Companion) sync() {
 			p.startRestClock()
 			p.startGrowthClock()
 			p.startInteraction()
+			// The window was already shown before loading (a hidden WebView2
+			// controller aborts the custom-scheme navigation); this keeps it
+			// visible after the page is up and marks the load as successful.
+			petDebug("didFinishLoad: showing the companion")
+			p.loaded = true
+			w.Show()
 		}
 	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) {
@@ -285,13 +305,20 @@ func (p *Companion) sync() {
 			return
 		}
 		petDebug("didFailLoad url=%s code=%d desc=%s", err.URL, err.Code, err.Description)
+		if p.loaded {
+			// The page already rendered: a later aborted navigation (a reload
+			// racing window activation, say) must not kill the pet.
+			petDebug("didFailLoad: ignored, the page already loaded")
+			return
+		}
 		if !p.loadRetried {
-			// A fresh profile can fail the first custom-scheme navigation while
-			// WebView2 initialises; one reload distinguishes that from a real
-			// failure without leaving a closed pet behind.
+			// Diagnostic fallback: mygo serves custom schemes from
+			// http://<scheme>.localhost/ on Windows. If the custom form aborted,
+			// the mapped form distinguishes a missing request filter from a real
+			// page failure before the window is closed.
 			p.loadRetried = true
-			petDebug("didFailLoad: retrying once")
-			w.Page().Reload()
+			petDebug("didFailLoad: loading %s", mappedPetURL)
+			_ = w.Page().LoadURL(mappedPetURL)
 			return
 		}
 		p.Error = err.Error()
@@ -450,6 +477,13 @@ func (p *Companion) UpdateTask(task TaskStatus) {
 
 
 
+
+
+
+
+// mappedPetURL is the Windows WebView2 form of the pet page: mygo serves custom
+// schemes from http://<scheme>.localhost/ (internal/windows/webview.go:26-33).
+const mappedPetURL = "http://whale-pet.localhost/index.html"
 
 
 
