@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"os"
 	"path/filepath"
+	"strings"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/paths"
@@ -77,10 +78,23 @@ func (s *mainState) endWallpaperFrame() {
 		s.wallpaperControls.Prefs = s.wallpaperControls.Saved.Clone()
 	}
 }
-func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
-	if s.hostAppearanceAccepted {
-		path = s.hostWallpaperImage
+
+// wallpaperSourcePath picks the image the window backdrop paints: an accepted
+// Host appearance owns the value only when the Host actually has a wallpaper;
+// otherwise MyGo's own goWallpaperPath (the seeded-fixture field) stays in
+// force. Blindly preferring the Host value dropped a seeded config wallpaper as
+// soon as an empty Host theme arrived.
+func wallpaperSourcePath(hostAccepted bool, hostImage, configPath string) string {
+	if hostAccepted {
+		if image := strings.TrimSpace(hostImage); image != "" {
+			return image
+		}
 	}
+	return strings.TrimSpace(configPath)
+}
+
+func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
+	path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
 	g := s.wallpaperEditor()
 	if g == nil {
 		return func(*ui.Painter, ui.Rect) {}

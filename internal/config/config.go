@@ -16,6 +16,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -244,6 +245,11 @@ func Open(dir string) (*Store, error) {
 		return nil, err
 	}
 	s.baseline = fileBaseline{exists: true, data: data}
+	// A tool- or editor-written config may start with a UTF-8 BOM, which
+	// encoding/json rejects as `invalid character '\ufeff' looking for beginning
+	// of value`. The bytes on disk are kept in baseline for the next save; only
+	// the parse sees the BOM stripped.
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	if err := json.Unmarshal(data, &s.raw); err != nil {
 		return nil, fmt.Errorf("config: %s: %w", s.path, err)
 	}
