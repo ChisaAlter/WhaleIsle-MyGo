@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-25T04:50:00.000Z",
+  "go": "go1.27.2",
+  "cgoEnabled": 0,
+  "productionBytes": 87693312,
+  "productionSHA256": "F2E0B8C97FFAC42ADD896649D88D2648A319D1FA9F447939F07E022D0743DC9F",
+  "defaultSHA256": "F2E0B8C97FFAC42ADD896649D88D2648A319D1FA9F447939F07E022D0743DC9F",
+  "note": "pass289 = pass288 plus the S03 page-level WebView2 devtools gate (Page.SetDevToolsEnabled, Host registration, runtime gate push). Readiness verified."
+}

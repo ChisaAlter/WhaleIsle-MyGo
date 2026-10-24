@@ -423,6 +423,11 @@
 - pass288：87,684,608 B / SHA256 `9AB5CB97…`；harness-start-pass288.json ready=True。
 - 残留：S03 页面级门禁（进行中）、验收聊天窗口 hand-off、壁纸页面级 blur/pixelate、G46 push/pull、宠物 overlay 结构、D1–D4 决策与双签。
 
+### round197（2026-10-25）
+
+- **S03 页面级门禁**：mygo 新增 Page.SetDevToolsEnabled(bool)（可选平台能力；Windows 立即 put_AreDevToolsEnabled，setup 后运行时值覆盖静态选项；linux/darwin 仅存值；fake 可查询）；webview 在两个 Host 建页点注册并把门禁推送到已开页面，SetDevToolsShortcutAllowed 变更即时生效；Go chord 保留为次要路径（round193 已证 accelerator 优先）。测试覆盖注册/关闭后已开页/创建即拒绝/重新开启/nil；webview 1.7s，mygo 三平台构建+vet 干净。**live 拒绝态 inspector 证据仍未取**（探针重建配方已记录）；打包件本地不可测。
+- pass289：87,693,312 B / SHA256 `F2E0B8C9…`；ready=True。
+
 ### 本轮修正记录（terminal/follow 处置与注释/文档清理）
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
