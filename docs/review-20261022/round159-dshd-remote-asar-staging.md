@@ -235,3 +235,21 @@ settle 38 s 后读取 `remote-pairing.json`：
 - kill 后 3099/3499/3180 全部关闭。
 
 **结论 / 下一轮**：远程配对的“状态机 + offer + QR 生成”已全部打通（diag 证明 pairingImage=true），只差 UI 挂载：在 `远程` 设置页渲染 `viewPhoneSection`（或等价卡片），并让底部状态来自实时快照而不是 boot 时的 `starting`。这需要 cmd/settings_body 侧的小改动（本轮按“无产品改动”约束未做，只补了确实缺失的 deeplink 路由）。relay 模式与真机扫码仍未验证。
+
+### 6.8 Round166 补记（task-54）：远程配对面板已挂载并实机验证
+
+**挂载**（`internal/ui/remote/settings_body.go`）：`gatewaySettingsBody` 在 `gatewayRefreshRow` 之后（网关字段 + 刷新行之下、动作消息之前）调用现成的 `viewPhoneSection`（不复制实现），并加 16px 间隔；状态行直接来自 `m.PhoneRuntime` 的实时快照（`runtime.Status`），不再把 `PhoneActionMsg` 里的 boot 状态词当状态显示（新增 `runtimeStatusWord` 过滤，仅保留真正的动作反馈）。网关字段与刷新动作保持不变。
+
+**测试**（`internal/ui/remote/settings_pairing_mount_test.go`，全部通过）：
+- 在 远程 页 headless 渲染 ready + LAN 快照（PairingURL/PairingImage/未过期）：出现 `offer v2 · ready`、`配对链接有效HH:MM:SS`、`复制配对链接`/`打开配对链接` 按钮，点击各自回调执行一次，且不出现“无可用配对码”；
+- 把快照改成 `starting`：状态行随之变 `starting`、按钮消失（证明状态是 live 快照而非缓存消息）；
+- 无 offer 三种（LAN 未监听 / relay 无 relay / 过期）：显示“无可用配对码”，不出现按钮。
+
+**实机**（`docs/review-20261022/evidence/remote-panel-mounted.json` + `evidence/screens/remote-panel-mounted.png`；临时构建 `whaleisle-panel-mounted.exe` 在仓库根，跑完删除；profile 同 round51：`goPreviewNoticeAck=2026-09-28.1`、`remoteEnabled/lan/3499/127.0.0.1`、`WHALEISLE_REMOTE_DIAG=1`、shell 未设 `ELECTRON_RUN_AS_NODE`；快照 ready 后 deep-link `whaleisle://settings?section=remote` 打开）：
+
+- diag：`status=ready, listening=true, relayConnected=false（纯 LAN）, hasPairingURL=true, pairingImage=true`；
+- UIA（81 节点）出现：`offer v2 · ready`、`配对链接有效03:34:37`、`复制配对链接`（Button）、`打开配对链接`（Button）、`用手机扫码配对，请勿分享二维码。`，以及 刷新配对码/设备列表等；
+- 截图：远程 页网关字段 + 下方“手机远程”区块（手机远程、remoteMode lan、状态行），**状态行不再是 starting**；QR 图像本身落在设置滚动区的可视范围之下（UIA 不暴露 Go 绘制的图片），单测已断言图片渲染；
+- kill 后 3099/3499/3180 全部关闭。
+
+**残留**：截图未滚动到 QR 像素（脚本的 ScrollPattern 没命中设置滚动容器）；面板里仍显示“未配置有效手机网页入口（remoteAppBaseUrl…）”警告与旧 readiness 行“配置项齐全（未验证配对服务）”，这两处应跟随 v2 ready 快照（LAN 的 appBaseUrl 没有传进面板 Model）；relay 模式与真机扫码仍未验证。

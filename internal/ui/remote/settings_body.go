@@ -132,6 +132,12 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Column(c.Key("gateway-settings")).FillWidth().MinWidth(0).Gap(0).Children(func() {
 		gatewaySettingsFields(c, m, fg, muted)
 		gatewayRefreshRow(c, m, e, fg, muted, colors)
+		// The pairing surface (status, QR, copy/open link, expiry) belongs to
+		// this page: without it a user can never scan the code the gateway
+		// produced. It reads PhoneRuntime, so it always shows the live snapshot.
+		ui.Box(c).FillWidth().Height(16)
+		viewPhoneSection(c, m, fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Border), chrome.Color(colors.Accent))
+		ui.Box(c).FillWidth().Height(8)
 		// Device actions finish asynchronously in the runtime; show their real
 		// progress/result for this page's rotate action only.
 		if action := m.PhoneRuntime.DeviceAction; action.Operation == "rotate" && (action.Busy || action.Error != "" || action.Message != "") {
@@ -150,9 +156,10 @@ func gatewaySettingsBody(c *ui.Context, m Model, fg, muted ui.Color) {
 				TextColor(fg).Padding(10, 0, 10, 0)
 			return
 		}
-		// The application reports a committed save here; runtime status stays
-		// out of the page, but the last action still has to be visible.
-		if msg := strings.TrimSpace(m.PhoneActionMsg); msg != "" {
+		// The application reports a committed save here; runtime status words are
+		// already shown live by the pairing surface above, so only a real action
+		// message is echoed.
+		if msg := strings.TrimSpace(m.PhoneActionMsg); msg != "" && !runtimeStatusWord(msg) {
 			ui.Text(c, msg).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
 				TextColor(muted).Padding(10, 0, 10, 0)
 		}
@@ -536,4 +543,16 @@ func gatewayBindLabel(address string, detected []string) string {
 		return address + " · " + label("已失效", "unavailable")
 	}
 	return address
+}
+
+// runtimeStatusWord reports whether msg is one of the phone runtime's own state
+// words (possibly with a detail suffix). Those are rendered live by
+// viewPhoneSection, so echoing the boot-time copy here would go stale.
+func runtimeStatusWord(msg string) bool {
+	head := strings.TrimSpace(strings.SplitN(msg, ":", 2)[0])
+	switch head {
+	case "starting", "ready", "offline", "disabled", "missing", "expired", "pairing-unavailable", "relay-offline", "updating", "stopped":
+		return true
+	}
+	return false
 }
