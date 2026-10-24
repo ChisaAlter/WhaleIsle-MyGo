@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"log"
 	"os"
@@ -106,10 +107,30 @@ func (s *mainState) resolvedWallpaperPath(path string) string {
 	return wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
 }
 
+// flatDarkCanvasPreview reports whether the window itself should be opaque with
+// the masked canvas: dark scheme, no wallpaper and no explicit gradient.
+func flatDarkCanvasPreview(cfgStore *config.Store, cfg config.Config, th theme.Theme) bool {
+	dark := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && mygo.Theme.IsDark())
+	if !dark || strings.TrimSpace(cfg.WallpaperPath) != "" {
+		return false
+	}
+	if cfgStore != nil {
+		if prefs, err := cfgStore.WallpaperBackground(); err == nil {
+			return wallpapers.NormalizeEffect("", prefs).Effect != "gradient"
+		}
+	}
+	return true
+}
+
 // wallpaperCanvasFill is the colour painted under everything else. Dark, no
 // wallpaper and no explicit gradient sits under the native bg-mask-1, so the
 // canvas reads ~12,12,12 instead of the raw 21,21,23 token; panels keep their
 // own tokens because only this canvas is masked.
+func maskedCanvasHex(hex string) string {
+	c := chrome.FlatBackdropFill(chrome.Color(hex), true)
+	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
+}
+
 func wallpaperCanvasFill(base ui.Color, dark bool, path string, prefs wallpapers.Preferences) ui.Color {
 	prefs = wallpapers.NormalizeEffect(path, prefs)
 	if !dark || strings.TrimSpace(path) != "" || prefs.Effect == "gradient" {

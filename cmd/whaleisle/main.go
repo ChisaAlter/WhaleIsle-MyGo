@@ -2321,6 +2321,10 @@ func main() {
 		launcherFirst := launcherFirstWindow(isolatedDesktopRun(), hidden, background, slices.Contains(os.Args, "--settings"))
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
+		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
+		if flatDarkWindow {
+			bgColor = maskedCanvasHex(bgColor)
+		}
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
 			Title:          i18n.T(i18n.KeyAppName),
@@ -3547,7 +3551,7 @@ func mainView(c *ui.Context) {
 	// caption keep their own tokens (round228/229).
 	canvasFill := chrome.Color(colors.BG)
 	if g := state.wallpaperEditor(); g != nil {
-		canvasFill = wallpaperCanvasFill(canvasFill, systemDark, state.resolvedWallpaperPath(wallpaperPath), g.Prefs)
+		canvasFill = wallpaperCanvasFill(canvasFill, th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark), state.resolvedWallpaperPath(wallpaperPath), g.Prefs)
 	}
 	ui.Column(c).Fill().Background(canvasFill).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		if launcherOpen {

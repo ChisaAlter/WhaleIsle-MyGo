@@ -616,5 +616,8 @@ func FlatBackdropFill(base ui.Color, dark bool) ui.Color {
 	if !dark {
 		return base
 	}
-	return ui.RGBA(0, 0, 0, 0.5).Over(base)
+	blended := ui.RGBA(0, 0, 0, 0.5).Over(base)
+	// Force full opacity: a translucent canvas in a transparent window lets the
+	// desktop tint the hero (round230 jitter), which the native mask never does.
+	return ui.RGBA(blended.R, blended.G, blended.B, 255)
 }
