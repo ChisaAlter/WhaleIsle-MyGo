@@ -64,9 +64,25 @@ ALIASES = {
     "切换右侧栏": "切换右侧面板",
     "展开面板": "展开右侧面板",
     "选择工作区": "选择工作区…",
+    "选择工作区": "Composer workspace",
     "搜索会话": "搜索会话…",
     "添加工作区": "选择工作区…",
 }
+
+# MyGo labels its layout scaffolding as accessible nodes ("Composer card",
+# "Composer draft", …). They are not user-visible controls and have no native
+# names, so counting them as "extra" polluted the score: the owner is the
+# composer, and the native analogue is the Edit/chip inside it. Scaffolding is
+# excluded from missing/extra and reported separately.
+SCAFFOLD_NAME = re.compile(r"^Composer\s")
+
+# Native names that only exist as scaffolding on the MyGo side, matched by role
+# rather than by name.
+ROLE_ALIASES = (
+    # (native type, native name prefix, mygo name)
+    ("Edit", "描述你想要构建的内容", "Composer draft"),
+    ("Edit", "Describe what you want", "Composer draft"),
+)
 
 # Window controls in the caption band, in both apps' accessible names. Their
 # bottom edge is the measured caption bottom.
@@ -261,7 +277,7 @@ def main(argv: list[str]) -> int:
     for space in spaces:
         nb = index(native_nodes, space, "native")
         mb = index(mygo_nodes, space, "mygo")
-        matched, missing, extra, outside = [], [], [], []
+        matched, missing, extra, outside, scaffolding = [], [], [], [], []
         alias_pairs = set()
         normalized = 0
         for k, native_list in nb.items():
@@ -274,6 +290,13 @@ def main(argv: list[str]) -> int:
                     mine = mb.get(alias)
                     if mine:
                         alias_pairs.add((k[1], alias[1]))
+            if not mine:
+                for native_type, prefix, mygo_name in ROLE_ALIASES:
+                    if k[0] == native_type and k[1].startswith(prefix):
+                        mine = mb.get((native_type, mygo_name))
+                        if mine:
+                            alias_pairs.add((k[1], mygo_name))
+                        break
             if not mine:
                 for mk, mv in mb.items():
                     if mk[0] == k[0] and base_name(mk[1]) == base_name(k[1]):
@@ -293,7 +316,18 @@ def main(argv: list[str]) -> int:
         for k, mygo_list in mb.items():
             if k in CONTAINERS:
                 continue
+            if SCAFFOLD_NAME.match(k[1] or ""):
+                for node in mygo_list:
+                    scaffolding.append({"type": k[0], "name": k[1], "mygo": node["registered"]})
+                continue
             hit = k in nb or (k[0], ALIASES.get(k[1], "")) in nb
+            if not hit:
+                hit = any(
+                    k[0] == native_type and native_name.startswith(prefix)
+                    for native_type, prefix, mygo_name in ROLE_ALIASES
+                    if mygo_name == k[1]
+                    for native_name in [x for x in nb if x[0] == native_type for x in [x[1]]]
+                )
             if not hit:
                 hit = any(mk[0] == k[0] and base_name(mk[1]) == base_name(k[1]) for mk in nb)
             if not hit:
@@ -305,6 +339,7 @@ def main(argv: list[str]) -> int:
             "outside_1dip": len(outside),
             "missing_native_only": len(missing),
             "extra_mygo_only": len(extra),
+            "scaffolding_ignored": [{"type": s["type"], "name": s["name"]} for s in scaffolding],
             "alias_matches": [{"native": a, "mygo": b} for a, b in sorted(alias_pairs)],
             "normalized_matches": normalized,
             "dominant_delta": dominant_delta(matched),

@@ -1,5 +1,5 @@
 {
-  "row": "D-MAIN-227b",
+  "row": "accept-D-MAIN-227",
   "tolerance_dip": 1.0,
   "scale": 1.5,
   "registration": {
@@ -34,16 +34,38 @@
     "收起侧边栏": "收起左侧栏",
     "切换右侧栏": "切换右侧面板",
     "展开面板": "展开右侧面板",
-    "选择工作区": "选择工作区…",
+    "选择工作区": "Composer workspace",
     "搜索会话": "搜索会话…",
     "添加工作区": "选择工作区…"
   },
   "absolute": {
-    "matched": 22,
+    "matched": 23,
     "within_1dip": 0,
-    "outside_1dip": 22,
-    "missing_native_only": 37,
-    "extra_mygo_only": 27,
+    "outside_1dip": 23,
+    "missing_native_only": 36,
+    "extra_mygo_only": 22,
+    "scaffolding_ignored": [
+      {
+        "type": "Group",
+        "name": "Composer hero preset row"
+      },
+      {
+        "type": "Group",
+        "name": "Composer card"
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace"
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft"
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls"
+      }
+    ],
     "alias_matches": [
       {
         "native": "切换右侧栏",
@@ -52,6 +74,10 @@
       {
         "native": "探索未至之鲸",
         "mygo": "探索未至之境"
+      },
+      {
+        "native": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "mygo": "Composer draft"
       },
       {
         "native": "搜索会话",
@@ -71,15 +97,15 @@
       },
       {
         "native": "选择工作区",
-        "mygo": "选择工作区…"
+        "mygo": "Composer workspace"
       }
     ],
     "normalized_matches": 0,
     "dominant_delta": {
       "dx": 2800,
       "dy": 1,
-      "count": 8,
-      "of": 22
+      "count": 9,
+      "of": 23
     },
     "within_1dip_names": [],
     "outside_tolerance": [
@@ -304,6 +330,31 @@
           "y": 7.33,
           "w": 0,
           "h": -8
+        },
+        "within_1dip": false,
+        "space": "absolute"
+      },
+      {
+        "type": "Button",
+        "name": "选择工作区",
+        "matched_name": "Composer workspace",
+        "native": {
+          "x": -2298,
+          "y": 373.33,
+          "w": 150,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 502,
+          "y": 374.67,
+          "w": 150,
+          "h": 28
+        },
+        "delta": {
+          "x": 2800,
+          "y": 1.34,
+          "w": 0,
+          "h": -0.67
         },
         "within_1dip": false,
         "space": "absolute"
@@ -609,25 +660,25 @@
         "space": "absolute"
       },
       {
-        "type": "Button",
-        "name": "选择工作区",
-        "matched_name": "选择工作区…",
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "matched_name": "Composer draft",
         "native": {
-          "x": -2298,
-          "y": 373.33,
-          "w": 150,
-          "h": 28.67
+          "x": -2318,
+          "y": 417.33,
+          "w": 745.33,
+          "h": 52.67
         },
         "mygo": {
-          "x": 240,
-          "y": 249.33,
-          "w": 28,
-          "h": 28
+          "x": 469.33,
+          "y": 418.67,
+          "w": 774,
+          "h": 52
         },
         "delta": {
-          "x": 2538,
-          "y": -124.0,
-          "w": -122,
+          "x": 2787.33,
+          "y": 1.34,
+          "w": 28.67,
           "h": -0.67
         },
         "within_1dip": false,
@@ -683,16 +734,6 @@
           "y": 417.33,
           "w": 8.67,
           "h": 147.33
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
-        "native": {
-          "x": -2318,
-          "y": 417.33,
-          "w": 745.33,
-          "h": 52.67
         }
       },
       {
@@ -1128,26 +1169,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer hero preset row",
-        "mygo": {
-          "x": 469.33,
-          "y": 374.67,
-          "w": 774,
-          "h": 28
-        }
-      },
-      {
-        "type": "Group",
-        "name": "Composer card",
-        "mygo": {
-          "x": 469.33,
-          "y": 410.67,
-          "w": 774,
-          "h": 114
-        }
-      },
-      {
         "type": "Button",
         "name": "折叠工作区 cd40d8d5-0cf4-48b3-b4eb-536e2448154b",
         "mygo": {
@@ -1219,26 +1240,6 @@
       },
       {
         "type": "Button",
-        "name": "Composer workspace",
-        "mygo": {
-          "x": 502,
-          "y": 374.67,
-          "w": 150,
-          "h": 28
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "Composer draft",
-        "mygo": {
-          "x": 469.33,
-          "y": 418.67,
-          "w": 774,
-          "h": 52
-        }
-      },
-      {
-        "type": "Button",
         "name": "命令列表",
         "mygo": {
           "x": 477.33,
@@ -1258,16 +1259,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer trailing controls",
-        "mygo": {
-          "x": 966.67,
-          "y": 482.67,
-          "w": 268.67,
-          "h": 34
-        }
-      },
-      {
         "type": "Button",
         "name": "deepseek-official/deepseek-flash",
         "mygo": {
@@ -1280,11 +1271,33 @@
     ]
   },
   "window": {
-    "matched": 22,
+    "matched": 23,
     "within_1dip": 11,
-    "outside_1dip": 11,
-    "missing_native_only": 37,
-    "extra_mygo_only": 27,
+    "outside_1dip": 12,
+    "missing_native_only": 36,
+    "extra_mygo_only": 22,
+    "scaffolding_ignored": [
+      {
+        "type": "Group",
+        "name": "Composer hero preset row"
+      },
+      {
+        "type": "Group",
+        "name": "Composer card"
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace"
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft"
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls"
+      }
+    ],
     "alias_matches": [
       {
         "native": "切换右侧栏",
@@ -1293,6 +1306,10 @@
       {
         "native": "探索未至之鲸",
         "mygo": "探索未至之境"
+      },
+      {
+        "native": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "mygo": "Composer draft"
       },
       {
         "native": "搜索会话",
@@ -1312,15 +1329,15 @@
       },
       {
         "native": "选择工作区",
-        "mygo": "选择工作区…"
+        "mygo": "Composer workspace"
       }
     ],
     "normalized_matches": 0,
     "dominant_delta": {
       "dx": 0,
       "dy": 1,
-      "count": 8,
-      "of": 22
+      "count": 9,
+      "of": 23
     },
     "within_1dip_names": [
       "关闭",
@@ -1357,31 +1374,6 @@
           "y": 303.33,
           "w": 4,
           "h": -6
-        },
-        "within_1dip": false,
-        "space": "window"
-      },
-      {
-        "type": "Button",
-        "name": "选择工作区",
-        "matched_name": "选择工作区…",
-        "native": {
-          "x": 502.0,
-          "y": 373.33,
-          "w": 150,
-          "h": 28.67
-        },
-        "mygo": {
-          "x": 240.0,
-          "y": 249.33,
-          "w": 28,
-          "h": 28
-        },
-        "delta": {
-          "x": -262.0,
-          "y": -124.0,
-          "w": -122,
-          "h": -0.67
         },
         "within_1dip": false,
         "space": "window"
@@ -1456,6 +1448,31 @@
           "x": 13.33,
           "y": -41.33,
           "w": -0.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
+      },
+      {
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "matched_name": "Composer draft",
+        "native": {
+          "x": 482.0,
+          "y": 417.33,
+          "w": 745.33,
+          "h": 52.67
+        },
+        "mygo": {
+          "x": 469.33,
+          "y": 418.67,
+          "w": 774,
+          "h": 52
+        },
+        "delta": {
+          "x": -12.67,
+          "y": 1.34,
+          "w": 28.67,
           "h": -0.67
         },
         "within_1dip": false,
@@ -1610,6 +1627,31 @@
         },
         "within_1dip": false,
         "space": "window"
+      },
+      {
+        "type": "Button",
+        "name": "选择工作区",
+        "matched_name": "Composer workspace",
+        "native": {
+          "x": 502.0,
+          "y": 373.33,
+          "w": 150,
+          "h": 28.67
+        },
+        "mygo": {
+          "x": 502.0,
+          "y": 374.67,
+          "w": 150,
+          "h": 28
+        },
+        "delta": {
+          "x": 0.0,
+          "y": 1.34,
+          "w": 0,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "window"
       }
     ],
     "missing": [
@@ -1661,16 +1703,6 @@
           "y": 417.33,
           "w": 8.67,
           "h": 147.33
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
-        "native": {
-          "x": 482.0,
-          "y": 417.33,
-          "w": 745.33,
-          "h": 52.67
         }
       },
       {
@@ -2106,26 +2138,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer hero preset row",
-        "mygo": {
-          "x": 469.33,
-          "y": 374.67,
-          "w": 774,
-          "h": 28
-        }
-      },
-      {
-        "type": "Group",
-        "name": "Composer card",
-        "mygo": {
-          "x": 469.33,
-          "y": 410.67,
-          "w": 774,
-          "h": 114
-        }
-      },
-      {
         "type": "Button",
         "name": "折叠工作区 cd40d8d5-0cf4-48b3-b4eb-536e2448154b",
         "mygo": {
@@ -2197,26 +2209,6 @@
       },
       {
         "type": "Button",
-        "name": "Composer workspace",
-        "mygo": {
-          "x": 502.0,
-          "y": 374.67,
-          "w": 150,
-          "h": 28
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "Composer draft",
-        "mygo": {
-          "x": 469.33,
-          "y": 418.67,
-          "w": 774,
-          "h": 52
-        }
-      },
-      {
-        "type": "Button",
         "name": "命令列表",
         "mygo": {
           "x": 477.33,
@@ -2236,16 +2228,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer trailing controls",
-        "mygo": {
-          "x": 966.67,
-          "y": 482.67,
-          "w": 268.67,
-          "h": 34
-        }
-      },
-      {
         "type": "Button",
         "name": "deepseek-official/deepseek-flash",
         "mygo": {
@@ -2258,11 +2240,33 @@
     ]
   },
   "caption": {
-    "matched": 22,
-    "within_1dip": 7,
+    "matched": 23,
+    "within_1dip": 8,
     "outside_1dip": 15,
-    "missing_native_only": 37,
-    "extra_mygo_only": 27,
+    "missing_native_only": 36,
+    "extra_mygo_only": 22,
+    "scaffolding_ignored": [
+      {
+        "type": "Group",
+        "name": "Composer hero preset row"
+      },
+      {
+        "type": "Group",
+        "name": "Composer card"
+      },
+      {
+        "type": "Button",
+        "name": "Composer workspace"
+      },
+      {
+        "type": "Edit",
+        "name": "Composer draft"
+      },
+      {
+        "type": "Group",
+        "name": "Composer trailing controls"
+      }
+    ],
     "alias_matches": [
       {
         "native": "切换右侧栏",
@@ -2271,6 +2275,10 @@
       {
         "native": "探索未至之鲸",
         "mygo": "探索未至之境"
+      },
+      {
+        "native": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "mygo": "Composer draft"
       },
       {
         "native": "搜索会话",
@@ -2290,7 +2298,7 @@
       },
       {
         "native": "选择工作区",
-        "mygo": "选择工作区…"
+        "mygo": "Composer workspace"
       }
     ],
     "normalized_matches": 0,
@@ -2298,7 +2306,7 @@
       "dx": 0,
       "dy": 0,
       "count": 8,
-      "of": 22
+      "of": 23
     },
     "within_1dip_names": [
       "关闭",
@@ -2307,6 +2315,7 @@
       "最大化",
       "最小化",
       "自动化任务",
+      "选择工作区",
       "鲸鱼娘"
     ],
     "outside_tolerance": [
@@ -2331,31 +2340,6 @@
           "y": 302.66,
           "w": 4,
           "h": -6
-        },
-        "within_1dip": false,
-        "space": "caption"
-      },
-      {
-        "type": "Button",
-        "name": "选择工作区",
-        "matched_name": "选择工作区…",
-        "native": {
-          "x": 502.0,
-          "y": 333.33,
-          "w": 150,
-          "h": 28.67
-        },
-        "mygo": {
-          "x": 240.0,
-          "y": 208.66,
-          "w": 28,
-          "h": 28
-        },
-        "delta": {
-          "x": -262.0,
-          "y": -124.67,
-          "w": -122,
-          "h": -0.67
         },
         "within_1dip": false,
         "space": "caption"
@@ -2430,6 +2414,31 @@
           "x": 13.33,
           "y": -42.0,
           "w": -0.67,
+          "h": -0.67
+        },
+        "within_1dip": false,
+        "space": "caption"
+      },
+      {
+        "type": "Edit",
+        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+        "matched_name": "Composer draft",
+        "native": {
+          "x": 482.0,
+          "y": 377.33,
+          "w": 745.33,
+          "h": 52.67
+        },
+        "mygo": {
+          "x": 469.33,
+          "y": 378.0,
+          "w": 774,
+          "h": 52
+        },
+        "delta": {
+          "x": -12.67,
+          "y": 0.67,
+          "w": 28.67,
           "h": -0.67
         },
         "within_1dip": false,
@@ -2735,16 +2744,6 @@
           "y": 377.33,
           "w": 8.67,
           "h": 147.33
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
-        "native": {
-          "x": 482.0,
-          "y": 377.33,
-          "w": 745.33,
-          "h": 52.67
         }
       },
       {
@@ -3180,26 +3179,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer hero preset row",
-        "mygo": {
-          "x": 469.33,
-          "y": 334.0,
-          "w": 774,
-          "h": 28
-        }
-      },
-      {
-        "type": "Group",
-        "name": "Composer card",
-        "mygo": {
-          "x": 469.33,
-          "y": 370.0,
-          "w": 774,
-          "h": 114
-        }
-      },
-      {
         "type": "Button",
         "name": "折叠工作区 cd40d8d5-0cf4-48b3-b4eb-536e2448154b",
         "mygo": {
@@ -3271,26 +3250,6 @@
       },
       {
         "type": "Button",
-        "name": "Composer workspace",
-        "mygo": {
-          "x": 502.0,
-          "y": 334.0,
-          "w": 150,
-          "h": 28
-        }
-      },
-      {
-        "type": "Edit",
-        "name": "Composer draft",
-        "mygo": {
-          "x": 469.33,
-          "y": 378.0,
-          "w": 774,
-          "h": 52
-        }
-      },
-      {
-        "type": "Button",
         "name": "命令列表",
         "mygo": {
           "x": 477.33,
@@ -3310,16 +3269,6 @@
         }
       },
       {
-        "type": "Group",
-        "name": "Composer trailing controls",
-        "mygo": {
-          "x": 966.67,
-          "y": 442.0,
-          "w": 268.67,
-          "h": 34
-        }
-      },
-      {
         "type": "Button",
         "name": "deepseek-official/deepseek-flash",
         "mygo": {
@@ -3331,7 +3280,7 @@
       }
     ]
   },
-  "window_outside_dy_median": 4.67,
+  "window_outside_dy_median": 3.33,
   "regions": {
     "sidebar": {
       "box_px": [
