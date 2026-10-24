@@ -48,13 +48,18 @@ type Child interface {
 var bridgeScript string
 
 type Runtime struct {
-	op               sync.Mutex
-	writeMu          sync.Mutex
-	authorizeGit     func(string, string) bool
-	reviewGit        GitReviewer
-	reviewCancel     context.CancelFunc
-	mu               sync.Mutex
-	state            RuntimeState
+	op           sync.Mutex
+	writeMu      sync.Mutex
+	authorizeGit func(string, string) bool
+	reviewGit    GitReviewer
+	reviewCancel context.CancelFunc
+	mu           sync.Mutex
+	state        RuntimeState
+	// lanMode is the transport the daemon was last told to run. Native always
+	// builds urls[].pairingUrl and only flags relayDown in relay mode
+	// (reference/electron/src/main/remote.js:344-360), so a listening LAN
+	// daemon is ready without a relay connection.
+	lanMode          bool
 	child            Child
 	done             chan struct{}
 	spawn            func(Resources) (Child, error)
@@ -130,6 +135,7 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 	r.child = child
 	r.done = done
 	r.state = RuntimeState{Status: "starting"}
+	r.lanMode = remoteModeLAN(config)
 	r.mu.Unlock()
 	go func() {
 		scanner := bufio.NewScanner(child.Output())
@@ -161,6 +167,8 @@ func (r *Runtime) Refresh(config map[string]any) {
 	defer r.op.Unlock()
 	r.mu.Lock()
 	child := r.child
+	// A transport change takes effect on the next snapshot, never mid-event.
+	r.lanMode = remoteModeLAN(config)
 	r.mu.Unlock()
 	if child != nil {
 		if r.sendControl(child, map[string]any{"action": "refresh", "config": config}) != nil {
@@ -192,16 +200,31 @@ func (r *Runtime) stopLocked() {
 	}
 }
 func (r *Runtime) set(s RuntimeState) { r.mu.Lock(); r.state = s; r.mu.Unlock() }
+
+// remoteModeLAN reports whether the daemon runs the LAN transport. Only "lan"
+// is a LAN gateway; every other value is relay, matching config normalization
+// (internal/config/config.go, native config.js:235).
+func remoteModeLAN(config map[string]any) bool {
+	mode, _ := config["remoteMode"].(string)
+	return mode == "lan"
+}
+
+// relayRequired is the readiness rule for the current transport: a relay
+// gateway is only ready once the relay handshake is up, a LAN gateway never
+// waits for one (native remote.js:344-360 only marks relayDown in relay mode).
+func relayRequired(lan bool) bool { return !lan }
+
 func (r *Runtime) Snapshot() RuntimeState {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	lanOnly := r.lanMode
 	s := r.state
 	if !s.ExpiresAt.IsZero() && !time.Now().Before(s.ExpiresAt) {
 		s.PairingURL = ""
 		s.PairingImage = nil
 		s.Status = "expired"
 	}
-	if s.Status != "ready" || !s.Listening || !s.RelayConnected {
+	if s.Status != "ready" || !s.Listening || (!s.RelayConnected && relayRequired(lanOnly)) {
 		s.PairingURL = ""
 		s.PairingImage = nil
 	}
@@ -280,16 +303,21 @@ func (r *Runtime) consume(child Child, b []byte) {
 	if event.Kind != "snapshot" {
 		return
 	}
+	lanOnly := r.lanMode
 	s := RuntimeState{Status: "offline", Listening: event.Listening, RelayConnected: event.RelayConnected,
 		Devices: event.Devices, DevicesLoaded: event.DevicesLoaded, BindAddresses: event.Addresses}
 	if s.Listening {
 		s.Status = "relay-offline"
+		if lanOnly {
+			// A LAN gateway has no relay to wait for.
+			s.Status = "pairing-unavailable"
+		}
 	}
 	expires, ok := offerExpiry(event.URL)
 	if ok {
 		s.ExpiresAt = expires
 	}
-	if s.Listening && s.RelayConnected {
+	if s.Listening && (lanOnly || s.RelayConnected) {
 		s.Status = "pairing-unavailable"
 		if ok {
 			if time.Now().Before(expires) {

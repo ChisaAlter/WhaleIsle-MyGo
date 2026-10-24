@@ -305,33 +305,37 @@ type mainState struct {
 	marketIncompatible                      []api.ChangeResultErrorIncompatibleItem
 	hasRemoteToken                          bool
 	hasRemoteRelayToken                     bool
-	remoteDeviceCount                       int
-	remoteDeviceNames                       []string
-	phoneActionMsg                          string
-	sshProbeLine                            string
-	webviewOpen                             bool
-	browserPreviewOpen                      bool
-	officePreview                           officePreviewState
-	pdfPreviewRequest                       uint64
-	mediaPreviewRequest                     uint64
-	htmlDocumentRequest                     uint64
-	browserController                       *browserpreviewui.Controller
-	browserPreviewDraft                     string
-	browserPreviewNavigateErr               string
-	webviewHost                             *desktopwebview.Host
-	settingsOverlayHost                     *desktopwebview.Host
-	webviewHostErr                          string
-	lastWebViewURL                          string
-	lastWebViewOrigin                       string
-	pluginViewResumeAfterRestart            bool
-	pluginViewHostGeneration                int
-	assistantOpen                           bool
-	assistantConversationGeneration         uint64
-	assistantDraft                          string
-	assistantLastAct                        string
-	assistantPluginBusy                     bool
-	assistantPluginDetail                   string
-	launcherOpen                            bool
+	// Phone-remote tokens copied from the credential store for the daemon
+	// config. Secrets: never logged and never written to config.json.
+	remoteToken                     string
+	remoteRelayToken                string
+	remoteDeviceCount               int
+	remoteDeviceNames               []string
+	phoneActionMsg                  string
+	sshProbeLine                    string
+	webviewOpen                     bool
+	browserPreviewOpen              bool
+	officePreview                   officePreviewState
+	pdfPreviewRequest               uint64
+	mediaPreviewRequest             uint64
+	htmlDocumentRequest             uint64
+	browserController               *browserpreviewui.Controller
+	browserPreviewDraft             string
+	browserPreviewNavigateErr       string
+	webviewHost                     *desktopwebview.Host
+	settingsOverlayHost             *desktopwebview.Host
+	webviewHostErr                  string
+	lastWebViewURL                  string
+	lastWebViewOrigin               string
+	pluginViewResumeAfterRestart    bool
+	pluginViewHostGeneration        int
+	assistantOpen                   bool
+	assistantConversationGeneration uint64
+	assistantDraft                  string
+	assistantLastAct                string
+	assistantPluginBusy             bool
+	assistantPluginDetail           string
+	launcherOpen                    bool
 	// launcherWin is the separate 1060x660 launcher window (G04). Nil keeps the
 	// in-window launcher panel: isolated/QA desktops, --background, --settings,
 	// headless tests and a failed window creation all stay on that fallback.
@@ -734,6 +738,8 @@ func (s *mainState) saveCredentials() {
 func (s *mainState) applyRemoteCredentials(creds credentials.Credentials) {
 	s.hasRemoteToken = strings.TrimSpace(creds.RemoteToken) != ""
 	s.hasRemoteRelayToken = strings.TrimSpace(creds.RemoteRelayToken) != ""
+	s.remoteToken = strings.TrimSpace(creds.RemoteToken)
+	s.remoteRelayToken = strings.TrimSpace(creds.RemoteRelayToken)
 	s.remoteDeviceCount = len(creds.RemoteDevices)
 	s.remoteDeviceNames = phoneremote.DeviceNames(creds.RemoteDevices)
 }
@@ -770,6 +776,7 @@ func (s *mainState) refreshPhoneRemote() (msg string) {
 	s.mu.Lock()
 	ep := s.bootStatus.Endpoint
 	quitting := s.quitting
+	creds := remoteRuntimeCredentials{Local: s.remoteToken, Relay: s.remoteRelayToken}
 	s.mu.Unlock()
 	if quitting {
 		return "offline"
@@ -779,14 +786,7 @@ func (s *mainState) refreshPhoneRemote() (msg string) {
 		return "disabled"
 	}
 	gitRoots := s.phoneGitRoots()
-	runtimeConfig := map[string]any{
-		"remoteGitEnabled": len(gitRoots) > 0, "remoteGitRoots": gitRoots,
-		"remoteEnabled": cfg.RemoteEnabled, "remoteMode": cfg.RemoteMode,
-		"remotePort": cfg.RemotePort, "remoteBindAddress": cfg.RemoteBindAddress,
-		"remoteLanTls": cfg.RemoteLanTls, "remoteAppBaseUrl": cfg.RemoteAppBaseUrl,
-		"remoteRelayEndpoint": cfg.RemoteRelayEndpoint, "remoteRelayUseTls": cfg.RemoteRelayUseTls,
-		"harnessOrigin": ep.Origin, "harnessCookie": ep.Cookie,
-	}
+	runtimeConfig := buildRemoteRuntimeConfig(cfg, creds, gitRoots, ep.Origin, ep.Cookie)
 	if manager.Snapshot().Status == "starting" {
 		return "starting"
 	}

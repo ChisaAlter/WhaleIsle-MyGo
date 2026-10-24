@@ -24,8 +24,10 @@ func (s *Store) SaveRemoteGateway(expected, p RemoteGatewayPreferences) error {
 	p.Port = strings.TrimSpace(p.Port)
 	p.BindAddress = strings.TrimSpace(p.BindAddress)
 	p.RelayEndpoint = strings.TrimSpace(p.RelayEndpoint)
-	if p.Mode != "lan" && p.Mode != "relay" && p.Mode != "ssh" {
-		return errors.New("Choose LAN, relay or SSH / 请选择连接模式")
+	// The gateway has exactly two transports (native config.js:235); SSH is a
+	// remote-workspace transport and is rejected here instead of being stored.
+	if p.Mode != "lan" && p.Mode != "relay" {
+		return errors.New("Choose LAN or relay / 请选择连接模式")
 	}
 	port, err := strconv.Atoi(p.Port)
 	if err != nil || port < 1024 || port > 65535 {

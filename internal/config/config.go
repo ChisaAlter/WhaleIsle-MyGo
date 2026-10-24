@@ -101,9 +101,12 @@ type Config struct {
 	HideArchivedList bool `json:"hideArchivedList"`
 
 	// Remote pairing daemon (phone/LAN remote), gated by the desktop build.
-	RemoteEnabled       bool   `json:"remoteEnabled"`
-	RemotePort          int    `json:"remotePort"`
-	RemoteMode          string `json:"remoteMode"` // "relay", "lan", or "ssh"
+	RemoteEnabled bool `json:"remoteEnabled"`
+	RemotePort    int  `json:"remotePort"`
+	// RemoteMode is the phone gateway transport, "relay" or "lan". SSH is a
+	// remote-workspace transport (RemoteWorkspaceEnabled), never a gateway mode
+	// (reference/electron/src/main/config.js:235 keeps only "lan").
+	RemoteMode          string `json:"remoteMode"`
 	RemoteBindAddress   string `json:"remoteBindAddress"`
 	RemoteLanTls        bool   `json:"remoteLanTls"`
 	RemoteRelayUrl      string `json:"remoteRelayUrl"`
@@ -381,8 +384,11 @@ func normalize(c Config) Config {
 	if c.RemotePort < 1024 || c.RemotePort > 65535 {
 		c.RemotePort = d.RemotePort
 	}
+	// Only "lan" is kept; every other value (including a stale "ssh") is the
+	// relay transport, exactly as normalizeRemoteConfig does
+	// (reference/electron/src/main/config.js:235).
 	switch c.RemoteMode {
-	case "lan", "ssh":
+	case "lan":
 	default:
 		c.RemoteMode = "relay"
 	}

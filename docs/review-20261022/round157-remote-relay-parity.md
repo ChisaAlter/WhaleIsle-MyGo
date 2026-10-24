@@ -104,3 +104,33 @@ snapshot: status="missing" listening=false relay=false message="missing runtime 
 2. **G2 + G3**：LAN 配对门禁 + relay token 注入；两者都有明确修法与可离线单测（fake child / config 组装）。
 3. **G4**：模式枚举与注释对齐 native。
 4. **G5/G6**：LAN 发现与 TLS/SSH 的真实设备验收。
+
+## 7. Round158 补记（task-33）：round157 的安全修复落地
+
+前置说明：`bridge.cjs` 不是生成物，它是 `internal/desktop/phoneremote/bridge.cjs` 的 `go:embed` 源（runtime.go:47-48），所以桥的 LAN 门禁已直接在源里修好；**没有改动 `runtime/` 或 `third_party/`**，也不需要改已落地的 runtime。
+
+| 项 | 修复前 | 修复后 |
+| --- | --- | --- |
+| G4 模式归一 | `config.go` 保留 `"ssh"`（`case "lan", "ssh"`），注释写 “relay, lan, or ssh” | `normalize` 只保留 `"lan"`，其余（含遗留 `"ssh"`、空、`"LAN"`、带空格）一律 `"relay"`（config.go:382-394，对齐 native config.js:235）；注释改为“phone gateway transport，SSH 属远程工作区”；`SaveRemoteGateway` 同步只接受 `lan|relay`（remote_gateway.go:27-31），避免把 ssh 存进 config.json |
+| G3 relay 认证 | `refreshPhoneRemote` 的 runtimeConfig 只有 endpoint/useTls/appBaseUrl/harness*，没有 token；凭据只以 bool 形式存在 state | `mainState` 新增 `remoteToken`/`remoteRelayToken`（凭证快照的 trim 值，注释标明 secret、永不写日志/配置）；新增纯函数 `buildRemoteRuntimeConfig(cfg, creds, gitRoots, origin, cookie)`（cmd/whaleisle/remote_runtime_config.go），仅在已保存时加入 `remoteToken`（native remote.js:328）与 `remoteRelayToken`（remote.js:318），未保存则整个 key 不出现；`refreshPhoneRemote` 改用它 |
+| G2 LAN 配对 | `Snapshot` 与 `consume` 都要求 `Listening && RelayConnected` 才 ready/保留 URL；桥 `usableURL()` 也硬性要求 relayConnected | Runtime 记住 transport（`Start`/`Refresh` 设置 `lanMode`）；`consume`/`Snapshot` 用 `listening && (relayConnected || lan)`（relay 模式仍严格，缺少 relay 时保持 `relay-offline` 且清空 URL）；桥 `usableURL()` 改为 `listening && (relayConnected || config.remoteMode === 'lan')` |
+
+已读 native 依据：`config.js:235`（mode 折叠）、`remote.js:318/328`（token）、`remote.js:344-360`（`relayDown` 只在 relay 模式，`urls[].pairingUrl` 两模式都构造）。
+
+### 测试（全部通过）
+
+- `go test ./internal/config ./internal/desktop/phoneremote ./cmd/whaleisle -count=1` → `ok 4.497s / 3.374s / 31.193s`。
+- 新增/更新：
+  - `internal/config/config_test.go`：`TestNormalizeClamps` 的 ssh 期望改为 `relay`；新增 `TestNormalizeRemoteModeCollapsesToRelay`（lan/relay/ssh/garbage/空/`LAN`/` relay ` 七例）。
+  - `internal/config/remote_gateway_test.go`：`"ssh"` 作为非法 mode 用例。
+  - `internal/desktop/phoneremote/lan_pairing_test.go`：`TestListeningLanDaemonPairsWithoutRelay`（lan → `ready` 且 `PairingURL` 就是 offer；relay/缺省 → `relay-offline` 且 URL 为空）与 `TestRefreshRemembersLanMode`。
+  - `cmd/whaleisle/remote_runtime_config_test.go`：无 token/空白 token/仅 local/仅 relay/两者带空格五种情况，断言 key 仅在已保存时出现、trim 生效、其余 daemon 合约字段不变。
+- `go vet ./internal/config ./internal/desktop/phoneremote ./cmd/whaleisle` → clean（cmd 曾因另一 teammate 正在编辑 `internal/ui/composer/composer.go` 出现一次暂时性 invalid UTF-8，等其保存后重跑通过）。
+- `node --check internal/desktop/phoneremote/bridge.cjs` → clean。
+
+### 仍未闭环（需要真实 daemon / 网络）
+
+- **G1（P0）**：`runtime/vendor/dshd-remote` 仍是安装版发布包布局，`ResolveResources` 报 `missing runtime resource: src/main/dshd-remote.js`。需在有网环境跑 `scripts/build-mobile-runtime.ps1`（npm ci + better-sqlite3/node-pty 的 Node ABI 重建）或 stage 等价移动运行时；在那之前所有远程功能（含本次修好的 LAN 配对路径）都无法端到端验证。
+- **G3 剩余**：token 注入只到“config 组装”层，relay 握手/鉴权需要 daemon + 真实 relay（ayase.cn:443）才能验证；本环境未联网、未开监听。
+- **G5（P2）**：LAN 地址发现仍依赖 daemon snapshot 的 `addresses`（bridge.cjs:82），没有 native `shared/lan.js` 的虚接口过滤与候选排序；需要真实网卡环境验证。
+- **G6（P2）**：LAN TLS 指纹固定（remote-tls.js）与 SSH tunnel 协议只能靠手机/真实 daemon 验收；离线仅覆盖 Go 侧状态机与隧道单元测试。

@@ -18,7 +18,11 @@ try {
 let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false;
 function clearQR() { qrURL = ''; qrPNG = ''; ++qrGeneration; }
 function usableURL(s) {
-  if (offerBlocked || !s.listening || !s.relayConnected) return '';
+  // Native snapshot() always builds urls[].pairingUrl and only flags relayDown
+  // in relay mode (reference/electron/src/main/remote.js:344-360); a LAN
+  // gateway has no relay connection to wait for.
+  if (offerBlocked || !s.listening) return '';
+  if (!s.relayConnected && config.remoteMode !== 'lan') return '';
   const raw = s.urls?.[0]?.pairingUrl || '';
   try {
     if (raw.length > 8192) return '';

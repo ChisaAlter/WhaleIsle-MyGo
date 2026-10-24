@@ -208,7 +208,7 @@ func TestNormalizeClamps(t *testing.T) {
 	if c.Port != d.Port || c.Theme != d.Theme || c.Locale != d.Locale {
 		t.Fatalf("core clamp failed: %+v", c)
 	}
-	if c.RemotePort != d.RemotePort || c.RemoteMode != "ssh" || c.RemoteBindAddress != d.RemoteBindAddress {
+	if c.RemotePort != d.RemotePort || c.RemoteMode != "relay" || c.RemoteBindAddress != d.RemoteBindAddress {
 		t.Fatalf("remote clamp failed: %+v", c)
 	}
 	if c.RemoteRelayUrl != "relay.example.com:443" || c.RemoteRelayEndpoint != "relay.example.com:443" || c.RemoteRelayUseTls {
@@ -373,5 +373,24 @@ func TestUpdateFailedWriteLeavesStateUnchanged(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("temp file was not cleaned up: %v", entries)
+	}
+}
+
+func TestNormalizeRemoteModeCollapsesToRelay(t *testing.T) {
+	// Native normalizeRemoteConfig keeps only "lan"; everything else is the
+	// relay transport (reference/electron/src/main/config.js:235). A stale
+	// "ssh" (remote workspaces, not the gateway) must not survive.
+	for _, tc := range []struct{ in, want string }{
+		{"lan", "lan"},
+		{"relay", "relay"},
+		{"ssh", "relay"},
+		{"garbage", "relay"},
+		{"", "relay"},
+		{"LAN", "relay"},
+		{" relay ", "relay"},
+	} {
+		if got := normalize(Config{RemoteMode: tc.in}).RemoteMode; got != tc.want {
+			t.Errorf("normalize(RemoteMode=%q) = %q, want %q", tc.in, got, tc.want)
+		}
 	}
 }

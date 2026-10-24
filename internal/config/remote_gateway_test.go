@@ -26,7 +26,7 @@ func TestRemoteGatewayPreferencesValidationAndPreservation(t *testing.T) {
 	if err := s.SaveRemoteGateway(RemoteGatewayFrom(old), p); err == nil {
 		t.Fatal("stale editor accepted")
 	}
-	for _, bad := range []RemoteGatewayPreferences{{Mode: "wrong", Port: "7788", BindAddress: "127.0.0.1"}, {Mode: "lan", Port: "80", BindAddress: "127.0.0.1"}, {Mode: "lan", Port: "7788", BindAddress: "host.invalid"}, {Mode: "lan", Port: "7788", BindAddress: "127.0.0.1", RelayEndpoint: "https://user:secret@host/path"}} {
+	for _, bad := range []RemoteGatewayPreferences{{Mode: "wrong", Port: "7788", BindAddress: "127.0.0.1"}, {Mode: "ssh", Port: "7788", BindAddress: "127.0.0.1"}, {Mode: "lan", Port: "80", BindAddress: "127.0.0.1"}, {Mode: "lan", Port: "7788", BindAddress: "host.invalid"}, {Mode: "lan", Port: "7788", BindAddress: "127.0.0.1", RelayEndpoint: "https://user:secret@host/path"}} {
 		if err := s.SaveRemoteGateway(RemoteGatewayFrom(got), bad); err == nil {
 			t.Fatalf("invalid accepted: %+v", bad)
 		}
