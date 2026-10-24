@@ -887,3 +887,107 @@ func TestToolDetailsModelJobDerivation(t *testing.T) {
 		}
 	}
 }
+
+// The generic ToolDetails vocabulary was read from the installed ui-tool bundle:
+// ToolDetails.js renders lines, code and groups in that order and paints the
+// unchanged container after the list; todo-diff-model.js omits that container
+// when nothing is unchanged. The installed CSS (client.js:1507) fixes the
+// geometry the view tests assert.
+func TestToolDetailsUnchangedSuppressionAndLabel(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	if got := toolDetailsUnchangedFor(nil); got != nil {
+		t.Fatalf("nil unchanged = %#v", got)
+	}
+	if got := toolDetailsUnchangedFor([]toolDetailItem{}); got != nil {
+		t.Fatalf("empty unchanged = %#v", got)
+	}
+	items := []toolDetailItem{{Title: "Review"}, {Title: "Ship"}}
+	for _, locale := range []struct{ name, want string }{
+		{i18n.LocaleEN, "2 unchanged"},
+		{i18n.LocaleZH, "2 项未变化"},
+	} {
+		toolDetailsModelLocaleForTest(t, locale.name)
+		got := toolDetailsUnchangedFor(items)
+		if got == nil || got.Label != locale.want || len(got.Items) != 2 || got.Items[1].Title != "Ship" {
+			t.Fatalf("%s unchanged = %#v", locale.name, got)
+		}
+	}
+	// The container keeps the recorded entries it was given.
+	if &items[0] != &toolDetailsUnchangedFor(items).Items[0] {
+		t.Fatal("unchanged container copied its entries")
+	}
+}
+
+// The golden pins the whole vocabulary, including the nil-versus-empty fields
+// the view branches on and the recorded code language.
+func TestToolDetailsGenericEntryModelGolden(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	subtitle, description := "subtitle", " recorded description "
+	model := &toolDetailsModel{
+		Items: []toolDetailItem{{
+			Title: "Workflow", Badge: &toolDetailBadge{Label: "Completed", Tone: "success"},
+			Subtitle: &subtitle, Description: &description,
+			Fields: []toolDetailField{{Label: "Agents", Value: "2"}},
+			Lines:  []string{"first evidence", "second evidence"},
+			Code:   &toolDetailCode{Text: "console.log(1)", Language: "javascript"},
+			Groups: []toolDetailGroup{{
+				Label: "Remaining work",
+				Items: []toolDetailItem{{Fields: []toolDetailField{}, Lines: []string{"next step"}}},
+			}},
+		}},
+		Summary: "Workflow", Caption: "Recorded result", Empty: "No results",
+	}
+	model.Unchanged = toolDetailsUnchangedFor([]toolDetailItem{
+		{Title: "Review", Badge: &toolDetailBadge{Label: "Pending", Tone: "warning"}, Fields: []toolDetailField{}},
+	})
+	raw, err := json.Marshal(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"Items":[{"Title":"Workflow","Fields":[{"Label":"Agents","Value":"2"}],"Badge":{"Label":"Completed","Tone":"success"},"Subtitle":"subtitle","Description":" recorded description ","Code":{"Text":"console.log(1)","Language":"javascript"},"Lines":["first evidence","second evidence"],"Groups":[{"Label":"Remaining work","Items":[{"Title":"","Fields":[],"Badge":null,"Subtitle":null,"Description":null,"Code":null,"Lines":["next step"],"Groups":null}]}]}],"Empty":"No results","Summary":"Workflow","Caption":"Recorded result","ExpandedSummary":"","Unchanged":{"Label":"1 unchanged","Items":[{"Title":"Review","Fields":[],"Badge":{"Label":"Pending","Tone":"warning"},"Subtitle":null,"Description":null,"Code":null,"Lines":null,"Groups":null}]}}`
+	if string(raw) != want {
+		t.Fatalf("generic entries = %s", raw)
+	}
+}
+
+// The per-tool families shipped by round125 must not gain the generic parts, and
+// an invalid recorded value still falls back to the evidence body.
+func TestToolDetailsFamilyModelsStayOnTheirOwnEntries(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	reminder := `{"id":"s-1","prompt":"Recorded prompt","scheduledAt":"2026-10-25T01:30:00.000Z","deliveryMode":"host","state":"scheduled","kind":"at"}`
+	models := map[string]*toolDetailsModel{}
+	for name, call := range map[string]*session.ToolCallView{
+		"job_output":    toolDetailsModelCallForTest(t, false, "job_output", `{"target":"job-1"}`, "out\n[status: completed]"),
+		"job_list":      toolDetailsModelCallForTest(t, false, "job_list", `{}`, "job-1 [bash] running — npm test"),
+		"goal":          toolDetailsModelCallForTest(t, false, "get_goal", `{}`, toolDetailsModelValueForTest(toolDetailsModelGoalForTest)),
+		"schedule":      toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, reminder),
+		"schedule_list": toolDetailsModelCallForTest(t, false, "schedule_list", `{}`, `[`+reminder+`]`),
+	} {
+		models[name] = toolDetailsModelFor(call)
+	}
+	for name, model := range models {
+		if model == nil || len(model.Items) == 0 {
+			t.Fatalf("%s = %#v", name, model)
+		}
+		if model.Unchanged != nil {
+			t.Fatalf("%s unchanged = %#v", name, model.Unchanged)
+		}
+		for _, item := range model.Items {
+			if item.Lines != nil || item.Groups != nil {
+				t.Fatalf("%s item gained generic entries: %#v", name, item)
+			}
+			if item.Code != nil && item.Code.Language != "" {
+				t.Fatalf("%s code language = %q", name, item.Code.Language)
+			}
+		}
+	}
+	// Malformed recorded values keep the generic evidence body.
+	for _, call := range []*session.ToolCallView{
+		toolDetailsModelCallForTest(t, false, "job_output", `{}`, "no status here"),
+		toolDetailsModelCallForTest(t, false, "schedule_create", `{}`, `{"id":"s-1"}`),
+	} {
+		if got := toolDetailsModelFor(call); got != nil {
+			t.Fatalf("invalid record produced %#v", got)
+		}
+	}
+}

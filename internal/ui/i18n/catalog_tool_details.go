@@ -46,6 +46,15 @@ const (
 	KeyToolDetailReceiptFinished = "chat.tool.detail.receipt.finished"
 	KeyToolDetailOutputTruncated = "chat.tool.detail.output.truncated"
 
+	// Generic entry vocabulary: the installed `unchanged` container and the
+	// shared CodeBlock toolbar.
+	KeyToolDetailUnchanged = "chat.tool.detail.unchanged"
+	KeyToolDetailCodeLabel = "chat.tool.detail.code.label"
+	KeyToolDetailCopy      = "chat.tool.detail.code.copy"
+	KeyToolDetailCopied    = "chat.tool.detail.code.copied"
+	KeyToolDetailWrap      = "chat.tool.detail.code.wrap"
+	KeyToolDetailUnwrap    = "chat.tool.detail.code.unwrap"
+
 	KeyToolDetailStatusRunning      = "chat.tool.detail.status.running"
 	KeyToolDetailStatusIdle         = "chat.tool.detail.status.idle"
 	KeyToolDetailStatusReady        = "chat.tool.detail.status.ready"
@@ -108,6 +117,15 @@ func init() {
 	Register(KeyToolDetailReceiptCancel, "已请求取消", "Cancellation requested")
 	Register(KeyToolDetailReceiptFinished, "任务已结束", "Already finished")
 	Register(KeyToolDetailOutputTruncated, "输出已截断", "Output truncated")
+
+	// Values recorded from the installed locale dictionaries: `todo.diff.unchanged`
+	// and the common `copy`/`copied`/`codeBlock.*` entries.
+	Register(KeyToolDetailUnchanged, "%d 项未变化", "%d unchanged")
+	Register(KeyToolDetailCodeLabel, "代码块", "Code block")
+	Register(KeyToolDetailCopy, "复制", "Copy")
+	Register(KeyToolDetailCopied, "复制成功", "Copied")
+	Register(KeyToolDetailWrap, "自动换行", "Wrap lines")
+	Register(KeyToolDetailUnwrap, "取消自动换行", "Do not wrap lines")
 
 	Register(KeyToolDetailStatusRunning, "运行中", "Running")
 	Register(KeyToolDetailStatusIdle, "空闲", "Idle")

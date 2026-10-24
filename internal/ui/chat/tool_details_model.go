@@ -29,6 +29,17 @@ type toolDetailsModel struct {
 	Caption string
 	// ExpandedSummary replaces the collapsed row summary while the body is open.
 	ExpandedSummary string
+	// Unchanged is the installed `unchanged` disclosure painted after the list.
+	// A result that records nothing unchanged keeps it nil, so the container is
+	// suppressed instead of painted with a zero count.
+	Unchanged *toolDetailsUnchanged
+}
+
+// toolDetailsUnchanged is the installed `unchanged` container: a collapsed
+// disclosure whose label counts the entries that did not change.
+type toolDetailsUnchanged struct {
+	Label string
+	Items []toolDetailItem
 }
 
 type toolDetailItem struct {
@@ -41,6 +52,19 @@ type toolDetailItem struct {
 	Subtitle    *string
 	Description *string
 	Code        *toolDetailCode
+	// Lines is the installed `lines` list: recorded strings, one bullet each.
+	// Nil records no list at all, which paints nothing.
+	Lines []string
+	// Groups are the installed `groups` disclosures, in recorded order.
+	Groups []toolDetailGroup
+}
+
+// toolDetailGroup is one installed nested disclosure. Its children keep the
+// whole item vocabulary, so a group may hold fields, lines, code or its own
+// nested groups.
+type toolDetailGroup struct {
+	Label string
+	Items []toolDetailItem
 }
 
 // toolDetailBadge is the installed static status dot and label.
@@ -49,6 +73,10 @@ type toolDetailBadge struct {
 }
 
 // toolDetailCode is recorded text kept selectable inside its own scroll region.
+// A recorded Language selects the installed CodeBlock chrome: the language
+// banner, the wrap toggle and the copy action. The background-job receipt
+// records output without a language, so it keeps the plain region it shipped
+// with in round125.
 type toolDetailCode struct {
 	Text, Language string
 }
@@ -529,6 +557,17 @@ func toolDetailsModelRecordedList(items []toolDetailItem, summary string) *toolD
 
 func toolDetailsModelString(value string) *string {
 	return &value
+}
+
+// toolDetailsUnchangedFor builds the installed `unchanged` container. The
+// localized label counts the recorded entries, and an empty list yields nil
+// because the installed derivation omits the container when nothing is
+// unchanged, so it can never paint a zero count.
+func toolDetailsUnchangedFor(items []toolDetailItem) *toolDetailsUnchanged {
+	if len(items) == 0 {
+		return nil
+	}
+	return &toolDetailsUnchanged{Label: fmt.Sprintf(i18n.T(i18n.KeyToolDetailUnchanged), len(items)), Items: items}
 }
 
 // toolDetailsModelTarget picks the first non-empty recorded string among the

@@ -515,3 +515,168 @@ func TestToolDetailsViewJobCaptionReserve(t *testing.T) {
 		t.Fatalf("code width without caption %v", code.W)
 	}
 }
+
+// The generic entry vocabulary was measured from the installed module CSS
+// (client.js:1507): the item pads 10/14, a line list starts 18px in with a 4px
+// gap, the group summary pads 8px above its label and its children keep the
+// 9/0/2/20 inset, and an unchanged summary pads 9/14.
+func toolDetailsGenericModelForTest() *toolDetailsModel {
+	description := "recorded description"
+	model := &toolDetailsModel{
+		Items: []toolDetailItem{{
+			Title: "Workflow", Badge: &toolDetailBadge{Label: "Completed", Tone: "success"},
+			Description: &description,
+			Lines:       []string{"first evidence", "second evidence"},
+			Code:        &toolDetailCode{Text: "console.log(1)", Language: "javascript"},
+			Groups: []toolDetailGroup{{
+				Label: "Remaining work",
+				Items: []toolDetailItem{{Lines: []string{"next step"}}},
+			}},
+		}},
+		Summary: "Workflow", Caption: "Recorded result", Empty: "No results",
+	}
+	model.Unchanged = toolDetailsUnchangedFor([]toolDetailItem{{Title: "Review"}, {Title: "Ship"}})
+	return model
+}
+
+// The vocabulary paints in the installed order, keeps nested and unchanged
+// entries collapsed until their summary is used, and gives a recorded language
+// the shared code card with its copy action.
+func TestToolDetailsViewGenericEntriesDiscloseAndCopy(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	tt, _ := toolDetailsCardFixture(t, toolDetailsGenericModelForTest(), false)
+	for _, want := range []string{"Workflow", "Completed", "recorded description", "first evidence", "second evidence", "Remaining work", "2 unchanged", "javascript"} {
+		if !tt.HasText(want) {
+			t.Fatal("missing", want, tt.Texts())
+		}
+	}
+	for _, hidden := range []string{"next step", "Review", "Ship"} {
+		if tt.HasText(hidden) {
+			t.Fatal("collapsed entry painted", hidden, tt.Texts())
+		}
+	}
+	if _, ok := tt.Find("Copy"); !ok {
+		t.Fatal("code copy action", tt.Texts())
+	}
+	if err := tt.Click("Remaining work"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("next step") {
+		t.Fatal("group did not open", tt.Texts())
+	}
+	if err := tt.Click("Remaining work"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText("next step") {
+		t.Fatal("group did not close", tt.Texts())
+	}
+	if err := tt.Click("2 unchanged"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Review", "Ship"} {
+		if !tt.HasText(want) {
+			t.Fatal("unchanged did not open", want, tt.Texts())
+		}
+	}
+}
+
+func TestToolDetailsViewGenericEntryGeometry(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	tt, body := toolDetailsCardFixture(t, toolDetailsGenericModelForTest(), false)
+	title, _ := tt.Find("Workflow")
+	description, _ := tt.Find("recorded description")
+	first, _ := tt.Find("first evidence")
+	second, _ := tt.Find("second evidence")
+	group, _ := tt.Find("Remaining work")
+	unchanged, _ := tt.Find("2 unchanged")
+	if title.X != 19 || description.X != 19 {
+		t.Fatalf("item inset title %+v description %+v", title, description)
+	}
+	if first.X != 37 || second.X != 37 {
+		t.Fatalf("line inset first %+v second %+v", first, second)
+	}
+	if first.Y != description.Y+20+6+6 || second.Y != first.Y+24 {
+		t.Fatalf("line rhythm first %+v second %+v description %+v", first, second, description)
+	}
+	// The summaries span their container: the group inside the 14px item inset
+	// (8px above the label, 20px line), the unchanged one at the card edge with
+	// its own 9/14 padding.
+	if group.X != 19 || group.H != 28 {
+		t.Fatalf("group summary %+v", group)
+	}
+	if unchanged.X != 5 || unchanged.H != 38 || unchanged.Y <= group.Y+group.H {
+		t.Fatalf("unchanged summary %+v after group %+v", unchanged, group)
+	}
+	toolTreeNear(t, "closed height", body.H, 338)
+	if err := tt.Click("Remaining work"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	child, _ := tt.Find("next step")
+	group, _ = tt.Find("Remaining work")
+	// The child line keeps the installed 9/0/2/20 inset plus its 18px gutter.
+	if child.X != 57 || child.Y != group.Y+group.H+9+6 {
+		t.Fatalf("group child %+v group %+v", child, group)
+	}
+	// Opening the group grows the card by the child's 9px top inset, the line
+	// list's 6px margin, one 20px line and its 2px bottom inset.
+	following, _ := tt.Find("after job details")
+	toolTreeNear(t, "open height", following.Y, 338+37)
+}
+
+// A code-only group child keeps the installed 4/0/0/20 inset: the shared code
+// card starts 20px into the group and its language banner pads 10/22.
+func TestToolDetailsViewGenericEntryGroupCodeOnly(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	model := &toolDetailsModel{Items: []toolDetailItem{{
+		Title: "Workflow",
+		Groups: []toolDetailGroup{{Label: "Script", Items: []toolDetailItem{{
+			Fields: []toolDetailField{}, Code: &toolDetailCode{Text: "console.log(1)", Language: "javascript"},
+		}}}},
+	}}}
+	tt, _ := toolDetailsCardFixture(t, model, false)
+	if err := tt.Click("Script"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	script, _ := tt.Find("Script")
+	code, _ := tt.Find("console.log(1)")
+	language, ok := tt.Find("javascript")
+	if !ok {
+		t.Fatal("code language banner", tt.Texts())
+	}
+	if code.X != 39 || language.X != 61 {
+		t.Fatalf("code-only child code %+v language %+v", code, language)
+	}
+	// 4px above the card, then the 42px banner above the code text.
+	if code.Y != script.Y+script.H+4+42 {
+		t.Fatalf("code-only child %+v after script %+v", code, script)
+	}
+	if _, ok := tt.Find("Copy"); !ok {
+		t.Fatal("code copy action", tt.Texts())
+	}
+}
+
+// The unchanged container is suppressed with no entries, and a card whose list
+// is empty still paints it after the empty copy.
+func TestToolDetailsViewUnchangedEmptyAndSuppressed(t *testing.T) {
+	toolDetailsModelLocaleForTest(t, i18n.LocaleEN)
+	suppressed := &toolDetailsModel{Empty: "No results"}
+	suppressed.Unchanged = toolDetailsUnchangedFor(nil)
+	tt, body := toolDetailsCardFixture(t, suppressed, false)
+	if tt.HasText("unchanged") || tt.Texts()[0] != "No results" {
+		t.Fatalf("suppressed unchanged painted %v", tt.Texts())
+	}
+	toolTreeNear(t, "empty height", body.H, 50)
+	withUnchanged := &toolDetailsModel{Empty: "No results"}
+	withUnchanged.Unchanged = toolDetailsUnchangedFor([]toolDetailItem{{Title: "Review"}})
+	tt, body = toolDetailsCardFixture(t, withUnchanged, false)
+	if !tt.HasText("1 unchanged") || tt.HasText("Review") {
+		t.Fatalf("empty list with unchanged %v", tt.Texts())
+	}
+	// The container adds its .5px hairline and 9/14 summary below the empty copy.
+	toolTreeNear(t, "empty plus unchanged", body.H, 50+0.5+9+20+9)
+}
