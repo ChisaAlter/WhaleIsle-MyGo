@@ -25,8 +25,10 @@ func heroEmptyTester(t *testing.T, mutate func(*Model)) (*ui.Tester, Model) {
 	return tt, m
 }
 
-// The reference hero composer is a 100 DIP capsule holding one 24px placeholder
-// line and the 28px control row, with only the reference's four controls.
+// The installed hero composer is a 774.39x114 card: `padding: 8px 0 0` around a
+// 56-DIP writing well, an 8-DIP gap and a 34-DIP control row whose children sit 8
+// in from the card edges (rendered dialog at 1440x920: card (469.3,460), 添加文件
+// at x=477.3, send 34x34 ending 8 before the card's right edge).
 func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	permission := "workspace-write"
 	tt, _ := heroEmptyTester(t, func(m *Model) {
@@ -46,18 +48,18 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	if !ok {
 		t.Fatal("composer card missing")
 	}
-	closeMetric(t, card.H, 128, "hero empty card height")
+	closeMetric(t, card.H, 114, "hero card height")
 	input, _ := tt.Find("Composer draft")
-	closeMetric(t, input.Y-card.Y, 20, "hero top padding")
-	closeMetric(t, input.X-card.X, 16, "hero side padding")
-	closeMetric(t, input.H, 52, "hero placeholder line")
+	closeMetric(t, input.Y-card.Y, 8, "hero top padding")
+	closeMetric(t, input.X-card.X, 0, "hero card side padding")
+	closeMetric(t, input.H, 52, "hero writing well height")
 	send, ok := tt.Find(i18n.T(i18n.KeyComposerSend))
 	if !ok {
 		t.Fatal("hero send button missing")
 	}
 	closeMetric(t, send.W, 34, "hero primary width")
 	closeMetric(t, send.H, 34, "hero primary height")
-	closeMetric(t, card.X+card.W-(send.X+send.W), 16, "hero primary right inset")
+	closeMetric(t, card.X+card.W-(send.X+send.W), 8, "hero primary right inset")
 	if !tt.HasText("+") || !tt.HasText(i18n.T(i18n.KeyComposerPermissionWorkspace)) {
 		t.Fatalf("hero control row lost its launcher or permission pill: %v", tt.Texts())
 	}

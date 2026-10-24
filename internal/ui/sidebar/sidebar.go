@@ -203,13 +203,15 @@ func View(c *ui.Context, m Model) {
 							FixedLineHeight(theme.InterfaceSize(10)).FontWeight(500).LetterSpacing(0.32).TextColor(muted)
 					})
 					if m.OnToggle != nil {
-						collapse := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(24).Height(24).BorderWidth(0).Background(ui.Transparent)
+						// Native 收起侧边栏: a 28x28 r8 control at (240,22) inside the
+						// 60-DIP brand row; the 14x12 panel glyph sits centred.
+						collapse := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").Width(28).Height(28).Radius(8).BorderWidth(0).Background(ui.Transparent)
 						collapse.Draw(func(p *ui.Painter, r ui.Rect) {
 							// Reference chrome: sidebar panel glyph, not a chevron.
-							p.Stroke(ui.Rect{X: r.X + 5, Y: r.Y + 6, W: 14, H: 12}, fg, 1, 2)
+							p.Stroke(ui.Rect{X: r.X + 7, Y: r.Y + 8, W: 14, H: 12}, fg, 1, 2)
 							path := &ui.Path{}
-							path.MoveTo(r.X+10.5, r.Y+6)
-							path.LineTo(r.X+10.5, r.Y+18)
+							path.MoveTo(r.X+12.5, r.Y+8)
+							path.LineTo(r.X+12.5, r.Y+20)
 							p.StrokePath(path, 1, fg)
 						})
 						if collapse.Clicked() {
@@ -218,8 +220,11 @@ func View(c *ui.Context, m Model) {
 					}
 				})
 				if m.OnCreate != nil {
-					// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8, border-l2.
+					// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8,
+					// border-l2. The 4-DIP top margin is the page's 10-DIP gap under
+					// the 60-DIP brand row (native: button at y=70, 252x38 at x=14).
 					btn := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarNewSessionFallback)).FillWidth().Height(38).Radius(12).
+						Margin(4, 2, 0, 2).MaxWidth(252).
 						Background(chrome.Color(colors.Field)).Border(1, border).
 						TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 16, 8, 16)
 					btn.Children(func() {
@@ -235,12 +240,14 @@ func View(c *ui.Context, m Model) {
 					if btn.Clicked() {
 						m.OnCreate()
 					}
-					ui.Box(c).Height(8)
+					// 12 DIP under the new-session button puts the panel list at the
+					// native y=120 (button 70..108).
+					ui.Box(c).Height(12)
 				}
 				// SidebarRoot.panelList: 36-high rows with a 4-DIP gap, so the
-				// pitch is 40. The native page measures 插件 at y=120 and
-				// 自动化任务 at y=160 inside a 76-DIP panelList (12 + 256 x 76).
-				ui.Column(c).FillWidth().Padding(0, 0, 8, 0).Gap(4).Children(func() {
+				// pitch is 40, inset 2 inside the 256-DIP list (native buttons sit at
+				// x=14, 252 wide, with 插件 at y=120 and 自动化任务 at y=160).
+				ui.Column(c).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
 					nav := func(drawIcon func(), label string, fn func()) {
 						row := ui.Button(c, "").FillWidth().Height(36).Radius(12).
 							Background(ui.Transparent).BorderWidth(0).

@@ -51,8 +51,8 @@ func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 	}, 280, 120)
 
 	row, ok := tt.Find("Ayase")
-	if !ok || row.H != 44 || row.W != 280 {
-		t.Fatalf("account row=%+v", row)
+	if !ok || row.H != 44 || row.W != 252 || row.X != 2 {
+		t.Fatalf("account row=%+v, want 252x44 inset 2 in the 280-DIP sidebar", row)
 	}
 	if !tt.HasText("a***@example.invalid") {
 		t.Fatalf("missing account detail; texts=%q", tt.Texts())
@@ -107,8 +107,8 @@ func TestAccountRowFallsBackToSettings(t *testing.T) {
 		t.Fatalf("missing merged settings label; texts=%q", tt.Texts())
 	}
 	row, ok := tt.Find(i18n.T(i18n.KeySettingsAccountMenu))
-	if !ok || row.H != 36 || row.W != 280 {
-		t.Fatalf("merged settings seat=%+v, want 280x36", row)
+	if !ok || row.H != 36 || row.W != 252 || row.X != 2 {
+		t.Fatalf("merged settings seat=%+v, want 252x36 inset 2", row)
 	}
 	if err := tt.Click(i18n.T(i18n.KeySettingsAccountSeat)); err != nil {
 		t.Fatal(err)

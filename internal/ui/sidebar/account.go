@@ -92,6 +92,11 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 	row := ui.Button(c.Key(key), "").FillWidth().Height(height).Radius(12).
 		BorderWidth(0).Background(ui.Transparent).Padding(6).
 		Label(menuLabel).Tooltip(menuLabel).Disabled(a.Busy)
+	if !compact {
+		// The footer seat sits on the page's 14-DIP inset with the native 252-DIP
+		// width, as the 账号菜单 button does in the installed page.
+		row.Margin(0, 2, 0, 2).MaxWidth(252)
+	}
 	if signedOut && !compact {
 		// Installed AccountMenu trigger[data-signed-out='true']: 7/8 padding.
 		row.Padding(7, 8, 7, 8)

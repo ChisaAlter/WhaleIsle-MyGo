@@ -20,18 +20,16 @@ func shippedDraftTester(draft *string, client *DraftClient, width int, hero, dar
 }
 
 // heroCardTopInset and heroSidePadding describe the card's own hero padding,
-// which replaces the InputBar top pad and the input's outer insets.
+// which replaces the InputBar top pad and the input's outer insets. HeroShell.card
+// is `padding: 8px 0 0`, so the top inset is the same 8 as the docked card and the
+// sides are flush (the writing well carries the 12-DIP text inset).
 func heroCardTopInset(hero bool) float32 {
-	if hero {
-		return 20
-	}
 	return 8
 }
 
 func heroSidePadding(hero bool) float32 {
-	if hero {
-		return 32
-	}
+	// HeroShell.card keeps 0 side padding; the writing well owns the 12-DIP text
+	// inset, so the draft spans the full card width.
 	return 0
 }
 

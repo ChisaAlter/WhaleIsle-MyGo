@@ -21,9 +21,10 @@ func TestStatefulEmptyAttachmentRailDoesNotDisplaceDraft(t *testing.T) {
 			input, _ := tt.Find("Composer draft")
 			wantTop, want, limit := float32(8), float32(36), float32(120)
 			if hero {
-				// HeroShell.card: 20px padding around the reference's
-				// 52 DIP native input / three-line textarea well.
-				wantTop, limit = 20, 148
+				// HeroShell.card: 8px top padding around the writing well, a 12-DIP
+				// gap and the 34-DIP control row; the tallest well (72 DIP without
+				// the shipped draft client) makes the card 134 DIP.
+				wantTop, limit = 8, 134
 				want = 72
 				if native {
 					want = 52

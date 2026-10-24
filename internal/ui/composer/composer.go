@@ -339,10 +339,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
 			Radius(cardRadius)
 		if m.Hero {
-			// HeroShell.card: 20px vertical and 16px horizontal padding (measured
-			// from the installed build) around a single 24px placeholder line and
-			// the 28px control row.
-			card = card.Padding(20, 16, 20, 16).Gap(8)
+			// HeroShell.card: `padding: 8px 0 0` around the 52-DIP writing well, a
+			// 12-DIP gap and the 34-DIP control row, which owns the card's 8-DIP
+			// side inset. The rendered dialog is 774.39x114 at (469.3,460) with
+			// 添加文件 at x=477.3 and the send disc ending 8 before the right edge.
+			card = card.Padding(8, 0, 8, 0).Gap(12)
 		} else {
 			card = card.Padding(8, 0, 0, 0).Gap(12)
 		}
@@ -415,7 +416,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					ta.Disabled(m.Inert)
 					if m.Hero {
-						ta = ta.Padding(0).MinHeight(24)
+						// The card keeps 0 side padding, so the writing well owns the
+						// 12-DIP text inset (the native placeholder starts 12 in).
+						ta = ta.Padding(0, 12, 0, 12)
 					}
 					if m.ResizeEnabled && m.Resize != nil && m.Resize.Height > 0 {
 						ta.Height(resizeInputHeight(c, m, 36))
@@ -465,9 +468,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			onAccent := chrome.Color(colors.ButtonFG)
 			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Disabled(m.Inert)
 			if m.Hero {
-				// HeroShell: the 28px control row sits inside the card's own 20px
-				// padding, so the 34px primary disc overhangs it like the reference.
-				tools = tools.Padding(0).Height(28)
+				// HeroShell: the 34-DIP control row carries the card's 8-DIP side
+				// inset, so the 34px primary disc fills its height.
+				tools = tools.Padding(0, 8, 0, 8).Height(34)
 			} else {
 				tools = tools.Padding(2, 8, 6, 8)
 			}
