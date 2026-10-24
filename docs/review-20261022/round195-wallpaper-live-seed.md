@@ -53,3 +53,16 @@ Not applied by MyGo's window backdrop: the painter receives only the image path 
 `go test ./cmd/whaleisle ./internal/config ./internal/ui/theme -count=1` → ok (19.6 s / 2.1 s / 1.3 s); `go vet` on the same three packages → clean.
 
 Files: `internal/config/config.go`, `internal/config/bom_test.go` (new), `cmd/whaleisle/wallpaper_background.go`, `cmd/whaleisle/wallpaper_background_test.go` (new), `docs/review-20261022/round195-wallpaper-live-seed.md`, `docs/review-20261022/evidence/screens/wallpaper-bom-dialog.png`, `docs/review-20261022/evidence/screens/wallpaper-seeded-live-1440x860.png`.
+
+## 追加（round220）· components 包的非 Windows 交叉编译修复
+
+`internal/desktop/components` 在 `GOOS=linux/darwin` 下编译失败：`alerts_process_other.go` 与 `process_other.go` 只 import 了 `"fmt"`，函数体却用了 `errors.New(...)` 与 `storelocale.T(...)`，报 `"fmt" imported and not used` + `undefined: errors / storelocale`。两个文件是同名 Windows 实现的 `//go:build !windows` 半边，Windows 半边（`alerts_process_windows.go`、`process_windows.go`）编译正常，所以是重构时漏掉了导入。
+
+修复（只动构建标签半边，不改行为）：两个文件的 import 换成 `"errors"` 与 `"whaleisle/internal/store/storelocale"`（后者与包内其它文件一致，如 `process_windows.go:14`），并补一行注释说明与 Windows 半边相同的契约——本平台无法校验进程身份/管理进程，返回本地化的「不支持」错误、进程为 nil，调用方按 unsupported 处理而不是信任。
+
+验证：
+- `GOOS=linux go build ./internal/desktop/components` → 0；`GOOS=darwin` → 0；`go build`（windows）→ 0。
+- 更大范围扫描：`GOOS=linux go build ./internal/desktop/...` → 0，`GOOS=darwin go build ./internal/desktop/...` → 0（无其它同类破损的构建标签文件）。
+- `go test ./internal/desktop/components` → ok 2.4 s；`go test ./cmd/whaleisle -run Component` → ok 2.8 s；`go vet ./internal/desktop/components` → 0。
+
+残留：本轮只修「明显编译不过」的构建标签文件，没有对 linux/darwin 的运行期行为做审计（这些 `_other` 半边本身是明确的 unsupported 桩）。未提交、未构建 passN、未改 runtime/vendor 与 third_party。
