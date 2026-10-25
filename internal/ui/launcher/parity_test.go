@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"image"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/components"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets"
 )
 
 func chevronInkY(img image.Image, trigger ui.Rect) float64 {
@@ -275,6 +278,11 @@ func TestRouteOptionsShowReferenceCopyAndSelectedCheck(t *testing.T) {
 		trigger := ui.Button(c, "Route").Absolute().Left(30).Top(300).Width(140).Height(26)
 		routePopup(c, Model{DownloadRoute: &route}, trigger, &open, true)
 	}, 500, 400)
+	// The menu enters on the popover token, so read it once that has run.
+	start := time.Unix(1000, 0)
+	settled := start.Add(chrome.PopoverDuration + time.Millisecond)
+	tt.SetTime(start)
+	tt.SetTime(settled)
 	for _, label := range []string{"GitHub", "CNB", "国外线路 · GitHub Releases 直连", "国内线路 · CNB 镜像", "✓"} {
 		if exactTextCount(tt, label) != 1 {
 			t.Errorf("missing exact route content %q; texts=%q", label, tt.Texts())
@@ -301,6 +309,8 @@ func TestRouteOptionsShowReferenceCopyAndSelectedCheck(t *testing.T) {
 		t.Errorf("selected option has a non-reference fill: %v", plain)
 	}
 	tt.Move(github.X+github.W/2, github.Y+github.H/2)
+	// The hover wash eases in over the fast token.
+	tt.SetTime(settled.Add(widgets.FastDuration + 10*time.Millisecond))
 	hover := tt.Image().RGBAAt(259, int(github.Y+3))
 	if hover == plain || hover.R < 238 || hover.B < 238 {
 		t.Errorf("route hover must use subtle reference wash: plain=%v hover=%v", plain, hover)
@@ -329,6 +339,11 @@ func TestDarkRouteMenuUsesReferenceLayerTwo(t *testing.T) {
 		trigger := ui.Button(c, "Route").Absolute().Left(30).Top(300).Width(140).Height(26)
 		routePopup(c, Model{DownloadRoute: &route, SystemDark: true}, trigger, &open, true)
 	}, 500, 400)
+	// The menu enters on the popover token, so read it once that has run: pin the
+	// clock and settle the frame, as the shell's other motion tests do.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(chrome.PopoverDuration + time.Millisecond))
 	got := tt.Image().RGBAAt(45, 290)
 	if got.R != 44 || got.G != 44 || got.B != 46 {
 		t.Fatalf("dark menu layer2=%v, want rgb(44,44,46)", got)

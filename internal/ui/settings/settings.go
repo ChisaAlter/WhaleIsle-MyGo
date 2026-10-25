@@ -235,7 +235,12 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 	if active == SectionGeneral && m.DesktopActive {
 		gap = 5
 	}
-	ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(gap).Children(func() {
+	pane := ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(gap)
+	// A section switch fades the page in over the popover token. The pane is
+	// keyed by its section, so each switch builds a new element whose lifetime is
+	// one opening, and Reveal runs the enter by hand.
+	pane.Opacity(chrome.Reveal(c, pane, chrome.PopoverDuration))
+	pane.Children(func() {
 		if snap.Err != "" {
 			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}

@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -29,8 +30,8 @@ func SystemPromptView(c *ui.Context, m Model, msg session.Message, fg, muted ui.
 	// list row: an inline expansion changed row height after layout and painted
 	// over the following message.
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel.Width(620).MaxWidthPercent(92).MaxHeight(420).Padding(12).Gap(8).
-			Background(c.Theme().Background).Border(1, c.Theme().Border).Radius(12)
+		panel = chrome.PopoverReveal(c, panel.Width(620).MaxWidthPercent(92).MaxHeight(420).Padding(12).Gap(8).
+			Background(c.Theme().Background).Border(1, c.Theme().Border).Radius(12))
 		ui.Text(c, title).FontSize(12).TextColor(muted)
 		ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
 			ui.Text(c, msg.Body).FontSize(12).TextColor(fg).Selectable()

@@ -235,7 +235,7 @@ func installRegistryPanel(c *ui.Context, anchor ui.Element, i manager.InstallSta
 	shown := open
 	w, _ := c.Size()
 	ui.PopoverBase(c.Key("plugin-install-registry-options"), anchor, &open, func(panel ui.Element) {
-		panel.Width(max(0, min(float32(420), w-64))).Padding(12).Gap(6).Role(ui.RoleDialog).Label(copyText("安装源", "Installation registry")).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8).Children(func() {
+		panel = chrome.PopoverReveal(c, panel.Width(max(0, min(float32(420), w-64))).Padding(12).Gap(6).Role(ui.RoleDialog).Label(copyText("安装源", "Installation registry")).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8)).Children(func() {
 			for _, registry := range manager.OfferedRegistries(i.RegistryInfo) {
 				selected := i.RegistrySelection.Kind != "custom" && (registry == nil && i.RegistrySelection.Registry == nil || registry != nil && i.RegistrySelection.Registry != nil && *registry == *i.RegistrySelection.Registry)
 				label := registryName(registry, resolved)

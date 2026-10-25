@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -54,7 +55,7 @@ func startupScene(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(KeyWaiting))
 			}
 			ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
-				backdrop.Background(ui.RGBA(0, 0, 0, .4))
+				chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 				w, h := c.Size()
 				panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(c.Theme().Background).Radius(20).Clip().Padding(20).Children(func() {
 					ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold()

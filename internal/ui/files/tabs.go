@@ -344,6 +344,10 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 	active := w.Active == tab.Path
 	dirty := tab.Dirty()
 	chip := ui.Row(c.Key("tab-"+tab.Path)).Gap(5).Height(28).MinWidth(80).MaxWidth(170).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
+	// The chip's face eases between resting, hovered and active over the fast
+	// token, so switching tabs and passing the pointer move the fill instead of
+	// snapping it.
+	chip.Transition(widgets.HoverTransition())
 	hovered := chip.Hovered()
 	switch {
 	case active:

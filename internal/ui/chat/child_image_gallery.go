@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -45,7 +46,7 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 		return
 	}
 	ui.DialogBase(c, &state.Open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .6))
+		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .6))
 		w, h := c.Size()
 		pw, ph := max(float32(0), min(float32(1000), w-32)), max(float32(0), h-32)
 		panel.Width(pw).Height(ph).Padding(16).Radius(20).Clip().Background(c.Theme().Background).Children(func() {

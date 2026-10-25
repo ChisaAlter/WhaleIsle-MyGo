@@ -77,9 +77,6 @@ func OverlayTransition() ui.ElementTransition {
 	}
 }
 
-// revealKey marks when an overlay opened, on the element carrying it.
-type revealKey struct{}
-
 // Reveal returns how far an overlay has faded in, from 0 to 1, and asks for the
 // frames still to come. An overlay panel is painted with
 //
@@ -96,28 +93,10 @@ type revealKey struct{}
 // overlay, and so every element in it, is born in the frame it opens, and
 // ElementTransition only enters an element into a parent that was already
 // there. Fading the panel here gives the sheet's motion without a transition
-// that never plays.
+// that never plays. The primitive lives in widgets so the shared confirm dialog
+// fades the same way; this is the chrome-side name for it.
 func Reveal(c *ui.Context, host ui.Element, d time.Duration) float32 {
-	if d <= 0 {
-		d = OverlayDuration
-	}
-	if c.Preferences().ReduceMotion {
-		return 1
-	}
-	now := c.Now()
-	if now.IsZero() {
-		return 1
-	}
-	start := ui.Local(host, revealKey{}, func() time.Time { return now })
-	if start.IsZero() || start.After(now) {
-		*start = now
-	}
-	elapsed := now.Sub(*start)
-	if elapsed >= d {
-		return 1
-	}
-	c.AnimationFrame()
-	return widgets.DesignEase(max(0, float32(elapsed)/float32(d)))
+	return widgets.Reveal(c, host, d)
 }
 
 // RevealMask paints an overlay's dim mask over the whole window at progress, so
@@ -126,12 +105,29 @@ func Reveal(c *ui.Context, host ui.Element, d time.Duration) float32 {
 // scales it. Call it after Reveal in the same frame, on the backdrop Reveal
 // measured.
 func RevealMask(backdrop ui.Element, mask ui.Color, progress float32) {
-	backdrop.Draw(func(p *ui.Painter, r ui.Rect) {
-		if progress <= 0 || mask.A == 0 {
-			return
-		}
-		p.Fill(r, mask.Alpha(progress), 0)
-	})
+	widgets.RevealMask(backdrop, mask, progress)
+}
+
+// RevealOverlay fades an overlay's backdrop, dimmed at mask, and its panel in
+// together over the overlay token: the hand-run enter of a DialogBase panel that
+// keeps its own metrics, without the shared DialogSurface look.
+func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) float32 {
+	return widgets.RevealOverlay(c, backdrop, panel, mask)
+}
+
+// PopoverReveal fades a PopoverBase panel in over the popover token and hands it
+// back ready to draw:
+//
+//	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
+//		panel = chrome.PopoverReveal(c, panel.Width(220).Radius(10))
+//		chrome.MenuSurface(panel, fill, border, 10)
+//	})
+//
+// PopoverTransition is the same recipe for a panel that outlives its parent's
+// frame (a keyed menu inside a column that stays), which an overlay panel never
+// does; this runs that enter by hand for one that does not.
+func PopoverReveal(c *ui.Context, panel ui.Element) ui.Element {
+	return panel.Opacity(Reveal(c, panel, PopoverDuration))
 }
 
 // DialogMask is the dim layer under a modal card, `--dsw-alias-bg-mask-1`: .24
@@ -150,7 +146,5 @@ func DialogMask(c *ui.Context) ui.Color {
 // children. A tester that sets no clock fades with wall time, so a snapshot
 // fixture settles the frame (SetTime twice) before it encodes the image.
 func DialogReveal(c *ui.Context, backdrop, panel ui.Element) {
-	progress := Reveal(c, backdrop, OverlayDuration)
-	RevealMask(backdrop, DialogMask(c), progress)
-	panel.Opacity(progress)
+	RevealOverlay(c, backdrop, panel, DialogMask(c))
 }

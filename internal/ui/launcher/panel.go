@@ -837,8 +837,8 @@ func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) 
 		*open = !*open
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel.MinWidth(220).Background(colBase).Border(1, colBorderL2).Radius(10).Padding(6).
-			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0)
+		panel = chrome.PopoverReveal(c, panel.MinWidth(220).Background(colBase).Border(1, colBorderL2).Radius(10).Padding(6).
+			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0))
 		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
 			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
 		action := func(id, label string) {

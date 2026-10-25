@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -43,6 +44,7 @@ type closingFrame struct {
 	card    ui.Rect
 	spinner ui.Rect
 	painted bool
+	start   time.Time
 }
 
 // renderClosing paints the layer over a red chat-like page so the cover and its
@@ -63,6 +65,11 @@ func renderClosing(t *testing.T, m ClosingOverlay, w, h int) closingFrame {
 			},
 		})
 	}, w, h)
+	// The spinner turns from the moment the layer paints, so the tests pin the
+	// clock: the layer's first frame is the reference's starting point.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	f.start = start
 	tt.Frame()
 	f.tt = tt
 	return f
@@ -220,6 +227,83 @@ func TestClosingOverlayIgnoresEmptyCopy(t *testing.T) {
 	if f.painted {
 		t.Fatalf("empty copy painted a card at %v", f.card)
 	}
+}
+
+// TestClosingSpinnerTurns covers the reference's 0.85s linear infinite spin
+// (closing-overlay.js:34-42): the accent arc starts at the top and is a quarter
+// of the ring round one quarter period later. A reduced-motion desktop holds it
+// still.
+func TestClosingSpinnerTurns(t *testing.T) {
+	colors := theme.Default().Light
+	f := renderClosing(t, closingModel(i18n.LocaleEN, colors), 720, 480)
+	accent := theme.Color(colors.Accent)
+	cx, cy := f.spinner.X+f.spinner.W/2, f.spinner.Y+f.spinner.H/2
+	startX, startY, ok := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if !ok {
+		t.Fatal("the spinner has no accent arc at its start")
+	}
+	if startY > cy-6 || abs(startX-cx) > 8 {
+		t.Fatalf("the accent arc starts centred at %v,%v, want the ring's top", startX, startY)
+	}
+	f.tt.SetTime(f.start.Add(ClosingSpinPeriod / 4))
+	quarterX, quarterY, _ := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if quarterX < cx+4 || abs(quarterY-cy) > 8 {
+		t.Fatalf("a quarter turn put the accent arc at %v,%v, want it round to the right of %v,%v", quarterX, quarterY, cx, cy)
+	}
+	f.tt.SetTime(f.start.Add(ClosingSpinPeriod / 2))
+	halfX, halfY, _ := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if halfY < cy+4 || abs(halfX-cx) > 8 {
+		t.Fatalf("half a turn put the accent arc at %v,%v, want the ring's bottom", halfX, halfY)
+	}
+	// Three quarters is the left of the ring, and a whole period is back at the
+	// top where it started.
+	f.tt.SetTime(f.start.Add(3 * ClosingSpinPeriod / 4))
+	if threeX, _, _ := accentCentroid(f.tt.Image(), f.spinner, accent); threeX > cx-4 {
+		t.Fatalf("three quarters put the accent arc at x=%v, want it round to the left of %v", threeX, cx)
+	}
+	f.tt.SetTime(f.start.Add(ClosingSpinPeriod))
+	fullX, fullY, _ := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if abs(fullX-startX) > 2 || abs(fullY-startY) > 2 {
+		t.Fatalf("a full turn put the accent arc at %v,%v, want %v,%v", fullX, fullY, startX, startY)
+	}
+}
+
+// TestClosingSpinnerHoldsStillWithReduceMotion covers the reduced-motion path.
+func TestClosingSpinnerHoldsStillWithReduceMotion(t *testing.T) {
+	colors := theme.Default().Light
+	f := renderClosing(t, closingModel(i18n.LocaleEN, colors), 720, 480)
+	f.tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	accent := theme.Color(colors.Accent)
+	cy := f.spinner.Y + f.spinner.H/2
+	at, atY, ok := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if !ok {
+		t.Fatal("the spinner has no accent arc under reduce motion")
+	}
+	f.tt.SetTime(f.start.Add(ClosingSpinPeriod / 4))
+	after, afterY, _ := accentCentroid(f.tt.Image(), f.spinner, accent)
+	if at != after || atY != afterY {
+		t.Fatalf("reduce motion turned the accent arc from %v,%v to %v,%v", at, atY, after, afterY)
+	}
+	if atY > cy-6 {
+		t.Fatalf("reduce motion left the accent arc at %v,%v, want the ring's top", at, atY)
+	}
+}
+
+// accentCentroid returns where the spinner's accent arc sits, as the centre of
+// the arc's pixels, or false when none is close to the accent color.
+func accentCentroid(img *image.RGBA, box ui.Rect, accent ui.Color) (float32, float32, bool) {
+	var sx, sy, n float32
+	for y := int(box.Y); y < int(box.Y+box.H); y++ {
+		for x := int(box.X); x < int(box.X+box.W); x++ {
+			if distance(img.RGBAAt(x, y), accent) <= 24 {
+				sx, sy, n = sx+float32(x), sy+float32(y), n+1
+			}
+		}
+	}
+	if n == 0 {
+		return 0, 0, false
+	}
+	return sx / n, sy / n, true
 }
 
 // closestPixel returns the box pixel nearest target, or the zero point when the

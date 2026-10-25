@@ -14,7 +14,10 @@ import (
 //
 // Known gaps this wave does not close, because they need a design decision or
 // wiring outside the theme package:
-//   - no --dsw-alias-scrollbar-bg-l2 / -hover-l2 are carried;
+//   - the scroll bar pairs are carried by ScrollbarColors (scrollbar.go, pinned
+//     by scrollbar_test.go), but the toolkit paints one pair for the whole
+//     window, so a raised surface still takes the level-1 pair instead of the
+//     level-2 pair the reference rebinds on its container;
 //   - Field reads --dsw-alias-bg-module-platform in the light half and
 //     --dsw-alias-bg-layer-1 in the dark one (module-platform is lighter there).
 func TestSampledTokensMatchTheHarness(t *testing.T) {

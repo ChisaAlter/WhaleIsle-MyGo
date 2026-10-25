@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -9,7 +10,7 @@ import (
 // confirmTest opens a dialog over a plain window and counts confirmations.
 func confirmTest(t *testing.T, o ConfirmDialogOptions, hits *int) (*ui.Tester, *ui.Theme) {
 	t.Helper()
-	return newTester(t, func(c *ui.Context) {
+	tt, theme := newTester(t, func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
 			ui.Text(c, "Behind the dialog")
 		})
@@ -17,6 +18,12 @@ func confirmTest(t *testing.T, o ConfirmDialogOptions, hits *int) (*ui.Tester, *
 			*hits++
 		}
 	}, 800, 600)
+	// The dialog enters over the overlay token, so a test that reads pixels or
+	// clicks reads it settled, as the shell's other modal tests do.
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(OverlayDuration + time.Millisecond))
+	return tt, theme
 }
 
 func TestConfirmDialogAsks(t *testing.T) {

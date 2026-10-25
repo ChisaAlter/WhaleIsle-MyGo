@@ -2,6 +2,7 @@ package chrome
 
 import (
 	"math"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
@@ -24,7 +25,14 @@ const (
 	ClosingTitleGap   = 8
 	ClosingDetailSize = 12
 	ClosingDetailLine = 18
+	// ClosingSpinPeriod is how long the spinner takes to turn once:
+	// `animation: dshd-shell-closing-spin 0.85s linear infinite`
+	// (closing-overlay.js:34-42).
+	ClosingSpinPeriod = 850 * time.Millisecond
 )
+
+// closingSpinKey marks when the spinner started turning, on the element.
+type closingSpinKey struct{}
 
 // ClosingOverlay is the shell's closing layer: while the app stops its local
 // Harness service the window shows this cover instead of the last page, as the
@@ -71,8 +79,9 @@ func DrawClosingOverlay(c *ui.Context, m ClosingOverlay) {
 				Shadow(0, 0, 1, 0, ui.RGBA(0, 0, 0, .2)).
 				Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08))
 			card.Children(func() {
-				ui.Box(c).Width(ClosingSpinnerSize).Height(ClosingSpinnerSize).
-					Draw(func(p *ui.Painter, r ui.Rect) { paintClosingSpinner(p, r, line, accent) })
+				spinner := ui.Box(c).Width(ClosingSpinnerSize).Height(ClosingSpinnerSize)
+				spin := ClosingSpin(c, spinner)
+				spinner.Draw(func(p *ui.Painter, r ui.Rect) { paintClosingSpinner(p, r, line, accent, spin) })
 				ui.Text(c, m.Title).FontSize(theme.InterfaceSize(ClosingTitleSize)).FontWeight(500).
 					FixedLineHeight(theme.InterfaceSize(ClosingTitleLine)).TextColor(ink).
 					Margin(ClosingTitleGap, 0, 0, 0)
@@ -96,12 +105,35 @@ func DrawClosingOverlay(c *ui.Context, m ClosingOverlay) {
 	})
 }
 
+// ClosingSpin returns how far the spinner's accent arc has turned from the
+// reference's starting point, in radians, and asks for the frames still to come.
+// The reference spins the ring `0.85s linear infinite`
+// (closing-overlay.js:34-42), so the arc turns once per period from the moment
+// the layer first painted: host is the spinner element, whose lifetime is one
+// closing layer. A reduced-motion desktop, or a frame with no clock, leaves the
+// arc at the top.
+func ClosingSpin(c *ui.Context, host ui.Element) float64 {
+	if c.Preferences().ReduceMotion {
+		return 0
+	}
+	now := c.Now()
+	if now.IsZero() {
+		return 0
+	}
+	start := ui.Local(host, closingSpinKey{}, func() time.Time { return now })
+	if start.IsZero() || start.After(now) {
+		*start = now
+	}
+	c.AnimationFrame()
+	period := ClosingSpinPeriod.Seconds()
+	turned := math.Mod(max(0, now.Sub(*start).Seconds()), period)
+	return turned / period * 2 * math.Pi
+}
+
 // paintClosingSpinner draws the reference spinner: a 36 DIP ring with a 2 DIP
 // border whose top arc alone carries the accent, as
-// `border-top-color` does in closing-overlay.js:33-40. The CSS 0.85s rotation
-// is not reproduced: the layer only lives for the bounded quit paint, so an
-// animated frame would never reach the screen before the process stops.
-func paintClosingSpinner(p *ui.Painter, r ui.Rect, ring, accent ui.Color) {
+// `border-top-color` does in closing-overlay.js:33-40, turned by spin radians.
+func paintClosingSpinner(p *ui.Painter, r ui.Rect, ring, accent ui.Color, spin float64) {
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
@@ -112,8 +144,8 @@ func paintClosingSpinner(p *ui.Painter, r ui.Rect, ring, accent ui.Color) {
 	// quarter arc between the top two corners, 225掳..315掳.
 	const segments = 12
 	for i := 0; i < segments; i++ {
-		a0 := math.Pi * (1.25 + 0.5*float64(i)/segments)
-		a1 := math.Pi * (1.25 + 0.5*float64(i+1)/segments)
+		a0 := math.Pi*(1.25+0.5*float64(i)/segments) + spin
+		a1 := math.Pi*(1.25+0.5*float64(i+1)/segments) + spin
 		p.Line(
 			cx+radius*float32(math.Cos(a0)), cy+radius*float32(math.Sin(a0)),
 			cx+radius*float32(math.Cos(a1)), cy+radius*float32(math.Sin(a1)),

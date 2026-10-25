@@ -31,6 +31,25 @@ var (
 	FlipMotion    = Motion{Duration: 300 * time.Millisecond, Ease: DesignEase}
 )
 
+// FastDuration is the design system's fast token, --ds-transition-duration-fast
+// (dsh-webui-tokens.css:12, 0.1s): what a control's own face takes to change
+// under the pointer, as launcher.css:471 does for background
+// (`transition: background var(--ds-transition-duration-fast)
+// var(--ds-ease-in-out)`).
+const FastDuration = 100 * time.Millisecond
+
+// HoverMotion is a control's face changing under the pointer: the fast token
+// along the design curve.
+var HoverMotion = Motion{Duration: FastDuration, Ease: DesignEase}
+
+// HoverTransition is the transition a control asks for so its hover and press
+// fill follows the pointer instead of snapping: only the colors move, at the
+// fast token, along the design curve. A button keeps its layout while its face
+// changes, so neither position nor size animates.
+func HoverTransition() ui.ElementTransition {
+	return ui.ElementTransition{Duration: FastDuration, Ease: DesignEase, Colors: true}
+}
+
 // The durations of the motion tokens, for code that builds its own
 // transitions rather than calling Motion.Animate.
 const (

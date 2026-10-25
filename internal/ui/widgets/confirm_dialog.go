@@ -72,7 +72,10 @@ func ConfirmDialog(c *ui.Context, o ConfirmDialogOptions) bool {
 		name = o.Title
 	}
 	ui.DialogBase(c, o.Open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, mask))
+		// The dialog enters on the overlay token, as every other modal does: the
+		// mask at the theme's depth and the panel at the same progress, so a
+		// destructive confirmation is not the one surface that snaps on.
+		RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, mask))
 		panel.Width(confirmDialogWidth).MaxWidthPercent(92).
 			Padding(24, 24, 20, 24).Gap(14).
 			Radius(confirmDialogRadius).Background(t.Background).Border(0.5, t.Border).
@@ -133,14 +136,21 @@ func confirmDialogButton(c *ui.Context, label string, filled, danger bool) ui.El
 		text = readableOn(fill)
 	}
 	button.TextColor(text)
+	// The face eases between its resting, hover and pressed fill over the fast
+	// token, as the reference's `transition: background` does. One value runs 0
+	// at rest, 1 hovered and 2 pressed, so a press from hover darkens rather than
+	// passing back through the resting color.
+	target := float32(0)
+	switch {
+	case button.Pressed():
+		target = 2
+	case button.Hovered():
+		target = 1
+	}
+	state := HoverMotion.Animate(button, "confirm-face", target)
+	hoverShare, pressShare := min(max(state, 0), 1), min(max(state-1, 0), 1)
 	button.Draw(func(p *ui.Painter, r ui.Rect) {
-		face := fill
-		switch {
-		case button.Pressed():
-			face = pressed
-		case button.Hovered():
-			face = hover
-		}
+		face := fill.Mix(hover, hoverShare).Mix(pressed, pressShare)
 		p.Fill(r, face, confirmButtonRadius)
 		if border.A > 0 {
 			p.Stroke(r, border, confirmButtonRadius, 1)

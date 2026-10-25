@@ -23,7 +23,7 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 
 func pricingDialog(c *ui.Context, open *bool, colors fonttheme.Colors, content func()) {
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
+		widgets.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 		w, h := c.Size()
 		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Radius(20).Clip().
 			Background(c.Theme().Background).Padding(20).Children(func() {

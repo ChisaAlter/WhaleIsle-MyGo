@@ -73,8 +73,8 @@ func routePopup(c *ui.Context, m Model, trigger ui.Element, open *bool, upward b
 		hover, border = chrome.Color("rgba(255, 255, 255, 0.08)"), chrome.Color("rgba(255, 255, 255, 0.06)")
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel.MinWidth(240).Background(surface).Border(1, border).Radius(10).
-			Padding(6).Margin(6, 0, 0, 0).Shadow(0, 10, 32, 0, ink.Alpha(0.22))
+		panel = chrome.PopoverReveal(c, panel.MinWidth(240).Background(surface).Border(1, border).Radius(10).
+			Padding(6).Margin(6, 0, 0, 0).Shadow(0, 10, 32, 0, ink.Alpha(0.22)))
 		if upward {
 			panel.AttachTo(trigger, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 6, 0)
 		} else {

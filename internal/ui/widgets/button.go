@@ -74,7 +74,11 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 	}
 	b := ui.ButtonBase(c).Label(label).Height(height).Padding(0, padX).Gap(4).
 		Radius(radius).FontSize(fontSize).FixedLineHeight(lineHeight).FontWeight(500).
-		Background(base).TextColor(fg).Shrink(0)
+		Background(base).TextColor(fg).Shrink(0).
+		// The reference eases a button's face under the pointer over the fast
+		// token (launcher.css:471); without it every hover and press across the
+		// shell snaps.
+		Transition(HoverTransition())
 	if border.A > 0 {
 		b = b.Border(0.5, border)
 	} else {

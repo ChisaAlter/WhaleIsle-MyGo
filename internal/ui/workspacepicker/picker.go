@@ -58,8 +58,9 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	_, height := c.Size()
 	ui.PopoverBase(c, m.Anchor, &open, func(panel ui.Element) {
-		panel.Width(280).MaxWidth(360).MaxWidthPercent(94).Padding(4).Gap(0).Radius(12).
-			Background(chrome.Color(colors.Field)).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
+		panel = chrome.PopoverReveal(c, panel.Width(280).MaxWidth(360).MaxWidthPercent(94).Padding(4).Gap(0).Radius(12).
+			Background(chrome.Color(colors.Field)).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18)))
+		panel.Children(func() {
 			count := len(snap.Workspaces)
 			if m.OnNoDirectory != nil {
 				count++

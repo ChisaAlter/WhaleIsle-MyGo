@@ -167,7 +167,8 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		w, h := viewportDIP(c)
 		ui.PopoverBase(c.Key("schedule-header-popover"), anchor, &local.open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, min(float32(336), max(float32(0), w-32)), w, 16)
-			panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(5, 0, 0, 0).Padding(3).Radius(16).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
+			panel = chrome.PopoverReveal(c, panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(5, 0, 0, 0).Padding(3).Radius(16).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel.Children(func() {
 				ui.Scroll(c.Key("schedule-header-list")).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146))).Children(func() {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
 						if snap.Loading {

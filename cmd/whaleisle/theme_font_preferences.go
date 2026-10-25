@@ -148,21 +148,16 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.AccentText = chrome.Color(colors.ButtonFG)
 	t.Focus = t.Accent
 	t.Selection = t.Accent.Alpha(.3)
-	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb; its colors are
-	// --dsw-alias-scrollbar-bg-l1/hover-l1 (--dsw-static-neutral-200/300 in the
-	// light palette, 700/600 in the dark one).
+	// ui-theme/src/styles/scrollbar.css uses a 5 DIP thumb; its colors come from
+	// the theme's scroll bar tokens (--dsw-alias-scrollbar-bg-l1/-hover-l1), which
+	// theme.ScrollbarColors carries as the resolved neutral scale entries.
 	t.ScrollbarWidth = 5
 	// The reference's scrollbar.css paints the thumb only while its container is
 	// hovered or dragged; an always-on track left a bar down the sidebar and every
 	// list, which the installed build does not show.
 	t.ScrollbarAlways = false
-	if dark {
-		t.Scrollbar = ui.RGBA(60, 60, 61, 1)
-		t.ScrollbarHover = ui.RGBA(84, 85, 87, 1)
-	} else {
-		t.Scrollbar = ui.RGBA(229, 229, 229, 1)
-		t.ScrollbarHover = ui.RGBA(212, 212, 212, 1)
-	}
+	rest, hover := theme.ScrollbarColors(dark)
+	t.Scrollbar, t.ScrollbarHover = chrome.Color(rest), chrome.Color(hover)
 	c.SetTheme(&t)
 }
 func (s *mainState) endAppearanceFrame() {
