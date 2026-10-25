@@ -797,7 +797,6 @@ const (
 	KeyRemotePhoneLanBind                 = "remote.phone_lan_bind"
 	KeyRemotePhoneLanTLS                  = "remote.phone_lan_tls"
 	KeyRemotePhoneConnectURL              = "remote.phone_connect_url"
-	KeyRemotePhoneQRPlaceholder           = "remote.phone_qr_placeholder"
 	KeyRemotePhoneURLUnavailable          = "remote.phone_url_unavailable"
 	KeyRemotePhoneCopyURL                 = "remote.phone_copy_url"
 	KeyRemotePhoneOpenURL                 = "remote.phone_open_url"
@@ -1768,7 +1767,7 @@ var zhCN = map[string]string{
 	KeyRemoteMobileDevices:                "已配对设备数",
 	KeyRemoteMobileNeedToken:              "已开 remoteEnabled 但未配置 remoteToken，手机无法配对。",
 	KeyRemotePhoneTitle:                   "手机远程",
-	KeyRemotePhoneHowTo:                   "下方入口仅打开已配置的手机网页，不代表服务在线或配对成功。配对 daemon 端口不能作为手机网页地址。",
+	KeyRemotePhoneHowTo:                   "下方是本机运行时实时生成的配对入口：二维码与链接仅在网关监听且未过期时出现，扫码后由手机完成配对。",
 	KeyRemotePhoneStatus:                  "手机远程就绪",
 	KeyRemotePhoneReady:                   "配置项齐全（未验证配对服务）",
 	KeyRemotePhoneServiceReady:            "配对服务已就绪",
@@ -1779,7 +1778,6 @@ var zhCN = map[string]string{
 	KeyRemotePhoneLanBind:                 "remoteBindAddress (LAN)",
 	KeyRemotePhoneLanTLS:                  "remoteLanTls",
 	KeyRemotePhoneConnectURL:              "手机网页入口",
-	KeyRemotePhoneQRPlaceholder:           "配对二维码暂不可用：尚未接入 offer v2 与中继连接状态，不能用普通网页地址代替配对码。",
 	KeyRemotePhoneURLUnavailable:          "未配置有效手机网页入口。remoteAppBaseUrl 需为不含凭据、查询参数或片段的 HTTP(S) 网页地址。",
 	KeyRemotePhoneCopyURL:                 "复制网页地址",
 	KeyRemotePhoneOpenURL:                 "打开 URL",
@@ -2731,7 +2729,7 @@ var en = map[string]string{
 	KeyRemoteMobileDevices:                "Paired devices",
 	KeyRemoteMobileNeedToken:              "remoteEnabled is on but remoteToken is missing; phones cannot pair.",
 	KeyRemotePhoneTitle:                   "Phone remote",
-	KeyRemotePhoneHowTo:                   "This entry opens the configured mobile website only; it does not verify service availability or pairing. A daemon port is not a mobile website.",
+	KeyRemotePhoneHowTo:                   "The pairing entry minted live by the local runtime: the QR and link appear only while the gateway listens and the offer is unexpired; the phone completes pairing after the scan.",
 	KeyRemotePhoneStatus:                  "Phone remote readiness",
 	KeyRemotePhoneReady:                   "Config complete (pairing service unverified)",
 	KeyRemotePhoneServiceReady:            "Pairing service ready",
@@ -2742,7 +2740,6 @@ var en = map[string]string{
 	KeyRemotePhoneLanBind:                 "remoteBindAddress (LAN)",
 	KeyRemotePhoneLanTLS:                  "remoteLanTls",
 	KeyRemotePhoneConnectURL:              "Mobile website",
-	KeyRemotePhoneQRPlaceholder:           "Pairing QR unavailable: offer v2 and relay connection status are not integrated. A website address cannot replace a pairing code.",
 	KeyRemotePhoneURLUnavailable:          "No valid mobile website configured. remoteAppBaseUrl must be an HTTP(S) URL without credentials, query parameters, or fragments.",
 	KeyRemotePhoneCopyURL:                 "Copy website address",
 	KeyRemotePhoneOpenURL:                 "Open URL",
