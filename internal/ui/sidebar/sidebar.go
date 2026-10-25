@@ -142,6 +142,14 @@ func View(c *ui.Context, m Model) {
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
 	root := ui.Column(c.Key("sidebar-root")).Fill().MinWidth(0).Padding(6, 12, 6, 12)
 	if m.Collapsed {
+		// Native collapsed rail: SidebarRoot.module.css .root.collapsed is
+		// `padding: 18px 10px 6px`, and the 36-DIP seats with their 12-DIP gaps
+		// then reproduce the round261 UIA table (150%) exactly — 打开侧边栏 18,
+		// 新建会话 66, 插件/自动化任务/鲸鱼娘 114/162/210, pitch 48. Keep the
+		// reference constant: the uniform +0.67 the live window measured is a
+		// window-origin artifact (round261 also saw native rects quantized to
+		// 1/1.5 DIP: 9.33/35.33/36.67), not rail padding, so rounding it in
+		// here would sit the rail 1 DIP high at 100% scaling.
 		root.Padding(18, 10, 6, 10)
 	}
 	if m.SearchFocus == nil {
