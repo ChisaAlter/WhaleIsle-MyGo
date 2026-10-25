@@ -67,11 +67,11 @@ $PetAssets = $env:WHALEISLE_PET_RENDER_ASSETS
 if (-not $PetAssets) { $PetAssets = Join-Path $ProjectRoot 'runtime\pet-render-assets' }
 if (Test-Path $PetAssets -PathType Container) {
     & node (Join-Path $PSScriptRoot 'pet-render-assets.mjs') $PetAssets $Stage
-    if ($LASTEXITCODE -ne 0) { throw 'THA4 resource staging failed; set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.' }
+    if ($LASTEXITCODE -ne 0) { throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.' }
 } elseif ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') {
     Write-Host 'Note: verified THA4 assets unavailable; shell-only package skips runtime pet staging.'
 } else {
-    throw 'THA4 resource staging failed; set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.'
+    throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 (pinned URLs/sizes/SHA256 from internal/desktop/pet/assets/render-manifest.json) or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.'
 }
 
 # Host runtime is required unless explicitly producing a shell-only development package.
