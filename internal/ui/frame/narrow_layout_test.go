@@ -64,17 +64,21 @@ func TestNarrowDrawerOverlaysAndReopens(t *testing.T) {
 	}
 }
 
-// TestNarrowHeaderHidesTrailingCluster pins the compact caption band: in the
-// phone drawer band (below PHONE_MAX) the titlebar trailing cluster is not built
-// at all, so the session title keeps the band; from 768 DIP up a desktop window
-// is landscape and keeps the cluster, as it keeps the 280-DIP sidebar track.
+// TestNarrowHeaderHidesTrailingCluster pins the compact caption band: below
+// SIDEBAR_AUTO_COLLAPSE (1024 DIP, AppFrame data-compact-header) the titlebar
+// trailing cluster is not built at all, so the session title keeps the band.
+// The breakpoint is not the 768 DIP drawer band: a 768–1024 DIP desktop window
+// keeps its 280 DIP sidebar track and still drops the cluster, because the
+// cluster would paint over the title (AppFrame.js:303-306,316).
 func TestNarrowHeaderHidesTrailingCluster(t *testing.T) {
 	for _, tc := range []struct {
 		width int
 		want  bool
 	}{
 		{700, false},
-		{900, true},
+		{900, false},
+		{1023, false},
+		{1024, true},
 		{1200, true},
 	} {
 		sizes := DefaultLayout()

@@ -159,7 +159,9 @@ func TestGlobalPanelKeepsTerminalDrawerAndItsGeometry(t *testing.T) {
 		t.Fatal("global page lost its terminal drawer")
 	}
 	tt.SetSize(1200, 400)
-	if content.Y != 48 || content.H != 271 || sizes.Main != 400 {
+	// 352 DIP of centre column keeps the terminal's 180 DIP floor, so the chat
+	// above the divider gives up the rest (172) without rewriting the split.
+	if content.Y != 48 || content.H != 172 || sizes.Main != 400 {
 		t.Fatalf("global resize did not concede without rewriting split: content=%+v Main=%v", content, sizes.Main)
 	}
 	status, ok := tt.Find(i18n.T(i18n.KeyTerminalUnavailable))

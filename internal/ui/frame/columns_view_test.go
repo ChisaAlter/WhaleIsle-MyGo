@@ -134,3 +134,19 @@ func TestTerminalDividerFrozenExcursionAndKeyboard(t *testing.T) {
 		t.Fatalf("round-trip terminal drag Main%v, want frozen550", sizes.Main)
 	}
 }
+
+// TestTerminalDrawerKeepsReferenceDefaultAndFloor pins the drawer's geometry to
+// the reference's numbers: it opens at lastDrawer ?? 280 (ui-layout
+// client.js:720-722) and never resolves below TERMINAL_DRAWER_MIN, 180
+// (columns.ts), which is the room the centre column reserves for it.
+func TestTerminalDrawerKeepsReferenceDefaultAndFloor(t *testing.T) {
+	if got := DefaultLayout().Bottom; got != 280 {
+		t.Fatalf("default terminal drawer=%v, want 280 (lastDrawerHeight)", got)
+	}
+	if TerminalDrawerDefault != 280 {
+		t.Fatalf("TerminalDrawerDefault=%v, want 280", TerminalDrawerDefault)
+	}
+	if terminalDrawerMin != 180 {
+		t.Fatalf("terminal drawer floor=%v, want 180 (TERMINAL_DRAWER_MIN)", terminalDrawerMin)
+	}
+}

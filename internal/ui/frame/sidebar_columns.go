@@ -19,6 +19,13 @@ type SidebarResponsive struct {
 const (
 	phoneMax    = float32(768)
 	phoneDrawer = float32(320)
+	// autoCollapseWidth is SIDEBAR_AUTO_COLLAPSE (columns.ts:1024), the
+	// breakpoint AppFrame reads for data-compact-header. It is wider than the
+	// drawer band: a 768–1024 DIP desktop window keeps its 280 DIP sidebar
+	// track, but the titlebar trailing cluster would still paint over the
+	// session title, so AppFrame drops the cluster there (AppFrame.js:303-306,
+	// 316/365).
+	autoCollapseWidth = float32(1024)
 )
 
 func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
@@ -66,10 +73,14 @@ func (sizes *LayoutSizes) sidebarCollapsed() bool {
 }
 
 // narrowHeader hides the titlebar trailing cluster the way
-// AppFrame's data-compact-header does: below the auto-collapse width the
-// cluster would paint over the session title.
+// AppFrame's data-compact-header does: below SIDEBAR_AUTO_COLLAPSE (1024 DIP,
+// not the 768 drawer band) the cluster would paint over the session title, so
+// the band keeps the title and its actions alone.
 func (sizes *LayoutSizes) narrowHeader() bool {
-	return sizes.Responsive != nil && sizes.Responsive.narrow
+	if sizes.Responsive == nil {
+		return false
+	}
+	return sizes.Responsive.viewport > 0 && sizes.Responsive.viewport < autoCollapseWidth
 }
 
 func (sizes *LayoutSizes) sidebarPreference() float32 {

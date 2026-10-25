@@ -2349,8 +2349,11 @@ func main() {
 			AutoHideMenuBar: true,
 			// Native controls plate: 48 tall with 12 top / 4 bottom padding and
 			// 32x32 buttons, so the buttons occupy y=12..44
-			// (harness-chrome-inject.js:12,89,96-97).
-			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 8, Right: 8, CornerRadius: 8, GlyphSize: 12},
+			// (harness-chrome-inject.js:12,89,96-97). Top is the plate's own
+			// inset, not a centred 8: the caption band paints its titles at y=12
+			// and the launcher window already draws the same plate at 12
+			// (launcher_window.go:69, launcher.css:21).
+			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 12, Right: 8, CornerRadius: 8, GlyphSize: 12},
 			WindowsFrameCornerRadius: 20,
 			Transparent:              true,
 			BackgroundColor:          bgColor,

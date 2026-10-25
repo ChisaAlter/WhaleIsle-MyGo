@@ -140,7 +140,10 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 	col.DrawOver(func(_ *ui.Painter, _ ui.Rect) { *previousViewportHeight = viewportHeight })
 	open := m.Sizes.Bottom > 40
 	main := height
-	maxMain := maxf(0, height-81)
+	// The drawer floor is 180 DIP (TERMINAL_DRAWER_MIN), so the centre column
+	// concedes at most height-180 to it; the old 81 reserved an 80 DIP pane that
+	// could shrink the terminal past its own minimum.
+	maxMain := maxf(0, height-terminalDrawerMin)
 	if open {
 		main = m.Sizes.Main
 		if main < 80 {

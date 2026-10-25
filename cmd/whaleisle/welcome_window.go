@@ -82,6 +82,10 @@ func (s *mainState) openWelcomeWindow(parent *mygo.Window, cfg config.Config) {
 	if parent != nil && !parent.IsDestroyed() {
 		parent.Hide()
 	}
+	// One caption plate on every custom-caption surface: 32x32 buttons 12 DIP
+	// from the window top, the inset the main window (main.go:2356) and the
+	// launcher (launcher_window.go:69) draw. Top 8 left this window's close
+	// glyph 4 DIP above theirs.
 	win := mygo.NewWindow(mygo.WindowOptions{
 		Title:                    i18n.T(i18n.KeyAppName),
 		Width:                    600,
@@ -89,7 +93,7 @@ func (s *mainState) openWelcomeWindow(parent *mygo.Window, cfg config.Config) {
 		UseContentSize:           true,
 		TitleBarStyle:            mygo.TitleBarHidden,
 		TitleBarHeight:           36,
-		WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 8, Right: 8, CornerRadius: 8, GlyphSize: 12},
+		WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 12, Right: 8, CornerRadius: 8, GlyphSize: 12},
 		WindowsFrameCornerRadius: 20,
 		Transparent:              true,
 		BackgroundColor:          theme.Resolve(cfg.Theme).BackgroundColor(),

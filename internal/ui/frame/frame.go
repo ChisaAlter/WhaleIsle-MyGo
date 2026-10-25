@@ -150,8 +150,20 @@ func maxf(a, b float32) float32 {
 // SplitVertical *size is the FIRST (top) pane height 鈥?that must be Main, not Bottom.
 func DefaultLayout() LayoutSizes {
 	// ui-layout columns.ts: SIDEBAR_DEFAULT = 280 (min 264, max 420).
-	return LayoutSizes{Sidebar: SidebarDefault, Center: 680, Main: 560, Bottom: 180, RightTree: 280}
+	// The drawer opens at the reference's lastDrawerHeight(), lastDrawer ?? 280
+	// (ui-layout client.js:720-722), instead of the previous 180 default; 180 is
+	// now only its minimum (columns.ts TERMINAL_DRAWER_MIN).
+	return LayoutSizes{Sidebar: SidebarDefault, Center: 680, Main: 560, Bottom: TerminalDrawerDefault, RightTree: 280}
 }
+
+// TerminalDrawerDefault is the height the terminal drawer opens at before any
+// drag: lastDrawer ?? 280 (ui-layout client.js lastDrawerHeight).
+const TerminalDrawerDefault = float32(280)
+
+// terminalDrawerMin is the reference's TERMINAL_DRAWER_MIN: a dragged or
+// stored drawer never gets shorter than 180 DIP, so the centre column keeps
+// 180 DIP for it however tall the window is (columns.ts TERMINAL_DRAWER_MIN).
+const terminalDrawerMin = float32(180)
 
 // Model wires the frame to session state and layout handles.
 type Model struct {

@@ -202,9 +202,12 @@ func TestTerminalHeightConcessionDoesNotRewritePreference(t *testing.T) {
 	}
 	tt.SetSize(1200, 800)
 	r, _ = tt.Find(i18n.T(i18n.KeyTerminalUnavailable))
-	// Label bounds include their padding: outer36 + caption48 + chat560 + divider1.
-	if r.Y != 645 {
-		t.Fatalf("restored terminal status=%+v, want y645 below the caption row", r)
+	// Label bounds include their padding: outer36 + caption48 + divider1, above a
+	// drawer that keeps its 180 DIP floor (TERMINAL_DRAWER_MIN), so the chat above
+	// it concedes from 560 to 536 and the drawer keeps the band it needs without
+	// rewriting the saved split.
+	if r.Y != 621 {
+		t.Fatalf("restored terminal status=%+v, want y621 for the row under a 180 DIP drawer", r)
 	}
 }
 
