@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"whaleisle/internal/processutil"
 )
 
 func createWindowsJunction(link, target string) error {
@@ -17,6 +19,7 @@ func createWindowsJunction(link, target string) error {
 	_ = os.Remove(link)
 	// mklink /J creates a directory junction without elevated privileges.
 	cmd := exec.Command("cmd", "/c", "mklink", "/J", link, target)
+	processutil.Background(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mklink /J: %w (%s)", err, strings.TrimSpace(string(out)))

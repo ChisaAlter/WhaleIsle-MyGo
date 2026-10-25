@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -222,6 +223,7 @@ func startGenericWorker(userData string, opts GenericOptions) (*genericWorker, e
 		return nil, err
 	}
 	cmd := exec.Command(opts.NodeBin, "-e", string(source))
+	processutil.Background(cmd)
 	cmd.Env = os.Environ()
 	input, err := cmd.StdinPipe()
 	if err != nil {

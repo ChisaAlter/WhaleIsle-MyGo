@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 // RuntimeState describes observed daemon state, never configuration readiness.
@@ -462,6 +464,7 @@ func spawnBridge(r Resources) (Child, error) {
 		}
 	}()
 	cmd := exec.Command(r.Node, "-e", "const file=process.argv[1];process.argv.splice(1,1);require(file)", scriptName, r.Module, r.Home)
+	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(r.Module)
 	cmd.Stderr = io.Discard
 	cmd.Env = daemonEnv(os.Environ())

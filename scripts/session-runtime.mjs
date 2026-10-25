@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {constants} from 'node:fs';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {applyWindowsBackgroundRuntime} from './windows-background-runtime.mjs';
 import {
   applySessionRuntimeReadiness, guardID, baseSHA256, patchSHA256, outputSHA256,
   bundlePath as readinessBundlePath, recordFile as readinessRecordFile,
@@ -202,6 +203,7 @@ export async function stageSessionRuntime(resources, destination) {
   if (await sha(path.join(target, 'node/node.exe')) !== nodeHash) throw new Error('Staged Node artifact changed');
   const result = {...staged, harnessPin: metadata.harnessPin, safetyPatch, node: {path: 'node/node.exe', sha256: nodeHash}, relocatedLinks: graph.links.length};
   await fs.writeFile(path.join(targetVendor, 'host-session-runtime.json'), JSON.stringify(result, null, 2) + '\n', {flag: 'wx'});
+  await applyWindowsBackgroundRuntime(targetVendor);
   return verifyStagedSessionRuntime(targetVendor);
 }
 
@@ -235,6 +237,7 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   await fs.copyFile(nodeSource, path.join(target, 'node/node.exe'), constants.COPYFILE_EXCL);
   const result = {...metadata, harnessRoot: path.join(vendor, 'deepseek-harness'), relocatedLinks: graph.links.length};
   await fs.writeFile(path.join(vendor, 'host-session-runtime.json'), JSON.stringify(result, null, 2) + '\n', {flag: 'wx'});
+  await applyWindowsBackgroundRuntime(vendor);
   return verifyStagedSessionRuntime(vendor);
 }
 

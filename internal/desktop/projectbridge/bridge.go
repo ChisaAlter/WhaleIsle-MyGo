@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/directorypicker"
+	"whaleisle/internal/processutil"
 )
 
 //go:embed runner.js source
@@ -162,6 +163,7 @@ func (b *Bridge) call(parent context.Context, envelope map[string]any) map[strin
 	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, b.opts.NodeBin, "-e", string(script))
+	processutil.Background(cmd)
 	cmd.Stdin = bytes.NewReader(input)
 	// Prevent ambient Node injection and inherited control-plane credentials.
 	for _, entry := range os.Environ() {

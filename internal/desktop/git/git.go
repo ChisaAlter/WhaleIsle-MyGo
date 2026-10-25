@@ -34,6 +34,7 @@ type combinedRunner func(ctx context.Context, dir, name string, args ...string) 
 
 func execRunner(dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
+	configureGitProcess(cmd)
 	cmd.Dir = dir
 	cmd.Env = gitChildEnv()
 	return cmd.Output()
@@ -41,6 +42,7 @@ func execRunner(dir, name string, args ...string) ([]byte, error) {
 
 func combinedExecRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	configureGitProcess(cmd)
 	cmd.Dir = dir
 	cmd.Env = gitChildEnv()
 	return observedCombinedOutput(ctx, cmd)
@@ -162,6 +164,7 @@ func Diff(workspaceRoot string, paths ...string) (string, error) {
 
 func combinedDiffRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	configureGitProcess(cmd)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err == nil {

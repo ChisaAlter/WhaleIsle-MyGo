@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -115,6 +116,7 @@ func startWhalebridgeLocked(root, dshHome string) error {
 	}
 	defer logF.Close()
 	cmd := exec.Command(exe, "whalebridge")
+	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")

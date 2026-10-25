@@ -1,6 +1,5 @@
 package components
 
-
 import (
 	"context"
 	"encoding/json"
@@ -13,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -305,6 +305,7 @@ func bridgeOfflineCommand(ctx context.Context, exe, data, dshHome, command strin
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, command)
+	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")

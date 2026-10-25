@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/update"
+	"whaleisle/internal/processutil"
 )
 
 const (
@@ -826,6 +827,7 @@ func disconnectWhalebridge(ctx context.Context, root, version string) error {
 		ctx = context.Background()
 	}
 	cmd := exec.CommandContext(ctx, exe, "whalebridge-disconnect")
+	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	cmd.Env = append(os.Environ(),
 		"LAUNCHER_COMPONENT_ID="+whaleBridgeID,

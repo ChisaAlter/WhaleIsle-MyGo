@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 	case "hold":
 		time.Sleep(time.Hour)
 		return
-	case "serve":
+	case "serve", "flap":
 		fakeDsh()
 		return
 	case "crash":
@@ -58,6 +58,10 @@ func fakeDsh() {
 			http.SetCookie(w, &http.Cookie{Name: "dsh-auth-x", Value: "v1.ok", HttpOnly: true})
 			w.Header().Set("Location", "./")
 			w.WriteHeader(http.StatusSeeOther)
+			if os.Getenv("FAKE_DSH") == "flap" {
+				// Allow the successful handshake to complete before dying online.
+				time.AfterFunc(200*time.Millisecond, func() { os.Exit(3) })
+			}
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)

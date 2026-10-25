@@ -53,7 +53,7 @@ type Status struct {
 	Err error
 	// Source names the launcher of the current or last attempt.
 	Source string
-	// Attempt counts automatic restarts since the last Ready.
+	// Attempt counts automatic restarts since the last stable Ready period.
 	Attempt int
 	// PluginLoad carries overlay/runtime plugin progress for the boot page.
 	PluginLoad PluginProgress
@@ -98,6 +98,10 @@ const logLimit = 400
 // stopGrace is how long dsh gets to exit before it is killed.
 const stopGrace = 5 * time.Second
 
+// restartStablePeriod prevents a short-lived Ready state from replenishing the
+// restart budget. Healthy hosts earn a fresh budget after one minute online.
+const restartStablePeriod = time.Minute
+
 // Supervisor owns one dsh web child at a time.
 type Supervisor struct {
 	opts   Options
@@ -115,6 +119,7 @@ type Supervisor struct {
 	startLogs        []string // current attempt only; old attempts cannot implicate plugins
 	attemptRecovery  bool     // flags captured for the current attempt, not mutable next-launch settings
 	attempt          int
+	readyAt          time.Time
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
 	skippedOnce       bool
 	recoveryActive    bool
@@ -265,6 +270,7 @@ func (s *Supervisor) nextGenLocked() int {
 		s.restartTimer = nil
 	}
 	s.gen++
+	s.readyAt = time.Time{}
 	s.taskControlToken = ""
 	s.platformToken = ""
 	return s.gen
@@ -277,6 +283,13 @@ func (s *Supervisor) current(gen int) bool {
 }
 
 func (s *Supervisor) setLocked(st Status) {
+	if st.State == Ready {
+		if s.status.State != Ready || s.status.Generation != s.gen {
+			s.readyAt = time.Now()
+		}
+	} else {
+		s.readyAt = time.Time{}
+	}
 	st.Generation = s.gen
 	st.Attempt = s.attempt
 	st.Recovery = s.attemptRecovery
@@ -455,11 +468,6 @@ func (s *Supervisor) run(gen int) {
 					s.log("workspace registered: "+ws, gen)
 				}
 			}
-			s.mu.Lock()
-			if s.gen == gen {
-				s.attempt = 0
-			}
-			s.mu.Unlock()
 			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
 				return
 			}
@@ -559,6 +567,10 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		s.mu.Unlock()
 		return
 	}
+	if s.status.State == Ready && !s.readyAt.IsZero() && time.Since(s.readyAt) >= restartStablePeriod {
+		s.attempt = 0
+	}
+	s.readyAt = time.Time{}
 	s.cmd, s.exited = nil, nil
 	if s.recoveryCancelled {
 		s.setLocked(Status{State: Failed, Err: err, Source: source})

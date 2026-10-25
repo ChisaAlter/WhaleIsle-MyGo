@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"whaleisle/internal/processutil"
 )
 
 // probeAuthenticode uses PowerShell Get-AuthenticodeSignature (no extra deps).
@@ -25,6 +27,7 @@ Write-Output ('PUBLISHER=' + $pub)
 	cmd := exec.CommandContext(ctx, "powershell.exe",
 		"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
 		"-Command", script)
+	processutil.Background(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

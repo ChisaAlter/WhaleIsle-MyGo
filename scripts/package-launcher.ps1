@@ -7,7 +7,9 @@ Set-Location $Root
 $Stage = Join-Path $Root 'dist/whaleisle-launcher'
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 $Exe = Join-Path $Stage 'whaleisle-launcher.exe'
-& go build -ldflags "-s -w -X main.buildVersion=$Version" -o $Exe ./cmd/whaleisle-launcher
+$ldflags = "-s -w -X main.buildVersion=$Version"
+if ((& go env GOOS).Trim() -eq 'windows') { $ldflags += ' -H windowsgui' }
+& go build -ldflags $ldflags -o $Exe ./cmd/whaleisle-launcher
 if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed' }
 # Own executable and directory: no desktop vendor, credentials, or runtime copy.
 Copy-Item (Join-Path $Root 'docs/standalone-launcher.md') (Join-Path $Stage 'README.md')

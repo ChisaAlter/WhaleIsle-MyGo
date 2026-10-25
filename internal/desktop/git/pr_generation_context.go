@@ -28,6 +28,7 @@ func (w *generationCapture) Write(p []byte) (int, error) {
 }
 func generationGitBytes(ctx context.Context, root string, max int, args ...string) ([]byte, bool, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
+	configureGitProcess(cmd)
 	cmd.Dir = root
 	for _, entry := range os.Environ() {
 		key := strings.SplitN(entry, "=", 2)[0]

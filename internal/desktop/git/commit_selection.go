@@ -38,6 +38,7 @@ type SelectedCommitResult struct {
 
 func selectedCommand(ctx context.Context, root, index string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
+	configureGitProcess(cmd)
 	cmd.Dir = root
 	for _, e := range gitChildEnv() {
 		key := strings.SplitN(e, "=", 2)[0]

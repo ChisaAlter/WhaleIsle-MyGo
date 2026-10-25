@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"whaleisle/internal/processutil"
 )
 
 // ListWorkspaceDir lists authorized immediate children. Dotfiles are visible;
@@ -69,6 +71,7 @@ func gitIgnoredPaths(ctx context.Context, root string, paths []string) (map[stri
 		return ignored, nil
 	}
 	command := exec.CommandContext(ctx, "git", "-C", root, "check-ignore", "--no-index", "--stdin", "-z")
+	processutil.Background(command)
 	command.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
 	output, err := command.Output()
 	if ctx.Err() != nil {

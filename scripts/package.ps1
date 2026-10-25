@@ -29,6 +29,7 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 Write-Host "Building whaleisle.exe (buildVersion=$Version) -> $ExeOut"
 $ldflags = "-s -w -X main.buildVersion=$Version"
+if ((& go env GOOS).Trim() -eq 'windows') { $ldflags += ' -H windowsgui' }
 & go build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
 if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
 
@@ -102,6 +103,8 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         Write-Host "Copying runtime/vendor -> $VendorDst (may take a while)"
         New-Item -ItemType Directory -Force -Path (Split-Path $VendorDst) | Out-Null
         Copy-Item -Path $VendorSrc -Destination $VendorDst -Recurse -Force
+        & node (Join-Path $PSScriptRoot 'windows-background-runtime.mjs') $VendorDst
+        if ($LASTEXITCODE -ne 0) { throw 'Windows background process patch failed for the staged runtime.' }
     } else {
         throw 'Required runtime/vendor is missing.'
     }
