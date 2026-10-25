@@ -341,7 +341,10 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	if err := tt.Click("Save changes"); err != nil {
 		t.Fatal(err)
 	}
-	f.wait(t, func() bool { p.mu.Lock(); defer p.mu.Unlock(); return len(p.committed) > 0 })
+	// Panel.View drains p.committed into the draft on the frame after the save
+	// lands, so the tester that matches a click's own frames may already have
+	// consumed it: synchronise on the saved RPC, then paint that frame.
+	f.wait(t, func() bool { f.mu.Lock(); defer f.mu.Unlock(); return len(f.writes) > 0 })
 	tt.Frame()
 	f.mu.Lock()
 	if len(f.writes) != 1 || string(f.writes[0]["sessionId"]) != `"owner-first"` || string(f.writes[0]["id"]) != `"first"` {
@@ -376,7 +379,9 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	if err := tt.Click("Confirm deletion"); err != nil {
 		t.Fatal(err)
 	}
-	f.wait(t, func() bool { p.mu.Lock(); defer p.mu.Unlock(); return p.deleteAck != nil })
+	// The delete receipt (p.deleteAck) is retired by the frame that reconciles
+	// the detail, so wait for the store's catalog to show the removal and paint
+	// that frame: it is the frame that closes the detail.
 	f.wait(t, func() bool { snap := f.store.Snapshot(); return snap.CatalogReady && len(snap.Rows) == 1 })
 	tt.Frame()
 	f.mu.Lock()
