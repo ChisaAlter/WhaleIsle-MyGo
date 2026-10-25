@@ -34,7 +34,8 @@ func TestStatusLine(t *testing.T) {
 	}
 }
 
-// TestViewBootLabels renders the boot page headlessly and checks status + actions.
+// TestViewBootLabels renders the boot page headlessly and checks the brand block,
+// the status line, the actions and the foot ticker.
 func TestViewBootLabels(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
@@ -53,18 +54,44 @@ func TestViewBootLabels(t *testing.T) {
 		})
 	}, 800, 600)
 
+	// The reference brand block (boot.html:22) replaces the 24 DIP title with the
+	// serif wordmark, the island's mark and the harness line; the foot ticker
+	// counts the log lines it holds.
 	want := []string{
-		i18n.T(KeyTitle),
+		"Whale Isle",
+		brandMark,
+		"BASED ON DEEPSEEK HARNESS",
 		i18n.T(KeyStarting),
 		progress,
 		i18n.T(KeyRetry),
 		i18n.T(KeyExportLog),
 		i18n.T(KeyWaiting),
+		"L 00",
 	}
 	for _, label := range want {
 		if !tt.HasText(label) {
 			t.Fatalf("missing %q; texts = %q", label, tt.Texts())
 		}
+	}
+}
+
+// TestViewBootTickerCountsLogs pins the ticker's L 00 counter against the log
+// tail it shows (boot.js updateLogCount).
+func TestViewBootTickerCountsLogs(t *testing.T) {
+	i18n.SetLocale("zh")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{
+			Status:  harness.Status{State: harness.Starting},
+			Logs:    []string{"first evidence", "latest evidence"},
+			ThemeID: "system",
+		})
+	}, 800, 600)
+	if !tt.HasText("L 02") {
+		t.Fatalf("missing log count; texts = %q", tt.Texts())
+	}
+	if !tt.HasText("latest evidence") {
+		t.Fatalf("ticker lost the newest line; texts = %q", tt.Texts())
 	}
 }
 

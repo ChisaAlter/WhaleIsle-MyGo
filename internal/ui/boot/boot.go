@@ -44,8 +44,8 @@ const (
 )
 
 // View paints the boot page inside the main window body (below the title bar):
-// the reference page's layered scene with a centred brand block, status line and
-// the tail of the startup log.
+// the reference page's layered scene, the brand block lifted over the horizon,
+// the status line with its actions and the newest log line at the foot.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -53,74 +53,30 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
+	accent := chrome.Color(colors.Accent)
+	alert := chrome.Color(colors.Danger)
+	failed := m.Status.State == harness.Failed
 
 	root := ui.Column(c).Key("boot-root").Fill().Background(bg)
-	root.Draw(bootBackdrop(bg, chrome.Color(colors.Accent), m.SystemDark))
+	root.Draw(bootScene(sceneSpec{
+		background: bg, accent: accent, ink: fg, alert: alert,
+		dark: m.SystemDark, failed: failed,
+	}, !c.Preferences().ReduceMotion))
 	drawer := ui.Local(root, "boot-log-drawer", func() bool { return false })
 	root.Children(func() {
-		ui.Column(c).Key("boot-center").Fill().AlignItems(ui.Center).Justify(ui.Center).Padding(24, 32, 28, 32).Children(func() {
-			ui.Column(c).Width(460).MaxWidthPercent(92).Gap(10).AlignItems(ui.Center).Children(func() {
-				if bmp := chrome.BrandAvatar(); bmp != nil {
-					ui.Image(c, bmp).Size(64, 64).Fit(ui.Contain)
-				}
-				ui.Text(c, i18n.T(KeyTitle)).FontSize(theme.InterfaceSize(24)).FixedLineHeight(theme.InterfaceSize(30)).
-					FontWeight(600).TextColor(fg)
-				ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8)).FixedLineHeight(theme.InterfaceSize(10)).
-					FontWeight(500).LetterSpacing(.32).TextColor(muted)
-				ui.Box(c).Height(10)
-
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					if m.Status.State == harness.Starting && !m.Status.RecoveryCancelled {
-						ui.Spinner(c).Size(14, 14)
-					}
-					ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(fg)
-				})
-				if line := pluginProgressLine(m.Status); line != "" {
-					ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				}
-				if m.Status.State == harness.Failed {
-					hint := "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
-					if i18n.Locale() == "en" {
-						hint = "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
-					}
-					ui.Text(c, hint).FontSize(theme.InterfaceSize(12)).TextColor(muted).MaxLines(3)
-				}
-
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(6, 0, 0, 0).Children(func() {
-					if m.OnConfigure != nil {
-						label := "打开启动器"
-						if i18n.Locale() == "en" {
-							label = "Open launcher"
-						}
-						if ui.Button(c, label).Clicked() {
-							m.OnConfigure()
-						}
-					}
-					cancelRecoveryAction(c, m)
-					if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
-						m.OnRetry()
-					}
-					if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
-						m.OnExport()
-					}
-					if ui.Button(c, bootText("全部启动日志", "All startup logs")).Clicked() {
-						*drawer = true
-					}
-				})
-
-				// Ticker: the newest line, or the waiting placeholder before logs.
-				last := i18n.T(KeyWaiting)
-				if len(m.Logs) > 0 {
-					last = m.Logs[len(m.Logs)-1]
-				}
-				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(10, 0, 0, 0).Children(func() {
-					ui.Box(c).Size(6, 6).Radius(3).Background(muted.Alpha(.5))
-					ui.Text(c, last).FontSize(theme.InterfaceSize(11)).TextColor(muted).MinWidth(0).Grow(1).SingleLine().Ellipsis("…")
-				})
-			})
-		})
+		bootCore(c, m, fg, muted, alert, func() { *drawer = true })
+		// The foot of the page keeps the ticker's light while the sea darkens
+		// under it: --boot-under, the accent lifted toward white.
+		tint := float32(.85)
+		if m.SystemDark {
+			tint = .45
+		}
+		bootTicker(c, m.Logs, accent.Mix(ui.RGBA(255, 255, 255, 1), tint))
 		ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
-			backdrop.Background(ui.RGBA(0, 0, 0, .4))
+			// boot.css:596-604 fades the log drawer in (drawer-fade) and rises it
+			// 14 DIP (drawer-rise); the fade is the part the hand-run overlay
+			// token can play here.
+			chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 			w, h := c.Size()
 			panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(bg).Border(1, border).
 				Radius(20).Clip().Padding(20).Children(func() {
@@ -143,6 +99,83 @@ func View(c *ui.Context, m Model) {
 	})
 }
 
+// bootCore is .core: the brand block, the status line, the failure copy and the
+// actions. Its foot is padded by 26vh so the block sits over the sky and the
+// horizon crosses below it instead of through it (boot.css:207-217); a short
+// window keeps 20vh and 34 DIP letters (boot.css:453-459).
+func bootCore(c *ui.Context, m Model, fg, muted, alert ui.Color, openLog func()) {
+	_, height := c.Size()
+	short := height < 700
+	lift := height * .26
+	if short {
+		lift = height * .20
+	}
+	ui.Column(c).Key("boot-core").Grow(1).MinWidth(0).MinHeight(0).FillWidth().
+		AlignItems(ui.Center).Justify(ui.Center).Padding(24, 32, lift, 32).Children(func() {
+		ui.Column(c).Width(460).MaxWidthPercent(92).AlignItems(ui.Center).Children(func() {
+			bootBrand(c, short, fg, muted, m.SystemDark)
+
+			// .status: muted while work runs, the ink when ready, the alert color
+			// on failure (boot.css:301-320), with its dots while starting.
+			statusColor := muted
+			if m.Status.State == harness.Ready {
+				statusColor = fg
+			}
+			if m.Status.State == harness.Failed || m.Status.RecoveryCancelled {
+				statusColor = alert
+			}
+			ui.Row(c).Key("boot-status").Gap(7).AlignItems(ui.Center).Margin(26, 0, 0, 0).Children(func() {
+				ui.Text(c, statusLine(m.Status)).FontSize(theme.InterfaceSize(14)).
+					FixedLineHeight(theme.InterfaceSize(22)).TextColor(statusColor).TextAlign(ui.Center).MinWidth(0)
+				if m.Status.State == harness.Starting && !m.Status.RecoveryCancelled {
+					statusDots(c, statusColor)
+				}
+			})
+			if line := pluginProgressLine(m.Status); line != "" {
+				ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted).TextAlign(ui.Center).Margin(4, 0, 0, 0)
+			}
+			if m.Status.State == harness.Failed {
+				// .failure: 12/18 in the code face and the alert color, the copy
+				// the log drawer explains (boot.css:344-357).
+				ui.Text(c, failureCopy()).Font(theme.RenderPreferences().Code.Family).
+					FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+					TextColor(alert).TextAlign(ui.Center).MaxLines(3).Margin(6, 0, 0, 0)
+			}
+
+			ui.Row(c).Key("boot-actions").Gap(10).AlignItems(ui.Center).Justify(ui.Center).
+				Margin(26, 0, 0, 0).Wrap().Children(func() {
+				if m.OnConfigure != nil {
+					label := "打开启动器"
+					if i18n.Locale() == "en" {
+						label = "Open launcher"
+					}
+					if ui.Button(c, label).Clicked() {
+						m.OnConfigure()
+					}
+				}
+				cancelRecoveryAction(c, m)
+				if m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
+					m.OnRetry()
+				}
+				if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
+					m.OnExport()
+				}
+				if ui.Button(c, bootText("全部启动日志", "All startup logs")).Clicked() {
+					openLog()
+				}
+			})
+		})
+	})
+}
+
+// failureCopy is .failure's text: what to check next, in the log drawer's
+// technical voice (boot.css:344-357).
+func failureCopy() string {
+	if i18n.Locale() == "en" {
+		return "Check the workspace, Node.js and Host paths in the launcher, then retry or export the logs."
+	}
+	return "请检查启动器中的工作区、Node.js 与 Host 路径；修正后重试，或导出日志排查。"
+}
 
 func pluginProgressLine(st harness.Status) string {
 	if st.State != harness.Starting {
