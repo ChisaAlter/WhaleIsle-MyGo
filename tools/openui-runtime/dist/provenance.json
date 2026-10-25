@@ -2,17 +2,17 @@
   "runtime": "whaleisle-independent-col-v1",
   "packaging": "Production asset generation only; tests and browser/native acceptance not run.",
   "originalApplicationIncluded": false,
-  "lockfileSHA256": "7d46de5a7add6713ea32aec1d67dff45c0348b3fb14286897300812d7478b048",
+  "lockfileSHA256": "8841d7ab1df01e1fd16495e5cbd0504e4b99128abf652ed1f27970c1b755cf7c",
   "assets": [
     {
       "name": "viewer.html",
-      "bytes": 2392720,
-      "sha256": "38c8c7a896a6541b2b3a241253dd032d13401f63cc4e6ecaebb04684685a3582"
+      "bytes": 2392362,
+      "sha256": "dfb1a766e9526d9f64ddcb58f9dffcdf42ec5fca3e9fa3e0b095d1ea2ffb010d"
     },
     {
       "name": "viewer.js",
-      "bytes": 2206349,
-      "sha256": "544507c55beeb7988a5453459f15b285d388f1ec1b01c2ad2121b7738a15097d"
+      "bytes": 2205992,
+      "sha256": "22b8db37660b92cbd8fc61d888a748ec6e03dae29aecd849ebf77e16b33c6aa3"
     },
     {
       "name": "viewer.css",
@@ -21,8 +21,8 @@
     },
     {
       "name": "THIRD-PARTY-NOTICES.txt",
-      "bytes": 180389,
-      "sha256": "97eccc0df68d2c8c176577da4a5241e3b0760fe94682cc8f693b25efd3dc1133"
+      "bytes": 180388,
+      "sha256": "fe1b3b61e3cb59928e02528749b13098861f089643cca3287ceace8240c4db49"
     },
     {
       "name": "library-spec.json",
@@ -40,7 +40,7 @@
       "name": "@openuidev/lang-core",
       "version": "1.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/@openuidev/lang-core",
+      "path": "node_modules/@openuidev/lang-core",
       "notices": [
         {
           "file": "LICENSE",
@@ -52,7 +52,7 @@
       "name": "@openuidev/observability",
       "version": "0.0.4",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/@openuidev/observability",
+      "path": "node_modules/@openuidev/observability",
       "notices": [
         {
           "file": "LICENSE",
@@ -64,7 +64,7 @@
       "name": "@openuidev/react-lang",
       "version": "1.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/@openuidev/react-lang",
+      "path": "node_modules/@openuidev/react-lang",
       "notices": [
         {
           "file": "LICENSE",
@@ -76,7 +76,7 @@
       "name": "@ungap/structured-clone",
       "version": "1.4.0",
       "license": "ISC",
-      "path": "../../../../owned-openui-runtime/node_modules/@ungap/structured-clone",
+      "path": "node_modules/@ungap/structured-clone",
       "notices": [
         {
           "file": "LICENSE",
@@ -88,7 +88,7 @@
       "name": "bail",
       "version": "2.0.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/bail",
+      "path": "node_modules/bail",
       "notices": [
         {
           "file": "license",
@@ -100,7 +100,7 @@
       "name": "ccount",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/ccount",
+      "path": "node_modules/ccount",
       "notices": [
         {
           "file": "license",
@@ -112,7 +112,7 @@
       "name": "comma-separated-tokens",
       "version": "2.0.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/comma-separated-tokens",
+      "path": "node_modules/comma-separated-tokens",
       "notices": [
         {
           "file": "license",
@@ -124,7 +124,7 @@
       "name": "decode-named-character-reference",
       "version": "1.3.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/decode-named-character-reference",
+      "path": "node_modules/decode-named-character-reference",
       "notices": [
         {
           "file": "license",
@@ -136,7 +136,7 @@
       "name": "entities",
       "version": "6.0.1",
       "license": "BSD-2-Clause",
-      "path": "../../../../owned-openui-runtime/node_modules/entities",
+      "path": "node_modules/entities",
       "notices": [
         {
           "file": "LICENSE",
@@ -148,7 +148,7 @@
       "name": "escape-string-regexp",
       "version": "5.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/escape-string-regexp",
+      "path": "node_modules/escape-string-regexp",
       "notices": [
         {
           "file": "license",
@@ -160,7 +160,7 @@
       "name": "estree-util-is-identifier-name",
       "version": "3.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/estree-util-is-identifier-name",
+      "path": "node_modules/estree-util-is-identifier-name",
       "notices": [
         {
           "file": "license",
@@ -172,7 +172,7 @@
       "name": "extend",
       "version": "3.0.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/extend",
+      "path": "node_modules/extend",
       "notices": [
         {
           "file": "LICENSE",
@@ -184,7 +184,7 @@
       "name": "hast-util-to-jsx-runtime",
       "version": "2.3.6",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/hast-util-to-jsx-runtime",
+      "path": "node_modules/hast-util-to-jsx-runtime",
       "notices": [
         {
           "file": "license",
@@ -196,7 +196,7 @@
       "name": "hast-util-whitespace",
       "version": "3.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/hast-util-whitespace",
+      "path": "node_modules/hast-util-whitespace",
       "notices": [
         {
           "file": "license",
@@ -208,7 +208,7 @@
       "name": "highlight.js",
       "version": "11.11.1",
       "license": "BSD-3-Clause",
-      "path": "../../../../owned-openui-runtime/node_modules/highlight.js",
+      "path": "node_modules/highlight.js",
       "notices": [
         {
           "file": "LICENSE",
@@ -220,7 +220,7 @@
       "name": "html-url-attributes",
       "version": "3.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/html-url-attributes",
+      "path": "node_modules/html-url-attributes",
       "notices": [
         {
           "file": "license",
@@ -232,7 +232,7 @@
       "name": "inline-style-parser",
       "version": "0.2.7",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/inline-style-parser",
+      "path": "node_modules/inline-style-parser",
       "notices": [
         {
           "file": "LICENSE",
@@ -244,7 +244,7 @@
       "name": "is-plain-obj",
       "version": "4.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/is-plain-obj",
+      "path": "node_modules/is-plain-obj",
       "notices": [
         {
           "file": "license",
@@ -254,9 +254,9 @@
     },
     {
       "name": "katex",
-      "version": "0.16.47",
+      "version": "0.18.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/katex",
+      "path": "node_modules/katex",
       "notices": [
         {
           "file": "LICENSE",
@@ -268,7 +268,7 @@
       "name": "longest-streak",
       "version": "3.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/longest-streak",
+      "path": "node_modules/longest-streak",
       "notices": [
         {
           "file": "license",
@@ -280,7 +280,7 @@
       "name": "lowlight",
       "version": "3.3.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/lowlight",
+      "path": "node_modules/lowlight",
       "notices": [
         {
           "file": "license",
@@ -292,7 +292,7 @@
       "name": "lucide-react",
       "version": "0.575.0",
       "license": "ISC",
-      "path": "../../../../owned-openui-runtime/node_modules/lucide-react",
+      "path": "node_modules/lucide-react",
       "notices": [
         {
           "file": "LICENSE",
@@ -304,7 +304,7 @@
       "name": "markdown-table",
       "version": "3.0.4",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/markdown-table",
+      "path": "node_modules/markdown-table",
       "notices": [
         {
           "file": "license",
@@ -316,7 +316,7 @@
       "name": "mdast-util-find-and-replace",
       "version": "3.0.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-find-and-replace",
+      "path": "node_modules/mdast-util-find-and-replace",
       "notices": [
         {
           "file": "license",
@@ -328,7 +328,7 @@
       "name": "mdast-util-from-markdown",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-from-markdown",
+      "path": "node_modules/mdast-util-from-markdown",
       "notices": [
         {
           "file": "license",
@@ -340,7 +340,7 @@
       "name": "mdast-util-gfm",
       "version": "3.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm",
+      "path": "node_modules/mdast-util-gfm",
       "notices": [
         {
           "file": "license",
@@ -352,7 +352,7 @@
       "name": "mdast-util-gfm-autolink-literal",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm-autolink-literal",
+      "path": "node_modules/mdast-util-gfm-autolink-literal",
       "notices": [
         {
           "file": "license",
@@ -364,7 +364,7 @@
       "name": "mdast-util-gfm-footnote",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm-footnote",
+      "path": "node_modules/mdast-util-gfm-footnote",
       "notices": [
         {
           "file": "license",
@@ -376,7 +376,7 @@
       "name": "mdast-util-gfm-strikethrough",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm-strikethrough",
+      "path": "node_modules/mdast-util-gfm-strikethrough",
       "notices": [
         {
           "file": "license",
@@ -388,7 +388,7 @@
       "name": "mdast-util-gfm-table",
       "version": "2.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm-table",
+      "path": "node_modules/mdast-util-gfm-table",
       "notices": [
         {
           "file": "license",
@@ -400,7 +400,7 @@
       "name": "mdast-util-gfm-task-list-item",
       "version": "2.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-gfm-task-list-item",
+      "path": "node_modules/mdast-util-gfm-task-list-item",
       "notices": [
         {
           "file": "license",
@@ -412,7 +412,7 @@
       "name": "mdast-util-phrasing",
       "version": "4.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-phrasing",
+      "path": "node_modules/mdast-util-phrasing",
       "notices": [
         {
           "file": "license",
@@ -424,7 +424,7 @@
       "name": "mdast-util-to-hast",
       "version": "13.2.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-to-hast",
+      "path": "node_modules/mdast-util-to-hast",
       "notices": [
         {
           "file": "license",
@@ -436,7 +436,7 @@
       "name": "mdast-util-to-markdown",
       "version": "2.2.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-to-markdown",
+      "path": "node_modules/mdast-util-to-markdown",
       "notices": [
         {
           "file": "license",
@@ -448,7 +448,7 @@
       "name": "mdast-util-to-string",
       "version": "4.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/mdast-util-to-string",
+      "path": "node_modules/mdast-util-to-string",
       "notices": [
         {
           "file": "license",
@@ -460,7 +460,7 @@
       "name": "micromark",
       "version": "4.0.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark",
+      "path": "node_modules/micromark",
       "notices": [
         {
           "file": "license",
@@ -472,7 +472,7 @@
       "name": "micromark-core-commonmark",
       "version": "2.0.4",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-core-commonmark",
+      "path": "node_modules/micromark-core-commonmark",
       "notices": [
         {
           "file": "license",
@@ -484,7 +484,7 @@
       "name": "micromark-extension-gfm",
       "version": "3.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm",
+      "path": "node_modules/micromark-extension-gfm",
       "notices": [
         {
           "file": "license",
@@ -496,7 +496,7 @@
       "name": "micromark-extension-gfm-autolink-literal",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm-autolink-literal",
+      "path": "node_modules/micromark-extension-gfm-autolink-literal",
       "notices": [
         {
           "file": "license",
@@ -508,7 +508,7 @@
       "name": "micromark-extension-gfm-footnote",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm-footnote",
+      "path": "node_modules/micromark-extension-gfm-footnote",
       "notices": [
         {
           "file": "license",
@@ -520,7 +520,7 @@
       "name": "micromark-extension-gfm-strikethrough",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm-strikethrough",
+      "path": "node_modules/micromark-extension-gfm-strikethrough",
       "notices": [
         {
           "file": "license",
@@ -532,7 +532,7 @@
       "name": "micromark-extension-gfm-table",
       "version": "2.1.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm-table",
+      "path": "node_modules/micromark-extension-gfm-table",
       "notices": [
         {
           "file": "license",
@@ -544,7 +544,7 @@
       "name": "micromark-extension-gfm-task-list-item",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-extension-gfm-task-list-item",
+      "path": "node_modules/micromark-extension-gfm-task-list-item",
       "notices": [
         {
           "file": "license",
@@ -556,7 +556,7 @@
       "name": "micromark-factory-destination",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-factory-destination",
+      "path": "node_modules/micromark-factory-destination",
       "notices": [
         {
           "file": "license",
@@ -568,7 +568,7 @@
       "name": "micromark-factory-label",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-factory-label",
+      "path": "node_modules/micromark-factory-label",
       "notices": [
         {
           "file": "license",
@@ -580,7 +580,7 @@
       "name": "micromark-factory-space",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-factory-space",
+      "path": "node_modules/micromark-factory-space",
       "notices": [
         {
           "file": "license",
@@ -592,7 +592,7 @@
       "name": "micromark-factory-title",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-factory-title",
+      "path": "node_modules/micromark-factory-title",
       "notices": [
         {
           "file": "license",
@@ -604,7 +604,7 @@
       "name": "micromark-factory-whitespace",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-factory-whitespace",
+      "path": "node_modules/micromark-factory-whitespace",
       "notices": [
         {
           "file": "license",
@@ -616,7 +616,7 @@
       "name": "micromark-util-character",
       "version": "2.1.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-character",
+      "path": "node_modules/micromark-util-character",
       "notices": [
         {
           "file": "license",
@@ -628,7 +628,7 @@
       "name": "micromark-util-chunked",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-chunked",
+      "path": "node_modules/micromark-util-chunked",
       "notices": [
         {
           "file": "license",
@@ -640,7 +640,7 @@
       "name": "micromark-util-classify-character",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-classify-character",
+      "path": "node_modules/micromark-util-classify-character",
       "notices": [
         {
           "file": "license",
@@ -652,7 +652,7 @@
       "name": "micromark-util-combine-extensions",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-combine-extensions",
+      "path": "node_modules/micromark-util-combine-extensions",
       "notices": [
         {
           "file": "license",
@@ -664,7 +664,7 @@
       "name": "micromark-util-decode-numeric-character-reference",
       "version": "2.0.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-decode-numeric-character-reference",
+      "path": "node_modules/micromark-util-decode-numeric-character-reference",
       "notices": [
         {
           "file": "license",
@@ -676,7 +676,7 @@
       "name": "micromark-util-decode-string",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-decode-string",
+      "path": "node_modules/micromark-util-decode-string",
       "notices": [
         {
           "file": "license",
@@ -688,7 +688,7 @@
       "name": "micromark-util-edit-map",
       "version": "1.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-edit-map",
+      "path": "node_modules/micromark-util-edit-map",
       "notices": [
         {
           "file": "license",
@@ -700,7 +700,7 @@
       "name": "micromark-util-html-tag-name",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-html-tag-name",
+      "path": "node_modules/micromark-util-html-tag-name",
       "notices": [
         {
           "file": "license",
@@ -712,7 +712,7 @@
       "name": "micromark-util-normalize-identifier",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-normalize-identifier",
+      "path": "node_modules/micromark-util-normalize-identifier",
       "notices": [
         {
           "file": "license",
@@ -724,7 +724,7 @@
       "name": "micromark-util-resolve-all",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-resolve-all",
+      "path": "node_modules/micromark-util-resolve-all",
       "notices": [
         {
           "file": "license",
@@ -736,7 +736,7 @@
       "name": "micromark-util-sanitize-uri",
       "version": "2.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-sanitize-uri",
+      "path": "node_modules/micromark-util-sanitize-uri",
       "notices": [
         {
           "file": "license",
@@ -748,7 +748,7 @@
       "name": "micromark-util-subtokenize",
       "version": "2.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/micromark-util-subtokenize",
+      "path": "node_modules/micromark-util-subtokenize",
       "notices": [
         {
           "file": "license",
@@ -760,7 +760,7 @@
       "name": "parse5",
       "version": "8.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/parse5",
+      "path": "node_modules/parse5",
       "notices": [
         {
           "file": "LICENSE",
@@ -772,7 +772,7 @@
       "name": "property-information",
       "version": "7.2.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/property-information",
+      "path": "node_modules/property-information",
       "notices": [
         {
           "file": "license",
@@ -784,7 +784,7 @@
       "name": "react",
       "version": "19.2.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/react",
+      "path": "node_modules/react",
       "notices": [
         {
           "file": "LICENSE",
@@ -796,7 +796,7 @@
       "name": "react-dom",
       "version": "19.2.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/react-dom",
+      "path": "node_modules/react-dom",
       "notices": [
         {
           "file": "LICENSE",
@@ -808,7 +808,7 @@
       "name": "react-markdown",
       "version": "10.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/react-markdown",
+      "path": "node_modules/react-markdown",
       "notices": [
         {
           "file": "license",
@@ -820,7 +820,7 @@
       "name": "remark-gfm",
       "version": "4.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/remark-gfm",
+      "path": "node_modules/remark-gfm",
       "notices": [
         {
           "file": "license",
@@ -832,7 +832,7 @@
       "name": "remark-parse",
       "version": "11.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/remark-parse",
+      "path": "node_modules/remark-parse",
       "notices": [
         {
           "file": "license",
@@ -844,7 +844,7 @@
       "name": "remark-rehype",
       "version": "11.1.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/remark-rehype",
+      "path": "node_modules/remark-rehype",
       "notices": [
         {
           "file": "license",
@@ -856,7 +856,7 @@
       "name": "scheduler",
       "version": "0.27.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/scheduler",
+      "path": "node_modules/scheduler",
       "notices": [
         {
           "file": "LICENSE",
@@ -868,7 +868,7 @@
       "name": "space-separated-tokens",
       "version": "2.0.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/space-separated-tokens",
+      "path": "node_modules/space-separated-tokens",
       "notices": [
         {
           "file": "license",
@@ -880,7 +880,7 @@
       "name": "style-to-js",
       "version": "1.1.21",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/style-to-js",
+      "path": "node_modules/style-to-js",
       "notices": [
         {
           "file": "LICENSE",
@@ -892,7 +892,7 @@
       "name": "style-to-object",
       "version": "1.0.14",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/style-to-object",
+      "path": "node_modules/style-to-object",
       "notices": [
         {
           "file": "LICENSE",
@@ -904,7 +904,7 @@
       "name": "trim-lines",
       "version": "3.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/trim-lines",
+      "path": "node_modules/trim-lines",
       "notices": [
         {
           "file": "license",
@@ -916,7 +916,7 @@
       "name": "trough",
       "version": "2.2.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/trough",
+      "path": "node_modules/trough",
       "notices": [
         {
           "file": "license",
@@ -928,7 +928,7 @@
       "name": "unified",
       "version": "11.0.5",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unified",
+      "path": "node_modules/unified",
       "notices": [
         {
           "file": "license",
@@ -940,7 +940,7 @@
       "name": "unist-util-is",
       "version": "6.0.1",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unist-util-is",
+      "path": "node_modules/unist-util-is",
       "notices": [
         {
           "file": "license",
@@ -952,7 +952,7 @@
       "name": "unist-util-position",
       "version": "5.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unist-util-position",
+      "path": "node_modules/unist-util-position",
       "notices": [
         {
           "file": "license",
@@ -964,7 +964,7 @@
       "name": "unist-util-stringify-position",
       "version": "4.0.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unist-util-stringify-position",
+      "path": "node_modules/unist-util-stringify-position",
       "notices": [
         {
           "file": "license",
@@ -976,7 +976,7 @@
       "name": "unist-util-visit",
       "version": "5.1.0",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unist-util-visit",
+      "path": "node_modules/unist-util-visit",
       "notices": [
         {
           "file": "license",
@@ -988,7 +988,7 @@
       "name": "unist-util-visit-parents",
       "version": "6.0.2",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/unist-util-visit-parents",
+      "path": "node_modules/unist-util-visit-parents",
       "notices": [
         {
           "file": "license",
@@ -1000,7 +1000,7 @@
       "name": "vfile",
       "version": "6.0.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/vfile",
+      "path": "node_modules/vfile",
       "notices": [
         {
           "file": "license",
@@ -1012,7 +1012,7 @@
       "name": "vfile-message",
       "version": "4.0.3",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/vfile-message",
+      "path": "node_modules/vfile-message",
       "notices": [
         {
           "file": "license",
@@ -1024,7 +1024,7 @@
       "name": "zod",
       "version": "4.6.7",
       "license": "MIT",
-      "path": "../../../../owned-openui-runtime/node_modules/zod",
+      "path": "node_modules/zod",
       "notices": [
         {
           "file": "LICENSE",
