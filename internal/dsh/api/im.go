@@ -169,7 +169,9 @@ func IMHistoryMethodCandidates() []string {
 	}
 }
 
-// IMSendMethodCandidates are Typert-style send RPCs to probe.
+// IMSendMethodCandidates lists Typert-style send RPC names that a future
+// generated Registry may expose. SendDraft only dispatches a name after the
+// Registry confirms that it exists.
 //
 // Request args:
 //

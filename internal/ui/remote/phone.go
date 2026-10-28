@@ -19,14 +19,14 @@ import (
 func phoneSnapshot(m Model) phoneremote.Snapshot {
 	names := append([]string(nil), m.RemoteDeviceNames...)
 	count := m.RemoteDeviceCount
+	if m.RemoteDeviceNames != nil {
+		count = len(names)
+	}
 	if m.PhoneRuntime.DevicesLoaded {
 		names = make([]string, len(m.PhoneRuntime.Devices))
 		for i, device := range m.PhoneRuntime.Devices {
 			names[i] = device.Name
 		}
-		count = len(names)
-	}
-	if count == 0 && len(names) > 0 {
 		count = len(names)
 	}
 	s := phoneremote.Snapshot{
