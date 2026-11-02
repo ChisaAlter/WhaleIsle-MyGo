@@ -15,7 +15,7 @@ export function emitRuntimeInclude(stage, output) {
   let current='';
   for(const relative of files) {
     const parent=path.posix.dirname(relative);
-    if(parent!==current) {lines.push(`SetOutPath "$INSTDIR\\runtime${parent==='.'?'':'\\'+escape(parent.replaceAll('/','\\'))}"`,'!insertmacro WI_CheckExtract');current=parent;}
+    if(parent!==current) {lines.push(`!insertmacro WI_SetPayloadOutPath "$INSTDIR\\runtime${parent==='.'?'':'\\'+escape(parent.replaceAll('/','\\'))}"`);current=parent;}
     const source=path.join(runtime,...relative.split('/'));
     lines.push(`File "${escape(source)}"`,'!insertmacro WI_CheckExtract');
   }

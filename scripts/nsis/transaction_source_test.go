@@ -58,6 +58,25 @@ func TestInstallStagesBeforeReplacingAndRegistering(t *testing.T) {
 	requireSourceOrder(t, failure, "Call wiRollback", "Call wiRestoreRegistration")
 }
 
+func TestPayloadOutputDoesNotChangeProcessWorkingDirectory(t *testing.T) {
+	helper := transactionSource(t, "payload-transaction.nsh")
+	output := sourceRegion(t, helper, "!macro WI_SetPayloadOutPath Path", "!macroend")
+	requireSourceOrder(t, output, "ClearErrors", `CreateDirectory "${Path}"`, "WI_CheckExtract", `StrCpy $OUTDIR "${Path}"`)
+	if strings.Contains(output, "SetOutPath") {
+		t.Fatal("payload output must not call SetCurrentDirectoryW through SetOutPath")
+	}
+	install := sourceRegion(t, transactionSource(t, "whaleisle.nsi"), `Section "Install"`, "SectionEnd")
+	if strings.Contains(install, "SetOutPath ") || strings.Count(install, "!insertmacro WI_SetPayloadOutPath ") != 10 {
+		t.Fatal("root, resources, runtime and pet output must use the long-path extraction macro")
+	}
+	for _, function := range []string{"Function wiRollback", "Function wiPromote", "Function un.wiRemovePayload"} {
+		body := sourceRegion(t, helper, function, "FunctionEnd")
+		if !strings.Contains(body, "SetOutPath $TEMP") {
+			t.Fatalf("%s no longer releases the payload working directory before moving it", function)
+		}
+	}
+}
+
 func TestUninstallFailureKeepsRetryRegistrationAndShortcuts(t *testing.T) {
 	source := transactionSource(t, "whaleisle.nsi")
 	uninstall := sourceRegion(t, source, `Section "Uninstall"`, "SectionEnd")

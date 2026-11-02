@@ -76,8 +76,7 @@ BrandingText "${PRODUCT_NAME} ${VERSION}"
 Section "Install"
   Call wiRememberRegistration
   Call wiBeginStage
-  SetOutPath "$INSTDIR"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR"
   File "${STAGE_DIR}\${EXE_NAME}"
   !insertmacro WI_CheckExtract
   ; Required companion, built from the same source. Never launched by NSIS.
@@ -91,12 +90,10 @@ Section "Install"
   File "${STAGE_DIR}\terminal-runtime.json"
   !insertmacro WI_CheckExtract
   ; Resources are selected at compile time, not by a build-machine path at install time.
-  SetOutPath "$INSTDIR\resources"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\resources"
   File /nonfatal /r "${STAGE_DIR}\resources\*.*"
   !insertmacro WI_CheckExtract
-  SetOutPath "$INSTDIR"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR"
 !ifndef SHELL_ONLY
 !if /FileExists "${STAGE_DIR}\.runtime-staged"
 !else
@@ -106,8 +103,7 @@ Section "Install"
 !else
   !error "Required Host runtime/node/node.exe is missing."
 !endif
-  SetOutPath "$INSTDIR\runtime"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\runtime"
 !ifdef RUNTIME_INCLUDE
   !include "${RUNTIME_INCLUDE}"
 !else
@@ -117,8 +113,7 @@ Section "Install"
   File /r "${STAGE_DIR}\runtime\*.*"
   !insertmacro WI_CheckExtract
 !endif
-  SetOutPath "$INSTDIR"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR"
 !endif
 
 !ifndef SHELL_ONLY
@@ -127,14 +122,12 @@ Section "Install"
   !error "THA4 resources not staged. Run package.ps1 with WHALEISLE_PET_RENDER_ASSETS."
 !endif
   ; Exact manifest selection only; do not package arbitrary sidecar files.
-  SetOutPath "$INSTDIR\pet-render-assets\avatar"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\pet-render-assets\avatar"
   File "${STAGE_DIR}\pet-render-assets\avatar\character.png"
   !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\avatar\model.onnx"
   !insertmacro WI_CheckExtract
-  SetOutPath "$INSTDIR\pet-render-assets\ort"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\pet-render-assets\ort"
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.mjs"
   !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort-wasm-simd-threaded.jsep.wasm"
@@ -145,18 +138,15 @@ Section "Install"
   !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\ort\ort.all.min.js"
   !insertmacro WI_CheckExtract
-  SetOutPath "$INSTDIR\pet-render-assets"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\pet-render-assets"
   File "${STAGE_DIR}\pet-render-assets\LICENSE"
   !insertmacro WI_CheckExtract
   File "${STAGE_DIR}\pet-render-assets\provenance.json"
   !insertmacro WI_CheckExtract
-  SetOutPath "$INSTDIR\pet-render-assets\ort"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR\pet-render-assets\ort"
   File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
   !insertmacro WI_CheckExtract
-  SetOutPath "$INSTDIR"
-  !insertmacro WI_CheckExtract
+  !insertmacro WI_SetPayloadOutPath "$INSTDIR"
 !endif
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"

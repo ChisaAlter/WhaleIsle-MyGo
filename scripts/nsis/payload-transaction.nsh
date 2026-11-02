@@ -50,6 +50,16 @@ Var wiHadMenuLink
   ${EndIf}
 !macroend
 
+; SetOutPath also calls SetCurrentDirectoryW, which rejects an extended-length
+; directory at MAX_PATH even when NSIS successfully creates it. Extraction only
+; needs an absolute OUTDIR; keep the process CWD out of the payload transaction.
+!macro WI_SetPayloadOutPath Path
+  ClearErrors
+  CreateDirectory "${Path}"
+  !insertmacro WI_CheckExtract
+  StrCpy $OUTDIR "${Path}"
+!macroend
+
 ; Match the original installer's long-path handling, including UNC shares.
 !macro WI_LongPath Source Destination Scratch
   StrCpy ${Destination} "${Source}"

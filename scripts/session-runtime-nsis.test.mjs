@@ -19,6 +19,8 @@ test('physical NSIS include preserves closed cyclic graph without expanding alia
   const include=path.join(root,'physical.nsh');const result=emitRuntimeInclude(stage,include);
   assert.equal(result.files,3);assert.equal(result.links,2);
   const text=fs.readFileSync(include,'utf8');assert.equal(text.split('\n').filter(line=>line.startsWith('File ')).length,3);
+   assert.match(text,/!insertmacro WI_SetPayloadOutPath "\$INSTDIR\\runtime\\vendor\\one"/);
+   assert.doesNotMatch(text,/^SetOutPath /m);
   assert.doesNotMatch(text,/File \/r/);
   const copy=path.join(root,'copy');cloneGraph(vendor,copy);assert.equal(fs.realpathSync(path.join(copy,'one/node_modules/two')),path.join(copy,'two'));
   fs.writeFileSync(path.join(copy,'extra.js'),'// untracked');assert.throws(()=>verifyGraph(copy,manifest,{exclude:['runtime-graph.json']}),/Untracked/);
