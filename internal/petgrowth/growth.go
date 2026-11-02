@@ -46,7 +46,38 @@ type Snapshot struct {
 	NextAt                                                        *int64
 }
 
+func isHashKey(k string) bool {
+	if len(k) != 64 {
+		return false
+	}
+	for i := 0; i < 64; i++ {
+		c := k[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
 func count(raw json.RawMessage) (int64, bool, error) {
+	if len(raw) > 0 && len(raw) <= 16 && (len(raw) == 1 || raw[0] != '0') {
+		var acc int64
+		allDigits := true
+		for i := 0; i < len(raw); i++ {
+			b := raw[i]
+			if b < '0' || b > '9' {
+				allDigits = false
+				break
+			}
+			acc = acc*10 + int64(b-'0')
+		}
+		if allDigits {
+			if acc > MaxCount {
+				return 0, false, errors.New("pet growth count exceeds safe integer range")
+			}
+			return acc, true, nil
+		}
+	}
 	var v any
 	if json.Unmarshal(raw, &v) != nil {
 		return 0, false, nil
@@ -118,7 +149,7 @@ func Parse(raw []byte) (State, error) {
 		g.Food = &Food{1, n, make(map[string]int64, len(seen))}
 		for k, raw := range seen {
 			n, valid, err := count(raw)
-			if !hashKey.MatchString(k) || !valid || err != nil {
+			if !isHashKey(k) || !valid || err != nil {
 				return g, errors.New("invalid pet food settlement")
 			}
 			g.Food.Seen[k] = n
@@ -141,7 +172,7 @@ func ValidateSamples(samples map[string]int64) (int64, error) {
 	}
 	var total int64
 	for k, n := range samples {
-		if !hashKey.MatchString(k) || n < 0 {
+		if !isHashKey(k) || n < 0 {
 			return 0, errors.New("invalid settlement sample")
 		}
 		var err error

@@ -55,6 +55,31 @@ func activateDraftReference(m Model, mention DraftMention) bool {
 	return true
 }
 
+// Chip editing, removal and movement share the native draft undo owner.
+func replaceDraftReference(m Model, mention DraftMention, text string) bool {
+	if m.Draft == nil {
+		return false
+	}
+	resolved, valid := resolveMention(*m.Draft, mention)
+	if !valid {
+		return false
+	}
+	if m.TextInput != nil && m.TextInput.Draft == m.Draft {
+		if _, marked := m.TextInput.MarkedRange(); marked {
+			return false
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			removeDraftReference(m, resolved)
+			return true
+		}
+		m.TextInput.ReplaceText(&ui.TextInputRange{Start: ui.UTF16Len((*m.Draft)[:resolved.Start]), End: ui.UTF16Len((*m.Draft)[:resolved.End])}, text)
+	} else {
+		*m.Draft = ReplaceDraftMention(*m.Draft, resolved, text)
+	}
+	return true
+}
+
 // Removal has its own control and remains a native draft edit with undo.
 func removeDraftReference(m Model, mention DraftMention) {
 	if m.Draft == nil || (m.State != nil && m.State.Sending) {
@@ -65,11 +90,23 @@ func removeDraftReference(m Model, mention DraftMention) {
 	if after == before {
 		return
 	}
-	if m.TextInput != nil {
+	if m.TextInput != nil && m.TextInput.Draft == m.Draft {
 		if _, marked := m.TextInput.MarkedRange(); marked {
 			return
 		}
-		m.TextInput.ReplaceText(&ui.TextInputRange{Start: 0, End: ui.UTF16Len(before)}, after)
+		resolved, valid := resolveMention(before, mention)
+		if !valid {
+			return
+		}
+		left := strings.TrimRight(before[:resolved.Start], " \t")
+		right := strings.TrimLeft(before[resolved.End:], " \t")
+		start, end, replacement := len(left), len(before)-len(right), ""
+		if left == "" {
+			start = 0
+		} else if right != "" && !strings.HasSuffix(left, "\n") && !strings.HasPrefix(right, "\n") {
+			replacement = " "
+		}
+		m.TextInput.ReplaceText(&ui.TextInputRange{Start: ui.UTF16Len(before[:start]), End: ui.UTF16Len(before[:end])}, replacement)
 	} else {
 		*m.Draft = after
 	}

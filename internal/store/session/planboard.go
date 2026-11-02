@@ -120,11 +120,13 @@ func FoldPlanBoard(rawEvents []json.RawMessage) PlanBoard {
 
 func (s *Store) applyPlanBoardEvent(raw json.RawMessage) {
 	s.mu.Lock()
+	s.invalidateViewLocked()
 	ApplyPlanBoardEvent(&s.planBoard, raw)
 	s.mu.Unlock()
 }
 
 func (s *Store) resetPlanBoardLocked() {
+	s.invalidateViewLocked()
 	s.planBoard = PlanBoard{}
 }
 

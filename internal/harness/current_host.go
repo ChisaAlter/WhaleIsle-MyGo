@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"whaleisle/internal/startuptrace"
 )
 
 const CurrentHostReadinessGuardID = "mygo-visual-readiness-v1"
@@ -142,6 +144,8 @@ func readInstalledRuntimeCapabilities(vendorDir string, bridges CurrentHostBridg
 // rc.2 runtime is proven by its own staged-session record (round146 §10.5), so
 // Project mounts on the installed runtime too.
 func ReadCurrentHostCapabilities(vendorDir string, bridges CurrentHostBridges) CurrentHostCapabilities {
+	endCaps := startuptrace.Begin("runtime.read_capabilities")
+	defer endCaps()
 	if _, err := os.Stat(filepath.Join(vendorDir, "current-host-build.json")); os.IsNotExist(err) {
 		return readInstalledRuntimeCapabilities(vendorDir, bridges)
 	}
@@ -205,20 +209,49 @@ func ReadCurrentHostCapabilities(vendorDir string, bridges CurrentHostBridges) C
 // an old current-source runtime that predates the per-operation readiness gate.
 // Legacy customized runtimes without visual-replies are left unchanged.
 func ValidateCurrentHostForLaunch(harnessRoot string) error {
+	_, err := validateCurrentHostForLaunch(harnessRoot, os.ReadFile)
+	return err
+}
+
+// currentLaunchValidationReceipt is consumed only by the adjacent vocabulary
+// check in one Resolve. Only a fully validated installed assembly issues one,
+// and it names the actual root whose registry was read, not its caller's alias.
+// It is neither retained across Prepare nor shared with another Resolve call.
+type currentLaunchValidationReceipt struct {
+	sessionRoot string
+}
+
+func validateCurrentHostForLaunch(harnessRoot string, read sessionRuntimeRegistryReader) (currentLaunchValidationReceipt, error) {
+	endValidate := startuptrace.Begin("runtime.validate.current_host")
+	defer endValidate()
 	vendorDir := filepath.Dir(harnessRoot)
 	_, manifestErr := os.Stat(filepath.Join(vendorDir, "current-host-build.json"))
 	_, visualErr := os.Stat(filepath.Join(harnessRoot, "packages", "client", "ui-visual-replies", "package.json"))
 	if os.IsNotExist(manifestErr) {
 		if _, err := os.Stat(filepath.Join(vendorDir, sessionRuntimeManifestName)); err == nil {
-			return validateStagedSessionRuntime(vendorDir)
+			if err := validateStagedSessionRuntimeWithReader(vendorDir, read); err != nil {
+				return currentLaunchValidationReceipt{}, err
+			}
+			return currentLaunchValidationReceipt{sessionRoot: filepath.Join(vendorDir, "deepseek-harness")}, nil
 		}
 	}
 	if os.IsNotExist(manifestErr) && os.IsNotExist(visualErr) {
-		return nil
+		return currentLaunchValidationReceipt{}, nil
 	}
 	c := ReadCurrentHostCapabilities(vendorDir, CurrentHostBridges{})
 	if !c.ArtifactsReady || !c.ReadinessGuardReady {
-		return fmt.Errorf("current Host cannot start: rebuild with the MyGo visual-readiness safety patch; %s", c.Reason)
+		return currentLaunchValidationReceipt{}, fmt.Errorf("current Host cannot start: rebuild with the MyGo visual-readiness safety patch; %s", c.Reason)
 	}
-	return nil
+	return currentLaunchValidationReceipt{}, nil
+}
+
+func validateLaunchRuntime(harnessRoot string, read sessionRuntimeRegistryReader) error {
+	receipt, err := validateCurrentHostForLaunch(harnessRoot, read)
+	if err != nil {
+		return err
+	}
+	if receipt.sessionRoot != "" && receipt.sessionRoot == filepath.Clean(harnessRoot) {
+		return nil
+	}
+	return validateSessionRuntimeForLaunchWithReader(harnessRoot, read)
 }

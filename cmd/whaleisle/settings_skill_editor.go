@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/store/session"
 )
@@ -40,7 +42,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 	s.settingsSkillInspectVersion++
 	ticket := s.settingsSkillInspectVersion
 	s.settingsSkillEditName = strings.TrimSpace(name)
-	s.settingsSkillsDetail = "Loading skill…"
+	s.settingsSkillsDetail = i18n.T(i18n.KeyCmdSkillLoading)
 	s.settingsSkillEditWritable = false
 	s.mu.Unlock()
 	if source == nil {
@@ -129,7 +131,7 @@ func (s *mainState) saveSettingsSkillEdit() {
 		if err != nil {
 			s.settingsSkillsLastAction = err.Error()
 		} else {
-			s.settingsSkillsLastAction = "Skill saved: " + s.settingsSkillEditName
+			s.settingsSkillsLastAction = fmt.Sprintf(i18n.T(i18n.KeyCmdSkillSaved), s.settingsSkillEditName)
 			s.settingsSkillEditWritable = false
 			s.settingsSkillEditName = ""
 			s.settingsSkillEditTarget = session.SkillEditTarget{}

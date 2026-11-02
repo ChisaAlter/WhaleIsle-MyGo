@@ -2,6 +2,7 @@ package files
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -210,5 +211,34 @@ func TestFilesReadonlySourceDoesNotAdoptEditableBuffer(t *testing.T) {
 	tester.Frame()
 	if *m.EditDraft != "readonly" || selectedTab(m).Dirty() {
 		t.Fatal("read-only source became writable")
+	}
+}
+
+func TestFilesPendingCloseDisplaysSaveError(t *testing.T) {
+	m, done := autosaveModel(t)
+	disposeSave(selectedTab(m))
+	m.OnSaveEdit = func(string, string) error {
+		return errors.New("save rejected: disk full")
+	}
+	*m.EditDraft = "dirty draft"
+	if closeTab(m, "a.txt", false) {
+		t.Fatal("dirty close should remain pending")
+	}
+	tester := ui.NewTester(func(c *ui.Context) {
+		syncSaveResults(m)
+		ui.Column(c).Fill().Children(func() {
+			paintTabs(c, m, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
+		})
+	}, 480, 180)
+	if err := tester.Click(label("保存并关闭", "Save and close")); err != nil {
+		t.Fatal(err)
+	}
+	awaitAutosave(t, done)
+	tester.Frame()
+	if tabsFor(m).PendingClose != "a.txt" {
+		t.Fatalf("PendingClose cleared after save error: %q", tabsFor(m).PendingClose)
+	}
+	if !tester.HasText("save rejected: disk full") {
+		t.Fatalf("save error not rendered in pending close prompt: %v", tester.Texts())
 	}
 }

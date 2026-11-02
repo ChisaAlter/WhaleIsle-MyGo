@@ -41,8 +41,8 @@ func TestSidebarCollapseRestore(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if sizes.Sidebar != 360 {
-		t.Fatalf("expanded width lost: %v", sizes.Sidebar)
+	if sizes.Sidebar != SidebarDefault {
+		t.Fatalf("wide reopen did not use source default: %v", sizes.Sidebar)
 	}
 	if SidebarCollapsedWidth() == 0 {
 		sizes.ToggleSidebar()
@@ -57,8 +57,8 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	}
 	tt.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
 	tt.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
-	if sizes.Sidebar != 360 {
-		t.Fatal("keyboard restore failed")
+	if sizes.Sidebar != SidebarDefault {
+		t.Fatal("keyboard restore did not use source default")
 	}
 	// Compact painted geometry, not just the solver's return value.
 	sizes.ToggleSidebar()
@@ -77,7 +77,7 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	if rail.W != collapsed || main.X != collapsed+divider {
 		t.Fatalf("rail=%+v main=%+v", rail, main)
 	}
-	// Existing resume store round-trips closed state and the original width.
+	// Resume retains closed state; explicit wide reopen uses the source default.
 	dir := t.TempDir()
 	saved, err := recovery.Open(dir)
 	if err != nil {
@@ -95,7 +95,7 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	l := reopened.Snapshot().Layout
 	resumed := LayoutSizes{Sidebar: l.Sidebar, SidebarExpanded: l.SidebarExpanded}
 	resumed.ToggleSidebar()
-	if resumed.Sidebar != 360 {
+	if resumed.Sidebar != SidebarDefault {
 		t.Fatalf("resume width=%v", resumed.Sidebar)
 	}
 	old := LayoutSizes{}
@@ -126,14 +126,14 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
 	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	owned.Type("你")
-	if resumed.Sidebar != 360 || text != "你" {
+	if resumed.Sidebar != SidebarDefault || text != "你" {
 		t.Fatal("text/IME command stolen")
 	}
 	mode = "custom"
 	owned.Frame()
 	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
 	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
-	if resumed.Sidebar != 360 || custom != 1 {
+	if resumed.Sidebar != SidebarDefault || custom != 1 {
 		t.Fatal("custom input command stolen")
 	}
 }

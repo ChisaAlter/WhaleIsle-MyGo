@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"unicode"
@@ -21,6 +22,14 @@ type SubmittedPlan struct {
 // arguments are JSON text; PTC arguments are objects. Settlement cannot rewrite
 // the plan from an earlier invocation because WithSubmittedPlanCards keeps the first.
 func SubmittedPlanFromEvent(raw json.RawMessage) (SubmittedPlan, bool) {
+	if typ, ok := peekEventType(raw); ok {
+		if typ != "tool/call" && typ != "tool/ptc-dispatch-start" && typ != "tool/ptc-dispatch" {
+			return SubmittedPlan{}, false
+		}
+	}
+	if !bytes.Contains(raw, []byte("exit_plan_mode")) && !bytes.Contains(raw, []byte(`\u`)) {
+		return SubmittedPlan{}, false
+	}
 	var event struct {
 		Type string `json:"type"`
 		Data struct {

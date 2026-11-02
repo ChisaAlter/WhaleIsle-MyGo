@@ -13,7 +13,11 @@ func TestSP43ClientModulesStatusAndRetry(t *testing.T) {
 	access := &PluginInventoryAccess{OnRefresh: func() { refreshes++ }}
 	access.OnRetryClientModules = func() { retries++; access.ClientModules.Retrying = true }
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Children(func() { pluginInventoryPane(c, access, ui.RGB(20, 20, 20), ui.RGB(80, 80, 80)) })
+		ui.Column(c).Fill().Children(func() {
+			pluginInventoryPane(c, access, ui.RGB(20, 20, 20), ui.RGB(80, 80, 80))
+			// The client modules moved under the package-management disclosure.
+			clientModulesPane(c, access, ui.RGB(20, 20, 20), ui.RGB(80, 80, 80))
+		})
 	}, 1000, 900)
 	if !strings.Contains(strings.Join(tt.Texts(), "\n"), pluginsText("客户端页面未连接。", "Client page disconnected.")) {
 		t.Fatal("no-page state was not explicit")

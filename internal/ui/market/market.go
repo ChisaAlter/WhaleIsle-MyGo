@@ -96,13 +96,13 @@ func View(c *ui.Context, m Model) {
 		}
 		body.Children(func() {
 			ui.Column(c).Gap(16).FillWidth().MaxWidth(800).MinWidth(0).Children(func() {
-				marketHeader(c, m, d, fg, muted)
+				marketHeader(c, m, d, fg, muted, border)
 				marketTabs(c, m, d.Tab, fg, muted, field)
 				if personal.Err != "" {
 					ui.Text(c, personal.Err).TextColor(accent)
 				}
 				if d.Tab == "history" {
-					if m.OnExportHistory != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Disabled(len(personal.History) == 0).Clicked() {
+					if m.OnExportHistory != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketExportInstallHistory), "Export installation history")).AlignSelf(ui.Start).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(len(personal.History) == 0).Clicked() {
 						m.OnExportHistory()
 					}
 					ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheLast200OperationsInterruptedOrUnkno), "Latest 200 operations. Interrupted or unknown means unconfirmed; refresh inventory before retrying.")).TextColor(muted)
@@ -118,7 +118,7 @@ func View(c *ui.Context, m Model) {
 						if m.Store.ManagementFilter() == "updates" && h.Action != "update" {
 							continue
 						}
-						marketHistoryRow(c, h, fg, muted, danger, border)
+						marketHistoryRow(c, h, fg, muted, field, danger, border)
 					}
 				} else if d.Tab != "installed" {
 					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
@@ -133,11 +133,11 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheRuntimeIsNotConnectedTheCatalogIs), "Runtime disconnected; the catalog remains available.")).TextColor(muted)
 					}
 					managementFilters(c, m)
-					updatesView(c, m, snap, fg, muted, accent)
+					updatesView(c, m, snap, fg, muted, border, accent)
 					if len(desktopInstalledRows(snap.Rows)) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
-					installedRows(c, m, d, snap, fg, muted, border, accent)
+					installedRows(c, m, d, snap, fg, muted, field, border, accent)
 					installSection(c, m, fg, muted, field, border, accent)
 				}
 				if m.InstallMessage != "" {
@@ -153,7 +153,7 @@ func View(c *ui.Context, m Model) {
 					}
 					ui.Text(c, text).TextColor(accent)
 					if m.CanRestart && !m.InstallBusy && !m.Activation.Restarting && m.OnRestart != nil {
-						if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketRestartRuntimeAndApply), "Restart runtime and apply")).Clicked() {
+						if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketRestartRuntimeAndApply), "Restart runtime and apply")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnRestart()
 						}
 					}
@@ -163,14 +163,14 @@ func View(c *ui.Context, m Model) {
 				if m.InstallBusy {
 					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 						ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).TextColor(muted)
-						if m.CanCancelInstall && m.OnCancelInstall != nil && ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).Clicked() {
+						if m.CanCancelInstall && m.OnCancelInstall != nil && ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnCancelInstall()
 						}
 					})
 				}
 				if m.NeedsAllowBuilds && len(m.AllowBuilds) > 0 {
 					ui.Text(c, i18n.T(i18n.KeyMarketAllowBuilds)+": "+strings.Join(m.AllowBuilds, ", ")).TextColor(fg)
-					if d.Tab != "installed" && !m.InstallBusy && m.OnInstallSpec != nil && m.InstallSpec != nil && ui.Button(c, i18n.T(i18n.KeyMarketAllowBuildsButton)).Clicked() {
+					if d.Tab != "installed" && !m.InstallBusy && m.OnInstallSpec != nil && m.InstallSpec != nil && ui.Button(c, i18n.T(i18n.KeyMarketAllowBuildsButton)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 						m.OnInstallSpec(*m.InstallSpec, append([]string(nil), m.AllowBuilds...))
 					}
 				}
@@ -178,7 +178,7 @@ func View(c *ui.Context, m Model) {
 					it := item
 					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 						ui.Text(c, it.Name+"@"+it.Version+" · runtime "+it.RuntimeVersion).TextColor(accent)
-						if !m.InstallBusy && m.OnAcceptExemption != nil && it.Name != "" && it.Version != "" && ui.Button(c, i18n.T(i18n.KeyMarketAcceptExemption)).Clicked() {
+						if !m.InstallBusy && m.OnAcceptExemption != nil && it.Name != "" && it.Version != "" && ui.Button(c, i18n.T(i18n.KeyMarketAcceptExemption)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnAcceptExemption(it.Name+"@"+it.Version, it.RuntimeVersion)
 						}
 					})
@@ -196,7 +196,7 @@ func View(c *ui.Context, m Model) {
 						if !*logOpen {
 							return
 						}
-						if m.OnCopyInstallLog != nil && ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).Clicked() {
+						if m.OnCopyInstallLog != nil && ui.Button(c, i18n.T(i18n.KeyMarketCopyLog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnCopyInstallLog(log)
 						}
 						lines := strings.Split(log, "\n")
@@ -224,15 +224,17 @@ func marketText(zh, en string) string {
 
 // marketHistoryRow is one install-history receipt: the plugin and result lead,
 // the timestamp and raw receipt follow as secondary lines.
-func marketHistoryRow(c *ui.Context, h marketstore.InstallHistory, fg, muted, danger, border ui.Color) {
+func marketHistoryRow(c *ui.Context, h marketstore.InstallHistory, fg, muted, field, danger, border ui.Color) {
 	result, color := marketHistoryResult(h.Result, fg, danger)
 	action := marketHistoryAction(h.Action)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(10, 12).Margin(0, 0, 6, 0).Radius(8).Border(.5, border).Children(func() {
+	row := ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(12, 16).Margin(0, 0, 6, 0).Radius(12).Border(.5, border)
+	chrome.GlassSurface(row, field, chrome.MaterialPanel, 12)
+	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, h.Plugin).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg).SingleLine()
-			ui.Text(c, result).FontSize(theme.InterfaceSize(11)).TextColor(color)
+			ui.Text(c, h.Plugin).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).SingleLine()
+			ui.Text(c, result).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(color)
 		})
-		ui.Text(c, h.At.Local().Format("2006-01-02 15:04")+" · "+action).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, h.At.Local().Format("2006-01-02 15:04")+" · "+action).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		if h.Error != "" && h.Error != h.Result {
 			ui.Text(c, h.Error).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted).SingleLine()
 		}
@@ -288,8 +290,8 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
 	}
 	query := d.Query
-	ui.TextInput(c, &query).FillWidth().Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
-	catalogCategories(c, m, d, fg, muted, field)
+	ui.TextInput(c, &query).FillWidth().Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
+	catalogCategories(c, m, d, fg, muted, field, border)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSort), "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		sortIDs := []string{"catalog", "stars", "newest"}
@@ -300,7 +302,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				sortLabel = sortLabels[n]
 			}
 		}
-		ui.Select(c, &sortLabel, sortLabels).Width(180).MaxWidthPercent(100).OnChange(func() {
+		ui.Select(c, &sortLabel, sortLabels).Width(180).Height(32).Radius(8).Border(.5, border).MaxWidthPercent(100).OnChange(func() {
 			for n, label := range sortLabels {
 				if label == sortLabel {
 					m.Store.SetSort(sortIDs[n])
@@ -317,7 +319,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				periodLabel = periodLabels[n]
 			}
 		}
-		ui.Select(c, &periodLabel, periodLabels).Width(180).MaxWidthPercent(100).OnChange(func() {
+		ui.Select(c, &periodLabel, periodLabels).Width(180).Height(32).Radius(8).Border(.5, border).MaxWidthPercent(100).OnChange(func() {
 			for n, label := range periodLabels {
 				if label == periodLabel {
 					m.Store.SetPeriod(periodIDs[n])
@@ -329,14 +331,15 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 	ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		if d.Page > 0 && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketPreviousPage), "Previous")).Clicked() {
+		if d.Page > 0 && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketPreviousPage), "Previous")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 			m.Store.SetPage(d.Page - 1)
 		}
-		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketNextPage), "Next")).Clicked() {
+		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketNextPage), "Next")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 			m.Store.SetPage(d.Page + 1)
 		}
 	})
 }
+
 func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item desktopmarket.CatalogItem, inventory marketstore.ViewState, fg, muted ui.Color) {
 	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
 		// The installed row keeps the button slot, disabled, so a card does not
@@ -361,8 +364,10 @@ func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item 
 }
 
 func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
-	ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMarketInstallSpecLabel)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	sec := ui.Column(c).Border(.5, border).Radius(12).Padding(14, 16).Gap(8)
+	chrome.GlassSurface(sec, field, chrome.MaterialPanel, 12)
+	sec.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMarketInstallSpecLabel)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(fg)
 		spec := ""
 		if m.InstallSpec != nil {
 			spec = strings.TrimSpace(*m.InstallSpec)
@@ -377,10 +382,10 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.InstallSpec != nil {
-				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
+				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
 			}
 			if !m.InstallBusy {
-				install := ui.Button(c, btnLabel).Height(36).Padding(0, 16).Shrink(0).Disabled(spec == "")
+				install := ui.Button(c, btnLabel).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Shrink(0).Disabled(spec == "")
 				if install.Clicked() && m.OnInstallSpec != nil && spec != "" {
 					m.OnInstallSpec(spec, allow)
 				}
@@ -431,9 +436,9 @@ func favoriteButton(c *ui.Context, m Model, id string) {
 
 // updatesView reuses catalog install receipts, so updates share build approval,
 // cancellation, runtime guards, and installation history with normal installs.
-func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, muted, accent ui.Color) {
+func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, muted, border, accent ui.Color) {
 	u := m.Store.Updates()
-	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPluginVersionUpdates), "Plugin version updates")).Bold().TextColor(fg)
+	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPluginVersionUpdates), "Plugin version updates")).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	if !m.InstallBusy && !inventory.Loading && inventory.Err == "" && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
 		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketCheckPluginUpdates), "Check plugin updates"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.CheckUpdates()
@@ -449,7 +454,7 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCheckedAt), "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketOnlyConfirmedNpmStableVersionsAreCompa), "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	batchSelectionView(c, m, u, muted)
+	batchSelectionView(c, m, u, muted, border)
 	for _, row := range u.Rows {
 		if m.Store.ManagementFilter() == "updates" && !row.Available {
 			continue
@@ -474,7 +479,7 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 				status = marketText(i18n.T(i18n.KeyW4MarketUpdateAvailable), "Update available")
 			}
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, r.Name+" · "+current+" → "+latest+" · "+status).TextColor(fg)
+				ui.Text(c, r.Name+" · "+current+" → "+latest+" · "+status).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 				if r.Reason != "" {
 					ui.Text(c, r.Reason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
@@ -484,11 +489,11 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 				if m.Store.UpdateSelected(r.ID) {
 					label = marketText(i18n.T(i18n.KeyW4MarketClearSelection), "Deselect")
 				}
-				if ui.Button(c, label).Clicked() {
+				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 					m.Store.ToggleUpdateSelected(r.ID)
 				}
 				if target, err := m.Store.CaptureUpdateTarget(r.ID); err == nil {
-					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketUpdateTo), "Update to ")+r.Latest).Clicked() {
+					if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketUpdateTo), "Update to ")+r.Latest).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 						m.OnInstallCatalog(target)
 					}
 				}

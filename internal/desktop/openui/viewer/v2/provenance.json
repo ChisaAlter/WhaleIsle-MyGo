@@ -1,0 +1,58 @@
+{
+  "runtime": "whale-ui",
+  "protocol": 2,
+  "source": {
+    "product": "deepseek-harness-desktop",
+    "version": "0.3.10",
+    "license": "MIT",
+    "digest": "295ba8ffca4711de7cc788d8ffbdd674b906554ab2863d85387b5b04859fc36e"
+  },
+  "excluded": "Open Intelligent UI application source and old viewer",
+  "assets": [
+    {
+      "name": "viewer.html",
+      "bytes": 5212832,
+      "sha256": "331a36e6c801f9902464f5a9f2e8a91006aade0e488831f502b17b0caa63284d"
+    },
+    {
+      "name": "host.cjs",
+      "bytes": 3008413,
+      "sha256": "6426d880bf894f730b5aa37b7a512a226520c57e3ad4ab3fdb05ab6471f6f501"
+    },
+    {
+      "name": "assets/mermaid.js",
+      "bytes": 3471556,
+      "sha256": "aee5b79f8796a5e074fb6269d337692efac731f9d0b18c76affb79b2243b67e5"
+    },
+    {
+      "name": "assets/three.js",
+      "bytes": 706443,
+      "sha256": "d836b5548476959ce03a4b6c6f31937b12f6f02b8e470d1ca6834ae38c49ea9d"
+    },
+    {
+      "name": "assets/echarts-core.js",
+      "bytes": 637321,
+      "sha256": "c367c82be9a9387d01b9744bf4227679762376818fcf1dfde7882d84e3fc94af"
+    },
+    {
+      "name": "assets/echarts-full.js",
+      "bytes": 1154280,
+      "sha256": "fbb1e29abf3e2fc2e8468f621a73c1a40597a52273e99fc4c285ad8b095b3a8c"
+    },
+    {
+      "name": "assets/icons.js",
+      "bytes": 969100,
+      "sha256": "57ce6803e8fd00cd163ecd5600bb2fee4580cacf79e3bf9563220a3d08b4543f"
+    },
+    {
+      "name": "assets/standalone-runtime.js",
+      "bytes": 2257455,
+      "sha256": "ddf298d06bd8d747813afbe328fc6c07f1b7832d7be6d6dbe96ba720863d92ca"
+    },
+    {
+      "name": "THIRD_PARTY_NOTICES.txt",
+      "bytes": 267602,
+      "sha256": "8a89a608419ba219f79bff1c1022df0654e6a33d92d5eec40af41df093c901b6"
+    }
+  ]
+}

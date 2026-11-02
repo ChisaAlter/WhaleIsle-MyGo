@@ -8,7 +8,7 @@ import (
 // Only the main Conversation owns this target. Sidebar, resource docks and
 // a subagent replacing the main view must not attach to its parent's draft.
 func conversationFileDrop(c *ui.Context, m Model, area ui.Element, sessionID string) {
-	if m.Store == nil || m.Store.Snapshot().SelectedID != sessionID {
+	if m.Store == nil || m.Store.SelectedSessionID() != sessionID {
 		return
 	}
 	over := composer.FileDropTarget(area, composer.Model{

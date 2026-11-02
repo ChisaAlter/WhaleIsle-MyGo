@@ -25,6 +25,6 @@ func (w *WorkspacePanes) RestoreRetainedAgentReaders(owner *session.Store, scope
 			owner.ReleaseAgentNavigationOccurrence(pane)
 			return
 		}
-		n.Agents = &WorkspaceAgentState{Owner: owner, Navigation: pane, Binding: pane.Snapshot().PlanHistoryBinding, Manager: session.NewAgentPresetManager(owner)}
+		n.Agents = &WorkspaceAgentState{Owner: owner, Navigation: pane, Binding: pane.PlanHistoryBinding(), Manager: session.NewAgentPresetManager(owner)}
 	})
 }

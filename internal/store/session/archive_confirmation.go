@@ -51,6 +51,7 @@ func (s *Store) archiveConfirmationLocked() *ArchiveConfirmation {
 
 // A new selection/Host invalidates the whole dialog, including late refusals.
 func (s *Store) invalidateArchiveLocked() {
+	s.invalidateViewLocked()
 	if s.archive.cancel != nil {
 		s.archive.cancel()
 	}
@@ -98,6 +99,7 @@ func (s *Store) ConfirmArchive(ctx context.Context, token uint64) {
 	callCtx, cancel := context.WithCancel(ctx)
 	s.archive.cancel = cancel
 	s.archive.confirmation.Busy, s.archive.confirmation.Error = true, ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go s.runArchive(callCtx, client, token, sessionID, true)
@@ -127,6 +129,7 @@ func (s *Store) runArchive(ctx context.Context, client *dsh.Client, token uint64
 		return
 	}
 	s.archive.confirmation.Busy = false
+	s.invalidateViewLocked()
 	if err != nil {
 		activity, refused := archiveRefusal(err, sessionID)
 		if refused {

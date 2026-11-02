@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -33,8 +34,10 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		return
 	}
 	blocked := m.Busy || m.PluginRPCBusy || s.Busy || !m.HarnessReady || !m.DshbotEnabled
-	ui.Column(c.Key("routine-create")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateBotRoutine)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+	card := ui.Column(c.Key("routine-create")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+	card.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateBotRoutine)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
@@ -42,17 +45,17 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if s.Draft == nil {
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewRoutine)).Disabled(blocked || !s.Loaded || s.Scope.BotID == "").Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewRoutine)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || s.Scope.BotID == "").Clicked() {
 				w.OnStart()
 			}
 			if !s.Loaded {
-				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshTheRoutineCatalogFirstEmpty)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshTheRoutineCatalogFirstEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
 			return
 		}
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantSaveScheduleContextSilentRepliesAnd)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantSaveScheduleContextSilentRepliesAnd)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		frequency := d.Frequency
 		if frequency == "" {
 			frequency = "daily"
@@ -63,7 +66,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Row(c).Gap(8).Children(func() {
 				for _, choice := range choices {
 					choice := choice
-					if ui.Button(c, routineCreateFrequencyLabel(choice)).Disabled(disabled || frequency == choice).Clicked() && w.OnChange != nil {
+					if ui.Button(c, routineCreateFrequencyLabel(choice)).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || frequency == choice).Clicked() && w.OnChange != nil {
 						w.OnChange("frequency", choice)
 					}
 				}
@@ -85,7 +88,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			ui.Row(c).Gap(8).Children(func() {
 				for _, choice := range []struct{ id, label string }{{"m", i18n.T(i18n.KeyMiscAssistantMinutes)}, {"h", i18n.T(i18n.KeyMiscAssistantHours)}, {"d", i18n.T(i18n.KeyMiscAssistantDays)}} {
 					choice := choice
-					if ui.Button(c, choice.label).Disabled(disabled || d.IntervalUnit == choice.id).Clicked() && w.OnChange != nil {
+					if ui.Button(c, choice.label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || d.IntervalUnit == choice.id).Clicked() && w.OnChange != nil {
 						w.OnChange("intervalUnit", choice.id)
 					}
 				}
@@ -100,7 +103,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 				ui.Row(c).Gap(8).Children(func() {
 					for _, choice := range choices {
 						choice := choice
-						if ui.Button(c, choice.label).Disabled(disabled || d.Weekday == choice.id).Clicked() && w.OnChange != nil {
+						if ui.Button(c, choice.label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || d.Weekday == choice.id).Clicked() && w.OnChange != nil {
 							w.OnChange("weekday", choice.id)
 						}
 					}
@@ -114,7 +117,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		for _, f := range fields {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("create-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled).OnChange(func() {
+			ui.TextInput(c.Key("create-"+f.id), &value).Label(f.label).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 				if w.OnChange != nil {
 					w.OnChange(f.id, value)
 				}
@@ -122,7 +125,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		}
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantSpecifyTheIntendedIanaTimezone)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		prompt := d.Prompt
-		ui.TextArea(c.Key("create-prompt"), &prompt).Label(i18n.T(i18n.KeyMiscAssistantNewRoutinePrompt)).Lines(4, 10).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextArea(c.Key("create-prompt"), &prompt).Label(i18n.T(i18n.KeyMiscAssistantNewRoutinePrompt)).Lines(4, 10).Radius(8).Border(.5, border).FillWidth().Disabled(disabled).OnChange(func() {
 			if w.OnChange != nil {
 				w.OnChange("prompt", prompt)
 			}
@@ -131,53 +134,53 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if d.Enabled {
 			label = i18n.T(i18n.KeyMiscAssistantNewRoutineEnabled)
 		}
-		if w.OnChange != nil && ui.Button(c, label).Disabled(disabled).Clicked() {
+		if w.OnChange != nil && ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 			w.OnChange("enabled", fmt.Sprint(!d.Enabled))
 		}
 		routineAdvancedFields(c.Key("create-advanced"), d.Advanced, s.Scope.BotID, "", w.Routines, w.OnChange, disabled, fg, muted, accent)
 		if s.Uncertain {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantThisCreationIsLockedUntilItsOutcom)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			if w.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCheckCreationOutcome)).Disabled(blocked).Clicked() {
+			if w.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCheckCreationOutcome)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				w.OnRefresh()
 			}
 			for _, row := range s.Candidates {
 				row := row
-				ui.Column(c.Key("create-candidate-" + row.ID)).Background(field).Padding(10).Gap(6).Children(func() {
+				ui.Column(c.Key("create-candidate-"+row.ID)).Background(field).Border(.5, border).Radius(12).Padding(10, 12).Gap(6).Children(func() {
 					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantNewRecord), row.Name, row.ID, row.Prompt, row.Schedule, row.Timezone, row.Enabled)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-					if w.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantUseRecord)+row.ID).Disabled(blocked).Clicked() {
+					if w.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantUseRecord)+row.ID).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 						w.OnAdopt(row.ID)
 					}
 				})
 			}
-			if s.RetryVerified && w.OnRebase != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNoNewRecordReviewAgain)).Disabled(blocked).Clicked() {
+			if s.RetryVerified && w.OnRebase != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNoNewRecordReviewAgain)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				w.OnRebase()
 			}
 		} else {
 			ui.Row(c).Gap(8).Children(func() {
-				if w.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardNewDraft)).Disabled(blocked).Clicked() {
+				if w.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardNewDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					w.OnDiscard()
 				}
-				if w.OnRebase != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRecheckCatalog)).Disabled(blocked || !s.Loaded).Clicked() {
+				if w.OnRebase != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRecheckCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded).Clicked() {
 					w.OnRebase()
 				}
-				if w.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewCreation)).Disabled(disabled || !s.Loaded).Clicked() {
+				if w.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewCreation)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !s.Loaded).Clicked() {
 					w.OnReview()
 				}
 			})
 		}
 		if s.Review != nil {
 			cmd := s.Review.Command
-			ui.Column(c.Key("create-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewCreation2)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+			ui.Column(c.Key("create-review")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(7).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewCreation2)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s\nBot: %s (%s) · Session: %s\nName: %s · revision %d\nPrompt: %s\nSchedule: %s · %s\nEnabled: %t · Max runs: %s", w.HostLabel, w.BotName, cmd.BotID, cmd.SessionID, cmd.Edit.Name, cmd.Revision, cmd.Edit.Prompt, cmd.Edit.Schedule, cmd.Edit.Timezone, cmd.Edit.Enabled, routineLimit(cmd.Edit.MaxRuns))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantFrequency)+routineCreateFrequencyLabel(frequency)+"\n"+routineCreateTimingHint(frequency)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				ui.Text(c, routineCreateImpact(cmd.Edit.Enabled)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				routineAdvancedReview(c, RoutineModel{State: dshbotstore.RoutineSnapshot{Routines: w.Routines, Busy: s.Busy}, OnAcknowledgeWatch: w.OnAcknowledgeWatch}, dshbotstore.RoutineReview{Command: pluginrpc.DshbotRoutineCommand{Action: "save", Edit: cmd.Edit, Advanced: cmd.Advanced}, Advanced: s.Review.Advanced, WorkspaceID: s.Review.WorkspaceID, WatchAcknowledged: s.Review.WatchAcknowledged}, fg, muted, accent)
 				ui.Row(c).Gap(8).Children(func() {
-					if w.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToDraft2)).Disabled(s.Busy).Clicked() {
+					if w.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToDraft2)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Busy).Clicked() {
 						w.OnDismiss()
 					}
-					if w.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)).Disabled(blocked || !s.Loaded || dshbotstore.RoutineCreateNeedsWatchAcknowledgement(*s.Review) && !s.Review.WatchAcknowledged).Clicked() {
+					if w.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || dshbotstore.RoutineCreateNeedsWatchAcknowledgement(*s.Review) && !s.Review.WatchAcknowledged).Clicked() {
 						w.OnConfirm()
 					}
 				})

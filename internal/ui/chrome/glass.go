@@ -125,9 +125,7 @@ func MaterialAlpha(m Material, p wallpapers.Preferences, dark bool) float32 {
 // materialFrost is how strongly a layer frosts the wallpaper under it, in DIPs
 // per sampled cell: 0 keeps the wallpaper as sharp as it is painted, a larger
 // cell averages it more. The harness only blurs menus (backdrop-filter:
-// blur(40px) saturate(150%)); the panels get a much lighter frost so the
-// wallpaper reads as glass instead of flat color while text still sits on a
-// quiet backdrop.
+// blur(40px) saturate(150%)); sidebar, panel, canvas and terminal do not blur.
 type materialFrost struct {
 	cell     float32
 	saturate float32
@@ -136,11 +134,7 @@ type materialFrost struct {
 func frostOf(m Material) materialFrost {
 	switch m {
 	case MaterialMenu:
-		return materialFrost{cell: 24, saturate: 1.5}
-	case MaterialSidebar:
-		return materialFrost{cell: 44, saturate: 1.1}
-	case MaterialPanel:
-		return materialFrost{cell: 48, saturate: 1.1}
+		return materialFrost{cell: 18, saturate: 1.5}
 	}
 	return materialFrost{cell: 0, saturate: 1}
 }
@@ -193,7 +187,9 @@ func BackdropFill(rect ui.Rect, base ui.Color, m Material, p wallpapers.Preferen
 	if !ok {
 		return MaterialFill(base, alpha)
 	}
-	alpha = MaterialAlphaFor(backdrop, base, m, p, dark, Color(theme.SecondaryInk(dark)))
+	if !dark && m != MaterialCanvas {
+		alpha = MaterialAlphaFor(backdrop, base, m, p, dark, Color(theme.SecondaryInk(dark)))
+	}
 	if alpha <= 0 {
 		return ui.Transparent
 	}
@@ -256,15 +252,28 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 	// (--dsw-specific-input-major is an 80% rgba in the sheets); the material
 	// decides that share here, so the slider drives it once instead of twice.
 	alpha := MaterialAlpha(m, prefs, dark)
-	if backdrop, ok := SampleBackdrop(r); ok {
-		alpha = MaterialAlphaFor(backdrop, base, m, prefs, dark, Color(theme.SecondaryInk(dark)))
+	if gradientBackdrop.frame != nil {
+		// The gradient already paints its source-composited pixels beneath the
+		// shared canvas. A raw sampled patch here would replace that canvas tint.
+		// Its raised fills retain the CSS token alpha, without image-only guards.
+		if alpha > 0 {
+			p.Fill(r, MaterialFill(base, alpha), round)
+		}
+		return
+	}
+	if !dark && m != MaterialCanvas {
+		if backdrop, ok := SampleBackdrop(r); ok {
+			alpha = MaterialAlphaFor(backdrop, base, m, prefs, dark, Color(theme.SecondaryInk(dark)))
+		}
 	}
 	if alpha <= 0 {
 		return
 	}
 	frost := frostOf(m)
 	if frost.cell > 0 {
-		if patch, ok := glassPatch(r, frost); ok {
+		if bmp, box, ok := menuFrostScreenBitmap(); ok {
+			p.Clip(r, round, func() { p.Image(bmp, box, ui.FillBox) })
+		} else if patch, ok := glassPatch(r, frost); ok {
 			// Stretched, not covered: the cells stand for exactly this rect.
 			p.Clip(r, round, func() { p.Image(patch, r, ui.FillBox) })
 		}
@@ -302,15 +311,18 @@ func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui
 
 // MenuSurface dresses e as the shared menu panel: the menu material, which
 // keeps its own fill instead of following the glass slider, the hairline border
-// and the elevation shadow. The caller keeps its width, padding and radius
-// (passed here so the glass follows the rounded corners).
+// and the elevation shadow. The caller keeps its width and padding; the radius
+// passed here is the panel's own corner, set on the element as well as given to
+// the glass, so the border, the shadow and the clip follow the same curve. A
+// panel left at the default radius drew a square border and a square shadow
+// around rounded glass: a second frame outside the menu's edge.
 //
 // The hairline is painted after the glass: a Draw callback runs after the
 // element's border, so a bordered glass panel would lose its edge under an
 // opaque fill.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	round := firstRadius(radius)
-	e = GlassSurface(e, base, MaterialMenu, round).Border(0.5, border)
+	e = GlassSurface(e.Radius(round), base, MaterialMenu, round).Border(0.5, border)
 	return MenuElevation(e.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if border.A == 0 || r.W <= 0 || r.H <= 0 {
 			return
@@ -379,7 +391,7 @@ func backdropPixels() (*image.RGBA, ui.Rect, float32, bool) {
 		return nil, ui.Rect{}, 1, false
 	}
 	keep := float32(1)
-	if !s.prefs.Transparent {
+	if gradientBackdrop.frame == nil && !s.prefs.Transparent {
 		keep = 1 - MaskAlpha(s.dark)
 	}
 	return s.pixels, s.box, keep, true
@@ -388,8 +400,18 @@ func backdropPixels() (*image.RGBA, ui.Rect, float32, bool) {
 // backdropSampler averages the prepared wallpaper. keep is the share of each
 // color the dim mask leaves (1 when nothing dims it).
 type backdropSampler struct {
-	pixels *image.RGBA
-	keep   float32
+	pixels      *image.RGBA
+	keep        float32
+	mu          sync.Mutex
+	regionCache map[image.Rectangle][3]uint8
+}
+
+var backdropSampleCache struct {
+	mu          sync.Mutex
+	pixels      *image.RGBA
+	keep        float32
+	version     uint64
+	regionCache map[image.Rectangle][3]uint8
 }
 
 func newBackdropSampler(pixels *image.RGBA, keep float32) *backdropSampler {
@@ -406,7 +428,57 @@ func (s *backdropSampler) average(box, panel ui.Rect) (ui.Color, bool) {
 	if !ok {
 		return ui.Color{}, false
 	}
-	return averagePixels(s.pixels, region, s.keep), true
+	region = region.Intersect(s.pixels.Rect)
+	if region.Empty() {
+		return ui.Color{}, true
+	}
+	s.mu.Lock()
+	if s.regionCache != nil {
+		if rgb, hit := s.regionCache[region]; hit {
+			s.mu.Unlock()
+			return ui.RGB(rgb[0], rgb[1], rgb[2]), true
+		}
+	}
+	s.mu.Unlock()
+
+	version := backgroundState.version
+	backdropSampleCache.mu.Lock()
+	if backdropSampleCache.pixels != s.pixels || backdropSampleCache.keep != s.keep || backdropSampleCache.version != version || backdropSampleCache.regionCache == nil {
+		backdropSampleCache.pixels = s.pixels
+		backdropSampleCache.keep = s.keep
+		backdropSampleCache.version = version
+		backdropSampleCache.regionCache = make(map[image.Rectangle][3]uint8, 64)
+	} else if rgb, hit := backdropSampleCache.regionCache[region]; hit {
+		backdropSampleCache.mu.Unlock()
+		s.storeRegion(region, rgb)
+		return ui.RGB(rgb[0], rgb[1], rgb[2]), true
+	}
+	backdropSampleCache.mu.Unlock()
+
+	c := averagePixels(s.pixels, region, s.keep)
+	rgb := [3]uint8{c.R, c.G, c.B}
+	s.storeRegion(region, rgb)
+
+	backdropSampleCache.mu.Lock()
+	if backdropSampleCache.pixels == s.pixels && backdropSampleCache.keep == s.keep && backdropSampleCache.version == version {
+		if len(backdropSampleCache.regionCache) >= 512 {
+			clear(backdropSampleCache.regionCache)
+		}
+		backdropSampleCache.regionCache[region] = rgb
+	}
+	backdropSampleCache.mu.Unlock()
+	return c, true
+}
+
+func (s *backdropSampler) storeRegion(region image.Rectangle, rgb [3]uint8) {
+	s.mu.Lock()
+	if s.regionCache == nil {
+		s.regionCache = make(map[image.Rectangle][3]uint8, 16)
+	} else if len(s.regionCache) >= 512 {
+		clear(s.regionCache)
+	}
+	s.regionCache[region] = rgb
+	s.mu.Unlock()
 }
 
 // patch builds a small bitmap of the wallpaper under panel: cols×rows cells,

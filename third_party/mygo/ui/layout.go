@@ -146,6 +146,10 @@ func place(e *node, x, y float32) {
 		cx -= float32(s.scrollX)
 		cy -= float32(s.scrollY - e.scrollBase)
 	}
+	if e.kind == kindText && e.first != nil && !e.isInline() {
+		placeInline(e, e, 0)
+		return
+	}
 	for ch := e.first; ch != nil; ch = ch.next {
 		// A copy of an element leaving the flow stays where the flow was.
 		if ch.flags&flagAbsolute != 0 && ch.leaving != 1 {

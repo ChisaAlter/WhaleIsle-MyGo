@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/components"
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets"
@@ -147,10 +148,13 @@ func TestStageLongComponentListScrollsWithoutMovingRail(t *testing.T) {
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{ActiveTab: TabComponents, Components: rows}) }, 1060, 660)
 	first, _ := tt.Find("Component-00")
-	rail, _ := tt.Find("WHALE ISLE")
+	rail, railFound := tt.Find(product.Name)
 	tt.Scroll(800, 450, 0, 600)
 	after, _ := tt.Find("Component-00")
-	railAfter, _ := tt.Find("WHALE ISLE")
+	railAfter, railAfterFound := tt.Find(product.Name)
+	if !railFound || !railAfterFound {
+		t.Fatalf("rail brand %q not found: before=%v after=%v", product.Name, railFound, railAfterFound)
+	}
 	if after.Y >= first.Y {
 		t.Fatalf("stage did not scroll: first=%+v after=%+v", first, after)
 	}
@@ -239,34 +243,27 @@ func TestRailRoutePopupEscapeAndOutsideDismiss(t *testing.T) {
 	}
 }
 
-func TestRailBrandHasExactChineseGlyphs(t *testing.T) {
+func TestRailBrandShowsFullProductName(t *testing.T) {
 	tt := ui.NewTester(railHead, 188, 100)
-	for _, glyph := range []string{"鲸", "屿"} {
-		if n := exactTextCount(tt, glyph); n != 1 {
-			t.Errorf("brand glyph %q count = %d, want 1; texts=%q", glyph, n, tt.Texts())
-		}
+	if n := exactTextCount(tt, product.Name); n != 1 {
+		t.Fatalf("product name count = %d, want 1; texts=%q", n, tt.Texts())
 	}
-	if exactTextCount(tt, "?") != 0 {
-		t.Errorf("brand contains literal question-mark placeholder: %q", tt.Texts())
+	for _, old := range []string{"鲸", "屿", "WHALE ISLE"} {
+		if exactTextCount(tt, old) != 0 {
+			t.Errorf("old wordmark %q remains in brand: %q", old, tt.Texts())
+		}
 	}
 }
 
-func TestBrandWordmarkStaysOnOneBaselineLine(t *testing.T) {
+func TestBrandWordmarkFitsNarrowRail(t *testing.T) {
 	tt := ui.NewTester(railHead, 164, 100)
-	cn, _ := tt.Find("鲸")
-	isle, _ := tt.Find("屿")
-	en, _ := tt.Find("WHALE ISLE")
-	role, _ := tt.Find(i18n.T(i18n.KeyLauncherBrandRole))
-	// The wordmark is the reference's "鲸屿 WHALE ISLE" lockup; 65 DIP is its
-	// width at 10 DIP with 1.2 tracking.
-	if en.H > cn.H || en.W < 65 {
-		t.Errorf("English wordmark wrapped or lost reference tracking: %+v", en)
+	name, ok := tt.Find(product.Name)
+	if !ok || name.X < 0 || name.X+name.W > 164 || name.H > 36 {
+		t.Fatalf("product name overflows narrow rail: %+v found=%v", name, ok)
 	}
-	if en.X <= isle.X || en.Y+en.H < cn.Y || en.Y > cn.Y+cn.H {
-		t.Errorf("brand runs must share a line: Chinese=%+v English=%+v", cn, en)
-	}
-	if role.Y < cn.Y+22 || role.Y > cn.Y+24 {
-		t.Errorf("role must follow22px title with1px gap: title=%+v role=%+v", cn, role)
+	role, ok := tt.Find(i18n.T(i18n.KeyLauncherBrandRole))
+	if !ok || role.Y < name.Y+name.H || role.Y+role.H > 100 {
+		t.Errorf("role must follow product name: name=%+v role=%+v", name, role)
 	}
 }
 

@@ -311,10 +311,10 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
 	}
 	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch
-	ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
+	ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
 	ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch"))
 	if s.MakeBranch {
-		ui.TextInput(c, &s.NewBranch).FillWidth().Placeholder("feature/my-change")
+		ui.TextInput(c, &s.NewBranch).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder("feature/my-change")
 	}
 	if beforeMessage != w.Message || beforeBranch != s.NewBranch || beforeMake != s.MakeBranch {
 		w.invalidateCommitReview()
@@ -323,8 +323,8 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR"))
 	if s.WantPR {
 		ui.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"))
-		ui.TextInput(c, &s.PRTitle).FillWidth().Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)"))
-		ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)"))
+		ui.TextInput(c, &s.PRTitle).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)"))
+		ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)"))
 		ui.Text(c, word("PR 使用手写文案；会展示收件仓库和目标分支，创建前要求仓库干净。", "PR text is editable. Review the recipient and base; PR creation requires a clean repository.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
 	if beforePR != s.WantPR || beforeTitle != s.PRTitle || beforeBody != s.PRBody || beforeDraft != s.PRDraft {

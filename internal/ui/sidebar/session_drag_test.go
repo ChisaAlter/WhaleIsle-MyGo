@@ -50,6 +50,7 @@ func TestSessionDragUI(t *testing.T) {
 	var moved, anchor, owner string
 	m := Model{Snapshot: session.ViewState{Items: items, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", SessionIDs: []string{"a", "b", "c"}}}}, OnMoveWorkspaceSessionBefore: func(w, id, before string) { calls++; owner = w; moved = id; anchor = before }}
 	m.Snapshot.WorkspaceLayout.HostGeneration = 7
+	m.Snapshot.WorkspaceLayout.Collapsed = map[string]bool{"ws": false}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { workspaceRowsView(c, m, items, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6), ui.Transparent) })
 	}, 300, 400)
@@ -81,7 +82,7 @@ func TestSessionDragUI(t *testing.T) {
 func TestSessionDragFlatUsesLocalCallback(t *testing.T) {
 	items := []session.Item{{SessionID: "a", Title: "Alpha"}, {SessionID: "b", Title: "Beta"}}
 	var calls int
-	m := Model{Snapshot: session.ViewState{Items: items, WorkspaceLayout: session.WorkspaceLayoutState{GroupBy: "flat", HostGeneration: 9}}, OnMoveLocalSessionBefore: func(g uint64, key, id, before string) {
+	m := Model{Snapshot: session.ViewState{Items: items, Workspaces: []session.WorkspaceRow{{WorkspaceID: "workspace", SessionIDs: []string{"a", "b"}}}, WorkspaceLayout: session.WorkspaceLayoutState{GroupBy: "flat", HostGeneration: 9}}, OnMoveLocalSessionBefore: func(g uint64, key, id, before string) {
 		if g != 9 || key != "::flat" || id != "b" || before != "a" {
 			t.Errorf("wrong local move %d %s %s %s", g, key, id, before)
 		}

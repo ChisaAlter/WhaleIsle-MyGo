@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -175,11 +176,14 @@ func TestSettingsPreferenceRowsReflowLongCopy(t *testing.T) {
 	if !ok || wide.X < 350 || wide.X+wide.W > 620 {
 		t.Fatalf("wide control geometry %v", wide)
 	}
-	// The reference Setting-Cell's selector column is about 135 DIP; the copy
-	// column owns the rest of the row. A wider fixed column (the old 180) both
-	// stretched every select and pushed descriptions into extra lines.
-	if wide.W < 130 || wide.W > 150 {
-		t.Fatalf("selector column width = %.1f DIP at x=%.1f, want the reference's ~140", wide.W, wide.X)
+	// Source Setting-Cells keep intrinsic controls flush to the row's trailing
+	// edge; a fixed 140/180 DIP control column changes the copy's wrapping.
+	if wide.W <= 0 || wide.W >= 140 || math.Abs(float64(wide.X+wide.W-596)) > .1 {
+		t.Fatalf("intrinsic selector should be positive and flush-right: %v", wide)
+	}
+	title, titleOK := tt.Find("Long preference title that must wrap without escaping its settings column")
+	if !titleOK || title.H <= 22 || title.X+title.W+48+8 > wide.X+.1 {
+		t.Fatalf("long copy did not wrap in its source text column: %+v control=%+v", title, wide)
 	}
 	tt.SetSize(340, 700)
 	narrow, ok := tt.Find("fixture-control")

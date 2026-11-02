@@ -105,9 +105,9 @@ func prepareSessionInspector(m Model, msgs []session.Message, controls map[strin
 				}
 				animation := ui.ScrollAnimation{Duration: func(d float32) time.Duration { return inspectorChatScrollDuration(d * scale) }, Ease: inspectorChatScrollEase}
 				if region := r.centerRegion; region != nil {
-					list.ScrollToRegionAnimated(i, region.top, region.height, ui.Center, animation)
+					list.ScrollToRegionAnimated(transcriptMessageRow(m, i), region.top, region.height, ui.Center, animation)
 				} else {
-					list.ScrollToAnimated(i, ui.Center, animation)
+					list.ScrollToAnimated(transcriptMessageRow(m, i), ui.Center, animation)
 				}
 				r.waiting = true
 				r.lastScroll, r.scrollMoved = r.offset, false

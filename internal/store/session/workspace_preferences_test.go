@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
@@ -30,6 +31,42 @@ func (f *fixtureWorkspacePreferences) SaveWorkspaceNavigationPreferences(key str
 	f.values[key] = cloneWorkspacePreferences(p)
 	return nil
 }
+func TestWorkspaceExpansionSurvivesArchiveFollowRestartAndWorkspaceSwitch(t *testing.T) {
+	repo := &fixtureWorkspacePreferences{values: map[string]config.WorkspaceNavigationPreferences{}}
+	baseline := json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"open","path":"/open","sessionIds":["active","archived"]},{"workspaceId":"closed","path":"/closed","sessionIds":[]}],"pinnedSessionIds":[],"archivedSessionIds":["archived"]}}`)
+	attach := func(s *Store) {
+		client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://fixture.invalid"}}
+		s.Attach(client, nil)
+		s.BindWorkspacePreferences(client, "fixture-host", repo)
+		s.applyWorkspaceFollowFrame(baseline)
+	}
+	s := New()
+	attach(s)
+	s.ToggleWorkspaceGroup("open")
+	s.ToggleWorkspaceGroup("closed")
+	if WorkspaceGroupCollapsed(s.Snapshot(), "open") || WorkspaceGroupCollapsed(s.Snapshot(), "closed") {
+		t.Fatal("first click must open both default-closed groups")
+	}
+	s.ToggleWorkspaceGroup("closed")
+	want := map[string]bool{"open": false, "closed": true}
+	check := func(store *Store, when string) {
+		t.Helper()
+		if got := store.Snapshot().WorkspaceLayout.Collapsed; !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: collapsed=%v want %v", when, got, want)
+		}
+	}
+	check(s, "before archive follow")
+	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"archived","archivedSessionIds":[]}`))
+	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"archived","archivedSessionIds":["archived"]}`))
+	check(s, "after archive follow")
+	s.SetWorkspaceCwd("/open")
+	s.SetWorkspaceCwd("/closed")
+	check(s, "after workspace selection changes")
+	restarted := New()
+	attach(restarted)
+	check(restarted, "after store restart")
+}
+
 func TestWorkspacePreferencesHostIsolationFixture(t *testing.T) {
 	repo := &fixtureWorkspacePreferences{values: map[string]config.WorkspaceNavigationPreferences{}}
 	baseline := func(s *Store, path string) {
@@ -47,6 +84,10 @@ func TestWorkspacePreferencesHostIsolationFixture(t *testing.T) {
 	old := attach(s, "host-a", "/project/a")
 	s.SetWorkspaceGrouping("workspace-tree")
 	s.SetWorkspaceOrdering("updated")
+	s.ToggleWorkspaceGroup("same-id")
+	if WorkspaceGroupCollapsed(s.Snapshot(), "same-id") {
+		t.Fatal("first click did not open the default-closed workspace")
+	}
 	s.ToggleWorkspaceGroup("same-id")
 	scopeA := s.workspacePreferences.scope
 	if len(repo.values) != 1 || repo.values[scopeA].GroupBy != "workspace-tree" || !repo.values[scopeA].Collapsed[workspacePreferenceKey(s.Snapshot().Workspaces[0])] {
@@ -76,8 +117,8 @@ func TestWorkspacePreferencesHostIsolationFixture(t *testing.T) {
 	}
 	attach(s, "host-a", "/project/a")
 	repo.fail = true
-	s.SetWorkspaceGrouping("flat")
 	s.ToggleWorkspaceGroup("same-id")
+	s.SetWorkspaceGrouping("flat")
 	layout = s.Snapshot().WorkspaceLayout
 	if layout.GroupBy != "flat" || layout.Collapsed["same-id"] || layout.PreferenceError == "" {
 		t.Fatal("save failure lost active state or error")
@@ -106,8 +147,12 @@ func TestWorkspacePreferencesHostIsolationFixture(t *testing.T) {
 	earlyClient := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://fixture.invalid"}}
 	early.Attach(earlyClient, nil)
 	early.BindWorkspacePreferences(earlyClient, "host-early", repo)
-	early.SetWorkspaceGrouping("flat")
 	early.ToggleWorkspaceGroup("::scratch")
+	if WorkspaceGroupCollapsed(early.Snapshot(), "::scratch") {
+		t.Fatal("first early click did not explicitly open scratch")
+	}
+	early.ToggleWorkspaceGroup("::scratch")
+	early.SetWorkspaceGrouping("flat")
 	baseline(early, "/project/a")
 	if got := early.Snapshot().WorkspaceLayout; got.GroupBy != "flat" || !got.Collapsed["::scratch"] {
 		t.Fatal("initial follow discarded early view edits", got)

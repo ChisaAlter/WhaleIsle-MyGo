@@ -143,10 +143,10 @@ type ListState struct {
 // at align, as little as shows it (near), to its end, or to offset y
 // (with row, when hint is set, the row to place from there).
 type listRequest struct {
-	set, end, near, offset, hint bool
-	row                          int
-	align                        Align
-	y                            float64
+	set, end, near, offset, hint, position bool
+	row                                    int
+	align                                  Align
+	y                                      float64
 }
 
 type listRowID struct {
@@ -161,6 +161,19 @@ type listRowID struct {
 func (s *ListState) ScrollTo(row int, align Align) {
 	s.StopScrollAnimation()
 	s.req = listRequest{set: true, row: row, align: align}
+}
+
+// ScrollToPosition places the top of row at y DIPs from the viewport's
+// content origin, after measuring the row. Negative y preserves a partially
+// clipped row. The content's ends limit the position, as they do ScrollTo.
+// Call it from the view after resolving the current row index; unlike an
+// absolute content offset, it needs no estimate of heights above the row.
+func (s *ListState) ScrollToPosition(row int, y float32) {
+	if math.IsNaN(float64(y)) || math.IsInf(float64(y), 0) {
+		return
+	}
+	s.StopScrollAnimation()
+	s.req = listRequest{set: true, position: true, row: row, y: float64(y)}
 }
 
 // ScrollIntoView scrolls the list as little as shows row whole, as
@@ -440,7 +453,7 @@ func (s *ListState) sync(e *node, n int) {
 		top := max(0, st.contentH-float64(st.h))
 		y := max(0, min(st.scrollY, top))
 		switch d := y - s.wroteY; {
-		case top > 0 && y >= top-0.5:
+		case top > 0 && y >= top-0.5 && (s.last == n-1 || rt.scrollDrag.st == st || d < -2*float64(st.h) || d > 2*float64(st.h)):
 			s.req = listRequest{set: true, end: true}
 		case d >= -2*float64(st.h) && d <= 2*float64(st.h):
 			s.inset += d
@@ -1150,6 +1163,8 @@ func (e *node) layoutList(w, h float32) {
 			}
 		}
 		switch {
+		case req.position:
+			ya = padTop + req.y
 		case req.near:
 			// Where the place puts it now.
 			ya = padTop + hs.top(a, gap) - (hs.top(s.anchor, gap) + s.inset)

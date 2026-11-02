@@ -8,16 +8,7 @@ import (
 )
 
 func browseArchiveFilter(m Model) string {
-	if m.BrowseArchivedFilter != nil {
-		switch *m.BrowseArchivedFilter {
-		case "hide", "show", "only":
-			return *m.BrowseArchivedFilter
-		}
-	}
-	if m.HideArchivedList {
-		return "hide"
-	}
-	return "show"
+	return sharedArchiveFilter(m)
 }
 
 func workspaceRowsStatus(c *ui.Context, m Model, fg ui.Color) {
@@ -42,12 +33,6 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 		return
 	}
 	filter := browseArchiveFilter(m)
-	if filter != "only" && (len(items) > 0 || len(m.Snapshot.Workspaces) > 0 && m.Snapshot.WorkspaceLayout.GroupBy != "flat") {
-		return
-	}
-	if filter != "hide" && len(m.Snapshot.ArchivedSessionIDs) > 0 {
-		return
-	}
 	if m.Snapshot.ListLoading || m.Snapshot.ClientReady && !m.Snapshot.WorkspaceReady {
 		ui.Text(c, workspaceText("正在加载会话…", "Loading sessions…")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 		return
@@ -56,9 +41,11 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 		ui.Text(c, workspaceText("连接后显示会话", "Connect to load sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 		return
 	}
+	if len(visibleWorkspaceGroups(m, items)) > 0 || len(archivedSectionItems(m)) > 0 {
+		return
+	}
 	margin := float32(80)
 	if filter == "only" {
-		// The archived header already introduces this state.
 		margin = 16
 	}
 	ui.Column(c.Key("workspace-empty-state")).Label("Empty sessions").FillWidth().AlignItems(ui.Center).Gap(8).Margin(margin, 0, 0, 0).Padding(0, 12).Children(func() {
@@ -89,8 +76,8 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 			text = workspaceText("暂无归档会话", "No archived sessions")
 		}
 		ui.Text(c, text).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(muted)
-		if filter == "only" && m.BrowseArchivedFilter != nil && ui.Button(c, workspaceText("查看其他会话", "View other sessions")).Padding(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).Clicked() {
-			*m.BrowseArchivedFilter = "default"
+		if filter == "only" && canSetArchiveFilter(m) && ui.Button(c, workspaceText("查看其他会话", "View other sessions")).Padding(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).Clicked() {
+			setArchiveFilter(m, "default")
 		}
 	})
 }

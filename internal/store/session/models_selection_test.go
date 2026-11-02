@@ -118,6 +118,7 @@ func TestModelProjectionUnknownMissingAndRetainedSelection(t *testing.T) {
 		t.Fatal("durable selection event not folded")
 	}
 	s.items = []Item{{SessionID: "current", Origin: "subagent"}}
+	s.fire()
 	if len(s.Snapshot().ModelLabels) != 0 {
 		t.Fatal("addressed subagent exposed Agent-bound model picker")
 	}
@@ -211,7 +212,9 @@ func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModelEffort == "Dynamic" })
 	<-requests
 	s.SelectModelEffortForSessionID(context.Background(), "current", storelocale.T(storelocale.KeyStoreSessionProviderDefault))
-	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModelEffort == storelocale.T(storelocale.KeyStoreSessionProviderDefault) })
+	waitModelSnapshot(t, s, func(v ViewState) bool {
+		return !v.ModelSelectionBusy && v.SelectedModelEffort == storelocale.T(storelocale.KeyStoreSessionProviderDefault)
+	})
 	req = <-requests
 	if _, ok := req["reasoningEffort"]; ok {
 		t.Fatal("reset to provider default must omit field")

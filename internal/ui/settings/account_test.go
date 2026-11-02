@@ -2,7 +2,10 @@ package settings
 
 import (
 	"testing"
+	"time"
 
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -36,6 +39,40 @@ func TestAccountI18nKeys(t *testing.T) {
 		}
 	}
 	i18n.SetLocale(i18n.DefaultLocale)
+}
+
+func TestAccountSignInRequiresHostAndUsesExistingCallback(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	for _, ready := range []bool{false, true} {
+		calls := 0
+		a := &AccountAccess{ClientReady: ready, OnSignIn: func() { calls++ }}
+		tt := ui.NewTester(func(c *ui.Context) {
+			ModalView(c, Model{Desktop: &DesktopAccess{}, AccountActive: true, Account: a})
+		}, 1440, 863)
+		start := time.Unix(1000, 0)
+		tt.SetTime(start)
+		tt.SetTime(start.Add(time.Second))
+		if !tt.HasText("Sign in to " + product.Name) {
+			t.Fatal("account navigation did not show the signed-out page")
+		}
+		if !ready && !tt.HasText("Connect to a Host to sign in.") {
+			t.Fatal("disconnected account page did not explain why sign-in is unavailable")
+		}
+		if ready {
+			saveBodySnapshot(t, tt, "account-ready.png")
+		} else {
+			saveBodySnapshot(t, tt, "account-disconnected.png")
+		}
+		_ = tt.Click(i18n.T(i18n.KeySettingsAccountSignIn))
+		want := 0
+		if ready {
+			want = 1
+		}
+		if calls != want {
+			t.Fatalf("Host ready=%v: sign-in calls=%d, want %d", ready, calls, want)
+		}
+	}
 }
 
 func TestAccountAccessFieldsPresent(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/harness"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) bindBotObjectiveConfigModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
@@ -96,7 +97,7 @@ func (s *mainState) bindBotObjectiveConfigModel(m *assistantui.RoutineModel, ep 
 				fresh, writable, err := read(ctx, live)
 				var out pluginrpc.DshbotCapabilityReceipt
 				if err == nil && (!writable || !pluginrpc.SameDshbotCapabilities(cmd.Expected, fresh) || fresh.WriteError != "") {
-					err = fmt.Errorf("profile, discovery or write authority changed after review")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotCapabilityReviewChanged))
 				}
 				if err == nil && live() {
 					out, err = s.pluginRPCClient(ep).DshbotSaveObjectiveConfig(ctx, cmd)

@@ -222,3 +222,30 @@ func TestDarkWallpaperMaskAndMaterialShare(t *testing.T) {
 	t.Logf("masked wallpaper=%v panel=%v own-surface=%v secondary=%.2f:1",
 		painted, panel, own, ContrastRatio(secondary, panel))
 }
+
+func TestDarkModeGlassKeepsTokenTranslucencyOverBrightWallpaper(t *testing.T) {
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	const wall = 255
+	url := pngDataURL(t, color.RGBA{R: wall, G: wall, B: wall, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	menuBase := ui.RGB(67, 69, 74)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+		ui.Box(c).Absolute().Left(0).Top(0).Width(40).Height(40).
+			Draw(Glass(menuBase, MaterialMenu, 0))
+	}, 80, 40)
+	tt.Frame()
+	got := float64(tt.Image().RGBAAt(20, 20).R)
+	under := float64(wall) * (1 - maskDark)
+	want := float64(menuBase.R)*menuSolidityDark + under*(1-menuSolidityDark)
+	if math.Abs(got-want) > 4 {
+		t.Fatalf("dark menu over bright wallpaper = %.0f, want %.0f (45%% translucency preserved)", got, want)
+	}
+	fill := BackdropFill(ui.Rect{X: 0, Y: 0, W: 40, H: 40}, menuBase, MaterialMenu, prefs, true)
+	if math.Abs(float64(fill.R)-want) > 4 {
+		t.Fatalf("dark BackdropFill over bright wallpaper = %d, want %.0f", fill.R, want)
+	}
+}

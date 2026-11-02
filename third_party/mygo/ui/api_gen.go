@@ -266,7 +266,9 @@ func (_handle *Context) Announce(text string) {
 }
 
 // CloseToast closes the toast with id, or every toast when id is empty,
-// and runs their OnClose.
+// and runs their OnClose. Closing a toast that is not showing changes nothing:
+// callers close "their" toast on every build, and a no-op close must not ask for
+// another build pass (it made every frame build three times).
 func (_handle *Context) CloseToast(id string) {
 	_ctx := _handle.build()
 	if _ctx == nil {
@@ -2875,6 +2877,24 @@ func (_handle Element) Expanded(open bool) Element {
 	return wrapElement(_node.Expanded(open))
 }
 
+// FadeHorizontal clips painting to the element's horizontal bounds and fades
+// its drawings and descendants from transparent at each edge to opaque left
+// and right DIPs inward. Zero disables that edge; negative or nonfinite values
+// disable it too. Fades wider than the element meet proportionally in its
+// middle. Layout, focus and pointer bounds do not change.
+//
+// As with Opacity, the alpha multiplies each drawing; overlapping descendants
+// do not first composite into an offscreen group. No background is painted.
+func (_handle Element) FadeHorizontal(left float32, right float32) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.FadeHorizontal(left, right))
+}
+
 // FileDragOver reports whether files dragged from another app are over
 // the element, which takes them if they are dropped, for showing it would.
 func (_handle Element) FileDragOver() bool {
@@ -3209,6 +3229,20 @@ func (_handle Element) HandleTextInput(client TextInputClient) Element {
 	return wrapElement(_node.HandleTextInput(client))
 }
 
+// HasTextSelection reports whether the current noncollapsed text selection
+// intersects this element or a descendant paragraph. Hidden, inert, disabled or
+// removed selection owners are excluded. A standalone Selectable text uses its
+// focused editor's selection. The query changes no input, focus or selection.
+func (_handle Element) HasTextSelection() bool {
+	_node := _handle.node()
+	if _node == nil {
+		return false
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return _node.HasTextSelection()
+}
+
 // Height sets the height in DIPs.
 func (_handle Element) Height(v float32) Element {
 	_node := _handle.node()
@@ -3268,6 +3302,21 @@ func (_handle Element) ID() uint64 {
 	_ctx := _node.c
 	_ = _ctx
 	return _node.ID()
+}
+
+// Inert keeps the element and its descendants painted in their layout while
+// excluding them from pointer hits, keyboard focus, semantic test labels and
+// the accessibility tree. Use it for content retained during an exit animation.
+// Disabled is separate: combine it with Inert when retained controls must also
+// reject pending input and cached accessibility actions.
+func (_handle Element) Inert(on bool) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.Inert(on))
 }
 
 // Invisible hides the element and its children, which keep their room in
@@ -3571,6 +3620,19 @@ func (_handle Element) Menu(build func(m *Menu)) Element {
 	_ctx := _node.c
 	_ = _ctx
 	return wrapElement(_node.Menu(func(m *Menu) { build(m) }))
+}
+
+// MenuOpen reports whether a menu of the element, or of an element inside it,
+// is opening or shown. Use it to retain a row's actions or suppress its hover
+// card while its menu is open. A chosen or dismissed menu no longer counts.
+func (_handle Element) MenuOpen() bool {
+	_node := _handle.node()
+	if _node == nil {
+		return false
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return _node.MenuOpen()
 }
 
 func (_handle Element) MinHeight(v float32) Element {
@@ -3998,6 +4060,21 @@ func (_handle Element) ScrollbarInsets(v ...float32) Element {
 	_ctx := _node.c
 	_ = _ctx
 	return wrapElement(_node.ScrollbarInsets(v...))
+}
+
+// ScrollbarsVisible overrides automatic scrollbar visibility for this scroll
+// container alone. False hides the bars, including on hover, and prevents
+// presses on their hidden tracks. True shows them only on overflowing axes.
+// Scrolling by wheel, touchpad and keyboard is unchanged. Without this method,
+// the theme's automatic visibility and hover behavior apply.
+func (_handle Element) ScrollbarsVisible(visible bool) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.ScrollbarsVisible(visible))
 }
 
 // Selectable lets the user select and copy text by dragging, double-clicking

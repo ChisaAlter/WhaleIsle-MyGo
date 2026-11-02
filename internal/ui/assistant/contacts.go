@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -33,25 +34,27 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			cm.OnAction(cmd)
 		}
 	}
-	ui.Column(c.Key("bot-contacts")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
+	root := ui.Column(c.Key("bot-contacts")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(root, field, chrome.MaterialPanel, 12)
+	root.Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantContacts)).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefresh)).Disabled(blocked || s.Scope == "").Clicked() && cm.OnRefresh != nil {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantContacts)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "").Clicked() && cm.OnRefresh != nil {
 				cm.OnRefresh()
 			}
 		})
 		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		if s.Notice != "" {
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		query := s.Filters.Query
-		ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().OnChange(func() { change("query", query) })
-		ui.Row(c).Gap(6).Children(func() {
+		ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).OnChange(func() { change("query", query) })
+		ui.Row(c).Gap(6).Wrap().Children(func() {
 			for _, opt := range []struct{ id, label string }{{"", i18n.T(i18n.KeyW4AssistantAll)}, {"bots", "Bot"}, {"rooms", i18n.T(i18n.KeyW4AssistantGroup)}} {
 				opt := opt
-				if ui.Button(c, opt.label).Disabled(s.Filters.Kind == opt.id).Clicked() {
+				if ui.Button(c, opt.label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Filters.Kind == opt.id).Clicked() {
 					change("kind", opt.id)
 				}
 			}
@@ -59,14 +62,14 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			if ui.Checkbox(c, &hidden, i18n.T(i18n.KeyW4AssistantShowHiddenItems)).Changed() {
 				change("hidden", fmt.Sprint(hidden))
 			}
-			if ui.Button(c, i18n.T(i18n.KeyW4AssistantClearFilters)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyW4AssistantClearFilters)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 				change("reset", "")
 			}
 		})
-		ui.Row(c).Gap(6).Children(func() {
+		ui.Row(c).Gap(6).Wrap().Children(func() {
 			for _, opt := range []struct{ id, label string }{{"", i18n.T(i18n.KeyW4AssistantAllActivity)}, {"active", i18n.T(i18n.KeyW4AssistantActive)}, {"recent", i18n.T(i18n.KeyW4AssistantLast7Days)}, {"idle", i18n.T(i18n.KeyW4AssistantIdle)}} {
 				opt := opt
-				if ui.Button(c, opt.label).Disabled(s.Filters.Activity == opt.id).Clicked() {
+				if ui.Button(c, opt.label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Filters.Activity == opt.id).Clicked() {
 					change("activity", opt.id)
 				}
 			}
@@ -75,12 +78,12 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		if len(sources) > 0 {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSource)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Column(c).Gap(4).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantAllSources)).Disabled(s.Filters.Source == "").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantAllSources)).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Filters.Source == "").Clicked() {
 					change("source", "")
 				}
 				for _, source := range sources {
 					source := source
-					if ui.Button(c, source.Label+" · "+source.ID).Disabled(s.Filters.Source == source.ID).Clicked() {
+					if ui.Button(c, source.Label+" · "+source.ID).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Filters.Source == source.ID).Clicked() {
 						change("source", source.ID)
 					}
 				}
@@ -92,34 +95,34 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		}
 		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantCatalogRevisionDDContactsDSections), s.Catalog.Revision, len(s.Catalog.Items), len(s.Catalog.Sections))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if !s.Writable {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostIsReadOnlyRightNowButConversa)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostIsReadOnlyRightNowButConversa)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		if s.Pending != nil && !s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantACatalogOperationIsAwaitingVerification)).TextColor(accent)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantACatalogOperationIsAwaitingVerification)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}
-		ui.Column(c.Key("contacts-section-editor")).Background(field).Padding(8).Gap(6).Children(func() {
+		ui.Column(c.Key("contacts-section-editor")).Background(field).Border(.5, border).Radius(12).Padding(10, 12).Gap(6).Children(func() {
 			label := i18n.T(i18n.KeyMiscAssistantNewSection)
 			if s.EditingSection != "" {
 				label = i18n.T(i18n.KeyMiscAssistantRenameSection)
 			}
 			name := s.SectionName
-			ui.TextInput(c.Key("contacts-section-name"), &name).Label(label + " (1–120)").FillWidth().Disabled(readonly).OnChange(func() { change("name", name) })
+			ui.TextInput(c.Key("contacts-section-name"), &name).Label(label+" (1–120)").FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(readonly).OnChange(func() { change("name", name) })
 			ui.Row(c).Gap(6).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantSaveSection)).Disabled(readonly || name == "").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantSaveSection)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || name == "").Clicked() {
 					kind := "create"
 					if s.EditingSection != "" {
 						kind = "rename"
 					}
 					action(pluginrpc.DshbotContactCommand{Action: kind, ID: s.EditingSection, Name: name})
 				}
-				if s.EditingSection != "" && ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelRename)).Disabled(blocked).Clicked() {
+				if s.EditingSection != "" && ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelRename)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					change("edit", "")
 				}
 			})
 		})
 		if s.Undo != nil {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantDeletedSectionSItsContactsAreKeptAnd), s.Undo.Section.Name)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreSection)).Disabled(readonly).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreSection)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 				action(pluginrpc.DshbotContactCommand{Action: "restore", Snapshot: s.Undo})
 			}
 		}
@@ -127,30 +130,32 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		count := 0
 		for index, group := range groups {
 			index, group := index, group
-			ui.Column(c.Key("contact-group-"+group.ID)).Border(1, border).Radius(6).Padding(10).Gap(6).Children(func() {
-				ui.Text(c, fmt.Sprintf("%s (%d)", group.Name, len(group.Items))).Bold().TextColor(fg)
+			grp := ui.Column(c.Key("contact-group-"+group.ID)).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+			chrome.GlassSurface(grp, field, chrome.MaterialPanel, 12)
+			grp.Children(func() {
+				ui.Text(c, fmt.Sprintf("%s (%d)", group.Name, len(group.Items))).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				if group.ID != "" {
-					ui.Row(c).Gap(6).Children(func() {
-						if ui.Button(c, i18n.T(i18n.KeyW4AssistantRename)).Disabled(readonly).Clicked() {
+					ui.Row(c).Gap(6).Wrap().Children(func() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantRename)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 							change("edit", group.ID)
 						}
-						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveUp)).Disabled(readonly || index == 0).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveUp)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || index == 0).Clicked() {
 							action(pluginrpc.DshbotContactCommand{Action: "move", ID: group.ID, Delta: -1})
 						}
-						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveDown)).Disabled(readonly || index >= len(s.Catalog.Sections)-1).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveDown)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || index >= len(s.Catalog.Sections)-1).Clicked() {
 							action(pluginrpc.DshbotContactCommand{Action: "move", ID: group.ID, Delta: 1})
 						}
-						if ui.Button(c, i18n.T(i18n.KeyW4AssistantDeleteSection)).Disabled(readonly).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyW4AssistantDeleteSection)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 							change("delete", group.ID)
 						}
 					})
 					if s.DeleteSection == group.ID {
 						ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyTheSectionIsDeletedAndEveryMember)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 						ui.Row(c).Gap(6).Children(func() {
-							if ui.Button(c, i18n.T(i18n.KeyW4AssistantConfirmSectionDeletion)).Disabled(readonly).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantConfirmSectionDeletion)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 								action(pluginrpc.DshbotContactCommand{Action: "delete", ID: group.ID})
 							}
-							if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancel)).Disabled(blocked).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancel)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 								change("delete", "")
 							}
 						})
@@ -159,7 +164,9 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 				for _, row := range group.Items {
 					row := row
 					count++
-					ui.Column(c.Key("contact-" + row.ID)).Background(field).Padding(8).Gap(5).Children(func() {
+					item := ui.Column(c.Key("contact-"+row.ID)).Border(.5, border).Radius(12).Padding(10, 12).Gap(5)
+					chrome.GlassSurface(item, field, chrome.MaterialPanel, 12)
+					item.Children(func() {
 						title := dshbotstore.ContactDisplayName(row)
 						if row.Pinned {
 							title = "★ " + title
@@ -174,64 +181,64 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 						if row.Kind == "room" {
 							kind = i18n.T(i18n.KeyW4AssistantGroup)
 						}
-						ui.Text(c, kind+" · "+title).TextColor(fg).Bold()
+						ui.Text(c, kind+" · "+title).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 						if title != row.Name && row.Kind != "room" {
-							ui.Text(c, "@"+row.Name).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, "@"+row.Name).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 						}
 						if description := pluginrpc.DshbotContactText(row, "description"); description != "" {
-							ui.Text(c, description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
+							ui.Text(c, description).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Selectable()
 						}
 						if _, label := pluginrpc.DshbotContactSource(row); label != "" {
-							ui.Text(c, i18n.T(i18n.KeyW4AssistantSource)+label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, i18n.T(i18n.KeyW4AssistantSource)+label).FontSize(fonttheme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
 						}
 						if live := cm.Activity[row.ID]; live.Active {
-							ui.Text(c, i18n.T(i18n.KeyMiscAssistantActive)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+							ui.Text(c, i18n.T(i18n.KeyMiscAssistantActive)).FontSize(fonttheme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, accent).TextColor(accent)
 						}
 						if live := cm.Activity[row.ID]; live.Unread() {
-							ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnreadCompletedResult)).TextColor(accent)
-							if ui.Button(c, i18n.T(i18n.KeyMiscAssistantMarkRead)).Disabled(readonly || cm.OnMarkRead == nil).Clicked() {
+							ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnreadCompletedResult)).FontSize(fonttheme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, accent).TextColor(accent)
+							if ui.Button(c, i18n.T(i18n.KeyMiscAssistantMarkRead)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || cm.OnMarkRead == nil).Clicked() {
 								cm.OnMarkRead(row.ID, live.ActivitySeq)
 							}
 						}
 						if preview := cm.Activity[row.ID].Preview; preview != "" {
-							ui.Text(c, preview).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+							ui.Text(c, preview).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 						}
 						for _, cached := range m.DshbotRoster {
 							if cached.ID == row.ID && cached.Detail != "" {
-								ui.Text(c, cached.Detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+								ui.Text(c, cached.Detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 								break
 							}
 						}
-						ui.Row(c).Gap(6).Children(func() {
-							if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantSelect)).Disabled(blocked || row.ID == m.DshbotSelectedID).Clicked() {
+						ui.Row(c).Gap(6).Wrap().Children(func() {
+							if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantSelect)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || row.ID == m.DshbotSelectedID).Clicked() {
 								m.OnDshbotSelect(row.ID)
 							}
-							if m.OnDshbotOpenRosterSession != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantOpenConversation)).Disabled(blocked).Clicked() {
+							if m.OnDshbotOpenRosterSession != nil && ui.Button(c, i18n.T(i18n.KeyW4AssistantOpenConversation)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 								m.OnDshbotOpenRosterSession(row.ID)
 							}
 							label := i18n.T(i18n.KeyW4AssistantPin)
 							if row.Pinned {
 								label = i18n.T(i18n.KeyW4AssistantUnpin)
 							}
-							if ui.Button(c, label).Disabled(readonly).Clicked() {
+							if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 								action(pluginrpc.DshbotContactCommand{Action: "pin", ID: row.ID, SessionID: row.SessionID, Pinned: !row.Pinned})
 							}
-							if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToSection)).Disabled(readonly).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToSection)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly).Clicked() {
 								change("assign", row.ID)
 							}
 						})
 						if s.AssignmentItem == row.ID {
 							ui.Column(c).Gap(4).Children(func() {
-								if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToUnassigned)).Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == "").Clicked() {
+								if ui.Button(c, i18n.T(i18n.KeyW4AssistantMoveToUnassigned)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == "").Clicked() {
 									action(pluginrpc.DshbotContactCommand{Action: "assign", ID: row.ID, SessionID: row.SessionID})
 								}
 								for _, section := range s.Catalog.Sections {
 									section := section
-									if ui.Button(c, section.Name).Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == section.ID).Clicked() {
+									if ui.Button(c, section.Name).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(readonly || pluginrpc.DshbotContactText(row, "sectionId") == section.ID).Clicked() {
 										action(pluginrpc.DshbotContactCommand{Action: "assign", ID: row.ID, SessionID: row.SessionID, SectionID: section.ID})
 									}
 								}
-								if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelMove)).Disabled(blocked).Clicked() {
+								if ui.Button(c, i18n.T(i18n.KeyW4AssistantCancelMove)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 									change("assign", "")
 								}
 							})
@@ -241,7 +248,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			})
 		}
 		if count == 0 {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingContacts)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingContacts)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 	})
 }

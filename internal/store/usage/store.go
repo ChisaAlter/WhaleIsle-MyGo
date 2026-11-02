@@ -112,6 +112,13 @@ func New() *Store {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	cachePath := s.statsCachePath
+	s.mu.Unlock()
+	var cachedRaw []byte
+	if client != nil && cachePath != "" {
+		cachedRaw = readStatsCacheFile(cachePath)
+	}
+	s.mu.Lock()
 	s.client = client
 	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
@@ -133,7 +140,10 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.statsCancel = nil
 	}
 	s.stats = statsState{}
-	s.restoreStatsCacheLocked()
+	if len(cachedRaw) > 0 && s.client != nil && s.statsCachePath == cachePath {
+		s.stats.Raw = cachedRaw
+		s.stats.Cached = true
+	}
 	s.resetRankingLocked()
 	s.resetBillingLocked()
 	s.resetRepairLocked()

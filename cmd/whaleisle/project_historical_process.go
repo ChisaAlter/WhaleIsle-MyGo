@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -100,7 +101,7 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 			for _, ref := range d.Selected.TerminalRefs {
 				if ref.WorkstreamID == target.WorkstreamID && ref.DelegationRef == target.DelegationRef {
 					if target.RunID != "" && target.RunID != ref.RunID {
-						f.err = "The selected delivery contains ambiguous run references."
+						f.err = i18n.T(i18n.KeyCmdProjectDeliveryAmbiguousRuns)
 						s.mu.Unlock()
 						return
 					}
@@ -129,7 +130,7 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 				for _, ref := range d.TerminalRefs {
 					if ref.WorkstreamID == target.WorkstreamID && ref.DelegationRef == target.DelegationRef {
 						if target.RunID != "" && target.RunID != ref.RunID {
-							f.err = "The selected event contains ambiguous run references."
+							f.err = i18n.T(i18n.KeyCmdProjectEventAmbiguousRuns)
 							s.mu.Unlock()
 							return
 						}

@@ -104,7 +104,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).Fill().AlignItems(ui.Center).Children(func() {
+		ui.Row(c).MinHeight(36).Padding(8, 12, 8, 12).Gap(8).FillWidth().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if m.Text != nil && strings.TrimSpace(*m.Text) != "" {
 				if widgets.Button(c, colors, i18n.T(i18n.KeyChatCopy), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
@@ -124,7 +124,7 @@ func View(c *ui.Context, m Model) {
 		if scope != "" {
 			ui.Text(c, scope).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
 		}
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).FillWidth().Height(0.5).Background(border)
 
 		root := strings.TrimSpace(m.WorkspaceRoot)
 		if root == "" {
@@ -159,8 +159,8 @@ func View(c *ui.Context, m Model) {
 			paintPatchFiles(c, m, text, diff.Style{
 				FontSize: 12,
 				FG:       fg,
-				Add:      ui.RGB(61, 153, 112),
-				Del:      ui.RGB(224, 102, 102),
+				Add:      ui.RGB(0x22, 0xc5, 0x5e),
+				Del:      ui.RGB(0xef, 0x44, 0x44),
 				Hunk:     accent,
 				File:     muted,
 				Muted:    muted,

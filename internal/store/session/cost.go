@@ -11,6 +11,7 @@ type costProjection struct {
 }
 
 func (s *Store) applyCostBaselineLocked(id string, seq float64, values json.RawMessage) {
+	s.invalidateViewLocked()
 	if id == "" {
 		return
 	}
@@ -24,6 +25,7 @@ func (s *Store) applyCostBaselineLocked(id string, seq float64, values json.RawM
 	s.costProjections[id] = costProjection{seq, sessioncost.Decode(values)}
 }
 func (s *Store) applyCostControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  float64

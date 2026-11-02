@@ -21,7 +21,7 @@ import (
 )
 
 func readPublishedHTML(s *session.Store, sessionID, attachmentID string) {
-	if s == nil || s.Snapshot().SelectedID != sessionID {
+	if s == nil || s.SelectedSessionID() != sessionID {
 		return
 	}
 	// Check on an explicit read, never on every paint. Source reading executes no
@@ -52,7 +52,7 @@ func savePublishedHTML(win *mygo.Window, s *session.Store, sessionID, attachment
 	}
 	target, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdSavePublishedHtml), DefaultPath: name})
 	if err != nil {
-		mygo.Dialog.Error("Save HTML", err.Error())
+		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), err.Error())
 		return
 	}
 	if target == "" {
@@ -64,19 +64,19 @@ func savePublishedHTML(win *mygo.Window, s *session.Store, sessionID, attachment
 		return
 	}
 	if err = os.WriteFile(target, []byte(page.HTML), 0600); err != nil {
-		mygo.Dialog.Error("Save HTML", err.Error())
+		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), err.Error())
 	}
 }
 
 // Each explicit click reuses the durable authorized read; generation preference
 // is irrelevant to reading an already-published page.
 func previewPublishedHTML(s *session.Store, sessionID, attachmentID string) {
-	if s == nil || s.Snapshot().SelectedID != sessionID {
+	if s == nil || s.SelectedSessionID() != sessionID {
 		return
 	}
 	caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 	if !caps.VisualReplyReader {
-		s.SetLastAction("Published HTML unavailable: " + caps.Reason)
+		s.SetLastAction(i18n.T(i18n.KeyCmdPublishedHtmlUnavailable) + caps.Reason)
 		return
 	}
 	go func() {
@@ -126,12 +126,12 @@ func interactivePublishedHTMLHandler(win *mygo.Window, s *session.Store, session
 		return nil
 	}
 	return func(attachmentID string) {
-		if s == nil || s.Snapshot().SelectedID != sessionID {
+		if s == nil || s.SelectedSessionID() != sessionID {
 			return
 		}
 		caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 		if !caps.VisualReplyReader {
-			s.SetLastAction("Published HTML unavailable: " + caps.Reason)
+			s.SetLastAction(i18n.T(i18n.KeyCmdPublishedHtmlUnavailable) + caps.Reason)
 			return
 		}
 		appearance := "light"

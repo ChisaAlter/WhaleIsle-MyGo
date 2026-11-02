@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -44,7 +45,15 @@ func NormalizeSkillGroups(groups []string) []string {
 }
 
 func (s *Store) RefreshSkillCatalog(ctx context.Context) {
+	s.refreshSkillCatalogForOwner(ctx, nil)
+}
+
+func (s *Store) refreshSkillCatalogForOwner(ctx context.Context, owner *workspaceSelectedOwner) {
 	s.mu.Lock()
+	if ctx.Err() != nil || (owner != nil && !owner.currentLocked(s)) {
+		s.mu.Unlock()
+		return
+	}
 	client, sid, cwd := s.client, s.selectedID, s.cwd
 	if client == nil || (s.skillCatalog.Busy && s.skillCatalogClient == client && s.skillCatalogSession == sid && s.skillCatalogCwd == cwd) {
 		s.mu.Unlock()
@@ -53,12 +62,32 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 	if s.skillCatalogClient != client || s.skillCatalogSession != sid || s.skillCatalogCwd != cwd {
 		s.skillCatalog = SkillCatalog{}
 	}
+	s.skillRefreshOnEventsReady = true
 	s.skillCatalogClient, s.skillCatalogLoading = client, true
 	s.skillCatalogSession, s.skillCatalogCwd = sid, cwd
 	s.skillCatalogVersion++
 	version := s.skillCatalogVersion
+	generation := s.eventsGeneration
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	go func() {
+		current := func() bool {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			return ctx.Err() == nil && (owner == nil || owner.currentLocked(s)) && s.eventsGeneration == generation && s.skillCatalogCurrentLocked(client, sid, cwd, version)
+		}
+		retire := func() {
+			s.mu.Lock()
+			retired := s.retireSkillCatalogReadLocked(version)
+			s.mu.Unlock()
+			if retired {
+				s.fire()
+			}
+		}
+		if !current() {
+			retire()
+			return
+		}
 		scope := api.SkillInventoryScope{}
 		if sid != "" {
 			scope.SessionId = &sid
@@ -70,6 +99,10 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 		err := client.Call(ctx, "skillInventory/list", map[string]any{"request": scope}, &inv)
 		notice := ""
 		if err != nil && (sid != "" || cwd != "") {
+			if !current() {
+				retire()
+				return
+			}
 			scope = api.SkillInventoryScope{}
 			err = client.Call(ctx, "skillInventory/list", map[string]any{"request": scope}, &inv)
 			if err == nil {
@@ -77,11 +110,16 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.client != client || s.skillCatalogVersion != version || s.selectedID != sid || s.cwd != cwd {
+		// Retire the matching read before checking its workspace/Host owner.
+		// A cwd change need not advance the version; a newer read always does.
+		retired := s.retireSkillCatalogReadLocked(version)
+		if ctx.Err() != nil || (owner != nil && !owner.currentLocked(s)) || s.eventsGeneration != generation || !s.skillCatalogCurrentLocked(client, sid, cwd, version) {
 			s.mu.Unlock()
+			if retired {
+				s.fire()
+			}
 			return
 		}
-		s.skillCatalogLoading = false
 		if err != nil {
 			s.skillCatalog.Err = err.Error()
 		} else {
@@ -93,6 +131,28 @@ func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+func (s *Store) skillCatalogCurrentLocked(client *dsh.Client, sid, cwd string, version uint64) bool {
+	return client != nil && s.client == client && s.skillCatalogClient == client &&
+		s.selectedID == sid && s.cwd == cwd && s.skillCatalogSession == sid && s.skillCatalogCwd == cwd && s.skillCatalogVersion == version
+}
+
+// Loading belongs to a read version, not the currently selected workspace.
+func (s *Store) retireSkillCatalogReadLocked(version uint64) bool {
+	if s.skillCatalogVersion != version || !s.skillCatalogLoading {
+		return false
+	}
+	s.skillCatalogLoading = false
+	s.invalidateViewLocked()
+	return true
+}
+
+func (s *Store) retireSkillCatalogMutationLocked(version uint64) {
+	if s.skillCatalogVersion == version && s.skillCatalog.Busy {
+		s.skillCatalog.Busy = false
+		s.invalidateViewLocked()
+	}
 }
 
 func (s *Store) GetCatalogSkillDetail(ctx context.Context, name string) (api.SkillInventoryDetail, error) {
@@ -136,7 +196,8 @@ func (s *Store) SetCatalogSkillInvocation(ctx context.Context, name string, enab
 func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.SkillInventorySnapshotSkillsItem) bool, enabled bool) {
 	s.mu.Lock()
 	client, scope := s.client, s.skillCatalogScope
-	if client == nil || s.skillCatalogClient != client || s.skillCatalogLoading || s.skillCatalog.Busy || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+	sid, cwd, generation := s.selectedID, s.cwd, s.eventsGeneration
+	if ctx.Err() != nil || !s.skillCatalogCurrentLocked(client, sid, cwd, s.skillCatalogVersion) || s.skillCatalogLoading || s.skillCatalog.Busy {
 		s.mu.Unlock()
 		return
 	}
@@ -156,11 +217,18 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 	s.skillCatalog.Busy = true
 	s.skillCatalog.Errors = map[string]string{}
 	s.skillCatalog.Action = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
 		failures := map[string]string{}
 		for _, sk := range targets {
+			s.mu.Lock()
+			current := ctx.Err() == nil && s.eventsGeneration == generation && s.skillCatalogCurrentLocked(client, sid, cwd, version)
+			s.mu.Unlock()
+			if !current {
+				break
+			}
 			req := api.SkillInventoryInvocationRequest{Name: sk.Name, ModelInvocable: enabled, UserInvocable: sk.UserInvocable, SessionId: scope.SessionId, Cwd: scope.Cwd}
 			var out api.SetInvocationResult
 			if err := client.Call(ctx, "skillInventory/setInvocation", map[string]any{"request": req}, &out); err != nil {
@@ -168,8 +236,12 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 			}
 		}
 		s.mu.Lock()
-		if s.skillCatalogVersion == version {
+		if s.eventsGeneration == generation && s.skillCatalogCurrentLocked(client, sid, cwd, version) {
+			s.invalidateViewLocked()
 			for _, sk := range targets {
+				if ctx.Err() != nil && failures[sk.Name] == "" {
+					failures[sk.Name] = ctx.Err().Error()
+				}
 				if failures[sk.Name] != "" {
 					for i := range s.skillCatalog.Skills {
 						if s.skillCatalog.Skills[i].Name == sk.Name {
@@ -181,6 +253,8 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 			s.skillCatalog.Errors = failures
 			s.skillCatalog.Busy = false
 			s.skillCatalog.Action = fmt.Sprintf("Skill invocation: %d updated, %d failed", len(targets)-len(failures), len(failures))
+		} else {
+			s.retireSkillCatalogMutationLocked(version)
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -192,7 +266,8 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDetail) {
 	s.mu.Lock()
 	client, scope := s.client, s.skillCatalogScope
-	if client == nil || s.skillCatalogClient != client || s.skillCatalogLoading || s.skillCatalog.Busy || !doc.Writable || doc.Name == "" || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+	sid, cwd, generation := s.selectedID, s.cwd, s.eventsGeneration
+	if ctx.Err() != nil || !s.skillCatalogCurrentLocked(client, sid, cwd, s.skillCatalogVersion) || s.skillCatalogLoading || s.skillCatalog.Busy || !doc.Writable || doc.Name == "" {
 		s.mu.Unlock()
 		return
 	}
@@ -212,9 +287,20 @@ func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDeta
 	version := s.skillCatalogVersion
 	s.skillCatalog.Busy = true
 	s.skillCatalog.Action = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
+		s.mu.Lock()
+		current := ctx.Err() == nil && s.eventsGeneration == generation && s.skillCatalogCurrentLocked(client, sid, cwd, version)
+		s.mu.Unlock()
+		if !current {
+			s.mu.Lock()
+			s.retireSkillCatalogMutationLocked(version)
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
 		req := map[string]any{"name": doc.Name, "description": doc.Description, "content": doc.Content, "groups": NormalizeSkillGroups(doc.Groups), "modelInvocable": doc.ModelInvocable, "userInvocable": doc.UserInvocable}
 		if doc.WhenToUse != nil {
 			req["whenToUse"] = *doc.WhenToUse
@@ -228,7 +314,8 @@ func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDeta
 		var out api.UpdateResult
 		err := client.Call(ctx, "skillInventory/update", map[string]any{"request": req}, &out)
 		s.mu.Lock()
-		if s.skillCatalogVersion == version {
+		if s.eventsGeneration == generation && s.skillCatalogCurrentLocked(client, sid, cwd, version) {
+			s.invalidateViewLocked()
 			s.skillCatalog.Busy = false
 			if err != nil {
 				s.skillCatalog.Action = "Skill save failed: " + err.Error()
@@ -241,6 +328,8 @@ func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDeta
 					}
 				}
 			}
+		} else {
+			s.retireSkillCatalogMutationLocked(version)
 		}
 		s.mu.Unlock()
 		s.fire()

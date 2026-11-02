@@ -32,17 +32,21 @@ func keychainKey(backend keychainBackend, dir string, create bool) ([]byte, erro
 	if errors.Is(err, errKeychainNotFound) && create {
 		key = make([]byte, 32)
 		if _, err = rand.Read(key); err != nil {
+			clear(key)
 			return nil, err
 		}
 		err = backend.add(account, key)
 		if errors.Is(err, errKeychainDuplicate) {
+			clear(key)
 			key, err = backend.get(account)
 		}
 	}
 	if err != nil {
+		clear(key)
 		return nil, err
 	}
 	if len(key) != 32 {
+		clear(key)
 		return nil, errors.New("credentials: invalid Keychain key length")
 	}
 	return key, nil

@@ -2,16 +2,15 @@ package main
 
 import "testing"
 
-// TestSystemNotificationsAllowed pins the ported platform policy: an unpackaged
-// Windows build may not touch its notification presenter, while every other
-// platform keeps notifications.
+// TestSystemNotificationsAllowed pins the native policy: registered local
+// builds and packages are supported, with isolated profiles gated separately.
 func TestSystemNotificationsAllowed(t *testing.T) {
 	cases := []struct {
 		platform string
 		dev      bool
 		want     bool
 	}{
-		{"windows", true, false},
+		{"windows", true, true},
 		{"windows", false, true},
 		{"darwin", true, true},
 		{"darwin", false, true},

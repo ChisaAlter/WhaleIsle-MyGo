@@ -55,7 +55,7 @@ func TestCrashReportRendersEverySection(t *testing.T) {
 	for _, want := range []string{
 		"source: host",
 		"phase: error",
-		"app: Whale Isle ",
+		"app: 鲸屿go ",
 		"platform: ",
 		"locale: ",
 		"shell pid: ",

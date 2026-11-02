@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"sort"
 )
@@ -27,15 +28,25 @@ type usageEvent struct {
 	Seq, Time float64
 	Data      struct {
 		Turn, Step float64
-		Usage      *usageSample      `json:"usage"`
-		Stream     []json.RawMessage `json:"stream"`
+		Usage      *usageSample    `json:"usage"`
+		Stream     json.RawMessage `json:"stream"`
 		Message    struct {
 			Source struct{ Provider, Model string }
 		} `json:"message"`
 	} `json:"data"`
 }
 
-func lastUsage(stream []json.RawMessage) *usageSample {
+type usageCacheEntry struct {
+	raw   string
+	event usageEvent
+	ok    bool
+}
+
+func lastUsage(rawStream json.RawMessage) *usageSample {
+	var stream []json.RawMessage
+	if len(rawStream) == 0 || bytes.Equal(bytes.TrimSpace(rawStream), []byte("null")) || json.Unmarshal(rawStream, &stream) != nil {
+		return nil
+	}
 	var sample *usageSample
 	chunks, _ := expandAssistantStream(stream)
 	for _, item := range chunks {
@@ -107,6 +118,53 @@ func addTurnUsage(total *TurnUsage, u TurnUsage, first bool) {
 
 // Turn accounting reads the durable lifecycle, including retry attempts which
 // have no transcript row. Usage-only or incomplete history never becomes zero.
+// trajectoryFingerprintLocked is an O(1) change detector for the builders that
+// decode every historical event. Streaming appends a message (length changes)
+// and grows the last raw payload, so length plus the tail identity detects
+// realistic mutations without hashing the whole history on every frame.
+func (s *Store) trajectoryFingerprintLocked() uint64 {
+	h := uint64(1469598103934665603)
+	mix := func(v uint64) { h ^= v; h *= 1099511628211 }
+	// Rows that exist only while a reply streams carry no journal record, so they
+	// are left out: their body grows with every chunk and would otherwise change
+	// the fingerprint, and with it every cache built from the journal, each frame.
+	durable := 0
+	var last *Message
+	for i := range s.messages {
+		if volatileMessageRow(s.messages[i]) {
+			continue
+		}
+		durable++
+		last = &s.messages[i]
+	}
+	mix(uint64(durable))
+	mix(uint64(len(s.trajectoryBoundaries)))
+	if last != nil {
+		mix(uint64(len(last.Raw)))
+		mix(uint64(len(last.Body)))
+		mix(uint64(int64(last.Seq)))
+	}
+	return h
+}
+func isUsageEventCandidate(raw json.RawMessage) bool {
+	if typ, ok := peekEventType(raw); ok {
+		switch typ {
+		case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started":
+			return true
+		default:
+			return false
+		}
+	}
+	if len(raw) <= 512 {
+		return true
+	}
+	return bytes.Contains(raw, []byte("assistant/")) ||
+		bytes.Contains(raw, []byte("turn/")) ||
+		bytes.Contains(raw, []byte("step/")) ||
+		bytes.Contains(raw, []byte("llm/retry")) ||
+		bytes.Contains(raw, []byte(`\u`))
+}
+
 func (s *Store) turnUsageLocked() map[float64]TurnUsage {
 	raws := make(map[float64]json.RawMessage, len(s.trajectoryBoundaries)+len(s.messages))
 	for seq, raw := range s.trajectoryBoundaries {
@@ -141,9 +199,25 @@ func (s *Store) turnUsageLocked() map[float64]TurnUsage {
 		attempts++
 		return true
 	}
+	if s.usageEventsCache == nil {
+		s.usageEventsCache = make(map[float64]usageCacheEntry, len(raws))
+	}
 	for _, seq := range seqs {
+		raw := raws[seq]
+		if !isUsageEventCandidate(raw) {
+			continue
+		}
 		var e usageEvent
-		if json.Unmarshal(raws[seq], &e) != nil {
+		var ok bool
+		if entry, cached := s.usageEventsCache[seq]; cached && bytes.Equal([]byte(entry.raw), raw) {
+			e, ok = entry.event, entry.ok
+		} else {
+			if json.Unmarshal(raw, &e) == nil && validRawJSONArrayOrNull(e.Data.Stream) {
+				ok = true
+			}
+			s.usageEventsCache[seq] = usageCacheEntry{raw: string(raw), event: e, ok: ok}
+		}
+		if !ok {
 			continue
 		}
 		if e.Type == "turn/start" {
@@ -216,11 +290,20 @@ func (s *Store) turnUsageLocked() map[float64]TurnUsage {
 func RecordedPerformance(messages []Message) (tokens, decodeMillis float64, steps int) {
 	seen := map[float64]bool{}
 	for _, m := range messages {
-		if m.Streaming || seen[m.Seq] {
+		if m.Streaming || seen[m.Seq] || len(m.Raw) == 0 {
+			continue
+		}
+		if m.EventType != "" && m.EventType != "assistant/message" {
+			continue
+		}
+		if typ, ok := peekEventType(m.Raw); ok && typ != "assistant/message" {
+			continue
+		}
+		if len(m.Raw) > 512 && !bytes.Contains(m.Raw, []byte("assistant/message")) && !bytes.Contains(m.Raw, []byte(`\u`)) {
 			continue
 		}
 		var e usageEvent
-		if json.Unmarshal(m.Raw, &e) != nil || e.Type != "assistant/message" {
+		if json.Unmarshal(m.Raw, &e) != nil || !validRawJSONArrayOrNull(e.Data.Stream) || e.Type != "assistant/message" {
 			continue
 		}
 		seen[m.Seq] = true

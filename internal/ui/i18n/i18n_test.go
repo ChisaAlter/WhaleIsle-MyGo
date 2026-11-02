@@ -4,15 +4,15 @@ import "testing"
 
 func TestNormalize(t *testing.T) {
 	cases := map[string]string{
-		"":       LocaleZH,
-		"zh":     LocaleZH,
-		"zh-CN":  LocaleZH,
-		"zh_CN":  LocaleZH,
-		"ZH":     LocaleZH,
-		"en":     LocaleEN,
-		"en-US":  LocaleEN,
-		"en_GB":  LocaleEN,
-		"fr":     LocaleZH, // unknown → default
+		"":      LocaleZH,
+		"zh":    LocaleZH,
+		"zh-CN": LocaleZH,
+		"zh_CN": LocaleZH,
+		"ZH":    LocaleZH,
+		"en":    LocaleEN,
+		"en-US": LocaleEN,
+		"en_GB": LocaleEN,
+		"fr":    LocaleZH, // unknown → default
 	}
 	for in, want := range cases {
 		if got := Normalize(in); got != want {
@@ -32,7 +32,7 @@ func TestTChineseAndEnglish(t *testing.T) {
 	if got := T(KeyTrayQuit); got != "退出" {
 		t.Fatalf("zh tray.quit = %q", got)
 	}
-	if got := T(KeyAppName); got != "Whale Isle" {
+	if got := T(KeyAppName); got != "鲸屿go" {
 		t.Fatalf("app.name = %q", got)
 	}
 

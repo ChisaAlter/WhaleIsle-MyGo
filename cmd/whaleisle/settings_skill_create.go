@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/settings"
@@ -51,7 +53,7 @@ func (s *mainState) openSettingsSkillCreate() {
 	state := settingsSkillCreateState{open: true, source: s.sessions, epoch: s.settingsSkillCreate.epoch + 1}
 	state.draft = settings.SkillCreateDraft{Root: session.SkillRootUser, ModelInvocable: true, UserInvocable: true}
 	if state.source == nil {
-		state.err = "Runtime disconnected"
+		state.err = i18n.T(i18n.KeyCmdRuntimeDisconnected)
 	} else {
 		var err error
 		state.target, err = state.source.SkillInventoryTarget(state.draft.Root)
@@ -136,7 +138,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 			s.settingsSkillCreate.err = err.Error()
 		} else {
 			s.invalidateSettingsSkillCreateLocked()
-			s.settingsSkillsLastAction = "Skill created: " + draft.Name
+			s.settingsSkillsLastAction = fmt.Sprintf(i18n.T(i18n.KeyCmdSkillCreated), draft.Name)
 		}
 		s.mu.Unlock()
 		if err == nil {

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	schedstore "whaleisle/internal/store/schedule"
@@ -9,6 +10,22 @@ import (
 // ScheduleCards derives root schedule_create receipts at their own completed
 // turn. It reads persisted events so history replay needs no extra Host calls.
 func ScheduleCards(messages []Message, sessionID string) map[float64][]schedstore.Entry {
+	hasScheduleCandidate := false
+	for _, m := range messages {
+		if m.Streaming || len(m.Raw) == 0 {
+			continue
+		}
+		if typ, ok := peekEventType(m.Raw); ok && typ != "tool/call" {
+			continue
+		}
+		if bytes.Contains(m.Raw, []byte("schedule_create")) || bytes.Contains(m.Raw, []byte(`\u`)) {
+			hasScheduleCandidate = true
+			break
+		}
+	}
+	if !hasScheduleCandidate {
+		return map[float64][]schedstore.Entry{}
+	}
 	type event struct {
 		Type string
 		Seq  float64
@@ -27,8 +44,18 @@ func ScheduleCards(messages []Message, sessionID string) map[float64][]schedstor
 	starts := map[float64]bool{}
 	calls := map[float64]map[string]bool{}
 	for _, m := range messages {
+		if m.Streaming || len(m.Raw) == 0 {
+			continue
+		}
+		if typ, ok := peekEventType(m.Raw); ok {
+			switch typ {
+			case "turn/start", "turn/end", "tool/call", "tool/result":
+			default:
+				continue
+			}
+		}
 		var e event
-		if m.Streaming || json.Unmarshal(m.Raw, &e) != nil || e.Data.Turn == 0 {
+		if json.Unmarshal(m.Raw, &e) != nil || e.Data.Turn == 0 {
 			continue
 		}
 		events = append(events, e)

@@ -15,6 +15,9 @@ func Shell(viewerHTML string, r Render, width int, appearance string) (string, e
 	if err := ValidateRender(r); err != nil {
 		return "", err
 	}
+	if IsWhaleViewer(viewerHTML) {
+		return whaleShell(viewerHTML, r, width, appearance)
+	}
 	if len(viewerHTML) > MaxViewerBytes || !utf8.ValidString(viewerHTML) || strings.TrimSpace(viewerHTML) == "" || width < 240 || width > 1600 || (appearance != "light" && appearance != "dark") {
 		return "", errors.New("invalid OpenUI viewer parameters")
 	}

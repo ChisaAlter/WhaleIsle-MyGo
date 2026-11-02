@@ -93,10 +93,10 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	hubOpen := ui.Local(controls, "hub-open", func() bool { return false })
 	ui.Row(c).FillWidth().MinWidth(0).Gap(12).Wrap().Children(func() {
 		ui.Column(c).Grow(1).MinWidth(180).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeySettingsSkillsTitle)).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
-			ui.Text(c, providerCopy("查找并管理用户、当前项目与捆绑技能。", "Find and manage user, current-project, and bundled skills.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsSkillsTitle)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			ui.Text(c, providerCopy("查找并管理用户、当前项目与捆绑技能。", "Find and manage user, current-project, and bundled skills.")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 		})
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			browse := skillsBrowseButton(c, i18n.T(i18n.KeySurfacesSkillsBrowseHub), muted)
 			if a.HubQuery == nil || a.OnSearchHub == nil {
 				browse = browse.Disabled(true).Opacity(0.5)
@@ -108,14 +108,14 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					*hubOpen = true
 				}
 			}
-			if (a.OnCreate != nil || a.OnOpenCreate != nil) && bodyIconAction(c, providerCopy("添加技能", "Add skill"), "plus", a.Busy) {
+			if (a.OnCreate != nil || a.OnOpenCreate != nil) && mcpHeaderIconButton(c, providerCopy("添加技能", "Add skill"), "plus", a.Busy) {
 				if a.OnOpenCreate != nil {
 					a.OnOpenCreate()
 				} else {
 					*createOpen = true
 				}
 			}
-			if bodyIconAction(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
+			if mcpHeaderIconButton(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
 				a.OnRefresh()
 			}
 		})
@@ -135,19 +135,19 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.DetailPreview != "" {
 		ui.Text(c, a.DetailPreview).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, providerCopy("取消编辑", "Cancel edit")).Disabled(a.Busy).Clicked() {
+	if a.EditName != "" && a.OnCancelEdit != nil && ui.Button(c, providerCopy("取消编辑", "Cancel edit")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
 		a.OnCancelEdit()
 	}
 	if a.EditWritable && a.EditName != "" && a.EditDesc != nil && a.EditContent != nil && a.OnSaveUpdate != nil {
 		open := true
 		bodyDialog(c, &open, providerCopy("编辑技能", "Edit skill"), func() {
-			ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-			ui.TextInput(c, a.EditDesc).FillWidth().Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
+			ui.Text(c, i18n.T(i18n.KeySettingsSkillsEditTitle)+": "+a.EditName).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+			ui.TextInput(c, a.EditDesc).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditDesc))
 			if a.EditWhenToUse != nil {
-				ui.Text(c, providerCopy("使用条件（清空以移除）", "When to use (empty removes it)")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				ui.TextArea(c, a.EditWhenToUse).FillWidth().Lines(2, 5).Disabled(a.Busy)
+				ui.Text(c, providerCopy("使用条件（清空以移除）", "When to use (empty removes it)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				ui.TextArea(c, a.EditWhenToUse).FillWidth().Lines(2, 5).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy)
 			}
-			ui.TextArea(c, a.EditContent).FillWidth().Lines(5, 16).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
+			ui.TextArea(c, a.EditContent).FillWidth().Lines(5, 16).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy).Placeholder(i18n.T(i18n.KeySettingsSkillsEditContent))
 			if a.EditModelInvocable != nil {
 				ui.Checkbox(c, a.EditModelInvocable, providerCopy("模型可调用", "Model invocable")).Disabled(a.Busy)
 			}
@@ -157,7 +157,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, providerCopy("仅保存会写入 Skill 文件；文本不会在此执行。", "Only Save writes the Skill file; text is not executed here.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if a.EditGroups != nil {
 				ui.Text(c, "Groups (comma-separated; leave empty to clear)").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				ui.TextInput(c, a.EditGroups).FillWidth().Disabled(a.Busy)
+				ui.TextInput(c, a.EditGroups).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy)
 				for _, group := range skillSections(a.Skills) {
 					if group.Name == "" {
 						continue
@@ -172,7 +172,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					if selected {
 						label = "− " + group.Name
 					}
-					if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy).Clicked() {
+					if ui.Button(c, label).AlignSelf(ui.Start).Height(28).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.Busy).Clicked() {
 						tags := []string{}
 						for _, tag := range strings.Split(*a.EditGroups, ",") {
 							tag = strings.TrimSpace(tag)
@@ -191,7 +191,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if !a.EditCanSave && !a.Busy {
 				ui.Text(c, providerCopy("草稿已保留；目标或版本已变化，请重新查看后再保存。", "Draft retained; inspect again before saving after a target, revision, or result change.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
-			if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).FontSize(fonttheme.InterfaceSize(11)).Disabled(a.Busy || !a.EditCanSave).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeySettingsSkillsSaveUpdate)).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy || !a.EditCanSave).Clicked() {
 				a.OnSaveUpdate()
 			}
 		})
@@ -200,19 +200,19 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	if a.RemovalID != 0 {
-		ui.Text(c, providerCopy("删除审阅", "Review deletion")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, a.RemovalLabel).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("删除审阅", "Review deletion")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+		ui.Text(c, a.RemovalLabel).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, a.RemovalMessage).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		if a.OnCancelRemoval != nil && ui.Button(c, providerCopy("取消", "Cancel")).Disabled(a.RemovalBusy).Clicked() {
+		if a.OnCancelRemoval != nil && ui.Button(c, providerCopy("取消", "Cancel")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.RemovalBusy).Clicked() {
 			a.OnCancelRemoval()
 		}
-		if a.OnConfirmRemoval != nil && ui.Button(c, providerCopy("确认永久删除", "Confirm permanent deletion")).Disabled(!a.RemovalReady || a.RemovalBusy).Clicked() {
+		if a.OnConfirmRemoval != nil && ui.Button(c, providerCopy("确认永久删除", "Confirm permanent deletion")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!a.RemovalReady || a.RemovalBusy).Clicked() {
 			a.OnConfirmRemoval()
 		}
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
 		if a.Query != nil {
-			ui.TextInput(c, a.Query).Grow(1).MinWidth(180).Height(32).Placeholder(providerCopy("搜索名称、描述、分组或何时使用", "Search names, descriptions, groups or when to use"))
+			ui.TextInput(c, a.Query).Grow(1).MinWidth(180).Height(36).Radius(12).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Placeholder(providerCopy("搜索名称、描述、分组或何时使用", "Search names, descriptions, groups or when to use"))
 		}
 		if a.SourceFilter != nil {
 			choices := []struct{ value, label string }{
@@ -230,7 +230,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					current = choice.label
 				}
 			}
-			if ui.Select(c, &current, options).Label("Skill source filter").Width(88).Height(32).Changed() {
+			if ui.Select(c, &current, options).Label("Skill source filter").Width(88).Height(36).Radius(18).BorderWidth(0).Background(c.Theme().Surface).FontSize(fonttheme.InterfaceSize(14)).Changed() {
 				for _, choice := range choices {
 					if current == choice.label {
 						*a.SourceFilter = choice.value
@@ -240,7 +240,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 		hasFilters := a.Query != nil && strings.TrimSpace(*a.Query) != "" || a.SourceFilter != nil && *a.SourceFilter != "" && *a.SourceFilter != "all"
-		if hasFilters && ui.Button(c, providerCopy("清除筛选", "Clear filters")).Height(36).Clicked() {
+		if hasFilters && ui.Button(c, providerCopy("清除筛选", "Clear filters")).Height(32).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			if a.Query != nil {
 				*a.Query = ""
 			}
@@ -260,7 +260,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				ui.Text(c, providerCopy("还没有可用技能", "No skills available yet")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 				ui.Text(c, i18n.T(i18n.KeySettingsSkillsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				if a.HubQuery != nil && a.OnSearchHub != nil {
-					browse := ui.Button(c, i18n.T(i18n.KeySurfacesSkillsBrowseHub)).Height(32).Padding(0, 14)
+					browse := ui.Button(c, i18n.T(i18n.KeySurfacesSkillsBrowseHub)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
 					if browse.Clicked() {
 						if a.Hub != nil && a.Hub.OnOpen != nil {
 							a.Hub.OnOpen()
@@ -321,7 +321,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if *createOpen && a.Create == nil {
 		bodyDialog(c, createOpen, providerCopy("添加技能", "Add skill"), func() {
 			if a.OnSelectRoot != nil {
-				ui.Text(c, "Create / install target").FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+				ui.Text(c, "Create / install target").FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 				ui.Row(c).Gap(8).Wrap().Children(func() {
 					userLabel, projectLabel := "User skills", "Project skills"
 					if a.TargetRoot == "project-dsh" {
@@ -329,23 +329,23 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					} else {
 						userLabel = "✓ " + userLabel
 					}
-					if ui.Button(c, userLabel).Clicked() {
+					if ui.Button(c, userLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 						a.OnSelectRoot("user-dsh")
 					}
-					if a.ProjectCwd != "" && ui.Button(c, projectLabel).Clicked() {
+					if a.ProjectCwd != "" && ui.Button(c, projectLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 						a.OnSelectRoot("project-dsh")
 					}
 				})
 				if a.TargetRoot == "project-dsh" && a.ProjectCwd != "" {
-					ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				} else if a.ProjectCwd == "" {
-					ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				}
 			}
 			if a.CreateName != nil && a.OnCreate != nil {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.TextInput(c, a.CreateName).Grow(1).Placeholder(i18n.T(i18n.KeyComposerSkillsCreateName))
-					if ui.Button(c, i18n.T(i18n.KeyComposerSkillsCreate)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+					ui.TextInput(c, a.CreateName).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeyComposerSkillsCreateName))
+					if ui.Button(c, i18n.T(i18n.KeyComposerSkillsCreate)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Clicked() {
 						name := strings.TrimSpace(*a.CreateName)
 						if name != "" {
 							a.OnCreate(name)
@@ -358,11 +358,11 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if *hubOpen && a.Hub == nil && a.HubQuery != nil && a.OnSearchHub != nil {
 		bodyDialog(c, hubOpen, providerCopy("搜索技能", "Find skills"), func() {
-			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Padding(12, 0, 0, 0)
-			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubTitle)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).Padding(12, 0, 0, 0)
+			ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, a.HubQuery).Grow(1).Placeholder(i18n.T(i18n.KeySettingsSkillsHubPlaceholder))
-				if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubSearch)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+				ui.TextInput(c, a.HubQuery).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeySettingsSkillsHubPlaceholder))
+				if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubSearch)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Clicked() {
 					a.OnSearchHub(*a.HubQuery)
 				}
 			})
@@ -387,10 +387,10 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						detail += skillStatusLabel(h.Status)
 					}
 					if detail != "" {
-						ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 					}
 					if a.OnInstallHub != nil && h.Repo != "" && h.Path != "" && h.SkillName != "" && h.Status != "installed" && h.Status != "conflict" {
-						if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubInstall)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeySettingsSkillsHubInstall)).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 							a.OnInstallHub(h.Repo, h.Path, h.SkillName)
 						}
 					}

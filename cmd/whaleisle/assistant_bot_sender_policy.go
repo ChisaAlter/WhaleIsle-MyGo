@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/harness"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) bindBotSenderPolicyModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, parentCurrent func() bool) {
@@ -121,7 +122,7 @@ func (s *mainState) bindBotSenderPolicyModel(m *assistantui.RoutineModel, ep har
 				live := func() bool { return current() && controls.Current(ticket) }
 				fresh, writable, err := read(ctx, live)
 				if err == nil && (!writable || !pluginrpc.SameDshbotSenderPolicy(cmd.Expected, fresh) || fresh.WriteError != "") {
-					err = fmt.Errorf("reviewed profile, peer identities, shared rooms or authority changed; refresh and review")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotSenderReviewChanged))
 				}
 				if err != nil || !live() || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)

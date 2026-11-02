@@ -18,7 +18,7 @@ func pass4aTester(t *testing.T, build func(c *ui.Context)) *ui.Tester {
 }
 
 // TestMCPEmptyStateIsADashedCard covers the MCP placeholder: the dashed outline,
-// both centered lines, and the two 32 DIP header actions.
+// both centered lines, and the two 28 DIP header actions.
 func TestMCPEmptyStateIsADashedCard(t *testing.T) {
 	refreshed := 0
 	edited := 0
@@ -34,8 +34,8 @@ func TestMCPEmptyStateIsADashedCard(t *testing.T) {
 		if !ok {
 			t.Fatalf("header action %q missing: %v", action, tt.Texts())
 		}
-		if rect.W != 32 || rect.H != 32 {
-			t.Fatalf("header action %q is %v×%v, want 32×32", action, rect.W, rect.H)
+		if rect.W != 28 || rect.H != 28 {
+			t.Fatalf("header action %q is %v×%v, want 28×28", action, rect.W, rect.H)
 		}
 	}
 	if err := tt.Click("Add MCP server"); err != nil {

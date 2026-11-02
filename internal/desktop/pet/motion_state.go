@@ -73,6 +73,20 @@ func wanderTarget(from motionPoint, width, height float64, bounds motionRect, fa
 	return clampMotionPoint(target, width, height, bounds)
 }
 
+// Reference wander distances and speed are CSS DIPs. Convert the entire
+// single-display calculation at this boundary; do not clamp the DPI factor
+// through the separately bounded character-size preference.
+func nativeWanderTarget(from motionPoint, width, height float64, bounds motionRect, facing int, size, dpi float64, random func() float64) motionPoint {
+	dpi = motionFinite(dpi, 1)
+	if dpi <= 0 {
+		dpi = 1
+	}
+	local := motionPoint{x: (from.x - bounds.x) / dpi, y: (from.y - bounds.y) / dpi}
+	area := motionRect{width: bounds.width / dpi, height: bounds.height / dpi}
+	target := wanderTarget(local, width/dpi, height/dpi, area, facing, size, random)
+	return motionPoint{x: bounds.x + target.x*dpi, y: bounds.y + target.y*dpi}
+}
+
 func wanderInterval(activity string, roll float64) time.Duration {
 	lo, hi := 300.0, 540.0
 	switch activity {

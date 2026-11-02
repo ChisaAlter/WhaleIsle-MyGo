@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
@@ -32,11 +33,11 @@ func (s *mainState) resolveAssistantDshbot(ctx context.Context, ep harness.Endpo
 	client := s.dshClient
 	s.dshMu.Unlock()
 	if sessions == nil || !s.assistantDshbotCurrent(ep, client) {
-		return nil, "", fmt.Errorf("Bot Host is not connected or the plugin is disabled")
+		return nil, "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotHostUnavailable))
 	}
 	botID = strings.TrimSpace(botID)
 	if botID == "" {
-		return nil, "", fmt.Errorf("select a Bot or room from the current Host roster first")
+		return nil, "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdSelectRosterBotOrRoom))
 	}
 	cli := s.pluginRPCClient(ep)
 	catalog, err := cli.DshbotDescribeTyped(ctx, botID)
@@ -51,12 +52,12 @@ func (s *mainState) resolveAssistantDshbot(ctx context.Context, ep harness.Endpo
 		}
 	}
 	if item.ID == "" {
-		return nil, "", fmt.Errorf("Bot profile is no longer available; refresh the roster")
+		return nil, "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotProfileUnavailable))
 	}
 	if !s.assistantDshbotCurrent(ep, client) {
 		return nil, "", fmt.Errorf("Host connection changed; refresh the roster")
 	}
-	sid, err := cli.DshbotOpen(ctx, item, catalog.View.Revision, sessions.Snapshot().ScratchCwd)
+	sid, err := cli.DshbotOpen(ctx, item, catalog.View.Revision, sessions.ScratchCwd())
 	if err != nil {
 		return nil, "", err
 	}

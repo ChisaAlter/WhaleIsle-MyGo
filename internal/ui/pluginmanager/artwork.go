@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/widgets"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
 	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 //go:embed assets/*.svg
@@ -112,6 +112,9 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		w, _ := c.Size()
 		ui.PopoverBase(c.Key("plugin-add-menu"), trigger, opened, func(panel ui.Element) {
 			panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), w-48))).Padding(6).Gap(2).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12))
+			if m.OnNativeOverlay != nil {
+				m.OnNativeOverlay(true)
+			}
 			panel.Children(func() {
 				entryWithHint := func(title, description string, enabled bool, hint string, action func()) {
 					row := ui.ButtonBase(c).FillWidth().Height(72).Padding(6, 12).Role(ui.RoleMenuItem).Label(title).Disabled(!enabled)

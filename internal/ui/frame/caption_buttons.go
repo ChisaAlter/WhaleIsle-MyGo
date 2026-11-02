@@ -11,11 +11,19 @@ import (
 )
 
 // captionButtonSize and the three right offsets are the native hit geometry:
-// 32x32 at Top 8 (native y=8, h=32, bottom 40), measured from the right edge (close 8, maximize 40,
+// 32x32 at Top 12, measured from the right edge (close 8, maximize 40,
 // minimize 72).
+//
+// The top is the plate's own content row, not the window edge: the injected
+// caption (`#dshd-shell-controls`, harness-chrome-inject.js:11,88-89,96-97) is
+// 48 DIP tall with `padding: 12px 8px 4px` and `align-items: center` around a
+// 32-DIP button, so the button occupies y=12..44 and leaves the reference's
+// 4-DIP bottom inset. Drawing at 8 would float the trio 4 DIP above the native
+// row and above the Win32 overlay, which is created with the same Top 12
+// (cmd/whaleisle/main.go WindowsCaptionButtons).
 const (
 	captionButtonSize = 32
-	captionButtonTop  = 8
+	captionButtonTop  = 12
 )
 
 // captionCloseHover is the close button's hover fill: #e81123 with a white
@@ -46,7 +54,7 @@ func captionWindowButtons(c *ui.Context, ink ui.Color) {
 		// macOS and Linux keep their own window controls.
 		return
 	}
-	if c.TitleBar().Right > 130 {
+	if c.TitleBar().Right >= 96 {
 		return
 	}
 	win := mygo.FocusedWindow()

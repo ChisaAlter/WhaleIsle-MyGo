@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/harness"
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -58,7 +59,7 @@ func TestViewBootLabels(t *testing.T) {
 	// serif wordmark, the island's mark and the harness line; the foot ticker
 	// counts the log lines it holds.
 	want := []string{
-		"Whale Isle",
+		product.Name,
 		brandMark,
 		"BASED ON DEEPSEEK HARNESS",
 		i18n.T(KeyStarting),

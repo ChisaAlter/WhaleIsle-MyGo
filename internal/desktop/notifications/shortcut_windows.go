@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -13,7 +14,11 @@ import (
 var (
 	ole32                = syscall.NewLazyDLL("ole32.dll")
 	procCoInitializeEx   = ole32.NewProc("CoInitializeEx")
+	procCoUninitialize   = ole32.NewProc("CoUninitialize")
 	procCoCreateInstance = ole32.NewProc("CoCreateInstance")
+	procPropVariantClear = ole32.NewProc("PropVariantClear")
+	shortcutShell32      = syscall.NewLazyDLL("shell32.dll")
+	procSetProcessAppID  = shortcutShell32.NewProc("SetCurrentProcessExplicitAppUserModelID")
 )
 
 const (
@@ -58,6 +63,7 @@ var (
 // AddRef and Release on every interface.
 type comPtr struct{ vtbl *[32]uintptr }
 
+//go:uintptrescapes
 func (c *comPtr) call(index int, args ...uintptr) uintptr {
 	all := append([]uintptr{uintptr(unsafe.Pointer(c))}, args...)
 	hr, _, _ := syscall.SyscallN((*c.vtbl)[index], all...)
@@ -89,14 +95,41 @@ func (c *comPtr) release() {
 // createShortcut writes (or overwrites) the Start-menu link and sets its
 // System.AppUserModel.ID, the identity Windows uses to name toasts.
 func createShortcut(lnk, target, appID string) error {
+	if lnk != "" {
+		if info, err := os.Lstat(lnk); err == nil {
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("notifications: existing shortcut is not a regular file")
+			}
+			d, err := readShortcut(lnk)
+			if err != nil {
+				return err
+			}
+			if d.AppID != appID || !sameShortcutTarget(d.Target, target) || d.Args != "" || d.IconIndex != 0 || (d.Icon != "" && !sameShortcutTarget(d.Icon, d.Target)) || (d.HasActivator && d.Activator != toastActivatorGUID) {
+				return fmt.Errorf("notifications: preserving an existing foreign or customized shortcut")
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return writeShortcut(lnk, target, appID, true)
+}
+
+func writeShortcut(lnk, target, appID string, setProcessID bool) error {
 	if lnk == "" || target == "" || appID == "" {
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(lnk), 0o755); err != nil {
 		return err
 	}
-	// RPC_E_CHANGED_MODE is fine: the thread already lives in another apartment.
-	_, _, _ = procCoInitializeEx.Call(0, coinitApartment)
+	// Every interface below belongs to this apartment for its full lifetime.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	initHR, _, _ := procCoInitializeEx.Call(0, coinitApartment)
+	if int32(initHR) >= 0 {
+		defer procCoUninitialize.Call()
+	} else if uint32(initHR) != 0x80010106 /* RPC_E_CHANGED_MODE */ {
+		return hresultErr(initHR)
+	}
 
 	var unknown unsafe.Pointer
 	hr, _, _ := procCoCreateInstance.Call(
@@ -142,9 +175,21 @@ func createShortcut(lnk, target, appID string) error {
 	if err != nil {
 		return err
 	}
+	// AUMID is process-wide and is needed by CreateToastNotifierWithId.
+	// Set it only after link creation succeeded so failures are observable.
+	if setProcessID {
+		if hr, _, _ := procSetProcessAppID.Call(uintptr(unsafe.Pointer(id16))); hresultErr(hr) != nil {
+			return hresultErr(hr)
+		}
+	}
 	value := propVariant{VT: vtLPWStr, P: unsafe.Pointer(id16)}
 	if hr := props.call(6 /* SetValue */, uintptr(unsafe.Pointer(&appUserModelIDKey)), uintptr(unsafe.Pointer(&value))); hresultErr(hr) != nil {
 		return hresultErr(hr)
+	}
+	if setProcessID {
+		if err := setToastActivatorProperty(props); err != nil {
+			return err
+		}
 	}
 	if hr := props.call(7 /* Commit */); hresultErr(hr) != nil {
 		return hresultErr(hr)

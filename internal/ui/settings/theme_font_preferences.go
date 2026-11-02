@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -22,72 +23,98 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 	if e == nil {
 		return
 	}
-	border := theme.Color(colors.Border)
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, providerCopy("主题", "Themes")).FillWidth().FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
-			ui.Text(c, providerCopy("浅色与深色各选一个主题，卡片上半为浅色预览，下半为深色预览。", "Pick one theme for each color scheme; each card previews its light half above and dark half below.")).
-				FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
-		})
-		if widgets.Button(c, colors, providerCopy("创建主题", "Create theme"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: e.OnSave == nil}).Clicked() {
-			e.StartFamily(e.Saved.DuplicateFamily(e.Saved.Family(e.Saved.Dark)))
-		}
-		importDisabled := e.OnSave == nil || e.OnImport == nil
-		importButton := widgets.Button(c, colors, providerCopy("导入主题", "Import theme"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: importDisabled})
-		if importDisabled {
-			importButton.Tooltip(providerCopy("此构建未接入主题文件导入", "Theme file import is not wired in this build"))
-		}
-		if !importDisabled && importButton.Clicked() {
-			raw, err := e.OnImport()
-			if err != nil {
-				e.Status = err.Error()
-			} else if raw != "" {
-				if family, err := e.Saved.ImportFamily(raw); err != nil {
-					e.Status = err.Error()
-				} else {
-					e.Draft = e.Saved.Clone()
-					e.Draft.Custom = append(e.Draft.Custom, family)
-					e.Save()
+	// Installed ThemeLibrary / AppearanceSection.module.css: the library is
+	// one 12px-spaced group. A pane's row spacing must not also enter the grid.
+	library := ui.Column(c.Key("theme-library")).FillWidth().MinWidth(0).Gap(12)
+	library.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, providerCopy("主题", "Themes")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			ui.Row(c).Wrap().Gap(8).Children(func() {
+				if widgets.Button(c, colors, providerCopy("创建主题", "Create theme"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: e.OnSave == nil}).Clicked() {
+					e.StartFamily(e.Saved.DuplicateFamily(e.Saved.Family(e.Saved.Dark)))
 				}
-			}
-		}
-	})
-	grid := ui.Grid(c.Key("theme-grid")).FillWidth().MinWidth(0).Gap(12)
-	grid.Columns(2).Children(func() {
-		for _, f := range e.Draft.Families() {
-			family := f
-			currentLight := e.Draft.Light == family.ID
-			currentDark := e.Draft.Dark == family.ID
-			card := ui.Column(c.Key("theme-card-"+family.ID)).MinWidth(0).Gap(0).Radius(10).Clip().Border(.5, border)
-			if currentLight || currentDark {
-				card.Border(1.5, fg)
-			}
-			card.Children(func() {
-				ui.Row(c).FillWidth().Height(92).Children(func() {
-					themePreviewHalf(c, family, family.Light, "light", currentLight, e.OnSave == nil, muted, func() {
-						e.SelectThemeHalf(false, family.ID)
-					})
-					themePreviewHalf(c, family, family.Dark, "dark", currentDark, e.OnSave == nil, muted, func() {
-						e.SelectThemeHalf(true, family.ID)
-					})
-				})
-				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-					if currentLight || currentDark {
-						status := providerCopy("当前主题", "Current theme")
-						switch {
-						case currentLight && !currentDark:
-							status = providerCopy("当前浅色", "Current light")
-						case currentDark && !currentLight:
-							status = providerCopy("当前深色", "Current dark")
+				importDisabled := e.OnSave == nil || e.OnImport == nil
+				importButton := widgets.Button(c, colors, providerCopy("导入主题", "Import theme"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: importDisabled})
+				if importDisabled {
+					importButton.Tooltip(providerCopy("此构建未接入主题文件导入", "Theme file import is not wired in this build"))
+				}
+				if !importDisabled && importButton.Clicked() {
+					raw, err := e.OnImport()
+					if err != nil {
+						e.Status = err.Error()
+					} else if raw != "" {
+						if family, err := e.Saved.ImportFamily(raw); err != nil {
+							e.Status = err.Error()
+						} else {
+							e.Draft = e.Saved.Clone()
+							e.Draft.Custom = append(e.Draft.Custom, family)
+							e.Save()
 						}
-						// One family can supply both schemes; state it once
-						// instead of drawing a check on each half.
-						ui.Text(c, status).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					}
-				})
+				}
 			})
-		}
+		})
+		grid := ui.Grid(c.Key("theme-grid")).FillWidth().MinWidth(0).Gap(14)
+		width := grid.Bounds().W
+		grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+			if bounds.W != width {
+				c.Invalidate()
+			}
+		})
+		columns := max(1, int((width+14)/214)) // repeat(auto-fill, minmax(200px, 1fr))
+		grid.Columns(columns).Children(func() {
+			for _, f := range e.Draft.Families() {
+				family := f
+				currentLight := e.Draft.Light == family.ID
+				currentDark := e.Draft.Dark == family.ID
+				radius := themeLibraryRadius(e.Draft, c.Theme().Dark)
+				border := chrome.Color(colors.BorderL1)
+				card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.Name).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
+				hovered := card.Hovered()
+				if hovered {
+					card.Border(.5, chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
+				}
+				actionsVisible := hovered || card.FocusWithin()
+				card.Children(func() {
+					ui.Row(c).FillWidth().Height(88).Children(func() {
+						themePreviewHalf(c, family, family.Light, "light", currentLight, e.OnSave == nil, colors, radius, func() {
+							e.SelectThemeHalf(false, family.ID)
+						})
+						themePreviewHalf(c, family, family.Dark, "dark", currentDark, e.OnSave == nil, colors, radius, func() {
+							e.SelectThemeHalf(true, family.ID)
+						})
+					})
+					ui.Row(c.Key("theme-foot-"+family.ID)).Label("Theme footer "+family.Name).FillWidth().MinWidth(0).MinHeight(54.5).Wrap().Gap(8).Padding(19, 12, 8, 12).AlignItems(ui.Center).
+						BorderWidth(.5, 0, 0, 0).BorderColor(border).Children(func() {
+						ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
+						actions := ui.Row(c).Gap(2)
+						if !actionsVisible {
+							actions.Opacity(0)
+						}
+						actions.Children(func() {
+							if themeFamilyAction(c, family, "duplicate", providerCopy("复制主题", "Duplicate theme"), "+", e.OnSave == nil) {
+								e.StartFamily(e.Draft.DuplicateFamily(family))
+							}
+							for _, custom := range e.Draft.Custom {
+								if custom.ID != family.ID {
+									continue
+								}
+								if themeFamilyAction(c, family, "edit", providerCopy("编辑主题", "Edit theme"), "✎", e.OnSave == nil) {
+									e.StartFamily(family)
+								}
+								if themeFamilyAction(c, family, "export", providerCopy("导出主题", "Export theme"), "↗", false) {
+									c.WriteClipboard(theme.SerializeFamily(family))
+								}
+								if themeFamilyAction(c, family, "delete", providerCopy("删除主题", "Delete theme"), "×", e.OnSave == nil) {
+									e.DeleteFamily(family.ID)
+								}
+								break
+							}
+						})
+					})
+				})
+			}
+		})
 	})
 	bodyDisclosure(c, "theme-names", providerCopy("按名称选择主题", "Pick themes by name"), func() {
 		ids := []string{}
@@ -119,36 +146,120 @@ func themeFamilyTitle(name string) string {
 	return parts[0]
 }
 
-// themePreviewHalf is one half of a theme card: the seed's own background, its
-// accent dot, two skeleton lines and the scheme chip. A click selects that half.
-func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, muted ui.Color, onPick func()) {
-	root := ui.Button(c.Key("theme-half-"+family.ID+"-"+scheme), "").
-		Label(family.Name + " " + scheme).
-		Basis(0).Grow(1).MinWidth(0).Height(92).Padding(12).
-		Background(chrome.Color(seed.Background)).BorderWidth(0).Disabled(disabled)
-	if root.Hovered() && !disabled {
-		root = root.Opacity(0.92)
+func themeFamilyAction(c *ui.Context, family theme.Family, action, label, glyph string, disabled bool) bool {
+	button := ui.Button(c.Key("theme-"+action+"-"+family.ID), glyph).
+		Label(label+" "+family.Name).Tooltip(label).Size(24, 24).Padding(0).
+		Background(ui.Transparent).BorderWidth(0).Radius(6).TextColor(c.Theme().TextMuted).Disabled(disabled)
+	if button.Hovered() && !disabled {
+		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
+	}
+	return button.Clicked() && !disabled
+}
+
+// The selected half determines library chrome, while each miniature paints its
+// own seed. Radius overrides remain attached to custom copies of a skin.
+func themeLibraryRadius(p theme.Preferences, dark bool) float32 {
+	id := p.Light
+	if dark {
+		id = p.Dark
+	}
+	seed := p.Family(id).Light
+	if dark {
+		seed = p.Family(id).Dark
+	}
+	if raw := seed.Overrides["--dsw-radius-button-sm"]; raw != "" {
+		if v, err := strconv.ParseFloat(strings.TrimSuffix(raw, "px"), 32); err == nil && v >= 0 && v <= 64 {
+			return float32(v)
+		}
+	}
+	return 14
+}
+
+func themeLibraryBrand(colors theme.Colors, dark bool) ui.Color {
+	p := theme.RenderPreferences()
+	id := p.Light
+	if dark {
+		id = p.Dark
+	}
+	family := p.Family(id)
+	seed := family.Light
+	if dark {
+		seed = family.Dark
+	}
+	if value := seed.Overrides["--dsw-alias-brand-primary"]; value != "" {
+		return chrome.Color(value)
+	}
+	if family.ID != "deepseek" {
+		return chrome.Color(seed.Accent)
+	}
+	return chrome.Color(colors.BrandPrimary)
+}
+
+func themeLibrarySurface(colors theme.Colors, dark bool) ui.Color {
+	// The default native Field has historically represented module-platform;
+	// ThemeLibrary explicitly asks for bg-layer-1, which is white in light mode.
+	if !dark && colors.Field == "#f5f6f7" {
+		return ui.RGB(255, 255, 255)
+	}
+	return chrome.Color(colors.Field)
+}
+
+// themePreviewHalf keeps its pressed semantics without inheriting MyGo's button
+// layout or face. The installed preview is 88px high with a per-half inset ring.
+func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, colors theme.Colors, radius float32, onPick func()) {
+	ink := chrome.Color(seed.Foreground)
+	brand := themeLibraryBrand(colors, c.Theme().Dark)
+	root := ui.ButtonBase(c.Key("theme-half-"+family.ID+"-"+scheme)).Label(family.Name+" "+scheme).
+		Basis(0).Grow(1).MinWidth(0).Height(88).Padding(10, 12).BorderWidth(0).
+		Selected(current).Background(chrome.Color(seed.Background)).TextColor(ink).
+		AlignItems(ui.Stretch).FocusRing(false).Disabled(disabled)
+	if scheme == "light" {
+		root.Radius(radius, 0, 0, 0)
+	} else {
+		root.Radius(0, radius, 0, 0)
+	}
+	if disabled {
+		root.Opacity(.4)
 	}
 	root.Children(func() {
-		// Button.Children lays children out horizontally; the preview needs an
-		// explicit column: dot/skeleton row, hairline, then the scheme chip.
-		ui.Column(c).FillWidth().Grow(1).MinHeight(0).Justify(ui.SpaceBetween).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
-				ui.Box(c).Size(10, 10).Shrink(0).Radius(5).Background(chrome.Color(seed.Accent))
-				ui.Box(c).Width(38).Height(6).Shrink(0).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.35))
-				ui.Box(c).Grow(1)
+		ui.Column(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Justify(ui.SpaceBetween).Gap(8).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
+				ui.Box(c).Label("Theme accent "+family.Name+" "+scheme).Size(16, 16).Shrink(0).Radius(8).
+					Background(chrome.Color(seed.Accent)).Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, .18))
+				ui.Column(c).Gap(4).Children(func() {
+					ui.Box(c).Size(44, 5).Shrink(0).Radius(3).Background(ink.Alpha(.45))
+					ui.Box(c).Size(28, 5).Shrink(0).Radius(3).Background(ink.Alpha(.25))
+				})
 			})
-			ui.Box(c).Height(4)
-			ui.Box(c).FillWidth().Height(6).Radius(3).Background(chrome.Color(seed.Foreground).Alpha(.18))
 			switchText := providerCopy(map[string]string{"light": "浅色", "dark": "深色"}[scheme], map[string]string{"light": "Light", "dark": "Dark"}[scheme])
-			// The check above already marks the family selected for this
-			// scheme; repeating "(current mode)" on both halves reads as if both
-			// modes were active at once.
-			ui.Row(c).Gap(0).Children(func() {
-				ui.Text(c, switchText).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
-					Border(.5, chrome.Color(seed.Foreground).Alpha(.25)).TextColor(chrome.Color(seed.Foreground).Alpha(.85))
+			ui.Row(c).MinWidth(0).Gap(6).AlignItems(ui.Center).Opacity(.75).Children(func() {
+				ui.Text(c, switchText).SingleLine().FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(11)).TextColor(ink)
+				if (scheme == "dark") == c.Theme().Dark {
+					ui.Text(c, providerCopy("当前模式", "Current mode")).Label("Theme current mode "+family.Name+" "+scheme).
+						SingleLine().Padding(1, 5).Border(1, ink).Radius(999).FontSize(theme.InterfaceSize(10)).
+						FixedLineHeight(theme.InterfaceSize(14)).TextColor(ink).Opacity(.85)
+				}
 			})
 		})
+		if current {
+			ui.Box(c).Absolute().Top(6).Right(6).Size(16, 16).Radius(8).Background(brand).Center().PassThrough().Children(func() {
+				ui.Text(c, "✓").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(10)).TextColor(ui.RGB(255, 255, 255))
+			})
+			ring := ui.Box(c).Absolute().Top(0).Right(0).Bottom(0).Left(0).Border(2, brand).PassThrough()
+			if scheme == "light" {
+				ring.Radius(radius, 0, 0, 0)
+			} else {
+				ring.Radius(0, radius, 0, 0)
+			}
+		}
+		if root.FocusVisible() {
+			ring := ui.Box(c).Absolute().Top(3).Right(3).Bottom(3).Left(3).Border(2, brand).PassThrough()
+			if scheme == "light" {
+				ring.Radius(max(0, radius-3), 0, 0, 0)
+			} else {
+				ring.Radius(0, max(0, radius-3), 0, 0)
+			}
+		}
 	})
 	if root.Clicked() && !disabled {
 		onPick()

@@ -28,7 +28,7 @@ func (s *mainState) runAccountSignOut(win *mygo.Window, action func(context.Cont
 			if store != nil {
 				sid := ""
 				if sessions != nil {
-					sid = sessions.Snapshot().SelectedID
+					sid = sessions.SelectedSessionID()
 				}
 				store.Refresh(context.Background(), sid)
 			}

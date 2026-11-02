@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"whaleisle/internal/paths"
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -83,7 +84,7 @@ type CrashReportInput struct {
 func RenderCrashReport(in CrashReportInput) string {
 	name := in.AppName
 	if name == "" {
-		name = "Whale Isle"
+		name = product.Name
 	}
 	version := in.AppVer
 	if version == "" {

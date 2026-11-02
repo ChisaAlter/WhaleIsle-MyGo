@@ -14,7 +14,7 @@ import (
 	"whaleisle/internal/store/storelocale"
 )
 
-//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/pet-runtime.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/anime4k.js assets/anime4k.LICENSE assets/anime4k-provenance.json assets/pet-super-resolution.js assets/pet-runtime.js assets/pet-body.js assets/pet-sleep.js assets/pet-layout.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a
@@ -31,13 +31,16 @@ type Companion struct {
 	Skins                     []Skin
 	ready                     bool
 	win                       *mygo.Window
+	placingOverlay            bool
+	stage                     mygo.Rectangle
+	layout                    petLayout
 	assetMu                   sync.RWMutex
 	sheet                     []byte
 	renderAssets              map[string][]byte
 	neuralActive              bool
 	renderNotice              string
-	loadRetried                bool
-	loaded                     bool
+	loadRetried               bool
+	loaded                    bool
 	notifications             notificationState
 	OnNotificationsClosed     func()
 	OnNotificationsReady      func()
@@ -180,7 +183,7 @@ func (p *Companion) sync() {
 	notice := ""
 	if cfg.Neural {
 		var err error
-		neuralAssets, err = loadRenderAssets(defaultRenderRoot())
+		neuralAssets, err = loadRenderAssets(petRenderRoot())
 		if err != nil {
 			p.Error = err.Error()
 			notice = storelocale.T(storelocale.KeyDesktopPetMissingOrChangedTha4AssetsFallback)
@@ -192,7 +195,8 @@ func (p *Companion) sync() {
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
-	w := openCompanionWindow(mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html", Width: PetWindowWidth, Height: PetWindowHeight, MinHeight: PetWindowHeight, Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true, Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}})
+	p.preparePetStage(cfg.Position)
+	w := openCompanionWindow(companionWindowOptions(petDisplays(), p.petBounds()))
 	petDebug("newWindow nil=%v destroyed=%v", w == nil, w == nil || w.IsDestroyed())
 	if w == nil || w.IsDestroyed() {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetWindowCreateFailed)
@@ -201,18 +205,16 @@ func (p *Companion) sync() {
 	}
 	p.win = w
 	p.resetHitRegions()
-	// Apply the footprint before restoring the deliberate drag anchor. Roaming
-	// is transient and must not be saved by MyGo automatic window state.
-	w.SetSize(petWindowSize())
+	// The overlay stays fixed; only the character's deliberate anchor is saved.
 	// Native default placement is the bottom-right of the work area with
 	// EDGE_GAP (desktop-live2d.js:82-88); a remembered drag anchor wins, clamped
 	// onto the work area so a monitor change cannot lose the pet.
-	placePetWindow(w, cfg.Position)
+	p.placePetWindow(w, cfg.Position)
 	// A hidden WebView2 controller aborts a custom-scheme navigation
 	// (COREWEBVIEW2_WEB_ERROR_STATUS 14), so the window must be shown before the
 	// page starts loading; it paints transparently until the page renders.
 	petDebug("showing before load")
-	w.Show()
+	w.ShowInactive()
 	p.startMotion(w)
 	p.watchRecovery(w)
 	w.Page().OnWillNavigate(func(e *mygo.NavigateEvent) {
@@ -297,7 +299,7 @@ func (p *Companion) sync() {
 			// visible after the page is up and marks the load as successful.
 			petDebug("didFinishLoad: showing the companion")
 			p.loaded = true
-			w.Show()
+			w.ShowInactive()
 		}
 	})
 	w.Page().OnDidFailLoad(func(err *mygo.LoadError) {
@@ -402,6 +404,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, _ = assets.ReadFile("assets/pet.html")
 		body = renderNotificationPage(body)
 		p.assetMu.RLock()
+		body = renderLayoutPage(body, p.layout)
 		body = renderTaskPage(body, p.activityTaskLocked())
 		body = renderLookPage(body, p.look.status)
 		body = []byte(strings.NewReplacer("{{RIG}}", fmt.Sprint(len(p.sheet) == 0), "{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
@@ -427,13 +430,14 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Growth        GrowthStatus
 			Rest          RestStatus
 			HitEpoch      uint64
-		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest, p.interaction.view.Epoch})
+			Layout        petLayout
+		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest, p.interaction.view.Epoch, p.layout})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/pet-dialogue.json":
 		body, _ = assets.ReadFile("assets/pet-dialogue.json")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	case "/tha4.js", "/pet-runtime.js", "/pet-interaction.js", "/pet-behavior.js":
+	case "/tha4.js", "/anime4k.js", "/pet-super-resolution.js", "/pet-runtime.js", "/pet-body.js", "/pet-sleep.js", "/pet-layout.js", "/pet-interaction.js", "/pet-behavior.js":
 		body, _ = assets.ReadFile("assets" + r.URL.Path)
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":
@@ -474,16 +478,6 @@ func (p *Companion) UpdateTask(task TaskStatus) {
 	// The fixed local status endpoint updates text without restarting inference.
 }
 
-
-
-
-
-
-
-
 // mappedPetURL is the Windows WebView2 form of the pet page: mygo serves custom
 // schemes from http://<scheme>.localhost/ (internal/windows/webview.go:26-33).
 const mappedPetURL = "http://whale-pet.localhost/index.html"
-
-
-

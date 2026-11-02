@@ -42,6 +42,7 @@ type workspaceNavigationOperation struct {
 }
 
 func (s *Store) invalidateWorkspaceNavigationLocked() {
+	s.invalidateViewLocked()
 	if s.workspaceNavigation.cancel != nil {
 		s.workspaceNavigation.cancel()
 	}
@@ -97,6 +98,7 @@ func (s *Store) workspaceRowsLocked() []WorkspaceRow {
 	return rows
 }
 func (s *Store) openWorkspaceNavigationLocked(mode, id string) {
+	s.invalidateViewLocked()
 	s.invalidateWorkspaceNavigationLocked()
 	op := workspaceNavigationOperation{view: WorkspaceNavigationState{Token: s.workspaceNavigationToken, Mode: mode, TargetID: id}, generation: s.eventsGeneration, cwd: s.cwd, selectedID: s.selectedID}
 	if ws, ok := s.workspaceMemberships[id]; ok {
@@ -113,6 +115,9 @@ func (s *Store) openWorkspaceNavigationLocked(mode, id string) {
 func (s *Store) OpenWorkspacePicker() {
 	s.mu.Lock()
 	if s.client == nil {
+		if s.lastAction != "Connect a Host to choose a registered workspace" {
+			s.invalidateViewLocked()
+		}
 		s.lastAction = "Connect a Host to choose a registered workspace"
 		s.mu.Unlock()
 		s.fire()
@@ -159,6 +164,9 @@ func (s *Store) CancelWorkspaceNavigation(token uint64) {
 func (s *Store) SetWorkspaceNavigationDraft(token uint64, draft string) {
 	s.mu.Lock()
 	if s.workspaceNavigationCurrentLocked(token) && !s.workspaceNavigation.view.Busy {
+		if s.workspaceNavigation.view.Draft != draft || s.workspaceNavigation.view.Error != "" {
+			s.invalidateViewLocked()
+		}
 		s.workspaceNavigation.view.Draft = draft
 		s.workspaceNavigation.view.Error = ""
 	}
@@ -167,6 +175,9 @@ func (s *Store) SetWorkspaceNavigationDraft(token uint64, draft string) {
 func (s *Store) SetWorkspaceNavigationError(token uint64, err error) {
 	s.mu.Lock()
 	if s.workspaceNavigationCurrentLocked(token) && err != nil {
+		if s.workspaceNavigation.view.Error != err.Error() {
+			s.invalidateViewLocked()
+		}
 		s.workspaceNavigation.view.Error = err.Error()
 	}
 	s.mu.Unlock()
@@ -200,6 +211,9 @@ func (s *Store) ChooseRegisteredWorkspace(token uint64, id string, persist func(
 	}
 	ws, ok := s.workspaceMemberships[id]
 	if !ok {
+		if s.workspaceNavigation.view.Error != "Workspace is no longer registered" {
+			s.invalidateViewLocked()
+		}
 		s.workspaceNavigation.view.Error = "Workspace is no longer registered"
 		s.mu.Unlock()
 		s.fire()
@@ -207,6 +221,9 @@ func (s *Store) ChooseRegisteredWorkspace(token uint64, id string, persist func(
 	}
 	err := s.commitWorkspaceLocked(WorkspaceRow(ws), persist)
 	if err != nil {
+		if s.workspaceNavigation.view.Error != err.Error() {
+			s.invalidateViewLocked()
+		}
 		s.workspaceNavigation.view.Error = err.Error()
 	}
 	s.mu.Unlock()
@@ -217,6 +234,7 @@ func workspaceRowFromCreate(ws api.WorkspaceCreateValueWorkspace) WorkspaceRow {
 	return WorkspaceRow{WorkspaceID: ws.WorkspaceId, Path: ws.Path, Title: ws.Title, SessionIDs: append([]string(nil), ws.SessionIds...), CreatedAt: ws.CreatedAt, UpdatedAt: ws.UpdatedAt}
 }
 func (s *Store) putWorkspaceRowLocked(row WorkspaceRow) {
+	s.invalidateViewLocked()
 	if s.workspaceMemberships == nil {
 		s.workspaceMemberships = map[string]workspaceMembership{}
 	}
@@ -236,8 +254,14 @@ func (s *Store) RegisterWorkspace(ctx context.Context, token uint64, path string
 		s.mu.Unlock()
 		return
 	}
+	if s.workspaceNavigation.view.Draft != path {
+		s.invalidateViewLocked()
+	}
 	s.workspaceNavigation.view.Draft = path
 	if path == "" || !s.workspaceReady {
+		if s.workspaceNavigation.view.Error != "Choose a directory after the Host workspace list is ready" {
+			s.invalidateViewLocked()
+		}
 		s.workspaceNavigation.view.Error = "Choose a directory after the Host workspace list is ready"
 		s.mu.Unlock()
 		s.fire()
@@ -248,6 +272,7 @@ func (s *Store) RegisterWorkspace(ctx context.Context, token uint64, path string
 	s.workspaceNavigation.cancel = cancel
 	s.workspaceNavigation.view.Busy = true
 	s.workspaceNavigation.view.Error = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -271,6 +296,7 @@ func (s *Store) RegisterWorkspace(ctx context.Context, token uint64, path string
 			s.workspaceNavigation.view.Busy = false
 			s.workspaceNavigation.view.Error = err.Error()
 			s.workspaceNavigation.cancel = nil
+			s.invalidateViewLocked()
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -288,6 +314,9 @@ func (s *Store) ConfirmWorkspaceRename(ctx context.Context, token uint64, title 
 		return
 	}
 	op := &s.workspaceNavigation
+	if op.view.Draft != title {
+		s.invalidateViewLocked()
+	}
 	op.view.Draft = title
 	ws, exists := s.workspaceMemberships[op.view.TargetID]
 	problem := ""
@@ -304,6 +333,9 @@ func (s *Store) ConfirmWorkspaceRename(ctx context.Context, token uint64, title 
 		}
 	}
 	if problem != "" {
+		if op.view.Error != problem {
+			s.invalidateViewLocked()
+		}
 		op.view.Error = problem
 		s.mu.Unlock()
 		s.fire()
@@ -314,6 +346,7 @@ func (s *Store) ConfirmWorkspaceRename(ctx context.Context, token uint64, title 
 	op.cancel = cancel
 	op.view.Busy = true
 	op.view.Error = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -335,6 +368,7 @@ func (s *Store) ConfirmWorkspaceRename(ctx context.Context, token uint64, title 
 			s.workspaceNavigation.view.Busy = false
 			s.workspaceNavigation.view.Error = err.Error()
 			s.workspaceNavigation.cancel = nil
+			s.invalidateViewLocked()
 		} else {
 			s.putWorkspaceRowLocked(row)
 			s.invalidateWorkspaceNavigationLocked()
@@ -374,6 +408,7 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 	op.cancel = cancel
 	op.view.Busy = true
 	op.view.Error = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -395,6 +430,7 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 				s.workspaceNavigation.view.Busy = false
 				s.workspaceNavigation.view.Error = err.Error()
 				s.workspaceNavigation.cancel = nil
+				s.invalidateViewLocked()
 				s.mu.Unlock()
 				s.fire()
 				return
@@ -428,6 +464,7 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 	}()
 }
 func (s *Store) removeWorkspaceOrderLocked(id string) {
+	s.invalidateViewLocked()
 	out := s.workspaceOrder[:0]
 	for _, candidate := range s.workspaceOrder {
 		if candidate != id {
@@ -448,6 +485,9 @@ func (s *Store) BrowseWorkspaceDirectories(ctx context.Context, token uint64, pa
 	s.workspaceNavigation.listToken++
 	request := s.workspaceNavigation.listToken
 	client := s.client
+	if !s.workspaceNavigation.view.ListBusy || s.workspaceNavigation.view.Error != "" {
+		s.invalidateViewLocked()
+	}
 	s.workspaceNavigation.view.ListBusy = true
 	s.workspaceNavigation.view.Error = ""
 	s.mu.Unlock()
@@ -472,6 +512,7 @@ func (s *Store) BrowseWorkspaceDirectories(ctx context.Context, token uint64, pa
 		} else {
 			s.workspaceNavigation.view.Listing = &listing
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

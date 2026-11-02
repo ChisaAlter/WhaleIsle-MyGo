@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/config"
+	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/dsh"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
@@ -16,9 +17,13 @@ import (
 )
 
 type nativePluginManagerState struct {
-	controller *manager.Controller
-	client     *dsh.Client
-	owner      uint64
+	controller                                                *manager.Controller
+	client                                                    *dsh.Client
+	owner                                                     uint64
+	contributions                                             *pluginui.Owner
+	session                                                   *nativePluginSessionState
+	contributionGeneration                                    int
+	contributionOrigin, contributionCookie, contributionError string
 }
 
 func (s *mainState) nativePluginController() *manager.Controller {
@@ -41,7 +46,7 @@ func (s *mainState) nativePluginController() *manager.Controller {
 			return &manager.RegistryChoice{Kind: p.Kind, Registry: p.Registry, URL: p.URL}, nil
 		}, func(choice *manager.RegistryChoice) error {
 			if cfg == nil {
-				return fmt.Errorf("local plugin preferences are unavailable")
+				return fmt.Errorf("%s", i18n.T(i18n.KeyCmdPluginPreferencesUnavailable))
 			}
 			return cfg.Update(func(value *config.Config) {
 				value.GoPluginInstallRegistry = nil
@@ -55,6 +60,7 @@ func (s *mainState) nativePluginController() *manager.Controller {
 }
 
 func (s *mainState) bindNativePluginManager(client *dsh.Client) {
+	s.suspendPluginContributions()
 	c := s.nativePluginController()
 	s.mu.Lock()
 	win := s.win
@@ -165,10 +171,94 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 			add("shell", "终端", "Shell", 40, "bash-sandbox")
 		}
 	}
+	owner, contributionError := s.nativePluginContributions()
+	var dynamic pluginui.Snapshot
+	if owner != nil {
+		current := s.nativePluginController().Snapshot()
+		owner.Select(contributionSubject(current.View, current.Packages))
+		dynamic = owner.Snapshot()
+		contributions = mergePluginContributions(contributions, owner, dynamic)
+	}
+	pluginContributionNotice(c, owner, contributionError)
 	managerui.View(c, managerui.Model{
 		SVGImages:  s.svgImageOwner(win, sessions),
 		Controller: s.nativePluginController(), ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
-		Contributions:  contributions,
+		Contributions: contributions,
+		RequestListEnable: func(name string) bool {
+			if owner == nil {
+				return false
+			}
+			for _, entry := range dynamic.Entries {
+				if entry.Slot == "plugins.bundle.activation" && entry.Key == name {
+					current := s.nativePluginController().Snapshot()
+					for _, pkg := range current.Packages {
+						if pkg.Name == name && !pkg.Enabled && !pkg.SwitchLocked() && !current.ActionBusy(name) {
+							if err := owner.EnableActivation(dynamic.Page, dynamic.Revision, name); err != nil {
+								s.mu.Lock()
+								s.nativePlugins.contributionError = err.Error()
+								s.mu.Unlock()
+							}
+							return true
+						}
+					}
+					return true
+				}
+			}
+			return false
+		},
+		OnNativeOverlay: func(masked bool) {
+			if owner != nil {
+				owner.Mask(masked)
+			}
+		},
+		DetailActions: func(c *ui.Context, subject manager.Subject) {
+			if owner == nil {
+				return
+			}
+			sub := contributionSubject(subject, s.nativePluginController().Snapshot().Packages)
+			for _, action := range dynamic.Actions {
+				if ui.Button(c, action.Label).Disabled(action.Disabled).Clicked() {
+					_ = owner.Click(dynamic.Page, dynamic.Revision, sub, action.Handle)
+				}
+			}
+		},
+		DetailBadges: func(c *ui.Context, _ manager.Subject) {
+			for _, badge := range dynamic.Badges {
+				ui.Text(c, badge).FontSize(12).TextColor(c.Theme().TextMuted)
+			}
+		},
+		DetailSections: func(c *ui.Context, _ manager.Subject) {
+			if owner == nil {
+				return
+			}
+			if dynamic.Section {
+				renderPluginContributionSurface(c, owner, "plugins.detail.section")
+			}
+			if dynamic.Surface == "plugins.detail.actions" {
+				renderPluginContributionSurface(c, owner, "plugins.detail.actions")
+			}
+		},
+		AddActions: func(c *ui.Context) {
+			if owner == nil {
+				return
+			}
+			for _, entry := range dynamic.Entries {
+				if entry.Slot == "plugins.add.actions" {
+					if ui.Button(c, pluginCopy("插件提供的操作", "Plugin actions")).Clicked() {
+						owner.AddActions()
+					}
+					break
+				}
+			}
+		},
+		Supplement: func(c *ui.Context) {
+			if owner != nil {
+				slot := owner.Snapshot().Surface
+				if slot == "plugins.add.actions" || slot == "plugins.bundle.activation" {
+					renderPluginContributionSurface(c, owner, slot)
+				}
+			}
+		},
 		OnCreatePlugin: createPlugin, CreatePluginReady: creatorReady, CreatePluginDescription: creatorDescription,
 		OnOpenAddMenu: s.refreshPluginCreatorRoster,
 		CreatorNotice: s.renderPluginCreatorNotice,

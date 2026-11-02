@@ -13,20 +13,31 @@ import (
 type TaskStatus struct{ State, SessionID, Title string }
 
 func TaskFromSession(online bool, s session.ViewState) TaskStatus {
+	summary := session.SelectionSummary{SelectedID: s.SelectedID, ClientReady: s.ClientReady, ListLoading: s.ListLoading, ListErr: s.ListErr}
+	for _, item := range s.Items {
+		if item.SessionID != "" && item.SessionID == s.SelectedID {
+			summary.SelectedListed, summary.SelectedTitle, summary.SelectedRunning = true, item.Title, item.Running
+			break
+		}
+	}
+	return TaskFromSelection(online, summary)
+}
+
+// TaskFromSelection is TaskFromSession for the store's per-frame summary, so the
+// pet strip never clones the whole conversation view.
+func TaskFromSelection(online bool, s session.SelectionSummary) TaskStatus {
 	if !online || !s.ClientReady {
 		return TaskStatus{State: "offline"}
 	}
 	if s.ListLoading || s.ListErr != "" {
 		return TaskStatus{State: "unknown"}
 	}
-	for _, item := range s.Items {
-		if item.SessionID != "" && item.SessionID == s.SelectedID {
-			state := "idle"
-			if item.Running {
-				state = "running"
-			}
-			return TaskStatus{State: state, SessionID: item.SessionID, Title: item.Title}
+	if s.SelectedListed {
+		state := "idle"
+		if s.SelectedRunning {
+			state = "running"
 		}
+		return TaskStatus{State: state, SessionID: s.SelectedID, Title: s.SelectedTitle}
 	}
 	return TaskStatus{State: "unknown"}
 }

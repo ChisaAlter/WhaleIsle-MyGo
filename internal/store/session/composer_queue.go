@@ -70,6 +70,7 @@ func (s *Store) beginComposerQueueSteerLocked(sessionID string, hostGeneration u
 }
 
 func (s *Store) composerQueueSteerCurrentLocked(ctx context.Context, op *composerQueueSteer) bool {
+	s.invalidateViewLocked()
 	return s.composerHostGeneration == op.epoch && s.sessionResultCurrentLocked(ctx, op.client, op.sessionID, op.follow) && s.queueMutationScope == op.scope && s.queueMutationID == op.reservation
 }
 

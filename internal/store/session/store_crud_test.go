@@ -37,6 +37,8 @@ func wait(t *testing.T, done <-chan struct{}) {
 
 func TestCreateSessionSelectsNewID(t *testing.T) {
 	var listHits atomic.Int32
+	listStarted := make(chan struct{})
+	releaseList := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
@@ -44,7 +46,14 @@ func TestCreateSessionSelectsNewID(t *testing.T) {
 		case strings.HasSuffix(r.URL.Path, "/session/create"):
 			rpcOK(w, body["rpcId"], map[string]any{"sessionId": "new-sess"})
 		case strings.HasSuffix(r.URL.Path, "/session/list"):
-			listHits.Add(1)
+			if listHits.Add(1) == 1 {
+				close(listStarted)
+			}
+			select {
+			case <-releaseList:
+			case <-r.Context().Done():
+				return
+			}
 			rpcOK(w, body["rpcId"], map[string]any{
 				"items": []map[string]any{{
 					"sessionId":      "new-sess",
@@ -59,24 +68,42 @@ func TestCreateSessionSelectsNewID(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
+	// Release a blocked handler even when an assertion fails before the response.
+	released := false
+	defer func() {
+		if !released {
+			close(releaseList)
+		}
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
 	st := New()
-	st.Attach(client, nil)
-	st.CreateSession(context.Background())
-
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
+	refreshed := make(chan struct{}, 1)
+	st.Attach(client, func() {
 		snap := st.Snapshot()
-		if snap.SelectedID == "new-sess" {
-			if listHits.Load() == 0 {
-				t.Fatal("expected list refresh after create")
+		if snap.SelectedID == "new-sess" && !snap.ListLoading && len(snap.Items) == 1 && snap.Items[0].SessionID == "new-sess" {
+			select {
+			case refreshed <- struct{}{}:
+			default:
 			}
-			return
 		}
-		time.Sleep(10 * time.Millisecond)
+	})
+	st.CreateSession(ctx)
+
+	// Selection is published before the asynchronous refresh. Observe both
+	// stages explicitly instead of requiring the RPC to beat the first snapshot.
+	wait(t, listStarted)
+	if snap := st.Snapshot(); snap.SelectedID != "new-sess" || !snap.ListLoading || len(snap.Items) != 0 {
+		t.Fatalf("selection while list response is pending: selected=%q loading=%v items=%+v", snap.SelectedID, snap.ListLoading, snap.Items)
 	}
-	t.Fatalf("selected = %q last = %q", st.Snapshot().SelectedID, st.Snapshot().LastAction)
+	close(releaseList)
+	released = true
+	wait(t, refreshed)
+	if snap := st.Snapshot(); snap.SelectedID != "new-sess" || len(snap.Items) != 1 || snap.Items[0].SessionID != "new-sess" {
+		t.Fatalf("refreshed session: selected=%q items=%+v last=%q", snap.SelectedID, snap.Items, snap.LastAction)
+	}
 }
 
 func TestRenameSessionUpdatesTitle(t *testing.T) {

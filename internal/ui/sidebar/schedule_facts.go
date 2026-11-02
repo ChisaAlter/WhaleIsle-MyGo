@@ -15,16 +15,12 @@ import (
 )
 
 func sessionScheduleMark(c *ui.Context, count int, ink ui.Color) {
-	mark := ui.Box(c).Label(fmt.Sprintf(workspaceText("%d 个定时任务", "%d scheduled tasks"), count)).Size(16, 20).Shrink(0)
+	mark := ui.Box(c).Label(fmt.Sprintf(workspaceText("%d 个自动化任务", "%d scheduled tasks"), count)).Size(16, 20).Shrink(0).Center()
 	// Clickable but not focusable: pressing the passive mark consumes the
 	// pointer event and never activates the Session through its parent row.
 	_ = mark.Clicked()
-	mark.Draw(func(p *ui.Painter, r ui.Rect) {
-		var clock, hand ui.Path
-		clock.Circle(r.X+8, r.Y+10, 6)
-		hand.MoveTo(r.X+8, r.Y+6).LineTo(r.X+8, r.Y+10).LineTo(r.X+11, r.Y+12)
-		p.StrokePath(&clock, 1.2, ink)
-		p.StrokePath(&hand, 1.2, ink)
+	mark.Children(func() {
+		ui.Icon(c, sessionHoverTaskClockArtwork).Size(14, 14).TextColor(ink).Role(ui.RoleNone)
 	})
 }
 
@@ -43,12 +39,19 @@ func orderSchedulePreview(rows []schedstore.Entry, now time.Time) []schedstore.E
 }
 
 func schedulePreviewTiming(row schedstore.Entry, now time.Time) string {
+	absolute, relative := schedulePreviewParts(row, now)
+	return absolute + " " + relative
+}
+
+func schedulePreviewParts(row schedstore.Entry, now time.Time) (absolute, relative string) {
 	at, err := time.Parse(time.RFC3339Nano, row.ScheduledAt)
 	if err != nil {
-		return workspaceText("下次运行时间不可用", "Next run unavailable")
+		return row.ScheduledAt, "(" + workspaceText("下次运行时间不可用", "Next run unavailable") + ")"
 	}
+	local := at.In(time.Local)
+	absolute = workspaceText(fmt.Sprintf("%d月%d日 %s", int(local.Month()), local.Day(), local.Format("15:04")), local.Format("Jan 2, 2006, 15:04"))
 	difference := at.Sub(now).Seconds()
-	relative := workspaceText("现在", "due now")
+	relative = workspaceText("现在到期", "Due now")
 	if difference != 0 {
 		for _, unit := range []struct {
 			seconds float64
@@ -74,7 +77,7 @@ func schedulePreviewTiming(row schedstore.Entry, now time.Time) string {
 			break
 		}
 	}
-	return at.In(time.Local).Format("2006-01-02 15:04:05") + " (" + relative + ")"
+	return absolute, "(" + relative + ")"
 }
 
 func schedulePreviewFrequency(row schedstore.Entry) string {
@@ -105,6 +108,9 @@ func schedulePreviewFrequency(row schedstore.Entry) string {
 }
 
 func sessionScheduleHover(c *ui.Context, m Model, anchor ui.Element, item session.Item, status string, rows []schedstore.Entry, epoch uint64, colors theme.Colors) {
+	if anchor.MenuOpen() {
+		return
+	}
 	state := ui.Local(anchor, struct {
 		epoch   uint64
 		session string

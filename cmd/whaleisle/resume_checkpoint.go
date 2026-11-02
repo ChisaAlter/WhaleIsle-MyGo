@@ -99,7 +99,7 @@ func (q *resumeCheckpoint) stage(next recovery.State, captureErr error, now time
 	if captureErr == nil {
 		data, captureErr = json.Marshal(next)
 		if len(data) > recovery.MaxBytes {
-			captureErr = fmt.Errorf("resume snapshot exceeds %d MiB; nothing was discarded", recovery.MaxBytes>>20)
+			captureErr = fmt.Errorf(i18n.T(i18n.KeyCmdResumeSnapshotLimit), recovery.MaxBytes>>20)
 		}
 	}
 	q.mu.Lock()

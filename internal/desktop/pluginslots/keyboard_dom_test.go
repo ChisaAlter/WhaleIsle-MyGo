@@ -37,7 +37,7 @@ func TestProductKeyboardOwnerContract(t *testing.T) {
  subscriptions[0]();physical('KeyA');handlers.compositionstart();handlers.compositionend();
  if(physical('KeyB').whaleisleSecondCode)throw Error('composition kept pending pair');
  rows=[];subscriptions[0]();if(sent.at(-1).bindings.length)throw Error('unregistered command retained');`
-	if out, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
+	if out, err := runNodeFixture(node, "-e", script); err != nil {
 		t.Fatalf("product contract: %v\n%s", err, out)
 	}
 }

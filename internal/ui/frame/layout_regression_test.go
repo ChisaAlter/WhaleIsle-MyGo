@@ -111,9 +111,13 @@ func TestViewRemembersRightPreferenceAcrossResizeAndExplicitClose(t *testing.T) 
 	}
 	check(400, 518)
 	tt.SetSize(900, 800)
-	// The sidebar keeps its 280-DIP track at 900 DIP (the auto-collapse band is the
-	// phone drawer), so the right pane concedes entirely; the preference survives.
-	check(619, 0)
+	// Desktop auto-collapse below 1024 returns room to the details track.
+	// Its exact concession keeps the 400 DIP conversation and saved 540 width.
+	wantDetails := float32(900) - SidebarCollapsedWidth() - CenterMin - SplitterWidth
+	if SidebarCollapsedWidth() > 0 {
+		wantDetails -= SplitterWidth
+	}
+	check(CenterMin, wantDetails)
 	tt.SetSize(1600, 800)
 	check(778, 540)
 	open = false
@@ -166,9 +170,17 @@ func TestRightDragChangesPreferenceAndSurvivesReopen(t *testing.T) {
 		t.Fatalf("drag sizes=%+v right=%v, want right468 center450", sizes, right)
 	}
 	tt.SetSize(900, 800)
-	// 900 DIP keeps the 280-DIP sidebar track, so the right pane is squeezed out
-	// while the preference it will reopen at stays 468.
-	if sizes.Right != 468 || right != 0 || sizes.Center != 619 {
+	// The narrow rail leaves a visible details track; the saved 468 preference
+	// survives the available-width concession (442 with Windows' 56 DIP rail).
+	wantRight := min(float32(468), float32(900)-SidebarCollapsedWidth()-CenterMin-SplitterWidth)
+	if SidebarCollapsedWidth() > 0 {
+		wantRight = min(wantRight, float32(900)-SidebarCollapsedWidth()-CenterMin-2*SplitterWidth)
+	}
+	wantCenter := float32(900) - SidebarCollapsedWidth() - SplitterWidth - wantRight
+	if SidebarCollapsedWidth() > 0 {
+		wantCenter -= SplitterWidth
+	}
+	if sizes.Right != 468 || right != wantRight || sizes.Center != wantCenter {
 		t.Fatalf("shrink sizes=%+v right=%v", sizes, right)
 	}
 	tt.SetSize(1600, 800)
@@ -380,13 +392,26 @@ func TestTerminalToggleDoesNotStealFocusFromSidebar(t *testing.T) {
 					t.Fatalf("terminal%v stole sidebar focus", bottom)
 				}
 			}
-			for _, width := range []int{900, 1600} {
+			tt.CloseMenu()
+			for _, width := range []int{1023, 900, 1024, 1600, 1023, 1600} {
 				tt.SetSize(width, 800)
-				if width < 768 && SidebarCollapsedWidth() == 0 {
+				if len(tt.Menu()) != 0 {
+					t.Fatalf("width%d reopened the account menu during resize", width)
+				}
+				if width < 1024 && SidebarCollapsedWidth() == 0 {
+					// macOS has no collapsed rail: this control is intentionally
+					// unmounted by desktop auto-collapse, so it cannot retain focus.
+					if tt.Focused("Composer draft") {
+						t.Fatal("auto-collapse moved focus into composer")
+					}
 					continue
 				}
+				seat, visible := tt.Find(label)
+				if !visible || seat.W <= 0 || seat.H <= 0 {
+					t.Fatalf("width%d unmounted sidebar account seat: %+v", width, seat)
+				}
 				if !tt.Focused(label) || tt.Focused("Composer draft") {
-					t.Fatalf("width%d stole sidebar focus", width)
+					t.Fatalf("width%d changed account focus: seat=%+v focused=%v composer=%v", width, seat, tt.Focused(label), tt.Focused("Composer draft"))
 				}
 			}
 			if draft != "ABCDE" {

@@ -169,7 +169,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 					ui.Text(c, "GitHub: "+p.Repository+" · "+p.Push.Target+" → "+p.Base).Bold()
 					ui.Text(c, p.Title)
 					ui.Text(c, p.Body)
-					ui.Text(c, fmt.Sprintf("Draft: %t", p.Draft))
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyCmdPhonePRDraft), p.Draft))
 					if ui.Button(c, i18n.T(i18n.KeyCmdConfirmThisPr)).Clicked() {
 						q.plan = nil
 						q.start(func() func() {

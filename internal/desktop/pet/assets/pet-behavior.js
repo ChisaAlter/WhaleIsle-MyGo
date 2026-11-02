@@ -42,7 +42,7 @@
   const CATEGORIES = [...IDLE_TOPICS, ...Object.keys(TIME_RANGES),
     'sleepy', 'hungry', 'clingy', 'personalitySet'];
   const ACTION_SELECTOR = 'a,button,input,textarea,select,[role="button"],[contenteditable="true"],[data-pet-action]';
-  const INTERACTIVE_SELECTOR = ACTION_SELECTOR + ',#sprite,#fallback';
+  const BODY_SELECTOR = '#sprite,#fallback';
   const DEFAULTS = { personality: 'natural', activity: 'balanced', selfTalk: true, powerSave: false };
   const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -97,7 +97,7 @@
   // now and touch use performance.now(), the same clock as requestAnimationFrame.
   // Call applySettings after each status/settings update, and touch on native
   // interactions not represented by DOM events. No Host/model bridge is used.
-  function create({ bubble, getSettings, getStatus, isSleeping } = {}) {
+  function create({ bubble, getSettings, getStatus, isSleeping, body } = {}) {
     let settings = { ...DEFAULTS };
     try { settings = normalized(typeof getSettings === 'function' ? getSettings() : null, settings); } catch {}
     let closed = false, store = null, talkTimer = null, bubbleTimer = null;
@@ -110,9 +110,13 @@
         ? target.closest(selector) : null;
     }
 
+    function interactive(target) {
+      return !!closest(target, ACTION_SELECTOR)
+        || (body ? body.matches(target) : !!closest(target, BODY_SELECTOR));
+    }
+
     function interacting() {
-      return !!closest(hoverTarget, INTERACTIVE_SELECTOR)
-        || !!closest(document.activeElement, INTERACTIVE_SELECTOR);
+      return interactive(hoverTarget) || interactive(document.activeElement);
     }
 
     function powerSaving(now) {
@@ -259,11 +263,11 @@
 
     function onPointerOver(event) {
       hoverTarget = event.target;
-      if (closest(hoverTarget, INTERACTIVE_SELECTOR)) touch();
+      if (interactive(hoverTarget)) touch();
     }
     function onPointerOut(event) {
       hoverTarget = event.relatedTarget;
-      if (closest(event.target, INTERACTIVE_SELECTOR)) touch();
+      if (interactive(event.target)) touch();
     }
     function onFocus() { touch(); }
     function onVisibility() {

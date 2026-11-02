@@ -31,15 +31,10 @@ func TestComposerCurrentCardGeometry(t *testing.T) {
 		if !ok {
 			t.Fatal("composer input missing")
 		}
-		// HeroShell.card and InputBar.card both pad 8 on top; the hero card has no
-		// side padding and its 34-DIP control row owns the 8-DIP side inset, so the
-		// primary disc sits 8 from the card edge and 10 above the bottom edge.
+		// InputBar.card has the same top/side padding in Hero and docked mode;
+		// the control row owns its 8-DIP horizontal inset. The primary's existing
+		// two-DIP paint lift adds to the row's six-DIP bottom padding.
 		topPad, sideInset, draftShrink, rightInset, bottomInset := float32(8), float32(0), float32(0), float32(8), float32(8)
-		if hero {
-			// round242/249: the native draft box is inset 12.67 left / 16.39 right
-			// (745.33 inside 774.39) and the send sits 20.38 from the card right.
-			topPad, sideInset, draftShrink, rightInset, bottomInset = 8, 12.67, 29.06, 20.38, 8.67
-		}
 		closeMetric(t, input.Y-card.Y, topPad, "card top padding")
 		closeMetric(t, input.X-card.X, sideInset, "input owns horizontal inset")
 		closeMetric(t, input.W, card.W-draftShrink, "draft scrollport width")

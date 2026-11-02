@@ -6,6 +6,8 @@ import crypto from 'node:crypto';
 import {constants} from 'node:fs';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {applyWindowsBackgroundRuntime} from './windows-background-runtime.mjs';
+import {cloneGraph, inventoryGraph, verifyGraph} from './session-runtime-graph.mjs';
+import {recordInstalled, verify as verifyMobile} from './mobile-runtime.mjs';
 import {
   applySessionRuntimeReadiness, guardID, baseSHA256, patchSHA256, outputSHA256,
   bundlePath as readinessBundlePath, recordFile as readinessRecordFile,
@@ -241,6 +243,42 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   return verifyStagedSessionRuntime(vendor);
 }
 
+// Package from a verified stage into a fresh directory. Existing source bytes
+// and selection remain untouched; only this independent copy receives records.
+export async function stageReleaseRuntime(stageRoot, freshDest) {
+  const source = await fs.realpath(path.resolve(stageRoot));
+  const target = path.resolve(freshDest);
+  if (within(source, target) || within(target, source)) throw Error('Release runtime destination overlaps source');
+  try { await fs.lstat(target); throw Error('Release runtime destination must be fresh'); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  await verifyStagedSessionRuntime(path.join(source, 'vendor'));
+  await fs.mkdir(target);
+  const vendor = path.join(target, 'vendor');
+  cloneGraph(path.join(source, 'vendor'), vendor, {exclude: ['runtime-graph.json', 'dshd-remote/debug.log']});
+  await fs.mkdir(path.join(target, 'node'));
+  await fs.copyFile(await fileInside(source, 'node/node.exe'), path.join(target, 'node/node.exe'), constants.COPYFILE_EXCL);
+  const mobile = path.join(vendor, 'dshd-remote');
+  if (!(await fs.stat(path.join(mobile, 'staging-manifest.json')).catch(error => { if (error.code !== 'ENOENT') throw error; }))) {
+    // The original manager's plain-Node fallback expects a nested Harness tree.
+    // The released complete runtime instead owns one exact rc.2 sibling graph.
+    const manager = path.join(mobile, 'src/main/dshd-remote.js');
+    const original = await fs.readFile(manager, 'utf8');
+    const before = "return path.join(__dirname, '..', '..', 'vendor', 'deepseek-harness');";
+    const after = "return path.join(__dirname, '..', '..', '..', 'deepseek-harness');";
+    if (original.split(before).length !== 2) throw Error('Installed mobile manager has no unique supported Harness fallback');
+    const patched = original.replace(before, after);
+    await fs.writeFile(manager, patched);
+    await fs.writeFile(path.join(mobile, 'source-provenance.json'), JSON.stringify({schemaVersion: 1, profile: 'installed-rc2', sourceRoot: path.join(source, 'vendor/dshd-remote'), managerRelocation: {path: 'src/main/dshd-remote.js', baseSHA256: crypto.createHash('sha256').update(original).digest('hex'), outputSHA256: crypto.createHash('sha256').update(patched).digest('hex'), reason: 'Use the same verified rc.2 Host graph as the desktop rather than an absent nested source-build copy.'}}, null, 2) + '\n', {flag: 'wx'});
+    recordInstalled(mobile);
+  }
+  verifyMobile(mobile);
+  const graph = inventoryGraph(vendor, ['runtime-graph.json', 'dshd-remote/debug.log']);
+  const closure = {schemaVersion: 1, files: graph.files, links: graph.links};
+  await fs.writeFile(path.join(vendor, 'runtime-graph.json'), JSON.stringify(closure, null, 2) + '\n', {flag: 'wx'});
+  await verifyStagedSessionRuntime(vendor);
+  return {vendor, files: Object.keys(closure.files).length, links: Object.keys(closure.links).length};
+}
+
 /** Verify the MyGo-specific staged profile before packaging or selecting it. */
 export async function verifyStagedSessionRuntime(vendorDir) {
   const root = await fs.realpath(path.resolve(vendorDir));
@@ -260,6 +298,11 @@ export async function verifyStagedSessionRuntime(vendorDir) {
     throw new Error('Staged Session runtime artifact hashes are incomplete');
   }
   await inventoryVendor(root);
+  const closurePath = path.join(root, 'runtime-graph.json');
+  let closure;
+  try { closure = await readJSON(closurePath); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (closure !== undefined) verifyGraph(root, closure, {exclude: ['runtime-graph.json', 'dshd-remote/debug.log']});
   for (const [relative, expected] of Object.entries(manifest.artifacts)) {
     if (!/^[a-f0-9]{64}$/.test(expected) || await sha(await fileInside(root, relative)) !== expected) {
       throw new Error(`Staged Session runtime artifact hash mismatch: ${relative}`);
@@ -287,12 +330,12 @@ export async function verifyStagedSessionRuntime(vendorDir) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, source, destination, ...extra] = process.argv.slice(2);
   try {
-    if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : !['stage', 'clone'].includes(command) || !destination)) {
+    if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : !['stage', 'clone', 'release'].includes(command) || !destination)) {
       throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir>');
     }
     console.log(JSON.stringify(command === 'inspect' ? await inspectSessionRuntime(source)
       : command === 'verify' ? await verifyStagedSessionRuntime(source)
-      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : await stageSessionRuntime(source, destination), null, 2));
+      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : command === 'release' ? await stageReleaseRuntime(source, destination) : await stageSessionRuntime(source, destination), null, 2));
   } catch (error) {
     console.error(`Session runtime: ${error.message}`);
     process.exitCode = 1;

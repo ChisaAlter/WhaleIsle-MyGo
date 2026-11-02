@@ -22,7 +22,7 @@ func TestWorkspaceCaptionReviewSurvivesFrameProjection(t *testing.T) {
 		dirty, origin, ahead  bool
 	}{
 		{"commit", "Commit", "Review selected files to commit…", true, false, false},
-		{"commit-push", "Commit and push", "Review commit and push…", true, true, false},
+		{"commit-push", "Commit & push", "Review commit and push…", true, true, false},
 		{"push", "Push", "Prepare review", false, true, true},
 		{"publish", "Publish repository", "Review publish target", false, false, false},
 	} {

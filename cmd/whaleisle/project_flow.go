@@ -116,7 +116,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions != nil {
-		m.SelectedSession = sessions.Snapshot().SelectedID
+		m.SelectedSession = sessions.SelectedSessionID()
 	}
 	m.OnToggle = func() {
 		s.mu.Lock()
@@ -367,7 +367,7 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 	s.mu.Unlock()
 	selected := ""
 	if sessions != nil {
-		selected = sessions.Snapshot().SelectedID
+		selected = sessions.SelectedSessionID()
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -448,7 +448,7 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 			}
 			stillOpen := f.visible() && f.navigation == navigation
 			s.mu.Unlock()
-			if lead != "" && stillOpen && sessions != nil && sessions.Snapshot().SelectedID == selected {
+			if lead != "" && stillOpen && sessions != nil && sessions.SelectedSessionID() == selected {
 				sessions.RefreshList(context.Background())
 				sessions.Select(lead)
 			}

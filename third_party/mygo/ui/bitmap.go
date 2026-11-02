@@ -53,6 +53,14 @@ func DecodeBitmap(data []byte) (*Bitmap, error) {
 // Size returns the bitmap's size in pixels, which Image shows as DIPs.
 func (b *Bitmap) Size() (w, h int) { return b.w, b.h }
 
+// WarmLevels precomputes downsampled mipmap levels up to shrink so drawing a
+// large bitmap at thumbnail size on the first frame does not halve on the UI thread.
+func (b *Bitmap) WarmLevels(shrink float32) {
+	if b != nil {
+		_ = b.smaller(shrink)
+	}
+}
+
 func (b *Bitmap) imageSize() (float32, float32) {
 	if b == nil {
 		return 0, 0

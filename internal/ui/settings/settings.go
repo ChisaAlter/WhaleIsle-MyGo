@@ -51,6 +51,10 @@ type Model struct {
 	Appearance            *AppearanceAccess
 	InterfaceActive       bool
 	Interface             *InterfaceAccess
+	ConversationActive    bool
+	Conversation          *ConversationAccess
+	FeaturesActive        bool
+	Features              *FeaturesAccess
 	ModelsActive          bool
 	Models                *ModelsAccess
 	MCPActive             bool
@@ -67,6 +71,8 @@ type Model struct {
 	OnSelectAbout         func()
 	OnSelectAppearance    func()
 	OnSelectInterface     func()
+	OnSelectConversation  func()
+	OnSelectFeatures      func()
 	OnSelectModels        func()
 	OnSelectMCP           func()
 	OnSelectPlugins       func()
@@ -90,7 +96,9 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.Field).Mix(chrome.Color(colors.Border), 0.03)
+	// The modal owns the single bg-layer-2 glass surface; its layout children
+	// are transparent so they cannot flatten the sampled backdrop.
+	bg := ui.Transparent
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -100,13 +108,15 @@ func View(c *ui.Context, m Model) {
 	}
 
 	// The rail and the options column scroll independently inside one panel.
-	// Rail 180 + 16 gap + 16 pane padding puts the content column at x=532 in the
-	// 800 wide panel, the geometry the installed build uses.
-	ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(16).Background(bg).AlignItems(ui.Stretch).Children(func() {
-		nsList(c, m, snap, fg, muted, border, bg, chrome.Color(colors.Hover))
+	// SettingsRoot.module.css: the 188 DIP rail directly precedes content;
+	// the options' own 24 DIP inset puts its copy at panel.X + 212.
+	root := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(0).Background(bg).AlignItems(ui.Stretch)
+	query := ui.Local(root, "settings-search", func() string { return "" })
+	root.Children(func() {
+		nsList(c, m, snap, fg, muted, border, bg, chrome.Color(colors.Hover), query)
 		ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			header(c, m, snap, fg, muted, border)
-			formPane(c, m, snap, fg, muted, border, bg)
+			formPane(c, m, snap, fg, muted, border, bg, query)
 		})
 	})
 }
@@ -144,6 +154,10 @@ func sectionLabel(id SectionID) string {
 		return i18n.T(i18n.KeySettingsSectionAppearance)
 	case SectionInterface:
 		return i18n.T(i18n.KeySettingsSectionInterface)
+	case SectionConversation:
+		return i18n.T(i18n.KeySettingsSectionConversation)
+	case SectionFeatures:
+		return i18n.T(i18n.KeySettingsSectionFeatures)
 	case SectionModels:
 		return i18n.T(i18n.KeySettingsSectionModels)
 	case SectionPlugins:
@@ -193,49 +207,134 @@ func dedicatedNamespace(ns string) bool {
 	}
 }
 
-func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color) {
+// settingsSelectedRailColors follows the source's active-accent wash and its
+// 65% brand / 35% primary-label text. Explicit family token overrides win.
+func settingsSelectedRailColors(m Model) (fill, ink ui.Color) {
+	resolved := theme.ResolveWithSystem(m.ThemeID, m.SystemDark)
+	colors := resolved.Active(m.SystemDark)
+	preferences := theme.RenderPreferences()
+	familyID := preferences.Light
+	dark := resolved.Scheme == theme.SchemeDark
+	if dark {
+		familyID = preferences.Dark
+	}
+	family := preferences.Family(familyID)
+	seed := family.Light
+	if dark {
+		seed = family.Dark
+	}
+	// design-platform.css's default half: deepseek-100 and
+	// neutral-bluish-800; the brand-new dark token is deepseek-450.
+	// 0.3.13: the active cell is a neutral wash (light rgba(38,49,72,.10), dark
+	// rgba(255,255,255,.14)) and keeps the label colour.
+	brand, fill := ui.RGB(65, 118, 230), ui.RGBA(38, 49, 72, .10)
+	if dark {
+		brand, fill = ui.RGB(86, 134, 254), ui.RGBA(255, 255, 255, .14)
+	}
+	if family.ID != "deepseek" {
+		// ui-theme/derive.js: mixUntilContrast(background, accent,
+		// max(washStrong, wash+.08), layer2, 1.4), in .04 steps.
+		base, foreground, accent := chrome.Color(seed.Background), chrome.Color(seed.Foreground), chrome.Color(seed.Accent)
+		factor := max(0, min(float32(seed.ContrastValue()/100), 1))
+		wash, strong, layerFG, layerAccent := .10+factor*.08, .18+factor*.10, .02+factor*.02, .07+factor*.04
+		if chrome.RelativeLuminance(base) < chrome.RelativeLuminance(foreground) {
+			wash, strong, layerFG, layerAccent = .14+factor*.10, .26+factor*.12, .05+factor*.05, .12+factor*.06
+		}
+		layer := base.Mix(foreground, layerFG).Mix(accent, layerAccent)
+		amount := max(strong, wash+.08)
+		fill = base.Mix(accent, amount)
+		for chrome.ContrastRatio(fill, layer) < 1.4 && amount < 1 {
+			amount = min(1, amount+.04)
+			fill = base.Mix(accent, amount)
+		}
+		brand = accent
+	}
+	if value := seed.Overrides["--dsw-alias-brand-primary-new-colorprimary-new-color"]; value != "" {
+		brand = chrome.Color(value)
+	}
+	if value := seed.Overrides["--dsw-specific-sidebar-nav-item-active-accent"]; value != "" {
+		fill = chrome.Color(value)
+	}
+	_ = brand
+	return fill, chrome.Color(colors.FG)
+}
+
+func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color, query *string) {
 	active := activeSection(m, snap)
-	ui.Column(c).Key("settings-rail").Width(180).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
-		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Children(func() {
-			for _, entry := range primaryNavigation(m, snap) {
-				selected := entry.id == active
-				fill := ui.Transparent
-				if selected {
-					fill = hover
-				}
-				label := sectionLabel(entry.id)
-				button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(40).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(9, 16, 9, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
-				button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
-				button.Children(func() {
-					ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(fg)
-					weight := 400
-					if selected {
-						weight = 500
+	searching := strings.TrimSpace(*query) != ""
+	selectedBG, selectedFG := settingsSelectedRailColors(m)
+	groups := navigationGroups(m, snap)
+	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
+		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+		settingsRailSearch(c, query, fg, muted, border)
+		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
+		// sit 12 DIP from each other.
+		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
+			for _, group := range groups {
+				ui.Column(c.Key("settings-group-" + group.label)).FillWidth().MinWidth(0).Gap(2).Children(func() {
+					ui.Text(c, group.label).FillWidth().Padding(0, 12, 2, 12).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+					for _, entry := range group.entries {
+						// The rail keeps no selection while the search lists results.
+						selected := entry.id == active && !searching
+						fill, ink := ui.Transparent, fg
+						if selected {
+							fill, ink = selectedBG, selectedFG
+						}
+						label := sectionLabel(entry.id)
+						button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(36).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(7, 16, 7, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
+						button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
+						button.Children(func() {
+							ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(ink)
+							weight := 400
+							if selected {
+								weight = 500
+							}
+							ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(weight).TextColor(ink).Grow(1).MinWidth(0).SingleLine()
+						})
+						if button.Hovered() && !selected {
+							button.Background(hover)
+						}
+						if button.Clicked() {
+							*query = ""
+							if entry.onSelect != nil {
+								entry.onSelect()
+							}
+						}
 					}
-					ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FontWeight(weight).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 				})
-				if button.Hovered() && !selected {
-					button.Background(hover)
-				}
-				if button.Clicked() && entry.onSelect != nil {
-					entry.onSelect()
-				}
 			}
 		})
 	})
 }
-func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color) {
+
+// settingsRailSearch is the 164x32 search field above the groups: a 12 DIP
+// pill with a hairline border, the magnifier at +10, the text from +32 and a
+// clear button once there is text.
+func settingsRailSearch(c *ui.Context, query *string, fg, muted, border ui.Color) {
+	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Children(func() {
+		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
+		ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch))
+		if *query != "" {
+			clearLabel := i18n.T(i18n.KeySettingsNavSearchClear)
+			clear := ui.Button(c, "").Label(clearLabel).Size(20, 20).Shrink(0).Padding(4).Radius(10).BorderWidth(0).Background(ui.Transparent).Tooltip(clearLabel)
+			clear.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(12, 12).TextColor(muted) })
+			if clear.Clicked() {
+				*query = ""
+			}
+		}
+	})
+}
+func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color, query *string) {
 	active := activeSection(m, snap)
-	// The General page is the reference's Setting-Cell list: every row carries
-	// its own leading hairline and padding, with a small 5 DIP separation. The
-	// old shared 10 DIP pane gap pushed the last rows below the modal edge (the
-	// reference fits ten rows in 800 DIP with the close row at y≈816).
+	// General/Interface source lists have no inter-row gap: each Setting-Cell
+	// owns its 16 DIP vertical padding and a half-pixel bottom border.
 	gap := float32(10)
-	if active == SectionGeneral && m.DesktopActive {
-		gap = 5
+	if active == SectionGeneral || active == SectionInterface || active == SectionConversation || active == SectionFeatures {
+		gap = 0
+	} else if active == SectionAppearance {
+		gap = 28
 	}
-	pane := ui.Scroll(c.Key("settings-options-"+string(active))).Grow(1).MinWidth(0).MinHeight(0).Background(paneBG).Padding(0, 24, 24, 24).Gap(gap)
+	pane := settingsOptionsScroll(c, "settings-options-"+string(active), gap, paneBG)
 	// A section switch fades the page in over the popover token. The pane is
 	// keyed by its section, so each switch builds a new element whose lifetime is
 	// one opening, and Reveal runs the enter by hand.
@@ -246,6 +345,11 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if snap.LastAction != "" && !strings.HasPrefix(snap.LastAction, "settings document ") {
 			ui.Text(c, settingsActionText(snap.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
+		if searching := strings.TrimSpace(*query) != ""; searching {
+			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+			settingsSearchResults(c, m, snap, *query, fg, muted, chrome.Color(colors.Hover), func() { *query = "" })
+			return
 		}
 		if m.SectionContent != nil && m.ActiveSection != "" {
 			m.SectionContent(c)
@@ -263,6 +367,14 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if active == SectionGeneral {
 			generalNavigation(c, m, snap, fg, muted)
+		}
+		if m.ConversationActive && m.Conversation != nil {
+			conversationPane(c, m, fg, muted)
+			return
+		}
+		if m.FeaturesActive && m.Features != nil {
+			featuresPane(c, m, fg, muted)
+			return
 		}
 		if m.AccountActive && m.Account != nil {
 			accountPane(c, m, fg, muted)
@@ -369,11 +481,11 @@ func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui
 		for _, candidate := range snap.Namespaces {
 			switch candidate.NS {
 			case "permission":
-				if ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Clicked() {
+				if ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
 					m.OnSelectNamespace("permission")
 				}
 			case settings.CustomInstructionsNamespace:
-				if ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
 					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
 				}
 			}
@@ -505,21 +617,21 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	case settings.FieldEnum:
 		draft := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})
 	case settings.FieldJSON:
 		draft := m.DraftPtr(f.Key, seed)
 		settingsFieldBlock(c, key, label, hint, fg, muted, func() {
-			if ui.TextArea(c, draft).Fill().Lines(4, 12).Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.TextArea(c, draft).Fill().Lines(4, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})
 	case settings.FieldNumber:
 		draft := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})
@@ -527,7 +639,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 		draft := m.DraftPtr(f.Key, seed)
 		if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
 			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-				input := ui.TextInput(c, draft).Fill()
+				input := ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
 				if m.RevealSecrets == nil || !*m.RevealSecrets {
 					input = input.Password()
 				}
@@ -539,14 +651,14 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 		}
 		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
 			settingsFieldBlock(c, key, label, hint, fg, muted, func() {
-				if ui.TextArea(c, draft).Fill().Lines(3, 10).Disabled(disabled).Changed() && m.OnDraft != nil {
+				if ui.TextArea(c, draft).Fill().Lines(3, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, *draft)
 				}
 			})
 			return
 		}
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Height(32).Disabled(disabled).Changed() && m.OnDraft != nil {
+			if ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
 				m.OnDraft(f.Key, *draft)
 			}
 		})

@@ -45,21 +45,21 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			}
 			ui.Text(c, providerCopy("不会覆盖已有技能；如有同名冲突，安装会停止。", "Existing skills will not be overwritten; a name conflict stops installation.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy || hub.OnCancelInstall == nil).Clicked() {
+				if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || hub.OnCancelInstall == nil).Clicked() {
 					hub.OnCancelInstall()
 				}
 				label := providerCopy("确认安装", "Confirm installation")
 				if hub.Installing {
 					label = providerCopy("正在安装…", "Installing…")
 				}
-				if ui.Button(c, label).Disabled(busy || hub.OnConfirmInstall == nil).Clicked() {
+				if ui.Button(c, label).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || hub.OnConfirmInstall == nil).Clicked() {
 					hub.OnConfirmInstall()
 				}
 			})
 			return
 		}
-		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		ui.Text(c, providerCopy("安装范围", "Install scope")).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, providerCopy("安装范围", "Install scope")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			user, project := providerCopy("用户技能", "User skills"), providerCopy("项目技能", "Project skills")
 			if a.TargetRoot == "project-dsh" {
@@ -67,21 +67,21 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			} else {
 				user = "✓ " + user
 			}
-			if ui.Button(c, user).Disabled(busy || a.OnSelectRoot == nil).Clicked() {
+			if ui.Button(c, user).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy || a.OnSelectRoot == nil).Clicked() {
 				a.OnSelectRoot("user-dsh")
 			}
-			if ui.Button(c, project).Disabled(busy || a.OnSelectRoot == nil || a.ProjectCwd == "").Clicked() {
+			if ui.Button(c, project).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy || a.OnSelectRoot == nil || a.ProjectCwd == "").Clicked() {
 				a.OnSelectRoot("project-dsh")
 			}
 		})
-		ui.Text(c, skillHubScope(a)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, skillHubScope(a)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.TextInput(c, a.HubQuery).Grow(1).Disabled(busy).Placeholder(i18n.T(i18n.KeySettingsSkillsHubPlaceholder))
+			ui.TextInput(c, a.HubQuery).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Placeholder(i18n.T(i18n.KeySettingsSkillsHubPlaceholder))
 			label := i18n.T(i18n.KeySettingsSkillsHubSearch)
 			if hub.Searching {
 				label = providerCopy("正在搜索…", "Searching…")
 			}
-			if ui.Button(c, label).Disabled(busy || strings.TrimSpace(*a.HubQuery) == "" || a.OnSearchHub == nil).Clicked() {
+			if ui.Button(c, label).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || strings.TrimSpace(*a.HubQuery) == "" || a.OnSearchHub == nil).Clicked() {
 				a.OnSearchHub(*a.HubQuery)
 			}
 		})
@@ -91,9 +91,9 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 		for _, hit := range a.HubHits {
 			hit := hit
 			bodyRosterRow(c, hit.SkillName, func() {
-				ui.Text(c, fmt.Sprintf("%s · %s · ★ %g", hit.Repo, hit.Path, hit.Stars)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, fmt.Sprintf("%s · %s · ★ %g", hit.Repo, hit.Path, hit.Stars)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				if hit.Description != "" {
-					ui.Text(c, hit.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, hit.Description).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				}
 				label := i18n.T(i18n.KeySettingsSkillsHubInstall)
 				disabled := busy || a.OnInstallHub == nil || hit.Repo == "" || hit.Path == "" || hit.SkillName == ""
@@ -102,7 +102,7 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 				} else if hit.Status == "conflict" {
 					label, disabled = providerCopy("同名冲突", "Name conflict"), true
 				}
-				if ui.Button(c, label).Disabled(disabled).Clicked() {
+				if ui.Button(c, label).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
 					a.OnInstallHub(hit.Repo, hit.Path, hit.SkillName)
 				}
 			}, fg, muted)

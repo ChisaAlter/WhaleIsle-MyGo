@@ -28,8 +28,18 @@ func (w *window) frameRadius() int {
 }
 
 // configureRoundedFrame keeps WS_CAPTION and WS_THICKFRAME (native motion,
-// resize and Snap), while suppressing DWM's rectangular non-client backing and
-// its separate OS corner mask. Our composition surface supplies the alpha edge.
+// resize and Snap), suppresses DWM's rectangular non-client backing, and tells
+// DWM not to round the frame.
+//
+// The silhouette is the content's own, one contour: the 20 DIP anti-aliased
+// clip of applyFrameClip with the app's hairline ring inside it, which is what
+// the original draws in its page on a transparent window with
+// roundedCorners:false. Asking DWM to round as well (DWMWCP_ROUND) put a second
+// outline of the system's 8 DIP radius under the clip: the corners showed two
+// curves with a light wedge between them, a 1 px light line along the top edge
+// and a shadow shaped by the smaller radius. With DoNotRound DWM paints no
+// frame, border or shadow for this window, so only the content shows, like the
+// original.
 func (w *window) configureRoundedFrame() error {
 	if w.frameRadius() <= 0 {
 		return nil
@@ -41,7 +51,7 @@ func (w *window) configureRoundedFrame() error {
 	if windows11() {
 		corner := uint32(dwmDoNotRound)
 		if hr, _, _ := procDwmSetWindowAttribute.Call(w.hwnd, dwmwaCornerPreference, uintptr(unsafe.Pointer(&corner)), 4); failed(hr) {
-			return hresultError("disabling the system rounded-window mask", hr)
+			return hresultError("leaving the window frame unrounded", hr)
 		}
 	}
 	return nil

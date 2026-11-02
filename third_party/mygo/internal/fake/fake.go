@@ -305,27 +305,60 @@ func (b *Backend) Notification(id string) *platform.Notification {
 // does. It runs on the main thread, like the backends report it.
 func (b *Backend) ClickNotification(id string) { b.h.NotificationClicked(id) }
 
+// ActivateNotification and DismissNotification model native events on the UI
+// thread. A timeout preserves history, while a user dismissal removes it.
+func (b *Backend) ActivateNotification(id string, activation platform.NotificationActivation) {
+	if h, ok := b.h.(platform.NotificationObserver); ok {
+		h.NotificationActivated(id, activation)
+	} else {
+		b.h.NotificationClicked(id)
+	}
+}
+func (b *Backend) DismissNotification(id, reason string) {
+	if reason != "timed-out" {
+		b.RemoveNotification(id)
+	}
+	if h, ok := b.h.(platform.NotificationObserver); ok {
+		h.NotificationClosed(id, reason)
+	}
+}
+func (b *Backend) FailNotification(id string, err error) {
+	b.RemoveNotification(id)
+	if h, ok := b.h.(platform.NotificationObserver); ok {
+		h.NotificationFailed(id, err)
+	}
+}
+func (b *Backend) NotificationHistory(appID string) ([]platform.NotificationRecord, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	rows := make([]platform.NotificationRecord, 0, len(b.notifications))
+	for _, n := range b.notifications {
+		rows = append(rows, platform.NotificationRecord{ID: n.ID, Group: n.Group})
+	}
+	return rows, nil
+}
+
 // Window is a fake native window. Scripts evaluated in it are recorded.
 type Window struct {
 	b    *Backend
 	H    platform.WindowHandler
 	Opts *platform.WindowOptions
 
-	beforeInput func(platform.KeyInput) bool
+	beforeInput     func(platform.KeyInput) bool
 	devToolsEnabled *bool
-	mu        sync.Mutex
-	scripts   []string
-	title     string
-	url       string
-	bounds    platform.Rect
-	visible   bool
-	focused   bool
-	minimized bool
-	maximized bool
-	full      bool
-	zoom      float64
-	closed    bool
-	devtools  bool
+	mu              sync.Mutex
+	scripts         []string
+	title           string
+	url             string
+	bounds          platform.Rect
+	visible         bool
+	focused         bool
+	minimized       bool
+	maximized       bool
+	full            bool
+	zoom            float64
+	closed          bool
+	devtools        bool
 	// Dropped is what DroppedFiles returns, once.
 	Dropped []string
 	// PDF holds the options of the last PrintToPDF.
@@ -436,64 +469,64 @@ func (w *Window) SetBounds(r platform.Rect) {
 	w.mu.Unlock()
 	w.H.Resized()
 }
-func (w *Window) Bounds() platform.Rect              { w.mu.Lock(); defer w.mu.Unlock(); return w.bounds }
-func (w *Window) SetContentBounds(r platform.Rect)   { w.SetBounds(r) }
-func (w *Window) ContentBounds() platform.Rect       { return w.Bounds() }
-func (w *Window) SetMinimumSize(platform.Size)       {}
-func (w *Window) SetMaximumSize(platform.Size)       {}
-func (w *Window) SetResizable(bool)                  {}
-func (w *Window) IsResizable() bool                  { return w.Opts.Resizable }
-func (w *Window) SetMovable(bool)                    {}
-func (w *Window) IsMovable() bool                    { return w.Opts.Movable }
-func (w *Window) SetMinimizable(bool)                {}
-func (w *Window) IsMinimizable() bool                { return w.Opts.Minimizable }
-func (w *Window) SetMaximizable(bool)                {}
-func (w *Window) IsMaximizable() bool                { return w.Opts.Maximizable }
-func (w *Window) SetClosable(bool)                   {}
-func (w *Window) IsClosable() bool                   { return w.Opts.Closable }
-func (w *Window) SetAlwaysOnTop(bool)                {}
-func (w *Window) IsAlwaysOnTop() bool                { return w.Opts.AlwaysOnTop }
-func (w *Window) Show()                              { w.mu.Lock(); w.visible, w.focused = true, true; w.mu.Unlock() }
-func (w *Window) ShowInactive()                      { w.mu.Lock(); w.visible = true; w.mu.Unlock() }
-func (w *Window) Hide()                              { w.mu.Lock(); w.visible = false; w.mu.Unlock() }
-func (w *Window) IsVisible() bool                    { w.mu.Lock(); defer w.mu.Unlock(); return w.visible }
-func (w *Window) Focus()                             { w.H.Focused() }
-func (w *Window) Blur()                              { w.H.Blurred() }
-func (w *Window) IsFocused() bool                    { w.mu.Lock(); defer w.mu.Unlock(); return w.focused }
-func (w *Window) Minimize()                          { w.mu.Lock(); w.minimized = true; w.mu.Unlock(); w.H.Minimized() }
-func (w *Window) IsMinimized() bool                  { w.mu.Lock(); defer w.mu.Unlock(); return w.minimized }
-func (w *Window) Maximize()                          { w.mu.Lock(); w.maximized = true; w.mu.Unlock(); w.H.Maximized() }
-func (w *Window) Unmaximize()                        { w.mu.Lock(); w.maximized = false; w.mu.Unlock(); w.H.Unmaximized() }
-func (w *Window) IsMaximized() bool                  { w.mu.Lock(); defer w.mu.Unlock(); return w.maximized }
-func (w *Window) Restore()                           { w.mu.Lock(); w.minimized = false; w.mu.Unlock(); w.H.Restored() }
-func (w *Window) SetFullScreen(v bool)               { w.mu.Lock(); w.full = v; w.mu.Unlock() }
-func (w *Window) IsFullScreen() bool                 { w.mu.Lock(); defer w.mu.Unlock(); return w.full }
-func (w *Window) Center()                            {}
-func (w *Window) SetOpacity(float64)                 {}
-func (w *Window) Opacity() float64                   { return 1 }
-func (w *Window) SetHasShadow(bool)                  {}
-func (w *Window) HasShadow() bool                    { return true }
-func (w *Window) SetIgnoreMouseEvents(bool)          {}
-func (w *Window) SetContentProtection(bool)          {}
-func (w *Window) SetVibrancy(string)                 {}
-func (w *Window) SetMenu(*platform.Menu)             {}
-func (w *Window) StartDrag()                         {}
-func (w *Window) TitleBarDoubleClicked()             {}
-func (w *Window) LoadURL(url string)                 { w.mu.Lock(); w.url = url; w.mu.Unlock() }
-func (w *Window) LoadHTML(string, string)            { w.mu.Lock(); w.url = "about:blank"; w.mu.Unlock() }
-func (w *Window) LoadFile(path, _ string)            { w.mu.Lock(); w.url = "file://" + path; w.mu.Unlock() }
-func (w *Window) Reload(bool)                        {}
-func (w *Window) StopLoading()                       {}
-func (w *Window) GoBack()                            {}
-func (w *Window) GoForward()                         {}
-func (w *Window) CanGoBack() bool                    { return false }
-func (w *Window) CanGoForward() bool                 { return false }
-func (w *Window) URL() string                        { w.mu.Lock(); defer w.mu.Unlock(); return w.url }
-func (w *Window) IsLoading() bool                    { return false }
-func (w *Window) SetZoom(f float64)                  { w.mu.Lock(); w.zoom = f; w.mu.Unlock() }
-func (w *Window) Zoom() float64                      { w.mu.Lock(); defer w.mu.Unlock(); return w.zoom }
-func (w *Window) SetUserAgent(string)                {}
-func (w *Window) UserAgent() string                  { return "fake" }
+func (w *Window) Bounds() platform.Rect            { w.mu.Lock(); defer w.mu.Unlock(); return w.bounds }
+func (w *Window) SetContentBounds(r platform.Rect) { w.SetBounds(r) }
+func (w *Window) ContentBounds() platform.Rect     { return w.Bounds() }
+func (w *Window) SetMinimumSize(platform.Size)     {}
+func (w *Window) SetMaximumSize(platform.Size)     {}
+func (w *Window) SetResizable(bool)                {}
+func (w *Window) IsResizable() bool                { return w.Opts.Resizable }
+func (w *Window) SetMovable(bool)                  {}
+func (w *Window) IsMovable() bool                  { return w.Opts.Movable }
+func (w *Window) SetMinimizable(bool)              {}
+func (w *Window) IsMinimizable() bool              { return w.Opts.Minimizable }
+func (w *Window) SetMaximizable(bool)              {}
+func (w *Window) IsMaximizable() bool              { return w.Opts.Maximizable }
+func (w *Window) SetClosable(bool)                 {}
+func (w *Window) IsClosable() bool                 { return w.Opts.Closable }
+func (w *Window) SetAlwaysOnTop(bool)              {}
+func (w *Window) IsAlwaysOnTop() bool              { return w.Opts.AlwaysOnTop }
+func (w *Window) Show()                            { w.mu.Lock(); w.visible, w.focused = true, true; w.mu.Unlock() }
+func (w *Window) ShowInactive()                    { w.mu.Lock(); w.visible = true; w.mu.Unlock() }
+func (w *Window) Hide()                            { w.mu.Lock(); w.visible = false; w.mu.Unlock() }
+func (w *Window) IsVisible() bool                  { w.mu.Lock(); defer w.mu.Unlock(); return w.visible }
+func (w *Window) Focus()                           { w.H.Focused() }
+func (w *Window) Blur()                            { w.H.Blurred() }
+func (w *Window) IsFocused() bool                  { w.mu.Lock(); defer w.mu.Unlock(); return w.focused }
+func (w *Window) Minimize()                        { w.mu.Lock(); w.minimized = true; w.mu.Unlock(); w.H.Minimized() }
+func (w *Window) IsMinimized() bool                { w.mu.Lock(); defer w.mu.Unlock(); return w.minimized }
+func (w *Window) Maximize()                        { w.mu.Lock(); w.maximized = true; w.mu.Unlock(); w.H.Maximized() }
+func (w *Window) Unmaximize()                      { w.mu.Lock(); w.maximized = false; w.mu.Unlock(); w.H.Unmaximized() }
+func (w *Window) IsMaximized() bool                { w.mu.Lock(); defer w.mu.Unlock(); return w.maximized }
+func (w *Window) Restore()                         { w.mu.Lock(); w.minimized = false; w.mu.Unlock(); w.H.Restored() }
+func (w *Window) SetFullScreen(v bool)             { w.mu.Lock(); w.full = v; w.mu.Unlock() }
+func (w *Window) IsFullScreen() bool               { w.mu.Lock(); defer w.mu.Unlock(); return w.full }
+func (w *Window) Center()                          {}
+func (w *Window) SetOpacity(float64)               {}
+func (w *Window) Opacity() float64                 { return 1 }
+func (w *Window) SetHasShadow(bool)                {}
+func (w *Window) HasShadow() bool                  { return true }
+func (w *Window) SetIgnoreMouseEvents(bool)        {}
+func (w *Window) SetContentProtection(bool)        {}
+func (w *Window) SetVibrancy(string)               {}
+func (w *Window) SetMenu(*platform.Menu)           {}
+func (w *Window) StartDrag()                       {}
+func (w *Window) TitleBarDoubleClicked()           {}
+func (w *Window) LoadURL(url string)               { w.mu.Lock(); w.url = url; w.mu.Unlock() }
+func (w *Window) LoadHTML(string, string)          { w.mu.Lock(); w.url = "about:blank"; w.mu.Unlock() }
+func (w *Window) LoadFile(path, _ string)          { w.mu.Lock(); w.url = "file://" + path; w.mu.Unlock() }
+func (w *Window) Reload(bool)                      {}
+func (w *Window) StopLoading()                     {}
+func (w *Window) GoBack()                          {}
+func (w *Window) GoForward()                       {}
+func (w *Window) CanGoBack() bool                  { return false }
+func (w *Window) CanGoForward() bool               { return false }
+func (w *Window) URL() string                      { w.mu.Lock(); defer w.mu.Unlock(); return w.url }
+func (w *Window) IsLoading() bool                  { return false }
+func (w *Window) SetZoom(f float64)                { w.mu.Lock(); w.zoom = f; w.mu.Unlock() }
+func (w *Window) Zoom() float64                    { w.mu.Lock(); defer w.mu.Unlock(); return w.zoom }
+func (w *Window) SetUserAgent(string)              {}
+func (w *Window) UserAgent() string                { return "fake" }
 func (w *Window) OpenDevTools() {
 	w.mu.Lock()
 	defer w.mu.Unlock()

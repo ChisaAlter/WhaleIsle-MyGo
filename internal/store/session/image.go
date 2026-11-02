@@ -3,11 +3,10 @@ package session
 import (
 	"encoding/json"
 	"path/filepath"
-	"regexp"
 	"strings"
-)
 
-var markdownImageRE = regexp.MustCompile(`!\[[^\]]*\]\(([^)]+)\)`)
+	"whaleisle/internal/markdownsyntax"
+)
 
 func imagePlaceholderLine(path string) string {
 	path = strings.TrimSpace(path)
@@ -35,11 +34,11 @@ func looksLikeImagePath(s string) bool {
 }
 
 func markdownImagePath(s string) string {
-	m := markdownImageRE.FindStringSubmatch(strings.TrimSpace(s))
-	if len(m) < 2 {
+	refs := markdownsyntax.ImageReferences(s)
+	if len(refs) == 0 {
 		return ""
 	}
-	return strings.TrimSpace(m[1])
+	return refs[0]
 }
 
 func stringAsImagePlaceholder(s string) string {
@@ -47,11 +46,12 @@ func stringAsImagePlaceholder(s string) string {
 	if s == "" {
 		return ""
 	}
-	if p := markdownImagePath(s); p != "" {
-		rest := strings.TrimSpace(markdownImageRE.ReplaceAllString(s, ""))
-		if rest == "" {
-			return imagePlaceholderLine(p)
+	if refs, only := markdownsyntax.OnlyImages(s); only {
+		lines := make([]string, 0, len(refs))
+		for _, ref := range refs {
+			lines = append(lines, imagePlaceholderLine(ref))
 		}
+		return strings.Join(lines, "\n")
 	}
 	if looksLikeImagePath(s) {
 		return imagePlaceholderLine(s)
@@ -129,5 +129,12 @@ func appendBlockText(out string, block json.RawMessage) string {
 		}
 		return out + "\n" + line
 	}
-	return out + extractTextish(block)
+	text := extractTextish(block)
+	if out != "" && text != "" {
+		lines := strings.Split(out, "\n")
+		if strings.HasPrefix(strings.TrimSpace(lines[len(lines)-1]), "[image] ") {
+			return out + "\n" + text
+		}
+	}
+	return out + text
 }

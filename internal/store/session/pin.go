@@ -16,6 +16,7 @@ func (s *Store) setPinnedSessionIDs(ids []string) {
 }
 
 func (s *Store) applyPinnedFlagsLocked() {
+	s.invalidateViewLocked()
 	pinned := map[string]struct{}{}
 	for _, id := range s.pinnedSessionIDs {
 		id = strings.TrimSpace(id)
@@ -50,6 +51,9 @@ func (s *Store) PinSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()
@@ -85,6 +89,9 @@ func (s *Store) UnpinSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()

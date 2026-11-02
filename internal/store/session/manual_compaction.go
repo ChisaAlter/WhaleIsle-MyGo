@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 )
@@ -35,6 +36,9 @@ func parseManualCompactionFact(raw json.RawMessage) (manualCompactionFact, bool)
 }
 
 func parseCompactionFact(raw json.RawMessage) (manualCompactionFact, bool) {
+	if len(raw) == 0 || !bytes.Contains(raw, []byte("compactionId")) {
+		return manualCompactionFact{}, false
+	}
 	var event struct {
 		Type      string  `json:"type"`
 		Seq       float64 `json:"seq"`
@@ -133,9 +137,14 @@ func projectManualCompactionMessages(messages []Message) []Message {
 		if msg.Kind == MessageKindCommand && msg.Command != nil {
 			commandRows[msg.Command.CommandID] = i
 		}
-		if fact, ok := parseManualCompactionFact(msg.Raw); ok {
-			groups[fact.commandID] = append(groups[fact.commandID], locatedFact{i, fact})
+		if (msg.Kind == "" || msg.Kind == MessageKindCompaction) && len(msg.Raw) != 0 {
+			if fact, ok := parseManualCompactionFact(msg.Raw); ok {
+				groups[fact.commandID] = append(groups[fact.commandID], locatedFact{i, fact})
+			}
 		}
+	}
+	if len(groups) == 0 {
+		return messages
 	}
 	hidden := make(map[int]bool)
 	replacements := make(map[int]Message)

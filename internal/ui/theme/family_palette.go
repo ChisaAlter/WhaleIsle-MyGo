@@ -81,14 +81,24 @@ func derivePalette(c Colors, s Seed) Colors {
 			c.ButtonFG = value
 		case "--dsw-alias-brand-primary", "--dsw-alias-state-business-primary":
 			c.Accent = value
+		case "--dsw-alias-button-primary-fill":
+			c.BrandPrimary = value
+		case "--dsw-alias-button-primary-hover":
+			c.BrandPrimaryHover = value
 		case "--dsw-alias-button-info-fill":
 			c.ButtonInfoFill = value
 		case "--dsw-alias-button-info-hover":
 			c.ButtonInfoHover = value
+		case "--dsw-alias-state-error-primary":
+			c.Danger = value
 		case "--dsw-alias-border-l1":
 			c.BorderL1 = value
 		case "--dsw-alias-border-l2":
 			c.Border = value
+		case "--dsw-alias-border-l3":
+			c.BorderL3 = value
+		case "--dsw-alias-border-l4":
+			c.BorderL4 = value
 		case "--dsw-alias-label-tertiary":
 			c.Muted = value
 		case "--dsw-alias-label-caption":
@@ -106,6 +116,13 @@ func derivePalette(c Colors, s Seed) Colors {
 		case "--dsw-specific-bubble-highlight":
 			c.BubbleHighlight = value
 		}
+	}
+	// Specific surfaces override the layer aliases regardless of map iteration.
+	if value := s.Overrides["--dsw-specific-input-major"]; value != "" {
+		c.InputMajor = value
+	}
+	if value := s.Overrides["--dsw-specific-selector"]; value != "" {
+		c.SelectorFill = value
 	}
 	// The trigger aliases follow the platform sheet's light/dark selection;
 	// custom code-block overrides flow through the light alias before an

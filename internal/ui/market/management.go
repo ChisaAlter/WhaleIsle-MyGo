@@ -63,9 +63,9 @@ func managementFilters(c *ui.Context, m Model) {
 			if selected {
 				label = "● " + label
 			}
-			b := ui.Button(c, label).Selected(selected)
+			b := ui.Button(c, label).Height(28).Padding(0, 10).Radius(999).Border(.5, chrome.Color(colors.Border)).FontSize(fonttheme.InterfaceSize(12.5)).Selected(selected)
 			if selected {
-				b = b.Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.FG))
+				b = b.Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.FG)).FontWeight(500)
 			}
 			if b.Clicked() {
 				m.Store.SetManagementFilter(f.id)
@@ -133,7 +133,7 @@ func withMarketConfirmations(m Model) Model {
 	}
 	return m
 }
-func batchSelectionView(c *ui.Context, m Model, u marketstore.Updates, muted ui.Color) {
+func batchSelectionView(c *ui.Context, m Model, u marketstore.Updates, muted, border ui.Color) {
 	var targets []marketstore.InstallTarget
 	for _, row := range u.Rows {
 		if !row.Available || !m.Store.UpdateSelected(row.ID) {
@@ -145,13 +145,13 @@ func batchSelectionView(c *ui.Context, m Model, u marketstore.Updates, muted ui.
 	}
 	ui.Row(c).Gap(8).Children(func() {
 		if !m.InstallBusy && !u.Loading {
-			if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketSelectAllUpdatable), "Select all updates")).Clicked() {
+			if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketSelectAllUpdatable), "Select all updates")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 				m.Store.SelectAvailableUpdates(true)
 			}
-			if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketClearSelection2), "Clear selection")).Clicked() {
+			if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketClearSelection2), "Clear selection")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 				m.Store.SelectAvailableUpdates(false)
 			}
-			if len(targets) > 0 && m.OnBatchUpdate != nil && ui.Button(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketUpdateAllD), "Update selected (%d)"), len(targets))).Clicked() {
+			if len(targets) > 0 && m.OnBatchUpdate != nil && ui.Button(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketUpdateAllD), "Update selected (%d)"), len(targets))).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 				confirmed := append([]marketstore.InstallTarget(nil), targets...)
 				lines := []string{marketText(i18n.T(i18n.KeyW4MarketTheFollowingPluginsUpdateInOrderBuild), "Update these plugins sequentially. Build scripts and version exemptions require separate approval. Stop on failure.")}
 				for _, t := range confirmed {
@@ -160,7 +160,7 @@ func batchSelectionView(c *ui.Context, m Model, u marketstore.Updates, muted ui.
 				m.Store.RequestConfirmation(strings.Join(lines, "\n"), func() { m.OnBatchUpdate(confirmed) })
 			}
 		}
-		if m.OnStopBatch != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketStopRemainingBatchItems), "Stop queued updates")).Clicked() {
+		if m.OnStopBatch != nil && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketStopRemainingBatchItems), "Stop queued updates")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 			m.OnStopBatch()
 		}
 	})

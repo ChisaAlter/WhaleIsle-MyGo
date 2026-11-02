@@ -5,11 +5,9 @@ import (
 	"testing"
 )
 
-// TestHeroChipRowKeepsTheNativeInsets checks the round217 rule in the full
-// 1440-wide shell: the workspace chip starts 32.67 DIP inside the hero row and
-// the preset chip follows 3.33 DIP after its 150-DIP box. The absolute chip x
-// (502 native) also depends on the composer card's horizontal centring, which
-// is a separate open item, so this test pins the row-relative offsets.
+// Installed0.3.10 ConversationRoot.heroWorkspaceRow defines20-DIP left padding
+// and a two-DIP chip gap. Pin component-relative offsets so changing viewport
+// or caption geometry cannot preserve an obsolete absolute-seat measurement.
 func TestHeroChipRowKeepsTheNativeInsets(t *testing.T) {
 	tt := chatChromeTester(t)
 	workspace, ok := tt.Find("Composer workspace")
@@ -30,10 +28,8 @@ func TestHeroChipRowKeepsTheNativeInsets(t *testing.T) {
 		}
 	}
 	close("workspace chip width", float64(workspace.W), 150)
-	close("workspace left inset", float64(workspace.X-row.X), 32.67)
-	if gap := preset.X - (workspace.X + workspace.W); gap < 3.2 || gap > 3.5 {
-		t.Fatalf("chip-to-preset gap = %.2f, want no row gap", gap)
-	}
+	close("workspace left inset", float64(workspace.X-row.X), 20)
+	close("sourcechip-to-preset gap", float64(preset.X-(workspace.X+workspace.W)), 2)
 	if preset.X+preset.W > row.X+row.W {
 		t.Fatalf("preset chip overflows the row: %v row=%v", preset, row)
 	}

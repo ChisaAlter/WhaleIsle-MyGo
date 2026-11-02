@@ -31,7 +31,7 @@ func (s *mainState) refreshReturnedAccount() {
 	}
 	sid := ""
 	if sessions != nil {
-		sid = sessions.Snapshot().SelectedID
+		sid = sessions.SelectedSessionID()
 	}
 	// A new account epoch prevents a pre-return profile/wallet request from
 	// replacing this post-operation read when it eventually completes.
@@ -106,7 +106,7 @@ func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, us
 		if usageStore != nil {
 			sid := ""
 			if sessions != nil {
-				sid = sessions.Snapshot().SelectedID
+				sid = sessions.SelectedSessionID()
 			}
 			usageStore.Refresh(context.Background(), sid)
 		}

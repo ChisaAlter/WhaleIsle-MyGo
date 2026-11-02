@@ -1,6 +1,7 @@
 package interaction
 
 import (
+	"bytes"
 	"encoding/json"
 )
 
@@ -59,6 +60,19 @@ func (s *Store) ReviewQuestionHistory(agentID, callID string) {
 	}
 	s.mu.Unlock()
 	s.fire()
+}
+
+// HasQuestionDrafts reports whether the agent has any retained live question drafts.
+func (s *Store) HasQuestionDrafts(agentID string) bool {
+	if agentID == "" {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if p := s.questionRecovery.agents[agentID]; p != nil && len(p.drafts) > 0 {
+		return true
+	}
+	return false
 }
 
 // SyncQuestionHistory is read-only and rebuilds from loaded transcript records.
@@ -124,22 +138,38 @@ func (s *Store) SyncQuestionHistory(agentID string, events []json.RawMessage, qu
 	calls := map[string][]userQuestionItem{}
 	results := map[string][]userQuestionsAnswerItem{}
 	order := []string{}
-	for _, raw := range events {
-		var e struct {
-			Type string
-			Data struct {
-				CallID, SubCallID, Name string
-				Arguments               json.RawMessage
-				Content                 []struct{ Type, Text string }
-				IsError                 bool
-				Error                   json.RawMessage
-				Message                 struct {
-					ToolCallID string
-					IsError    bool
-					Content    []struct{ Type, Text string }
-				}
+	type historyCallRecord struct {
+		Type string
+		Data struct {
+			CallID, SubCallID, Name string
+			Arguments               json.RawMessage
+		}
+	}
+	type historyRecord struct {
+		Type string
+		Data struct {
+			CallID, SubCallID, Name string
+			Arguments               json.RawMessage
+			Content                 []struct{ Type, Text string }
+			IsError                 bool
+			Error                   json.RawMessage
+			Message                 struct {
+				ToolCallID string
+				IsError    bool
+				Content    []struct{ Type, Text string }
 			}
 		}
+	}
+	// Only ask_user_question calls and the results of the call IDs listed below
+	// reach the entries. This runs every frame over the whole loaded transcript,
+	// so match the literal tool name and IDs (JSON encoders leave these ASCII
+	// strings unescaped) before decoding a record.
+	callName := []byte("ask_user_question")
+	for _, raw := range events {
+		if !bytes.Contains(raw, callName) {
+			continue
+		}
+		var e historyCallRecord
 		if json.Unmarshal(raw, &e) != nil {
 			continue
 		}
@@ -161,6 +191,25 @@ func (s *Store) SyncQuestionHistory(agentID string, events []json.RawMessage, qu
 				calls[id] = qs
 			}
 		}
+	}
+	wanted := make([][]byte, 0, len(order))
+	for _, id := range order {
+		wanted = append(wanted, []byte(id))
+	}
+	if p != nil {
+		for id := range p.drafts {
+			wanted = append(wanted, []byte(id))
+		}
+	}
+	for _, raw := range events {
+		if !containsAnyBytes(raw, wanted) {
+			continue
+		}
+		var e historyRecord
+		if json.Unmarshal(raw, &e) != nil {
+			continue
+		}
+		d := e.Data
 		if e.Type == "tool/result" || e.Type == "tool/ptc-dispatch" {
 			if d.IsError || d.Message.IsError || (len(d.Error) > 0 && string(d.Error) != "null") {
 				continue
@@ -317,4 +366,13 @@ func (s *Store) questionHistorySnapshotLocked(agentID string) []QuestionHistoryV
 		out = append(out, v)
 	}
 	return out
+}
+
+func containsAnyBytes(raw []byte, needles [][]byte) bool {
+	for _, n := range needles {
+		if bytes.Contains(raw, n) {
+			return true
+		}
+	}
+	return false
 }

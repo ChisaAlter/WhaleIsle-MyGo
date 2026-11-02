@@ -1,4 +1,4 @@
-﻿package pet
+package pet
 
 import (
 	"encoding/json"
@@ -33,9 +33,8 @@ func renderBehaviorPage(page []byte, behavior config.PetBehavior) []byte {
 
 // applyBehavior updates the existing native window. Display-only preference
 // saves must not recreate the page, stop inference, or reset its rest state.
-// The native pet never resizes with growth (desktop-live2d.js:35-37,437), so
-// the window keeps its 240 DIP footprint at every behavior scale and the page
-// scales the sprite in place.
+// The native overlay never resizes with growth. Only the character's logical
+// rectangle and page layout change, preserving unclipped poses and floating UI.
 func petWindowHeight(behavior config.PetBehavior) int {
 	_ = config.NormalizePetBehavior(behavior) // validated on save; never a size input
 	return PetWindowHeight
@@ -45,5 +44,11 @@ func (p *Companion) applyBehavior() {
 	if p == nil || p.win == nil || p.win.IsDestroyed() {
 		return
 	}
-	p.win.SetSize(petWindowSize())
+	p.sizeStage()
+	if area, ok := motionWorkArea(p.petBounds()); ok {
+		b := p.petBounds()
+		position := clampMotionPoint(p.petPosition(), float64(b.Width), float64(b.Height), area)
+		p.stage.X, p.stage.Y = int(position.x), int(position.y)
+	}
+	p.publishLayout()
 }

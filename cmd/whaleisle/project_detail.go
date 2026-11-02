@@ -45,7 +45,7 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 	s.mu.Unlock()
 	selected := ""
 	if sessions != nil {
-		selected = sessions.Snapshot().SelectedID
+		selected = sessions.SelectedSessionID()
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -63,7 +63,7 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 			detail, err = rpc.WorkDetail(ctx, id, prior.Workstream.ID, "")
 			if err == nil {
 				if detail.Worker == nil || detail.Worker.Role == "readonly" || workID != detail.Workstream.ID {
-					err = fmt.Errorf("refresh a writable original Project member before viewing its diff")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRefreshWritableMember))
 				} else {
 					diff, err = rpc.WorkDiff(ctx, id, detail.Workstream.ID)
 				}
@@ -74,7 +74,7 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 		case "earlier":
 			detail = *prior
 			if oldProcess == nil {
-				err = fmt.Errorf("open member history before paging")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectOpenMemberHistory))
 			} else {
 				process, err = rpc.EarlierProcess(ctx, p, detail, *oldProcess)
 			}
@@ -118,7 +118,7 @@ func (s *projectController) runProjectDetail(win *mygo.Window, id, action, workI
 				s.mu.Unlock()
 				return
 			}
-			if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
+			if !f.visible() || f.navigation != navigation || sessions == nil || sessions.SelectedSessionID() != selected {
 				f.err = i18n.T(i18n.KeyCmdNavigationChangedTheRetryDraftWasNotI)
 				s.mu.Unlock()
 				return

@@ -37,8 +37,8 @@ func TestDesktopSidebarRestoreCaption(t *testing.T) {
 			if err := tt.Click(i18n.T(i18n.KeySidebarExpand)); err != nil {
 				t.Fatal(err)
 			}
-			if sizes.Sidebar != 336 {
-				t.Fatalf("restore lost width: %+v", sizes)
+			if sizes.Sidebar != SidebarDefault {
+				t.Fatalf("wide restore did not reset to source default: %+v", sizes)
 			}
 		})
 	}

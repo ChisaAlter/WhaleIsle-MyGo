@@ -107,16 +107,17 @@ type StatsView struct {
 
 func (s *Store) Stats() StatsView {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := StatsView{raw: append(json.RawMessage(nil), s.stats.Raw...), Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Cached: s.stats.Cached, Err: s.stats.Err, Days: s.stats.Days}
+	raw := append(json.RawMessage(nil), s.stats.Raw...)
+	v := StatsView{raw: raw, Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Cached: s.stats.Cached, Err: s.stats.Err, Days: s.stats.Days}
+	s.mu.Unlock()
 	if v.Days == 0 {
 		v.Days = 7
 	}
-	if len(s.stats.Raw) > 0 {
+	if len(raw) > 0 {
 		var o Overview
-		if json.Unmarshal(s.stats.Raw, &o) == nil {
+		if json.Unmarshal(raw, &o) == nil {
 			v.Overview = &o
-		v.UpdatedAt = o.UpdatedAt
+			v.UpdatedAt = o.UpdatedAt
 		}
 	}
 	return v
@@ -157,6 +158,7 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.stats.Loading = true
 	s.stats.Err = ""
 	ep := client.Endpoint
+	cachePath := s.statsCachePath
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -178,16 +180,20 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 		}
 		s.stats.Loading = false
 		s.statsCancel = nil
+		var writeCache bool
 		if err != nil {
 			s.stats.Err = storelocale.T(storelocale.KeyStoreUsageUsageStatisticsUnavailable) + err.Error()
 		} else {
 			s.stats.Raw = append(json.RawMessage(nil), raw...)
 			s.stats.Cached = false
-			s.saveStatsCacheLocked()
+			writeCache = cachePath != "" && s.statsCachePath == cachePath
 			s.reconcileStatsRangeLocked()
 		}
 		s.finishRepairScanLocked(err)
 		s.mu.Unlock()
+		if writeCache {
+			writeStatsCacheFile(cachePath, raw)
+		}
 		s.fire()
 	}()
 }

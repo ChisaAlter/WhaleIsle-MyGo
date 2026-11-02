@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/config"
 )
@@ -35,7 +36,7 @@ func (s *workspaceViewPreferences) SaveWorkspaceNavigationPreferences(host strin
 	defer s.mu.Unlock()
 	base, ok := s.observed[host]
 	if !ok {
-		return fmt.Errorf("view preferences have no readable baseline for this Host")
+		return fmt.Errorf("%s", i18n.T(i18n.KeyCmdViewPreferencesBaselineMissing))
 	}
 	if _, err := s.store.MergeWorkspaceNavigationPreferences(host, base, next); err != nil {
 		return err

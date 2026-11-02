@@ -42,7 +42,7 @@ func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, d
 				sessions.SetLastAction(i18n.T(i18n.KeyComposerDirNoWorkspace) + ": " + err.Error())
 				return
 			}
-			if sessions.Snapshot().SelectedID != sourceID {
+			if sessions.SelectedSessionID() != sourceID {
 				return
 			}
 			if carry && id != sourceID {

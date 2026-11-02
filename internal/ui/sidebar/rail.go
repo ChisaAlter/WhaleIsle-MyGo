@@ -42,16 +42,26 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 		ui.Box(c).Height(12).Shrink(0)
 	}
 	ui.Column(c.Key("sidebar-rail-panels")).FillWidth().Gap(12).Shrink(0).Children(func() {
-		button("sidebar-rail-market", i18n.T(i18n.KeySidebarMarket), sidebarRailIcons["plugins"], m.OnOpenMarket != nil, m.OnOpenMarket)
-		button("sidebar-rail-schedule", i18n.T(i18n.KeySidebarSchedule), sidebarRailIcons["clock"], m.OnOpenSchedule != nil, m.OnOpenSchedule)
-		assistant := button("sidebar-rail-assistant", i18n.T(i18n.KeySidebarAssistant), nil, m.OnOpenAssistant != nil, m.OnOpenAssistant)
-		assistant.Children(func() {
-			if mark := chrome.BrandAvatar(); mark != nil {
-				ui.Image(c, mark).Size(18, 18).Fit(ui.Contain)
-			} else {
-				ui.Text(c, "◉").TextColor(fg).FontSize(theme.InterfaceSize(14))
+		panel := func(id, key, label string, icon *ui.SVG, action func()) ui.Element {
+			b := button(key, label, icon, action != nil, action).Selected(m.ActivePanel == id).
+				Background(ui.Transparent).TextColor(fg)
+			if m.ActivePanel == id || b.Hovered() {
+				b.Background(chrome.Color(colors.Hover))
 			}
-		})
+			return b
+		}
+		panel("plugins", "sidebar-rail-market", i18n.T(i18n.KeySidebarMarket), sidebarRailIcons["plugins"], m.OnOpenMarket)
+		panel("schedule", "sidebar-rail-schedule", i18n.T(i18n.KeySidebarSchedule), sidebarRailIcons["clock"], m.OnOpenSchedule)
+		if m.OnOpenAssistant != nil {
+			assistant := panel("assistant", "sidebar-rail-assistant", i18n.T(i18n.KeySidebarAssistant), nil, m.OnOpenAssistant)
+			assistant.Children(func() {
+				if mark := chrome.BrandAvatar(); mark != nil {
+					ui.Image(c, mark).Size(18, 18).Fit(ui.Contain)
+				} else {
+					ui.Text(c, "◉").TextColor(fg).FontSize(theme.InterfaceSize(14))
+				}
+			})
+		}
 	})
 	ui.Box(c).Height(12).Shrink(0)
 	// WorkspaceBrowser keeps this region seat mounted; Add precedes Search in

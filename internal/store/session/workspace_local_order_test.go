@@ -12,12 +12,12 @@ func TestWorkspaceLocalOrderPersistence(t *testing.T) {
 	s.client = &dsh.Client{}
 	s.workspaceReady = true
 	s.scratchCwd = "/scratch"
-	s.items = []Item{{SessionID: "a"}, {SessionID: "hidden"}, {SessionID: "b"}}
+	s.items = []Item{{SessionID: "a", Cwd: "/scratch"}, {SessionID: "hidden", Cwd: "/scratch"}, {SessionID: "b", Cwd: "/scratch"}}
 	s.BindWorkspacePreferences(s.client, "host-a", repo)
 	s.SetWorkspaceGrouping("flat")
 	generation := s.Snapshot().WorkspaceLayout.HostGeneration
 	s.InsertLocalSessionBefore(generation, "::flat", "b", "a")
-	got := BuildWorkspaceGroups(s.Snapshot(), []Item{{SessionID: "a"}, {SessionID: "b"}})[0].Workspace.SessionIDs
+	got := BuildWorkspaceGroups(s.Snapshot(), []Item{{SessionID: "a", Cwd: "/scratch"}, {SessionID: "b", Cwd: "/scratch"}})[0].Workspace.SessionIDs
 	if len(got) != 3 || got[0] != "b" || got[2] != "hidden" {
 		t.Fatalf("full order lost: %v", got)
 	}

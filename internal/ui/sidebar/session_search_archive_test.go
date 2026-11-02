@@ -22,37 +22,54 @@ func TestSearchArchivedFilterAndActions(t *testing.T) {
 	restored, deleted, opened := "", "", ""
 	var selected []session.SessionBatchTarget
 	m := Model{Snapshot: snap, SearchQuery: &query, OnSelect: func(id string) { opened = id }, OnUnarchive: func(id string) { restored = id }, OnDelete: func(id string) { deleted = id }, OnBatchEdit: func(_ string, targets []session.SessionBatchTarget) { selected = targets }}
+	m.OnArchivedFilter = func(filter string) { m.Snapshot.WorkspaceLayout.ArchivedFilter = filter }
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 480, 1400)
 	if tt.HasText("needle archive") {
 		t.Fatal("default search includes archive")
 	}
-	if err := tt.Click("Show archived results"); err != nil {
-		t.Fatal(err)
+	for _, extra := range []string{"Show archived results", "Hide archived results", "Only archived results", "Restore search result archived", "Delete search result body"} {
+		if _, ok := tt.Find(extra); ok {
+			t.Fatalf("non-source inline control %q", extra)
+		}
 	}
+	// The shared view option owns both projections, not a second filter row.
+	m.OnArchivedFilter("show")
+	tt.Frame()
 	if !tt.HasText("needle archive") || !tt.HasText("needle in body") || !tt.HasText("needle active") {
 		t.Fatal("show mode omitted local or content matches")
 	}
-	if err := tt.Click("Restore search result archived"); err != nil {
+	if err := tt.Click("Open search result archived"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != "" || query != "needle" {
+		t.Fatal("archived result opened or restored on row click")
+	}
+	if err := tt.Click(sessionActionsLabel("archived")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnarchive)); err != nil {
 		t.Fatal(err)
 	}
 	if restored != "archived" || opened != "" || query != "needle" {
 		t.Fatalf("restore navigated or lost query: %q %q %q", restored, opened, query)
 	}
-	if err := tt.Click("Delete search result body"); err != nil {
+	if err := tt.RightClick("Open search result body"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarDelete)); err != nil {
 		t.Fatal(err)
 	}
 	if deleted != "body" || opened != "" {
 		t.Fatalf("delete target %q open %q", deleted, opened)
 	}
-	if err := tt.Click("Only archived results"); err != nil {
-		t.Fatal(err)
-	}
+	m.OnArchivedFilter("only")
+	tt.Frame()
 	if tt.HasText("needle active") || !tt.HasText("needle archive") {
 		t.Fatal("only mode filter mismatch")
 	}
 	m.Batch.Enabled = true
 	tt.Frame()
-	if _, ok := tt.Find("Delete search result body"); ok {
+	if _, ok := tt.Find(sessionActionsLabel("body")); ok {
 		t.Fatal("row actions visible in batch mode")
 	}
 	if err := tt.Click("Select session body"); err != nil {
@@ -61,9 +78,8 @@ func TestSearchArchivedFilterAndActions(t *testing.T) {
 	if len(selected) != 1 || selected[0].ID != "body" {
 		t.Fatalf("batch target=%v", selected)
 	}
-	if err := tt.Click("Hide archived results"); err != nil {
-		t.Fatal(err)
-	}
+	m.OnArchivedFilter("default")
+	tt.Frame()
 	if tt.HasText("needle archive") {
 		t.Fatal("hide mode retained archive")
 	}

@@ -74,6 +74,16 @@ func (s *Store) Get() Snapshot {
 	return out
 }
 
+// Accepted returns the accepted snapshot without rereading the persisted
+// source. The revision changes on every accepted document or catalog change, so
+// a render path can compare Sequence instead of paying a file read per frame;
+// Get and ReloadSource remain the ways to notice an external document.
+func (s *Store) Accepted() Snapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return cloneSnapshot(s.snapshot)
+}
+
 // ReloadSource replaces a failed initialization reader only after its owner
 // explicitly reloads persistence. Registered catalogs and write ownership stay
 // on this store, so existing native and plugin consumers keep one authority.

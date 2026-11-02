@@ -261,7 +261,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 		control("workspace-pane-menu", conversationHeaderIcons["EllipsisOutline"], paneLabel("面板操作", "Pane actions")).Menu(workspacePaneMenu(m, n))
 		label := paneLabel("面板全屏", "Maximize pane")
 		icon := workspacePaneFullscreenIcon
-		if w.Fullscreen != "" {
+		if workspaceFullscreen(m) {
 			label = paneLabel("退出全屏", "Restore pane")
 			icon = workspacePaneRestoreIcon
 		}

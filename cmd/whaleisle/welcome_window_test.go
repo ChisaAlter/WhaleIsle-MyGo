@@ -26,18 +26,16 @@ func TestWelcomeKeyShape(t *testing.T) {
 }
 
 func TestWelcomeRequiredGate(t *testing.T) {
+	// The welcome window is intentionally disabled: the desktop opens into the
+	// workspace regardless of stored credentials or a previous acknowledgement.
 	s := &mainState{credsMissing: true}
-	if !s.welcomeRequired() {
-		t.Fatal("a profile without a stored API key must see the welcome window")
-	}
-	s.welcomeDone = true
 	if s.welcomeRequired() {
-		t.Fatal("a completed or skipped welcome must not gate again")
+		t.Fatal("welcome window must stay disabled")
 	}
 	s.welcomeDone = false
 	s.credsMissing = false
 	if s.welcomeRequired() {
-		t.Fatal("a stored API key must skip the welcome window")
+		t.Fatal("welcome window must stay disabled when credentials exist")
 	}
 }
 

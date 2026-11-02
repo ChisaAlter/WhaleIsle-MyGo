@@ -20,20 +20,13 @@ func shippedDraftTester(draft *string, client *DraftClient, width int, hero, dar
 	}, width, 1000)
 }
 
-// heroCardTopInset and heroSidePadding describe the card's own hero padding,
-// which replaces the InputBar top pad and the input's outer insets. HeroShell.card
-// is `padding: 8px 0 0`, so the top inset is the same 8 as the docked card and the
-// sides are flush (the writing well carries the 12-DIP text inset).
+// InputBar.card has an 8-DIP top pad and flush sides in both modes. Text and
+// caret insets belong to the writing well, including in Hero.
 func heroCardTopInset(hero bool) float32 {
 	return 8
 }
 
 func heroSidePadding(hero bool) float32 {
-	// round242/249: the hero card carries the native writing-well insets
-	// (12.67 left + 16.39 right = 29.06), so the draft box is that much narrower.
-	if hero {
-		return 29.06
-	}
 	return 0
 }
 
@@ -277,6 +270,9 @@ func TestShippedDraftResolvedAndCustomInk(t *testing.T) {
 			ink := chrome.Color(colors.FG)
 			if text == "" {
 				ink = chrome.Color(colors.Caption)
+				if isDark(colors) && colors.Secondary != "" {
+					ink = chrome.Color(colors.Secondary)
+				}
 			}
 			matches := 0
 			image := tt.Image()

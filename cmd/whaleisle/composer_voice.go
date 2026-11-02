@@ -28,7 +28,7 @@ func (s *mainState) voiceCurrent(op *composerVoiceOperation) bool {
 	if !current {
 		return false
 	}
-	snap := op.sessions.Snapshot()
+	snap := op.sessions.SelectionSummary()
 	return snap.ClientReady && snap.SelectedID == op.id
 }
 func (s *mainState) cancelComposerVoice() { s.cancelComposerVoiceOperation(nil) }

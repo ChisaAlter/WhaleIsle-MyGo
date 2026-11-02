@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -69,6 +70,52 @@ func TestStageProgressCancellationRemovesPartial(t *testing.T) {
 	_, err := DownloadAndStageOpts(ctx, StageOptions{ReleaseURL: server.URL + "/setup.exe", DestDir: t.TempDir(), OnProgress: func(n, total int64) { seen = true; cancel() }})
 	if !seen || err == nil {
 		t.Fatal("cancellation must prevent staging success")
+	}
+}
+
+func TestNativeReleaseInstalledRC2ProvenancePair(t *testing.T) {
+	r := nativeFixture()
+	r.HostSourceCommit = NativeHostRC2SourceCommit
+	r.HostReadinessGuard = NativeHostRC2ReadinessGuard
+	if err := r.Validate("windows", "amd64", true); err != nil {
+		t.Fatal(err)
+	}
+	for _, guard := range []string{"", NativeHostReadinessGuard, "unknown"} {
+		r.HostReadinessGuard = guard
+		if err := r.Validate("windows", "amd64", true); err == nil {
+			t.Fatalf("installed rc2 accepted mismatched readiness guard %q", guard)
+		}
+	}
+	r.HostSourceCommit, r.HostReadinessGuard = NativeHostSourceCommit, NativeHostRC2ReadinessGuard
+	if err := r.Validate("windows", "amd64", true); err == nil {
+		t.Fatal("source build accepted installed rc2 guard")
+	}
+}
+
+// Explicit local release output only: this never downloads, installs or starts
+// the artifact. The publisher has already hashed the actual staged installer.
+func TestNativeReleaseCatalogBuiltFixture(t *testing.T) {
+	filename := os.Getenv("WHALEISLE_NATIVE_RELEASE_FIXTURE_CATALOG")
+	if filename == "" {
+		t.Skip("set WHALEISLE_NATIVE_RELEASE_FIXTURE_CATALOG to the actual emitted local catalog")
+	}
+	body, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := DecodeNativeCatalog(body, "windows", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("want one real installer, got %d", len(rows))
+	}
+	row := rows[0]
+	if err := row.Validate("windows", "amd64", true); err != nil {
+		t.Fatal(err)
+	}
+	if !row.RuntimeIncluded || row.HostSourceCommit != NativeHostRC2SourceCommit || row.HostReadinessGuard != NativeHostRC2ReadinessGuard || row.Size <= 0 {
+		t.Fatalf("unexpected real installed runtime release: %+v", row)
 	}
 }
 

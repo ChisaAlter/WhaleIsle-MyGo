@@ -9,12 +9,12 @@ import (
 	"github.com/egoist/mygo/internal/text"
 )
 
-// ShapeTextLine shapes one display line using the same native ellipsis and
-// no-wrap policy as Text.SingleLine. A positive width is the available width
-// in DIPs; zero uses the line's natural width. Fonts, fallback, bidi and
-// grapheme-safe truncation are owned by the system text engine.
+// ShapeTextLine shapes one display line using the same ellipsis policy as
+// Text.SingleLine. A positive width is the available width in DIPs; zero uses
+// the line's natural width. Fonts, fallback, bidi and grapheme-safe truncation
+// are owned by the text engine.
 func ShapeTextLine(s string, font Font, width float32) *TextLayout {
-	l := text.Shared().Shape(text.Params{Text: s, Style: font.style(), Width: width, MaxLines: 1, NoWrap: true})
+	l := text.Shared().Shape(text.Params{Text: s, Style: font.style(), Width: width, MaxLines: 1})
 	return retainTextLayout(l, nil)
 }
 

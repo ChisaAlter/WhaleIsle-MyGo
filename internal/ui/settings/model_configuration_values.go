@@ -61,6 +61,21 @@ func configurationModelError(rows []any) string {
 			return fmt.Sprintf("Model %d: enter a unique model ID", i+1)
 		}
 		seen[id] = true
+		if efforts, has := row["reasoningEfforts"].(map[string]any); has {
+			nonOff := 0
+			emptyValue := false
+			for level, val := range efforts {
+				if level != "off" {
+					nonOff++
+					if strings.TrimSpace(configurationText(val)) == "" {
+						emptyValue = true
+					}
+				}
+			}
+			if nonOff == 0 || emptyValue {
+				return fmt.Sprintf("Model %d: %s", i+1, providerCopy("至少保留一个非关闭的推理思考等级", "Keep at least one non-off reasoning level"))
+			}
+		}
 		for _, key := range []string{"contextWindow", "maxTokens"} {
 			if value, exists := row[key]; exists {
 				if _, err := configurationCapacity(configurationText(value)); err != nil {

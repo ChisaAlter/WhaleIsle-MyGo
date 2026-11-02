@@ -1,8 +1,11 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
+	"math"
 	"strings"
+	"sync"
 )
 
 // ToolCallView is a read-only callId projection. Every source event remains in
@@ -25,11 +28,17 @@ type ToolCallView struct {
 type toolLifecyclePart struct {
 	id, parent, root, name, args, state string
 	terminal                            bool
+	eventType                           string
+	seq                                 float64
+	time, turn, step                    *float64
+	surfaceOp                           json.RawMessage
+	streamValid, jsonValid              bool
 }
 
 type toolLifecycleNode struct {
-	view          *ToolCallView
-	first, parent int
+	view                 *ToolCallView
+	first, parent        int
+	callPart, resultPart toolLifecyclePart
 }
 
 // ProjectToolMessages groups only recognized, unambiguous wire identities. It
@@ -62,9 +71,11 @@ func ProjectToolMessages(messages []Message) []Message {
 			if v.Result == nil || source.Seq >= v.Result.Seq {
 				v.Result = &source
 				v.State = part.state
+				nodes[index].resultPart = part
 			}
 		} else if v.Call == nil || source.Seq < v.Call.Seq {
 			v.Call = &source
+			nodes[index].callPart = part
 		}
 	}
 	if len(nodes) == 0 {
@@ -73,12 +84,11 @@ func ProjectToolMessages(messages []Message) []Message {
 	for i := range nodes {
 		v := nodes[i].view
 		// Starts own the call name/arguments. PTC result-only windows carry them too.
-		source := v.Call
-		if source == nil {
-			source = v.Result
-		}
-		if source != nil {
-			p, _ := readToolLifecyclePart(*source)
+		if v.Call != nil || v.Result != nil {
+			p := nodes[i].callPart
+			if v.Call == nil {
+				p = nodes[i].resultPart
+			}
 			v.ParentCallID, v.RootCallID = p.parent, p.root
 			v.Arguments = p.args
 			if p.name != "" {
@@ -195,10 +205,103 @@ func cloneToolSource(msg Message) Message {
 	return msg
 }
 
+type toolLifecycleMemoKey struct {
+	seq    float64
+	rawLen int
+}
+
+type toolLifecycleMemoEntry struct {
+	raw  string
+	part toolLifecyclePart
+	ok   bool
+}
+
+var toolLifecycleMemo = struct {
+	mu       sync.Mutex
+	m        map[toolLifecycleMemoKey]toolLifecycleMemoEntry
+	rawBytes int
+}{
+	m: make(map[toolLifecycleMemoKey]toolLifecycleMemoEntry),
+}
+
+const (
+	toolLifecycleMemoLimit     = 16384
+	toolLifecycleMemoByteLimit = 16 << 20
+)
+
+func readToolLifecycleMemo(seq float64, raw json.RawMessage) (toolLifecyclePart, bool) {
+	if len(raw) == 0 {
+		return toolLifecyclePart{}, false
+	}
+	cacheable := !math.IsNaN(seq) && len(raw) <= toolLifecycleMemoByteLimit
+	key := toolLifecycleMemoKey{seq: seq, rawLen: len(raw)}
+	if cacheable {
+		toolLifecycleMemo.mu.Lock()
+		if entry, exists := toolLifecycleMemo.m[key]; exists && bytes.Equal([]byte(entry.raw), raw) {
+			toolLifecycleMemo.mu.Unlock()
+			return entry.part, entry.ok
+		}
+		toolLifecycleMemo.mu.Unlock()
+	}
+	part, ok := decodeToolLifecycleRaw(raw)
+	if cacheable {
+		entry := toolLifecycleMemoEntry{raw: string(raw), part: part, ok: ok}
+		toolLifecycleMemo.mu.Lock()
+		prev, replacing := toolLifecycleMemo.m[key]
+		retained := toolLifecycleMemo.rawBytes - len(prev.raw)
+		if (!replacing && len(toolLifecycleMemo.m) >= toolLifecycleMemoLimit) || retained+len(entry.raw) > toolLifecycleMemoByteLimit {
+			toolLifecycleMemo.m = make(map[toolLifecycleMemoKey]toolLifecycleMemoEntry)
+			retained = 0
+		}
+		toolLifecycleMemo.m[key] = entry
+		toolLifecycleMemo.rawBytes = retained + len(entry.raw)
+		toolLifecycleMemo.mu.Unlock()
+	}
+	return part, ok
+}
+
 func readToolLifecyclePart(msg Message) (toolLifecyclePart, bool) {
+	part, ok := readToolLifecycleMemo(msg.Seq, msg.Raw)
+	if !ok || (msg.EventType != "" && msg.EventType != part.eventType) {
+		return toolLifecyclePart{}, false
+	}
+	return part, true
+}
+
+// LookupCachedCoordinates returns turn/step coordinates when raw is already
+// memoized by the tool lifecycle cache, avoiding a second JSON unmarshal in chat.
+func LookupCachedCoordinates(seq float64, raw json.RawMessage) (turn, step float64, known, cached bool) {
+	if len(raw) == 0 || math.IsNaN(seq) || len(raw) > toolLifecycleMemoByteLimit {
+		return 0, 0, false, false
+	}
+	key := toolLifecycleMemoKey{seq: seq, rawLen: len(raw)}
+	toolLifecycleMemo.mu.Lock()
+	entry, exists := toolLifecycleMemo.m[key]
+	if !exists || !bytes.Equal([]byte(entry.raw), raw) {
+		toolLifecycleMemo.mu.Unlock()
+		return 0, 0, false, false
+	}
+	part := entry.part
+	toolLifecycleMemo.mu.Unlock()
+	if !part.jsonValid {
+		return 0, 0, false, true
+	}
+	if part.turn != nil {
+		return *part.turn, promptCoordinate(part.step), true, true
+	}
+	return 0, 0, false, true
+}
+
+func decodeToolLifecycleRaw(raw json.RawMessage) (toolLifecyclePart, bool) {
 	var ev struct {
-		Type string `json:"type"`
-		Data struct {
+		Type      string          `json:"type"`
+		Seq       float64         `json:"seq"`
+		Time      *float64        `json:"time"`
+		SurfaceOp json.RawMessage `json:"surfaceOp"`
+		Data      struct {
+			Turn         *float64        `json:"turn"`
+			Step         *float64        `json:"step"`
+			Stream       json.RawMessage `json:"stream"`
 			CallID       string          `json:"callId"`
 			SubCallID    string          `json:"subCallId"`
 			ParentCallID string          `json:"parentCallId"`
@@ -218,11 +321,22 @@ func readToolLifecyclePart(msg Message) (toolLifecyclePart, bool) {
 			} `json:"message"`
 		} `json:"data"`
 	}
-	if json.Unmarshal(msg.Raw, &ev) != nil || (msg.EventType != "" && msg.EventType != ev.Type) {
+	if json.Unmarshal(raw, &ev) != nil {
 		return toolLifecyclePart{}, false
 	}
 	d := ev.Data
-	p := toolLifecyclePart{name: d.Name, state: "running"}
+	p := toolLifecyclePart{
+		name:        d.Name,
+		state:       "running",
+		eventType:   ev.Type,
+		seq:         ev.Seq,
+		time:        cloneFloat64Ptr(ev.Time),
+		turn:        cloneFloat64Ptr(d.Turn),
+		step:        cloneFloat64Ptr(d.Step),
+		surfaceOp:   cloneRawMessage(ev.SurfaceOp),
+		streamValid: validRawJSONArrayOrNull(d.Stream),
+		jsonValid:   true,
+	}
 	switch ev.Type {
 	case "tool/call":
 		p.id = d.CallID
@@ -232,17 +346,17 @@ func readToolLifecyclePart(msg Message) (toolLifecyclePart, bool) {
 			p.id = d.Message.Source.CallID
 		}
 		if d.Message.ToolCallID != "" && d.Message.Source.CallID != "" && d.Message.ToolCallID != d.Message.Source.CallID {
-			return toolLifecyclePart{}, false
+			return p, false
 		}
 		p.terminal = true
 	case "tool/ptc-dispatch-start", "tool/ptc-dispatch":
 		p.id, p.parent, p.root = d.SubCallID, d.ParentCallID, d.RootCallID
 		p.terminal = ev.Type == "tool/ptc-dispatch"
 	default:
-		return toolLifecyclePart{}, false
+		return p, false
 	}
 	if strings.TrimSpace(p.id) == "" {
-		return toolLifecyclePart{}, false
+		return p, false
 	}
 	if len(d.Arguments) > 0 && string(d.Arguments) != "null" {
 		if json.Unmarshal(d.Arguments, &p.args) != nil {

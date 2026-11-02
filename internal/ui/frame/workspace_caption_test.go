@@ -112,16 +112,21 @@ func TestConversationViewTabsStayInsideTheBand(t *testing.T) {
 	}
 }
 
-
 func TestCaptionReflowsAfterAsyncToolArrivalAndRemoval(t *testing.T) {
 	sizes := DefaultLayout()
 	sizes.Center = 600
 	width := float32(0)
 	store := session.New()
+	snap := session.ViewState{
+		SelectedID: "s1",
+		Items: []session.Item{
+			{SessionID: "s1", Title: "Long conversation session title that concedes to trailing tools"},
+		},
+	}
 	tt := ui.NewTester(func(c *ui.Context) {
 		m := Model{Store: store, Sizes: &sizes, HideChatViewTabs: true}
 		m.WorkspaceTrailing = func(c *ui.Context, _ string) { ui.Box(c).Size(width, 32) }
-		workspaceSharedCaption(c, m, session.ViewState{}, theme.Resolve("deepseek.light").Light, false)
+		workspaceSharedCaption(c, m, snap, theme.Resolve("deepseek.light").Light, false)
 	}, 600, 300)
 	before, ok := tt.Find("Conversation session title")
 	if !ok {

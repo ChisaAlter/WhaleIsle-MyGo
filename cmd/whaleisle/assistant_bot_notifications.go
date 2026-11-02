@@ -287,7 +287,7 @@ func (s *mainState) deliverBotNotification(run *botNotificationRun) {
 				if !s.revealAssistantBotVisibility(run.endpoint, run.client, target.ID, target.SessionID) {
 					return
 				}
-				run.navigationMessage = " · 通知目标：" + target.Name + i18n.T(i18n.KeyCmdNotificationTargetVerifyInVisibility)
+				run.navigationMessage = fmt.Sprintf(i18n.T(i18n.KeyCmdNotificationTarget), target.Name) + i18n.T(i18n.KeyCmdNotificationTargetVerifyInVisibility)
 				s.botNotificationStatus(run.navigationMessage)
 			} else {
 				asst.SelectDshbot(notice.Ticket.BotID, run.endpoint.Origin)

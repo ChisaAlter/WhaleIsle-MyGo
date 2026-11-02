@@ -84,7 +84,7 @@ func (s *Session) acceptOpenUIEvent(raw json.RawMessage) error {
 	if q.closed {
 		return errors.New("OpenUI event queue closed")
 	}
-	nativeAction := event.Type == "clipboard" || event.Type == "open-url"
+	nativeAction := event.Type == "clipboard" || event.Type == "open-url" || event.Type == "download"
 	if nativeAction && (!q.nativeActions || event.Sequence <= q.lastActionSequence) {
 		return errors.New("disabled or replayed OpenUI native action")
 	}

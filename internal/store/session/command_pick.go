@@ -35,6 +35,9 @@ func (s *Store) PickComposerCommand(hostGeneration uint64, sessionID, line strin
 		s.mu.Lock()
 		current := target.currentLocked() && s.selectedID == target.SessionID && s.followGeneration == target.followGeneration
 		if current && err != nil {
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 		}
 		s.mu.Unlock()

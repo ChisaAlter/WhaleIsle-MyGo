@@ -4,6 +4,14 @@ package files
 // reread clean tabs while preserving both the draft and its original save base
 // when an unsaved tab encounters new, missing, binary or truncated disk bytes.
 func reloadSelectedFile(m Model) {
+	if tab := selectedTab(m); tab != nil && tab.deliverySource != nil {
+		var err error
+		m, err = deliveryReadModel(m, tab)
+		if err != nil {
+			rejectDeliveryRead(m, tab, err)
+			return
+		}
+	}
 	if tab := selectedTab(m); tab != nil && tab.document.enabled && tab.document.surface != nil {
 		tab.document.surface.Reload()
 		return
@@ -39,7 +47,16 @@ func reloadSelectedFile(m Model) {
 	}
 	dirty := m.EditDraft != nil && m.Preview != nil && *m.EditDraft != *m.Preview
 	remotePreview := false
-	text, errMsg, truncated := loadPreview(m.WorkspaceRoot, rel)
+	text, errMsg, truncated := "", "", false
+	if tab := selectedTab(m); tab != nil && tab.deliverySource != nil {
+		if _, err := previewPathResolver(m, tab)(); err != nil {
+			errMsg = err.Error()
+		} else {
+			text, errMsg, truncated = loadPreview(m.WorkspaceRoot, rel)
+		}
+	} else {
+		text, errMsg, truncated = loadPreview(m.WorkspaceRoot, rel)
+	}
 	if truncated && m.Tabs == nil {
 		errMsg = truncatedPreviewNotice()
 	}

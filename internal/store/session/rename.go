@@ -83,6 +83,9 @@ func (s *Store) RenameSession(ctx context.Context, sessionID, title string) {
 			s.rename.Busy = false
 		}
 		if err != nil {
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 			if editing {
 				s.rename.Error = err.Error()
@@ -101,6 +104,7 @@ func (s *Store) RenameSession(ctx context.Context, sessionID, title string) {
 			s.invalidateRenameLocked()
 		}
 		s.lastAction = "session renamed"
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		// Presentation belongs to the same Host as the acknowledged rename.

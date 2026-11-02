@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {applyReadinessGuard, inspectReadinessGuard} from './current-host-readiness.mjs';
+import {verifyStagedSessionRuntime} from './session-runtime.mjs';
 export const commit = '90465b67ec16765631d54c195af19d9ff3c3a770';
 // New pins are opt-in: existing 904 builds and callers retain their selection.
 export const supportedCommits = Object.freeze([commit, 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195']);
@@ -20,7 +21,7 @@ export const artifacts = [
 const digest = p => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const read = p => JSON.parse(fs.readFileSync(p, 'utf8'));
 function git(source, args) {
- const r = spawnSync('git', ['-C', source, ...args], {encoding:'utf8'});
+ const r = spawnSync('git', ['-C', source, ...args], {encoding:'utf8',windowsHide:true});
  if(r.status !== 0) throw new Error(`Cannot verify fixed source: ${r.stderr}`);
  return r.stdout.trim();
 }
@@ -73,6 +74,16 @@ export function verify(root) {
  for(const f of artifacts) if(!m.artifacts?.[f] || digest(path.join(root,f))!==m.artifacts[f]) throw new Error(`Current Host artifact missing or changed: ${f}`);
  return m;
 }
+// Both provenance profiles retain their own exact readiness/hash contract. A
+// malformed source-build record must never fall through to the installed proof.
+export async function verifyRuntime(root) {
+  if(fs.existsSync(path.join(root,manifestName)))return verify(root);
+  if(!fs.statSync(path.join(root,'runtime-graph.json'),{throwIfNoEntry:false})?.isFile())throw Error('Installed Host release is missing its closed runtime graph');
+  const installed=await verifyStagedSessionRuntime(root);
+  const project=['dsh-project/package.json','dsh-project/lib/index.js','dsh-project/lib/transport.js','dsh-project/client/client.js'];
+  for(const relative of project)if(!fs.statSync(path.join(root,relative),{throwIfNoEntry:false})?.isFile())throw Error(`Installed Host Project artifact missing: ${relative}`);
+  return {...installed,sourceCommit:installed.harnessPin.sha,buildProfile:'installed-rc2',platform:'win32',arch:process.arch};
+}
 export function stage(work,legacyVendor,target) {
  const manifest=verify(work); absent(target);
  if(path.resolve(target)===path.resolve(legacyVendor) || path.resolve(target).startsWith(path.resolve(legacyVendor)+path.sep)) throw new Error('Current staging must not overwrite or nest in legacy runtime');
@@ -86,6 +97,6 @@ export function stage(work,legacyVendor,target) {
  return {vendorDir:target,sourceCommit:manifest.sourceCommit,requiresBridgeVerification:true};
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
- try {const [command,...args]=process.argv.slice(2);const fn={prepare,finalize,verify,stage,'prepare-offline-windows':prepareOfflineWindows}[command];if(!fn)throw new Error('Usage: current-host.mjs prepare|finalize|verify|stage|prepare-offline-windows ...');console.log(JSON.stringify(fn(...args),null,2));}
+ try {const [command,...args]=process.argv.slice(2);const fn={prepare,finalize,verify,stage,'verify-runtime':verifyRuntime,'prepare-offline-windows':prepareOfflineWindows}[command];if(!fn)throw new Error('Usage: current-host.mjs prepare|finalize|verify|verify-runtime|stage|prepare-offline-windows ...');console.log(JSON.stringify(await fn(...args),null,2));}
  catch(e){console.error(e.message);process.exitCode=1;}
 }

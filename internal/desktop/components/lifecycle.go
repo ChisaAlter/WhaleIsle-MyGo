@@ -116,7 +116,7 @@ func startWhalebridgeLocked(root, dshHome string) error {
 	}
 	defer logF.Close()
 	cmd := exec.Command(exe, "whalebridge")
-	processutil.Background(cmd)
+	processutil.BackgroundTree(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")

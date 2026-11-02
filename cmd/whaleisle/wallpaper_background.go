@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
 )
@@ -33,24 +34,24 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 	g := settings.NewWallpaperEditor(p, filepath.Join(paths.UserDataDir(), "wallpapers"), func(p wallpapers.Preferences) error {
 		if s.hostAppearanceAccepted {
 			if s.hostAppearance == nil {
-				return fmt.Errorf("Host appearance is unavailable")
+				return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
 			}
 			return s.hostAppearance.SaveBackground(p)
 		}
 		return s.cfgStore.SaveWallpaperBackground(p)
 	}, func(path string) error {
-		if s.hostAppearanceAccepted {
-			if s.hostAppearance == nil {
-				return fmt.Errorf("Host appearance is unavailable")
-			}
-			return s.hostAppearance.ApplyWallpaper(path)
-		}
 		if err := s.cfgStore.Update(func(cfg *config.Config) { cfg.WallpaperPath = path }); err != nil {
 			return err
 		}
 		s.mu.Lock()
 		s.desktopDraft.wallpaperPath = path
 		s.mu.Unlock()
+		if s.hostAppearanceAccepted {
+			if s.hostAppearance == nil {
+				return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
+			}
+			return s.hostAppearance.ApplyWallpaper(path)
+		}
 		return nil
 	}, func(task func() func()) {
 		go func() {
@@ -95,10 +96,8 @@ func wallpaperSourcePath(hostAccepted bool, hostImage, configPath string) string
 	return strings.TrimSpace(configPath)
 }
 
-// wallpaperBackdropPrefs keeps an image-less backdrop flat. The native profile
-// stores wallpaperImage: "" and the page then shows the theme base colour, so
-// the ambient aurora must not paint when no image is set; a seeded or Host
-// image keeps the stored effect.
+// wallpaperBackdropPrefs preserves a resolved Host or saved local effect;
+// an unset local effect keeps the flat fallback.
 func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpapers.Preferences {
 	return wallpapers.NormalizeEffect(path, prefs)
 }
@@ -129,6 +128,9 @@ func flatDarkCanvasPreview(cfgStore *config.Store, cfg config.Config, th theme.T
 // wallpaperCanvasFlatFor decides the flat masked canvas from the stored config
 // only, so the render route does not depend on the settings editor being built.
 func (s *mainState) wallpaperCanvasFlatFor(path string) bool {
+	if s.activeSkin() == theme.SkinCodex {
+		return false
+	}
 	if strings.TrimSpace(s.resolvedWallpaperPath(path)) != "" {
 		return false
 	}
@@ -141,10 +143,12 @@ func (s *mainState) wallpaperCanvasFlatFor(path string) bool {
 	return wallpapers.NormalizeEffect("", prefs).Effect != "gradient"
 }
 
-func appendBackdropLog(line string) {
+// appendBackdropLog formats only when the probe log is enabled: its callers run
+// on every frame and the wallpaper path may be a long data URL.
+func appendBackdropLog(format string, args ...any) {
 	if file := os.Getenv("WHALEISLE_BACKDROP_LOG"); file != "" {
 		if f, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
-			fmt.Fprintln(f, line)
+			fmt.Fprintf(f, format+"\n", args...)
 			f.Close()
 		}
 	}
@@ -164,6 +168,14 @@ func wallpaperCanvasFill(base ui.Color, dark bool, path string, prefs wallpapers
 }
 
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
+	if s.activeSkin() == theme.SkinCodex {
+		prefs := wallpapers.Defaults()
+		if g := s.wallpaperEditor(); g != nil {
+			prefs = g.Prefs
+		}
+		path, prefs = skinBackdrop(theme.SkinCodex, "", prefs)
+		return s.desktopGlassPainter(path, prefs, chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...))
+	}
 	path = s.resolvedWallpaperPath(path)
 	if os.Getenv("WHALEISLE_BACKDROP_PROBE") != "" {
 		if g := s.wallpaperEditor(); g != nil {
@@ -184,28 +196,18 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 	}
 	if !visible {
 		chrome.ConfigureBackdrop("", wallpapers.Defaults())
-		return func(*ui.Painter, ui.Rect) {}
+		return s.desktopGlassPainter("", wallpapers.Preferences{Effect: "gradient", EffectExplicit: true}, func(*ui.Painter, ui.Rect) {})
 	}
-	prefs := g.Prefs
-	// The Host appearance may carry a gradient seed; only a locally stored
-	// backgroundEffect counts as the user choice, so a dark profile without a
-	// wallpaper stays flat instead of painting the host wash (round239).
-	if path == "" && s.cfgStore != nil {
-		if local, err := s.cfgStore.WallpaperBackground(); err == nil && !local.EffectExplicit {
-			prefs.Effect = "none"
-			prefs.EffectExplicit = false
-		}
-	}
-	prefs = wallpaperBackdropPrefs(path, prefs)
-	appendBackdropLog(fmt.Sprintf("painter: path=%q effect=%q localExplicit=%v active=%v", path, prefs.Effect, g.Prefs.EffectExplicit, chrome.BackdropActive()))
-	return chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...)
+	prefs := wallpaperBackdropPrefs(path, g.Prefs)
+	appendBackdropLog("painter: path=%q effect=%q localExplicit=%v active=%v", path, prefs.Effect, g.Prefs.EffectExplicit, chrome.BackdropActive())
+	return s.desktopGlassPainter(path, prefs, chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...))
 }
 
 // Existing local-dropdown selections also become durable app-owned copies on save.
 func (s *mainState) materializeWallpaperDraft() error {
 	if s.hostAppearanceAccepted {
 		if s.hostAppearance == nil {
-			return fmt.Errorf("Host appearance is unavailable")
+			return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
 		}
 		return s.hostAppearance.ApplyWallpaper(s.desktopDraft.wallpaperPath)
 	}

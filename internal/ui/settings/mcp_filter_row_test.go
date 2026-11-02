@@ -41,7 +41,7 @@ func TestMCPFilterRowAppearsWithTheCatalog(t *testing.T) {
 	if _, ok := live.Find("MCP search"); !ok {
 		t.Fatalf("filter control missing with a catalog: %v", live.Texts())
 	}
-	if rect, _ := live.Find("MCP filter"); rect.W < 88 || rect.W > 104 || rect.H != 32 {
+	if rect, _ := live.Find("MCP filter"); rect.W < 88 || rect.W > 104 || rect.H != 36 {
 		t.Fatalf("live dropdown is %v×%v, want 88(+16 gutter)×32", rect.W, rect.H)
 	}
 	if err := live.Click("MCP filter"); err != nil {

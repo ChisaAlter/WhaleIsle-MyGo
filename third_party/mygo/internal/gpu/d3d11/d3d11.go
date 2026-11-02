@@ -26,7 +26,6 @@ import (
 )
 
 var (
-	procDwmFlush       = syscall.NewLazyDLL(device.SystemDir() + `\dwmapi.dll`).NewProc("DwmFlush")
 	user32             = syscall.NewLazyDLL(device.SystemDir() + `\user32.dll`)
 	procSetTimer       = user32.NewProc("SetTimer")
 	procKillTimer      = user32.NewProc("KillTimer")
@@ -682,18 +681,17 @@ func (r *Renderer) Render(s *scene.Scene) error {
 	}
 	// A frame of a new size is presented at once (sync interval 0), not
 	// after the frame queued before it, which would miss the next
-	// composition, and waits until the compositor shows it: the window
-	// takes its next size, as the user drags its border, with the frame of
-	// that size, rather than show older frames stretched to it.
+	// composition. It is not flushed with DwmFlush: that waited for the
+	// compositor after every resized frame and blocked the UI thread for
+	// hundreds of milliseconds while DWM caught up, which stalled a drag.
+	// The next composition shows this frame, as a live resize holds the
+	// last one stretched until the size stops changing.
 	sync := uintptr(1)
 	if resized {
 		sync = 0
 	}
 	if err := r.present(sync); err != nil {
 		return err
-	}
-	if resized {
-		procDwmFlush.Call()
 	}
 	return nil
 }

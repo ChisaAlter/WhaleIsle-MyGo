@@ -12,22 +12,37 @@ import (
 // sessionAncestry follows only summaries actually supplied by this Host. Missing
 // links and cycles terminate the chain; IDs are never synthesized as ancestors.
 func sessionAncestry(items []session.Item, selected string) []session.Item {
-	byID := make(map[string]session.Item, len(items))
-	for _, it := range items {
-		if it.SessionID != "" {
-			byID[it.SessionID] = it
-		}
+	if selected == "" {
+		return nil
 	}
-	seen := map[string]bool{}
+	var seen map[string]bool
 	var chain []session.Item
-	for id := selected; id != "" && !seen[id]; {
-		it, ok := byID[id]
-		if !ok {
+	for id := selected; id != ""; {
+		if seen != nil && seen[id] {
 			break
 		}
-		seen[id] = true
-		chain = append(chain, it)
-		id = it.ParentID
+		found := false
+		var cur session.Item
+		for _, it := range items {
+			if it.SessionID == id {
+				cur = it
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+		chain = append(chain, cur)
+		if cur.ParentID == "" {
+			break
+		}
+		if seen == nil {
+			seen = map[string]bool{id: true}
+		} else {
+			seen[id] = true
+		}
+		id = cur.ParentID
 	}
 	slices.Reverse(chain)
 	return chain

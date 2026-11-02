@@ -103,7 +103,15 @@ func ResolveResources(userData, vendor string) (Resources, error) {
 		}
 	}
 	node := ""
-	for _, p := range []string{filepath.Join(root, "node.exe"), filepath.Join(root, "node", "node.exe"), filepath.Join(root, "node", "bin", "node")} {
+	manifestNode, err := verifyPackagedMobileResources(root)
+	if err != nil {
+		return Resources{}, err
+	}
+	candidates := []string{filepath.Join(root, "node.exe"), filepath.Join(root, "node", "node.exe"), filepath.Join(root, "node", "bin", "node")}
+	if manifestNode != "" {
+		candidates = []string{manifestNode}
+	}
+	for _, p := range candidates {
 		if st, e := os.Stat(p); e == nil && !st.IsDir() {
 			node = p
 			break
@@ -112,7 +120,9 @@ func ResolveResources(userData, vendor string) (Resources, error) {
 	if node == "" {
 		return Resources{}, errors.New("missing runtime resource: bundled node executable")
 	}
-	return Resources{Node: node, Module: filepath.Join(root, "src", "main", "dshd-remote.js"), Home: filepath.Join(userData, "dsh-home")}, nil
+	mygoRemoteHome := filepath.Join(userData, "dsh-home", "mygo-remote")
+	_ = os.MkdirAll(mygoRemoteHome, 0o755)
+	return Resources{Node: node, Module: filepath.Join(root, "src", "main", "dshd-remote.js"), Home: mygoRemoteHome}, nil
 }
 
 func (r *Runtime) Start(userData, vendor string, config map[string]any) {
@@ -274,32 +284,8 @@ func (r *Runtime) consume(child Child, b []byte) {
 		go r.generateGitDraft(child, append([]byte(nil), b...))
 		return
 	}
-	if event.Kind == "host-open-settings" {
-		r.mu.Lock()
-		actions := r.hostActions
-		r.mu.Unlock()
-		opened := false
-		if actions.OpenSettings != nil && len(event.Section) <= 200 {
-			opened = actions.OpenSettings(event.Section)
-		}
-		_ = r.sendControl(child, map[string]any{"action": "host-open-settings-result", "id": event.ID, "opened": opened})
-		return
-	}
-	if event.Kind == "host-save-config" {
-		r.mu.Lock()
-		actions := r.hostActions
-		r.mu.Unlock()
-		result := map[string]any{"action": "host-save-config-result", "id": event.ID, "ok": false, "error": "saveConfig requires the desktop host"}
-		if actions.SaveConfig != nil {
-			config, err := actions.SaveConfig(event.Patch)
-			if err != nil {
-				result["error"] = err.Error()
-			} else {
-				result["ok"] = true
-				result["config"] = config
-			}
-		}
-		_ = r.sendControl(child, result)
+	if event.Kind == "host-open-settings" || event.Kind == "host-save-config" {
+		r.handleHostAction(child, event.Kind, event.ID, event.Section, event.Patch)
 		return
 	}
 	if event.Kind == "git-authorize" {
@@ -329,6 +315,9 @@ func (r *Runtime) consume(child Child, b []byte) {
 		}
 		if event.Code == "snapshot" {
 			message = "remote state could not be read"
+		}
+		if event.Code == "stop" {
+			message = "remote daemon could not stop cleanly; check installed runtime before retrying"
 		}
 		r.state = RuntimeState{Status: "offline", Message: message}
 		return
@@ -464,7 +453,7 @@ func spawnBridge(r Resources) (Child, error) {
 		}
 	}()
 	cmd := exec.Command(r.Node, "-e", "const file=process.argv[1];process.argv.splice(1,1);require(file)", scriptName, r.Module, r.Home)
-	processutil.Background(cmd)
+	processutil.BackgroundTree(cmd)
 	cmd.Dir = filepath.Dir(r.Module)
 	cmd.Stderr = io.Discard
 	cmd.Env = daemonEnv(os.Environ())

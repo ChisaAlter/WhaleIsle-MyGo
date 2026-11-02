@@ -11,6 +11,7 @@ import (
 	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) importer.PluginInstaller {
@@ -19,11 +20,11 @@ func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) i
 		allowed := s.launcherImportBusy && !s.launcherStartBusy && !s.quitting &&
 			(s.sup == nil || s.sup.Status().State == harness.Stopped)
 		if allowed {
-			s.launcherImport = "正在重新安装插件 " + row.ID + "；来源 " + spec
+			s.launcherImport = fmt.Sprintf(i18n.T(i18n.KeyCmdImportPluginProgress), row.ID, spec)
 		}
 		s.mu.Unlock()
 		if !allowed {
-			return importer.PluginInstallResult{Error: "导入状态或运行时状态已改变，插件未安装。"}
+			return importer.PluginInstallResult{Error: i18n.T(i18n.KeyCmdImportPluginStateChanged)}
 		}
 		if win != nil {
 			win.Update(func() {})
@@ -35,9 +36,9 @@ func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) i
 				return false
 			}
 			answer, err := mygo.Dialog.Message(mygo.MessageOptions{
-				Parent: win, Type: mygo.MessageQuestion, Title: "批准插件构建脚本",
-				Message: fmt.Sprintf("插件：%s\n来源：%s\n目标：%s\n\n以下包要求在本机运行构建脚本，可能访问本机文件和网络：\n%s\n\n仅批准本次列出的脚本并重试该插件安装？", row.ID, spec, dest, strings.Join(builds, "\n")),
-				Buttons: []string{"跳过此插件", "批准并继续"}, DefaultButton: 0, CancelButton: 0,
+				Parent: win, Type: mygo.MessageQuestion, Title: i18n.T(i18n.KeyCmdImportBuildTitle),
+				Message: fmt.Sprintf(i18n.T(i18n.KeyCmdImportBuildMessage), row.ID, spec, dest, strings.Join(builds, "\n")),
+				Buttons: []string{i18n.T(i18n.KeyCmdImportBuildSkip), i18n.T(i18n.KeyCmdImportBuildApprove)}, DefaultButton: 0, CancelButton: 0,
 			})
 			return err == nil && answer.Button == 1 && ctx.Err() == nil
 		})
@@ -68,17 +69,17 @@ func installImportPlugin(ctx context.Context, spec string, run func([]string) in
 		}
 		builds := installctrl.NormalizeAllowBuilds(result.AllowBuilds)
 		if len(builds) == 0 {
-			out.Error = "安装器未返回有效的构建脚本清单；未批准。"
+			out.Error = i18n.T(i18n.KeyCmdImportBuildListInvalid)
 			return out
 		}
 		slices.Sort(builds)
 		key := strings.Join(builds, "\x00")
 		if seenBuilds[key] {
-			out.Error = "已批准的构建脚本仍被拒绝；请检查安装日志后重试。"
+			out.Error = i18n.T(i18n.KeyCmdImportBuildRepeated)
 			return out
 		}
 		if approve == nil || !approve(append([]string(nil), builds...)) {
-			out.Error = "未批准构建脚本，跳过此插件。"
+			out.Error = i18n.T(i18n.KeyCmdImportBuildDeclined)
 			return out
 		}
 		seenBuilds[key] = true

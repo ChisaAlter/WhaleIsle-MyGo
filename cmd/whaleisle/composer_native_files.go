@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/harness"
@@ -55,7 +56,7 @@ func (s *mainState) nativeComposerFileScope(sessions *session.Store, id string, 
 // and paths whose Host accessibility is unproven retain the upload path.
 func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []string, local bool) ([]string, error) {
 	if d == nil || d.Sending {
-		return nil, errors.New("wait for the current send to finish before adding files")
+		return nil, errors.New(i18n.T(i18n.KeyCmdComposerWaitSendFiles))
 	}
 	if !local {
 		return paths, nil
@@ -66,14 +67,14 @@ func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []strin
 			continue
 		}
 		if !filepath.IsAbs(path) {
-			return nil, errors.New("native file path is not absolute")
+			return nil, errors.New(i18n.T(i18n.KeyCmdComposerAbsoluteFilePath))
 		}
 		info, err := os.Stat(path)
 		if err != nil {
 			return nil, err
 		}
 		if !info.IsDir() && !info.Mode().IsRegular() {
-			return nil, errors.New("only regular files and directories can be referenced")
+			return nil, errors.New(i18n.T(i18n.KeyCmdComposerRegularFileDirectory))
 		}
 		if !info.IsDir() {
 			image := strings.HasPrefix(mime.TypeByExtension(strings.ToLower(filepath.Ext(path))), "image/")
@@ -108,7 +109,7 @@ func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []strin
 		// Completed directory references close quotes; suggestions alone leave them open.
 		mention, ok := composer.FormatFileMention(value, false, false)
 		if !ok {
-			return nil, errors.New("this file path cannot be inserted safely")
+			return nil, errors.New(i18n.T(i18n.KeyCmdComposerUnsafeFilePath))
 		}
 		mentions = append(mentions, mention)
 	}
@@ -119,7 +120,7 @@ func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []strin
 		d.Client = composer.NewDraftClient(&d.Text)
 	}
 	if _, marked := d.Client.MarkedRange(); marked {
-		return nil, errors.New("finish text composition before adding files")
+		return nil, errors.New(i18n.T(i18n.KeyCmdComposerFinishComposition))
 	}
 	selection := d.Client.Selection().Range
 	start, end := ui.UTF16ByteOffset(d.Text, selection.Start), ui.UTF16ByteOffset(d.Text, selection.End)

@@ -50,12 +50,14 @@ type Backend struct {
 	taskbarButtonCreated uint32
 
 	watchingPower bool
-	notifications map[string]*notification
+	toast         *toastService // WinRT STA objects, detached without clearing history at shutdown
 
-	themeSource string
-	badge       string
-	hidden      []*window
-	icon        uintptr // default window icon (SetDockIcon)
+	themeSource     string
+	systemDark      bool
+	systemDarkKnown bool
+	badge           string
+	hidden          []*window
+	icon            uintptr // default window icon (SetDockIcon)
 
 	// captions are the windows of the controls of windows with a hidden
 	// title bar (titlebar.go), captionFonts their glyphs by DPI.
@@ -81,14 +83,13 @@ var (
 // New creates the Windows backend.
 func New() *Backend {
 	return &Backend{
-		windows:       map[uintptr]*window{},
-		trays:         map[uint32]*tray{},
-		notifications: map[string]*notification{},
-		menus:         newMenuTable(),
-		themeSource:   "system",
-		captions:      map[uintptr]*captionBar{},
-		captionFonts:  map[int]captionFont{},
-		surfaces:      map[uintptr]*surface{},
+		windows:      map[uintptr]*window{},
+		trays:        map[uint32]*tray{},
+		menus:        newMenuTable(),
+		themeSource:  "system",
+		captions:     map[uintptr]*captionBar{},
+		captionFonts: map[int]captionFont{},
+		surfaces:     map[uintptr]*surface{},
 	}
 }
 
@@ -186,6 +187,10 @@ func (b *Backend) Run() error {
 		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 	}
 	b.running = false
+	if b.toast != nil {
+		b.toast.close()
+		b.toast = nil
+	}
 	return nil
 }
 
@@ -316,6 +321,11 @@ func (b *Backend) appMessage(m uint32, wp, lp uintptr) (uintptr, bool) {
 		return 0, true
 	case wmAppWake:
 		return 0, true
+	case wmAppToast:
+		if b.toast != nil {
+			b.toast.dispatch()
+		}
+		return 0, true
 	case wmAppTray:
 		b.trayMessage(uint32(wp), uint32(loword(lp)))
 		return 0, true
@@ -331,6 +341,7 @@ func (b *Backend) appMessage(m uint32, wp, lp uintptr) (uintptr, bool) {
 			b.applyTheme()
 			b.h.ThemeChanged()
 		case preferencesChanged(wp, lp):
+			b.applyTheme()
 			b.h.ThemeChanged()
 		}
 		return 0, false

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/desktop/htmlpreview"
 	"whaleisle/internal/harness"
@@ -19,11 +20,11 @@ func (s *mainState) verifyVisualReplyEnable(ctx context.Context, origin string) 
 	sup := s.sup
 	s.mu.Unlock()
 	if sup == nil {
-		return errors.New("HTML visual replies unavailable: the local desktop Host is not running")
+		return errors.New(i18n.T(i18n.KeyCmdVisualRepliesHostStopped))
 	}
 	current := sup.Status()
 	if current.State != harness.Ready || current.Endpoint.Origin != origin {
-		return errors.New("HTML visual replies unavailable: this settings connection is not the running local desktop Host")
+		return errors.New(i18n.T(i18n.KeyCmdVisualRepliesHostMismatch))
 	}
 	caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 	if !caps.ArtifactsReady {
@@ -35,7 +36,7 @@ func (s *mainState) verifyVisualReplyEnable(ctx context.Context, origin string) 
 	}
 	current = sup.Status()
 	if current.State != harness.Ready || current.Endpoint.Origin != origin {
-		return errors.New("HTML visual replies Host changed during runtime verification")
+		return errors.New(i18n.T(i18n.KeyCmdVisualRepliesHostChanged))
 	}
 	// A real runtime result is required before publishing the capability. This
 	// never changes the default-off preference or writes Host settings itself.

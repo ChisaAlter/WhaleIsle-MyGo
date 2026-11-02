@@ -69,7 +69,7 @@ func syncDocumentSurfaces(m Model) {
 func paintDocumentViewerButton(c *ui.Context, m Model) {
 	prepareDocumentViewer(m)
 	tab := selectedTab(m)
-	if tab == nil || m.OpenDocumentViewer == nil {
+	if tab == nil || tab.deliverySource != nil || m.OpenDocumentViewer == nil {
 		return
 	}
 	paintDocumentViewerChoices(c, m, tab)
@@ -79,7 +79,7 @@ func paintDocumentViewerButton(c *ui.Context, m Model) {
 // Compact headers must retain the original lazy surface ownership/lifetime.
 func prepareDocumentViewer(m Model) {
 	tab := selectedTab(m)
-	if tab == nil || m.OpenDocumentViewer == nil {
+	if tab == nil || tab.deliverySource != nil || m.OpenDocumentViewer == nil {
 		return
 	}
 	if desktopDelimitedDefault(tab) {

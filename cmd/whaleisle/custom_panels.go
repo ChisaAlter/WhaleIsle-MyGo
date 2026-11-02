@@ -46,7 +46,7 @@ func (s *mainState) currentCustomPanelScope(sid string) (panel.Scope, string) {
 	s.mu.Lock()
 	roster, cfg, sessions, ep, ready := s.dshbotRoster, s.cfgStore, s.sessions, s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
 	s.mu.Unlock()
-	if !ready || roster == nil || cfg == nil || !cfg.Get().DshbotEnabled || sessions == nil || sessions.Snapshot().SelectedID != sid {
+	if !ready || roster == nil || cfg == nil || !cfg.Get().DshbotEnabled || sessions == nil || sessions.SelectedSessionID() != sid {
 		return panel.Scope{}, ""
 	}
 	return customPanelBotScope(sessions.WorkspaceLayoutScope(), ep.Origin, sid, roster.Snapshot())
@@ -103,7 +103,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			}
 		}
 		if openErr != "" {
-			editor.Error = "Panel library: " + openErr
+			editor.Error = i18n.T(i18n.KeyCmdPanelLibraryPrefix) + openErr
 		}
 		available := store != nil && scope.Bot != ""
 		snapshot := panel.Snapshot{}
@@ -204,7 +204,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 					}
 				}
 				if !found {
-					err = fmt.Errorf("Panel instance no longer exists")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPanelInstanceMissing))
 				}
 			}
 			report(err, i18n.T(i18n.KeyCmdSavedOtherBotCopiesRemainIndependen))

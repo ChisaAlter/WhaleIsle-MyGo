@@ -69,11 +69,38 @@ func (e *node) Menu(build func(m *Menu)) *node {
 	return e
 }
 
+// MenuOpen reports whether a menu of the element, or of an element inside it,
+// is opening or shown. Use it to retain a row's actions or suppress its hover
+// card while its menu is open. A chosen or dismissed menu no longer counts.
+func (e *node) MenuOpen() bool {
+	if !e.hasState() {
+		return false
+	}
+	rt := e.c.rt
+	mr := &rt.menu
+	if mr.asked != 0 && rt.within(mr.asked, e.id) {
+		return true
+	}
+	if mr.pending != nil && rt.within(mr.pending.id, e.id) {
+		return true
+	}
+	if mr.overlay == nil {
+		return false
+	}
+	if h, ok := rt.host.(*headless); ok && h.menu != mr.overlay.menu {
+		return false
+	}
+	return rt.within(mr.overlay.id, e.id)
+}
+
 // buildMenu builds the element's menu, its menu button's or its context
 // menu, as it opens, and again for the item chosen from it.
 func (e *node) buildMenu(button bool, build func(m *Menu)) {
 	rt := e.c.rt
 	mr := &rt.menu
+	if p := mr.overlay; p != nil && p.id == e.id && p.closeOnPointerLeave {
+		e.flags |= flagHover
+	}
 	switch {
 	case mr.asked == e.id && mr.button == button:
 		mr.asked = 0
@@ -88,6 +115,13 @@ func (e *node) buildMenu(button bool, build func(m *Menu)) {
 			commands = run.commands
 		}
 		rt.openMenu(e.id, button, pm, run.labels, commands)
+		if mr.pending != nil && mr.pending.id == e.id {
+			mr.pending.presentation = run.presentation
+			mr.pending.closeOnPointerLeave = run.closeOnPointerLeave
+			if run.closeOnPointerLeave {
+				e.flags |= flagHover
+			}
+		}
 	case mr.chosen == e.id && mr.chosenButton == button:
 		mr.chosen = 0
 		mr.chosenHold = false
@@ -120,10 +154,22 @@ type menuRun struct {
 	labels  []string // the items' labels by place, when collecting
 	// commands are the editing commands of EditItems' items by place, ""
 	// for the others, when collecting.
-	commands []string
-	choice   int
-	label    string
-	chosen   bool // an item reported the choice
+	commands            []string
+	choice              int
+	label               string
+	chosen              bool // an item reported the choice
+	presentation        map[int]menuItemPresentation
+	closeOnPointerLeave bool
+}
+
+// CloseOnPointerLeave closes this menu 200ms after the pointer leaves its
+// anchor and panels. Re-entering cancels the close. It is off by default and
+// does not arm until the pointer has been inside; keyboard-opened menus stay
+// open while the pointer remains elsewhere.
+func (m *Menu) CloseOnPointerLeave(on bool) {
+	if m.run.collect {
+		m.run.closeOnPointerLeave = on
+	}
 }
 
 // MenuItem is an item of a Menu. Its methods set it up and return it, for
@@ -200,6 +246,48 @@ func (it *MenuItem) Disabled(d bool) *MenuItem {
 	return it
 }
 
+// Icon shows an SVG beside the label, in the label's color. Parse the icon
+// once, as for ui.Icon. A nil icon keeps the ordinary menu layout.
+func (it *MenuItem) Icon(icon *SVG) *MenuItem {
+	if it.run.collect {
+		if it.run.presentation == nil {
+			it.run.presentation = make(map[int]menuItemPresentation)
+		}
+		style := it.run.presentation[it.seq]
+		style.icon = icon
+		it.run.presentation[it.seq] = style
+	}
+	return it
+}
+
+// Danger colors the label and icon with the theme's danger color when on.
+// It does not change whether the item may be chosen; use Disabled for that.
+func (it *MenuItem) Danger(on bool) *MenuItem {
+	if it.run.collect {
+		if it.run.presentation == nil {
+			it.run.presentation = make(map[int]menuItemPresentation)
+		}
+		style := it.run.presentation[it.seq]
+		style.danger = on
+		it.run.presentation[it.seq] = style
+	}
+	return it
+}
+
+// ShortcutLabel displays a shortcut description without registering a key
+// binding or changing the platform accelerator. An empty label hides it.
+func (it *MenuItem) ShortcutLabel(label string) *MenuItem {
+	if it.run.collect {
+		if it.run.presentation == nil {
+			it.run.presentation = make(map[int]menuItemPresentation)
+		}
+		style := it.run.presentation[it.seq]
+		style.shortcutLabel, style.shortcutSet = label, true
+		it.run.presentation[it.seq] = style
+	}
+	return it
+}
+
 // Checked shows a check mark by the item when on is true, as for a setting
 // that choosing the item toggles.
 func (it *MenuItem) Checked(on bool) *MenuItem {
@@ -260,14 +348,18 @@ type menuState struct {
 // shownMenu is a context menu built for the element id. commands are the
 // editing commands of a text input's items, nil for a view's menu.
 type shownMenu struct {
-	id       uint64
-	button   bool
-	menu     *platform.Menu
-	labels   []string
-	commands []string
-	x, y     float32
+	id           uint64
+	button       bool
+	menu         *platform.Menu
+	labels       []string
+	commands     []string
+	presentation map[int]menuItemPresentation
+	x, y         float32
 	// text is the text the menu opened on, which takes its commands.
-	text uint64
+	text                uint64
+	closeOnPointerLeave bool
+	pointerInside       bool
+	leaveAt             time.Time
 }
 
 // textMenu returns the element whose context menu opens on the text input
@@ -438,6 +530,7 @@ func (rt *engine) showMenu() {
 	if h, ok := rt.host.(*headless); ok {
 		// Tests keep the native-menu simulation: its item model is what the
 		// Tester drives, while the real window draws the app overlay below.
+		rt.menu.overlay = p
 		h.popupMenu(p.menu, p.x, p.y, func(id int) { rt.menuChosen(p, id) })
 		return
 	}
@@ -445,7 +538,10 @@ func (rt *engine) showMenu() {
 	rt.menu.index = 0
 	rt.menu.submenu = -1
 	rt.menu.focused = false
-	rt.requestFrame()
+	// The current scene was already presented. requestFrame skips requests
+	// made during a frame, so ask the host for the overlay's first build.
+	rt.redraw, rt.repaintDue = false, time.Time{}
+	rt.host.requestFrame()
 }
 
 // buildMenuOverlay draws the pending menu over the window. The panel is
@@ -453,7 +549,22 @@ func (rt *engine) showMenu() {
 // bottom edge opens upward.
 func (rt *engine) buildMenuOverlay(c *context) {
 	p := rt.menu.overlay
-	if p == nil || len(p.menu.Items) == 0 {
+	if p == nil {
+		return
+	}
+	owner := rt.states[p.id]
+	if owner == nil || owner.seen != rt.frame || owner.pass != rt.pass || owner.flags&flagDisabled != 0 || p.menu == nil || len(p.menu.Items) == 0 {
+		if h, ok := rt.host.(*headless); ok {
+			h.menu, h.chosen = nil, nil
+		}
+		rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+		rt.consumed = true
+		return
+	}
+	if h, ok := rt.host.(*headless); ok {
+		if h.menu != p.menu {
+			rt.menu.overlay = nil
+		}
 		return
 	}
 	t := c.theme
@@ -488,7 +599,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 		}
 		panel := coreBox(c).Role(RoleMenu).Absolute().Left(left).Top(top).Width(220).Padding(4).Gap(0).Radius(12).
 			Background(t.Background).Border(.5, t.Border)
-		panel.flags |= flagClickable
+		panel.flags |= flagClickable | flagHover
 		panel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
 		move := func(delta int) {
 			n := len(p.menu.Items)
@@ -536,7 +647,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 					offset += 9
 					continue
 				}
-				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Radius(8).
+				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
 					BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
 				if !item.Enabled {
 					row.Disabled(true)
@@ -556,18 +667,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 					rt.menu.submenu = -1
 					rt.requestFrame()
 				}
-				row.Children(func() {
-					if item.Checked {
-						coreText(c, "✓").Width(16).Shrink(0).FontSize(12).TextColor(t.Text)
-					}
-					coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(t.Text)
-					if item.Accelerator != "" {
-						coreText(c, item.Accelerator).Shrink(0).FontSize(11).TextColor(t.TextMuted)
-					}
-					if item.Submenu != nil {
-						coreText(c, "›").Shrink(0).FontSize(14).TextColor(t.TextMuted)
-					}
-				})
+				row.Children(func() { menuItemContent(c, p, item, p.menu.Items) })
 				if item.Enabled && row.Clicked() && item.Submenu == nil {
 					rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 					rt.menuChosen(p, item.ID)
@@ -578,12 +678,13 @@ func (rt *engine) buildMenuOverlay(c *context) {
 				offset += 34
 			}
 		})
+		var subPanel *node
 		if rt.menu.submenu >= 0 && rt.menu.submenu < len(p.menu.Items) {
 			if sub := p.menu.Items[rt.menu.submenu].Submenu; sub != nil {
 				subLeft := left + 220 - 4
-				subPanel := coreBox(c).Role(RoleMenu).Absolute().Left(subLeft).Top(submenuTop).Width(200).Padding(4).Gap(0).Radius(12).
+				subPanel = coreBox(c).Role(RoleMenu).Absolute().Left(subLeft).Top(submenuTop).Width(200).Padding(4).Gap(0).Radius(12).
 					Background(t.Background).Border(.5, t.Border)
-				subPanel.flags |= flagClickable
+				subPanel.flags |= flagClickable | flagHover
 				subPanel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
 				subPanel.Children(func() {
 					for _, item := range sub.Items {
@@ -594,7 +695,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 							coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
 							continue
 						}
-						row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Radius(8).
+						row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
 							BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
 						if !item.Enabled {
 							row.Disabled(true)
@@ -602,18 +703,24 @@ func (rt *engine) buildMenuOverlay(c *context) {
 						if item.Enabled && row.Hovered() {
 							row.Background(t.SurfaceHover)
 						}
-						row.Children(func() {
-							coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(t.Text)
-							if item.Accelerator != "" {
-								coreText(c, item.Accelerator).Shrink(0).FontSize(11).TextColor(t.TextMuted)
-							}
-						})
+						row.Children(func() { menuItemContent(c, p, item, sub.Items) })
 						if item.Enabled && row.Clicked() {
 							rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 							rt.menuChosen(p, item.ID)
 						}
 					}
 				})
+			}
+		}
+		if p.closeOnPointerLeave && rt.menu.overlay == p {
+			owner.flags |= flagHover
+			inside := rt.pointerIn && (Rect{owner.vx, owner.vy, owner.vw, owner.vh}).Contains(rt.pointerX, rt.pointerY)
+			inside = inside || menuPointerInside(rt, panel) || menuPointerInside(rt, subPanel)
+			if p.pointerLeaveDue(c, inside) {
+				rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+				rt.consumed = true
+				rt.requestFrame()
+				return
 			}
 		}
 		panel.Focusable()
@@ -628,6 +735,9 @@ func (rt *engine) buildMenuOverlay(c *context) {
 // reports it to ContextMenu's function, or the text input does the
 // command.
 func (rt *engine) menuChosen(p *shownMenu, id int) {
+	if rt.menu.overlay == p {
+		rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+	}
 	if h, ok := rt.host.(*headless); ok {
 		h.menu, h.chosen = nil, nil
 	}

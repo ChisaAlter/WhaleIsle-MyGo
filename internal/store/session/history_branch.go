@@ -55,7 +55,9 @@ func (s *Store) ForkTurn(ctx context.Context, sessionID string, seq float64) {
 	client, generation := s.client, s.followGeneration
 	s.historyBranchBusy = true
 	s.lastAction = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
+	beforeSnapshotNotification("fork-start")
 	s.fire()
 	go func() {
 		var out struct {
@@ -68,21 +70,25 @@ func (s *Store) ForkTurn(ctx context.Context, sessionID string, seq float64) {
 			return
 		}
 		s.historyBranchBusy = false
+		s.invalidateViewLocked()
 		if err != nil {
 			s.lastAction = "session/fork: " + err.Error()
 			s.mu.Unlock()
+			beforeSnapshotNotification("fork-complete")
 			s.fire()
 			return
 		}
 		if strings.TrimSpace(out.SessionID) == "" {
 			s.lastAction = "session/fork: missing sessionId"
 			s.mu.Unlock()
+			beforeSnapshotNotification("fork-complete")
 			s.fire()
 			return
 		}
 		s.selectSessionLocked(out.SessionID)
 		s.lastAction = "session forked"
 		s.mu.Unlock()
+		beforeSnapshotNotification("fork-complete")
 		s.fire()
 		s.RefreshList(ctx)
 		s.FollowSelected(ctx)

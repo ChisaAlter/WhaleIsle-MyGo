@@ -3,6 +3,7 @@ package composer
 import (
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
@@ -52,7 +53,7 @@ func ParseDraftMentions(draft string) []DraftMention {
 			end := i + size
 			for end < len(draft) {
 				nr, nsz := utf8.DecodeRuneInString(draft[end:])
-				if nr == ' ' || nr == '\t' || nr == '\n' {
+				if unicode.IsSpace(nr) {
 					break
 				}
 				end += nsz
@@ -69,7 +70,7 @@ func ParseDraftMentions(draft string) []DraftMention {
 					}
 				}
 			}
-			if end > i+size {
+			if end > i+size && validDraftMention(draft[i:end]) {
 				kind := DraftMentionAt
 				if r == '@' && strings.HasPrefix(draft[i:end], "@[") {
 					kind = DraftMentionSession
@@ -90,6 +91,24 @@ func ParseDraftMentions(draft string) []DraftMention {
 		}
 	}
 	return out
+}
+
+func validDraftMention(token string) bool {
+	if !utf8.ValidString(token) {
+		return false
+	}
+	for _, r := range token {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	if strings.HasPrefix(token, "@[") {
+		return sessionMentionPattern.FindString(token) == token
+	}
+	if strings.HasPrefix(token, `@"`) {
+		return len(token) > 3 && strings.HasSuffix(token, `"`) && !strings.Contains(token[2:len(token)-1], `"`)
+	}
+	return !strings.ContainsAny(token, `"[]`)
 }
 
 // RemoveDraftMention deletes one mention from draft and tidies surrounding spaces.
@@ -210,20 +229,9 @@ func ChipLabel(m DraftMention) string {
 
 func resolveMention(draft string, m DraftMention) (DraftMention, bool) {
 	if m.Start < 0 || m.End > len(draft) || m.Start >= m.End {
-		if m.Text == "" {
-			return m, false
-		}
-		if j := strings.Index(draft, m.Text); j >= 0 {
-			m.Start, m.End = j, j+len(m.Text)
-			return m, true
-		}
 		return m, false
 	}
 	if draft[m.Start:m.End] != m.Text && m.Text != "" {
-		if j := strings.Index(draft, m.Text); j >= 0 {
-			m.Start, m.End = j, j+len(m.Text)
-			return m, true
-		}
 		return m, false
 	}
 	return m, true
@@ -234,13 +242,13 @@ func tokenBoundary(draft string, i int) bool {
 		return true
 	}
 	prev, _ := utf8.DecodeLastRuneInString(draft[:i])
-	return prev == ' ' || prev == '\t' || prev == '\n'
+	return unicode.IsSpace(prev)
 }
 
 func skipToken(draft string, i int) int {
 	for i < len(draft) {
 		r, size := utf8.DecodeRuneInString(draft[i:])
-		if r == ' ' || r == '\t' || r == '\n' {
+		if unicode.IsSpace(r) {
 			return i + size
 		}
 		i += size

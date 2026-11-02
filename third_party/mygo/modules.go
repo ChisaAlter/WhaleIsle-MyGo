@@ -538,13 +538,19 @@ type NotificationOptions struct {
 	// Notification Center (macOS), such as the messages of a conversation.
 	// Empty leaves them in the app's.
 	Group string
+	// Toast configures Windows WinRT templates and identity. Nil builds a
+	// standard ToastGeneric notification using the process AppUserModelID.
+	Toast *ToastOptions
 }
 
 // Notification is a desktop notification.
 type Notification struct {
-	id      string
-	opts    NotificationOptions
-	onClick listeners[func()]
+	id       string
+	opts     NotificationOptions
+	onClick  listeners[func()]
+	onAction listeners[func(NotificationActivation)]
+	onClose  listeners[func(NotificationCloseReason)]
+	onFailed listeners[func(error)]
 }
 
 var notifications struct {
@@ -584,29 +590,36 @@ var ErrNotificationsDenied = platform.ErrNotificationsDenied
 // are not allowed.
 func (n *Notification) Show() error {
 	needsApp("Notification.Show")
+	payload, err := n.snapshot()
+	if err != nil {
+		return err
+	}
 	notifications.Lock()
 	if notifications.byID == nil {
 		notifications.byID = map[string]*Notification{}
 	}
-	_, shown := notifications.byID[n.id]
+	previous := notifications.byID[n.id]
 	notifications.byID[n.id] = n
 	notifications.Unlock()
 	ch := make(chan error, 1)
 	onMain(func() {
-		backend().ShowNotification(&platform.Notification{
-			ID:       n.id,
-			Title:    n.opts.Title,
-			Subtitle: n.opts.Subtitle,
-			Body:     n.opts.Body,
-			Silent:   n.opts.Silent,
-			Group:    n.opts.Group,
-		}, func(err error) { deliver(ch, err) })
+		backend().ShowNotification(payload, func(err error) {
+			if err != nil {
+				fire1(&n.onFailed, err)
+			}
+			deliver(ch, err)
+		})
 	})
-	err := await(ch)
-	if err != nil && !shown {
-		// Nothing will be clicked.
+	err = await(ch)
+	if err != nil {
 		notifications.Lock()
-		delete(notifications.byID, n.id)
+		if notifications.byID[n.id] == n {
+			if previous != nil {
+				notifications.byID[n.id] = previous
+			} else {
+				delete(notifications.byID, n.id)
+			}
+		}
 		notifications.Unlock()
 	}
 	return err
@@ -614,10 +627,16 @@ func (n *Notification) Show() error {
 
 // Close removes the notification.
 func (n *Notification) Close() {
-	notifications.Lock()
-	delete(notifications.byID, n.id)
-	notifications.Unlock()
-	onMain(func() { backend().RemoveNotification(n.id) })
+	onMain(func() {
+		notifications.Lock()
+		active := notifications.byID[n.id]
+		delete(notifications.byID, n.id)
+		notifications.Unlock()
+		backend().RemoveNotification(n.id)
+		if active != nil {
+			fire1(&active.onClose, NotificationRemoved)
+		}
+	})
 }
 
 // ClearNotifications removes the app's notifications, on macOS those of

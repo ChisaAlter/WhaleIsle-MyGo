@@ -44,6 +44,11 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	}
 	s.cancelRetainedAgentReadsLocked("") // Event authority is being re-established; never assume missed revocations.
 	s.eventsGeneration++
+	s.resetSidebarCatalogLocked()
+	s.skillRefreshOnEventsReady = s.skillRefreshOnEventsReady || s.skillCatalogClient != nil || s.skillOptionsOwner.client != nil
+	// A reconnect may have missed inventory or invocation revocations. Rows,
+	// drafts and pending writes need a fresh catalog from this Host generation.
+	s.invalidateSkillOptionsLocked()
 	s.resetNativeContributionsLocked()
 	s.permissionCatalogRevision++
 	s.permissionOptions, s.permissionsErr = nil, nil
@@ -71,12 +76,21 @@ func (s *Store) OnEventsReady(owner *EventsOwner) {
 		return
 	}
 	client, generation := s.beginListRefreshLocked()
+	refreshSkills := s.skillRefreshOnEventsReady
+	skillsOwner := workspaceSelectedOwner{client: client, hostGeneration: owner.generation, composerGeneration: s.composerHostGeneration,
+		followGeneration: s.followGeneration, sessionID: s.selectedID, cwd: s.cwd}
 	s.mu.Unlock()
 	if client == nil {
 		return
 	}
 	s.fire()
 	go s.runRefreshList(owner.ctx, client, generation)
+	// Re-establish inventory authority on reconnect as well as initial Ready.
+	// fire may have re-entered navigation or BeginEvents; each adapter checks
+	// this captured owner again before admitting a read and before folding it.
+	if refreshSkills {
+		s.refreshSkillsForOwner(owner.ctx, &skillsOwner)
+	}
 }
 
 // OnEmit folds actual api-session wire arguments only for the active stream.
@@ -187,7 +201,9 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 }
 
 func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) bool {
+	s.invalidateViewLocked()
 	if m.kind == "api-session/deleted" {
+		delete(s.sidebarCatalog.ByParent, m.sessionID)
 		delete(s.subagentIdentities, m.sessionID)
 	}
 	retiredSubmission := false
@@ -288,6 +304,7 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 // selectSessionLocked invalidates all work belonging to the old transcript,
 // including an Open or page request that completes after a selection change.
 func (s *Store) selectSessionLocked(sessionID string) {
+	s.invalidateViewLocked()
 	s.mainConversationReadID = ""
 	delete(s.completionUnread, sessionID)
 	if s.selectedID == sessionID {
@@ -310,6 +327,7 @@ func (s *Store) selectSessionLocked(sessionID string) {
 }
 
 func (s *Store) invalidateFollowLocked() {
+	s.invalidateViewLocked()
 	s.historyLoading = false
 	s.clearHistoryErrorLocked()
 	s.resetTurnFilesLocked()

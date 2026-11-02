@@ -18,7 +18,7 @@ func TestSettingsSectionLabelsMatchTheReference(t *testing.T) {
 		SectionInterface:  "Interface settings",
 		SectionPlugins:    "Built-in plugins",
 		SectionPet:        "Whale",
-		SectionUsageStats: "Usage stats",
+		SectionUsageStats: "Usage & cost",
 	}
 	for id, want := range wantEN {
 		if got := sectionLabel(id); got != want {
@@ -32,7 +32,7 @@ func TestSettingsSectionLabelsMatchTheReference(t *testing.T) {
 		SectionInterface:  "界面设置",
 		SectionPlugins:    "内置插件",
 		SectionPet:        "鲸鱼娘",
-		SectionUsageStats: "用量统计",
+		SectionUsageStats: "用量与费用",
 	}
 	for id, want := range wantZH {
 		if got := sectionLabel(id); got != want {

@@ -9,7 +9,7 @@ func MainCaptionFileDrop(c *ui.Context, m Model, content func()) {
 	area := ui.Column(c.Key("main-caption-files")).FillWidth()
 	area.Children(func() {
 		if navigationFileDropAllowed(m) {
-			conversationFileDrop(c, m, area, m.Store.Snapshot().SelectedID)
+			conversationFileDrop(c, m, area, m.Store.SelectedSessionID())
 		}
 		content()
 	})

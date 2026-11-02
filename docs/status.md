@@ -1,5 +1,13 @@
 # 开发进度
 
+2026-11-02：正在固定当前源码并收口 Windows `0.2.1-rc.3`，进度与有效证据统一见[本轮收口记录](release-stabilization-20261102.md)。本轮不操作桌面，使用真实 Host 接口、Go 控制器/持久化与后台隔离安装验收；窗口布局、系统输入法、物理点击仍单列未验收。历史安装包和历史测试不代替本轮候选。
+
+2026-10-26 历史收口轮：桌宠固定中心选屏 + 真实双屏跨屏放置修复、会话级插件座位接入、防弹窗修复曾打进完整安装包，记录见[收口轮验收记录](parity/acceptance-round-20261026.md)。其中 `-consolefix.exe` 是当轮阶段产物，后续记录包括 10 月 27 日重新打包的 final；它们不是当前源码的交付入口。严格像素/真机验收仍未完成。
+
+2026-10-25 运行时反复弹终端修复见[最新终端审计补充](windows-terminal-startup-audit-20261025.md)。Host 等六个后台进程树入口已改用可继承的隐藏控制台；真实 Node 两级调用和 75 秒窗口事件观察通过。根目录两个应用入口与预览 helper 已更新，此前生成的完整安装包尚不包含此次修复。
+
+2026-10-25 本轮主要差距修复与最新实测边界见[实现与验证记录](parity/implementation-evidence-20261025.md)。其中逐项区分当前实现、真实运行证据和未完成的像素/硬件/全量状态验收；下方保留历史进度，不以早期矩阵或旧版本的“完成”代替本轮结果。
+
 2026-10-14 补充：最新逐模块交付与验证边界以 [模块交付记录](module-delivery-20261014.md) 为准。下文历史环境的实测记录不代表当前累计版本已通过真实 Host 或 Windows 桌面验收。
 
 2026-10-14 文档预览补充：本地 `.htm/.html/.xhtml` 已接通交付卡和 Files 工具栏 → 隔离 WebView 文档标签，见 [HTML 文档预览](features/local-html-document.md)。仅保存文件快照，草稿保留；静态 HTML/CSS/图片/字体可显示，声明的同工作区资源有界快照内联，脚本和外网禁用，失败保留系统打开。Windows 实际呈现与隔离行为仍待实机验收。
@@ -23,7 +31,7 @@
 | harness 启动器改造 | M2 完成 | vendored 启动 + overlays；install 控制面；**boot 页插件进度**（`Status.PluginLoad` + 日志解析 + UI 进度行）；真实 runtime 无结构化进度时显示 indeterminate |
 | 界面（对话 / 设置 / 文件 / Git / 终端等） | M4–M9 主体可用 | 对话完整度/composer/工作环/设置专用页/用量/远程/IM/市场/定时/壁纸；少量深化项见下文 |
 | dsh-whale 助理 / dshbot / webview 兜底 | M10 主体可用 | WebView2 Host + SlotURL 对齐；助理面板；Prepare 接 whale/dshbot |
-| 启动器 / 导入 / 更新 / 安装包 | M11 主体可用 | staging + NSIS；更新器 hash/签名/blockmap 校验；手机远程（**部分实现**：仅配置就绪检查 + SSH 隧道，服务端/配对/QR 未实现，见「审查修正」）；任务保护/深链 |
+| 启动器 / 导入 / 更新 / 安装包 | M11 主体可用 | staging + NSIS；更新器 hash/签名/blockmap 校验；手机远程（运行时/配对/QR/设备动作已实现；真机+relay 第二设备验收环境受限）；任务保护/深链 |
 
 ## 已完成
 
@@ -184,7 +192,7 @@
   - 已完成（本轮）：通用 schema 表单深化 — 左侧命名空间过滤；password 字段（apiKey/token/secret）+「显示密钥」；描述型 string 用 TextArea；修订号 / 可写·只读徽标；`FilterNamespaces` 单测。专用页仍走独立 pane，过滤只作用于 harness 命名空间列表。
   - 待做：无（M8 主体完成）。
 - **M9 桌面扩展（进行中）**：
-  - 已完成：用量面板（account/job + 近 7 日柱状图 + 近 28 日热力格 + WebView2 打开 `usageUrl`）；插件市场；CSV/TSV/XLSX 预览；PDF/Office 外部打开；定时任务；壁纸画廊（**部分实现**：仅本地目录画廊，无 Bing/Wallhaven 在线目录与下载应用，见「审查修正」）；chroma 源码预览。
+  - 已完成：用量面板（account/job + 近 7 日柱状图 + 近 28 日热力格 + WebView2 打开 `usageUrl`）；插件市场；CSV/TSV/XLSX 预览；PDF/Office 外部打开；定时任务；壁纸画廊（本地目录 + Bing/Wallhaven 在线目录 + 自定义 HTTPS JSON catalog + 下载应用，`wallpaper_background.go`/`host_wallpaper_sources.go`；判定已过期修正）；chroma 源码预览。
   - 已完成：`internal/desktop/sshremote` — 就绪检查、TCP 探测、`TunnelSession`（本地端口转发）；远程面板 SSH 表单 Connect/Save/Disconnect。
   - 已完成：**host-key 钉扎** — `userData/ssh/known_hosts`；Connect 关闭静默 TOFU；未知主机指纹 Accept/Decline 对话框（Accept → `AcceptHostKey` + 重连）；错配 → 警告拒连。
   - 已完成：IM 面板深化 — Select/SendDraft + 渠道列表 / 本地历史 / 草稿 / 发送 / dsh-im WebView；`userData/im/`（channels/drafts/history JSON）；codegen `im/*` 为 **0** 时本地模式可用，有 list RPC 时仍走 Refresh 拉列表。
@@ -203,7 +211,7 @@
   - 已完成：`pet/look` — 选图对话框 → `pet/state` 取 provider/model → base64 `pet/look`。
   - 已知收窄：dshbot **无**独立 chat/pet RPC（vendored `control-plane.js` 未注册）；原生仍靠 `[dshbot]` 会话前缀 + WebView 完整 UI。
   - 已完成：composer 行内 `@path` / `/skill` 芯片解析、删除、弹出改写（`ChipEdit`）。
-- **M11 外围与发布（进行中）**：见下节；启动器 UI、深链路由、NSIS、sha256/size + Authenticode + blockmap stub 已落地；**手机远程**（Assess / 连接 URL / 复制剪贴板 / 打开浏览器·WebView / 刷新 / `remoteDevices` 配对列表）为**部分实现**：`phoneremote` 仅做配置就绪检查与连接 URL 构造，无 mobile-web 服务端、无 ChisaCode 配对、无 QR 绘制（原版 `mobile-web-server.js` / `dshd-remote.js` 未 port），手机端完整能力不可用。
+- **M11 外围与发布（进行中）**：见下节；启动器 UI、深链路由、NSIS、sha256/size + Authenticode + blockmap stub 已落地；**手机远程**已实现：Assess / 连接 URL / 复制剪贴板 / WebView / 刷新 / `remoteDevices` 配对列表 + `phoneremote` 运行时（`runtime.go`/`web.go`/`host_actions.go`/`git_*`）+ LAN 配对 + QR 渲染 + 设备动作，LAN/relay 模式齐备；剩余仅真机第二设备 + 公网 relay 端到端验收受环境限（判定已复核修正）。
 
 ### M11 发布与数据路径
 
@@ -251,11 +259,11 @@
 
 | # | 位置 | 判定 |
 |---|------|------|
-| 1 | `internal/desktop/components/lifecycle.go:23` | install 动作为空壳（start/stop/open 已实现） |
-| 2 | `internal/desktop/phoneremote`（整个包） | 整包为空壳：UI 展示就绪清单 + ConnectURL，无任何服务端 |
+| 1 | `internal/desktop/components/lifecycle.go:23` | ~~install 空壳~~（判定过时）：`install` 已路由到 `InstallWhaleBridge`→`installBridge`，走 GitHub/CNB release 元数据 + sha256 校验 `DownloadAndStageOpts`；generic 组件经 `RunGenericAction`→`InstallGenericVersion` 选目录版本 |
+| 2 | `internal/desktop/phoneremote`（整个包） | ~~整包空壳~~（判定过时）：已含 `runtime.go`、`git_bridge.go`/`git_generation.go`/`git_review.go`、`host_actions.go`、`resources.go`、`status.go`、`web.go` 及 `lan_pairing`/`live_lan`/`full_runtime_loopback`/`settings_pairing_live` 等测试；剩余仅为真机/relay 第二设备验收（环境受限），非缺逻辑 |
 | 3 | `internal/ui/chrome/wallpaper.go:18` | 壁纸为内容层占位（MyGo 无窗口背景图 API，属平台限制） |
 | 4 | `internal/ui/market/market.go:1` | 包注释 "stub" 过时（本批次已修正）；面板实际已实现列表/安装/启停/卸载 |
-| 5 | `internal/ui/remote/remote.go:1` | 包注释 "stub" 过时（已修正）；面板为配置状态展示 + SSH 隧道表单，dsh-remote RPC 未接 |
+| 5 | `internal/ui/remote/remote.go:1` | 包注释 "stub" 过时（已修正）；~~dsh-remote RPC 未接~~（判定过时）：面板已含 gateway/phone/phone_devices/phone_git_workspaces/offer 门控/QR 渲染 + relay/LAN 配置，`phoneremote` 运行时接线 |
 | 6 | `internal/store/im`（im/* 通路） | im/* 发送/历史为空壳通路（上游 vendor 无 RPC，非 Go 代码缺陷；完整 IM 靠 dsh-im WebView） |
 | 7 | `internal/store/usage/store.go:1`、`internal/ui/chat/chat.go:1`、`internal/ui/usage/usage.go:1` | 包注释 "stub" 过时（本批次已修正为准确描述） |
 | 8 | terminal/follow 流 | 原为 `probeTerminalFollow` 连通性探测（160 端点中唯一未接真实数据流）；本批次已按真实 harness 线协议接线（见下） |
@@ -514,7 +522,7 @@
 
 1. **terminal/follow 真实化**：`internal/store/hostterminal` 此前的实现打开了 vendored harness 并不存在的 `terminal/attach` duplex 端点，并把 write/resize 作为流内 uplink 命令、依赖并不存在的 `ack`/`writable`/`inputWindow` 帧字段——对真实 harness 无法工作。本批次改为 harness 实际线协议（证据：`runtime/vendor/deepseek-harness/packages/api/terminal-controller/src/types.ts` 的 `TerminalFrame` 仅 snapshot/output/state 三帧；`lib/typert.remote-client.js` 注册 `terminal/follow` 带 agentId/id/attachmentId，`terminal/write`、`terminal/resize` 为一元 RPC）：follow 流绑定 attachmentId，可写性由 `info.controllerId == attachmentId` 推导，输入/缩放走一元 RPC 且失败即失效不重放；controller/duplex/recovery/selection 单测同步修正。底栏「本地 Ghostty PTY」设计不变。
 2. **腐烂 stub 注释清理**：`internal/ui/chat`、`internal/ui/sidebar`、`internal/ui/market` 包注释更新为准确描述（`internal/ui/usage`、`internal/ui/remote`、`internal/store/usage` 已由前序工作修正）；i18n `KeyFrameRightStub`/`KeyFrameBottomStub`/`KeyWebViewStubBody` key 名保留不改（避免大范围重构；其中 `KeyFrameRightStub`/`KeyFrameBottomStub` 当前无渲染引用，是否作为死 key 删除留待专门清理）。
-3. **降格登记**：M11「手机远程」与 M9「壁纸画廊」由「已完成/主体可用」降格为「部分实现」（见总览表与 M9/M11 条目）。
+3. **降格登记（已过期，已复核修正）**：M11「手机远程」与 M9「壁纸画廊」曾被降格为「部分实现」，复核后二者核心逻辑均已实现——手机远程有运行时/配对/QR/设备动作（仅真机+relay 第二设备验收受环境限），壁纸画廊有本地目录 + Bing/Wallhaven/自定义 JSON 在线目录 + 下载应用。
 
 ## 已知问题与技术债
 
@@ -530,8 +538,9 @@
 ## 下一步顺序
 
 1. **M0–M11 主体仍可用**，但 **未宣称 GA**：需 Electron 44 同目录 credentials 信封实测、双开数据目录约束、跨进程 config CAS 等见「已知问题」。
-2. **M5**：citations 为 JSON/正文启发式；待 harness persistence 正式 source 字段后再做 typed 解析（可删大量 walk 逻辑）。
-3. **M9**：浏览器预览已独立面板；待补 agent 侧「打开链接」统一入口（composer/工具卡 deep link）、WebView 焦点/层级回归（多面板切换 Host inset）。
-4. **已接（本轮）**：`events.UnmarshalEvent`；托盘 `CatmullRom` 缩放；composer Undo/Redo；NSIS **编译 + TEMP 静默安装/卸载**冒烟（`smoke-nsis.ps1 -SilentInstall`，不碰真实 Electron Programs 目录）；覆盖路径不变量单测。
-5. **已知非阻塞**：真实覆盖 Electron Programs 目录的人工验收；credentials v10 需真机 Electron 44 信封；跨进程 config CAS；vendor 无 dshbot chat / dsh-im 消息历史 RPC。
-6. **vendor 边界（已审计）**：dshbot 无独立 chat RPC；dsh-im 无消息历史 typert；IM 完整收发仍依赖 WebView。
+2. **M5 citations**：已有两段式实现 —— 首选 `msg.Web` 上的 typed 来源（`citationsFromWebResult`），其次保留事件 JSON/正文的 best-effort 启发式回退。剩余工作不是补 typed 解析，而是待 harness persistence 提供正式 `source` 字段后**收窄/删除**启发式回退（上游依赖，非 Go 缺陷）。
+3. **M9 deep-link**：`applyDeeplink` 已完整分发 `ActionOpen/Launcher/Settings/Session/Usage/Market/Schedule/Agents/Auth`；`Agents` 打开侧栏 agents 页、`Session` 选中会话、`Auth` 落到 account 区。剩余仅为 WebView 焦点/层级回归（多面板切换 Host inset）的人体验收。
+4. **跨进程 config CAS**：当前 `commitMu` 只串行化**本进程内**所有 `Store`（persistence.go「不与其他进程协调」）。要与 Electron 外壳共享 `config.json` 需 OS 级文件锁/锁文件——真实差距，属本进程外协调。
+5. **已接（本轮）**：`events.UnmarshalEvent`；托盘 `CatmullRom` 缩放；composer Undo/Redo；NSIS **编译 + TEMP 静默安装/卸载**冒烟（`smoke-nsis.ps1 -SilentInstall`，不碰真实 Electron Programs 目录）；覆盖路径不变量单测。
+6. **环境阻塞（非代码缺陷）**：真实覆盖 Electron Programs 目录的人工验收；credentials v10 需真机 Electron 44 信封；安装包代码签名需证书；Android 真机端到端；macOS 真机（Keychain/TCC/AudioQueue）；mDNS/relay/断线重连需第二台网络设备。
+7. **vendor 边界（已审计）**：dshbot 无独立 chat RPC；dsh-im 无消息历史 typert；IM 完整收发仍依赖 WebView。

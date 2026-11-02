@@ -26,6 +26,7 @@ func (s *Store) ReloadShortcutDocument() ([]byte, error) {
 		return nil, err
 	}
 	s.shortcutReload = &shortcutDocumentSnapshot{raw: fresh.raw, baseline: fresh.baseline}
+	s.shortcutGen.Add(1)
 	return append([]byte(nil), fresh.raw[unifiedShortcutsKey]...), nil
 }
 
@@ -70,6 +71,14 @@ func (s *Store) ShortcutDocument() ([]byte, error) {
 		return nil, err
 	}
 	return append([]byte(nil), raw[unifiedShortcutsKey]...), nil
+}
+
+// ShortcutDocumentGeneration advances on every accepted change this store makes
+// to the shortcut document (and on an explicit reload). Consumers that cache
+// values derived from the document compare this instead of rereading the file
+// on every frame; tmp/stalls showed that read on the UI thread.
+func (s *Store) ShortcutDocumentGeneration() uint64 {
+	return s.shortcutGen.Load()
 }
 func (s *Store) InitializeShortcutDocument(data []byte) error {
 	return s.writeShortcutDocument(data, true)
@@ -116,5 +125,6 @@ func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
 	if s.shortcutReload != nil {
 		s.shortcutReload.raw, s.shortcutReload.baseline = merged, next
 	}
+	s.shortcutGen.Add(1)
 	return nil
 }

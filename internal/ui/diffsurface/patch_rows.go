@@ -165,13 +165,18 @@ func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, 
 func paintDiffGutter(c *ui.Context, line diffLine, st diff.Style) {
 	color := st.FG
 	sign := " "
+	var tint ui.Color
 	switch line.Kind {
 	case diffLineAdd:
-		color, sign = st.Add, "+"
+		color, tint, sign = st.Add, st.Add.Alpha(.08), "+"
 	case diffLineDel:
-		color, sign = st.Del, "-"
+		color, tint, sign = st.Del, st.Del.Alpha(.08), "-"
 	}
-	ui.Row(c).Width(diffNumberWidth+diffSignWidth).Height(diffLineBox(line.Kind)).Gap(0).AlignItems(ui.Center).Children(func() {
+	row := ui.Row(c).Width(diffNumberWidth + diffSignWidth).Height(diffLineBox(line.Kind)).Gap(0).AlignItems(ui.Center)
+	if tint.A > 0 {
+		row.Background(tint)
+	}
+	row.Children(func() {
 		if line.Kind == diffLineHunk || line.Kind == diffLineMeta {
 			return
 		}
@@ -192,15 +197,20 @@ func paintDiffText(c *ui.Context, line diffLine, st diff.Style, fold hunkFold) {
 		return
 	}
 	color := st.FG
+	var tint ui.Color
 	switch line.Kind {
 	case diffLineAdd:
-		color = st.Add
+		color, tint = st.Add, st.Add.Alpha(.08)
 	case diffLineDel:
-		color = st.Del
+		color, tint = st.Del, st.Del.Alpha(.08)
 	case diffLineMeta:
 		color = st.File
 	}
-	ui.Row(c).Height(diffLineBox(line.Kind)).MinWidth(0).AlignItems(ui.Center).Children(func() {
+	row := ui.Row(c).FillWidth().Height(diffLineBox(line.Kind)).MinWidth(0).Padding(0, 8).AlignItems(ui.Center)
+	if tint.A > 0 {
+		row.Background(tint)
+	}
+	row.Children(func() {
 		ui.Text(c, line.Text).Font("monospace").FontSize(st.FontSize).TextColor(color).NoWrap()
 	})
 }
@@ -222,7 +232,7 @@ func paintHunkHeader(c *ui.Context, text string, index int, st diff.Style, fold 
 		})
 		return
 	}
-	row := ui.Row(c).FillWidth().MinWidth(0).Gap(4).Height(24).Padding(0, 6).Radius(6).AlignItems(ui.Center).Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .16))
+	row := ui.Row(c).FillWidth().MinWidth(0).Gap(4).Height(24).Padding(0, 8).Radius(6).AlignItems(ui.Center).Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .12))
 	row.Children(func() {
 		caption := text
 		if folded {

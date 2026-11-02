@@ -163,7 +163,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 		if selectionLabel == "" && m.ModelPick != nil {
 			selectionLabel = strings.TrimSpace(*m.ModelPick)
 		}
-		name := modelLabelName(m.Snapshot, selectionLabel)
+		name := friendlyModelTriggerName(m.Snapshot, selectionLabel)
 		if name == "" {
 			name = i18n.T(i18n.KeyComposerModelMenuModel)
 		}
@@ -176,20 +176,24 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			}
 		}
 		if m.Snapshot.SelectedModelEffort != "" {
-			caption += " · " + m.Snapshot.SelectedModelEffort
+			caption += " · " + formatEffortDisplay(m.Snapshot.SelectedModelEffort)
 		}
 		if m.Snapshot.ModelSelectionBusy {
 			caption += " …"
 		}
-		trigger := chip(c, colors, state.Open, muted).Bind(triggerFocus).Label("Model catalog").Tooltip(caption + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
+		secondary := muted
+		if colors.Secondary != "" {
+			secondary = chrome.Color(colors.Secondary)
+		}
+		trigger := chip(c, colors, state.Open, secondary).Bind(triggerFocus).Label("Model catalog").Tooltip(caption + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
 		trigger.Children(func() {
 			if hasCurrentChoice {
-				ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, muted, 13).Grow(1)
+				ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, secondary, 13).Grow(1)
 			} else {
-				modelFlipText(c, "unknown-current:"+binding, name, muted, 13).Grow(1)
+				modelFlipText(c, "unknown-current:"+binding, name, secondary, 13).Grow(1)
 			}
 			if m.Snapshot.SelectedModelEffort != "" {
-				modelFlipText(c, "trigger-effort:"+binding, m.Snapshot.SelectedModelEffort, chrome.Color(colors.Caption), 13).Shrink(1000)
+				modelFlipText(c, "trigger-effort:"+binding, formatEffortDisplay(m.Snapshot.SelectedModelEffort), chrome.Color(colors.Caption), 13).Shrink(1000)
 			}
 			if m.Snapshot.ModelSelectionBusy {
 				ui.Text(c, "…").Shrink(0).TextColor(muted)
@@ -239,7 +243,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 						state.Pane, state.RootFocus, state.Query, state.Active = "model", "model", "", -1
 					}
 					if len(m.Snapshot.ModelEffortLabels) > 0 {
-						effortButton := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelMenuEffort)+"  "+m.Snapshot.SelectedModelEffort+"  ›").Disabled(m.Inert)
+						effortButton := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelMenuEffort) + "  " + m.Snapshot.SelectedModelEffort + "  ›").Disabled(m.Inert)
 						buttons = append(buttons, effortButton)
 						if state.RootFocus == "effort" {
 							effortButton.AutoFocus()

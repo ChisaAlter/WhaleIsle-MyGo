@@ -100,7 +100,7 @@ func (m Model) inspectToolCall(callID, messageID string, seq float64) {
 	pane := n.Inspector
 	binding, sessionID := "", ""
 	if m.Store != nil {
-		binding, sessionID = m.Store.InspectorBinding(), m.Store.Snapshot().SelectedID
+		binding, sessionID = m.Store.InspectorBinding(), m.Store.SelectedSessionID()
 	}
 	if pane.Mode != "chat-node" {
 		pane.changeInspectorMode("chat-node", sessionID)
@@ -253,7 +253,7 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 			source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw, ChatTarget: p.navigation.PickTarget(msg)})
 		}
 	}
-	inspectorPresentation(c, p, source, m.Store.Snapshot(), theme.Resolve(m.ThemeID).Active(m.SystemDark), func() { m.Store.LoadEarlierHistory(context.Background()) })
+	inspectorPresentation(c, p, source, renderSnapshot(m), theme.Resolve(m.ThemeID).Active(m.SystemDark), func() { m.Store.LoadEarlierHistory(context.Background()) })
 }
 
 func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source session.InspectorSnapshot, state session.ViewState, colors theme.Colors, loadOlder func()) {

@@ -12,6 +12,7 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/product"
 )
 
 func TestIsolatedDesktopDoesNotApplySystemIntegration(t *testing.T) {
@@ -48,12 +49,12 @@ func TestIsolatedDesktopSeparatesNativePathsLockNameAndComponentDiscovery(t *tes
 	originalApp := mygo.App
 	mygo.App = &mygo.Application{}
 	t.Cleanup(func() { mygo.App = originalApp })
-	mygo.App.SetName("MyGo鲸屿")
+	mygo.App.SetName(product.Name)
 	if err := prepareIsolatedDesktop(); err != nil {
 		t.Fatal(err)
 	}
 	firstName := mygo.App.Name()
-	if firstName == "MyGo鲸屿" || !strings.HasPrefix(firstName, "MyGo鲸屿 Isolated ") {
+	if firstName == product.Name || !strings.HasPrefix(firstName, product.Name+" Isolated ") {
 		t.Fatalf("shared installed single-instance identity: %q", firstName)
 	}
 	for key, want := range map[mygo.PathName]string{
@@ -94,6 +95,7 @@ func TestIsolatedDesktopDoesNotConsumeSharedAcceptanceHook(t *testing.T) {
 
 func TestPortableDesktopKeepsIsolationWithoutHidingWindow(t *testing.T) {
 	portableTestEnvironment(t)
+	t.Setenv("WHALEISLE_ISOLATED_VISIBLE", "")
 	portableDesktopRoot = t.TempDir()
 	t.Setenv(paths.EnvUserData, filepath.Join(portableDesktopRoot, "data"))
 	if !isolatedDesktopRun() || isolatedDesktopHidden() {
@@ -109,5 +111,51 @@ func TestPortableDesktopKeepsIsolationWithoutHidingWindow(t *testing.T) {
 	t.Setenv("WHALEISLE_ISOLATED", "1")
 	if !isolatedDesktopHidden() {
 		t.Fatal("explicit QA isolation no longer hides the portable window")
+	}
+}
+
+func TestIsolatedDesktopVisibilityEnvironmentCombinations(t *testing.T) {
+	previousRoot := portableDesktopRoot
+	portableDesktopRoot = ""
+	t.Cleanup(func() { portableDesktopRoot = previousRoot })
+	for _, tc := range []struct {
+		name, isolated, visible  string
+		wantIsolated, wantHidden bool
+	}{
+		{"normal", "", "", false, false},
+		{"normal-visible-ignored", "", "1", false, false},
+		{"non-isolated-visible-ignored", "0", "1", false, false},
+		{"QA-hidden-by-default", "1", "", true, true},
+		{"QA-visible", "1", "1", true, false},
+		{"QA-zero-stays-hidden", "1", "0", true, true},
+		{"QA-other-value-stays-hidden", "1", "true", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("WHALEISLE_ISOLATED", tc.isolated)
+			t.Setenv("WHALEISLE_ISOLATED_VISIBLE", tc.visible)
+			if isolatedDesktopRun() != tc.wantIsolated || isolatedDesktopHidden() != tc.wantHidden {
+				t.Fatalf("isolation=%q visible=%q got isolated=%v hidden=%v", tc.isolated, tc.visible, isolatedDesktopRun(), isolatedDesktopHidden())
+			}
+			called := false
+			if err := desktopSystemIntegration(func() error { called = true; return nil }); err != nil || called == tc.wantIsolated {
+				t.Fatalf("visibility changed system integration isolation: called=%v err=%v", called, err)
+			}
+		})
+	}
+}
+
+func TestIsolatedDesktopVisibleFlagKeepsPortableIsolation(t *testing.T) {
+	portableTestEnvironment(t)
+	portableDesktopRoot = t.TempDir()
+	for _, isolated := range []string{"", "1"} {
+		t.Setenv("WHALEISLE_ISOLATED", isolated)
+		t.Setenv("WHALEISLE_ISOLATED_VISIBLE", "1")
+		if !isolatedDesktopRun() || isolatedDesktopHidden() {
+			t.Fatal("visible flag changed portable isolation or forced hiding")
+		}
+		calls := 0
+		if err := desktopSystemIntegration(func() error { calls++; return nil }); err != nil || calls != 0 {
+			t.Fatal("visible portable run reached system integration")
+		}
 	}
 }

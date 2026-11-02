@@ -28,21 +28,32 @@ const (
 // check). RenderFence keeps owner-bound fences (OpenUI) untouched.
 func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	language, code := codeBlockSource(node, source)
+	if language == "math" && !st.Streaming && strings.TrimSpace(code) != "" {
+		mathStyle := st
+		mathStyle.maths = map[int]mathFormula{}
+		var spans []ui.Span
+		appendFormula(mathFormula{TeX: code, Raw: code, Display: true}, mathStyle, &spans)
+		viewSpans(c, mathStyle, spans, nil, 0)
+		return
+	}
+	// Keep parsed source bytes for copying; expanding tabs is display-only.
+	clipboardCode := code
 	// Tabs carry the source's nesting; expand them to the Original's four-column
 	// tab stop so the card shows indentation instead of a flat left edge.
 	code = strings.ReplaceAll(code, "\t", "    ")
 	if st.RenderFence != nil && node.Lines().Len() > 0 && st.RenderFence(c, language, code, node.Lines().At(0).Start) {
 		return
 	}
-	paintCodeCard(c, language, code, st)
+	paintCodeCard(c, language, code, clipboardCode, st)
 }
 
-func paintCodeCard(c *ui.Context, language, code string, st Style) {
+func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style) {
 	size := CodeSize(st)
 	font := theme.RenderPreferences().Code.Family
 	root := ui.Column(c).FillWidth().MinWidth(0).Background(st.CodeBG).Radius(codeCardRadius).Clip()
 	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
 	copied := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
+	highlight := ui.Local(root, "highlight", func() codeHighlightCache { return codeHighlightCache{} })
 	root.Children(func() {
 		ui.Row(c).FillWidth().Height(codeHeaderH).Background(codeBanner(st)).
 			Padding(0, 6, 0, 12).Gap(2).AlignItems(ui.Center).Children(func() {
@@ -63,14 +74,14 @@ func paintCodeCard(c *ui.Context, language, code string, st Style) {
 				codeToolbarButton(c, codeIconCheck, codeCopiedLabel(st), st, nil)
 			} else {
 				codeToolbarButton(c, codeIconCopy, codeCopyLabel(st), st, func() {
-					c.WriteClipboard(code)
+					c.WriteClipboard(clipboardCode)
 					*copied = time.Now().Add(codeCopiedDelay)
 				})
 			}
 		})
 		// A trailing newline would paint one empty line box; the clipboard keeps
 		// the exact source, the card shows its lines.
-		spans := highlightedCodeSpans(language, strings.TrimRight(code, "\n"), st)
+		spans := highlight.update(language, code, st)
 		lineHeight := codeLineHeight(st)
 		paint := func(el ui.Element) ui.Element {
 			return el.Font(font).FontSize(size).FixedLineHeight(lineHeight).TextColor(st.FG)

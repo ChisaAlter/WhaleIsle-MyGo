@@ -23,6 +23,7 @@ func permissionNeedsConfirmation(value string) bool {
 	return value == PermissionFullAccess || value == PermissionAutoReview
 }
 func (s *Store) resetPermissionRiskLocked() {
+	s.invalidateViewLocked()
 	s.permissionRiskToken++
 	s.permissionRisk = nil
 }

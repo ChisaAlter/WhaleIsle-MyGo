@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"strconv"
 	"whaleisle/internal/config"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -37,5 +38,76 @@ func harnessRestartPane(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 		desktopRow(c, providerCopy("基础延迟（500–30000 毫秒）", "Base delay (500–30000 ms)"), func() {
 			ui.TextInput(c, f.HarnessRestartBaseDelayMs).Label("harness-restart-delay").FillWidth().Disabled(d.RestartPolicy == nil)
 		}, fg, muted)
+	})
+}
+
+// restartOption is one preset of a recovery picker: the visible label and the
+// stored draft value.
+type restartOption struct{ label, value string }
+
+// harnessAutoRecoveryRow is the 0.3.13 "Harness 自动恢复" row: copy on the left,
+// the enable switch above two labelled 88 DIP pickers on the right. Every
+// change goes through the same validated desktop save as the verbose form.
+func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
+	f := d.Fields
+	if f.HarnessAutoRestart == nil || f.HarnessRestartMaxAttempts == nil || f.HarnessRestartBaseDelayMs == nil {
+		return
+	}
+	disabled := d.RestartPolicy == nil || d.OnSave == nil
+	save := func() {
+		if d.OnSave != nil {
+			d.OnSave()
+		}
+	}
+	seconds := providerCopy(" 秒", " s")
+	attempts := make([]restartOption, 0, 10)
+	for n := 1; n <= 10; n++ {
+		attempts = append(attempts, restartOption{strconv.Itoa(n), strconv.Itoa(n)})
+	}
+	delays := []restartOption{{"0.5" + seconds, "500"}, {"1" + seconds, "1000"}, {"2" + seconds, "2000"}, {"5" + seconds, "5000"}, {"10" + seconds, "10000"}, {"30" + seconds, "30000"}}
+	title := providerCopy("Harness 自动恢复", "Harness auto-recovery")
+	ui.Column(c.Key("harness-auto-recovery")).FillWidth().MinWidth(0).Gap(0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(16, 0).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Padding(0, 48, 0, 0).Children(func() {
+				ui.Text(c, title).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg)
+				ui.Text(c, providerCopy("Harness 进程意外退出后自动重启，最多重试有限次数，重试之间按基础延迟退避等待。", "Restart the Harness automatically after an unexpected exit, with a bounded number of retries, backing off by the base delay between them.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+			})
+			ui.Column(c).Shrink(0).Gap(12).AlignItems(ui.End).Children(func() {
+				if settingsPreferenceSwitch(c.Key("harness-auto-recovery-switch"), f.HarnessAutoRestart, settingsSwitchInput).Label(providerCopy("启用自动恢复", "Enable auto-recovery")).Disabled(disabled).Changed() {
+					save()
+				}
+				ui.Row(c).Gap(8).Children(func() {
+					restartPicker(c, "harness-restart-attempts-picker", providerCopy("最大重启次数", "Max restarts"), f.HarnessRestartMaxAttempts, attempts, disabled, save, muted)
+					restartPicker(c, "harness-restart-delay-picker", providerCopy("基础重启延迟", "Base delay"), f.HarnessRestartBaseDelayMs, delays, disabled, save, muted)
+				})
+			})
+		})
+	})
+}
+
+func restartPicker(c *ui.Context, key, label string, value *string, options []restartOption, disabled bool, changed func(), muted ui.Color) {
+	labels := make([]string, 0, len(options)+1)
+	display := ""
+	for _, option := range options {
+		labels = append(labels, option.label)
+		if option.value == *value {
+			display = option.label
+		}
+	}
+	if display == "" {
+		display = *value
+		labels = append([]string{display}, labels...)
+	}
+	ui.Column(c.Key(key)).Gap(4).AlignItems(ui.End).Children(func() {
+		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		if settingsPreferenceSelect(c, &display, labels).Label(label).Width(88).Disabled(disabled).Changed() {
+			for _, option := range options {
+				if option.label == display {
+					*value = option.value
+					changed()
+					break
+				}
+			}
+		}
 	})
 }

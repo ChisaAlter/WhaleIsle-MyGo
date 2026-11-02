@@ -26,7 +26,7 @@ func inventoryEnablement(value string) string {
 	case "enabled":
 		return pluginsText("已启用", "Enabled")
 	case "disabled":
-		return pluginsText("已禁用", "Disabled")
+		return pluginsText("已停用", "Disabled")
 	case "conditional":
 		return pluginsText("按条件启用", "Conditional")
 	default:
@@ -62,11 +62,8 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	if a == nil {
 		return
 	}
-	clientModulesPane(c, a, fg, muted)
 	s := a.Snapshot
 	v := s.View(i18n.Locale())
-	ui.Text(c, pluginsText("插件运行实例", "Plugin runtime inventory")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, pluginsText("按 Agent 预设或全局配置查看实例；点击条目查看 Loader 标识、条件和运行状态。", "Inspect agent-preset and global entries; expand an entry for its Loader identity, condition and runtime state.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, pluginsText("运行时未连接。", "Runtime disconnected.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -79,53 +76,71 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	if s.Busy {
 		ui.Text(c, pluginsText("正在读取实例…", "Loading inventory…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		query := s.Query
-		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(36).Placeholder(pluginsText("搜索名称、模块或实例标识", "Search name, module or entry ID")).Changed() && a.OnQuery != nil {
+	// 0.3.13: one full-width search field, then the session plugins of the chosen
+	// Agent preset under a collapsible header that carries the preset select.
+	query := s.Query
+	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, 12).Gap(8).Radius(12).AlignItems(ui.Center).
+		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Children(func() {
+		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
+		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).Label("Plugin search").Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
-		}
-		if a.OnRefresh != nil && ui.Button(c, pluginsText("刷新实例", "Refresh inventory")).Disabled(!s.Connected || s.Busy).Clicked() {
-			a.OnRefresh()
 		}
 	})
 	if !s.Ready {
 		return
 	}
-	if len(v.Options) > 0 {
-		options, ids := []string{}, map[string]string{}
-		selected := ""
-		for _, p := range v.Options {
-			label := p.Label
-			if p.Default {
-				label += pluginsText(" · 默认", " · default")
+	sessionHeader := ui.Column(c.Key("plugin-session-section")).FillWidth().MinWidth(0).Gap(8)
+	sessionOpen := ui.Local(sessionHeader, "open", func() bool { return true })
+	sessionHeader.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			toggle := ui.Button(c, "").Label(pluginsText("会话插件", "Session plugins")).Role(ui.RoleDisclosure).Expanded(*sessionOpen).Grow(1).MinWidth(0).Height(36).Padding(0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Gap(8).FocusRing(false)
+			toggle.Children(func() {
+				inventoryChevron(c, *sessionOpen, muted)
+				ui.Text(c, pluginsText("会话插件", "Session plugins")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+			})
+			if toggle.Clicked() {
+				*sessionOpen = !*sessionOpen
 			}
-			if p.Broken != "" {
-				label += pluginsText(" · 配置异常", " · broken")
+			if len(v.Options) > 0 {
+				options, ids := []string{}, map[string]string{}
+				selected := ""
+				for _, p := range v.Options {
+					label := p.Label
+					if p.Default {
+						label += pluginsText("（默认）", " (default)")
+					}
+					if p.Broken != "" {
+						label += pluginsText(" · 配置异常", " · broken")
+					}
+					options, ids[label] = append(options, label), p.ID
+					if p.ID == v.SelectedID {
+						selected = label
+					}
+				}
+				if settingsPreferenceSelect(c, &selected, options).Label(pluginsText("Agent 预设", "Agent preset")).Changed() && a.OnSelectPreset != nil {
+					a.OnSelectPreset(ids[selected])
+				}
 			}
-			options, ids[label] = append(options, label), p.ID
-			if p.ID == v.SelectedID {
-				selected = label
+		})
+		if *sessionOpen {
+			ui.Text(c, pluginsText("由 Agent 预设按会话组成", "Composed per session by the Agent preset")).FillWidth().Padding(0, 0, 0, 24).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
+			for _, p := range v.Presets {
+				if len(v.Presets) > 1 {
+					ui.Text(c, fmt.Sprintf("%s (%d)", p.Label, len(p.Rows))).FontSize(fonttheme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
+				}
+				if p.Broken != "" {
+					ui.Text(c, p.Broken).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				}
+				if len(p.Rows) == 0 && p.Broken == "" {
+					ui.Text(c, pluginsText("此预设没有匹配条目。", "No matching entries in this preset.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
+				pluginInventoryCards(c.Key("inventory-preset-"+p.ID), a, p.Rows, fg, muted)
 			}
 		}
-		desktopRow(c, pluginsText("Agent 预设", "Agent preset"), func() {
-			if ui.Select(c, &selected, options).FillWidth().Changed() && a.OnSelectPreset != nil {
-				a.OnSelectPreset(ids[selected])
-			}
-		}, fg, muted)
-	}
-	for _, p := range v.Presets {
-		ui.Text(c, fmt.Sprintf("%s (%d)", p.Label, len(p.Rows))).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-		if p.Broken != "" {
-			ui.Text(c, p.Broken).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-		}
-		if len(p.Rows) == 0 && p.Broken == "" {
-			ui.Text(c, pluginsText("此预设没有匹配条目。", "No matching entries in this preset.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-		pluginInventoryCards(c.Key("inventory-preset-"+p.ID), a, p.Rows, fg, muted)
-	}
+	})
 	open := s.GlobalOpen || v.Searching
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		button := ui.Button(c, fmt.Sprintf("%s (%d)", pluginsText("全局条目", "Global entries"), len(v.Global))).Role(ui.RoleDisclosure).Expanded(open).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
+		button := ui.Button(c, fmt.Sprintf("%s (%d)", pluginsText("全局插件", "Global plugins"), len(v.Global))).Role(ui.RoleDisclosure).Expanded(open).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
 		button.Children(func() { inventoryChevron(c, open, muted) })
 		if a.OnToggleGlobal != nil && button.Clicked() {
 			a.OnToggleGlobal()
@@ -135,7 +150,7 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 		pluginInventoryCards(c.Key("inventory-global"), a, v.Global, fg, muted)
 	}
 	if v.Empty {
-		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 }
 
@@ -197,28 +212,31 @@ func inventoryRowState(r plugininventory.DisplayRow) string {
 
 func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, width float32, fg, muted ui.Color) {
 	open := a.Snapshot.Expanded == r.Key
-	stroke := c.Theme().Border
+	stroke := c.Theme().Border.Alpha(0.45)
 	if r.Phase == "failed" || r.MetadataError != "" {
 		stroke = c.Theme().Danger
 	}
-	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.5, stroke).Radius(12).Background(c.Theme().Background).Clip()
+	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(16).Background(c.Theme().Background).Clip()
 	if width > 520 {
 		card.Width((width - 10) / 2)
 	} else {
 		card.FillWidth()
 	}
 	card.Children(func() {
-		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
+		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(14, 16).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
 		if button.Hovered() || open {
 			button.Background(c.Theme().SurfaceHover)
 		}
 		button.Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(4).PassThrough().Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
-					ink := inventoryPhaseColor(c, r.Phase, muted)
-					ui.Box(c).Width(8).Height(8).Radius(4).Background(ink).Label(inventoryPhase(r.Phase))
-					ui.Text(c, inventoryRowState(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).FontWeight(500).TextColor(fg)
+					// 0.3.13 marks only the exceptions: a pill for a disabled, failed or
+					// preset-provided entry, nothing for an ordinary enabled one.
+					if r.Enabled != "enabled" || r.Phase == "failed" || len(r.ProvidedBy) > 0 {
+						ui.Text(c, inventoryRowState(r)).Shrink(0).Padding(2, 8).Radius(999).Background(modelWell(c).Alpha(.8)).Label(inventoryPhase(r.Phase)).
+							FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(inventoryPhaseColor(c, r.Phase, fonttheme.Color(modelColors(c).Secondary)))
+					}
 					inventoryChevron(c, open, muted)
 				})
 				if r.Description != "" {
@@ -237,10 +255,10 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 			a.OnToggleRow(r.Key)
 		}
 		if r.MetadataError != "" {
-			ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FillWidth().Padding(0, 14, 10, 14).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
+			ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FillWidth().Padding(0, 16, 10, 16).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
 		if open {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(10, 14, 12, 14).Gap(6).Background(c.Theme().Surface).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(10, 16, 12, 16).Gap(6).Background(c.Theme().Surface).Children(func() {
 				ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				entryID := r.EntryID
 				if entryID == "" {
@@ -265,24 +283,24 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 // separate read-only action and must never stand in for entries.retry().
 func clientModulesPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
 	s := a.ClientModules
-	ui.Text(c, pluginsText("客户端模块", "Client modules")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, pluginsText("客户端模块", "Client modules")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	if !s.Connected {
-		ui.Text(c, pluginsText("客户端页面未连接。打开此 Host 的插件页面后可查看模块同步状态。", "Client page disconnected. Open a plugin page for this Host to inspect module synchronization.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, pluginsText("客户端页面未连接。打开此 Host 的插件页面后可查看模块同步状态。", "Client page disconnected. Open a plugin page for this Host to inspect module synchronization.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	ui.Text(c, pluginsText("所属页面：", "Page: ")+a.ClientPage).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, pluginsText("所属页面：", "Page: ")+a.ClientPage).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if s.Syncing || s.Retrying {
-		ui.Text(c, pluginsText("正在同步客户端模块…", "Synchronizing client modules…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, pluginsText("正在同步客户端模块…", "Synchronizing client modules…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else if len(s.Failures) == 0 {
-		ui.Text(c, pluginsText("客户端模块已同步。", "Client modules synchronized.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, pluginsText("客户端模块已同步。", "Client modules synchronized.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	for _, failure := range s.Failures {
-		ui.Text(c, failure.ID+": "+failure.Message).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, failure.ID+": "+failure.Message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
 	if s.Error != "" {
-		ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
-	if a.OnRetryClientModules != nil && ui.Button(c, pluginsText("重试客户端模块", "Retry client modules")).Disabled(s.Syncing || s.Retrying || (len(s.Failures) == 0 && s.Error == "")).Clicked() {
+	if a.OnRetryClientModules != nil && ui.Button(c, pluginsText("重试客户端模块", "Retry client modules")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Syncing || s.Retrying || (len(s.Failures) == 0 && s.Error == "")).Clicked() {
 		a.OnRetryClientModules()
 	}
 }

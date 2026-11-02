@@ -9,11 +9,11 @@ import (
 )
 
 func detach(cmd *exec.Cmd) {
-	processutil.Background(cmd)
+	processutil.BackgroundTree(cmd)
 }
 
-// terminate ends the child's process tree; Windows has no graceful signal
-// for console-less children, so both modes use taskkill /T.
+// terminate ends the child's process tree. The background Host has no
+// interactive control channel, so both modes use taskkill /T.
 func terminate(cmd *exec.Cmd, force bool) error {
 	if cmd.Process == nil {
 		return nil

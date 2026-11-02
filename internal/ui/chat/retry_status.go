@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -108,6 +109,9 @@ type turnReason struct {
 }
 
 func readTurnReason(msg session.Message) turnReason {
+	if len(msg.Raw) == 0 || !bytes.Contains(msg.Raw, []byte("reason")) {
+		return turnReason{}
+	}
 	var e struct {
 		Data struct {
 			Reason turnReason `json:"reason"`

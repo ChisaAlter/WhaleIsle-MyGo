@@ -39,6 +39,14 @@ func observeFileResource(m Model) {
 		return
 	}
 	tab := selectedTab(m)
+	if tab != nil && tab.deliverySource != nil {
+		var err error
+		m, err = deliveryReadModel(m, tab)
+		if err != nil {
+			rejectDeliveryRead(m, tab, err)
+			return
+		}
+	}
 	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled || m.WatchRemoteContext == nil {
 		m.Tabs.stopResourceObserver()
 		return
@@ -88,7 +96,11 @@ func observeFileResource(m Model) {
 	applyResourceObservation(m, tab, result)
 }
 func resourceReader(m Model, tab *FileTab) func(context.Context) textReadResult {
-	root, name := m.WorkspaceRoot, tab.Path
+	var sourceErr error
+	m, sourceErr = deliveryReadModel(m, tab)
+	resolve := previewPathResolver(m, tab)
+	localSource := tab.deliverySource
+	name := tab.Path
 	until := int64(0)
 	if tab.textPaged {
 		until = tab.textPage.Next
@@ -106,18 +118,24 @@ func resourceReader(m Model, tab *FileTab) func(context.Context) textReadResult 
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		out := textReadResult{}
+		if sourceErr != nil {
+			out.err = sourceErr
+			return out
+		}
 		if ctx.Err() != nil {
 			out.err = ctx.Err()
 			return out
 		}
 		if isTablePreviewPath(name) {
-			if tableReader != nil {
+			if localSource != nil {
+				out.table, out.err = localSource.readTable(ctx, request)
+			} else if tableReader != nil {
 				out.table, out.err = tableReader(ctx, name, request)
 				out.remote = true
 			} else if remote != nil || pageReader != nil {
 				return out // No local fallback for a Host-owned table.
 			} else {
-				out.fullPath, out.err = workspacefs.JoinRoot(root, name)
+				out.fullPath, out.err = resolve()
 				if out.err == nil {
 					out.table, out.err = readTablePreview(ctx, out.fullPath, request)
 				}
@@ -125,6 +143,9 @@ func resourceReader(m Model, tab *FileTab) func(context.Context) textReadResult 
 			if out.table != nil {
 				out.text = out.table.Text
 			}
+		} else if localSource != nil {
+			page, text, err := observeTextPages(ctx, func(offset int64) (workspacefs.TextPage, error) { return localSource.readTextPage(ctx, offset) }, until)
+			out.page, out.text, out.err, out.truncated = &page, text, err, !page.EOF || until > 0
 		} else if pageReader != nil {
 			page, text, err := observeTextPages(ctx, func(offset int64) (workspacefs.TextPage, error) { return pageReader(ctx, name, offset) }, until)
 			out.page, out.text, out.err, out.remote, out.truncated = &page, text, err, true, !page.EOF || until > 0
@@ -132,7 +153,7 @@ func resourceReader(m Model, tab *FileTab) func(context.Context) textReadResult 
 			out.text, out.err = remote(ctx, name)
 			out.remote = true
 		} else {
-			out.fullPath, out.err = workspacefs.JoinRoot(root, name)
+			out.fullPath, out.err = resolve()
 			if out.err == nil {
 				page, text, err := observeTextPages(ctx, func(offset int64) (workspacefs.TextPage, error) {
 					return workspacefs.ReadFileTextPage(out.fullPath, offset)

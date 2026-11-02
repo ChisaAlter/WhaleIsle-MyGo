@@ -1,6 +1,11 @@
 package frame
 
 import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
@@ -21,6 +26,7 @@ type WorkspaceFileState struct {
 	Split, TreeSplit                                      float32
 	List                                                  ui.ListState `json:"-"`
 	rendered                                              bool
+	previewBinding, previewRoot                           string
 }
 
 func (s *WorkspaceFileState) capture(m Model) {
@@ -174,6 +180,11 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	if !hasFiles {
 		state.capture(m)
 	}
+	// First-frame recovery may create this state after BeginContentFrame's
+	// binding sweep. Bind before publishing so restored drafts participate in
+	// the same-owner preview gate immediately; Bind keeps those drafts intact.
+	state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
+	state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
 	state.publish(m)
 	w.legacyFileID = active.ID
 
@@ -206,6 +217,59 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	if open := m.OnOpenDeliverable; open != nil {
 		m.OnOpenDeliverable = func(path string) { run(func() { open(path) }) }
 	}
+	if preview := m.OnPreviewDeliverable; preview != nil {
+		m.OnPreviewDeliverable = func(path string) error {
+			previousID, previousLegacy := w.Active, w.legacyFileID
+			previousRoute, previousFocus, previousFullscreen, previousPending := w.route, w.focusPending, w.Fullscreen, w.pending
+			adapterRoute := derefString(m.RightPaneTab)
+			if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
+				owner.Files.capture(m)
+			}
+			if w.deliveryPreviewHasUnsavedFile(m, path) {
+				return fmt.Errorf("%s", paneLabel("文件有未保存的草稿；请先保存后再预览", "The file has an unsaved draft; save it before previewing"))
+			}
+			target := w.selectKind(w.Root.find(previousID), "files")
+			state := w.fileState(target, m)
+			// A first-frame preview can arrive before the Files body renders.
+			// Publish the intended occurrence with its real binding, so the normal
+			// reader validates its existing drafts rather than a fresh adapter.
+			state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
+			state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
+			if m.Store != nil {
+				state.Tabs.SyncPlanSession(m.Store.SelectedSessionID())
+			}
+			state.publish(m)
+			err := preview(path)
+			state.capture(m)
+			if err != nil {
+				w.pending, w.focusPending, w.Fullscreen = previousPending, previousFocus, previousFullscreen
+				w.activateDockTab(previousID)
+				w.route, w.legacyFileID = previousRoute, previousLegacy
+				if m.RightPaneTab != nil {
+					*m.RightPaneTab = adapterRoute
+				}
+				if owner := w.Root.find(previousLegacy); owner != nil && owner.Files != nil {
+					owner.Files.publish(m)
+				}
+				return err
+			}
+			// The callback selects browser only after accepting a document route.
+			// Text/image previews remain in the addressed Files occurrence.
+			if m.RightPaneTab != nil && *m.RightPaneTab == "browser" {
+				w.selectKind(target, "browser")
+			} else {
+				w.activateDockTab(target.ID)
+				if target.Float != nil && target.Float.Minimized {
+					w.MinimizeWorkspaceFloat(target.ID, false)
+				}
+				if m.RightPaneTab != nil {
+					*m.RightPaneTab = "files"
+				}
+			}
+			w.legacyFileID = w.Active
+			return nil
+		}
+	}
 	if open := m.OnOpenPlanResource; open != nil {
 		m.OnOpenPlanResource = func(doc planpreview.Document) {
 			run(func() { open(doc) })
@@ -213,6 +277,58 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 		}
 	}
 	return m
+}
+
+// Only the same saved file under the current binding blocks a delivery preview;
+// drafts of other files and foreign owners never become a global veto.
+func (w *WorkspacePanes) deliveryPreviewHasUnsavedFile(m Model, path string) bool {
+	relative, ok := previewWorkspaceRelative(m.WorkspaceRoot, path)
+	if !ok {
+		return false
+	}
+	dirty := false
+	w.Root.eachResource(func(n *WorkspacePane) {
+		state := n.Files
+		if state == nil || state.previewBinding != m.FileBindingID || !samePreviewPath(state.previewRoot, m.WorkspaceRoot) {
+			return
+		}
+		if selected, ok := previewWorkspaceRelative(m.WorkspaceRoot, state.Selected); ok && samePreviewPath(selected, relative) && state.Editing && state.Draft != state.Preview {
+			dirty = true
+		}
+		for root, workspace := range state.Tabs.Workspaces {
+			if workspace == nil || !samePreviewPath(root, m.WorkspaceRoot) {
+				continue
+			}
+			for _, tab := range workspace.Open {
+				if tab == nil {
+					continue
+				}
+				if candidate, ok := previewWorkspaceRelative(m.WorkspaceRoot, tab.Path); ok && samePreviewPath(candidate, relative) && tab.Dirty() {
+					dirty = true
+				}
+			}
+		}
+	})
+	return dirty
+}
+
+func samePreviewPath(a, b string) bool {
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	return a == b || runtime.GOOS == "windows" && strings.EqualFold(a, b)
+}
+
+func previewWorkspaceRelative(root, path string) (string, bool) {
+	if !filepath.IsAbs(root) || strings.TrimSpace(path) == "" || strings.Contains(path, "://") || strings.ContainsRune(path, 0) {
+		return "", false
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == "." || workspacefs.ValidateRelativePath(filepath.ToSlash(rel)) != nil {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
 }
 
 func (w *WorkspacePanes) finishFileProjection(m Model) {
@@ -227,7 +343,7 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 	w := m.Sizes.Workspace
 	state := w.fileState(n, m)
 	if m.Store != nil {
-		state.Tabs.SyncPlanSession(m.Store.Snapshot().SelectedID)
+		state.Tabs.SyncPlanSession(m.Store.SelectedSessionID())
 	}
 	local := w.diffState(n).model(state.model(m))
 	if n.Kind == "diff" && !local.GitWorkbench.Loaded && *local.DiffPath != "" && *local.DiffText == "" {
@@ -310,6 +426,7 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 		if n.Files != nil {
 			n.Files.rendered = false
 			n.Files.Tabs.Bind(binding, root)
+			n.Files.previewBinding, n.Files.previewRoot = binding, root
 		}
 		n.remoteFilesRendered = false
 		if n.browser != nil {
@@ -512,6 +629,13 @@ func (w *WorkspacePanes) OpenDocument(source browserpreview.DocumentSource, crea
 			w.Fullscreen = ""
 		}
 		target = w.selectKind(target, "browser")
+		// An explicit document open must reveal its retained container, including
+		// a previously minimized browser. Ordinary tab activation keeps its
+		// existing presentation policy. Source authorization is still checked by
+		// OpenDocumentSource when this deferred route is consumed.
+		if target.Float != nil && target.Float.Minimized {
+			w.MinimizeWorkspaceFloat(target.ID, false)
+		}
 		w.browserFor(target, create).OpenDocumentSource(source, floating...)
 		w.focusPending = target.ID
 	}

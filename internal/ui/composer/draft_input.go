@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"math"
 	"time"
+	"whaleisle/internal/ui/theme"
 )
 
 // readablePlaceholder keeps the reference caption token when it is legible on
@@ -38,7 +39,9 @@ func relativeLuminance(c ui.Color) float64 {
 
 func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, selectUTF16Start, selectUTF16End int) ui.Element {
 	client := m.TextInput
-	client.Sync()
+	services := c.Services()
+	client.readClipboard, client.writeClipboard = services.ReadClipboard, services.WriteClipboard
+	client.syncFont(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont))
 	client.configureTyping(m, c.Preferences().ReduceMotion)
 	_, _, textInk := client.typing.colors(fg, c.Theme().Accent)
 	if selectUTF16Start >= 0 {
@@ -96,6 +99,9 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			}
 		})
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if client.text() != "" {
+			p.Clip(r, 0, func() { client.paintProjectedText(p, r, textInk) })
+		}
 		if !m.Inert {
 			client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
 		}
@@ -118,9 +124,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			})
 			return
 		}
-		ui.Text(c, text).Absolute().Left(left).Right(right).
-			Top(top - client.scrollY).Font(client.font.Family).FontSize(client.font.Size).
-			FixedLineHeight(client.lineHeight()).TextColor(textInk).PassThrough()
+		paintInlineDraftChips(c, client, m, fg, c.Theme().TextMuted, c.Theme().Accent)
 	})
 
 	return box
@@ -137,26 +141,10 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	}
 
 	switch ev.Kind {
-	case ui.InputPointerDown:
-		to, ok := client.IndexForPoint(ui.Point{X: ev.X, Y: ev.Y})
-		if !ok {
-			return false
-		}
-		client.move(to, ev.Mods&ui.Shift != 0)
-		return true
-	case ui.InputPointerMove:
-		if ev.Button == 0 {
-			to, ok := client.IndexForPoint(ui.Point{X: ev.X, Y: ev.Y})
-			if !ok {
-				return false
-			}
-			client.move(to, true)
-			return true
-		}
-	case ui.InputPointerUp:
-		return true
+	case ui.InputPointerDown, ui.InputPointerMove, ui.InputPointerUp, ui.InputBlur:
+		return client.pointerEvent(m, ev)
 	case ui.InputKeyDown:
-		if ev.Mods == ui.Cmd && ev.Key == ui.KeyA {
+		if client.marked == nil && ev.Mods == ui.Cmd && ev.Key == ui.KeyA {
 			client.selection = ui.TextInputSelection{Range: ui.TextInputRange{End: ui.UTF16Len(client.text())}}
 			return true
 		}
@@ -217,11 +205,14 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			}
 			return false
 		case ui.KeyBackspace, ui.KeyDelete:
-			r := client.selection.Range
+			if client.marked != nil {
+				return false
+			}
+			r := client.Selection().Range
 			if r.Start == r.End && client.layout != nil {
-				next := client.layout.PreviousBoundary(r.Start)
+				next := client.previousBoundary(r.Start)
 				if ev.Key == ui.KeyDelete {
-					next = client.layout.NextBoundary(r.End)
+					next = client.nextBoundary(r.End)
 				}
 				r = ui.TextInputRange{Start: min(next, r.Start), End: max(next, r.End)}
 			}
@@ -268,11 +259,11 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			return true
 		}
 	case ui.InputCommand:
+		if client.marked != nil {
+			return false
+		}
 		switch ev.Text {
 		case "undo", "redo":
-			if client.marked != nil {
-				return false
-			}
 			if ev.Text == "redo" {
 				return client.Redo()
 			}
@@ -281,7 +272,11 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			client.selection = ui.TextInputSelection{Range: ui.TextInputRange{End: ui.UTF16Len(client.text())}}
 		case "copy", "cut":
 			s, _ := client.TextForRange(client.selection.Range)
-			mygo.Clipboard.WriteText(s)
+			if client.writeClipboard != nil {
+				client.writeClipboard(s)
+			} else {
+				mygo.Clipboard.WriteText(s)
+			}
 			if ev.Text == "cut" {
 				client.ReplaceText(nil, "")
 			}
@@ -292,7 +287,11 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			if m.OnPasteImage != nil {
 				m.OnPasteImage(false)
 			}
-			if text := mygo.Clipboard.ReadText(); text != "" {
+			readText := client.readClipboard
+			if readText == nil {
+				readText = mygo.Clipboard.ReadText
+			}
+			if text := readText(); text != "" {
 				r := client.target(nil)
 				client.ReplaceText(&r, text)
 			}

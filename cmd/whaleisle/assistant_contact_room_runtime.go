@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/harness"
@@ -67,7 +68,7 @@ func (s *mainState) assistantContactRoomRuntimes(ep harness.Endpoint, catalog pl
 	if client == nil || assistant == nil || sessions == nil || win == nil {
 		return nil
 	}
-	selected := sessions.Snapshot()
+	selectedID := sessions.SelectedSessionID()
 	var identities []string
 	targets := map[string]string{}
 	interval := 5 * time.Second
@@ -77,7 +78,7 @@ func (s *mainState) assistantContactRoomRuntimes(ep harness.Endpoint, catalog pl
 		}
 		targets[row.ID] = row.SessionID
 		identities = append(identities, row.ID+":"+row.SessionID)
-		if row.SessionID == selected.SelectedID {
+		if row.SessionID == selectedID {
 			interval = 1500 * time.Millisecond
 		}
 	}
@@ -85,7 +86,7 @@ func (s *mainState) assistantContactRoomRuntimes(ep harness.Endpoint, catalog pl
 		return nil
 	}
 	sort.Strings(identities)
-	scope := fmt.Sprintf("%p:%s:%s:%s:%s", client, ep.Origin, ep.Cookie, selected.SelectedID, strings.Join(identities, "\x00"))
+	scope := fmt.Sprintf("%p:%s:%s:%s:%s", client, ep.Origin, ep.Cookie, selectedID, strings.Join(identities, "\x00"))
 	live := &s.assistantGroupLive.contacts
 	live.mu.Lock()
 	if live.scope != scope {
@@ -121,8 +122,7 @@ func (s *mainState) assistantContactRoomRuntimes(ep harness.Endpoint, catalog pl
 		s.mu.Lock()
 		same := s.assistant == assistant && s.sessions == sessions
 		s.mu.Unlock()
-		now := sessions.Snapshot()
-		return same && now.SelectedID == selected.SelectedID
+		return same && sessions.SelectedSessionID() == selectedID
 	}
 	rpc := s.pluginRPCClient(ep)
 	go func() {
@@ -160,7 +160,7 @@ func (s *mainState) assistantContactRoomRuntimes(ep harness.Endpoint, catalog pl
 			if result.err != nil {
 				row.err = result.err.Error()
 			} else if result.data.Room.ID != id || result.data.Room.SessionID != targets[id] {
-				row.err = "Room identity changed; refresh the contact catalog"
+				row.err = i18n.T(i18n.KeyCmdRoomIdentityChanged)
 			} else {
 				row.data = result.data
 			}

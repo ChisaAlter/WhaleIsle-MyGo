@@ -12,15 +12,33 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
 	generation, token, cwd, selected := s.eventsGeneration, s.workspaceNavigationToken, s.cwd, s.selectedID
-	s.mu.Unlock()
-	if client == nil {
+	initial := &s.initialWorkspaceSession
+	if client == nil || ctx == nil || ctx.Err() != nil || (initial.armed && (initial.completed || initial.pending && initial.requestHost == generation)) {
+		s.mu.Unlock()
 		return
 	}
+	if !initial.armed {
+		initial.armed, initial.eligible = true, selected == "" && s.workspaceNavigation.view.Mode == ""
+		initial.navigation, initial.follow, initial.cwd = token, s.followGeneration, cwd
+	}
+	initial.pending, initial.requestHost = true, generation
+	binding := initial.binding
+	s.mu.Unlock()
 	go func() {
 		var out api.InitializeDefaultResult
 		err := client.Call(ctx, "workspace/initializeDefault", map[string]any{}, &out)
 		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != generation || s.workspaceNavigationToken != token || s.cwd != cwd || s.selectedID != selected {
+		if s.client != client || s.eventsGeneration != generation || s.initialWorkspaceSession.binding != binding || s.initialWorkspaceSession.requestHost != generation {
+			s.mu.Unlock()
+			return
+		}
+		s.initialWorkspaceSession.pending = false
+		s.initialWorkspaceSession.completed = true
+		if s.workspaceNavigationToken != token || s.cwd != cwd || s.selectedID != selected {
+			s.mu.Unlock()
+			return
+		}
+		if ctx.Err() != nil {
 			s.mu.Unlock()
 			return
 		}
@@ -34,6 +52,11 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 			}
 			if path := strings.TrimSpace(out.Workspace.Path); path != "" {
 				s.cwd = path
+			}
+			initial := &s.initialWorkspaceSession
+			if initial.eligible && initial.navigation == token && initial.follow == s.followGeneration && initial.cwd == cwd && strings.TrimSpace(out.Workspace.WorkspaceId) != "" && strings.TrimSpace(out.Workspace.Path) != "" {
+				initial.accepted = true
+				initial.workspaceID, initial.cwd = strings.TrimSpace(out.Workspace.WorkspaceId), strings.TrimSpace(out.Workspace.Path)
 			}
 		}
 		s.mu.Unlock()
@@ -71,7 +94,7 @@ func (s *Store) InsertWorkspaceBefore(ctx context.Context, workspaceID, beforeWo
 	s.reorderWorkspace(ctx, workspaceID, beforeWorkspaceID)
 }
 
-// InsertSessionBefore moves a member within its owning Host workspace.
+// InsertSessionBefore changes browser-local order without editing Host membership.
 func (s *Store) InsertSessionBefore(ctx context.Context, workspaceID, sessionID, beforeSessionID string) {
 	s.reorderWorkspaceSession(ctx, workspaceID, sessionID, beforeSessionID)
 }

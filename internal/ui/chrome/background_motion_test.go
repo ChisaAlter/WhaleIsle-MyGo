@@ -38,13 +38,17 @@ func TestWallpaperReducedMotionStopsSchedulingAndHoldsPhase(t *testing.T) {
 		t.Fatal("reduced ambient phase changed with wall clock")
 	}
 	tt.SetPreferences(ui.Preferences{ReduceMotion: false})
-	before = paints
-	tt.Frame()
-	if paints-before <= staticPaints {
-		t.Fatal("normal gradient stopped requesting animation frames")
-	}
+	// The gradient schedules its next phase with Painter.After and renders it on a
+	// worker, so a headless frame no longer repaints in a loop and the number of
+	// paints says nothing. What must hold is that the normal gradient keeps
+	// following the clock: drive it with a fixed later time, wait for the worker
+	// and paint again.
 	moving := bytes.Clone(tt.Image().Pix)
-	time.Sleep(120 * time.Millisecond)
+	ambientGradientFrames.mu.Lock()
+	renders := ambientGradientFrames.renders
+	ambientGradientFrames.mu.Unlock()
+	tt.SetTime(time.Now().Add(120 * time.Millisecond))
+	waitRenders(t, &ambientGradientFrames, renders+1)
 	tt.Frame()
 	if bytes.Equal(moving, tt.Image().Pix) {
 		t.Fatal("normal gradient phase no longer follows time")

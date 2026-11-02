@@ -4,12 +4,27 @@ package windows
 
 import (
 	"errors"
+	"time"
 	"unsafe"
 
 	"github.com/egoist/mygo/internal/platform"
 )
 
 var errDestroyed = errors.New("mygo: window has been destroyed")
+
+const (
+	// timerResizeSettle builds the frame a size burst held, a little after
+	// the last WM_SIZE, so a programmatic resize gets the same cheap steps a
+	// live drag does.
+	timerResizeSettle = 3
+	// resizeBurstGap is how close two WM_SIZE messages are to count as one
+	// burst; resizeSettleDelay is how long after the last one the view is
+	// built again. Both leave the probe's 50 ms resize steps comfortably
+	// inside a burst and its ping outside the settle frame, and a step that
+	// is slow to paint does not settle the burst it belongs to.
+	resizeBurstGap    = 300 * time.Millisecond
+	resizeSettleDelay = 250 // milliseconds
+)
 
 type window struct {
 	b      *Backend
@@ -21,7 +36,7 @@ type window struct {
 	// The WebView2 controller is created asynchronously; calls that need
 	// it wait in pending until it exists, or fail with webViewErr, why it
 	// could not be created.
-	beforeInput func(platform.KeyInput) bool
+	beforeInput  func(platform.KeyInput) bool
 	devToolsGate *bool
 	browser      *browserEnvironment
 	isolated     *previewEnvironment
@@ -57,13 +72,14 @@ type window struct {
 		style, exStyle uintptr
 		placement      windowPlacement
 	}
-	state       int // last sizeRestored, sizeMinimized or sizeMaximized
-	opacity     float64
-	bgBrush     uintptr
-	bg          *platform.Color
-	vibrancy    string
-	shadow      bool
-	ignoreMouse bool
+	state           int // last sizeRestored, sizeMinimized or sizeMaximized
+	opacity         float64
+	bgBrush         uintptr
+	bg              *platform.Color
+	vibrancy        string
+	materialApplied bool // true only after DWM accepted and reported the material
+	shadow          bool
+	ignoreMouse     bool
 
 	menu    *platform.Menu // menu bar
 	hmenu   uintptr
@@ -78,12 +94,21 @@ type window struct {
 
 	programmatic        bool
 	roundedFramePending bool
-	loading             bool
-	zoom                float64
-	devTools            bool
-	htmlFor             map[string]string // LoadHTML documents by the URL they load at
-	calls               map[int]func(string, error)
-	nextCall            int
+	// A live move or resize (WM_ENTERSIZEMOVE..WM_EXITSIZEMOVE), or a run of
+	// programmatic WM_SIZE messages closer together than resizeBurstGap,
+	// holds the last frame: the surface stretches it to each new size, and
+	// the view is built once more when the interaction ends or the sizes
+	// stop (settleSize). Building the immediate-mode view for every step of
+	// a drag made moving and resizing wait on the whole UI each time.
+	interaction bool
+	sizeBurst   bool
+	lastSize    time.Time
+	loading     bool
+	zoom        float64
+	devTools    bool
+	htmlFor     map[string]string // LoadHTML documents by the URL they load at
+	calls       map[int]func(string, error)
+	nextCall    int
 }
 
 func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler) (platform.Window, error) {
@@ -233,6 +258,17 @@ func (w *window) placeInitially() {
 		y = work.Top + (work.Bottom-work.Top-height)/2
 	}
 	procSetWindowPos.Call(w.hwnd, 0, uintptr(x), uintptr(y), uintptr(width), uintptr(height), swpNoZOrder|swpNoActivate)
+	if actualDPI := dpiOf(w.hwnd); actualDPI > 0 {
+		// Moving a newly created window from (0,0) on the primary monitor to a
+		// secondary monitor with a different DPI fires WM_DPICHANGED during the
+		// first SetWindowPos, scaling the window by newDPI/primaryDPI. Re-apply
+		// the target DIP size now that hwnd lives on the destination monitor.
+		width, height = toPx(o.Width, actualDPI), toPx(o.Height, actualDPI)
+		if o.UseContentSize && !w.captionless() {
+			width, height = w.outerSize(width, height, actualDPI)
+		}
+		procSetWindowPos.Call(w.hwnd, 0, uintptr(x), uintptr(y), uintptr(width), uintptr(height), swpNoZOrder|swpNoActivate)
+	}
 }
 
 // outerSize returns the window size for a content size, in pixels.
@@ -299,16 +335,28 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		w.h.Closed()
 		return 0, true
 	case wmTimer:
-		if wp != timerWebView {
-			return 0, false
+		switch wp {
+		case timerResizeSettle:
+			procKillTimer.Call(w.hwnd, timerResizeSettle)
+			w.settleSize()
+			return 0, true
+		case timerWebView:
+			procKillTimer.Call(w.hwnd, timerWebView)
+			w.createWebView()
+			return 0, true
 		}
-		procKillTimer.Call(w.hwnd, timerWebView)
-		w.createWebView()
-		return 0, true
+		return 0, false
 	case wmSize:
+		w.noteSize()
 		if !w.reframing { // SetFullScreen lays the window out once it is done
 			w.sized(wp)
 		}
+		return 0, true
+	case wmEnterSizeMove:
+		w.beginInteraction()
+		return 0, true
+	case wmExitSizeMove:
+		w.endInteraction()
 		return 0, true
 	case wmMove:
 		if w.controller != 0 {
@@ -432,6 +480,74 @@ func (w *window) sized(kind uintptr) {
 		w.state = sizeRestored
 	}
 	w.h.Resized()
+}
+
+// noteSize records a WM_SIZE. Steps closer together than resizeBurstGap are a
+// burst: the first frame draws the new size, later steps keep the last frame
+// stretched to the surface, and settleSize builds the view once more when
+// they stop. A live move or resize holds every step until it ends.
+func (w *window) noteSize() {
+	if w.surface == nil {
+		return
+	}
+	now := time.Now()
+	if !w.lastSize.IsZero() && now.Sub(w.lastSize) < resizeBurstGap {
+		w.sizeBurst = true
+	}
+	w.lastSize = now
+	if w.interaction || w.sizeBurst {
+		procSetTimer.Call(w.hwnd, timerResizeSettle, resizeSettleDelay, 0)
+	}
+}
+
+// holdsFrames reports that the surface shows its last frame, stretched to the
+// size it has now, while a move/resize interaction or a burst of sizes goes
+// on: the view is not built for each step.
+func (w *window) holdsFrames() bool {
+	return w.surface != nil && (w.interaction || w.sizeBurst)
+}
+
+// beginInteraction starts holding frames for a live move or resize. The
+// window moves and changes size with the frame it has until it ends.
+func (w *window) beginInteraction() {
+	if w.surface == nil || w.interaction {
+		return
+	}
+	w.interaction = true
+	w.lastSize = time.Now()
+	procKillTimer.Call(w.hwnd, timerResizeSettle)
+}
+
+// endInteraction shows the size a live move or resize reached, built once,
+// as the drag ends.
+func (w *window) endInteraction() {
+	if w.surface == nil || !w.interaction {
+		return
+	}
+	w.interaction = false
+	w.sizeBurst = false
+	w.lastSize = time.Time{}
+	procKillTimer.Call(w.hwnd, timerResizeSettle)
+	w.refreshSurface()
+}
+
+// settleSize builds the frame a burst of sizes held, after the last step.
+func (w *window) settleSize() {
+	w.sizeBurst = false
+	w.lastSize = time.Time{}
+	w.refreshSurface()
+}
+
+// refreshSurface lays the surface out at its final size and builds the frame
+// that an interaction or a size burst held, at once, so what the user let go
+// of shows the content for the size it has.
+func (w *window) refreshSurface() {
+	if w.surface == nil {
+		return
+	}
+	w.surface.fit()
+	w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
+	procRedrawWindow.Call(w.surface.hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
 }
 
 // captionless reports a window without a caption: frameless, or with a
@@ -582,8 +698,10 @@ func (w *window) Bounds() platform.Rect {
 
 func (w *window) SetContentBounds(r platform.Rect) {
 	dpi := dpiOf(w.hwnd)
-	outer := rect{toPx(r.X, dpi), toPx(r.Y, dpi), toPx(r.X+r.Width, dpi), toPx(r.Y+r.Height, dpi)}
-	if !w.captionless() && has(procAdjustWindowRectExForDpi) {
+	outer := contentOuterPixels(r, dpi, rect{})
+	if insets, ok := w.clientPixelInsets(); ok {
+		outer = contentOuterPixels(r, dpi, insets)
+	} else if !w.captionless() && has(procAdjustWindowRectExForDpi) {
 		menu := uintptr(0)
 		if w.menuShown() {
 			menu = 1
@@ -926,14 +1044,7 @@ func backdropFor(material string) int32 {
 
 func (w *window) SetVibrancy(material string) {
 	w.vibrancy = material
-	backdrop := backdropFor(material)
-	m := margins{}
-	if material != "" {
-		// The material shows where the frame extends, behind the page.
-		m = margins{-1, -1, -1, -1}
-	}
-	procDwmExtendFrameIntoClientArea.Call(w.hwnd, uintptr(unsafe.Pointer(&m)))
-	procDwmSetWindowAttribute.Call(w.hwnd, dwmwaSystemBackdropType, uintptr(unsafe.Pointer(&backdrop)), 4)
+	w.applyBackdrop(material)
 	if material == "" && w.captionless() && w.shadow {
 		w.SetHasShadow(true)
 	}

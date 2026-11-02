@@ -33,6 +33,7 @@ type Family struct {
 	Name  string `json:"name"`
 	Light Seed   `json:"light"`
 	Dark  Seed   `json:"dark"`
+	Skin  string `json:"skin,omitempty"`
 }
 type Preferences struct {
 	Light     string         `json:"light"`
@@ -111,6 +112,9 @@ func (p Preferences) Validate() error {
 			return fmt.Errorf("自定义主题名称和唯一 ID 必填 / Unique theme ID and name required")
 		}
 		seen[f.ID] = true
+		if f.Skin != "" && f.Skin != SkinDefault && f.Skin != SkinCodex && f.Skin != SkinClaude {
+			return fmt.Errorf("Unknown theme skin %q", f.Skin)
+		}
 		for _, s := range []Seed{f.Light, f.Dark} {
 			if s.ContrastValue() < 0 || s.ContrastValue() > 100 {
 				return fmt.Errorf("Contrast must be between 0 and 100")
@@ -130,18 +134,28 @@ func (p Preferences) Validate() error {
 	}
 	return nil
 }
-func Library() []Family {
+
+// library is the built-in palette. It is immutable, so it is built once: the
+// render path asked for it on every frame (a Family slice and its Seeds),
+// which showed up as one of the largest per-frame allocators.
+var library = buildLibrary()
+
+func Library() []Family { return library }
+
+func buildLibrary() []Family {
 	seed := func(bg, fg, accent string, contrast float64) Seed {
 		return Seed{Background: bg, Foreground: fg, Accent: accent, Contrast: &contrast}
 	}
 	return []Family{
-		{"deepseek", "DeepSeek", seed("#ffffff", "#0f1115", "#4176e6", 46), seed("#151517", "#f5f5f5", "#6ea8ff", 41)},
-		{"midnight", "午夜 / Midnight", seed("#f3f6fb", "#1a1f2b", "#3b6fd4", 44), seed("#0b0d12", "#e8eef9", "#6ea8ff", 48)},
-		{"celadon", "青瓷 / Celadon", seed("#f3faf7", "#10211c", "#0f766e", 44), seed("#071411", "#e7f6f1", "#3dd6b5", 50)},
-		{"violet", "暮紫 / Violet", seed("#f7f3fc", "#1c1524", "#7c3aed", 46), seed("#120e18", "#f3eefc", "#c4a1ff", 50)},
-		{"amber", "琥珀 / Amber", seed("#fbf6ee", "#1c1915", "#b45309", 48), seed("#14100b", "#f6efe4", "#e2b15c", 52)},
-		{"paper", "宣纸 / Paper", seed("#f3efe6", "#1c1915", "#0f766e", 50), seed("#1a1712", "#f6efe4", "#5eead4", 48)},
-		{"contrast", "对比 / Contrast", seed("#ffffff", "#050505", "#111111", 68), seed("#050505", "#f5f5f5", "#ffffff", 64)},
+		{ID: "deepseek", Name: "DeepSeek", Light: seed("#ffffff", "#0f1115", "#4176e6", 46), Dark: seed("#151517", "#f5f5f5", "#6ea8ff", 41)},
+		codexBuiltinFamily(),
+		claudeBuiltinFamily(),
+		{ID: "midnight", Name: "午夜 / Midnight", Light: seed("#f3f6fb", "#1a1f2b", "#3b6fd4", 44), Dark: seed("#0b0d12", "#e8eef9", "#6ea8ff", 48)},
+		{ID: "celadon", Name: "青瓷 / Celadon", Light: seed("#f3faf7", "#10211c", "#0f766e", 44), Dark: seed("#071411", "#e7f6f1", "#3dd6b5", 50)},
+		{ID: "violet", Name: "暮紫 / Violet", Light: seed("#f7f3fc", "#1c1524", "#7c3aed", 46), Dark: seed("#120e18", "#f3eefc", "#c4a1ff", 50)},
+		{ID: "amber", Name: "琥珀 / Amber", Light: seed("#fbf6ee", "#1c1915", "#b45309", 48), Dark: seed("#14100b", "#f6efe4", "#e2b15c", 52)},
+		{ID: "paper", Name: "宣纸 / Paper", Light: seed("#f3efe6", "#1c1915", "#0f766e", 50), Dark: seed("#1a1712", "#f6efe4", "#5eead4", 48)},
+		{ID: "contrast", Name: "对比 / Contrast", Light: seed("#ffffff", "#050505", "#111111", 68), Dark: seed("#050505", "#f5f5f5", "#ffffff", 64)},
 	}
 }
 func (p Preferences) Families() []Family { return append(Library(), p.Custom...) }
@@ -158,14 +172,76 @@ var preferenceState = struct {
 	sync.RWMutex
 	value    Preferences
 	rendered Preferences
-}{value: Defaults(), rendered: renderPreferences(Defaults())}
+	selected selectedFamilies
+}{value: Defaults(), rendered: renderPreferences(Defaults()), selected: selectFamilies(Defaults())}
+
+// selectedFamilies holds the palettes the chosen families derive. Resolve runs
+// for themed elements throughout every frame (each sidebar row among them), so
+// they are derived once per SetPreferences rather than on every call.
+type selectedFamilies struct {
+	light, dark       Colors
+	hasLight, hasDark bool
+}
+
+func selectFamilies(p Preferences) selectedFamilies {
+	var out selectedFamilies
+	l, d := p.Family(p.Light), p.Family(p.Dark)
+	if l.ID != "deepseek" {
+		out.light, out.hasLight = palette(l.Light, false), true
+	}
+	if d.ID != "deepseek" {
+		out.dark, out.hasDark = palette(d.Dark, true), true
+	}
+	return out
+}
+
+func preferencesEqual(a, b Preferences) bool {
+	if a.Light != b.Light || a.Dark != b.Dark ||
+		a.Interface != b.Interface || a.Chat != b.Chat ||
+		a.Code != b.Code || a.Composer != b.Composer || a.Terminal != b.Terminal ||
+		len(a.Custom) != len(b.Custom) {
+		return false
+	}
+	for i := range a.Custom {
+		x, y := a.Custom[i], b.Custom[i]
+		if x.ID != y.ID || x.Name != y.Name || x.Skin != y.Skin || !seedEqual(x.Light, y.Light) || !seedEqual(x.Dark, y.Dark) {
+			return false
+		}
+	}
+	return true
+}
+
+func seedEqual(a, b Seed) bool {
+	if a.Background != b.Background || a.Foreground != b.Foreground || a.Accent != b.Accent ||
+		(a.Contrast == nil) != (b.Contrast == nil) || len(a.Overrides) != len(b.Overrides) {
+		return false
+	}
+	if a.Contrast != nil && *a.Contrast != *b.Contrast {
+		return false
+	}
+	for k, v := range a.Overrides {
+		if bV, ok := b.Overrides[k]; !ok || bV != v {
+			return false
+		}
+	}
+	return true
+}
 
 func SetPreferences(p Preferences) {
-	p = p.Normalized().Clone()
+	p = p.Normalized()
+	preferenceState.RLock()
+	same := preferencesEqual(preferenceState.value, p)
+	preferenceState.RUnlock()
+	if same {
+		return
+	}
+	p = p.Clone()
 	rendered := renderPreferences(p)
+	selected := selectFamilies(p)
 	preferenceState.Lock()
 	preferenceState.value = p
 	preferenceState.rendered = rendered
+	preferenceState.selected = selected
 	preferenceState.Unlock()
 }
 func CurrentPreferences() Preferences {
@@ -219,13 +295,14 @@ func palette(s Seed, dark bool) Colors {
 	return derivePalette(c, s)
 }
 func selectedPalettes(t Theme) Theme {
-	p := CurrentPreferences()
-	l, d := p.Family(p.Light), p.Family(p.Dark)
-	if l.ID != "deepseek" {
-		t.Light = palette(l.Light, false)
+	preferenceState.RLock()
+	s := preferenceState.selected
+	preferenceState.RUnlock()
+	if s.hasLight {
+		t.Light = s.light
 	}
-	if d.ID != "deepseek" {
-		t.Dark = palette(d.Dark, true)
+	if s.hasDark {
+		t.Dark = s.dark
 	}
 	return t
 }

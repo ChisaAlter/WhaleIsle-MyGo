@@ -45,13 +45,13 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	open := true
 	bodyDialog(c, &open, providerCopy("添加技能", "Add skill"), func() {
 		nameLabel := ui.Text(c, providerCopy("名称", "Name")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Name).FillWidth().Disabled(create.Busy).Placeholder("review-code")
+		ui.TextInput(c, &draft.Name).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Placeholder("review-code")
 		ui.Text(c, providerCopy("描述", "Description")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Description).FillWidth().Disabled(create.Busy)
+		ui.TextInput(c, &draft.Description).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		ui.Text(c, providerCopy("使用时机（可选）", "When to use (optional)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextArea(c, &draft.WhenToUse).FillWidth().Lines(2, 4).Disabled(create.Busy)
+		ui.TextArea(c, &draft.WhenToUse).FillWidth().Lines(2, 4).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		ui.Text(c, providerCopy("分组（以逗号分隔）", "Groups (comma-separated)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Groups).FillWidth().Disabled(create.Busy)
+		ui.TextInput(c, &draft.Groups).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		for _, group := range skillSections(a.Skills) {
 			if group.Name == "" {
 				continue
@@ -64,7 +64,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			if selected {
 				label = "✓ " + group.Name
 			}
-			if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Disabled(create.Busy).Clicked() {
+			if ui.Button(c, label).AlignSelf(ui.Start).Height(28).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(create.Busy).Clicked() {
 				var groups []string
 				for _, name := range strings.Split(draft.Groups, ",") {
 					name = strings.TrimSpace(name)
@@ -79,7 +79,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			}
 		}
 		ui.Text(c, providerCopy("技能正文", "Skill body")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextArea(c, &draft.Content).FillWidth().Lines(5, 14).Disabled(create.Busy)
+		ui.TextArea(c, &draft.Content).FillWidth().Lines(5, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		ui.Text(c, providerCopy("保存位置", "Save to")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			for _, root := range []struct{ value, label string }{{"user-dsh", providerCopy("用户技能", "User skills")}, {"project-dsh", providerCopy("项目技能", "Project skills")}} {
@@ -87,7 +87,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 				if draft.Root == root.value {
 					label = "✓ " + label
 				}
-				if ui.Button(c, label).Disabled(create.Busy || root.value == "project-dsh" && a.ProjectCwd == "").Clicked() {
+				if ui.Button(c, label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(create.Busy || root.value == "project-dsh" && a.ProjectCwd == "").Clicked() {
 					draft.Root = root.value
 				}
 			}
@@ -105,10 +105,10 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			ui.Text(c, *validation).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(create.Busy).Clicked() && create.OnCancel != nil {
+			if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Clicked() && create.OnCancel != nil {
 				create.OnCancel()
 			}
-			if ui.Button(c, providerCopy("创建技能", "Create skill")).Disabled(create.Busy || create.OnSave == nil).Clicked() {
+			if ui.Button(c, providerCopy("创建技能", "Create skill")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy || create.OnSave == nil).Clicked() {
 				*validation = skillCreateError(*draft)
 				if *validation == "" {
 					create.OnSave(*draft)

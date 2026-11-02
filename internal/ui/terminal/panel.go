@@ -135,12 +135,12 @@ type Model struct {
 	ShellsNote string
 	OnRestart  func()
 	// OnClose hides/removes the workspace panel once its last PTY is closed.
-	OnClose      func()
+	OnClose func()
 	// OnOpenShortcuts opens the settings shortcuts page; nil keeps the menu
 	// entry disabled because this build cannot navigate there.
 	OnOpenShortcuts func()
-	OnAddToChat  func(string) error
-	CanAddToChat bool
+	OnAddToChat     func(string) error
+	CanAddToChat    bool
 	// TargetBinding identifies the painted Host/session for pointer ownership.
 	TargetBinding string
 	OnOpenTarget  func(selection string) error
@@ -284,7 +284,7 @@ func View(c *ui.Context, m Model) {
 					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
 						bounds := surface.Bounds()
 						ui.Overlay(c, func() {
-							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(4).Background(c.Theme().Surface).Children(func() {
+							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(6).Background(c.Theme().Surface).Children(func() {
 								if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 									mygo.Clipboard.WriteText(selection)
 								}

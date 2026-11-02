@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"whaleisle/internal/markdownsyntax"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
 	extast "github.com/yuin/goldmark/extension/ast"
@@ -25,6 +27,10 @@ func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets
 			switch node := block.node.(type) {
 			case *extast.Table:
 				viewTable(c, node, source, st)
+			case *markdownsyntax.ImagePlaceholder:
+				if st.RenderImage == nil || !st.RenderImage(c, node.Destination, "") {
+					viewSpans(c, st, spans[start:end], targets, start)
+				}
 			case *ast.Image:
 				// The URL may repeat, and an empty alt has no span position. Each
 				// source occurrence owns a parent scope independent of URL/alt.
@@ -42,19 +48,33 @@ func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets
 							viewSpans(c, style, fallback, files, start)
 						}
 					}
-					if href := enclosingImageURL(node); href != "" && st.OnOpenURL != nil {
+					if destination := enclosingImageLink(node); destination != "" {
+						href := documentURL(destination)
+						path, line, file := ParseFileLink(destination)
+						if line > 0 {
+							path += "#L" + strconv.Itoa(line)
+						}
+						active := href != "" && st.OnOpenURL != nil || file && st.OnOpenFile != nil && !st.Streaming
+						if !active {
+							render(st, targets)
+							return
+						}
 						label := alt.String()
 						if label == "" {
-							label = href
+							label = destination
 						}
-						link := ui.Box(c).FillWidth().MinWidth(0).Role(ui.RoleLink).Focusable().Label(label).Tooltip(href).Cursor(ui.CursorPointer)
+						link := ui.Box(c).FillWidth().MinWidth(0).Role(ui.RoleLink).Focusable().Label(label).Tooltip(destination).Cursor(ui.CursorPointer)
 						link.Children(func() {
 							fallback := st
 							fallback.urlTargets = nil // The enclosing image link owns this activation.
 							render(fallback, nil)
 						})
 						if externalURLActivated(link) {
-							st.OnOpenURL(href)
+							if href != "" {
+								st.OnOpenURL(href)
+							} else {
+								st.OnOpenFile(path)
+							}
 						}
 					} else {
 						render(st, targets)
@@ -69,10 +89,10 @@ func viewBlocks(c *ui.Context, source string, st Style, spans []ui.Span, targets
 	})
 }
 
-func enclosingImageURL(image *ast.Image) string {
+func enclosingImageLink(image *ast.Image) string {
 	for parent := image.Parent(); parent != nil; parent = parent.Parent() {
 		if link, ok := parent.(*ast.Link); ok {
-			return documentURL(string(link.Destination))
+			return string(link.Destination)
 		}
 		if parent.Type() == ast.TypeBlock {
 			break
@@ -83,12 +103,36 @@ func enclosingImageURL(image *ast.Image) string {
 
 func codeBlockSource(node ast.Node, source string) (language, code string) {
 	if fenced, ok := node.(*ast.FencedCodeBlock); ok {
-		language = string(fenced.Language([]byte(source)))
+		language = fencedLanguage(fenced, source)
+	}
+	lines := node.Lines()
+	n := lines.Len()
+	if n == 0 {
+		return language, ""
+	}
+	if n == 1 {
+		return language, segmentText(lines.At(0), source)
+	}
+	first := lines.At(0)
+	last := lines.At(n - 1)
+	contiguous := first.Padding == 0 && !first.ForceNewline && first.Stop <= len(source)
+	prevStop := first.Stop
+	totalLen := first.Stop - first.Start + first.Padding
+	for i := 1; i < n; i++ {
+		seg := lines.At(i)
+		if seg.Start != prevStop || seg.Padding != 0 || seg.ForceNewline || seg.Stop > len(source) {
+			contiguous = false
+		}
+		prevStop = seg.Stop
+		totalLen += seg.Stop - seg.Start + seg.Padding
+	}
+	if contiguous && first.Start >= 0 && last.Stop <= len(source) && first.Start <= last.Stop {
+		return language, source[first.Start:last.Stop]
 	}
 	var buf strings.Builder
-	for i := 0; i < node.Lines().Len(); i++ {
-		line := node.Lines().At(i)
-		buf.Write(line.Value([]byte(source)))
+	buf.Grow(max(0, totalLen))
+	for i := 0; i < n; i++ {
+		buf.WriteString(segmentText(lines.At(i), source))
 	}
 	return language, buf.String()
 }

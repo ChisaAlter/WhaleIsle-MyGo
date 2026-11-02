@@ -10,33 +10,34 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// TestTitleCrawlOffsets pins the marquee's motion: a title that fits never
-// moves, a wider one travels to its overflow and comes back, and the caller only
-// keeps redrawing while the offset is actually changing.
+// Installed Rows reveals overflow over 8 DIP at 30 DIP/s once, then rests.
 func TestTitleCrawlOffsets(t *testing.T) {
 	start := time.Unix(1_700_000_000, 0)
-	fits := titleCrawl{cell: 200, active: true, since: start}
-	if off, moving := fits.offset(start.Add(time.Second), 190); off != 0 || moving {
-		t.Fatalf("fitting title moved: off=%v moving=%v", off, moving)
+	for _, content := range []float32{190, 200, 208} {
+		fits := titleCrawl{cell: 200, active: true, since: start}
+		if off, moving := fits.offset(start.Add(time.Second), content); off != 0 || moving {
+			t.Fatalf("small overflow moved: content=%v off=%v moving=%v", content, off, moving)
+		}
 	}
 	idle := titleCrawl{cell: 200}
 	if off, moving := idle.offset(start, 900); off != 0 || moving {
-		t.Fatalf("inactive crawl moved: off=%v moving=%v", off, moving)
+		t.Fatalf("inactive title moved: %v %v", off, moving)
 	}
-	// 400 DIP of overflow at 40 DIP/s: ten seconds to the end.
 	c := titleCrawl{cell: 200, active: true, since: start}
-	if off, moving := c.offset(start.Add(400*time.Millisecond), 600); off != -16 || !moving {
-		t.Fatalf("400ms: off=%v moving=%v, want -16", off, moving)
+	if off, moving := c.offset(start.Add(400*time.Millisecond), 600); off != -12 || !moving {
+		t.Fatalf("400ms = %v/%v, want -12/moving", off, moving)
 	}
-	if off, moving := c.offset(start.Add(10*time.Second), 600); off != -400 || !moving {
-		t.Fatalf("at the end: off=%v moving=%v, want the full overflow", off, moving)
+	if off, moving := c.offset(start.Add(10*time.Second), 600); off != -300 || !moving {
+		t.Fatalf("10s = %v/%v, want -300/moving", off, moving)
 	}
-	if off, _ := c.offset(start.Add(10*time.Second+600*time.Millisecond), 600); off != -400 {
-		t.Fatalf("hold frame: off=%v, want to stay at the overflow", off)
+	for _, elapsed := range []time.Duration{14 * time.Second, 30 * time.Second, time.Hour} {
+		if off, moving := c.offset(start.Add(elapsed), 600); off != -400 || moving {
+			t.Fatalf("settled %v: %v/%v", elapsed, off, moving)
+		}
 	}
-	if off, _ := c.offset(start.Add(15*time.Second), 600); off != -248 {
-		// 15 s: 3.8 s into the 10 s return at 40 DIP/s from the 400 DIP end.
-		t.Fatalf("returning: off=%v, want -248", off)
+	c.stop()
+	if off, moving := c.offset(start.Add(time.Hour), 600); off != 0 || moving {
+		t.Fatalf("leave did not reset: %v/%v", off, moving)
 	}
 }
 
@@ -62,7 +63,6 @@ func TestSessionTitleCrawlKeepsRestingGeometry(t *testing.T) {
 		t.Fatalf("title cell=%+v, want the full 200 DIP seat", before)
 	}
 }
-
 
 // TestSessionRowHoverSwapsTimeForActions pins Rows.module.css .sessionRow: the
 // trailing time cell is replaced by bare 16px glyphs while the pointer rests on
@@ -107,6 +107,12 @@ func TestSessionRowHoverSwapsTimeForActions(t *testing.T) {
 	if _, ok := tt.Find("Session time row"); ok {
 		t.Fatal("time cell still painted under the action glyphs")
 	}
+	more, _ := tt.Find(sessionActionsLabel("row"))
+	archive, _ := tt.Find(i18n.T(i18n.KeySidebarArchive))
+	pin, _ := tt.Find(i18n.T(i18n.KeySidebarPin))
+	if more.X+more.W+15 != archive.X || archive.X+archive.W+15 != pin.X {
+		t.Fatalf("hover action order/gaps: more=%+v archive=%+v pin=%+v", more, archive, pin)
+	}
 
 	if err := tt.Click(i18n.T(i18n.KeySidebarPin)); err != nil {
 		t.Fatal(err)
@@ -133,7 +139,7 @@ func TestWorkspaceRowFolderBecomesChevronOnHover(t *testing.T) {
 	var toggled []string
 	items := []session.Item{{SessionID: "a", Title: "Alpha"}}
 	m := Model{
-		Snapshot: session.ViewState{Items: items, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", Title: "Whale Isle", SessionIDs: []string{"a"}}}},
+		Snapshot:               session.ViewState{Items: items, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", Title: "Whale Isle", SessionIDs: []string{"a"}}}},
 		OnToggleWorkspaceGroup: func(id string) { toggled = append(toggled, id) },
 	}
 	folder := workspaceText("工作区文件夹 ", "Workspace folder ") + "ws"

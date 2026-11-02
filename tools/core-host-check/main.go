@@ -1,5 +1,6 @@
 // core-host-check is an opt-in, isolated real-Host integration check. It never
-// reads user profiles/credentials or sends a prompt. Output is count/hash only.
+// reads user profiles/credentials. The default check sends no prompt; the
+// explicit -prompt-flow mode uses only an owned deterministic loopback model.
 package main
 
 import (
@@ -35,6 +36,7 @@ type check struct {
 	SHA256        string `json:"sha256,omitempty"`
 	FailureClass  string `json:"failureClass,omitempty"`
 	FailureSHA256 string `json:"failureSHA256,omitempty"`
+	Detail        string `json:"detail,omitempty"`
 }
 type report struct {
 	Started             string   `json:"started"`
@@ -44,6 +46,11 @@ type report struct {
 	OwnedListenerClosed bool     `json:"ownedListenerClosed"`
 	ModelRequests       int      `json:"modelRequests"`
 	DurationMS          int64    `json:"durationMS"`
+	OwnedRunRoot        string   `json:"ownedRunRoot,omitempty"`
+	SimulatedModel      bool     `json:"simulatedModel,omitempty"`
+	OwnedModelStopped   bool     `json:"ownedModelStopped,omitempty"`
+	ModelListenerClosed bool     `json:"modelListenerClosed,omitempty"`
+	Failure             string   `json:"failure,omitempty"`
 }
 
 func digest(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
@@ -68,6 +75,7 @@ func main() {
 	out := flag.String("out", "", "JSON report destination")
 	resumeRun := flag.String("resume-run", "", "owned isolated run to continue after fixture-only repair")
 	contributionsOnly := flag.Bool("native-contributions-only", false, "read only the actual fixed native contribution graph in a fresh owned Host")
+	promptFlow := flag.Bool("prompt-flow", false, "exercise real Host/Go Store with an owned deterministic loopback model; no external model API")
 	flag.Parse()
 	if *stage == "" || *base == "" || *out == "" {
 		fmt.Fprintln(os.Stderr, "-stage, -root and -out are required")
@@ -75,10 +83,24 @@ func main() {
 	}
 	started := time.Now()
 	r := report{Started: started.UTC().Format(time.RFC3339)}
-	err := run(*stage, *base, *resumeRun, *contributionsOnly, &r)
+	var err error
+	if *promptFlow {
+		if *resumeRun != "" || *contributionsOnly {
+			err = errors.New("prompt-flow requires its own fresh isolated run")
+		} else {
+			err = runPromptFlow(*stage, *base, &r)
+		}
+	} else {
+		err = run(*stage, *base, *resumeRun, *contributionsOnly, &r)
+	}
 	if err != nil {
-		class, hash := failure(err)
-		r.Checks = append(r.Checks, check{Name: "run", FailureClass: class, FailureSHA256: hash})
+		if *promptFlow {
+			r.Failure = err.Error()
+			r.Checks = append(r.Checks, check{Name: "run", FailureClass: "owned-prompt-flow"})
+		} else {
+			class, hash := failure(err)
+			r.Checks = append(r.Checks, check{Name: "run", FailureClass: class, FailureSHA256: hash})
+		}
 	}
 	r.DurationMS = time.Since(started).Milliseconds()
 	raw, _ := json.MarshalIndent(r, "", "  ")

@@ -15,12 +15,9 @@ const (
 	draftInputMaxHeight  = float32(336)
 )
 
-// draftInsets are the input's own inner insets. The hero card already supplies
-// its 24px side and 20px vertical padding, so the hero input sits flush.
-func draftInsets(hero bool) (left, right, top float32) {
-	if hero {
-		return 0, 0, 0
-	}
+// InputBar.input uses 4px 8px 0 14px padding in both modes; Hero only raises
+// its minimum height. The card's 8px top padding is outside this writing well.
+func draftInsets(_ bool) (left, right, top float32) {
 	return draftInputLeft, draftInputRight, draftInputTop
 }
 
@@ -44,9 +41,9 @@ func (c *DraftClient) ins() (left, right, top float32) {
 type DraftClient struct {
 	insetLeft, insetRight, insetTop float32
 	insetSet                        bool
-	regionStop  [2]stopSequence
-	suggestions SuggestionState
-	stop        stopSequence
+	regionStop                      [2]stopSequence
+	suggestions                     SuggestionState
+	stop                            stopSequence
 	// Native text input retains this adapter identity across frames so an
 	// ordinary repaint does not release an active IME composition.
 	input              typingInputClient
@@ -59,7 +56,18 @@ type DraftClient struct {
 	compositionEnded   time.Time
 	typingUndoAt       time.Time
 	typingUndoEnd      int
-	layout             *ui.TextLayout
+	layout             *ui.TextLayout // display projection, not the clipboard string
+	displayText        string
+	references         []draftReference
+	inlineChips        []draftInlineChip
+	nativeTyping       bool
+	readClipboard      func() string
+	writeClipboard     func(string)
+	pointerDown        bool
+	pointerStart       ui.Point
+	pointerChip        *draftReference
+	pointerRemove      bool
+	pointerDragging    bool
 	lastText           string
 	revision           uint64
 	wrapWidth          float32
@@ -84,6 +92,7 @@ func NewDraftClient(draft *string) *DraftClient {
 		c.lastText = *draft
 		end := ui.UTF16Len(c.lastText)
 		c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: end, End: end}}
+		c.references = draftReferences(c.lastText)
 	}
 	c.shape()
 	return c
@@ -91,7 +100,16 @@ func NewDraftClient(draft *string) *DraftClient {
 
 // Sync reconciles selection after the draft was changed without ReplaceText.
 func (c *DraftClient) Sync() {
-	p := theme.RenderPreferences().Composer
+	if c.font.Family == "" {
+		c.syncFont(theme.RenderPreferences().Composer)
+		return
+	}
+	c.ensure()
+}
+
+// syncFont uses this frame's derived skin role for shaping, caret and hit tests.
+// The durable preference and the retained native text-input identity stay intact.
+func (c *DraftClient) syncFont(p theme.FontPreference) {
 	if c.font.Family != p.Family || c.font.Size != p.Size {
 		c.font.Family = p.Family
 		c.font.Size = p.Size
@@ -110,8 +128,9 @@ func (c *DraftClient) TextInputAccessibility() ui.TextInputAccessibility {
 func (c *DraftClient) SetSelectionUTF16(start, end int) {
 	c.ensure()
 	c.typingUndoAt = time.Time{}
-	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: start, End: end}}
+	c.selection = ui.TextInputSelection{Range: c.normalizeRange(ui.TextInputRange{Start: start, End: end}), Reversed: start > end}
 	c.marked = nil
+	c.compositionPending = nil
 	c.revealCaret = true
 	c.revealCaretInViewport()
 }
@@ -131,6 +150,7 @@ func (c *DraftClient) ensure() {
 	if cur != c.lastText {
 		c.revision++
 		c.lastText = cur
+		c.references = draftReferences(cur)
 		c.marked = nil
 		c.compositionPending = nil
 		c.typingUndoAt = time.Time{}
@@ -141,10 +161,7 @@ func (c *DraftClient) ensure() {
 
 func (c *DraftClient) clampSelection() {
 	n := ui.UTF16Len(c.lastText)
-	r := c.selection.Range
-	r.Start = max(0, min(r.Start, n))
-	r.End = max(0, min(r.End, n))
-	c.selection.Range = r
+	c.selection.Range = c.normalizeRange(c.selection.Range)
 	if c.marked != nil {
 		m := *c.marked
 		m.Start = max(0, min(m.Start, n))
@@ -155,7 +172,7 @@ func (c *DraftClient) clampSelection() {
 
 func (c *DraftClient) shape() {
 	c.navigationXValid = false
-	c.layout = ui.ShapeText(c.lastText, c.font, c.wrapWidth)
+	c.buildProjection()
 	c.buildVisualLines()
 	c.revealCaret = true
 }
@@ -181,7 +198,7 @@ func (c *DraftClient) target(r *ui.TextInputRange) ui.TextInputRange {
 	return c.selection.Range
 }
 
-func (c *DraftClient) replace(r ui.TextInputRange, text string) {
+func (c *DraftClient) replace(r ui.TextInputRange, text string, importText bool) {
 	c.ensure()
 	s := c.text()
 	a, z := ui.UTF16ByteOffset(s, r.Start), ui.UTF16ByteOffset(s, r.End)
@@ -193,6 +210,7 @@ func (c *DraftClient) replace(r ui.TextInputRange, text string) {
 		c.revision++
 	}
 	c.lastText = next
+	c.editReferences(r, text, importText, c.nativeTyping)
 	end := r.Start + ui.UTF16Len(text)
 	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: end, End: end}}
 	c.shape()
@@ -201,12 +219,14 @@ func (c *DraftClient) replace(r ui.TextInputRange, text string) {
 func (c *DraftClient) TextForRange(r ui.TextInputRange) (string, ui.TextInputRange) {
 	c.ensure()
 	s := c.text()
+	r = c.normalizeRange(r)
 	a, z := ui.UTF16ByteOffset(s, r.Start), ui.UTF16ByteOffset(s, r.End)
-	return s[a:z], ui.TextInputRange{Start: ui.UTF16Len(s[:a]), End: ui.UTF16Len(s[:z])}
+	return s[a:z], r
 }
 
 func (c *DraftClient) Selection() ui.TextInputSelection {
 	c.ensure()
+	c.clampSelection()
 	return c.selection
 }
 
@@ -225,13 +245,14 @@ func (c *DraftClient) ReplaceText(r *ui.TextInputRange, text string) {
 	// snapshot already owns this edit; intermediate candidates are not undo
 	// steps and must never be restored as an active composition.
 	committing := c.marked != nil || c.compositionPending != nil && r != nil && *r == *c.compositionPending
-	typing := !committing && r == nil && c.selection.Range.Start == c.selection.Range.End && text != "\n" && utf8.RuneCountInString(text) == 1
+	wanted := c.normalizeRange(c.target(r))
+	typing := !committing && r == nil && wanted.Start == wanted.End && text != "\n" && utf8.RuneCountInString(text) == 1
 	now := time.Now()
 	merge := typing && !c.typingUndoAt.IsZero() && now.Sub(c.typingUndoAt) < time.Second && c.typingUndoEnd == c.selection.Caret()
 	if !committing && !merge {
 		c.pushUndo()
 	}
-	c.replace(c.target(r), text)
+	c.replace(wanted, text, true)
 	c.marked = nil
 	c.compositionPending = nil
 	c.typingUndoAt = time.Time{}
@@ -242,16 +263,19 @@ func (c *DraftClient) ReplaceText(r *ui.TextInputRange, text string) {
 
 func (c *DraftClient) SetMarkedText(r *ui.TextInputRange, text string, selected ui.TextInputRange) {
 	c.stop.reset()
+	c.ensure()
 	c.typingUndoAt = time.Time{}
 	if c.marked == nil {
 		c.pushUndo()
 	}
 	c.compositionPending = nil
-	wanted := c.target(r)
-	c.replace(wanted, text)
+	wanted := c.normalizeRange(c.target(r))
+	c.replace(wanted, text, false)
 	mark := ui.TextInputRange{Start: wanted.Start, End: wanted.Start + ui.UTF16Len(text)}
 	c.marked = &mark
-	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: mark.Start + selected.Start, End: mark.Start + selected.End}}
+	length := ui.UTF16Len(text)
+	selected.Start, selected.End = max(0, min(selected.Start, length)), max(0, min(selected.End, length))
+	c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: mark.Start + min(selected.Start, selected.End), End: mark.Start + max(selected.Start, selected.End)}, Reversed: selected.Start > selected.End}
 }
 
 func (c *DraftClient) UnmarkText() {
@@ -272,6 +296,7 @@ func (c *DraftClient) BoundsForRange(r ui.TextInputRange) (ui.Rect, ui.TextInput
 	if c.layout == nil {
 		return ui.Rect{}, r, false
 	}
+	r = c.normalizeRange(r)
 	b := c.visualCaret(r.Start)
 	if r.Start != r.End {
 		rects := c.visualSelectionRects(r)
@@ -290,7 +315,8 @@ func (c *DraftClient) IndexForPoint(p ui.Point) (int, bool) {
 	if c.layout == nil {
 		return 0, false
 	}
-	return c.layout.IndexAt(c.rawPoint(ui.Point{X: p.X - draftInputLeft, Y: p.Y - draftInputTop + c.scrollY})), true
+	left, _, top := c.ins()
+	return c.visualIndex(ui.Point{X: p.X - left, Y: p.Y - top + c.scrollY}), true
 }
 
 func (c *DraftClient) move(to int, extend bool) {
@@ -299,9 +325,11 @@ func (c *DraftClient) move(to int, extend bool) {
 	c.ensure()
 	n := ui.UTF16Len(c.text())
 	to = max(0, min(to, n))
+	to = c.normalizeRange(ui.TextInputRange{Start: to, End: to}).Start
 	c.revealCaret = true
 	if !extend {
 		c.selection = ui.TextInputSelection{Range: ui.TextInputRange{Start: to, End: to}}
+		c.revealCaretInViewport()
 		return
 	}
 	anchor := c.selection.Range.Start

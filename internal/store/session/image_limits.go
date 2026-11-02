@@ -34,6 +34,7 @@ func (s *Store) applyImageLimitValuesLocked(values json.RawMessage, seq float64)
 	s.applyImageLimitsLocked(all["imageLimits"], seq)
 }
 func (s *Store) applyImageLimitsLocked(raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	p := &s.imageLimits
 	if p.sessionID != s.selectedID || p.generation != s.followGeneration {
 		*p = composerImageLimitState{sessionID: s.selectedID, generation: s.followGeneration}
@@ -60,6 +61,7 @@ func (s *Store) applyImageLimitsLocked(raw json.RawMessage, seq float64) {
 	p.seq = seq
 }
 func (s *Store) applyImageLimitControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var f struct {
 		Type, SessionID, Key string
 		Seq                  float64

@@ -298,8 +298,8 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 	if failure != "" {
 		c.AddToast(ui.Toast{ID: toastID, Title: failure, Type: "error", Timeout: -1})
 	}
-	ink, border := chrome.Color(colors.FG), chrome.Color(colors.Border)
-	root := ui.Row(c.Key("workspace-open-in-app:"+snap.SelectedCwd)).Height(27).Shrink(0).Radius(14).Clip().Border(.5, border).AlignItems(ui.Center)
+	ink, border := chrome.Color(colors.FG), c.Theme().Border
+	root := ui.Row(c.Key("workspace-open-in-app:"+snap.SelectedCwd)).Height(27).Shrink(0).Radius(8).Clip().Border(.5, border).AlignItems(ui.Center)
 	root.Children(func() {
 		label := fmt.Sprintf(archiveText("用 %s 打开", "Open in %s"), workspaceApplicationName(preferred.id))
 		button := ui.ButtonBase(c.Key("workspace-open-in-app-primary")).Label(label).Tooltip(label).Height(26).Padding(0, 9).BorderWidth(0).Background(ui.Transparent).Disabled(busy)
@@ -310,7 +310,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 			if busy {
 				ui.Box(c).Size(13, 13)
 			} else {
-				workspaceApplicationIcon(c, preferred, 13, ink)
+				workspaceApplicationIcon(c, preferred, 14, ink)
 			}
 		})
 		// Disabled toolkit elements dim their descendants. The original pending
@@ -325,7 +325,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		if len(apps) <= 1 {
 			return
 		}
-		ui.Box(c).Width(.5).Height(26).Background(border)
+		ui.Box(c).Width(.5).Height(26).Shrink(0).Background(border)
 		choice := ui.Local(root, "menu-choice", func() string { return "" })
 		wasOpen := ui.Local(root, "menu-open", func() bool { return false })
 		parts := ui.SelectBase(c.Key("workspace-open-in-app-menu"), choice)
@@ -333,14 +333,14 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 			if busy {
 				ui.Box(c).Size(14, 14)
 			} else {
-				ui.Icon(c, workspaceOpenChevron).Size(14, 14).TextColor(ink)
+				ui.Icon(c, workspaceOpenChevron).Size(10, 10).TextColor(ink)
 			}
 		})
 		if !busy && (parts.Trigger.Hovered() || parts.Trigger.FocusVisible()) {
 			parts.Trigger.Background(chrome.Color(colors.Hover))
 		}
 		if busy {
-			ui.Box(c).Absolute().AttachTo(parts.Trigger, ui.AnchorCenter, ui.AnchorCenter).Size(14, 14).Children(func() { ui.Icon(c, workspaceOpenChevron).Size(14, 14).TextColor(ink) })
+			ui.Box(c).Absolute().AttachTo(parts.Trigger, ui.AnchorCenter, ui.AnchorCenter).Size(10, 10).Children(func() { ui.Icon(c, workspaceOpenChevron).Size(10, 10).TextColor(ink) })
 		}
 		if !busy {
 			parts.Popup(func(panel ui.Element) {

@@ -9,18 +9,40 @@ import (
 )
 
 var probedEditors struct {
-	once sync.Once
+	mu   sync.Mutex
 	apps []files.OpenWithApp
+	done bool
 }
 
-// editorOpenWithApps probes the Electron editor list (editors.js) once per
-// process. Probing is file-system and PATH work only; it never spawns an editor.
-func editorOpenWithApps() []files.OpenWithApp {
-	probedEditors.once.Do(func() {
+// startEditorProbe detects the Electron editor list (editors.js) once, off the
+// render path. Probing is file-system and PATH work only; it never spawns an
+// editor. Doing it inline in the first frame walked PATH (a stat per extension
+// per directory) while the window waited: tmp/stalls caught LookPath under
+// mainView. Until it finishes, the list is empty.
+func startEditorProbe() {
+	go func() {
+		apps := make([]files.OpenWithApp, 0, 4)
 		for _, editor := range editors.Available(editors.DefaultProbe()) {
-			probedEditors.apps = append(probedEditors.apps, files.OpenWithApp{ID: editor.ID, Name: editor.Label})
+			apps = append(apps, files.OpenWithApp{ID: editor.ID, Name: editor.Label})
 		}
-	})
+		probedEditors.mu.Lock()
+		probedEditors.apps = apps
+		probedEditors.done = true
+		probedEditors.mu.Unlock()
+		state.mu.Lock()
+		win := state.win
+		state.mu.Unlock()
+		if win != nil {
+			win.Update(func() {})
+		}
+	}()
+}
+
+// editorOpenWithApps reports the probed editors for this frame. It never waits
+// for the probe: a render path that blocked on it stalled the window.
+func editorOpenWithApps() []files.OpenWithApp {
+	probedEditors.mu.Lock()
+	defer probedEditors.mu.Unlock()
 	return probedEditors.apps
 }
 

@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -15,6 +16,7 @@ func transcriptMarkdownStyle(fg, muted, field, accent ui.Color, size float32, da
 	wrapLabel, noWrapLabel := i18n.T(i18n.KeyMarkdownWrap), i18n.T(i18n.KeyMarkdownNoWrap)
 	return markdown.Style{
 		DocumentLayout: true,
+		FontFamily:     theme.FontForSkin(theme.RenderPreferences(), theme.SkinForMode(theme.CurrentPreferences(), dark), theme.SkinProseFont).Family,
 		FontSize:       size,
 		FG:             fg,
 		Muted:          muted,

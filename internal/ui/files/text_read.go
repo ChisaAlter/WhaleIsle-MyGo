@@ -50,6 +50,14 @@ func beginTextRead(m Model) {
 	if m.Tabs == nil || tab == nil || !isAsyncPreviewPath(tab.Path) {
 		return
 	}
+	var sourceErr error
+	m, sourceErr = deliveryReadModel(m, tab)
+	if sourceErr != nil {
+		rejectDeliveryRead(m, tab, sourceErr)
+		return
+	}
+	resolve := previewPathResolver(m, tab)
+	localSource := tab.deliverySource
 	capture(m)
 	applySaveResult(m, tab)
 	tab.readBlocked = true
@@ -77,7 +85,7 @@ func beginTextRead(m Model) {
 	}
 	tab.readBlocked, tab.readLoading, tab.readResume = true, true, false
 	t.readTab = tab
-	root, path := m.WorkspaceRoot, tab.Path
+	path := tab.Path
 	tableRequest := tab.tableRequest
 	if isTablePreviewPath(path) && !tab.Dirty() {
 		tab.Preview, tab.Draft, tab.Error = "", "", ""
@@ -97,11 +105,13 @@ func beginTextRead(m Model) {
 		if ctx.Err() != nil {
 			return out
 		}
-		full, err := workspacefs.JoinRoot(root, path)
+		full, err := resolve()
 		out.fullPath = full
 		if (err == nil || (isTablePreviewPath(path) && remoteTable != nil)) && ctx.Err() == nil {
 			if isTablePreviewPath(path) {
-				if remoteTable != nil {
+				if localSource != nil {
+					out.table, err = localSource.readTable(ctx, tableRequest)
+				} else if remoteTable != nil {
 					out.table, err = remoteTable(ctx, path, tableRequest)
 					out.remote = true
 				} else {
@@ -112,7 +122,11 @@ func beginTextRead(m Model) {
 				}
 			} else {
 				var page workspacefs.TextPage
-				page, err = workspacefs.ReadFileTextPage(full, 0)
+				if localSource != nil {
+					page, err = localSource.readTextPage(ctx, 0)
+				} else {
+					page, err = workspacefs.ReadFileTextPage(full, 0)
+				}
 				out.text, out.truncated, out.page = page.Text, !page.EOF, &page
 			}
 		}

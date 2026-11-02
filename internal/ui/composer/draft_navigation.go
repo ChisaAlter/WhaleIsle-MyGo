@@ -53,11 +53,11 @@ func (c *DraftClient) navigate(ev ui.InputEvent) bool {
 			if forward {
 				x = 1e7
 			}
-			to = c.layout.IndexAt(c.rawPoint(ui.Point{X: x, Y: b.Y + b.H/2}))
+			to = c.visualIndex(ui.Point{X: x, Y: b.Y + b.H/2})
 		} else if forward {
-			to = c.layout.NextBoundary(at)
+			to = c.nextBoundary(at)
 		} else {
-			to = c.layout.PreviousBoundary(at)
+			to = c.previousBoundary(at)
 		}
 	case ui.KeyHome, ui.KeyEnd:
 		if mods == ui.Ctrl || line {
@@ -71,7 +71,7 @@ func (c *DraftClient) navigate(ev ui.InputEvent) bool {
 			if ev.Key == ui.KeyEnd {
 				x = 1e7
 			}
-			to = c.layout.IndexAt(c.rawPoint(ui.Point{X: x, Y: b.Y + b.H/2}))
+			to = c.visualIndex(ui.Point{X: x, Y: b.Y + b.H/2})
 		}
 	case ui.KeyUp, ui.KeyDown:
 		if line {
@@ -95,7 +95,7 @@ func (c *DraftClient) navigate(ev ui.InputEvent) bool {
 		} else if y >= c.visualHeight() {
 			to = ui.UTF16Len(c.text())
 		} else {
-			to = c.layout.IndexAt(c.rawPoint(ui.Point{X: x, Y: y + b.H/2}))
+			to = c.visualIndex(ui.Point{X: x, Y: y + b.H/2})
 		}
 		vertical = true
 	}
@@ -119,23 +119,31 @@ func (c *DraftClient) wordBoundary(at int, forward bool) int {
 		return unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r) || r == '_'
 	}
 	end := ui.UTF16Len(text)
+	for _, ref := range c.references {
+		if forward && at == ref.Start {
+			return ref.End
+		}
+		if !forward && at == ref.End {
+			return ref.Start
+		}
+	}
 	if forward {
 		for at < end && isWord(at) {
-			at = c.layout.NextBoundary(at)
+			at = c.nextBoundary(at)
 		}
 		for at < end && !isWord(at) {
-			at = c.layout.NextBoundary(at)
+			at = c.nextBoundary(at)
 		}
 	} else {
 		for at > 0 {
-			p := c.layout.PreviousBoundary(at)
+			p := c.previousBoundary(at)
 			if isWord(p) {
 				break
 			}
 			at = p
 		}
 		for at > 0 {
-			p := c.layout.PreviousBoundary(at)
+			p := c.previousBoundary(at)
 			if !isWord(p) {
 				break
 			}

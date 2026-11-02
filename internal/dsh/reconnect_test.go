@@ -228,6 +228,7 @@ func TestManualReconnectJoinsOldGenerationBeforeRedial(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var carriers atomic.Int32
+	accepted := make(chan struct{}, 2)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
@@ -235,6 +236,7 @@ func TestManualReconnectJoinsOldGenerationBeforeRedial(t *testing.T) {
 		}
 		defer conn.CloseNow()
 		carriers.Add(1)
+		accepted <- struct{}{}
 		for {
 			if _, _, err = conn.Read(r.Context()); err != nil {
 				return
@@ -265,6 +267,13 @@ func TestManualReconnectJoinsOldGenerationBeforeRedial(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("first Dial timed out")
 	}
+	// Client readiness can arrive just before the server goroutine records the
+	// accepted carrier. Establish the initial count before checking for redial.
+	select {
+	case <-accepted:
+	case <-ctx.Done():
+		t.Fatal("first carrier acceptance timed out")
+	}
 	if !mux.RequestReconnect() {
 		t.Fatal("manual reconnect rejected")
 	}
@@ -277,8 +286,8 @@ func TestManualReconnectJoinsOldGenerationBeforeRedial(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	if carriers.Load() != 1 {
-		t.Fatal("new carrier opened before join")
+	if count := carriers.Load(); count != 1 {
+		t.Fatalf("new carrier opened before join: accepted %d carriers", count)
 	}
 	release.Do(func() { close(retire) })
 	select {

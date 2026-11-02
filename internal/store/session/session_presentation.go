@@ -1,6 +1,9 @@
 package session
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 // SessionPresentation is the Host's sessionListMetadata.presentation. It is
 // navigation/composer presentation only, never execution or file authority.
@@ -12,6 +15,9 @@ type SessionPresentation struct {
 }
 
 func presentationFromValues(raw json.RawMessage) (*SessionPresentation, bool) {
+	if !bytes.Contains(raw, []byte(`"sessionListMetadata"`)) {
+		return nil, false
+	}
 	var values map[string]json.RawMessage
 	if json.Unmarshal(raw, &values) != nil {
 		return nil, false
@@ -53,6 +59,7 @@ func (s *Store) applySessionPresentationValuesLocked(id, kind string, seq float6
 }
 
 func (s *Store) applySessionPresentationLocked(id, kind string, seq float64, presentation *SessionPresentation) {
+	s.invalidateViewLocked()
 	for i := range s.items {
 		if s.items[i].SessionID != id {
 			continue
@@ -66,6 +73,7 @@ func (s *Store) applySessionPresentationLocked(id, kind string, seq float64, pre
 }
 
 func (s *Store) applySessionPresentationControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  float64
@@ -94,6 +102,7 @@ func (s *Store) applySessionPresentationControlLocked(raw json.RawMessage) {
 }
 
 func (s *Store) resetSessionPresentationsLocked() {
+	s.invalidateViewLocked()
 	for i := range s.items {
 		s.items[i].Presentation = nil
 		s.items[i].presentationKnown, s.items[i].presentationKind, s.items[i].presentationSeq = false, "", 0

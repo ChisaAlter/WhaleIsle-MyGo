@@ -77,6 +77,38 @@ func TestPreviewToolbarLiteralSingleRowAndBranches(t *testing.T) {
 	}
 }
 
+// Non-text previews have no numbered lines. Offering the jump action there
+// produced a dialog whose accepted value could never be applied.
+func TestPreviewLineNavigationIsOfferedOnlyForText(t *testing.T) {
+	m, tab := toolbarFixture(t)
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"a.txt", true},
+		{"a.md", true},
+		{"a.png", false},
+		{"a.pdf", false},
+		{"a.xlsx", false},
+		{"a.mp4", false},
+	}
+	for _, tc := range cases {
+		tab.Path = tc.path
+		*m.SelectedFile = tc.path
+		tabsFor(m).Open, tabsFor(m).Active = []*FileTab{tab}, tc.path
+		if got := previewSupportsLineNavigation(m, tc.path); got != tc.want {
+			t.Errorf("%s: previewSupportsLineNavigation=%v, want %v", tc.path, got, tc.want)
+		}
+		tt := toolbarTester(&m, 676)
+		if err := tt.RightClick("File preview toolbar"); err != nil {
+			t.Fatalf("%s: %v", tc.path, err)
+		}
+		if got := slices.Contains(tt.Menu(), "Go to line…"); got != tc.want {
+			t.Errorf("%s: menu line navigation=%v, want %v (%v)", tc.path, got, tc.want, tt.Menu())
+		}
+	}
+}
+
 func TestPreviewToolbarContextKeepsDraftWrapAndNavigation(t *testing.T) {
 	m, tab := toolbarFixture(t)
 	tab.Draft, tab.Editing = "draft\nsecond\nthird", true
@@ -145,6 +177,11 @@ func TestPreviewToolbarContextKeepsDraftWrapAndNavigation(t *testing.T) {
 	}
 }
 
+// A context choice captured before the owner changed must never reach the
+// replacement resource: the row is keyed by its owner, so re-keying removes
+// the anchor and the menu closes without dispatching. Re-keying is the
+// intended semantics (buildMenu only replays a choice onto the same element
+// id), so the test asserts closure plus zero mutation rather than success.
 func TestPreviewToolbarLateMenuCannotMutateReplacementOwner(t *testing.T) {
 	for _, change := range []string{"tab", "host", "read-generation"} {
 		for _, action := range []string{"Keep draft and preview", "Reload", "Save"} {
@@ -155,6 +192,9 @@ func TestPreviewToolbarLateMenuCannotMutateReplacementOwner(t *testing.T) {
 				tt := toolbarTester(&m, 676)
 				if err := tt.RightClick("File preview toolbar"); err != nil {
 					t.Fatal(err)
+				}
+				if tt.Menu() == nil {
+					t.Fatal("context menu did not open")
 				}
 				switch change {
 				case "tab":
@@ -169,8 +209,11 @@ func TestPreviewToolbarLateMenuCannotMutateReplacementOwner(t *testing.T) {
 					tab.readID++
 				}
 				tt.Frame()
-				if err := tt.ChooseMenuItem(action); err != nil {
-					t.Fatal(err)
+				if got := tt.Menu(); got != nil {
+					t.Fatalf("owner change left stale menu open: %v", got)
+				}
+				if err := tt.ChooseMenuItem(action); err == nil {
+					t.Fatalf("stale menu dispatched %q to replacement owner", action)
 				}
 				active := selectedTab(m)
 				if !*m.Editing || *m.EditDraft == "" || tab.Draft != "owned draft" || active.save != nil || active.readLoading {
@@ -203,6 +246,9 @@ func TestPreviewToolbarBlockedSaveAndViewerInitialization(t *testing.T) {
 	}
 }
 
+// Same owner guard for the tree row: the row key embeds the active owner, so
+// changing tab/host/read generation re-keys it and the captured menu choice
+// can never replay onto the new element id.
 func TestPreviewTreeLateMenuCannotDispatchAfterTabOrHostChange(t *testing.T) {
 	for _, change := range []string{"tab", "host", "read-generation"} {
 		m, tab := toolbarFixture(t)
@@ -215,6 +261,9 @@ func TestPreviewTreeLateMenuCannotDispatchAfterTabOrHostChange(t *testing.T) {
 		if err := tt.RightClick("File " + tab.Path); err != nil {
 			t.Fatal(err)
 		}
+		if tt.Menu() == nil {
+			t.Fatal("context menu did not open")
+		}
 		switch change {
 		case "tab":
 			*m.SelectedFile = "other.txt"
@@ -224,8 +273,11 @@ func TestPreviewTreeLateMenuCannotDispatchAfterTabOrHostChange(t *testing.T) {
 			tab.readID++
 		}
 		tt.Frame()
-		if err := tt.ChooseMenuItem("Keep draft and preview"); err != nil {
-			t.Fatal(err)
+		if got := tt.Menu(); got != nil {
+			t.Fatalf("%s: owner change left stale menu open: %v", change, got)
+		}
+		if err := tt.ChooseMenuItem("Keep draft and preview"); err == nil {
+			t.Fatalf("%s: stale tree menu dispatched to replacement owner", change)
 		}
 		if !tab.Editing || tab.Draft != "owned draft" || tab.save != nil || tab.readLoading {
 			t.Fatalf("%s: stale tree menu mutated resource", change)

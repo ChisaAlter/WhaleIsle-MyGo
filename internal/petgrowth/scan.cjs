@@ -148,7 +148,7 @@ function zstdDecompressAll(buf) {
       if (!size) throw new Error('incomplete zstd frame');
       const part = zlib.zstdDecompressSync(buf.subarray(off, off + size), { maxOutputLength: 256 * 1024 * 1024 });
       decodedBytes += part.length;
-      if (decodedBytes > 512 * 1024 * 1024) throw new Error('scan decode limit');
+      if (decodedBytes > 512 * 1024 * 1024) throw Object.assign(new Error('scan decode limit'), { decodeLimit: true });
       parts.push(part);
       off += size;
     } else if ((magic & 0xFFFFFFF0) === 0x184D2A50) {
@@ -171,15 +171,21 @@ function scan(root) {
   const rootStat = fs.lstatSync(root);
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error('invalid sessions root');
   const realRoot = fs.realpathSync(root);
-  const stack = [realRoot], samples = Object.create(null);
-  let files = 0, dirs = 0;
+  // Session logs only grow, and a directory's settlements depend only on its own
+  // log files. The native wrapper passes each directory's signature from its
+  // last scan (PET_SCAN_PRIOR); an unchanged directory is reported, not decoded.
+  // When the decode budget runs out, the remaining changed directories wait for
+  // the next scan instead of discarding the ones already decoded.
+  const prior = typeof PET_SCAN_PRIOR === 'object' && PET_SCAN_PRIOR !== null ? PET_SCAN_PRIOR : {};
+  const stack = [realRoot], out = [];
+  let files = 0, dirs = 0, complete = true;
   while (stack.length) {
     const dir = stack.pop();
     if (++dirs > 50000) throw new Error('scan directory limit');
     const ds = fs.lstatSync(dir), dr = path.relative(realRoot, fs.realpathSync(dir));
     if (!ds.isDirectory() || ds.isSymbolicLink() || path.isAbsolute(dr) || dr === '..' || dr.startsWith('..'+path.sep)) throw new Error('invalid session directory');
     const entries = fs.readdirSync(dir, {withFileTypes:true}).sort((a,b)=>a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-    const lastWins = new Map();
+    const logs = [];
     for (const ent of entries) {
       const file = path.join(dir,ent.name);
       if (ent.isSymbolicLink()) continue;
@@ -189,22 +195,36 @@ function scan(root) {
       const st = fs.lstatSync(file), real = fs.realpathSync(file);
       const rel = path.relative(realRoot, real);
       if (!st.isFile() || st.isSymbolicLink() || path.isAbsolute(rel) || rel === '..' || rel.startsWith('..'+path.sep) || st.size > 128*1024*1024) throw new Error('invalid session file');
-      const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
-      try {
-        const actual = fs.fstatSync(fd);
-        if (!actual.isFile() || actual.size > 128*1024*1024 || actual.ino !== st.ino || actual.dev !== st.dev) throw new Error('session file changed');
-        const body = fs.readFileSync(fd);
-        if (body.length > 128*1024*1024) throw new Error('scan file limit');
-        foldLogInto(zstdDecompressAll(body).toString('utf8'), lastWins);
-      } finally { fs.closeSync(fd); }
+      logs.push({ file, st });
     }
+    if (logs.length === 0) continue;
+    const sig = JSON.stringify(logs.map(({ file, st }) => [path.basename(file), st.size, st.mtimeMs, String(st.ino)]));
+    if (prior[dr] === sig) { out.push({ r: dr, s: sig, d: null }); continue; }
+    if (!complete) continue;
+    const lastWins = new Map();
+    try {
+      for (const { file, st } of logs) {
+        const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+        try {
+          const actual = fs.fstatSync(fd);
+          if (!actual.isFile() || actual.size > 128*1024*1024 || actual.ino !== st.ino || actual.dev !== st.dev) throw new Error('session file changed');
+          const body = fs.readFileSync(fd);
+          if (body.length > 128*1024*1024) throw new Error('scan file limit');
+          foldLogInto(zstdDecompressAll(body).toString('utf8'), lastWins);
+        } finally { fs.closeSync(fd); }
+      }
+    } catch (err) {
+      if (err && err.decodeLimit) { complete = false; continue; }
+      throw err;
+    }
+    const samples = {};
     for (const [key,n] of lastWins) {
       const id = createHash('sha256').update(JSON.stringify([path.basename(dir),key])).digest('hex');
       samples[id] = n;
     }
-    if (Object.keys(samples).length > 200000) throw new Error('scan settlement limit');
+    out.push({ r: dr, s: sig, d: samples });
   }
-  return samples;
+  return { dirs: out, complete };
 }
 try {
   process.stdout.write(JSON.stringify(scan(process.argv[2])));

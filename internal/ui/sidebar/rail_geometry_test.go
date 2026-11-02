@@ -30,7 +30,7 @@ import (
 // Native's caption-band 168.67-wide 新建会话 is an inert duplicate in both rail
 // and expanded states (round259/261), so it is deliberately not reproduced here.
 func TestCollapsedRailMatchesNativeGeometry(t *testing.T) {
-	m := Model{Collapsed: true, OnToggle: func() {}, OnCreate: func() {},
+	m := Model{Collapsed: true, OnToggle: func() {}, OnCreate: func() {}, OnOpenAssistant: func() {},
 		Snapshot: session.ViewState{WorkspaceReady: true}}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 72, 900)
 	row := func(name string) ui.Rect {

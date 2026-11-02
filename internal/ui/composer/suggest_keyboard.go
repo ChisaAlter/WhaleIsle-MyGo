@@ -43,6 +43,15 @@ func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenR
 		caret = ui.UTF16ByteOffset(draft, client.Selection().Caret())
 	}
 	kind, query, tok, open := ActiveSuggestAt(draft, caret)
+	if open && client != nil {
+		start, end := ui.UTF16Len(draft[:tok.Start]), ui.UTF16Len(draft[:tok.End])
+		for _, ref := range client.references {
+			if start < ref.End && end > ref.Start {
+				kind, query, tok, open = SuggestNone, "", TokenRange{}, false
+				break
+			}
+		}
+	}
 	if kind == SuggestSlash && currentLeadingClaim(m) != nil {
 		open = false
 	}

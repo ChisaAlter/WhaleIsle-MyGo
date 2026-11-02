@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -37,7 +38,7 @@ func (s *projectController) bindProjectMaterials(win *mygo.Window, m *projects.M
 		if d := s.projectFlow.materials[s.projectFlow.materialKey]; d != nil && !s.projectFlow.busy {
 			d.Draft = d.Saved
 			d.Error = ""
-			d.Notice = "Draft discarded; reload to fetch the latest saved text."
+			d.Notice = i18n.T(i18n.KeyCmdProjectDraftDiscarded)
 		}
 	}
 	m.OnCloseMaterial = func() { s.mu.Lock(); s.projectFlow.materialKey = ""; s.mu.Unlock() }
@@ -69,7 +70,7 @@ func (s *projectController) runProjectMaterial(win *mygo.Window, id, path, actio
 		return
 	}
 	if action == "reload" && d.Dirty() {
-		d.Error = "Discard or save this draft before reloading."
+		d.Error = i18n.T(i18n.KeyCmdProjectDraftBeforeReload)
 		s.mu.Unlock()
 		return
 	}
@@ -111,7 +112,7 @@ func (s *projectController) runProjectMaterial(win *mygo.Window, id, path, actio
 		f.busy = false
 		d.Apply(material, err)
 		if err == nil && action == "save" {
-			d.Notice = "Saved to Project."
+			d.Notice = i18n.T(i18n.KeyCmdProjectMaterialSaved)
 		}
 		s.mu.Unlock()
 		win.Update(func() {})

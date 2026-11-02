@@ -107,30 +107,33 @@ func (f *floatingPreview) view(c *ui.Context) {
 	dark := mygo.Theme.IsDark()
 	colors := theme.Resolve(f.themeID).Active(dark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	border := chrome.Color(colors.Border)
 	m := Model{Tabs: &f.tabs, WorkspaceRoot: f.snapshot.Root, SelectedFile: &f.snapshot.Path, Preview: &f.snapshot.Text, EditDraft: &f.snapshot.Text, ThemeID: f.themeID, SystemDark: dark, notify: c.Invalidate}
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
-		ui.Row(c).FillWidth().Wrap().Gap(6).Padding(8, 12).Children(func() {
-			ui.Text(c, f.snapshot.Path).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-			if f.image == nil {
-				before := previewPreferences(m).WordWrap
-				paintWrapToggle(c, m)
-				if before != previewPreferences(m).WordWrap && f.notify != nil {
-					f.notify()
+		ui.Row(c).FillWidth().MinHeight(36).AlignItems(ui.Center).Wrap().Gap(6).Padding(4, 12).
+			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0) }).
+			Children(func() {
+				ui.Text(c, f.snapshot.Path).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+				if f.image == nil {
+					before := previewPreferences(m).WordWrap
+					paintWrapToggle(c, m)
+					if before != previewPreferences(m).WordWrap && f.notify != nil {
+						f.notify()
+					}
+					if widgets.Button(c, colors, label("复制文本", "Copy text"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
+						mygo.Clipboard.WriteText(f.snapshot.Text)
+					}
+					if isMarkdown(f.snapshot.Path) && widgets.Button(c, colors, label("源码或渲染", "Source or rendered"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
+						f.tab.RenderedMarkdown = !f.tab.RenderedMarkdown
+					}
 				}
-				if widgets.Button(c, colors, label("复制文本", "Copy text"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-					mygo.Clipboard.WriteText(f.snapshot.Text)
+				if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(f.loading).Clicked() {
+					f.refresh()
 				}
-				if isMarkdown(f.snapshot.Path) && widgets.Button(c, colors, label("源码或渲染", "Source or rendered"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-					f.tab.RenderedMarkdown = !f.tab.RenderedMarkdown
+				if widgets.Button(c, colors, label("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() && f.win != nil {
+					f.win.Close()
 				}
-			}
-			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(f.loading).Clicked() {
-				f.refresh()
-			}
-			if widgets.Button(c, colors, label("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() && f.win != nil {
-				f.win.Close()
-			}
-		})
+			})
 		ui.Text(c, label("已保存文件的只读预览；点击刷新读取最新内容。", "Saved-file preview. Refresh to read the latest saved content.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		if f.snapshot.Problem != "" {
 			ui.Text(c, f.snapshot.Problem).FontSize(theme.InterfaceSize(10)).TextColor(muted)
@@ -153,7 +156,15 @@ func (f *floatingPreview) view(c *ui.Context) {
 // The desktop floating action uses the same local saved file as FilePreview.
 // Separate Host-owned fallback resources retain their captured readers.
 func savedFloatingReader(m Model, path string) func(context.Context) textReadResult {
-	root, remote, pageReader, tableReader := m.WorkspaceRoot, m.ReadRemoteContext, m.ReadTextPageContext, m.ReadTableContext
+	tab := selectedTab(m)
+	var sourceErr error
+	m, sourceErr = deliveryReadModel(m, tab)
+	if tab == nil || tab.Path != path {
+		tab = &FileTab{Path: path}
+	}
+	resolve := previewPathResolver(m, tab)
+	localSource := tab.deliverySource
+	remote, pageReader, tableReader := m.ReadRemoteContext, m.ReadTextPageContext, m.ReadTableContext
 	if desktopFileToolbar(m, path) {
 		remote, pageReader = nil, nil
 	}
@@ -161,17 +172,23 @@ func savedFloatingReader(m Model, path string) func(context.Context) textReadRes
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		out := textReadResult{}
+		if sourceErr != nil {
+			out.err = sourceErr
+			return out
+		}
 		if ctx.Err() != nil {
 			out.err = ctx.Err()
 			return out
 		}
 		if isTablePreviewPath(path) {
-			if tableReader != nil {
+			if localSource != nil {
+				out.table, out.err = localSource.readTable(ctx, workspacefs.XLSXPageRequest{})
+			} else if tableReader != nil {
 				out.table, out.err = tableReader(ctx, path, workspacefs.XLSXPageRequest{})
 			} else if remote != nil || pageReader != nil {
 				out.err = errors.New("Host table preview reader is unavailable")
 			} else {
-				full, err := workspacefs.JoinRoot(root, path)
+				full, err := resolve()
 				out.err = err
 				if err == nil {
 					out.table, out.err = readTablePreview(ctx, full, workspacefs.XLSXPageRequest{})
@@ -180,13 +197,16 @@ func savedFloatingReader(m Model, path string) func(context.Context) textReadRes
 			if out.table != nil {
 				out.text = out.table.Text
 			}
+		} else if localSource != nil {
+			page, err := localSource.readTextPage(ctx, 0)
+			out.text, out.err, out.truncated = page.Text, err, !page.EOF
 		} else if pageReader != nil {
 			page, err := pageReader(ctx, path, 0)
 			out.text, out.err, out.truncated = page.Text, err, !page.EOF
 		} else if remote != nil {
 			out.text, out.err = remote(ctx, path)
 		} else {
-			full, err := workspacefs.JoinRoot(root, path)
+			full, err := resolve()
 			out.err = err
 			if err == nil {
 				page, err := workspacefs.ReadFileTextPage(full, 0)

@@ -72,7 +72,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 	// The hero composer mirrors the reference's control set: no microphone seat
 	// until speech is configured, unless a capture, feedback or the setup guide
 	// is active. The docked composer keeps its always-visible control.
-	if m.Hero && !composerVoiceConfigured(m) && m.Voice.Phase == "" && m.Voice.Pending == "" &&
+	if (m.Hero || m.Snapshot.SelectedID != "") && !composerVoiceConfigured(m) && m.Voice.Phase == "" && m.Voice.Pending == "" &&
 		m.Voice.Message == "" && !(m.State != nil && m.State.VoiceSetupOpen) {
 		return
 	}

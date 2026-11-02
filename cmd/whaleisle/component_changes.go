@@ -65,7 +65,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 			plan, err = desktopcomponents.PrepareWhaleBridgeUpdate(context.Background(), paths.UserDataDir(), route)
 		case "rollback":
 			if !desktopcomponents.WhaleBridgeManagementSupported() {
-				err = fmt.Errorf("鲸桥组件管理仅支持 Windows x64")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentWindowsOnly))
 			} else {
 				plan, err = desktopcomponents.PrepareWhaleBridgeRollback(paths.UserDataDir())
 			}
@@ -76,7 +76,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 			err = desktopcomponents.ErrUnknownAction
 		}
 		if err == nil && !scopeValid() {
-			err = fmt.Errorf("运行环境已改变，请重新检查组件并确认")
+			err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentRuntimeChanged))
 		}
 		cancelled := false
 		removeData := false
@@ -89,7 +89,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 			}
 		}
 		if err == nil && !cancelled && !scopeValid() {
-			err = fmt.Errorf("确认期间运行环境已改变，请重新检查组件并确认")
+			err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentConfirmationChanged))
 		}
 		if err == nil && !cancelled {
 			s.mu.Lock()
@@ -99,11 +99,11 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 			}
 			s.mu.Unlock()
 			if busy {
-				err = fmt.Errorf("其他生命周期操作正在进行，已保留现有实例和已校验版本")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentLifecycleBusy))
 			} else {
 				did := s.withTaskProtection(win, sup, "component", func() error {
 					if !scopeValid() {
-						err = fmt.Errorf("运行环境已改变，请重新操作")
+						err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdRuntimeChangedRetry))
 						return err
 					}
 					switch {
@@ -120,7 +120,7 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 				s.taskRestartPending = false
 				s.mu.Unlock()
 				if !did && err == nil {
-					err = fmt.Errorf("操作未执行或任务保护未完成；请查看启动器提示后重试")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentTaskProtectionIncomplete))
 				}
 			}
 		}
@@ -161,7 +161,7 @@ func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponen
 	hasWindow := s.win != nil
 	s.mu.Unlock()
 	if !hasWindow {
-		return false, fmt.Errorf("无法显示组件操作确认；未更改组件")
+		return false, fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentConfirmationUnavailable))
 	}
 	title, button, message := "", "", ""
 	if removal != nil {

@@ -21,6 +21,11 @@ const (
 	quickChatInset     = 4
 )
 
+// Production always delegates to NewWindow. The seam lets the public open path
+// be tested without starting a desktop or making network requests.
+var openQuickChatWindow = mygo.NewWindow
+var focusQuickChatWindow = func(w *mygo.Window) { w.Focus() }
+
 func quickChatSendKey(ev ui.InputEvent, composing bool) bool {
 	return ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEnter && ev.Mods&ui.Shift == 0 && !composing
 }
@@ -29,18 +34,22 @@ func quickChatSendKey(ev ui.InputEvent, composing bool) bool {
 // above the pet before flipping below it, clamped 4px inside the work area so
 // the card never leaves the screen, and keeping her body uncovered.
 func quickChatPosition(pet, card mygo.Rectangle, area motionRect) motionPoint {
-	left := float64(area.x) + quickChatInset
-	right := float64(area.x+area.width) - float64(card.Width) - quickChatInset
-	top := float64(area.y) + quickChatInset
-	bottom := float64(area.y+area.height) - float64(card.Height) - quickChatInset
+	return quickChatPositionInSpace(pet, card, area, 1)
+}
+func quickChatPositionInSpace(pet, card mygo.Rectangle, area motionRect, scale float64) motionPoint {
+	inset, gap := float64(quickChatInset)*scale, float64(quickChatAnchorGap)*scale
+	left := float64(area.x) + inset
+	right := float64(area.x+area.width) - float64(card.Width) - inset
+	top := float64(area.y) + inset
+	bottom := float64(area.y+area.height) - float64(card.Height) - inset
 
 	x := float64(pet.X) + float64(pet.Width)/2 - float64(card.Width)/2
 	x = math.Min(math.Max(x, left), math.Max(left, right))
 
 	petTop, petBottom := float64(pet.Y), float64(pet.Y+pet.Height)
-	y := petTop - float64(card.Height) - quickChatAnchorGap
+	y := petTop - float64(card.Height) - gap
 	if y < top {
-		y = petBottom + quickChatAnchorGap
+		y = petBottom + gap
 		if y < petBottom && float64(area.y+area.height)-petBottom < petTop-float64(area.y) {
 			y = top
 		}
@@ -50,13 +59,19 @@ func quickChatPosition(pet, card mygo.Rectangle, area motionRect) motionPoint {
 }
 
 func (q *QuickChat) positionNearPet() {
-	if q.closed || q.win == nil || q.win.IsDestroyed() || q.parent == nil || q.parent.IsDestroyed() {
+	if q.positioning || q.closed || q.win == nil || q.win.IsDestroyed() || q.parent == nil || q.parent.IsDestroyed() {
 		return
 	}
-	bounds := q.parent.Bounds()
+	q.positioning = true
+	defer func() { q.positioning = false }()
+	bounds := q.owner.petBounds()
 	if area, ok := motionWorkArea(bounds); ok {
-		point := quickChatPosition(bounds, q.win.Bounds(), area)
-		q.win.SetPosition(int(point.x), int(point.y))
+		scale := petCoordinateScale(activePetDisplay(petDisplays(), bounds))
+		card := petWindowBounds(q.win)
+		card.Width, card.Height = int(math.Round(quickChatWidth*scale)), int(math.Round(float64(q.win.Bounds().Height)*scale))
+		point := quickChatPositionInSpace(bounds, card, area, scale)
+		card.X, card.Y = int(point.x), int(point.y)
+		petPlaceNative(q.win, card)
 	}
 }
 

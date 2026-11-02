@@ -40,13 +40,17 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	ui.Column(c.Key("child-composer")).FillWidth().Gap(0).Children(func() {
 		paintChildAttachments(c, v, muted)
 		start, end := -1, -1
-		if mentions := ParseDraftMentions(d.Text); len(mentions) > 0 {
-			paintMentionChips(c, m, mentions, muted, c.Theme().Accent, true, &start, &end)
-		}
 		if v.Chip != nil && v.Chip.Open {
 			paintChipEditPopup(c, m, c.Theme().Background, c.Theme().Border, muted)
 		}
 		area := paintDraftTextInput(c, m, fg, muted, start, end).Disabled(v.Disabled)
+		if !v.Disabled && !c.Root().FocusWithin() {
+			area.AutoFocus()
+		}
+		if !v.Disabled && d.EditFocus {
+			area.Focus()
+			d.EditFocus = false
+		}
 		if !v.Disabled {
 			if paths := area.DroppedFiles(); len(paths) > 0 {
 				intakeTransferredFiles(m, paths)

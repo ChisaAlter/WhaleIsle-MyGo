@@ -99,7 +99,7 @@ func (s *mainState) assistantRoomCreateModel(ep harness.Endpoint) assistantui.Ro
 				s.mu.Unlock()
 				cwd := ""
 				if sessions != nil {
-					cwd = sessions.Snapshot().ScratchCwd
+					cwd = sessions.ScratchCwd()
 				}
 				controls.Start(scope, cwd)
 				s.updateAssistantTasks()
@@ -161,7 +161,7 @@ func (s *mainState) assistantRoomCreateModel(ep harness.Endpoint) assistantui.Ro
 				defer cancel()
 				fresh, writable, err := read(ctx)
 				if err == nil && (!writable || !pluginrpc.SameDshbotRoomCatalog(cmd.Expected, fresh)) {
-					err = fmt.Errorf("catalog identities/revision or write authority changed; refresh and review again")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotCatalogReviewChanged))
 				}
 				if err != nil || !current() || !controls.Current(ticket) || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)
@@ -221,7 +221,7 @@ func (s *mainState) openAssistantCreatedRoom(ep harness.Endpoint, client *dsh.Cl
 	s.assistantPluginDetail = label + "…"
 	s.assistantLastAct = s.assistantPluginDetail
 	s.mu.Unlock()
-	previous := sessions.Snapshot().SelectedID
+	previous := sessions.SelectedSessionID()
 	asst.SelectDshbot(expected.ID, ep.Origin)
 	live := func() bool {
 		if !current() || !s.assistantDshbotCurrent(ep, client) {
@@ -231,7 +231,7 @@ func (s *mainState) openAssistantCreatedRoom(ep harness.Endpoint, client *dsh.Cl
 		same := s.assistant == asst && s.sessions == sessions && s.win == win
 		s.mu.Unlock()
 		selected := asst.Snapshot()
-		return same && selected.DshbotID == expected.ID && selected.DshbotOrigin == ep.Origin && sessions.Snapshot().SelectedID == previous
+		return same && selected.DshbotID == expected.ID && selected.DshbotOrigin == ep.Origin && sessions.SelectedSessionID() == previous
 	}
 	s.updateAssistantTasks()
 	go func() {
@@ -257,14 +257,14 @@ func (s *mainState) openAssistantCreatedRoom(ep harness.Endpoint, client *dsh.Cl
 				}
 			}
 			if item.ID != expected.ID || item.Kind != "room" || item.Hidden || item.SessionID != expected.SessionID || item.WorkspaceID != expected.WorkspaceID {
-				return "", fmt.Errorf("room already exists, but its canonical session/workspace changed; inspect it before opening")
+				return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdCreatedRoomIdentityChanged))
 			}
 			if !live() {
 				return "", fmt.Errorf("created room opening expired before canonical open")
 			}
 			sid, err := rpc.DshbotOpen(ctx, item, catalog.View.Revision, cwd)
 			if err != nil {
-				return "", fmt.Errorf("room already exists; canonical opening failed: %w", err)
+				return "", fmt.Errorf(i18n.T(i18n.KeyCmdCreatedRoomOpenFailed), err)
 			}
 			if !live() {
 				return "", fmt.Errorf("created room opening expired after canonical receipt")

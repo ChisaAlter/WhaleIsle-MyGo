@@ -1,11 +1,13 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"math"
 	"path"
 	"sort"
 	"strings"
+	"sync"
 
 	"whaleisle/internal/store/session"
 )
@@ -36,23 +38,84 @@ type mentionEvent struct {
 	} `json:"data"`
 }
 
+type mentionEventMemoEntry struct {
+	raw   string
+	event mentionEvent
+	ok    bool
+}
+
+const mentionEventMemoByteLimit = 16 << 20
+
+var mentionEventMemo = struct {
+	mu       sync.Mutex
+	m        map[coordinateKey]mentionEventMemoEntry
+	rawBytes int
+}{
+	m: make(map[coordinateKey]mentionEventMemoEntry),
+}
+
+func decodeMentionEvent(m session.Message) (mentionEvent, bool) {
+	if len(m.Raw) == 0 {
+		return mentionEvent{}, false
+	}
+	cacheable := !math.IsNaN(m.Seq) && len(m.Raw) <= mentionEventMemoByteLimit
+	key := coordinateKey{id: m.ID, seq: m.Seq, raw: len(m.Raw)}
+	if cacheable {
+		mentionEventMemo.mu.Lock()
+		if entry, exists := mentionEventMemo.m[key]; exists && bytes.Equal([]byte(entry.raw), m.Raw) {
+			mentionEventMemo.mu.Unlock()
+			return entry.event, entry.ok
+		}
+		mentionEventMemo.mu.Unlock()
+	}
+	var e mentionEvent
+	ok := json.Unmarshal(m.Raw, &e) == nil
+	if ok && e.Type == "tool/ptc-dispatch" && e.Data.Turn == nil {
+		var coordinates struct {
+			Data map[string]json.RawMessage `json:"data"`
+		}
+		_ = json.Unmarshal(m.Raw, &coordinates)
+		e.sessionLevel = string(coordinates.Data["turn"]) == "null"
+	}
+	if cacheable {
+		entry := mentionEventMemoEntry{raw: string(m.Raw), event: e, ok: ok}
+		mentionEventMemo.mu.Lock()
+		prev, replacing := mentionEventMemo.m[key]
+		retained := mentionEventMemo.rawBytes - len(prev.raw)
+		if (!replacing && len(mentionEventMemo.m) >= memoLimit) || retained+len(entry.raw) > mentionEventMemoByteLimit {
+			mentionEventMemo.m = make(map[coordinateKey]mentionEventMemoEntry)
+			retained = 0
+		}
+		mentionEventMemo.m[key] = entry
+		mentionEventMemo.rawBytes = retained + len(entry.raw)
+		mentionEventMemo.mu.Unlock()
+	}
+	return e, ok
+}
+
 // FileMentionResolver uses recorded turn locations and completed mutation facts.
 // PTC inherits the wire location index, never a projection's TurnSeq, rootCallId,
 // selected turn, or a path guessed from closing prose.
+// FileMentionResolver answers, for one closing answer, which files it mentions.
+// The per-pass answers are memoized by render_memo.go.
 func FileMentionResolver(messages []session.Message, closing session.Message) func(string) string {
-	var owner mentionEvent
-	if closing.Role != "assistant" || closing.Streaming || json.Unmarshal(closing.Raw, &owner) != nil || owner.Type != "assistant/message" || owner.Data.Turn == nil || owner.Seq <= 0 || owner.Data.Interrupted {
+	return memoizedMentionResolver(messages, closing)
+}
+
+func buildMentionResolver(messages []session.Message, closing session.Message) func(string) string {
+	if closing.Role != "assistant" || closing.Streaming {
+		return nil
+	}
+	owner, ok := decodeMentionEvent(closing)
+	if !ok || owner.Type != "assistant/message" || owner.Data.Turn == nil || owner.Seq <= 0 || owner.Data.Interrupted {
 		return nil
 	}
 	var events []mentionEvent
 	for _, m := range messages {
-		var e mentionEvent
-		if json.Unmarshal(m.Raw, &e) == nil && e.Seq > 0 && e.Seq <= owner.Seq {
-			var coordinates struct {
-				Data map[string]json.RawMessage `json:"data"`
-			}
-			_ = json.Unmarshal(m.Raw, &coordinates)
-			e.sessionLevel = string(coordinates.Data["turn"]) == "null"
+		if m.Seq > 0 && m.Seq > owner.Seq {
+			continue
+		}
+		if e, ok := decodeMentionEvent(m); ok && e.Seq > 0 && e.Seq <= owner.Seq {
 			events = append(events, e)
 		}
 	}

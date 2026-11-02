@@ -79,6 +79,7 @@ type agentNavigationState struct {
 }
 
 func (s *Store) invalidateAgentNavigationLocked() {
+	s.invalidateViewLocked()
 	for _, b := range s.agentNavigation.branches {
 		if b.cancel != nil {
 			b.cancel()

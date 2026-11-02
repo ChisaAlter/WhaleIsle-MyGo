@@ -223,7 +223,7 @@ func startGenericWorker(userData string, opts GenericOptions) (*genericWorker, e
 		return nil, err
 	}
 	cmd := exec.Command(opts.NodeBin, "-e", string(source))
-	processutil.Background(cmd)
+	processutil.BackgroundTree(cmd)
 	cmd.Env = os.Environ()
 	input, err := cmd.StdinPipe()
 	if err != nil {

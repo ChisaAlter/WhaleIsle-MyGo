@@ -377,6 +377,23 @@ func prepareWorkspace(m Model) {
 	w.focusPending = ""
 	w.syncRoute(derefString(m.RightPaneTab))
 }
+
+// The installed rightbar derives phone fullscreen from frame width. It is
+// presentation only: no serialized mode or pane identity changes on resize.
+const workspaceAutoFullscreenWidth = float32(768)
+
+func workspaceAutoFullscreen(m Model) bool {
+	width := m.ViewportW
+	if width <= 0 && m.Sizes != nil {
+		width = m.Sizes.viewportW
+	}
+	return !m.WorkspacePage && m.RightPaneOpen && width > 0 && width < workspaceAutoFullscreenWidth
+}
+
+func workspaceFullscreen(m Model) bool {
+	return m.Sizes != nil && m.Sizes.Workspace != nil && (workspaceAutoFullscreen(m) || m.Sizes.Workspace.Fullscreen != "")
+}
+
 func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 	if m.Sizes.Workspace == nil {
 		prepareWorkspace(m)
@@ -401,7 +418,7 @@ func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 		workspaceDockDropBarrier(dock)
 		dock.Children(func() { workspaceDockNode(c, m, w.Root) })
 	}
-	if m.RightPaneOpen && w.Fullscreen != "" && w.Root.dockedLeaf() != nil {
+	if m.RightPaneOpen && workspaceFullscreen(m) && w.Root.dockedLeaf() != nil {
 		// SidebarRight keeps one DockLayout tree in both push and fullscreen
 		// modes. Retain every split and resource occurrence, and reuse the
 		// existing native-safe main area rather than stacking a canvas overlay
@@ -493,7 +510,17 @@ func workspacePaneClose(m Model, n *WorkspacePane) {
 }
 
 func workspacePaneMaximize(m Model, n *WorkspacePane) {
+	if n == nil || n.Float != nil || m.Sizes == nil || m.Sizes.Workspace == nil {
+		return
+	}
 	w := m.Sizes.Workspace
+	if workspaceAutoFullscreen(m) {
+		w.Fullscreen = ""
+		if m.OnToggleTools != nil {
+			m.OnToggleTools()
+		}
+		return
+	}
 	if w.Fullscreen != "" {
 		w.Fullscreen = ""
 	} else {
@@ -515,7 +542,7 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 			w.pending = func() { w.FloatWorkspaceTab(n.ID) }
 		}
 		label := paneLabel("面板全屏", "Maximize pane")
-		if w.Fullscreen != "" {
+		if workspaceFullscreen(m) {
 			label = paneLabel("退出全屏", "Restore pane")
 		}
 		if menu.Item(label).Chosen() {
@@ -607,9 +634,5 @@ func ToggleWorkspacePaneFullscreen(m Model) {
 	}
 	prepareWorkspace(m)
 	w := m.Sizes.Workspace
-	if w.Fullscreen != "" {
-		w.Fullscreen = ""
-	} else {
-		w.Fullscreen = w.Active
-	}
+	workspacePaneMaximize(m, w.Root.find(w.Active))
 }

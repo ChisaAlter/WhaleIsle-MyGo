@@ -9,13 +9,13 @@ import (
 // bodyCard follows the settings feature cards, independently of the navigation shell.
 func bodyCard(c *ui.Context, m Model, content func()) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(12, 16).Border(1, chrome.Color(colors.Border)).Radius(12).Background(chrome.Color(colors.Field)).Children(content)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(14, 16).Border(0.5, chrome.Color(colors.Border).Alpha(0.45)).Radius(12).Background(chrome.Color(colors.Field)).Children(content)
 }
 
 // bodyRosterRow keeps metadata above actions at narrow widths without a fixed label column.
 func bodyRosterRow(c *ui.Context, title string, content func(), fg, muted ui.Color) {
 	ui.Column(c.Key(title)).FillWidth().MinWidth(0).Gap(6).Padding(12, 0).Children(func() {
-		ui.Text(c, title).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+		ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 		content()
 	})
 }
@@ -27,9 +27,9 @@ func bodyDialog(c *ui.Context, open *bool, title string, content func()) {
 		w, h := c.Size()
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(720, w-32)), 20).
 			Height(max(0, min(720, h-32))).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().Grow(1).MinWidth(0)
-				if ui.Button(c, providerCopy("关闭", "Close")).Clicked() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(600).Grow(1).MinWidth(0)
+				if ui.Button(c, providerCopy("关闭", "Close")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
 					*open = false
 				}
 			})

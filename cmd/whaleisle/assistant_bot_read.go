@@ -30,7 +30,7 @@ func (s *mainState) initializeBotReadState(ctx context.Context, run *botNotifica
 	s.mu.Unlock()
 	sid := ""
 	if sessions != nil {
-		sid = sessions.Snapshot().SelectedID
+		sid = sessions.SelectedSessionID()
 	}
 	candidates := botnotify.ReadCandidates(snapshot.Contacts, sid)
 	if len(candidates) == 0 {
@@ -82,7 +82,7 @@ func (s *mainState) markOpenedBotRead(ep harness.Endpoint, client *dsh.Client, i
 			sessions := s.sessions
 			ready := s.bootStatus.Endpoint == ep
 			s.mu.Unlock()
-			return same && ready && sessions != nil && sessions.Snapshot().SelectedID == sid
+			return same && ready && sessions != nil && sessions.SelectedSessionID() == sid
 		}
 		rpc := s.pluginRPCClient(ep)
 		if !current() {

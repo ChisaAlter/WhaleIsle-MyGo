@@ -32,6 +32,7 @@ func (s *Store) SkillInventoryTarget(root string) (SkillTarget, error) {
 func (s *Store) skillInventoryTargetError(err error) {
 	s.mu.Lock()
 	s.lastAction = err.Error()
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -69,6 +70,7 @@ func (s *Store) UpdateSkillInventory(ctx context.Context, name, description, con
 		} else {
 			s.lastAction = "skill updated: " + name
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if err == nil {

@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestExtractTextishImageBlocksKeepTrailingTextSeparate(t *testing.T) {
+	raw := json.RawMessage(`{"content":[{"type":"text","text":"Before"},{"type":"image","path":"./a_(1).png"},{"type":"text","text":"After"}]}`)
+	if got := extractTextish(raw); got != "Before\n[image] ./a_(1).png\nAfter" {
+		t.Fatalf("mixed block order=%q", got)
+	}
+	raw = json.RawMessage(`"![one](a_(1).png) ![two](b.png)"`)
+	if got := extractTextish(raw); got != "[image] a_(1).png\n[image] b.png" {
+		t.Fatalf("multiple image-only string=%q", got)
+	}
+}
+
 func TestExtractTextishImageBlock(t *testing.T) {
 	raw := json.RawMessage(`{"content":[{"type":"image","path":"/tmp/shot.png"}]}`)
 	got := extractTextish(raw)

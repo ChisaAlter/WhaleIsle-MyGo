@@ -48,7 +48,7 @@ func schedulePaneTarget(m Model) (*SchedulePaneState, string, ScheduleTaskTarget
 		return nil, "", ScheduleTaskTarget{}
 	}
 	state := m.workspacePane.Schedule
-	scope := scheduleScope(m.ScheduleStore.Snapshot().Origin, m.Store.Snapshot().SelectedID)
+	scope := scheduleScope(m.ScheduleStore.Snapshot().Origin, m.Store.SelectedSessionID())
 	return state, scope, state.Targets[scope]
 }
 func schedulePaneTitle(m Model) string {
@@ -88,7 +88,7 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 	if state.panels == nil {
 		state.panels = map[string]*scheduleui.Panel{}
 	}
-	sessions := m.Store.Snapshot()
+	sessions := renderSnapshot(m)
 	links := map[string]string{}
 	if sessions.ClientReady && !sessions.ListLoading && sessions.ListErr == "" {
 		archived := map[string]bool{}

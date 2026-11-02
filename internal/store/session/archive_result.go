@@ -5,6 +5,7 @@ import "whaleisle/internal/dsh/api"
 // Apply the existing session/delete reply atomically, before repainting the
 // archive roster. This also covers a missed or delayed $events notification.
 func (s *Store) applyDeleteResultLocked(out api.SessionDeleteValue) {
+	s.invalidateViewLocked()
 	for _, id := range out.DeletedSessionIds {
 		m := lifecycleMutation{kind: "api-session/deleted", sessionID: id}
 		if s.listLoading {

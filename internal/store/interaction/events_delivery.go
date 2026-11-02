@@ -184,6 +184,13 @@ func (s *Store) finishEventsOutcome(owner *EventsDeliveryOwner, id string, waite
 	if d != nil {
 		d.scope, d.response, d.responseCancel, d.responseStop = scope, authority, cancel, stop
 		s.responses[id] = out
+	} else {
+		// No delivery owns the returned response context in this path. Release
+		// both its cancellation registration and parent reference immediately.
+		cancel()
+		if stop != nil {
+			stop()
+		}
 	}
 	s.mu.Unlock()
 	return &out

@@ -32,7 +32,7 @@ func executeOpenUINativeAction(ctx context.Context, b *openUIBlock, handle *prev
 		}
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		return b.handle == handle && b.valid != nil
+		return b.handle == handle && b.valid != nil && (event.Revision == 0 || event.Revision == b.revision)
 	}
 	if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
 		status, err = 501, errors.New("OpenUI native actions are unavailable on this platform")
@@ -56,6 +56,8 @@ func executeOpenUINativeAction(ctx context.Context, b *openUIBlock, handle *prev
 			case "clipboard":
 				// WriteText discards its native error; use the error-returning API.
 				err = mygo.Clipboard.Write(transfer.TextData(event.Text))
+			case "download":
+				err = saveWhaleDownload(b.parent, event, current)
 			case "open-url":
 				// Existing HTTP(S)-only product route calls MyGo's native shell.
 				err = webview.OpenExternal(event.URL)

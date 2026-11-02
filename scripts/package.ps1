@@ -4,6 +4,7 @@
 # Does NOT download NSIS or build an installer when tools are missing.
 #
 # Usage (from repo root):  . .\scripts\env.ps1; .\scripts\package.ps1
+param([string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT)
 
 $ErrorActionPreference = 'Stop'
 
@@ -12,7 +13,8 @@ Set-Location $ProjectRoot
 
 . (Join-Path $PSScriptRoot 'env.ps1')
 
-$DistRoot = Join-Path $ProjectRoot 'dist'
+if (-not $OutputRoot) { $OutputRoot = Join-Path $ProjectRoot 'dist' }
+$DistRoot = [System.IO.Path]::GetFullPath($OutputRoot)
 $Stage = Join-Path $DistRoot 'whaleisle'
 $ExeOut = Join-Path $Stage 'whaleisle.exe'
 
@@ -22,8 +24,8 @@ if ($env:WHALEISLE_VERSION) {
     $Version = '0.0.0-dev'
 }
 
-if (Test-Path $Stage) {
-    Remove-Item -Recurse -Force $Stage
+if (Test-Path -LiteralPath $Stage) {
+    throw "Package stage already exists; choose a fresh -OutputRoot rather than deleting existing artifacts: $Stage"
 }
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
@@ -43,6 +45,9 @@ if ($PreviewOS -eq 'windows') {
     $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
     & go build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
     if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
+    $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
+    & go build -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
+    if ($LASTEXITCODE -ne 0) { throw "Integration cleanup helper build failed (exit $LASTEXITCODE)" }
 }
 
 $ResSrc = Join-Path $ProjectRoot 'resources'
@@ -93,12 +98,15 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') inspect (Join-Path $VendorSrc 'deepseek-harness')
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host cannot read the shared desktop session schema.' }
     }
-    $MobileRoot = Join-Path $VendorSrc 'dshd-remote'
-    $MobileNode = Join-Path $MobileRoot 'node\node.exe'
-    if (-not (Test-Path $MobileNode)) { throw 'Mobile runtime missing. Run scripts/build-harness.ps1 first, or explicitly set WHALEISLE_PACKAGE_SKIP_RUNTIME=1 for a shell-only package.' }
-    & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify $MobileRoot
-    if ($LASTEXITCODE -ne 0) { throw 'Mobile runtime incomplete or changed; rebuild before packaging.' }
-    if (Test-Path $VendorSrc) {
+    $VendorDst = Join-Path $Stage 'runtime\vendor'
+    $SessionInput = Test-Path -LiteralPath (Join-Path $VendorSrc 'host-session-runtime.json') -PathType Leaf
+    if ($SessionInput) {
+        & node (Join-Path $PSScriptRoot 'session-runtime.mjs') release (Split-Path -Parent $VendorSrc) (Join-Path $Stage 'runtime')
+        if ($LASTEXITCODE -ne 0) { throw 'Complete rc.2 runtime staging or actual mobile native ABI validation failed.' }
+        $LinksHelper = Join-Path $Stage 'runtime\runtime-links.exe'
+        & go build -ldflags '-s -w -H windowsgui' -o $LinksHelper ./scripts/session-runtime-links
+        if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency transaction helper build failed.' }
+    } elseif (Test-Path $VendorSrc) {
         $VendorDst = Join-Path $Stage 'runtime\vendor'
         Write-Host "Copying runtime/vendor -> $VendorDst (may take a while)"
         New-Item -ItemType Directory -Force -Path (Split-Path $VendorDst) | Out-Null
@@ -132,9 +140,11 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         throw 'Selected Node differs from the verified Host session runtime; use the matching bundled Node.'
     }
     $NodeDst = Join-Path $Stage 'runtime\node'
-    Write-Host "Copying Node -> $NodeDst from $NodeSrc"
-    New-Item -ItemType Directory -Force -Path (Split-Path $NodeDst) | Out-Null
-    Copy-Item -Path $NodeSrc -Destination $NodeDst -Recurse -Force
+    if (-not $SessionInput) {
+        Write-Host "Copying Node -> $NodeDst from $NodeSrc"
+        New-Item -ItemType Directory -Force -Path (Split-Path $NodeDst) | Out-Null
+        Copy-Item -Path $NodeSrc -Destination $NodeDst -Recurse -Force
+    }
     $StagedNode = Join-Path $NodeDst 'node.exe'
     if (-not (Test-Path $StagedNode -PathType Leaf) -or (Get-FileHash $StagedNode -Algorithm SHA256).Hash -ne $NodeHash) {
         throw 'Packaged Host node.exe is missing or changed.'
@@ -143,15 +153,20 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & $StagedNode (Join-Path $PSScriptRoot 'session-runtime.mjs') verify $VendorDst
         if ($LASTEXITCODE -ne 0) { throw 'Packaged Host session runtime failed final verification.' }
     }
-    & $MobileNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
+    & node (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }
-    # The catalog resolves beside vendor, never inside vendor. Rebuild it after
-    # stage cleanup; missing payloads must not produce an empty release catalog.
+    # The original installed distribution may contain no optional sample catalog.
+    # An explicit selection or an existing catalog still receives full validation.
+    $SamplesExplicit = [bool]$env:WHALEISLE_COMPONENT_SAMPLES
     $SamplesSrc = $env:WHALEISLE_COMPONENT_SAMPLES
     if (-not $SamplesSrc) { $SamplesSrc = Join-Path (Split-Path -Parent $VendorSrc) 'components\samples' }
     $SamplesDst = Join-Path $Stage 'runtime\components\samples'
-    & node (Join-Path $PSScriptRoot 'component-samples.mjs') $SamplesSrc $SamplesDst
-    if ($LASTEXITCODE -ne 0) { throw 'Bundled component staging failed; set WHALEISLE_COMPONENT_SAMPLES to the selected original components/samples directory.' }
+    & node (Join-Path $PSScriptRoot 'session-runtime-samples.mjs') $SamplesSrc $SamplesDst $SamplesExplicit.ToString().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0) { throw 'Bundled component staging failed; the selected components/samples must contain valid real payloads.' }
+    if ($SessionInput) {
+        & node (Join-Path $PSScriptRoot 'session-runtime-nsis.mjs') $Stage (Join-Path $DistRoot 'runtime-files.nsh')
+        if ($LASTEXITCODE -ne 0) { throw 'Verified physical runtime include generation failed.' }
+    }
     # Both desktop Node and the separately verified phone runtime are now staged.
     $Marker = Join-Path $Stage '.runtime-staged'
     Set-Content -Path $Marker -Value '1' -NoNewline
@@ -160,7 +175,7 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
 
 $Readme = Join-Path $DistRoot 'README.md'
 $readmeText = @'
-# Whale Isle - staged packaging output (M11)
+# DeepSeekHarness Go - staged packaging output (M11)
 
 This folder holds **staging artifacts** only. `scripts/package.ps1` does not download NSIS or emit an installer when packager tools are absent.
 
@@ -186,7 +201,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 | Field | Release value |
 | --- | --- |
 | App ID / identifier | `ai.deepseek.harness.gui` |
-| Product name | Whale Isle |
+| Product name | DeepSeekHarness Go |
 
 '@
 [System.IO.File]::WriteAllText($Readme, $readmeText)
@@ -207,15 +222,20 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
     Write-Host "NSIS found: building $Setup"
     Push-Location (Join-Path $PSScriptRoot 'nsis')
     try {
-        $NsisArguments = @("/DVERSION=$Version")
+        $NsisArguments = @("/DVERSION=$Version", "/DSTAGE_DIR=$Stage", "/DSETUP_OUT=$Setup")
+        if ($SessionInput) { $NsisArguments += "/DRUNTIME_INCLUDE=$(Join-Path $DistRoot 'runtime-files.nsh')" }
         if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') { $NsisArguments += '/DSHELL_ONLY=1' }
         & $MakensisPath @NsisArguments (Split-Path -Leaf $Nsi)
     } finally {
         Pop-Location
     }
     if ($LASTEXITCODE -ne 0) {
-        Write-Warning "makensis failed (exit $LASTEXITCODE); staging artifacts kept"
-    } elseif (Test-Path $Setup) {
+        throw "makensis failed (exit $LASTEXITCODE); staging artifacts kept at $Stage"
+    }
+    if (-not (Test-Path -LiteralPath $Setup -PathType Leaf) -or (Get-Item -LiteralPath $Setup).Length -le 0) {
+        throw "makensis reported success but did not produce a non-empty installer: $Setup"
+    }
+    if (Test-Path $Setup) {
         Write-Host "Installer: $Setup"
 		# Emit the same offset/size/SHA256 blockmap consumed by the MyGo
 		# incremental updater. The setup remains the signed release artifact;

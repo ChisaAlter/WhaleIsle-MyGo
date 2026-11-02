@@ -33,7 +33,7 @@ func text(zh, en string) string {
 }
 
 func View(c *ui.Context, m Model) {
-	if m.Store == nil {
+	if m.Store == nil || !m.Store.WorkspaceNavigationPending() {
 		return
 	}
 	snap := m.Store.Snapshot()

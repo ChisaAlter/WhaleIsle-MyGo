@@ -116,6 +116,9 @@ func (s *Store) applyQuestionValuesLocked(values json.RawMessage, seq float64) {
 	s.applyQuestionValuesForSessionLocked(s.selectedID, values, seq)
 }
 func (s *Store) applyQuestionValuesForSessionLocked(id string, values json.RawMessage, seq float64) {
+	if id == "" || (!bytes.Contains(values, []byte(`"userQuestions"`)) && !bytes.Contains(values, []byte(`"inbox"`))) {
+		return
+	}
 	var faces map[string]json.RawMessage
 	if id == "" || json.Unmarshal(values, &faces) != nil {
 		return
@@ -126,6 +129,11 @@ func (s *Store) applyQuestionValuesForSessionLocked(id string, values json.RawMe
 		}
 	}
 }
+
+// applyQuestionFaceLocked accepts one Host face and advances the Snapshot
+// revision only when the stored projection changes. The list refresh repeats the
+// same faces for every session; invalidating unconditionally made every frame
+// rebuild its whole view (tmp/stalls, round 2026-10-26).
 func (s *Store) applyQuestionFaceLocked(id, key string, raw json.RawMessage, seq float64) {
 	if id == "" || (key != "userQuestions" && key != "inbox") || !json.Valid(raw) {
 		return
@@ -145,9 +153,25 @@ func (s *Store) applyQuestionFaceLocked(id, key string, raw json.RawMessage, seq
 		if p.Questions != nil && seq < p.QuestionsSeq {
 			return
 		}
+		if p.Questions != nil && bytes.Equal(p.Questions, raw) {
+			// The Host re-sends the same face with a newer as-of sequence on
+			// every list refresh: record the sequence, change nothing visible.
+			if seq != p.QuestionsSeq {
+				p.QuestionsSeq = seq
+				s.questionProjections[id] = p
+			}
+			return
+		}
 		p.Questions, p.QuestionsSeq = append(json.RawMessage(nil), raw...), seq
 	} else {
 		if p.Inbox != nil && seq < p.InboxSeq {
+			return
+		}
+		if p.Inbox != nil && bytes.Equal(p.Inbox, raw) {
+			if seq != p.InboxSeq {
+				p.InboxSeq = seq
+				s.questionProjections[id] = p
+			}
 			return
 		}
 		p.Inbox, p.InboxSeq = append(json.RawMessage(nil), raw...), seq
@@ -164,9 +188,11 @@ func (s *Store) applyQuestionFaceLocked(id, key string, raw json.RawMessage, seq
 	}
 	p.pruneQueueSeen()
 	s.questionProjections[id] = p
+	s.invalidateViewLocked()
 }
 
 func (s *Store) applyQuestionControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type      string          `json:"type"`
 		SessionID string          `json:"sessionId"`

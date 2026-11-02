@@ -18,6 +18,7 @@ func bodyIcon(name string) *ui.SVG {
 		"document": `<path d="M4 2h6l3 3v9H4zM10 2v4h3M6 8h5M6 11h5"/>`,
 		"down":     `<path d="m4 6 4 4 4-4"/>`,
 		"right":    `<path d="m6 4 4 4-4 4"/>`,
+		"help":     `<circle cx="8" cy="8" r="6.2"/><path d="M6.3 6.4a1.7 1.7 0 1 1 2.4 1.6c-.5.3-.7.6-.7 1.2M8 11.4v.1"/>`,
 		"gear":     `<circle cx="8" cy="8" r="4.2"/><circle cx="8" cy="8" r="1.8"/><path d="M8 1.8v1.5M8 12.7v1.5M1.8 8h1.5M12.7 8h1.5M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/>`,
 	}
 	icon := ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">` + paths[name] + `</svg>`))

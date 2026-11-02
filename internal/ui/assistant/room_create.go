@@ -8,6 +8,7 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -55,10 +56,12 @@ func roomCreateMembers(cmd pluginrpc.DshbotRoomCreateCommand) string {
 func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, field, border, accent ui.Color) {
 	s := m.State
 	blocked = blocked || s.Busy
-	ui.Column(c.Key("native-room-create")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateBotGroup)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantChoose26RealBotsFromTheCurrentHostC)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshCreationCatalog)).Disabled(blocked || s.Scope == "").Clicked() {
+	card := ui.Column(c.Key("native-room-create")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+	card.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateBotGroup)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantChoose26RealBotsFromTheCurrentHostC)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshCreationCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -68,19 +71,19 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheCurrentCatalogAndWriteAutho)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheCurrentCatalogAndWriteAutho)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWriteAuthorityUnavailable7)).TextColor(accent)
 		}
 		if s.Created.ID != "" {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantGroupSession), s.Created.Name, s.Created.ID, s.Created.SessionID)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningOnlyFocusesThisGroupSDedicated)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedGroup)).Disabled(blocked).Clicked() {
+			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedGroup)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				m.OnOpen()
 			}
 		}
 		if s.Draft == nil {
-			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewGroup)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
+			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewGroup)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
 				m.OnStart()
 			}
 			return
@@ -91,7 +94,7 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 		for _, f := range []struct{ id, label, value string }{{"name", i18n.T(i18n.KeyMiscAssistantGroupName120), d.Name}, {"scratchCwd", i18n.T(i18n.KeyMiscAssistantScratchCwdRequired), d.ScratchCwd}, {"maxRounds", i18n.T(i18n.KeyMiscAssistantRounds13), d.MaxRounds}, {"maxSpeaks", i18n.T(i18n.KeyMiscAssistantSpeaks110), d.MaxSpeaks}} {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("room-"+f.id), &value).Label(f.label).FillWidth().Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
+			ui.TextInput(c.Key("room-"+f.id), &value).Label(f.label).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, value)
 				}
@@ -99,7 +102,7 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 		}
 		createWorkspacePicker(c.Key("new-room-workspace"), d.WorkspaceID, m.Workspaces, m.WorkspacesKnown, disabled, m.OnChange, muted)
 		description := d.Description
-		ui.TextArea(c.Key("room-description"), &description).Label(i18n.T(i18n.KeyMiscAssistantDescription120002)).Lines(3, 8).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextArea(c.Key("room-description"), &description).Label(i18n.T(i18n.KeyMiscAssistantDescription120002)).Lines(3, 8).Radius(8).Border(.5, border).FillWidth().Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("description", description)
 			}
@@ -142,23 +145,23 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 			if row := s.Candidate; row != nil {
 				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantMatchingRecord), row.Name, row.ID, row.SessionID, row.Description, row.WorkspaceID, strings.Join(row.MemberBotIDs, ", "), row.MaxRounds, row.MaxSpeaks)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantACatalogEntryDoesNotProveTheSessionW)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantUseInspectedGroup)).Disabled(blocked).Clicked() {
+				if m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantUseInspectedGroup)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					m.OnAdopt(row.ID)
 				}
 			}
 		} else {
-			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardGroupDraft)).Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardGroupDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewGroupCreation)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
+			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewGroupCreation)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
 				m.OnReview()
 			}
 		}
 		if r := s.Review; r != nil {
 			cmd := r.Command
 			d := cmd.Draft
-			ui.Column(c.Key("room-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewNewGroup)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+			ui.Column(c.Key("room-confirmation")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(7).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewNewGroup)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Host: %s · revision %d\nGroup: %s\nDescription: %s\nWorkspace ID: %s\nScratch cwd: %s\nRoom ID: %s\nCanonical session: %s\nRounds: %d · Speaks: %d\nMembers:\n%s", m.HostLabel, cmd.Expected.Revision, d.Name, d.Description, d.WorkspaceID, d.ScratchCwd, cmd.ID, cmd.SessionID, d.MaxRounds, d.MaxSpeaks, roomCreateMembers(cmd))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostWritesTheRoomCatalogEntryAndA)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantUsesTheHostDefaultAvatarGroupModelFie)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -166,10 +169,10 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 				if ui.Checkbox(c, &ack, roomCreateAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToGroupDraft)).Disabled(blocked).Clicked() {
+				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToGroupDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					m.OnDismiss()
 				}
-				if m.OnConfirm != nil && ui.Button(c, roomCreateConfirmLabel()).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
+				if m.OnConfirm != nil && ui.Button(c, roomCreateConfirmLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
 					m.OnConfirm()
 				}
 			})

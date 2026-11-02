@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
 	"regexp"
@@ -70,6 +71,9 @@ func citationsFromWebResult(result *session.WebResult) []Citation {
 }
 
 func extractCitationsFromMarkdown(body string) []Citation {
+	if !strings.Contains(body, "http://") && !strings.Contains(body, "https://") {
+		return nil
+	}
 	var out []Citation
 	for _, m := range mdLinkRE.FindAllStringSubmatch(body, -1) {
 		if len(m) > 1 {
@@ -83,6 +87,9 @@ func extractCitationsFromMarkdown(body string) []Citation {
 }
 
 func extractCitationsFromJSON(raw json.RawMessage) []Citation {
+	if !bytes.Contains(raw, []byte("http://")) && !bytes.Contains(raw, []byte("https://")) {
+		return nil
+	}
 	var v any
 	if json.Unmarshal(raw, &v) != nil {
 		return nil

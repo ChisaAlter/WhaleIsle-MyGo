@@ -24,7 +24,7 @@ func (s *mainState) svgImageOwner(window *mygo.Window, sessions *session.Store) 
 	if window == nil || sessions == nil {
 		return nil
 	}
-	snapshot := sessions.Snapshot()
+	snapshot := sessions.SelectionSummary()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.quitting || s.svgImagesPaused || s.win != window || s.sessions != sessions {
@@ -55,7 +55,7 @@ func (s *mainState) svgImageOwner(window *mygo.Window, sessions *session.Store) 
 		if !current {
 			return false
 		}
-		latest := sessions.Snapshot()
+		latest := sessions.SelectionSummary()
 		return latest.ComposerHostGeneration == scope.host && latest.SelectedID == scope.selected
 	}
 	s.svgImages = scope

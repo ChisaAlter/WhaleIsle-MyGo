@@ -110,12 +110,12 @@ func (s *mainState) restoreResumeSelection() {
 	if id == "" || sessions == nil {
 		return
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.SelectionSummary()
 	if !snap.ClientReady || snap.ListLoading || snap.ListErr != "" {
 		return
 	}
 	// The initial empty snapshot arrives before RefreshList is scheduled.
-	if len(snap.Items) == 0 {
+	if !sessions.HasListedItems() {
 		return
 	}
 	s.mu.Lock()
@@ -125,11 +125,9 @@ func (s *mainState) restoreResumeSelection() {
 		sessions.SetLastAction(i18n.T(i18n.KeyCmdRecoveredDraftsWereKeptTheWorkspaceCha))
 		return
 	}
-	for _, item := range snap.Items {
-		if item.SessionID == id {
-			sessions.Select(id)
-			return
-		}
+	if sessions.HasListedSession(id) {
+		sessions.Select(id)
+		return
 	}
 	sessions.SetLastAction(i18n.T(i18n.KeyCmdThePreviousSessionIsNotInTheCurrentL))
 }
@@ -184,14 +182,14 @@ func (s *mainState) captureResumeOwnedLocked() (recovery.State, error) {
 		return recovery.State{}, fmt.Errorf("%s", s.resumeError)
 	}
 	if s.resumeStore == nil {
-		return recovery.State{}, fmt.Errorf("resume storage is not available")
+		return recovery.State{}, fmt.Errorf("%s", i18n.T(i18n.KeyCmdResumeStorageUnavailable))
 	}
 	next := recovery.State{Version: 1}
 	if s.cfgStore != nil {
 		next.Workspace = s.cfgStore.Get().Workspace
 	}
 	if s.sessions != nil {
-		next.SelectedSession = s.sessions.Snapshot().SelectedID
+		next.SelectedSession = s.sessions.SelectedSessionID()
 	}
 	if s.resumePendingSession != "" {
 		next.SelectedSession = s.resumePendingSession

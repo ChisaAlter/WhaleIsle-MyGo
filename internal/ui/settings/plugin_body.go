@@ -39,9 +39,9 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 		for _, field := range ns.Fields {
 			f := field
 			ui.Column(c.Key(f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, f.Label).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-					if ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).Disabled(disabled).Clicked() {
+					if ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
 						binding.Reset(f.Key)
 					}
 				})
@@ -60,20 +60,20 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 						}
 					}
 				case store.FieldEnum:
-					if ui.Select(c, &value, f.EnumOptions).FillWidth().Disabled(disabled).Changed() {
+					if ui.Select(c, &value, f.EnumOptions).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() {
 						binding.SetDraft(f.Key, value)
 					}
 				case store.FieldJSON:
-					if ui.TextArea(c, &value).FillWidth().MinHeight(100).Lines(4, 12).Label(f.Label).ReadOnly(disabled).Changed() {
+					if ui.TextArea(c, &value).FillWidth().MinHeight(100).Lines(4, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled).Changed() {
 						binding.SetDraft(f.Key, value)
 					}
 				default:
 					if f.Kind == store.FieldString && (MultilineStringField(f) || strings.Contains(value, "\n")) {
-						if ui.TextArea(c, &value).FillWidth().MinHeight(80).Lines(3, 10).Label(f.Label).ReadOnly(disabled).Changed() {
+						if ui.TextArea(c, &value).FillWidth().MinHeight(80).Lines(3, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled).Changed() {
 							binding.SetDraft(f.Key, value)
 						}
 					} else {
-						input := ui.TextInput(c, &value).FillWidth().Label(f.Label).ReadOnly(disabled)
+						input := ui.TextInput(c, &value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled)
 						if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
 							input.Password()
 						}
@@ -88,10 +88,10 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 			})
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(disabled || !snap.Dirty).Clicked() {
+			if ui.PrimaryButton(c, providerCopy("保存", "Save")).Height(32).Padding(0, 14).Radius(8).FontSize(theme.InterfaceSize(13)).Disabled(disabled || !snap.Dirty).Clicked() {
 				binding.Save(context.Background())
 			}
-			if ui.Button(c, providerCopy("放弃草稿", "Discard drafts")).Disabled(snap.Saving || !snap.Dirty).Clicked() {
+			if ui.Button(c, providerCopy("放弃草稿", "Discard drafts")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(snap.Saving || !snap.Dirty).Clicked() {
 				binding.Discard()
 			}
 		})

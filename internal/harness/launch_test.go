@@ -102,3 +102,44 @@ func TestChildEnvSetsHome(t *testing.T) {
 		t.Fatalf("env:\n%s", env)
 	}
 }
+
+func TestResolveKeepsRelativeLaunchPathsAnchoredToParent(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	for _, name := range []string{"custom-launch.mjs", "node.exe", "custom.patch.yml"} {
+		if err := os.WriteFile(name, []byte("// fixture"), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts := LaunchOptions{
+		DshBin: "custom-launch.mjs", NodeBin: "node.exe", Home: "dsh-home",
+		Host: "127.0.0.1", PatchFiles: []string{"custom.patch.yml"},
+	}
+	p, err := Resolve(opts, 3080)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Command != filepath.Join(root, "node.exe") || p.Args[0] != filepath.Join(root, "custom-launch.mjs") {
+		t.Fatalf("relative launcher changed location after child cwd switch: %+v", p)
+	}
+	if !strings.Contains(strings.Join(p.Args, "\x00"), "--patch\x00"+filepath.Join(root, "custom.patch.yml")) {
+		t.Fatalf("relative patch was not anchored: %v", p.Args)
+	}
+	if !strings.Contains(strings.Join(p.Env, "\n"), "DSH_HOME="+filepath.Join(root, "dsh-home")) {
+		t.Fatal("relative DSH_HOME was not anchored")
+	}
+	if opts.PatchFiles[0] != "custom.patch.yml" {
+		t.Fatal("Resolve mutated the caller's patch slice")
+	}
+	if err := os.WriteFile("custom-launch.exe", nil, 0700); err != nil {
+		t.Fatal(err)
+	}
+	opts.DshBin = "custom-launch.exe"
+	p, err = Resolve(opts, 3080)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Command != filepath.Join(root, "custom-launch.exe") {
+		t.Fatalf("relative executable was not anchored: %q", p.Command)
+	}
+}

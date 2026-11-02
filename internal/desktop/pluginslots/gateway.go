@@ -33,6 +33,19 @@ type Gateway struct {
 }
 
 func NewGateway(origin, cookie string) (*Gateway, error) {
+	return NewGatewayWithHandler(origin, cookie, nil)
+}
+
+// NewGatewayWithHandler adds application-owned routes below /__whale_plugin_ui/.
+// They run after exact-origin and ephemeral-cookie authentication. Built-in
+// keyboard, shortcut and module routes retain precedence; all other paths proxy.
+func NewGatewayWithHandler(origin, cookie string, handler func(http.ResponseWriter, *http.Request) bool) (*Gateway, error) {
+	return NewGatewayWithResponseFilter(origin, cookie, handler, nil)
+}
+
+// NewGatewayWithResponseFilter allows a desktop-owned view to observe renderer
+// entries in its own response copy. The upstream files and other views stay intact.
+func NewGatewayWithResponseFilter(origin, cookie string, handler func(http.ResponseWriter, *http.Request) bool, filter func(*http.Response) error) (*Gateway, error) {
 	target, err := url.Parse(origin)
 	if err != nil || target.User != nil || (target.Scheme != "http" && target.Scheme != "https") || target.RawQuery != "" || target.Fragment != "" || (target.Path != "" && target.Path != "/") {
 		return nil, errors.New("plugin view: invalid Host origin")
@@ -82,6 +95,9 @@ func NewGateway(origin, cookie string) (*Gateway, error) {
 				dest.Scheme = "http"
 				dest.Host = listener.Addr().String()
 				r.Header.Set("Location", dest.String())
+			}
+			if filter != nil {
+				return filter(r)
 			}
 			return nil
 		},
@@ -133,6 +149,12 @@ func NewGateway(origin, cookie string) (*Gateway, error) {
 		}
 		if r.URL.Path == clientModulesPath {
 			g.serveClientModules(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/__whale_plugin_ui/") {
+			if handler == nil || !handler(w, r) {
+				http.NotFound(w, r)
+			}
 			return
 		}
 		proxy.ServeHTTP(w, r)

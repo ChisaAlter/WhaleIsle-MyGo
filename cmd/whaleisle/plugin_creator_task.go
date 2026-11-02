@@ -71,23 +71,23 @@ func (s *mainState) pluginCreatorAccess() (ready bool, description string, creat
 	creator := s.pluginCreatorTask
 	s.mu.Unlock()
 	if creator == nil || source == nil {
-		return false, pluginCreatorText("连接 Host 后可创建插件", "Connect a Host to create a plugin"), nil
+		return false, i18n.T(i18n.KeyCmdCreatorNeedsHost), nil
 	}
 	creator.ObserveVisible(s.pluginCreatorVisible(source))
 	loaded, loading, available, failure := source.CreatorPresetCatalog()
-	if !loaded && !loading && failure == "" && source.Snapshot().ClientReady {
+	if !loaded && !loading && failure == "" && source.ClientReady() {
 		source.RefreshAgentPresets(context.Background())
 		loading = true
 	}
 	state := creator.Snapshot()
 	description = pluginCreatorText("打开一个独立的 Creator 任务来创建插件", "Open a separate Creator task to create a plugin")
 	switch {
-	case !source.Snapshot().ClientReady:
-		description = pluginCreatorText("当前 Host 的 Creator 不可用", "Creator is unavailable on this Host")
+	case !source.ClientReady():
+		description = i18n.T(i18n.KeyCmdCreatorUnavailable)
 	case loading || !loaded && failure == "":
-		description = pluginCreatorText("正在检查 Creator…", "Checking Creator…")
+		description = i18n.T(i18n.KeyCmdCreatorChecking)
 	case failure != "":
-		description = pluginCreatorText("无法读取 Creator 预设；请刷新预设列表", "Could not read Creator presets; refresh the preset list")
+		description = i18n.T(i18n.KeyCmdCreatorPresetsUnreadable)
 	case !available:
 		description = pluginCreatorText("当前 Host 没有可用的 cordis 预设", "This Host has no available cordis preset")
 	case state.Busy:
@@ -150,8 +150,8 @@ func (s *mainState) renderPluginCreatorNotice(c *ui.Context) {
 		return
 	}
 	ui.Column(c.Key("plugin-creator-result")).FillWidth().Gap(6).Padding(12).Border(1, c.Theme().Border).Radius(8).Children(func() {
-		ui.Text(c, pluginCreatorText("Creator 创建结果", "Creator task result")).Bold()
-		ui.Text(c, fmt.Sprintf("Host: %s\nWorkspace: %s\nSession: %s\nPreset: cordis · %s", state.Host, state.Cwd, state.SessionID, state.Phase)).FontSize(12).Selectable()
+		ui.Text(c, i18n.T(i18n.KeyCmdCreatorResult)).Bold()
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyCmdCreatorResultMetadata), state.Host, state.Cwd, state.SessionID, state.Phase)).FontSize(12).Selectable()
 		if state.Error != "" {
 			ui.Text(c, state.Error).FontSize(12).Selectable()
 		}
@@ -166,7 +166,7 @@ func (s *mainState) renderPluginCreatorNotice(c *ui.Context) {
 					}
 				}()
 			}
-			if state.Created && ui.Button(c, pluginCreatorText("打开已有任务", "Open existing task")).Disabled(state.Busy).Clicked() {
+			if state.Created && ui.Button(c, i18n.T(i18n.KeyCmdCreatorOpenExisting)).Disabled(state.Busy).Clicked() {
 				s.openPluginCreator(creator, source, state.Ticket, false)
 			}
 		})

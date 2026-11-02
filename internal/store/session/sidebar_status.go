@@ -1,5 +1,7 @@
 package session
 
+import "encoding/json"
+
 // These are runtime attention hints, not persisted Session data. Only real Host
 // running observations establish transitions; catalog fallbacks never call this.
 func (s *Store) observeSidebarRunningLocked(id string, running, beforeBaseline bool) {
@@ -14,14 +16,26 @@ func (s *Store) observeSidebarRunningLocked(id string, running, beforeBaseline b
 	}
 	previous, known := s.sidebarRunning[id]
 	s.sidebarRunning[id] = running
+	changed := !known || previous != running
 	main := s.mainConversationReadID
 	if main == "" {
 		main = s.selectedID
 	}
 	if running || id == main {
-		delete(s.completionUnread, id)
+		if _, had := s.completionUnread[id]; had {
+			delete(s.completionUnread, id)
+			changed = true
+		}
 	} else if previous || !known && beforeBaseline {
-		s.completionUnread[id] = true
+		if !s.completionUnread[id] {
+			s.completionUnread[id] = true
+			changed = true
+		}
+	}
+	// The list refresh re-observes every row; an unchanged row must not make the
+	// next frame rebuild its Snapshot.
+	if changed {
+		s.invalidateViewLocked()
 	}
 }
 func (s *Store) reconcileSidebarStatusesLocked(items []Item) {
@@ -34,6 +48,7 @@ func (s *Store) reconcileSidebarStatusesLocked(items []Item) {
 		if !present[id] {
 			delete(s.sidebarRunning, id)
 			delete(s.completionUnread, id)
+			s.invalidateViewLocked()
 		}
 	}
 }
@@ -45,12 +60,17 @@ func (s *Store) MarkMainConversationViewed(id string) {
 	changed := s.completionUnread[id]
 	s.mainConversationReadID = id
 	delete(s.completionUnread, id)
+	if changed {
+		s.invalidateViewLocked()
+	}
 	s.mu.Unlock()
 	if changed {
 		s.fire()
 	}
 }
 func (s *Store) resetSidebarStatusesLocked() {
+	s.resetSidebarCatalogLocked()
+	s.invalidateViewLocked()
 	s.sidebarRunning = nil
 	s.completionUnread = nil
 	s.mainConversationReadID = ""
@@ -69,6 +89,14 @@ func (s *Store) SidebarQuestionProjections() map[string]QuestionProjectionState 
 		out[id] = p
 	}
 	return out
+}
+
+func (s *Store) ForEachSidebarQuestionProjection(fn func(id string, questions, inbox json.RawMessage)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, p := range s.questionProjections {
+		fn(id, p.Questions, p.Inbox)
+	}
 }
 
 // Releasing a child route is not itself proof the parent was viewed: callers

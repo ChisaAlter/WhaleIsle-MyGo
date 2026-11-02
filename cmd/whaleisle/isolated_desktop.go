@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/product"
 )
 
 // An isolated desktop uses an explicit data directory and cannot take over the
@@ -21,9 +22,12 @@ func isolatedDesktopRun() bool {
 	return os.Getenv("WHALEISLE_ISOLATED") == "1" || portableDesktopRoot != ""
 }
 
-// A portable double-click opens a visible desktop. Only the explicit QA mode
-// requests a hidden window; both modes retain the private integration guards.
-func isolatedDesktopHidden() bool { return os.Getenv("WHALEISLE_ISOLATED") == "1" }
+// A portable double-click opens a visible desktop. Explicit QA isolation stays
+// hidden unless visibility is also explicitly enabled; the integration guards
+// depend on isolation alone and remain active for visible isolated windows.
+func isolatedDesktopHidden() bool {
+	return os.Getenv("WHALEISLE_ISOLATED") == "1" && os.Getenv("WHALEISLE_ISOLATED_VISIBLE") != "1"
+}
 
 func prepareIsolatedDesktop() error {
 	if !isolatedDesktopRun() {
@@ -42,7 +46,7 @@ func prepareIsolatedDesktop() error {
 		return fmt.Errorf("WHALEISLE_ISOLATED cannot use the installed application's data directory")
 	}
 	sum := sha256.Sum256([]byte(strings.ToLower(data)))
-	mygo.App.SetName(fmt.Sprintf("MyGo鲸屿 Isolated %x", sum[:6]))
+	mygo.App.SetName(fmt.Sprintf("%s Isolated %x", product.Name, sum[:6]))
 	mygo.App.SetPath(mygo.PathUserData, filepath.Join(data, "native"))
 	mygo.App.SetPath(mygo.PathCache, filepath.Join(data, "native", "cache"))
 	mygo.App.SetPath(mygo.PathLogs, filepath.Join(data, "native", "logs"))

@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -59,10 +60,12 @@ func botDuplicateReviewText(host string, cmd pluginrpc.DshbotBotDuplicateCommand
 func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, muted, field, border, accent ui.Color) {
 	s := m.State
 	blocked = blocked || s.Busy
-	ui.Column(c.Key("native-bot-duplicate")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDuplicateSelectedPersonalBot)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantCopiesTheFullConfigurationTheOriginalS)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadDuplicateSource)).Disabled(blocked || s.Scope == "" || m.SourceID == "").Clicked() {
+	card := ui.Column(c.Key("native-bot-duplicate")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+	card.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDuplicateSelectedPersonalBot)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantCopiesTheFullConfigurationTheOriginalS)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadDuplicateSource)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "" || m.SourceID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -75,19 +78,19 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}
 		if !s.Loaded {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheFullCurrentSourceAndWriteA)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheFullCurrentSourceAndWriteA)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWriteAuthorityUnavailable5)).TextColor(accent)
 		}
 		if s.Created.ID != "" {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantReceiptLinkedCopy), s.Created.Name, s.Created.ID, s.Created.SessionID, botDuplicateConfigText(s.Created))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheProfileAndSessionReceiptsAreConfirm)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenReceiptLinkedCopy)).Disabled(blocked).Clicked() {
+			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenReceiptLinkedCopy)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				m.OnOpen(s.Created.ID)
 			}
 		}
 		if s.Draft == nil {
-			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantPrepareDuplicate)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
+			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantPrepareDuplicate)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
 				m.OnStart()
 			}
 			return
@@ -95,13 +98,13 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 		d := *s.Draft
 		disabled := blocked || s.Uncertain || s.Review != nil
 		name := d.Name
-		ui.TextInput(c.Key("bot-duplicate-name"), &name).Label(i18n.T(i18n.KeyMiscAssistantNewStableName120)).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextInput(c.Key("bot-duplicate-name"), &name).Label(i18n.T(i18n.KeyMiscAssistantNewStableName120)).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("name", name)
 			}
 		})
 		cwd := d.ScratchCwd
-		ui.TextInput(c.Key("bot-duplicate-cwd"), &cwd).Label(i18n.T(i18n.KeyMiscAssistantScratchCwdOverridden)).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.TextInput(c.Key("bot-duplicate-cwd"), &cwd).Label(i18n.T(i18n.KeyMiscAssistantScratchCwdOverridden)).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("scratchCwd", cwd)
 			}
@@ -118,21 +121,21 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 				row := row
 				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantUnattributedCandidate), row.Name, row.ID, row.SessionID, botDuplicateConfigText(row))).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantReviewThisCatalogBotSFullConfiguration)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-				if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenInspectedCandidate)+row.ID).Disabled(blocked).Clicked() {
+				if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenInspectedCandidate)+row.ID).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					m.OnOpen(row.ID)
 				}
 			}
 		} else {
-			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardDuplicateDraft)).Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardDuplicateDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewDuplicate)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
+			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewDuplicate)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
 				m.OnReview()
 			}
 		}
 		if r := s.Review; r != nil {
-			ui.Column(c.Key("bot-duplicate-confirmation")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewDuplicate2)).Bold().TextColor(fg)
+			ui.Column(c.Key("bot-duplicate-confirmation")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(7).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyMiscAssistantReviewDuplicate2)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				ui.Text(c, botDuplicateReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostKeepsTheConfigurationAboveInclu)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantANewIdSessionIdNameAndTimestampsPinn)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -148,10 +151,10 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 						m.OnAcknowledgeExecution(executionAck)
 					}
 				}
-				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToDuplicateDraft)).Disabled(blocked).Clicked() {
+				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToDuplicateDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					m.OnDismiss()
 				}
-				if m.OnConfirm != nil && ui.Button(c, botDuplicateConfirmLabel()).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || (hasGoal && !r.ExecutionAcknowledged)).Clicked() {
+				if m.OnConfirm != nil && ui.Button(c, botDuplicateConfirmLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || (hasGoal && !r.ExecutionAcknowledged)).Clicked() {
 					m.OnConfirm()
 				}
 			})

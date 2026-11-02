@@ -56,11 +56,13 @@ func (s *Store) UpdateQueue(ctx context.Context, sessionID, itemID string, actio
 			return
 		}
 		s.queueMutationScope, s.queueMutationID = state.Scope, itemID
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		s.mu.Lock()
 		s.lastAction = "queue: no session"
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
@@ -107,6 +109,7 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 			s.planBoard.Queue = next
 		}
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	return err

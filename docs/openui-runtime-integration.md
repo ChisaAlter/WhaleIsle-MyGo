@@ -1,272 +1,45 @@
-# CH12 OpenUI: inline and streaming integration
+# Whale UI v2 native conversation integration
 
-This stage implements visible inline `openui` / `openui-lang` assistant fences
-and bounded same-instance streaming updates, with a separate-window fallback. Original OpenUiFrame.tsx receives a
-pinned React viewer through an opaque iframe and exchanges channel/version/
-instanceId messages. MyGo now uses that real protocol inside its existing
-separately contained preview helper, with a dedicated bounded event channel.
-The default viewer is independently authored application code using explicitly
-licensed OpenUI SDK packages. Its maintainable sources and pinned dependency
-lock live in `tools/openui-runtime/`; production HTML and third-party notices
-live in `internal/desktop/openui/viewer/` and are embedded in the Go application.
-An original Whale Isle installation is not required or probed on default startup.
+The default native conversation viewer is the owned MIT Whale Isle 0.3.10 Whale UI runtime, using its `whale-ui` channel and version 2. `whale-ui`, `dsh-ui`, `openui`, and `openui-lang` fences reach this actual interpreter and registry. The complete specialized registry includes Genui, Plot, Mermaid, Scene3D, EChart, Diagram, Blocks, Quiz, FileTree, Timeline, Steps, KeyValue, Diff, Json, Tabs and Accordion. Legacy sessions retain their language selection. An explicit hash-pinned historical viewer override remains available, with native actions disabled.
 
-## Built-in runtime and explicit legacy import
+`render_ui` results are recognized from successful `tool/result` or PTC dispatch metadata at `data.meta.whaleUi = {version:1, language, program}`. The result's real tool call ID must agree with its source ID and the owning `render_ui` call; arbitrary output JSON or text is not treated as a page. The same pure parser is used for presentation and ownership. A replaced result, message removal, navigation, follow generation or Host change revokes the action target.
 
-Build the viewer using the production build instructions in
-`tools/openui-runtime/README.md`. The checked-in production artifact includes
-its dependency notices; no network is required to load its scripts, styles or
-fonts. The application uses the same opaque iframe and native preview bridge.
-Source integration is not Windows/macOS runtime acceptance.
+## Runtime ownership and offline assets
 
-An explicit `WHALEISLE_OPENUI_VIEWER` absolute path remains a compatibility
-option for an already-owned original viewer.html or app.asar, not a default
-installation prerequisite. That legacy path accepts only SHA256
-`ee5470ac1f67c50e69e554f6be5d7202625eef572b1f272f2276a1e250876961`.
-It reads the archive as data and does not execute the original application.
-The upstream application bundle is not redistributed; its unclear license
-status is separate from the independently authored built-in implementation.
+The immutable viewer, standalone validator, six rendering bundles, product MIT license, full third-party notices and per-product SHA256 manifest are in `internal/desktop/openui/viewer/v2/`. The import script reads a user-owned 0.3.10 archive without starting or modifying the installation. It verifies the package MIT declaration and fixed build digest. No old Open Intelligent UI application bundle is imported. All Go binaries embed the viewer, engines, adapter and notices; normal startup neither probes nor requires the original installation. The native source drawer exposes the full license notices.
 
-## Behavior and ownership
+`tools/openui-runtime/scripts/import-whale-v2.mjs <absolute-app.asar>` refreshes the pinned immutable products. The companion native adapter is built by `scripts/build-v2-adapter.mjs` from the existing maintained raster-map, native-YouTube, image and isolated-HTML components. It binds to the v2 runtime's own React, state field and streaming hooks, and does not ship a second React or interpreter. The original SDK viewer sources remain available for legacy maintenance; their build does not overwrite the v2 product directory.
 
-- Visible assistant fences automatically start a real isolated inline renderer
-  when the main native parent handle is available. Windows uses the existing
-  clipped child surface; macOS uses the existing pixels/height/input bridge.
-  Completed fences may also be opened in a separate window after closing the
-  inline instance. Retry and Source remain available. Linux is unavailable.
-- Streaming program and completion changes update the same iframe/instance.
-  The chat polls changes every 200ms; helper transmission is latest-value-only
-  and capped at 10Hz. Only program/streaming change: current form state and
-  appearance are retained. Old helpers lacking update capability fail visibly.
-- Instance identity hashes Host history binding, session, message and block
-  source offset. State is JSON-object-only, max48KiB, stored under the OS user
-  config directory's WhaleIsle-MyGo/openui-state-v1 using private files. There is
-  no fixed renderer count or persisted-record count ceiling; new states do not
-  delete previous states. Per-payload limits remain: program 256KiB, state 48KiB,
-  event 64KiB, assistant message 16KiB, error text 4096 bytes and resolved program
-  32KiB. The existing event queue remains bounded to 16 entries.
-- Navigation, Host epoch/follow generation changes, message removal or program
-  replacement that removes the captured program prefix revoke the owner and
-  close the renderer. Streaming append retains that owner. Reopening restores
-  the last successfully received and persisted state. Pending actions are
-  cleared when the displayed program changes.
-- An inline renderer that has not painted for 300ms hides its Windows surface.
-  After 30 seconds offscreen it closes and becomes eligible to restart when
-  visible. Explicit Close cancels without automatic restart; Retry is available.
-  Active instances have no arbitrary lifetime deadline. Owner revocation,
-  explicit Close and offscreen reclamation still cancel them. These checks are timer-driven,
-  not an assertion of immediate unmount cleanup. Queued state not delivered
-  before close is not guaranteed to persist.
-- The iframe cannot access Host credentials, native bindings, network, workers,
-  filesystem, direct external navigation or direct clipboard APIs. The owned
-  runtime may request typed clipboard/HTTP(S) link actions through the current
-  Host after a real UI gesture; legacy runtime overrides do not receive this
-  capability. Local nested HtmlView documents
-  require explicit native capability and actual frame-identity admission; arbitrary
-  nested navigation remains unavailable. Fixed typed
-  resource requests run in the Go parent with a separate credential-free HTTP
-  client: Wikipedia summary/media, Wikipedia/Commons image search, and OSRM
-  driving geometry, plus raster map tiles for the owned Map component. The first
-  three mirror Electron shell adapters; none are Host API routes.
-  Only title/q/coords or tile z/x/y/style values are accepted; addresses and request headers
-  are parent-owned. Redirects are not followed and no Host cookie/token is used.
-  Requests inherit the instance cancellation context; owner is rechecked before
-  a request and before its reply. Replies must match the pending instance/request
-  ID; duplicate or unknown replies cannot enter another viewer.
-- Resource replies use the existing helper large-body budget of 25MiB; input
-  events and state retain their existing smaller limits. Oversized results
-  explicitly return an error; no fabricated coordinates or placeholder photos.
-  The public adapter preserves the original 8s Wikipedia/Commons and 10s OSRM
-  request timeouts. Upstream JSON reads reuse the existing 12MiB resource byte
-  ceiling. Original shell response caching is not yet mirrored.
-- Wiki photos and image-search display arrays now contain data URLs fetched
-  solely from the fixed HTTPS upload.wikimedia.org origin. Only those fields
-  returned by the selected public adapter are eligible; iframe-supplied URLs,
-  credentials, redirects and other origins cannot use this downloader. PNG,
-  JPEG, GIF and WebP are detected from their bytes. Unsupported or oversized
-  data returns an explicit resource error. Original URLs remain unchanged in
-  photoSources/imageSources, and any existing attribution fields are retained.
-  The original adapters provide no author/license metadata; none is invented.
-  The iframe retains img-src data: and has no direct network access.
-- Maps still need MapLibre workers, OpenFreeMap glyphs/vector tiles and Esri
-  raster fallback; those remain blocked by the unchanged iframe worker/connect
-  policy. No map data is simulated.
-- Validated assistant actions appear in native UI with their form/context text.
-  Send interaction result submits through the captured ComposerTarget in queue
-  mode. It never selects a session from renderer-supplied fields. An explicit
-  native confirmation remains because postMessage alone cannot attest whether
-  an action came from a genuine user gesture rather than programmatic code.
-- Helper events are capped at64KiB,16 queued entries and checked twice: trusted
-  parent shell validates iframe source/opaque origin/protocol/instance, and Go
-  validates envelope/type/size. State messages coalesce. No arbitrary RPC or Eval
-  API is added to the renderer. Old helpers must reject missing OpenUI capability.
+The trusted Go shell alone owns the fixed engine names `mermaid.js`, `three.js`, `echarts-core.js`, `echarts-full.js`, `icons.js`, and `standalone-runtime.js`. Bundle traversal and arbitrary paths are rejected. The isolated child receives bytes through `bundle-response`; engines load using data scripts compatible with the existing network-free native helper. The child has no direct filesystem, Host credentials, model API or native bindings. The v2 parent and child policies both allow offline data images/fonts/scripts, because srcdoc inherits its ancestor CSP. The v1 policy is kept separate. CSP and the OS helper keep direct network, navigation and workers unavailable.
 
-## Validation and remaining work
+## State, actions and lifecycle
 
-Stage one passed synthetic protocol/resource/state/owner/UI fixtures and actual
-Windows/macOS SDK compilation in Actions run 39023193323. Stage two adds a Node
-fake-DOM fixture executing only our parent-shell script: same iframe identity,
-new program/streaming, retained typed state, and foreign-instance rejection.
-Native fence/source checks and the affected frame/main packages compile in the
-focused Go check. Native helper transport/update tests and platform cross-builds
-are reported separately. No original viewer, real account or microphone is
-executed by these checks.
+The v2 persisted `whale-ui-state` envelope is preserved as a JSON object. A native profile's authoritative `paths.UserDataDir()` owns the state and panel directories, including portable and `WHALEISLE_USER_DATA` fixtures. State keys use Host origin, Session and durable block source identity, excluding credentials and volatile client pointers, so reconnecting does not discard edited values. State writes retain the existing temporary-file replacement behavior.
 
-Source and synthetic fixtures cover streaming/state preservation and bounded
-transport. Automatic visible loading, offscreen timeout, clipping, user input,
-scrolling and close/reopen behavior still require real Windows/macOS runtime
-acceptance. No screenshot or pixel acceptance is claimed. Stage two native SDK
-compilation passed in Actions run 39023879575 at commit
-551649d8afe62ff3964dc94e1e0f610faacea2d8; stage one run 39023193323 also passed.
-These compile results do not establish signed-build or real UI acceptance.
-A focused lifecycle fixture additionally checks that active contexts have no
-deadline and explicit cancellation still terminates them; the existing owner
-ticket fixture covers owner revocation.
+Program, dialect, locale and trusted theme variables update in the same child. A native source revision rejects stale updates and stale queued effects; state updates do not overwrite current viewer state. Source changes reject pending actions. Cancelled resource replies are consumed without applying them or terminating the replacement page. Completion for programs larger than 32 KiB sends only the trusted revision, keeping valid pages up to 256 KiB inside the 64 KiB event budget; only the current revision clears diagnostics. The viewer follows native light/dark tokens, fonts and `zh`/`en` locale. The ordinary HTML preview's smaller theme-token allowlist is unchanged.
 
-Current remaining scope: dynamic module imports, external CSS dependencies, external
-Image/Markdown image URLs and gesture-attested immediate assistant sending. Static
-classic CDN scripts with UTF-8/MIME and optional SRI are source-integrated through
-the bounded parent adapter; this does not make arbitrary CDN libraries compatible.
-The default distribution now includes the independently authored runtime,
-owned raster map tiles and typed clipboard/link actions. This does not establish
-full component-variant, platform-runtime or visual parity. Prior stage compile
-results above do not cover the newly embedded runtime, HtmlView or Host actions.
+`@ToAssistant` directly submits through the captured queue-mode Session target and returns `action-response` after the Host submission succeeds or fails. The v2 viewer does not require a second confirmation click. Historical viewer actions retain their original native confirmation UI. Clipboard and absolute HTTP(S) external links use native APIs with actual result acknowledgements. Only the admitted owned viewer, a genuine activation, a monotonic one-use request and a current source/Session can reach a native action.
 
-Count regression fixtures save and read the 257th state while retaining the first,
-and keep five independent cancellable contexts alive. Source removes the global
-renderer semaphore. This is not a five-native-window physical acceptance test.
+Downloads are bounded to 24 MiB and split into ordered transport parts rather than exceeding the 64 KiB event budget. Native assembly rechecks filename, MIME, part sequence and final identity. While export parts are transferring, later native actions receive a visible retry message so they cannot overtake the export's final sequence. A native save dialog selects the destination; cancellation writes nothing. Files are created exclusively, preserving any existing file instead of silently overwriting it. The page receives success only after the file write succeeds, and receives native failures.
 
-The typed resource adapter fixture uses an in-memory HTTP RoundTripper only.
-It checks all three real response schemas, fixed destinations, no authentication
-headers, malformed route rejection, cancellation and pending-instance replies.
-No public service, real account query or location is contacted by these checks.
-Native API-response command compilation is tracked separately from the earlier
-successful streaming-stage SDK runs.
+A visible Windows page occupies a clipped native child HWND; 80..2000px content height is reported by the real viewer. The transcript owns outer scrolling and a native region intersects the page with the current paint clip. A helper hidden for 300ms is hidden natively; after 30 seconds offscreen it is reclaimed and can be reopened. Owner revocation, explicit Close and helper termination also end its lifetime. The existing macOS pixel/input bridge remains in use; macOS runtime acceptance requires that platform.
 
-The image stage uses a local one-pixel PNG fixture. It checks real data URL
-bytes, retained source/attribution data, exact Wikimedia origin restrictions,
-and API responses above 64KiB but below the existing 25MiB body budget. No real
-image server is contacted. Actual viewer display remains a runtime acceptance
-item. This stage needs its own matching native response-budget compilation.
+## Conversation panels
 
-## Map resource boundary (source-only assessment)
+Settled `dsh-ui` panel publication reaches the native conversation panel inserted before the transcript. The native owner supplies source identity and Session order. Ordered replacement and append operations fold into a persisted Genui spec; matching tab labels append their children. Repeated identical publication is idempotent. A persisted order barrier prevents old history from replacing or repopulating a cleared panel.
 
-The verified viewer embeds its MapLibre module worker as a `data:` URL
-(original src/openui-viewer/index.tsx:15–18). Its README explicitly explains
-that an opaque iframe cannot load Chromium `blob:null` module workers. Required
-public map resources are OpenFreeMap at https://tiles.openfreemap.org (planet,
-fonts and the TileJSON's same-origin tiles), plus the two ArcGIS raster fallback
-prefixes under https://server.arcgisonline.com/ArcGIS/rest/services/:
-World_Street_Map/MapServer/tile/ and
-Canvas/World_Dark_Gray_Base/MapServer/tile/. No remote script is necessary for
-the already bundled worker.
+Panel writes use a private same-directory temporary file, Sync, Close and atomic rename. Failed publish, clear or collapse writes retain the previous visible content and show the failure. A panel update, collapse, clear, profile switch or Session/Host change revokes the previous renderer generation. The in-memory cache is bounded; retiring a cache owner revokes its effects without deleting its persisted state.
 
-Merely changing this shell's CSP cannot enable these resources today:
+## Public resources and native media
 
-- Windows creates a zero-capability AppContainer in
-  previewprocess/launcher_windows.go. token_windows.go rejects capabilities in
-  the helper/browser process tree, while MyGo's Windows preview_isolation.go
-  separately denies all external resource requests, including worker traffic.
-- macOS preview.entitlements grants only App Sandbox. identity_darwin.go and
-  native/macos-preview/main.m require exactly that entitlement set, and the
-  native resource delegate also rejects external traffic. A signed entitlement
-  cannot change with a document flag.
+The fixed wiki, image-search, public-image and street-route adapters remain credential free. Image and SearchImage use the existing bounded resource service and decode only returned data images. HtmlView follows the actual helper capability flag (unavailable by default), prepares static classic scripts through the existing constrained service, and executes local interactions in a second opaque frame only when supported. Map uses the maintained raster map with `/api/map-tile` and `/api/street-route`, preserving marker selection in the v2 state binding, pan/zoom, geographic fit, routing and resource errors. It does not initialize the upstream MapLibre worker/network path inside the contained helper.
 
-A future working path needs a distinct verified-OpenUI Windows process policy
-with fixed-resource filtering, and a separately signed macOS OpenUI helper
-bundle/identity with matching entitlement validation and fixed-resource
-filtering. A mere OpenUI boolean must not grant these permissions to arbitrary
-HTML: both sides must verify the pinned runtime. Ordinary HTML must retain its
-existing zero-network/zero-worker policy. No such new mode, entitlement or CSP
-permission was added in this assessment.
+YouTube uses the maintained typed native media seat through the v2 component adapter. Its own iframe never navigates to YouTube. A real Load button activation requests the exact video ID and current component geometry. Native ownership, clipping, revision, removal and visibility checks remain in the existing media host. The player is a separately controlled browser sibling. A `native-view-created` acknowledgement means a seat was created; it does not confirm service acceptance, codec support or playback.
 
-This assessment read source only. No test source was added, and no tests,
-builds, helper launches, permission changes or real map requests were performed.
-The recovered upstream MapLibre viewer remains unsupported under the present helper policy.
+## Verification
 
-An independently authored raster Map is integrated at source level with
-the owned SDK-based viewer. Its parent resource adapter uses the fixed
-`/api/map-tile` operation (`z`, `x`, `y`, `style=light|dark`) and returns
-bitmap data URLs from the two existing ArcGIS raster services. This path does
-not require iframe network access or a worker. The checked-in owned viewer includes this component and its resource bridge.
-Native compilation/runtime verification is pending; source implementation and
-production asset generation do not establish completed runtime parity.
+Use the shared hidden runner for local commands to avoid visible terminal windows. `tmp/whale-ui-check.ps1` builds the companion GUI helper, runs focused Go behavior tests and the real opaque viewer browser fixture under an isolated profile. Source tests cover product hashes, bundle allowlisting, dialect routing, state preservation, native action replay and payload changes, export assembly/no-overwrite, strict tool ownership, panel disk failures/reopen/profile isolation and complete revisioned update fields.
 
-## Public adapter process cache
+The opt-in `TestWhaleUINativeHiddenHeightAndClip` uses a freshly built helper inside the real Windows AppContainer and WebView2 with a hidden parent. It checks a 390px short natural height, a 1700px source update, native clip region and live theme. The browser fixture loads the actual immutable v2 interpreter and native adapter with external requests blocked, then edits controls, checks calculated text and persisted state, round-trips assistant and clipboard results, and publishes dsh-ui panels. It requires actual Start/Done labels in the packaged Mermaid SVG, a visible decoded image returned by the resource bridge, Map selection updates, native YouTube request/reply, HtmlView capability false-to-true and a working nested script click, and successful 210 KiB program completion. Narrow light/dark screenshots are resized to the measured natural content height. Shell fixtures cover a cancelled late resource reply followed by a new action, both HtmlView capability values, and a 300,000-byte export interleaved with a clipboard click after its first 16 parts. Native diagnostic matching tests include current, stale, future and legacy completion events.
 
-The parent independently implements successful-response reuse matching the
-original adapters' observable cache scope: 500 Wikipedia titles, 500 normalized
-image queries, and 200 normalized route coordinate sets. Entries live for the
-application process lifetime and evict oldest insertion first. Reads do not
-change eviction order. Failures are not cached.
-
-Cache entries contain only public response JSON. A cache hit receives the
-current instance/request IDs; no prior owner envelope is reused. Image source
-JSON is cached before data-URL expansion, so large bitmap payloads are not
-retained in this process cache. This does not claim the browser HTTP image-cache
-semantics of the original Electron implementation or any runtime verification.
-
-## Independently authored HtmlView
-
-The built-in registry provides `HtmlView(html, height?, title?)` for local
-HTML/CSS/inline JavaScript/Canvas. The content lives in a separate opaque
-`sandbox=allow-scripts` srcdoc. Fixed height or bounded automatic content height
-is supported; changed content/streaming/removal destroys the old document.
-CDN scripts, network and workers remain disabled inside HtmlView. The separate
-YouTube component uses the private native media route described below.
-
-The trusted helper reports a default-disabled HtmlView capability to the shell.
-macOS tracks the admitted viewer identity and its immediate srcdoc child.
-Windows uses actual Frame2/Frame7 identities and direct-child events. Missing
-Frame7 support leaves the base viewer working and reports HtmlView unavailable.
-Ordinary HTML behavior, OS AppContainer/App Sandbox settings and native
-credential/binding restrictions are unchanged.
-
-Only source integration and production asset generation are complete. Native
-compilation, frame lifecycle/event timing, inline script execution, Canvas,
-height and input behavior have not been verified by running either platform.
-See `openui-htmlview-windows-source-20261017.md` for exact API requirements and
-remaining source-level assumptions.
-
-## Typed clipboard and link actions
-
-Only the default owned embedded viewer can receive `hostActions`; an explicit
-legacy runtime override remains disabled. Code copying, Link, Markdown/Text
-HTTP(S) links and button action plans use the existing bounded event/response
-transport. They cannot claim success before Clipboard.Write/OpenExternal
-returns from the MyGo UI-thread operation. A successful URL reply means the OS
-browser handoff returned successfully, not that a remote page loaded.
-
-The request is bound to its current instance/session/owner and one captured
-payload. Source replacement, component removal or lost capability cancels
-remaining work; actual completed system effects cannot be undone by removing
-the component. No clipboard contents or URLs were executed during development.
-See `tools/openui-runtime/NATIVE-ACTIONS.md` and
-`openui-native-actions-host-20261017.md` for source behavior and limits.
-
-## YouTube private native media route
-
-`YouTube(video, title?)` now has source integration with a native browser seat
-separate from the isolated OpenUI helper. Only a fixed parsed video ID crosses
-the typed media bridge; no arbitrary URL, HTML, headers or app cookies are
-accepted from the renderer. The first actual activation creates a fresh
-TransientProfile/Untrusted/DisableBindings host. Existing browser/application
-cookies are not shared; YouTube may set its own cookies in that temporary store.
-
-Host-assigned source revision and paint-owned viewport/clip bind the seat to
-the current component. Old queued revisions cannot recreate removed seats.
-Hidden, removed or expired seats are destroyed; returning creates a new paused
-player and does not preserve playback position or temporary cookies. There is
-no arbitrary concurrent-player count cap.
-
-The identified player uses a fixed, script-free local iframe wrapper with the
-current shipped `ai.deepseek.harness.gui` HTTPS baseURL, via existing LoadHTML.
-This follows the desktop application identity path in the
-[YouTube embedded-player requirements](https://developers.google.com/youtube/terms/required-minimum-functionality#api-client-identity-and-credentials).
-The ordinary browser constructor is unchanged. Host-triggered reload reinstalls
-the identity document; engine-internal refresh behavior remains unverified.
-
-`native-view-created` acknowledges a native seat, not playback. No video request,
-native build or playback test was performed. Actual Referer delivery, service
-acceptance, codec/input/clip behavior and remote-client presentation remain
-unverified. See `tools/openui-runtime/YOUTUBE-MEDIA.md` for the wire contract.
+Actual native save-dialog interaction, remote YouTube playback and macOS runtime behavior are separate acceptance items; report only tests actually performed. Browser mock resource responses establish bridge and rendering behavior rather than the availability of the public services.

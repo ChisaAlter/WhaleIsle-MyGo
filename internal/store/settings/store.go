@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"unsafe"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -29,6 +30,7 @@ type Namespace struct {
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
 	ClientReady        bool
+	Described          bool // This client has a fully accepted settings description.
 	Loading            bool
 	Saving             bool
 	Writable           bool
@@ -67,6 +69,7 @@ type Store struct {
 	hostDirty                 map[string]map[string]map[string]bool
 	hostResets                map[string]map[string]map[string]bool
 	draftRevisions            map[string]float64
+	draftSeeds                map[string]*draftSeed
 	hostDraftRevisions        map[string]map[string]float64
 	modelRoutes               []VisionRoute
 	modelCatalogErr           string
@@ -83,6 +86,35 @@ type Store struct {
 	onboardingCredentialEpoch uint64
 	uploadNoticeSequence      uint64
 	uploadNotice              string
+	snapCache                 snapshotCache
+}
+
+type namespaceSnapKey struct {
+	ns               string
+	revision         float64
+	draftRevision    float64
+	hasDraftRevision bool
+	fieldsPtr        *Field
+	fieldsLen        int
+	valuePtr         *byte
+	valueLen         int
+	schemaPtr        *byte
+	schemaLen        int
+	basePtr          *byte
+	baseLen          int
+	userPtr          *byte
+	userLen          int
+	hasSecrets       bool
+	secretPathsPtr   *[]string
+	secretPathsLen   int
+}
+
+type snapshotCache struct {
+	valid   bool
+	state   ViewState
+	permPtr *PermissionDefaultOption
+	permLen int
+	nsKeys  []namespaceSnapKey
 }
 
 // New returns an empty settings store.
@@ -166,6 +198,7 @@ func (s *Store) Detach() {
 	s.visionLoading = false
 	s.visionErr = ""
 	s.client = nil
+	s.describedClient = nil
 	s.loading = false
 	s.saving = false
 	s.namespaces = nil
@@ -181,6 +214,16 @@ func (s *Store) Snapshot() ViewState {
 	return s.snapshotLocked()
 }
 
+// NamespaceValue returns the raw JSON value for one namespace without cloning all namespaces.
+func (s *Store) NamespaceValue(ns string) json.RawMessage {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if item := s.findNamespaceLocked(ns); item != nil {
+		return item.Value
+	}
+	return nil
+}
+
 // EnsureLoaded starts the one initial describe for a connected Host. A refused
 // read stays visible until the explicit settings/onboarding Retry action.
 func (s *Store) EnsureLoaded(ctx context.Context) {
@@ -192,24 +235,114 @@ func (s *Store) EnsureLoaded(ctx context.Context) {
 	}
 }
 
+func makeNamespaceSnapKey(ns Namespace, draftRevisions map[string]float64) namespaceSnapKey {
+	drev, hasDrev := draftRevisions[ns.NS]
+	return namespaceSnapKey{
+		ns:               ns.NS,
+		revision:         ns.Revision,
+		draftRevision:    drev,
+		hasDraftRevision: hasDrev,
+		fieldsPtr:        unsafe.SliceData(ns.Fields),
+		fieldsLen:        len(ns.Fields),
+		valuePtr:         unsafe.SliceData(ns.Value),
+		valueLen:         len(ns.Value),
+		schemaPtr:        unsafe.SliceData(ns.Schema),
+		schemaLen:        len(ns.Schema),
+		basePtr:          unsafe.SliceData(ns.Base),
+		baseLen:          len(ns.Base),
+		userPtr:          unsafe.SliceData(ns.User),
+		userLen:          len(ns.User),
+		hasSecrets:       ns.HasSecrets,
+		secretPathsPtr:   unsafe.SliceData(ns.SecretPaths),
+		secretPathsLen:   len(ns.SecretPaths),
+	}
+}
+
+func (s *Store) snapCacheHitLocked(errStr string, clientReady, described, dirty bool) bool {
+	c := &s.snapCache
+	if !c.valid {
+		return false
+	}
+	st := &c.state
+	if st.ClientReady != clientReady ||
+		st.Described != described ||
+		st.Loading != s.loading ||
+		st.Saving != s.saving ||
+		st.Writable != s.writable ||
+		st.LastAction != s.lastAction ||
+		st.SelectedNS != s.selectedNS ||
+		st.Dirty != dirty ||
+		st.Err != errStr {
+		return false
+	}
+	if st.PermissionDefaults.DefaultPreset != s.permissionDefaults.DefaultPreset ||
+		st.PermissionDefaults.Loaded != s.permissionDefaults.Loaded ||
+		st.PermissionDefaults.Err != s.permissionDefaults.Err ||
+		c.permLen != len(s.permissionDefaults.Options) ||
+		c.permPtr != unsafe.SliceData(s.permissionDefaults.Options) {
+		return false
+	}
+	if len(c.nsKeys) != len(s.namespaces) || len(st.Namespaces) != len(s.namespaces) {
+		return false
+	}
+	for i := range s.namespaces {
+		if c.nsKeys[i] != makeNamespaceSnapKey(s.namespaces[i], s.draftRevisions) {
+			return false
+		}
+	}
+	resets := s.resets[s.selectedNS]
+	if len(st.Resets) != len(resets) {
+		return false
+	}
+	for k, v := range resets {
+		if cv, ok := st.Resets[k]; !ok || cv != v {
+			return false
+		}
+	}
+	var drafts map[string]string
+	if s.selectedNS != "" {
+		drafts = s.drafts[s.selectedNS]
+	}
+	if len(st.Drafts) != len(drafts) {
+		return false
+	}
+	for k, v := range drafts {
+		if cv, ok := st.Drafts[k]; !ok || cv != v {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Store) snapshotLocked() ViewState {
+	clientReady := s.client != nil
+	described := clientReady && s.describedClient == s.client
+	dirty := len(s.dirty[s.selectedNS]) > 0
+	errStr := ""
+	if s.err != nil {
+		errStr = s.err.Error()
+	}
+	if s.snapCacheHitLocked(errStr, clientReady, described, dirty) {
+		return s.snapCache.state
+	}
 	st := ViewState{
 		PermissionDefaults: s.permissionDefaults.clone(),
-		ClientReady:        s.client != nil,
+		ClientReady:        clientReady,
+		Described:          described,
 		Loading:            s.loading,
 		Saving:             s.saving,
 		Writable:           s.writable,
+		Err:                errStr,
 		LastAction:         s.lastAction,
 		SelectedNS:         s.selectedNS,
 		Drafts:             map[string]string{},
 		Resets:             copyFlags(s.resets[s.selectedNS]),
-		Dirty:              len(s.dirty[s.selectedNS]) > 0,
+		Dirty:              dirty,
 	}
-	if s.err != nil {
-		st.Err = s.err.Error()
-	}
+	nsKeys := make([]namespaceSnapKey, len(s.namespaces))
 	st.Namespaces = append([]Namespace(nil), s.namespaces...)
 	for i := range st.Namespaces {
+		nsKeys[i] = makeNamespaceSnapKey(s.namespaces[i], s.draftRevisions)
 		st.Namespaces[i].DraftRevision, st.Namespaces[i].HasDraftRevision = s.draftRevisions[st.Namespaces[i].NS]
 		st.Namespaces[i].Fields = append([]Field(nil), st.Namespaces[i].Fields...)
 		st.Namespaces[i].Value = append(json.RawMessage(nil), st.Namespaces[i].Value...)
@@ -224,7 +357,21 @@ func (s *Store) snapshotLocked() ViewState {
 			}
 		}
 	}
+	s.snapCache = snapshotCache{
+		valid:   true,
+		state:   st,
+		permPtr: unsafe.SliceData(s.permissionDefaults.Options),
+		permLen: len(s.permissionDefaults.Options),
+		nsKeys:  nsKeys,
+	}
 	return st
+}
+
+// SelectedNamespace returns the active namespace tab without cloning all namespaces.
+func (s *Store) SelectedNamespace() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.selectedNS
 }
 
 // Select chooses the active namespace tab.
@@ -272,6 +419,9 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		return
 	}
 	s.loading = true
+	if s.describedClient != client {
+		s.describedClient = nil
+	}
 	s.err = nil
 	s.mu.Unlock()
 	s.fire()
@@ -291,6 +441,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		}
 		s.loading = false
 		if err != nil {
+			s.describedClient = nil
 			s.err = err
 			s.mu.Unlock()
 			s.fire()
@@ -302,6 +453,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		for _, item := range out.Namespaces {
 			fields, fErr := BuildFields(item.Schema)
 			if fErr != nil {
+				s.describedClient = nil
 				s.err = fErr
 				s.mu.Unlock()
 				s.fire()
@@ -805,14 +957,48 @@ func (s *Store) draftRevisionLocked(ns Namespace) float64 {
 	return ns.Revision
 }
 
+// draftSeed caches the drafts one namespace value yields. BindNamespace reseeds
+// on every render pass while the value rarely changes, so a field is decoded
+// once per value rather than once per frame.
+type draftSeed struct {
+	value  string
+	drafts map[draftField]string
+}
+
+type draftField struct {
+	key  string
+	kind FieldKind
+}
+
 func (s *Store) seedDraftsLocked(ns Namespace) {
 	if s.drafts[ns.NS] == nil {
 		s.drafts[ns.NS] = map[string]string{}
 	}
-	for _, f := range ns.Fields {
-		if !s.dirty[ns.NS][f.Key] {
-			s.drafts[ns.NS][f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
+	seed := s.draftSeeds[ns.NS]
+	if seed == nil || seed.value != string(ns.Value) {
+		if s.draftSeeds == nil {
+			s.draftSeeds = map[string]*draftSeed{}
 		}
+		seed = &draftSeed{value: string(ns.Value), drafts: map[draftField]string{}}
+		s.draftSeeds[ns.NS] = seed
+	}
+	var root map[string]json.RawMessage
+	decoded, read := false, false
+	for _, f := range ns.Fields {
+		if s.dirty[ns.NS][f.Key] {
+			continue
+		}
+		field := draftField{f.Key, f.Kind}
+		draft, ok := seed.drafts[field]
+		if !ok {
+			if !read {
+				root, decoded = draftRoot(ns.Value)
+				read = true
+			}
+			draft = rootDraft(root, decoded, f.Key, f.Kind)
+			seed.drafts[field] = draft
+		}
+		s.drafts[ns.NS][f.Key] = draft
 	}
 }
 

@@ -81,6 +81,23 @@ func contextTriggerCoordinate(raw json.RawMessage) (float64, bool) {
 func contextTriggerWaking(events map[float64]json.RawMessage) map[float64]bool {
 	waking := make(map[float64]bool)
 	if len(events) > 0 {
+		hasSplice := false
+		for _, raw := range events {
+			if typ, ok := peekEventType(raw); ok {
+				if typ == "agent/inbox/spliced" {
+					hasSplice = true
+					break
+				}
+				continue
+			}
+			if bytes.Contains(raw, []byte("agent/inbox/spliced")) || bytes.Contains(raw, []byte(`\u`)) {
+				hasSplice = true
+				break
+			}
+		}
+		if !hasSplice {
+			return waking
+		}
 		seqs := make([]float64, 0, len(events))
 		for seq := range events {
 			seqs = append(seqs, seq)
@@ -89,8 +106,27 @@ func contextTriggerWaking(events map[float64]json.RawMessage) map[float64]bool {
 		facts := make([]contextTriggerFact, 0, len(seqs))
 		turnStarts := make(map[float64]float64)
 		for _, seq := range seqs {
+			raw := events[seq]
+			if typ, ok := peekEventType(raw); ok && isToolTimingEventType(typ) {
+				part, _ := readToolLifecycleMemo(seq, raw)
+				if !part.jsonValid {
+					continue
+				}
+				var fact contextTriggerFact
+				fact.Type = part.eventType
+				fact.Seq = part.seq
+				fact.SurfaceOp = part.surfaceOp
+				if part.turn != nil {
+					fact.Data.Turn, _ = json.Marshal(*part.turn)
+				}
+				if part.step != nil {
+					fact.Data.Step, _ = json.Marshal(*part.step)
+				}
+				facts = append(facts, fact)
+				continue
+			}
 			var fact contextTriggerFact
-			if json.Unmarshal(events[seq], &fact) != nil {
+			if json.Unmarshal(raw, &fact) != nil {
 				continue
 			}
 			facts = append(facts, fact)

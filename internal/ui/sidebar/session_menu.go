@@ -3,7 +3,6 @@ package sidebar
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -61,58 +60,42 @@ func archiveAction(m Model, it session.Item) func() {
 	return func() { m.OnArchive(it.SessionID) }
 }
 
-// sessionHoverCard is the original row's hover card: full title, relative time,
-// workspace path and every resting status, in the shared menu material.
-func sessionHoverCard(c *ui.Context, m Model, anchor ui.Element, it session.Item, label, status string, colors theme.Colors) {
-	ui.TooltipBase(c.Key("session-hover:"+it.SessionID), anchor, func(tip ui.Element) {
-		width, height := m.viewport(c)
-		tip.Label("Session preview: " + it.SessionID).
-			Width(min(float32(280), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().
-			Padding(12).Radius(12).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).
-			Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .16)).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG)).
-					FillWidth().MinWidth(0).MaxLines(3)
-				ui.Text(c, sessionTrailingLabel(status, it.UpdatedAt)).FontSize(theme.InterfaceSize(11)).
-					TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0)
-				if it.Cwd != "" {
-					ui.Text(c, it.Cwd).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).
-						FillWidth().MinWidth(0).MaxLines(2)
-				}
-				if text := statusLabel(status); text != "" {
-					ui.Text(c, text).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).
-						FillWidth().MinWidth(0)
-				}
-			})
-		})
-	})
-}
-
 // The native menu handles pointer dismissal, arrows, Escape and focus return.
 // Bind actions to the row's ID, never to whichever session is currently open.
 func sessionRowMenu(m Model, it session.Item) func(*ui.Menu) {
 	return func(menu *ui.Menu) {
+		menu.CloseOnPointerLeave(true)
+		if it.SessionID == m.Snapshot.SelectedID {
+			if m.OnOpenSessionPlugins != nil && menu.Item(i18n.T(i18n.KeyCmdSessionPluginTitle)).Chosen() {
+				m.OnOpenSessionPlugins(it.SessionID)
+			}
+			if m.SessionPluginsActive && m.OnCloseSessionPlugins != nil && menu.Item(i18n.T(i18n.KeySessionPluginsStop)).Chosen() {
+				m.OnCloseSessionPlugins(it.SessionID)
+			}
+		}
+		// Source blank rows have no general session actions. The explicit native
+		// plugin entry is the only exception, so it cannot rename/archive a draft.
+		if it.Blank {
+			return
+		}
 		if it.Pinned {
-			if m.OnUnpin != nil && menu.Item(i18n.T(i18n.KeySidebarUnpin)).Chosen() {
+			if m.OnUnpin != nil && menu.Item(i18n.T(i18n.KeySidebarUnpin)).Icon(sessionPinArtwork).Chosen() {
 				m.OnUnpin(it.SessionID)
 			}
-		} else if m.OnPin != nil && menu.Item(i18n.T(i18n.KeySidebarPin)).Chosen() {
+		} else if m.OnPin != nil && menu.Item(i18n.T(i18n.KeySidebarPin)).Icon(menuPinArtwork).Chosen() {
 			m.OnPin(it.SessionID)
 		}
-		if m.OnBeginRename != nil && menu.Item(i18n.T(i18n.KeySidebarRename)).Chosen() {
+		if m.OnBeginRename != nil && menu.Item(i18n.T(i18n.KeySidebarRename)).Icon(menuEditArtwork).ShortcutLabel(m.MenuShortcutLabels["session.rename"]).Chosen() {
 			m.OnBeginRename(it.SessionID, it.Title)
 		}
-		if m.OnMoveSessionBefore != nil && menu.Item(i18n.T(i18n.KeySidebarMoveUp)).Chosen() {
-			m.OnMoveSessionBefore(it.SessionID, "")
-		}
-		if m.OnFork != nil && menu.Item(i18n.T(i18n.KeySidebarFork)).Chosen() {
+		if m.OnFork != nil && menu.Item(i18n.T(i18n.KeySidebarFork)).Icon(menuBranchArtwork).ShortcutLabel(m.MenuShortcutLabels["session.fork"]).Chosen() {
 			m.OnFork(it.SessionID)
 		}
-		if m.OnCopySessionID != nil && menu.Item(i18n.T(i18n.KeySidebarCopyID)).Chosen() {
-			m.OnCopySessionID(it.SessionID)
-		}
-		if m.OnArchive != nil && menu.Item(i18n.T(i18n.KeySidebarArchive)).Chosen() {
+		if m.OnArchive != nil && menu.Item(i18n.T(i18n.KeySidebarArchive)).Icon(menuArchiveArtwork).ShortcutLabel(m.MenuShortcutLabels["session.archive"]).Chosen() {
 			m.OnArchive(it.SessionID)
+		}
+		if m.OnCopySessionID != nil && menu.Item(i18n.T(i18n.KeySidebarCopyID)).Icon(menuCopyArtwork).Chosen() {
+			m.OnCopySessionID(it.SessionID)
 		}
 	}
 }
@@ -140,25 +123,46 @@ func sessionStatusSlot(c *ui.Context, status string, muted ui.Color) {
 }
 
 // Archived rows are inert: restoring and deleting remain explicit menu actions.
-func rowArchivedSession(c *ui.Context, id, title string, m Model, muted ui.Color) {
-	row := ui.Row(c.Key("archived-session-"+id)).FillWidth().Height(32).Padding(0, 8, 0, 8).Gap(0).AlignItems(ui.Center).Radius(12)
-	if row.Hovered() || row.FocusWithin() {
-		row.Background(selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark)))
+func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, muted ui.Color) {
+	if batchRow(c, m, id, title, muted) {
+		return
+	}
+	// Keep the caller's title fallback while recovering real row metadata.
+	// A missing summary has no timestamp or path to display in its preview.
+	item := session.Item{SessionID: id, Title: title, Blank: true}
+	for _, candidate := range m.Snapshot.Items {
+		if candidate.SessionID == id {
+			item = candidate
+			break
+		}
+	}
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	row := ui.Row(c.Key("archived-session-"+id)).FillWidth().Height(32).Padding(0, 8, 0, float32(8+depth*12)).Gap(0).AlignItems(ui.Center).Radius(12)
+	if row.Hovered() || row.FocusWithin() || row.MenuOpen() {
+		row.Background(selectedBackground(colors))
 	}
 	menu := func(menu *ui.Menu) {
-		if m.OnUnarchive != nil && menu.Item(i18n.T(i18n.KeySidebarUnarchive)).Chosen() {
+		menu.CloseOnPointerLeave(true)
+		if m.OnUnarchive != nil && menu.Item(i18n.T(i18n.KeySidebarUnarchive)).Icon(menuArchiveArtwork).Chosen() {
 			m.OnUnarchive(id)
 		}
-		if m.OnDelete != nil && menu.Item(i18n.T(i18n.KeySidebarDelete)).Chosen() {
+		if m.OnDelete != nil && menu.Item(i18n.T(i18n.KeySidebarDelete)).Icon(menuTrashArtwork).Danger(true).Chosen() {
 			m.OnDelete(id)
 		}
 	}
 	row.ContextMenu(menu).Children(func() {
 		ui.Box(c).Width(16).Height(20)
 		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, 6, 0, 4).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(muted)
-		more := ui.Button(c, "…").Label(sessionActionsLabel(id)).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Menu(menu)
-		if !row.Hovered() && !row.FocusWithin() && !more.Focused() {
-			more.Opacity(0)
+		showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
+		if !showActions && !item.Blank && item.UpdatedAt > 0 {
+			ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
+				FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+		}
+		more := ui.Button(c.Key("archived-session-menu-"+id), "").Label(sessionActionsLabel(id)).Width(16).Height(16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
+		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+		if !showActions && !more.Focused() {
+			more.Absolute().Right(8).Opacity(0)
 		}
 	})
+	archivedSessionHoverCard(c, m, row, item, title)
 }

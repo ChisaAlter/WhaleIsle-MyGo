@@ -3,11 +3,13 @@ package session
 import (
 	"context"
 	"errors"
+	"sync"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/jobflow"
 )
 
 type nativeJobsState struct {
+	mu         sync.Mutex
 	controller *jobflow.Controller
 	client     *dsh.Client
 	mux        *dsh.Mux
@@ -20,6 +22,8 @@ func (s *Store) NativeJobs() *jobflow.Controller {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	j := &s.jobs
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	if j.controller == nil {
 		j.controller = jobflow.New(s.fire)
 	}
@@ -36,20 +40,23 @@ func (s *Store) NativeJobs() *jobflow.Controller {
 	return j.controller
 }
 func (s *Store) invalidateJobsLocked() {
+	s.invalidateViewLocked()
+	s.jobs.mu.Lock()
 	if s.jobs.controller != nil {
 		s.jobs.controller.Bind(nil, "")
 	}
 	s.jobs.client = nil
 	s.jobs.mux = nil
 	s.jobs.sessionID = ""
+	s.jobs.mu.Unlock()
 }
 
 // UnmountNativeJobs releases only the logical jobs streams when its header is
 // absent, including top-level pages that replace the conversation frame.
 func (s *Store) UnmountNativeJobs() {
-	s.mu.Lock()
+	s.jobs.mu.Lock()
 	controller := s.jobs.controller
-	s.mu.Unlock()
+	s.jobs.mu.Unlock()
 	if controller != nil {
 		controller.Unmount()
 	}

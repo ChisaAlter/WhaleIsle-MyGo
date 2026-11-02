@@ -1,13 +1,21 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
+	"strings"
 	"whaleisle/internal/workflowrun"
 )
 
 const MessageKindWorkflow MessageKind = "workflow"
 
 func (s *Store) captureWorkflowBoundaryLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
+	if typ, ok := peekEventType(raw); ok {
+		if typ != "turn/start" && typ != "turn/end" && typ != "step/start" && typ != "step/end" && !strings.HasPrefix(typ, "tool-workflow/") {
+			return
+		}
+	}
 	if !workflowrun.Boundary(raw) {
 		return
 	}
@@ -23,14 +31,42 @@ func (s *Store) captureWorkflowBoundaryLocked(raw json.RawMessage) {
 	s.workflowBoundaries[e.Seq] = append(json.RawMessage(nil), raw...)
 }
 func (s *Store) workflowRunsLocked(messages []Message) []workflowrun.Run {
-	raws := make([]json.RawMessage, 0, len(messages)+len(s.workflowBoundaries))
+	raws := make([]json.RawMessage, 0, len(s.workflowBoundaries))
 	for _, raw := range s.workflowBoundaries {
 		raws = append(raws, raw)
 	}
+	hasWorkflow := false
 	for _, m := range messages {
-		if len(m.Raw) > 0 {
+		if len(m.Raw) == 0 {
+			continue
+		}
+		if m.EventType != "" {
+			if strings.HasPrefix(m.EventType, "tool-workflow/") {
+				hasWorkflow = true
+				raws = append(raws, m.Raw)
+			} else if m.EventType == "turn/start" || m.EventType == "turn/end" || m.EventType == "step/start" || m.EventType == "step/end" {
+				raws = append(raws, m.Raw)
+			}
+			continue
+		}
+		if typ, ok := peekEventType(m.Raw); ok {
+			if strings.HasPrefix(typ, "tool-workflow/") {
+				hasWorkflow = true
+				raws = append(raws, m.Raw)
+			} else if typ == "turn/start" || typ == "turn/end" || typ == "step/start" || typ == "step/end" {
+				raws = append(raws, m.Raw)
+			}
+			continue
+		}
+		if bytes.Contains(m.Raw, []byte("tool-workflow/")) {
+			hasWorkflow = true
+			raws = append(raws, m.Raw)
+		} else if bytes.Contains(m.Raw, []byte("turn/")) || bytes.Contains(m.Raw, []byte("step/")) {
 			raws = append(raws, m.Raw)
 		}
+	}
+	if !hasWorkflow {
+		return []workflowrun.Run{}
 	}
 	return workflowrun.Fold(raws)
 }

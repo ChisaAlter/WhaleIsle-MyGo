@@ -1,0 +1,39 @@
+﻿{
+    "source":  "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\client.js",
+    "bundleSha256":  "12a8aad0a672ac6f798e9247fbf87bc9434220360d453592599fcfe81822d623",
+    "cssSha256":  "221e4f627bbb50f67722ae6ada05cc94da5a0660feac0fa21f56e98625113f34",
+    "tokens":  {
+                   "--dsw-specific-gradient-start":  [
+                                                         "var(--dsw-static-deepseek-50)",
+                                                         "var(--dsw-static-deepseek-900)"
+                                                     ],
+                   "--dsw-specific-gradient-end":  [
+                                                       "var(--dsw-static-blue-100)",
+                                                       "var(--dsw-static-blue-950)"
+                                                   ],
+                   "--dsw-specific-gradient-1":  [
+                                                     "var(--dsw-static-deepseek-400)",
+                                                     "var(--dsw-static-deepseek-500)"
+                                                 ],
+                   "--dsw-specific-gradient-2":  [
+                                                     "var(--dsw-static-blue-400)",
+                                                     "var(--dsw-static-blue-600)"
+                                                 ],
+                   "--dsw-specific-gradient-3":  [
+                                                     "var(--dsw-static-deepseek-300)",
+                                                     "var(--dsw-static-deepseek-450)"
+                                                 ],
+                   "--dsw-specific-gradient-4":  [
+                                                     "var(--dsw-static-green-400)",
+                                                     "var(--dsw-static-green-500)"
+                                                 ],
+                   "--dsw-specific-gradient-5":  [
+                                                     "var(--dsw-static-amber-400)",
+                                                     "var(--dsw-static-amber-500)"
+                                                 ],
+                   "--dsw-alias-bg-mask-1":  [
+                                                 "#0000003d",
+                                                 "#00000080"
+                                             ]
+               }
+}

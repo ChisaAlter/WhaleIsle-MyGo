@@ -24,11 +24,19 @@ type Motion struct {
 // floating card, Swap a control changing its face (a chevron turning, a
 // switch's thumb sliding) and Flip a whole surface turning over. All ride the
 // design system's shared curve (ui-theme/src/styles/base.css:12).
+//
+// The durations are the reference token sheet's own values
+// (ui-theme/src/styles/base.css:13-20):
+//
+//	--ds-transition-duration       0.2s  overlay
+//	--ds-transition-duration-fast  0.1s  swap (--ds-motion-duration-swap)
+//	--ds-motion-duration-popover   0.16s popover
+//	--ds-motion-duration-flip      0.4s  flip
 var (
-	OverlayMotion = Motion{Duration: 200 * time.Millisecond, Ease: DesignEase}
-	PopoverMotion = Motion{Duration: 160 * time.Millisecond, Ease: DesignEase}
-	SwapMotion    = Motion{Duration: 120 * time.Millisecond, Ease: DesignEase}
-	FlipMotion    = Motion{Duration: 300 * time.Millisecond, Ease: DesignEase}
+	OverlayMotion = Motion{Duration: OverlayDuration, Ease: DesignEase}
+	PopoverMotion = Motion{Duration: PopoverDuration, Ease: DesignEase}
+	SwapMotion    = Motion{Duration: SwapDuration, Ease: DesignEase}
+	FlipMotion    = Motion{Duration: FlipDuration, Ease: DesignEase}
 )
 
 // FastDuration is the design system's fast token, --ds-transition-duration-fast
@@ -51,16 +59,20 @@ func HoverTransition() ui.ElementTransition {
 }
 
 // The durations of the motion tokens, for code that builds its own
-// transitions rather than calling Motion.Animate.
+// transitions rather than calling Motion.Animate. The tokens above read these,
+// so a duration has exactly one literal in the package.
 const (
 	// OverlayDuration is how long a modal or a page takes to appear.
 	OverlayDuration = 200 * time.Millisecond
 	// PopoverDuration is how long a menu or a floating card takes.
 	PopoverDuration = 160 * time.Millisecond
-	// SwapDuration is how long a control takes to change its face.
-	SwapDuration = 120 * time.Millisecond
-	// FlipDuration is how long a surface takes to turn over.
-	FlipDuration = 300 * time.Millisecond
+	// SwapDuration is how long a control takes to change its face: the
+	// reference's swap token is the fast token, not a duration of its own
+	// (base.css:19 `--ds-motion-duration-swap: var(--ds-transition-duration-fast)`).
+	SwapDuration = FastDuration
+	// FlipDuration is how long a surface takes to turn over
+	// (base.css:20 `--ds-motion-duration-flip: 0.4s`).
+	FlipDuration = 400 * time.Millisecond
 )
 
 // Animate moves the value kept under key toward target as the motion says,

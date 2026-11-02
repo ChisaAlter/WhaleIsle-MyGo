@@ -166,7 +166,7 @@ func (h *windowHost) size() (float32, float32, float32) {
 		s = 1
 	}
 	z := h.zoomFactor()
-	return float32(w / z), float32(ht / z), float32(s * z)
+	return float32(w), float32(ht), float32(s * z)
 }
 
 // pixels reports that a surface measures the window in device pixels: the runtime

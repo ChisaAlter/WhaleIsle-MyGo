@@ -45,6 +45,7 @@ func (s *Store) runCreateGoal(ctx context.Context, client *dsh.Client, sessionID
 			Phase:     "active",
 		}
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -85,6 +86,7 @@ func (s *Store) runEditGoal(ctx context.Context, client *dsh.Client, sessionID s
 		s.lastAction = "goal edited"
 		s.applyGoalView(&out)
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -123,8 +125,15 @@ func (s *Store) RefreshGoal(ctx context.Context) {
 }
 
 func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionID string, generation uint64) {
+	s.runRefreshGoalForOwner(ctx, client, sessionID, generation, nil)
+}
+
+// A newly selected workspace session owns its initial goal read by Host and
+// selection generation as well as by client pointer. A reconnect can reuse the
+// same client; neither the old read nor its result belongs to the new Host.
+func (s *Store) runRefreshGoalForOwner(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, owner *workspaceSelectedOwner) {
 	s.mu.Lock()
-	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) {
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || (owner != nil && !owner.currentLocked(s)) {
 		s.mu.Unlock()
 		return
 	}
@@ -134,7 +143,7 @@ func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionI
 	var out api.GoalView
 	err := client.Call(ctx, "goals/get", map[string]any{"agentId": sessionID}, &out)
 	s.mu.Lock()
-	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || s.planBoard.goalReadToken != token {
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || (owner != nil && !owner.currentLocked(s)) || s.planBoard.goalReadToken != token {
 		s.mu.Unlock()
 		return
 	}
@@ -151,6 +160,7 @@ func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionI
 			s.planBoard.Goal = nil
 		}
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -195,6 +205,7 @@ func (s *Store) runGoalAction(ctx context.Context, client *dsh.Client, sessionID
 			s.lastAction = "goal action returned no goal state"
 		}
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }

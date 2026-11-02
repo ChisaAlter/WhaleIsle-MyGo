@@ -28,7 +28,15 @@ type openUIUpdate struct {
 // The revisioned wire embeds it so the JSON fields remain flat.
 type revisionedOpenUIUpdate struct {
 	openUIUpdate
-	Revision uint64 `json:"revision,omitempty"`
+	Revision  uint64            `json:"revision,omitempty"`
+	Language  string            `json:"language,omitempty"`
+	Locale    string            `json:"locale,omitempty"`
+	Variables map[string]string `json:"variables,omitempty"`
+	Panel     bool              `json:"panel,omitempty"`
+}
+
+func revisionedUpdate(r openui.Render) revisionedOpenUIUpdate {
+	return revisionedOpenUIUpdate{openUIUpdate: openUIUpdate{r.InstanceID, r.Program, r.Streaming}, Revision: r.Revision, Language: r.Language, Locale: r.Locale, Variables: r.Variables, Panel: r.Panel}
 }
 
 type openUIUpdateQueue struct {
@@ -42,7 +50,7 @@ type openUIUpdateQueue struct {
 }
 
 func newOpenUIUpdateQueue(r openui.Render) *openUIUpdateQueue {
-	raw, _ := json.Marshal(revisionedOpenUIUpdate{openUIUpdate: openUIUpdate{r.InstanceID, r.Program, r.Streaming}, Revision: r.Revision})
+	raw, _ := json.Marshal(revisionedUpdate(r))
 	return &openUIUpdateQueue{instanceID: r.InstanceID, lastHash: sha256.Sum256(raw), revision: r.Revision}
 }
 
@@ -60,7 +68,7 @@ func (s *Session) UpdateOpenUI(r openui.Render) error {
 	if r.InstanceID != q.instanceID {
 		return errors.New("OpenUI update belongs to another instance")
 	}
-	raw, err := json.Marshal(revisionedOpenUIUpdate{openUIUpdate: openUIUpdate{r.InstanceID, r.Program, r.Streaming}, Revision: r.Revision})
+	raw, err := json.Marshal(revisionedUpdate(r))
 	if err != nil {
 		return err
 	}
@@ -166,7 +174,7 @@ func validateRevisionedOpenUIUpdate(raw []byte) (revisionedOpenUIUpdate, error) 
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return update, errors.New("trailing OpenUI update JSON")
 	}
-	err := openui.ValidateRender(openui.Render{InstanceID: update.InstanceID, Revision: update.Revision, Program: update.Program, Streaming: update.Streaming, State: json.RawMessage(`{}`)})
+	err := openui.ValidateRender(openui.Render{InstanceID: update.InstanceID, Revision: update.Revision, Program: update.Program, Streaming: update.Streaming, State: json.RawMessage(`{}`), Language: update.Language, Locale: update.Locale, Variables: update.Variables, Panel: update.Panel})
 	return update, err
 }
 func sendOpenUIUpdate(w io.Writer, nonce string, raw []byte) error {

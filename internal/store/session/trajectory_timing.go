@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -37,9 +38,24 @@ type trajectoryTimeEvent struct {
 	Time *float64 `json:"time"`
 	Data struct {
 		Turn, Step   *float64
-		CompactionID string            `json:"compactionId"`
-		Stream       []json.RawMessage `json:"stream"`
+		CompactionID string          `json:"compactionId"`
+		Stream       json.RawMessage `json:"stream"`
 	} `json:"data"`
+}
+
+// trajectoryParsedEvent is one decoded boundary, kept so the message pass does
+// not decode the same raw again.
+type trajectoryParsedEvent struct {
+	event trajectoryTimeEvent
+	id    string
+	raw   json.RawMessage
+	ok    bool
+}
+
+type trajectoryTimingCacheEntry struct {
+	raw        string
+	parsed     trajectoryParsedEvent
+	firstToken *float64
 }
 
 func trajectoryStepID(turn, step *float64) string {
@@ -54,7 +70,7 @@ func trajectoryEventID(e trajectoryTimeEvent, raw json.RawMessage) string {
 	case "step/start", "step/end", "assistant/message", "assistant/attempt":
 		return trajectoryStepID(e.Data.Turn, e.Data.Step)
 	case "tool/call", "tool/result", "tool/ptc-dispatch-start", "tool/ptc-dispatch":
-		part, ok := readToolLifecyclePart(Message{Raw: raw})
+		part, ok := readToolLifecyclePart(Message{Seq: e.Seq, EventType: e.Type, Raw: raw})
 		if ok {
 			return "tool:" + part.id
 		}
@@ -78,29 +94,68 @@ func trajectoryEventID(e trajectoryTimeEvent, raw json.RawMessage) string {
 	return ""
 }
 
+func isToolTimingEventType(typ string) bool {
+	switch typ {
+	case "tool/call", "tool/result", "tool/ptc-dispatch-start", "tool/ptc-dispatch":
+		return true
+	default:
+		return false
+	}
+}
+
 // These boundaries are not chat messages. Retain them separately so follow and
 // session/page can hydrate timing without changing chat/paging/edit identities.
 func (s *Store) captureTrajectoryBoundaryLocked(raw json.RawMessage) bool {
-	var e trajectoryTimeEvent
-	if json.Unmarshal(raw, &e) != nil || e.Seq <= 0 {
-		return false
-	}
-	switch e.Type {
-	case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started", "compaction/start", "compaction/summary", "compaction/end", "session/end", "session/end-seed":
-	default:
-		var ok bool
-		raw, ok = sanitizedPromptBoundary(raw)
-		if !ok {
+	return s.captureTrajectoryBoundaryWithSeqLocked(raw, 0)
+}
+
+func (s *Store) captureTrajectoryBoundaryWithSeqLocked(raw json.RawMessage, seqHint float64) bool {
+	s.invalidateViewLocked()
+	var seq float64
+	if typ, ok := peekEventType(raw); ok && isToolTimingEventType(typ) && seqHint > 0 {
+		part, _ := readToolLifecycleMemo(seqHint, raw)
+		if !part.jsonValid || !part.streamValid || part.seq <= 0 {
 			return false
+		}
+		_, replace := promptReplace(part.surfaceOp)
+		if !replace && part.turn == nil {
+			return false
+		}
+		var sp systemPromptEvent
+		sp.Type = part.eventType
+		sp.Seq = part.seq
+		sp.SurfaceOp = part.surfaceOp
+		sp.Data.Turn = part.turn
+		sp.Data.Step = part.step
+		out, err := json.Marshal(sp)
+		if err != nil {
+			return false
+		}
+		raw = out
+		seq = part.seq
+	} else {
+		var e trajectoryTimeEvent
+		if json.Unmarshal(raw, &e) != nil || !validRawJSONArrayOrNull(e.Data.Stream) || e.Seq <= 0 {
+			return false
+		}
+		seq = e.Seq
+		switch e.Type {
+		case "turn/start", "turn/end", "step/start", "step/end", "assistant/message", "assistant/attempt", "llm/retry", "llm/retry-started", "compaction/start", "compaction/summary", "compaction/end", "session/end", "session/end-seed":
+		default:
+			var ok bool
+			raw, ok = sanitizedPromptBoundary(raw)
+			if !ok {
+				return false
+			}
 		}
 	}
 	if s.trajectoryBoundaries == nil {
 		s.trajectoryBoundaries = make(map[float64]json.RawMessage)
 	}
-	if string(s.trajectoryBoundaries[e.Seq]) == string(raw) {
+	if bytes.Equal(s.trajectoryBoundaries[seq], raw) {
 		return false
 	}
-	s.trajectoryBoundaries[e.Seq] = append(json.RawMessage(nil), raw...)
+	s.trajectoryBoundaries[seq] = append(json.RawMessage(nil), raw...)
 	return true
 }
 
@@ -122,14 +177,87 @@ func trajectoryTokenTime(raw json.RawMessage, timestamp float64) *float64 {
 	return trajectoryTimestamp(&timestamp)
 }
 
-func trajectoryStreamFirstToken(stream []json.RawMessage) *float64 {
-	chunks, ok := expandAssistantStream(stream)
-	if !ok {
+// trajectoryStreamFirstToken reports the Host time of the first token in a
+// recorded stream. It reads the records in order and stops at that token:
+// expanding the whole stream to look at its first chunk decoded and re-encoded
+// every chunk of every assistant turn on each snapshot, which was the largest
+// single cost on the UI thread (tmp/stalls, round 2026-10-26).
+func trajectoryStreamFirstToken(rawStream json.RawMessage) *float64 {
+	trimmed := bytes.TrimSpace(rawStream)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) || trimmed[0] != '[' {
 		return nil
 	}
-	for _, c := range chunks {
-		if first := trajectoryTokenTime(c.chunk, c.time); first != nil {
-			return first
+	dec := json.NewDecoder(bytes.NewReader(trimmed))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('[') {
+		return nil
+	}
+	for dec.More() {
+		var raw json.RawMessage
+		if dec.Decode(&raw) != nil {
+			return nil
+		}
+		var r struct {
+			Type  string          `json:"type"`
+			Time  float64         `json:"time"`
+			Time0 float64         `json:"time0"`
+			Index int             `json:"index"`
+			DT    []float64       `json:"dt"`
+			Texts []string        `json:"texts"`
+			Args  []string        `json:"args"`
+			ID    string          `json:"id"`
+			Name  *string         `json:"name"`
+			Chunk json.RawMessage `json:"chunk"`
+		}
+		if json.Unmarshal(raw, &r) != nil {
+			return nil
+		}
+		if r.Type == "chunk" {
+			var obj map[string]json.RawMessage
+			if !assistantSafeInt(r.Time) || json.Unmarshal(r.Chunk, &obj) != nil || obj == nil {
+				return nil
+			}
+			if first := trajectoryTokenTime(r.Chunk, r.Time); first != nil {
+				return first
+			}
+			continue
+		}
+		texts, typ := r.Texts, "text-delta"
+		switch r.Type {
+		case "text-chunks":
+		case "reasoning-chunks":
+			typ = "reasoning-delta"
+		case "tool-call-chunks":
+			texts, typ = r.Args, "tool-call-delta"
+			if r.ID == "" {
+				return nil
+			}
+		default:
+			return nil
+		}
+		if r.Index < 0 || !assistantSafeInt(r.Time0) || len(texts) == 0 || len(r.DT) != len(texts)-1 {
+			return nil
+		}
+		time := r.Time0
+		for i, text := range texts {
+			if i > 0 {
+				if !assistantSafeInt(r.DT[i-1]) {
+					return nil
+				}
+				time += r.DT[i-1]
+			}
+			if !assistantSafeInt(time) {
+				return nil
+			}
+			// A packed run records its tokens as strings: a token either has
+			// text or, for a tool call, a name. Expanding and re-parsing the
+			// chunk JSON answered the same question.
+			token := text != ""
+			if typ == "tool-call-delta" {
+				token = token || r.Name != nil
+			}
+			if token {
+				return trajectoryTimestamp(&time)
+			}
 		}
 	}
 	return nil
@@ -147,112 +275,263 @@ func cloneTrajectoryTiming(t *TrajectoryTiming) *TrajectoryTiming {
 	return &copy
 }
 
-func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
-	raws := make(map[float64]json.RawMessage, len(s.trajectoryBoundaries)+len(s.messages))
-	for seq, raw := range s.trajectoryBoundaries {
-		raws[seq] = raw
-	}
-	for _, m := range s.messages {
-		if m.Seq > 0 && len(m.Raw) > 0 {
-			raws[m.Seq] = m.Raw
+func (s *Store) ensureTrajectoryTimingCacheLocked() (map[float64]trajectoryParsedEvent, map[string]*TrajectoryTiming, map[string]json.RawMessage) {
+	fingerprint := s.trajectoryFingerprintLocked()
+	parsed := s.trajTimingParsed
+	ops := s.trajTimingOps
+	anchors := s.trajTimingAnchors
+	if s.trajTimingRev != fingerprint || parsed == nil || ops == nil || anchors == nil {
+		raws := make(map[float64]json.RawMessage, len(s.trajectoryBoundaries)+len(s.messages))
+		for seq, raw := range s.trajectoryBoundaries {
+			raws[seq] = raw
 		}
-	}
-	seqs := make([]float64, 0, len(raws))
-	for seq := range raws {
-		seqs = append(seqs, seq)
-	}
-	sort.Float64s(seqs)
-	ops := make(map[string]*TrajectoryTiming)
-	anchors := make(map[string]json.RawMessage)
-	starts := make(map[string]bool)
-	startSeqs := make(map[string]float64)
-	finals := make(map[string]bool)
-	for _, seq := range seqs {
-		raw := raws[seq]
-		var e trajectoryTimeEvent
-		if json.Unmarshal(raw, &e) != nil {
-			continue
+		for _, m := range s.messages {
+			if m.Seq > 0 && len(m.Raw) > 0 {
+				raws[m.Seq] = m.Raw
+			}
 		}
-		if e.Type == "session/end-seed" {
-			latest, latestSeq := "", float64(-1)
-			for candidate, timing := range ops {
-				if strings.HasPrefix(candidate, "compaction:") && !timing.Closed && startSeqs[candidate] > latestSeq {
-					latest, latestSeq = candidate, startSeqs[candidate]
+		seqs := make([]float64, 0, len(raws))
+		for seq := range raws {
+			seqs = append(seqs, seq)
+		}
+		sort.Float64s(seqs)
+		ops = make(map[string]*TrajectoryTiming)
+		anchors = make(map[string]json.RawMessage)
+		starts := make(map[string]bool)
+		startSeqs := make(map[string]float64)
+		finals := make(map[string]bool)
+		parsed = make(map[float64]trajectoryParsedEvent, len(raws))
+		if s.trajTimingCache == nil {
+			s.trajTimingCache = make(map[float64]trajectoryTimingCacheEntry, len(raws))
+		}
+		for _, seq := range seqs {
+			raw := raws[seq]
+			var e trajectoryTimeEvent
+			var p trajectoryParsedEvent
+			var cachedFirstToken *float64
+			if entry, ok := s.trajTimingCache[seq]; ok && bytes.Equal([]byte(entry.raw), raw) {
+				p = entry.parsed
+				e = p.event
+				cachedFirstToken = entry.firstToken
+				if !p.ok {
+					parsed[seq] = p
+					continue
 				}
+			} else if typ, ok := peekEventType(raw); ok && isToolTimingEventType(typ) {
+				part, toolOK := readToolLifecycleMemo(seq, raw)
+				if !part.jsonValid || !part.streamValid {
+					p = trajectoryParsedEvent{raw: append(json.RawMessage(nil), raw...)}
+					s.trajTimingCache[seq] = trajectoryTimingCacheEntry{raw: string(raw), parsed: p}
+					parsed[seq] = p
+					continue
+				}
+				e = trajectoryTimeEvent{
+					Type: part.eventType,
+					Seq:  part.seq,
+					Time: part.time,
+				}
+				e.Data.Turn = part.turn
+				e.Data.Step = part.step
+				id := ""
+				if toolOK {
+					id = "tool:" + part.id
+				}
+				p = trajectoryParsedEvent{event: e, id: id, raw: append(json.RawMessage(nil), raw...), ok: true}
+				s.trajTimingCache[seq] = trajectoryTimingCacheEntry{raw: string(raw), parsed: p}
+			} else {
+				if json.Unmarshal(raw, &e) != nil || !validRawJSONArrayOrNull(e.Data.Stream) {
+					p = trajectoryParsedEvent{raw: append(json.RawMessage(nil), raw...)}
+					s.trajTimingCache[seq] = trajectoryTimingCacheEntry{raw: string(raw), parsed: p}
+					parsed[seq] = p
+					continue
+				}
+				id := ""
+				if e.Type != "session/end-seed" {
+					id = trajectoryEventID(e, raw)
+				}
+				p = trajectoryParsedEvent{event: e, id: id, raw: append(json.RawMessage(nil), raw...), ok: true}
+				if e.Type == "assistant/attempt" || e.Type == "assistant/message" {
+					cachedFirstToken = trajectoryStreamFirstToken(e.Data.Stream)
+				}
+				s.trajTimingCache[seq] = trajectoryTimingCacheEntry{raw: string(raw), parsed: p, firstToken: cachedFirstToken}
 			}
-			if latest != "" {
-				ops[latest].CompletedAt, ops[latest].Closed = trajectoryTimestamp(e.Time), true
+			if e.Type == "session/end-seed" {
+				parsed[seq] = p
+				latest, latestSeq := "", float64(-1)
+				for candidate, timing := range ops {
+					if strings.HasPrefix(candidate, "compaction:") && !timing.Closed && startSeqs[candidate] > latestSeq {
+						latest, latestSeq = candidate, startSeqs[candidate]
+					}
+				}
+				if latest != "" {
+					ops[latest].CompletedAt, ops[latest].Closed = trajectoryTimestamp(e.Time), true
+				}
+				continue
 			}
-			continue
-		}
-		id := trajectoryEventID(e, raw)
-		if id == "" {
-			continue
-		}
-		if strings.HasPrefix(id, "compaction:") {
-			anchors[id] = append(json.RawMessage(nil), raw...)
-		}
-		t := ops[id]
-		if t == nil {
-			t = &TrajectoryTiming{OperationID: id}
-			ops[id] = t
-		}
-		switch e.Type {
-		case "step/start", "tool/call", "tool/ptc-dispatch-start", "compaction/start":
-			if starts[id] {
-				t.Invalid = true
+			id := p.id
+			parsed[seq] = p
+			if id == "" {
+				continue
 			}
-			starts[id] = true
-			startSeqs[id] = seq
-			t.StartedAt = trajectoryTimestamp(e.Time)
-		case "assistant/message", "tool/result", "tool/ptc-dispatch", "compaction/end":
-			// A second distinct terminal record for one identity is ambiguous.
-			if finals[id] {
-				t.Invalid = true
+			if strings.HasPrefix(id, "compaction:") {
+				anchors[id] = append(json.RawMessage(nil), raw...)
 			}
-			finals[id] = true
-			t.CompletedAt = trajectoryTimestamp(e.Time)
-			t.Closed = true
-		case "step/end":
-			// Closing a failed step does not fabricate an assistant completion timestamp.
-			t.Closed = true
-		}
-		if (e.Type == "assistant/attempt" || e.Type == "assistant/message") && t.FirstTokenAt == nil {
-			t.FirstTokenAt = trajectoryStreamFirstToken(e.Data.Stream)
-		}
-	}
-	live := make(map[string]*TrajectoryTiming)
-	if a := s.assistantStream.active; a != nil {
-		id := trajectoryStepID(&a.Turn, &a.Step)
-		if id != "" {
 			t := ops[id]
 			if t == nil {
 				t = &TrajectoryTiming{OperationID: id}
 				ops[id] = t
 			}
+			switch e.Type {
+			case "step/start", "tool/call", "tool/ptc-dispatch-start", "compaction/start":
+				if starts[id] {
+					t.Invalid = true
+				}
+				starts[id] = true
+				startSeqs[id] = seq
+				t.StartedAt = trajectoryTimestamp(e.Time)
+			case "assistant/message", "tool/result", "tool/ptc-dispatch", "compaction/end":
+				if finals[id] {
+					t.Invalid = true
+				}
+				finals[id] = true
+				t.CompletedAt = trajectoryTimestamp(e.Time)
+				t.Closed = true
+			case "step/end":
+				t.Closed = true
+			}
+			if (e.Type == "assistant/attempt" || e.Type == "assistant/message") && t.FirstTokenAt == nil {
+				t.FirstTokenAt = trajectoryTimestamp(cachedFirstToken)
+			}
+		}
+		s.trajTimingRev = fingerprint
+		s.trajTimingParsed = parsed
+		s.trajTimingOps = ops
+		s.trajTimingAnchors = anchors
+	}
+	return parsed, ops, anchors
+}
+
+func (s *Store) liveAttemptTimingLocked(ops map[string]*TrajectoryTiming) (string, *TrajectoryTiming, map[string]*TrajectoryTiming) {
+	live := make(map[string]*TrajectoryTiming)
+	var liveOpID string
+	var liveOp *TrajectoryTiming
+	if a := s.assistantStream.active; a != nil {
+		id := trajectoryStepID(&a.Turn, &a.Step)
+		if id != "" {
+			t := cloneTrajectoryTiming(ops[id])
+			if t == nil {
+				t = &TrajectoryTiming{OperationID: id}
+			}
 			if t.FirstTokenAt == nil {
 				t.FirstTokenAt = trajectoryTimestamp(a.trajectoryFirstToken)
 			}
+			liveOpID = id
+			liveOp = t
 			for _, rowID := range a.rows {
 				live[rowID] = t
 			}
 		}
 	}
+	return liveOpID, liveOp, live
+}
+
+func (s *Store) projectDurableTimingLocked(messages []Message) ([]Message, []Message, map[string][]int) {
+	parsed, ops, anchors := s.ensureTrajectoryTimingCacheLocked()
+	out := append([]Message(nil), messages...)
+	mapped := make(map[string]bool)
+	stepIndices := make(map[string][]int)
+	for i := range out {
+		m := &out[i]
+		m.TrajectoryTime = nil
+		p, ok := parsed[m.Seq]
+		if ok && !bytes.Equal(p.raw, m.Raw) {
+			ok = false
+		}
+		if !ok || !p.ok {
+			if len(m.Raw) > 0 {
+				var e trajectoryTimeEvent
+				if json.Unmarshal(m.Raw, &e) == nil {
+					p = trajectoryParsedEvent{event: e, id: trajectoryEventID(e, m.Raw), ok: true}
+				} else {
+					p = trajectoryParsedEvent{}
+				}
+			} else {
+				p = trajectoryParsedEvent{}
+			}
+		}
+		if p.ok {
+			if timestamp := trajectoryTimestamp(p.event.Time); timestamp != nil {
+				m.EventTime = *timestamp
+			}
+			if strings.HasPrefix(p.id, "assistant:") {
+				stepIndices[p.id] = append(stepIndices[p.id], i)
+			}
+			m.TrajectoryTime = cloneTrajectoryTiming(ops[p.id])
+			if m.TrajectoryTime != nil {
+				mapped[p.id] = true
+			}
+		}
+	}
+	var unmapped []Message
+	for id, timing := range ops {
+		if !strings.HasPrefix(id, "compaction:") || mapped[id] || timing == nil {
+			continue
+		}
+		raw := anchors[id]
+		var e trajectoryTimeEvent
+		_ = json.Unmarshal(raw, &e)
+		eventTime := float64(0)
+		if e.Time != nil {
+			eventTime = *e.Time
+		}
+		unmapped = append(unmapped, Message{
+			ID: id, Kind: MessageKindCompaction, Role: "system", Seq: e.Seq,
+			EventType: e.Type, Raw: raw, Body: id, EventTime: eventTime,
+			TrajectoryTime: cloneTrajectoryTiming(timing),
+		})
+	}
+	return out, unmapped, stepIndices
+}
+
+func (s *Store) projectTrajectoryTimingLocked(messages []Message) []Message {
+	parsed, ops, anchors := s.ensureTrajectoryTimingCacheLocked()
+	liveOpID, liveOp, live := s.liveAttemptTimingLocked(ops)
 	out := append([]Message(nil), messages...)
 	mapped := make(map[string]bool)
 	for i := range out {
 		m := &out[i]
 		m.TrajectoryTime = nil
-		var e trajectoryTimeEvent
-		if json.Unmarshal(m.Raw, &e) == nil {
+		p, ok := parsed[m.Seq]
+		if ok && !bytes.Equal(p.raw, m.Raw) {
+			ok = false
+		}
+		if !ok || !p.ok {
+			// A message this snapshot added (a compaction anchor), one with no
+			// sequence, or one whose raw differs from the boundary of its
+			// sequence: decode it alone.
+			if len(m.Raw) > 0 {
+				var e trajectoryTimeEvent
+				if json.Unmarshal(m.Raw, &e) == nil {
+					p = trajectoryParsedEvent{event: e, id: trajectoryEventID(e, m.Raw), ok: true}
+				} else {
+					p = trajectoryParsedEvent{}
+				}
+			} else {
+				p = trajectoryParsedEvent{}
+			}
+		}
+		if p.ok {
 			// Raw classifiers historically omitted EventTime for several event kinds.
-			if timestamp := trajectoryTimestamp(e.Time); timestamp != nil {
+			if timestamp := trajectoryTimestamp(p.event.Time); timestamp != nil {
 				m.EventTime = *timestamp
 			}
-			id := trajectoryEventID(e, m.Raw)
-			m.TrajectoryTime = cloneTrajectoryTiming(ops[id])
+			op := ops[p.id]
+			if p.id != "" && p.id == liveOpID && liveOp != nil {
+				op = liveOp
+			}
+			m.TrajectoryTime = cloneTrajectoryTiming(op)
 			if m.TrajectoryTime != nil {
-				mapped[id] = true
+				mapped[p.id] = true
 			}
 		}
 		if t := live[m.ID]; t != nil {

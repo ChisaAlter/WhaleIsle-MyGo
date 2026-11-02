@@ -52,7 +52,7 @@ func startStaged(result ApplyResult, start func(string) error) (ApplyResult, err
 	}
 	result.Started = true
 	if runtime.GOOS == "darwin" {
-		result.Message += "; disk image opened; copy Whale Isle.app to Applications to finish installation"
+		result.Message += "; disk image opened; copy DeepSeekHarness Go.app to Applications to finish installation"
 	} else {
 		result.Message += "; installer started"
 	}

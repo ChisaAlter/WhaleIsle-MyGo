@@ -9,7 +9,6 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // modelNamespaceBody retains the rich model/provider editors and scopes every
@@ -29,7 +28,7 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 	ns := snap.Namespaces[0]
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	container := ui.Column(c.Key("model-namespace/" + binding.Owner())).FillWidth().MinWidth(0).Gap(12)
+	container := ui.Column(c.Key("model-namespace/" + binding.Owner())).FillWidth().MinWidth(0).Gap(16)
 	inputs := ui.Local(container, "inputs", func() map[string]*string { return map[string]*string{} })
 	models := *m.Models
 	models.configurationBinding = binding
@@ -79,14 +78,10 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 			})
 		}
 		ui.Row(c).FillWidth().Gap(8).Wrap().Justify(ui.End).Children(func() {
-			if widgets.Button(c, colors, i18n.T(i18n.KeySettingsWhaleCancel),
-				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall,
-					Disabled: snap.Saving || !snap.Writable}).Clicked() {
+			if modelPill(c, i18n.T(i18n.KeySettingsWhaleCancel), false, false, snap.Saving || !snap.Writable).Clicked() {
 				binding.Discard()
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeySettingsSave),
-				widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall,
-					Disabled: !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading || !snap.Dirty || configurationInvalid(snap)}).Clicked() {
+			if modelPill(c, i18n.T(i18n.KeySettingsSave), true, false, !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading || !snap.Dirty || configurationInvalid(snap)).Clicked() {
 				binding.Save(context.Background())
 			}
 		})
@@ -96,9 +91,9 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store.ViewState, f store.Field, fg, muted ui.Color) {
 	disabled := !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading
 	ui.Column(c.Key("model-scalar/" + f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Children(func() {
-			ui.Text(c, f.Label).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0)
-			if ui.Button(c, providerCopy("继承", "Inherit")).Disabled(disabled).Clicked() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, f.Label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).TextColor(theme.Color(modelColors(c).Secondary)).Grow(1).MinWidth(0)
+			if ui.Button(c, providerCopy("继承", "Inherit")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
 				binding.Reset(f.Key)
 			}
 		})
@@ -117,16 +112,16 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 				}
 			}
 		case store.FieldEnum:
-			if ui.Select(c, &value, f.EnumOptions).FillWidth().Label(f.Label).Disabled(disabled).Changed() {
+			if ui.Select(c, &value, f.EnumOptions).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).Label(f.Label).Disabled(disabled).Changed() {
 				binding.SetDraft(f.Key, value)
 			}
 		default:
 			if f.Kind == store.FieldJSON || MultilineStringField(f) || strings.Contains(value, "\n") {
-				if ui.TextArea(c, &value).Label(f.Label).FillWidth().Lines(3, 12).ReadOnly(disabled).Changed() {
+				if ui.TextArea(c, &value).Label(f.Label).FillWidth().Lines(3, 12).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled).Changed() {
 					binding.SetDraft(f.Key, value)
 				}
 			} else {
-				input := ui.TextInput(c, &value).Label(f.Label).FillWidth().ReadOnly(disabled)
+				input := ui.TextInput(c, &value).Label(f.Label).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled)
 				if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
 					input.Password()
 				}
@@ -194,8 +189,8 @@ func modelAPIKeyField(c *ui.Context, binding *store.NamespaceBinding, snap store
 	disabled := !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading
 	value := snap.Drafts[field.Key]
 	ui.Column(c.Key("model-secret/" + field.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsModelsAPIKey)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-		input := ui.TextInput(c, &value).Label(i18n.T(i18n.KeySettingsModelsAPIKey)).FillWidth().ReadOnly(disabled).Password()
+		modelFieldLabel(c, i18n.T(i18n.KeySettingsModelsAPIKey))
+		input := ui.TextInput(c, &value).Label(i18n.T(i18n.KeySettingsModelsAPIKey)).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled).Password()
 		if len(envNames) > 0 && !envPresent {
 			input.Placeholder(fmt.Sprintf(i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder), strings.Join(envNames, " / ")))
 		}

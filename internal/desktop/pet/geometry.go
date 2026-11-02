@@ -1,107 +1,174 @@
-﻿package pet
+package pet
 
 import (
-	"github.com/egoist/mygo"
+	"encoding/json"
+	"html"
+	"math"
+	"strings"
 
+	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
 )
 
-// Window geometry mirrors the native desktop pet. The modern pet is the live2d
-// overlay: reference/electron/src/main/desktop-live2d.js:35-37 pins the sprite
-// footprint PET_WIDTH = 240, PET_HEIGHT = 260 and EDGE_GAP = 24 relative to the
-// display work area (defaultPosition, :82-88). Its OS window is the union of
-// every display (:27-33, overlayBounds), transparent, frameless, resizable:false
-// and never resized for growth or behavior: 240x260 is the pet's footprint, not
-// a window rectangle. The older sprite pet (desktop-pet.js:8-9, PET_SIZE = 88,
-// EDGE_GAP = 16) is behind DESKTOP_PET_FEATURE = false and is not modelled.
-//
-// MyGo draws the pet as a web page instead of compositing a live2d sprite, so
-// the window is a real page surface: the sprite stage keeps the native 240x260
-// footprint, and the status panel below it is where the page puts the actions
-// the native overlay asks its separate dialogue/status surfaces for. The height
-// of that panel is therefore a page cost, not a native window size.
+// Current native overlayBounds covers ONE display (desktop-live2d.js:663-676),
+// hopping with the character. Its old file-header union comment is stale.
 const (
-	// PetStageWidth/PetStageHeight are the native sprite footprint.
-	PetStageWidth  = 240
-	PetStageHeight = 260
-	// PetEdgeGap is the native gap kept from the work-area edges when the pet is
-	// placed at its default bottom-right position (desktop-live2d.js:37,82-88).
-	PetEdgeGap = 24
-	// PetStatusPanelHeight is the page-only status/actions panel under the stage.
-	PetStatusPanelHeight = 178
-
+	PetStageWidth   = 240
+	PetStageHeight  = 260
+	PetEdgeGap      = 24
 	PetWindowWidth  = PetStageWidth
-	PetWindowHeight = PetStageHeight + PetStatusPanelHeight
+	PetWindowHeight = PetStageHeight
 )
 
-// petWindowSize is the window rectangle in DIPs. It does not depend on the
-// behavior: the native pet never resizes when its growth scale changes, the
-// renderer only draws the same footprint larger (desktop-live2d.js:437 scales
-// the hit bounds, not the window).
-func petWindowSize() (int, int) {
-	return PetWindowWidth, PetWindowHeight
+var (
+	openCompanionWindow = mygo.NewWindow
+	petDisplays         = platformPetDisplays
+)
+
+type petLayout struct {
+	X, Y, Width, Height int
+	Area                mygo.Rectangle
 }
 
-// openCompanionWindow creates the pet's OS window. The shell can only create a
-// window once the application loop is running, and a main-window recreation
-// (launcher -> desktop) closes the companion, so the manager must be able to
-// create it again on the next SetReady. Tests replace this seam to observe the
-// lifecycle without a GUI.
-var openCompanionWindow = func(opts mygo.WindowOptions) *mygo.Window {
-	return mygo.NewWindow(opts)
+func primaryPetDisplay(displays []mygo.Display) mygo.Display {
+	for _, d := range displays {
+		if d.Primary && d.Bounds.Width > 0 && d.Bounds.Height > 0 {
+			return d
+		}
+	}
+	for _, d := range displays {
+		if d.Bounds.Width > 0 && d.Bounds.Height > 0 {
+			return d
+		}
+	}
+	return mygo.Display{Bounds: mygo.Rectangle{Width: 1280, Height: 720}, WorkArea: mygo.Rectangle{Width: 1280, Height: 720}, ScaleFactor: 1}
+}
+func petDisplayAt(displays []mygo.Display, x, y float64) (mygo.Display, bool) {
+	for _, d := range displays {
+		b := d.Bounds
+		if b.Width > 0 && b.Height > 0 && x >= float64(b.X) && x < float64(b.X+b.Width) && y >= float64(b.Y) && y < float64(b.Y+b.Height) {
+			return d, true
+		}
+	}
+	return mygo.Display{}, false
 }
 
-
-// defaultPetPosition places the pet at the native default: the bottom-right of
-// the work area, EDGE_GAP from both edges (desktop-live2d.js:82-88). Coordinates
-// are DIPs in the same space as the window API.
-func defaultPetPosition(workArea mygo.Rectangle) (int, int) {
-	x := workArea.X + max(0, workArea.Width-PetWindowWidth-PetEdgeGap)
-	y := workArea.Y + max(0, workArea.Height-PetWindowHeight-PetEdgeGap)
-	return x, y
+func activePetDisplay(displays []mygo.Display, stage mygo.Rectangle) mygo.Display {
+	// Reference overlayBounds uses the FIXED nominal 120x130 DIP centre, then
+	// the anchor, never the scaled/drawn bounds. Map this offset using the
+	// anchor monitor's DPI, which cannot change when resizing on a target
+	// monitor. Feeding the new stage.Width back into selection oscillates at
+	// x=-150 between 150% (360px wide) and 100% (240px wide) screens.
+	anchor, anchored := petDisplayAt(displays, float64(stage.X), float64(stage.Y))
+	scale := 1.0
+	if anchored {
+		scale = petCoordinateScale(anchor)
+	}
+	if centre, ok := petDisplayAt(displays, float64(stage.X)+PetStageWidth/2*scale, float64(stage.Y)+PetStageHeight/2*scale); ok {
+		return centre
+	}
+	if anchored {
+		return anchor
+	}
+	return primaryPetDisplay(displays)
 }
-
-// clampPetPosition keeps a remembered position fully on the work area, like the
-// native clamp into the home display (desktop-live2d.js:950-956). A remembered
-// position off every display falls back to the default, so the pet cannot be
-// lost after a monitor change.
-func clampPetPosition(workArea mygo.Rectangle, x, y int) (int, int) {
-	if workArea.Width <= 0 || workArea.Height <= 0 {
+func displayOverlayBounds(displays []mygo.Display, stage mygo.Rectangle) mygo.Rectangle {
+	return activePetDisplay(displays, stage).Bounds
+}
+func companionWindowOptions(displays []mygo.Display, stage mygo.Rectangle) mygo.WindowOptions {
+	d := activePetDisplay(displays, stage)
+	b := d.Bounds
+	s := petCoordinateScale(d)
+	return mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html",
+		X: int(math.Round(float64(b.X) / s)), Y: int(math.Round(float64(b.Y) / s)), Width: int(math.Round(float64(b.Width) / s)), Height: int(math.Round(float64(b.Height) / s)),
+		Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableMove: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true,
+		Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}}
+}
+func petWindowSize() (int, int) { return PetStageWidth, PetStageHeight }
+func defaultPetPosition(area mygo.Rectangle) (int, int) {
+	return area.X + max(0, area.Width-PetStageWidth-PetEdgeGap), area.Y + max(0, area.Height-PetStageHeight-PetEdgeGap)
+}
+func clampPetPosition(area mygo.Rectangle, x, y int) (int, int) {
+	if area.Width <= 0 || area.Height <= 0 {
 		return x, y
 	}
-	maxX := workArea.X + max(0, workArea.Width-PetWindowWidth)
-	maxY := workArea.Y + max(0, workArea.Height-PetWindowHeight)
-	return min(max(x, workArea.X), maxX), min(max(y, workArea.Y), maxY)
+	return min(max(x, area.X), area.X+max(0, area.Width-PetStageWidth)), min(max(y, area.Y), area.Y+max(0, area.Height-PetStageHeight))
+}
+func petWorkArea() mygo.Rectangle { return primaryPetDisplay(petDisplays()).WorkArea }
+func (p *Companion) petBounds() mygo.Rectangle {
+	b := p.stage
+	if b.Width <= 0 || b.Height <= 0 {
+		b.Width, b.Height = PetStageWidth, PetStageHeight
+	}
+	return b
+}
+func (p *Companion) petPosition() motionPoint {
+	b := p.petBounds()
+	return motionPoint{x: float64(b.X), y: float64(b.Y)}
 }
 
-// petWorkArea is the primary display's usable area, falling back to the display
-// bounds and then to no clamping.
-func petWorkArea() mygo.Rectangle {
-	displays := mygo.Screen.Displays()
-	for _, d := range displays {
-		if d.Primary && d.WorkArea.Width > 0 && d.WorkArea.Height > 0 {
-			return d.WorkArea
-		}
+// Native coordinates are physical pixels on Windows, DIPs elsewhere. The
+// actual content rectangle and its current scale are the only CSS origin.
+func localPetLayout(stage, overlay, area mygo.Rectangle, scale float64) petLayout {
+	if scale <= 0 {
+		scale = 1
 	}
-	for _, d := range displays {
-		if d.WorkArea.Width > 0 && d.WorkArea.Height > 0 {
-			return d.WorkArea
-		}
-	}
-	return mygo.Rectangle{}
+	round := func(v int) int { return int(math.Round(float64(v) / scale)) }
+	return petLayout{X: round(stage.X - overlay.X), Y: round(stage.Y - overlay.Y), Width: round(stage.Width), Height: round(stage.Height), Area: mygo.Rectangle{X: round(area.X - overlay.X), Y: round(area.Y - overlay.Y), Width: round(area.Width), Height: round(area.Height)}}
 }
-
-// placePetWindow positions a pet window: the remembered anchor when the user
-// dragged it, otherwise the native bottom-right default.
-func placePetWindow(w *mygo.Window, remembered *config.PetPosition) {
+func renderLayoutPage(page []byte, layout petLayout) []byte {
+	data, _ := json.Marshal(layout)
+	return []byte(strings.ReplaceAll(string(page), "{{PET_LAYOUT}}", html.EscapeString(string(data))))
+}
+func (p *Companion) publishLayout() {
+	if p.win == nil || p.win.IsDestroyed() || p.placingOverlay {
+		return
+	}
+	p.placingOverlay = true
+	defer func() { p.placingOverlay = false }()
+	displays := petDisplays()
+	petPlaceNative(p.win, displayOverlayBounds(displays, p.petBounds()))
+	content := petContentBounds(p.win)
+	area := activePetDisplay(displays, p.petBounds()).WorkArea
+	if area.Width <= 0 || area.Height <= 0 {
+		area = content
+	}
+	view := localPetLayout(p.petBounds(), content, area, petWindowScale(p.win))
+	p.assetMu.Lock()
+	p.layout = view
+	p.assetMu.Unlock()
+	if p.QuickChat != nil {
+		p.QuickChat.positionNearPet()
+	}
+}
+func (p *Companion) sizeStage() {
+	scale := p.savedBehavior().Scale * petCoordinateScale(activePetDisplay(petDisplays(), p.petBounds()))
+	p.stage.Width, p.stage.Height = int(math.Round(PetStageWidth*scale)), int(math.Round(PetStageHeight*scale))
+}
+func (p *Companion) preparePetStage(remembered *config.PetPosition) {
+	displays := petDisplays()
+	d := primaryPetDisplay(displays)
+	s := petCoordinateScale(d)
+	area := d.WorkArea
+	if area.Width <= 0 || area.Height <= 0 {
+		area = d.Bounds
+	}
+	p.stage = mygo.Rectangle{X: area.X, Y: area.Y, Width: int(PetStageWidth * s), Height: int(PetStageHeight * s)}
+	p.stage.X += max(0, area.Width-p.stage.Width-int(PetEdgeGap*s))
+	p.stage.Y += max(0, area.Height-p.stage.Height-int(PetEdgeGap*s))
+	if restored := petRestorePosition(remembered, displays); restored != nil {
+		p.stage.X, p.stage.Y = restored.X, restored.Y
+	}
+	p.sizeStage()
+	if work, ok := motionWorkArea(p.petBounds()); ok {
+		position := clampMotionPoint(p.petPosition(), float64(p.stage.Width), float64(p.stage.Height), work)
+		p.stage.X, p.stage.Y = int(position.x), int(position.y)
+	}
+}
+func (p *Companion) placePetWindow(w *mygo.Window, remembered *config.PetPosition) {
 	if w == nil || w.IsDestroyed() {
 		return
 	}
-	area := petWorkArea()
-	x, y := defaultPetPosition(area)
-	if remembered != nil {
-		x, y = clampPetPosition(area, remembered.X, remembered.Y)
-	}
-	w.SetPosition(x, y)
+	p.preparePetStage(remembered)
+	p.publishLayout()
 }
-

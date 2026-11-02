@@ -88,7 +88,12 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 		captionGitButton(c, m, a, m.Density != "compact").Radius(14).Border(.5, c.Theme().Border)
 		return
 	}
-	ui.Row(c).Height(27).Shrink(0).Gap(0).Border(.5, c.Theme().Border).Radius(14).Clip().AlignItems(ui.Center).Children(func() {
+	toolbar := ui.Row(c.Key("caption-git-toolbar")).Label("Git toolbar").Height(27).Shrink(0).Gap(0).Border(.5, c.Theme().Border).Radius(14).Clip().AlignItems(ui.Center)
+	revealed := ui.Local(toolbar, "revealed-parts", func() captionGitReveal { return captionGitReveal{} })
+	if !toolbar.Hovered() {
+		revealed.observe(false, false, false)
+	}
+	toolbar.Children(func() {
 		branch := m.Status.Branch
 		if branch == "" && m.Git != nil {
 			branch = m.Git.Branch
@@ -100,80 +105,99 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 		if m.Density == "cozy" {
 			maxWidth = 120
 		}
-		anchor := ui.ButtonBase(c).Height(27).MaxWidth(maxWidth).Padding(0, 10).Gap(4).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil).FocusRing(false)
-		if m.Density == "compact" {
-			anchor.Padding(0, 8)
-		}
-		anchor.Children(func() {
-			ui.Icon(c, workspaceTrailingIcons["branch"]).Size(14, 14).TextColor(c.Theme().Text)
-			if m.Density != "compact" {
-				ui.Text(c, branch).MinWidth(0).SingleLine().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Text)
+		branchPart := ui.Row(c.Key("caption-git-branch")).Height(27).Shrink(0).Gap(0)
+		branchPart.Children(func() {
+			padding := float32(10)
+			if m.Density == "compact" {
+				padding = 8
 			}
-			ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).TextColor(c.Theme().Text)
+			anchor := ui.ButtonBase(c).Height(27).MaxWidth(maxWidth).Padding(0, padding).Gap(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("切换分支", "Switch branch")).Tooltip(branch).Disabled(m.GitBusy || m.RenderBranches == nil).FocusRing(false)
+			branchOpen := ui.Local(anchor, "branch-open", func() bool { return false })
+			if m.GitBusy {
+				*branchOpen = false
+			}
+			if anchor.Clicked() {
+				*branchOpen = !*branchOpen
+			}
+			if m.RenderBranches != nil {
+				m.RenderBranches(c, anchor, branchOpen)
+			}
+			anchor.Expanded(*branchOpen)
+			revealed.observe(toolbar.Hovered(), branchPart.Hovered(), false)
+			shown := revealed.branch || anchor.FocusVisible() || *branchOpen
+			anchor.Children(func() {
+				ui.Icon(c, workspaceTrailingIcons["branch"]).Size(14, 14).TextColor(c.Theme().Text)
+				captionGitLabel(c, anchor, branch, "branch", shown, maxWidth-2*padding-32)
+				ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).Margin(0, 0, 0, 4).TextColor(c.Theme().Text)
+			})
 		})
-		branchOpen := ui.Local(anchor, "branch-open", func() bool { return false })
-		if m.GitBusy {
-			*branchOpen = false
-		}
-		if anchor.Clicked() {
-			*branchOpen = !*branchOpen
-		}
-		if m.RenderBranches != nil {
-			m.RenderBranches(c, anchor, branchOpen)
-		}
 		captionGitRule(c)
 		quick := resolveCaptionQuick(m)
 		// A disabled button cannot own a toolkit tooltip. Keep its reason on
 		// the enabled presentation wrapper, as the reference span does.
-		ui.Row(c).Height(27).Shrink(0).Tooltip(quick.hint).Children(func() {
-			captionGitButton(c, m, quick, m.Density != "compact" && m.Density != "cozy")
-		})
-		captionGitRule(c)
-		trigger := ui.ButtonBase(c).Width(24).Height(27).Padding(0).Justify(ui.Center).AlignItems(ui.Center).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("Git 操作选项", "Git action options")).Disabled(m.GitBusy).FocusRing(false)
-		trigger.Children(func() { ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).TextColor(c.Theme().Text) })
-		open := ui.Local(trigger, "menu-open", func() bool { return false })
-		if m.GitBusy {
-			*open = false
-		}
-		if trigger.Clicked() {
-			*open = !*open
-			if *open && m.OnGitMenuOpen != nil {
-				m.OnGitMenuOpen()
+		actionPart := ui.Row(c.Key("caption-git-action")).Height(27).Shrink(0).Gap(0).Tooltip(quick.hint)
+		actionPart.Children(func() {
+			primary := captionGitControl(c, m, quick, true).Gap(0)
+			if m.Density == "compact" {
+				primary.Padding(0, 8)
 			}
-		}
-		ui.PopoverBase(c.Key("caption-git-menu"), trigger, open, func(panel ui.Element) {
-			panel = MenuSurface(panel.MinWidth(144).MaxWidth(360).Padding(6).Gap(0).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
-			// The menu fades in over the popover token, as every floating card
-			// does: a PopoverBase panel cannot play PopoverTransition (it is born
-			// in the frame it opens), so Reveal runs the enter by hand.
-			panel = PopoverReveal(c, panel)
-			panel.Children(func() {
-				for _, action := range captionMenuActions(m) {
-					a := action
-					hint := ""
-					if a.disabled {
-						hint = a.hint
-					}
-					ui.Row(c).FillWidth().Height(36).Shrink(0).Tooltip(hint).Children(func() {
-						row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(36).Padding(6, 8).Role(ui.RoleMenuItem).Radius(8)
-						if row.Clicked() {
-							*open = false
+			captionGitRule(c)
+			trigger := ui.ButtonBase(c).Width(24).Height(27).Padding(0).Justify(ui.Center).AlignItems(ui.Center).BorderWidth(0).Radius(0).Background(ui.Transparent).Label(captionWord("Git 操作选项", "Git action options")).Disabled(m.GitBusy).FocusRing(false)
+			trigger.Children(func() { ui.Icon(c, workspaceTrailingIcons["chevron"]).Size(14, 14).TextColor(c.Theme().Text) })
+			open := ui.Local(trigger, "menu-open", func() bool { return false })
+			if m.GitBusy {
+				*open = false
+			}
+			if trigger.Clicked() {
+				*open = !*open
+				if *open && m.OnGitMenuOpen != nil {
+					m.OnGitMenuOpen()
+				}
+			}
+			ui.PopoverBase(c.Key("caption-git-menu"), trigger, open, func(panel ui.Element) {
+				panel = MenuSurface(panel.MinWidth(144).MaxWidth(360).Padding(6).Gap(0).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
+				// The menu fades in over the popover token, as every floating card
+				// does: a PopoverBase panel cannot play PopoverTransition (it is born
+				// in the frame it opens), so Reveal runs the enter by hand.
+				panel = PopoverReveal(c, panel)
+				panel.Children(func() {
+					for _, action := range captionMenuActions(m) {
+						a := action
+						hint := ""
+						if a.disabled {
+							hint = a.hint
 						}
-					})
-				}
-				if m.Status.Branch == "" {
-					ui.Text(c, captionWord("当前处于 detached HEAD", "Currently on detached HEAD")).FillWidth().Padding(8, 10).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-				} else if !m.Status.Dirty && m.Status.Behind > 0 && m.Status.Ahead == 0 {
-					ui.Text(c, captionWord("分支落后，请先拉取", "Branch is behind; pull first")).FillWidth().Padding(8, 10).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-				}
+						ui.Row(c).FillWidth().Height(36).Shrink(0).Tooltip(hint).Children(func() {
+							row := captionGitButton(c, m, a, true).FillWidth().Justify(ui.Start).Height(36).Padding(6, 8).Role(ui.RoleMenuItem).Radius(8)
+							if row.Clicked() {
+								*open = false
+							}
+						})
+					}
+					if m.Status.Branch == "" {
+						ui.Text(c, captionWord("当前处于 detached HEAD", "Currently on detached HEAD")).FillWidth().Padding(8, 10).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
+					} else if !m.Status.Dirty && m.Status.Behind > 0 && m.Status.Ahead == 0 {
+						ui.Text(c, captionWord("分支落后，请先拉取", "Branch is behind; pull first")).FillWidth().Padding(8, 10).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
+					}
+				})
 			})
+			trigger.Expanded(*open)
+			revealed.observe(toolbar.Hovered(), false, actionPart.Hovered())
+			shown := revealed.action || primary.FocusVisible() || trigger.FocusVisible() || *open
+			primary.Children(func() {
+				ui.Icon(c, workspaceTrailingIcons[quick.icon]).Size(14, 14).TextColor(c.Theme().Text)
+				captionGitLabel(c, primary, quick.label, "action", shown, 0)
+			})
+			if primary.Clicked() {
+				captionRun(m, quick.id)
+			}
 		})
 	})
 }
 func captionGitRule(c *ui.Context) {
 	ui.Box(c).Width(.5).Height(16).Shrink(0).Background(c.Theme().Border)
 }
-func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitAction, label bool) ui.Element {
+func captionGitControl(c *ui.Context, m WorkspaceTrailingModel, a captionGitAction, label bool) ui.Element {
 	disabled := a.disabled || !captionCanRun(m, a.id)
 	hint := ""
 	if a.disabled {
@@ -186,6 +210,10 @@ func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitActio
 			b.Tooltip(a.label)
 		}
 	}
+	return b
+}
+func captionGitButton(c *ui.Context, m WorkspaceTrailingModel, a captionGitAction, label bool) ui.Element {
+	b := captionGitControl(c, m, a, label)
 	b.Children(func() {
 		ui.Icon(c, workspaceTrailingIcons[a.icon]).Size(14, 14).TextColor(c.Theme().Text)
 		if label {
@@ -254,19 +282,19 @@ func captionPRShort(m WorkspaceTrailingModel) string {
 }
 func captionMenuActions(m WorkspaceTrailingModel) []captionGitAction {
 	s := m.Status
-	items := []captionGitAction{{"commit", captionWord("提交", "Commit"), "commit", captionWord("请先修改工作区文件", "Make changes before committing"), m.GitBusy || !s.Dirty}}
+	items := []captionGitAction{{"commit", "Commit", "commit", captionWord("请先修改工作区文件", "Make changes before committing"), m.GitBusy || !s.Dirty}}
 	if s.HasOrigin {
-		items = append(items, captionGitAction{"push", captionWord("推送", "Push"), "push", captionWord("需要可推送的本地分支及提交，且分支不能落后", "Requires local commits on a branch that is not behind upstream"), m.GitBusy || !s.CanPush()})
-		id, label := "create_pr", captionWord("创建 ", "Create ")+captionPRShort(m)
+		items = append(items, captionGitAction{"push", "Push", "push", captionWord("需要可推送的本地分支及提交，且分支不能落后", "Requires local commits on a branch that is not behind upstream"), m.GitBusy || !s.CanPush()})
+		id, label := "create_pr", "Create "+captionPRShort(m)
 		disabled := !s.CanCreatePR()
 		if m.ChangeRequestOpen {
 			id = "open_pr"
-			label = captionWord("查看 ", "View ") + captionPRShort(m)
+			label = "View " + captionPRShort(m)
 			disabled = false
 		}
 		items = append(items, captionGitAction{id, label, "pr", captionWord("请先提交更改，并确认分支含有待合并提交", "Commit changes and ensure the branch has commits to merge"), m.GitBusy || disabled})
 	} else {
-		items = append(items, captionGitAction{"publish", captionWord("发布仓库", "Publish repository"), "push", "", m.GitBusy})
+		items = append(items, captionGitAction{"publish", "Publish repository", "push", "", m.GitBusy})
 	}
 	return items
 }
@@ -274,7 +302,7 @@ func captionMenuActions(m WorkspaceTrailingModel) []captionGitAction {
 // Pinned ui-git/git-logic.ts resolveQuickAction, evaluated from the same retained
 // Session's status snapshot. Actions name existing controller review paths.
 func resolveCaptionQuick(m WorkspaceTrailingModel) captionGitAction {
-	a := captionGitAction{label: captionWord("提交", "Commit"), icon: "commit", disabled: true}
+	a := captionGitAction{label: "Commit", icon: "commit", disabled: true}
 	if m.GitBusy {
 		a.hint = captionWord("Git 操作进行中", "Git action in progress")
 		return a
@@ -292,42 +320,42 @@ func resolveCaptionQuick(m WorkspaceTrailingModel) captionGitAction {
 		return captionGitAction{id: id, label: label, icon: icon}
 	}
 	view := func() captionGitAction {
-		return makeAction("open_pr", captionWord("查看 ", "View ")+captionPRShort(m), "pr")
+		return makeAction("open_pr", "View "+captionPRShort(m), "pr")
 	}
 	push := func() captionGitAction {
 		if s.AheadUnreliable && s.Ahead == 0 {
-			return makeAction("push", captionWord("推送", "Push"), "push")
+			return makeAction("push", "Push", "push")
 		}
 		if m.ChangeRequestOpen || s.IsDefault {
 			id := "push"
 			if s.IsDefault {
 				id = "commit_push"
 			}
-			return makeAction(id, captionWord("推送", "Push"), "push")
+			return makeAction(id, "Push", "push")
 		}
-		return makeAction("create_pr", captionWord("推送并创建 ", "Push and create ")+captionPRShort(m), "push")
+		return makeAction("create_pr", "Push & create "+captionPRShort(m), "push")
 	}
 	if s.Dirty {
 		if !s.HasUpstream && !s.HasOrigin {
 			return makeAction("commit", a.label, "commit")
 		}
 		if m.ChangeRequestOpen || s.IsDefault {
-			return makeAction("commit_push", captionWord("提交并推送", "Commit and push"), "push")
+			return makeAction("commit_push", "Commit & push", "push")
 		}
-		return makeAction("commit_push_pr", captionWord("提交、推送并创建 ", "Commit, push and create ")+captionPRShort(m), "push")
+		return makeAction("commit_push_pr", "Commit, push & "+captionPRShort(m), "push")
 	}
 	if !s.HasUpstream {
 		if !s.HasOrigin {
 			if m.ChangeRequestOpen && s.Ahead == 0 {
 				return view()
 			}
-			return makeAction("publish", captionWord("发布仓库", "Publish repository"), "push")
+			return makeAction("publish", "Publish repository", "push")
 		}
 		if s.Ahead == 0 && !s.AheadUnreliable {
 			if m.ChangeRequestOpen {
 				return view()
 			}
-			a.label = captionWord("推送", "Push")
+			a.label = "Push"
 			a.icon = "push"
 			a.hint = captionWord("没有待推送的本地提交", "No local commits to push")
 			return a
@@ -335,13 +363,13 @@ func resolveCaptionQuick(m WorkspaceTrailingModel) captionGitAction {
 		return push()
 	}
 	if s.Ahead > 0 && s.Behind > 0 {
-		a.label = captionWord("同步分支", "Sync ref")
+		a.label = "Sync branch"
 		a.icon = "push"
 		a.hint = captionWord("分支已分叉，请先合并或变基", "Branch has diverged; merge or rebase first")
 		return a
 	}
 	if s.Behind > 0 {
-		return makeAction("pull", captionWord("拉取", "Pull"), "push")
+		return makeAction("pull", "Pull", "push")
 	}
 	if s.Ahead > 0 || s.AheadUnreliable {
 		return push()
@@ -350,7 +378,7 @@ func resolveCaptionQuick(m WorkspaceTrailingModel) captionGitAction {
 		return view()
 	}
 	if s.AheadOfDefault > 0 && !s.IsDefault {
-		return makeAction("create_pr", captionWord("创建 ", "Create ")+captionPRShort(m), "push")
+		return makeAction("create_pr", "Create "+captionPRShort(m), "push")
 	}
 	a.hint = captionWord("分支已是最新，无需操作", "Branch is up to date")
 	return a

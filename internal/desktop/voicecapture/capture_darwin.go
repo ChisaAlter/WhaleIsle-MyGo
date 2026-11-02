@@ -1,117 +1,179 @@
-//go:build darwin && cgo
+//go:build darwin
 
 package voicecapture
-
-/*
-#cgo CFLAGS: -fblocks
-#cgo LDFLAGS: -framework AVFoundation -framework AudioToolbox -framework Foundation
-#include "capture_darwin.h"
-*/
-import "C"
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
-	"time"
+	"unsafe"
+
+	"github.com/ebitengine/purego"
+	"github.com/ebitengine/purego/objc"
 )
 
-var macMicrophone sync.Mutex
-var macMicrophoneQuarantined bool
+var macMicrophone = macAudioController{load: loadMacAudioAPI}
 
-// Start is reached only from the explicit Record action. It uses the system
-// default input and normal macOS consent; no TCC database or settings are edited.
+// Start and StartDevice are reached only by an explicit recording action.
+// CoreAudio and Keychain are never replaced by shell commands or file helpers.
 func Start(ctx context.Context, limits Limits) (Capture, error) {
-	if ctx == nil {
-		return nil, errors.New("recording context is required")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+	return StartDevice(ctx, limits, Device{})
+}
+
+func StartDevice(ctx context.Context, limits Limits, device Device) (Capture, error) {
 	capacity, duration, err := boundedLimits(limits)
 	if err != nil {
 		return nil, err
 	}
-	if !macMicrophone.TryLock() {
-		return nil, errors.New("microphone recording is already active")
-	}
-	if macMicrophoneQuarantined {
-		macMicrophone.Unlock()
-		return nil, errors.New("microphone native state is quarantined; restart the application")
-	}
-	owned := true
-	defer func() {
-		if owned {
-			macMicrophone.Unlock()
-		}
-	}()
-	permission := C.whale_mic_permission()
-	if permission == nil {
-		return nil, errors.New("cannot allocate microphone permission request")
-	}
-	defer C.whale_mic_permission_release(permission)
-	poll := time.NewTicker(25 * time.Millisecond)
-	defer poll.Stop()
-	for C.whale_mic_permission_status(permission) == 0 {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-poll.C:
-		}
-	}
-	switch C.whale_mic_permission_status(permission) {
-	case -2:
-		return nil, errors.New("application bundle lacks NSMicrophoneUsageDescription")
-	case -1:
-		return nil, errors.New("microphone access denied; review macOS Privacy & Security settings")
-	}
-	if err := ctx.Err(); err != nil {
+	n, err := macMicrophone.open(ctx, capacity, device, false)
+	if err != nil {
 		return nil, err
 	}
-	var nativeError C.int
-	native := C.whale_mic_start(C.size_t(capacity), &nativeError)
-	if native == nil {
-		if nativeError == -2 {
-			macMicrophoneQuarantined = true
-		}
-		return nil, fmt.Errorf("macOS microphone start failed (AudioQueue %d)", int(nativeError))
-	}
 	c := newRecording(ctx)
-	owned = false
-	go func() {
-		defer macMicrophone.Unlock()
-		timer := time.NewTimer(duration)
-		defer timer.Stop()
-		tick := time.NewTicker(25 * time.Millisecond)
-		defer tick.Stop()
-	loop:
-		for {
-			select {
-			case <-ctx.Done():
-				break loop
-			case <-c.cancel:
-				break loop
-			case <-c.stop:
-				break loop
-			case <-timer.C:
-				break loop
-			case <-tick.C:
-				if C.whale_mic_finished(native) != 0 {
-					break loop
-				}
-			}
-		}
-		if code := C.whale_mic_close(native); code != 0 {
-			macMicrophoneQuarantined = true
-			c.finish(nil, fmt.Errorf("macOS microphone release failed (AudioQueue %d); native state quarantined", int(code)))
-			return
-		}
-		var count C.size_t
-		data := C.whale_mic_bytes(native, &count)
-		pcm := C.GoBytes(data, C.int(count))
-		C.whale_mic_free(native)
-		c.finish(pcm, nil)
-	}()
+	go n.run(c, duration)
 	return c, nil
 }
+
+// InputDevices reads HAL identities and names without requesting microphone
+// consent or opening an input. Empty ID is the caller-provided system-default row.
+func InputDevices() ([]Device, error) {
+	a, err := loadMacAudioAPI()
+	if err != nil {
+		return nil, err
+	}
+	return a.inputDevices()
+}
+
+func StartPreview(ctx context.Context, device Device) (Preview, error) {
+	n, err := macMicrophone.open(ctx, 0, device, true)
+	if err != nil {
+		return nil, err
+	}
+	c := newRecording(ctx)
+	p := &macInputPreview{native: n, capture: c}
+	go n.runPreview(c)
+	return p, nil
+}
+
+// Handles and callback trampolines are process-lifetime resources. Framework
+// initialization is lazy, and only Apple's absolute system paths are loaded.
+var loadMacAudioAPI = sync.OnceValues(func() (_ *macAudioAPI, err error) {
+	handles := make(map[string]uintptr)
+	for _, framework := range []string{"CoreFoundation", "CoreAudio", "AudioToolbox", "Foundation", "AVFoundation"} {
+		path := "/System/Library/Frameworks/" + framework + ".framework/" + framework
+		handle, e := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_LOCAL)
+		if e != nil {
+			for _, h := range handles {
+				_ = purego.Dlclose(h)
+			}
+			return nil, fmt.Errorf("macOS microphone load %s: %w", framework, e)
+		}
+		handles[framework] = handle
+	}
+	defer func() {
+		if err != nil {
+			for _, h := range handles {
+				_ = purego.Dlclose(h)
+			}
+		}
+	}()
+	a := &macAudioAPI{}
+	for _, binding := range []struct {
+		framework, name string
+		to              any
+	}{
+		{"AudioToolbox", "AudioQueueNewInput", &a.newInput},
+		{"AudioToolbox", "AudioQueueAllocateBuffer", &a.allocate},
+		{"AudioToolbox", "AudioQueueEnqueueBuffer", &a.enqueue},
+		{"AudioToolbox", "AudioQueueStart", &a.start},
+		{"AudioToolbox", "AudioQueueStop", &a.stop},
+		{"AudioToolbox", "AudioQueueDispose", &a.dispose},
+		{"AudioToolbox", "AudioQueueSetProperty", &a.setProperty},
+		{"CoreAudio", "AudioObjectGetPropertyDataSize", &a.propertySize},
+		{"CoreAudio", "AudioObjectGetPropertyData", &a.propertyData},
+		{"CoreFoundation", "CFStringCreateWithBytes", &a.stringCreate},
+		{"CoreFoundation", "CFStringGetLength", &a.stringLength},
+		{"CoreFoundation", "CFStringGetMaximumSizeForEncoding", &a.stringMaxSize},
+		{"CoreFoundation", "CFStringGetCString", &a.stringCString},
+		{"CoreFoundation", "CFGetTypeID", &a.getType},
+		{"CoreFoundation", "CFStringGetTypeID", &a.stringType},
+		{"CoreFoundation", "CFRelease", &a.release},
+	} {
+		address, e := purego.Dlsym(handles[binding.framework], binding.name)
+		if e != nil {
+			return nil, fmt.Errorf("macOS microphone resolve %s: %w", binding.name, e)
+		}
+		purego.RegisterFunc(binding.to, address)
+	}
+	mediaAddress, err := purego.Dlsym(handles["AVFoundation"], "AVMediaTypeAudio")
+	if err != nil {
+		return nil, fmt.Errorf("macOS microphone resolve AVMediaTypeAudio: %w", err)
+	}
+	mediaPointer := *(*unsafe.Pointer)(unsafe.Pointer(&mediaAddress))
+	media := *(*objc.ID)(mediaPointer) // exported NSString *const, not the address of the variable
+	device := objc.ID(objc.GetClass("AVCaptureDevice"))
+	bundleClass := objc.ID(objc.GetClass("NSBundle"))
+	stringClass := objc.GetClass("NSString")
+	poolClass := objc.ID(objc.GetClass("NSAutoreleasePool"))
+	if media == 0 || device == 0 || bundleClass == 0 || stringClass == 0 || poolClass == 0 {
+		return nil, errors.New("macOS microphone authorization classes are unavailable")
+	}
+	newSelector := objc.RegisterName("new")
+	drain := objc.RegisterName("drain")
+	mainBundle := objc.RegisterName("mainBundle")
+	infoKey := objc.RegisterName("objectForInfoDictionaryKey:")
+	isKind := objc.RegisterName("isKindOfClass:")
+	length := objc.RegisterName("length")
+	status := objc.RegisterName("authorizationStatusForMediaType:")
+	request := objc.RegisterName("requestAccessForMediaType:completionHandler:")
+	permission := &macPermission{
+		usage: func() error {
+			// An autorelease pool must be created/drained on the same OS thread.
+			// These Foundation/AVCaptureDevice class APIs have no main-thread
+			// affinity; the completion handler may use any dispatch queue.
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			pool := poolClass.Send(newSelector)
+			defer pool.Send(drain)
+			key := a.cfString("NSMicrophoneUsageDescription")
+			if key == nil {
+				return errors.New("cannot allocate microphone usage-description key")
+			}
+			defer a.release(key)
+			bundle := bundleClass.Send(mainBundle)
+			reason := bundle.Send(infoKey, key)
+			if reason == 0 || !objc.Send[bool](reason, isKind, stringClass) || objc.Send[uintptr](reason, length) == 0 {
+				return errors.New("application bundle lacks NSMicrophoneUsageDescription")
+			}
+			return nil
+		},
+		status: func() int64 {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			pool := poolClass.Send(newSelector)
+			defer pool.Send(drain)
+			return objc.Send[int64](device, status, media) // NSInteger is signed 64-bit on LP64.
+		},
+		request: func(done func(bool)) {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			pool := poolClass.Send(newSelector)
+			defer pool.Send(drain)
+			// purego manages the block's copy/dispose ABI and Go closure cache.
+			// AVFoundation copies this escaping block. Release our own reference
+			// after the message, even if ctx is canceled while its dialog is open.
+			// BOOL is signed char on amd64 and bool on arm64. Match both the
+			// invocation ABI and the block's Objective-C type encoding.
+			block := newMacPermissionBlock(done)
+			defer block.Release()
+			device.Send(request, media, block)
+		},
+	}
+	a.permission = permission.authorize
+	a.callback = purego.NewCallback(func(token uintptr, queue unsafe.Pointer, buffer *macAudioBuffer, _ unsafe.Pointer, _ uint32, _ unsafe.Pointer) {
+		macInputCallback(token, queue, buffer)
+	})
+	return a, nil
+})

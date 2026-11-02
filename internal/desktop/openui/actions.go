@@ -13,7 +13,7 @@ import (
 // A renderer's self-reported runtime name is never sufficient to enable actions.
 // Callers must separately disable actions for every explicit legacy override.
 func IsOwnedViewer(viewer string) bool {
-	return viewer != "" && viewer == embeddedViewer
+	return viewer != "" && (viewer == embeddedViewer || IsWhaleViewer(viewer))
 }
 
 // ValidateNativeAction checks the bounded typed data, not a user gesture proof.
@@ -29,6 +29,11 @@ func ValidateNativeAction(e Event) error {
 		if len(e.Text) > MaxEventBytes || !utf8.ValidString(e.Text) || strings.ContainsRune(e.Text, '\x00') || e.URL != "" {
 			return errors.New("invalid OpenUI clipboard text")
 		}
+	case "download":
+		if e.Parts < 1 || e.Parts > 3000 || e.Text != "" || e.URL != "" {
+			return errors.New("invalid Whale UI export identity")
+		}
+		return ValidateDownload(e)
 	case "open-url":
 		if len(e.URL) == 0 || len(e.URL) > MaxEventBytes || !utf8.ValidString(e.URL) || e.Text != "" ||
 			strings.TrimSpace(e.URL) != e.URL || strings.ContainsFunc(e.URL, unicode.IsControl) {

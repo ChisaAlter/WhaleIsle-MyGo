@@ -6,7 +6,9 @@
   "description": "Independently authored isolated OpenUI viewer with original-contract components",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "embed": "node scripts/embed.mjs"
+    "embed": "node scripts/embed.mjs",
+    "build:v2-adapter": "node scripts/build-v2-adapter.mjs",
+    "test:v2-browser": "node scripts/whale-v2-browser-test.mjs dist/whale-v2-fixture.html"
   },
   "dependencies": {
     "@openuidev/lang-core": "1.0.0",

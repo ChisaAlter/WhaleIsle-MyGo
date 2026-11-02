@@ -41,7 +41,11 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 		label = archiveText("后台任务读取失败", "Background jobs need a fresh read")
 	}
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(3, 2).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+	headerInk := muted
+	if colors.Secondary != "" {
+		headerInk = chrome.Color(colors.Secondary)
+	}
+	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
 	if compact {
 		anchor.Size(28, 28).Padding(0)
 	}
@@ -53,13 +57,13 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 			}
 			return
 		}
-		ui.Row(c).AlignItems(ui.Center).Gap(3).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
 			if len(live) > 0 {
 				ui.Spinner(c).Size(10, 10).TextColor(muted)
 			}
 			if !compact {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).SingleLine().MaxWidth(220).Ellipsis("…")
-				icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).SingleLine().MaxWidth(220).Ellipsis("…")
+				icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
 				if s.Open {
 					icon.Rotate(180)
 				}

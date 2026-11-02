@@ -65,7 +65,7 @@ func (s *mainState) selectWorkspaceSessionLocked() {
 		workspace = s.cfgStore.Get().Workspace
 	}
 	if s.sessions != nil {
-		session = s.sessions.Snapshot().SelectedID
+		session = s.sessions.SelectedSessionID()
 		scope = s.sessions.WorkspaceLayoutScope()
 	}
 	s.restoreSavedAgentReadersLocked(scope, workspace)

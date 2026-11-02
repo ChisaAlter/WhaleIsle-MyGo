@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 type projectQueueSubmission struct {
@@ -21,7 +22,7 @@ func (o projectQueueSubmission) matches(f *projectFlowState, client *dsh.Client)
 func projectQueueChange(page projectflow.RequestPage, detail *projectflow.RequestCard, queue *projectflow.RequestQueue, id, action string) (projectflow.RequestQueueChange, error) {
 	change := projectflow.RequestQueueChange{RequestID: id, Action: action}
 	if queue == nil {
-		return change, fmt.Errorf("Project request queue is unavailable on this Host")
+		return change, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectQueueUnavailable))
 	}
 	if detail != nil && detail.ID == id {
 		change.RequestRevision = detail.Revision
@@ -44,17 +45,17 @@ func projectQueueChange(page projectflow.RequestPage, detail *projectflow.Reques
 	}
 	if action == "moveUp" || action == "moveDown" {
 		if index < 0 {
-			return change, fmt.Errorf("Requirement is no longer queued; refresh first")
+			return change, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRequestNotQueued))
 		}
 		change.Action = "move"
 		if action == "moveUp" {
 			if index == 0 {
-				return change, fmt.Errorf("Requirement is already first")
+				return change, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRequestFirst))
 			}
 			change.BeforeRequestID = queue.Queued[index-1].ID
 		} else {
 			if index+1 >= len(queue.Queued) {
-				return change, fmt.Errorf("Requirement is already last")
+				return change, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRequestLast))
 			}
 			if index+2 < len(queue.Queued) {
 				change.BeforeRequestID = queue.Queued[index+2].ID
@@ -62,7 +63,7 @@ func projectQueueChange(page projectflow.RequestPage, detail *projectflow.Reques
 		}
 	}
 	if id == "" || change.RequestRevision <= 0 {
-		return change, fmt.Errorf("Refresh the current requirement revision first")
+		return change, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRequestRevision))
 	}
 	if change.Action != "enqueue" && change.Action != "move" && change.Action != "cancel" && change.Action != "resume" {
 		return change, fmt.Errorf("Unknown request queue action")

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/harness"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantRoomEditModel(ep harness.Endpoint, id string) assistantui.RoomEditModel {
@@ -110,7 +111,7 @@ func (s *mainState) assistantRoomEditModel(ep harness.Endpoint, id string) assis
 				defer cancel()
 				fresh, writable, err := read(ctx)
 				if err == nil && (!writable || !pluginrpc.SameDshbotRoomEdit(cmd.Expected, fresh)) {
-					err = fmt.Errorf("catalog revision, complete profile or authority changed; refresh and review again")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdRoomProfileReviewChanged))
 				}
 				if err != nil || !current() || !controls.Current(ticket) || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)

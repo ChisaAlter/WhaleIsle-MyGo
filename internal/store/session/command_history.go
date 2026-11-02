@@ -88,6 +88,9 @@ func projectCommandMessages(messages []Message) []Message {
 		}
 		pairs[id] = p
 	}
+	if len(pairs) == 0 {
+		return projectAutomaticCompactionMessages(projectManualCompactionMessages(messages))
+	}
 	out := make([]Message, 0, len(messages))
 	for i, msg := range messages {
 		if msg.Kind != MessageKindCommand || msg.Command == nil {

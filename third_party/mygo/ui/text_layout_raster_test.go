@@ -161,6 +161,37 @@ func TestShapeTextLineNativeFallbackAndGraphemeEllipsis(t *testing.T) {
 	}
 }
 
+func TestShapeTextLineSingleLinePolicy(t *testing.T) {
+	const raw = "e\u0301 👩‍💻 🇨🇳"
+	for _, tc := range []struct {
+		name      string
+		text      string
+		width     float32
+		truncated bool
+		end       int
+	}{
+		{name: "empty"},
+		{name: "natural width", text: raw, end: len([]rune(raw))},
+		{name: "negative width", text: raw, width: -1, end: len([]rune(raw))},
+		{name: "fits", text: raw, width: 1000, end: len([]rune(raw))},
+		{name: "newline at natural width", text: "e\u0301\nsecond", truncated: true, end: 2},
+		{name: "newline within width", text: "e\u0301\nsecond", width: 1000, truncated: true, end: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			line := ShapeTextLine(tc.text, Font{Size: 24}, tc.width)
+			if len(line.l.Lines) != 1 {
+				t.Fatalf("got %d lines, want one", len(line.l.Lines))
+			}
+			if line.l.Truncated != tc.truncated || line.l.Lines[0].End != tc.end {
+				t.Fatalf("truncated=%v end=%d, want %v and %d", line.l.Truncated, line.l.Lines[0].End, tc.truncated, tc.end)
+			}
+			if tc.width > 0 && line.l.Width > tc.width+0.01 {
+				t.Fatalf("line width %v exceeds available width %v", line.l.Width, tc.width)
+			}
+		})
+	}
+}
+
 func TestTextLayoutRasterPreservesItalicInkAndRichPaint(t *testing.T) {
 	if err := text.Shared().RegisterFont(goitalic.TTF, "TextRaster Italic"); err != nil {
 		t.Fatal(err)

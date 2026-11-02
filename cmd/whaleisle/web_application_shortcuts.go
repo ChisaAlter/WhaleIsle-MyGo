@@ -56,7 +56,7 @@ func browserOwnsChord(c shortcuts.Chord) bool {
 	return false
 }
 func (s *mainState) syncWebApplicationShortcuts(bindings map[string]shortcuts.Chord) {
-	revision := s.pageShortcutPreferences().Get().Revision
+	revision := s.pageShortcutPreferences().Accepted().Revision
 	s.mu.Lock()
 	win := s.win
 	s.mu.Unlock()

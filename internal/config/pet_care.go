@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -24,6 +25,9 @@ func rawObject(raw json.RawMessage) (map[string]json.RawMessage, error) {
 func (s *Store) PetStats(now time.Time) petcare.Stats {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.ensurePetCacheLocked(); err == nil {
+		return petcare.Snapshot(s.petStatsRawCache, now)
+	}
 	pet, _ := rawObject(s.raw["live2dPet"])
 	return petcare.Snapshot(pet["stats"], now)
 }
@@ -81,20 +85,32 @@ func (s *Store) applyPetCare(kind string, effect func([]byte, time.Time) petcare
 	if err != nil {
 		return err
 	}
-	return s.commitPetLocked(pet)
+	if err = s.commitPetLocked(pet); err != nil {
+		return err
+	}
+	s.petStatsRawCache = append(json.RawMessage(nil), pet["stats"]...)
+	s.petRawCache = append(json.RawMessage(nil), s.raw["live2dPet"]...)
+	return nil
 }
 
 // Caller holds s.mu; all care/growth awards use the existing atomic config writer.
 func (s *Store) commitPetLocked(pet map[string]json.RawMessage) error {
-	var err error
+	next, err := json.Marshal(pet)
+	if err != nil {
+		return err
+	}
+	// The minute growth refresh usually settles nothing new. Rewriting the whole
+	// configuration for it (megabytes once the feeding ledger is long) was
+	// wasted I/O, so an unchanged pet commits nothing.
+	var current bytes.Buffer
+	if json.Compact(&current, s.raw["live2dPet"]) == nil && bytes.Equal(current.Bytes(), next) {
+		return nil
+	}
 	merged := make(map[string]json.RawMessage, len(s.raw)+1)
 	for key, value := range s.raw {
 		merged[key] = value
 	}
-	merged["live2dPet"], err = json.Marshal(pet)
-	if err != nil {
-		return err
-	}
+	merged["live2dPet"] = next
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err

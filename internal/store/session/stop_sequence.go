@@ -13,6 +13,7 @@ type stopSequenceConfig struct {
 }
 
 func (s *Store) clearStopSequenceConfigLocked() {
+	s.invalidateViewLocked()
 	if s.stopSequenceConfig.cancel != nil {
 		s.stopSequenceConfig.cancel()
 	}

@@ -25,4 +25,10 @@ var (
     <path d="M1.5 12H6" stroke="currentColor" />
     <path d="M9 12H14.5" stroke="currentColor" />
   </svg>`))
+	codeIconDocument = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke-width="1.3">
+    <path d="M3.51919 14.5069H12.4807C13.0679 14.5069 13.5438 14.031 13.5438 13.4438V5.97499C13.5438 5.68818 13.428 5.41352 13.2226 5.21341L9.71251 1.79459C9.51402 1.60124 9.24781 1.49304 8.97075 1.49304H3.51919C2.93204 1.49304 2.45605 1.96902 2.45605 2.55618V13.4438C2.45605 14.031 2.93203 14.5069 3.51919 14.5069Z" stroke="currentColor" />
+    <path d="M8.90454 1.6095V4.87091C8.90454 5.45806 9.38051 5.93405 9.96768 5.93405H13.4953" stroke="currentColor" />
+    <path d="M4.31152 8.7561H7.83046" stroke="currentColor" />
+    <path d="M4.31152 11.3651H9.36598" stroke="currentColor" />
+  </svg>`))
 )

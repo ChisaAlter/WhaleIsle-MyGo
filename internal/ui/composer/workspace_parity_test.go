@@ -21,14 +21,9 @@ func TestStatefulEmptyAttachmentRailDoesNotDisplaceDraft(t *testing.T) {
 			input, _ := tt.Find("Composer draft")
 			wantTop, want, limit := float32(8), float32(36), float32(120)
 			if hero {
-				// HeroShell.card: 8px top padding around the writing well, a 12-DIP
-				// gap and the 34-DIP control row; the tallest well (72 DIP without
-				// the shipped draft client) makes the card 134 DIP.
-				wantTop, limit = 8, 155.34
-				want = 52.67
-				if native {
-					want = 52
-				}
+				// Hero only raises the writing well minimum; both input owners
+				// use 52 DIP inside the source-defined 114-DIP empty card.
+				wantTop, limit, want = 8, 114, 52
 			}
 			closeMetric(t, input.Y-card.Y, wantTop, "stateful zero-attachment draft top")
 			closeMetric(t, input.H, want, "natural empty draft")
@@ -155,10 +150,9 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			closeMetric(t, row.Y, 4, "hero row top margin")
 			closeMetric(t, card.Y-row.Y-row.H, 8, "hero row-card gap")
 			closeMetric(t, row.H, 28, "hero row height")
-			// The row keeps Padding(0,16,0,20): 20 on the left, 16 on the right.
-			// round217 UIA at 1440x860: native chip x=502 / preset x=655.33 on a 1440
-			// window, i.e. a 32.67 DIP leading inset and a 3.33 DIP chip-to-chip gap.
-			closeMetric(t, workspace.X-row.X, 32.67, "workspace left inset")
+			// Installed ConversationRoot.heroWorkspaceRow uses padding0/16/0/20
+			// and a two-DIP gap; old UIA-derived32.67/3.33 values are obsolete.
+			closeMetric(t, workspace.X-row.X, 20, "workspace left inset")
 			closeMetric(t, workspace.H, 28, "workspace chip height")
 			closeMetric(t, presetChip.H, 28, "preset chip height")
 			closeMetric(t, (workspace.Y+workspace.H/2)-(presetChip.Y+presetChip.H/2), 0, "both chips share the row")
@@ -169,15 +163,7 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			// short and long names share the width and the preset chip after it
 			// keeps the native x.
 			closeMetric(t, workspace.W, 150, "workspace chip width")
-			// The row adds no gap: the live +3.33 offset comes from the preset
-			// control itself (round237: chip end 652 -> native 655.33).
-			if gap := presetChip.X - (workspace.X + workspace.W); gap < 3.2 || gap > 3.5 {
-				t.Fatalf("preset chip gap=%.2f, want no row gap", gap)
-			}
-			t.Logf("width=%d workspace=%v preset=%v", width, workspace, presetChip)
-			if gap := presetChip.X - (workspace.X + workspace.W); gap < 3.2 || gap > 3.5 {
-				t.Fatalf("preset chip gap=%.2f, want it right after the workspace chip: %v %v", gap, workspace, presetChip)
-			}
+			closeMetric(t, presetChip.X-(workspace.X+workspace.W), 2, "sourceworkspace-preset gap")
 			if presetChip.X+presetChip.W > row.X+row.W-16 {
 				t.Fatalf("preset chip overflows the row: %v row=%v", presetChip, row)
 			}

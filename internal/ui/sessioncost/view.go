@@ -4,7 +4,9 @@ package sessioncost
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -14,6 +16,22 @@ import (
 	"whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+)
+
+var (
+	costPrefsMemo struct {
+		sync.Mutex
+		raw                   string
+		valid                 bool
+		stats, show, official bool
+	}
+	costCalcMemo struct {
+		sync.Mutex
+		key        session.ProjectionKey
+		selectedID string
+		billing    usage.BillingSettings
+		result     cost.Result
+	}
 )
 
 type State struct {
@@ -31,21 +49,72 @@ type Model struct {
 
 func preferences(v settings.ViewState) (stats, show, official bool) {
 	stats = true
+	var rawValue json.RawMessage
+	found := false
 	for _, ns := range v.Namespaces {
-		if ns.NS != "ui-conversation" {
-			continue
+		if ns.NS == "ui-conversation" {
+			rawValue = ns.Value
+			found = true
+			break
 		}
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(ns.Value, &fields) != nil {
-			continue
-		}
-		_ = json.Unmarshal(fields["statsLine"], &stats)
-		_ = json.Unmarshal(fields["sessionCost"], &show)
-		_ = json.Unmarshal(fields["officialPeakValley"], &official)
 	}
+	if !found {
+		return
+	}
+	rawStr := string(rawValue)
+	costPrefsMemo.Lock()
+	if costPrefsMemo.valid && costPrefsMemo.raw == rawStr {
+		stats, show, official = costPrefsMemo.stats, costPrefsMemo.show, costPrefsMemo.official
+		costPrefsMemo.Unlock()
+		return
+	}
+	costPrefsMemo.Unlock()
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(rawValue, &fields) != nil {
+		return
+	}
+	_ = json.Unmarshal(fields["statsLine"], &stats)
+	_ = json.Unmarshal(fields["sessionCost"], &show)
+	_ = json.Unmarshal(fields["officialPeakValley"], &official)
+	costPrefsMemo.Lock()
+	costPrefsMemo.valid = true
+	costPrefsMemo.raw = rawStr
+	costPrefsMemo.stats, costPrefsMemo.show, costPrefsMemo.official = stats, show, official
+	costPrefsMemo.Unlock()
 	// Only accepted Host values affect display; failed or cancelled drafts stay local.
 
 	return
+}
+
+func cachedCalculate(snap session.ViewState, billing usage.BillingSettings) cost.Result {
+	projKey := snap.RosterProjectionKey()
+	if !projKey.Valid() {
+		return cost.Calculate(snap.SelectedID, snap.CostSources, billing)
+	}
+	costCalcMemo.Lock()
+	if costCalcMemo.key == projKey && costCalcMemo.selectedID == snap.SelectedID &&
+		costCalcMemo.billing.PeakValleyEnabled == billing.PeakValleyEnabled &&
+		reflect.DeepEqual(costCalcMemo.billing.Prices, billing.Prices) {
+		res := costCalcMemo.result
+		costCalcMemo.Unlock()
+		return res
+	}
+	costCalcMemo.Unlock()
+	res := cost.Calculate(snap.SelectedID, snap.CostSources, billing)
+	var pricesCopy map[string]usage.ModelPrice
+	if billing.Prices != nil {
+		pricesCopy = make(map[string]usage.ModelPrice, len(billing.Prices))
+		for k, v := range billing.Prices {
+			pricesCopy[k] = v
+		}
+	}
+	costCalcMemo.Lock()
+	costCalcMemo.key = projKey
+	costCalcMemo.selectedID = snap.SelectedID
+	costCalcMemo.billing = usage.BillingSettings{Prices: pricesCopy, PeakValleyEnabled: billing.PeakValleyEnabled}
+	costCalcMemo.result = res
+	costCalcMemo.Unlock()
+	return res
 }
 
 // compactCount renders a token count the way the reference status line does:
@@ -119,8 +188,9 @@ const OwnsPerformanceStats = true
 // only place the composer reports those numbers; see OwnsPerformanceStats.
 func dockLine(c *ui.Context, m Model, r cost.Result, stats bool, muted ui.Color) {
 	var clusters []string
-	perfTokens, perfMS, perfSteps := session.RecordedPerformance(m.Snapshot.Messages)
 	if stats {
+		memo := ui.Local(c.Root(), "dock-performance-history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
+		perfTokens, perfMS, perfSteps := memo.RecordedPerformance(m.Snapshot)
 		var parts []string
 		if turns := len(m.Snapshot.TurnUsage); turns > 0 && perfSteps > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s %d %s", turns, i18n.T(i18n.KeyComposerDockTurns),
@@ -169,7 +239,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 	if !stats && !show {
 		return
 	}
-	r := cost.Calculate(m.Snapshot.SelectedID, m.Snapshot.CostSources, m.Billing.Settings)
+	r := cachedCalculate(m.Snapshot, m.Billing.Settings)
 	// Keep the same 4 DIP bottom inset the Electron dock has; without it the
 	// status line sits flush on the window edge at every viewport height.
 	ui.Column(c).Key("composer-dock").FillWidth().Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {

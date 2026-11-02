@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftState, id string, owner *session.ComposerTarget) {
@@ -15,7 +16,7 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 	}
 	requestID := owner.BeginSubmission(flight.Text, flight.Attachments)
 	if requestID == "" {
-		d.CompleteDetachedSend(flight.ID, flight.Attachments, errors.New("Host changed; draft retained"))
+		d.CompleteDetachedSend(flight.ID, flight.Attachments, errors.New(i18n.T(i18n.KeyCmdComposerHostChanged)))
 		return
 	}
 	go func() {

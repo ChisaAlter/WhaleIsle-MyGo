@@ -90,6 +90,7 @@ func TestBackgroundPreservesAttributes(t *testing.T) {
 
 type consoleChildReport struct {
 	ConsoleWindow uint64 `json:"console_window"`
+	Visible       bool   `json:"visible"`
 	PID           int    `json:"pid"`
 	Payload       string `json:"payload"`
 }
@@ -197,6 +198,10 @@ func TestBackgroundHelperProcess(t *testing.T) {
 	switch role {
 	case "parent":
 		exitCode = runConsoleParent()
+	case "tree_parent":
+		exitCode = runHiddenTreeParent()
+	case "tree_child":
+		exitCode = runHiddenTreeChild()
 	case "child_success", "child_failure":
 		exitCode = runConsoleChild(role == "child_failure")
 	default:
@@ -266,7 +271,8 @@ func runConsoleChild(fail bool) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 125
 	}
-	report := consoleChildReport{ConsoleWindow: uint64(handle), PID: os.Getpid(), Payload: helperStdout}
+	visible, _, _ := syscall.NewLazyDLL("user32.dll").NewProc("IsWindowVisible").Call(handle)
+	report := consoleChildReport{ConsoleWindow: uint64(handle), Visible: visible != 0, PID: os.Getpid(), Payload: helperStdout}
 	if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 125

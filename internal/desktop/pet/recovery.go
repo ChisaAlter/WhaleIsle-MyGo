@@ -18,13 +18,13 @@ func (p *Companion) watchRecovery(w *mygo.Window) {
 			if !petRecoveryCurrent(p.win == w, p.ready, p.Store.DesktopPet().Enabled, w.IsDestroyed()) {
 				return
 			}
-			bounds := w.Bounds()
+			bounds := p.petBounds()
 			p.close()
 			p.sync()
 			if p.win == nil || p.win.IsDestroyed() {
 				return
 			}
-			current := p.win.Bounds()
+			current := p.petBounds()
 			current.X, current.Y = bounds.X, bounds.Y
 			if area, ok := motionWorkArea(current); ok {
 				p.setMotionPosition(clampMotionPoint(motionPoint{x: float64(bounds.X), y: float64(bounds.Y)}, float64(current.Width), float64(current.Height), area))

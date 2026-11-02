@@ -1,0 +1,227 @@
+{
+  "applicationVersion": "0.3.10",
+  "packageVersion": "0.2.1-rc.2",
+  "fonttools": "4.61.1",
+  "brotli": "1.2.0",
+  "sourceRoot": "C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\client\\ui-theme\\lib\\styles",
+  "sources": [
+    {
+      "name": "inter-normal-latin.woff2",
+      "sha256": "2c295d99e26dcf357d4d01bcf270fd6924b600c9a13dd8c363ef114f4c6976fa"
+    },
+    {
+      "name": "inter-normal-latin-ext.woff2",
+      "sha256": "5e6d4fe9d9f4bff8b2a2469d25ab19576bb85331e22c6ed51398e16f95d56a9c"
+    },
+    {
+      "name": "source-serif-4-normal-latin.woff2",
+      "sha256": "f2ea9c12d2fe9bd3a9589b02ad2c0909da88f30938c91adc838c4f4098f9f9e0"
+    },
+    {
+      "name": "source-serif-4-normal-latin-ext.woff2",
+      "sha256": "155f6e701097cc269cf8d5d7ac86795f263f1afbeb47c14d1d747108c9335389"
+    },
+    {
+      "name": "source-serif-4-italic-latin.woff2",
+      "sha256": "96e6393209728ab93c334ae739af8a040cd2006c82e8614d6465a8084db88f89"
+    },
+    {
+      "name": "source-serif-4-italic-latin-ext.woff2",
+      "sha256": "2078240cee94e627d0e180d56d74a11b2a1d387bbd61a9b7269f0a43df756896"
+    }
+  ],
+  "files": [
+    {
+      "sources": [
+        "inter-normal-latin.woff2",
+        "inter-normal-latin-ext.woff2"
+      ],
+      "output": "inter-normal-400.ttf",
+      "outputSHA256": "e73fa11282e8c607319d4fdce1ab9277c0422559496504a859df4f7a90d669f3",
+      "weight": 400,
+      "axes": {
+        "opsz": 14.0,
+        "wght": 400
+      },
+      "glyphCoverage": 950,
+      "coverageVerified": true,
+      "size": 153492
+    },
+    {
+      "sources": [
+        "inter-normal-latin.woff2",
+        "inter-normal-latin-ext.woff2"
+      ],
+      "output": "inter-normal-500.ttf",
+      "outputSHA256": "628d9e976fe791822c513511037bab90eed693d35c245fc40c47b79f8a3f086f",
+      "weight": 500,
+      "axes": {
+        "opsz": 14.0,
+        "wght": 500
+      },
+      "glyphCoverage": 950,
+      "coverageVerified": true,
+      "size": 153960
+    },
+    {
+      "sources": [
+        "inter-normal-latin.woff2",
+        "inter-normal-latin-ext.woff2"
+      ],
+      "output": "inter-normal-600.ttf",
+      "outputSHA256": "ebdf5f28da28c5ea0fd69ef95a92059f5f90263ea81fa9aa85d80a4d7da83175",
+      "weight": 600,
+      "axes": {
+        "opsz": 14.0,
+        "wght": 600
+      },
+      "glyphCoverage": 950,
+      "coverageVerified": true,
+      "size": 154336
+    },
+    {
+      "sources": [
+        "inter-normal-latin.woff2",
+        "inter-normal-latin-ext.woff2"
+      ],
+      "output": "inter-normal-700.ttf",
+      "outputSHA256": "e35ae0083df02261837010481f39e2dc4395f00a87c5161dab696374bddcf0ec",
+      "weight": 700,
+      "axes": {
+        "opsz": 14.0,
+        "wght": 700
+      },
+      "glyphCoverage": 950,
+      "coverageVerified": true,
+      "size": 154528
+    },
+    {
+      "sources": [
+        "source-serif-4-normal-latin.woff2",
+        "source-serif-4-normal-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-normal-400.ttf",
+      "outputSHA256": "4616b7a063d2948be323cb64d549c8634552469d5a18cabcd0bf44cf2e30c31f",
+      "weight": 400,
+      "axes": {
+        "wght": 400,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 94088
+    },
+    {
+      "sources": [
+        "source-serif-4-normal-latin.woff2",
+        "source-serif-4-normal-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-normal-500.ttf",
+      "outputSHA256": "8af85206fc5a4b13bc8f54886729283c7cfb62594f109ad0d0c9c47d0c8055d3",
+      "weight": 500,
+      "axes": {
+        "wght": 500,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 94152
+    },
+    {
+      "sources": [
+        "source-serif-4-normal-latin.woff2",
+        "source-serif-4-normal-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-normal-600.ttf",
+      "outputSHA256": "104a95d9f73456807ae1088f86a7f567deb204ccfa1c024fe72b31c045503d9b",
+      "weight": 600,
+      "axes": {
+        "wght": 600,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 94184
+    },
+    {
+      "sources": [
+        "source-serif-4-normal-latin.woff2",
+        "source-serif-4-normal-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-normal-700.ttf",
+      "outputSHA256": "b390ab24624f3f5dde8b485e7b8fcee1d5408cdf8200aaa85087a4d3f3f302b0",
+      "weight": 700,
+      "axes": {
+        "wght": 700,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 94112
+    },
+    {
+      "sources": [
+        "source-serif-4-italic-latin.woff2",
+        "source-serif-4-italic-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-italic-400.ttf",
+      "outputSHA256": "489601f6e0d221a1203f793ada67031748f3c6eb5e575481e6cf7df679cfafff",
+      "weight": 400,
+      "axes": {
+        "wght": 400,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 94916
+    },
+    {
+      "sources": [
+        "source-serif-4-italic-latin.woff2",
+        "source-serif-4-italic-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-italic-500.ttf",
+      "outputSHA256": "a46ca6cbe203bde0f7a0db59d9dd65b126d1ab7649c6c9bbd2f2b7df5097daa2",
+      "weight": 500,
+      "axes": {
+        "wght": 500,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 95088
+    },
+    {
+      "sources": [
+        "source-serif-4-italic-latin.woff2",
+        "source-serif-4-italic-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-italic-600.ttf",
+      "outputSHA256": "a7bf834039a0123df0043c87c1590e0639aeda7abe5041d91b193c4e4ca5db87",
+      "weight": 600,
+      "axes": {
+        "wght": 600,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 95104
+    },
+    {
+      "sources": [
+        "source-serif-4-italic-latin.woff2",
+        "source-serif-4-italic-latin-ext.woff2"
+      ],
+      "output": "source-serif-4-italic-700.ttf",
+      "outputSHA256": "8d89ded7e23208279329b389046cf419111eb5d8363f9993bc8d539ba9d97c0d",
+      "weight": 700,
+      "axes": {
+        "wght": 700,
+        "opsz": 20.0
+      },
+      "glyphCoverage": 494,
+      "coverageVerified": true,
+      "size": 95004
+    }
+  ]
+}

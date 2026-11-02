@@ -42,6 +42,7 @@ func (s ViewState) NativeCommandGeneration(name string) uint64 {
 }
 
 func (s *Store) setNativeContributionsLocked(snapshot dsh.NativeContributions) {
+	s.invalidateViewLocked()
 	state := &s.nativeContributions
 	if state.snapshot.Known && !snapshot.Known {
 		state.generation++
@@ -58,6 +59,7 @@ func (s *Store) setNativeContributionsLocked(snapshot dsh.NativeContributions) {
 }
 
 func (s *Store) resetNativeContributionsLocked() {
+	s.invalidateViewLocked()
 	if s.nativeContributions.cancel != nil {
 		s.nativeContributions.cancel()
 	}

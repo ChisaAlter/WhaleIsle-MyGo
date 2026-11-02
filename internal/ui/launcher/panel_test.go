@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -22,9 +23,7 @@ func TestViewLauncherElectronParityLabels(t *testing.T) {
 		})
 	}, 1060, 660)
 	for _, label := range []string{
-		"鲸",
-		"屿",
-		"WHALE ISLE",
+		product.Name,
 		i18n.T(i18n.KeyLauncherBrandRole),
 		i18n.T(i18n.KeyLauncherTabHome),
 		i18n.T(i18n.KeyLauncherTabComponents),

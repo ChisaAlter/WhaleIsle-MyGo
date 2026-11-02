@@ -55,18 +55,16 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.MCP
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(18)).Bold().TextColor(fg)
-			ui.Text(c, i18n.T(KeyPass4AMCPHintManaged)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			ui.Text(c, i18n.T(KeyPass4AMCPHintHTTP)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			ui.Text(c, i18n.T(KeyPass4AMCPHintComposition)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			ui.Text(c, providerCopy("管理本机 MCP 服务器。受管条目写入 $DSH_HOME/mcp-servers.yaml；HTTP 服务器可在本页登录后在对话里使用工具。组成配置条目只读。", "Manage the MCP servers on this machine. Managed entries are written to $DSH_HOME/mcp-servers.yaml; HTTP servers can sign in on this page and then be used in conversations. Composition entries are read-only.")).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 		})
-		ui.Row(c).Gap(6).Shrink(0).AlignItems(ui.Center).Children(func() {
-			addLabel := mcpCatalogText("添加 MCP 服务器", "Add MCP server")
-			if bodyIconAction32(c, addLabel, "plus", a.Busy || a.OnEdit == nil) && a.OnEdit != nil {
+		ui.Row(c).Gap(8).Shrink(0).AlignItems(ui.Center).Children(func() {
+			addLabel := mcpCatalogText("添加服务器", "Add MCP server")
+			if mcpHeaderIconButton(c, addLabel, "plus", a.Busy || a.OnEdit == nil) && a.OnEdit != nil {
 				a.OnEdit("")
 			}
-			if bodyIconAction32(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
+			if mcpHeaderIconButton(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
 				a.OnRefresh()
 			}
 		})
@@ -88,7 +86,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if len(a.Servers) == 0 && a.Busy {
 		ui.Text(c, i18n.T(i18n.KeySettingsLoading)).TextColor(muted)
 	} else if len(a.Servers) == 0 && a.Err == "" && a.HasListRPC {
-		message := i18n.T(i18n.KeySettingsMCPEmpty)
+		message := i18n.T(KeyPass4AMCPEmptyPrimary) + i18n.T(KeyPass4AMCPEmptySecondary)
 		if a.Catalog != nil && len(a.Catalog.Snapshot.Rows) > 0 {
 			message = mcpCatalogText("没有匹配的服务器", "No matching servers")
 		}
@@ -101,13 +99,13 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if a.DeletingID != "" {
 		open := true
 		bodyDialog(c, &open, mcpCatalogText("移除服务器", "Remove server"), func() {
-			ui.Text(c, a.DeletingID).TextColor(fg)
-			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).TextColor(muted)
+			ui.Text(c, a.DeletingID).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Disabled(a.Busy).Clicked() {
+				if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
 					a.OnCancelDelete()
 				}
-				if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Disabled(a.Busy).Clicked() {
+				if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
 					a.OnConfirmDelete()
 				}
 			})
@@ -116,23 +114,37 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			a.OnCancelDelete()
 		}
 	}
-	mcpImportPane(c, a.Import, a.Busy, fg, muted)
+	// The installed page keeps the import and the JSON editor out of sight until
+	// the add button is used; here they sit behind a disclosure unless an edit
+	// is already in progress.
+	forms := func() {
+		mcpImportPane(c, a.Import, a.Busy, fg, muted)
+		mcpEditorForms(c, a, fg, muted)
+	}
+	if a.EditingID != "" || a.Form != nil && a.Form.Draft != nil {
+		forms()
+	} else {
+		bodyDisclosure(c, "mcp-advanced", providerCopy("导入与高级编辑", "Import and advanced editing"), forms)
+	}
+}
+
+func mcpEditorForms(c *ui.Context, a *MCPAccess, fg, muted ui.Color) {
 	formOpen := mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
 	if a.DraftSpec != nil && !formOpen {
-		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsertHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsertHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if a.EditingID != "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesEdit)+": "+a.EditingID).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		area := ui.TextArea(c, a.DraftSpec).Fill().MinHeight(72)
+		area := ui.TextArea(c, a.DraftSpec).Fill().MinHeight(72).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
 		if area.Changed() && a.OnDraftChanged != nil {
 			a.OnDraftChanged(*a.DraftSpec)
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(32).Padding(0, 14).Disabled(a.Busy).Clicked() {
+			if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy).Clicked() {
 				a.OnCancelEdit()
 			}
-			if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Height(32).Padding(0, 14).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
+			if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
 				a.OnUpsert(*a.DraftSpec)
 			}
 		})
@@ -244,7 +256,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			heading := func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
-						ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+						ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 					})
 					detail := mcpRowDetail(r)
 					ui.Text(c, detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).SingleLine().Tooltip(detail)
@@ -264,7 +276,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 				ui.Column(c).Grow(1).MinWidth(180).Children(heading)
 			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Disabled(a.Busy).Clicked() {
+				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
 					a.OnTest(r.ID)
 				}
 				if r.Writable {
@@ -272,7 +284,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 					if ui.Switch(c, &enabled).Label("Enable MCP server · "+r.ID).Disabled(a.Busy || a.OnSetEnabled == nil).Changed() && a.OnSetEnabled != nil {
 						a.OnSetEnabled(r.ID, enabled)
 					}
-					if mcpNeedsSignIn(a, r) && a.OnAuthorize != nil && ui.Button(c, providerCopy("登录", "Sign in")).Height(30).Disabled(a.Busy).Clicked() {
+					if mcpNeedsSignIn(a, r) && a.OnAuthorize != nil && ui.Button(c, providerCopy("登录", "Sign in")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
 						a.OnAuthorize(r.ID)
 					}
 					if a.OnEdit != nil && bodyIconAction(c, "Edit MCP server · "+r.ID, "edit", a.Busy) {
@@ -299,7 +311,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 						ui.Text(c, providerCopy("没有工具", "no tools")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						continue
 					}
-					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).Height(24).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.Catalog.OnInspect != nil {
+					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).AlignSelf(ui.Start).Height(28).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() && a.Catalog.OnInspect != nil {
 						a.Catalog.OnInspect(r.ID)
 					}
 				}
@@ -345,10 +357,21 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 // mcpEmptyCard is the dashed placeholder the installed build shows before the
 // first server: a 1px dashed muted outline, radius 8, two centered lines.
 func mcpEmptyCard(c *ui.Context, message string, muted ui.Color) {
-	ui.Column(c.Key("mcp-empty")).FillWidth().MinWidth(0).MinHeight(92).Gap(4).Padding(20, 16).
-		Radius(8).Border(1, ui.RGBA(muted.R, muted.G, muted.B, .3)).BorderStyle(ui.BorderDashed).
+	ui.Column(c.Key("mcp-empty")).FillWidth().MinWidth(0).MinHeight(72).Padding(24, 16).
+		Radius(12).Border(.667, ui.RGBA(muted.R, muted.G, muted.B, .3)).BorderStyle(ui.BorderDashed).
 		AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
-		ui.Text(c, i18n.T(KeyPass4AMCPEmptySecondary)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 	})
+}
+
+// mcpHeaderIconButton is the 28x28 outlined icon button of the page head.
+func mcpHeaderIconButton(c *ui.Context, label, icon string, disabled bool) bool {
+	dark := c.Theme().Dark
+	outline := fonttheme.Color(fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark).BorderL3)
+	button := ui.Button(c, "").Label(label).Size(28, 28).Shrink(0).Padding(6).Radius(8).Border(.667, outline).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
+	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
+	if button.Hovered() && !disabled {
+		button.Background(c.Theme().SurfaceHover)
+	}
+	return button.Clicked() && !disabled
 }

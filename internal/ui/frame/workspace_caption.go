@@ -69,31 +69,28 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			if mainSubagentConversationHeader(c, m, m.captionRightInset) {
 				return
 			}
-			if hero {
-				ui.Row(c).FillWidth().Height(workspaceCaptionContent).Padding(0, m.captionRightInset, 0, 20).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Grow(1).MinWidth(0)
-					jobsHeader(c, m)
-				})
+			if (hero && snap.SelectedID == "") || conversationHeaderHidden(snap, hasPendingStopInteraction(m.Interactions, snap.SelectedID)) {
+				conversationBlankHeader(c, m, snap)
 				return
 			}
 			// Title, status actions and the 对话/轨迹 switcher share this one 48px
 			// row; rc.2 has no second tab row under the band.
 			conversationHeaderTitleRow(c, m, snap, colors)
 		})
-		// AppFrame hides the whole trailing cluster at data-compact-header
-		// (viewport < SIDEBAR_AUTO_COLLAPSE): the density tiers below only apply
-		// while the cluster still has room.
-		if m.WorkspaceTrailing != nil && (m.Sizes == nil || !m.Sizes.narrowHeader()) {
+		// Installed AppFrame keeps clusterVisible true for native desktop
+		// platforms, including narrow windows; label density concedes instead.
+		if m.WorkspaceTrailing != nil {
 			densityWidth := m.Sizes.Center
 			if details > 0 {
 				densityWidth = min(densityWidth, details)
 			}
-			// titlebar-density.ts: below 560 the branch trigger drops its ref name,
-			// below 720 the Session log collapses to its icon.
+			// The installed resolver uses compact below 720, cozy below 900.
+			// Desktop's visible cluster is always over the caption span; an open
+			// details track uses the smaller of its width and the conversation.
 			density := "full"
-			if densityWidth < 560 {
+			if densityWidth < 720 {
 				density = "compact"
-			} else if densityWidth < 720 {
+			} else if densityWidth < 900 {
 				density = "cozy"
 			}
 			// titlebar-density.ts: the cluster sits 12px below the band's top edge
@@ -121,9 +118,25 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	})
 	// The band's bottom hairline anchors the header the way the client's
 	// conversation-header ::after does.
-	row.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - .5, W: r.W, H: .5}, chrome.Color(colors.Border), 0)
-	})
+	layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
+	if layout.Active() {
+		row.Background(chrome.Color(layout.ChatBackground))
+	}
+	stroke, ink := float32(.5), chrome.Color(colors.Border)
+	if m.SystemDark {
+		ink = ui.RGBA(255, 255, 255, 0.02)
+	}
+	if hero {
+		stroke = 0
+	}
+	if layout.Skin == theme.SkinClaude {
+		stroke, ink = layout.HeaderBorder, chrome.Color(layout.BorderColor)
+	}
+	if stroke > 0 {
+		row.Draw(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - stroke, W: r.W, H: stroke}, ink, 0)
+		})
+	}
 	return max(workspaceCaptionHeight, row.Bounds().H)
 }
 

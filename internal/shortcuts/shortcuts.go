@@ -4,8 +4,10 @@ package shortcuts
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // IDs are native binding identifiers. The tools alternate intentionally targets
@@ -207,6 +209,41 @@ func Validate(values map[string]string) map[string]string {
 // Resolve fails closed per invalid/conflicting row. Unknown IDs cannot become
 // commands. An explicit empty string disables only that particular binding.
 func Resolve(values map[string]string) map[string]Chord {
+	resolveMemo.Lock()
+	if resolveMemo.out != nil && maps.Equal(resolveMemo.values, values) {
+		out := cloneChords(resolveMemo.out)
+		resolveMemo.Unlock()
+		return out
+	}
+	resolveMemo.Unlock()
+	out := resolve(values)
+	resolveMemo.Lock()
+	resolveMemo.values, resolveMemo.out = maps.Clone(values), cloneChords(out)
+	resolveMemo.Unlock()
+	return out
+}
+
+// cloneChords keeps a nil Modifiers nil and an empty one empty.
+func cloneChords(in map[string]Chord) map[string]Chord {
+	out := make(map[string]Chord, len(in))
+	for id, c := range in {
+		if c.Modifiers != nil {
+			c.Modifiers = append(make([]string, 0, len(c.Modifiers)), c.Modifiers...)
+		}
+		out[id] = c
+	}
+	return out
+}
+
+// resolveMemo remembers the last Resolve. The page asks on every render pass,
+// and validating every pair of chords each time showed in hover frames.
+var resolveMemo struct {
+	sync.Mutex
+	values map[string]string
+	out    map[string]Chord
+}
+
+func resolve(values map[string]string) map[string]Chord {
 	values = effective(values)
 	issues := Validate(values)
 	out := map[string]Chord{}

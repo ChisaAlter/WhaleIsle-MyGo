@@ -29,7 +29,15 @@ func applySuggestDrill(m Model, it suggestItem, tok TokenRange) {
 	if m.Draft == nil || it.drill == "" {
 		return
 	}
+	// Directory drill continues the editable query; only a settled pick is
+	// imported as a reference object.
+	if m.TextInput != nil {
+		m.TextInput.nativeTyping = true
+	}
 	replaceSuggestionToken(m, tok, it.drill)
+	if m.TextInput != nil {
+		m.TextInput.nativeTyping = false
+	}
 	if state := suggestionState(m, m.TextInput); state != nil {
 		state.dismissed = nil
 		activeSuggestion(m, m.TextInput)

@@ -41,4 +41,10 @@ func workspaceResourceMenu(menu *ui.Menu, m Model) {
 	if m.OnOpenBrowserPreview != nil && menu.Item(i18n.T(i18n.KeyBrowserPreviewTitle)).Chosen() {
 		m.OnOpenBrowserPreview()
 	}
+	if m.OnOpenMarket != nil && menu.Item(paneLabel("浏览更多插件", "Browse other plugins")).Chosen() {
+		m.OnOpenMarket()
+	}
+	if m.OnCreatePluginDraft != nil && menu.Item(paneLabel("创建你的插件", "Create your plugin")).Chosen() {
+		m.OnCreatePluginDraft("rightbar")
+	}
 }

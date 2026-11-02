@@ -5,14 +5,18 @@ package frame
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/store/interaction"
 	schedstore "whaleisle/internal/store/schedule"
@@ -167,18 +171,20 @@ const terminalDrawerMin = float32(180)
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	SVGImages               *svgimage.Owner
-	OpenUIParent            uintptr
-	OpenUIWindow            *mygo.Window
-	CustomPanelContent      func(*ui.Context)
-	OnOpenDocumentViewer    func(string) (files.DocumentSurface, error)
-	GroupRoom               bool
-	GroupMembers            []session.GroupMember
-	OnReplyGroupThread      func(string)
-	DisableDeveloperTools   bool
-	TitlebarPreferences     settings.TitlebarPreferences
-	WorkspaceTrailing       func(*ui.Context, string)
-	WorkspacePage           bool
+	SVGImages             *svgimage.Owner
+	OpenUIParent          uintptr
+	OpenUIWindow          *mygo.Window
+	CustomPanelContent    func(*ui.Context)
+	OnOpenDocumentViewer  func(string) (files.DocumentSurface, error)
+	GroupRoom             bool
+	GroupMembers          []session.GroupMember
+	OnReplyGroupThread    func(string)
+	DisableDeveloperTools bool
+	TitlebarPreferences   settings.TitlebarPreferences
+	WorkspaceTrailing     func(*ui.Context, string)
+	WorkspacePage         bool
+	// ActivePanel is the visible global route, or empty for a conversation.
+	ActivePanel             string
 	WorkspaceOpenInApp      *WorkspaceOpenInAppState
 	HideArchivedList        bool
 	ChatPreferences         settings.ChatPreferences
@@ -202,15 +208,19 @@ type Model struct {
 	// ViewportW/H are the window's client area in DIPs (viewportDIP). Children
 	// that clamp tooltips or popovers to the screen read them instead of
 	// Context.Size, which reports device pixels on a scaled display.
-	ViewportW float32
-	ViewportH float32
-	OnSelectSession    func(string)
-	OnCreateSession    func()
+	ViewportW       float32
+	ViewportH       float32
+	OnSelectSession func(string)
+	OnCreateSession func()
 
-	Projects                projects.Model
+	Projects projects.Model
 	// Account is the sidebar's bottom account seat (avatar, name, menu).
-	Account                 sidebar.Account
-	Store                   *session.Store
+	Account sidebar.Account
+	Store   *session.Store
+	// FrameView is a read-only handle for synchronous view construction. The view
+	// it returns is shared with the store and valid for the current pass only.
+	// Event callbacks and asynchronous work must use Store.Snapshot instead.
+	FrameView               *session.FrameSnapshot
 	AgentPresetManager      *session.AgentPresetManager
 	Interactions            *interaction.Store
 	OnAutoAllowChanged      func(on bool)
@@ -235,18 +245,18 @@ type Model struct {
 	RenameDraft             *string
 	SessionSearch           *string
 
-	WorkspaceRoot    string
-	FileBindingID    string
-	FileTabs         *files.Tabs
-	GitWorkbench     *diffsurface.Workbench
-	FileExpanded     *map[string]bool
-	SelectedFile     *string
-	FileFilter       *string
-	FilePreview      *string
-	FilePreviewErr   *string
-	FilePreviewList  *ui.ListState
-	FileTreeSplit    *float32
-	FileShortcuts    func() bool
+	WorkspaceRoot   string
+	FileBindingID   string
+	FileTabs        *files.Tabs
+	GitWorkbench    *diffsurface.Workbench
+	FileExpanded    *map[string]bool
+	SelectedFile    *string
+	FileFilter      *string
+	FilePreview     *string
+	FilePreviewErr  *string
+	FilePreviewList *ui.ListState
+	FileTreeSplit   *float32
+	FileShortcuts   func() bool
 	// OnOpenFilePicker backs the file strip's trailing control. Nil hides it.
 	OnOpenFilePicker func()
 	FileEditing      *bool
@@ -309,43 +319,45 @@ type Model struct {
 	FileImageGeneration            uint64
 	OnStatWorkspaceFileContext     func(context.Context, string) string
 	// OnStatWorkspaceFile returns a short workspaceFiles/stat summary.
-	OnStatWorkspaceFile   func(rel string) string
-	FileStatNote          *string
-	OnPickHeroWorkspace   func()
-	WorkspacePickerAnchor *ui.Handle
-	OnNoDirectory         func()
-	OnSelectWorkspace     func(string)
-	OnBrowseWorkspace     func() // SidebarRoot 鈽?/ folder row
-	OnRevealWorkspace     func()
-	OnOpenWorkspaceLocal  func()
-	OnRenameWorkspace     func(title string)
-	OnDeleteWorkspace     func()
-	OnMoveSessionBefore   func(sessionID, beforeSessionID string)
-	WorkspaceRenameDraft  *string
-	WorkspaceMenuOpen     *bool
-	OnOpenFloatingDoc     func(string)
-	OnOpenDoc             func(absPath string, kind workspacefs.DocKind, inWebView bool)
-	OnOpenMedia           func(path string, floating bool)
-	OnRevealFile          func(absPath string)
-	OnOpenWithApp         func(absPath, appID string)
-	FileOpenWithApps      []files.OpenWithApp
-	OnOpenWithEditor      func(absPath, editorID string, line int)
-	FileEditorApps        []files.OpenWithApp
-	OnRenderOfficePDF     func(rel string)
-	OfficePreviewStatus   func(path string) string
-	OnOpenBrowserPreview  func()
-	OnOpenMarket          func()
-	OnOpenSchedule        func()
-	OnOpenAssistant       func()
-	OnOpenLauncher        func()
-	OnContactAccount      func()
-	OnOpenSettings        func()
-	OnVoiceSettings       func()
-	OnToggleTools         func()
-	OnToggleTerminal      func()
-	OnOpenHostTerminal    func()
-	OnRestartTerminal     func()
-	OnCloseTerminal       func()
+	OnStatWorkspaceFile      func(rel string) string
+	FileStatNote             *string
+	OnPickHeroWorkspace      func()
+	WorkspacePickerAnchor    *ui.Handle
+	OnNoDirectory            func()
+	OnCreateWorkspaceSession func(uint64, string)
+	OnSelectWorkspace        func(string)
+	OnBrowseWorkspace        func() // SidebarRoot 鈽?/ folder row
+	OnRevealWorkspace        func()
+	OnOpenWorkspaceLocal     func()
+	OnRenameWorkspace        func(title string)
+	OnDeleteWorkspace        func()
+	OnMoveSessionBefore      func(sessionID, beforeSessionID string)
+	WorkspaceRenameDraft     *string
+	WorkspaceMenuOpen        *bool
+	OnOpenFloatingDoc        func(string)
+	OnOpenDoc                func(absPath string, kind workspacefs.DocKind, inWebView bool)
+	OnOpenMedia              func(path string, floating bool)
+	OnRevealFile             func(absPath string)
+	OnOpenWithApp            func(absPath, appID string)
+	FileOpenWithApps         []files.OpenWithApp
+	OnOpenWithEditor         func(absPath, editorID string, line int)
+	FileEditorApps           []files.OpenWithApp
+	OnRenderOfficePDF        func(rel string)
+	OfficePreviewStatus      func(path string) string
+	OnOpenBrowserPreview     func()
+	OnOpenMarket             func()
+	OnCreatePluginDraft      func(region string)
+	OnOpenSchedule           func()
+	OnOpenAssistant          func()
+	OnOpenLauncher           func()
+	OnContactAccount         func()
+	OnOpenSettings           func()
+	OnVoiceSettings          func()
+	OnToggleTools            func()
+	OnToggleTerminal         func()
+	OnOpenHostTerminal       func()
+	OnRestartTerminal        func()
+	OnCloseTerminal          func()
 
 	Terminal              *termui.Panel
 	HostTerminalStore     *hostterminal.Store
@@ -374,23 +386,29 @@ type Model struct {
 	PlanBoardOpen                           *bool
 	GoalDraft                               *string
 	// TodoPanelCollapsed mirrors Electron TodoPanel header chevron (composer dock).
-	TodoPanelCollapsed           *bool
-	ImageLightboxPath            *string
-	OnOpenImageLightbox          func(displayPath string)
-	OnCloseImageLightbox         func()
-	OnOpenCitationURL            func(url string)
-	OnOpenPlanResource           func(planpreview.Document)
-	OnOpenDeliverable            func(path string)
-	OnOpenHistoryReference       func(path string, complete func(error))
-	VisualReply                  session.VisualReplyState
-	VisualReplyBitmap            *ui.Bitmap
-	OnPreviewVisualReply         func(attachmentID string)
-	OnInteractVisualReply        func(attachmentID string)
-	OnInlineVisualReply          func(attachmentID string) session.InlineVisualReply
-	OnStopInteractiveVisualReply func()
-	OnReadVisualReply            func(attachmentID string)
-	OnSaveVisualReply            func(attachmentID string)
-	OnCloseVisualReply           func()
+	TodoPanelCollapsed            *bool
+	ImageLightboxPath             *string
+	OnOpenImageLightbox           func(displayPath string)
+	OnCloseImageLightbox          func()
+	OnOpenCitationURL             func(url string)
+	OnOpenPlanResource            func(planpreview.Document)
+	OnOpenDeliverable             func(path string)
+	OnPreviewDeliverable          func(path string) error
+	OnOpenHistoryReference        func(path string, complete func(error))
+	ConversationContributions     func(*ui.Context, session.ViewState, string)
+	ConversationTurnContributions func(*ui.Context, session.ViewState, session.Message)
+	OnOpenSessionPlugins          func()
+	OnCloseSessionPlugins         func()
+	SessionPluginsActive          bool
+	VisualReply                   session.VisualReplyState
+	VisualReplyBitmap             *ui.Bitmap
+	OnPreviewVisualReply          func(attachmentID string)
+	OnInteractVisualReply         func(attachmentID string)
+	OnInlineVisualReply           func(attachmentID string) session.InlineVisualReply
+	OnStopInteractiveVisualReply  func()
+	OnReadVisualReply             func(attachmentID string)
+	OnSaveVisualReply             func(attachmentID string)
+	OnCloseVisualReply            func()
 	// ChatPaneTab is ConversationRoot in-column tab: "chat" (default) or "trajectory".
 	ChatPaneTab *string
 	// HideChatViewTabs mirrors Electron submissionPolicy.viewTabs=false.
@@ -438,12 +456,13 @@ func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
+	syncExternalAccount(c, m)
 	if !workspaceVisible(m, "agents") {
 		m.Store.CloseAgentNavigation()
 	}
 	viewport, viewportHeight := viewportDIP(c)
 	m.ViewportW, m.ViewportH = viewport, viewportHeight
-	m.Sizes.observeSidebarViewport(viewport)
+	m.Sizes.observeSidebarGeometry(viewport, viewportHeight)
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -453,7 +472,7 @@ func View(c *ui.Context, m Model) {
 		*m.ChatPaneTab = "chat"
 	}
 	m.Store.LoadStopSequenceConfig()
-	snap := m.Store.Snapshot()
+	snap := renderSnapshot(m)
 	snap.AgentPresetLabels = m.Store.AgentPresetLabelsForDeveloperTools(!m.DisableDeveloperTools)
 	if m.HostTerminalUI != nil {
 		observeHostTerminalPanes(m)
@@ -470,6 +489,30 @@ func View(c *ui.Context, m Model) {
 		m.Sizes = &fallback
 	}
 	cols := m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
+	// Below 768 the right dock derives fullscreen from the live frame width.
+	// At larger widths an explicit delivery still needs a visible fallback if
+	// the normal details track cannot fit. Failed previews never change mode.
+	if preview := m.OnPreviewDeliverable; preview != nil {
+		m.OnPreviewDeliverable = func(path string) error {
+			if err := preview(path); err != nil {
+				return err
+			}
+			// Compute against a copy: opening the drawer updates responsive state,
+			// but this check must not mutate the live frame's layout preferences.
+			proposed := *m.Sizes
+			if m.Sizes.Responsive != nil {
+				responsive := *m.Sizes.Responsive
+				proposed.Responsive = &responsive
+			}
+			if viewport >= workspaceAutoFullscreenWidth && proposed.ResolveColumns(viewport, true).Details == 0 {
+				w := m.Sizes.Workspace
+				if w != nil && w.Fullscreen == "" && w.Root != nil && w.Root.find(w.Active) != nil {
+					w.Fullscreen = w.Active
+				}
+			}
+			return nil
+		}
+	}
 	if m.FilePaneWidth == nil {
 		m.FilePaneWidth = &cols.Details
 	} else {
@@ -478,7 +521,12 @@ func View(c *ui.Context, m Model) {
 
 	// Grow below titlebar without percent-height double counting. Theme BG is
 	// the center's surface; the sidebar and right track own their own surfaces.
-	shell := ui.Column(c).Grow(1).MinHeight(0).Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
+	shell := ui.Column(c).Grow(1).MinHeight(0)
+	// ExternalNavigation's outer NavigationShell already owns the common canvas.
+	// Standalone and detached frames retain one canvas layer of their own.
+	if !m.ExternalNavigation {
+		shell.Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
+	}
 	workspaceFloatDropSurface(c, m, shell)
 	_, height := viewportDIP(c)
 	// The titlebar is above this shell. Its previous-frame origin remains
@@ -502,6 +550,43 @@ func clampSidebarWidth(w float32) float32 {
 		return SidebarMax
 	}
 	return w
+}
+
+var externalAccounts sync.Map
+
+func syncExternalAccount(c *ui.Context, m Model) {
+	if !m.ExternalNavigation || m.Store == nil {
+		return
+	}
+	prev, ok := externalAccounts.Load(m.Store)
+	externalAccounts.Store(m.Store, m.Account)
+	if !ok {
+		if m.Account.Name != "" || m.Account.SignedIn {
+			c.Invalidate()
+		}
+		return
+	}
+	if old, ok := prev.(sidebar.Account); ok {
+		if old.Name != m.Account.Name || old.Detail != m.Account.Detail || old.SignedIn != m.Account.SignedIn || old.Busy != m.Account.Busy {
+			c.Invalidate()
+		}
+	}
+}
+
+func resolveNavigationAccount(m Model) sidebar.Account {
+	account := m.Account
+	if account.Name == "" && !account.SignedIn && m.Store != nil {
+		if v, ok := externalAccounts.Load(m.Store); ok {
+			if ext, ok := v.(sidebar.Account); ok {
+				onOpen := account.OnOpen
+				account = ext
+				if account.OnOpen == nil {
+					account.OnOpen = onOpen
+				}
+			}
+		}
+	}
+	return account
 }
 
 // navigationView is shared by chat and the global main panels. Its owning
@@ -533,7 +618,23 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
 		schedules = m.ScheduleStore.Snapshot()
 	}
+	menuShortcutLabels := map[string]string{}
+	for id, chord := range shortcuts.Resolve(m.PageShortcutBindings) {
+		label := chord.String()
+		switch runtime.GOOS {
+		case "windows":
+			label = strings.Replace(label, "Mod", "Ctrl", 1)
+		case "darwin":
+			label = strings.Replace(label, "Mod", "Cmd", 1)
+		}
+		menuShortcutLabels[id] = label
+	}
+	newSessionShortcut := menuShortcutLabels["session.new"]
+	m.Store.SetSessionBatchScope(sidebar.BatchSelectionScope(sidebar.Model{Snapshot: snap, Collapsed: m.Sizes.sidebarCollapsed(), SearchQuery: m.SessionSearch}))
 	sidebar.View(c, sidebar.Model{
+		ActivePanel:          m.ActivePanel,
+		NewSessionShortcut:   newSessionShortcut,
+		MenuShortcutLabels:   menuShortcutLabels,
 		PendingStatuses:      sidebarPendingStatuses(m),
 		Batch:                m.Store.SessionBatch(),
 		OnBatchEdit:          m.Store.EditSessionBatch,
@@ -541,7 +642,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
 		OnBatchCancel:        m.Store.CancelSessionBatch,
 		HideArchivedList:     m.HideArchivedList,
-		Account:              m.Account,
+		Account:              resolveNavigationAccount(m),
 		Schedules:            schedules,
 		Projects:             projectModel,
 		Collapsed:            m.Sizes.sidebarCollapsed(),
@@ -563,13 +664,16 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
-		OnCreate:        createSession,
-		OnOpenMarket:    m.OnOpenMarket,
-		OnOpenSchedule:  m.OnOpenSchedule,
-		OnOpenAssistant: m.OnOpenAssistant,
-		OnOpenLauncher:  m.OnOpenLauncher,
-		OnOpenSettings:  m.OnOpenSettings,
-		ConnectionReady: m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
+		OnCreate:              createSession,
+		OnOpenMarket:          m.OnOpenMarket,
+		OnOpenSchedule:        m.OnOpenSchedule,
+		OnOpenAssistant:       m.OnOpenAssistant,
+		OnOpenLauncher:        m.OnOpenLauncher,
+		OnOpenSessionPlugins:  selectedSessionPluginAction(m, snap.SelectedID, m.OnOpenSessionPlugins),
+		OnCloseSessionPlugins: selectedSessionPluginAction(m, snap.SelectedID, m.OnCloseSessionPlugins),
+		SessionPluginsActive:  m.SessionPluginsActive,
+		OnOpenSettings:        m.OnOpenSettings,
+		ConnectionReady:       m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
 		ConnectionError:         m.ConnectionError,
 		OnReconnect:             m.OnReconnect,
 		DesktopUpdateInstalling: m.DesktopUpdateInstalling,
@@ -580,14 +684,18 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 			m.Store.InsertWorkspaceBeforeForHost(context.Background(), generation, id, before)
 		},
 		OnSelectWorkspace:        m.OnSelectWorkspace,
+		OnCreateWorkspaceSession: m.OnCreateWorkspaceSession,
 		OnManageWorkspace:        m.Store.BeginWorkspaceManagement,
+		OnBeginWorkspaceRename:   m.Store.BeginWorkspaceRename,
+		OnBeginWorkspaceRemoval:  m.Store.BeginWorkspaceRemoval,
 		OnWorkspaceGrouping:      m.Store.SetWorkspaceGrouping,
 		OnWorkspaceOrdering:      m.Store.SetWorkspaceOrdering,
+		OnArchivedFilter:         m.Store.SetWorkspaceArchivedFilter,
 		OnToggleWorkspaceGroup:   m.Store.ToggleWorkspaceGroup,
 		OnMoveWorkspaceBefore:    func(id, before string) { m.Store.InsertWorkspaceBefore(context.Background(), id, before) },
 		OnMoveLocalSessionBefore: m.Store.InsertLocalSessionBefore,
 		OnMoveWorkspaceSessionBefore: func(workspaceID, id, before string) {
-			m.Store.InsertSessionBefore(context.Background(), workspaceID, id, before)
+			m.Store.InsertSessionBeforeForHost(snap.WorkspaceLayout.HostGeneration, workspaceID, id, before)
 		},
 		OnBrowseWorkspace:    m.OnBrowseWorkspace,
 		OnNoDirectory:        m.OnNoDirectory,
@@ -643,7 +751,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors, border, muted ui.Color) {
 	inspectToolCall := toolCallNavigationFrame(c, m, snap)
 	withNavigation := func(body func()) {
-		if m.ExternalNavigation {
+		if m.ExternalNavigation || workspaceAutoFullscreen(m) {
 			body()
 			return
 		}
@@ -668,7 +776,12 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// Electron chat chrome sits ~20 DIP lower than the rail brand (caption
 			// overlay). Add top inset on the chat column only 鈥?not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
-			enter := conversationEnter(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, conversationEnterStructure(m, snap, phase, takeover))
+			if skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); skinLayout.Active() {
+				conversationArea.Background(chrome.Color(skinLayout.ChatBackground)).Radius(0).Padding(0)
+			}
+			enter := conversationEnterLazy(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, func() string {
+				return conversationEnterStructure(m, snap, phase, takeover)
+			})
 			if takeover || phase == conversationSettling {
 				enter.cancel()
 			}
@@ -679,13 +792,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				if mainSubagentConversationBody(c, m) {
 					enter.cancel()
 					return
-				}
-				// Round245: the hero card grew by 41.34 (round244b 155.34) while the
-				// centred stack kept its 38-DIP foot, so the whole stack rose by
-				// 20.67. This fixed block above the stack restores slogan 314.67 /
-				// preset 373.33 / card top 409.33; the foot stays 38.
-				if emptyHero || phase == conversationSettling {
-					ui.Box(c).Key("conversation-hero-top-block").Height(41.34).Shrink(0)
 				}
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)
 				m.Store.MarkMainConversationViewed(snap.SelectedID)
@@ -893,33 +999,33 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 					contentAxis = m.Sizes.conversationWidth(axisColumn)
 				}
-				// ConversationRoot owns W. InputBar alone owns the 16 DIP side
-				// clearances, so both phases receive the same W+64 seat. The installed
-				// card is `max-width: 774.4px` (probed at 1440x860 and 1440x920: card
-				// 774.39 wide, 114 tall, `padding: 8px 0 0`); at 1440 the axis-derived
-				// seat is 773.33, so the 1.06 DIP gap lives in the column width, not in
-				// this formula (capping or flooring the seat here breaks the
-				// hero/docked width identity the phase tests pin).
+				if skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); skinLayout.Active() {
+					contentAxis = skinLayout.ContentWidth
+				} else if m.ConversationPreferences.ComposerResize && m.ComposerResize != nil && m.ComposerResize.Width >= 680 && (m.Sizes == nil || m.Sizes.TranscriptWidth <= 0) {
+					contentAxis = m.ComposerResize.Width - 32
+				}
+				// ConversationRoot owns W. InputBar alone owns the 16-DIP side
+				// clearances, so both phases receive the same stack seat, and the
+				// card inside it is exactly the conversation body: contentAxis+32
+				// (0.64 x 1160 + 32 = 774.4 at 1440x920), the native
+				// `max-width: 774.4px`. Deriving both from one helper is what keeps
+				// the old 772-vs-774.4 residual at a 0-DIP difference.
 				contentViewportW := maxf(0, colW-conversationScrollGutter)
 				chatContentW := min(contentAxis, maxf(0, contentViewportW-64))
-				composerOuterW := min(contentAxis+64, contentViewportW)
+				composerOuterW := min(conversationComposerStackWidth(contentAxis), contentViewportW)
 				if m.ConversationPreferences.ComposerResize && m.ComposerResize != nil && m.ComposerResize.Width > 0 {
 					composerOuterW = min(m.ComposerResize.Width+32, contentViewportW)
 				}
 				chat.StatusView(c, chat.Model{
 					Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ConnectionBanner: m.ConnectionBanner, OnReconnect: m.OnReconnect,
-					UsageJobsToday: m.UsageJobsToday, UsageBalance: m.UsageBalance, OnOpenUsage: m.OnOpenUsage,
 				})
 				conversationHistoryStatus(c, m, snap, muted)
 				// ConversationRoot: same chatContent column for transcript + docked composer.
-				chatRegion := ui.Column(c).Key("conversation-body").Grow(1).MinHeight(0)
+				chatRegion := ui.Column(c).Key("conversation-body").Label("Conversation body").Grow(1).MinHeight(0)
 				chatRegion.ObserveLayout(func(r ui.Rect) {
 					enterViewport = r
 				})
-				if emptyHero {
-					chatRegion.Padding(0, 0, 32, 0)
-				}
 				bindChatStopRegion(chatRegion, m, snap)
 				chatRegion.Children(func() {
 					paneTab := "chat"
@@ -976,7 +1082,8 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									} else {
 										navigation := sessionInspectorChatNavigation(m)
 										chat.View(c, chat.Model{
-											OnInspectToolCall:    inspectActionFor(inspectToolCall, m.toolCallInspector()),
+											OnInspectToolCall: inspectActionFor(inspectToolCall, m.toolCallInspector()),
+											TurnContributions: m.ConversationTurnContributions,
 											Inspector:         navigation,
 											GroupRoom:         m.GroupRoom, GroupMembers: m.GroupMembers, OnReplyGroupThread: m.OnReplyGroupThread,
 											DisableDeveloperTools: m.DisableDeveloperTools,
@@ -993,9 +1100,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											FullColumnViewport: true,
 											ConnectionBanner:   m.ConnectionBanner,
 											OnReconnect:        m.OnReconnect,
-											UsageJobsToday:     m.UsageJobsToday,
-											UsageBalance:       m.UsageBalance,
-											OnOpenUsage:        m.OnOpenUsage,
 											FeedbackStore:      m.Store,
 											HistoryStore:       m.Store,
 											OnMessageFeedback: func(messageID, rating, note string) {
@@ -1047,6 +1151,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnOpenChangesReview:          func(scope session.TurnFileScope, target session.TurnFileTarget) { OpenChangesReview(m, scope, target) },
 											OnOpenPlanResource:           m.OnOpenPlanResource,
 											OnOpenDeliverable:            m.OnOpenDeliverable,
+											OnPreviewDeliverable:         m.OnPreviewDeliverable,
 											OnOpenHistoryReference:       m.OnOpenHistoryReference,
 											VisualReply:                  m.VisualReply,
 											VisualReplyBitmap:            m.VisualReplyBitmap,
@@ -1067,12 +1172,15 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
 							})
 							if paneTab != "trajectory" && len(snap.Messages) > 0 && m.ChatList != nil {
-								ui.Box(c).Key("turn-rail-seat").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).Children(func() {
+								ui.Box(c).Key("turn-rail-seat").Attach(ui.AnchorRight, ui.AnchorRight).Right(6).Children(func() {
 									chat.TurnRailView(c, chat.Model{Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark}, transcriptWidth, func(seq float64) {
-										for i, msg := range snap.Messages {
-											if msg.Seq == seq {
-												m.ChatList.ScrollTo(i, ui.Start)
-												break
+										chat.ScrollToMessageSeq(chat.Model{Snapshot: snap, List: m.ChatList, Preferences: m.ChatPreferences, ThinkingExpanded: m.ThinkingExpanded, OnLoadEarlier: func() { m.Store.LoadEarlierHistory(context.Background()) }}, seq, ui.Start)
+										if m.Store != nil {
+											for _, turn := range snap.HistoryNavigation.Turns {
+												if turn.Seq == seq && !turn.Loaded {
+													m.Store.JumpToHistoryTurn(context.Background(), snap.SelectedID, snap.HistoryNavigation.Request, seq)
+													break
+												}
 											}
 										}
 									})
@@ -1080,7 +1188,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							}
 							paintConversationWidthControls(c, m, transcript, contentAxis, paneTab != "trajectory", &enterScroll.scroll)
 						})
-						if paneTab != "trajectory" && (snap.PlanBoard.PlanMode || snap.PlanBoard.Goal != nil || len(snap.PlanBoard.Todos) > 0) {
+						if paneTab != "trajectory" && m.PlanBoardOpen == nil && m.TodoPanelCollapsed == nil && !m.UseComposerTextInput && (snap.PlanBoard.PlanMode || snap.PlanBoard.Goal != nil || len(snap.PlanBoard.Todos) > 0) {
 							// Goal/todo/takeover cards share the transcript content axis.
 							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
 								ui.Box(c).Grow(1).MinWidth(0)
@@ -1179,10 +1287,14 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								conversationHeroHeadline(c, m, colors)
 							}
 							if m.Interactions != nil {
+								viewSnap := interactionSnapshot
+								viewSnap.QuestionHistory = nil
+								viewSnap.AutoAllow = false
+								viewSnap.Banner = ""
 								region := ui.Box(c.Key("conversation-interaction")).FillWidth().MinWidth(0)
 								region.Children(func() {
 									paint := func() {
-										interui.View(c, interui.Model{Snapshot: interactionSnapshot, ScopeAgentID: snap.SelectedID,
+										interui.View(c, interui.Model{Snapshot: viewSnap, ScopeAgentID: snap.SelectedID,
 											ThemeID: m.ThemeID, SystemDark: m.SystemDark, Store: m.Interactions,
 											OnAutoAllowChanged: m.OnAutoAllowChanged, OnOpenPlanResource: m.OnOpenPlanResource})
 									}
@@ -1226,6 +1338,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									})
 								}
 								paintComposer(emptyHero)
+								if emptyHero {
+									// Padding belongs to the centered composerHero item.
+									ui.Box(c).Key("conversation-hero-stack-foot").Height(conversationHeroStackFoot).Shrink(0)
+								}
 								if !emptyHero {
 									// sessioncost owns the whole compact statistics row;
 									// painting the chat line as well duplicated it.
@@ -1234,7 +1350,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									}
 									costModel := m.SessionCost
 									costModel.Snapshot = snap
-									costui.View(c, costModel, muted)
+									if !composerTelemetryDock(c, snap, costModel, muted) {
+										costui.View(c, costModel, muted)
+									}
 								}
 							})
 						})
@@ -1244,12 +1362,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					// mirrors the growing space above so the column stays centered.
 					if emptyHero || phase == conversationSettling {
 						ui.Box(c).Key("conversation-hero-bottom-space").Grow(1).MinHeight(0)
-						// The installed window centres this stack 19 DIP higher than an even
-						// split does: its slogan sits at y=314.67, the preset row at 373.33
-						// and the card top at 409.33 (1440x860 UIA), against 332.67 /
-						// 393.33 / 429.33 for an even split. A fixed foot under the lower
-						// grow spacer lifts the whole stack by half of its height.
-						ui.Box(c).Key("conversation-hero-stack-foot").Height(conversationHeroStackFoot)
 					}
 				})
 			})
@@ -1312,15 +1424,6 @@ func conversationContentWidth(colW float32) float32 {
 }
 
 func rightPane(c *ui.Context, m Model) {
-	if m.workspacePane != nil && m.workspacePane.Kind == "project-observer" {
-		projectModel := m.Projects
-		if projectModel.ObserverModel != nil {
-			projectModel = projectModel.ObserverModel(m.workspacePane.ProjectObserver)
-		}
-		projectModel.OnResolvedFile = m.OnOpenDeliverable
-		projects.ObserverView(c, projectModel, m.workspacePane.ProjectObserver)
-		return
-	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	field := chrome.BackdropSurface(chrome.Color(colors.Sidebar))
@@ -1334,7 +1437,26 @@ func rightPane(c *ui.Context, m Model) {
 		}
 	}
 
-	ui.Column(c).Fill().MinWidth(0).Draw(chrome.Glass(field, chrome.MaterialPanel)).Children(func() {
+	artifact := ui.Column(c).Label("Skin artifact boundary").Fill().MinWidth(0)
+	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
+		artifact.Background(chrome.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, chrome.Color(layout.SidebarBorderColor), 0)
+		})
+	} else {
+		if m.workspacePane == nil || m.workspacePane.Kind != "project-observer" {
+			artifact.Draw(chrome.Glass(field, chrome.MaterialPanel))
+		}
+	}
+	artifact.Children(func() {
+		if m.workspacePane != nil && m.workspacePane.Kind == "project-observer" {
+			projectModel := m.Projects
+			if projectModel.ObserverModel != nil {
+				projectModel = projectModel.ObserverModel(m.workspacePane.ProjectObserver)
+			}
+			projectModel.OnResolvedFile = m.OnOpenDeliverable
+			projects.ObserverView(c, projectModel, m.workspacePane.ProjectObserver)
+			return
+		}
 		workspacePaneControls(c, m)
 		ui.Box(c).Fill().Height(1).Background(border)
 		if tab == "browser" && m.BrowserContent != nil {
@@ -1366,7 +1488,7 @@ func rightPane(c *ui.Context, m Model) {
 		}
 		if tab == "host-terminal" && m.Store != nil {
 			m = hostTerminalPaneModel(m)
-			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.Snapshot().SelectedID, m.ThemeID, m.SystemDark, hostTerminalActions(m))
+			termui.HostView(c, m.HostTerminalUI, m.HostTerminalStore, m.Store.SelectedSessionID(), m.ThemeID, m.SystemDark, hostTerminalActions(m))
 			return
 		}
 		if tab == "agents" && m.Store != nil {
@@ -1382,7 +1504,7 @@ func rightPane(c *ui.Context, m Model) {
 				OnOpenPlanResource: m.OnOpenPlanResource,
 				Store:              navigation,
 				Manager:            m.AgentPresetManager,
-				Snapshot:           store.Snapshot(),
+				Snapshot:           renderSnapshot(m),
 				ThemeID:            m.ThemeID,
 				SystemDark:         m.SystemDark,
 				PromptDraft:        m.AgentsPromptDraft,
@@ -1390,7 +1512,7 @@ func rightPane(c *ui.Context, m Model) {
 				OnInterrupt: func(parentID, childID string) {
 					navigation.InterruptChild(context.Background(), parentID, childID, "")
 				},
-				OnOpenDocument:     m.OnOpenAgentDocument,
+				OnOpenDocument: m.OnOpenAgentDocument,
 				OnClose: func() {
 					if m.RightPaneTab != nil {
 						*m.RightPaneTab = "files"
@@ -1405,7 +1527,7 @@ func rightPane(c *ui.Context, m Model) {
 					handled, err := files.OpenPresentedPath(files.Model{
 						Tabs:                m.FileTabs,
 						BindingID:           m.FileBindingID,
-						SessionID:           m.Store.Snapshot().SelectedID,
+						SessionID:           m.Store.SelectedSessionID(),
 						WorkspaceRoot:       m.WorkspaceRoot,
 						SelectedFile:        m.SelectedFile,
 						Preview:             m.FilePreview,
@@ -1465,12 +1587,12 @@ func rightPane(c *ui.Context, m Model) {
 			PlanOnly:            tab == "plan",
 			AllowPageShortcuts:  m.FileShortcuts,
 			OnNewTab:            m.OnOpenFilePicker,
-			PlanSnapshot:        m.Store.Snapshot(),
+			PlanSnapshot:        renderSnapshot(m),
 			OnLoadPlanHistory:   func() { m.Store.LoadEarlierHistory(context.Background()) },
 			ReadSubagentPlan:    m.Store.ReadSubagentPlan,
 			Tabs:                m.FileTabs,
 			BindingID:           m.FileBindingID,
-			SessionID:           m.Store.Snapshot().SelectedID,
+			SessionID:           m.Store.SelectedSessionID(),
 			OnReferenceFile:     func(ref filelink.Reference) error { return insertWorkspaceReference(m, ref) },
 			WorkspaceRoot:       m.WorkspaceRoot,
 			ThemeID:             m.ThemeID,
@@ -1542,4 +1664,86 @@ func rightPane(c *ui.Context, m Model) {
 			OnOpenLink:          m.OnOpenCitationURL,
 		})
 	})
+}
+
+var (
+	telemetrySpeedSVG = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1"><path d="M3.4041 13.096C2.49514 12.187 1.87614 11.0288 1.62537 9.76798C1.37459 8.50716 1.50331 7.20028 1.99525 6.01261C2.48719 4.82494 3.32025 3.80981 4.3891 3.09557C5.45795 2.38134 6.71458 2.00008 8.0001 2C9.28563 2.00008 10.5423 2.38134 11.6111 3.09557C12.68 3.80981 13.513 4.82494 14.005 6.01261C14.4969 7.20028 14.6256 8.50716 14.3748 9.76798C14.1241 11.0288 13.5051 12.187 12.5961 13.096" stroke="currentColor"/><path d="M8 8.49994L11.6114 4.88855" stroke="currentColor"/><path d="M8 9.75C8.69036 9.75 9.25 9.19036 9.25 8.5C9.25 7.80964 8.69036 7.25 8 7.25C7.30964 7.25 6.75 7.80964 6.75 8.5C6.75 9.19036 7.30964 9.75 8 9.75Z" fill="currentColor"/></svg>`))
+	telemetryCacheSVG = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1"><path d="M13.1967 5.1869C13.7232 4.77378 14.0003 4.30517 14.0001 3.82819C14.0003 3.3512 13.7232 2.88259 13.1967 2.46947C12.6702 2.05635 11.9128 1.71328 11.0006 1.47475C10.0885 1.23621 9.05371 1.11062 8.00039 1.1106C6.94707 1.11057 5.9123 1.23612 5.00009 1.47461C4.08742 1.71301 3.32948 2.05604 2.80249 2.46919C2.2755 2.88235 1.99805 3.35106 1.99805 3.82819C1.99805 4.30531 2.2755 4.77402 2.80249 5.18718C3.32948 5.60033 4.08742 5.94336 5.00009 6.18176C5.9123 6.42025 6.94707 6.5458 8.00039 6.54578C9.05371 6.54575 10.0885 6.42016 11.0006 6.18163C11.9128 5.94309 12.6702 5.60002 13.1967 5.1869Z" stroke="currentColor"/><path d="M2 3.80371V11.7848" stroke="currentColor"/><path d="M14 3.80371V11.7848" stroke="currentColor"/><path d="M2 7.81396C2 8.60524 2.63214 9.36411 3.75736 9.92363C4.88258 10.4832 6.4087 10.7975 8 10.7975C9.5913 10.7975 11.1174 10.4832 12.2426 9.92363C13.3679 9.36411 14 8.60524 14 7.81396" stroke="currentColor"/><path d="M2 11.7847C2 12.6081 2.63214 13.3977 3.75736 13.98C4.88258 14.5622 6.4087 14.8893 8 14.8893C9.5913 14.8893 11.1174 14.5622 12.2426 13.98C13.3679 13.3977 14 12.6081 14 11.7847" stroke="currentColor"/></svg>`))
+)
+
+func composerTelemetryDock(c *ui.Context, snap session.ViewState, m costui.Model, muted ui.Color) bool {
+	if snap.SelectedID == "" || m.State == nil {
+		return false
+	}
+	for _, ns := range m.Preferences.Namespaces {
+		if ns.NS == "ui-conversation" {
+			raw := strings.ReplaceAll(string(ns.Value), " ", "")
+			if strings.Contains(raw, `"sessionCost":true`) || strings.Contains(raw, `"statsLine":false`) {
+				return false
+			}
+			break
+		}
+	}
+	memo := ui.Local(c.Root(), "dock-performance-history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
+	perfTokens, perfMS, _ := memo.RecordedPerformance(snap)
+	var prompt, hit float64
+	for _, source := range snap.CostSources {
+		if source.ID != snap.SelectedID || source.Usage == nil {
+			continue
+		}
+		for _, route := range source.Usage.Models {
+			if route.Peak != nil {
+				prompt += route.Peak.Miss + route.Peak.Hit
+				hit += route.Peak.Hit
+			}
+			if route.OffPeak != nil {
+				prompt += route.OffPeak.Miss + route.OffPeak.Hit
+				hit += route.OffPeak.Hit
+			}
+		}
+	}
+	if prompt <= 0 {
+		for _, source := range snap.CostSources {
+			if source.Usage == nil {
+				continue
+			}
+			for _, route := range source.Usage.Models {
+				if route.Peak != nil {
+					prompt += route.Peak.Miss + route.Peak.Hit
+					hit += route.Peak.Hit
+				}
+				if route.OffPeak != nil {
+					prompt += route.OffPeak.Miss + route.OffPeak.Hit
+					hit += route.OffPeak.Hit
+				}
+			}
+		}
+	}
+	hasSpeed := perfMS > 0 && perfTokens > 0
+	hasCache := prompt > 0
+	if !hasSpeed && !hasCache {
+		return false
+	}
+	ui.Column(c).Key("composer-dock").FillWidth().MinHeight(24).Padding(4, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Key("composer-dock-stats").FillWidth().Justify(ui.Center).AlignItems(ui.Center).Gap(12).Children(func() {
+			if hasSpeed {
+				ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(1, 8).Children(func() {
+					ui.Icon(c, telemetrySpeedSVG).Size(14, 14).TextColor(muted)
+					ui.Text(c, fmt.Sprintf("%.0f %s", perfTokens*1000/perfMS, i18n.T(i18n.KeyComposerDockSpeedUnit))).FontSize(12).FixedLineHeight(20).TextColor(muted)
+				})
+			}
+			if hasCache {
+				pct := 100 * hit / prompt
+				pctText := fmt.Sprintf("%.0f%%", math.Round(pct))
+				if pct < 100 && math.Round(pct) >= 100 {
+					pctText = fmt.Sprintf("%.1f%%", pct)
+				}
+				ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(1, 8).Children(func() {
+					ui.Icon(c, telemetryCacheSVG).Size(14, 14).TextColor(muted)
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), pctText)).FontSize(12).FixedLineHeight(20).TextColor(muted)
+				})
+			}
+		})
+	})
+	return true
 }

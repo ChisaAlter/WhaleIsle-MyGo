@@ -37,7 +37,7 @@ func hostTerminalPaneModel(m Model) Model {
 		return m
 	}
 	pane := m.workspacePane
-	snapshot := m.Store.Snapshot()
+	snapshot := m.Store.SelectionSummary()
 	session := snapshot.SelectedID
 	if pane.terminalFresh {
 		generation := snapshot.ComposerHostGeneration

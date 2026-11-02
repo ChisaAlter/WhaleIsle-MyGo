@@ -12,7 +12,7 @@ func (w *WorkspacePanes) showOpenedPlan(m Model, doc planpreview.Document) {
 	if n == nil || n.Files == nil {
 		return
 	}
-	sid := m.Store.Snapshot().SelectedID
+	sid := m.Store.SelectedSessionID()
 	if n.Files.Tabs.Plans.ActiveAddress(sid) != doc.Address {
 		return
 	}

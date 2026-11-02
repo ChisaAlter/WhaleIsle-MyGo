@@ -64,20 +64,19 @@ func TestNarrowDrawerOverlaysAndReopens(t *testing.T) {
 	}
 }
 
-// TestNarrowHeaderHidesTrailingCluster pins the compact caption band: below
-// SIDEBAR_AUTO_COLLAPSE (1024 DIP, AppFrame data-compact-header) the titlebar
-// trailing cluster is not built at all, so the session title keeps the band.
-// The breakpoint is not the 768 DIP drawer band: a 768–1024 DIP desktop window
-// keeps its 280 DIP sidebar track and still drops the cluster, because the
-// cluster would paint over the title (AppFrame.js:303-306,316).
-func TestNarrowHeaderHidesTrailingCluster(t *testing.T) {
+// Installed AppFrame's desktop branch keeps the trailing cluster visible at
+// every width. Label density and the measured reserve protect the title.
+func TestDesktopNarrowHeaderKeepsTrailingCluster(t *testing.T) {
 	for _, tc := range []struct {
 		width int
 		want  bool
 	}{
-		{700, false},
-		{900, false},
-		{1023, false},
+		{390, true},
+		{600, true},
+		{700, true},
+		{768, true},
+		{900, true},
+		{1023, true},
 		{1024, true},
 		{1200, true},
 	} {
@@ -98,11 +97,8 @@ func TestNarrowHeaderHidesTrailingCluster(t *testing.T) {
 		if called != tc.want {
 			t.Fatalf("width %d: trailing cluster built=%v, want %v", tc.width, called, tc.want)
 		}
-		if !tc.want {
-			// The cluster's reserve disappears with it: the title may use the band.
-			if _, ok := tt.Find("Conversation session title"); !ok {
-				t.Fatal("narrow header lost the title seat")
-			}
+		if _, ok := tt.Find("Conversation session title"); !ok {
+			t.Fatal("desktop header lost the title seat")
 		}
 	}
 }

@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"whaleisle/internal/ui/i18n"
+)
 
 // phoneDeviceAction uses only the bridge-owned original remote runtime.
 // No legacy desktop credential cache is edited or used to identify a device.
@@ -9,7 +12,7 @@ func (s *mainState) phoneDeviceAction(operation, id, name string) error {
 	quitting, win := s.quitting, s.win
 	s.mu.Unlock()
 	if quitting || s.cfgStore == nil || !s.cfgStore.Get().RemoteEnabled {
-		return errors.New("enable and refresh the phone runtime before managing devices")
+		return errors.New(i18n.T(i18n.KeyCmdPhoneRuntimeBeforeDevices))
 	}
 	manager := s.phoneRuntimeManager()
 	if err := manager.DeviceAction(operation, id, name); err != nil {

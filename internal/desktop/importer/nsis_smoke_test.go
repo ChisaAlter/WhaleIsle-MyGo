@@ -1,12 +1,16 @@
 package importer
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 // TestNSISInstallerSmoke runs scripts/smoke-nsis.ps1 when makensis is available.
@@ -24,7 +28,11 @@ func TestNSISInstallerSmoke(t *testing.T) {
 		t.Fatalf("smoke script: %v", err)
 	}
 
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1)
+	output := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-OutputRoot", output)
+	processutil.Background(cmd)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "WHALEISLE_PACKAGE_SKIP_RUNTIME=1")
 	out, err := cmd.CombinedOutput()
@@ -32,8 +40,11 @@ func TestNSISInstallerSmoke(t *testing.T) {
 		t.Fatalf("smoke-nsis.ps1: %v\n%s", err, out)
 	}
 
-	setup := filepath.Join(root, "dist", "WhaleIsle-Setup-0.0.0-dev.exe")
-	info, err := os.Stat(setup)
+	setups, err := filepath.Glob(filepath.Join(output, "WhaleIsle-Smoke-*.exe"))
+	if err != nil || len(setups) != 1 {
+		t.Fatalf("expected one fresh installer, got %v: %v", setups, err)
+	}
+	info, err := os.Stat(setups[0])
 	if err != nil {
 		t.Fatalf("installer: %v", err)
 	}
@@ -54,7 +65,10 @@ func TestNSISSilentInstallSmoke(t *testing.T) {
 	}
 
 	ps1 := filepath.Join(root, "scripts", "smoke-nsis.ps1")
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-SilentInstall")
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-SilentInstall", "-OutputRoot", t.TempDir())
+	processutil.Background(cmd)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "WHALEISLE_PACKAGE_SKIP_RUNTIME=1")
 	out, err := cmd.CombinedOutput()

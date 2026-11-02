@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path"
 	"strings"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type officePreviewState struct {
@@ -40,22 +42,26 @@ func officePreviewName(source string) string {
 }
 
 func officePreviewReady(fonts []string) string {
-	message := "Office 转换完成，PDF 只读预览已打开。"
+	message := i18n.T(i18n.KeyCmdOfficePreviewReady)
 	if len(fonts) > 0 {
-		message += " 缺失字体：" + strings.Join(fonts, "、") + "。本次预览无法使用这些字体，文字和排版可能与原文档不同。"
+		separator := "、"
+		if i18n.Locale() == i18n.LocaleEN {
+			separator = ", "
+		}
+		message += " " + fmt.Sprintf(i18n.T(i18n.KeyCmdOfficePreviewMissingFonts), strings.Join(fonts, separator))
 	}
 	return message
 }
 
 func officePreviewFailure(err error) string {
-	unavailable := "Office 预览不可用。请在运行 MyGo鲸屿 Host 的主机上启用文档预览服务，并确认 LibreOffice Kit 运行依赖可用；然后点击“转为 PDF 预览”重试。"
+	unavailable := i18n.T(i18n.KeyCmdOfficePreviewUnavailable)
 	var remote *dsh.Error
 	if errors.As(err, &remote) {
 		switch remote.Code {
 		case "gateway/invocation-unavailable", "gateway/service-unavailable":
 			return unavailable
 		case "gateway/cancelled":
-			return "Office 预览已取消；点击“转为 PDF 预览”可重试。"
+			return i18n.T(i18n.KeyCmdOfficePreviewCancelled)
 		case "document-render/failed":
 			var details struct {
 				Reason string `json:"reason"`
@@ -63,27 +69,27 @@ func officePreviewFailure(err error) string {
 			_ = json.Unmarshal(remote.Details, &details)
 			switch details.Reason {
 			case "input-too-large", "output-too-large":
-				return "Office 文件或转换后的 PDF 超过预览大小上限；请缩小文件后重试。"
+				return i18n.T(i18n.KeyCmdOfficePreviewTooLarge)
 			case "invalid-document", "unsupported-format":
-				return "无法预览此 Office 文件。文件可能已损坏、受密码保护，或与扩展名不符。"
+				return i18n.T(i18n.KeyCmdOfficePreviewInvalid)
 			case "timeout":
-				return "Office 转换超时；点击“转为 PDF 预览”可重试。"
+				return i18n.T(i18n.KeyCmdOfficePreviewTimeout)
 			case "unavailable":
 				return unavailable
 			case "busy":
-				return "Office 预览任务较多；请稍后点击“转为 PDF 预览”重试。"
+				return i18n.T(i18n.KeyCmdOfficePreviewBusy)
 			case "source-changed":
-				return "Office 文件在读取时已更改；请重新打开预览。"
+				return i18n.T(i18n.KeyCmdOfficePreviewSourceChanged)
 			default:
-				return "Office 转换失败，未生成可用的 PDF；请检查文件后点击“转为 PDF 预览”重试。"
+				return i18n.T(i18n.KeyCmdOfficePreviewFailed)
 			}
 		}
 	}
 	if strings.Contains(err.Error(), "response exceeds bounded wire limit") {
-		return "转换后的 PDF 超过预览传输大小上限；请缩小文件后重试。"
+		return i18n.T(i18n.KeyCmdOfficeTransportTooLarge)
 	}
 	if strings.Contains(err.Error(), "harness not ready") {
 		return unavailable
 	}
-	return "Office 预览失败：" + err.Error() + "。点击“转为 PDF 预览”可重试。"
+	return fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeRetryFailure), err.Error())
 }

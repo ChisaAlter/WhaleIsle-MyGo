@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -43,16 +45,16 @@ func (s *mainState) bindGlobalWorkspace(win *mygo.Window, m *frame.Model, root s
 		invalidate()
 	}
 	if m.Store != nil {
-		snap := m.Store.Snapshot()
+		selectedID := m.Store.SelectedSessionID()
 		s.dshMu.Lock()
 		client := s.dshClient
 		s.dshMu.Unlock()
-		m.FileBindingID = fmt.Sprintf("%p\x00%s", client, snap.SelectedID)
+		m.FileBindingID = fmt.Sprintf("%p\x00%s", client, selectedID)
 		s.mu.Lock()
-		draft := s.composerDraftLocked(snap.SelectedID)
+		draft := s.composerDraftLocked(selectedID)
 		s.mu.Unlock()
-		m.CanAddSelectionToChat = snap.SelectedID != "" && !draft.Sending
-		m.OnAddSelectionToChat = func(text string) error { return appendSelectionToComposer(m.Store, snap.SelectedID, draft, text) }
+		m.CanAddSelectionToChat = selectedID != "" && !draft.Sending
+		m.OnAddSelectionToChat = func(text string) error { return appendSelectionToComposer(m.Store, selectedID, draft, text) }
 		m.OnOpenTerminalTarget = s.terminalTargetHandler(win, *m, func(tab string) {
 			s.mu.Lock()
 			s.filesPaneOpen, s.rightPaneTab = true, tab
@@ -72,7 +74,7 @@ func (s *mainState) observeWorkspaceOpenInApp() *frame.WorkspaceOpenInAppState {
 		}
 		s.workspaceOpenInApp = frame.NewWorkspaceOpenInAppState(choice, func(choice string) error {
 			if store == nil {
-				return errors.New("desktop preferences are unavailable")
+				return errors.New(i18n.T(i18n.KeyCmdDesktopPreferencesUnavailable))
 			}
 			return store.Update(func(cfg *config.Config) { cfg.GoOpenInAppChoice = choice })
 		})
@@ -92,23 +94,18 @@ func (s *mainState) closeWorkspaceOpenInApp() {
 	}
 }
 
-func managedCaptionSession(snapshot session.ViewState) bool {
-	for _, item := range snapshot.Items {
-		if item.SessionID == snapshot.SelectedID {
-			return item.Presentation != nil && item.Presentation.Composer == "managed"
-		}
-	}
-	return false
+func managedCaptionSession(snapshot session.SelectionSummary) bool {
+	return snapshot.SelectedComposer == "managed"
 }
 
 func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badge *chrome.GitBadge, status *desktopgit.RepositoryStatus, busy bool, root, message string) {
 	if m == nil || m.Store == nil {
 		return
 	}
-	owner, snapshot := m.Store, m.Store.Snapshot()
+	owner, snapshot := m.Store, m.Store.SelectionSummary()
 	generation, selected, cwd := snapshot.ComposerHostGeneration, snapshot.SelectedID, snapshot.SelectedCwd
 	current := func() bool {
-		latest := owner.Snapshot()
+		latest := owner.SelectionSummary()
 		return latest.ComposerHostGeneration == generation && latest.SelectedID == selected && latest.SelectedCwd == cwd
 	}
 	s.mu.Lock()
@@ -121,18 +118,17 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 		surfacesOpen = false
 	}
 	hideGit := false
+	if scratchCwd := strings.TrimSpace(owner.ScratchCwd()); scratchCwd != "" && strings.EqualFold(filepath.Clean(cwd), filepath.Clean(scratchCwd)) {
+		hideGit = true
+	}
 	if settings != nil {
-		for _, namespace := range settings.Snapshot().Namespaces {
-			if namespace.NS != "ui-git" {
-				continue
-			}
+		if raw := settings.NamespaceValue("ui-git"); len(raw) > 0 {
 			var preference struct {
 				TitlebarGit *bool `json:"titlebarGit"`
 			}
-			if json.Unmarshal(namespace.Value, &preference) == nil && preference.TitlebarGit != nil {
+			if json.Unmarshal(raw, &preference) == nil && preference.TitlebarGit != nil {
 				hideGit = !*preference.TitlebarGit
 			}
-			break
 		}
 	}
 	changeRequestOpen := reportRoot == root && report.Current != nil && strings.EqualFold(report.Current.State, "OPEN")
@@ -144,7 +140,7 @@ func (s *mainState) bindWorkspaceTrailing(win *mygo.Window, m *frame.Model, badg
 			Git: badge, Status: status, WorkspaceRoot: cwd, Density: density,
 			GitLoaded: status != nil && statusCurrent && cwd == root, GitBusy: busy || m.GitWorkbench != nil && m.GitWorkbench.Operation != nil,
 			ManagedSession: managedCaptionSession(snapshot), HideGit: hideGit, ChangeRequestOpen: changeRequestOpen,
-			ShowTerminal: !preferences.HideTerminalToggle, TerminalAvailable: len(snapshot.Workspaces) != 0,
+			ShowTerminal: !preferences.HideTerminalToggle, TerminalAvailable: snapshot.HasWorkspaces,
 			TerminalOpen: terminalOpen, ShowSurfaces: !preferences.HideSurfacesToggle, SurfacesOpen: surfacesOpen,
 			OnToggleTerminal: toggleTerminal, OnToggleSurfaces: toggleSurfaces,
 			OnGitMenuOpen: func() {

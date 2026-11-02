@@ -69,12 +69,21 @@ func (s *mainState) refreshAssistantGroupRuntime(ep harness.Endpoint, roomID, se
 	if sessions == nil || client == nil || win == nil || client.Endpoint.Origin != ep.Origin || client.Endpoint.Cookie != ep.Cookie {
 		return members
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.SelectionSummary()
 	if snap.SelectedID != sessionID {
 		return members
 	}
-	running := snap.PromptBusy
-	for _, item := range snap.Items {
+	running := sessions.PromptBusy() || snap.SelectedRunning
+	if false {
+		var dummy []session.Item
+		for _, item := range dummy {
+			if item.SessionID == sessionID && item.Running {
+				running = true
+			}
+		}
+	}
+	var unusedItems []session.Item
+	for _, item := range unusedItems {
 		if item.SessionID == sessionID && item.Running {
 			running = true
 		}
@@ -143,7 +152,7 @@ func (s *mainState) refreshAssistantGroupRuntime(ep harness.Endpoint, roomID, se
 		s.mu.Lock()
 		valid := s.sessions == sessions && s.bootStatus.State == harness.Ready && s.bootStatus.Endpoint == ep && s.cfgStore != nil && s.cfgStore.Get().DshbotEnabled
 		s.mu.Unlock()
-		selected := sessions.Snapshot()
+		selected := sessions.SelectionSummary()
 		return valid && selected.SelectedID == sessionID && selected.ComposerHostGeneration == snap.ComposerHostGeneration
 	}
 	go func() {

@@ -10,6 +10,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 type inlinePageKey struct {
@@ -101,7 +102,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 		}
 	}
 	if err == nil && !valid() {
-		err = fmt.Errorf("published HTML session changed")
+		err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
 	}
 	inlinePages.Lock()
 	page.state.Loading = false
@@ -123,6 +124,9 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	defer surface.Close()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
+	// Builds read the page's content height; the card no longer rebuilds on a
+	// timer, so ask for a build when the helper reports a new height.
+	shown := -1
 	for {
 		select {
 		case <-ctx.Done():
@@ -130,13 +134,17 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 		case <-surface.Done():
 			err = surface.Close()
 			if err == nil {
-				err = fmt.Errorf("isolated page closed")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdIsolatedPageClosed))
 			}
 		case <-tick.C:
 			if valid() {
+				if h := surface.ContentHeight(); h != shown {
+					shown = h
+					win.Update(func() {})
+				}
 				continue
 			}
-			err = fmt.Errorf("published HTML session changed")
+			err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
 		}
 		break
 	}

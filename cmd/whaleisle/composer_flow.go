@@ -144,7 +144,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		}
 	}
 	if groupReply && d.TargetID != "" && d.TargetID != id {
-		d.Error = "Reply target changed; reopen the room"
+		d.Error = i18n.T(i18n.KeyCmdComposerReplyTargetChanged)
 		return
 	}
 	sourceID := id
@@ -211,7 +211,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			d.Error = ""
 			d.TargetID = ""
 			d.Client.ClearHistory()
-			if id == "" && sessions.Snapshot().SelectedID == "" {
+			if id == "" && sessions.SelectedSessionID() == "" {
 				s.mu.Lock()
 				s.composerDrafts[target] = d
 				delete(s.composerDrafts, "")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/shortcuts"
@@ -33,16 +32,15 @@ func (s *mainState) applicationCommandActions(c *ui.Context) map[string]func() {
 
 func (s *mainState) registerApplicationCommands(c *ui.Context) {
 	actions := s.applicationMenuActions(c)
-	values := s.pageShortcutBindings()
-	bindings := shortcuts.Resolve(values)
-	accepted, _ := json.Marshal(values)
+	bindings := s.pageShortcutChords()
+	accepted := s.pageShortcutEncoded()
 	for _, command := range shortcuts.Commands() {
 		run := actions[command.ID]
 		chord, ok := bindings[command.ID]
 		if run == nil || !ok {
 			continue
 		}
-		if frame.NativeCommandPressed(c, chord, command.ID+string(accepted)) {
+		if frame.NativeCommandPressed(c, chord, command.ID+accepted) {
 			run()
 		}
 	}

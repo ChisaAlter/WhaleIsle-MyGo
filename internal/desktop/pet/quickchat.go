@@ -52,6 +52,7 @@ type QuickChat struct {
 	stopping    quickChatRequest
 	jumping     quickChatRequest
 	offAnchor   []func()
+	positioning bool
 }
 
 // OpenQuickChat preserves the draft and focuses an already open live card.
@@ -88,10 +89,10 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 	}
 	p.QuickChat = q
 	p.setQuickChatOpen(true)
-	w := mygo.NewWindow(mygo.WindowOptions{
-		Title: storelocale.T(storelocale.KeyDesktopPetWhaleQuickChat), Width: 460, Height: 620,
-		MinWidth: 420, MinHeight: 580, Parent: p.win, AlwaysOnTop: true,
-		SkipTaskbar: true, DisableMaximize: true, DisableFullScreen: true,
+	w := openQuickChatWindow(mygo.WindowOptions{
+		Title: storelocale.T(storelocale.KeyDesktopPetWhaleQuickChat), Width: quickChatWidth, Height: quickChatHeight,
+		MinWidth: quickChatMinWidth, MinHeight: quickChatMinHeight, Parent: p.win, AlwaysOnTop: true,
+		Frameless: true, SkipTaskbar: true, DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true,
 		Content: ui.View(q.view),
 	})
 	q.win = w
@@ -108,7 +109,7 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 		}
 	})
 	q.followPet()
-	w.Focus()
+	focusQuickChatWindow(w)
 	if q.stale {
 		return
 	}

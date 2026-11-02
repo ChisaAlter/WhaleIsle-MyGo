@@ -1,10 +1,10 @@
 package session
 
-
 import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -97,6 +97,7 @@ func (s *Store) RefreshPermissionCatalogForEvents(owner *EventsOwner) {
 
 func (s *Store) beginPermissionCatalogLocked(ctx context.Context) func() {
 	s.permissionCatalogRevision++
+	s.invalidateViewLocked()
 	revision := s.permissionCatalogRevision
 	client, generation := s.client, s.eventsGeneration
 	if client == nil || ctx.Err() != nil {
@@ -111,13 +112,23 @@ func (s *Store) beginPermissionCatalogLocked(ctx context.Context) func() {
 			s.mu.Unlock()
 			return
 		}
-		s.permissionsErr = err
+		var options []PermissionOption
 		if err == nil {
-			s.permissionOptions = flattenPermissionCatalog(cat)
-		} else {
-			s.permissionOptions = nil
+			options = flattenPermissionCatalog(cat)
 		}
+		oldErr, newErr := "", ""
+		if s.permissionsErr != nil {
+			oldErr = s.permissionsErr.Error()
+		}
+		if err != nil {
+			newErr = err.Error()
+		}
+		if oldErr != newErr || !slices.Equal(s.permissionOptions, options) {
+			s.invalidateViewLocked()
+		}
+		s.permissionsErr, s.permissionOptions = err, options
 		s.mu.Unlock()
+		beforeSnapshotNotification("permission-catalog")
 		s.fire()
 	}
 }
@@ -190,7 +201,11 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 		s.mu.Unlock()
 		return fmt.Errorf("Permission selection owner changed")
 	}
+	wasPending := s.permissionProjection.Pending
 	s.permissionProjection.Pending = false
+	if wasPending {
+		s.invalidateViewLocked()
+	}
 	if !current || ctx.Err() != nil || (owner != nil && !s.nativeCommandCurrentLocked(*owner, "permission")) {
 		s.mu.Unlock()
 		s.fire()
@@ -202,13 +217,24 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 			err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotConfirmTheCurrentSession))
 		}
 	}
-	s.permissionsErr = err
-	if err != nil {
-		s.lastAction = err.Error()
-	} else {
-		s.lastAction = storelocale.T(storelocale.KeyStoreSessionCurrentSessionPermissionUpdated) + s.permissionLabelLocked()
+	oldErr, newErr := "", ""
+	if s.permissionsErr != nil {
+		oldErr = s.permissionsErr.Error()
 	}
+	if err != nil {
+		newErr = err.Error()
+	}
+	action := storelocale.T(storelocale.KeyStoreSessionCurrentSessionPermissionUpdated) + s.permissionLabelLocked()
+	if err != nil {
+		action = newErr
+	}
+	if oldErr != newErr || s.lastAction != action {
+		s.invalidateViewLocked()
+	}
+	s.permissionsErr = err
+	s.lastAction = action
 	s.mu.Unlock()
+	beforeSnapshotNotification("permission-settled")
 	s.fire()
 	return err
 }

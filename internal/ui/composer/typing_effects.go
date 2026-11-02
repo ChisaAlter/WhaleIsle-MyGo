@@ -81,7 +81,9 @@ func (input typingInputClient) ReplaceText(target *ui.TextInputRange, text strin
 	if client.typing.composing {
 		before = client.typing.compositionBase
 	}
+	client.nativeTyping = true
 	client.ReplaceText(target, text)
+	client.nativeTyping = false
 	client.typing.composing = false
 	client.captureTyping(before, client.text())
 }

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,6 +29,9 @@ type VisualReplyPublication struct {
 // PublishedVisualReply follows the native and PTC publication contracts. A file
 // link or a tool name alone is never publication authority.
 func PublishedVisualReply(raw json.RawMessage) (VisualReplyPublication, bool) {
+	if !bytes.Contains(raw, []byte("visualReply")) && !bytes.Contains(raw, []byte("html_render")) {
+		return VisualReplyPublication{}, false
+	}
 	var e struct {
 		Type      string `json:"type"`
 		SurfaceOp string `json:"surfaceOp"`

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -224,12 +225,12 @@ func (s *projectController) loadProjectVisualPage(lifetime context.Context, win 
 	valid := func() bool { return ctx.Err() == nil && s.projectVisualCurrent(owner, state, page) }
 	var err error
 	if owner.page.CallID == "" || strings.TrimSpace(owner.page.Title) == "" || owner.page.Height < 80 || owner.page.Height > 2000 {
-		err = fmt.Errorf("published Project page has an invalid identity or height")
+		err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectPublishedPageInvalid))
 	}
 	if err == nil {
 		caps := harness.ReadCurrentHostCapabilities(paths.VendorDir(), harness.CurrentHostBridges{})
 		if !caps.VisualReplyReader {
-			err = fmt.Errorf("published HTML reader is unavailable: %s", caps.Reason)
+			err = fmt.Errorf(i18n.T(i18n.KeyCmdProjectHTMLReaderUnavailable), caps.Reason)
 		}
 	}
 	var html string

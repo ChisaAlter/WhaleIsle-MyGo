@@ -17,6 +17,7 @@ func (s *Store) applyQueueValuesLocked(values json.RawMessage, seq float64) {
 	}
 }
 func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	if s.queueProjectionSessionID == s.selectedID && s.queueProjectionGeneration == s.followGeneration && seq < s.queueProjectionSeq {
 		return
 	}
@@ -96,6 +97,7 @@ func (s *Store) applyQueueInboxLocked(raw json.RawMessage, seq float64) {
 	}
 }
 func (s *Store) applyQueueControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  float64

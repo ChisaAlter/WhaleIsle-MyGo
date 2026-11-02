@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 )
 
 // A task's work inspector is available before the separate Team page is opened.
@@ -92,7 +93,7 @@ func readProjectRequestWork(ctx context.Context, rpc projectflow.Client, project
 		return team, detail, err
 	}
 	if card.Revision != revision {
-		return team, detail, fmt.Errorf("Requirement changed; refresh task details first")
+		return team, detail, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRequirementChanged))
 	}
 	linked := false
 	for _, work := range append(append([]projectflow.RequestWork{}, card.Work...), card.WorkPreview...) {
@@ -102,7 +103,7 @@ func readProjectRequestWork(ctx context.Context, rpc projectflow.Client, project
 		}
 	}
 	if !linked {
-		return team, detail, fmt.Errorf("Work no longer belongs to the displayed requirement")
+		return team, detail, fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectWorkRequirementChanged))
 	}
 	team, err = rpc.TeamOverviewPage(ctx, projectID, "")
 	if err != nil {
@@ -110,7 +111,7 @@ func readProjectRequestWork(ctx context.Context, rpc projectflow.Client, project
 	}
 	detail, err = rpc.WorkDetail(ctx, projectID, workID, "")
 	if err == nil && detail.Workstream.Request.ID != requestID {
-		err = fmt.Errorf("Work requirement identity does not match")
+		err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectWorkRequirementMismatch))
 	}
 	return team, detail, err
 }

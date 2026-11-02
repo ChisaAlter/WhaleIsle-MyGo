@@ -3,6 +3,8 @@ package session
 import (
 	"encoding/json"
 	"strings"
+
+	"whaleisle/internal/markdownsyntax"
 )
 
 // PromptContentBlocks builds session/prompt content parts from a draft that may
@@ -13,10 +15,10 @@ func PromptContentBlocks(text string) []json.RawMessage {
 		return nil
 	}
 	refs := ImageRefs(text)
-	plain := BodyWithoutImagePlaceholders(text)
+	plain := text
 	// Also strip inline markdown images from the text block when we emit image parts.
 	if len(refs) > 0 {
-		plain = strings.TrimSpace(markdownImageRE.ReplaceAllString(plain, " "))
+		plain = strings.TrimSpace(markdownsyntax.WithoutImages(plain))
 		plain = strings.Join(strings.Fields(plain), " ")
 	}
 	var out []json.RawMessage

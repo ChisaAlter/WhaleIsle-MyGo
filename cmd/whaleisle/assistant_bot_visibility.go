@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func assistantVisibilityScope(ep harness.Endpoint) string {
@@ -149,7 +150,7 @@ func (s *mainState) assistantBotVisibilityModel(ep harness.Endpoint) assistantui
 				defer cancel()
 				fresh, writable, err := read(ctx)
 				if err == nil && (!writable || !pluginrpc.SameDshbotBotCatalog(cmd.Expected, fresh)) {
-					err = fmt.Errorf("complete catalog/revision or authority changed; refresh and review again")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotVisibilityReviewChanged))
 				}
 				if err != nil || !current() || !controls.Current(ticket) || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)

@@ -13,13 +13,23 @@ type WorkspacePreferenceStore interface {
 	WorkspaceNavigationPreferences(string) (config.WorkspaceNavigationPreferences, error)
 	SaveWorkspaceNavigationPreferences(string, config.WorkspaceNavigationPreferences) error
 }
+type workspacePreferenceEdits struct {
+	groupBy, orderBy, archivedFilter *string
+	collapsed                        map[string]bool
+	sessionOrders                    map[string][]string
+	replaceSessionOrders             bool
+	unresolvedCollapsed              map[string]bool
+}
+
 type workspacePreferenceBinding struct {
-	store                WorkspacePreferenceStore
-	authority, scope     string
-	cache                map[string]config.WorkspaceNavigationPreferences
-	dirty                map[string]bool
-	readFailed           map[string]bool
-	editedBeforeBaseline bool
+	store            WorkspacePreferenceStore
+	authority, scope string
+	cache            map[string]config.WorkspaceNavigationPreferences
+	dirty            map[string]bool
+	readFailed       map[string]bool
+	errors           map[string]string
+	edits            map[string]*workspacePreferenceEdits
+	beforeBaseline   workspacePreferenceEdits
 }
 
 func preferenceHash(parts ...string) string {
@@ -58,80 +68,127 @@ func (s *Store) BindWorkspacePreferences(client *dsh.Client, authority string, s
 		s.workspacePreferences.cache = map[string]config.WorkspaceNavigationPreferences{}
 		s.workspacePreferences.dirty = map[string]bool{}
 		s.workspacePreferences.readFailed = map[string]bool{}
+		s.workspacePreferences.errors = map[string]string{}
+		s.workspacePreferences.edits = map[string]*workspacePreferenceEdits{}
 	}
 	s.restoreWorkspacePreferencesLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 func (s *Store) resetWorkspacePreferencesHostLocked() {
+	s.invalidateViewLocked()
 	s.workspacePreferences.scope = ""
 	s.workspaceLayout.view.SessionOrders = nil
 	s.workspacePreferences.authority = ""
 	s.workspacePreferences.store = nil
-	s.workspacePreferences.editedBeforeBaseline = false
+	s.workspacePreferences.beforeBaseline = workspacePreferenceEdits{}
 	s.workspaceLayout.view.GroupBy = ""
 	s.workspaceLayout.view.OrderBy = ""
+	s.workspaceLayout.view.ArchivedFilter = ""
 	s.workspaceLayout.view.PreferenceError = ""
 }
-func (s *Store) restoreWorkspacePreferencesLocked() {
-	b := &s.workspacePreferences
-	if !s.workspaceReady || b.store == nil || b.authority == "" {
+
+// overlay applies only explicit edits, never the defaults materialized by the UI.
+func (e *workspacePreferenceEdits) overlay(prefs config.WorkspaceNavigationPreferences) config.WorkspaceNavigationPreferences {
+	prefs = cloneWorkspacePreferences(prefs)
+	if e == nil {
+		return prefs
+	}
+	if e.groupBy != nil {
+		prefs.GroupBy = *e.groupBy
+	}
+	if e.orderBy != nil {
+		prefs.OrderBy = *e.orderBy
+	}
+	if e.archivedFilter != nil {
+		prefs.ArchivedFilter = *e.archivedFilter
+	}
+	for key, value := range e.collapsed {
+		prefs.Collapsed[key] = value
+	}
+	if e.replaceSessionOrders {
+		prefs.SessionOrders = map[string][]string{}
+	}
+	for key, value := range e.sessionOrders {
+		prefs.SessionOrders[key] = append([]string(nil), value...)
+	}
+	return prefs
+}
+
+func (e *workspacePreferenceEdits) merge(other *workspacePreferenceEdits) {
+	if other.groupBy != nil {
+		value := *other.groupBy
+		e.groupBy = &value
+	}
+	if other.orderBy != nil {
+		value := *other.orderBy
+		e.orderBy = &value
+	}
+	if other.archivedFilter != nil {
+		value := *other.archivedFilter
+		e.archivedFilter = &value
+	}
+	if e.collapsed == nil {
+		e.collapsed = map[string]bool{}
+	}
+	for key, value := range other.collapsed {
+		e.collapsed[key] = value
+	}
+	if other.replaceSessionOrders {
+		e.sessionOrders = map[string][]string{}
+		e.replaceSessionOrders = true
+	}
+	if e.sessionOrders == nil {
+		e.sessionOrders = map[string][]string{}
+	}
+	for key, value := range other.sessionOrders {
+		e.sessionOrders[key] = append([]string(nil), value...)
+	}
+	if e.unresolvedCollapsed == nil {
+		e.unresolvedCollapsed = map[string]bool{}
+	}
+	for key, value := range other.unresolvedCollapsed {
+		e.unresolvedCollapsed[key] = value
+	}
+}
+
+func (e *workspacePreferenceEdits) hasResolved() bool {
+	return e != nil && (e.groupBy != nil || e.orderBy != nil || e.archivedFilter != nil || len(e.collapsed) > 0 || len(e.sessionOrders) > 0 || e.replaceSessionOrders)
+}
+
+// A workspace's durable key includes its path. Before the Host baseline arrives,
+// retain a toggle by ID until its actual row is known; never guess a path.
+func (s *Store) resolveWorkspacePreferenceEditsLocked(e *workspacePreferenceEdits) {
+	if e == nil || len(e.unresolvedCollapsed) == 0 {
 		return
 	}
-	scope := preferenceHash("host", b.authority, s.scratchCwd)
-	newScope := b.scope != scope
-	if newScope {
-		previousGroup, previousOrder := s.workspaceLayout.view.GroupBy, s.workspaceLayout.view.OrderBy
-		previousCollapsed := s.workspaceLayout.view.Collapsed
-		previousSessionOrders := cloneSessionOrders(s.workspaceLayout.view.SessionOrders)
-		s.workspaceLayout.view.GroupBy = ""
-		s.workspaceLayout.view.OrderBy = ""
-		s.workspaceLayout.view.PreferenceError = ""
-		prefs, cached := b.cache[scope]
-		if !cached || (b.readFailed[scope] && !b.dirty[scope]) {
-			loaded, err := b.store.WorkspaceNavigationPreferences(scope)
-			b.readFailed[scope] = err != nil
-			if err != nil {
-				s.workspaceLayout.view.PreferenceError = "Workspace view preferences could not be read: " + err.Error()
-			} else {
-				prefs = loaded
-			}
-		}
-		prefs = cloneWorkspacePreferences(prefs)
-		if b.editedBeforeBaseline {
-			for k, v := range previousSessionOrders {
-				prefs.SessionOrders[k] = v
-			}
-			if previousGroup != "" {
-				prefs.GroupBy = previousGroup
-			}
-			if previousOrder != "" {
-				prefs.OrderBy = previousOrder
-			}
-			for _, row := range s.workspaceRowsLocked() {
-				if value, ok := previousCollapsed[row.WorkspaceID]; ok {
-					prefs.Collapsed[workspacePreferenceKey(row)] = value
-				}
-			}
-			for _, key := range []string{"::scratch", "::other"} {
-				if value, ok := previousCollapsed[key]; ok {
-					prefs.Collapsed[key] = value
-				}
-			}
-			b.dirty[scope] = true
-		}
-		b.scope = scope
-		b.cache[scope] = prefs
-		b.editedBeforeBaseline = false
+	if e.collapsed == nil {
+		e.collapsed = map[string]bool{}
 	}
+	for _, row := range s.workspaceRowsLocked() {
+		if value, ok := e.unresolvedCollapsed[row.WorkspaceID]; ok {
+			e.collapsed[workspacePreferenceKey(row)] = value
+			delete(e.unresolvedCollapsed, row.WorkspaceID)
+		}
+	}
+}
+
+func (s *Store) applyWorkspacePreferenceViewLocked(scope string) {
+	b := &s.workspacePreferences
 	prefs := b.cache[scope]
-	s.workspaceLayout.view.SessionOrders = cloneSessionOrders(prefs.SessionOrders)
+	s.workspaceLayout.view.GroupBy = ""
+	s.workspaceLayout.view.OrderBy = ""
 	if prefs.GroupBy == "workspace" || prefs.GroupBy == "workspace-tree" || prefs.GroupBy == "flat" {
 		s.workspaceLayout.view.GroupBy = prefs.GroupBy
 	}
 	if prefs.OrderBy == "manual" || prefs.OrderBy == "updated" {
 		s.workspaceLayout.view.OrderBy = prefs.OrderBy
 	}
+	s.workspaceLayout.view.ArchivedFilter = "default"
+	if prefs.ArchivedFilter == "show" || prefs.ArchivedFilter == "only" {
+		s.workspaceLayout.view.ArchivedFilter = prefs.ArchivedFilter
+	}
+	s.workspaceLayout.view.SessionOrders = cloneSessionOrders(prefs.SessionOrders)
 	s.workspaceLayout.view.Collapsed = map[string]bool{}
 	for _, row := range s.workspaceRowsLocked() {
 		if value, ok := prefs.Collapsed[workspacePreferenceKey(row)]; ok {
@@ -143,56 +200,172 @@ func (s *Store) restoreWorkspacePreferencesLocked() {
 			s.workspaceLayout.view.Collapsed[key] = value
 		}
 	}
-	if newScope && b.dirty[scope] {
+	if e := b.edits[scope]; e != nil {
+		for key, value := range e.unresolvedCollapsed {
+			s.workspaceLayout.view.Collapsed[key] = value
+		}
+	}
+	s.workspaceLayout.view.PreferenceError = b.errors[scope]
+}
+
+func (s *Store) readWorkspacePreferenceBaselineLocked(scope string) bool {
+	b := &s.workspacePreferences
+	prefs, err := b.store.WorkspaceNavigationPreferences(scope)
+	if err != nil {
+		b.readFailed[scope] = true
+		b.errors[scope] = "Workspace view preferences could not be read; view state kept for this run: " + err.Error()
+		return false
+	}
+	b.readFailed[scope] = false
+	b.errors[scope] = ""
+	b.cache[scope] = b.edits[scope].overlay(prefs)
+	return true
+}
+
+func (s *Store) restoreWorkspacePreferencesLocked() {
+	s.invalidateViewLocked()
+	b := &s.workspacePreferences
+	if !s.workspaceReady || b.store == nil || b.authority == "" {
+		return
+	}
+	scope := preferenceHash("host", b.authority, s.scratchCwd)
+	newScope := b.scope != scope
+	if newScope {
+		b.scope = scope
+		if b.edits[scope] == nil {
+			b.edits[scope] = &workspacePreferenceEdits{}
+		}
+		b.edits[scope].merge(&b.beforeBaseline)
+		b.beforeBaseline = workspacePreferenceEdits{}
+	}
+	e := b.edits[scope]
+	wasDirty := b.dirty[scope]
+	unresolved := 0
+	if e != nil {
+		unresolved = len(e.unresolvedCollapsed)
+		s.resolveWorkspacePreferenceEditsLocked(e)
+	}
+	resolvedPending := e != nil && len(e.unresolvedCollapsed) < unresolved
+	if _, cached := b.cache[scope]; !cached {
+		b.cache[scope] = e.overlay(config.WorkspaceNavigationPreferences{})
+		b.dirty[scope] = e.hasResolved()
+		s.readWorkspacePreferenceBaselineLocked(scope)
+	} else {
+		b.cache[scope] = e.overlay(b.cache[scope])
+		b.dirty[scope] = b.dirty[scope] || e.hasResolved()
+		if newScope && b.readFailed[scope] {
+			s.readWorkspacePreferenceBaselineLocked(scope)
+		}
+	}
+	s.applyWorkspacePreferenceViewLocked(scope)
+	// Follow updates do not repeatedly retry failed writes. Scope return and
+	// explicit retry are opportunities to recover an earlier read failure.
+	if (newScope || (resolvedPending && !wasDirty)) && b.dirty[scope] && !b.readFailed[scope] {
 		s.saveWorkspacePreferencesLocked()
 	}
 }
-func (s *Store) workspacePreferencesChangedLocked() {
+
+// kind and key identify the actual user action; unrelated view state is not an edit.
+func (s *Store) workspacePreferencesChangedLocked(kind, key string) {
+	s.invalidateViewLocked()
 	b := &s.workspacePreferences
+	var e *workspacePreferenceEdits
 	if !s.workspaceReady || b.scope == "" || b.store == nil {
-		b.editedBeforeBaseline = true
+		e = &b.beforeBaseline
+	} else {
+		e = b.edits[b.scope]
+		if e == nil {
+			e = &workspacePreferenceEdits{}
+			b.edits[b.scope] = e
+		}
+	}
+	switch kind {
+	case "group":
+		value := s.workspaceLayout.view.GroupBy
+		e.groupBy = &value
+	case "order":
+		value := s.workspaceLayout.view.OrderBy
+		e.orderBy = &value
+	case "ordering":
+		value := s.workspaceLayout.view.OrderBy
+		e.orderBy = &value
+		e.sessionOrders = cloneSessionOrders(s.workspaceLayout.view.SessionOrders)
+		e.replaceSessionOrders = true
+	case "archive":
+		value := s.workspaceLayout.view.ArchivedFilter
+		e.archivedFilter = &value
+	case "collapsed":
+		value := s.workspaceLayout.view.Collapsed[key]
+		if key == "::scratch" || key == "::other" {
+			if e.collapsed == nil {
+				e.collapsed = map[string]bool{}
+			}
+			e.collapsed[key] = value
+		} else {
+			resolved := false
+			for _, row := range s.workspaceRowsLocked() {
+				if row.WorkspaceID == key {
+					if e.collapsed == nil {
+						e.collapsed = map[string]bool{}
+					}
+					e.collapsed[workspacePreferenceKey(row)] = value
+					delete(e.unresolvedCollapsed, key)
+					resolved = true
+					break
+				}
+			}
+			if !resolved {
+				if e.unresolvedCollapsed == nil {
+					e.unresolvedCollapsed = map[string]bool{}
+				}
+				e.unresolvedCollapsed[key] = value
+			}
+		}
+	case "sessionOrder":
+		if e.sessionOrders == nil {
+			e.sessionOrders = map[string][]string{}
+		}
+		e.sessionOrders[key] = append([]string(nil), s.workspaceLayout.view.SessionOrders[key]...)
+	}
+	if e == &b.beforeBaseline {
 		return
 	}
-	prefs := cloneWorkspacePreferences(b.cache[b.scope])
-	layout := s.workspaceLayoutLocked()
-	prefs.GroupBy = layout.GroupBy
-	prefs.OrderBy = layout.OrderBy
-	prefs.SessionOrders = cloneSessionOrders(layout.SessionOrders)
-	for _, row := range s.workspaceRowsLocked() {
-		if value, ok := layout.Collapsed[row.WorkspaceID]; ok {
-			prefs.Collapsed[workspacePreferenceKey(row)] = value
-		}
+	b.cache[b.scope] = e.overlay(b.cache[b.scope])
+	b.dirty[b.scope] = e.hasResolved()
+	if b.dirty[b.scope] && !b.readFailed[b.scope] {
+		s.saveWorkspacePreferencesLocked()
 	}
-	for _, key := range []string{"::scratch", "::other"} {
-		if value, ok := layout.Collapsed[key]; ok {
-			prefs.Collapsed[key] = value
-		}
-	}
-	b.cache[b.scope] = prefs
-	b.dirty[b.scope] = true
-	s.saveWorkspacePreferencesLocked()
 }
+
 func (s *Store) saveWorkspacePreferencesLocked() {
+	s.invalidateViewLocked()
 	b := &s.workspacePreferences
-	if b.store == nil || b.scope == "" || !b.dirty[b.scope] {
+	if b.store == nil || b.scope == "" || !b.dirty[b.scope] || b.readFailed[b.scope] {
 		return
 	}
 	if err := b.store.SaveWorkspaceNavigationPreferences(b.scope, cloneWorkspacePreferences(b.cache[b.scope])); err != nil {
-		s.workspaceLayout.view.PreferenceError = "View state kept for this run; saving failed: " + err.Error()
+		b.errors[b.scope] = "View state kept for this run; saving failed: " + err.Error()
+		s.workspaceLayout.view.PreferenceError = b.errors[b.scope]
 		return
 	}
 	b.dirty[b.scope] = false
-	b.readFailed[b.scope] = false
+	if e := b.edits[b.scope]; e != nil {
+		e.groupBy, e.orderBy, e.archivedFilter = nil, nil, nil
+		e.collapsed, e.sessionOrders = nil, nil
+		e.replaceSessionOrders = false
+	}
+	b.errors[b.scope] = ""
 	s.workspaceLayout.view.PreferenceError = ""
 }
+
 func (s *Store) RetryWorkspacePreferences() {
 	s.mu.Lock()
 	b := &s.workspacePreferences
-	if b.scope != "" && b.readFailed[b.scope] && !b.dirty[b.scope] {
-		b.scope = ""
-		s.restoreWorkspacePreferencesLocked()
-	} else {
-		s.saveWorkspacePreferencesLocked()
+	if b.scope != "" && b.store != nil {
+		if !b.readFailed[b.scope] || s.readWorkspacePreferenceBaselineLocked(b.scope) {
+			s.saveWorkspacePreferencesLocked()
+		}
+		s.applyWorkspacePreferenceViewLocked(b.scope)
 	}
 	s.mu.Unlock()
 	s.fire()

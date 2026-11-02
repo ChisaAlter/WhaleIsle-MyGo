@@ -103,7 +103,7 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 	s.mu.Unlock()
 	selected := ""
 	if sessions != nil {
-		selected = sessions.Snapshot().SelectedID
+		selected = sessions.SelectedSessionID()
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -151,7 +151,7 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 			case "diff":
 				f.assetDiff = &diff
 			case "file":
-				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
+				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.SelectedSessionID() != selected {
 					f.err = i18n.T(i18n.KeyCmdNavigationChangedTheFileWasNotOpened)
 					s.mu.Unlock()
 					return
@@ -177,10 +177,10 @@ func projectAssetReference(f *projectFlowState, id, action string, file projectf
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("Project is no longer in the current list; refresh first")
+		return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectListChanged))
 	}
 	if f.requestProjectID != id || f.requestCard == nil {
-		return "", fmt.Errorf("Refresh the delivery details first")
+		return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectRefreshDelivery))
 	}
 	return projectAssetCardReference(*f.requestCard, action, file, workID, canOpen)
 }
@@ -200,5 +200,5 @@ func projectAssetCardReference(card projectflow.RequestCard, action string, file
 			}
 		}
 	}
-	return "", fmt.Errorf("Selected file or work does not belong to the displayed delivery references")
+	return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectDeliveryReferenceMismatch))
 }

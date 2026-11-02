@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
+	"time"
+	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
@@ -42,14 +47,18 @@ func initializeNativeShortcutDocument(cfg *config.Store, profile string) error {
 }
 func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.shortcutPreferences != nil {
-		return s.shortcutPreferences
+		prefs := s.shortcutPreferences
+		s.mu.Unlock()
+		return prefs
 	}
 	cfg := s.cfgStore
 	if cfg == nil {
-		return shortcutprefs.New("desktop:"+shortcutPlatform(), nil, nil)
+		prefs := shortcutprefs.New("desktop:"+shortcutPlatform(), nil, nil)
+		s.mu.Unlock()
+		return prefs
 	}
+	s.mu.Unlock()
 	profile := "desktop:" + shortcutPlatform()
 	initErr := initializeNativeShortcutDocument(cfg, profile)
 	read := cfg.ShortcutDocument
@@ -58,8 +67,53 @@ func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 	}
 	prefs := shortcutprefs.New(profile, read, cfg.SaveShortcutDocument)
 	prefs.SetDefinitions("native", shortcuts.SharedDefinitions(profile))
+	s.mu.Lock()
+	if s.shortcutPreferences != nil {
+		existing := s.shortcutPreferences
+		s.mu.Unlock()
+		return existing
+	}
 	s.shortcutPreferences = prefs
+	s.mu.Unlock()
+	// The document is the shared authority with another shell, so it still has
+	// to be noticed when that shell writes it. Reading it here, on a timer, keeps
+	// that check off the render path: the UI thread only compares the accepted
+	// revision. tmp/stalls captured the per-frame read inside the frame.
+	go watchShortcutDocument(cfg, prefs, func() *mygo.Window {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.win
+	})
 	return prefs
+}
+
+// watchShortcutDocument rereads the document periodically and asks for one
+// frame when its accepted revision advances. It never touches the render path.
+func watchShortcutDocument(cfg *config.Store, prefs *shortcutprefs.Store, window func() *mygo.Window) {
+	if cfg == nil {
+		return
+	}
+	var last []byte
+	if raw, err := cfg.ShortcutDocument(); err == nil {
+		last = raw
+	}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		raw, err := cfg.ShortcutDocument()
+		if err != nil || bytes.Equal(raw, last) {
+			continue
+		}
+		last = raw
+		before := prefs.Accepted().Sequence
+		prefs.Get()
+		if prefs.Accepted().Sequence == before {
+			continue
+		}
+		if win := window(); win != nil {
+			win.Update(func() {})
+		}
+	}
 }
 func sharedNativeValues(prefs *shortcutprefs.Store) map[string]string {
 	values := map[string]string{}
@@ -82,13 +136,14 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cfg := s.cfgStore
-	snapshot := prefs.Get()
+	snapshot := prefs.Accepted()
 	if s.shortcutEditor == nil {
 		var loadErr error
 		if snapshot.Status != "ready" {
-			loadErr = errors.New("shared shortcut preferences unavailable")
+			loadErr = errors.New(i18n.T(i18n.KeyCmdSharedShortcutsUnavailable))
 		}
 		s.shortcutRevision = snapshot.Revision
+		s.shortcutEditorSeq = snapshot.Sequence
 		s.shortcutEditor = shortcuts.NewEditor(sharedNativeValues(prefs), loadErr, func(patch map[string]string) error {
 			var edits []shortcutprefs.Edit
 			for id, raw := range patch {
@@ -104,7 +159,7 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 			}
 			result := prefs.Apply("native", s.shortcutRevision, edits)
 			if result.Status != "saved" {
-				return fmt.Errorf("%s; reload shortcuts before retrying", result.Status)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdReloadShortcutsRetry), result.Status)
 			}
 			s.shortcutRevision = result.Snapshot.Revision
 			return nil
@@ -122,7 +177,7 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 			}
 			result := prefs.Apply("native", s.shortcutRevision, edits)
 			if result.Status != "saved" {
-				return fmt.Errorf("%s; reload shortcuts before retrying", result.Status)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdReloadShortcutsRetry), result.Status)
 			}
 			s.shortcutRevision = result.Snapshot.Revision
 			return nil
@@ -137,13 +192,13 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 				return issue
 			}
 			if len(conflicts) > 0 {
-				return fmt.Sprintf("Conflicts with %v", conflicts)
+				return fmt.Sprintf(i18n.T(i18n.KeyCmdShortcutConflicts), conflicts)
 			}
 			return ""
 		})
 		s.shortcutEditor.SetReload(func() (map[string]string, error) {
 			if cfg == nil {
-				return nil, errors.New("shortcut persistence unavailable")
+				return nil, errors.New(i18n.T(i18n.KeyCmdShortcutPersistenceUnavailable))
 			}
 			if _, err := cfg.ReloadShortcutDocument(); err != nil {
 				return nil, err
@@ -153,35 +208,108 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 			}
 			snapshot := prefs.ReloadSource(cfg.ShortcutDocument)
 			if snapshot.Status != "ready" {
-				return nil, errors.New("shared shortcut preferences unavailable")
+				return nil, errors.New(i18n.T(i18n.KeyCmdSharedShortcutsUnavailable))
 			}
 			s.mu.Lock()
 			s.shortcutRevision = snapshot.Revision
+			s.shortcutEditorSeq = snapshot.Sequence
 			s.mu.Unlock()
 			return sharedNativeValues(prefs), nil
 		})
 	}
-	if s.shortcutEditor.Reconcile(sharedNativeValues(prefs)) {
-		s.shortcutRevision = snapshot.Revision
+	if s.shortcutEditorSeq != snapshot.Sequence || s.shortcutRevision != snapshot.Revision {
+		if s.shortcutEditor.Reconcile(sharedNativeValues(prefs)) {
+			s.shortcutRevision = snapshot.Revision
+			s.shortcutEditorSeq = snapshot.Sequence
+		}
 	}
 	return s.shortcutEditor
 }
+
+// pageShortcutBindings caches the accepted bindings for one state. The values
+// only change when the preferences revision advances or the config store writes
+// the document, so a frame reuses them instead of reading config.json: that read
+// was captured on the UI thread in tmp/stalls. The resolved chords and their
+// encoded form come from the same entry: resolving compares every command pair,
+// which allocated thousands of objects on every frame.
+type shortcutBindingsCache struct {
+	prefs      *shortcutprefs.Store
+	generation uint64
+	sequence   uint64
+	values     map[string]string
+	chords     map[string]shortcuts.Chord
+	encoded    string
+}
+
 func (s *mainState) pageShortcutBindings() map[string]string {
+	return s.pageShortcutState().values
+}
+
+func (s *mainState) pageShortcutChords() map[string]shortcuts.Chord {
+	return s.pageShortcutState().chords
+}
+
+func (s *mainState) pageShortcutEncoded() string {
+	return s.pageShortcutState().encoded
+}
+
+type shortcutState struct {
+	values  map[string]string
+	chords  map[string]shortcuts.Chord
+	encoded string
+}
+
+func (s *mainState) pageShortcutState() shortcutState {
 	prefs := s.pageShortcutPreferences()
-	values := sharedNativeValues(prefs)
-	if prefs.Get().Status != "ready" {
-		for id := range values {
+	s.mu.Lock()
+	cfg := s.cfgStore
+	s.mu.Unlock()
+	var generation uint64
+	if cfg != nil {
+		generation = cfg.ShortcutDocumentGeneration()
+	}
+	s.shortcutBindingsMu.Lock()
+	defer s.shortcutBindingsMu.Unlock()
+	cache := &s.shortcutBindingsCache
+	if cache.prefs == prefs && cache.generation == generation && cache.values != nil {
+		if snap := prefs.Accepted(); snap.Sequence == cache.sequence {
+			return shortcutState{values: cache.values, chords: cache.chords, encoded: cache.encoded}
+		}
+	}
+	snap := prefs.Accepted()
+	if cache.prefs != prefs || cache.generation != generation || cache.values == nil {
+		// A write through the config store (initialize, save, reload) can change
+		// the document without touching the preferences store: read it once.
+		snap = prefs.Get()
+	}
+	values := shortcutBindingValues(prefs, snap)
+	chords := shortcuts.Resolve(values)
+	encoded, _ := json.Marshal(values)
+	*cache = shortcutBindingsCache{prefs: prefs, generation: generation, sequence: snap.Sequence, values: values, chords: chords, encoded: string(encoded)}
+	return shortcutState{values: values, chords: chords, encoded: string(encoded)}
+}
+
+// shortcutBindingValues applies one accepted snapshot to the native catalog.
+func shortcutBindingValues(prefs *shortcutprefs.Store, snap shortcutprefs.Snapshot) map[string]string {
+	values := map[string]string{}
+	byID := map[string]shortcutprefs.EffectiveShortcut{}
+	for _, row := range prefs.Effective("native") {
+		byID[row.ID] = row
+	}
+	for _, id := range shortcuts.IDs() {
+		row, ok := byID[shortcuts.CanonicalID(id)]
+		if !ok {
+			values[id] = ""
+			continue
+		}
+		values[id] = shortcuts.SharedDisplay(row.Binding, shortcutPlatform())
+		if row.Issue != nil || len(row.Conflicts) > 0 {
 			values[id] = ""
 		}
-		return values
 	}
-	byID := map[string]string{}
-	for _, id := range shortcuts.IDs() {
-		byID[shortcuts.CanonicalID(id)] = id
-	}
-	for _, row := range prefs.Effective("native") {
-		if row.Issue != nil || len(row.Conflicts) > 0 {
-			values[byID[row.ID]] = ""
+	if snap.Status != "ready" {
+		for id := range values {
+			values[id] = ""
 		}
 	}
 	return values

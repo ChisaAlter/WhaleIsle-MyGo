@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"math"
 )
@@ -25,6 +26,9 @@ func nonnegative(v *float64) bool {
 }
 func decodeAgentMetrics(raw json.RawMessage, seq float64) AgentMetrics {
 	m := AgentMetrics{Ready: true, TokenSeq: seq, TimingSeq: seq}
+	if !bytes.Contains(raw, []byte(`"tokenUsage"`)) && !bytes.Contains(raw, []byte(`"subagentTiming"`)) {
+		return m
+	}
 	var values map[string]json.RawMessage
 	if json.Unmarshal(raw, &values) != nil {
 		return m
@@ -77,6 +81,7 @@ func (m AgentMetrics) Duration(running bool, now float64) (float64, bool) {
 	return duration, true
 }
 func (s *Store) applyAgentMetricsControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  *float64

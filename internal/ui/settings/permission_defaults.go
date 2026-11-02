@@ -111,7 +111,7 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 				ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FillWidth().TextColor(muted)
 				return
 			}
-			if ui.Select(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).MinWidth(84).MaxWidth(140).Disabled(bodyHostDisabled(a)).Changed() {
+			if settingsPreferenceSelect(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).Disabled(bodyHostDisabled(a)).Changed() {
 				if values[selected] == "danger-full-access" {
 					*confirming, *acknowledged = true, false
 				} else {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"golang.org/x/image/draw"
@@ -31,6 +32,10 @@ func scalePNG(data []byte, size int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scaleDecodedPNG(src, data, size)
+}
+
+func scaleDecodedPNG(src image.Image, data []byte, size int) ([]byte, error) {
 	b := src.Bounds()
 	if b.Dx() == size && b.Dy() == size {
 		return data, nil
@@ -64,6 +69,65 @@ func windowIconPNG(platform string, data []byte) ([]byte, error) {
 	return scalePNG(data, windowIconSize)
 }
 
+var resourceIconOnce = sync.OnceValues(func() (image.Image, []byte) {
+	data, ok := readResourceIcon()
+	if !ok {
+		return nil, nil
+	}
+	src, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, data
+	}
+	return src, data
+})
+
+var windowIconCached = sync.OnceValue(func() []byte {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	src, data := resourceIconOnce()
+	if len(data) == 0 {
+		return nil
+	}
+	if src == nil {
+		icon, err := windowIconPNG(runtime.GOOS, data)
+		if err != nil {
+			log.Println("window icon:", err)
+			return nil
+		}
+		return icon
+	}
+	icon, err := scaleDecodedPNG(src, data, windowIconSize)
+	if err != nil {
+		log.Println("window icon:", err)
+		return nil
+	}
+	return icon
+})
+
+var trayIconCached = sync.OnceValue(func() []byte {
+	src, data := resourceIconOnce()
+	if len(data) == 0 {
+		log.Println("tray icon not found; running without one")
+		return nil
+	}
+	if runtime.GOOS != "windows" {
+		return data
+	}
+	if src == nil {
+		icon, err := resizeTrayIcon(runtime.GOOS, data)
+		if err != nil {
+			return data
+		}
+		return icon
+	}
+	icon, err := scaleDecodedPNG(src, data, trayIconSize)
+	if err != nil {
+		return data
+	}
+	return icon
+})
+
 // applyWindowIcon gives a window the native 48 DIP Windows icon. It is best
 // effort: the window keeps the application icon when the asset or the native
 // call is unavailable, exactly as the shell runs without a tray icon.
@@ -82,16 +146,7 @@ func applyWindowIcon(win *mygo.Window) {
 
 // windowIcon loads resources/icon.png and returns the native window raster.
 func windowIcon() []byte {
-	data, ok := readResourceIcon()
-	if !ok {
-		return nil
-	}
-	icon, err := windowIconPNG(runtime.GOOS, data)
-	if err != nil {
-		log.Println("window icon:", err)
-		return nil
-	}
-	return icon
+	return windowIconCached()
 }
 
 // readResourceIcon reads resources/icon.png from the working directory or the

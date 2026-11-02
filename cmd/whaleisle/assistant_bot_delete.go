@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/harness"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantBotDeleteModel(ep harness.Endpoint, sourceID string) assistantui.BotDeleteModel {
@@ -125,7 +126,7 @@ func (s *mainState) assistantBotDeleteModel(ep harness.Endpoint, sourceID string
 				defer cancel()
 				fresh, writable, err := readPlan(ctx)
 				if err == nil && (!writable || !pluginrpc.SameDshbotBotDeletePlan(cmd.Plan, fresh)) {
-					err = fmt.Errorf("deletion target, catalog revision, complete preview or authority changed; read and confirm again")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotDeleteReviewChanged))
 				}
 				if err != nil || !current() || !controls.Current(ticket) || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)

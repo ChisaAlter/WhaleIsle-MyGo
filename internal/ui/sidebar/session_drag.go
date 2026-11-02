@@ -10,6 +10,7 @@ type sessionDrag struct {
 	Generation    uint64
 	Workspace, ID string
 	Pinned        bool
+	Scope         sidebarDragScope
 }
 type sessionDragContext struct {
 	Local     bool
@@ -69,35 +70,58 @@ func sessionDragAnchor(order []string, rows []session.WorkspaceSessionRow, sourc
 }
 
 func sessionDragSource(e ui.Element, m Model, it session.Item) {
+	beginSidebarDrag(e, m, false)
+	completeSessionDrag(e, m)
 	ctx := m.sessionDrag
 	if ctx == nil || it.Blank || slices.Contains(m.Snapshot.ArchivedSessionIDs, it.SessionID) || m.Snapshot.WorkspaceLayout.Reordering {
 		return
 	}
 	for _, r := range ctx.Rows {
 		if r.Item.SessionID == it.SessionID && r.Depth == 0 && slices.Contains(ctx.Order, it.SessionID) {
-			e.Drag(sessionDrag{m.Snapshot.WorkspaceLayout.HostGeneration, ctx.Workspace, it.SessionID, it.Pinned})
+			e.Drag(sessionDrag{Generation: m.Snapshot.WorkspaceLayout.HostGeneration, Workspace: ctx.Workspace, ID: it.SessionID, Pinned: it.Pinned, Scope: currentSidebarDragScope(m)})
 			return
 		}
 	}
 }
-func sessionDropTarget(e ui.Element, m Model, it session.Item, after bool, highlight ui.Color) {
+
+// sessionRowDropTarget uses the row's upper/lower half without reserving an
+// extra layout child. Only hover uses the live pointer; commit uses DropAt.
+func sessionRowDropTarget(e ui.Element, m Model, it session.Item, highlight ui.Color) {
 	ctx := m.sessionDrag
 	if ctx == nil || m.Snapshot.WorkspaceLayout.Reordering || (ctx.Local && m.OnMoveLocalSessionBefore == nil) || (!ctx.Local && m.OnMoveWorkspaceSessionBefore == nil) || slices.Contains(m.Snapshot.ArchivedSessionIDs, it.SessionID) {
 		return
 	}
-	accept := func(v sessionDrag) (string, bool) {
-		if v.Generation != m.Snapshot.WorkspaceLayout.HostGeneration || v.Workspace != ctx.Workspace || v.Pinned != it.Pinned {
+	accept := func(v sessionDrag, after bool) (string, bool) {
+		if v.Generation != m.Snapshot.WorkspaceLayout.HostGeneration || v.Scope != currentSidebarDragScope(m) || v.Workspace != ctx.Workspace || v.Pinned != it.Pinned {
 			return "", false
 		}
 		return sessionDragAnchor(ctx.Order, ctx.Rows, v.ID, it.SessionID, after)
 	}
 	if v, over := ui.DragOver[sessionDrag](e); over {
-		if _, ok := accept(v); ok {
-			e.Border(1, highlight)
+		_, y, _ := e.PointerPosition()
+		after := y >= e.Bounds().H/2 || it.Blank
+		if _, ok := accept(v, after); ok {
+			if m.sidebarDrag != nil {
+				m.sidebarDrag.Session = &sessionDropMarker{Source: v, Scope: currentSidebarDragScope(m), Target: it.SessionID, After: after, Local: ctx.Local}
+			}
+			insertionMarker(e, after, highlight)
+		} else if m.sidebarDrag != nil {
+			m.sidebarDrag.Session = nil
+		}
+	} else if m.sidebarDrag != nil && m.sidebarDrag.Session != nil {
+		marker := m.sidebarDrag.Session
+		if marker.Target == it.SessionID && marker.Source.Workspace == ctx.Workspace && marker.Scope == currentSidebarDragScope(m) {
+			if _, ok := accept(marker.Source, marker.After); ok {
+				insertionMarker(e, marker.After, highlight)
+			}
 		}
 	}
-	if v, dropped := ui.Drop[sessionDrag](e); dropped {
-		if before, ok := accept(v); ok {
+	if v, _, y, dropped := ui.DropAt[sessionDrag](e); dropped {
+		if m.sidebarDrag != nil {
+			m.sidebarDrag.Session = nil
+		}
+		r := e.Bounds()
+		if before, ok := accept(v, y >= r.Y+r.H/2 || it.Blank); ok {
 			if ctx.Local {
 				m.OnMoveLocalSessionBefore(v.Generation, ctx.Workspace, v.ID, before)
 			} else {

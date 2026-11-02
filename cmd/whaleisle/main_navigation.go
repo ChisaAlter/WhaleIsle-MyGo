@@ -68,6 +68,19 @@ func (s *mainState) revealMainConversation() {
 	}
 }
 
+// gateAssistantNavigation follows the desktop Whale overlay preference, not Host
+// readiness. overlay.optionalPlugins mounts Whale even during SkipUserPlugins;
+// OfflinePlugins.ApplyDisabled also preserves this immutable built-in. Neither
+// recovery nor a stale disabled-list entry removes its navigation capability.
+func (s *mainState) gateAssistantNavigation(m *frame.Model) {
+	s.mu.Lock()
+	store := s.cfgStore
+	s.mu.Unlock()
+	if store == nil || !store.Get().WhaleAssistantEnabled {
+		m.OnOpenAssistant = nil
+	}
+}
+
 // withMainNavigation is the stable parent of both chat and the three native
 // global panels. Settings overlay this stable shell; guest/PDF views bypass it.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
@@ -96,6 +109,15 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		m.OnReconnect = s.requestConnectionReconnect
 	}
 	m.RightPaneOpen = s.filesPaneOpen && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen
+	m.ActivePanel = ""
+	switch {
+	case s.marketOpen:
+		m.ActivePanel = "plugins"
+	case s.scheduleOpen:
+		m.ActivePanel = "schedule"
+	case s.assistantOpen:
+		m.ActivePanel = "assistant"
+	}
 	if m.Store == nil {
 		if s.sessions == nil {
 			s.sessions = session.New()
@@ -123,9 +145,13 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnOpenDeliverable = func(path string) { s.queueNavigationFile(sessions, path) }
 	m.OnSelectSession = func(id string) { s.selectMainPanel(""); sessions.Select(id) }
 	m.OnCreateSession = func() { s.selectMainPanel(""); sessions.CreateSession(context.Background()) }
+	m.OnCreateWorkspaceSession = func(generation uint64, id string) {
+		s.openWorkspaceSession(win, sessions, generation, id)
+	}
 	m.OnOpenMarket = func() { s.selectMainPanel("plugins") }
 	m.OnOpenSchedule = func() { s.selectMainPanel("schedule") }
 	m.OnOpenAssistant = func() { s.selectMainPanel("assistant") }
+	s.gateAssistantNavigation(&m)
 	m.OnOpenLauncher = func() {
 		s.selectMainPanel("")
 		s.mu.Lock()
@@ -135,6 +161,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	openLauncher := m.OnOpenLauncher
 	m.OnOpenDesktopUpdate = func() { openLauncher(); s.mu.Lock(); s.launcherTab = launcher.TabVersions; s.mu.Unlock() }
+	m.Account.OnOpen = s.openAccountSettings
 	m.OnOpenSettings = func() {
 		s.mu.Lock()
 		s.settingsEmbeddedSection = ""
@@ -144,12 +171,12 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		settings := s.settings
 		s.mu.Unlock()
 		if settings != nil {
-			settings.OpenSettingsDocument(context.Background())
+			settings.RefreshDescribe(context.Background())
 		}
 	}
 	m.OnNoDirectory = func() {
 		s.selectMainPanel("")
-		snap := sessions.Snapshot()
+		snap := sessions.SelectionSummary()
 		s.mu.Lock()
 		draft := s.composerDraftLocked(snap.SelectedID)
 		s.mu.Unlock()
@@ -167,7 +194,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnRenameWorkspace = func(title string) {
 		id := sessions.WorkspaceID()
 		if id == "" {
-			sessions.SetLastAction("workspace rename: no workspace id")
+			sessions.SetLastAction(i18n.T(i18n.KeyCmdWorkspaceRenameIDMissing))
 			return
 		}
 		sessions.RenameWorkspace(context.Background(), id, title)
@@ -175,7 +202,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnDeleteWorkspace = func() {
 		id := sessions.WorkspaceID()
 		if id == "" {
-			sessions.SetLastAction("workspace delete: no workspace id")
+			sessions.SetLastAction(i18n.T(i18n.KeyCmdWorkspaceDeleteIDMissing))
 			return
 		}
 		sessions.DeleteWorkspace(context.Background(), id)
@@ -197,6 +224,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 		sessions.UpdateSessionSearch(context.Background(), *m.SessionSearch)
 	}()
+	s.bindPluginSessionNavigation(&m)
 	frame.NavigationShell(c, s.navigationFileDropModel(m), content)
 }
 
@@ -215,7 +243,7 @@ func (s *mainState) queueNavigationFile(sessions *session.Store, path string) {
 	}
 	s.mu.Lock()
 	host := s.bootStatus
-	s.navigationFile = &navigationFileRequest{path: path, sessionID: sessions.Snapshot().SelectedID, origin: host.Endpoint.Origin, cookie: host.Endpoint.Cookie, generation: host.Generation, store: sessions}
+	s.navigationFile = &navigationFileRequest{path: path, sessionID: sessions.SelectedSessionID(), origin: host.Endpoint.Origin, cookie: host.Endpoint.Cookie, generation: host.Generation, store: sessions}
 	s.mu.Unlock()
 	s.selectMainPanel("")
 }
@@ -226,7 +254,7 @@ func (s *mainState) consumeNavigationFile(m frame.Model) {
 	host := s.bootStatus
 	same := request != nil && request.store == s.sessions && request.store == m.Store && request.generation == host.Generation && request.origin == host.Endpoint.Origin && request.cookie == host.Endpoint.Cookie
 	s.mu.Unlock()
-	if same && m.OnOpenDeliverable != nil && m.Store.Snapshot().SelectedID == request.sessionID {
+	if same && m.OnOpenDeliverable != nil && m.Store.SelectedSessionID() == request.sessionID {
 		m.OnOpenDeliverable(request.path)
 	}
 }

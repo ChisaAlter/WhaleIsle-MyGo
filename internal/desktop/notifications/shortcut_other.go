@@ -15,5 +15,15 @@ func createShortcut(lnk, target, appID string) error {
 	return nil
 }
 
+const ToastActivatorCLSID = "{9CC711B1-3FB8-4C05-AB6C-CF32C5077B0F}"
+const ToastServerFlag = "--whaleisle-toast-server"
+
+func (s Shortcut) RegisterActivator() error          { return nil }
+func SetProcessIdentity(appID string) error          { return nil }
+func (s Shortcut) UnregisterOwnedIntegration() error { return nil }
+
+// MigrateLegacy is Windows-only and leaves all files untouched elsewhere.
+func (s Shortcut) MigrateLegacy(backupRoot string) (string, error) { return "", nil }
+
 // ErrUnsupported reports whether shortcut registration exists on this platform.
 func ErrUnsupported() error { return errNoShortcutShell }

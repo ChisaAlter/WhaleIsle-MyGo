@@ -63,14 +63,17 @@ func TextShimmer(c *ui.Context, o TextShimmerOptions) ui.Element {
 	}
 	active := o.Active && o.Text != "" && !c.Preferences().ReduceMotion
 	highlight := shimmerHighlight(t, color)
-	phase := float32(0)
-	if active {
-		c.AnimationFrame()
-		ms := c.Now().UnixMilli() % shimmerPeriod
-		phase = float32(ms-shimmerDelay) / float32(shimmerPeriod-shimmerDelay)
-	}
 	full := w
 	shimmer.Draw(func(p *ui.Painter, r ui.Rect) {
+		phase := float32(0)
+		if active {
+			// The sweep moves while the layout stays, so its frames repaint
+			// without building the view: asking from the build rebuilt the
+			// whole window at the display rate while any tool row ran.
+			p.AnimationFrame()
+			ms := p.Now().UnixMilli() % shimmerPeriod
+			phase = float32(ms-shimmerDelay) / float32(shimmerPeriod-shimmerDelay)
+		}
 		text := o.Text
 		if full > r.W {
 			// Only text that does not fit costs a search for the room left.

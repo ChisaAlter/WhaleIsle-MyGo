@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"whaleisle/internal/config"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Selecting a color scheme commits only that field, preserving other open
@@ -15,7 +16,7 @@ func (s *mainState) setAppearanceTheme(id string) error {
 	s.mu.Unlock()
 	if hostAccepted {
 		if host == nil {
-			return fmt.Errorf("Host appearance is unavailable")
+			return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
 		}
 		if err := host.SaveScheme(id); err != nil {
 			return err
@@ -39,7 +40,7 @@ func (s *mainState) setAppearanceTheme(id string) error {
 		return nil
 	}
 	if cfg == nil {
-		return fmt.Errorf("config store is not ready")
+		return fmt.Errorf("%s", i18n.T(i18n.KeyCmdConfigStoreNotReady))
 	}
 	if err := cfg.Update(func(c *config.Config) {
 		c.Theme = id

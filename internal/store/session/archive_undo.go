@@ -25,6 +25,7 @@ type archiveUndoState struct {
 func (s *Store) offerArchiveUndoLocked(client *dsh.Client, id, title string, now time.Time) {
 	s.archiveUndoToken++
 	s.archiveUndo = &archiveUndoState{notice: ArchiveUndoNotice{Token: s.archiveUndoToken, SessionID: id, Title: title, Expires: now.Add(archiveUndoLifetime)}, client: client, generation: s.eventsGeneration}
+	s.archiveUndoActive.Store(true)
 }
 func (s *Store) archiveUndoCurrentLocked(now time.Time) bool {
 	u := s.archiveUndo
@@ -34,10 +35,14 @@ func (s *Store) archiveUndoCurrentLocked(now time.Time) bool {
 // The notice is runtime-only and announced once. The UI closes its toast at the
 // absolute deadline too, even if the native toast timer pauses while hovered.
 func (s *Store) ArchiveUndoNotice() *ArchiveUndoNotice {
+	if !s.archiveUndoActive.Load() {
+		return nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.archiveUndoCurrentLocked(time.Now()) {
 		s.archiveUndo = nil
+		s.archiveUndoActive.Store(false)
 		return nil
 	}
 	out := s.archiveUndo.notice
@@ -53,6 +58,7 @@ func (s *Store) UndoArchive(token uint64) {
 	}
 	u := *s.archiveUndo
 	s.archiveUndo = nil // claim once before dispatch; repeated clicks are inert
+	s.archiveUndoActive.Store(false)
 	s.mu.Unlock()
 	s.fire()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

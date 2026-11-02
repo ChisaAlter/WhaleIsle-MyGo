@@ -170,3 +170,66 @@ func writeGalleryPNG(t *testing.T, dir, name string, tt *ui.Tester) {
 		t.Fatal(err)
 	}
 }
+
+func TestModelConfigurationReasoningEffortsValidationAndMapping(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+
+	errMsg := configurationModelError([]any{
+		map[string]any{"id": "m1", "reasoningEfforts": map[string]any{"off": nil}},
+	})
+	want := "Model 1: Keep at least one non-off reasoning level"
+	if errMsg != want {
+		t.Fatalf("configurationModelError(only off) = %q, want %q", errMsg, want)
+	}
+
+	errEmptyVal := configurationModelError([]any{
+		map[string]any{"id": "m1", "reasoningEfforts": map[string]any{"off": nil, "high": "   "}},
+	})
+	if errEmptyVal != want {
+		t.Fatalf("configurationModelError(empty api val) = %q, want %q", errEmptyVal, want)
+	}
+
+	if okMsg := configurationModelError([]any{
+		map[string]any{"id": "m1", "reasoningEfforts": map[string]any{"off": nil, "high": "high"}},
+	}); okMsg != "" {
+		t.Fatalf("configurationModelError(valid) = %q, want empty", okMsg)
+	}
+
+	rows := []any{
+		map[string]any{
+			"id":               "m1",
+			"reasoningEfforts": map[string]any{"off": nil, "high": "thinking-high"},
+		},
+	}
+	drafts := map[string]*string{}
+	m := Model{
+		DraftPtr: func(key, seed string) *string {
+			if p, ok := drafts[key]; ok {
+				return p
+			}
+			v := seed
+			drafts[key] = &v
+			return &v
+		},
+	}
+	fields := []store.Field{{Key: "reasoningEfforts"}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		configurationModels(c, m, store.ViewState{Writable: true}, "custom", rows, fields, func(next []any) {
+			rows = next
+		}, ui.RGB(20, 20, 20), ui.RGB(120, 120, 120))
+	}, 780, 600)
+
+	chk, ok := tt.Find("high")
+	if !ok {
+		t.Fatal("missing high checkbox")
+	}
+	tt.ClickAt(chk.X+40, chk.Y+chk.H+14)
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type("thinking-high-v2")
+
+	efforts, _ := rows[0].(map[string]any)["reasoningEfforts"].(map[string]any)
+	if got := efforts["high"]; got != "thinking-high-v2" {
+		t.Fatalf("efforts[high] = %v, want thinking-high-v2", got)
+	}
+}

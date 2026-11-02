@@ -56,6 +56,7 @@ func (s *Store) BeginQueueEditForSession(ctx context.Context, sessionID, itemID 
 	}
 	s.queueEditorToken++
 	s.queueEditor = queueEditor{QueueEditorState: QueueEditorState{ItemID: itemID, Loading: true, Token: s.queueEditorToken}, sessionID: s.selectedID, generation: s.followGeneration}
+	s.invalidateViewLocked()
 	client, token, sid := s.client, s.queueEditorToken, s.selectedID
 	s.mu.Unlock()
 	s.fire()
@@ -74,6 +75,7 @@ func (s *Store) runLoadQueueEdit(ctx context.Context, client *dsh.Client, sid st
 		return
 	}
 	s.queueEditor.Loading = false
+	s.invalidateViewLocked()
 	if err != nil {
 		s.queueEditor.Error = err.Error()
 	} else {
@@ -116,6 +118,9 @@ func queueEditableText(values json.RawMessage, itemID string) (string, error) {
 func (s *Store) ChangeQueueEdit(token uint64, text string) {
 	s.mu.Lock()
 	if e := s.queueEditorSnapshotLocked(); e.Token == token && e.Ready && !e.Saving {
+		if e.Text != text || e.Error != "" {
+			s.invalidateViewLocked()
+		}
 		s.queueEditor.Text = text
 		s.queueEditor.Error = ""
 	}
@@ -125,6 +130,9 @@ func (s *Store) CancelQueueEdit(token uint64) {
 	s.mu.Lock()
 	if e := s.queueEditorSnapshotLocked(); e.Token == token && !e.Saving {
 		s.queueEditorToken++
+		if e != (QueueEditorState{}) {
+			s.invalidateViewLocked()
+		}
 		s.queueEditor = queueEditor{}
 	}
 	s.mu.Unlock()
@@ -139,6 +147,7 @@ func (s *Store) SaveQueueEdit(ctx context.Context, token uint64) {
 	}
 	s.queueEditor.Saving = true
 	s.queueEditor.Error = ""
+	s.invalidateViewLocked()
 	client, sid := s.client, s.selectedID
 	s.mu.Unlock()
 	s.fire()
@@ -159,6 +168,7 @@ func (s *Store) runSaveQueueEdit(ctx context.Context, client *dsh.Client, sid st
 		return
 	}
 	s.queueEditor.Saving = false
+	s.invalidateViewLocked()
 	if err != nil {
 		s.queueEditor.Error = err.Error()
 	} else {

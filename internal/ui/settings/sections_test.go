@@ -31,16 +31,16 @@ func TestSectionForNamespaceKnown(t *testing.T) {
 func TestGroupNamespacesOrderAndBuckets(t *testing.T) {
 	groups := GroupNamespaces([]string{"permission", "account", "general", "usageStats", "zzz"})
 	if len(groups) != 4 {
-		t.Fatalf("groups = %d, want 4 (account, general, usage-stats, other)", len(groups))
+		t.Fatalf("groups = %d, want 4 (account, usage-stats, general, other)", len(groups))
 	}
 	if groups[0].Section != SectionAccount || len(groups[0].Items) != 1 || groups[0].Items[0] != "account" {
 		t.Fatalf("first group = %+v", groups[0])
 	}
-	if groups[1].Section != SectionGeneral {
-		t.Fatalf("second group = %+v", groups[1])
+	if groups[1].Section != SectionUsageStats || groups[1].Items[0] != "usageStats" {
+		t.Fatalf("usage group = %+v", groups[1])
 	}
-	if groups[2].Section != SectionUsageStats || groups[2].Items[0] != "usageStats" {
-		t.Fatalf("usage group = %+v", groups[2])
+	if groups[2].Section != SectionGeneral {
+		t.Fatalf("third group = %+v", groups[2])
 	}
 	if groups[3].Section != SectionOther {
 		t.Fatalf("fourth group = %+v, want other with permission+zzz", groups[3])

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"whaleisle/internal/processutil"
 )
 
 type resourceTransport func(*http.Request) (*http.Response, error)
@@ -111,7 +112,9 @@ func TestOpenUIResourceShellOwnership(t *testing.T) {
  if(sent.at(-1).type!=='api-response'||sent.at(-1).requestId!=='wiki-1')throw Error('wrong reply');
  for(const r of [{instanceId:instance,requestId:'wiki-1'},{instanceId:'foreign',requestId:'wiki-2'}]){let rejected=false;try{window.__whaleOpenUIAPIResponse({...r,status:200,body:{}})}catch{rejected=true}if(!rejected)throw Error('unknown/duplicate reply accepted')}
  emit({type:'api-request',requestId:'evil',path:'https://attacker.invalid',query:{}});if(window.__whaleOpenUIDrain().length!==0||sent.at(-1).status!==400)throw Error('arbitrary route forwarded');`
-	if out, err := exec.Command(node, "-e", fixture).CombinedOutput(); err != nil {
+	cmd := exec.Command(node, "-e", fixture)
+	processutil.Background(cmd)
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("shell ownership: %v %s", err, out)
 	}
 }

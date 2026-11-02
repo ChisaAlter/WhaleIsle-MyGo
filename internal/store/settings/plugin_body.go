@@ -15,10 +15,14 @@ type NamespaceBinding struct {
 	namespace  string
 	generation uint64
 	client     *dsh.Client
+	owner      string
 }
 
 // Owner is an ephemeral UI cache identity. It contains no endpoint credentials.
 func (b *NamespaceBinding) Owner() string {
+	if b.owner != "" {
+		return b.owner
+	}
 	return fmt.Sprintf("%p/%d/%s", b.client, b.generation, b.namespace)
 }
 
@@ -45,7 +49,7 @@ func (s *Store) BindNamespace(namespace string) *NamespaceBinding {
 		return nil
 	}
 	s.ensureDraftsLocked(namespace)
-	return &NamespaceBinding{s, namespace, s.generation, s.client}
+	return &NamespaceBinding{s, namespace, s.generation, s.client, fmt.Sprintf("%p/%d/%s", s.client, s.generation, namespace)}
 }
 func (b *NamespaceBinding) currentLocked() bool {
 	return b.store.generation == b.generation && b.store.client == b.client && b.store.findNamespaceLocked(b.namespace) != nil

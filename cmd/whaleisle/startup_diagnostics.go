@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/config"
@@ -35,7 +36,43 @@ func offlinePluginProfile(cfg *config.Store) startuprec.OfflinePlugins {
 	return p
 }
 
+type startupInventoryResult struct {
+	plugins []startuprec.Plugin
+	err     error
+}
+
+// startupInventoryProbe serves the offline plugin inventory to the launcher,
+// which reads it on every render pass, from the last read of the profile
+// manifest; the read itself runs off the UI thread once stale. Repair actions
+// read it fresh, since they verify the receipt before changing the profile.
+var startupInventoryProbe backgroundProbe[startupInventoryResult]
+
+func (s *mainState) startupInventory(cfg *config.Store, fresh bool) ([]startuprec.Plugin, error) {
+	profile := offlinePluginProfile(cfg)
+	key := profile.ProfileDir
+	if cfg != nil {
+		key += "\x00" + strings.Join(cfg.Get().DisabledPlugins, "\x00")
+	}
+	read := func() startupInventoryResult {
+		plugins, err := profile.Inventory()
+		return startupInventoryResult{plugins, err}
+	}
+	if fresh {
+		r := read()
+		startupInventoryProbe.put(key, r)
+		return r.plugins, r.err
+	}
+	r := startupInventoryProbe.get(key, time.Second, read, s.launcherSurfaceInvalidator(nil))
+	return r.plugins, r.err
+}
+
+// startupDiagnostics reads the inventory fresh; the launcher's render pass
+// uses startupDiagnosticsWith(false).
 func (s *mainState) startupDiagnostics() (startuprec.Diagnostics, bool) {
+	return s.startupDiagnosticsWith(true)
+}
+
+func (s *mainState) startupDiagnosticsWith(fresh bool) (startuprec.Diagnostics, bool) {
 	s.mu.Lock()
 	store, cfg, sup, st := s.startupRecovery.store, s.cfgStore, s.sup, s.bootStatus
 	busy := s.marketInstallBusy || s.launcherImportBusy || s.taskRestartPending || s.launcherStartBusy || s.quitting
@@ -56,7 +93,7 @@ func (s *mainState) startupDiagnostics() (startuprec.Diagnostics, bool) {
 		logs = last.LogTail
 		reason = last.Error
 	}
-	inventory, err := offlinePluginProfile(cfg).Inventory()
+	inventory, err := s.startupInventory(cfg, fresh)
 	report := startuprec.Diagnose(logs, reason, inventory, cfg != nil && err == nil)
 	generation := 0
 	if sup != nil {
@@ -69,7 +106,7 @@ func (s *mainState) startupDiagnostics() (startuprec.Diagnostics, bool) {
 }
 
 func (s *mainState) withStartupDiagnostics(m launcher.Model) launcher.Model {
-	report, busy := s.startupDiagnostics()
+	report, busy := s.startupDiagnosticsWith(false)
 	m.StartupDiagnostics = report
 	m.StartupRepairBusy = busy
 	m.OnRefreshStartupDiagnostics = func() { s.startupRepairNote("") }
@@ -113,7 +150,7 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 	sup, win, cfg := s.sup, s.win, s.cfgStore
 	if cfg == nil || (retry && sup == nil) {
 		s.mu.Unlock()
-		s.startupRepairNote("Startup configuration is unavailable.")
+		s.startupRepairNote(i18n.T(i18n.KeyCmdStartupConfigUnavailable))
 		return
 	}
 	s.marketInstallBusy = true
@@ -134,7 +171,7 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 		did := s.withTaskProtection(win, sup, "restart", func() error {
 			current, _ := s.startupDiagnostics()
 			if current.Receipt != receipt || (retry && (!current.CanRepair || !slices.Equal(names, current.RepairNames))) {
-				return errors.New("suspects or plugin inventory changed; refresh diagnostics")
+				return errors.New(i18n.T(i18n.KeyCmdStartupPluginInventoryChanged))
 			}
 			if err := importer.CheckImportReady(paths.DshHome()); err != nil {
 				return err
@@ -143,7 +180,7 @@ func (s *mainState) changeStartupPlugins(receipt string, names []string, enabled
 			valid := s.sup == sup && !s.launcherImportBusy && !s.quitting
 			s.mu.Unlock()
 			if !valid {
-				return errors.New("runtime or import changed; retry from fresh diagnostics")
+				return errors.New(i18n.T(i18n.KeyCmdStartupRuntimeChanged))
 			}
 			profile := offlinePluginProfile(cfg)
 			// A remove must stop the kernel before the bundled CLI changes its files.

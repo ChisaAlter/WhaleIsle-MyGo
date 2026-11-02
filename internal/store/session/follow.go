@@ -45,6 +45,7 @@ func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, gener
 }
 
 func (s *Store) clearHistoryErrorLocked() {
+	s.invalidateViewLocked()
 	if s.historyError != "" && s.lastAction == s.historyError {
 		s.lastAction = ""
 	}
@@ -63,6 +64,7 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 	s.lastAction = prefix + err.Error()
 	s.historyLoading = false
 	s.historyError = s.lastAction
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -105,7 +107,6 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 		return false
 	}
 	s.mu.Unlock()
-	s.fire()
 	opened, cursorKnown := false, false
 	cursor := float64(-1)
 	for {
@@ -169,20 +170,122 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 	}
 }
 
+type parsedEventHead struct {
+	Type string  `json:"type"`
+	Seq  float64 `json:"seq"`
+	Time float64 `json:"time"`
+}
+
+type followSnapshotRecord struct {
+	Type          string          `json:"type"`
+	Event         json.RawMessage `json:"event"`
+	seq           float64
+	seqOK         bool
+	head          parsedEventHead
+	headOK        bool
+	preclassified bool
+	classifiedMsg Message
+	classifiedOK  bool
+}
+
+type followSnapshotFrame struct {
+	Projections *struct {
+		AsOfSeq float64
+		Values  json.RawMessage
+	} `json:"projections"`
+	AssistantStream *assistantStreamBaseline `json:"assistantStream"`
+	Cursor          *float64                 `json:"cursor"`
+	HasMore         *bool                    `json:"hasMore"`
+	Records         []followSnapshotRecord   `json:"records"`
+}
+
+type parsedFollowFrame struct {
+	raw      json.RawMessage
+	kind     string
+	kindOK   bool
+	snap     followSnapshotFrame
+	snapOK   bool
+	eventRaw json.RawMessage
+	eventOK  bool
+}
+
+func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
+	out := parsedFollowFrame{raw: raw}
+	var head struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(raw, &head) != nil {
+		return out
+	}
+	out.kind = head.Type
+	out.kindOK = true
+	switch head.Type {
+	case "snapshot":
+		if json.Unmarshal(raw, &out.snap) == nil && out.snap.Records != nil {
+			for i := range out.snap.Records {
+				if out.snap.Records[i].Type == "event" {
+					evRaw := out.snap.Records[i].Event
+					var evHead struct {
+						Type string   `json:"type"`
+						Seq  *float64 `json:"seq"`
+						Time float64  `json:"time"`
+					}
+					if json.Unmarshal(evRaw, &evHead) == nil && evHead.Seq != nil {
+						seq := *evHead.Seq
+						out.snap.Records[i].seq = seq
+						out.snap.Records[i].seqOK = true
+						if evHead.Type != "" {
+							out.snap.Records[i].head = parsedEventHead{
+								Type: evHead.Type,
+								Seq:  seq,
+								Time: evHead.Time,
+							}
+							out.snap.Records[i].headOK = true
+							if isToolTimingEventType(evHead.Type) && seq > 0 {
+								readToolLifecycleMemo(seq, evRaw)
+							}
+							switch evHead.Type {
+							case events.TypeAgentPresetSelected, "session/presentation", events.TypeModelSelection, "turn/start", "turn/end":
+							default:
+								msg, ok := classifyPersistenceEvent(evRaw)
+								out.snap.Records[i].preclassified = true
+								out.snap.Records[i].classifiedMsg = msg
+								out.snap.Records[i].classifiedOK = ok
+							}
+						}
+					}
+				}
+			}
+			out.snapOK = true
+		}
+	case "event":
+		var wrap struct {
+			Event json.RawMessage `json:"event"`
+		}
+		if json.Unmarshal(raw, &wrap) == nil {
+			out.eventRaw = wrap.Event
+			out.eventOK = true
+		}
+	}
+	return out
+}
+
 // The generation check and the entire frame fold share one critical section.
 // A selection cannot change between validation and any message/plan/history write.
 func (s *Store) applyFollowFrameForTarget(ctx context.Context, sessionID string, generation uint64, raw json.RawMessage) bool {
+	wantGoalRefresh := goalRefreshFollowFrame(raw)
+	parsed := parseFollowFrame(raw)
 	s.mu.Lock()
 	if !s.followCurrentLocked(ctx, sessionID, generation) {
 		s.mu.Unlock()
 		return false
 	}
-	changed := s.applyFollowFrameLocked(raw)
+	changed := s.applyFollowFrameParsedLocked(parsed)
 	client := s.client
-	refreshGoal := changed && client != nil && goalRefreshFollowFrame(raw)
+	refreshGoal := changed && client != nil && wantGoalRefresh
 	s.mu.Unlock()
 	if changed {
-		s.fire()
+		s.fireFollowFrame(parsed)
 	}
 	if refreshGoal {
 		go s.runRefreshGoal(ctx, client, sessionID, generation)
@@ -191,39 +294,45 @@ func (s *Store) applyFollowFrameForTarget(ctx context.Context, sessionID string,
 }
 
 func (s *Store) applyFollowFrame(raw json.RawMessage) {
+	parsed := parseFollowFrame(raw)
 	s.mu.Lock()
-	changed := s.applyFollowFrameLocked(raw)
+	changed := s.applyFollowFrameParsedLocked(parsed)
 	s.mu.Unlock()
 	if changed {
-		s.fire()
+		s.fireFollowFrame(parsed)
 	}
 }
 
-func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
-	var head struct {
-		Type string `json:"type"`
+// fireFollowFrame publishes the revision a followed frame produced. An
+// assistant-stream frame only moves the streaming message state; anything it
+// does beyond that invalidates the full view itself while it holds the lock.
+func (s *Store) fireFollowFrame(parsed parsedFollowFrame) {
+	if parsed.kindOK && parsed.kind == "assistant-stream" {
+		s.fireStream()
+		return
 	}
-	if json.Unmarshal(raw, &head) != nil {
+	s.fire()
+}
+
+func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
+	return s.applyFollowFrameParsedLocked(parseFollowFrame(raw))
+}
+
+func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
+	s.invalidateStreamViewLocked()
+	if !parsed.kindOK {
+		s.invalidateViewLocked()
 		return false
 	}
-	switch head.Type {
+	if parsed.kind != "assistant-stream" {
+		s.invalidateViewLocked()
+	}
+	switch parsed.kind {
 	case "snapshot":
-		var snap struct {
-			Projections *struct {
-				AsOfSeq float64
-				Values  json.RawMessage
-			} `json:"projections"`
-			AssistantStream *assistantStreamBaseline `json:"assistantStream"`
-			Cursor          *float64                 `json:"cursor"`
-			HasMore         *bool                    `json:"hasMore"`
-			Records         []struct {
-				Type  string          `json:"type"`
-				Event json.RawMessage `json:"event"`
-			} `json:"records"`
-		}
-		if json.Unmarshal(raw, &snap) != nil || snap.Records == nil {
+		if !parsed.snapOK {
 			return false
 		}
+		snap := parsed.snap
 		s.historyLoading = false
 		s.historyReady = true
 		s.clearHistoryErrorLocked()
@@ -239,6 +348,9 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.workflowBoundaries = nil
 		s.trajectoryBoundaries = nil
 		s.systemPromptAnchors = nil
+		s.systemPromptRowsCache = nil
+		s.retryRowsCache = nil
+		s.durableTimedCache = nil
 		s.resetAssistantStreamLocked()
 		s.turnStartMs = 0
 		s.editTurnOpening = false
@@ -247,13 +359,8 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		s.resetHistoryPagingLocked()
 		s.historyThroughSeq = 0
 		for _, rec := range snap.Records {
-			if rec.Type == "event" {
-				var head struct {
-					Seq float64 `json:"seq"`
-				}
-				if json.Unmarshal(rec.Event, &head) == nil {
-					s.publishAssistantDurableLocked(rec.Event, head.Seq)
-				}
+			if rec.Type == "event" && rec.seqOK {
+				s.publishAssistantDurableRecordLocked(rec)
 			}
 		}
 		s.pruneInspectorSettlementsLocked()
@@ -278,15 +385,12 @@ func (s *Store) applyFollowFrameLocked(raw json.RawMessage) bool {
 		}
 		return true
 	case "event":
-		var wrap struct {
-			Event json.RawMessage `json:"event"`
-		}
-		if json.Unmarshal(raw, &wrap) != nil {
+		if !parsed.eventOK {
 			return false
 		}
-		return s.acceptAssistantDurableLocked(wrap.Event)
+		return s.acceptAssistantDurableLocked(parsed.eventRaw)
 	case "assistant-stream":
-		return s.applyAssistantStreamLocked(raw)
+		return s.applyAssistantStreamLocked(parsed.raw)
 	default:
 		return false
 	}
@@ -301,22 +405,48 @@ func (s *Store) applyPersistenceEvent(raw json.RawMessage) {
 	}
 }
 
-func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
-	var head struct {
-		Type string  `json:"type"`
-		Seq  float64 `json:"seq"`
-		Time float64 `json:"time"`
+func (s *Store) publishAssistantDurableRecordLocked(rec followSnapshotRecord) bool {
+	if s.assistantStream.published == nil {
+		s.assistantStream.published = make(map[float64]bool)
 	}
-	if json.Unmarshal(raw, &head) != nil || head.Type == "" {
+	s.assistantStream.published[rec.seq] = true
+	return s.applyPersistenceRecordLocked(rec.Event, rec.head, rec.headOK, rec.preclassified, rec.classifiedMsg, rec.classifiedOK)
+}
+
+func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
+	return s.applyPersistenceRecordLocked(raw, parsedEventHead{}, false, false, Message{}, false)
+}
+
+func (s *Store) applyPersistenceRecordLocked(raw json.RawMessage, head parsedEventHead, headOK bool, preclassified bool, preMsg Message, preOK bool) bool {
+	s.invalidateViewLocked()
+	if !headOK {
+		if json.Unmarshal(raw, &head) != nil || head.Type == "" {
+			return false
+		}
+	} else if head.Type == "" {
 		return false
 	}
-	inspectorChanged := s.captureInspectorEventLocked(raw)
+	if isToolTimingEventType(head.Type) && head.Seq > 0 {
+		readToolLifecycleMemo(head.Seq, raw)
+	}
+	var inspectorChanged bool
+	if headOK {
+		inspectorChanged = s.captureInspectorEventWithHeadLocked(raw, head.Type, head.Seq)
+	} else {
+		inspectorChanged = s.captureInspectorEventLocked(raw)
+	}
 	s.captureWorkflowBoundaryLocked(raw)
-	timingChanged := s.captureTrajectoryBoundaryLocked(raw)
-	submissionChanged := s.observeComposerEventLocked(raw)
+	timingChanged := s.captureTrajectoryBoundaryWithSeqLocked(raw, head.Seq)
+	var submissionChanged bool
+	if head.Type == "user/message" || head.Type == "agent/inbox/spliced" || head.Type == "request/context" || head.Type == "turn/end" {
+		submissionChanged = s.observeComposerEventLocked(raw)
+	}
 	s.bumpHistoryThroughSeq(head.Seq)
 	s.noteHistoryBaseLocked(head.Seq)
-	changed := ApplyPlanBoardEvent(&s.planBoard, raw)
+	var changed bool
+	if head.Type != "assistant/message" && head.Type != "assistant/attempt" && head.Type != "tool/result" && head.Type != "user/message" && head.Type != "step/start" && head.Type != "step/end" && head.Type != "turn/end" {
+		changed = ApplyPlanBoardEvent(&s.planBoard, raw)
+	}
 	changed = changed || timingChanged || inspectorChanged || submissionChanged
 	if head.Type == events.TypeAgentPresetSelected {
 		var ev events.AgentPresetSelected
@@ -356,7 +486,13 @@ func (s *Store) applyPersistenceEventLocked(raw json.RawMessage) bool {
 		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", TurnSeq: turnSeq, Raw: append(json.RawMessage(nil), raw...), Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
 		return true
 	}
-	msg, ok := classifyPersistenceEvent(raw)
+	var msg Message
+	var ok bool
+	if preclassified {
+		msg, ok = preMsg, preOK
+	} else {
+		msg, ok = classifyPersistenceEvent(raw)
+	}
 	if !ok {
 		return changed
 	}

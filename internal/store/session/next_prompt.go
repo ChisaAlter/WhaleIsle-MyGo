@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"sync/atomic"
 	"whaleisle/internal/dsh"
 )
 
@@ -22,20 +23,29 @@ type nextPromptRequest struct {
 }
 
 type nextPromptState struct {
-	request  *nextPromptRequest
-	accepted map[string]float64
+	request    *nextPromptRequest
+	hasRequest atomic.Bool
+	accepted   map[string]float64
 }
 
 func (s *Store) clearNextPromptLocked() {
-	if s.nextPrompt.request != nil {
-		s.nextPrompt.request.cancel()
-		s.nextPrompt.request = nil
+	if s.nextPrompt.request == nil {
+		// Nothing to clear: the empty-state call runs while the transcript is not
+		// shown, and advancing the revision there rebuilt every following frame.
+		return
 	}
+	s.invalidateViewLocked()
+	s.nextPrompt.request.cancel()
+	s.nextPrompt.request = nil
+	s.nextPrompt.hasRequest.Store(false)
 }
 
 // SyncNextPrompt tracks the same empty, idle composer lifetime as InputBar.
 // An accepted suggestion stays consumed for its completed turn.
 func (s *Store) SyncNextPrompt(ctx context.Context, eligible bool) NextPromptSuggestion {
+	if !eligible && !s.nextPrompt.hasRequest.Load() {
+		return NextPromptSuggestion{}
+	}
 	s.mu.Lock()
 	client, id := s.client, s.selectedID
 	if !eligible || ctx.Err() != nil || client == nil || !s.nextPromptSessionEligibleLocked() {
@@ -59,6 +69,7 @@ func (s *Store) SyncNextPrompt(ctx context.Context, eligible bool) NextPromptSug
 	requestCtx, cancel := context.WithCancel(ctx)
 	request := &nextPromptRequest{client: client, sessionID: id, generation: s.followGeneration, completedSeq: completedSeq, cancel: cancel}
 	s.nextPrompt.request = request
+	s.nextPrompt.hasRequest.Store(true)
 	s.mu.Unlock()
 	go func() {
 		result, err := client.NextPrompt(requestCtx, id)

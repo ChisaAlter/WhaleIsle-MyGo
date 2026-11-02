@@ -18,7 +18,7 @@ type WhalePreferencesModel struct {
 	OnToggleSkill func(string, bool)
 }
 
-func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool, fg, muted, accent ui.Color) {
+func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool, fg, muted, border, accent ui.Color) {
 	if m.OnRefresh == nil {
 		return
 	}
@@ -28,8 +28,8 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 	}
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhalePreferences)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(blocked).Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhalePreferences)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Busy {
@@ -46,7 +46,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		}
 		disabled := blocked || !s.Loaded
 		route := s.Route
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheDefaultModelForHerOwnSessionAfter)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheDefaultModelForHerOwnSessionAfter)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		labels := []string{i18n.T(i18n.KeyMiscAssistantFollowSessionDefault)}
 		choices := map[string]pluginrpc.WhaleModelRoute{labels[0]: {ReasoningEffort: route.ReasoningEffort}}
 		selected := labels[0]
@@ -84,7 +84,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if s.ModelsError != "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelCatalog)+s.ModelsError).TextColor(accent).Selectable()
 		}
-		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Disabled(disabled || s.ModelsError != "").OnChange(func() {
+		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || s.ModelsError != "").OnChange(func() {
 			if v, ok := choices[selected]; ok && m.OnEdit != nil {
 				m.OnEdit(v, s.IMDefault)
 				if m.OnSave != nil {
@@ -112,7 +112,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			effortLabels = append(effortLabels, effortSelected)
 			effortValues[effortSelected] = effortSelected
 		}
-		ui.Select(c.Key("whale-own-effort"), &effortSelected, effortLabels).FillWidth().Disabled(disabled).OnChange(func() {
+		ui.Select(c.Key("whale-own-effort"), &effortSelected, effortLabels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 			route.ReasoningEffort = effortValues[effortSelected]
 			if m.OnEdit != nil {
 				m.OnEdit(route, s.IMDefault)
@@ -135,14 +135,14 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 				enabled++
 			}
 		}
-		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).Bold().TextColor(fg)
+		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantWhaleSkills), enabled, len(s.Server.Skills))).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		if len(s.Server.Skills) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantNoSkillsYetPutSkillsNameSkillMdUnder)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			label := "技能目录："
 			if !strings.HasPrefix(i18n.Locale(), "zh") {
 				label = "Skills directory: "
 			}
-			ui.Text(c, label+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Selectable()
+			ui.Text(c, label+s.Server.HomeDir).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		for _, skill := range s.Server.Skills {
 			skill := skill

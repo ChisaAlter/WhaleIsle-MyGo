@@ -1,17 +1,19 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"path"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -203,7 +205,7 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 	if startFile == nil && open != nil {
 		startFile = func(path string, complete func(error)) { open(path); complete(nil) }
 	}
-	ui.RichText(c).Font(theme.RenderPreferences().Chat.Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable().Children(func() {
+	ui.RichText(c).Font(theme.ContextFont(c, theme.SkinProseFont).Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable().Children(func() {
 		for _, run := range userReferenceRuns(text, facts) {
 			run := run
 			el := ui.Text(c, run.Text)
@@ -254,10 +256,77 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 	}
 }
 
+var userMessageContextMemo struct {
+	sync.Mutex
+	key    session.ProjectionKey
+	skills map[float64][]string
+	refs   map[float64][]string
+}
+
+func userMessageContextFacts(snap session.ViewState, target session.Message) (labels, skills []string) {
+	if target.Seq <= 0 {
+		return nil, nil
+	}
+	key := snap.HistoryProjectionKey()
+	if !key.Valid() {
+		return userMessageReferenceLabels(snap.Messages, target.Seq), userMessageSkillNames(snap.Messages, target)
+	}
+	userMessageContextMemo.Lock()
+	if userMessageContextMemo.key == key {
+		labels = userMessageContextMemo.refs[target.Seq]
+		skills = userMessageContextMemo.skills[target.Seq]
+		userMessageContextMemo.Unlock()
+		return labels, skills
+	}
+	userMessageContextMemo.Unlock()
+
+	refsMap := map[float64][]string{}
+	skillsMap := map[float64][]string{}
+	hasSkillContext := false
+	for _, msg := range snap.Messages {
+		if msg.Kind != session.MessageKindContext {
+			continue
+		}
+		if bytes.Contains(msg.Raw, []byte("session-reference")) && msg.Seq > 1 {
+			if l := userMessageReferenceLabels(snap.Messages, msg.Seq-1); len(l) > 0 {
+				refsMap[msg.Seq-1] = l
+			}
+		}
+		if bytes.Contains(msg.Raw, []byte("skill-invocation")) {
+			hasSkillContext = true
+		}
+	}
+	if hasSkillContext {
+		for _, msg := range snap.Messages {
+			if msg.Role == "user" && msg.Kind == session.MessageKindText && msg.Seq > 0 {
+				if s := userMessageSkillNames(snap.Messages, msg); len(s) > 0 {
+					skillsMap[msg.Seq] = s
+				}
+			}
+		}
+	}
+	userMessageContextMemo.Lock()
+	userMessageContextMemo.key = key
+	userMessageContextMemo.refs = refsMap
+	userMessageContextMemo.skills = skillsMap
+	userMessageContextMemo.Unlock()
+	return refsMap[target.Seq], skillsMap[target.Seq]
+}
+
 // Only direct messages and sourced contexts share a skill batch. Any other
 // visible transcript contribution closes it, including the durable turn tail.
 func userMessageSkillNames(messages []session.Message, target session.Message) []string {
 	if target.Seq <= 0 {
+		return nil
+	}
+	hasContext := false
+	for _, message := range messages {
+		if message.Kind == session.MessageKindContext && bytes.Contains(message.Raw, []byte("skill-invocation")) {
+			hasContext = true
+			break
+		}
+	}
+	if !hasContext {
 		return nil
 	}
 	ordered := append([]session.Message(nil), messages...)
@@ -266,6 +335,9 @@ func userMessageSkillNames(messages []session.Message, target session.Message) [
 	seen, contains := map[string]bool{}, false
 	for _, message := range ordered {
 		if message.Kind == session.MessageKindContext {
+			if !bytes.Contains(message.Raw, []byte("skill-invocation")) {
+				continue
+			}
 			var event struct {
 				Data struct {
 					Source  json.RawMessage `json:"source"`
@@ -310,7 +382,7 @@ func userMessageReferenceLabels(messages []session.Message, seq float64) []strin
 		return nil
 	}
 	for _, message := range messages {
-		if message.Seq != seq+1 || message.Kind != session.MessageKindContext {
+		if message.Seq != seq+1 || message.Kind != session.MessageKindContext || !bytes.Contains(message.Raw, []byte("session-reference")) {
 			continue
 		}
 		var event struct {

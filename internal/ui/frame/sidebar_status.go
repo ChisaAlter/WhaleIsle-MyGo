@@ -1,19 +1,22 @@
 package frame
 
-import "whaleisle/internal/store/interaction"
+import (
+	"encoding/json"
+	"whaleisle/internal/store/interaction"
+)
 
 func sidebarPendingStatuses(m Model) map[string]string {
 	out := map[string]string{}
 	if m.Store != nil {
-		for id, p := range m.Store.SidebarQuestionProjections() {
-			kind := interaction.ProjectedPendingStatus(p.Questions, p.Inbox)
+		m.Store.ForEachSidebarQuestionProjection(func(id string, questions, inbox json.RawMessage) {
+			kind := interaction.ProjectedPendingStatus(questions, inbox)
 			if m.Interactions != nil {
-				kind = m.Interactions.ProjectedSidebarStatus(id, p.Questions, p.Inbox)
+				kind = m.Interactions.ProjectedSidebarStatus(id, questions, inbox)
 			}
 			if kind != "" {
 				out[id] = kind
 			}
-		}
+		})
 	}
 	if m.Interactions != nil {
 		for id, kind := range m.Interactions.PendingStatuses() {

@@ -30,7 +30,8 @@ class AudioContext {
 }
 window.AudioContext=AudioContext;
 window.WhalePetCareAnimation={create:()=>({close(){},update(){}})};
-const context=vm.createContext({window, document, location:{href:''}, performance:{now:()=>1000},
+class Observer {observe(){}disconnect(){}}
+const context=vm.createContext({window, document, ResizeObserver:Observer, MutationObserver:Observer, location:{href:''}, performance:{now:()=>1000},
  fetch:url=>url==='task.json'?Promise.resolve({ok:true,json:async()=>({Behavior:{clickSound}})}):new Promise(()=>{}), Image:class {set src(_){}},
  setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id;},clearTimeout:i=>timers.delete(i),
  setInterval:()=>++id,clearInterval(){},requestAnimationFrame:()=>++id,cancelAnimationFrame(){}});

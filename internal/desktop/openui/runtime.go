@@ -18,12 +18,12 @@ const ViewerSHA256 = "ee5470ac1f67c50e69e554f6be5d7202625eef572b1f272f2276a1e250
 //go:embed viewer/viewer.html
 var embeddedViewer string
 
-// LoadViewer defaults to the independently authored SDK-based viewer built from
-// tools/openui-runtime. An explicit path retains the pinned legacy import path;
-// normal startup never probes or depends on an original Whale Isle installation.
+// LoadViewer defaults to the owned embedded Whale UI v2 viewer. An explicit
+// path retains the hash-pinned legacy import path; normal startup never probes
+// or depends on an original Whale Isle installation.
 func LoadViewer(explicit string) (string, error) {
 	if explicit == "" {
-		return embeddedViewer, nil
+		return LoadWhaleViewer()
 	}
 	paths := []string{explicit}
 	for _, path := range paths {

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // openLocalImage follows the existing session-bound static snapshot lease.
@@ -32,7 +34,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 	if !valid() {
 		return
 	}
-	sessions.SetLastAction("正在校验并打开隔离图片快照，编辑草稿保持不变…")
+	sessions.SetLastAction(i18n.T(i18n.KeyCmdImageSnapshotPreparing))
 	go func() {
 		doc, err := htmldocument.OpenImageWorkspace(root, path, valid)
 		win.Update(func() {
@@ -50,7 +52,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 				s.filesPaneOpen = true
 				s.rightPaneTab = "files"
 				s.mu.Unlock()
-				sessions.SetLastAction("隔离图片预览未打开：" + err.Error())
+				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdImageSnapshotFailed), err.Error()))
 				return
 			}
 			s.closeWebViewHost()
@@ -62,9 +64,9 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 				s.browserController = s.newBrowserController(win)
 			}
 			if err := s.browserController.OpenHTML(doc); err != nil {
-				sessions.SetLastAction("当前系统的隔离图片 WebView 不可用；图片未在兼容预览中显示")
+				sessions.SetLastAction(i18n.T(i18n.KeyCmdImagePreviewUnavailable))
 			} else {
-				sessions.SetLastAction("已打开隔离图片查看器（不代表编码解码成功）；" + doc.Resources.Summary() + "；无脚本/网络/应用桥接。AVIF 显示取决于当前 WebView 编解码器，源文件与草稿不变")
+				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdImageSnapshotOpened), doc.Resources.Summary()))
 			}
 		})
 	}()

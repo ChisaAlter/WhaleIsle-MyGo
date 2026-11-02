@@ -32,13 +32,20 @@ func (w *WorkspacePanes) currentMainChild(m Model) *WorkspacePane {
 		w.closeMainChild()
 		return nil
 	}
-	snap := m.Store.Snapshot()
-	if snap.SelectedID != route.Pane.SubagentChat.Root || snap.PlanHistoryBinding != route.Binding {
+	if m.Store.SelectedSessionID() != route.Pane.SubagentChat.Root || m.Store.PlanHistoryBinding() != route.Binding {
 		w.closeMainChild()
 		return nil
 	}
 	return route.Pane
 }
+
+// MainConversationChildActive follows the same visual route as the main header.
+// Stale child routes are retired by currentMainChild before a parent feature may
+// attach to the newly visible conversation.
+func MainConversationChildActive(m Model) bool {
+	return m.Sizes != nil && m.Sizes.Workspace != nil && m.Sizes.Workspace.currentMainChild(m) != nil
+}
+
 func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddress) {
 	return func(token uint64, address session.AgentSessionAddress) {
 		if m.Store == nil || m.Sizes == nil || m.Sizes.Workspace == nil {
@@ -62,7 +69,7 @@ func subagentConversationOpener(m Model) func(uint64, session.AgentSessionAddres
 			return
 		}
 		w.closeMainChild()
-		w.conversation = &mainChildConversation{Pane: n, Owner: m.Store, Binding: m.Store.Snapshot().PlanHistoryBinding}
+		w.conversation = &mainChildConversation{Pane: n, Owner: m.Store, Binding: m.Store.PlanHistoryBinding()}
 		m.Store.MarkMainConversationViewed(address.ChildSessionID)
 	}
 }
@@ -140,7 +147,7 @@ func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 			}
 			return
 		}
-		agents.View(c, agents.Model{Store: navigation, Snapshot: m.Store.Snapshot(), ChatOnly: true, MainConversation: true,
+		agents.View(c, agents.Model{Store: navigation, Snapshot: renderSnapshot(m), ChatOnly: true, MainConversation: true,
 			Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 			ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: local.AgentsPromptDraft,
 			OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: local.OnOpenAgentDocument,

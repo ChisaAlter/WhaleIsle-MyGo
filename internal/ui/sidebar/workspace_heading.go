@@ -2,7 +2,7 @@ package sidebar
 
 import (
 	"github.com/egoist/mygo/ui"
-	"strings"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -17,44 +17,64 @@ const workspaceHeadingLift float32 = 6.67
 // 36 DIP line. Expanding search takes the label and trailing actions' room.
 func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color) {
 	header := ui.Row(c).FillWidth().Height(36).Gap(4).Padding(0, 0, 0, 4).AlignItems(ui.Center).OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: -workspaceHeadingLift} })
-	expanded := ui.Local(header, "search-expanded", func() bool {
-		return m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != ""
-	})
-	focus := m.SearchFocus != nil && *m.SearchFocus
-	pendingFocus := ui.Local(header, "search-focus", func() bool { return false })
-	focus = focus || *pendingFocus
+	state := m.searchState
+	if state == nil {
+		state = ui.Local(header, "session-search", func() sessionSearchState {
+			return sessionSearchState{Expanded: m.SearchQuery != nil && session.NormalizeSessionSearchQuery(*m.SearchQuery) != ""}
+		})
+	}
+	expanded, pendingFocus := &state.Expanded, &state.Focus
+	focus := m.SearchFocus != nil && *m.SearchFocus || *pendingFocus
 	if focus {
 		*expanded = true
 	}
 	header.Children(func() {
 		if *expanded && m.SearchQuery != nil {
-			input := ui.TextInput(c.Key("workspace-search"), m.SearchQuery).Label(i18n.T(i18n.KeySidebarSearch)).
-				Placeholder(i18n.T(i18n.KeySidebarSearch)).Grow(1).MinWidth(0).Height(30)
-			if focus {
-				input.Focus()
-				*pendingFocus = false
-				if m.SearchFocus != nil {
-					*m.SearchFocus = false
+			searchRoot := ui.Row(c.Key("workspace-search-root")).Grow(1).MinWidth(0).Height(30).Gap(4).AlignItems(ui.Center)
+			searchRoot.Children(func() {
+				input := ui.TextInput(c.Key("workspace-search"), m.SearchQuery).Label(i18n.T(i18n.KeySidebarSearch)).
+					Placeholder(i18n.T(i18n.KeySidebarSearch)).Grow(1).MinWidth(0).Height(30)
+				if input.Changed() {
+					*m.SearchQuery = session.SanitizeSessionSearchInput(*m.SearchQuery)
 				}
-			}
-			clear := ui.Button(c, "×").Label(workspaceText("清除搜索", "Clear search")).Width(24).Height(28).
-				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-			if input.Shortcut(0, ui.KeyEscape) || clear.Clicked() {
-				*m.SearchQuery = ""
+				if focus {
+					input.Focus()
+					*pendingFocus = false
+					if m.SearchFocus != nil {
+						*m.SearchFocus = false
+					}
+				}
+				clear := ui.Button(c, "×").Label(workspaceText("清除搜索", "Clear search")).Width(24).Height(28).
+					Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+				if input.Shortcut(0, ui.KeyEscape) || clear.Clicked() {
+					*m.SearchQuery = ""
+					*expanded, *pendingFocus = false, false
+				}
+			})
+			// The source outside-click boundary excludes the adjacent selection
+			// toggle. Keep a nonempty filter and ignore the opening focus gesture.
+			if !focus && session.NormalizeSessionSearchQuery(*m.SearchQuery) == "" && searchRoot.PressedOutside() {
 				*expanded = false
 			}
 		} else {
-			ui.Text(c, i18n.T(i18n.KeySidebarWorkspaceSection)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+			labelSize := theme.InterfaceSize(14)
+			if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
+				labelSize = layout.SidebarFont
+			}
+			sectionLabel := i18n.T(i18n.KeySidebarWorkspaceSection)
+			if m.Snapshot.WorkspaceLayout.GroupBy == "flat" {
+				sectionLabel = workspaceText("会话", "Sessions")
+			}
+			ui.Text(c, sectionLabel).FontSize(labelSize).FontWeight(400).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
 			if m.SearchQuery != nil {
 				search := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarSearch)).Tooltip(i18n.T(i18n.KeySidebarSearch)).
-					Width(28).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent)
-				search.Draw(func(p *ui.Painter, r ui.Rect) {
-					path := &ui.Path{}
-					path.Circle(r.X+12, r.Y+12, 4.5)
-					path.MoveTo(r.X+15.5, r.Y+15.5)
-					path.LineTo(r.X+20, r.Y+20)
-					p.StrokePath(path, 1.3, muted)
-				})
+					Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Center()
+				searchInk := muted
+				if search.Hovered() {
+					search.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
+					searchInk = fg
+				}
+				search.Children(func() { ui.Icon(c, sidebarRailIcons["search"]).Size(14, 14).TextColor(searchInk) })
 				if search.Clicked() {
 					*expanded = true
 					*pendingFocus = true
@@ -64,63 +84,40 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 		}
 		batchToggle(c, m, muted)
 		if !*expanded {
+			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			label := workspaceText("视图选项", "View options")
 			options := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).
-				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-			options.Draw(func(p *ui.Painter, r ui.Rect) {
-				// Reference header icon: three sliders with their knobs.
-				for i := 0; i < 3; i++ {
-					y := r.Y + 9 + float32(i)*5
-					knob := []float32{15, 10, 18}[i]
-					path := &ui.Path{}
-					path.MoveTo(r.X+7, y)
-					path.LineTo(r.X+21, y)
-					p.StrokePath(path, 1.2, muted)
-					p.Fill(ui.Rect{X: r.X + knob - 1.6, Y: y - 1.6, W: 3.2, H: 3.2}, muted, 1.6)
-				}
-			})
+				Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
+			optionsInk := muted
+			if *menuOpen || options.Hovered() {
+				options.Background(chrome.Color(colors.Hover))
+				optionsInk = fg
+			}
+			options.Children(func() { ui.Icon(c, workspaceViewOptionsArtwork).Size(16, 16).TextColor(optionsInk) })
 			if options.Clicked() {
 				*menuOpen = !*menuOpen
 			}
 			ui.PopoverBase(c, options, menuOpen, func(panel ui.Element) {
-				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-				var rename func()
-				if m.OnRenameWorkspace != nil {
-					rename = func() { m.OnRenameWorkspace("") }
-				}
 				// The shared menu material: its own fill, the elevation hairline
 				// and shadow, faded in over the popover token.
 				progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
-				panel.Width(220).Padding(6).Gap(2).Radius(12).Opacity(progress)
+				panel.Width(200).Padding(4).Gap(0).Radius(12).Role(ui.RoleMenu).Opacity(progress)
 				chrome.MenuSurface(panel, chrome.Color(colors.Field), chrome.Color(colors.Border), 12)
 				panel.Children(func() {
-					workspaceViewOptions(c, m)
-					for _, action := range []struct {
-						label string
-						fn    func()
-					}{
-						{i18n.T(i18n.KeySidebarBrowseWorkspace), m.OnBrowseWorkspace},
-						{i18n.T(i18n.KeySidebarRevealWorkspace), m.OnRevealWorkspace},
-						{i18n.T(i18n.KeySidebarRenameWorkspace), rename},
-						{i18n.T(i18n.KeySidebarDeleteWorkspace), m.OnDeleteWorkspace},
-						{workspaceText("刷新会话", "Refresh sessions"), m.OnRefresh},
-					} {
-						if action.fn != nil {
-							row := chrome.MenuRow(c, colors).Label(action.label)
-							if row.Hovered() || row.Pressed() {
-								row = row.Background(chrome.Color(colors.Hover))
-							}
-							if row.Clicked() {
-								*menuOpen = false
-								action.fn()
-							}
-						}
-					}
+					workspaceViewOptionsMenu(c, m, menuOpen)
 				})
 			})
-			if m.OnBrowseWorkspace != nil && ui.Button(c, "+").Label(i18n.T(i18n.KeySidebarBrowseWorkspace)).Width(28).Height(28).
-				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
-				m.OnBrowseWorkspace()
+			if m.OnBrowseWorkspace != nil {
+				add := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarBrowseWorkspace)).Size(28, 28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
+				addInk := muted
+				if add.Hovered() {
+					add.Background(chrome.Color(colors.Hover))
+					addInk = fg
+				}
+				add.Children(func() { ui.Icon(c, sidebarRailIcons["add"]).Size(16, 16).TextColor(addInk) })
+				if add.Clicked() {
+					m.OnBrowseWorkspace()
+				}
 			}
 		}
 	})

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Endpoint is an authenticated dsh web origin.
@@ -41,11 +42,20 @@ type Client struct {
 	HTTP     *http.Client
 }
 
+var defaultHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		MaxIdleConns:        128,
+		MaxIdleConnsPerHost: 64,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
+
 func (c *Client) http() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return http.DefaultClient
+	return defaultHTTPClient
 }
 
 // Call posts a Typert Remote client-request and unmarshals result.value into out.
@@ -98,6 +108,8 @@ func (c *Client) callPayload(ctx context.Context, method string, payload any, ou
 		// This existing method returns a complete multipart PDF, not byte ranges.
 		// Match the 32 MiB PDF preview cap plus multipart metadata overhead.
 		limit = 33 << 20
+	} else if method == "session/list" || method == "session/projections" || method == "session/page" {
+		limit = 128 << 20
 	}
 	raw, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
 	if err == nil && int64(len(raw)) > limit {

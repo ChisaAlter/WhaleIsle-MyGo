@@ -144,7 +144,8 @@ func formatTokensCompact(value float64) string {
 
 // PerformanceUsageView is the composer status line's decode/cache summary.
 func PerformanceUsageView(c *ui.Context, snapshot session.ViewState, mode string, muted ui.Color) {
-	tokens, ms, steps := session.RecordedPerformance(snapshot.Messages)
+	memo := ui.Local(c.Root(), "chat-performance-history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
+	tokens, ms, steps := memo.RecordedPerformance(snapshot)
 	var labels []string
 	if ms > 0 {
 		labels = append(labels, fmt.Sprintf(i18n.T(i18n.KeyChatStatusSpeed), tokens*1000/ms))

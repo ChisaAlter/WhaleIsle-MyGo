@@ -84,19 +84,19 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAssistantTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAssistantBack)).Clicked() {
+		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyAssistantTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
+			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAssistantBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				m.OnClose()
 			}
 		})
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).Fill().Height(.5).Background(border)
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 
-				modeBlock(c, m, fg, muted, accent)
+				modeBlock(c, m, fg, muted, border, accent)
 				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
 				if m.Mode == assiststore.ModeDshbot && m.BotNotificationStatus != "" {
@@ -112,8 +112,8 @@ func View(c *ui.Context, m Model) {
 				taskControlBlock(c, m, fg, muted, field, border, accent)
 				routineControlBlock(c, m, fg, muted, field, border, accent)
 				routineCreateBlock(c, m, fg, muted, field, border, accent)
-				composeBlock(c, m, fg, muted, accent)
-				pluginRPCBlock(c, m, fg, muted, accent)
+				composeBlock(c, m, fg, muted, field, border, accent)
+				pluginRPCBlock(c, m, fg, muted, border, accent)
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantFullHistoryStreamingRepliesApprovals)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 
 				statusBlock(c, field, border, fg, muted, []kv{
@@ -128,11 +128,11 @@ func View(c *ui.Context, m Model) {
 					{i18n.T(i18n.KeyAssistantSessionID), dash(m.SessionID)},
 				})
 
-				section(c, i18n.T(i18n.KeyAssistantWhaleTitle), fg, m.WhaleEnabled, m.OnToggleWhale,
+				section(c, i18n.T(i18n.KeyAssistantWhaleTitle), fg, border, m.WhaleEnabled, m.OnToggleWhale,
 					m.HarnessReady && m.WhaleEnabled, m.OnOpenWhaleWeb,
 					i18n.T(i18n.KeyAssistantOpenWhaleWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
 
-				section(c, i18n.T(i18n.KeyAssistantDshbotTitle), fg, m.DshbotEnabled, m.OnToggleDshbot,
+				section(c, i18n.T(i18n.KeyAssistantDshbotTitle), fg, border, m.DshbotEnabled, m.OnToggleDshbot,
 					m.HarnessReady && m.DshbotEnabled, m.OnOpenDshbotWeb,
 					i18n.T(i18n.KeyAssistantOpenDshbotWeb), i18n.T(i18n.KeyAssistantToggleOn), i18n.T(i18n.KeyAssistantToggleOff))
 
@@ -144,10 +144,10 @@ func View(c *ui.Context, m Model) {
 
 type kv struct{ label, value string }
 
-func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+func modeBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantModeTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyAssistantModeHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyAssistantModeTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantModeHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
 			whaleLabel := i18n.T(i18n.KeyAssistantModeWhale)
 			dshLabel := i18n.T(i18n.KeyAssistantModeDshbot)
@@ -157,18 +157,18 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			if m.Mode == assiststore.ModeDshbot {
 				dshLabel = "• " + dshLabel
 			}
-			if m.OnSetMode != nil && ui.Button(c, whaleLabel).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
+			if m.OnSetMode != nil && ui.Button(c, whaleLabel).Height(28).Padding(0, 12).Radius(999).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
 				m.OnSetMode(assiststore.ModeWhale)
 			}
-			if m.OnSetMode != nil && ui.Button(c, dshLabel).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
+			if m.OnSetMode != nil && ui.Button(c, dshLabel).Height(28).Padding(0, 12).Radius(999).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(m.Busy || m.PluginRPCBusy).Clicked() {
 				m.OnSetMode(assiststore.ModeDshbot)
 			}
-			if m.HarnessReady && m.OnOpenModeWeb != nil && ui.Button(c, i18n.T(i18n.KeyAssistantOpenModeWeb)).Clicked() {
+			if m.HarnessReady && m.OnOpenModeWeb != nil && ui.Button(c, i18n.T(i18n.KeyAssistantOpenModeWeb)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				m.OnOpenModeWeb()
 			}
 			mode := assiststore.NormalizeMode(m.Mode)
 			canOpenSess := m.HarnessReady && !m.Busy && !m.PluginRPCBusy && m.OnOpenSession != nil && ((mode == assiststore.ModeWhale && m.WhaleEnabled) || (mode == assiststore.ModeDshbot && m.DshbotEnabled && m.DshbotSelectedID != ""))
-			if canOpenSess && ui.Button(c, i18n.T(i18n.KeyAssistantOpenSession)).Clicked() {
+			if canOpenSess && ui.Button(c, i18n.T(i18n.KeyAssistantOpenSession)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				m.OnOpenSession(m.SessionID)
 			}
 		})
@@ -180,8 +180,10 @@ func modeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 
 func statusBlock(c *ui.Context, field, border, fg, muted ui.Color, rows []kv) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantStatusTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyAssistantStatusTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		card := ui.Column(c).Border(.5, border).Radius(12).Padding(12, 16, 12, 16).Gap(6)
+		chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+		card.Children(func() {
 			for _, row := range rows {
 				ui.Row(c).Gap(12).Children(func() {
 					ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(220)
@@ -206,8 +208,8 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 	busy := m.PluginRPCBusy || m.Busy
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
-			if m.OnDshbotRefreshRoster != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterRefresh)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+			ui.Text(c, i18n.T(i18n.KeyAssistantDshbotRosterTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+			if m.OnDshbotRefreshRoster != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 				m.OnDshbotRefreshRoster()
 			}
 		})
@@ -219,7 +221,9 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 			return
 		}
 		limit := len(m.DshbotRoster)
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
+		card := ui.Column(c).Border(.5, border).Radius(12).Padding(12, 16, 12, 16).Gap(8)
+		chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+		card.Children(func() {
 			for i := 0; i < limit; i++ {
 				row := m.DshbotRoster[i]
 				kindLabel := i18n.T(i18n.KeyAssistantDshbotRosterBot)
@@ -243,17 +247,17 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 				}
 				ui.Column(c).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, kindLabel).FontSize(theme.InterfaceSize(11)).TextColor(muted).Width(88)
-						ui.Text(c, clip(label, 120)).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
-						if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSelect)).Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
+						ui.Text(c, kindLabel).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted).Width(88)
+						ui.Text(c, clip(label, 120)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg).Grow(1)
+						if m.OnDshbotSelect != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSelect)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled || id == m.DshbotSelectedID).Clicked() {
 							m.OnDshbotSelect(id)
 						}
-						if canOpen && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterOpen)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+						if canOpen && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotRosterOpen)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 							m.OnDshbotOpenRosterSession(id)
 						}
 					})
 					if d := strings.TrimSpace(row.Detail); d != "" {
-						ui.Text(c, clip(d, 140)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+						ui.Text(c, clip(d, 140)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 					}
 				})
 			}
@@ -261,21 +265,21 @@ func dshbotRosterBlock(c *ui.Context, m Model, fg, muted, field, border, accent 
 	})
 }
 
-func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+func composeBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	if m.Draft == nil {
 		return
 	}
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantOpenTheCanonicalChatToSendFollowR)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		ui.TextArea(c, m.Draft).Lines(2, 4).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
+		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantOpenTheCanonicalChatToSendFollowR)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.TextArea(c, m.Draft).Lines(2, 4).Radius(12).Border(.5, border).Background(field).Padding(10, 12).FontSize(theme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
 			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantChooseABotOrGroupAboveFirstMessagesG)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantChooseABotOrGroupAboveFirstMessagesG)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		empty := strings.TrimSpace(*m.Draft) == "" || m.OnNativePrompt == nil || m.Busy || m.PluginRPCBusy || !available
-		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Disabled(empty).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyAssistantSend)).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(empty).Clicked() {
 			text := strings.TrimSpace(*m.Draft)
 			if text != "" && m.OnNativePrompt != nil {
 				m.OnNativePrompt(text)
@@ -293,44 +297,44 @@ func composeBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	})
 }
 
-func pluginRPCBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
+func pluginRPCBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color) {
 	if m.OnWhaleEnsure == nil && m.OnDshbotDescribe == nil {
 		return
 	}
 	busy := m.PluginRPCBusy || m.Busy
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCTitle)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCHint)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		ui.Row(c).Gap(8).Children(func() {
-			if m.OnWhaleEnsure != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleEnsure)).Disabled(busy || !m.WhaleEnabled).Clicked() {
+		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyAssistantPluginRPCHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			if m.OnWhaleEnsure != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleEnsure)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhaleEnsure()
 			}
-			if m.OnWhaleCatalog != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleCatalog)).Disabled(busy || !m.WhaleEnabled).Clicked() {
+			if m.OnWhaleCatalog != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhaleCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhaleCatalog()
 			}
-			if m.OnWhalePetChat != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetChat)).Disabled(busy || m.Mode != assiststore.ModeWhale || !m.WhaleEnabled || m.Draft == nil || strings.TrimSpace(*m.Draft) == "").Clicked() {
+			if m.OnWhalePetChat != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetChat)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || m.Mode != assiststore.ModeWhale || !m.WhaleEnabled || m.Draft == nil || strings.TrimSpace(*m.Draft) == "").Clicked() {
 				m.OnWhalePetChat(strings.TrimSpace(*m.Draft))
 			}
-			if m.OnWhalePetState != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetState)).Disabled(busy || !m.WhaleEnabled).Clicked() {
+			if m.OnWhalePetState != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetState)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhalePetState()
 			}
-			if m.OnWhalePetLook != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetLook)).Disabled(busy || !m.WhaleEnabled).Clicked() {
+			if m.OnWhalePetLook != nil && ui.Button(c, i18n.T(i18n.KeyAssistantWhalePetLook)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.WhaleEnabled).Clicked() {
 				m.OnWhalePetLook()
 			}
-			if m.OnDshbotDescribe != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotDescribe)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+			if m.OnDshbotDescribe != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotDescribe)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 				m.OnDshbotDescribe()
 			}
-			if m.OnDshbotCatalog != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotCatalog)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+			if m.OnDshbotCatalog != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 				m.OnDshbotCatalog()
 			}
-			if m.OnDshbotActivity != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotActivity)).Disabled(busy || !m.DshbotEnabled).Clicked() {
+			if m.OnDshbotActivity != nil && ui.Button(c, i18n.T(i18n.KeyAssistantDshbotActivity)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(busy || !m.DshbotEnabled).Clicked() {
 				m.OnDshbotActivity()
 			}
 		})
 		if m.PluginRPCDetail != "" {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, m.PluginRPCDetail).FontSize(theme.InterfaceSize(11)).TextColor(accent).Grow(1)
-				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyChatCopy)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(11)).Clicked() {
 					mygo.Clipboard.WriteText(m.PluginRPCDetail)
 				}
 			})
@@ -341,7 +345,7 @@ func pluginRPCBlock(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 func section(
 	c *ui.Context,
 	title string,
-	fg ui.Color,
+	fg, border ui.Color,
 	enabled bool,
 	onToggle func(bool),
 	canOpen bool,
@@ -349,7 +353,7 @@ func section(
 	openLabel, onLabel, offLabel string,
 ) {
 	ui.Column(c).Gap(6).Children(func() {
-		ui.Text(c, title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
+		ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Row(c).Gap(8).Children(func() {
 			if onToggle != nil {
 				label := onLabel
@@ -358,11 +362,11 @@ func section(
 					label = offLabel
 					next = false
 				}
-				if ui.Button(c, label).Clicked() {
+				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 					onToggle(next)
 				}
 			}
-			if canOpen && onOpen != nil && ui.Button(c, openLabel).Clicked() {
+			if canOpen && onOpen != nil && ui.Button(c, openLabel).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				onOpen()
 			}
 		})

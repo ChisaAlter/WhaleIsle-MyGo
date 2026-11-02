@@ -1,6 +1,9 @@
 package session
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 type editEvent struct {
 	Type      string `json:"type"`
@@ -24,6 +27,9 @@ func isHumanMessage(m Message) bool {
 	if m.Role != "user" {
 		return false
 	}
+	if !bytes.Contains(m.Raw, []byte(`"source"`)) {
+		return true
+	}
 	var e struct {
 		Data struct {
 			Source struct {
@@ -45,13 +51,13 @@ func annotateEditMessage(m *Message, turnSeq float64, opening *bool) {
 
 // LatestEditableMessage follows turn-opening human messages, ignoring injected context and steering.
 func LatestEditableMessage(messages []Message) float64 {
-	latest := float64(0)
-	for _, m := range messages {
-		if isHumanMessage(m) && !m.Streaming && m.Seq > 0 && (m.TurnOpening || m.TurnSeq == 0) {
-			latest = m.Seq
+	for i := len(messages) - 1; i >= 0; i-- {
+		m := messages[i]
+		if !m.Streaming && m.Seq > 0 && (m.TurnOpening || m.TurnSeq == 0) && isHumanMessage(m) {
+			return m.Seq
 		}
 	}
-	return latest
+	return 0
 }
 
 func CanEditMessage(s ViewState, seq float64) bool {
@@ -85,10 +91,26 @@ func CanEditMessage(s ViewState, seq float64) bool {
 	return false
 }
 
+func hasMessageEdits(messages []Message) bool {
+	for _, m := range messages {
+		if len(m.Raw) == 0 || !bytes.Contains(m.Raw, []byte("replace")) || !bytes.Contains(m.Raw, []byte("surfaceOp")) {
+			continue
+		}
+		var e editEvent
+		if json.Unmarshal(m.Raw, &e) == nil && e.Type == "user/message" && e.Data.Source.Kind == "user" && e.Data.Source.Edit != nil && e.SurfaceOp.Op == "replace" {
+			return true
+		}
+	}
+	return false
+}
+
 // Keep the append-only journal untouched. Reconstruct the visible chat from edit replacements on every snapshot/page.
 func projectMessageEdits(messages []Message) []Message {
 	hidden := map[int]bool{}
 	for _, m := range messages {
+		if len(m.Raw) == 0 || !bytes.Contains(m.Raw, []byte("replace")) || !bytes.Contains(m.Raw, []byte("surfaceOp")) {
+			continue
+		}
 		var e editEvent
 		if json.Unmarshal(m.Raw, &e) != nil || e.Type != "user/message" || e.Data.Source.Kind != "user" || e.Data.Source.Edit == nil || e.SurfaceOp.Op != "replace" {
 			continue

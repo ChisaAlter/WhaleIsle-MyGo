@@ -16,9 +16,10 @@ test('one isolated staging fixture: complete inventory, repeat build, missing re
       else if(f.startsWith('vendor/deepseek-harness/')) put(path.join(harness,f.slice('vendor/deepseek-harness/'.length)));
       else put(path.join(work,f));
     }
+    fs.mkdirSync(path.join(harness,'packages'),{recursive:true});
     put(path.join(work,'source-provenance.json'),'{}');
     put(path.join(work,'node-build.json'),JSON.stringify({platform:'win32',arch:'x64',nodeSHA256:crypto.createHash('sha256').update(fs.readFileSync(path.join(node,'node.exe'))).digest('hex')}));
-    put(path.join(work,'vendor/chisacode-remote/node_modules/node-pty/prebuilds/win32-x64/pty.node'));
+    put(path.join(work,'vendor/chisacode-remote/node_modules/node-pty/prebuilds/win32-x64/conpty.node'));
     stage(work,harness,node,dest); verify(dest);
     stage(work,harness,node,dest); verify(dest);
     const m=JSON.parse(fs.readFileSync(path.join(dest,'staging-manifest.json')));

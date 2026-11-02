@@ -1,6 +1,10 @@
 package session
 
-import "strings"
+import (
+	"strings"
+
+	"whaleisle/internal/markdownsyntax"
+)
 
 // ImageRefs returns local/remote image paths referenced by a message body
 // (placeholder lines `[image] path` and markdown `![](path)`).
@@ -22,18 +26,8 @@ func ImageRefs(body string) []string {
 		seen[p] = struct{}{}
 		out = append(out, p)
 	}
-	for _, line := range strings.Split(body, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "[image] ") {
-			add(strings.TrimSpace(strings.TrimPrefix(line, "[image] ")))
-			continue
-		}
-		if p := markdownImagePath(line); p != "" {
-			add(p)
-		}
-	}
-	if p := markdownImagePath(body); p != "" {
-		add(p)
+	for _, ref := range markdownsyntax.ImageReferences(body) {
+		add(ref)
 	}
 	return out
 }

@@ -24,6 +24,7 @@ type valueDrag struct {
 	over     uint64
 	elem     *node
 	canceled bool
+	ended    bool
 	native   bool
 }
 
@@ -39,7 +40,11 @@ func (e *node) Drag(value any) *node {
 		d.elem = e
 		// The value as the frame has it, as of rows that moved.
 		if !d.native {
-			d.value = value
+			// Completion subscribers own the value captured at drag start,
+			// including its owner epoch. Other drags retain the live-value API.
+			if _, subscribed := e.st.locals[dragEndKey{}]; !subscribed {
+				d.value = value
+			}
 		}
 	}
 	return e
@@ -178,11 +183,20 @@ func (rt *engine) dragEnd() bool {
 		return true
 	}
 	rt.drag = nil
+	dropped := false
+	if !rt.windowFocused || !rt.pointerIn || !((Rect{W: rt.c.w, H: rt.c.h}).Contains(rt.pointerX, rt.pointerY)) {
+		d.canceled = true
+	}
 	if !d.canceled {
 		if t := rt.states[rt.valueTarget(rt.pointerX, rt.pointerY, d.value)]; t != nil {
 			t.droppedValue, t.hasDropped = d.value, true
 			t.dropX, t.dropY = rt.pointerX, rt.pointerY
+			dropped = true
 		}
+	}
+	if !d.ended {
+		rt.recordDragEnd(d, dropped)
+		d.ended = true
 	}
 	rt.requestFrame()
 	return true
@@ -196,6 +210,10 @@ func (rt *engine) dragCancel() bool {
 			return true
 		}
 		d.canceled, d.over = true, 0
+		if !d.ended {
+			rt.recordDragEnd(d, false)
+			d.ended = true
+		}
 		rt.requestFrame()
 		return true
 	}

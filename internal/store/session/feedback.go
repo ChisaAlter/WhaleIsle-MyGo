@@ -30,8 +30,10 @@ type FeedbackView struct {
 }
 type feedbackState struct {
 	FeedbackView
-	epoch           uint64
-	draftGeneration uint64
+	epoch              uint64
+	draftGeneration    uint64
+	readGeneration     uint64
+	readHostGeneration uint64
 }
 
 func (s *Store) Feedback() FeedbackView {
@@ -45,6 +47,7 @@ func (s *Store) Feedback() FeedbackView {
 	return v
 }
 func (s *Store) clearFeedbackLocked() {
+	s.invalidateViewLocked()
 	s.feedback = feedbackState{epoch: s.feedback.epoch + 1}
 	s.messageRatings = nil
 	s.feedbackBusyID = ""
@@ -113,18 +116,47 @@ func decodeFeedback(raw json.RawMessage) (feedbackReply, error) {
 	return r, nil
 }
 func (s *Store) RefreshFeedback(ctx context.Context) {
+	s.refreshFeedbackForOwner(ctx, nil)
+}
+
+func (s *Store) refreshFeedbackForOwner(ctx context.Context, owner *workspaceSelectedOwner) {
 	s.mu.Lock()
+	if ctx.Err() != nil || (owner != nil && !owner.currentLocked(s)) {
+		s.mu.Unlock()
+		return
+	}
 	f := &s.feedback
-	if s.client == nil || s.selectedID == "" || f.Loading || f.BusyID != "" {
+	if s.client == nil || s.selectedID == "" || (f.Loading && f.readHostGeneration == s.eventsGeneration) || f.BusyID != "" {
 		s.mu.Unlock()
 		return
 	}
 	client, id, epoch := s.client, s.selectedID, f.epoch
+	f.readGeneration++
+	request, hostGeneration := f.readGeneration, s.eventsGeneration
+	f.readHostGeneration = hostGeneration
 	f.Loading = true
 	f.Ready = false
 	f.Error = ""
 	s.mu.Unlock()
 	s.fire()
+	// A synchronous notification can itself navigate or replace the Host.
+	// Recheck before launching an RPC for a revoked owner.
+	if owner != nil {
+		s.mu.Lock()
+		valid := ctx.Err() == nil && owner.currentLocked(s) && s.feedback.epoch == epoch && s.feedback.readGeneration == request
+		retired := !valid && s.feedback.epoch == epoch && s.feedback.readGeneration == request && s.feedback.Loading
+		if retired {
+			s.feedback.Loading = false
+			s.invalidateViewLocked()
+		}
+		s.mu.Unlock()
+		if !valid {
+			if retired {
+				s.fire()
+			}
+			return
+		}
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
@@ -144,8 +176,16 @@ func (s *Store) RefreshFeedback(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.client != client || s.selectedID != id || s.feedback.epoch != epoch {
+		if s.client != client || s.selectedID != id || s.feedback.epoch != epoch || s.feedback.readGeneration != request {
 			s.mu.Unlock()
+			return
+		}
+		if ctx.Err() != nil || s.eventsGeneration != hostGeneration || (owner != nil && !owner.currentLocked(s)) {
+			// This request still owns Loading. Retire only that flag so a new
+			// Host generation can retry without accepting the stale response.
+			s.feedback.Loading = false
+			s.mu.Unlock()
+			s.fire()
 			return
 		}
 		f := &s.feedback

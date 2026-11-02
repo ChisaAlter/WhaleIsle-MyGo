@@ -219,10 +219,12 @@ func Save(dir string, creds Credentials) error {
 		}
 	}
 	key, err := credentialOS.key(dir, create)
+	defer clear(key)
 	if err != nil {
 		return err
 	}
 	plaintext, err := json.Marshal(creds)
+	defer clear(plaintext)
 	if err != nil {
 		return err
 	}
@@ -257,6 +259,7 @@ func decryptEnvelope(dir string, data []byte) (Credentials, error) {
 	} else {
 		return Credentials{}, ErrUnsupportedEnvelopeVersion
 	}
+	defer clear(key)
 	if err != nil {
 		return Credentials{}, err
 	}

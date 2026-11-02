@@ -737,4 +737,44 @@ type Notification struct {
 	// Group gathers the notifications that share it (threadIdentifier on
 	// macOS).
 	Group string
+	Toast *ToastOptions
+}
+
+// ToastOptions is the Windows-specific WinRT payload, validated in the core.
+type ToastOptions struct {
+	AppID, XML, Icon, Hero, Scenario, Duration string
+	Actions                                    []ToastAction
+	SuppressPopup                              bool
+}
+type ToastAction struct{ Label, Arguments string }
+type NotificationActivation struct {
+	Arguments string
+	UserInput map[string]string
+}
+
+// NotificationObserver is an optional AppHandler extension. Events run on the
+// UI thread. A timed-out banner can remain in history and later be activated.
+type NotificationObserver interface {
+	NotificationActivated(id string, activation NotificationActivation)
+	NotificationClosed(id, reason string)
+	NotificationFailed(id string, err error)
+}
+
+type NotificationRecord struct{ ID, Tag, Group, XML string }
+type NotificationHistoryBackend interface {
+	NotificationHistory(appID string) ([]NotificationRecord, error)
+}
+
+type NotificationActivatorBackend interface {
+	RegisterNotificationActivator(clsid, appID string) (func(), error)
+}
+type NotificationActivationMessage struct {
+	AppID, Arguments string
+	UserInput        map[string]string
+}
+type NotificationActivationReceiver interface {
+	ReceiveNotificationActivation(clsid, appID string, timeout time.Duration) (NotificationActivationMessage, error)
+}
+type NotificationActivationDispatcher interface {
+	DispatchNotificationActivation(NotificationActivationMessage)
 }

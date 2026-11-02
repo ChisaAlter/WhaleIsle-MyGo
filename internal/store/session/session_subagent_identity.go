@@ -35,6 +35,9 @@ func subagentIdentityValue(raw json.RawMessage) (*SessionSubagentIdentity, bool)
 }
 
 func subagentIdentityFromValues(raw json.RawMessage) (*SessionSubagentIdentity, bool) {
+	if !bytes.Contains(raw, []byte(`"subagent"`)) {
+		return nil, false
+	}
 	var values map[string]json.RawMessage
 	if json.Unmarshal(raw, &values) != nil {
 		return nil, false
@@ -57,7 +60,11 @@ func mergeSessionSubagentIdentity(next *Item, old Item) {
 
 // Control baselines can precede the roster. The source keeps projections by
 // session independently, so an availability-only row must see that same value.
+// The row is observed on every list refresh; only a changed identity advances the
+// Snapshot revision.
 func (s *Store) syncSessionSubagentIdentityLocked(item *Item) {
+	beforeValue := item.SubagentIdentity
+	beforeKnown, beforeKind, beforeSeq := item.subagentIdentityKnown, item.subagentIdentityKind, item.subagentIdentitySeq
 	if cached, exists := s.subagentIdentities[item.SessionID]; exists {
 		mergeSessionSubagentIdentity(item, Item{SubagentIdentity: cached.value, subagentIdentityKnown: true, subagentIdentityKind: cached.kind, subagentIdentitySeq: cached.seq})
 	}
@@ -66,6 +73,9 @@ func (s *Store) syncSessionSubagentIdentityLocked(item *Item) {
 			s.subagentIdentities = map[string]sessionSubagentIdentityState{}
 		}
 		s.subagentIdentities[item.SessionID] = sessionSubagentIdentityState{value: item.SubagentIdentity, kind: item.subagentIdentityKind, seq: item.subagentIdentitySeq}
+	}
+	if beforeValue != item.SubagentIdentity || beforeKnown != item.subagentIdentityKnown || beforeKind != item.subagentIdentityKind || beforeSeq != item.subagentIdentitySeq {
+		s.invalidateViewLocked()
 	}
 }
 
@@ -76,6 +86,9 @@ func (s *Store) applySessionSubagentIdentityValuesLocked(id, kind string, seq fl
 }
 
 func (s *Store) applySessionSubagentIdentityLocked(id, kind string, seq float64, identity *SessionSubagentIdentity) {
+	// Accepted control data is authoritative even when it clears a row, so the
+	// view advances here; only the per-row list refresh below is change-aware.
+	s.invalidateViewLocked()
 	if id == "" {
 		return
 	}
@@ -94,6 +107,7 @@ func (s *Store) applySessionSubagentIdentityLocked(id, kind string, seq float64,
 }
 
 func (s *Store) applySessionSubagentIdentityControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  *float64
@@ -122,6 +136,7 @@ func (s *Store) applySessionSubagentIdentityControlLocked(raw json.RawMessage) {
 }
 
 func (s *Store) resetSessionSubagentIdentitiesLocked() {
+	s.invalidateViewLocked()
 	s.subagentIdentities = nil
 	for i := range s.items {
 		s.items[i].SubagentIdentity = nil

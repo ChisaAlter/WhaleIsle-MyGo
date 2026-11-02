@@ -95,7 +95,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, word("正在读取分支…", "Loading branches…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-	ui.TextInput(c, &w.BranchQuery).FillWidth().Placeholder(word("筛选分支", "Filter branches"))
+	ui.TextInput(c, &w.BranchQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("筛选分支", "Filter branches"))
 	needle := strings.ToLower(strings.TrimSpace(w.BranchQuery))
 	ui.Scroll(c).Height(120).FillWidth().Children(func() {
 		ui.Column(c).Gap(3).Children(func() {
@@ -133,7 +133,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 	})
 	ui.Row(c).Gap(6).Children(func() {
-		ui.TextInput(c, &w.BranchName).Grow(1).Placeholder(word("新分支名称", "New branch name"))
+		ui.TextInput(c, &w.BranchName).Grow(1).Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("新分支名称", "New branch name"))
 		taken := false
 		for _, branch := range w.Branches {
 			if !branch.Remote && branch.Name == strings.TrimSpace(w.BranchName) {

@@ -31,15 +31,26 @@ func paintContextMeter(c *ui.Context, snapshot session.ViewState, colors theme.C
 	}
 	reading := fmt.Sprintf("%d%%", value.Percent)
 	trigger := ui.Button(c, "").Label("Context occupancy").
-		Tooltip(fmt.Sprintf(i18n.T(i18n.KeyComposerContextUsed), reading) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).
-		Height(height).Padding(0, 8).Gap(6).Radius(8).AlignItems(ui.Center).
+		Tooltip(fmt.Sprintf(i18n.T(i18n.KeyComposerContextUsed), reading)+"  ·  "+i18n.T(i18n.KeyComposerShortcutEsc)).
+		Height(height).Padding(0, 8).Gap(6).Radius(8).BorderWidth(0).AlignItems(ui.Center).
 		Background(ui.Transparent).TextColor(muted)
 	if trigger.Hovered() || state.Open {
 		trigger = trigger.Background(chrome.Color(colors.Hover))
 	}
+	track := chrome.Color(colors.Border)
+	if colors.BorderL3 != "" {
+		track = chrome.Color(colors.BorderL3)
+	}
+	if isDark(colors) {
+		track = ui.RGBA(255, 255, 255, 0.18)
+	}
+	filled := muted
+	if colors.Secondary != "" {
+		filled = chrome.Color(colors.Secondary)
+	}
 	trigger.Children(func() {
-		contextRing(c, value.Percent, chrome.Color(colors.Border), muted)
-		ui.Text(c, reading).FontSize(13).TextColor(muted)
+		contextRing(c, value.Percent, track, filled)
+		ui.Text(c, reading).FontSize(12).FixedLineHeight(16).TextColor(muted)
 	})
 	if trigger.Clicked() {
 		state.Open = !state.Open
@@ -83,9 +94,9 @@ type contextMeterPanel struct {
 }
 
 type contextSegment struct {
-	label string
-	color ui.Color
-	width float32
+	label  string
+	color  ui.Color
+	width  float32
 	tokens float64
 }
 
@@ -114,15 +125,16 @@ func contextSegments(value *session.ContextOccupancy, colors theme.Colors) []con
 	}
 }
 
-// contextRing paints the 14px gauge: a 2px track with the occupied arc turned a
+// contextRing paints the 14px gauge: a 1.75px track with the occupied arc turned a
 // quarter counter-clockwise so it starts at the top.
 func contextRing(c *ui.Context, percent int, track, filled ui.Color) ui.Element {
 	ring := ui.Box(c).Size(14, 14).Shrink(0)
 	ring.Draw(func(p *ui.Painter, r ui.Rect) {
-		radius := (min(r.W, r.H) - 2) / 2
+		const strokeWidth = float32(1.75)
+		radius := (min(r.W, r.H) - strokeWidth) / 2
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		box := ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}
-		p.Stroke(box, track, radius, 2)
+		p.Stroke(box, track, radius, strokeWidth)
 		if percent <= 0 || radius <= 0 {
 			return
 		}
@@ -141,7 +153,7 @@ func contextRing(c *ui.Context, percent int, track, filled ui.Color) ui.Element 
 				path.LineTo(x, y)
 			}
 		}
-		p.StrokePath(path, 2, filled)
+		p.StrokePath(path, strokeWidth, filled)
 	})
 	return ring
 }

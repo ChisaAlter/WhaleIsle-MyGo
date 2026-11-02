@@ -30,6 +30,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -381,7 +382,9 @@ func readOnlyControls(kind string, v session.ViewState) error {
 			}
 		}
 		if m.Kind == session.MessageKindQuestionReply {
-			tt := ui.NewTester(func(c *ui.Context) { chat.QuestionReplyView(c, m, v.SelectedID, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 900, 700)
+			tt := ui.NewTester(func(c *ui.Context) {
+				chat.QuestionReplyView(c, m, v.SelectedID, theme.Resolve(theme.IDDeepseekLight).Active(false), ui.RGB(0, 0, 0), ui.RGB(80, 80, 80))
+			}, 900, 700)
 			if err := tt.Click("Question reply details " + m.ID); err != nil {
 				return err
 			}

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,30 +32,40 @@ type HistoryNavigationView struct {
 }
 
 type historyNavigationState struct {
-	outline      []HistoryTurn
-	outlineSeq   float64
-	outlineKnown bool
-	baseSeq      float64
-	baseKnown    bool
-	view         HistoryNavigationView
-	cancel       context.CancelFunc
+	outline            []HistoryTurn
+	outlineSeq         float64
+	outlineKnown       bool
+	baseSeq            float64
+	baseKnown          bool
+	view               HistoryNavigationView
+	cancel             context.CancelFunc
+	cachedTurns        []HistoryTurn
+	cachedSelectedID   string
+	cachedOutlineSeq   float64
+	cachedOutlineKnown bool
+	cachedBaseSeq      float64
+	cachedBaseKnown    bool
+	cachedValid        bool
 }
 
 func historySafeNumber(v float64) bool { return !math.Signbit(v) && assistantSafeInt(v) && v >= 0 }
 
 func (s *Store) resetHistoryNavigationLocked() {
+	s.invalidateViewLocked()
 	s.cancelHistoryTurnJumpLocked()
 	n := s.historyNavigation
 	s.historyNavigation = historyNavigationState{view: HistoryNavigationView{Request: n.view.Request}, outline: n.outline, outlineSeq: n.outlineSeq, outlineKnown: n.outlineKnown}
 }
 
 func (s *Store) clearHistoryOutlineLocked() {
+	s.invalidateViewLocked()
 	s.historyNavigation.outline = nil
 	s.historyNavigation.outlineKnown = false
 	s.historyNavigation.outlineSeq = 0
 }
 
 func (s *Store) cancelHistoryTurnJumpLocked() {
+	s.invalidateViewLocked()
 	n := &s.historyNavigation
 	if n.cancel != nil {
 		n.cancel()
@@ -72,6 +83,7 @@ func (s *Store) cancelHistoryTurnJumpLocked() {
 }
 
 func (s *Store) noteHistoryBaseLocked(seq float64) {
+	s.invalidateViewLocked()
 	if !historySafeNumber(seq) {
 		return
 	}
@@ -98,6 +110,7 @@ func (s *Store) applyHistoryOutlineValuesLocked(values json.RawMessage, seq floa
 }
 
 func (s *Store) applyHistoryOutlineLocked(raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	n := &s.historyNavigation
 	if s.selectedID == "" || !historySafeNumber(seq) || (n.outlineKnown && seq < n.outlineSeq) {
 		return
@@ -129,9 +142,11 @@ func (s *Store) applyHistoryOutlineLocked(raw json.RawMessage, seq float64) {
 	sort.Slice(n.outline, func(i, j int) bool { return n.outline[i].Turn < n.outline[j].Turn })
 	n.outlineSeq = seq
 	n.outlineKnown = true
+	n.cachedValid = false
 }
 
 func (s *Store) applyHistoryOutlineControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var f struct {
 		Type, SessionID, Key string
 		Seq                  float64
@@ -165,11 +180,43 @@ func historyPreview(body string, limit int) string {
 }
 
 func historyMessageTurn(m Message) (float64, bool) {
+	if len(m.Raw) == 0 {
+		return 0, false
+	}
+	if turn, _, known, cached := LookupCachedCoordinates(m.Seq, m.Raw); cached {
+		if !known || !historySafeNumber(turn) {
+			return 0, false
+		}
+		return turn, true
+	}
+	if !bytes.Contains(m.Raw, []byte("turn")) && !bytes.Contains(m.Raw, []byte(`\u`)) {
+		return 0, false
+	}
 	var e struct{ Data struct{ Turn *float64 } }
 	if json.Unmarshal(m.Raw, &e) != nil || e.Data.Turn == nil || !historySafeNumber(*e.Data.Turn) {
 		return 0, false
 	}
 	return *e.Data.Turn, true
+}
+
+func (s *Store) historyMessageTurnLocked(m Message) (float64, bool) {
+	if m.Seq > 0 && s.trajTimingParsed != nil {
+		if p, ok := s.trajTimingParsed[m.Seq]; ok && bytes.Equal(p.raw, m.Raw) {
+			if !p.ok || p.event.Data.Turn == nil || !historySafeNumber(*p.event.Data.Turn) {
+				return 0, false
+			}
+			return *p.event.Data.Turn, true
+		}
+	}
+	if m.Seq > 0 && s.trajTimingCache != nil {
+		if entry, ok := s.trajTimingCache[m.Seq]; ok && bytes.Equal([]byte(entry.raw), m.Raw) {
+			if !entry.parsed.ok || entry.parsed.event.Data.Turn == nil || !historySafeNumber(*entry.parsed.event.Data.Turn) {
+				return 0, false
+			}
+			return *entry.parsed.event.Data.Turn, true
+		}
+	}
+	return historyMessageTurn(m)
 }
 
 func (s *Store) historyNavigationSnapshotLocked() HistoryNavigationView {
@@ -183,6 +230,13 @@ func (s *Store) historyNavigationSnapshotLocked() HistoryNavigationView {
 			return v
 		}
 	}
+	n := &s.historyNavigation
+	if n.cachedValid && s.historyVerifiedLocked() && n.cachedSelectedID == s.selectedID &&
+		n.cachedOutlineSeq == n.outlineSeq && n.cachedOutlineKnown == n.outlineKnown &&
+		n.cachedBaseSeq == n.baseSeq && n.cachedBaseKnown == n.baseKnown {
+		v.Turns = cloneSlice(n.cachedTurns)
+		return v
+	}
 	byTurn := map[float64]HistoryTurn{}
 	for _, row := range s.historyNavigation.outline {
 		byTurn[row.Turn] = row
@@ -192,7 +246,7 @@ func (s *Store) historyNavigationSnapshotLocked() HistoryNavigationView {
 			if m.Streaming || m.Seq <= 0 {
 				continue
 			}
-			turn, ok := historyMessageTurn(m)
+			turn, ok := s.historyMessageTurnLocked(m)
 			if !ok {
 				continue
 			}
@@ -218,6 +272,13 @@ func (s *Store) historyNavigationSnapshotLocked() HistoryNavigationView {
 		v.Turns = append(v.Turns, row)
 	}
 	sort.Slice(v.Turns, func(i, j int) bool { return v.Turns[i].Turn < v.Turns[j].Turn })
+	n.cachedTurns = cloneSlice(v.Turns)
+	n.cachedSelectedID = s.selectedID
+	n.cachedOutlineSeq = n.outlineSeq
+	n.cachedOutlineKnown = n.outlineKnown
+	n.cachedBaseSeq = n.baseSeq
+	n.cachedBaseKnown = n.baseKnown
+	n.cachedValid = true
 	return v
 }
 
@@ -330,6 +391,7 @@ func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id s
 	n := &s.historyNavigation
 	n.view.Busy = false
 	s.historyPageBusy = false
+	s.invalidateViewLocked()
 	if ctx.Err() != nil {
 		resultErr = ctx.Err()
 	}
@@ -390,6 +452,7 @@ func (s *Store) ConsumeHistoryTurnLanding(id string, request uint64) bool {
 		return false
 	}
 	n.view.Ready = false
+	s.invalidateViewLocked()
 	return true
 }
 

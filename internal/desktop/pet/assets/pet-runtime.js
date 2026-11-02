@@ -3,12 +3,20 @@
 (async function() {
   const fallback = document.getElementById('fallback');
   const canvas = document.getElementById('sprite'), ctx = canvas.getContext('2d');
+  const body = window.WhalePetBody?.current;
+  const characters = body?.elements || [canvas, fallback];
   const notice = document.getElementById('render-notice');
   // Text the shell rendered server-side reports a degraded renderer. Anything
   // the page writes itself is transient progress and is cleared after painting.
   const serverNotice = notice ? (notice.textContent || '').trim() : '';
   let settings = {}, shiftHeld = false, clickAudio = null;
-  let behaviorController = null, currentTask = {};
+  let behaviorController = null, currentTask = {}, neuralSleep = null, neuralRest = null, neuralParticles = null, restVersion = 0, latestLayout = null;
+  const layoutController = window.WhalePetLayout?.create({body}) || {update(){}};
+  function updateLayout(next) {
+    if(!next || !['X','Y','Width','Height'].every(key=>Number.isFinite(next[key])) || !(next.Width>0) || !(next.Height>0))return;
+    latestLayout=next;layoutController.update(next);neuralSleep?.reproject();neuralSleep?.reprojectPickup?.();
+  }
+  window.addEventListener('whale-pet-layout', event => updateLayout(event.detail));
   try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
   function applySettings(next) {
     if (next && typeof next === 'object') settings = next;
@@ -18,8 +26,10 @@
     const scale = Math.max(.6, Math.min(1.6, Number(settings.scale) || 1));
     const opacity = Math.max(.3, Math.min(1, Number(settings.opacity) || 1));
     document.documentElement.style.setProperty('--pet-scale', String(scale));
-    document.querySelector('.task').style.maxHeight = 'calc(100vh - ' + Math.ceil(130 * scale) + 'px)';
-    for (const character of [canvas, fallback]) {
+    // Layout comes from the native logical character rectangle, not a page
+    // column that reserves space below a shrunken character.
+    for (const character of characters) {
+      if (!character) continue;
       character.style.opacity = String(opacity);
       character.style.setProperty('--app-region', 'no-drag');
     }
@@ -54,7 +64,7 @@
   // Report only visible islands in this page, never desktop coordinates.
   // Native cursor sampling can restore interaction even while this window is
   // ignoring mouse events. A short periodic report also restores a shown page.
-  const hitElements = [canvas, fallback, document.getElementById('pet-status-toggle'),
+  const hitElements = [...(body?.targets || characters), document.getElementById('pet-status-toggle'),
     document.getElementById('pet-status-card'), document.getElementById('pet-bubble'), notice];
   let hitReportFrame = 0;
   function reportHitRegions() {
@@ -62,8 +72,8 @@
     const regions = hitElements
       .flatMap(element => {
         if (!element || element.hidden || getComputedStyle(element).display === 'none') return [];
-        const r = element.getBoundingClientRect();
-        return r.width > 0 && r.height > 0 ? [{X:r.x, Y:r.y, Width:r.width, Height:r.height}] : [];
+        const r = body?.targets.includes(element) ? body.hitRect(element) : element.getBoundingClientRect();
+        return r && r.width > 0 && r.height > 0 ? [{X:r.x, Y:r.y, Width:r.width, Height:r.height}] : [];
       });
     const data = JSON.stringify({Width:innerWidth, Height:innerHeight, Regions:regions, Epoch:currentTask.HitEpoch});
     location.href = 'whale-pet://localhost/interactive-regions?data=' + encodeURIComponent(data);
@@ -89,18 +99,19 @@
   }
   for (const event of ["pointerdown", "pointerover", "focusin", "keydown"]) document.addEventListener(event, motionContact);
   contactTimer = setInterval(() => {
-    if (document.querySelector("#sprite:hover,#fallback:hover,.task:hover,#pet-bubble:hover")) motionContact();
+    if (document.querySelector((body?.hoverSelector || '#sprite:hover,#fallback:hover') + ',.task:hover,#pet-bubble:hover')) motionContact();
   }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null, paintSleeping = null;
-  const careController = window.WhalePetCareAnimation.create({characters: [canvas, fallback]});
-  const interactionController = window.WhalePetInteraction.create({characters: [canvas, fallback], getSettings: () => settings, isSleeping: () => sleeping, onTap: playClickSound});
+  const careController = window.WhalePetCareAnimation.create({characters, body});
+  const interactionController = window.WhalePetInteraction.create({characters, body, getSettings: () => settings, isSleeping: () => sleeping, onTap: playClickSound});
   behaviorController = window.WhalePetBehavior?.create({
     bubble: document.getElementById('pet-bubble'), getSettings: () => settings,
-    getStatus: () => currentTask, isSleeping: () => sleeping,
+    getStatus: () => currentTask, isSleeping: () => sleeping, body,
   });
   function setSleeping(next) {
     if (stopped || sleeping === next) return;
     sleeping = next;
+    neuralSleep?.request(next);
     if (sleeping) {
       cancelAnimationFrame(raf); raf = 0;
       clearInterval(spriteTimer); spriteTimer = 0;
@@ -112,12 +123,13 @@
   function contactWake() {
     if (sleeping && !stopped) location.href = 'whale-pet://localhost/wake-contact';
   }
-  canvas.addEventListener('pointerenter', contactWake);
-  fallback.addEventListener('pointerenter', contactWake);
+  for (const character of body?.targets || characters) character?.addEventListener('pointerenter', contactWake);
   const stop = () => {
     stopped = true; resumeRenderer = null;
     behaviorController?.close();
+    neuralRest?.close();neuralRest=null;
     interactionController.close();
+    neuralSleep?.close(); neuralSleep=null;
     careController.close();
     if (clickAudio) void clickAudio.close().catch(() => {});
     cancelAnimationFrame(raf); clearInterval(spriteTimer); clearTimeout(taskTimer); clearInterval(contactTimer);
@@ -135,7 +147,11 @@
       if (!response.ok) throw new Error('status unavailable');
       const task = await response.json();
       if (stopped) return;
+      const nextSleeping=task.Rest?.Sleeping === true;
+      if(nextSleeping!==sleeping||(currentTask.HitEpoch&&currentTask.HitEpoch!==task.HitEpoch))restVersion++;
       currentTask = task;
+      neuralSleep?.request(nextSleeping);neuralSleep?.doze(task.Rest?.Dozing === true);
+      updateLayout(task.Layout);
       careController.update(task);
       applySettings(task.Behavior);
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
@@ -197,13 +213,14 @@
     img.onload=()=>done();img.onerror=()=>done(new Error('image unavailable'));img.src=src;
   }); }
   function stateInput(pose) {
-    interactionController.pose(pose);careController.pose(pose);
+    const pickup=neuralRest?.pickup?.phase;
+    interactionController.pose(pose);if(!pickup)careController.pose(pose,!!neuralRest);
     const input=interactionController.renderState?.() || {};
     const action=currentTask.Care?.Action;
     const age=action?Date.now()-action.ID:Infinity;
     if(sleeping) input.state='sleep';
-    else if(age>=0 && age<2800) input.state=action.Kind==='pat'?'react-head':'eat';
-    else if(age>=2800 && age<5000 && action?.Level>0) input.state='celebrate';
+    else if(!pickup && age>=0 && age<2800) input.state=action.Kind==='pat'?'react-head':'eat';
+    else if(!pickup && age>=2800 && age<5000 && action?.Level>0) input.state='celebrate';
     input.pose=pose;input.sleepy=currentTask.Rest?.Dozing?0.7:0;
     return input;
   }
@@ -215,7 +232,7 @@
     if(stopped){rig.close();return;}
     engine=rig;canvas.width=390;canvas.height=492;
     const pose=new Float32Array(45);let last=-Infinity;
-    function paint(now){rig.frame(now/1000,stateInput(pose));canvas.hidden=false;fallback.hidden=true;}
+    function paint(now){rig.frame(now/1000,stateInput(pose));canvas.hidden=false;fallback.hidden=true;if(neuralSleep)reportHitRegions();}
     paintSleeping=()=>{try{const now=performance.now();paint(now);paint(now+100);paint(now+200);}catch{void nextRenderer();}};
     function tick(now) {
       raf=0;if(stopped||sleeping)return;
@@ -235,71 +252,97 @@
     resumeRenderer=()=>{if(!stopped&&!sleeping&&!raf)raf=requestAnimationFrame(tick);};resumeRenderer();
   }
   async function startNeural() {
-    let session=null;
-    try {
     notice.textContent='正在载入 THA4… / Loading THA4…';
     await script('tha4.js'); await script('render/ort/ort.all.min.js');
     if (stopped) throw new Error('closed');
     ort.env.wasm.wasmPaths=new URL('render/ort/', location.href).href;
     ort.env.wasm.numThreads=1; ort.env.wasm.proxy=false; ort.env.logLevel='warning';
-    let provider='wasm';
-    for (const ep of ['webnn','webgpu','wasm']) {
-      try { session=await ort.InferenceSession.create(new URL('render/avatar/model.onnx', location.href).href,{executionProviders:[ep]}); provider=ep; break; }
-      catch { if (stopped) throw new Error('closed'); }
-    }
-    if (!session) throw new Error('No supported inference provider');
-    if (stopped) { await session.release(); session=null; throw new Error('closed'); }
-    const img = new Image();
-    await new Promise((resolve,reject) => {img.onload=resolve;img.onerror=()=>reject(new Error('character unavailable'));img.src='render/avatar/character.png';});
+    const img = await image('render/avatar/character.png');
     if (img.naturalWidth !== 512 || img.naturalHeight !== 512) throw new Error('character shape');
-    if (stopped) { await session.release(); session=null; throw new Error('closed'); }
+    if (stopped) throw new Error('closed');
     const source=document.createElement('canvas');source.width=source.height=512;
-    const sourceCtx=source.getContext('2d',{willReadFrequently:true}); sourceCtx.drawImage(img,0,0);
-    engine=WhaleTHA4.createEngine(ort,session,WhaleTHA4.imageCHW(sourceCtx.getImageData(0,0,512,512).data));
-    session=null; // Engine owns disposal from now on.
-    const output=sourceCtx.createImageData(512,512), pose=new Float32Array(45);
-    canvas.width=390; canvas.height=492;
-    let last=0, busy=false, first=true;
-    // Upstream's 20fps inference budget; no backlog when a frame is slower.
-    // WASM remains adaptive rather than silently capped to an unusable 4fps.
+    const sourceCtx=source.getContext('2d',{willReadFrequently:true});sourceCtx.drawImage(img,0,0);
+    const pose=new Float32Array(45);
+    // A returned frame keeps the direction sampled when its inference began.
+    // The reference hanging pickup/throw pivots do not mirror around the feet.
+    const frameFacing=input=>input.state==='pick-up'||input.facing!==-1?1:-1;
+    const sleep=window.WhalePetSleep?.create({canvas,body,sleeping,normalFeet:true,getLayout:()=>latestLayout || JSON.parse(document.body.dataset.layout || '{}'),onChange:value=>{if(value?.head)careController.placeRestBody?.(value.head);reportHitRegions();},onRelease:()=>careController.releaseBody?.()});
+    neuralSleep=sleep;sleep?.doze(currentTask.Rest?.Dozing === true);
+    if(sleeping&&!currentTask.Rest)careController.update({Rest:{Sleeping:true}});
+    const firstInput=stateInput(pose), firstFacing=frameFacing(firstInput), firstRestVersion=restVersion, firstToken=sleep?.snapshot(firstInput);
+    const opened=await WhaleTHA4.open(ort,new URL('render/avatar/model.onnx',location.href).href,
+      WhaleTHA4.imageCHW(sourceCtx.getImageData(0,0,512,512).data),()=>stopped);
+    const neural=opened.engine, sr=WhalePetSuperResolution.create();
+    engine={frame:values=>neural.frame(values),close:async()=>{try{await neural.close();}finally{sr.close();}}};
+    if(stopped){await engine.close();engine=null;return;}
+    const output=sourceCtx.createImageData(512,512);
+    canvas.width=780;canvas.height=984;
+    let content=null, contentID=0;
+    function present(facing) {
+      sr.present(ctx,facing);
+      fallback.hidden=true;canvas.hidden=false;
+      document.body.dataset.superResolution=sr.ready?'anime4k':'raw';
+      notice.textContent=serverNotice;
+    }
+    function paint(pixels, facing) {
+      output.data.set(pixels);sourceCtx.putImageData(output,0,0);sr.prepare(source);present(facing);
+    }
+    function remember(kind,token,facing,modelPose,version) {
+      content=Object.freeze({kind,token,facing,modelPose:Object.freeze(Array.from(modelPose)),version,id:++contentID});
+    }
+    if(firstRestVersion===restVersion&&!(sleep&&sleeping)) {
+      const accepted=sleep?sleep.commit(opened.firstPixels,firstToken,interactionController.renderState?.()||{},()=>paint(opened.firstPixels,firstFacing)):(paint(opened.firstPixels,firstFacing),true);
+      // THA4.open's warmup frame uses a zero pose, independently of firstInput.
+      if(accepted){remember('rest',firstToken,firstFacing,new Float32Array(45),firstRestVersion);if(sleep?.active)careController.claimBody?.();}
+    }
+    if(sleep){neuralRest=interactionController.useNeuralRest?.() || null;neuralParticles=careController.useNeuralParticles?.() || null;}
+    let last=0,busy=false;
+    // Candidate slots follow the source50/110ms clock, including busy slots.
+    // Cached presentations do not upload inputs, rerun SR, or synthesize faces.
     async function tick(now) {
-      raf=0;
-      if (stopped || sleeping) return;
+      raf=0;if(stopped)return;
       raf=requestAnimationFrame(tick);
-      if (document.hidden || busy || now-last < (behaviorController?.powerSaving(now)?110:50)) return;
-      last=now; busy=true;
+      if(document.hidden)return;
       try {
-        interactionController.pose(pose);
-        careController.pose(pose);
-        const pixels=await engine.frame(pose);
-        if (!pixels || stopped || sleeping || document.hidden) return;
-        let alphaMax=0;for(let i=3;i<pixels.length;i+=4)alphaMax=Math.max(alphaMax,pixels[i]);
-        if(alphaMax<4){if(first)throw new Error('transparent first frame');return;}
-        output.data.set(pixels);sourceCtx.putImageData(output,0,0);
-        ctx.clearRect(0,0,390,492);ctx.drawImage(source,60,20,390,492,0,0,390,492);
-        fallback.hidden=true;canvas.hidden=false;first=false;
-        notice.textContent='THA4 · '+provider;
+        sleep?.tick(now);const restFrame=sleep?.snapshot({});
+        if(restFrame?.rest)neuralRest?.frame(restFrame.rest);
+        sleep?.prepareNeuralBody?.(neuralRest?.pickup);
+        const displayInput=interactionController.renderState?.()||{},displayRest=sleep?.snapshot({...displayInput,facing:content?.kind==='rest'?content.facing:displayInput.facing},restFrame),pickup=neuralRest?.pickup;
+        const usePickup=!!sleep&&!displayRest?.sleeping&&!displayRest?.waking&&!displayRest?.rest?.phase&&!sleep.active&&(!!pickup?.phase||sleep.pickupActive);
+        const pickupToken=usePickup?sleep.bodySnapshot(pickup,neuralRest.input):null;
+        const displayToken=usePickup?pickupToken:displayRest;
+        const displayFacing=usePickup?(pickup?.hanging?1:displayInput.facing===-1?-1:1):content?.facing??frameFacing(displayInput);
+        if(sleep&&content?.version===restVersion)sleep.presentCommitted(content,displayToken,usePickup?neuralRest.input:displayInput,()=>present(displayFacing));
+        neuralParticles?.frame(now,sleep?.active&&sleeping&&!body?.capturing()&&sleep.evidence?.revision===restFrame?.revision?{sleeping:true,phase:sleep.evidence.elapsed<1.2?'sleep-enter':'sleep',layout:latestLayout}:null);
+        if(now-last<(behaviorController?.powerSaving(now)?110:50))return;
+        last=now;if(busy)return;busy=true;
+        const input=stateInput(pose),version=restVersion,token=sleep?.snapshot(input,restFrame),facing=usePickup?(pickup?.hanging?1:input.facing===-1?-1:1):frameFacing(input);
+        const modelPose=Object.freeze(Array.from(pose));
+        try {
+          const pixels=await engine.frame(pose);
+          if(pixels&&!stopped&&!document.hidden&&version===restVersion){
+            const accepted=usePickup?sleep.commitNeuralBody(pixels,pickupToken,neuralRest.input,()=>paint(pixels,facing)):sleep?sleep.commitRest(pixels,token,interactionController.renderState?.()||{},()=>paint(pixels,facing)):(paint(pixels,facing),true);
+            if(accepted){
+              remember(usePickup?'pickup':'rest',usePickup?pickupToken:token,facing,modelPose,version);
+              // Completion may arrive after several displayed body ticks. Finish
+              // this task with the current geometry, without rerunning the model.
+              if(sleep){const current=interactionController.renderState?.()||{},latest=usePickup?sleep.bodySnapshot(neuralRest.pickup,neuralRest.input):sleep.snapshot({...current,facing});const latestFacing=usePickup?(latest.frame?.hanging?1:latest.frame?.facing===-1?-1:1):facing;sleep.presentCommitted(content,latest,usePickup?neuralRest.input:current,()=>present(latestFacing));}
+              if(sleep?.active||usePickup)careController.claimBody?.();
+            }
+          }
+        } finally {busy=false;}
       } catch {
-        resumeRenderer=null;cancelAnimationFrame(raf);raf=0;try {await engine.close();} catch {} engine=null;
-        if (!stopped) void nextRenderer();
-      } finally { busy=false; }
-    }
-    // No concurrent session.run; rAF callbacks already queued are canceled on failure.
-    resumeRenderer = () => {
-      if (!stopped && !sleeping && !raf) {
-        last=0; raf=requestAnimationFrame(tick);
+        resumeRenderer=null;cancelAnimationFrame(raf);raf=0;
+        if(!stopped)void nextRenderer();
       }
-    };
-    document.body.dataset.renderer='neural';
-    // Same as the rig path: no permanent label at rest (native pet-live2d.html
-    // shows only #pet). Keep the shell's degradation text when it exists.
-    if(!serverNotice){notice.textContent='';}
-    resumeRenderer();
-
-    } catch(error) {
-      if(session){try{await session.release();}catch{}}
-      throw error;
     }
+    resumeRenderer=()=>{if(!stopped&&!raf)raf=requestAnimationFrame(tick);};
+    paintSleeping=resumeRenderer;
+    document.body.dataset.renderer='neural';
+    document.body.dataset.provider=opened.provider;
+    document.body.dataset.gpuInputs=String(neural.gpuInputs);
+    document.body.dataset.graphCapture=String(opened.capture);
+    resumeRenderer();
   }
   async function startSprite() {
     let sheet=null;
@@ -315,7 +358,7 @@
       ctx.scale(1-.01*breath,1+.016*breath);ctx.translate(-96,-204-pose[42]*5);
       if(sheet)ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208);
       else ctx.drawImage(head,36,40+pose[38]*2.5,120,120);
-      ctx.restore();canvas.hidden=false;fallback.hidden=true;
+      ctx.restore();canvas.hidden=false;fallback.hidden=true;if(neuralSleep)reportHitRegions();
     }
     function start(){
       if(stopped||sleeping||spriteTimer)return;
@@ -336,10 +379,13 @@
     if(stopped||changing)return;changing=true;
     try {
       resumeRenderer=null;paintSleeping=null;cancelAnimationFrame(raf);raf=0;clearTimeout(spriteTimer);spriteTimer=0;
+      neuralRest?.close();neuralRest=null;
+      neuralParticles?.close();neuralParticles=null;
+      if(neuralSleep){neuralSleep.stop();}
       if(engine){try{await engine.close();}catch{}engine=null;}
       while(!stopped&&nextIndex<candidates.length) {
         try{await candidates[nextIndex++]();return;}
-        catch {if(engine){try{await engine.close();}catch{}engine=null;}}
+        catch {neuralRest?.close();neuralRest=null;neuralParticles?.close();neuralParticles=null;if(neuralSleep){neuralSleep.stop();}if(engine){try{await engine.close();}catch{}engine=null;}}
       }
       if(!stopped){canvas.hidden=true;fallback.hidden=false;notice.textContent='绘制资源不可用 / Renderer unavailable';}
     } finally {changing=false;}

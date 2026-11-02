@@ -17,6 +17,14 @@ func beginNextTextPage(m Model) {
 	if tab == nil || m.Tabs == nil || tab.readLoading || tab.readBlocked || tab.textPage.EOF || !tab.textPaged || tab.Dirty() {
 		return
 	}
+	var sourceErr error
+	m, sourceErr = deliveryReadModel(m, tab)
+	if sourceErr != nil {
+		rejectDeliveryRead(m, tab, sourceErr)
+		return
+	}
+	resolve := previewPathResolver(m, tab)
+	localSource := tab.deliverySource
 	t := m.Tabs
 	t.stopTextRead(false, false)
 	if t.textReader == nil {
@@ -26,7 +34,7 @@ func beginNextTextPage(m Model) {
 	tab.readLoading = true
 	tab.pendingLine.resume = false
 	t.readTab = tab
-	root, path, remote, previous := m.WorkspaceRoot, tab.Path, tab.Remote, tab.textPage
+	path, remote, previous := tab.Path, tab.Remote && tab.deliverySource == nil, tab.textPage
 	reader := m.ReadTextPageContext
 	t.textReader.request(textReadOwnerFor(m, tab), func(ctx context.Context) textReadResult {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -34,7 +42,9 @@ func beginNextTextPage(m Model) {
 		result := textReadResult{appendPage: true, remote: remote}
 		var page workspacefs.TextPage
 		var err error
-		if remote {
+		if localSource != nil {
+			page, err = localSource.readTextPage(ctx, previous.Next)
+		} else if remote {
 			if reader == nil {
 				err = errors.New("Host text paging unavailable")
 			} else {
@@ -42,7 +52,7 @@ func beginNextTextPage(m Model) {
 			}
 		} else {
 			var full string
-			full, err = workspacefs.JoinRoot(root, path)
+			full, err = resolve()
 			if err == nil {
 				page, err = workspacefs.ReadFileTextPage(full, previous.Next)
 			}

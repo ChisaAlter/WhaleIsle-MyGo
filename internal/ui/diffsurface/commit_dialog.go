@@ -20,8 +20,8 @@ const commitDialogWidth float32 = 520
 // The checklist's line counts use the diff renderer's palette, so one glance
 // reads the same green and red in the list and in the patch below it.
 var (
-	commitAddedColor   = ui.RGB(61, 153, 112)
-	commitDeletedColor = ui.RGB(224, 102, 102)
+	commitAddedColor   = ui.RGB(0x22, 0xc5, 0x5e)
+	commitDeletedColor = ui.RGB(0xef, 0x44, 0x44)
 )
 
 // commitDialog paints the commit flow as one in-app form: the file selection,
@@ -94,7 +94,7 @@ func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitEmpty)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(2).Padding(4).Radius(8).Border(0.5, c.Theme().Border).Children(func() {
 		paintCommitChangeRows(c, m, fg, muted)
 	})
 }
@@ -110,7 +110,7 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	for _, change := range w.Changes {
 		ch := change
-		row := ui.Row(c.Key("commit-row-"+ch.Path)).FillWidth().MinWidth(0).Gap(8).Height(24).AlignItems(ui.Center)
+		row := ui.Row(c.Key("commit-row-"+ch.Path)).FillWidth().MinWidth(0).Gap(8).Height(28).Padding(0, 8).Radius(6).AlignItems(ui.Center)
 		if row.Hovered() {
 			row.Background(c.Theme().SurfaceHover)
 		}
@@ -203,7 +203,7 @@ func commitLauncher(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	label := fmt.Sprintf(i18n.T(i18n.KeySurfacesGitCommitOpen), len(w.Changes))
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(8).Padding(8, 10).Radius(8).Border(0.5, c.Theme().Border).AlignItems(ui.Center).Children(func() {
 		if ui.PrimaryButton(c, label).Disabled(len(w.Changes) == 0 || w.Operation != nil).Clicked() {
 			w.CommitOpen = true
 		}

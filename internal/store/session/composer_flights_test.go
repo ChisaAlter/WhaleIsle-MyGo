@@ -130,12 +130,14 @@ func TestComposerQueuedObservationAndHostIsolation(t *testing.T) {
 		t.Fatal("observed admission must win late transport error")
 	}
 	s.selectedID = "b"
+	s.fire()
 	other, _ := s.CaptureComposerTarget("a")
 	id := other.BeginSubmission("for a", nil)
 	if len(s.Snapshot().Messages) != 0 {
 		t.Fatal("echo leaked into b")
 	}
 	s.selectedID = "a"
+	s.fire()
 	if len(s.Snapshot().PlanBoard.Pending) != 1 {
 		t.Fatal("owner echo lost on navigation")
 	}

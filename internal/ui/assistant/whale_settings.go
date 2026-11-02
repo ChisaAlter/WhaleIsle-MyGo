@@ -6,6 +6,7 @@ import (
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -32,12 +33,12 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	blocked := s.Busy || m.PluginRPCBusy || m.Busy || !m.HarnessReady || !m.WhaleEnabled || s.HostKey == ""
 	ui.Column(c.Key("whale-settings")).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhaleSettings)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshHostContentRefresh)).Disabled(blocked).Clicked() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhaleSettings)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+			if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshHostContentRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 				w.OnRefresh()
 			}
 		})
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingAndSavingAffectOnlyTheCurrentH)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingAndSavingAffectOnlyTheCurrentH)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if s.Busy {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
@@ -50,7 +51,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeEditingOrRetrying2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		whalePreferencesBlock(c, w.Preferences, blocked, fg, muted, accent)
+		whalePreferencesBlock(c, w.Preferences, blocked, fg, muted, border, accent)
 		if s.Server.HomeDir == "" {
 			return
 		}
@@ -60,66 +61,72 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		}
 		ui.Text(c, label+s.Server.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		disabled := blocked || !s.Loaded
-		ui.Column(c.Key("whale-memory")).Background(field).Border(1, border).Radius(8).Padding(12).Gap(7).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantMemoryMdIsInjectedIntoWhaleSSessi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		memCard := ui.Column(c.Key("whale-memory")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+		chrome.GlassSurface(memCard, field, chrome.MaterialPanel, 12)
+		memCard.Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantMemoryMdIsInjectedIntoWhaleSSessi)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			memory := s.Memory
-			ui.TextArea(c.Key("whale-memory-editor"), &memory).Label("Whale long-term memory").FillWidth().Lines(6, 8).MaxHeight(200).Disabled(blocked).OnChange(func() {
+			ui.TextArea(c.Key("whale-memory-editor"), &memory).Label("Whale long-term memory").FillWidth().Lines(6, 8).MaxHeight(200).Radius(8).Border(.5, border).Disabled(blocked).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("memory", memory)
 				}
 			})
 			ui.Text(c, fmt.Sprintf("%d / 40000 UTF-16 · %s", pluginrpc.WhaleTextLength(memory), whaleDraftLabel(memory != s.Server.Memory))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
-				if w.OnSave != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSaveMemory)).Disabled(disabled || pluginrpc.WhaleTextLength(memory) > 40000).Clicked() {
+				if w.OnSave != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSaveMemory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || pluginrpc.WhaleTextLength(memory) > 40000).Clicked() {
 					w.OnSave("memory")
 				}
-				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreMemoryDraft)).Disabled(disabled || memory == s.Server.Memory).Clicked() {
+				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreMemoryDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || memory == s.Server.Memory).Clicked() {
 					w.OnRestore("memory")
 				}
-				if w.OnReviewClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantClearMemory)).Disabled(disabled).Clicked() {
+				if w.OnReviewClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantClearMemory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 					w.OnReviewClear()
 				}
 			})
 			if s.ConfirmClear {
-				ui.Column(c.Key("whale-memory-clear-review")).Border(1, accent).Radius(8).Padding(10).Gap(7).Children(func() {
+				ui.Column(c.Key("whale-memory-clear-review")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(7).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantClearLongTermMemoryThisCannotBeUn)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantCancelKeepsThisDraft)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 					ui.Row(c).Gap(8).Children(func() {
-						if w.OnCancelClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelClear)).Disabled(blocked).Clicked() {
+						if w.OnCancelClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelClear)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 							w.OnCancelClear()
 						}
-						if w.OnConfirmClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmClearMemory)).Disabled(disabled).Clicked() {
+						if w.OnConfirmClear != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmClearMemory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 							w.OnConfirmClear()
 						}
 					})
 				})
 			}
 		})
-		ui.Column(c.Key("whale-persona")).Background(field).Border(1, border).Radius(8).Padding(12).Gap(7).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantExtraPersona)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantAppendedToHerPersonaLeaveBlankToS)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		personaCard := ui.Column(c.Key("whale-persona")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+		chrome.GlassSurface(personaCard, field, chrome.MaterialPanel, 12)
+		personaCard.Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantExtraPersona)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantAppendedToHerPersonaLeaveBlankToS)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			persona := s.PersonaText
-			ui.TextArea(c.Key("whale-persona-editor"), &persona).Label("Whale extra persona").FillWidth().Lines(3, 8).Disabled(blocked).OnChange(func() {
+			ui.TextArea(c.Key("whale-persona-editor"), &persona).Label("Whale extra persona").FillWidth().Lines(3, 8).Radius(8).Border(.5, border).Disabled(blocked).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("persona", persona)
 				}
 			})
 			ui.Text(c, fmt.Sprintf("%d / 4000 UTF-16 · %s", pluginrpc.WhaleTextLength(persona), whaleDraftLabel(persona != s.Server.PersonaText))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
-				if w.OnSave != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSavePersona)).Disabled(disabled || pluginrpc.WhaleTextLength(persona) > 4000).Clicked() {
+				if w.OnSave != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantSavePersona)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || pluginrpc.WhaleTextLength(persona) > 4000).Clicked() {
 					w.OnSave("persona")
 				}
-				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestorePersonaDraft)).Disabled(disabled || persona == s.Server.PersonaText).Clicked() {
+				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestorePersonaDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || persona == s.Server.PersonaText).Clicked() {
 					w.OnRestore("persona")
 				}
 			})
 		})
-		ui.Column(c.Key("whale-identity")).Gap(7).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNameAndTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+		idCard := ui.Column(c.Key("whale-identity")).Border(.5, border).Radius(12).Padding(12, 16).Gap(7)
+		chrome.GlassSurface(idCard, field, chrome.MaterialPanel, 12)
+		idCard.Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNameAndTitle)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 			name, title := s.Name, s.UserTitle
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantName)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			nameInput := ui.TextInput(c.Key("whale-name"), &name).Label("Whale name").FillWidth().Disabled(disabled).OnChange(func() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantName)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			nameInput := ui.TextInput(c.Key("whale-name"), &name).Label("Whale name").FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("name", name)
 				}
@@ -132,8 +139,8 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 					w.OnSave("name")
 				}
 			})
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHowSheCallsYou)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			titleInput := ui.TextInput(c.Key("whale-user-title"), &title).Label("Whale user title").FillWidth().Disabled(disabled).OnChange(func() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHowSheCallsYou)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			titleInput := ui.TextInput(c.Key("whale-user-title"), &title).Label("Whale user title").FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("title", title)
 				}
@@ -148,7 +155,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			})
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantBlurTheFieldOrPressEnterToSaveItThe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Row(c).Gap(8).Children(func() {
-				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreNameDraft)).Disabled(disabled).Clicked() {
+				if w.OnRestore != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRestoreNameDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 					w.OnRestore("identity")
 				}
 			})

@@ -1,6 +1,14 @@
 package frame
 
-import "github.com/egoist/mygo/ui"
+import (
+	"strings"
+
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
+)
+
+var rightDrawerChevronLeftSVG = ui.MustParseSVG([]byte(`<svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.3"><path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
 
 type paneDrag struct {
 	active      bool
@@ -14,11 +22,50 @@ func centerRightColumns(c *ui.Context, m Model, center, right func(), header ...
 	if len(header) > 0 && header[0] != nil {
 		ui.Column(c).Key("workspace-shared-rows").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			workspaceHeaderBand(c, header[0])
-			centerRightBodyColumns(c, m, center, right)
+			centerRightBodyColumns(c, m, center, right, true)
+			rightDrawerExpandButton(c, m)
 		})
 		return
 	}
-	centerRightBodyColumns(c, m, center, right)
+	centerRightBodyColumns(c, m, center, right, false)
+}
+
+func rightDrawerExpandButton(c *ui.Context, m Model) {
+	details := float32(0)
+	if m.FilePaneWidth != nil {
+		details = *m.FilePaneWidth
+	}
+	if m.RightPaneOpen || details >= DetailsMin || m.OnToggleTools == nil {
+		return
+	}
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	dark := m.SystemDark || strings.HasSuffix(strings.ToLower(m.ThemeID), "dark")
+	if strings.HasSuffix(strings.ToLower(m.ThemeID), "light") {
+		dark = false
+	}
+	bg := ui.RGBA(0, 0, 0, 0.05)
+	if dark {
+		bg = ui.RGBA(255, 255, 255, 0.08)
+	}
+	ink := chrome.Color(colors.Muted)
+	if colors.Secondary != "" {
+		ink = chrome.Color(colors.Secondary)
+	}
+	label := paneLabel("展开右侧栏", "Expand right sidebar")
+	btn := ui.ButtonBase(c.Key("right-drawer-expand")).
+		Absolute().Right(0).Top(56).Width(20).Height(32).
+		Radius(8, 0, 0, 8).Padding(0).
+		Background(bg).Border(0.5, chrome.Color(colors.Border)).
+		Center().Label(label).Tooltip(label)
+	if !btn.Hovered() && !btn.FocusVisible() {
+		btn.Opacity(0)
+	}
+	btn.Children(func() {
+		ui.Icon(c, rightDrawerChevronLeftSVG).Size(12, 12).TextColor(ink)
+	})
+	if btn.Clicked() {
+		m.OnToggleTools()
+	}
 }
 
 // workspaceHeaderBand is AppFrame row 1 shared by the center's header and the
@@ -29,7 +76,7 @@ func workspaceHeaderBand(c *ui.Context, header func()) {
 	ui.Box(c).Key("workspace-shared-titlebar-row").FillWidth().MinHeight(workspaceCaptionHeight).Shrink(0).Children(header)
 }
 
-func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
+func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSharedHeader bool) {
 	viewport, _ := viewportDIP(c)
 	details := float32(0)
 	if m.FilePaneWidth != nil {
@@ -49,7 +96,14 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func()) {
 		if !drag.active && !m.Sizes.dragging {
 			conversation.Transition(shellTrackTransition)
 		}
-		conversation.Children(center)
+		conversation.Children(func() {
+			if center != nil {
+				center()
+			}
+			if !hasSharedHeader {
+				rightDrawerExpandButton(c, m)
+			}
+		})
 		open := details >= DetailsMin
 		dividerWidth := SplitterWidth
 		if !open {

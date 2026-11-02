@@ -64,6 +64,7 @@ func (s *Store) ReviewSkillRemoval(ctx context.Context, name string) {
 	}
 	r.Label = "Host: " + r.endpoint.Origin + "\n" + t.Label() + "\nDirectory: " + r.directory + "\nSession: " + t.scopeSession + "\nWorkspace: " + t.scopeCwd
 	s.skillRemoval = r
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	loaded, err := s.LoadCatalogSkillEdit(ctx, t)
@@ -102,9 +103,25 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 	s.skillCatalog.Busy = true
 	s.skillCatalogVersion++
 	version := s.skillCatalogVersion
+	s.invalidateViewLocked()
 	rpc := &dsh.Client{Endpoint: r.endpoint, HTTP: r.target.client.HTTP}
 	s.mu.Unlock()
 	s.fire()
+	// Notification callbacks may have rebound the same Host before I/O.
+	s.mu.Lock()
+	valid := ctx.Err() == nil && s.removalCurrentLocked(r, version)
+	if !valid {
+		s.retireSkillCatalogMutationLocked(version)
+		if s.skillRemoval.ID == id {
+			s.skillRemoval.Busy = false
+			s.skillRemoval.Message = "Host, account, session or catalog changed; deletion cancelled"
+		}
+	}
+	s.mu.Unlock()
+	if !valid {
+		s.fire()
+		return
+	}
 	var doc api.SkillInventoryDetail
 	err := rpc.Call(ctx, "skillInventory/get", map[string]any{"request": r.target.request()}, &doc)
 	attempted := false
@@ -112,7 +129,7 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 		err = fmt.Errorf("Skill changed after review; cancel and review again")
 	}
 	s.mu.Lock()
-	valid := s.removalCurrentLocked(r, version)
+	valid = ctx.Err() == nil && s.removalCurrentLocked(r, version)
 	s.mu.Unlock()
 	if err == nil && !valid {
 		err = fmt.Errorf("Host, account, session or catalog changed; deletion cancelled")
@@ -157,13 +174,17 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 	if s.skillRemoval.ID == id {
 		s.skillRemoval.Busy = false
 		s.skillRemoval.Message = message
+		s.invalidateViewLocked()
 	}
 	if s.removalCurrentLocked(r, version) {
+		s.invalidateViewLocked()
 		s.skillCatalog.Busy = false
 		s.skillCatalog.Action = message
 		if attempted && readErr == nil {
 			s.skillCatalog.Skills = inv.Skills
 		}
+	} else {
+		s.retireSkillCatalogMutationLocked(version)
 	}
 	s.mu.Unlock()
 	s.fire()

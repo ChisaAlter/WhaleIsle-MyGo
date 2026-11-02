@@ -33,6 +33,7 @@ func (s *Store) SetPromptMode(mode PromptMode) {
 	}
 	s.promptMode = mode
 	s.promptModeExplicit = true
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }

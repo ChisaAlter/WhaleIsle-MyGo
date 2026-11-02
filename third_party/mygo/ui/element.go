@@ -255,6 +255,7 @@ type node struct {
 	material     Material
 	opacity      float32
 	opacitySet   bool
+	fade         [2]float32 // left and right alpha fades, in DIPs
 	cursor       Cursor
 	paintFn      func(p *Painter, r Rect)
 	styleFn      func(e *node)
@@ -325,7 +326,8 @@ type node struct {
 	contentW, contentH float64
 	// barInset moves a scroll container's scroll bars in from its edges
 	// (ScrollbarInsets): top, right, bottom, left.
-	barInset [4]float32
+	barInset   [4]float32
+	barVisible [2]bool // explicit override and value
 	// scrollBase is the offset of a List's content that its rows were
 	// placed at: placing moves them by how far the offset moved since.
 	scrollBase float64

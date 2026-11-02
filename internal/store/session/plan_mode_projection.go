@@ -31,6 +31,7 @@ func (s *Store) applyPlanModeValuesLocked(values json.RawMessage, seq float64) {
 	s.applyPlanModeSelectionLocked(all["plan"], seq)
 }
 func (s *Store) applyPlanModeSelectionLocked(raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	p := &s.planModeControl
 	if p.sessionID != s.selectedID || p.generation != s.followGeneration {
 		*p = planModeState{sessionID: s.selectedID, generation: s.followGeneration}
@@ -57,6 +58,7 @@ func (s *Store) applyPlanModeSelectionLocked(raw json.RawMessage, seq float64) {
 	p.Effective = p.Active != p.Pending
 }
 func (s *Store) applyPlanModeControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type, SessionID, Key string
 		Seq                  float64
@@ -77,6 +79,7 @@ func (s *Store) ExitPlanMode(ctx context.Context, targetID string) {
 	}
 	s.planModeControl.Leaving = true
 	s.planModeControl.Error = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -87,6 +90,7 @@ func (s *Store) ExitPlanMode(ctx context.Context, targetID string) {
 			return
 		}
 		s.planModeControl.Leaving = false
+		s.invalidateViewLocked()
 		if err != nil {
 			s.planModeControl.Error = err.Error()
 		}

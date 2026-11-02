@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/widgets"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 	manager "whaleisle/internal/pluginmanager"
@@ -20,6 +19,7 @@ import (
 	marketui "whaleisle/internal/ui/market"
 	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Contribution is a native registration of an original plugins.item,
@@ -39,6 +39,9 @@ type Model struct {
 	RenderConfiguration                         func(*ui.Context, manager.Subject) bool
 	DetailActions, DetailBadges, DetailSections func(*ui.Context, manager.Subject)
 	AddActions                                  func(*ui.Context)
+	Supplement                                  func(*ui.Context)
+	OnNativeOverlay                             func(bool)
+	RequestListEnable                           func(string) bool
 	OnClose                                     func()
 	OnOpenURL                                   func(string)
 	OnCreatePlugin, OnOpenAddMenu               func()
@@ -60,6 +63,9 @@ func View(c *ui.Context, m Model) {
 	}
 	m.Controller.Ensure()
 	s := m.Controller.Snapshot()
+	if m.OnNativeOverlay != nil {
+		m.OnNativeOverlay(s.Confirmation != nil || s.Discover.Choice != nil || s.Install.Open || s.Discover.SourcesOpen)
+	}
 	a := m.Controller.Actions(s.Owner)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, bg, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.BG), chrome.Color(colors.Border)
@@ -89,6 +95,9 @@ func View(c *ui.Context, m Model) {
 						a.DismissNotice()
 					}
 				})
+			}
+			if m.Supplement != nil {
+				m.Supplement(c)
 			}
 			if m.CreatorNotice != nil {
 				m.CreatorNotice(c)
@@ -354,7 +363,7 @@ func groupTitle(c *ui.Context, title string, ink ui.Color) {
 }
 
 func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
-	card := ui.Row(c.Key("plugin-package-"+p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12).AlignItems(ui.Center)
+	card := ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12).AlignItems(ui.Center)
 	if card.Hovered() {
 		card.Background(c.Theme().SurfaceHover)
 	}
@@ -367,7 +376,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		}
 		c.After(time.Until(time.Unix(0, s.HighlightUntil)))
 	}
-	card.ContextMenu(func(menu *ui.Menu) { packageMenu(menu, p, s, a) })
+	card.ContextMenu(func(menu *ui.Menu) { packageMenu(menu, m, p, s, a) })
 	card.Children(func() {
 		artwork(c, muted, border, m.SVGImages, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
@@ -384,7 +393,9 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		})
 		value := p.Enabled
 		if ui.Switch(c, &value).Label(copyText("启用 ", "Enable ") + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
-			a.Enable(p.Name, value)
+			if !value || m.RequestListEnable == nil || !m.RequestListEnable(p.Name) {
+				a.Enable(p.Name, value)
+			}
 		}
 		menuLabel := copyText("更多操作", "More actions")
 		more := ui.Button(c, "").Label(menuLabel).Size(24, 24).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(menuLabel)
@@ -392,13 +403,13 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		if more.Hovered() {
 			more.Background(c.Theme().SurfaceHover)
 		}
-		more.Menu(func(menu *ui.Menu) { packageMenu(menu, p, s, a) })
+		more.Menu(func(menu *ui.Menu) { packageMenu(menu, m, p, s, a) })
 	})
 }
 
 // packageMenu is one plugin's action list, shared by the overflow button and the
 // row's context menu.
-func packageMenu(menu *ui.Menu, p manager.Package, s manager.State, a manager.Actions) {
+func packageMenu(menu *ui.Menu, m Model, p manager.Package, s manager.State, a manager.Actions) {
 	if menu.Item(copyText("打开详情", "Open details")).Chosen() {
 		a.OpenPackage(p.Name)
 	}
@@ -407,7 +418,9 @@ func packageMenu(menu *ui.Menu, p manager.Package, s manager.State, a manager.Ac
 		a.Enable(p.Name, false)
 	}
 	if menu.Item(copyText("启用", "Enable")).Disabled(p.Enabled || s.ActionBusy(p.Name) || p.SwitchLocked()).Chosen() {
-		a.Enable(p.Name, true)
+		if m.RequestListEnable == nil || !m.RequestListEnable(p.Name) {
+			a.Enable(p.Name, true)
+		}
 	}
 	if p.Removable {
 		menu.Separator()
@@ -523,7 +536,12 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			ui.Text(c, copyText("配置页面已不可用。", "Configuration page is no longer available.")).TextColor(muted)
 			return
 		}
-		ui.Text(c, item.Title).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
+		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			ui.Text(c, item.Title).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
+			if m.DetailBadges != nil {
+				m.DetailBadges(c, subject)
+			}
+		})
 		ui.Text(c, item.Summary).FillWidth().TextColor(muted)
 		renderConfig(c, m, subject)
 		if m.DetailSections != nil {
@@ -642,7 +660,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 						}
 					})
 					value := r.Enabled
-					if pkg.Enabled && ui.Switch(c, &value).Label(copyText("启用条目 ", "Enable entry ") + r.RowID).Disabled(s.ActionBusy(pkg.Name) || s.ActionBusy(r.EntryID) || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
+					if pkg.Enabled && ui.Switch(c, &value).Label(copyText("启用条目 ", "Enable entry ")+r.RowID).Disabled(s.ActionBusy(pkg.Name) || s.ActionBusy(r.EntryID) || r.EntryID == "" || r.ReadOnlyReason != "").Changed() {
 						a.EnableRow(r.EntryID, value)
 					}
 				})

@@ -10,11 +10,11 @@ import (
 
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
-	captionReview                             *captionReviewState
-	Progress                                  *git.Progress
-	LastStack                                 *git.StackResult
-	Remote                                    *remoteWorkflowState
-	Commit                                    *commitSelectionState
+	captionReview *captionReviewState
+	Progress      *git.Progress
+	LastStack     *git.StackResult
+	Remote        *remoteWorkflowState
+	Commit        *commitSelectionState
 	// CommitOpen mounts the commit form as an in-app dialog; the pane keeps only
 	// the launcher so the diff stays readable.
 	CommitOpen                                bool
@@ -160,7 +160,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 				scopeDiff(m, "", true)
 			}
 		})
-		ui.Scroll(c).Height(150).FillWidth().Children(func() {
+		ui.Scroll(c).Height(150).FillWidth().Padding(4).Radius(8).Border(0.5, c.Theme().Border).Children(func() {
 			ui.Column(c).Gap(2).Children(func() {
 				paintCommitChangeRows(c, m, fg, muted)
 			})

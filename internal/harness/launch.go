@@ -70,6 +70,32 @@ var lookPath = exec.LookPath
 // Resolve chooses the launcher: configured DshBin, then vendored harness
 // (node + bin.js), then dsh on PATH, then optionally npx.
 func Resolve(o LaunchOptions, port int) (Plan, error) {
+	return resolveWithRegistryReader(o, port, os.ReadFile)
+}
+
+func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeRegistryReader) (Plan, error) {
+	// Paths were configured relative to the desktop's cwd. Resolve them before
+	// the child switches to its workspace so that existing launchers, patches
+	// and runtime data continue to refer to the same files.
+	for _, path := range []*string{&o.DshBin, &o.NodeBin, &o.Home, &o.HarnessRoot, &o.VendorDir} {
+		if *path != "" {
+			absolute, err := filepath.Abs(*path)
+			if err != nil {
+				return Plan{}, fmt.Errorf("resolve launch path: %w", err)
+			}
+			*path = absolute
+		}
+	}
+	o.PatchFiles = append([]string(nil), o.PatchFiles...)
+	for i, path := range o.PatchFiles {
+		if path != "" {
+			absolute, err := filepath.Abs(path)
+			if err != nil {
+				return Plan{}, fmt.Errorf("resolve patch path: %w", err)
+			}
+			o.PatchFiles[i] = absolute
+		}
+	}
 	web := []string{"web"}
 	if o.SkipUserPlugins {
 		web = append(web, "--skip-user-plugins")
@@ -94,10 +120,7 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 			if strings.HasSuffix(strings.ToLower(clean), strings.ToLower(filepath.Join("apps", "cli", "lib", "bin.js"))) {
 				root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(clean))))
 				sourceRoot = root
-				if err := ValidateCurrentHostForLaunch(root); err != nil {
-					return Plan{}, err
-				}
-				if err := ValidateSessionRuntimeForLaunch(root); err != nil {
+				if err := validateLaunchRuntime(root, read); err != nil {
 					return Plan{}, err
 				}
 			}
@@ -120,10 +143,7 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 	}
 
 	if root := resolveHarnessRoot(o); root != "" {
-		if err := ValidateCurrentHostForLaunch(root); err != nil {
-			return Plan{}, err
-		}
-		if err := ValidateSessionRuntimeForLaunch(root); err != nil {
+		if err := validateLaunchRuntime(root, read); err != nil {
 			return Plan{}, err
 		}
 		binJS := filepath.Join(root, "apps", "cli", "lib", "bin.js")

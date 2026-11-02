@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"whaleisle/internal/processutil"
 )
 
 // The composed bridge script must carry the shell route module; otherwise the
@@ -41,6 +43,7 @@ func TestShellRoutesNodeTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(node, "--test", filepath.Join(dir, "shell_routes.test.cjs"))
+	processutil.Background(cmd)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

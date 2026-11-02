@@ -85,21 +85,24 @@ func (s *Session) RenderPixels(c *ui.Context, height float32, appearance string,
 		go s.Close()
 		return true
 	}
-	c.After(100 * time.Millisecond)
-	ps.mu.Lock()
-	bitmap := ps.bitmap
-	ps.mu.Unlock()
 	var seatWidth, seatHeight float32
 	ui.Box(c).FillWidth().Height(height).Focusable().TextCaret(ui.Rect{W: 1, H: 20}).Draw(func(p *ui.Painter, r ui.Rect) {
 		seatWidth, seatHeight = r.W, r.H
 		clip := p.NativeSurfaceClip()
-		if min(r.X+r.W, clip.X+clip.W) > max(r.X, clip.X) && min(r.Y+r.H, clip.Y+clip.H) > max(r.Y, clip.Y) {
-			ps.mu.Lock()
+		visible := min(r.X+r.W, clip.X+clip.W) > max(r.X, clip.X) && min(r.Y+r.H, clip.Y+clip.H) > max(r.Y, clip.Y)
+		// Read the latest frame here and repaint for the next one: capturing
+		// it in the build needed a whole-window build every 100ms.
+		ps.mu.Lock()
+		if visible {
 			ps.lastPaint = time.Now()
-			ps.mu.Unlock()
 		}
+		bitmap := ps.bitmap
+		ps.mu.Unlock()
 		if bitmap != nil {
 			p.Image(bitmap, r, ui.Contain)
+		}
+		if visible {
+			p.After(100 * time.Millisecond)
 		}
 	}).HandleInput(func(e ui.InputEvent) bool {
 		select {

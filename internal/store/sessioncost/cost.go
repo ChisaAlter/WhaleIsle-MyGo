@@ -3,6 +3,7 @@
 package sessioncost
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math"
@@ -55,6 +56,9 @@ type Projection struct {
 }
 
 func Decode(raw json.RawMessage) *Projection {
+	if !bytes.Contains(raw, []byte(`"billedUsage"`)) {
+		return nil
+	}
 	var v struct {
 		Billed *Projection `json:"billedUsage"`
 	}

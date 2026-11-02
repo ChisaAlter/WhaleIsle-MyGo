@@ -3,6 +3,8 @@ package markdown
 import (
 	"strings"
 
+	"whaleisle/internal/markdownsyntax"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -38,11 +40,21 @@ func (n *blockMath) Kind() ast.NodeKind            { return blockMathKind }
 func (n *blockMath) IsRaw() bool                   { return true }
 func (n *blockMath) Dump(source []byte, level int) { ast.DumpHelper(n, source, level, nil, nil) }
 
-func newMarkdown() goldmark.Markdown {
-	return goldmark.New(goldmark.WithExtensions(extension.GFM), goldmark.WithParserOptions(
-		parser.WithInlineParsers(util.Prioritized(mathInlineParser{}, 50)),
-		parser.WithBlockParsers(util.Prioritized(mathBlockParser{}, 50)),
-	))
+func newMarkdown() goldmark.Markdown { return markdownGrammar(false) }
+
+func markdownGrammar(streaming bool) goldmark.Markdown {
+	md := goldmark.New(goldmark.WithParser(parser.NewParser(
+		parser.WithBlockParsers(positionedBlockParsers()...),
+		parser.WithInlineParsers(parser.DefaultInlineParsers()...),
+		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+	)), goldmark.WithExtensions(extension.GFM, extension.Footnote, markdownsyntax.Images))
+	if !streaming {
+		md.Parser().AddOptions(
+			parser.WithInlineParsers(util.Prioritized(mathInlineParser{}, 50)),
+			parser.WithBlockParsers(util.Prioritized(mathBlockParser{}, 50)),
+		)
+	}
+	return md
 }
 
 type mathInlineParser struct{}

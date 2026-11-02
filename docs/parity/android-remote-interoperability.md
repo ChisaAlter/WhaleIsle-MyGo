@@ -14,8 +14,10 @@ or desktop release acceptance.
   on explicit refresh and stops it during the desktop lifecycle.
 - `internal/desktop/phoneremote/bridge.cjs` instantiates original `DshdRemote`,
   retaining its daemon, relay and offer-v2 authentication protocol. Offers are
-  shown only while the daemon listens, relay is connected and bootstrap expiry
-  has not elapsed. No replacement Android authentication is introduced.
+  shown only while the daemon listens and bootstrap expiry has not elapsed; relay
+  mode additionally requires a relay connection, whereas LAN mode does not. The
+  bridge permits 60 seconds for daemon readiness and cancellation does not wait
+  behind startup. No replacement Android authentication is introduced.
 - `git-gate.cjs` and `cmd/whaleisle/phone_git.go` enforce current desktop-session
   permission and canonical workspace identity for every forwarded Git request.
 - `device-actions.cjs` exposes public device metadata and calls original rename,
@@ -81,8 +83,11 @@ Web reviewed/draft paths, revocation, bounded contexts and runtime cancellation.
 The command package compiled with no matching tests. No Git command, real PR,
 credentials, daemon, relay or pairing was used by these fixtures.
 
-No original code execution, broad test run, Android build or live pairing was
-performed. Real unchanged Android to matching Windows/macOS packaged runtimes,
-including review-window timing, cancellation and unknown-outcome handling, remains
-separate device acceptance. Server build success and synthetic fixtures cannot
-replace it.
+The later 2026-10-27 isolated LAN test exercised the original runtime and a
+loopback relay fixture, including the SPA, health and authenticated shell routes.
+The bridge's subsequent readiness and cancellation changes passed simulated
+lifecycle tests; the real LAN fixture was not rerun after those changes. Neither
+result exercises an Android device. Real unchanged Android to matching Windows/macOS
+packaged runtimes, including review-window timing, cancellation and unknown-outcome
+handling, remains separate device acceptance. Server build success and synthetic
+fixtures cannot replace it.

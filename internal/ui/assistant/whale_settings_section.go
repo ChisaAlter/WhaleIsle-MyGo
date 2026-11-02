@@ -33,7 +33,7 @@ func whaleSectionRow(c *ui.Context, key, title, hint string, fg, muted, border u
 				copy.FillWidth()
 			}
 			copy.Children(func() {
-				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).TextColor(fg)
+				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				if hint != "" {
 					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				}
@@ -81,7 +81,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 	prefDisabled := blocked || ps.Busy || !ps.Loaded || ps.Host == ""
 	anchor.Children(func() {
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantReadAssistantSettings), "Refresh assistant settings")).Disabled(blocked || w.OnRefresh == nil).Clicked() {
+			if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantReadAssistantSettings), "Refresh assistant settings")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(blocked || w.OnRefresh == nil).Clicked() {
 				w.OnRefresh()
 				if p.OnRefresh != nil {
 					p.OnRefresh()
@@ -101,7 +101,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		}
 		whaleSectionRow(c, "pet-whale-identity", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantNameAndTitle), "Name and title"), whaleSectionCopy(i18n.T(i18n.KeyW4AssistantTheNameAndTitleAreEachLimitedTo64Ch), "Name and title are limited to 64 characters each."), fg, muted, border, func() {
 			name, title := s.Name, s.UserTitle
-			nameInput := ui.TextInput(c.Key("whale-name"), &name).FillWidth().Label("Whale name").Disabled(disabled).OnChange(func() {
+			nameInput := ui.TextInput(c.Key("whale-name"), &name).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale name").Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("name", name)
 				}
@@ -114,7 +114,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 					w.OnSave("name")
 				}
 			})
-			titleInput := ui.TextInput(c.Key("whale-title"), &title).FillWidth().Label("Whale user title").Disabled(disabled).OnChange(func() {
+			titleInput := ui.TextInput(c.Key("whale-title"), &title).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale user title").Disabled(disabled).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit("title", title)
 				}
@@ -164,7 +164,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				selected = route.Provider + " / " + route.Model
 				labels = append(labels, selected)
 			}
-			ui.Select(c, &selected, labels).FillWidth().Label("Whale model").Disabled(prefDisabled || ps.ModelsError != "").OnChange(func() {
+			ui.Select(c, &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale model").Disabled(prefDisabled || ps.ModelsError != "").OnChange(func() {
 				if v, ok := choices[selected]; ok && p.OnEdit != nil {
 					p.OnEdit(v, ps.IMDefault)
 					if p.OnSave != nil {
@@ -182,7 +182,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				efforts = append(efforts, route.ReasoningEffort)
 			}
 			effort := route.ReasoningEffort
-			ui.Select(c, &effort, efforts).FillWidth().Label("Whale reasoning effort").Disabled(prefDisabled).OnChange(func() {
+			ui.Select(c, &effort, efforts).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale reasoning effort").Disabled(prefDisabled).OnChange(func() {
 				route.ReasoningEffort = effort
 				if p.OnEdit != nil {
 					p.OnEdit(route, ps.IMDefault)
@@ -203,7 +203,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		})
 		for _, item := range []struct{ id, title, hint string }{{"persona", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantExtraPersona), "Extra persona"), s.PersonaText}, {"memory", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantLongTermMemory), "Long-term memory"), whaleSectionCopy(i18n.T(i18n.KeyW4AssistantInjectedWithHerResidentSession), "Injected into her resident conversation.")}, {"skills", whaleSectionCopy(i18n.T(i18n.KeyW4AssistantSkills), "Skills"), fmt.Sprintf(whaleSectionCopy(i18n.T(i18n.KeyW4AssistantDSkillsOnTheCurrentHost), "%d skills on this Host"), len(ps.Server.Skills))}} {
 			whaleSectionRow(c, "pet-whale-"+item.id, item.title, item.hint, fg, muted, border, func() {
-				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantManage), "Manage")).Label("manage-whale-" + item.id).Disabled(disabled).Clicked() {
+				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantManage), "Manage")).Label("manage-whale-"+item.id).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 					*dialog = item.id
 				}
 			})
@@ -218,8 +218,8 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 		vw, vh := c.Size()
 		panel.Width(min(float32(560), max(float32(0), vw-48))).Height(min(float32(600), max(float32(0), vh-48))).Radius(28).Clip().Background(chrome.Color(colors.BG)).Children(func() {
 			ui.Scroll(c).Fill().MinWidth(0).MinHeight(0).Padding(20).Gap(10).Children(func() {
-				ui.Text(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantAssistantSettings), "Assistant settings")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClose), "Close")).Clicked() {
+				ui.Text(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantAssistantSettings), "Assistant settings")).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
+				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClose), "Close")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 					*dialog = ""
 				}
 				if *dialog == "skills" {
@@ -244,30 +244,30 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 					value = s.Memory
 					limit = 40000
 				}
-				ui.TextArea(c, &value).FillWidth().Lines(6, 14).Label("Whale " + field).Disabled(disabled).OnChange(func() {
+				ui.TextArea(c, &value).FillWidth().Lines(6, 14).Radius(12).Border(.5, border).Label("Whale " + field).Disabled(disabled).OnChange(func() {
 					if w.OnEdit != nil {
 						w.OnEdit(field, value)
 					}
 				})
 				ui.Text(c, fmt.Sprintf("%d / %d", pluginrpc.WhaleTextLength(value), limit)).TextColor(muted)
 				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-					if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantSave), "Save")).Disabled(disabled || w.OnSave == nil || pluginrpc.WhaleTextLength(value) > limit).Clicked() {
+					if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantSave), "Save")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(disabled || w.OnSave == nil || pluginrpc.WhaleTextLength(value) > limit).Clicked() {
 						w.OnSave(field)
 					}
-					if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantRestoreDraft), "Restore draft")).Disabled(disabled || w.OnRestore == nil).Clicked() {
+					if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantRestoreDraft), "Restore draft")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(disabled || w.OnRestore == nil).Clicked() {
 						w.OnRestore(field)
 					}
-					if field == "memory" && w.OnReviewClear != nil && ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClearMemory), "Clear memory…")).Disabled(disabled).Clicked() {
+					if field == "memory" && w.OnReviewClear != nil && ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClearMemory), "Clear memory…")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(disabled).Clicked() {
 						w.OnReviewClear()
 					}
 				})
 				if field == "memory" && s.ConfirmClear {
 					ui.Text(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClearHerLongTermMemoryThisCannotBeUn), "Clear her long-term memory? This cannot be undone.")).FillWidth().TextColor(fg)
 					ui.Row(c).Wrap().Gap(8).Children(func() {
-						if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantCancelClear), "Cancel clear")).Disabled(blocked || w.OnCancelClear == nil).Clicked() {
+						if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantCancelClear), "Cancel clear")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(blocked || w.OnCancelClear == nil).Clicked() {
 							w.OnCancelClear()
 						}
-						if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantConfirmClearingLongTermMemory), "Confirm clear memory")).Disabled(disabled || w.OnConfirmClear == nil).Clicked() {
+						if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantConfirmClearingLongTermMemory), "Confirm clear memory")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(disabled || w.OnConfirmClear == nil).Clicked() {
 							w.OnConfirmClear()
 						}
 					})

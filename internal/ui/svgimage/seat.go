@@ -98,12 +98,11 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 		default:
 		}
 	}
+	// A live or opening surface renews its lease from Paint, whose frames
+	// repaint without building the view; asking for builds here rebuilt the
+	// whole window ten times a second while any SVG image was shown.
 	if s.surface != nil || s.pending || s.err != nil {
-		animate := s.surface != nil || s.pending
 		s.mu.Unlock()
-		if animate {
-			c.After(100 * time.Millisecond)
-		}
 		return
 	}
 	if !owner.Valid() {
@@ -277,6 +276,10 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 			s.mu.Lock()
 			s.err = e
 			s.mu.Unlock()
+			// Build once so Prepare retires the surface and shows the error.
+			if notify != nil {
+				notify()
+			}
 		}
 	})
 }

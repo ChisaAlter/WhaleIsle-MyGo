@@ -86,6 +86,9 @@ try {
     git: gitGate.git,
     getHomeDir: () => process.argv[2],
     execPath: process.execPath,
+    // Cold dependency/native-module startup can approach the vendor's 30s
+    // default. Keep a finite 60s ready budget, separate from stop cancellation.
+    readyTimeoutMs: 60_000,
     log: () => {},
     getHarnessOrigin: () => config.harnessOrigin || '',
     getSessionCookie: () => config.harnessCookie || '',
@@ -122,7 +125,19 @@ async function deviceAction(command) {
   clearQR();
   starting = true;
   try {
-    await managePhoneDevice(remote, command, {
+    // Device revocation may await stop/unbind before sync. Fence each public
+    // call so a concurrent desktop stop cannot restart it on continuation.
+    const deviceRemote = new Proxy(remote, {
+      get(target, key) {
+        const value = Reflect.get(target, key);
+        if (typeof value !== 'function') return value;
+        return (...args) => {
+          if (stopping) throw Error('runtime-offline');
+          return value.apply(target, args);
+        };
+      },
+    });
+    await managePhoneDevice(deviceRemote, command, {
       hideOffer() {
         offerBlocked = true;
         clearQR();
@@ -144,6 +159,7 @@ async function deviceAction(command) {
   } finally {
     starting = false;
   }
+  if (stopping) return;
   try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); }
   emit({kind:'device-action-result',id:command.id,operation:command.operation,code,applied});
 }
@@ -154,9 +170,16 @@ async function stop() {
   revokeGit();
   clearQR();
   clearInterval(timer);
-  await remote.stopDaemon();
-  emit({kind:'snapshot',listening:false,relayConnected:false,url:''});
-  process.exit(0);
+  try {
+    // Do not wait behind sync(): the runtime cancels its pending ready lease
+    // and cleans up the owned daemon with its separate bounded stop budget.
+    await remote.stopDaemon();
+    emit({kind:'snapshot',listening:false,relayConnected:false,url:''});
+    process.exit(0);
+  } catch {
+    emit({kind:'error',code:'stop'});
+    process.exit(1);
+  }
 }
 const timer = setInterval(() => { try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); } },1000);
 remote.on('listening',snapshot);
@@ -185,16 +208,17 @@ input.on('line',line=>{
   if(immediate.action==='git-generation-result'){const done=draftPending.get(immediate.id);if(done){draftPending.delete(immediate.id);done(immediate.error?{error:immediate.error}:immediate.value);}return;}
   if(immediate.action==='git-authorize-result'){const done=gitPending.get(immediate.id);if(done){gitPending.delete(immediate.id);done(immediate.allowed===true);}return;}
   if(immediate.action==='host-open-settings-result'||immediate.action==='host-save-config-result'){const done=hostPending.get(immediate.id);if(done){hostPending.delete(immediate.id);done(immediate);}return;}
-  if(immediate.action==='git-revoke'||immediate.action==='stop'){revokeGit();if(immediate.action==='git-revoke')return;}
+  if(immediate.action==='stop'){void stop();return;}
+  if(stopping)return;
+  if(immediate.action==='git-revoke'){revokeGit();return;}
   queue=queue.then(async()=>{
     const command=JSON.parse(line);
-    if(command.action==='stop')return stop();
     if(stopping)return;
     if(command.action==='device-action')return deviceAction(command);
     if(command.action==='start') {clearQR();offerBlocked=true;config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync();offerBlocked=false; } finally { starting=false; }}
     else if(command.action==='refresh' && remote.daemon) {clearQR();offerBlocked=true;emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();offerBlocked=false;} finally {starting=false;}}
     snapshot();
-  }).catch(()=>emit({kind:'error',code:'operation'}));
+  }).catch(()=>{if(!stopping)emit({kind:'error',code:'operation'});});
 });
-input.on('close',()=>{revokeGit();queue=queue.then(stop).catch(()=>process.exit(1));});
-process.on('SIGTERM',()=>{revokeGit();queue=queue.then(stop).catch(()=>process.exit(1));});
+input.on('close',()=>{void stop();});
+process.on('SIGTERM',()=>{void stop();});

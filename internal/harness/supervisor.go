@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/startuptrace"
 )
 
 // State is the supervisor's lifecycle phase.
@@ -70,7 +72,12 @@ type Options struct {
 	Launch LaunchOptions
 	// Prepare configures desktop plugin overlays/junctions before each start.
 	Prepare PrepareOptions
-	// Workspace is registered with workspace/create after auth (optional).
+	// ReadLaunchPatches prepares desktop-owned optional overlays for each start.
+	// It runs outside the supervisor lock and reads committed local preferences.
+	ReadLaunchPatches func(context.Context) ([]string, error)
+	// Workspace is the optional child working directory when it still exists.
+	// An unavailable saved workspace must not prevent access to other sessions.
+	// Registering it here would suppress the Host's first-use initialization.
 	Workspace string
 	// AutoRestart relaunches dsh after an unexpected exit, up to MaxAttempts
 	// times with doubling delays from BaseDelay.
@@ -126,6 +133,8 @@ type Supervisor struct {
 	recoveryQueued    bool
 	recoveryCancelled bool
 	restartTimer      *time.Timer
+	launchCancel      context.CancelFunc
+	statusChanged     chan struct{}
 }
 
 // New returns a stopped supervisor.
@@ -181,10 +190,16 @@ func (s *Supervisor) SetPrepareOptions(prep PrepareOptions) {
 
 // Start launches dsh unless it is already starting or ready.
 func (s *Supervisor) Start() {
+	s.startOwned()
+}
+
+// startOwned returns the exact generation allocated by this call. A settings
+// waiter must never adopt an attempt launched by another concurrent owner.
+func (s *Supervisor) startOwned() (int, bool) {
 	s.mu.Lock()
 	if s.status.State == Starting || s.status.State == Ready {
 		s.mu.Unlock()
-		return
+		return 0, false
 	}
 	install := s.opts.Install
 	s.attempt = 0
@@ -195,10 +210,11 @@ func (s *Supervisor) Start() {
 	if install != nil {
 		if err := install.Start(context.Background()); err != nil {
 			s.set(gen, Status{State: Failed, Err: fmt.Errorf("install control: %w", err)})
-			return
+			return gen, true
 		}
 	}
 	go s.run(gen)
+	return gen, true
 }
 
 // Restart stops the current child and starts a new one.
@@ -265,6 +281,10 @@ func stopChild(cmd *exec.Cmd, exited <-chan struct{}) {
 
 // nextGenLocked invalidates every goroutine of earlier attempts.
 func (s *Supervisor) nextGenLocked() int {
+	if s.launchCancel != nil {
+		s.launchCancel()
+		s.launchCancel = nil
+	}
 	if s.restartTimer != nil {
 		s.restartTimer.Stop()
 		s.restartTimer = nil
@@ -299,6 +319,10 @@ func (s *Supervisor) setLocked(st Status) {
 	st.RecoveryActive = s.recoveryActive
 	st.RecoveryCancelled = s.recoveryCancelled
 	s.status = st
+	if s.statusChanged != nil {
+		close(s.statusChanged)
+		s.statusChanged = nil
+	}
 	if s.opts.OnChange != nil {
 		go s.opts.OnChange(st)
 	}
@@ -363,6 +387,10 @@ func (s *Supervisor) run(gen int) {
 	s.platformToken = platformToken
 	s.startLogs = nil
 	launch := s.opts.Launch
+	readPatches := s.opts.ReadLaunchPatches
+	launchCtx, launchCancel := context.WithCancel(context.Background())
+	s.launchCancel = launchCancel
+	defer launchCancel()
 	s.attemptRecovery = launch.SkipUserPlugins
 	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
 	if install := s.opts.Install; install != nil {
@@ -374,13 +402,25 @@ func (s *Supervisor) run(gen int) {
 	}
 	s.mu.Unlock()
 
+	// Read the staged module tree ahead of node.exe from the first moment the
+	// launch is known: it overlaps port selection, validation and profile
+	// staging, and stops as soon as the Host reports its ready URL. Read-only.
+	warm := warmRuntimeTree(launch.VendorDir)
+	defer warm.Stop()
 	port, err := FreePort(launch.Host, launch.Port)
+	if err != nil {
+		s.set(gen, Status{State: Failed, Err: err})
+		return
+	}
+	startuptrace.Mark("host.port_selected", strconv.Itoa(port))
+	launch, err = readLaunchPatches(launchCtx, launch, readPatches)
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
 		return
 	}
 	var plan Plan
 	var patches []string
+	endPlan := startuptrace.Begin("host.plan")
 	if launch.DshBin != "" {
 		// Configured / test launchers skip desktop overlay preparation.
 		plan, err = Resolve(launch, port)
@@ -392,6 +432,7 @@ func (s *Supervisor) run(gen int) {
 		start, err = PlanStart(launch, prep, port)
 		plan, patches = start.Plan, start.PatchFiles
 	}
+	endPlan()
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
 		return
@@ -408,6 +449,13 @@ func (s *Supervisor) run(gen int) {
 
 	cmd := exec.Command(plan.Command, plan.Args...)
 	cmd.Env = plan.Env
+	if workspace := s.opts.Workspace; workspace != "" {
+		if info, err := os.Stat(workspace); err == nil && info.IsDir() {
+			cmd.Dir = workspace
+		} else {
+			s.log("workspace unavailable; starting Host with the application's working directory", gen)
+		}
+	}
 	detach(cmd)
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -431,6 +479,7 @@ func (s *Supervisor) run(gen int) {
 	}
 	s.cmd, s.exited = cmd, exited
 	s.mu.Unlock()
+	startuptrace.Mark("host.spawned", strconv.Itoa(cmd.Process.Pid))
 
 	ready := make(chan string, 1)
 	go s.scan(out, ready, token, gen)
@@ -448,8 +497,12 @@ func (s *Supervisor) run(gen int) {
 	for {
 		select {
 		case url := <-ready:
+			warm.Stop()
+			startuptrace.Mark("host.readyline")
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			endHandshake := startuptrace.Begin("host.handshake")
 			ep, err := Redeem(ctx, s.client, url)
+			endHandshake()
 			cancel()
 			if err != nil {
 				s.log("auth: " + err.Error())
@@ -458,16 +511,11 @@ func (s *Supervisor) run(gen int) {
 				s.fail(gen, err, plan.Source)
 				return
 			}
-			if ws := s.opts.Workspace; ws != "" {
-				wctx, wcancel := context.WithTimeout(context.Background(), 15*time.Second)
-				werr := EnsureWorkspace(wctx, s.client, ep, ws)
-				wcancel()
-				if werr != nil {
-					s.log("workspace: "+werr.Error(), gen)
-				} else {
-					s.log("workspace registered: "+ws, gen)
-				}
-			}
+			// A successful transport handshake must not register a workspace.
+			// The current UI owner initializes the Host's default only after the
+			// workspace/session baselines; pre-registering the launch cwd here
+			// suppresses that first-use initialization even in an empty profile.
+			startuptrace.Mark("host.ready")
 			if !s.set(gen, Status{State: Ready, Endpoint: ep, Source: plan.Source}) {
 				return
 			}
@@ -518,6 +566,7 @@ func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string, ge
 			}
 		}
 		s.notePluginLog(line, generation...)
+		startuptrace.Log(line)
 		s.log(line, generation...)
 	}
 }

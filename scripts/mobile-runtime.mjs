@@ -5,6 +5,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import {spawnSync} from 'node:child_process';
+import {inventoryGraph, verifyGraph, safeChild, inside} from './session-runtime-graph.mjs';
 
 export const shellFiles = [
   'src/main/dshd-remote.js', 'src/main/dshd-daemon-runner.mjs',
@@ -190,13 +192,80 @@ export function stage(work, harness, nodeDir, destination) {
     verify(destination);
   } catch(e) { fs.rmSync(temp,{recursive:true,force:true}); throw e; }
 }
+const installedRequired = [
+  ...shellFiles, 'mobile/web/index.html', 'mobile/web/chisacode/daemon-client.bundle.js',
+  ...['exports','pairing-offer','relay-device-credential-store'].map(name => `${server}${name}.js`),
+  'vendor/chisacode-remote/node_modules/@chisacode/protocol/dist/connection-offer.js',
+  'vendor/chisacode-remote/node_modules/@chisacode/relay/dist/e2ee.js',
+  'vendor/chisacode-remote/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
+  `${server}speech/providers/local/sherpa/assets/silero_vad.onnx`, 'LICENSE', 'NOTICE',
+];
+const electronResources = ['icudtl.dat','resources.pak','chrome_100_percent.pak','chrome_200_percent.pak','v8_context_snapshot.bin','snapshot_blob.bin'];
+const peerArtifacts = ['apps/cli/lib/bin.js','packages/core/session/lib/index.js','packages/session/session-persistence/lib/index.js'];
+function bundledNode(root) {
+  return ['node.exe','node/node.exe','node/bin/node'].map(relative => path.join(root,relative)).find(file => fs.statSync(file,{throwIfNoEntry:false})?.isFile());
+}
+export function probeNative(root, output) {
+  root=fs.realpathSync(root);
+  const executable=bundledNode(root);
+  if(!executable)throw Error('Mobile runtime resource missing: bundled Node');
+  const env={...process.env,ELECTRON_RUN_AS_NODE:'1'};
+  // Inherited stdio avoids named-pipe restrictions; windowsHide suppresses the
+  // Electron-as-Node console as well as the normal Node console.
+  const result=spawnSync(executable,[fileURLToPath(new URL('./mobile-runtime-probe.cjs',import.meta.url)),root,path.resolve(output)],{env,stdio:'inherit',windowsHide:true,timeout:30000});
+  if(result.error||result.status!==0)throw Error(`Mobile native ABI probe failed: ${result.error?.message||result.status}`);
+  const build=JSON.parse(fs.readFileSync(output,'utf8'));
+  if(build.platform!==process.platform||build.arch!==process.arch||!['node','electron'].includes(build.runtime)||build.nodeSHA256!==sha(executable))throw Error('Mobile native probe identity mismatch');
+  return build;
+}
+export function recordInstalled(root) {
+  root=fs.realpathSync(root);
+  assertFiles(root,installedRequired);
+  if(fs.existsSync(path.join(root,'staging-manifest.json'))||fs.existsSync(path.join(root,'node-build.json')))throw Error('Record installed mobile runtime only in a fresh unrecorded copy');
+  const buildPath=path.join(root,'node-build.json');
+  try {
+    const build=probeNative(root,buildPath);
+    if(build.runtime==='electron')assertFiles(root,electronResources);
+    const peer=path.join(path.dirname(root),'deepseek-harness'),harnessArtifacts={};
+    for(const relative of peerArtifacts) {const filename=path.join(peer,relative);if(!inside(path.dirname(root),fs.realpathSync(filename)))throw Error('Mobile Host peer escapes vendor graph');harnessArtifacts[relative]=sha(filename);}
+    const graph=inventoryGraph(root,['staging-manifest.json','debug.log']);
+    const manifest={format:3,profile:'installed-rc2',platform:build.platform,arch:build.arch,nodePath:path.relative(root,bundledNode(root)).split(path.sep).join('/'),files:graph.files,links:graph.links,harnessPeer:{path:'../deepseek-harness',artifacts:harnessArtifacts}};
+    fs.writeFileSync(path.join(root,'staging-manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+    verify(root);
+    return {profile:manifest.profile,runtime:build.runtime,node:build.node,abi:build.abi,files:Object.keys(graph.files).length,links:Object.keys(graph.links).length};
+  } catch(error) {
+    for(const filename of [buildPath,path.join(root,'staging-manifest.json')])if(fs.existsSync(filename))fs.unlinkSync(filename);
+    throw error;
+  }
+}
+export function verifyInstalled(root,manifest,build) {
+  if(manifest.profile!=='installed-rc2'||manifest.platform!==build.platform||manifest.arch!==build.arch||!['node','electron'].includes(build.runtime)||!/^v\d+\.\d+\.\d+/.test(build.node)||!/^\d+$/.test(String(build.abi)))throw Error('Unsupported installed mobile runtime identity');
+  supportedPlatform(build.platform);
+  const executable=safeChild(root,manifest.nodePath);
+  if(!manifest.files[manifest.nodePath]||sha(executable)!==build.nodeSHA256)throw Error('Mobile Node build provenance mismatch');
+  verifyGraph(root,{schemaVersion:1,files:manifest.files,links:manifest.links},{exclude:['staging-manifest.json','debug.log']});
+  assertFiles(root,installedRequired);
+  if(build.runtime==='electron') {if(!build.electron)throw Error('Electron mobile runtime is missing its runtime version');assertFiles(root,electronResources);}
+  const native=Object.keys(build.nativeArtifacts||{});
+  if(!native.some(name=>name.endsWith('better_sqlite3.node'))||!native.some(name=>/(?:conpty|pty)\.node$/.test(name)))throw Error('Mobile runtime has no actual SQLite/PTY ABI load proof');
+  for(const [relative,expected] of Object.entries(build.nativeArtifacts))if(manifest.files[relative]!==expected||sha(safeChild(root,relative))!==expected)throw Error(`Mobile native binding proof changed: ${relative}`);
+  if(manifest.harnessPeer?.path!=='../deepseek-harness')throw Error('Mobile runtime is missing its exact Host peer');
+  const vendor=fs.realpathSync(path.dirname(root)),peer=path.join(vendor,'deepseek-harness');
+  for(const relative of peerArtifacts) {
+    const filename=safeChild(peer,relative);
+    if(!inside(vendor,fs.realpathSync(filename))||sha(filename)!==manifest.harnessPeer.artifacts?.[relative])throw Error(`Mobile Host peer changed: ${relative}`);
+  }
+  return build;
+}
 export function verify(root) {
   assertFiles(root,['node-build.json','staging-manifest.json']);
+  root=fs.realpathSync(root);
   const build = JSON.parse(fs.readFileSync(path.join(root,'node-build.json')));
+  const manifest = JSON.parse(fs.readFileSync(path.join(root,'staging-manifest.json')));
+  if(manifest.format===3)return verifyInstalled(root,manifest,build);
   supportedPlatform(build.platform);
   const requiredForBuild=platformRequired(build.platform);
   assertFiles(root,requiredForBuild);
-  const manifest = JSON.parse(fs.readFileSync(path.join(root,'staging-manifest.json')));
   if(![1,2].includes(manifest.format) || !manifest.files) throw new Error('Invalid mobile staging manifest');
   for(const f of [...requiredForBuild,'node-build.json']) if(!manifest.files[f] && !Object.keys(manifest.links || {}).some(link => f.startsWith(link+'/'))) throw new Error(`Untracked mobile resource: ${f}`);
   for(const [f,hash] of Object.entries(manifest.files)) {
@@ -221,6 +290,8 @@ if(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.met
   else if(mode === 'bundle') bundle(...args);
   else if(mode === 'record') record(...args);
   else if(mode === 'stage') stage(...args);
-  else if(mode === 'verify') verify(...args);
-  else throw new Error('Expected prepare-offline-windows, prepare, bundle, record, stage, or verify');
+  else if(mode === 'verify') console.log(JSON.stringify(verify(...args) || {verified:true}));
+  else if(mode === 'record-installed') console.log(JSON.stringify(recordInstalled(...args),null,2));
+  else if(mode === 'probe') console.log(JSON.stringify(probeNative(...args),null,2));
+  else throw new Error('Expected prepare-offline-windows, prepare, bundle, record, stage, verify, record-installed, or probe');
 }

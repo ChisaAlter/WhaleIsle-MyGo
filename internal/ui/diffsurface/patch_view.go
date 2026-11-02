@@ -40,7 +40,7 @@ func paintDiffControls(c *ui.Context, m Model) {
 	ui.Row(c).FillWidth().Gap(4).Padding(6, 12, 6, 12).Wrap().AlignItems(ui.Center).Children(func() {
 		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffUnified), !view.Split, func() { view.Split = false })
 		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffSplit), view.Split, func() { view.Split = true })
-		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
+		ui.Box(c).Width(0.5).Height(16).Shrink(0).Background(c.Theme().Border)
 		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffWrap), view.Wrap, func() { view.Wrap = !view.Wrap })
 		ui.Box(c).Grow(1)
 		diffToolButton(c, i18n.T(i18n.KeySurfacesDiffExpandAll), false, func() { view.setAllClosed(false); view.setAllHunks(false) })
@@ -65,7 +65,7 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 				if title == "" {
 					title = word("差异内容", "Diff contents")
 				}
-				head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(26).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
+				head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(28).Radius(6).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
 				if head.Hovered() && m.OnOpenFile != nil && safePatchPath(f.Path) {
 					head.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
 				}

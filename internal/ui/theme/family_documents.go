@@ -42,6 +42,9 @@ func (p Preferences) DuplicateFamily(f Family) Family {
 }
 
 func canonicalFamily(f Family) Family {
+	if f.Skin == SkinDefault {
+		f.Skin = ""
+	}
 	f.Light, f.Dark = f.Light.Clone(), f.Dark.Clone()
 	for _, s := range []*Seed{&f.Light, &f.Dark} {
 		if s.Contrast == nil {

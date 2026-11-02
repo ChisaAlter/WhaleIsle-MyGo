@@ -44,6 +44,7 @@ func captionFixtureRepo(t *testing.T) string {
 	run("commit", "-m", "isolated fixture")
 	return root
 }
+
 // awaitCaptionFixture drives frames until the fixture settles. It polls the
 // condition instead of sleeping a fixed amount, so a fast machine finishes fast
 // and a loaded one still has 2s of headroom; the failure names the condition and
@@ -73,7 +74,14 @@ func awaitCaptionFixture(t *testing.T, tt *ui.Tester, ready func() bool, detail 
 }
 
 func TestCaptionInitializeIsOneGestureAndCapturesItsRoot(t *testing.T) {
+	// Go also uses GOTMPDIR for t.TempDir. The development runner keeps it
+	// inside the checkout, where Git would find the existing parent repository
+	// and correctly skip init. This fixture needs genuinely unversioned roots.
+	t.Setenv("GOTMPDIR", "")
 	root, next := t.TempDir(), t.TempDir()
+	if git.IsRepository(root) || git.IsRepository(next) {
+		t.Fatal("initialization fixture inherited a parent Git repository")
+	}
 	current := root
 	w := &Workbench{}
 	accepted := false
@@ -98,7 +106,7 @@ func TestCaptionInitializeIsOneGestureAndCapturesItsRoot(t *testing.T) {
 		t.Fatal("one gesture did not admit initialization")
 	}
 	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
-		t.Fatal("captured root was not initialized", err)
+		t.Fatalf("captured root was not initialized: %v; status=%q", err, w.Status)
 	}
 	if _, err := os.Stat(filepath.Join(next, ".git")); !os.IsNotExist(err) {
 		t.Fatal("initialization crossed into a replacement cwd")

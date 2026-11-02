@@ -37,6 +37,8 @@ type presetOptions struct {
 	FontSize float32
 	Weight   int
 	MaxWidth float32
+	PaddingX float32
+	Gap      float32
 }
 
 type presetNavigation struct {
@@ -56,11 +58,17 @@ type presetNavigation struct {
 // paints no hover fill, so the chip could show neither its open state nor its
 // own hover.
 func presetSelect(c *ui.Context, caption string, options []presetChoice, pick func(string), colors theme.Colors, opt presetOptions) ui.Element {
-	owner := ui.Box(c)
+	owner := ui.Box(c).Absolute().Size(0, 0).PassThrough()
 	open := ui.Local(owner, "preset-open", func() bool { return false })
 	nav := ui.Local(owner, "preset-navigation", func() presetNavigation { return presetNavigation{} })
 	display, selectedID := resolvePresetCaption(caption, options)
 	trigger := chip(c, colors, *open, opt.Text)
+	if opt.PaddingX > 0 {
+		trigger = trigger.Padding(0, opt.PaddingX)
+	}
+	if opt.Gap > 0 {
+		trigger = trigger.Gap(opt.Gap)
+	}
 	if opt.MaxWidth > 0 {
 		trigger = trigger.MaxWidth(opt.MaxWidth)
 	}

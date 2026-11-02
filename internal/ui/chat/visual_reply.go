@@ -137,6 +137,9 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 			clip = ui.Rect{}
 		}
 		_ = surface.Present(int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H), appearance, map[string]string{"--bg": colors.BG, "--background": colors.BG, "--surface": colors.Field, "--text": colors.FG, "--text-secondary": colors.Muted, "--border": colors.Border, "--accent": colors.Accent})
+		// Presenting renews the helper's paint lease. Repaint, not rebuild, to
+		// keep it: a build every 100ms redrew the whole window while shown.
+		p.After(100 * time.Millisecond)
 	})
 }
 
@@ -156,7 +159,8 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	if page.Surface == nil {
 		return
 	}
-	c.After(100 * time.Millisecond)
+	// The seat repaints itself to keep the helper presented; the owner asks for
+	// a build when the page's content height changes.
 	height := float32(max(80, min(2000, page.Height)))
 	if !page.Expanded {
 		if stdButton(c, palette, i18n.T(i18n.KeyChatVisualExpand), buttonGhost, false).Clicked() {

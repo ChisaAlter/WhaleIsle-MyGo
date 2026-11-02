@@ -2,10 +2,10 @@
 package usage
 
 import (
-	"time"
-	"fmt"
 	"context"
+	"fmt"
 	"strings"
+	"time"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
@@ -43,6 +43,8 @@ type Model struct {
 	OnCopyUsageURL func(url string)
 	OnCopyTopUpURL func(url string)
 	OnCopyBalance  func(text string)
+	// Preferences paints the Host-owned rows behind the embedded page's 设置 button.
+	Preferences func(c *ui.Context, fg, muted ui.Color)
 }
 
 // View paints the native usage panel.
@@ -197,6 +199,7 @@ func View(c *ui.Context, m Model) {
 
 // usageChartIcon is the bar-chart glyph beside the usage title.
 var usageChartIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V8M8 13V3M13 13V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`))
+
 // usageUpdatedLabel renders the Host's snapshot time in UTC, matching the
 // reference's "data as of HH:MM · UTC" line. Values above 1e12 are taken as
 // milliseconds because older Host builds send both units.

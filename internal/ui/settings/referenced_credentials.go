@@ -22,8 +22,8 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("供应商或 Web Search API Key", "Provider or Web Search API key")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
-	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, providerCopy("供应商或 Web Search API Key", "Provider or Web Search API key")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
@@ -34,7 +34,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 	if s.LastAction != "" {
 		ui.Text(c, settingsActionText(s.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).Disabled(s.Busy || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
+	if ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}
 	if s.Busy {
@@ -64,10 +64,10 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		}
 	}
 	if len(rows) == 0 {
-		ui.Text(c, providerCopy("此页没有可编辑的凭据引用。", "No editable credential references are available on this page.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("此页没有可编辑的凭据引用。", "No editable credential references are available on this page.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	if ui.Select(c, &current, options).FillWidth().Disabled(s.Busy).Changed() && a.OnSelect != nil {
+	if ui.Select(c, &current, options).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(s.Busy).Changed() && a.OnSelect != nil {
 		for i, row := range rows {
 			if current == options[i+1] {
 				a.OnSelect(row.ID)
@@ -89,31 +89,31 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 	if !row.Writable {
 		status += " · " + providerCopy("只读，不可写", "Read-only, unavailable")
 	}
-	ui.Text(c, status).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, status).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	locked := s.Busy || !row.Known || !row.Writable
 	draft := s.Draft
-	if ui.TextInput(c, &draft).FillWidth().Password().Placeholder(providerCopy("输入新密钥，留空保留", "Enter a new key; blank keeps existing")).Disabled(locked || s.ClearPending).Changed() && a.OnEdit != nil {
+	if ui.TextInput(c, &draft).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Password().Placeholder(providerCopy("输入新密钥，留空保留", "Enter a new key; blank keeps existing")).Disabled(locked || s.ClearPending).Changed() && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, draft)
 	}
 	if row.BindReference {
-		ui.Text(c, providerCopy("首次保存只会添加此供应商的 apiKeyEnv 引用，并使用当前配置版本校验。", "The first save adds only this provider's apiKeyEnv reference, guarded by the current settings revision.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, providerCopy("首次保存只会添加此供应商的 apiKeyEnv 引用，并使用当前配置版本校验。", "The first save adds only this provider's apiKeyEnv reference, guarded by the current settings revision.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if s.ClearPending {
 		ui.Text(c, providerCopy("确认后将清除此引用的本地密钥；同用此引用的功能也会受影响。", "Confirming clears the local key for this reference, affecting other features that share it.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
-	ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).Gap(8).Wrap().Children(func() {
 		saveLabel := providerCopy("保存此密钥", "Save this key")
 		if s.ClearPending {
 			saveLabel = providerCopy("确认清除此引用", "Confirm clear reference")
 		}
-		if ui.Button(c, saveLabel).Disabled(locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")).Clicked() && a.OnSave != nil {
+		if ui.Button(c, saveLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")).Clicked() && a.OnSave != nil {
 			a.OnSave(s.Ticket)
 		}
 		if s.ClearPending {
-			if ui.Button(c, providerCopy("取消清除", "Cancel clear")).Disabled(s.Busy).Clicked() && a.OnClear != nil {
+			if ui.Button(c, providerCopy("取消清除", "Cancel clear")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() && a.OnClear != nil {
 				a.OnClear(s.Ticket, false)
 			}
-		} else if ui.Button(c, providerCopy("清除此引用…", "Clear this reference…")).Disabled(locked || !row.Configured).Clicked() && a.OnClear != nil {
+		} else if ui.Button(c, providerCopy("清除此引用…", "Clear this reference…")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || !row.Configured).Clicked() && a.OnClear != nil {
 			a.OnClear(s.Ticket, true)
 		}
 	})

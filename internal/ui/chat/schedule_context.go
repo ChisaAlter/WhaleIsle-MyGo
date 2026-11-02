@@ -10,8 +10,8 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
-	cards := session.ScheduleCards(m.Snapshot.Messages, m.Snapshot.SelectedID)
+func prepareScheduleContext(m Model, memo *session.HistoryDerivedMemo) map[float64][]schedstore.Entry {
+	cards := memo.ScheduleCards(m.Snapshot)
 	var ids []string
 	for _, rows := range cards {
 		for _, row := range rows {
@@ -23,7 +23,8 @@ func prepareScheduleContext(m Model) map[float64][]schedstore.Entry {
 	}
 	return cards
 }
-func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if len(rows) == 0 {
 		return
 	}
@@ -48,7 +49,7 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {	pa
 		}
 		deleted := settled && !found
 		ui.Column(c).Padding(8, 12).Gap(4).Border(1, c.Theme().Border).Radius(6).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatScheduleTask) + " · "+row.Title).Bold()
+			ui.Text(c, i18n.T(i18n.KeyChatScheduleTask)+" · "+row.Title).Bold()
 			ui.Text(c, row.Prompt).FontSize(12)
 			ui.Text(c, schedstore.TimingLabel(row)).FontSize(11)
 			if !found {

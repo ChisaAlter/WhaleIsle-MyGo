@@ -170,11 +170,17 @@ func newSurface(w *window) *surface {
 	return s
 }
 
-// fit makes the surface fill the client area of its window.
+// fit makes the surface fill the client area of its window. It asks for no
+// move or size when it already does, which a resize step or the settle frame
+// after one would otherwise repeat.
 func (s *surface) fit() {
-	var r rect
-	procGetClientRect.Call(s.w.hwnd, uintptr(unsafe.Pointer(&r)))
-	procSetWindowPos.Call(s.hwnd, 0, 0, 0, uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), swpNoZOrder|swpNoActivate)
+	var w, r rect
+	procGetClientRect.Call(s.w.hwnd, uintptr(unsafe.Pointer(&w)))
+	procGetClientRect.Call(s.hwnd, uintptr(unsafe.Pointer(&r)))
+	if r.Right-r.Left == w.Right-w.Left && r.Bottom-r.Top == w.Bottom-w.Top {
+		return
+	}
+	procSetWindowPos.Call(s.hwnd, 0, 0, 0, uintptr(w.Right-w.Left), uintptr(w.Bottom-w.Top), swpNoZOrder|swpNoActivate)
 }
 
 func (s *surface) dpi() int { return dpiOf(s.w.hwnd) }
@@ -191,7 +197,7 @@ func (s *surface) Native() platform.SurfaceNative {
 
 // ShowsMaterial reports whether the window shows its material behind the
 // content: it has one, and no redirection bitmap to cover it.
-func (s *surface) ShowsMaterial() bool { return s.w.noRedirect && s.w.vibrancy != "" }
+func (s *surface) ShowsMaterial() bool { return s.w.noRedirect && s.w.materialApplied }
 
 func (s *surface) freeComp() {
 	if s.comp != nil {
@@ -397,6 +403,13 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	case wmPaint:
 		var ps paintStruct
 		dc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+		if s.w.holdsFrames() {
+			// A move or a run of sizes holds the last frame, which the swap
+			// chain stretches to the surface; validate the paint without
+			// building the view for a size the user is still dragging.
+			procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+			return 0, true
+		}
 		s.paintDC = dc
 		s.send(platform.SurfaceEvent{Kind: platform.SurfaceFrame})
 		s.paintDC = 0
@@ -405,6 +418,9 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	case wmEraseBkgnd:
 		return 1, true
 	case wmSize:
+		if s.w.holdsFrames() {
+			return 0, true
+		}
 		s.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
 		// Draw at once, so the content follows the window while it is
 		// resized.

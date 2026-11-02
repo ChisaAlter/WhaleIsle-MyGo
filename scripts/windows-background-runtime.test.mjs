@@ -36,10 +36,12 @@ const oldManifest = {
   unrelated: {keep: ['existing', 'provenance']},
 };
 
-// Keep the actual vendor bytes, including their line endings. Reverse precisely
-// the pinned one-field change; a source imitation is not an adequate fixture.
+// Keep the actual vendor bytes, including their line endings. The source vendor
+// may be original while a packaged consumer is already patched. Normalize only
+// either exact pinned revision, then reverse the one-field change for staging.
 const fixtures = await Promise.all(patches.map(async patch => {
-  const fixed = await fs.readFile(path.join(projectRoot, 'runtime/vendor', patch.file));
+  const source = await fs.readFile(path.join(projectRoot, 'runtime/vendor', patch.file), 'utf8');
+  const fixed = Buffer.from(patchBackgroundSource(patch, source));
   const after = Buffer.from(patch.after);
   const position = fixed.indexOf(after);
   assert.notEqual(position, -1, `missing fixed execFile call in ${patch.file}`);

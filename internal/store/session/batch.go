@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -26,12 +27,17 @@ type SessionBatch struct {
 	Token                     uint64
 	generation                uint64
 	cwd                       string
+	scope                     SessionBatchScope
+	scopeSet                  bool
 }
 
 func (s *Store) ensureBatchLocked() {
 	if s.batch.generation != s.eventsGeneration || s.batch.cwd != s.cwd || s.batch.Selected == nil {
 		s.batchToken++
 		s.batch = SessionBatch{Selected: map[string]string{}, Token: s.batchToken, generation: s.eventsGeneration, cwd: s.cwd}
+		// Every frame reads SessionBatch for its dialog state; advancing the
+		// revision on those reads rebuilt the whole Snapshot each frame.
+		s.invalidateViewLocked()
 	}
 }
 func (s *Store) SessionBatch() SessionBatch {
@@ -48,7 +54,7 @@ func (s *Store) SessionBatch() SessionBatch {
 	return out
 }
 
-// EditSessionBatch preserves hidden choices across search/group changes.
+// EditSessionBatch changes choices within the current rendered browser scope.
 func (s *Store) EditSessionBatch(action string, targets []SessionBatchTarget) {
 	s.mu.Lock()
 	s.ensureBatchLocked()
@@ -132,6 +138,7 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			s.mu.Lock()
 			s.ensureBatchLocked()
 			valid := s.batch.Token == token && s.client == client
+			alreadyArchived := slices.Contains(s.archivedSessionIDs, target.ID)
 			s.mu.Unlock()
 			if !valid {
 				return
@@ -139,11 +146,43 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			var archived api.WorkspaceArchiveValue
 			var deleted api.SessionDeleteValue
 			var err error
-			if op.Kind == "archive" {
-				stop := true // The batch dialog explicitly warns that active work will stop.
-				err = client.Call(ctx, "workspace/archiveSession", map[string]any{"request": api.WorkspaceArchiveSessionRequest{SessionId: target.ID, StopActivity: &stop}}, &archived)
-			} else {
-				err = client.Call(ctx, "session/delete", map[string]any{"request": map[string]any{"sessionId": target.ID}}, &deleted)
+			if op.Kind == "archive" || !alreadyArchived {
+				req := api.WorkspaceArchiveSessionRequest{SessionId: target.ID}
+				if op.Kind == "archive" {
+					stop := true // Only explicit batch archive consents to stopping activity.
+					req.StopActivity = &stop
+				}
+				err = client.Call(ctx, "workspace/archiveSession", map[string]any{"request": req}, &archived)
+				s.mu.Lock()
+				s.ensureBatchLocked()
+				if s.batch.Token != token || s.client != client {
+					s.mu.Unlock()
+					return
+				}
+				if err == nil {
+					if s.selectedID == target.ID {
+						s.selectSessionLocked("")
+					}
+					s.archivedSessionIDs = append([]string(nil), archived.ArchivedSessionIds...)
+					s.invalidateViewLocked()
+				}
+				s.mu.Unlock()
+				if err == nil {
+					s.fire()
+				}
+			}
+			if op.Kind == "delete" && err == nil {
+				// A synchronous notifier can change the Host after archiving.
+				s.mu.Lock()
+				s.ensureBatchLocked()
+				valid = s.batch.Token == token && s.client == client
+				s.mu.Unlock()
+				if !valid {
+					return
+				}
+				if err = ctx.Err(); err == nil {
+					err = client.Call(ctx, "session/delete", map[string]any{"request": map[string]any{"sessionId": target.ID}}, &deleted)
+				}
 			}
 			s.mu.Lock()
 			s.ensureBatchLocked()
@@ -155,12 +194,7 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			if err != nil {
 				result.Error = err.Error()
 			} else {
-				if op.Kind == "archive" {
-					if s.selectedID == target.ID {
-						s.selectSessionLocked("")
-					}
-					s.archivedSessionIDs = append([]string(nil), archived.ArchivedSessionIds...)
-				} else {
+				if op.Kind == "delete" {
 					s.applyDeleteResultLocked(deleted)
 				}
 				delete(s.batch.Selected, target.ID)
@@ -176,12 +210,27 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			s.mu.Unlock()
 			return
 		}
+		// Failures stay retryable only in the browser scope that confirmed them.
+		if s.batch.scope != op.scope {
+			s.batch.Selected = map[string]string{}
+		} else {
+			for _, result := range s.batch.Results {
+				if result.Error != "" {
+					s.batch.Selected[result.ID] = result.Title
+				}
+			}
+		}
 		s.batch.Busy = false
 		s.lastAction = fmt.Sprintf("batch %s: %d sessions processed", op.Kind, s.batch.Attempted)
-		// Bind the final refresh to the same Host, as single-session deletion does.
-		_, generation := s.beginListRefreshLocked()
+		// Bind the final refresh to the same Host; cancellation admits no new RPC.
+		var generation uint64
+		if ctx.Err() == nil {
+			_, generation = s.beginListRefreshLocked()
+		}
 		s.mu.Unlock()
 		s.fire()
-		go s.runRefreshList(ctx, client, generation)
+		if generation != 0 {
+			go s.runRefreshList(ctx, client, generation)
+		}
 	}()
 }

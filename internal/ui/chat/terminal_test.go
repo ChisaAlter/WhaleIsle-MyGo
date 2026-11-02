@@ -147,9 +147,10 @@ func TestTerminalCommandBannerOutputScrollIndependentlyAndKeepCopyReachable(t *t
 	// Find returns the clipped accessible box, which stays viewport-sized for a
 	// long RichText. Compare the actually painted output rather than that box.
 	changed := false
+	imageAfter := tt.Image()
 	for y := int(output.Y + 8); y < int(output.Y+output.H-8); y++ {
 		for x := int(output.X + 4); x < int(output.X+150); x++ {
-			if imageBefore.RGBAAt(x, y) != tt.Image().RGBAAt(x, y) {
+			if imageBefore.RGBAAt(x, y) != imageAfter.RGBAAt(x, y) {
 				changed = true
 			}
 		}

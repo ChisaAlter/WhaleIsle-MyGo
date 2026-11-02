@@ -43,13 +43,13 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 		}
 	}
 	actions["session.fork"] = func() {
-		id := m.Store.Snapshot().SelectedID
+		id := m.Store.SelectedSessionID()
 		if id != "" {
 			m.Store.ForkSession(context.Background(), id)
 		}
 	}
 	actions["session.archive"] = func() {
-		id := m.Store.Snapshot().SelectedID
+		id := m.Store.SelectedSessionID()
 		if id != "" {
 			m.Store.ArchiveSession(context.Background(), id)
 		}

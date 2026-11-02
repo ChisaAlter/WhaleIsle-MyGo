@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo"
 
 	"whaleisle/internal/paths"
+	"whaleisle/internal/product"
 )
 
 // ExportLogs writes supervisor log lines to path. When path is empty, writes
@@ -75,7 +76,7 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 		recovery = "cancelled"
 	}
 	lines := []string{
-		strings.TrimSpace("Whale Isle " + version),
+		strings.TrimSpace(product.Name + " " + version),
 		"savedAt: " + savedAt.Format(time.RFC3339Nano),
 		"state: " + status.State.String(),
 		"error: " + value(errText),

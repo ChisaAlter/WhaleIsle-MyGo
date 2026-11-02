@@ -6,7 +6,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/files"
+	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Drain both domains even when one has failed. A remote close attempt retains
@@ -64,6 +67,7 @@ func workspaceCloseFilesModel(m Model) files.Model {
 }
 
 func workspacePaneClosePrompt(c *ui.Context, m Model) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	n, w := m.workspacePane, m.Sizes.Workspace
 	fileModel := workspaceCloseFilesModel(m)
 	pending := w.closeSaving == n.ID
@@ -89,18 +93,18 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 			}
 		}
 	}
-	ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts."))
+	ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
 	if w.closeError != "" {
-		ui.Text(c, w.closeError)
+		ui.Text(c, w.closeError).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
 	}
 	ui.Row(c).Gap(4).Wrap().Children(func() {
-		if ui.Button(c, paneLabel("保留面板", "Keep pane")).Disabled(pending).Clicked() {
+		if widgets.Button(c, colors, paneLabel("保留面板", "Keep pane"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
 			w.closing, w.closeSaving, w.closeError = "", "", ""
 		}
-		if ui.Button(c, paneLabel("放弃并关闭", "Discard and close")).Disabled(pending).Clicked() {
+		if widgets.Button(c, colors, paneLabel("放弃并关闭", "Discard and close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
 			finish()
 		}
-		if ui.PrimaryButton(c, paneLabel("保存并关闭", "Save and close")).Disabled(pending).Clicked() {
+		if widgets.Button(c, colors, paneLabel("保存并关闭", "Save and close"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
 			var err error
 			pending, err = startWorkspacePaneCloseSave(n, fileModel)
 			w.closeError = ""

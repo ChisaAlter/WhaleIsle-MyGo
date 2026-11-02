@@ -24,7 +24,7 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 	if mode == "" {
 		mode = "workspace"
 	}
-	host := sessions.Snapshot().ComposerHostGeneration
+	host := sessions.ComposerHostGeneration()
 	s.mu.Lock()
 	s.dirPickOpen, s.dirPickMode, s.dirPickHostGeneration = true, mode, host
 	s.dirPickListing = api.DirectoryListing{}
@@ -78,7 +78,7 @@ func (s *mainState) beginDirectoryScan(sessions *session.Store, win *mygo.Window
 	if sessions == nil {
 		return nil
 	}
-	host := sessions.Snapshot().ComposerHostGeneration
+	host := sessions.ComposerHostGeneration()
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
@@ -94,7 +94,7 @@ func (s *mainState) beginDirectoryScan(sessions *session.Store, win *mygo.Window
 }
 
 func (op *directoryScan) current() bool {
-	if op.ctx.Err() != nil || op.sessions.Snapshot().ComposerHostGeneration != op.host {
+	if op.ctx.Err() != nil || op.sessions.ComposerHostGeneration() != op.host {
 		return false
 	}
 	s := op.state
@@ -344,7 +344,7 @@ func (s *mainState) editDirectoryPath(sessions *session.Store, win *mygo.Window,
 			return
 		case <-timer.C:
 		}
-		if sessions.Snapshot().ComposerHostGeneration != host {
+		if sessions.ComposerHostGeneration() != host {
 			return
 		}
 		s.mu.Lock()
@@ -470,7 +470,7 @@ func (s *mainState) directoryPickerView(c *ui.Context, win *mygo.Window, session
 		c.CloseToast("directory-create-error")
 		return
 	}
-	if sessions == nil || sessions.Snapshot().ComposerHostGeneration != host {
+	if sessions == nil || sessions.ComposerHostGeneration() != host {
 		s.closeDirectoryPicker(win)
 		return
 	}
@@ -533,7 +533,7 @@ func (s *mainState) directoryPickerView(c *ui.Context, win *mygo.Window, session
 					}
 				},
 				OnPick: func(path string) {
-					if !directorypicker.SelectablePath(path) || sessions.Snapshot().ComposerHostGeneration != host {
+					if !directorypicker.SelectablePath(path) || sessions.ComposerHostGeneration() != host {
 						return
 					}
 					s.mu.Lock()

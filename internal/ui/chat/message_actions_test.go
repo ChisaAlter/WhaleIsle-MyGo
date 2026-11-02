@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -160,6 +161,32 @@ func TestEarlierUserActionsRevealOnHoverAndKeyboardWithoutReflow(t *testing.T) {
 	tt.Key(0, ui.KeyEnter)
 	if tt.Clipboard() != msg.Body {
 		t.Fatal("keyboard copy lost source")
+	}
+}
+
+// A message that can be copied must offer copy from its context menu even when
+// no quote handler is wired; previously the menu was not created at all.
+func TestMessageContextMenuCopiesWithoutQuoteHandler(t *testing.T) {
+	messages := []session.Message{
+		{ID: "q", Role: "user", Kind: session.MessageKindText, Seq: 1, Body: "Question"},
+		{ID: "a", SourceMessageID: "a", Role: "assistant", Kind: session.MessageKindText, Seq: 2, Body: "Copy me", EventType: "assistant/message"},
+	}
+	m := Model{Snapshot: session.ViewState{Messages: messages, ClientReady: true}}
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
+	if err := tt.RightClick("Assistant message actions"); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(tt.Menu(), i18n.T(i18n.KeyChatCopy)) {
+		t.Fatalf("context menu has no Copy: %v", tt.Menu())
+	}
+	if slices.Contains(tt.Menu(), i18n.T(i18n.KeyChatQuote)) {
+		t.Fatalf("quote appeared without a handler: %v", tt.Menu())
+	}
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyChatCopy)); err != nil {
+		t.Fatal(err)
+	}
+	if tt.Clipboard() != "Copy me" {
+		t.Fatalf("menu copy=%q", tt.Clipboard())
 	}
 }
 

@@ -157,7 +157,23 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 		t.imageReader.setNotify(m.notify)
 		t.imageReadTab = tab
 		root, path := owner.root, owner.path
+		resolve := previewPathResolver(m, tab)
+		localSource := tab.deliverySource
+		sourceCurrent := localSource == nil || localSource.current(m)
 		t.imageReader.request(owner, func(ctx context.Context) *imagePreview {
+			if !sourceCurrent {
+				return &imagePreview{err: deliverySourceChanged()}
+			}
+			if localSource != nil {
+				data, err := localSource.readBytes(ctx, imageByteLimit(path))
+				if err != nil {
+					return &imagePreview{err: err}
+				}
+				return decodeImagePreviewContext(ctx, path, data)
+			}
+			if _, err := resolve(); err != nil {
+				return &imagePreview{err: err}
+			}
 			return loadImagePreviewContext(ctx, root, path)
 		})
 	}

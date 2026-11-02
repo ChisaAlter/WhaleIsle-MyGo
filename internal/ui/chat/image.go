@@ -32,10 +32,25 @@ func SetAttachmentFetcher(fn func(ctx context.Context, attachmentID string) (str
 	attachmentFetcher.mu.Unlock()
 }
 
+// chatImageCache keeps the decoded bitmaps of recently drawn local images. It
+// used to hold one: two different images in the viewport evicted each other, so
+// every frame re-read and re-decoded both files on the UI thread and uploaded a
+// new GPU texture for each. Entries are bounded by count and by decoded size.
+const (
+	chatImageCacheEntries = 32
+	chatImageCacheBytes   = 192 << 20
+)
+
+type chatImageEntry struct {
+	path  string
+	bmp   *ui.Bitmap // nil records a file that could not be read or decoded
+	bytes int
+}
+
 var chatImageCache struct {
-	mu   sync.Mutex
-	path string
-	bmp  *ui.Bitmap
+	mu      sync.Mutex
+	entries []chatImageEntry // most recently used first
+	bytes   int
 }
 
 var remoteImageCache struct {
@@ -362,7 +377,7 @@ func localImagePath(raw string) string {
 	}
 	if strings.HasPrefix(lower, "file:") {
 		u, err := url.Parse(raw)
-		if err != nil {
+		if err != nil || u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
 			return ""
 		}
 		p := u.Path
@@ -373,6 +388,14 @@ func localImagePath(raw string) string {
 		raw = filepath.FromSlash(p)
 	}
 	st, err := os.Stat(raw)
+	if err != nil && strings.Contains(raw, "%") {
+		// Markdown percent escapes are decoded only after trying the literal
+		// local filename, so an actual '%20' in a file name keeps its identity.
+		if decoded, decodeErr := url.PathUnescape(raw); decodeErr == nil && decoded != raw {
+			raw = decoded
+			st, err = os.Stat(raw)
+		}
+	}
 	if err != nil || st.IsDir() {
 		return ""
 	}
@@ -382,24 +405,44 @@ func localImagePath(raw string) string {
 func loadChatBitmap(path string) *ui.Bitmap {
 	chatImageCache.mu.Lock()
 	defer chatImageCache.mu.Unlock()
-	if chatImageCache.path == path && chatImageCache.bmp != nil {
-		return chatImageCache.bmp
+	for i, entry := range chatImageCache.entries {
+		if entry.path != path {
+			continue
+		}
+		// A failed read keeps its slot too, so a missing file is not statted
+		// and opened again every frame; it is retried once it ages out.
+		copy(chatImageCache.entries[1:i+1], chatImageCache.entries[:i])
+		chatImageCache.entries[0] = entry
+		return entry.bmp
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		chatImageCache.path = path
-		chatImageCache.bmp = nil
-		return nil
+	var bmp *ui.Bitmap
+	size := 0
+	if data, err := os.ReadFile(path); err == nil {
+		if decoded, err := ui.DecodeBitmap(data); err == nil {
+			bmp = decoded
+			w, h := decoded.Size()
+			size = 4 * w * h
+		}
 	}
-	bmp, err := ui.DecodeBitmap(data)
-	if err != nil {
-		chatImageCache.path = path
-		chatImageCache.bmp = nil
-		return nil
-	}
-	chatImageCache.path = path
-	chatImageCache.bmp = bmp
+	storeChatBitmapLocked(chatImageEntry{path: path, bmp: bmp, bytes: size})
 	return bmp
+}
+
+// storeChatBitmapLocked inserts entry at the front and evicts from the back
+// until the cache is within its bounds. The newest entry always stays, even when
+// it alone exceeds the byte bound.
+func storeChatBitmapLocked(entry chatImageEntry) {
+	c := &chatImageCache
+	c.entries = append(c.entries, chatImageEntry{})
+	copy(c.entries[1:], c.entries)
+	c.entries[0] = entry
+	c.bytes += entry.bytes
+	for len(c.entries) > 1 && (len(c.entries) > chatImageCacheEntries || c.bytes > chatImageCacheBytes) {
+		last := len(c.entries) - 1
+		c.bytes -= c.entries[last].bytes
+		c.entries[last] = chatImageEntry{}
+		c.entries = c.entries[:last]
+	}
 }
 
 // attachmentLoadCache suppresses per-frame fetches and retains a failed state

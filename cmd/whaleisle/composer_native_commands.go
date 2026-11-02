@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) retireNativeComposerCommands() {
@@ -37,7 +38,7 @@ func (s *mainState) nativeComposerCommandAction(win *mygo.Window, sessions *sess
 		if draft.Preparing > 0 {
 			return false
 		}
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: "Attach files or images", DefaultPath: cwd, Multiple: true})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdAttachFilesImages), DefaultPath: cwd, Multiple: true})
 		s.mu.Lock()
 		current = s.sessions == sessions && s.composerDrafts[sourceID] == draft
 		s.mu.Unlock()

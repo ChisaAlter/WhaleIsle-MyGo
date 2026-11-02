@@ -12,7 +12,7 @@ import (
 // disclosure only offers removal of an old desktop relay credential.
 func (s *mainState) clearLegacyRelayToken(value string) error {
 	if value != "" {
-		return errors.New("legacy relay credentials can only be cleared")
+		return errors.New(i18n.T(i18n.KeyCmdLegacyRelayOnlyClear))
 	}
 	s.phoneOp.Lock()
 	defer s.phoneOp.Unlock()
@@ -33,7 +33,7 @@ func (s *mainState) clearLegacyRelayToken(value string) error {
 
 func (s *mainState) savePhoneGateway(expected, p config.RemoteGatewayPreferences) error {
 	if s.cfgStore == nil {
-		return errors.New("remote configuration unavailable")
+		return errors.New(i18n.T(i18n.KeyCmdRemoteConfigUnavailable))
 	}
 	if err := s.cfgStore.SaveRemoteGateway(expected, p); err != nil {
 		return err

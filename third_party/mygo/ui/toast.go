@@ -6,10 +6,21 @@ import (
 )
 
 const (
-	// toastTime is how long a toast shows unless it says, and
-	// actionToastTime one of ToastAction, which the user needs time to
-	// reach.
-	toastTime       = 4 * time.Second
+	// toastHold is how long a toast shows at full opacity before it fades,
+	// as Toast.tsx's HOLD_MS.
+	toastHold = 3 * time.Second
+	// toastFade is how long the fade-out takes, as Toast.tsx's FADE_MS. The
+	// toast's time runs out when the fade ends.
+	toastFade = time.Second
+	// toastEnter is how long the toast takes to fade and slide into place.
+	toastEnter = 160 * time.Millisecond
+	// toastRise is the initial vertical offset, in DIPs.
+	toastRise float32 = -6
+	// toastTime is how long a toast shows unless it says: the hold and the
+	// fade after it, as the native toast unmounts at HOLD_MS + FADE_MS.
+	toastTime = toastHold + toastFade
+	// actionToastTime is how long one of ToastAction shows, which the user
+	// needs time to reach.
 	actionToastTime = 8 * time.Second
 	// toastLimit is how many toasts show at once, the newest; older ones
 	// wait hidden, their time running, as with Base UI's limit.
@@ -133,22 +144,30 @@ func (c *context) AddToast(t Toast) string {
 }
 
 // CloseToast closes the toast with id, or every toast when id is empty,
-// and runs their OnClose.
+// and runs their OnClose. Closing a toast that is not showing changes nothing:
+// callers close "their" toast on every build, and a no-op close must not ask for
+// another build pass (it made every frame build three times).
 func (c *context) CloseToast(id string) {
 	rt := c.rt
 	var closed []func()
 	kept := rt.toasts[:0]
+	changed := false
 	for _, ts := range rt.toasts {
 		if id != "" && ts.ID != id {
 			kept = append(kept, ts)
-		} else if ts.OnClose != nil {
-			closed = append(closed, ts.OnClose)
+		} else {
+			changed = true
+			if ts.OnClose != nil {
+				closed = append(closed, ts.OnClose)
+			}
 		}
 	}
 	clear(rt.toasts[len(kept):])
 	rt.toasts = kept
-	rt.consumed = true
-	rt.requestFrame()
+	if changed {
+		rt.consumed = true
+		rt.requestFrame()
+	}
 	for _, fn := range closed {
 		fn()
 	}
@@ -377,33 +396,52 @@ func (p toastParts) CloseButton() *node {
 	return b
 }
 
+// toastMotion returns a toast's opacity and vertical offset in DIPs. left is
+// how much of its life remains, 0 for a toast that stays until it is closed.
+func toastMotion(age, left time.Duration) (opacity, rise float32) {
+	opacity = 1
+	if age < toastEnter {
+		progress := EaseOut(max(float32(age), 0) / float32(toastEnter))
+		opacity, rise = progress, toastRise*(1-progress)
+	}
+	if left > 0 && left < toastFade {
+		opacity = min(opacity, float32(left)/float32(toastFade))
+	}
+	return opacity, rise
+}
+
 // buildToasts builds the toasts with the theme's look, unless the view
 // built them with ToastViewportBase.
 func (rt *engine) buildToasts(c *context) {
 	t := c.theme
 	fill, text := t.inverse()
 	toastViewport(c, false, func(viewport *node, toasts []Toast) {
-		viewport.Bottom(t.Space(6)).AlignItems(Center).Gap(t.Space(2))
+		viewport.Justify(Start).Padding(120, 0, 0, 0).AlignItems(Center).Gap(t.Space(2))
 		for _, ts := range toasts {
 			p := coreToastBase(c, ts)
-			box := p.Root.Row().AlignItems(Center).Gap(t.Space(4)).Padding(t.Space(2.5), t.Space(4)).Radius(t.Space(2)).MaxWidth(c.w - t.Space(12)).
+			box := p.Root.Row().AlignItems(Center).Gap(10).Padding(12, 16).Radius(t.Space(2)).MaxWidth(max(0, min(640, c.w-48))).
 				Background(fill).TextColor(text)
 			box.Shadow(0, 6, 20, 0, RGBA(0, 0, 0, 0.25))
-			// It fades in, and out at the end.
-			const fade = 200 * time.Millisecond
-			opacity := float32(1)
-			switch {
-			case rt.toastsPaused:
-			case p.age < fade:
-				opacity = float32(p.age) / float32(fade)
-				c.AnimationFrame()
-			case p.left > 0 && p.left < fade:
-				opacity = float32(p.left) / float32(fade)
-				c.AnimationFrame()
-			case p.left > 0:
-				c.After(p.left - fade)
+			// Reduced motion skips the entry; the final fade still signals expiry.
+			opacity, rise := toastMotion(p.age, p.left)
+			still := rt.preferences().ReduceMotion
+			if still && p.age < toastEnter {
+				opacity, rise = 1, 0
+			}
+			if !rt.toastsPaused {
+				switch {
+				case !still && p.age < toastEnter:
+					c.AnimationFrame()
+				case p.left > 0 && p.left <= toastFade:
+					c.AnimationFrame()
+				case p.left > toastFade:
+					c.After(p.left - toastFade)
+				}
 			}
 			box.Opacity(opacity)
+			if rise != 0 {
+				wrapElement(box).OffsetAfterLayout(func(Rect) Point { return Point{Y: rise} })
+			}
 			box.Children(func() {
 				if ts.Description == "" {
 					coreText(c, ts.Title)

@@ -1,0 +1,1 @@
+const fs=require('node:fs');const s=fs.readFileSync('internal/desktop/openui/viewer/v2/viewer.html','utf8');for(const term of ['function Ue(','function co(','function ys(','function a8(','function gI(','function opt(','var fa=','const fa=']){let p=s.indexOf(term);console.log(term,p,s.slice(p-600,p+3200));}

@@ -42,24 +42,25 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 	if !st.HidePreview {
 		preview = reasoningSummary(body, st.Streaming)
 	}
-	status := statusDone
-	if st.Streaming {
-		status = statusRunning
-	}
 	trailing := ""
 	if st.Duration > 0 {
 		trailing = fmt.Sprintf(i18n.T(i18n.KeyChatThinkingFor), formatDuration(st.Duration))
 	}
-	root := ui.Column(c).FillWidth().MinWidth(0).Gap(1)
+	titleColor := st.Muted
+	if titleColor.A == 0 {
+		titleColor = st.FG
+	}
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0)
 	root.Children(func() {
 		paintDisclosureRow(c, disclosureRow{
 			Key:        "thinking:" + msgID,
 			Icon:       disclosureIconThink,
 			Title:      i18n.T(i18n.KeyChatThinking),
-			TitleColor: st.FG,
+			TitleColor: titleColor,
 			Summary:    preview,
 			Trailing:   trailing,
-			Status:     status,
+			Status:     statusNone,
+			Running:    st.Streaming,
 			Open:       open,
 			Expandable: strings.TrimSpace(body) != "",
 			OnToggle:   func() { toggleThinkingExpanded(expanded, msgID) },
@@ -67,7 +68,8 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 		if !open || strings.TrimSpace(body) == "" {
 			return
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Padding(2, 0, 2, 22).Children(func() {
+		bodyIndent := max(float32(22), 22+theme.CurrentPreferences().Chat.Size-14)
+		ui.Column(c).FillWidth().MinWidth(0).Padding(4, 0, 4, bodyIndent).Children(func() {
 			markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
 		})
 	})

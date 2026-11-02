@@ -14,6 +14,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/openui"
 	"whaleisle/internal/desktop/previewprocess"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -23,6 +24,13 @@ type openUIBlock struct {
 	mu                           sync.Mutex
 	program                      string
 	appearance                   string
+	language, locale             string
+	variables                    map[string]string
+	panel                        bool
+	panelStore                   *whalePanelState
+	sourceID                     string
+	sourceOrder                  [3]float64
+	capture                      func() (*session.ComposerTarget, func() bool, error)
 	streaming, inline, attempted bool
 	lastPaint                    time.Time
 	loading                      bool
@@ -38,29 +46,43 @@ type openUIBlock struct {
 }
 
 func openUIFence(c *ui.Context, m Model, msg session.Message, language, program string, offset int) bool {
-	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	if language != "openui" && language != "openui-lang" {
-		return false
-	}
-	if msg.Role != "assistant" || m.FeedbackStore == nil {
+	if !openui.ValidLanguage(language) || msg.Role != "assistant" || m.FeedbackStore == nil {
 		return false
 	}
 	messageID := msg.SourceMessageID
 	if messageID == "" {
 		messageID = msg.ID
 	}
+	return openUIBlockView(c, m, msg, language, program, offset, messageID, false, nil)
+}
+
+func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, program string, offset int, messageID string, panel bool, capture func() (*session.ComposerTarget, func() bool, error)) bool {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	id := openui.Identity(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, offset)
 	box := ui.Column(c.Key("openui:" + id)).FillWidth().Padding(8).Gap(6)
 	b := *ui.Local(box, "instance", func() *openUIBlock { return &openUIBlock{program: program, streaming: msg.Streaming, revision: 1} })
 	b.mu.Lock()
+	nextVariables := whaleThemeVariables(m)
 	sourceChanged := b.program != program || b.streaming != msg.Streaming
+	appearanceChanged := b.language != language || b.locale != string(i18n.Locale()) || !equalWhaleVariables(b.variables, nextVariables)
 	if sourceChanged {
 		b.action = nil
+		b.revision++
+	}
+	if appearanceChanged && !sourceChanged {
 		b.revision++
 	}
 	b.program = program
 	b.streaming = msg.Streaming
 	b.parent = m.OpenUIWindow
+	b.language = language
+	b.locale = string(i18n.Locale())
+	b.variables = nextVariables
+	b.panel = panel
+	b.capture = capture
+	b.panelStore = whalePanelFor(m)
+	b.sourceID = openui.Identity("", m.Snapshot.SelectedID, messageID, offset)
+	b.sourceOrder = [3]float64{msg.Seq, 0, float64(offset)}
 	media, revision := b.media, b.revision
 	loading, errText, action, handle, inline := b.loading, b.err, b.action, b.handle, b.inline
 	b.mu.Unlock()
@@ -69,7 +91,8 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 	}
 	invalidate := c.Services().Invalidate
 	appearance := "light"
-	if m.SystemDark {
+	th := theme.Resolve(m.ThemeID)
+	if th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark) {
 		appearance = "dark"
 	}
 	b.mu.Lock()
@@ -83,7 +106,14 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		}
 		b.attempted = true
 		b.mu.Unlock()
-		target, valid, err := m.FeedbackStore.CaptureOpenUI(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, program)
+		var target *session.ComposerTarget
+		var valid func() bool
+		var err error
+		if capture != nil {
+			target, valid, err = capture()
+		} else {
+			target, valid, err = m.FeedbackStore.CaptureOpenUI(m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, messageID, program)
+		}
 		if err != nil {
 			b.mu.Lock()
 			b.err = err.Error()
@@ -126,7 +156,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		}
 		height := float32(360)
 		if handle != nil {
-			height = float32(max(80, min(700, handle.ContentHeight())))
+			height = float32(max(80, min(2000, handle.ContentHeight())))
 		}
 		if handle == nil || inline {
 			seat := ui.Column(c).FillWidth().Height(height)
@@ -155,7 +185,7 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			})
 			seat.Children(func() {
 				if handle != nil {
-					if !handle.RenderPixels(c, height, appearance, nil) {
+					if !handle.RenderPixels(c, height, appearance, whalePreviewVariables(nextVariables)) {
 						ui.Box(c).FillWidth().Height(height).DrawOver(func(p *ui.Painter, r ui.Rect) {
 							clip := p.NativeSurfaceClip()
 							if n := inspectorChatNavigation(m); n != nil && n.Picking {
@@ -185,6 +215,9 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 				if current != nil && target != nil && valid != nil && valid() {
 					go func() {
 						err := target.Submit(context.Background(), current.ActionText(), nil, 0, "")
+						if current.RequestID != "" {
+							_ = handle.ReplyOpenUIAPI(whaleActionResponse(*current, err))
+						}
 						if err != nil {
 							b.mu.Lock()
 							b.err = err.Error()
@@ -196,8 +229,14 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 			}
 			if stdButton(c, palette, i18n.T(i18n.KeyChatIsolatedIgnore), buttonGhost, false).Clicked() {
 				b.mu.Lock()
+				current := b.action
 				b.action = nil
 				b.mu.Unlock()
+				if current != nil && current.RequestID != "" && handle != nil {
+					go func() {
+						_ = handle.ReplyOpenUIAPI(whaleActionResponse(*current, fmt.Errorf("The interaction was dismissed")))
+					}()
+				}
 			}
 		}
 		show := ui.Local(box, "source", func() bool { return false })
@@ -206,6 +245,13 @@ func openUIFence(c *ui.Context, m Model, msg session.Message, language, program 
 		}
 		if *show {
 			ui.Text(c, program).Selectable().FontSize(12)
+		}
+		showNotices := ui.Local(box, "licenses", func() bool { return false })
+		if stdButton(c, palette, whaleLabel("许可", "Licenses"), buttonGhost, false).Clicked() {
+			*showNotices = !*showNotices
+		}
+		if *showNotices {
+			ui.Text(c, openui.WhaleNotices()).Selectable().FontSize(11)
 		}
 	})
 	if handle != nil || loading {
@@ -245,13 +291,12 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		finish(err)
 		return
 	}
-	config, err := os.UserConfigDir()
-	if err != nil {
-		finish(err)
-		return
-	}
-	root := filepath.Join(config, "WhaleIsle-MyGo", "openui-state-v1")
-	state, err := openui.ReadState(root, id)
+	root := filepath.Join(paths.UserDataDir(), "openui-state-v1")
+	b.mu.Lock()
+	storageSource := b.sourceID
+	b.mu.Unlock()
+	storageID := openui.Identity(b.target.StorageScope(), b.target.SessionID, storageSource, 0)
+	state, err := openui.ReadState(root, storageID)
 	if err != nil {
 		finish(err)
 		return
@@ -266,6 +311,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	program = b.program
 	streaming, inline := b.streaming, b.inline
 	parent, revision := b.parent, b.revision
+	language, locale, variables, panel := b.language, b.locale, b.variables, b.panel
 	b.mu.Unlock()
 	if valid == nil || !valid() {
 		finish(fmt.Errorf("OpenUI owner changed"))
@@ -273,7 +319,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	}
 	hostActions := explicitViewer == "" && openui.IsOwnedViewer(viewer) && (runtime.GOOS == "windows" || runtime.GOOS == "darwin")
 	mediaEnabled := hostActions && inline && parent != nil
-	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Revision: revision, Program: program, Streaming: streaming, State: state, HostActions: hostActions, Media: mediaEnabled}})
+	handle, err = previewprocess.OpenExperimental(ctx, previewprocess.Options{Enabled: true, HelperPath: previewprocess.HelperPath(exe)}, previewprocess.Document{HTML: viewer, Width: 900, Appearance: appearance, Inline: inline, OpenUI: &openui.Render{InstanceID: id, Revision: revision, Program: program, Language: language, Locale: locale, Variables: variables, Panel: panel, Streaming: streaming, State: state, HostActions: hostActions, Media: mediaEnabled}})
 	if err != nil {
 		finish(err)
 		return
@@ -292,6 +338,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		defer media.Close()
 	}
 	invalidate()
+	downloads := newWhaleDownloads()
 	resources := openui.NewResourceAPI()
 	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
@@ -306,6 +353,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		case <-tick.C:
 			b.mu.Lock()
 			latest, live, lastPaint, currentAppearance, currentRevision := b.program, b.streaming, b.lastPaint, b.appearance, b.revision
+			currentVariables, currentLanguage, currentLocale := b.variables, b.language, b.locale
 			b.mu.Unlock()
 			if media != nil {
 				media.Retire(currentRevision)
@@ -327,13 +375,14 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 					finish(fmt.Errorf("OpenUI streaming helper is unavailable"))
 					return
 				}
-				if e := updater.UpdateOpenUI(openui.Render{InstanceID: id, Revision: currentRevision, Program: latest, Streaming: live, State: json.RawMessage(`{}`)}); e != nil {
+				if e := updater.UpdateOpenUI(openui.Render{InstanceID: id, Revision: currentRevision, Program: latest, Language: currentLanguage, Locale: currentLocale, Variables: currentVariables, Panel: panel, Streaming: live, State: json.RawMessage(`{}`)}); e != nil {
 					finish(e)
 					return
 				}
+				downloads = newWhaleDownloads()
 				program, streaming, revision = latest, live, currentRevision
 			}
-			if e := handle.SetTheme(currentAppearance, nil); e != nil {
+			if e := handle.SetTheme(currentAppearance, whalePreviewVariables(currentVariables)); e != nil {
 				finish(e)
 				return
 			}
@@ -355,7 +404,33 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 				finish(e)
 				return
 			}
+			if event.Revision > 0 && event.Type != "state" {
+				b.mu.Lock()
+				currentRevision := b.revision
+				b.mu.Unlock()
+				if event.Revision != currentRevision {
+					continue
+				}
+			}
 			switch event.Type {
+			case "download-part":
+				if err := downloads.Add(event); err != nil {
+					_ = handle.ReplyOpenUIAPI(whaleActionResponse(event, err))
+					downloads = newWhaleDownloads()
+				}
+			case "panel":
+				b.mu.Lock()
+				ps, source, order := b.panelStore, b.sourceID, b.sourceOrder
+				b.mu.Unlock()
+				if ps != nil {
+					if e := ps.Publish(source, order, event.Operation); e != nil {
+						b.mu.Lock()
+						b.err = e.Error()
+						b.mu.Unlock()
+					}
+				}
+			case "title":
+				// Child title does not replace the native owner or source identity.
 			case "media":
 				if media == nil {
 					finish(fmt.Errorf("OpenUI private media is unavailable for this surface"))
@@ -369,7 +444,14 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 						b.mu.Unlock()
 					}
 				}
-			case "clipboard", "open-url":
+			case "clipboard", "open-url", "download":
+				if event.Type == "download" {
+					if e := downloads.Complete(&event); e != nil {
+						_ = handle.ReplyOpenUIAPI(whaleActionResponse(event, e))
+						continue
+					}
+					downloads = newWhaleDownloads()
+				}
 				response := executeOpenUINativeAction(ctx, b, handle, valid, event)
 				if valid() && ctx.Err() == nil {
 					if replyErr := handle.ReplyOpenUIAPI(response); replyErr != nil {
@@ -404,22 +486,48 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 					}
 				}(event)
 			case "state":
-				if e = openui.SaveState(root, id, event.State); e != nil {
+				if e = openui.SaveState(root, storageID, event.State); e != nil {
 					b.mu.Lock()
 					b.err = e.Error()
 					b.mu.Unlock()
 				}
 			case "assistant":
-				b.mu.Lock()
-				b.action = &event
-				b.mu.Unlock()
+				if openui.IsWhaleViewer(viewer) && event.RequestID != "" {
+					b.mu.Lock()
+					target := b.target
+					sourceRevision := b.revision
+					b.mu.Unlock()
+					go func(action openui.Event) {
+						b.mu.Lock()
+						current := b.revision == sourceRevision
+						b.mu.Unlock()
+						var err error
+						if target == nil || !current || !valid() || ctx.Err() != nil {
+							err = fmt.Errorf("Whale UI action owner changed")
+						} else {
+							err = target.Submit(ctx, action.ActionText(), nil, 0, "")
+						}
+						if valid() && ctx.Err() == nil {
+							if e := handle.ReplyOpenUIAPI(whaleActionResponse(action, err)); e != nil {
+								b.mu.Lock()
+								b.err = e.Error()
+								b.mu.Unlock()
+							}
+						}
+						invalidate()
+					}(event)
+				} else {
+					b.mu.Lock()
+					b.action = &event
+					b.mu.Unlock()
+				}
 			case "error":
 				b.mu.Lock()
 				b.err = event.Message
 				b.mu.Unlock()
 			case "resolved":
 				b.mu.Lock()
-				if event.Program == b.program {
+				if whaleResolvedCurrent(event, b.program, b.revision) {
 					b.err = ""
 				}
 				b.mu.Unlock()

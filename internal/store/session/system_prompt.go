@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -30,6 +31,53 @@ type systemPromptEvent struct {
 	} `json:"data"`
 }
 
+type systemPromptCoordEvent struct {
+	Type      string          `json:"type"`
+	Seq       float64         `json:"seq"`
+	SurfaceOp json.RawMessage `json:"surfaceOp,omitempty"`
+	Data      struct {
+		Turn         *float64 `json:"turn,omitempty"`
+		Step         *float64 `json:"step,omitempty"`
+		Reason       string   `json:"reason,omitempty"`
+		StartsSeries bool     `json:"startsSeries,omitempty"`
+	} `json:"data"`
+}
+
+func unmarshalSystemPromptEvent(raw json.RawMessage, e *systemPromptEvent) error {
+	if typ, ok := peekEventType(raw); ok {
+		if typ != "system/message" && typ != "request/header" {
+			var c systemPromptCoordEvent
+			if err := json.Unmarshal(raw, &c); err != nil {
+				return err
+			}
+			e.Type = c.Type
+			e.Seq = c.Seq
+			e.SurfaceOp = c.SurfaceOp
+			e.Data.Turn = c.Data.Turn
+			e.Data.Step = c.Data.Step
+			e.Data.Reason = c.Data.Reason
+			e.Data.StartsSeries = c.Data.StartsSeries
+			return nil
+		}
+		return json.Unmarshal(raw, e)
+	}
+	if !bytes.Contains(raw, []byte("system/message")) && !bytes.Contains(raw, []byte("request/header")) && !bytes.Contains(raw, []byte(`\u`)) {
+		var c systemPromptCoordEvent
+		if err := json.Unmarshal(raw, &c); err != nil {
+			return err
+		}
+		e.Type = c.Type
+		e.Seq = c.Seq
+		e.SurfaceOp = c.SurfaceOp
+		e.Data.Turn = c.Data.Turn
+		e.Data.Step = c.Data.Step
+		e.Data.Reason = c.Data.Reason
+		e.Data.StartsSeries = c.Data.StartsSeries
+		return nil
+	}
+	return json.Unmarshal(raw, e)
+}
+
 type promptReplacement struct {
 	Op    string  `json:"op"`
 	Start float64 `json:"startSeq"`
@@ -46,7 +94,7 @@ func promptReplace(raw json.RawMessage) (promptReplacement, bool) {
 // even when their payload is not a system message (for example compaction).
 func sanitizedPromptBoundary(raw json.RawMessage) (json.RawMessage, bool) {
 	var e systemPromptEvent
-	if json.Unmarshal(raw, &e) != nil {
+	if unmarshalSystemPromptEvent(raw, &e) != nil {
 		return nil, false
 	}
 	_, replace := promptReplace(e.SurfaceOp)
@@ -91,6 +139,31 @@ type positionedPrompt struct {
 // supplied to later request headers, using inherited surface order rather than
 // the replacement event's chronological sequence.
 func (s *Store) projectSystemPromptsLocked(messages []Message) []Message {
+	rows := s.systemPromptRowsCache
+	if rows == nil || !s.boundariesVerifiedLocked() {
+		rows = s.computeSystemPromptRowsLocked()
+		s.systemPromptRowsCache = rows
+	}
+	if len(rows) == 0 {
+		return messages
+	}
+	out := append([]Message(nil), messages...)
+	for _, row := range rows {
+		index := len(out)
+		for i, msg := range out {
+			if msg.Seq >= row.Seq && msg.Seq > 0 {
+				index = i
+				break
+			}
+		}
+		out = append(out, Message{})
+		copy(out[index+1:], out[index:])
+		out[index] = row
+	}
+	return out
+}
+
+func (s *Store) computeSystemPromptRowsLocked() []Message {
 	seqs := make([]float64, 0, len(s.trajectoryBoundaries))
 	for seq := range s.trajectoryBoundaries {
 		seqs = append(seqs, seq)
@@ -107,7 +180,7 @@ func (s *Store) projectSystemPromptsLocked(messages []Message) []Message {
 	var previousTurn, previousStep float64
 	hasHeader := false
 	lastSystemAppend := false
-	rows := []Message{}
+	rows := make([]Message, 0)
 	anchor := func(seq float64, initial bool) float64 {
 		if !inStep || (!hasHeader && !initial) || (hasHeader && previousTurn == turn && previousStep == step) {
 			return seq
@@ -139,7 +212,7 @@ func (s *Store) projectSystemPromptsLocked(messages []Message) []Message {
 	}
 	for _, seq := range seqs {
 		var e systemPromptEvent
-		if json.Unmarshal(s.trajectoryBoundaries[seq], &e) != nil {
+		if unmarshalSystemPromptEvent(s.trajectoryBoundaries[seq], &e) != nil {
 			continue
 		}
 		switch e.Type {
@@ -274,18 +347,5 @@ func (s *Store) projectSystemPromptsLocked(messages []Message) []Message {
 		}
 		previousText, previousTurn, previousStep, hasHeader = text, turn, step, true
 	}
-	out := append([]Message(nil), messages...)
-	for _, row := range rows {
-		index := len(out)
-		for i, msg := range out {
-			if msg.Seq >= row.Seq && msg.Seq > 0 {
-				index = i
-				break
-			}
-		}
-		out = append(out, Message{})
-		copy(out[index+1:], out[index:])
-		out[index] = row
-	}
-	return out
+	return rows
 }

@@ -94,7 +94,7 @@ func (nativeKeychain) get(account string) ([]byte, error) {
 	var length C.long
 	status := C.credentialRead(name, &data, &length)
 	if data != nil {
-		defer C.free(data)
+		defer func() { C.memset(data, 0, C.size_t(length)); C.free(data) }()
 	}
 	if err := keychainStatus(status); err != nil {
 		return nil, err
@@ -106,6 +106,6 @@ func (nativeKeychain) add(account string, key []byte) error {
 	name := C.CString(account)
 	defer C.free(unsafe.Pointer(name))
 	data := C.CBytes(key)
-	defer C.free(data)
+	defer func() { C.memset(data, 0, C.size_t(len(key))); C.free(data) }()
 	return keychainStatus(C.credentialAdd(name, data, C.long(len(key))))
 }

@@ -70,7 +70,7 @@ func (s *projectController) runProjectLifecycle(win *mygo.Window, id, action str
 			fresh, err = rpc.LifecycleProject(ctx, id)
 			if err == nil {
 				if fresh.Archiving || fresh.Lifecycle != "ready" {
-					err = fmt.Errorf("Project lifecycle changed; refresh before archiving")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectLifecycleChanged))
 				} else if fresh.HasActiveWork() || fresh.Activity.State == "" {
 					candidate = &fresh
 				} else {

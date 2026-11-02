@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"whaleisle/internal/product"
 )
 
 // TestShortcutPath pins the Start-menu location and name; the empty Programs
@@ -17,7 +19,7 @@ func TestShortcutPath(t *testing.T) {
 	}
 	dir := t.TempDir()
 	got := Shortcut{ProgramsDir: dir}.Path()
-	want := filepath.Join(dir, "Whale Isle.lnk")
+	want := filepath.Join(dir, product.Name+".lnk")
 	if got != want {
 		t.Fatalf("path = %q, want %q", got, want)
 	}
@@ -69,7 +71,7 @@ func TestEnsureUsesShellSeam(t *testing.T) {
 		t.Fatalf("calls = %d, want 1", len(shell.calls))
 	}
 	got := shell.calls[0]
-	if got.lnk != filepath.Join(dir, "Whale Isle.lnk") || got.target != link.Target || got.appID != AppUserModelID {
+	if got.lnk != filepath.Join(dir, product.Name+".lnk") || got.target != link.Target || got.appID != AppUserModelID {
 		t.Fatalf("unexpected registration: %+v", got)
 	}
 }

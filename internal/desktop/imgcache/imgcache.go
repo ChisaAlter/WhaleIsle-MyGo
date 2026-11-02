@@ -191,7 +191,8 @@ func (c *Cache) Fetch(ctx context.Context, rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Accept", "image/*")
+	req.Header.Set("Accept", "image/*,*/*;q=0.8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -266,7 +267,7 @@ func checkImageContentType(ct string) error {
 	if err != nil {
 		return fmt.Errorf("imgcache: Content-Type: %w", err)
 	}
-	if !strings.HasPrefix(strings.ToLower(media), "image/") {
+	if m := strings.ToLower(media); !strings.HasPrefix(m, "image/") && m != "application/octet-stream" && m != "binary/octet-stream" {
 		return fmt.Errorf("imgcache: Content-Type %q is not image/*", media)
 	}
 	return nil

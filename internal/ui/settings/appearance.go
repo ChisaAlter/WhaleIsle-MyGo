@@ -52,7 +52,9 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 					selected := *a.Theme == mode.id || mode.id == "system" && *a.Theme == "deepseek" || mode.id == "deepseek.light" && *a.Theme == "light" || mode.id == "deepseek.dark" && *a.Theme == "dark"
 					button := ui.Button(c, "").Label(providerCopy(mode.zh, mode.en)).Basis(180).Grow(1).MinWidth(0).Padding(20, 32).Radius(16).Border(.5, c.Theme().Border).Background(ui.Transparent).Selected(selected).Disabled(a.OnSetTheme == nil)
 					if selected {
-						button.Background(c.Theme().SurfaceHover).Border(1.5, fg)
+						// ColorSchemeTiles.themeCube.selected: module-platform fill
+						// and the same .5 DIP border in neutral-bluish-400.
+						button.Background(theme.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).SelectorFill)).Border(.5, ui.RGB(173, 178, 184))
 					} else if button.Hovered() {
 						button.Background(c.Theme().SurfaceHover)
 					}
@@ -77,39 +79,13 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	})
 	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
-	desktopRow(c, i18n.T(i18n.KeySettingsDesktopWallpaper), func() {
-		if a.WallpaperPath == nil {
-			return
-		}
-		opts := append([]string{providerCopy("无壁纸", "None")}, a.WallpaperChoices...)
-		selected := providerCopy("无壁纸", "None")
-		if *a.WallpaperPath != "" {
-			selected = *a.WallpaperPath
-		}
-		if ui.Select(c, &selected, opts).Changed() {
-			if selected == providerCopy("无壁纸", "None") {
-				*a.WallpaperPath = ""
-			} else {
-				*a.WallpaperPath = selected
-			}
-		}
-		if len(a.WallpaperChoices) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySettingsAppearanceWallpaperDir)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			if a.OnBrowseWallpaper != nil {
-				if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceBrowseWallpaper)).FontSize(theme.InterfaceSize(11)).Clicked() {
-					a.OnBrowseWallpaper()
-				}
-			}
-			if ui.Button(c, i18n.T(i18n.KeySettingsAppearanceClearWallpaper)).FontSize(theme.InterfaceSize(11)).Clicked() {
-				*a.WallpaperPath = ""
-			}
-		})
-	}, fg, muted)
 	wallpaperBackgroundPane(c, a.Background, fg, muted)
 	themeTypographyPane(c, a.Preferences, fg, muted)
+	// Advanced: conversation font size (moved from General), the typing effect and the
+	// thinking glow (moved from Interface).
+	bodyFontSizePreference(c, a.Preferences, fg, muted)
 	bodyEffectPreference(c, a.Host, true, fg, muted)
+	bodyEffectPreference(c, a.Host, false, fg, muted)
 	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
 		a.OnSave()
 	}

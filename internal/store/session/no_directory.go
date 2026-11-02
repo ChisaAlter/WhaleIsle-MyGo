@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -25,6 +26,7 @@ func (s *Store) signalWorkspaceLocked() {
 }
 
 func (s *Store) resetWorkspaceLocked() {
+	s.invalidateViewLocked()
 	s.resetWorkspaceLayoutHostLocked()
 	s.invalidateWorkspaceNavigationLocked()
 	s.workspaceID = ""
@@ -68,11 +70,31 @@ func (s *Store) noDirectoryCandidateLocked(id, cwd string) bool {
 // without changing selection: its UI owner can preserve drafts and newer navigation.
 // Calls are serialized so reuse checks cannot race another scratch creation.
 func (s *Store) CreateNoDirectorySession(ctx context.Context, excludeIDs ...string) (string, error) {
+	return s.createNoDirectorySession(ctx, nil, 0, excludeIDs...)
+}
+
+// createNoDirectorySession binds an optional pre-captured Host before waiting
+// for the scratch creation lock. A queued gesture cannot retarget a newer Host.
+func (s *Store) createNoDirectorySession(ctx context.Context, expectedClient *dsh.Client, expectedGeneration uint64, excludeIDs ...string) (string, error) {
+	return s.createNoDirectorySessionForTarget(ctx, expectedClient, expectedGeneration, nil, excludeIDs...)
+}
+
+// An optional target also fences navigation while a scratch gesture waits for
+// reuse checks. A superseded gesture must not start a fresh creation afterward.
+func (s *Store) createNoDirectorySessionForTarget(ctx context.Context, expectedClient *dsh.Client, expectedGeneration uint64, target *WorkspaceSessionTarget, excludeIDs ...string) (string, error) {
 	s.noDirectoryMu.Lock()
 	defer s.noDirectoryMu.Unlock()
 	s.mu.Lock()
 	client := s.client
 	generation := s.eventsGeneration
+	if expectedClient != nil && (client != expectedClient || generation != expectedGeneration) {
+		s.mu.Unlock()
+		return "", errors.New("Host connection changed")
+	}
+	if target != nil && !target.currentLocked() {
+		s.mu.Unlock()
+		return "", errors.New("workspace creation owner changed")
+	}
 	s.mu.Unlock()
 	if client == nil {
 		return "", ErrNoClient
@@ -83,6 +105,10 @@ func (s *Store) CreateNoDirectorySession(ctx context.Context, excludeIDs ...stri
 		if s.client != client || s.eventsGeneration != generation {
 			s.mu.Unlock()
 			return "", errors.New("Host connection changed")
+		}
+		if ctx.Err() != nil || (target != nil && !target.currentLocked()) {
+			s.mu.Unlock()
+			return "", errors.New("workspace creation owner changed")
 		}
 		if s.workspaceErr != nil {
 			err := s.workspaceErr
@@ -121,20 +147,33 @@ func (s *Store) CreateNoDirectorySession(ctx context.Context, excludeIDs ...stri
 	}
 	s.mu.Unlock()
 	for _, id := range ids {
+		s.mu.Lock()
+		current := ctx.Err() == nil && s.client == client && s.eventsGeneration == generation &&
+			(target == nil || target.currentLocked())
+		s.mu.Unlock()
+		if !current {
+			return "", errors.New("workspace creation owner changed")
+		}
 		var out api.SessionBlankReuseValue
 		err := client.Call(ctx, "session/blankReuse", map[string]any{"request": map[string]any{"sessionId": id}}, &out)
 		if err != nil {
 			return "", fmt.Errorf("check blank scratch session: %w", err)
 		}
 		s.mu.Lock()
-		valid := s.client == client && s.eventsGeneration == generation && s.noDirectoryCandidateLocked(id, cwd)
+		current = ctx.Err() == nil && s.client == client && s.eventsGeneration == generation &&
+			(target == nil || target.currentLocked())
+		valid := current && s.noDirectoryCandidateLocked(id, cwd)
 		s.mu.Unlock()
+		if !current {
+			return "", errors.New("workspace creation owner changed")
+		}
 		if out.Reusable && valid {
 			return id, nil
 		}
 	}
 	s.mu.Lock()
-	valid := s.client == client && s.eventsGeneration == generation && s.scratchCwd == cwd
+	valid := ctx.Err() == nil && s.client == client && s.eventsGeneration == generation && s.scratchCwd == cwd &&
+		(target == nil || target.currentLocked())
 	s.mu.Unlock()
 	if !valid {
 		return "", errors.New("Host workspace changed")

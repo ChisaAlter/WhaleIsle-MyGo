@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -25,16 +26,26 @@ func (s *Store) WatchBand(ctx context.Context) {
 		s.bandCancel()
 		s.bandCancel = nil
 	}
+	changed := len(s.bandActions) != 0 || s.bandGeneration != 0
 	s.bandActions = nil
 	s.bandGeneration = 0
+	if changed {
+		s.invalidateViewLocked()
+	}
+	notify := s.notify
 	if mux == nil || sessionID == "" {
 		s.mu.Unlock()
-		s.fire()
+		if changed && notify != nil {
+			notify()
+		}
 		return
 	}
 	fctx, cancel := context.WithCancel(ctx)
 	s.bandCancel = cancel
 	s.mu.Unlock()
+	if changed && notify != nil {
+		notify()
+	}
 	go s.runBandWatch(fctx, mux, sessionID)
 }
 
@@ -69,8 +80,11 @@ func (s *Store) runBandWatch(ctx context.Context, mux *dsh.Mux, sessionID string
 			s.mu.Unlock()
 			return
 		}
-		s.bandGeneration = snap.Generation
-		s.bandActions = actions
+		if s.bandGeneration != snap.Generation || !slices.Equal(s.bandActions, actions) {
+			s.bandGeneration = snap.Generation
+			s.bandActions = actions
+			s.invalidateViewLocked()
+		}
 		s.mu.Unlock()
 		s.fire()
 	}
@@ -102,6 +116,7 @@ func (s *Store) PressBand(ctx context.Context, actionID string) {
 			s.bandActions = parseBandActions(out.Tree)
 			s.lastAction = "band " + actionID
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

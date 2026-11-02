@@ -29,6 +29,7 @@ type modelSelectionState struct {
 }
 
 func (s *Store) resetModelSelectionLocked() {
+	s.invalidateViewLocked()
 	s.modelState.Projection = modelProjectionState{}
 	s.modelState.Pending = false
 	s.modelState.Operation++
@@ -36,6 +37,7 @@ func (s *Store) resetModelSelectionLocked() {
 }
 
 func (s *Store) resetModelCatalogLocked() {
+	s.invalidateViewLocked()
 	s.modelOptions = nil
 	s.modelState.Default = api.ModelCatalogDefault{}
 	s.modelState.CatalogReady = false
@@ -125,6 +127,7 @@ func (s *Store) applyModelValuesLocked(values json.RawMessage, seq float64) {
 }
 
 func (s *Store) applyModelProjectionLocked(raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	if s.selectedID == "" {
 		return
 	}
@@ -157,6 +160,7 @@ func (s *Store) applyModelProjectionLocked(raw json.RawMessage, seq float64) {
 }
 
 func (s *Store) applyModelControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var frame struct {
 		Type      string          `json:"type"`
 		SessionID string          `json:"sessionId"`
@@ -171,6 +175,7 @@ func (s *Store) applyModelControlLocked(raw json.RawMessage) {
 }
 
 func (s *Store) applyModelSelectionEventLocked(raw json.RawMessage) bool {
+	s.invalidateViewLocked()
 	var event struct {
 		Seq  float64                 `json:"seq"`
 		Data api.ModelCatalogDefault `json:"data"`

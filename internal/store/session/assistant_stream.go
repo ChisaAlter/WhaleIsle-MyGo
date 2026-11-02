@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -30,6 +31,9 @@ type assistantStreamAttempt struct {
 	blocks               map[int]assistantStreamBlock
 	rows                 map[int]string
 	settlementSeq        float64
+	liveUsage            map[string]float64
+	liveUsageStreamLen   int
+	liveUsageInvalid     bool
 }
 
 type assistantStreamBaseline struct {
@@ -53,7 +57,7 @@ type assistantStreamEvent struct {
 		Turn        float64           `json:"turn"`
 		Step        float64           `json:"step"`
 		Interrupted bool              `json:"interrupted"`
-		Stream      []json.RawMessage `json:"stream"`
+		Stream      json.RawMessage   `json:"stream"`
 		Text        string            `json:"text"`
 		Content     []json.RawMessage `json:"content"`
 		Message     struct {
@@ -66,6 +70,11 @@ type assistantStreamEvent struct {
 	} `json:"data"`
 }
 
+func validRawJSONArrayOrNull(raw json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(raw)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) || trimmed[0] == '['
+}
+
 func (s *Store) resetAssistantStreamLocked() {
 	s.retireAssistantAttemptLocked(s.assistantStream.active)
 	s.retireAssistantAttemptLocked(s.assistantStream.retained)
@@ -73,11 +82,13 @@ func (s *Store) resetAssistantStreamLocked() {
 }
 
 func (s *Store) rebaselineAssistantLocked() bool {
+	s.invalidateViewLocked()
 	s.assistantStream.rebaseline = true
 	return false
 }
 
 func (s *Store) retireAssistantAttemptLocked(attempt *assistantStreamAttempt) {
+	s.invalidateViewLocked()
 	if attempt == nil {
 		return
 	}
@@ -97,8 +108,9 @@ func (s *Store) retireAssistantAttemptLocked(attempt *assistantStreamAttempt) {
 // acceptAssistantDurableLocked is called only for followed events. Historical
 // replacement/prepend is already durable and must not settle a live attempt.
 func (s *Store) acceptAssistantDurableLocked(raw json.RawMessage) bool {
+	s.invalidateViewLocked()
 	var ev assistantStreamEvent
-	if json.Unmarshal(raw, &ev) != nil || ev.Type == "" {
+	if json.Unmarshal(raw, &ev) != nil || !validRawJSONArrayOrNull(ev.Data.Stream) || ev.Type == "" {
 		return false
 	}
 	st := &s.assistantStream
@@ -148,6 +160,7 @@ func (s *Store) publishAssistantDurableLocked(raw json.RawMessage, seq float64) 
 }
 
 func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
+	s.invalidateStreamViewLocked()
 	var wrap struct {
 		Frame struct {
 			Type            string          `json:"type"`
@@ -230,7 +243,7 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 		}
 		raw, found := st.pending[f.Outcome.Seq]
 		var ev assistantStreamEvent
-		if !found || json.Unmarshal(raw, &ev) != nil || ev.Type != f.Outcome.EventType || len(st.pending) != 1 {
+		if !found || json.Unmarshal(raw, &ev) != nil || !validRawJSONArrayOrNull(ev.Data.Stream) || ev.Type != f.Outcome.EventType || len(st.pending) != 1 {
 			return s.rebaselineAssistantLocked()
 		}
 		delete(st.pending, f.Outcome.Seq)
@@ -254,6 +267,7 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 }
 
 func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) bool {
+	s.invalidateViewLocked()
 	if baseline == nil {
 		return true
 	} // Older hosts did not include this optional field.
@@ -292,6 +306,7 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 }
 
 func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64) bool {
+	s.invalidateStreamViewLocked()
 	if a.trajectoryFirstToken == nil {
 		a.trajectoryFirstToken = trajectoryTokenTime(raw, time)
 	}
@@ -323,6 +338,36 @@ func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.Ra
 	return true
 }
 
+type assistantMsgCacheEntry struct {
+	id          string
+	turnSeq     float64
+	turnOpening bool
+	raw         string
+	rows        []Message
+}
+
+func (s *Store) cachedProjectAssistantMessageLocked(msg Message) []Message {
+	if msg.EventType != "assistant/message" || msg.Seq <= 0 || len(msg.Raw) == 0 {
+		return projectAssistantMessage(msg)
+	}
+	if s.assistantMsgCache != nil {
+		if entry, ok := s.assistantMsgCache[msg.Seq]; ok && entry.id == msg.ID && entry.turnSeq == msg.TurnSeq && entry.turnOpening == msg.TurnOpening && bytes.Equal([]byte(entry.raw), msg.Raw) {
+			return cloneMessages(entry.rows)
+		}
+	} else {
+		s.assistantMsgCache = make(map[float64]assistantMsgCacheEntry, 64)
+	}
+	rows := projectAssistantMessage(msg)
+	s.assistantMsgCache[msg.Seq] = assistantMsgCacheEntry{
+		id:          msg.ID,
+		turnSeq:     msg.TurnSeq,
+		turnOpening: msg.TurnOpening,
+		raw:         string(msg.Raw),
+		rows:        cloneMessages(rows),
+	}
+	return rows
+}
+
 // Projection is identity-based. Equal text from distinct turns remains distinct.
 func (s *Store) projectAssistantMessagesLocked(messages []Message) []Message {
 	hidden := map[string]bool{}
@@ -344,7 +389,7 @@ func (s *Store) projectAssistantMessagesLocked(messages []Message) []Message {
 	for _, msg := range messages {
 		if hidden[msg.ID] {
 			if !anchored && assistantMessageVisible(msg) && settlement != nil {
-				out = append(out, projectAssistantMessage(*settlement)...)
+				out = append(out, s.cachedProjectAssistantMessageLocked(*settlement)...)
 				anchored = true
 			}
 			continue
@@ -352,7 +397,7 @@ func (s *Store) projectAssistantMessagesLocked(messages []Message) []Message {
 		if anchored && settlement != nil && msg.Seq == settlement.Seq && msg.EventType == "assistant/message" {
 			continue
 		}
-		out = append(out, projectAssistantMessage(msg)...)
+		out = append(out, s.cachedProjectAssistantMessageLocked(msg)...)
 	}
 	return out
 }
@@ -370,7 +415,7 @@ func projectAssistantMessage(msg Message) []Message {
 		return nil
 	}
 	var ev assistantStreamEvent
-	if json.Unmarshal(msg.Raw, &ev) != nil {
+	if json.Unmarshal(msg.Raw, &ev) != nil || !validRawJSONArrayOrNull(ev.Data.Stream) {
 		return []Message{msg}
 	}
 	blocks := assistantDurableBlocks(ev)
@@ -411,7 +456,7 @@ func assistantBlockMessage(msg Message, block assistantStreamBlock) Message {
 // reasoning is not flattened into an assistant answer at classification time.
 func classifyAssistantPersistence(raw json.RawMessage) (Message, bool) {
 	var ev assistantStreamEvent
-	if json.Unmarshal(raw, &ev) != nil || (ev.Type != "assistant/message" && ev.Type != "assistant/attempt") {
+	if json.Unmarshal(raw, &ev) != nil || !validRawJSONArrayOrNull(ev.Data.Stream) || (ev.Type != "assistant/message" && ev.Type != "assistant/attempt") {
 		return Message{}, false
 	}
 	id := ev.Data.Message.ID
@@ -445,7 +490,13 @@ func assistantDurableBlocks(ev assistantStreamEvent) []assistantStreamBlock {
 		}
 		return out
 	}
-	chunks, ok := expandAssistantStream(ev.Data.Stream)
+	var stream []json.RawMessage
+	if len(ev.Data.Stream) > 0 && !bytes.Equal(bytes.TrimSpace(ev.Data.Stream), []byte("null")) {
+		if json.Unmarshal(ev.Data.Stream, &stream) != nil {
+			return nil
+		}
+	}
+	chunks, ok := expandAssistantStream(stream)
 	if !ok {
 		return nil
 	}

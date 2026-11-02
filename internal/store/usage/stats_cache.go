@@ -21,36 +21,35 @@ func (s *Store) SetStatsCachePath(path string) {
 	s.mu.Unlock()
 }
 
-func (s *Store) restoreStatsCacheLocked() {
-	if s.statsCachePath == "" || s.client == nil {
-		return
+func readStatsCacheFile(path string) json.RawMessage {
+	if path == "" {
+		return nil
 	}
-	data, err := os.ReadFile(s.statsCachePath)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return
+		return nil
 	}
 	var record overviewCache
 	if json.Unmarshal(data, &record) != nil || record.Version != 4 || decodeOverview(record.Payload) != nil {
-		return
+		return nil
 	}
-	s.stats.Raw = append(json.RawMessage(nil), record.Payload...)
-	s.stats.Cached = true
+	return append(json.RawMessage(nil), record.Payload...)
 }
 
-// Called from the overview worker after its existing generation/endpoint check.
+// Called from the overview worker outside s.mu so disk I/O never blocks UI Snapshot() reads.
 // A failed disk write leaves the successful in-memory overview available.
-func (s *Store) saveStatsCacheLocked() {
-	if s.statsCachePath == "" {
+func writeStatsCacheFile(path string, raw json.RawMessage) {
+	if path == "" || len(raw) == 0 {
 		return
 	}
-	data, err := json.Marshal(overviewCache{Version: 4, SavedAt: time.Now().UnixMilli(), Payload: s.stats.Raw})
+	data, err := json.Marshal(overviewCache{Version: 4, SavedAt: time.Now().UnixMilli(), Payload: raw})
 	if err != nil {
 		return
 	}
-	if os.MkdirAll(filepath.Dir(s.statsCachePath), 0700) != nil {
+	if os.MkdirAll(filepath.Dir(path), 0700) != nil {
 		return
 	}
-	temp, err := os.CreateTemp(filepath.Dir(s.statsCachePath), "usage-overview-*.tmp")
+	temp, err := os.CreateTemp(filepath.Dir(path), "usage-overview-*.tmp")
 	if err != nil {
 		return
 	}
@@ -59,6 +58,6 @@ func (s *Store) saveStatsCacheLocked() {
 	_, err = temp.Write(data)
 	closeErr := temp.Close()
 	if err == nil && closeErr == nil {
-		_ = os.Rename(name, s.statsCachePath)
+		_ = os.Rename(name, path)
 	}
 }

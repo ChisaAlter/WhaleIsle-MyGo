@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -12,9 +13,92 @@ import (
 	"whaleisle/internal/dsh"
 )
 
+func TestWorkspaceGroupsUseDirectAccountsAndRealScratch(t *testing.T) {
+	snap := ViewState{SelectedID: "blank", ScratchCwd: "/scratch", Workspaces: []WorkspaceRow{
+		{WorkspaceID: "one", SessionIDs: []string{"parent", "blank", "old-blank", "child"}},
+		{WorkspaceID: "two", SessionIDs: []string{"fork"}},
+	}, Items: []Item{
+		{SessionID: "parent", Cwd: "/one"},
+		{SessionID: "fork", ParentID: "parent", Cwd: "/one"},
+		{SessionID: "unaccounted", ParentID: "parent", Cwd: "/one"},
+		{SessionID: "scratch", ParentID: "parent", Cwd: "/scratch"},
+		{SessionID: "foreign", Cwd: "/missing"},
+		{SessionID: "blank", Blank: true, Cwd: "/one"},
+		{SessionID: "old-blank", Blank: true, Cwd: "/one"},
+		{SessionID: "child", Origin: "subagent", Cwd: "/one"},
+	}}
+	for _, mode := range []string{"workspace", "workspace-tree", "flat"} {
+		snap.WorkspaceLayout.GroupBy = mode
+		groups := BuildWorkspaceGroups(snap, snap.Items)
+		owners := map[string]string{}
+		for _, group := range groups {
+			for _, item := range group.Items {
+				owners[item.SessionID] = group.Key
+			}
+		}
+		want := map[string]string{"parent": "one", "fork": "two", "blank": "one", "scratch": "::scratch"}
+		if mode == "flat" {
+			want = map[string]string{"parent": "::flat", "fork": "::flat", "blank": "::flat", "scratch": "::flat"}
+		}
+		if !reflect.DeepEqual(owners, want) {
+			t.Fatalf("%s parent lineage or cwd inferred account: %v want %v", mode, owners, want)
+		}
+	}
+	if len(snap.Workspaces[0].SessionIDs) != 4 || snap.Workspaces[1].SessionIDs[0] != "fork" {
+		t.Fatal("render projection rewrote Host membership")
+	}
+}
+
+func TestWorkspaceAccountOrderPreservesArchivesAndPlacesNewForks(t *testing.T) {
+	snap := ViewState{SelectedID: "blank", Workspaces: []WorkspaceRow{{WorkspaceID: "one", SessionIDs: []string{"parent", "saved-fork", "new-fork", "new-grandchild", "other", "pin-a", "pin-b", "blank", "archived", "missing"}}},
+		PinnedSessionIDs: []string{"pin-a", "pin-b"}, ArchivedSessionIDs: []string{"archived"},
+		WorkspaceLayout: WorkspaceLayoutState{OrderBy: "manual", SessionOrders: map[string][]string{"one": {"other", "archived", "missing", "parent", "saved-fork", "pin-b", "pin-a"}}},
+		Items: []Item{
+			{SessionID: "parent", UpdatedAt: 50}, {SessionID: "saved-fork", ParentID: "parent", UpdatedAt: 10},
+			{SessionID: "new-fork", ParentID: "parent", UpdatedAt: 30}, {SessionID: "new-grandchild", ParentID: "new-fork", UpdatedAt: 40},
+			{SessionID: "other", UpdatedAt: 60}, {SessionID: "pin-a", UpdatedAt: 80}, {SessionID: "pin-b", UpdatedAt: 70},
+			{SessionID: "blank", Blank: true}, {SessionID: "archived", UpdatedAt: 100},
+		}}
+	visible := append([]Item(nil), snap.Items[:len(snap.Items)-1]...)
+	group := BuildWorkspaceGroups(snap, visible)[0]
+	wantOrder := []string{"blank", "other", "archived", "missing", "new-grandchild", "new-fork", "parent", "saved-fork", "pin-b", "pin-a"}
+	if !reflect.DeepEqual(group.Workspace.SessionIDs, wantOrder) {
+		t.Fatalf("reconciled order %v want %v", group.Workspace.SessionIDs, wantOrder)
+	}
+	rows := OrderedWorkspaceSessionRows(group.Items, group.Workspace.SessionIDs, snap.PinnedSessionIDs, "manual", false)
+	var ids []string
+	for _, row := range rows {
+		ids = append(ids, row.Item.SessionID)
+		if row.Depth != 0 {
+			t.Fatal("ordinary fork gained lineage indentation")
+		}
+	}
+	wantVisible := []string{"blank", "pin-b", "pin-a", "other", "new-grandchild", "new-fork", "parent", "saved-fork"}
+	if !reflect.DeepEqual(ids, wantVisible) {
+		t.Fatalf("blank/pins/baseorder: %v want %v", ids, wantVisible)
+	}
+	group = BuildWorkspaceGroups(snap, snap.Items)[0]
+	if !reflect.DeepEqual(group.Workspace.SessionIDs, wantOrder) {
+		t.Fatal("restoring hidden archive changed account slots")
+	}
+	snap.WorkspaceLayout.OrderBy = "updated"
+	group = BuildWorkspaceGroups(snap, visible)[0]
+	rows = OrderedWorkspaceSessionRows(group.Items, group.Workspace.SessionIDs, snap.PinnedSessionIDs, "updated", false)
+	ids = nil
+	for _, row := range rows {
+		ids = append(ids, row.Item.SessionID)
+	}
+	if !reflect.DeepEqual(ids, []string{"blank", "pin-a", "pin-b", "other", "parent", "new-grandchild", "new-fork", "saved-fork"}) {
+		t.Fatalf("updated row order %v", ids)
+	}
+	if snap.Workspaces[0].SessionIDs[0] != "parent" || snap.WorkspaceLayout.SessionOrders["one"][0] != "other" {
+		t.Fatal("source order inputs mutated")
+	}
+}
+
 func TestWorkspaceGroupingFixture(t *testing.T) {
 	rows := []WorkspaceRow{
-		{WorkspaceID: "root", Path: "/srv/repo", Title: "Root", SessionIDs: []string{"second", "first"}},
+		{WorkspaceID: "root", Path: "/srv/repo", Title: "Root", SessionIDs: []string{"second", "first", "sub"}},
 		{WorkspaceID: "child", Path: "/srv/repo/nested", Title: "Child", SessionIDs: []string{"child-session"}},
 		{WorkspaceID: "neighbor", Path: "/srv/repository", Title: "Neighbor"},
 		{WorkspaceID: "win", Path: `C:\Code`, Title: "Windows"},
@@ -30,21 +114,19 @@ func TestWorkspaceGroupingFixture(t *testing.T) {
 	if byID["child"].ParentID != "root" || byID["child"].Depth != 1 || byID["neighbor"].ParentID != "" || byID["winchild"].ParentID != "win" || byID["winchild"].Depth != 1 {
 		t.Fatalf("Host path tree mismatch %#v", groups)
 	}
-	if len(byID["root"].Items) != 3 || len(byID["::scratch"].Items) != 2 {
-		t.Fatal("membership guessed from path or unfiled sessions split")
+	if len(byID["root"].Items) != 3 || len(byID["::scratch"].Items) != 1 || byID["::scratch"].Items[0].SessionID != "scratch" {
+		t.Fatal("membership or actual scratch ownership was inferred from lineage/path")
 	}
-	foundOrphan := false
-	for _, item := range byID["::scratch"].Items {
-		if item.SessionID == "orphan" {
-			foundOrphan = true
+	for _, group := range groups {
+		for _, item := range group.Items {
+			if item.SessionID == "orphan" {
+				t.Fatal("unregistered foreign cwd entered a sidebar group")
+			}
 		}
 	}
-	if !foundOrphan {
-		t.Fatal("a session outside every registered workspace was not filed under 无工作目录")
-	}
 	ordered := OrderedWorkspaceSessionRows(byID["root"].Items, rows[0].SessionIDs, nil, "manual", false)
-	if len(ordered) != 3 || ordered[0].Item.SessionID != "second" || ordered[1].Item.SessionID != "first" || ordered[2].Depth != 1 {
-		t.Fatalf("manual/session tree %#v", ordered)
+	if len(ordered) != 3 || ordered[0].Item.SessionID != "second" || ordered[1].Item.SessionID != "first" || ordered[2].Item.SessionID != "sub" || ordered[2].Depth != 0 {
+		t.Fatalf("manual/fork flat rows %#v", ordered)
 	}
 	ordered = OrderedWorkspaceSessionRows(byID["root"].Items, rows[0].SessionIDs, nil, "updated", true)
 	if ordered[0].Item.SessionID != "sub" || ordered[1].Item.SessionID != "first" || ordered[0].Depth != 0 {
@@ -62,8 +144,8 @@ func TestWorkspaceGroupingFixture(t *testing.T) {
 	}
 	snap.WorkspaceLayout.GroupBy = "flat"
 	flat := BuildWorkspaceGroups(snap, items)
-	if len(flat) != 1 || len(flat[0].Items) != len(items) {
-		t.Fatal("flat view omitted sessions")
+	if len(flat) != 1 || len(flat[0].Items) != len(items)-1 {
+		t.Fatal("flat view did not retain all accounted/scratch sessions while excluding foreign cwd")
 	}
 	if before, ok := WorkspaceMoveAnchor(groups, "root", 1); !ok || before != "win" {
 		t.Fatalf("move down anchor %q %v", before, ok)
@@ -125,7 +207,8 @@ func TestWorkspaceGroupingFixture(t *testing.T) {
 	s := fresh()
 	s.SetWorkspaceGrouping("workspace-tree")
 	s.SetWorkspaceOrdering("updated")
-	s.ToggleWorkspaceGroup("one")
+	s.ToggleWorkspaceGroup("one") // source default is folded; first toggle expands
+	s.ToggleWorkspaceGroup("one") // explicitly fold before testing snapshot isolation
 	layout := s.Snapshot().WorkspaceLayout
 	layout.Collapsed["one"] = false
 	if !s.Snapshot().WorkspaceLayout.Collapsed["one"] {
@@ -146,24 +229,21 @@ func TestWorkspaceGroupingFixture(t *testing.T) {
 		t.Fatal("duplicate reorder or receipt not projected")
 	}
 	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"upsert","workspace":{"workspaceId":"one","path":"/one","sessionIds":["a","b"]}}`))
-	gate = make(chan struct{})
-	block.Store(&gate)
+	s.mu.Lock()
+	s.items = []Item{{SessionID: "a", UpdatedAt: 20}, {SessionID: "b", UpdatedAt: 10}}
+	s.mu.Unlock()
 	s.InsertSessionBefore(context.Background(), "one", "b", "a")
 	s.InsertSessionBefore(context.Background(), "one", "b", "a")
-	req = <-requests
-	if req["workspaceId"] != "one" || req["sessionId"] != "b" || req["beforeSessionId"] != "a" {
-		t.Fatal("session move used wrong workspace or anchor", req)
-	}
-	close(gate)
-	block.Store(nil)
-	wait(func() bool { return !s.Snapshot().WorkspaceLayout.Reordering })
-	if calls.Load() != 2 {
-		t.Fatal("duplicate session move was sent")
+	if calls.Load() != 1 {
+		t.Fatal("browser-local session drag sent a Host membership RPC")
 	}
 	got := s.Snapshot()
+	if got.WorkspaceLayout.OrderBy != "manual" || !reflect.DeepEqual(got.WorkspaceLayout.SessionOrders["one"], []string{"b", "a"}) {
+		t.Fatal("session drag did not freeze local manual order", got.WorkspaceLayout)
+	}
 	for _, ws := range got.Workspaces {
-		if ws.WorkspaceID == "one" && ws.SessionIDs[0] != "b" {
-			t.Fatal("session manual order receipt was ignored")
+		if ws.WorkspaceID == "one" && !reflect.DeepEqual(ws.SessionIDs, []string{"a", "b"}) {
+			t.Fatal("browser-local ordering changed Host membership order")
 		}
 	}
 	fail.Store(true)

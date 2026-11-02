@@ -54,7 +54,8 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	// Parent frame already constrains width to composerCardW; keep vertical pad only.
-	strip := ui.Column(c).Background(field).Padding(8, 0, 0, 0).Gap(8)
+	strip := ui.Column(c).Padding(8, 0, 0, 0).Gap(8)
+	_, _ = border, field
 	previous := ui.Local(strip, "page-approval-target", func() interaction.Pending { return interaction.Pending{} })
 	if !m.DisablePageShortcuts {
 		approvalPageShortcuts(c, previous, snap, func() interaction.ViewState {
@@ -62,7 +63,7 @@ func View(c *ui.Context, m Model) {
 		}, m.Store.ResolveAllow, m.Store.ResolveDeny)
 	}
 	strip.Children(func() {
-		ui.Box(c).Fill().Height(1).Background(border)
+		// no opaque border line above composer
 		if snap.QuestionDraftError != "" {
 			ui.Text(c, snap.QuestionDraftError).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}

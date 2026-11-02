@@ -2,6 +2,7 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -14,18 +15,29 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 		content()
 		return
 	}
-	viewport, _ := viewportDIP(c)
+	viewport, height := viewportDIP(c)
+	m.ViewportW, m.ViewportH = viewport, height
+	m.Sizes.observeSidebarGeometry(viewport, height)
 	m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
 	registerPageCommands(c, m)
-	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Children(func() {
-		sidebarColumns(c, m.Sizes, func() { navigationFileDropRail(c, m, func() { navigationView(c, m, m.Store.Snapshot()) }) }, func() {
+	// The production frame lives inside this shell with ExternalNavigation.
+	// A phone rightbar covers the viewport rather than the rail's clipped main
+	// column. Global workspace pages keep their own navigation and caption.
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	canvas := chrome.BackdropCanvas(chrome.Color(colors.BG))
+	if !m.WorkspacePage && workspaceAutoFullscreen(m) {
+		ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinWidth(0).MinHeight(0).Background(canvas).Children(content)
+		return
+	}
+	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Background(canvas).Children(func() {
+		sidebarColumns(c, m.Sizes, func() { navigationFileDropRail(c, m, func() { navigationView(c, m, renderSnapshot(m)) }) }, func() {
 			if !m.WorkspacePage {
 				content()
 				return
 			}
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			ui.Column(c.Key("global-workspace-rows")).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-				workspaceHeaderBand(c, func() { workspaceSharedCaption(c, m, m.Store.Snapshot(), colors, true) })
+				workspaceHeaderBand(c, func() { workspaceSharedCaption(c, m, renderSnapshot(m), colors, true) })
 				centerTerminalColumn(c, m, content, func() {
 					termui.View(c, termui.Model{
 						Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,

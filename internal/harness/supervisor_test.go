@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,6 +39,18 @@ func TestMain(m *testing.M) {
 }
 
 func fakeDsh() {
+	if marker := os.Getenv("FAKE_DSH_WORKSPACE_MARKER"); marker != "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Println("cwd:", err)
+			os.Exit(1)
+		}
+		raw, _ := json.Marshal(map[string]string{"cwd": cwd})
+		if err := os.WriteFile(marker, raw, 0600); err != nil {
+			fmt.Println("cwd marker:", err)
+			os.Exit(1)
+		}
+	}
 	var host, port string
 	for i, a := range os.Args {
 		switch a {

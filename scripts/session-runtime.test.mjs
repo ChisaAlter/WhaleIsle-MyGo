@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {inspectSessionRuntime, stageSessionRuntime, cloneStagedSessionRuntime, verifyStagedSessionRuntime, sessionAdmissionTypes} from './session-runtime.mjs';
-import {outputSHA256, bundlePath} from './session-runtime-readiness.mjs';
+import {baseSHA256, outputSHA256, replacement, bundlePath} from './session-runtime-readiness.mjs';
 
 const pin = {repo: 'https://github.com/deepseek-ai/deepseek-harness.git', ref: 'dsh-v0.2.1-rc.2', sha: '687f282e8625c6b8d11ff58211a90524be2e4317', npm: '0.2.1-rc.2'};
 async function write(filename, contents) {
@@ -47,10 +47,24 @@ async function fixture(t, {coreTypes = sessionAdmissionTypes, readerTypes, allow
 }
 async function addVisualBytes(f) {
   const source = process.env.WHALEISLE_SESSION_RUNTIME_VISUAL_FIXTURE;
-  assert.ok(source, 'Set WHALEISLE_SESSION_RUNTIME_VISUAL_FIXTURE to the explicitly selected rc.2 visual bundle');
+  assert.ok(source, 'Set WHALEISLE_SESSION_RUNTIME_VISUAL_FIXTURE to the explicitly selected original or guarded rc.2 visual bundle');
+  let original = await fs.readFile(source, 'utf8');
+  const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
+  if (sha256(original) === outputSHA256) {
+    // A packaged consumer already has the gate. Reconstruct the exact pinned
+    // original in this fixture so the stager still exercises the real patch.
+    const originalFunction = `function requireEnabled(config) {
+\tif (!config.enabled.get()) throw new Error("Visual replies are disabled. Enable Visual replies in Settings to create a preview or publish a page.");
+}`;
+    const guardedCall = '\t\t\tawait requireEnabled(config, exec.signal);';
+    assert.equal(original.split(replacement).length, 2);
+    assert.equal(original.split(guardedCall).length, 8);
+    original = original.replace(replacement, originalFunction).replaceAll(guardedCall, '\t\t\trequireEnabled(config);');
+  }
+  assert.equal(sha256(original), baseSHA256, 'visual fixture must supply the exact pinned rc.2 original bytes');
   const target = path.join(f.vendor, bundlePath);
   await fs.mkdir(path.dirname(target), {recursive: true});
-  await fs.copyFile(source, target);
+  await fs.writeFile(target, original);
 }
 async function linkDirectory(target, link) {
   await fs.mkdir(path.dirname(link), {recursive: true});

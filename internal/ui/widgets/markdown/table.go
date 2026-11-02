@@ -7,8 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
 	extast "github.com/yuin/goldmark/extension/ast"
-
-	"whaleisle/internal/ui/theme"
 )
 
 // Table metrics from the Original MarkdownText sheet: a 0.5px row and column
@@ -45,7 +43,11 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 		return
 	}
 	available := tableAxis(st)
-	maxColumn := available * tableColumnShare
+	share := float32(tableColumnShare)
+	if available >= 640 && columns == 2 {
+		share = 0.65
+	}
+	maxColumn := available * share
 	if maxColumn < tableMinColumn {
 		maxColumn = tableMinColumn
 	}
@@ -76,6 +78,19 @@ func viewTable(c *ui.Context, table *extast.Table, source string, st Style) {
 		}
 		total += widths[index]
 	}
+	if total < available && total > 0 && available >= 640 {
+		scale := available / total
+		var scaledTotal float32
+		for index := range widths {
+			if index == len(widths)-1 {
+				widths[index] = available - scaledTotal
+			} else {
+				widths[index] = float32(int(widths[index] * scale))
+				scaledTotal += widths[index]
+			}
+		}
+		total = available
+	}
 	paint := func(ctx *ui.Context) {
 		ui.Column(ctx).Width(total).MinWidth(0).Children(func() {
 			for _, row := range rows {
@@ -99,20 +114,20 @@ func tableAxis(st Style) float32 {
 	return tableDefaultAxis
 }
 
-// paintTableRow draws one record: the header fill, a 0.5px bottom rule and the
-// column separators, so a scrolled table keeps its grid.
+// paintTableRow draws one record: a 0.5px bottom rule across the row.
 func paintTableRow(c *ui.Context, row ast.Node, source string, st Style, widths []float32, alignments []extast.Alignment, columns int, total float32) {
 	_, isHeader := row.(*extast.TableHeader)
-	fill := ui.Transparent
 	padY := float32(tableCellPadY)
 	if isHeader {
-		fill = tableHeaderFill(st)
 		padY = tableHeaderRowPadY
 	}
 	// A 0.5 DIP rule disappears on integer-pixel software rendering, so the grid
 	// uses a 1px hairline at a low alpha and stays visible either way.
-	rule := st.Muted.Alpha(.20)
-	ui.Row(c).Width(total).MinWidth(0).AlignItems(ui.Start).Background(fill).Draw(func(p *ui.Painter, r ui.Rect) {
+	rule := st.Muted.Alpha(.11)
+	if isHeader {
+		rule = st.Muted.Alpha(.18)
+	}
+	ui.Row(c).Width(total).MinWidth(0).AlignItems(ui.Center).Background(ui.Transparent).Draw(func(p *ui.Painter, r ui.Rect) {
 		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, rule, 0)
 	}).Children(func() {
 		index := 0
@@ -123,13 +138,7 @@ func paintTableRow(c *ui.Context, row ast.Node, source string, st Style, widths 
 			column := index
 			index++
 			width := widths[column]
-			last := column == columns-1
 			box := ui.Box(c).Width(width).MinWidth(0).Padding(padY, tableCellPadX, padY, tableCellPadX)
-			if !last {
-				box.Draw(func(p *ui.Painter, r ui.Rect) {
-					p.Fill(ui.Rect{X: r.X + r.W - 1, Y: r.Y + padY/2, W: 1, H: r.H - padY}, rule, 0)
-				})
-			}
 			box.Children(func() {
 				viewTableCell(c, cell, source, st, isHeader, alignments[column])
 			})
@@ -148,7 +157,7 @@ func measureCellWidth(c *ui.Context, cell ast.Node, source string, st Style, hea
 	if header {
 		weight = 600
 	}
-	span := ui.Span{Text: text, Size: st.FontSize, Weight: weight, Font: theme.RenderPreferences().Chat.Family}
+	span := ui.Span{Text: text, Size: st.FontSize, Weight: weight, Font: proseFont(st)}
 	width, _ := c.MeasureText(0, span)
 	return width
 }
@@ -173,28 +182,51 @@ func tableAlignment(table *extast.Table, column int) extast.Alignment {
 
 func viewTableCell(c *ui.Context, cell ast.Node, source string, st Style, header bool, align extast.Alignment) {
 	cellStyle := st
-	cellStyle.maths = map[int]mathFormula{}
-	collectURLTargets(&cellStyle)
 	cellStyle.textWeight = 0
 	if header {
 		cellStyle.textWeight = 600
 	}
 	cellStyle.lineHeight = BodyLineHeight(st)
-	var blocks []richBlock
-	cellStyle.blockAt = func(start, end int, node ast.Node) {
-		blocks = append(blocks, richBlock{start: start, end: end, node: node})
-	}
-	targets := map[int]string{}
-	if st.ResolveFile != nil && st.OnOpenFile != nil {
-		cellStyle.codeSpanAt = func(index int, value string) {
-			targets[index] = st.ResolveFile(value)
-		}
-	}
+	key := makeBodyKey(cellStyle)
 	var spans []ui.Span
-	walkInlines(cell, source, cellStyle, &spans)
-	if header {
-		for i := range spans {
-			spans[i].Weight = 600
+	var blocks []richBlock
+	var targets map[int]string
+	if cellStyle.docInlines != nil {
+		if cached, ok := cellStyle.docInlines[cell]; ok && cached.key == key && cached.source == source {
+			spans, blocks, targets = cached.spans, cached.blocks, cached.targets
+			cellStyle.maths, cellStyle.urlTargets = cached.maths, cached.urlTargets
+		} else {
+			cellStyle.maths = map[int]mathFormula{}
+			collectURLTargets(&cellStyle)
+			cellStyle.blockAt = func(start, end int, node ast.Node) {
+				blocks = append(blocks, richBlock{start: start, end: end, node: node})
+			}
+			targets = map[int]string{}
+			collectFileTargets(&cellStyle, targets)
+			walkInlines(cell, source, cellStyle, &spans)
+			if header {
+				for i := range spans {
+					spans[i].Weight = 600
+				}
+			}
+			cellStyle.docInlines[cell] = cachedDocumentInlines{
+				source: source, key: key, spans: spans, blocks: blocks,
+				targets: targets, maths: cellStyle.maths, urlTargets: cellStyle.urlTargets,
+			}
+		}
+	} else {
+		cellStyle.maths = map[int]mathFormula{}
+		collectURLTargets(&cellStyle)
+		cellStyle.blockAt = func(start, end int, node ast.Node) {
+			blocks = append(blocks, richBlock{start: start, end: end, node: node})
+		}
+		targets = map[int]string{}
+		collectFileTargets(&cellStyle, targets)
+		walkInlines(cell, source, cellStyle, &spans)
+		if header {
+			for i := range spans {
+				spans[i].Weight = 600
+			}
 		}
 	}
 	textAlign := ui.Start
@@ -211,6 +243,10 @@ func viewTableCell(c *ui.Context, cell ast.Node, source string, st Style, header
 	if len(spans) == 0 {
 		return
 	}
+	if len(targets) > 0 || len(cellStyle.urlTargets) > 0 || hasMath(cellStyle.maths, 0, len(spans)) {
+		viewSpans(c, cellStyle, spans, targets, 0)
+		return
+	}
 	el := styledRichText(c, spans, cellStyle)
 	el.TextAlign(textAlign)
 }
@@ -224,7 +260,7 @@ func nodeText(node ast.Node, source string) string {
 		}
 		switch value := n.(type) {
 		case *ast.Text:
-			out.Write(value.Segment.Value([]byte(source)))
+			out.WriteString(segmentText(value.Segment, source))
 		case *ast.String:
 			out.Write(value.Value)
 		}

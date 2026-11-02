@@ -27,6 +27,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
+
+	"whaleisle/internal/petgrowth"
 )
 
 // DataDirName is the user data directory name shared with the Electron
@@ -42,6 +45,14 @@ const FileName = "config.json"
 // first launch must not force a palette the user did not choose. A stored
 // theme always wins, and an invalid one falls back here.
 const DefaultTheme = "deepseek"
+
+// DefaultGoPort and DefaultGoRemotePort keep WhaleIsle-MyGo on its own
+// loopback service ports so it never collides with the Electron Whale Isle
+// instance sharing the same config.json (3080 / 6767).
+const (
+	DefaultGoPort       = 3180
+	DefaultGoRemotePort = 6867
+)
 
 // Remote relay topology constants mirrored from
 // reference/electron/src/shared/lan.js (hardcoded product defaults).
@@ -81,6 +92,10 @@ type Config struct {
 	// Host and Port are where dsh web listens; Port is the first port tried.
 	Host string `json:"host"`
 	Port int    `json:"port"`
+	// GoPort and GoRemotePort let the Go shell bind dedicated ports (3180 / 6867)
+	// without colliding with or overwriting the Electron shell's 3080 / 6767.
+	GoPort       int `json:"goPort,omitempty"`
+	GoRemotePort int `json:"goRemotePort,omitempty"`
 	// DshBin overrides the dsh launcher (a bin.js or an executable).
 	DshBin string `json:"dshBin"`
 	// NodeBin overrides the Node.js used to run a bin.js launcher.
@@ -134,7 +149,10 @@ type Config struct {
 	Components       json.RawMessage `json:"components,omitempty"`
 
 	// Built-in plugin and assistant toggles.
-	DshbotEnabled          bool `json:"dshbotEnabled"`
+	DshbotEnabled bool `json:"dshbotEnabled"`
+	// ProjectEnabled mounts the optional Project overlay on each start (default off).
+	// Disabling never removes retained Project data or its prepared package.
+	ProjectEnabled         bool `json:"projectEnabled"`
 	WhaleAssistantEnabled  bool `json:"whaleAssistantEnabled"`
 	RemoteWorkspaceEnabled bool `json:"remoteWorkspaceEnabled"`
 
@@ -201,17 +219,30 @@ func Defaults() Config {
 type Store struct {
 	path string
 
-	mu             sync.Mutex
-	raw            map[string]json.RawMessage
-	cfg            Config
-	baseline       fileBaseline
-	shortcutReload *shortcutDocumentSnapshot
+	mu               sync.Mutex
+	raw              map[string]json.RawMessage
+	cfg              Config
+	cfgSnap          atomic.Pointer[Config]
+	baseline         fileBaseline
+	shortcutReload   *shortcutDocumentSnapshot
+	petRawCache      json.RawMessage
+	petStatsRawCache json.RawMessage
+	petGrowthCache   petgrowth.State
+	petCacheValid    bool
+	petGrowthSettled bool
+	// shortcutGen advances whenever this store changes the shortcut document.
+	// Readers cache their derived values and only reread the file when it does.
+	shortcutGen atomic.Uint64
 	// firstRun records that no config.json existed when the store opened, so
 	// callers can apply first-run appearance without overriding a saved one.
 	firstRun bool
 	// rename replaces the temp-file rename step; nil means os.Rename. It is
 	// a per-instance seam so tests can inject a deterministic write failure.
 	rename func(oldpath, newpath string) error
+	// commitLock takes the cross-process advisory lock around the final
+	// compare-and-replace; nil means acquireCommitLock. It is a per-instance
+	// seam so tests can inject a lock failure or skip OS locking entirely.
+	commitLock func(path string) (func(), error)
 }
 
 // cloneConfig returns a Config whose mutable fields share no storage with c,
@@ -219,6 +250,14 @@ type Store struct {
 // boundary (Get, the update callback, and the committed value).
 func cloneConfig(c Config) Config {
 	out := c
+	if c.GoPluginInstallRegistry != nil {
+		registry := *c.GoPluginInstallRegistry
+		if registry.Registry != nil {
+			address := *registry.Registry
+			registry.Registry = &address
+		}
+		out.GoPluginInstallRegistry = &registry
+	}
 	if c.DisabledPlugins != nil {
 		out.DisabledPlugins = make([]string, len(c.DisabledPlugins))
 		copy(out.DisabledPlugins, c.DisabledPlugins)
@@ -235,7 +274,8 @@ func cloneConfig(c Config) Config {
 // keep their default value; explicitly stored values (including false and
 // zero) are honored as written.
 func Open(dir string) (*Store, error) {
-	s := &Store{path: filepath.Join(dir, FileName), raw: map[string]json.RawMessage{}, cfg: Defaults()}
+	s := &Store{path: filepath.Join(dir, FileName), raw: map[string]json.RawMessage{}}
+	s.setCfgLocked(Defaults())
 	data, err := os.ReadFile(s.path)
 	if errors.Is(err, fs.ErrNotExist) {
 		s.firstRun = true
@@ -253,7 +293,7 @@ func Open(dir string) (*Store, error) {
 	if err := json.Unmarshal(data, &s.raw); err != nil {
 		return nil, fmt.Errorf("config: %s: %w", s.path, err)
 	}
-	if err := json.Unmarshal(data, &s.cfg); err != nil {
+	if err := unmarshalKnownConfig(data, s.raw, &s.cfg); err != nil {
 		return nil, fmt.Errorf("config: %s: %w", s.path, err)
 	}
 	if recovery, ok := s.raw["pluginRecovery"]; ok {
@@ -264,8 +304,36 @@ func Open(dir string) (*Store, error) {
 			s.cfg.SkipUserPlugins = r.SkipUserPlugins
 		}
 	}
-	s.cfg = normalize(s.cfg)
+	s.setCfgLocked(normalize(s.cfg))
 	return s, nil
+}
+
+func (s *Store) setCfgLocked(c Config) {
+	s.cfg = c
+	snap := cloneConfig(c)
+	s.cfgSnap.Store(&snap)
+}
+
+// unmarshalKnownConfig decodes top-level Config fields without re-scanning
+// large non-Config blobs (such as a multi-megabyte live2dPet food ledger).
+func unmarshalKnownConfig(data []byte, raw map[string]json.RawMessage, cfg *Config) error {
+	if len(raw["live2dPet"]) < 4096 && len(raw["pet"]) < 4096 && len(raw[workspaceNavigationKey]) < 4096 {
+		return json.Unmarshal(data, cfg)
+	}
+	filtered := make(map[string]json.RawMessage, len(raw))
+	for k, v := range raw {
+		switch k {
+		case "live2dPet", "pet", workspaceNavigationKey:
+			continue
+		default:
+			filtered[k] = v
+		}
+	}
+	small, err := json.Marshal(filtered)
+	if err != nil {
+		return json.Unmarshal(data, cfg)
+	}
+	return json.Unmarshal(small, cfg)
 }
 
 // Path returns the file the store reads and writes.
@@ -283,6 +351,9 @@ func (s *Store) IsFirstRun() bool {
 
 // Get returns a detached snapshot of the current configuration.
 func (s *Store) Get() Config {
+	if snap := s.cfgSnap.Load(); snap != nil {
+		return cloneConfig(*snap)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return cloneConfig(s.cfg)
@@ -295,6 +366,16 @@ func (s *Store) Get() Config {
 // last read, returning ErrConflict. It never merges, reloads or retries the
 // callback on its own.
 func (s *Store) Update(fn func(*Config)) error {
+	return s.UpdateChecked(func(c *Config) error {
+		fn(c)
+		return nil
+	})
+}
+
+// UpdateChecked validates and changes a detached candidate under the store lock.
+// A callback error leaves both the current configuration and the file unchanged.
+// The same baseline checks and atomic write used by Update protect the commit.
+func (s *Store) UpdateChecked(fn func(*Config) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -307,7 +388,9 @@ func (s *Store) Update(fn func(*Config)) error {
 	}
 
 	candidate := cloneConfig(s.cfg)
-	fn(&candidate)
+	if err := fn(&candidate); err != nil {
+		return err
+	}
 	if candidate.SkipUserPlugins != s.cfg.SkipUserPlugins {
 		// SkipUserPlugins is projected from pluginRecovery, never written
 		// back as a top-level key.
@@ -340,13 +423,34 @@ func (s *Store) Update(fn func(*Config)) error {
 	// process, catching an edit made while the callback or serialization ran.
 	commitMu.Lock()
 	defer commitMu.Unlock()
+	// Hold the cross-process advisory lock for the whole commit so a
+	// cooperating writer in another process cannot slip its own write between
+	// our last baseline check and the atomic rename. The byte-level check
+	// still runs under the lock, so a writer that never takes the lock (the
+	// Electron shell editing config.json directly) is rejected, not merged.
+	unlock := func() {}
+	if lock := s.commitLock; lock != nil {
+		release, err := lock(s.path)
+		if err != nil {
+			return err
+		}
+		unlock = release
+	} else {
+		release, err := acquireCommitLock(s.path)
+		if err != nil {
+			return err
+		}
+		unlock = release
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}
 	if err := writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
-	s.raw, s.cfg = merged, next
+	s.raw = merged
+	s.setCfgLocked(next)
 	s.baseline = fileBaseline{exists: true, data: data}
 	return nil
 }

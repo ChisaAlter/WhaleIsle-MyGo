@@ -7,7 +7,7 @@ import "encoding/json"
 type DesktopPet struct {
 	Enabled               bool         `json:"enabled"`
 	SkinID                string       `json:"skinId"`
-	Neural                bool         `json:"neural,omitempty"`
+	Neural                bool         `json:"neural"`
 	Behavior              PetBehavior  `json:"behavior"`
 	PersonalityConfigured bool         `json:"personalityConfigured,omitempty"`
 	Position              *PetPosition `json:"position,omitempty"`
@@ -17,9 +17,17 @@ func (s *Store) DesktopPet() DesktopPet {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := DesktopPet{Behavior: DefaultPetBehavior()}
+	stored, exists := s.raw["mygoDesktopPet"]
+	if !exists {
+		// A new companion prefers the live renderer, without enabling its window.
+		// Older saves omitted false, so an existing namespace with no neural key
+		// must retain false; its earlier intent cannot be recovered.
+		out.Neural = true
+		return out
+	}
 	// Decode individually so a malformed field cannot enable the companion.
 	var raw map[string]json.RawMessage
-	if json.Unmarshal(s.raw["mygoDesktopPet"], &raw) == nil {
+	if json.Unmarshal(stored, &raw) == nil {
 		_ = json.Unmarshal(raw["enabled"], &out.Enabled)
 		_ = json.Unmarshal(raw["skinId"], &out.SkinID)
 		_ = json.Unmarshal(raw["neural"], &out.Neural)

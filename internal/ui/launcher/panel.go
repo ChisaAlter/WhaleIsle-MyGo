@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/product"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -290,7 +291,7 @@ func railRouteChip(c *ui.Context, m Model) {
 }
 
 func railHead(c *ui.Context) {
-	// Current launcher.html: a non-wrapping mixed-size wordmark on one baseline.
+	// The full product name wraps at its space within the narrow launcher rail.
 	ui.Row(c).Gap(8).Padding(0, 8, 0, 8).AlignItems(ui.Center).Children(func() {
 		if bmp := brandAvatar(); bmp != nil {
 			ui.Image(c, bmp).Width(36).Height(36).Shrink(0).Fit(ui.Contain)
@@ -298,13 +299,9 @@ func railHead(c *ui.Context) {
 			ui.Box(c).Width(36).Height(36).Shrink(0).Radius(18).Background(colAccent.Alpha(0.2))
 		}
 		ui.Column(c).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, "").FontSize(theme.InterfaceSize(18)).FixedLineHeight(22).Height(22).NoWrap().AlignSelf(ui.Start).Shrink(0).Children(func() {
-				ui.Text(c, "鲸").Label("鲸").FontSize(theme.InterfaceSize(18)).FontWeight(700).LetterSpacing(-0.72).TextColor(colPrimary)
-				ui.Text(c, "屿").Label("屿").FontSize(theme.InterfaceSize(18)).FontWeight(700).LetterSpacing(-0.72).TextColor(colAccent)
-				// An em-space at7 DIP preserves the CSS7px gap within one native text line.
-				ui.Text(c, "\u2003").FontSize(theme.InterfaceSize(7))
-				ui.Text(c, "WHALE ISLE").Label("WHALE ISLE").FontSize(theme.InterfaceSize(10)).FontWeight(600).LetterSpacing(1.2).TextColor(colPrimary)
-			})
+			ui.Text(c, product.Name).Label(product.Name).MaxWidth(104).
+				FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).
+				FontWeight(600).TextColor(colPrimary)
 			ui.Text(c, i18n.T(i18n.KeyLauncherBrandRole)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
 				FontWeight(500).LetterSpacing(0.72).TextColor(colTertiary).SingleLine()
 		})
@@ -414,7 +411,7 @@ func homePanel(c *ui.Context, m Model) {
 	})
 
 	// Electron home desktop card (launcher.html:68, launcher.css .home-desktop):
-	// a 48px brand avatar, the WHALE ISLE eyebrow over the 16/24 title, the
+	// a 48px brand avatar, the product name over the 16/24 title, the
 	// version pill top-right; status+CTAs one row; running note under the actions.
 	ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
 		Padding(20, 24, 20, 24).Gap(0).Children(func() {
@@ -426,7 +423,7 @@ func homePanel(c *ui.Context, m Model) {
 				}
 				ui.Column(c).Gap(2).MinWidth(0).Children(func() {
 					// .home-eyebrow: 10/16, letter-spacing 1px, tertiary.
-					ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).
+					ui.Text(c, product.Name).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).
 						LetterSpacing(1).TextColor(colTertiary)
 					// .home-product h3: 16/24 semibold, 2px above.
 					ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).

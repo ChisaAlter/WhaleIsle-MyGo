@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/previewprocess"
@@ -78,7 +79,7 @@ func (s *projectController) startProjectVisualInteractiveLocked(win *mygo.Window
 					err = ctx.Err()
 					break wait
 				case <-surface.Done():
-					err = fmt.Errorf("isolated published page closed")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectPublishedPageClosed))
 					break wait
 				case <-tick.C:
 					if !s.projectVisualCurrent(owner, state, page) {

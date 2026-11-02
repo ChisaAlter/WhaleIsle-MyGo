@@ -38,6 +38,7 @@ func (s *Store) applyPermissionValuesLocked(values json.RawMessage, seq float64)
 
 func (s *Store) applyPermissionSelectionLocked(raw json.RawMessage, seq float64) {
 	p := &s.permissionProjection
+	previous := *p
 	if p.SessionID == s.selectedID && p.Generation == s.followGeneration {
 		if seq < p.Seq {
 			return
@@ -50,10 +51,16 @@ func (s *Store) applyPermissionSelectionLocked(raw json.RawMessage, seq float64)
 	}
 	if len(raw) != 0 && string(raw) != "null" {
 		if json.Unmarshal(raw, &selection) != nil || selection.CurrentValue == "" {
+			if previous.SessionID != p.SessionID || previous.Generation != p.Generation || previous.Value != p.Value || previous.Present != p.Present || previous.Pending != p.Pending {
+				s.invalidateViewLocked()
+			}
 			return
 		}
 	}
 	p.Seq, p.Value, p.Present = seq, selection.CurrentValue, selection.CurrentValue != ""
+	if previous.SessionID != p.SessionID || previous.Generation != p.Generation || previous.Value != p.Value || previous.Present != p.Present || previous.Pending != p.Pending {
+		s.invalidateViewLocked()
+	}
 }
 
 func (s *Store) applyPermissionControlLocked(raw json.RawMessage) {

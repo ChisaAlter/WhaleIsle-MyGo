@@ -50,6 +50,7 @@ type FileTab struct {
 	AutoRefreshDisabled                       bool
 	externalChanged                           bool
 	document                                  documentSurfaceState
+	deliverySource                            *deliveryPreviewSource
 	textPage                                  workspacefs.TextPage
 	textPaged                                 bool
 	tablePage                                 *workspacefs.XLSXPage
@@ -315,6 +316,7 @@ func saveDraft(m Model) error {
 	capture(m)
 	return nil
 }
+
 // paintTabs paints the open-file strip: one 28px chip per tab, the active chip
 // filled, the close control only while the chip is active or hovered, and the
 // trailing control that returns the tree to a browsable listing. Long names
@@ -416,20 +418,48 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 	}
 	path := w.PendingClose
 	busy := false
-	if tab := findTab(w, path); tab != nil && tab.save != nil {
-		save := tab.save.Snapshot()
-		busy = save.Running || (tab.closeWhenSaved && save.Pending)
+	saveErr := ""
+	if tab := findTab(w, path); tab != nil {
+		if tab.save != nil {
+			snap := tab.save.Snapshot()
+			busy = snap.Running || (tab.closeWhenSaved && snap.Pending)
+			if snap.Error != "" {
+				saveErr = snap.Error
+			}
+		}
+		if saveErr == "" && tab.Error != "" {
+			saveErr = tab.Error
+		}
 	}
 	ui.Text(c, label("未保存：", "Unsaved: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if saveErr != "" {
+		ui.Text(c, saveErr).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
+	}
 	ui.Row(c).Gap(4).Children(func() {
 		if widgets.Button(c, colors, label("保留草稿", "Keep draft"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			w.PendingClose = ""
 		}
 		if widgets.Button(c, colors, label("保存并关闭", "Save and close"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
-			selectFile(m, path)
+			if tab := findTab(w, path); tab != nil {
+				capture(m)
+				if path != w.Active {
+					m.Tabs.stopImageRead(false)
+					m.Tabs.stopTextRead(true, false)
+					pauseSave(findTab(w, w.Active))
+					w.Active = path
+					restore(m, tab)
+					applySaveResult(m, tab)
+				}
+				tab.Error = ""
+			} else {
+				selectFile(m, path)
+			}
 			if err := requestSaveDraft(m); err != nil {
 				if m.EditStatus != nil {
 					*m.EditStatus = err.Error()
+				}
+				if tab := findTab(w, path); tab != nil {
+					tab.Error = err.Error()
 				}
 			} else if tab := selectedTab(m); tab != nil {
 				tab.closeWhenSaved = true

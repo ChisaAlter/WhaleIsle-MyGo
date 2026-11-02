@@ -263,6 +263,8 @@ const (
 	wmMenuChar          = 0x0120
 	wmEnterMenuLoop     = 0x0211
 	wmExitMenuLoop      = 0x0212
+	wmEnterSizeMove     = 0x0231
+	wmExitSizeMove      = 0x0232
 	wmLButtonUp         = 0x0202
 	wmRButtonUp         = 0x0205
 	wmContextMenu       = 0x007B

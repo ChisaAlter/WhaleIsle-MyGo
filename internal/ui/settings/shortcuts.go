@@ -53,7 +53,7 @@ func bodyShortcutPreference(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Col
 			providerCopy("查看和编辑当前可用的快捷键和输入操作", "View and edit the shortcuts and input actions available now"),
 			fg, muted, func() {
 				ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-					button := ui.Button(c, providerCopy("编辑快捷键", "Edit shortcuts")).Label("edit-shortcuts").Height(32).MinWidth(132).Padding(0, 14).Radius(10)
+					button := settingsPreferenceButton(c, providerCopy("编辑快捷键", "Edit shortcuts")).Label("edit-shortcuts")
 					if button.Clicked() {
 						*open = true
 					}

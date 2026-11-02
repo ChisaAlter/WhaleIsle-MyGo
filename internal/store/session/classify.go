@@ -13,17 +13,25 @@ func classifyPersistenceEvent(raw json.RawMessage) (Message, bool) {
 	var promptHead struct {
 		Type string `json:"type"`
 	}
-	if json.Unmarshal(raw, &promptHead) == nil && (promptHead.Type == "system/message" || promptHead.Type == "request/header") {
-		return Message{}, false
-	}
-	if msg, ok := classifyGroupLateCarrier(raw); ok {
-		return msg, true
-	}
-	if msg, ok := classifyAssistantPersistence(raw); ok {
-		return msg, true
-	}
-	if msg, ok := classifyPersistenceEventTyped(raw); ok {
-		return msg, true
+	if json.Unmarshal(raw, &promptHead) == nil {
+		if promptHead.Type == "system/message" || promptHead.Type == "request/header" {
+			return Message{}, false
+		}
+		if promptHead.Type == "agent/inbox/spliced" {
+			if msg, ok := classifyGroupLateCarrier(raw); ok {
+				return msg, true
+			}
+		}
+		if promptHead.Type == "assistant/message" || promptHead.Type == "assistant/attempt" {
+			if msg, ok := classifyAssistantPersistence(raw); ok {
+				return msg, true
+			}
+		}
+		if promptHead.Type == "tool/call" || promptHead.Type == "assistant/message" {
+			if msg, ok := classifyPersistenceEventTyped(raw); ok {
+				return msg, true
+			}
+		}
 	}
 	return classifyPersistenceEventRaw(raw)
 }
@@ -97,15 +105,17 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 		if checkpoint, ok := classifyManualCompactionCheckpoint(raw); ok {
 			return checkpoint, true
 		}
+		if msg, ok := classifyAutomaticCompactionCheckpoint(raw); ok {
+			return msg, true
+		}
+		if msg, ok := classifyQuestionReply(raw); ok {
+			return msg, true
+		}
 	}
-	if msg, ok := classifyAutomaticCompactionCheckpoint(raw); ok {
-		return msg, true
-	}
-	if msg, ok := classifyQuestionReply(raw); ok {
-		return msg, true
-	}
-	if msg, ok := classifyContextMessage(raw); ok {
-		return msg, true
+	if ev.Type == "user/message" || ev.Type == "developer/message" {
+		if msg, ok := classifyContextMessage(raw); ok {
+			return msg, true
+		}
 	}
 	if ev.Type == "turn/end" {
 		return Message{Kind: MessageKindText, Role: "status", Seq: ev.Seq, EventType: ev.Type, Raw: append(json.RawMessage(nil), raw...), Body: "0"}, true

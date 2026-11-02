@@ -34,7 +34,7 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	hasWindow := s.win != nil
 	s.mu.Unlock()
 	if win == nil || !hasWindow {
-		return false, errors.New("no desktop window for the task confirmation")
+		return false, errors.New(i18n.T(i18n.KeyCmdTaskConfirmationWindowMissing))
 	}
 	label := i18n.T(i18n.KeyCmdQuit)
 	if operation == "restart" {
@@ -67,7 +67,7 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	if i.Unknown == "" && i.HostGeneration != "" {
 		for _, key := range []string{"agents", "jobs", "schedule", "bots"} {
 			if _, ok := i.Coverage[key]; !ok {
-				missing = append(missing, key+": unknown")
+				missing = append(missing, key+i18n.T(i18n.KeyCmdTaskCoverageUnknown))
 			}
 		}
 	}
@@ -174,7 +174,7 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 	busy := s.launcherImportBusy
 	s.mu.Unlock()
 	if busy {
-		s.taskProtectionError(win, errors.New("import is still running; finish or cancel it before quitting"))
+		s.taskProtectionError(win, errors.New(i18n.T(i18n.KeyCmdImportBeforeQuit)))
 		return false
 	}
 	// Save before acquiring the Host admission lock: a disk-recovery dialog must
@@ -188,7 +188,7 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 		same := s.sup == sup
 		s.mu.Unlock()
 		if busy || !same {
-			return errors.New("runtime or import state changed; retry quit")
+			return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryQuit))
 		}
 		s.finalizeQuit(sup)
 		return nil
@@ -221,7 +221,7 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
-				return errors.New("runtime or import state changed; retry stop")
+				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryStop))
 			}
 			s.mu.Unlock()
 			if err := s.closeTaskProtectedResources(); err != nil {
@@ -283,7 +283,7 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 		changed := s.launcherImportBusy || s.quitting || s.sup != sup
 		s.mu.Unlock()
 		if changed {
-			return errors.New("runtime or import state changed; retry update")
+			return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryUpdate))
 		}
 		if _, err := desktopupdate.StartStaged(staged); err != nil {
 			return err

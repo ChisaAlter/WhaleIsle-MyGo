@@ -27,6 +27,8 @@ func (s *mainState) openPetSettings() {
 	s.settingsAboutActive = false
 	s.settingsAppearanceActive = false
 	s.settingsInterfaceActive = false
+	s.settingsConversationActive = false
+	s.settingsFeaturesActive = false
 	s.settingsModelsActive = false
 	s.settingsMCPActive = false
 	s.settingsPluginsActive = false

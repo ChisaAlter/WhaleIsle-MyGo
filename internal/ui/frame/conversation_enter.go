@@ -42,6 +42,50 @@ type conversationEnterState struct {
 // card, stack and scrollport rectangles before applying its returned Y offset
 // to the stack; displacement must preserve sibling layout and input geometry.
 func conversationEnter(c *ui.Context, owner ui.Element, sessionID string, hero, promptAttempted bool, structure string) *conversationEnterState {
+	return conversationEnterLazy(c, owner, sessionID, hero, promptAttempted, func() string { return structure })
+}
+
+func conversationEnterLazy(c *ui.Context, owner ui.Element, sessionID string, hero, promptAttempted bool, structure func() string) *conversationEnterState {
+	s := ui.Local(owner, "conversation-first-send", func() conversationEnterState { return conversationEnterState{} })
+	s.beginLazy(c.Now(), sessionID, hero, promptAttempted, structure, c.Preferences().ReduceMotion)
+	if s.pending || s.holding || s.running {
+		c.AnimationFrame()
+	}
+	return s
+}
+
+func (s *conversationEnterState) beginLazy(now time.Time, sessionID string, hero, attempted bool, structure func() string, reduced bool) {
+	if !s.initialized || s.session != sessionID {
+		*s = conversationEnterState{session: sessionID, hero: hero, initialized: true}
+		return
+	}
+	wasHero := s.hero
+	s.hero = hero
+	if hero {
+		s.cancel()
+		if !wasHero {
+			s.measuredHero = false
+		}
+	} else if wasHero && attempted && s.measuredHero && !reduced {
+		s.pending = true
+		s.holdTop = s.heroTop
+		s.heldAt, s.quietAt = now, now
+		s.structure = structure()
+		return
+	}
+	if reduced {
+		s.cancel()
+	}
+	if s.pending || s.holding {
+		sig := structure()
+		if s.structure != sig {
+			s.structure = sig
+			s.signal(now)
+		}
+	}
+}
+
+func conversationEnterLegacy(c *ui.Context, owner ui.Element, sessionID string, hero, promptAttempted bool, structure string) *conversationEnterState {
 	s := ui.Local(owner, "conversation-first-send", func() conversationEnterState { return conversationEnterState{} })
 	s.begin(c.Now(), sessionID, hero, promptAttempted, structure, c.Preferences().ReduceMotion)
 	if s.pending || s.holding || s.running {

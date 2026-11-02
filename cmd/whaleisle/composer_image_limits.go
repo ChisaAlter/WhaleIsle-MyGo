@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Header-only classification and stat sizes avoid loading files just to enforce
@@ -31,7 +32,7 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 			return nil
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("not a regular file: %s", filepath.Base(path))
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerFileNotRegular), filepath.Base(path))
 		}
 		typ := knownType
 		if typ == "" {
@@ -55,13 +56,13 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 		}
 		count++
 		if count > limits.MaxImagesPerMessage {
-			return fmt.Errorf("image count exceeds Host limit %d", limits.MaxImagesPerMessage)
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
 		}
 		if info.Size() > limits.MaxImageBytes {
-			return fmt.Errorf("image exceeds Host per-image limit %d bytes", limits.MaxImageBytes)
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), limits.MaxImageBytes)
 		}
 		if info.Size() > limits.MaxMessageImageBytes-total {
-			return fmt.Errorf("images exceed Host total limit %d bytes", limits.MaxMessageImageBytes)
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), limits.MaxMessageImageBytes)
 		}
 		total += info.Size()
 		return nil
@@ -74,13 +75,13 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 			size := int64(len(a.ImageData)/4*3 - (len(a.ImageData) - len(strings.TrimRight(a.ImageData, "="))))
 			count++
 			if count > limits.MaxImagesPerMessage {
-				return fmt.Errorf("image count exceeds Host limit %d", limits.MaxImagesPerMessage)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
 			}
 			if size > limits.MaxImageBytes {
-				return fmt.Errorf("image exceeds Host per-image limit %d bytes", limits.MaxImageBytes)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), limits.MaxImageBytes)
 			}
 			if size > limits.MaxMessageImageBytes-total {
-				return fmt.Errorf("images exceed Host total limit %d bytes", limits.MaxMessageImageBytes)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), limits.MaxMessageImageBytes)
 			}
 			total += size
 			continue

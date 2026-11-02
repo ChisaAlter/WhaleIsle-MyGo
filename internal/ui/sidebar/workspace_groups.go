@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"github.com/egoist/mygo/ui"
+	"strconv"
 	"strings"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -16,211 +17,221 @@ func workspaceText(zh, en string) string {
 	return en
 }
 func workspaceViewOptions(c *ui.Context, m Model) {
-	if m.BrowseArchivedFilter != nil {
-		values := []string{"hide", "show", "only"}
-		labels := []string{workspaceText("隐藏归档会话", "Hide archived sessions"), workspaceText("显示归档会话", "Show archived sessions"), workspaceText("仅归档会话", "Only archived sessions")}
-		selected := labels[0]
-		for i, value := range values {
-			if browseArchiveFilter(m) == value {
-				selected = labels[i]
-			}
-		}
-		ui.Select(c.Key("workspace-archive-filter"), &selected, labels).Label("Archived session visibility").FillWidth().OnChange(func() {
-			for i, label := range labels {
-				if selected == label {
-					*m.BrowseArchivedFilter = values[i]
-				}
-			}
-		})
-	}
-	group := m.Snapshot.WorkspaceLayout.GroupBy
-	if group == "" {
-		group = "workspace"
-	}
-	order := m.Snapshot.WorkspaceLayout.OrderBy
-	if order == "" {
-		order = "manual"
-	}
-	groupLabels := []string{workspaceText("按工作区", "By workspace"), workspaceText("工作区树", "Workspace tree"), workspaceText("平铺会话", "Flat sessions")}
-	groupValues := []string{"workspace", "workspace-tree", "flat"}
-	selected := groupLabels[0]
-	for i, v := range groupValues {
-		if group == v {
-			selected = groupLabels[i]
-		}
-	}
-	ui.Select(c.Key("workspace-group-mode"), &selected, groupLabels).FillWidth().OnChange(func() {
-		if m.OnWorkspaceGrouping != nil {
-			for i, label := range groupLabels {
-				if selected == label {
-					m.OnWorkspaceGrouping(groupValues[i])
-				}
-			}
-		}
-	})
-	orderLabels := []string{workspaceText("手动排序", "Manual order"), workspaceText("最近更新", "Recently updated")}
-	selectedOrder := orderLabels[0]
-	if order == "updated" {
-		selectedOrder = orderLabels[1]
-	}
-	ui.Select(c.Key("workspace-order-mode"), &selectedOrder, orderLabels).FillWidth().OnChange(func() {
-		if m.OnWorkspaceOrdering != nil {
-			if selectedOrder == orderLabels[1] {
-				m.OnWorkspaceOrdering("updated")
-			} else {
-				m.OnWorkspaceOrdering("manual")
-			}
-		}
-	})
+	workspaceViewOptionsMenu(c, m, nil)
 }
-func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, border ui.Color) {
+func visibleWorkspaceGroups(m Model, items []session.Item) []session.WorkspaceGroup {
 	groups := session.BuildWorkspaceGroups(m.Snapshot, items)
-	layout := m.Snapshot.WorkspaceLayout
-	hiddenParents := map[string]bool{}
-	owners := session.WorkspaceSessionOwners(m.Snapshot.Workspaces, items)
-	workspaceRowsStatus(c, m, fg)
+	if browseArchiveFilter(m) != "only" {
+		if len(items) == 0 && (len(m.Snapshot.Workspaces) == 0 || m.Snapshot.WorkspaceLayout.GroupBy == "flat") {
+			return nil
+		}
+		return groups
+	}
+	visible := make(map[string]bool, len(groups))
+	parents := make(map[string]string, len(groups))
 	for _, group := range groups {
-		g := group
-		if hiddenParents[g.ParentID] {
-			hiddenParents[g.Key] = true
+		visible[group.Key] = len(group.Items) > 0
+		parents[group.Key] = group.ParentID
+	}
+	var out []session.WorkspaceGroup
+	for _, group := range groups {
+		if !visible[group.Key] {
 			continue
 		}
-		collapsed := layout.Collapsed[g.Key]
-		if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
-			collapsed = false
+		group.ParentID = ""
+		group.Depth = 0
+		for parent := parents[group.Key]; parent != ""; parent = parents[parent] {
+			if visible[parent] {
+				if group.ParentID == "" {
+					group.ParentID = parent
+				}
+				group.Depth++
+			}
 		}
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		if g.Kind != "flat" {
-			title := g.Workspace.Title
-			if title == "" {
-				title = g.Workspace.Path
+		out = append(out, group)
+	}
+	return out
+}
+
+func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, border ui.Color) {
+	groups := visibleWorkspaceGroups(m, items)
+	highlights := workspaceGroupHighlights(m, groups)
+	layout := m.Snapshot.WorkspaceLayout
+	hiddenParents := map[string]bool{}
+	owners := session.WorkspaceSessionOwnersForView(m.Snapshot, items)
+	var prevByWorkspace map[string]map[string]string
+	if m.OnMoveWorkspaceSessionBefore != nil {
+		prevByWorkspace = make(map[string]map[string]string, len(m.Snapshot.Workspaces))
+		for _, ws := range m.Snapshot.Workspaces {
+			if len(ws.SessionIDs) <= 1 {
+				continue
 			}
-			if g.Kind == "scratch" {
-				title = workspaceText("无工作目录", "No working directory")
+			mPrev := make(map[string]string, len(ws.SessionIDs)-1)
+			for i := 1; i < len(ws.SessionIDs); i++ {
+				mPrev[ws.SessionIDs[i]] = ws.SessionIDs[i-1]
 			}
-			if g.Kind == "other" {
-				title = workspaceText("其他会话", "Other sessions")
+			prevByWorkspace[ws.WorkspaceID] = mPrev
+		}
+	}
+	workspaceRowsStatus(c, m, fg)
+	// Sections own their 4-DIP separation; the scroll container adds none.
+	// Rows inside a section keep the reference's 2-DIP spacing.
+	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(4).Shrink(0)
+	m = workspaceDragModel(list, m)
+	blocks := make([]workspaceDropBlock, 0, len(groups))
+	hoverState := workspaceHoverGroup(c, list, m)
+	hoverAnchors := make([]workspaceHoverAnchor, 0, len(groups))
+	list.Children(func() {
+		for _, group := range groups {
+			g := group
+			if hiddenParents[g.ParentID] {
+				hiddenParents[g.Key] = true
+				continue
 			}
-			header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(12)
-			if header.Hovered() || header.FocusWithin() {
-				header.Background(selectedBackground(colors))
+			collapsed := session.WorkspaceGroupCollapsed(m.Snapshot, g.Key)
+			if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
+				collapsed = false
 			}
-			holdsSelection := false
-			for _, item := range g.Items {
-				if item.SessionID == m.Snapshot.SelectedID {
-					holdsSelection = true
-					break
-				}
-			}
-			header.Children(func() {
-				// Rows.module.css: the folder rests, and the row swaps it for the
-				// disclosure arrow on hover (the arrow rotates as the group opens).
-				hovered := header.Hovered() || header.FocusWithin()
-				lead := ui.ButtonBase(c).Width(16).Height(20).Shrink(0).Padding(0).BorderWidth(0).
-					Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center()
-				lead.Children(func() {
-					if hovered {
-						ui.Icon(c, workspaceChevronArtwork).Size(12, 12).TextColor(muted).
-							Label(workspaceText("展开箭头 ", "Workspace chevron ") + g.Key).
-							Rotate(groupChevronAngle(c, lead, collapsed))
-						return
+			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).Shrink(0)
+			blocks = append(blocks, workspaceDropBlock{Group: g, Element: block})
+			block.Children(func() {
+				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+				if g.Kind != "flat" {
+					title := g.Workspace.Title
+					if title == "" {
+						title = g.Workspace.Path
 					}
-					ink := muted
-					if holdsSelection {
-						ink = chrome.Color(colors.Accent)
+					if g.Kind == "scratch" {
+						title = workspaceText("无工作目录", "No working directory")
 					}
-					ui.Icon(c, workspaceFolderArtwork).Size(16, 16).TextColor(ink).
-						Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
-				})
-				if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
-					m.OnToggleWorkspaceGroup(g.Key)
-				}
-				titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg).Tooltip(g.Workspace.Path)
-				titleButton.Children(func() {
-					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
-				})
-				if g.Kind == "workspace" && !layout.Reordering {
-					titleButton.Drag(workspaceDrag{HostGeneration: layout.HostGeneration, ID: g.Key})
-				}
-				if titleButton.Clicked() {
-					if g.Kind == "workspace" && m.OnSelectWorkspace != nil {
-						m.OnSelectWorkspace(g.Key)
-					} else if m.OnToggleWorkspaceGroup != nil {
+					if g.Kind == "other" {
+						title = workspaceText("其他会话", "Other sessions")
+					}
+					header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
+					if header.Hovered() || header.FocusWithin() || header.MenuOpen() {
+						header.Background(selectedBackground(colors))
+					}
+					holdsSelection := highlights[g.Key]
+					anchor := workspaceHoverAnchor{row: header, workspace: g.Workspace, label: title, pressed: header.Pressed()}
+
+					header.Children(func() {
+						// Rows.module.css: the folder rests, and the row swaps it for the
+						// disclosure arrow on hover (the arrow rotates as the group opens).
+						hovered := header.Hovered() || header.FocusWithin()
+						lead := ui.ButtonBase(c).Width(16).Height(20).Shrink(0).Padding(0).BorderWidth(0).
+							Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center()
+						lead.Children(func() {
+							if hovered || g.Kind == "scratch" {
+								size, ink := float32(12), muted
+								if g.Kind == "scratch" {
+									size, ink = 14, chrome.Color(colors.Muted)
+									if holdsSelection {
+										ink = chrome.Color(colors.Accent)
+									}
+								}
+								ui.Icon(c, workspaceChevronArtwork).Size(size, size).TextColor(ink).
+									Label(workspaceText("展开箭头 ", "Workspace chevron ") + g.Key).
+									Rotate(groupChevronAngle(c, lead, collapsed))
+								return
+							}
+							ink := muted
+							if holdsSelection {
+								ink = chrome.Color(colors.Accent)
+							}
+							folder := workspaceFolderClosedArtwork
+							if !collapsed {
+								folder = workspaceFolderOpenArtwork
+							}
+							ui.Icon(c, folder).Size(16, 16).TextColor(ink).
+								Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
+						})
+						if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
+							resetWorkspaceWatermark(m, g.Key, groups)
+							m.OnToggleWorkspaceGroup(g.Key)
+						}
+						titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
+						titleButton.Children(func() {
+							text := ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
+							if g.Kind == "scratch" {
+								text.FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(chrome.Color(colors.Muted)).FixedLineHeight(theme.InterfaceSize(18))
+							}
+						})
+						if g.Kind == "workspace" && !layout.Reordering {
+							workspaceDragSource(titleButton, m, g.Key)
+						}
+						if titleButton.Clicked() && m.OnToggleWorkspaceGroup != nil {
+							resetWorkspaceWatermark(m, g.Key, groups)
+							m.OnToggleWorkspaceGroup(g.Key)
+						}
+						anchor.pressed = anchor.pressed || lead.Pressed() || titleButton.Pressed()
+						workspaceRowActions(c, m, header, g, muted)
+					})
+					if g.Kind == "workspace" && g.Workspace.CreatedAt != "" {
+						hoverAnchors = append(hoverAnchors, anchor)
+					}
+					if header.Clicked() && m.OnToggleWorkspaceGroup != nil {
+						resetWorkspaceWatermark(m, g.Key, groups)
 						m.OnToggleWorkspaceGroup(g.Key)
 					}
 				}
-				if g.Kind == "workspace" {
-					beforeUp, up := session.WorkspaceMoveAnchor(groups, g.Key, -1)
-					beforeDown, down := session.WorkspaceMoveAnchor(groups, g.Key, 1)
-					more := ui.Button(c, "…").Label(workspaceText("工作区操作 ", "Workspace actions ") + g.Key).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-					more.Menu(func(menu *ui.Menu) {
-						if m.OnManageWorkspace != nil && menu.Item(workspaceText("管理工作区", "Manage workspace")).Chosen() {
-							m.OnManageWorkspace(g.Key)
-						}
-						if m.OnMoveWorkspaceBefore != nil {
-							if menu.Item(workspaceText("上移工作区", "Move workspace up")).Disabled(!up || layout.Reordering).Chosen() {
-								m.OnMoveWorkspaceBefore(g.Key, beforeUp)
-							}
-							if menu.Item(workspaceText("下移工作区", "Move workspace down")).Disabled(!down || layout.Reordering).Chosen() {
-								m.OnMoveWorkspaceBefore(g.Key, beforeDown)
-							}
-						}
-					})
-					if !header.Hovered() && !header.FocusWithin() && !more.Focused() {
-						more.Opacity(0)
-					}
-				} else if g.Kind == "scratch" && m.OnNoDirectory != nil && ui.Button(c, "+").Label(workspaceText("无目录会话", "No directory session")).Width(16).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
-					m.OnNoDirectory()
+				if collapsed {
+					resetWorkspaceWatermark(m, g.Key, groups)
+					hiddenParents[g.Key] = true
 				}
+				workspaceGroupSessionRun(c, block, m, g, collapsed, func(visible workspaceWatermarkRows) {
+					rows := visible.Rows
+					local := g.Kind == "flat" || g.Kind == "scratch" || g.Kind == "other"
+					for _, row := range rows {
+						r := row
+						rowModel := m
+						rowModel.OnMoveSessionBefore = nil
+						rowModel.sessionDrag = nil
+						if g.Kind == "workspace" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
+							rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
+						}
+						if local && !m.Batch.Enabled && m.OnMoveLocalSessionBefore != nil {
+							rowModel.sessionDrag = &sessionDragContext{Local: true, Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
+						}
+						// A selected session in another workspace must reorder that workspace,
+						// never whichever cwd happens to be selected for the next new conversation.
+						owner := owners[r.Item.SessionID]
+						if !local && owner != "" && prevByWorkspace != nil {
+							if previous, ok := prevByWorkspace[owner][r.Item.SessionID]; ok && previous != "" {
+								rowModel.OnMoveSessionBefore = func(id, _ string) { m.OnMoveWorkspaceSessionBefore(owner, id, previous) }
+							}
+						}
+						depth := r.Depth
+						if g.Kind != "flat" {
+							depth += g.Depth
+						}
+						if isArchived(m.Snapshot, r.Item.SessionID) {
+							title := r.Item.Title
+							if strings.TrimSpace(title) == "" {
+								title = i18n.T(i18n.KeySidebarNewSessionFallback)
+							}
+							rowArchivedSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item.SessionID, title, depth, rowModel, muted)
+						} else {
+							rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
+						}
+					}
+					if g.Kind != "flat" && (visible.Hidden > 0 || visible.Watermark > visible.Baseline) {
+						label := workspaceText("展开其余 "+strconv.Itoa(visible.Hidden)+" 个会话", "Show "+strconv.Itoa(visible.Hidden)+" more sessions")
+						accessible := workspaceText("显示更多", "Show more")
+						if visible.Hidden == 0 {
+							label, accessible = workspaceText("收起", "Show less"), workspaceText("收起会话", "Show less")
+						}
+						if ui.Button(c.Key("workspace-overflow/"+g.Key), label).Label(accessible + " " + g.Key).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Clicked() {
+							if visible.Hidden == 0 {
+								resetWorkspaceWatermark(m, g.Key, nil)
+							} else {
+								retainWorkspaceWatermark(m, g.Key, visible.Watermark+workspaceWatermarkBase)
+							}
+						}
+					}
+				})
 			})
-			workspaceDropTarget(header, m, g, groups, false, fg)
-			if g.Kind == "workspace" {
-				after := ui.Box(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "after/" + g.Key})).FillWidth().Height(5)
-				workspaceDropTarget(after, m, g, groups, true, fg)
-			}
 		}
-		if collapsed {
-			hiddenParents[g.Key] = true
-			continue
-		}
-		pins := m.Snapshot.PinnedSessionIDs
-		if layout.OrderBy != "updated" {
-			pins = sessionManualPins(g.Workspace.SessionIDs, pins)
-		}
-		rows := session.OrderedWorkspaceSessionRows(g.Items, g.Workspace.SessionIDs, pins, layout.OrderBy, g.Kind == "flat")
-		for _, row := range rows {
-			r := row
-			rowModel := m
-			rowModel.OnMoveSessionBefore = nil
-			rowModel.sessionDrag = nil
-			if g.Kind == "workspace" && layout.OrderBy != "updated" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
-				rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
-			}
-			local := g.Kind == "flat" || g.Kind == "scratch" || g.Kind == "other"
-			if local && layout.OrderBy != "updated" && !m.Batch.Enabled && m.OnMoveLocalSessionBefore != nil {
-				rowModel.sessionDrag = &sessionDragContext{Local: true, Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
-			}
-			// A selected session in another workspace must reorder that workspace,
-			// never whichever cwd happens to be selected for the next new conversation.
-			owner := owners[r.Item.SessionID]
-			if !local && owner != "" && layout.OrderBy != "updated" && m.OnMoveWorkspaceSessionBefore != nil {
-				for _, ws := range m.Snapshot.Workspaces {
-					if ws.WorkspaceID != owner {
-						continue
-					}
-					for i, id := range ws.SessionIDs {
-						if id == r.Item.SessionID && i > 0 {
-							previous := ws.SessionIDs[i-1]
-							rowModel.OnMoveSessionBefore = func(id, _ string) { m.OnMoveWorkspaceSessionBefore(owner, id, previous) }
-						}
-					}
-				}
-			}
-			depth := r.Depth
-			if g.Kind != "flat" {
-				depth += g.Depth + 1
-			}
-			rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
-		}
-	}
+		workspaceDropGroupsTarget(list, m, blocks, fg)
+	})
+	registerWorkspaceHover(c, m, list, hoverState, hoverAnchors)
 }

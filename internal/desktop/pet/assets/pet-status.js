@@ -11,6 +11,7 @@
   const close = document.getElementById('pet-status-close');
   const sprite = document.getElementById('sprite');
   const fallback = document.getElementById('fallback');
+  const characters = window.WhalePetBody?.current.targets || [sprite, fallback];
 
   function show(open) {
     card.hidden = !open;
@@ -27,7 +28,7 @@
   close.addEventListener('click', () => show(false));
 
   // Right-click on the pet is the native affordance for its menu.
-  for (const target of [sprite, fallback]) {
+  for (const target of characters) {
     if (!target) continue;
     target.addEventListener('contextmenu', (event) => {
       event.preventDefault();
@@ -35,7 +36,7 @@
     });
   }
   // A long press keeps the card reachable without a right mouse button.
-  for (const target of [sprite, fallback]) {
+  for (const target of characters) {
     if (!target) continue;
     let pressTimer = 0;
     target.addEventListener('pointerdown', () => {

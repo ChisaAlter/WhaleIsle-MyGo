@@ -26,20 +26,15 @@ func historyTurnCaption(turn session.HistoryTurn) string {
 }
 
 func prepareHistoryNavigation(m Model, msgs []session.Message, list *ui.ListState) {
+	// Keys belong to every transcript, including read-only/test surfaces without
+	// a history Store. Navigation uses the same optional-prefix translation.
+	prepareTranscriptList(m, msgs, list)
+	prepareHistoryNavigationLanding(m, msgs, list)
+}
+
+func prepareHistoryNavigationLanding(m Model, msgs []session.Message, list *ui.ListState) {
 	if m.HistoryStore == nil {
 		return
-	}
-	// Stable identities let the native virtual list retain its visible row when
-	// older records are prepended. A new Host/session cannot reuse old row state.
-	list.Key = func(i int) any {
-		if i < 0 || i >= len(msgs) {
-			return i
-		}
-		msg := msgs[i]
-		return struct {
-			Scope, Session, ID, Kind, Event string
-			Seq                             float64
-		}{m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, msg.ID, string(msg.Kind), msg.EventType, msg.Seq}
 	}
 	v := m.Snapshot.HistoryNavigation
 	if !v.Ready {
@@ -51,7 +46,7 @@ func prepareHistoryNavigation(m Model, msgs []session.Message, list *ui.ListStat
 		}
 		row := session.HistoryTurnMessageIndex(msgs, turn)
 		if m.HistoryStore.ConsumeHistoryTurnLanding(m.Snapshot.SelectedID, v.Request) && row >= 0 {
-			list.ScrollTo(row, ui.Start)
+			list.ScrollTo(transcriptMessageRow(m, row), ui.Start)
 		}
 		return
 	}
@@ -62,7 +57,8 @@ func prepareHistoryNavigation(m Model, msgs []session.Message, list *ui.ListStat
 
 // HistoryNavigationView is the native equivalent of the original turn rail:
 // a keyboard-accessible directory with Host previews and explicit jump/cancel.
-func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.Color) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+func HistoryNavigationView(c *ui.Context, m Model, list *ui.ListState, muted ui.Color) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if m.HistoryStore == nil {
 		return
 	}

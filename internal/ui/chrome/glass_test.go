@@ -541,3 +541,54 @@ func TestMetallicSheenPaintsOnlyWhileHovered(t *testing.T) {
 		t.Fatalf("metallic sheen covered only %d pixels", changed)
 	}
 }
+
+func TestFrostOfBlursOnlyMenu(t *testing.T) {
+	if got := frostOf(MaterialMenu); got.cell != 18 || got.saturate != 1.5 {
+		t.Fatalf("frostOf(MaterialMenu) = %+v, want {cell:18 saturate:1.5}", got)
+	}
+	for _, m := range []Material{MaterialCanvas, MaterialSidebar, MaterialPanel, MaterialTerminal} {
+		if got := frostOf(m); got.cell != 0 || got.saturate != 1 {
+			t.Fatalf("frostOf(%d) = %+v, want {cell:0 saturate:1}", m, got)
+		}
+	}
+}
+
+func TestMenuFrostScreenBitmapCachesAndBlurs(t *testing.T) {
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	img := image.NewRGBA(image.Rect(0, 0, 80, 40))
+	for y := 0; y < 40; y++ {
+		for x := 0; x < 80; x++ {
+			col := color.RGBA{R: 20, G: 40, B: 60, A: 255}
+			if x >= 40 {
+				col = color.RGBA{R: 220, G: 80, B: 40, A: 255}
+			}
+			img.SetRGBA(x, y, col)
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	url := "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+		ui.Box(c).Absolute().Left(20).Top(5).Width(40).Height(30).
+			Draw(Glass(ui.RGB(67, 69, 74), MaterialMenu, 8))
+	}, 80, 40)
+	tt.Frame()
+	bmp1, box, ok := menuFrostScreenBitmap()
+	if !ok || bmp1 == nil {
+		t.Fatal("menuFrostScreenBitmap did not build a frost bitmap")
+	}
+	if box != (ui.Rect{X: 0, Y: 0, W: 80, H: 40}) {
+		t.Fatalf("frost box = %+v, want 80x40 window rect", box)
+	}
+	bmp2, _, ok := menuFrostScreenBitmap()
+	if !ok || bmp2 != bmp1 {
+		t.Fatal("menuFrostScreenBitmap did not reuse cached bitmap")
+	}
+}

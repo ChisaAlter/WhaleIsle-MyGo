@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -65,9 +66,26 @@ type assistantActionTarget struct {
 // TurnTailNodeView owns completed assistant actions, not each intermediate
 // text block. Legacy transcripts without turn/end retain a final-message seat.
 func assistantActionTargets(messages []session.Message) map[int]assistantActionTarget {
+	out, _ := assistantActionTargetsWithLastSeat(messages)
+	return out
+}
+
+func assistantActionTargetsWithLastSeat(messages []session.Message) (map[int]assistantActionTarget, int) {
 	out := make(map[int]assistantActionTarget)
 	last := -1
 	lastSeat := -1
+	// Only projected lifecycles need their text assembled. Build prefix text in
+	// one pass; a candidate retains the prefix at its own occurrence, before any
+	// later user/turn row can append text with the same source ID.
+	textBySource := make(map[string]*strings.Builder)
+	for _, msg := range messages {
+		if msg.SourceMessageID != "" && msg.Role == "assistant" && showMessageCopy(msg) {
+			if textBySource[msg.SourceMessageID] == nil {
+				textBySource[msg.SourceMessageID] = &strings.Builder{}
+			}
+		}
+	}
+	lastBody := ""
 	flush := func(seat int, seq float64) {
 		if last < 0 {
 			return
@@ -77,12 +95,7 @@ func assistantActionTargets(messages []session.Message) map[int]assistantActionT
 		// block rows. Copy all its visible text, as turn-assistant.assistantText
 		// does, while keeping earlier tool-step Assistant lifecycles separate.
 		if message.SourceMessageID != "" {
-			message.Body = ""
-			for _, block := range messages[:last+1] {
-				if block.FeedbackMessageID() == message.SourceMessageID && showMessageCopy(block) {
-					message.Body += block.Body
-				}
-			}
+			message.Body = lastBody
 		}
 		out[seat] = assistantActionTarget{message: message, endSeq: seq}
 		lastSeat = seat
@@ -92,8 +105,17 @@ func assistantActionTargets(messages []session.Message) map[int]assistantActionT
 		if msg.Role == "user" {
 			flush(last, 0)
 		}
-		if msg.Role == "assistant" && showMessageCopy(msg) {
+		copyable := showMessageCopy(msg)
+		if copyable {
+			if text := textBySource[msg.FeedbackMessageID()]; text != nil {
+				text.WriteString(msg.Body)
+			}
+		}
+		if msg.Role == "assistant" && copyable {
 			last = index
+			if msg.SourceMessageID != "" {
+				lastBody = textBySource[msg.SourceMessageID].String()
+			}
 		}
 		if msg.EventType == "turn/end" {
 			flush(index, msg.Seq)
@@ -104,12 +126,60 @@ func assistantActionTargets(messages []session.Message) map[int]assistantActionT
 		// A later user/steering entry makes this a historical tail.
 		target.latest = true
 		for _, msg := range messages[lastSeat+1:] {
+			if msg.Kind == session.MessageKindTurnDelivery || msg.TurnDelivery != nil {
+				continue
+			}
 			if msg.Role == "user" || msg.Role == "assistant" {
 				target.latest = false
 				break
 			}
 		}
 		out[lastSeat] = target
+	}
+	return out, lastSeat
+}
+
+func assistantActionTargetsForTurnPrefix(messages []session.Message) (map[int]assistantActionTarget, map[int]assistantActionTarget) {
+	latestMap, lastSeat := assistantActionTargetsWithLastSeat(messages)
+	if target, ok := latestMap[lastSeat]; ok && target.latest {
+		historicalMap := make(map[int]assistantActionTarget, len(latestMap))
+		for k, v := range latestMap {
+			historicalMap[k] = v
+		}
+		target.latest = false
+		historicalMap[lastSeat] = target
+		return latestMap, historicalMap
+	}
+	return latestMap, latestMap
+}
+
+func combineTurnPrefixActionTargets(
+	latestMap map[int]assistantActionTarget,
+	historicalMap map[int]assistantActionTarget,
+	prefixLen int,
+	tailMsgs []session.Message,
+) map[int]assistantActionTarget {
+	if len(tailMsgs) == 0 {
+		return latestMap
+	}
+	tailTargets, _ := assistantActionTargetsWithLastSeat(tailMsgs)
+	if len(tailTargets) == 0 {
+		for _, msg := range tailMsgs {
+			if msg.Kind == session.MessageKindTurnDelivery || msg.TurnDelivery != nil {
+				continue
+			}
+			if msg.Role == "user" || msg.Role == "assistant" {
+				return historicalMap
+			}
+		}
+		return latestMap
+	}
+	out := make(map[int]assistantActionTarget, len(historicalMap)+len(tailTargets))
+	for k, v := range historicalMap {
+		out[k] = v
+	}
+	for k, v := range tailTargets {
+		out[prefixLen+k] = v
 	}
 	return out
 }
@@ -118,7 +188,7 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 	msg := target.message
 	row := ui.Row(c).Key("assistant-actions").Label("Assistant message actions").Gap(8).
 		Height(28+theme.CurrentPreferences().Chat.Size-14).AlignItems(ui.Center).Margin(4, 0, 0, -6)
-	messageQuoteMenu(row, m, msg)
+	messageActionMenu(c, row, m, msg)
 	revealed := target.latest || owner.Hovered() || owner.FocusWithin()
 	row.Children(func() {
 		copySeat := ui.Box(c.Key("copy-reveal"))
@@ -188,12 +258,17 @@ func canForkAssistantTarget(messages []session.Message, target assistantActionTa
 
 // Keep the old port's quote command accessible by context/menu key without
 // adding a control to MessageIconActions' original copy/feedback/branch row.
-func messageQuoteMenu(row ui.Element, m Model, msg session.Message) {
-	if m.OnQuoteMessage == nil || !showMessageCopy(msg) {
+// Copy stays available on the same menu so a keyboard/context-menu user never
+// gets a menu that only quotes (or no menu at all when quoting is unavailable).
+func messageActionMenu(c *ui.Context, row ui.Element, m Model, msg session.Message) {
+	if !showMessageCopy(msg) {
 		return
 	}
 	row.ContextMenu(func(menu *ui.Menu) {
-		if menu.Item(i18n.T(i18n.KeyChatQuote)).Chosen() {
+		if menu.Item(i18n.T(i18n.KeyChatCopy)).Chosen() {
+			c.Services().WriteClipboard(msg.Body)
+		}
+		if m.OnQuoteMessage != nil && menu.Item(i18n.T(i18n.KeyChatQuote)).Chosen() {
 			m.OnQuoteMessage(msg.Body)
 		}
 	})

@@ -44,8 +44,8 @@ func workflowMemberDialog(c *ui.Context, m Model) {
 						m.Store.EarlierWorkflowMember(v.Token)
 					}
 					if ui.Button(c, archiveText("回到最新 / 重连", "Latest / reconnect")).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !m.Store.WorkflowMemberCanReconnect(v.Token)).Clicked() {
-						snap := m.Store.Snapshot()
-						m.Store.OpenWorkflowMember(snap.PlanHistoryBinding, v.ParentID, v.RunID, v.MemberSeq, v.ChildID, v.Label)
+						// reconnect uses PlanHistoryBinding()
+						m.Store.OpenWorkflowMember(m.Store.PlanHistoryBinding(), v.ParentID, v.RunID, v.MemberSeq, v.ChildID, v.Label)
 					}
 					if ui.Button(c, archiveText("复制持久记录", "Copy durable records")).FontSize(theme.InterfaceSize(11)).Disabled(len(v.Process.Records) == 0).Clicked() {
 						mygo.Clipboard.WriteText(session.WorkflowProcessText(v))

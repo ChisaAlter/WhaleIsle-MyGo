@@ -9,7 +9,7 @@
 // signing workflow between stage/archive and before publishing the catalog.
 import fs from 'node:fs';
 import {stagePreviewBundle, inspectEmbeddedPreview} from './macos-preview-bundle.mjs';
-import {stageComponentSamples} from './component-samples.mjs';
+import {stageOptionalSamples} from './session-runtime-samples.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -36,7 +36,7 @@ function input(value, label) {
   return fs.realpathSync(value);
 }
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {stdio: 'inherit', ...options});
+  const result = spawnSync(command, args, {stdio: 'inherit', windowsHide: true, ...options});
   if (result.error || result.status !== 0) throw Error(`${command} failed: ${result.error?.message || result.status}`);
 }
 function copyTree(source, destination) {
@@ -84,7 +84,7 @@ export async function stage(config) {
   const nodeDir = runtimeIncluded ? input(config.nodeDir, 'Official Darwin Node distribution') : '';
   if (runtimeIncluded) inspectMachO(path.join(nodeDir, 'bin/node'), config.arch);
   const output = fresh(config.output);
-  const app = path.join(output, 'Whale Isle.app');
+  const app = path.join(output, 'DeepSeekHarness Go.app');
   const bin = path.join(app, 'Contents/MacOS');
   const resources = path.join(app, 'Contents/Resources');
   fs.mkdirSync(bin, {recursive: true});
@@ -107,12 +107,12 @@ export async function stage(config) {
     // exact-ABI distribution under runtime/vendor/dshd-remote/node/bin/node.
     fs.symlinkSync('bin/node', path.join(runtimeDir, 'node/node'));
     const samples = config.componentSamples || process.env.WHALEISLE_COMPONENT_SAMPLES || path.join(path.dirname(vendor), 'components', 'samples');
-    stageComponentSamples(samples, path.join(runtimeDir, 'components', 'samples'));
+    stageOptionalSamples(samples, path.join(runtimeDir, 'components', 'samples'), Boolean(config.componentSamples || process.env.WHALEISLE_COMPONENT_SAMPLES));
     runtime = await inspectMacOSRuntime(runtimeDir, config.arch);
     fs.writeFileSync(path.join(bin, '.runtime-staged'), '1', {flag: 'wx'});
   }
   const values = {
-    CFBundleName: 'Whale Isle', CFBundleDisplayName: 'Whale Isle',
+    CFBundleName: 'DeepSeekHarness Go', CFBundleDisplayName: 'DeepSeekHarness Go',
     CFBundleIdentifier: macOSBundleIdentifier, CFBundleExecutable: 'whaleisle',
     CFBundleShortVersionString: bundleVersion, CFBundleVersion: bundleVersion,
     CFBundlePackageType: 'APPL', CFBundleInfoDictionaryVersion: '6.0',
@@ -151,10 +151,10 @@ export async function archive(config) {
   fs.mkdirSync(disk);
   // ditto retains the app's existing signatures and resource metadata. Neither
   // this command nor hdiutil signs or grants permissions to the application.
-  run('/usr/bin/ditto', [app, path.join(disk, 'Whale Isle.app')]);
+  run('/usr/bin/ditto', [app, path.join(disk, 'DeepSeekHarness Go.app')]);
   fs.symlinkSync('/Applications', path.join(disk, 'Applications'));
   const dmg = path.join(output, stem + '.dmg');
-  run('/usr/bin/hdiutil', ['create', '-volname', 'Whale Isle', '-srcfolder', disk, '-format', 'UDZO', '-o', dmg]);
+  run('/usr/bin/hdiutil', ['create', '-volname', 'DeepSeekHarness Go', '-srcfolder', disk, '-format', 'UDZO', '-o', dmg]);
   inspectDMG(dmg);
   const artifacts = [{file: path.basename(dmg), format: 'dmg', platform: 'darwin', arch: config.arch,
     runtimeIncluded: info.runtimeIncluded, sha256: await sha256(dmg), size: fs.statSync(dmg).size}];

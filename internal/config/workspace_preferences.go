@@ -9,15 +9,20 @@ import (
 const workspaceNavigationKey = "goWorkspaceNavigation"
 
 type WorkspaceNavigationPreferences struct {
-	SessionOrders map[string][]string `json:"sessionOrders,omitempty"`
-	GroupBy       string              `json:"groupBy"`
-	OrderBy       string              `json:"orderBy"`
-	Collapsed     map[string]bool     `json:"collapsed"`
+	SessionOrders  map[string][]string `json:"sessionOrders,omitempty"`
+	GroupBy        string              `json:"groupBy"`
+	OrderBy        string              `json:"orderBy"`
+	ArchivedFilter string              `json:"archivedFilter"`
+	Collapsed      map[string]bool     `json:"collapsed"`
 }
 
 func (s *Store) WorkspaceNavigationPreferences(hostKey string) (WorkspaceNavigationPreferences, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.workspaceNavigationPreferencesLocked(hostKey)
+}
+
+func (s *Store) workspaceNavigationPreferencesLocked(hostKey string) (WorkspaceNavigationPreferences, error) {
 	var out WorkspaceNavigationPreferences
 	root := map[string]json.RawMessage{}
 	if raw := s.raw[workspaceNavigationKey]; len(raw) > 0 {

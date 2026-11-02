@@ -14,7 +14,7 @@ type draftVisualLine struct{ rawY, rawHeight float32 }
 func (c *DraftClient) buildVisualLines() {
 	c.visualLines = c.visualLines[:0]
 	seen := make(map[float32]struct{})
-	end := ui.UTF16Len(c.lastText)
+	end := ui.UTF16Len(c.displayText)
 	for at := 0; ; {
 		b := c.layout.Caret(at)
 		if _, found := seen[b.Y]; !found {
@@ -39,8 +39,15 @@ func (c *DraftClient) projectRect(b ui.Rect) ui.Rect {
 	b.H = c.lineHeight()
 	return b
 }
-func (c *DraftClient) visualCaret(at int) ui.Rect { return c.projectRect(c.layout.Caret(at)) }
+func (c *DraftClient) visualCaret(at int) ui.Rect {
+	return c.projectRect(c.layout.Caret(c.documentToDisplay(at, true)))
+}
 func (c *DraftClient) visualSelectionRects(r ui.TextInputRange) []ui.Rect {
+	if r.Start == r.End {
+		return nil
+	}
+	r = c.normalizeRange(r)
+	r.Start, r.End = c.documentToDisplay(r.Start, false), c.documentToDisplay(r.End, true)
 	rects := c.layout.SelectionRects(r)
 	for i := range rects {
 		rects[i] = c.projectRect(rects[i])

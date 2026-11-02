@@ -13,6 +13,12 @@ import (
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
+// parsedUserLinks memoizes the markdown link scan for one user message body.
+type parsedUserLinks struct {
+	source string
+	links  []markdown.Link
+}
+
 // userMessageParts recognizes the legacy attachment lines outside code fences.
 // User-authored whitespace and fenced image-like text remain literal content.
 func userMessageParts(body string) (refs []string, text string) {
@@ -44,16 +50,20 @@ func userMessageParts(body string) (refs []string, text string) {
 func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.Colors, refs []string, body string, onOpenImage func(string)) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	border, field := chrome.Color(colors.Border), chrome.Color(colors.Field)
-	referenceLabels := userMessageReferenceLabels(m.Snapshot.Messages, msg.Seq)
+	referenceLabels, skillNames := userMessageContextFacts(m.Snapshot, msg)
 	attachments := userFileAttachments(msg)
 	axis := m.ContentWidth
 	if axis <= 0 {
 		axis = 748
 	}
+	capW := max(float32(748), axis) * .702
+	if m.ContentWidth > 0 && m.ContentWidth < 748 {
+		capW = 536
+	}
 	owner := ui.Column(c).FillWidth().Gap(6).AlignItems(ui.End)
 	owner.Children(func() {
 		ui.Column(c).FillWidth().MaxWidthPercent(82).MinWidth(0).AlignItems(ui.End).Children(func() {
-			ui.Column(c).FillWidth().MaxWidth(axis * .702).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
+			ui.Column(c).FillWidth().MaxWidth(capW).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
 				// Durable file parts paint as the Original 240×64 attachment card.
 				for _, file := range attachments {
 					attachmentCardView(c, file, fg, muted, border, field)
@@ -75,8 +85,9 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 					}
 				}
 				if body != "" {
+					radii := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark).BubbleRadii
 					ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
-						Background(chrome.Color(colors.Bubble)).Radius(20).Padding(10, 16, 10, 16).Children(func() {
+						Background(chrome.Color(colors.Bubble)).Radius(radii[:]...).Padding(10, 16, 10, 16).Children(func() {
 						ink := fg
 						if m.EditingSeq > 0 && msg.Seq == m.EditingSeq {
 							ink = muted
@@ -86,7 +97,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 						if m.OnOpenDeliverable != nil && m.HistoryStore != nil {
 							scope := m.Snapshot.TurnFiles.Scope
 							openReference = func(path string) {
-								if scope.Binding != "" && scope == m.HistoryStore.Snapshot().TurnFiles.Scope {
+								if scope.Binding != "" && scope == m.HistoryStore.TurnFilesScope() {
 									m.OnOpenDeliverable(path)
 								}
 							}
@@ -108,8 +119,8 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 								}()
 							}
 						}
-						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, userReferenceFacts{Labels: referenceLabels, Skills: userMessageSkillNames(m.Snapshot.Messages, msg), OpenSkill: openSkill, OpenFile: m.OnOpenHistoryReference, Current: func() bool {
-							return m.HistoryStore != nil && m.Snapshot.TurnFiles.Scope.Binding != "" && m.Snapshot.TurnFiles.Scope == m.HistoryStore.Snapshot().TurnFiles.Scope
+						userReferenceText(c, body, theme.CurrentPreferences().Chat.Size, ink, muted, openReference, userReferenceFacts{Labels: referenceLabels, Skills: skillNames, OpenSkill: openSkill, OpenFile: m.OnOpenHistoryReference, Current: func() bool {
+							return m.HistoryStore != nil && m.Snapshot.TurnFiles.Scope.Binding != "" && m.Snapshot.TurnFiles.Scope == m.HistoryStore.TurnFilesScope()
 						}})
 					})
 				}
@@ -118,7 +129,13 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				}
 				// Preserve the existing URL-opening action alongside literal user text.
 				if m.OnOpenCitationURL != nil {
-					links := markdown.Links(body)
+					// Links is a second goldmark pass over the body; memoize it on
+					// the row so scrolling does not reparse it every frame.
+					holder := ui.Local(owner, "user-links", func() parsedUserLinks { return parsedUserLinks{} })
+					if holder.source != body {
+						*holder = parsedUserLinks{source: body, links: markdown.Links(body)}
+					}
+					links := holder.links
 					if len(links) > 0 {
 						ui.Row(c).FillWidth().Wrap().Gap(6).Justify(ui.End).Children(func() {
 							for _, link := range links {
@@ -136,7 +153,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 			})
 		})
 		actions := ui.Row(c).Label("User message actions").Gap(8).Height(28 + theme.CurrentPreferences().Chat.Size - 14).AlignItems(ui.Center)
-		messageQuoteMenu(actions, m, msg)
+		messageActionMenu(c, actions, m, msg)
 		if !latestUserMessage(m.Snapshot.Messages, msg) && !owner.Hovered() && !owner.FocusWithin() {
 			actions.Opacity(0)
 		}
@@ -155,10 +172,10 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 			if m.EditingSeq > 0 && msg.Seq == m.EditingSeq && m.OnCancelEdit != nil {
 				ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
 				action(messageIconCloseOutline, i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
-			} else if msg.Seq == session.LatestEditableMessage(m.Snapshot.Messages) && m.OnEditMessage != nil {
+			} else if editSeq, editTextOnly := projectedLatestEditable(m.Snapshot); msg.Seq > 0 && msg.Seq == editSeq && m.OnEditMessage != nil {
 				tip := i18n.T(i18n.KeyChatEdit)
-				editAllowed := session.CanEditMessage(m.Snapshot, msg.Seq)
-				if !editAllowed && m.Snapshot.SelectedID == "" && !m.Snapshot.PromptBusy && !m.Snapshot.MessageEditBusy {
+				editAllowed := editTextOnly && m.Snapshot.SelectedID != "" && !m.Snapshot.PromptBusy && !m.Snapshot.MessageEditBusy
+				if !editAllowed && m.Snapshot.SelectedID == "" && !m.Snapshot.PromptBusy && !m.Snapshot.MessageEditBusy && editTextOnly {
 					editAllowed = true
 				}
 				if m.Snapshot.PromptBusy || m.Snapshot.MessageEditBusy {

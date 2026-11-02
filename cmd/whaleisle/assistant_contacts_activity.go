@@ -32,7 +32,7 @@ func (s *mainState) assistantContactsActivity(ep harness.Endpoint, catalog plugi
 		}
 	}
 	if sessions != nil {
-		for _, item := range sessions.Snapshot().Items {
+		for _, item := range sessions.ListedItems() {
 			for _, row := range catalog.Items {
 				own := item.SessionID == row.SessionID
 				member := row.Kind == "room" && (item.ParentID == row.SessionID || pluginrpc.DshbotContactOwnsMember(row, item.SessionID))

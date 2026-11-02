@@ -111,7 +111,7 @@ func paintTreeReferenceButton(c *ui.Context, m Model, row ui.Element, path strin
 	if m.OnReferenceFile == nil {
 		return
 	}
-	button := ui.Button(c.Key("tree-reference"), "@").Label("Reference file " + path).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(12).Disabled(!m.CanAddToChat)
+	button := ui.Button(c.Key("tree-reference"), "@").Label("Reference file " + path).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Radius(6).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(12).Disabled(!m.CanAddToChat)
 	if !row.Hovered() && !row.FocusWithin() && !button.Focused() {
 		button.Opacity(0)
 	}

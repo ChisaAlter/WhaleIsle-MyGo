@@ -29,21 +29,6 @@ func paintModelPicker(c *ui.Context, m Model, colors theme.Colors, height float3
 			// label the user cannot click.
 			paintModelSeat(c, m, colors)
 		}
-		if len(m.Snapshot.ModelLabels) > 0 {
-			// Model and effort share the two-level native menu above.
-		} else if len(m.Snapshot.ModelEffortLabels) > 0 && !m.Snapshot.ModelSelectionBusy {
-			choice := composerSelect(c, &effort.Value, m.Snapshot.ModelEffortLabels).
-				Height(height).FontSize(12).Background(ui.Transparent).BorderWidth(0).TextColor(muted)
-			if choice.Changed() {
-				value := effort.take()
-				if m.OnModelEffortChange != nil {
-					m.OnModelEffortChange(value)
-				}
-			}
-		} else if m.Snapshot.SelectedModelEffort != "" {
-			binding := modelSelectBinding(m.Snapshot)
-			modelFlipText(c, "retained-effort:"+binding, m.Snapshot.SelectedModelEffort, chrome.Color(colors.Caption), 13).Shrink(1000)
-		}
 		if m.Snapshot.ModelsErr != "" {
 			ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).TextColor(muted)
 			if m.OnRetryModels != nil && ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(11).Clicked() {
@@ -55,7 +40,7 @@ func paintModelPicker(c *ui.Context, m Model, colors theme.Colors, height float3
 
 // paintModelSeat is the catalog-less model chip: "Loading…" while the request
 // is in flight, "Choose model" before any selection, and the router's
-// provider/model string when a selection exists but its catalog row does not.
+// resolved model name when a selection exists but its catalog row does not.
 func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 	muted := chrome.Color(colors.Muted)
 	owner := ui.Box(c)
@@ -65,11 +50,24 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 	case m.Snapshot.ModelSelectionBusy:
 		label = i18n.T(i18n.KeyComposerModelLoading)
 	case m.Snapshot.SelectedModel != "":
-		label = m.Snapshot.SelectedModel
+		label = friendlyModelTriggerName(m.Snapshot, m.Snapshot.SelectedModel)
 	}
-	trigger := chip(c, colors, *open, muted).Label(label).Tooltip(label + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
+	secondary := muted
+	if colors.Secondary != "" {
+		secondary = chrome.Color(colors.Secondary)
+	}
+	effortDisplay := formatEffortDisplay(m.Snapshot.SelectedModelEffort)
+	tooltip := label
+	if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
+		tooltip += " · " + effortDisplay
+	}
+	trigger := chip(c, colors, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
 	trigger.Children(func() {
-		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(muted)
+		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(secondary)
+		if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
+			binding := modelSelectBinding(m.Snapshot)
+			modelFlipText(c, "retained-effort:"+binding, effortDisplay, chrome.Color(colors.Caption), 13).Shrink(1000)
+		}
 		chevron(c, *open)
 	})
 	if trigger.Clicked() {

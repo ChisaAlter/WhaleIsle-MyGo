@@ -33,16 +33,44 @@ func (t *ThemeBinding) Snapshot() ViewState {
 }
 
 func (s *Store) BindTheme() *ThemeBinding {
-	b := s.BindNamespace("ui-theme")
-	if b == nil {
-		return nil
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.themeBinding == nil || s.themeBinding.client != b.client || s.themeBinding.generation != b.generation {
-		s.themeBinding = &ThemeBinding{NamespaceBinding: b, pending: map[string]json.RawMessage{}}
+	if s.findNamespaceLocked("ui-theme") == nil {
+		return nil
 	}
+	if s.themeBinding != nil && s.themeBinding.client == s.client && s.themeBinding.generation == s.generation {
+		return s.themeBinding
+	}
+	s.ensureDraftsLocked("ui-theme")
+	b := &NamespaceBinding{s, "ui-theme", s.generation, s.client, fmt.Sprintf("%p/%d/ui-theme", s.client, s.generation)}
+	s.themeBinding = &ThemeBinding{NamespaceBinding: b, pending: map[string]json.RawMessage{}}
 	return s.themeBinding
+}
+
+func (t *ThemeBinding) ReadOnlyThemeView() (ready, writable, loading, saving, pending bool, owner, errStr string, revision float64, value json.RawMessage, fields []Field) {
+	s := t.store
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	owner = t.Owner()
+	if !t.currentLocked() {
+		return
+	}
+	ns := s.findNamespaceLocked("ui-theme")
+	if ns == nil {
+		return
+	}
+	ready = s.client != nil
+	writable, loading, saving = s.writable, s.loading, s.saving
+	pending = len(t.pending) > 0 || t.inFlight
+	if t.writeError != "" {
+		errStr = t.writeError
+	} else if s.err != nil {
+		errStr = s.err.Error()
+	}
+	revision = ns.Revision
+	value = ns.Value
+	fields = ns.Fields
+	return
 }
 
 func (t *ThemeBinding) Pending() bool {

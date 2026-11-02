@@ -12,6 +12,7 @@ import (
 type SidebarResponsive struct {
 	viewport                    float32
 	narrow, expanded, rightOpen bool
+	landscape, orientationKnown bool
 }
 
 // ui-layout columns.ts: the sidebar leaves the grid for an overlay drawer below
@@ -19,12 +20,8 @@ type SidebarResponsive struct {
 const (
 	phoneMax    = float32(768)
 	phoneDrawer = float32(320)
-	// autoCollapseWidth is SIDEBAR_AUTO_COLLAPSE (columns.ts:1024), the
-	// breakpoint AppFrame reads for data-compact-header. It is wider than the
-	// drawer band: a 768–1024 DIP desktop window keeps its 280 DIP sidebar
-	// track, but the titlebar trailing cluster would still paint over the
-	// session title, so AppFrame drops the cluster there (AppFrame.js:303-306,
-	// 316/365).
+	// The installed AppFrame collapses desktop navigation below 1024 even on
+	// landscape screens. Its narrower phone drawer is a separate decision.
 	autoCollapseWidth = float32(1024)
 )
 
@@ -32,13 +29,10 @@ func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 	if sizes.Responsive == nil {
 		sizes.Responsive = &SidebarResponsive{}
 	}
-	// ui-layout columns.ts only auto-collapses the sidebar in the portrait band
-	// (SIDEBAR_AUTO_COLLAPSE = 1024 with !landscape); a desktop window is
-	// landscape, so it keeps the saved preference — 280 DIP by default — and the
-	// phone drawer takes over below PHONE_MAX. Collapsing the desktop track at a
-	// window width instead lost the brand, the sections and the account row on
-	// every 960-DIP desktop.
-	narrow := width < phoneMax
+	// AppFrame's desktop branch is narrow below 1024 regardless of screen
+	// orientation. The manual override is transient and resets only when that
+	// band changes; the persisted Sidebar width remains untouched.
+	narrow := width < autoCollapseWidth
 	if sizes.Responsive.narrow != narrow {
 		sizes.Responsive.expanded = false
 	}
@@ -46,21 +40,38 @@ func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 	sizes.Responsive.viewport = width
 }
 
-// drawerMode reports the phone band where the sidebar floats over the centre
-// column instead of taking a track (AppFrame data-phone-sidebar).
-func (sizes *LayoutSizes) drawerMode() bool {
-	r := sizes.Responsive
-	return r != nil && r.viewport > 0 && r.viewport < phoneMax
+// observeSidebarGeometry follows screen orientation when a native owned window
+// exists. The reference falls back to viewport aspect only without screen data;
+// headless tests take that same fallback. Width-only solvers keep the most recent
+// observation instead of inventing a screen orientation.
+func (sizes *LayoutSizes) observeSidebarGeometry(width, height float32) {
+	landscape, known := displayLandscape()
+	sizes.observeSidebarOrientation(width, height, landscape, known)
 }
 
-// drawerWidth is min(320, 100% - 48): the sidebar leaves 48 DIPs of conversation
-// visible so the drawer reads as an overlay.
+func (sizes *LayoutSizes) observeSidebarOrientation(width, height float32, landscape, known bool) {
+	sizes.observeSidebarViewport(width)
+	if !known && width > 0 && height > 0 {
+		landscape, known = width > height, true
+	}
+	sizes.Responsive.landscape, sizes.Responsive.orientationKnown = landscape, known
+}
+
+// drawerMode is AppFrame's phone band: below 768 and not landscape. A caller
+// that supplies only a width retains the historical unknown-screen contract.
+func (sizes *LayoutSizes) drawerMode() bool {
+	r := sizes.Responsive
+	return r != nil && r.viewport > 0 && r.viewport < phoneMax && (!r.orientationKnown || !r.landscape)
+}
+
+// drawerWidth is the installed min(320, max(264, viewport-48)). Below 312
+// the navigation keeps its 264 DIP minimum; the shell clips it at tiny widths.
 func (sizes *LayoutSizes) drawerWidth() float32 {
 	viewport := float32(0)
 	if sizes.Responsive != nil {
 		viewport = sizes.Responsive.viewport
 	}
-	return min(phoneDrawer, max(float32(0), viewport-48))
+	return min(phoneDrawer, max(SidebarMin, viewport-48))
 }
 
 // sidebarCollapsed reports whether the navigation paints its compact rail. In
@@ -70,17 +81,6 @@ func (sizes *LayoutSizes) sidebarCollapsed() bool {
 		return !r.expanded
 	}
 	return sizes.sidebarPreference() <= 0
-}
-
-// narrowHeader hides the titlebar trailing cluster the way
-// AppFrame's data-compact-header does: below SIDEBAR_AUTO_COLLAPSE (1024 DIP,
-// not the 768 drawer band) the cluster would paint over the session title, so
-// the band keeps the title and its actions alone.
-func (sizes *LayoutSizes) narrowHeader() bool {
-	if sizes.Responsive == nil {
-		return false
-	}
-	return sizes.Responsive.viewport > 0 && sizes.Responsive.viewport < autoCollapseWidth
 }
 
 func (sizes *LayoutSizes) sidebarPreference() float32 {
@@ -105,19 +105,17 @@ func (sizes *LayoutSizes) ToggleSidebar() {
 		sizes.SidebarExpanded = clampSidebarWidth(sizes.Sidebar)
 		sizes.Sidebar = 0
 	} else {
-		width := sizes.SidebarExpanded
-		if width < SidebarMin {
-			width = SidebarDefault
-		}
-		sizes.Sidebar = clampSidebarWidth(width)
+		// The source wide toggle reopens at its default, independently of the
+		// former width retained for the closing animation and legacy recovery.
+		sizes.Sidebar = SidebarDefault
 	}
 }
 
 // sidebarColumns preserves the center's identity across collapse/expand. A
 // compact rail has no resize target, so dragging cannot overwrite saved width.
 func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
-	viewport, _ := viewportDIP(c)
-	sizes.observeSidebarViewport(viewport)
+	viewport, height := viewportDIP(c)
+	sizes.observeSidebarGeometry(viewport, height)
 	if sizes.drawerMode() {
 		sidebarDrawer(c, sizes, sidebar, center, viewport)
 		return
@@ -196,7 +194,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 
 // sidebarDrawer is the phone band's overlay navigation (AppFrame data-phone):
 // the centre column keeps the full width, the sidebar slides in over it from the
-// left at min(320, 100%-48), and a floating menu button reopens it once closed.
+// left at min(320, max(264, 100%-48)); a floating button reopens it once closed.
 func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), viewport float32) {
 	open := sizes.Responsive != nil && sizes.Responsive.expanded
 	width := sizes.drawerWidth()

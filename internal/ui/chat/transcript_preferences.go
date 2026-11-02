@@ -21,12 +21,21 @@ type transcriptControl struct {
 }
 type transcriptTurn struct {
 	end          *session.Message
+	done         bool
 	final        int
 	firstProcess int
 	middleInput  bool
+	toolSteps    map[float64]bool
+	members      []string
 }
 
 func transcriptEventCoordinates(msg session.Message) (turn, step float64, known bool) {
+	return memoizedTranscriptCoordinates(msg)
+}
+
+// decodeTranscriptCoordinates reads one row's turn/step from its durable raw,
+// falling back to the tool call it projects. See render_memo.go for the memo.
+func decodeTranscriptCoordinates(msg session.Message) (turn, step float64, known bool) {
 	var e struct {
 		Data struct {
 			Turn *float64 `json:"turn"`
@@ -59,18 +68,19 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 	known := make([]bool, len(msgs))
 	steps := make([]float64, len(msgs))
 	byStart := map[float64]float64{}
-	for _, msg := range msgs {
-		turn, _, ok := transcriptEventCoordinates(msg)
+	for i, msg := range msgs {
+		turn, step, ok := transcriptEventCoordinates(msg)
+		keys[i], steps[i], known[i] = turn, step, ok
 		if ok && msg.TurnSeq > 0 {
 			byStart[msg.TurnSeq] = turn
 		}
 	}
 	for i, msg := range msgs {
-		turn, step, ok := transcriptEventCoordinates(msg)
+		turn, step, ok := keys[i], steps[i], known[i]
 		if !ok && msg.TurnSeq > 0 {
 			turn, ok = byStart[msg.TurnSeq]
+			keys[i], known[i] = turn, ok
 		}
-		keys[i], steps[i], known[i] = turn, step, ok
 		if !ok {
 			continue
 		}
@@ -79,22 +89,26 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 			t = &transcriptTurn{final: -1, firstProcess: -1}
 			turns[turn] = t
 		}
+		if msg.Kind == session.MessageKindTool {
+			if t.toolSteps == nil {
+				t.toolSteps = make(map[float64]bool)
+			}
+			t.toolSteps[step] = true
+		}
 		if msg.EventType == "turn/end" {
 			copy := msg
 			t.end = &copy
+			t.done = turnStatusKind(msg) == "done"
 		}
 		if msg.Role == "assistant" && msg.Kind == session.MessageKindText && !msg.Streaming && strings.TrimSpace(msg.Body) != "" {
 			t.final = i
 		}
 	}
-	for turn, t := range turns {
-		if t.final >= 0 {
-			for i, msg := range msgs {
-				if known[i] && keys[i] == turn && steps[i] == steps[t.final] && msg.Kind == session.MessageKindTool {
-					t.final = -1
-					break
-				}
-			}
+	// Each turn's tool-step index rejects the same final candidate without
+	// rescanning the full transcript once per turn.
+	for _, t := range turns {
+		if t.final >= 0 && t.toolSteps[steps[t.final]] {
+			t.final = -1
 		}
 	}
 	for i, msg := range msgs {
@@ -102,8 +116,12 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 			continue
 		}
 		t := turns[keys[i]]
-		if transcriptProcess(msg) && i != t.final && t.firstProcess < 0 {
-			t.firstProcess = i
+		if transcriptProcess(msg) && i != t.final {
+			if t.firstProcess < 0 {
+				t.firstProcess = i
+			}
+			// Keep occurrence order and duplicate/empty IDs exactly as recorded.
+			t.members = append(t.members, msg.ID)
 		}
 		if msg.Role == "user" && t.firstProcess >= 0 {
 			t.middleInput = true
@@ -114,21 +132,15 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 	scope := m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID
 	wholeOpen := map[float64]bool{}
 	for turn, t := range turns {
-		eligible := mode != "verbose" && t.end != nil && turnStatusKind(*t.end) == "done" && !t.middleInput && t.firstProcess >= 0
+		eligible := mode != "verbose" && t.end != nil && t.done && !t.middleInput && t.firstProcess >= 0
 		wholeOpen[turn] = !eligible || workflowExpanded(m.ThinkingExpanded, fmt.Sprintf("transcript-turn:%s:%.0f", scope, turn), false)
 	}
 	for i := 0; i < len(msgs); {
 		msg := msgs[i]
 		t := turns[keys[i]]
-		if known[i] && t.firstProcess == i && mode != "verbose" && t.end != nil && turnStatusKind(*t.end) == "done" && !t.middleInput {
+		if known[i] && t.firstProcess == i && mode != "verbose" && t.end != nil && t.done && !t.middleInput {
 			key := fmt.Sprintf("transcript-turn:%s:%.0f", scope, keys[i])
-			members := []string{}
-			for j, item := range msgs {
-				if known[j] && keys[j] == keys[i] && transcriptProcess(item) && j != t.final {
-					members = append(members, item.ID)
-				}
-			}
-			control := transcriptControl{key: key, label: i18n.T(i18n.KeyChatProcessGroup), open: wholeOpen[keys[i]], members: members}
+			control := transcriptControl{key: key, label: formatTurnStatus(t.end.Body), open: wholeOpen[keys[i]], members: t.members}
 			controls[key] = control
 			out = append(out, session.Message{ID: key, Seq: msg.Seq, Kind: transcriptControlKind, Body: control.label})
 		}
@@ -244,17 +256,25 @@ func processCategory(kind ToolKind, done bool) string {
 	return i18n.T(pair[at])
 }
 
-// transcriptControlView is the transcript's shared disclosure row: the group
-// title sits on the left, the summary and chevron on the right.
+// transcriptControlView renders the turn-process / process-group disclosure
+// matching TurnProcessNodeView.module.css: flush-left muted label + 14x14 trailing chevron.
 func transcriptControlView(c *ui.Context, control transcriptControl, m Model, muted ui.Color) {
-	paintDisclosureRow(c, disclosureRow{
-		Key:        "transcript-control:" + control.key,
-		Title:      control.label,
-		TitleColor: muted,
-		Open:       control.open,
-		Running:    control.running,
-		Expandable: true,
-		OnToggle: func() {
+	ui.Row(c).FillWidth().MinWidth(0).MinHeight(24).AlignItems(ui.Center).Children(func() {
+		btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).
+			Height(24).Padding(0, 4, 0, 0).Gap(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center)
+		textColor := muted
+		if btn.Hovered() {
+			textColor = c.Theme().Text
+		}
+		btn.Children(func() {
+			ui.Text(c, control.label).FontSize(13).FixedLineHeight(24).TextColor(textColor).SingleLine().PassThrough()
+			chev := todoChevronDown
+			if control.open {
+				chev = todoChevronUp
+			}
+			ui.Icon(c, chev).Size(14, 14).TextColor(textColor).PassThrough()
+		})
+		if btn.Clicked() {
 			workflowToggle(m.ThinkingExpanded, control.key, false)
 			if control.open && m.ThinkingExpanded != nil {
 				// A whole-turn close also closes its loaded reasoning/tool detail choices.
@@ -262,6 +282,6 @@ func transcriptControlView(c *ui.Context, control transcriptControl, m Model, mu
 					delete(*m.ThinkingExpanded, id)
 				}
 			}
-		},
-	}, disclosureStyle{FG: muted, Muted: muted, Accent: muted, Hover: muted.Alpha(.10), Size: 12})
+		}
+	})
 }

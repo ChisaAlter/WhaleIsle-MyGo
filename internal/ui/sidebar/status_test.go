@@ -35,7 +35,6 @@ func TestSidebarStatusNormalAndSearchRows(t *testing.T) {
 	item := session.Item{SessionID: "a", Title: "Status fixture", Running: true, CompletionUnread: true}
 	query := "Status"
 	m := Model{Snapshot: session.ViewState{WorkspaceReady: true, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", SessionIDs: []string{"a"}}}, Items: []session.Item{item}}, PendingStatuses: map[string]string{"a": "question"}, SearchQuery: &query}
-	want := statusPrefix("question") + item.Title
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { rowSession(c, item, 0, m, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6), ui.Transparent) })
 	}, 400, 300)
@@ -45,7 +44,10 @@ func TestSidebarStatusNormalAndSearchRows(t *testing.T) {
 	search := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { sessionSearchResultsView(c, m, ui.RGB(1, 2, 3), ui.RGB(4, 5, 6)) })
 	}, 400, 400)
-	if _, ok := search.Find(want); !ok {
-		t.Fatal("search row omitted waiting-answer label")
+	if _, ok := search.Find(statusLabel("question")); !ok {
+		t.Fatal("search row omitted waiting-answer status slot")
+	}
+	if _, ok := search.Find(item.Title); !ok {
+		t.Fatal("search row omitted its unprefixed title")
 	}
 }

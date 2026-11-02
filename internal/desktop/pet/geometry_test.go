@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo"
@@ -9,8 +10,8 @@ import (
 
 // TestNativePetGeometry pins the window footprint to the native live2d pet:
 // PET_WIDTH = 240 and PET_HEIGHT = 260 (reference/electron/src/main/
-// desktop-live2d.js:35-36) with EDGE_GAP = 24 (:37). MyGo also carries the
-// page-only status panel, so its window is the native stage plus that panel.
+// desktop-live2d.js:35-36) with EDGE_GAP = 24 (:37). Status cards float on the
+// display overlay; they never reserve a second panel below the character.
 func TestNativePetGeometry(t *testing.T) {
 	if PetStageWidth != 240 || PetStageHeight != 260 {
 		t.Fatalf("native pet stage = %dx%d, want 240x260", PetStageWidth, PetStageHeight)
@@ -21,12 +22,46 @@ func TestNativePetGeometry(t *testing.T) {
 	if PetWindowWidth != PetStageWidth {
 		t.Fatalf("window width = %d, want the native stage width %d", PetWindowWidth, PetStageWidth)
 	}
-	if PetWindowHeight != PetStageHeight+PetStatusPanelHeight {
-		t.Fatalf("window height = %d, want stage %d plus the page status panel %d", PetWindowHeight, PetStageHeight, PetStatusPanelHeight)
+	if PetWindowHeight != PetStageHeight {
+		t.Fatalf("nominal height = %d, want character %d without reserved status space", PetWindowHeight, PetStageHeight)
 	}
 	w, h := petWindowSize()
 	if w != PetWindowWidth || h != PetWindowHeight {
 		t.Fatalf("petWindowSize = %dx%d", w, h)
+	}
+}
+
+func TestOverlayUnionAndLogicalCharacterCoordinates(t *testing.T) {
+	displays := []mygo.Display{
+		{Bounds: mygo.Rectangle{X: -1920, Y: -200, Width: 1920, Height: 1080}, ScaleFactor: 1.5},
+		{Bounds: mygo.Rectangle{X: 0, Y: 0, Width: 2560, Height: 1440}, ScaleFactor: 2},
+		{Bounds: mygo.Rectangle{}},
+	}
+	want := mygo.Rectangle{X: -1920, Y: -200, Width: 1920, Height: 1080}
+	stage := mygo.Rectangle{X: -1800, Y: 400, Width: 384, Height: 416}
+	if got := displayOverlayBounds(displays, stage); got != want {
+		t.Fatalf("union = %+v want %+v", got, want)
+	}
+	opts := companionWindowOptions(displays, stage)
+	scale := petCoordinateScale(displays[0])
+	if opts.X != int(float64(want.X)/scale) || opts.Y != int(math.Round(float64(want.Y)/scale)) || opts.Width != int(float64(want.Width)/scale) || opts.Height != int(float64(want.Height)/scale) || !opts.Transparent || !opts.Frameless || !opts.DisableMove || !opts.DisableResize || !opts.SkipTaskbar || !opts.AlwaysOnTop || !opts.DisableShadow || opts.StateKey != "" {
+		t.Fatalf("overlay construction options = %+v", opts)
+	}
+	area := mygo.Rectangle{X: -1920, Y: -200, Width: 1920, Height: 1040}
+	got := localPetLayout(stage, want, area, 1)
+	if got.X != 120 || got.Y != 600 || got.Width != 384 || got.Height != 416 || got.Area != (mygo.Rectangle{Width: 1920, Height: 1040}) {
+		t.Fatalf("DIP viewport layout = %+v", got)
+	}
+	previousDisplays := petDisplays
+	petDisplays = func() []mygo.Display {
+		return []mygo.Display{{Bounds: mygo.Rectangle{X: -2000, Y: -2000, Width: 4000, Height: 4000}, ScaleFactor: 1}}
+	}
+	t.Cleanup(func() { petDisplays = previousDisplays })
+	p := &Companion{Behavior: config.DefaultPetBehavior(), stage: stage}
+	p.Behavior.Scale = 1.6
+	p.sizeStage()
+	if p.stage.Width != 384 || p.stage.Height != 416 || p.stage.X != stage.X || p.stage.Y != stage.Y {
+		t.Fatalf("scaled logical stage = %+v", p.stage)
 	}
 }
 

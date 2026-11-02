@@ -135,6 +135,90 @@ func TestToastReturnFocusUsesCurrentFrameAndRetiresLostOwner(t *testing.T) {
 	}
 }
 
+func TestToastMotionTiming(t *testing.T) {
+	// The desktop banner enters from 6 DIP above, holds, then fades.
+	if toastHold != 3000*time.Millisecond || toastFade != 1000*time.Millisecond || toastTime != 4*time.Second {
+		t.Fatalf("toast life hold=%v fade=%v total=%v", toastHold, toastFade, toastTime)
+	}
+	if toastEnter != 160*time.Millisecond || toastRise != -6 {
+		t.Fatalf("toast enter=%v rise=%v", toastEnter, toastRise)
+	}
+	const tolerance = 1e-4
+	close := func(got, want float32) bool { return got-want < tolerance && want-got < tolerance }
+	for _, tc := range []struct {
+		name          string
+		age, left     time.Duration
+		opacity, rise float32
+	}{
+		{"enter start", 0, toastTime, 0, -6},
+		{"enter halfway", toastEnter / 2, toastTime, 0.875, -0.75},
+		{"enter done", toastEnter, toastTime, 1, 0},
+		{"hold", toastHold, toastFade, 1, 0},
+		{"fade halfway", toastHold + toastFade/2, toastFade / 2, 0.5, 0},
+		{"fade end", toastTime - time.Millisecond, time.Millisecond, 0.001, 0},
+		{"stays until closed", time.Minute, 0, 1, 0},
+	} {
+		opacity, rise := toastMotion(tc.age, tc.left)
+		if !close(opacity, tc.opacity) || !close(rise, tc.rise) {
+			t.Errorf("%s: opacity=%v rise=%v, want %v/%v", tc.name, opacity, rise, tc.opacity, tc.rise)
+		}
+	}
+}
+
+func TestToastEntersFromAbove(t *testing.T) {
+	// Add the toast once the tester's clock is fixed, so its age starts at
+	// zero rather than at the wall clock the tester was built on.
+	show := false
+	tt, now := clockTester(func(c *context) {
+		if show {
+			show = false
+			c.AddToast(Toast{ID: "saved", Title: "Saved"})
+		}
+	}, 400, 300)
+	show = true
+	tt.Frame()
+	tick := ticker(tt, now)
+	start := at(t, tt, "Saved")
+	tick(toastEnter / 2)
+	half := at(t, tt, "Saved")
+	tick(toastEnter / 2)
+	done := at(t, tt, "Saved")
+	tick(time.Second)
+	held := at(t, tt, "Saved")
+	if got := start.Y - held.Y; got != toastRise {
+		t.Errorf("the toast starts %v DIP from its place, want %v", got, toastRise)
+	}
+	if !(start.Y < half.Y && half.Y < done.Y) || done.Y != held.Y {
+		t.Errorf("the toast does not enter from above: start=%v half=%v done=%v held=%v", start.Y, half.Y, done.Y, held.Y)
+	}
+	// Text has the banner's 12 DIP inset; the shell starts 120 DIP down.
+	if held.Y != 132 {
+		t.Errorf("toast text is at %v DIP, want 132", held.Y)
+	}
+}
+
+func TestToastReducedMotionSkipsEntryMovement(t *testing.T) {
+	show := false
+	tt, now := clockTester(func(c *context) {
+		if show {
+			show = false
+			c.AddToast(Toast{ID: "still", Title: "Still banner"})
+		}
+	}, 400, 300)
+	tt.SetPreferences(Preferences{ReduceMotion: true, TextScale: 1})
+	show = true
+	tt.Frame()
+	tick := ticker(tt, now)
+	start := at(t, tt, "Still banner")
+	tick(toastEnter / 2)
+	half := at(t, tt, "Still banner")
+	tick(toastEnter / 2)
+	done := at(t, tt, "Still banner")
+	if start.Y != half.Y || half.Y != done.Y {
+		t.Fatalf("reduced motion moved banner: %v %v %v", start.Y, half.Y, done.Y)
+	}
+}
+
 func TestToastViewportBase(t *testing.T) {
 	var shown []Toast
 	var lefts []time.Duration

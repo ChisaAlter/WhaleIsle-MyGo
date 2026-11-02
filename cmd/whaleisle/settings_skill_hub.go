@@ -6,6 +6,7 @@ import (
 
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -85,7 +86,7 @@ func (s *mainState) openSettingsSkillHub() {
 	hub := &s.settingsSkillHub
 	hub.open, hub.err, hub.confirm, hub.source = true, "", nil, s.sessions
 	if hub.source == nil {
-		hub.err = "Runtime disconnected"
+		hub.err = i18n.T(i18n.KeyCmdRuntimeDisconnected)
 	} else {
 		var err error
 		hub.target, err = hub.source.SkillInventoryTarget(s.settingsSkillRoot)

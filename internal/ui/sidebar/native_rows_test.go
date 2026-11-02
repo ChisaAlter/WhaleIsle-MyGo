@@ -70,7 +70,7 @@ func TestSessionMenusKeepRowIdentityAndCallbacks(t *testing.T) {
 			rowSession(c, session.Item{SessionID: "row", Title: "Original title", Pinned: pinned}, 0, m, ui.RGB(0, 0, 0), ui.RGB(0, 0, 0), ui.Transparent)
 		})
 	}, 280, 100)
-	for _, tc := range []struct{ key, action string }{{i18n.KeySidebarPin, "pin"}, {i18n.KeySidebarRename, "rename"}, {i18n.KeySidebarMoveUp, "move"}, {i18n.KeySidebarFork, "fork"}, {i18n.KeySidebarCopyID, "copy"}, {i18n.KeySidebarArchive, "archive"}} {
+	for _, tc := range []struct{ key, action string }{{i18n.KeySidebarPin, "pin"}, {i18n.KeySidebarRename, "rename"}, {i18n.KeySidebarFork, "fork"}, {i18n.KeySidebarArchive, "archive"}, {i18n.KeySidebarCopyID, "copy"}} {
 		if err := tt.Click(sessionActionsLabel("row")); err != nil {
 			t.Fatal(err)
 		}
@@ -156,10 +156,11 @@ func TestAuthoritativeWorkspacesDoNotDuplicateCurrentFolder(t *testing.T) {
 		{"authoritative", session.ViewState{WorkspaceReady: true, Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", Title: "Host workspace"}}}, "Host workspace", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			selected, calls := "", 0
+			selected, toggled := "", ""
 			menuOpen := false
 			m := Model{WorkspaceLabel: "Legacy folder", Snapshot: tc.snapshot, WorkspaceMenuOpen: &menuOpen,
-				OnSelectWorkspace: func(id string) { selected, calls = id, calls+1 }}
+				OnSelectWorkspace:      func(id string) { selected = id },
+				OnToggleWorkspaceGroup: func(id string) { toggled = id }}
 			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 800)
 			// The original WorkspaceBrowser renders its registry or empty state;
 			// neither the disconnected nor ready-empty list synthesizes cwd.
@@ -182,8 +183,8 @@ func TestAuthoritativeWorkspacesDoNotDuplicateCurrentFolder(t *testing.T) {
 				if err := tt.Click("Host workspace"); err != nil {
 					t.Fatal(err)
 				}
-				if selected != "ws" || calls != 1 {
-					t.Fatalf("workspace click selected=%q calls=%d", selected, calls)
+				if selected != "" || toggled != "ws" {
+					t.Fatalf("workspace click selected=%q toggled=%q", selected, toggled)
 				}
 			} else if _, found := tt.Find("Host workspace"); found {
 				t.Fatal("non-authoritative state synthesized a Host workspace")
@@ -208,7 +209,8 @@ func TestRowRenameFocusCommitAndCancel(t *testing.T) {
 		ui.Column(c).Fill().Children(func() {
 			rowSession(c, session.Item{SessionID: "row", Title: "Original"}, 0, m, ui.RGB(0, 0, 0), ui.RGB(0, 0, 0), ui.Transparent)
 		})
-	}, 280, 100)
+		sessionRenameDialog(c, m)
+	}, 800, 600)
 	tt.Key(ui.Ctrl, ui.KeyA)
 	tt.Type("Renamed")
 	tt.Key(0, ui.KeyEnter)

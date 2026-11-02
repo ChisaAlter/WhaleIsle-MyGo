@@ -16,7 +16,7 @@ import (
 type SkillEditTarget struct {
 	client                                                     *dsh.Client
 	sessionID, cwd, scopeSession, scopeCwd, name, source, path string
-	version                                                    uint64
+	version, hostGeneration                                    uint64
 	original                                                   api.SkillInventoryDetail
 	fingerprint                                                [32]byte
 	loaded, writable                                           bool
@@ -58,7 +58,7 @@ func (s *Store) CaptureCatalogSkillEdit(name string) (SkillEditTarget, error) {
 	if row == nil || (row.Writable && (row.Path == nil || *row.Path == "" || row.Source == "")) {
 		return SkillEditTarget{}, fmt.Errorf("Skill has no confirmed source identity")
 	}
-	target := SkillEditTarget{client: s.client, sessionID: s.selectedID, cwd: s.cwd, version: s.skillCatalogVersion, name: row.Name, source: row.Source, writable: row.Writable}
+	target := SkillEditTarget{client: s.client, sessionID: s.selectedID, cwd: s.cwd, version: s.skillCatalogVersion, hostGeneration: s.eventsGeneration, name: row.Name, source: row.Source, writable: row.Writable}
 	if row.Path != nil {
 		target.path = *row.Path
 	}
@@ -72,7 +72,7 @@ func (s *Store) CaptureCatalogSkillEdit(name string) (SkillEditTarget, error) {
 }
 
 func (s *Store) skillEditCurrentLocked(t SkillEditTarget, version uint64) bool {
-	return t.client != nil && s.client == t.client && s.skillCatalogClient == t.client && s.selectedID == t.sessionID && s.cwd == t.cwd && s.skillCatalogSession == t.sessionID && s.skillCatalogCwd == t.cwd && s.skillCatalogVersion == version && !s.skillCatalogLoading
+	return s.eventsGeneration == t.hostGeneration && s.skillCatalogCurrentLocked(t.client, t.sessionID, t.cwd, version) && !s.skillCatalogLoading
 }
 
 func (s *Store) SkillEditorCurrent(t SkillEditTarget) bool {
@@ -143,12 +143,14 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 	version := s.skillCatalogVersion
 	s.skillCatalog.Busy = true
 	s.skillCatalog.Action = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	finish := func(err error) error {
 		s.mu.Lock()
 		current := s.skillEditCurrentLocked(t, version)
 		if current {
+			s.invalidateViewLocked()
 			s.skillCatalog.Busy = false
 			if err != nil {
 				s.skillCatalog.Action = err.Error()
@@ -168,6 +170,8 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 					}
 				}
 			}
+		} else {
+			s.retireSkillCatalogMutationLocked(version)
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -175,6 +179,13 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 			return fmt.Errorf("Skill saved on its original Host; the current target changed. Inspect before continuing")
 		}
 		return err
+	}
+	// fire may re-enter selection or reconnect before this first RPC starts.
+	s.mu.Lock()
+	valid := ctx.Err() == nil && s.skillEditCurrentLocked(t, version)
+	s.mu.Unlock()
+	if !valid {
+		return finish(fmt.Errorf("Skill target changed before save; draft retained"))
 	}
 	var current api.SkillInventoryDetail
 	if err := t.client.Call(ctx, "skillInventory/get", map[string]any{"request": t.request()}, &current); err != nil {
@@ -184,7 +195,7 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 		return finish(fmt.Errorf("Skill source changed since it was read; draft retained. Inspect again before saving"))
 	}
 	s.mu.Lock()
-	valid := s.skillEditCurrentLocked(t, version)
+	valid = ctx.Err() == nil && s.skillEditCurrentLocked(t, version)
 	s.mu.Unlock()
 	if !valid {
 		return finish(fmt.Errorf("Skill target changed before save; draft retained"))

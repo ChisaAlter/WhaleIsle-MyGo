@@ -12,9 +12,16 @@ func TestWorkspaceResourceMenuRetainsRoutesAndBrowserCallback(t *testing.T) {
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	selected := "files"
 	browserCalls := 0
+	marketCalls := 0
+	var draftRegion string
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Button(c, "Resources").Menu(func(menu *ui.Menu) {
-			workspaceResourceMenu(menu, Model{RightPaneTab: &selected, OnOpenBrowserPreview: func() { browserCalls++ }})
+			workspaceResourceMenu(menu, Model{
+				RightPaneTab:         &selected,
+				OnOpenBrowserPreview: func() { browserCalls++ },
+				OnOpenMarket:         func() { marketCalls++ },
+				OnCreatePluginDraft:  func(region string) { draftRegion = region },
+			})
 		})
 	}, 400, 100)
 	for _, item := range []struct{ kind, label string }{
@@ -38,5 +45,23 @@ func TestWorkspaceResourceMenuRetainsRoutesAndBrowserCallback(t *testing.T) {
 	}
 	if browserCalls != 1 || selected != "files" {
 		t.Fatalf("browser callback=%d route=%q", browserCalls, selected)
+	}
+	if err := tt.Click("Resources"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Browse other plugins"); err != nil {
+		t.Fatal(err)
+	}
+	if marketCalls != 1 {
+		t.Fatalf("marketCalls=%d want 1", marketCalls)
+	}
+	if err := tt.Click("Resources"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Create your plugin"); err != nil {
+		t.Fatal(err)
+	}
+	if draftRegion != "rightbar" {
+		t.Fatalf("draftRegion=%q want rightbar", draftRegion)
 	}
 }

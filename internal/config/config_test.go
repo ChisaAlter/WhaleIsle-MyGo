@@ -371,7 +371,14 @@ func TestUpdateFailedWriteLeavesStateUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 0 {
+	var names []string
+	for _, e := range entries {
+		if e.Name() == ".config.lock" {
+			continue // commit lockfile is intentional and persists
+		}
+		names = append(names, e.Name())
+	}
+	if len(names) != 0 {
 		t.Fatalf("temp file was not cleaned up: %v", entries)
 	}
 }

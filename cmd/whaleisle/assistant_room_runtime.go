@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) assistantui.RoomRuntimeModel {
@@ -76,7 +77,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 			if !current() {
 				return
 			}
-			previous := sessions.Snapshot().SelectedID
+			previous := sessions.SelectedSessionID()
 			ticket, expected, ok := reader.BeginOpen(scope, snapshot.Generation, memberSessionID)
 			s.updateAssistantTasks()
 			if !ok {
@@ -88,7 +89,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 				s.updateAssistantTasks()
 				return
 			}
-			live := func() bool { return current() && reader.Current(ticket) && sessions.Snapshot().SelectedID == previous }
+			live := func() bool { return current() && reader.Current(ticket) && sessions.SelectedSessionID() == previous }
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
@@ -108,7 +109,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 						return err
 					}
 					if fresh.Room.ID != expected.Room.ID || fresh.Room.SessionID != expected.Room.SessionID || member.BotID != original.BotID || member.RoomSessionID != original.RoomSessionID {
-						return fmt.Errorf("room or member identity changed; read the current runtime first")
+						return fmt.Errorf("%s", i18n.T(i18n.KeyCmdRoomMemberIdentityChanged))
 					}
 					// An explicit open may observe/resume an existing root session only. The
 					// group member is not a personal Bot canonical session or subagent address.
@@ -123,13 +124,13 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 					for _, row := range listing.Items {
 						if row.SessionId == memberSessionID {
 							if row.ParentSessionId != nil && *row.ParentSessionId != "" {
-								return fmt.Errorf("member session is not an ordinary root address")
+								return fmt.Errorf("%s", i18n.T(i18n.KeyCmdRoomMemberNotRoot))
 							}
 							found++
 						}
 					}
 					if found != 1 {
-						return fmt.Errorf("member session is not available as a unique existing Host session; use Bot Web to inspect")
+						return fmt.Errorf("%s", i18n.T(i18n.KeyCmdRoomMemberUnavailable))
 					}
 					return nil
 				}
@@ -142,7 +143,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 						return
 					}
 					if openErr == nil && !sessions.SelectObservedRoomMember(client, previous, memberSessionID) {
-						openErr = fmt.Errorf("original Host/session binding expired before navigation")
+						openErr = fmt.Errorf("%s", i18n.T(i18n.KeyCmdRoomMemberBindingExpired))
 					}
 					reader.FinishOpen(ticket, openErr)
 					if openErr == nil {

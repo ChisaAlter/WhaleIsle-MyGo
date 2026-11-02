@@ -27,7 +27,7 @@ func ModalView(c *ui.Context, m Model) {
 		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
 		chrome.RevealMask(backdrop, mask, progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
-			Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(chrome.Color(colors.BG), chrome.MaterialPanel, 28)).
+			Radius(28).Clip().Opacity(progress).Draw(chrome.SettingsPanelGlass(settingsPanelBase(colors, dark), chrome.Color(colors.BG), mask.Alpha(progress), 28)).
 			Children(func() { View(c, m) })
 		chrome.MenuElevation(panel)
 		// --dsw-elevation-stroke: the harness draws a 0.5px hairline in
@@ -49,6 +49,23 @@ func ModalView(c *ui.Context, m Model) {
 		m.OnClose()
 	}
 }
+
+// settingsPanelBase is the colour the panel's backdrop layer fills at 80%
+// under blur(40px) saturate(1.5). The 0.3.13 panel reads the raised layer
+// (--dsw-alias-bg-layer-1): white in the light half and rgb(35, 35, 36) in the
+// dark half. 0.3.10 read the selector token, which is lighter in both halves
+// and made the dark panel a visibly lighter grey. Derived families keep the
+// selector token until their raised layer is measured.
+func settingsPanelBase(colors theme.Colors, dark bool) ui.Color {
+	switch colors.SelectorFill {
+	case "rgb(245, 246, 247)":
+		return ui.RGB(255, 255, 255)
+	case "rgb(53, 54, 56)":
+		return chrome.Color(colors.Field)
+	}
+	return chrome.Color(colors.SelectorFill)
+}
+
 func settingsModalSize(w, h float32) (float32, float32) {
 	return max(0, min(float32(800), w-48)), max(0, min(float32(800), h-48))
 }

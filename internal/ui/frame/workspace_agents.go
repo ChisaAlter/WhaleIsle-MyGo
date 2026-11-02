@@ -21,7 +21,7 @@ func (w *WorkspacePanes) agentPaneModel(m Model, n *WorkspacePane) Model {
 		n.Agents = &WorkspaceAgentState{}
 	}
 	a := n.Agents
-	binding := m.Store.Snapshot().PlanHistoryBinding
+	binding := m.Store.PlanHistoryBinding()
 	retained := a.Navigation != nil && a.Navigation.HasRetainedAgentRead()
 	if a.Owner != m.Store || a.Binding != binding && !retained {
 		n.releaseAgentPane()

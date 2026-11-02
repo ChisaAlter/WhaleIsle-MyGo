@@ -26,7 +26,7 @@ func childResourceOptions(m Model, v session.AgentNavigationView) chat.ReadOnlyR
 		}
 		go m.Store.ReadAgentResource(context.Background(), v.Token, v.Address, ref, more)
 	}
-	return chat.ReadOnlyResourceOptions{Scope: chat.ReadOnlyHistoryScope(m.Store.Snapshot().PlanHistoryBinding, v.Address, v.Token), OnReadTable: func(path string, request workspacefs.XLSXPageRequest) {
+	return chat.ReadOnlyResourceOptions{Scope: chat.ReadOnlyHistoryScope(m.Store.PlanHistoryBinding(), v.Address, v.Token), OnReadTable: func(path string, request workspacefs.XLSXPageRequest) {
 		go m.Store.ReadAgentWorkbook(context.Background(), v.Token, v.Address, path, request)
 	}, OnRead: read, Reads: v.Resources, OnOpenFile: func(path string) { read(path, false) }, OnOpenURL: m.OnOpenURL}
 }

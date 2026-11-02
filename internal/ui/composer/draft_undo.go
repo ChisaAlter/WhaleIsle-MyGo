@@ -8,14 +8,15 @@ import (
 const maxDraftUndo = 100
 
 type draftSnapshot struct {
-	text      string
-	selection ui.TextInputSelection
-	marked    *ui.TextInputRange
+	text       string
+	selection  ui.TextInputSelection
+	marked     *ui.TextInputRange
+	references []draftReference
 }
 
 func (c *DraftClient) snapshot() draftSnapshot {
 	c.ensure()
-	s := draftSnapshot{text: c.lastText, selection: c.selection}
+	s := draftSnapshot{text: c.lastText, selection: c.selection, references: append([]draftReference(nil), c.references...)}
 	if c.marked != nil {
 		m := *c.marked
 		s.marked = &m
@@ -39,6 +40,7 @@ func (c *DraftClient) restore(s draftSnapshot) {
 		c.revision++
 	}
 	c.lastText = s.text
+	c.references = append(c.references[:0], s.references...)
 	c.selection = s.selection
 	c.marked = nil
 	c.compositionPending = nil

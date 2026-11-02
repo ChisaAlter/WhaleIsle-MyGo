@@ -24,12 +24,18 @@ type PetBehavior struct {
 	LookModel    string  `json:"lookModel"`
 }
 
-// PetPosition is a native window position, including negative coordinates on
-// displays to the left of or above the primary display. Nil means unset.
+// PetPosition includes negative coordinates for displays left of or above the
+// primary display. Space is empty for legacy toolkit DIPs; Windows pets use
+// physical desktop pixels to keep mixed-DPI monitors in one coordinate space.
+// Nil means unset. Other platforms must not interpret a Windows physical anchor
+// as a position in their own coordinate system.
 type PetPosition struct {
-	X int `json:"x"`
-	Y int `json:"y"`
+	X     int    `json:"x"`
+	Y     int    `json:"y"`
+	Space string `json:"space,omitempty"`
 }
+
+const PetPositionWindowsPhysical = "windows-physical"
 
 func DefaultPetBehavior() PetBehavior {
 	return PetBehavior{
@@ -103,11 +109,19 @@ func decodePetPosition(data []byte) *PetPosition {
 	// Require both coordinates, but allow zero and negative values. A partially
 	// decoded or null position must not unexpectedly move a pet to the origin.
 	var value struct {
-		X *int `json:"x"`
-		Y *int `json:"y"`
+		X     *int            `json:"x"`
+		Y     *int            `json:"y"`
+		Space json.RawMessage `json:"space"`
 	}
 	if json.Unmarshal(data, &value) != nil || value.X == nil || value.Y == nil {
 		return nil
 	}
-	return &PetPosition{X: *value.X, Y: *value.Y}
+	space := ""
+	if len(value.Space) > 0 && (string(value.Space) == "null" || json.Unmarshal(value.Space, &space) != nil) {
+		return nil
+	}
+	if space != "" && space != PetPositionWindowsPhysical {
+		return nil
+	}
+	return &PetPosition{X: *value.X, Y: *value.Y, Space: space}
 }

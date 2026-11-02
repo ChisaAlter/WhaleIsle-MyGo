@@ -38,6 +38,9 @@ func sanitizeRequestInspectionHeader(h *RequestInspectionHeader) *RequestInspect
 func (s *Store) trajectoryRequestHeadersLocked() []TrajectoryRequestHeader {
 	result := []TrajectoryRequestHeader{}
 	for _, raw := range s.trajectoryBoundaries {
+		if typ, ok := peekEventType(raw); ok && typ != "request/header" {
+			continue
+		}
 		var ev systemPromptEvent
 		if json.Unmarshal(raw, &ev) != nil || ev.Type != "request/header" || ev.Data.Header == nil {
 			continue

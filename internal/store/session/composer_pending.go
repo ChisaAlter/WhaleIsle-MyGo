@@ -151,6 +151,7 @@ func (s *Store) composerPromptBusyLocked() bool {
 	return false
 }
 func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool) {
+	s.invalidateViewLocked()
 	p := s.composerPending[id]
 	if p == nil || p.SessionID != s.selectedID || !p.target.currentLocked() || inbox && p.Placement != "queued" {
 		return
@@ -172,6 +173,7 @@ func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool)
 	}
 }
 func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
+	s.invalidateViewLocked()
 	var e struct {
 		Type string  `json:"type"`
 		Seq  float64 `json:"seq"`
@@ -233,6 +235,7 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 }
 
 func (s *Store) observeComposerInboxInsertionsLocked(target string, messages []composerInboxMessage, start int, seq float64) {
+	s.invalidateViewLocked()
 	for index, message := range messages {
 		if message.Source.Kind != "user" || message.Source.RPCID == "" {
 			continue
@@ -256,7 +259,27 @@ func (s *Store) hideComposerQueueLocked(id string) bool {
 	}
 	return false
 }
-func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
+func samePendingSubmissions(a, b []PendingSubmission) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].RequestID != b[i].RequestID || a[i].SessionID != b[i].SessionID ||
+			a[i].Text != b[i].Text || a[i].Placement != b[i].Placement ||
+			a[i].Accepted != b[i].Accepted || a[i].Order != b[i].Order ||
+			len(a[i].Attachments) != len(b[i].Attachments) {
+			return false
+		}
+		for j := range a[i].Attachments {
+			if a[i].Attachments[j] != b[i].Attachments[j] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (s *Store) projectComposerSubmissionsLocked(view *ViewState) bool {
 	var pending []PendingSubmission
 	for _, p := range s.composerPending {
 		if p.SessionID != s.selectedID || !p.target.currentLocked() {
@@ -267,10 +290,12 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
 		pending = append(pending, copy)
 	}
 	sort.Slice(pending, func(i, j int) bool { return pending[i].Order < pending[j].Order })
+	var inline []PendingSubmission
 	for _, p := range pending {
 		if p.Placement == "queued" {
 			view.PlanBoard.Pending = append(view.PlanBoard.Pending, p)
 		} else {
+			inline = append(inline, p)
 			copy := p
 			view.Messages = append(view.Messages, Message{ID: "pending:" + p.RequestID, Kind: MessageKindSubmission, Role: "user", Body: p.Text, Submission: &copy})
 		}
@@ -282,8 +307,12 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) {
 		}
 	}
 	view.PlanBoard.Queue = kept
+	changed := !samePendingSubmissions(s.historyInlinePending, inline)
+	s.historyInlinePending = inline
+	return changed
 }
 func (s *Store) resetComposerHostLocked() {
+	s.invalidateViewLocked()
 	for id, p := range s.composerPending {
 		p.target.settleRetirementLocked(id, errors.New("Host changed; send outcome unconfirmed, check the conversation before retrying"))
 	}
@@ -299,6 +328,7 @@ func (s *Store) resetComposerHostLocked() {
 // Original sessions/session.ts marks the engaging edge at beginSubmission and
 // prompt, retaining it for that resident Session after its failed echo retires.
 func (s *Store) markPromptAttemptedLocked(sessionID string) {
+	s.invalidateViewLocked()
 	if s.promptAttempted == nil {
 		s.promptAttempted = make(map[string]bool)
 	}

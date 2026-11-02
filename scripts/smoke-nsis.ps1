@@ -10,8 +10,13 @@
 param(
     [switch] $SkipPackage,
     [switch] $EnsureNsis,
-    # Silent-install into a TEMP dir (never touches real Electron Programs path), then uninstall.
-    [switch] $SilentInstall
+    # Silent-install using a unique product identity; never use real registration.
+    [switch] $SilentInstall,
+    [string] $OutputRoot,
+    # Assert the installed desktop executable is exactly these bytes.
+    [string] $ExpectedAppSHA256,
+    # Run the same silent installer twice to exercise the upgrade path.
+    [switch] $Upgrade
 )
 
 $ErrorActionPreference = 'Stop'
@@ -79,20 +84,24 @@ if ($env:WHALEISLE_VERSION) {
     $Version = '0.0.0-dev'
 }
 
+if (-not $OutputRoot) {
+    if ($SkipPackage) { $OutputRoot = Join-Path $ProjectRoot 'dist' }
+    else { $OutputRoot = Join-Path $ProjectRoot ('tmp\nsis-smoke-' + [guid]::NewGuid().ToString('n')) }
+}
+$OutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
+$StageRoot = Join-Path $OutputRoot 'whaleisle'
 if (-not $SkipPackage) {
-    if (-not $env:WHALEISLE_PACKAGE_SKIP_RUNTIME) {
-        $env:WHALEISLE_PACKAGE_SKIP_RUNTIME = '1'
-    }
-    Write-Host "Running package.ps1 (WHALEISLE_PACKAGE_SKIP_RUNTIME=$($env:WHALEISLE_PACKAGE_SKIP_RUNTIME)) ..."
-    & (Join-Path $PSScriptRoot 'package.ps1')
+    if (-not $env:WHALEISLE_PACKAGE_SKIP_RUNTIME) { $env:WHALEISLE_PACKAGE_SKIP_RUNTIME = '1' }
+    Write-Host "Running package.ps1 in fresh owned output $OutputRoot ..."
+    & (Join-Path $PSScriptRoot 'package.ps1') -OutputRoot $OutputRoot
 }
 
-$StageExe = Join-Path $ProjectRoot 'dist\whaleisle\whaleisle.exe'
+$StageExe = Join-Path $StageRoot 'whaleisle.exe'
 if (-not (Test-Path $StageExe)) {
     throw "Staging missing: $StageExe (run package.ps1 first)"
 }
 
-$StagePreview = Join-Path $ProjectRoot 'dist\whaleisle\whaleisle-preview.exe'
+$StagePreview = Join-Path $StageRoot 'whaleisle-preview.exe'
 if (-not (Test-Path $StagePreview)) { throw 'Staged preview helper missing; rebuild with package.ps1' }
 
 $Nsi = Join-Path $PSScriptRoot 'nsis\whaleisle.nsi'
@@ -100,15 +109,19 @@ if (-not (Test-Path $Nsi)) {
     throw "NSIS script missing: $Nsi"
 }
 
-$Setup = Join-Path $ProjectRoot ("dist\WhaleIsle-Setup-{0}.exe" -f $Version)
-if (Test-Path $Setup) {
-    Remove-Item -Force $Setup
-}
+# Compilation is separate from package.ps1's normal development artifact.
+# Even an explicitly reused stage never overwrites an existing installer.
+$SmokeID = [guid]::NewGuid().ToString('n')
+$SmokeAppID = 'whaleisle.nsis-smoke.' + $SmokeID
+$SmokeName = 'WhaleIsle NSIS Smoke ' + $SmokeID
+$Setup = Join-Path $OutputRoot ('WhaleIsle-Smoke-' + $SmokeID + '.exe')
 
 Write-Host "Compiling NSIS with $Makensis (VERSION=$Version) ..."
 Push-Location (Join-Path $PSScriptRoot 'nsis')
 try {
-    $NsisArguments = @("/DVERSION=$Version")
+    $NsisArguments = @("/DVERSION=$Version", "/DSTAGE_DIR=$StageRoot", "/DSETUP_OUT=$Setup", "/DAPP_ID=$SmokeAppID", "/DPRODUCT_NAME=$SmokeName")
+    $RuntimeInclude = Join-Path $OutputRoot 'runtime-files.nsh'
+    if (Test-Path -LiteralPath $RuntimeInclude -PathType Leaf) { $NsisArguments += "/DRUNTIME_INCLUDE=$RuntimeInclude" }
     if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') { $NsisArguments += '/DSHELL_ONLY=1' }
     & $Makensis @NsisArguments (Split-Path -Leaf $Nsi)
     if ($LASTEXITCODE -ne 0) {
@@ -138,14 +151,28 @@ if ($SevenZip) {
     Write-Host 'Note: 7z not on PATH; skipped archive listing'
 }
 
+function Invoke-OwnedExecutable([string]$Executable, [string]$Arguments) {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $Executable
+    $info.Arguments = $Arguments
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $info
+    if (-not $process.Start()) { throw "Could not start owned fixture: $Executable" }
+    if (-not $process.WaitForExit(900000)) { throw "Owned fixture did not exit within 900 seconds: $Executable" }
+    $result = $process.ExitCode
+    $process.Dispose()
+    return $result
+}
+
 if ($SilentInstall) {
-    $InstallRoot = Join-Path $env:TEMP ("whaleisle-nsis-smoke-" + [guid]::NewGuid().ToString('n'))
+    $InstallRoot = Join-Path $env:TEMP ('whaleisle-nsis-smoke-' + $SmokeID)
     Write-Host "Silent install -> $InstallRoot ..."
     # NSIS: /S silent; /D= must be last and unquoted.
-    $p = Start-Process -FilePath $Setup -ArgumentList @('/S', "/D=$InstallRoot") -Wait -PassThru
-    if ($p.ExitCode -ne 0) {
-        throw "Silent install exit $($p.ExitCode)"
-    }
+    $InstallCode = Invoke-OwnedExecutable $Setup "/S /D=$InstallRoot"
+    if ($InstallCode -ne 0) { throw "Silent install exit $InstallCode" }
     $InstalledExe = Join-Path $InstallRoot 'whaleisle.exe'
     if (-not (Test-Path $InstalledExe)) {
         throw "Silent install missing $InstalledExe"
@@ -159,18 +186,47 @@ if ($SilentInstall) {
         throw "Silent install missing preview helper: $InstalledPreview"
     }
     Write-Host "OK installed: $InstalledExe ($exeLen bytes)"
+    if ($ExpectedAppSHA256) {
+        $actualApp = (Get-FileHash -LiteralPath $InstalledExe -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualApp -ne $ExpectedAppSHA256.ToLowerInvariant()) {
+            throw "Installed desktop executable differs from the verified build: $actualApp"
+        }
+        Write-Host "OK installed desktop bytes: $actualApp"
+    }
+    if ($Upgrade) {
+        # Reinstalling over the owned installation exercises the real upgrade
+        # path: old payload detached/retired, new payload promoted, one product
+        # registration retained. The second run must still succeed.
+        Write-Host 'Running the same owned installer again (upgrade) ...'
+        $UpgradeCode = Invoke-OwnedExecutable $Setup "/S /D=$InstallRoot"
+        if ($UpgradeCode -ne 0) { throw "Silent upgrade exit $UpgradeCode" }
+        if (-not (Test-Path -LiteralPath $InstalledExe)) { throw 'Upgrade removed the installed desktop executable.' }
+        if ($ExpectedAppSHA256) {
+            $upgradedApp = (Get-FileHash -LiteralPath $InstalledExe -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($upgradedApp -ne $ExpectedAppSHA256.ToLowerInvariant()) {
+                throw "Upgraded desktop executable differs from the verified build: $upgradedApp"
+            }
+        }
+        $RetiredAfterUpgrade = Get-ChildItem -LiteralPath (Split-Path -Parent $InstallRoot) -Directory -Filter ((Split-Path -Leaf $InstallRoot) + '.uninstall-*')
+        if ($RetiredAfterUpgrade) { throw 'Upgrade retained a retired payload; inspect fixture output.' }
+        Write-Host 'OK upgrade: payload replaced and no retired tree kept'
+    }
 
     $Uninst = Join-Path $InstallRoot 'Uninstall.exe'
-    if (Test-Path $Uninst) {
-        Write-Host 'Running silent uninstall ...'
-        $u = Start-Process -FilePath $Uninst -ArgumentList @('/S') -Wait -PassThru
-        if ($u.ExitCode -ne 0) {
-            Write-Host "WARN: uninstall exit $($u.ExitCode)"
-        }
-    }
-    if (Test-Path $InstallRoot) {
-        Remove-Item -Recurse -Force $InstallRoot -ErrorAction SilentlyContinue
-    }
+    if (-not (Test-Path -LiteralPath $Uninst -PathType Leaf)) { throw 'Owned installation has no uninstaller.' }
+    # The real NSIS uninstaller runs from a temporary copy. Keep the fixture
+    # synchronous with _?= while avoiding a loaded executable in the renamed tree.
+    $ManagementCopy = Join-Path $OutputRoot ('uninstall-smoke-' + $SmokeID + '.exe')
+    Copy-Item -LiteralPath $Uninst -Destination $ManagementCopy
+    Write-Host 'Running isolated silent uninstall ...'
+    $UninstallCode = Invoke-OwnedExecutable $ManagementCopy "/S _?=$InstallRoot"
+    if ($UninstallCode -ne 0) { throw "Silent uninstall exit $UninstallCode" }
+    if (Test-Path -LiteralPath $InstallRoot) { throw "Uninstall retained owned directory: $InstallRoot" }
+    $Retired = Get-ChildItem -LiteralPath (Split-Path -Parent $InstallRoot) -Directory -Filter ((Split-Path -Leaf $InstallRoot) + '.uninstall-*')
+    if ($Retired) { throw 'Uninstall retained a retired payload; inspect fixture output.' }
+    $Registration = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\' + $SmokeAppID
+    $ProductRegistration = 'HKCU:\Software\' + $SmokeAppID
+    if ((Test-Path -LiteralPath $Registration) -or (Test-Path -LiteralPath $ProductRegistration)) { throw 'Isolated installation registration was not removed.' }
     Write-Host 'Silent install/uninstall smoke: passed'
 }
 

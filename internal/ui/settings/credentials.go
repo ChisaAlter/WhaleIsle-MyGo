@@ -32,7 +32,7 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	d := m.Credentials
-	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if d.Err != "" {
 		ui.Text(c, d.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
@@ -52,28 +52,28 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if d.Fields.BaseURL == nil {
 			return
 		}
-		ui.TextInput(c, d.Fields.BaseURL).FillWidth()
+		ui.TextInput(c, d.Fields.BaseURL).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
 	}, fg, muted)
 	secretRow(c, i18n.T(i18n.KeySettingsCredGithub), d.Fields.GithubToken, show, fg)
 	secretRow(c, i18n.T(i18n.KeySettingsCredRemote), d.Fields.RemoteToken, show, fg)
 	secretRow(c, i18n.T(i18n.KeySettingsCredRelay), d.Fields.RemoteRelayToken, show, fg)
-	ui.Row(c).Gap(8).Children(func() {
-		save := ui.Button(c, i18n.T(i18n.KeySettingsSave))
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		save := ui.Button(c, i18n.T(i18n.KeySettingsSave)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
 		if d.OnSave == nil {
 			save = save.Disabled(true)
 		}
 		if save.Clicked() && d.OnSave != nil {
 			d.OnSave()
 		}
-		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			d.OnDescribe()
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearAPIKey)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearAPIKey)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			if d.Fields.APIKey != nil {
 				*d.Fields.APIKey = ""
 			}
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearSecrets)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearSecrets)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			clearSecret := func(p *string) {
 				if p != nil {
 					*p = ""
@@ -94,7 +94,7 @@ func secretRow(c *ui.Context, label string, value *string, show bool, fg ui.Colo
 			return
 		}
 		if show {
-			ui.TextInput(c, value).FillWidth()
+			ui.TextInput(c, value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
 			return
 		}
 		ui.Text(c, maskSecret(*value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)

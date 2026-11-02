@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 )
@@ -83,13 +84,36 @@ func appendToolPreparingMessages(messages []Message, state toolPreparingState, t
 	if len(state.order) == 0 {
 		return messages
 	}
-	owned := make(map[string]bool)
+	var owned map[string]bool
 	for _, message := range messages {
 		if message.Tool != nil {
-			owned[message.Tool.CallID] = true
+			if _, watched := state.calls[message.Tool.CallID]; watched {
+				if owned == nil {
+					owned = make(map[string]bool, len(state.order))
+				}
+				owned[message.Tool.CallID] = true
+			}
+		}
+		if len(message.Raw) == 0 || (message.Kind != "" && message.Kind != MessageKindTool) {
+			continue
+		}
+		hasCandidate := false
+		for _, id := range state.order {
+			if bytes.Contains(message.Raw, []byte(id)) {
+				hasCandidate = true
+				break
+			}
+		}
+		if !hasCandidate {
+			continue
 		}
 		if part, ok := readToolLifecyclePart(message); ok {
-			owned[part.id] = true
+			if _, watched := state.calls[part.id]; watched {
+				if owned == nil {
+					owned = make(map[string]bool, len(state.order))
+				}
+				owned[part.id] = true
+			}
 		}
 	}
 	out := append([]Message(nil), messages...)
@@ -115,7 +139,7 @@ func (s *Store) projectPreparingToolsLocked(messages []Message) []Message {
 	if attempt == nil {
 		attempt = s.assistantStream.retained
 	}
-	if attempt == nil || toolPreparingAttemptClosed(messages, attempt) {
+	if attempt == nil || len(attempt.tools.order) == 0 || toolPreparingAttemptClosed(messages, attempt) {
 		return messages
 	}
 	return appendToolPreparingMessages(messages, attempt.tools, s.editTurnSeq)
@@ -123,6 +147,12 @@ func (s *Store) projectPreparingToolsLocked(messages []Message) []Message {
 
 func toolPreparingAttemptClosed(messages []Message, attempt *assistantStreamAttempt) bool {
 	for _, message := range messages {
+		if len(message.Raw) == 0 || (message.Seq > 0 && message.Seq <= attempt.StartedAfterSeq) {
+			continue
+		}
+		if message.EventType != "" && message.EventType != "turn/end" && message.EventType != "step/end" {
+			continue
+		}
 		var event struct {
 			Type string  `json:"type"`
 			Seq  float64 `json:"seq"`

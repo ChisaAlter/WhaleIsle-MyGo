@@ -57,15 +57,12 @@ type welcomeWindow struct {
 	stopPoll    chan struct{}
 }
 
-// welcomeRequired gates the window: a profile without any stored credential
-// sees it once. Isolated/QA desktops keep their own startup path.
+// welcomeRequired gates the window. The first-run welcome window is disabled:
+// the user asked for the app to open straight into the workspace instead of a
+// separate sign-in/API-key page. The window implementation stays for reuse, but
+// nothing opens it implicitly any more.
 func (s *mainState) welcomeRequired() bool {
-	if isolatedDesktopRun() {
-		return false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.credsMissing && !s.welcomeDone
+	return false
 }
 
 // openWelcomeWindow shows the welcome window and holds the main window until
@@ -350,7 +347,7 @@ func (w *welcomeWindow) signIn() {
 		if usage != nil {
 			sid := ""
 			if sessions != nil {
-				sid = sessions.Snapshot().SelectedID
+				sid = sessions.SelectedSessionID()
 			}
 			usage.Refresh(context.Background(), sid)
 		}

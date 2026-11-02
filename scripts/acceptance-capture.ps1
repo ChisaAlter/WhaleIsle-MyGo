@@ -48,6 +48,7 @@ public static class Aw {
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
   [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint f);
   [DllImport("user32.dll")] public static extern int GetDpiForWindow(IntPtr h);
   public static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
   public static string Ttl(IntPtr h) { var s = new StringBuilder(512); GetWindowText(h, s, 512); return s.ToString(); }
@@ -112,6 +113,11 @@ function Check-Point([IntPtr]$h, [int]$x, [int]$y, [string]$side) {
     if ($cur -eq $h) { $owned = $true; break }
     $cur = [Aw]::GetParent($cur)
   }
+  # GetParent stops at owned (non-child) windows; a hosted render surface can be
+  # a descendant that never chains back to the top-level hwnd. Compare the
+  # GA_ROOTOWNER (2) of the hit window with the target instead so children and
+  # hosted surfaces of the same top-level window still count as its own pixels.
+  if (-not $owned -and [Aw]::GetAncestor($hit, 2) -eq $h) { $owned = $true }
   if (-not $owned) {
     throw "$side occluded at $x,$y by [$([Aw]::Cls($hit))] '$([Aw]::Ttl($hit))'"
   }

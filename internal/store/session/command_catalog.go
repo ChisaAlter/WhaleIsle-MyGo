@@ -20,6 +20,7 @@ type commandCatalog struct {
 }
 
 func (s *Store) invalidateCommandsLocked() {
+	s.invalidateViewLocked()
 	revision := s.commandCatalog.revision + 1
 	if s.commandCatalog.cancel != nil {
 		s.commandCatalog.cancel()
@@ -53,7 +54,9 @@ func (s *Store) EnsureSlashCommands(ctx context.Context) {
 	catalog.cancel = cancel
 	catalog.loading = true
 	revision := catalog.revision
+	s.invalidateViewLocked()
 	s.mu.Unlock()
+	beforeSnapshotNotification("command-start")
 	go func() {
 		defer cancel()
 		s.fire()
@@ -73,7 +76,9 @@ func (s *Store) EnsureSlashCommands(ctx context.Context) {
 		} else if err == nil {
 			catalog.err = requestCtx.Err()
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
+		beforeSnapshotNotification("command-complete")
 		s.fire()
 	}()
 }

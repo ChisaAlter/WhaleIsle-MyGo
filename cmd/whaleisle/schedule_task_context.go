@@ -18,7 +18,7 @@ func (s *mainState) openScheduleTask(row schedstore.Entry) {
 	if !snap.ClientReady || row.Origin != snap.Origin {
 		return
 	}
-	viewer := sessions.Snapshot().SelectedID
+	viewer := sessions.SelectedSessionID()
 	for _, current := range snap.Rows {
 		if current.ID == row.ID && current.SessionID == row.SessionID {
 			s.showScheduleTask(current, store, snap.ConnectionEpoch, viewer, false)
@@ -48,7 +48,7 @@ func (s *mainState) openScheduleTask(row schedstore.Entry) {
 
 func (s *mainState) showScheduleTask(row schedstore.Entry, store *schedstore.Store, epoch uint64, viewer string, receipt bool) {
 	s.mu.Lock()
-	if s.schedule != store || s.sessions == nil || s.sessions.Snapshot().SelectedID != viewer {
+	if s.schedule != store || s.sessions == nil || s.sessions.SelectedSessionID() != viewer {
 		s.mu.Unlock()
 		return
 	}

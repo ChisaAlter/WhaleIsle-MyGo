@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"whaleisle/internal/markdownsyntax"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -24,6 +26,8 @@ type Style struct {
 	OnOpenURL func(string)
 	// LiteralHTML displays raw markup as text instead of interpreting or dropping it.
 	LiteralHTML bool
+	// Streaming retains stable parsed blocks and renders TeX literally until settled.
+	Streaming bool
 	// DocumentLayout uses the original MarkdownText block typography and margins.
 	// Existing conversation renderers retain their current layout unless opted in.
 	DocumentLayout bool
@@ -33,11 +37,13 @@ type Style struct {
 	DocumentH3LineHeight float32
 	QuoteBorder          ui.Color
 	RuleBorder           ui.Color
-	FontSize             float32
-	FG                   ui.Color
-	Muted                ui.Color
-	CodeBG               ui.Color
-	Accent               ui.Color
+	// FontFamily scopes prose without changing code or mathematical font faces.
+	FontFamily string
+	FontSize   float32
+	FG         ui.Color
+	Muted      ui.Color
+	CodeBG     ui.Color
+	Accent     ui.Color
 	// Dark selects the dark syntax palette. A light palette on a dark
 	// transcript renders unreadable tokens; the Original follows the theme.
 	Dark bool
@@ -71,12 +77,47 @@ type Style struct {
 	ResolveFile func(string) string
 	OnOpenFile  func(string)
 	codeSpanAt  func(int, string)
+	fileSpanAt  func(int, string)
 	blockAt     func(int, int, ast.Node)
 	maths       map[int]mathFormula
 	urlSpanAt   func(int, string)
 	urlTargets  map[int]string
 	lineHeight  float32
 	textWeight  int
+	docInlines  map[ast.Node]cachedDocumentInlines
+}
+
+func segmentText(seg text.Segment, src string) string {
+	start := max(0, min(seg.Start, len(src)))
+	stop := max(start, min(seg.Stop, len(src)))
+	needNL := seg.ForceNewline && (stop == start || src[stop-1] != '\n')
+	if seg.Padding == 0 && !needNL {
+		return src[start:stop]
+	}
+	var b strings.Builder
+	b.Grow(seg.Padding + (stop - start) + 1)
+	for i := 0; i < seg.Padding; i++ {
+		b.WriteByte(' ')
+	}
+	b.WriteString(src[start:stop])
+	if needNL {
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func fencedLanguage(fenced *ast.FencedCodeBlock, src string) string {
+	if fenced.Info == nil {
+		return ""
+	}
+	info := segmentText(fenced.Info.Segment, src)
+	for i := 0; i < len(info); i++ {
+		switch info[i] {
+		case ' ', '\t', '\n', '\r':
+			return info[:i]
+		}
+	}
+	return info
 }
 
 // Spans parses markdown source into RichText spans (plain text if parsing fails).
@@ -88,7 +129,7 @@ func Spans(source string, st Style) []ui.Span {
 	if source == "" {
 		return nil
 	}
-	md := newMarkdown()
+	md := markdownGrammar(st.Streaming)
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
 	var out []ui.Span
@@ -100,6 +141,69 @@ func Spans(source string, st Style) []ui.Span {
 	return out
 }
 
+// parsedBody is a memoized goldmark parse of one message body. Parsing a
+// whole reply is the dominant per-frame cost of a transcript row; caching it
+// on the row's element keeps scrolling smooth while the body is unchanged.
+// spans, blocks, maths, urlTargets and fileTargets are all pure products of
+// (source, Style): the walk fills the index-keyed maps, and the OnOpenURL /
+// OnOpenFile / ResolveFile callbacks only run at click time in viewSpans.
+type parsedBody struct {
+	source      string
+	key         bodyKey
+	spans       []ui.Span
+	blocks      []richBlock
+	maths       map[int]mathFormula
+	urlTargets  map[int]string
+	fileTargets map[int]string
+}
+
+// bodyKey fingerprints every Style field that changes the spans or the
+// index-keyed maps Spans emits, so a theme, font or palette change re-parses
+// instead of serving stale output. Function fields (RenderFence, OnOpenURL,
+// ResolveFile, OnOpenFile, RenderImage) bind at click/render time, never at
+// parse time, so they are not part of the key.
+type bodyKey struct {
+	fontSize        float32
+	fg, muted       ui.Color
+	codeBG, accent  ui.Color
+	quoteBorder     ui.Color
+	ruleBorder      ui.Color
+	tableHeader     ui.Color
+	codeBanner      ui.Color
+	fontFamily      string
+	streaming       bool
+	literalHTML     bool
+	documentLayout  bool
+	dark            bool
+	lineNumbers     bool
+	codeWrapDefault bool
+	availableWidth  float32
+	quoteInset      float32
+	lineHeight      float32
+	textWeight      int
+	hasOpenURL      bool
+	hasOpenFile     bool
+	hasRenderImage  bool
+}
+
+func makeBodyKey(st Style) bodyKey {
+	return bodyKey{
+		fontSize: st.FontSize, fg: st.FG, muted: st.Muted, codeBG: st.CodeBG,
+		accent: st.Accent, quoteBorder: st.QuoteBorder, ruleBorder: st.RuleBorder,
+		tableHeader: st.TableHeader, codeBanner: st.CodeBanner, fontFamily: st.FontFamily,
+		streaming: st.Streaming, literalHTML: st.LiteralHTML, documentLayout: st.DocumentLayout,
+		dark: st.Dark, lineNumbers: st.LineNumbers, codeWrapDefault: st.CodeWrapDefault,
+		availableWidth: st.AvailableWidth, quoteInset: st.QuoteInset,
+		lineHeight: st.lineHeight, textWeight: st.textWeight,
+		hasOpenURL: st.OnOpenURL != nil, hasOpenFile: st.OnOpenFile != nil,
+		hasRenderImage: st.RenderImage != nil,
+	}
+}
+
+func (k bodyKey) matches(source string, st Style) bool {
+	return k == makeBodyKey(st)
+}
+
 // View renders markdown in a RichText element.
 func View(c *ui.Context, source string, st Style) {
 	if st.FontSize <= 0 {
@@ -109,29 +213,56 @@ func View(c *ui.Context, source string, st Style) {
 		viewDocument(c, source, st)
 		return
 	}
-	targets := map[int]string{}
-	st.maths = map[int]mathFormula{}
-	collectURLTargets(&st)
-	if st.ResolveFile != nil && st.OnOpenFile != nil {
-		st.codeSpanAt = func(index int, value string) {
-			if path := st.ResolveFile(value); path != "" {
-				targets[index] = path
+	// A stable wrapper gives ui.Local an element whose node persists while the
+	// row is mounted, so the parsed body survives frame to frame during scroll.
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0)
+	root.Children(func() {
+		cached := ui.Local(root, "parsed-body", func() parsedBody { return parsedBody{} })
+		key := makeBodyKey(st)
+		var spans []ui.Span
+		var blocks []richBlock
+		var targets map[int]string
+		if cached.key.matches(source, st) && cached.source == source {
+			spans, blocks, targets = cached.spans, cached.blocks, cached.fileTargets
+			st.maths, st.urlTargets = cached.maths, cached.urlTargets
+		} else {
+			targets = map[int]string{}
+			st.maths = map[int]mathFormula{}
+			collectURLTargets(&st)
+			collectFileTargets(&st, targets)
+			st.blockAt = func(start, end int, node ast.Node) {
+				blocks = append(blocks, richBlock{start: start, end: end, node: node})
+			}
+			spans = Spans(source, st)
+			*cached = parsedBody{
+				source: source, key: key, spans: spans, blocks: blocks,
+				maths: st.maths, urlTargets: st.urlTargets, fileTargets: targets,
 			}
 		}
+		if len(spans) == 0 && len(blocks) == 0 {
+			return
+		}
+		if len(blocks) > 0 {
+			viewBlocks(c, strings.TrimSpace(source), st, spans, targets, blocks)
+			return
+		}
+		viewSpans(c, st, spans, targets, 0)
+	})
+}
+
+type fileLinkIconPlacement struct {
+	rect  ui.Rect
+	color ui.Color
+}
+
+func linkColor(st Style) ui.Color {
+	if st.Accent.A != 0 {
+		return st.Accent
 	}
-	var blocks []richBlock
-	st.blockAt = func(start, end int, node ast.Node) {
-		blocks = append(blocks, richBlock{start: start, end: end, node: node})
+	if st.Dark {
+		return ui.Hex("#6ea8ff")
 	}
-	spans := Spans(source, st)
-	if len(spans) == 0 && len(blocks) == 0 {
-		return
-	}
-	if len(blocks) > 0 {
-		viewBlocks(c, strings.TrimSpace(source), st, spans, targets, blocks)
-		return
-	}
-	viewSpans(c, st, spans, targets, 0)
+	return ui.Hex("#4176e6")
 }
 
 func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string, offset int) {
@@ -146,26 +277,76 @@ func viewSpans(c *ui.Context, st Style, spans []ui.Span, targets map[int]string,
 		styledRichText(c, spans, st)
 		return
 	}
-	styledRichText(c, nil, st).Children(func() {
+	var iconPlacements []fileLinkIconPlacement
+	root := styledRichText(c, nil, st)
+	root.Children(func() {
 		for index, span := range spans {
-			el := ui.RichText(c, span)
-			if path := targets[offset+index]; path != "" {
-				el = el.Tooltip(path).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
-				if el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace) {
+			path := targets[offset+index]
+			href := st.urlTargets[offset+index]
+			displaySpan := span
+			showDocIcon := path != "" && span.Background.A == 0 && (index == 0 || targets[offset+index-1] != path)
+			if showDocIcon {
+				displaySpan.Text = "\u2003 " + span.Text
+			}
+			el := ui.RichText(c, displaySpan)
+			if path != "" {
+				el = el.Label(span.Text).Tooltip(path).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
+				if el.Hovered() {
+					el.Underline()
+				}
+				if showDocIcon {
+					iconColor := displaySpan.Color
+					if iconColor.A == 0 {
+						iconColor = linkColor(st)
+					}
+					slot := len(iconPlacements)
+					iconPlacements = append(iconPlacements, fileLinkIconPlacement{color: iconColor})
+					el.ObserveLayout(func(rect ui.Rect) {
+						if slot < len(iconPlacements) {
+							iconPlacements[slot].rect = rect
+						}
+					})
+				}
+				if st.OnOpenFile != nil && (el.Clicked() || el.Shortcut(0, ui.KeyEnter) || el.Shortcut(0, ui.KeySpace)) {
 					st.OnOpenFile(path)
 				}
-			} else if href := st.urlTargets[offset+index]; href != "" && st.OnOpenURL != nil {
+			} else if href != "" && st.OnOpenURL != nil {
 				el = el.Label(span.Text).Tooltip(href).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleLink)
+				if el.Hovered() {
+					el.Underline()
+				}
 				if externalURLActivated(el) {
 					st.OnOpenURL(href)
 				}
 			}
 		}
 	})
+	if len(iconPlacements) > 0 {
+		root.DrawOver(func(p *ui.Painter, rootRect ui.Rect) {
+			for _, item := range iconPlacements {
+				rect := item.rect
+				if rect.W <= 0 || rect.H <= 0 {
+					rect = rootRect
+				}
+				if rect.W <= 0 || rect.H <= 0 {
+					continue
+				}
+				iconY := rect.Y + (rect.H-14)/2
+				p.Icon(codeIconDocument, ui.Rect{X: rect.X, Y: iconY, W: 14, H: 14}, item.color)
+			}
+		})
+	}
+}
+
+func proseFont(st Style) string {
+	if st.FontFamily != "" {
+		return st.FontFamily
+	}
+	return theme.RenderPreferences().Chat.Family
 }
 
 func styledRichText(c *ui.Context, spans []ui.Span, st Style) ui.Element {
-	el := ui.RichText(c, spans...).Font(theme.RenderPreferences().Chat.Family).FontSize(st.FontSize).TextColor(st.FG)
+	el := ui.RichText(c, spans...).Font(proseFont(st)).FontSize(st.FontSize).TextColor(st.FG)
 	if st.lineHeight > 0 {
 		el = el.FixedLineHeight(st.lineHeight)
 	}
@@ -213,11 +394,68 @@ type Link struct {
 }
 
 // Links returns http(s) destinations found in source (order of appearance).
+// The result depends only on the source text, so transcripts that rescan each
+// row every frame share one small content-keyed memo instead of reparsing.
 func Links(source string) []Link {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return nil
 	}
+	return linkMemo.get(source)
+}
+
+// linkMemoStore is a tiny MRU cache of link scans, bounded by retained source
+// bytes. Tool cards and user messages rescan the same body every render pass;
+// the exact source string is the only safe key (length or seq never imply it).
+type linkMemoStore struct {
+	mu      sync.Mutex
+	entries []linkMemoEntry
+	bytes   int
+}
+
+type linkMemoEntry struct {
+	source string
+	links  []Link
+}
+
+const linkMemoEntryLimit = 32
+const linkMemoByteLimit = 4 << 20
+
+var linkMemo = linkMemoStore{}
+
+func (memo *linkMemoStore) get(source string) []Link {
+	if len(source) > linkMemoByteLimit {
+		return parseLinks(source)
+	}
+	memo.mu.Lock()
+	for i, entry := range memo.entries {
+		if entry.source == source {
+			if i > 0 {
+				copy(memo.entries[1:i+1], memo.entries[:i])
+				memo.entries[0] = entry
+			}
+			memo.mu.Unlock()
+			return entry.links
+		}
+	}
+	memo.mu.Unlock()
+	links := parseLinks(source)
+	memo.mu.Lock()
+	defer memo.mu.Unlock()
+	for len(memo.entries) >= linkMemoEntryLimit || memo.bytes+len(source) > linkMemoByteLimit {
+		last := len(memo.entries) - 1
+		memo.bytes -= len(memo.entries[last].source)
+		memo.entries[last] = linkMemoEntry{}
+		memo.entries = memo.entries[:last]
+	}
+	memo.entries = append(memo.entries, linkMemoEntry{})
+	copy(memo.entries[1:], memo.entries[:len(memo.entries)-1])
+	memo.entries[0] = linkMemoEntry{source: source, links: links}
+	memo.bytes += len(source)
+	return links
+}
+
+func parseLinks(source string) []Link {
 	md := newMarkdown()
 	reader := text.NewReader([]byte(source))
 	doc := md.Parser().Parse(reader)
@@ -294,6 +532,16 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 				appendPlainSpan(node.formula.Raw, st, out)
 			}
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *markdownsyntax.ImagePlaceholder:
+			start := len(*out)
+			appendPlainSpan("[image] "+node.Destination, st, out)
+			if st.RenderImage != nil && st.blockAt != nil {
+				st.blockAt(start, len(*out), node)
+			}
+			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
+		case *extast.Footnote:
+			appendPlainSpan(strconv.Itoa(node.Index)+". ", st, out)
+			walkBlocks(node, src, st, out)
 		case *ast.Paragraph, *ast.TextBlock:
 			walkInlines(node, src, st, out)
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
@@ -313,26 +561,19 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 		case *ast.FencedCodeBlock:
 			start := len(*out)
-			var buf bytes.Buffer
-			lines := node.Lines()
-			for i := 0; i < lines.Len(); i++ {
-				line := lines.At(i)
-				buf.Write(line.Value([]byte(src)))
+			lang, code := codeBlockSource(node, src)
+			if lang == "math" && !st.Streaming {
+				appendFormula(mathFormula{TeX: code, Raw: code, Display: true}, st, out)
+			} else {
+				*out = append(*out, highlightedCodeSpans(lang, code, st)...)
 			}
-			lang := string(node.Language([]byte(src)))
-			*out = append(*out, highlightedCodeSpans(lang, buf.String(), st)...)
 			if st.blockAt != nil {
 				st.blockAt(start, len(*out), node)
 			}
 		case *ast.CodeBlock:
 			start := len(*out)
-			var buf bytes.Buffer
-			lines := node.Lines()
-			for i := 0; i < lines.Len(); i++ {
-				line := lines.At(i)
-				buf.Write(line.Value([]byte(src)))
-			}
-			*out = append(*out, highlightedCodeSpans("", buf.String(), st)...)
+			_, code := codeBlockSource(node, src)
+			*out = append(*out, highlightedCodeSpans("", code, st)...)
 			if st.blockAt != nil {
 				st.blockAt(start, len(*out), node)
 			}
@@ -401,8 +642,7 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 	case *inlineMath:
 		appendFormula(node.formula, st, out)
 	case *ast.Text:
-		segment := node.Segment
-		text := string(segment.Value([]byte(src)))
+		text := segmentText(node.Segment, src)
 		if text == "" {
 			return
 		}
@@ -413,6 +653,14 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 			return
 		}
 		appendPlainSpan(text, st, out, mutators...)
+	case *extast.FootnoteLink:
+		span := ui.Span{Text: superscriptNumber(node.Index), Size: st.FontSize * .8, Color: st.FG}
+		for _, m := range mutators {
+			m(&span)
+		}
+		*out = append(*out, span)
+	case *extast.FootnoteBacklink:
+		appendPlainSpan(" ↩", st, out, mutators...)
 	case *extast.TaskCheckBox:
 		label := "☐ "
 		if node.IsChecked {
@@ -438,22 +686,23 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 			appendInline(c, src, st, out, combined...)
 		}
 	case *ast.CodeSpan:
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
 			if t, ok := c.(*ast.Text); ok {
-				buf.Write(t.Segment.Value([]byte(src)))
+				buf.WriteString(segmentText(t.Segment, src))
 			}
 		}
+		codeText := buf.String()
 		if st.codeSpanAt != nil {
-			st.codeSpanAt(len(*out), buf.String())
+			st.codeSpanAt(len(*out), codeText)
 		}
-		span := codeSpan(buf.String(), st)
+		span := codeSpan(codeText, st)
 		for _, m := range mutators {
 			m(&span)
 		}
 		*out = append(*out, span)
 	case *ast.AutoLink:
-		span := ui.Span{Text: string(node.Label([]byte(src))), Size: st.FontSize, Color: st.Accent, Underline: true}
+		span := ui.Span{Text: string(node.Label([]byte(src))), Size: st.FontSize, Color: linkColor(st)}
 		for _, m := range mutators {
 			m(&span)
 		}
@@ -462,36 +711,53 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 		}
 		*out = append(*out, span)
 	case *ast.Link:
-		if st.OnOpenURL != nil {
+		if st.OnOpenURL != nil || st.OnOpenFile != nil {
 			start := len(*out)
-			href := documentURL(string(node.Destination))
+			destination := string(node.Destination)
+			href := documentURL(destination)
+			_, _, file := ParseFileLink(destination)
+			active := href != "" && st.OnOpenURL != nil || file && st.OnOpenFile != nil && !st.Streaming
 			linkMutators := mutators
-			if href != "" {
-				linkMutators = append(append([]spanMutator(nil), mutators...), func(s *ui.Span) { s.Color = st.Accent; s.Underline = true })
+			if active {
+				c := linkColor(st)
+				linkMutators = append(append([]spanMutator(nil), mutators...), func(s *ui.Span) { s.Color = c })
 			}
 			walkInlines(node, src, st, out, linkMutators...)
 			for index := start; index < len(*out); index++ {
-				if st.urlSpanAt != nil {
+				if href != "" && st.urlSpanAt != nil {
 					st.urlSpanAt(index, href)
+				} else if file && st.fileSpanAt != nil {
+					st.fileSpanAt(index, destination)
 				}
 			}
 			return
 		}
-		var buf bytes.Buffer
+		destination := string(node.Destination)
+		_, _, file := ParseFileLink(destination)
+		if file && !st.Streaming && st.fileSpanAt != nil && isDeliverableDocumentPath(destination) {
+			start := len(*out)
+			c := linkColor(st)
+			linkMutators := append(append([]spanMutator(nil), mutators...), func(s *ui.Span) { s.Color = c })
+			walkInlines(node, src, st, out, linkMutators...)
+			for index := start; index < len(*out); index++ {
+				st.fileSpanAt(index, destination)
+			}
+			return
+		}
+		var buf strings.Builder
 		for c := node.FirstChild(); c != nil; c = c.NextSibling() {
 			if t, ok := c.(*ast.Text); ok {
-				buf.Write(t.Segment.Value([]byte(src)))
+				buf.WriteString(segmentText(t.Segment, src))
 			}
 		}
 		label := buf.String()
 		if label == "" {
-			label = string(node.Destination)
+			label = destination
 		}
 		span := ui.Span{
-			Text:      label,
-			Size:      st.FontSize,
-			Color:     st.Accent,
-			Underline: true,
+			Text:  label,
+			Size:  st.FontSize,
+			Color: linkColor(st),
 		}
 		for _, m := range mutators {
 			m(&span)

@@ -123,7 +123,7 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 	if !w.CompareOpen {
 		return
 	}
-	ui.TextInput(c, &w.CompareQuery).FillWidth().Placeholder(word("筛选比较分支", "Filter comparison branches"))
+	ui.TextInput(c, &w.CompareQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("筛选比较分支", "Filter comparison branches"))
 	needle := strings.ToLower(strings.TrimSpace(w.CompareQuery))
 	ui.Scroll(c).Height(110).FillWidth().Children(func() {
 		ui.Column(c).Gap(2).Children(func() {

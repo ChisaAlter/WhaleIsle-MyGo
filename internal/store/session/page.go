@@ -45,6 +45,7 @@ func maxPersistenceSeq(msgs []Message) float64 {
 }
 
 func (s *Store) resetHistoryPagingLocked() {
+	s.invalidateViewLocked()
 	s.resetHistoryNavigationLocked()
 	s.historyPageRequest++
 	s.historyHasMore = false
@@ -53,6 +54,7 @@ func (s *Store) resetHistoryPagingLocked() {
 }
 
 func (s *Store) syncHistoryHasMoreAfterSnapshotLocked() {
+	s.invalidateViewLocked()
 	oldest := oldestPersistenceSeq(s.messages)
 	s.historyHasMore = oldest > 1
 }
@@ -81,6 +83,7 @@ func (s *Store) LoadEarlierHistory(ctx context.Context) {
 	requestID := s.historyPageRequest
 	s.historyPageBusy = true
 	s.historyPageErr = nil
+	s.invalidateViewLocked()
 	client := s.client
 	sessionID := s.selectedID
 	generation := s.followGeneration
@@ -102,6 +105,7 @@ func (s *Store) LoadEarlierHistory(ctx context.Context) {
 		if ctx.Err() == nil {
 			s.historyHasMore = false
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
@@ -132,6 +136,7 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 		return
 	}
 	s.historyPageBusy = false
+	s.invalidateViewLocked()
 	if ctx.Err() != nil {
 		s.mu.Unlock()
 		s.fire()
@@ -187,6 +192,7 @@ func validateHistoryPage(records []api.SessionPageRecordsItem, through, before f
 }
 
 func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
+	s.invalidateViewLocked()
 	if len(records) == 0 {
 		return
 	}
@@ -207,18 +213,16 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
 		if err != nil {
 			continue
 		}
-		s.captureInspectorEventLocked(raw)
+		if isToolTimingEventType(rec.Event.Type) && rec.Event.Seq > 0 {
+			readToolLifecycleMemo(rec.Event.Seq, raw)
+		}
+		s.captureInspectorEventWithHeadLocked(raw, rec.Event.Type, rec.Event.Seq)
 		s.bumpHistoryThroughSeq(rec.Event.Seq)
 		s.noteHistoryBaseLocked(rec.Event.Seq)
 		s.captureWorkflowBoundaryLocked(raw)
-		s.captureTrajectoryBoundaryLocked(raw)
-		var head struct {
-			Type string  `json:"type"`
-			Seq  float64 `json:"seq"`
-		}
-		_ = json.Unmarshal(raw, &head)
-		if head.Type == "turn/start" {
-			turnSeq, opening = head.Seq, true
+		s.captureTrajectoryBoundaryWithSeqLocked(raw, rec.Event.Seq)
+		if rec.Event.Type == "turn/start" {
+			turnSeq, opening = rec.Event.Seq, true
 		}
 		msg, ok := classifyPersistenceEvent(raw)
 		if !ok {

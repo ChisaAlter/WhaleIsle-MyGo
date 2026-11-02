@@ -20,6 +20,7 @@ func (s *Store) SessionFeedback() SessionFeedbackView {
 	return s.sessionFeedback
 }
 func (s *Store) invalidateSessionFeedbackLocked() {
+	s.invalidateViewLocked()
 	s.sessionFeedbackEpoch++
 	s.sessionFeedback = SessionFeedbackView{}
 }

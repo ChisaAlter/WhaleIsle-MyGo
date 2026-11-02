@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -111,7 +112,55 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 	}
 }
 
-func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+type toolLifecycleMemoKey struct {
+	call        *session.ToolCallView
+	name        string
+	state       string
+	argsLen     int
+	hasCall     bool
+	hasResult   bool
+	resultLen   int
+	cwd         string
+	home        string
+	textOnly    bool
+	imageLoader bool
+	locale      string
+	todo        *todoBaseline
+}
+
+var toolLifecycleMemo struct {
+	sync.Mutex
+	entries map[toolLifecycleMemoKey]ToolCardInfo
+}
+
+func cachedToolLifecycleCardInfo(call *session.ToolCallView, gallery ToolImageGalleryOptions) ToolCardInfo {
+	resultLen := 0
+	if call.Result != nil {
+		resultLen = len(call.Result.Raw)
+	}
+	key := toolLifecycleMemoKey{
+		call:        call,
+		name:        call.Name,
+		state:       call.State,
+		argsLen:     len(call.Arguments),
+		hasCall:     call.Call != nil,
+		hasResult:   call.Result != nil,
+		resultLen:   resultLen,
+		cwd:         gallery.Cwd,
+		home:        gallery.Home,
+		textOnly:    gallery.TextOnly,
+		imageLoader: toolImageLoaderAvailable(),
+		locale:      string(i18n.Locale()),
+		todo:        gallery.Todo,
+	}
+	toolLifecycleMemo.Lock()
+	if info, ok := toolLifecycleMemo.entries[key]; ok {
+		toolLifecycleMemo.Unlock()
+		return info
+	}
+	toolLifecycleMemo.Unlock()
+
+	origCall := call
 	var details *toolDetailsModel
 	if !gallery.TextOnly {
 		details = toolDetailsModelFor(call)
@@ -159,16 +208,13 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 			}
 		}
 		info.summaryModel = &summary
-		if call.CallID != "" && gallery.OnInspectCall != nil {
-			info.inspect = func() { gallery.OnInspectCall(call.CallID) }
-		}
 		info.imageFamily = call.Name == "read_image"
 		if info.imageFamily {
 			info.image = toolImageModelFor(call)
 		} else if toolUsesGenericImageCard(call.Name) {
 			info.image = toolGenericImageModelFor(call)
 		}
-		if !toolImageLoaderAvailable() {
+		if !key.imageLoader {
 			info.image = nil
 		}
 		// Paired calls use one typed result body; malformed images remain in OUT.
@@ -187,9 +233,7 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		if info.webFamily {
 			info.web = toolWebModelFor(call)
 			info.webHref = toolWebFetchHref(call)
-			info.openURL = gallery.OnOpenURL
 		}
-		info.openFile = gallery.OnOpenFile
 		info.diffSummary = toolDiffSummaryFor(call)
 		if kilobytes, present := toolContentKilobytes(call.Name, arguments); present {
 			info.contentKB = &kilobytes
@@ -206,6 +250,27 @@ func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardSty
 		info.Output = output
 		// Typed sources/fetch URL belong to the result, not the raw JSON.
 		info.Web = call.Result.Web
+	}
+	_ = origCall
+	toolLifecycleMemo.Lock()
+	if toolLifecycleMemo.entries == nil || len(toolLifecycleMemo.entries) >= 512 {
+		toolLifecycleMemo.entries = make(map[toolLifecycleMemoKey]ToolCardInfo, 64)
+	}
+	toolLifecycleMemo.entries[key] = info
+	toolLifecycleMemo.Unlock()
+	return info
+}
+
+func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+	info := cachedToolLifecycleCardInfo(call, gallery)
+	if !gallery.TextOnly {
+		if call.CallID != "" && gallery.OnInspectCall != nil {
+			info.inspect = func() { gallery.OnInspectCall(call.CallID) }
+		}
+		if info.webFamily {
+			info.openURL = gallery.OnOpenURL
+		}
+		info.openFile = gallery.OnOpenFile
 	}
 	extra := func() {
 		if !gallery.TextOnly && info.details == nil && !info.readFamily && !info.imageFamily && !info.mutationFamily && call.Name != "str_replace_editor" {

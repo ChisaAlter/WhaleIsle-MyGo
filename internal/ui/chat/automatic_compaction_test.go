@@ -50,3 +50,23 @@ func TestAutomaticCompactionCardFullSummaryAndMissingEvidence(t *testing.T) {
 		t.Fatal("disabled marker toggled a hidden disclosure")
 	}
 }
+
+func TestAutomaticCompactionNilMetadataHidesRawBody(t *testing.T) {
+	msg := session.Message{
+		Role: "system",
+		Kind: session.MessageKindCompaction,
+		Body: "compaction:e5a04416-42ef-461b-8c80-49f17545e662",
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		CompactionView(c, msg, ui.RGB(238, 242, 246), ui.RGB(149, 160, 175), ui.RGB(26, 30, 36))
+	}, 800, 200)
+	if !tt.HasText(i18n.T(i18n.KeyChatCompaction)) {
+		t.Fatal("compaction title missing")
+	}
+	if !tt.HasText(i18n.T(i18n.KeyChatCompactionSummaryMissing)) {
+		t.Fatal("missing summary caption not shown when AutomaticCompaction is nil")
+	}
+	if tt.HasText("compaction:e5a04416") || tt.HasText(msg.Body) {
+		t.Fatal("raw compaction:<uuid> body leaked into UI")
+	}
+}

@@ -16,6 +16,7 @@ type WorkspaceLayoutState struct {
 	PreferenceError string
 	GroupBy         string
 	OrderBy         string
+	ArchivedFilter  string
 	Collapsed       map[string]bool
 	Reordering      bool
 	Error           string
@@ -33,7 +34,10 @@ func (s *Store) workspaceLayoutLocked() WorkspaceLayoutState {
 		out.GroupBy = "workspace"
 	}
 	if out.OrderBy == "" {
-		out.OrderBy = "manual"
+		out.OrderBy = "updated"
+	}
+	if out.ArchivedFilter != "show" && out.ArchivedFilter != "only" {
+		out.ArchivedFilter = "default"
 	}
 	out.Collapsed = map[string]bool{}
 	for id, v := range s.workspaceLayout.view.Collapsed {
@@ -47,7 +51,7 @@ func (s *Store) SetWorkspaceGrouping(mode string) {
 	}
 	s.mu.Lock()
 	s.workspaceLayout.view.GroupBy = mode
-	s.workspacePreferencesChangedLocked()
+	s.workspacePreferencesChangedLocked("group", "")
 	s.mu.Unlock()
 	s.fire()
 }
@@ -56,22 +60,26 @@ func (s *Store) SetWorkspaceOrdering(mode string) {
 		return
 	}
 	s.mu.Lock()
-	s.workspaceLayout.view.OrderBy = mode
-	s.workspacePreferencesChangedLocked()
+	changed := s.setWorkspaceOrderingLocked(mode)
 	s.mu.Unlock()
-	s.fire()
+	if changed {
+		s.fire()
+	}
 }
 func (s *Store) ToggleWorkspaceGroup(id string) {
 	s.mu.Lock()
 	if s.workspaceLayout.view.Collapsed == nil {
 		s.workspaceLayout.view.Collapsed = map[string]bool{}
 	}
-	s.workspaceLayout.view.Collapsed[id] = !s.workspaceLayout.view.Collapsed[id]
-	s.workspacePreferencesChangedLocked()
+	snap := ViewState{Items: s.items, SelectedID: s.selectedID, ScratchCwd: s.scratchCwd,
+		Workspaces: s.workspaceRowsLocked(), WorkspaceMembers: s.workspaceMembersLocked(), WorkspaceLayout: s.workspaceLayoutLocked()}
+	s.workspaceLayout.view.Collapsed[id] = !WorkspaceGroupCollapsed(snap, id)
+	s.workspacePreferencesChangedLocked("collapsed", id)
 	s.mu.Unlock()
 	s.fire()
 }
 func (s *Store) resetWorkspaceLayoutHostLocked() {
+	s.invalidateViewLocked()
 	s.resetWorkspacePreferencesHostLocked()
 	s.workspaceLayout.request++
 	s.workspaceLayout.view.Collapsed = nil
@@ -208,27 +216,58 @@ func WorkspaceSessionOwners(workspaces []WorkspaceRow, items []Item) map[string]
 	}
 	return owners
 }
-func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
+func buildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 	if snap.Items == nil {
 		snap.Items = items
 	}
-	if snap.WorkspaceLayout.GroupBy == "flat" {
-		order := localSessionOrder(snap, "::flat")
-		return []WorkspaceGroup{{Key: "::flat", Kind: "flat", Workspace: WorkspaceRow{SessionIDs: order}, Items: append([]Item(nil), items...)}}
-	}
-	owners := WorkspaceSessionOwners(snap.Workspaces, items)
-	knownWorkspace := map[string]bool{}
+	// Accounts come from complete Host membership, never parent lineage or cwd.
+	// Hidden and missing rows retain their browser-local manual-order slots.
+	owners := map[string]string{}
 	for _, ws := range snap.Workspaces {
-		knownWorkspace[ws.WorkspaceID] = true
+		for _, id := range ws.SessionIDs {
+			if _, accounted := owners[id]; !accounted {
+				owners[id] = ws.WorkspaceID
+			}
+		}
+	}
+	listed := func(item Item) bool {
+		if item.SessionID == "" || item.Origin == "subagent" || item.Blank && item.SessionID != snap.SelectedID {
+			return false
+		}
+		if item.Presentation != nil && item.Presentation.Owner != "" && item.Presentation.Owner != "whaleisle" {
+			return false
+		}
+		_, member := owners[item.SessionID]
+		return member || snap.IsNoDirectory(item)
+	}
+	visible := make([]Item, 0, len(items))
+	for _, item := range items {
+		if listed(item) {
+			visible = append(visible, item)
+		}
+	}
+	orderIndex := newWorkspaceOrderIndex(snap)
+	accountOrder := func(memberIDs []string, key string) []string {
+		return orderIndex.order(snap, memberIDs, key)
+	}
+	var flatMembers, scratchMembers []string
+	for _, item := range snap.Items {
+		if listed(item) {
+			flatMembers = append(flatMembers, item.SessionID)
+		}
+		if _, member := owners[item.SessionID]; !member {
+			scratchMembers = append(scratchMembers, item.SessionID)
+		}
+	}
+	if snap.WorkspaceLayout.GroupBy == "flat" {
+		return []WorkspaceGroup{{Key: "::flat", Kind: "flat", Workspace: WorkspaceRow{SessionIDs: accountOrder(flatMembers, "::flat")}, Items: visible}}
 	}
 	byGroup := map[string][]Item{}
 	var scratch []Item
-	for _, item := range items {
-		if id := owners[item.SessionID]; id != "" && knownWorkspace[id] {
+	for _, item := range visible {
+		if id, member := owners[item.SessionID]; member {
 			byGroup[id] = append(byGroup[id], item)
 		} else {
-			// The Original has one unfiled bucket ("无工作目录"); a session
-			// whose folder is not a registered workspace belongs there too.
 			scratch = append(scratch, item)
 		}
 	}
@@ -245,13 +284,14 @@ func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 				continue
 			}
 			visited[ws.WorkspaceID] = true
+			ws.SessionIDs = accountOrder(ws.SessionIDs, ws.WorkspaceID)
 			out = append(out, WorkspaceGroup{Key: ws.WorkspaceID, Kind: "workspace", Workspace: ws, ParentID: parent, Depth: depth, Items: byGroup[ws.WorkspaceID]})
 			emit(ws.WorkspaceID, depth+1)
 		}
 	}
 	emit("", 0)
 	if len(scratch) > 0 {
-		out = append(out, WorkspaceGroup{Key: "::scratch", Kind: "scratch", Workspace: WorkspaceRow{SessionIDs: localSessionOrder(snap, "::scratch")}, Items: scratch})
+		out = append(out, WorkspaceGroup{Key: "::scratch", Kind: "scratch", Workspace: WorkspaceRow{SessionIDs: accountOrder(scratchMembers, "::scratch")}, Items: scratch})
 	}
 	return out
 }
@@ -259,22 +299,13 @@ func OrderedWorkspaceSessionRows(items []Item, manual, pinned []string, order st
 	items = append([]Item(nil), items...)
 	ranks := map[string]int{}
 	for i, id := range manual {
-		ranks[id] = i
-	}
-	less := func(a, b Item) bool {
-		pa, pb := PinRank(a.SessionID, pinned), PinRank(b.SessionID, pinned)
-		if pa >= 0 || pb >= 0 {
-			if pa < 0 {
-				return false
-			}
-			if pb < 0 {
-				return true
-			}
-			if pa != pb {
-				return pa < pb
-			}
+		if _, present := ranks[id]; !present {
+			ranks[id] = i
 		}
-		if order != "updated" {
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		if order == "manual" {
 			ra, oka := ranks[a.SessionID]
 			rb, okb := ranks[b.SessionID]
 			if oka != okb {
@@ -288,47 +319,23 @@ func OrderedWorkspaceSessionRows(items []Item, manual, pinned []string, order st
 			return a.UpdatedAt > b.UpdatedAt
 		}
 		return a.SessionID < b.SessionID
-	}
-	sort.SliceStable(items, func(i, j int) bool { return less(items[i], items[j]) })
-	if flat {
-		out := make([]WorkspaceSessionRow, 0, len(items))
-		for _, it := range items {
-			out = append(out, WorkspaceSessionRow{Item: it})
-		}
-		return out
-	}
-	byID := map[string]Item{}
-	children := map[string][]Item{}
-	for _, it := range items {
-		byID[it.SessionID] = it
-	}
-	var roots []Item
-	for _, it := range items {
-		if _, ok := byID[it.ParentID]; it.ParentID == "" || !ok {
-			roots = append(roots, it)
-		} else {
-			children[it.ParentID] = append(children[it.ParentID], it)
+	})
+	// sectionMembers keeps each partition's account order. ParentID is fork
+	// metadata, not indentation or a reason to move saved rows.
+	out := make([]WorkspaceSessionRow, 0, len(items))
+	for _, partition := range []int{0, 1, 2} {
+		for _, item := range items {
+			part := 2
+			if item.Blank {
+				part = 0
+			} else if PinRank(item.SessionID, pinned) >= 0 {
+				part = 1
+			}
+			if part == partition {
+				out = append(out, WorkspaceSessionRow{Item: item})
+			}
 		}
 	}
-	seen := map[string]bool{}
-	var out []WorkspaceSessionRow
-	var walk func(Item, int)
-	walk = func(it Item, depth int) {
-		if seen[it.SessionID] {
-			return
-		}
-		seen[it.SessionID] = true
-		out = append(out, WorkspaceSessionRow{Item: it, Depth: depth})
-		for _, child := range children[it.SessionID] {
-			walk(child, depth+1)
-		}
-	}
-	for _, it := range roots {
-		walk(it, 0)
-	}
-	for _, it := range items {
-		walk(it, 0)
-	} // corrupt parent cycles remain visible once
 	return out
 }
 
@@ -374,58 +381,13 @@ func WorkspaceMoveAnchor(groups []WorkspaceGroup, id string, delta int) (string,
 func (s *Store) BeginWorkspaceManagement(id string) { s.beginWorkspaceManagement("manage", id) }
 
 func (s *Store) reorderWorkspaceSession(ctx context.Context, workspaceID, sessionID, beforeID string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	sessionID = strings.TrimSpace(sessionID)
-	beforeID = strings.TrimSpace(beforeID)
 	s.mu.Lock()
-	client, generation := s.client, s.eventsGeneration
-	ws, exists := s.workspaceMemberships[workspaceID]
-	member, anchor := false, beforeID == ""
-	for _, id := range ws.SessionIDs {
-		if id == sessionID {
-			member = true
-		}
-		if id == beforeID {
-			anchor = true
-		}
+	changed := false
+	if ctx.Err() == nil {
+		changed = s.insertWorkspaceSessionLocalLocked(s.eventsGeneration, workspaceID, sessionID, beforeID)
 	}
-	if client == nil || !exists || !member || !anchor || sessionID == beforeID || s.workspaceLayout.view.Reordering || ctx.Err() != nil {
-		s.mu.Unlock()
-		return
-	}
-	s.workspaceLayout.request++
-	token := s.workspaceLayout.request
-	s.workspaceLayout.view.Reordering = true
-	s.workspaceLayout.view.Error = ""
 	s.mu.Unlock()
-	s.fire()
-	go func() {
-		callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		req := api.WorkspaceInsertSessionBeforeRequest{WorkspaceId: workspaceID, SessionId: sessionID}
-		if beforeID != "" {
-			req.BeforeSessionId = &beforeID
-		}
-		var out struct {
-			Workspace api.WorkspaceCreateValueWorkspace `json:"workspace"`
-		}
-		err := client.Call(callCtx, "workspace/insertSessionBefore", map[string]any{"request": req}, &out)
-		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != generation || s.workspaceLayout.request != token {
-			s.mu.Unlock()
-			return
-		}
-		s.workspaceLayout.view.Reordering = false
-		if err == nil && (out.Workspace.WorkspaceId != workspaceID || out.Workspace.Path == "") {
-			err = errors.New("Host returned an incomplete workspace session order")
-		}
-		if err != nil {
-			s.workspaceLayout.view.Error = err.Error()
-		} else {
-			s.putWorkspaceRowLocked(workspaceRowFromCreate(out.Workspace))
-			s.lastAction = "session reordered"
-		}
-		s.mu.Unlock()
+	if changed {
 		s.fire()
-	}()
+	}
 }

@@ -67,14 +67,14 @@ func (s *projectController) runProjectTeam(win *mygo.Window, id, action, arg str
 		case "inspect", "next", "previous":
 			if action == "next" {
 				if prior == nil || prior.WorkPage.CurrentNextCursor == nil || arg == "" || arg != *prior.WorkPage.CurrentNextCursor {
-					err = fmt.Errorf("refresh Team before paging")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectTeamRefreshPaging))
 					break
 				}
 				cursors = append(cursors, arg)
 			}
 			if action == "previous" {
 				if prior == nil || len(cursors) < 2 {
-					err = fmt.Errorf("no previous current-work page")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectWorkNoPreviousPage))
 					break
 				}
 				cursors = cursors[:len(cursors)-1]
@@ -82,7 +82,7 @@ func (s *projectController) runProjectTeam(win *mygo.Window, id, action, arg str
 			out, err = rpc.TeamOverviewPage(ctx, id, cursors[len(cursors)-1])
 		case "stop", "pause", "resume":
 			if prior == nil || prior.Team == nil || prior.Team.Failure != "" || prior.Project.Lifecycle != "ready" {
-				err = fmt.Errorf("refresh a ready Project Team before controlling work")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectTeamRefreshControl))
 				break
 			}
 			note, err = rpc.Control(ctx, id, action, arg)

@@ -75,7 +75,7 @@ func OpenChangesReview(m Model, scope session.TurnFileScope, target session.Turn
 	if m.Store == nil || m.Sizes == nil {
 		return
 	}
-	snapshot := m.Store.Snapshot()
+	snapshot := renderSnapshot(m)
 	if scope != snapshot.TurnFiles.Scope {
 		return
 	}
@@ -112,7 +112,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 		return
 	}
 	r := m.workspacePane.ChangesReview
-	snapshot := m.Store.Snapshot()
+	snapshot := renderSnapshot(m)
 	if !r.bind(snapshot) {
 		ui.Text(c, paneLabel("请返回此变更所属的 Host 与会话并重新打开", "Return to the source Host and session and reopen this review"))
 		return

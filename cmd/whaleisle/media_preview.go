@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.Client, sid, root, path string, floating bool) {
@@ -13,7 +15,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 		return
 	}
 	if root == "" || !mediapreview.ValidPath(path) {
-		sessions.SetLastAction("音视频预览需要当前会话工作区和明确支持的单文件路径；不接受 URL 或路径遍历。")
+		sessions.SetLastAction(i18n.T(i18n.KeyCmdMediaPathRequired))
 		return
 	}
 	client, sourceValid, sourceErr := sessions.MediaPreviewSource(sid)
@@ -23,7 +25,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 	request := s.mediaPreviewRequest
 	s.mu.Unlock()
 	if win == nil || sourceErr != nil || client != expectedClient {
-		sessions.SetLastAction("媒体预览需要当前会话的 Host 文件读取服务；不会把 Host 路径当成本机路径打开。")
+		sessions.SetLastAction(i18n.T(i18n.KeyCmdMediaHostServiceRequired))
 		return
 	}
 	valid := func() bool {
@@ -37,7 +39,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 	if !valid() {
 		return
 	}
-	sessions.SetLastAction("正在读取当前 Host/会话的单个音视频快照（最大 32 MiB）…")
+	sessions.SetLastAction(i18n.T(i18n.KeyCmdMediaReadingSnapshot))
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
@@ -59,7 +61,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 				doc, err = mediapreview.Open(path, data, valid)
 			}
 			if err != nil || doc == nil {
-				message := "媒体预览失败；当前 Host/backend 必须支持有界字节读取。可在 Files 显式外部打开。"
+				message := i18n.T(i18n.KeyCmdMediaBoundedReadFailed)
 				if err != nil {
 					message += " " + err.Error()
 				}
@@ -75,9 +77,9 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 				s.browserController = s.newBrowserController(win)
 			}
 			if err = s.browserController.OpenMedia(doc, floating); err != nil {
-				sessions.SetLastAction("媒体预览不可用，可在 Files 显式外部打开：" + err.Error())
+				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdMediaPreviewUnavailable), err.Error()))
 			} else {
-				sessions.SetLastAction("只读音视频快照已打开。请点击播放器播放；编解码支持取决于 WebView2，30 分钟后过期。")
+				sessions.SetLastAction(i18n.T(i18n.KeyCmdMediaSnapshotOpened))
 			}
 		})
 	}()

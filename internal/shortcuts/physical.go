@@ -11,6 +11,9 @@ import (
 
 func PhysicalCode(key string) string {
 	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
 	upper := strings.ToUpper(key)
 	if code := physicalCodes[upper]; code != "" {
 		return code

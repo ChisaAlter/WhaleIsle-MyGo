@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -52,14 +53,16 @@ func botVisibilityBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	if assiststore.NormalizeMode(m.Mode) != assiststore.ModeDshbot || m.BotVisibility.OnRefresh == nil {
 		return
 	}
-	botVisibilityView(c, m.BotVisibility, m.Busy || m.PluginRPCBusy || !m.DshbotEnabled || !m.HarnessReady, fg, muted, border, accent)
+	botVisibilityView(c, m.BotVisibility, m.Busy || m.PluginRPCBusy || !m.DshbotEnabled || !m.HarnessReady, fg, muted, field, border, accent)
 }
-func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, muted, border, accent ui.Color) {
+func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, muted, field, border, accent ui.Color) {
 	s := m.State
 	blocked = blocked || s.Busy
-	ui.Column(c.Key("bot-visibility-management")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantVisibilityTitle)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantThisManagementBlockIsSeparateFromTheO)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	card := ui.Column(c.Key("bot-visibility-management")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+	card.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantVisibilityTitle)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantThisManagementBlockIsSeparateFromTheO)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
@@ -86,7 +89,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 		if ui.Checkbox(c, &shown, i18n.T(i18n.KeyMiscAssistantShowHiddenLocally)).Changed() && m.OnShowHidden != nil {
 			m.OnShowHidden(shown)
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadFullCatalog)).Disabled(blocked || s.Scope == "").Clicked() && m.OnRefresh != nil {
+		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadFullCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "").Clicked() && m.OnRefresh != nil {
 			m.OnRefresh()
 		}
 		if s.Uncertain {
@@ -94,13 +97,13 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			if s.Pending != nil {
 				ui.Text(c, botVisibilityReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
-			if s.Candidate != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+			if s.Candidate != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
 				m.OnAdopt(s.Candidate.ID, s.Candidate.SessionID)
 			}
 			return
 		}
 		if !s.Loaded {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantReadTheCurrentHostSFullCatalogAndWri)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyW4AssistantReadTheCurrentHostSFullCatalogAndWri)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
 		if !s.Writable {
@@ -108,11 +111,11 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 		}
 		if s.Review != nil {
 			r := s.Review
-			ui.Column(c.Key("visibility-confirm")).Border(1, accent).Padding(10).Gap(8).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancel)).Disabled(blocked).Clicked() && m.OnCancel != nil {
+			ui.Column(c.Key("visibility-confirm")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(8).Children(func() {
+				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancel)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() && m.OnCancel != nil {
 					m.OnCancel()
 				}
-				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, botVisibilityEffects()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				ack := r.Acknowledged
 				if ui.Checkbox(c, &ack, i18n.T(i18n.KeyMiscAssistantIConfirmThisTargetAndEffects)).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
@@ -122,7 +125,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 				if r.Command.Hidden {
 					label = i18n.T(i18n.KeyMiscAssistantConfirmHide)
 				}
-				if ui.Button(c, label).Disabled(blocked || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 					m.OnConfirm()
 				}
 			})
@@ -136,12 +139,12 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			count++
 			v := row
 			ui.Column(c.Key("visibility-row-" + v.ID)).Gap(4).Children(func() {
-				ui.Text(c, visibilityIdentity(v)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+				ui.Text(c, visibilityIdentity(v)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				label := i18n.T(i18n.KeyMiscAssistantReviewHide)
 				if v.Hidden {
 					label = i18n.T(i18n.KeyMiscAssistantReviewUnhide)
 				}
-				if ui.Button(c, label).Disabled(blocked || !s.Writable).Clicked() && m.OnReview != nil {
+				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable).Clicked() && m.OnReview != nil {
 					m.OnReview(v.ID, v.SessionID)
 				}
 			})

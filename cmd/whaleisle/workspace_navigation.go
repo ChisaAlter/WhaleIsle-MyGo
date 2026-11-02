@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/workspacepicker"
 )
 
@@ -14,13 +15,13 @@ import (
 // Do not acquire mainState.mu here: this callback runs under the Store lock.
 func (s *mainState) persistRegisteredWorkspace(path string) error {
 	if s.cfgStore == nil {
-		return errors.New("Workspace settings are unavailable")
+		return errors.New(i18n.T(i18n.KeyCmdWorkspaceSettingsUnavailable))
 	}
 	return s.cfgStore.Update(func(c *config.Config) { c.Workspace = path })
 }
 func (s *mainState) workspaceSelectionCommitted(win *mygo.Window, sessions *session.Store, path string) {
 	s.mu.Lock()
-	if sessions != nil && sessions.WorkspaceCwd() == path && sessions.Snapshot().SelectedID == "" {
+	if sessions != nil && sessions.WorkspaceCwd() == path && sessions.SelectedSessionID() == "" {
 		if home := s.composerDrafts[""]; home != nil && !home.Sending && home.Preparing == 0 {
 			home.TargetID = ""
 		}

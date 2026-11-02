@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"runtime"
 	"slices"
 	"time"
@@ -99,6 +100,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		rt.resetPhysicalKeys()
 		rt.regionEscapeInput(false)
 		rt.windowFocused = false
+		rt.cancelDragOnBlur()
 		rt.selection.dragging = false
 		// Keys let go of elsewhere never come back up here.
 		rt.modsChanged(0)
@@ -268,6 +270,7 @@ func (rt *engine) pointerDown(x, y float32, button int, mods Modifiers, count in
 		rt.downs = append(rt.downs, 0)
 	}
 	if button == 0 && rt.scrollbarPress(chain, x, y) {
+		rt.clearWheelScroll()
 		return
 	}
 	var target, focus *state
@@ -374,6 +377,10 @@ func (rt *engine) pointerUp(button, clicks int) {
 	if s == nil || button != rt.pressButton {
 		return
 	}
+	selectionScope := uint64(0)
+	if button == 0 && rt.selection.dragging && s.textScope != 0 && s.textScope == rt.selection.scope {
+		selectionScope = s.textScope
+	}
 	if rt.selection.dragging {
 		rt.moveTextSelection(rt.pointerX, rt.pointerY)
 		rt.selection.dragging = false
@@ -393,6 +400,19 @@ func (rt *engine) pointerUp(button, clicks int) {
 			s.rightClicks++
 		}
 	}
+	// Selection captures a paragraph rather than its clickable scope. A plain
+	// primary click still activates that one scope; dragging a range never does.
+	if selectionScope != 0 && s.id != selectionScope && rt.selectionStateActive(s.id) {
+		a, b, selected := rt.textSelectionBounds()
+		scope := rt.states[selectionScope]
+		if scope != nil && scope.flags&(flagSelectable|flagClickable) == flagSelectable|flagClickable &&
+			rt.selectionStateActive(scope.id) && rt.selection.scope == selectionScope && !selected &&
+			a.id != 0 && a == b && rt.within(s.id, scope.id) &&
+			(Rect{scope.vx, scope.vy, scope.vw, scope.vh}).Contains(rt.pointerX, rt.pointerY) {
+			scope.clicks++
+			scope.clickMods = s.pressMods
+		}
+	}
 	rt.setHover(rt.hitChain(rt.pointerX, rt.pointerY))
 	rt.requestFrame()
 }
@@ -406,11 +426,143 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 	if mods&Shift != 0 && dx == 0 {
 		dx, dy = dy, 0
 	}
+	if !precise && !rt.isHeadless() && !rt.preferences().ReduceMotion {
+		for _, id := range chain {
+			s := rt.states[id]
+			if s == nil {
+				continue
+			}
+			canX, canY := canScrollBy(s, float64(dx), float64(dy))
+			if !canX && !canY {
+				continue
+			}
+			if rt.wheelID != id {
+				rt.wheelID = id
+				rt.wheelRemainX, rt.wheelRemainY = 0, 0
+				rt.wheelLast = time.Time{}
+			}
+			if canX {
+				if rt.wheelRemainX*float64(dx) < 0 {
+					rt.wheelRemainX = 0
+				}
+				rt.wheelRemainX += float64(dx)
+			}
+			if canY {
+				if rt.wheelRemainY*float64(dy) < 0 {
+					rt.wheelRemainY = 0
+				}
+				rt.wheelRemainY += float64(dy)
+			}
+			rt.requestFrame()
+			return
+		}
+		return
+	}
+	rt.clearWheelScroll()
 	for _, id := range chain {
 		if s := rt.states[id]; s != nil && scrollBy(s, dx, dy) {
 			rt.requestFrame()
 			return
 		}
+	}
+}
+
+func (rt *engine) isHeadless() bool {
+	_, ok := rt.host.(*headless)
+	return ok
+}
+
+func (rt *engine) clearWheelScroll() {
+	rt.wheelID = 0
+	rt.wheelRemainX, rt.wheelRemainY = 0, 0
+	rt.wheelLast = time.Time{}
+}
+
+func canScrollBy(s *state, dx, dy float64) (canX, canY bool) {
+	if dy != 0 && s.flags&flagScrollY != 0 {
+		maxY := max(0.0, s.contentH-float64(s.h))
+		canY = (dy < 0 && s.scrollY > 0) || (dy > 0 && s.scrollY < maxY)
+	}
+	if dx != 0 && s.flags&flagScrollX != 0 {
+		maxX := max(0.0, s.contentW-float64(s.w))
+		canX = (dx < 0 && s.scrollX > 0) || (dx > 0 && s.scrollX < maxX)
+	}
+	return canX, canY
+}
+
+func stepWheelAxis(remain *float64, alpha float64) float64 {
+	r := *remain
+	if r == 0 {
+		return 0
+	}
+	if math.Abs(r) <= 1.0 {
+		*remain = 0
+		return r
+	}
+	step := r * alpha
+	if math.Abs(step) < 1.0 {
+		step = math.Copysign(1.0, r)
+	}
+	if math.Abs(step) >= math.Abs(r) {
+		*remain = 0
+		return r
+	}
+	*remain = r - step
+	return step
+}
+
+func scrollByFloat(s *state, dx, dy float64) (movedX, movedY bool) {
+	x, y := s.scrollX, s.scrollY
+	if dy != 0 && s.flags&flagScrollY != 0 {
+		y = max(0, min(y+dy, s.contentH-float64(s.h)))
+	}
+	if dx != 0 && s.flags&flagScrollX != 0 {
+		x = max(0, min(x+dx, s.contentW-float64(s.w)))
+	}
+	movedX = x != s.scrollX
+	movedY = y != s.scrollY
+	if movedX || movedY {
+		s.scrollTo(x, y)
+	}
+	return movedX, movedY
+}
+
+func (rt *engine) stepWheelScroll(now time.Time) {
+	if rt.wheelID == 0 || (rt.wheelRemainX == 0 && rt.wheelRemainY == 0) {
+		return
+	}
+	s := rt.states[rt.wheelID]
+	if s == nil {
+		rt.clearWheelScroll()
+		return
+	}
+	var dt time.Duration
+	if rt.wheelLast.IsZero() {
+		rate := rt.host.refreshRate()
+		if rate <= 0 {
+			rate = 60
+		}
+		dt = time.Duration(float64(time.Second) / float64(rate))
+	} else {
+		dt = now.Sub(rt.wheelLast)
+	}
+	rt.wheelLast = now
+	dt = max(4*time.Millisecond, min(dt, 50*time.Millisecond))
+	// Exponential ease-out (tau = 40ms) matching Chromium smooth wheel scrolling.
+	alpha := 1.0 - math.Exp(-dt.Seconds()/0.040)
+	stepX := stepWheelAxis(&rt.wheelRemainX, alpha)
+	stepY := stepWheelAxis(&rt.wheelRemainY, alpha)
+	movedX, movedY := scrollByFloat(s, stepX, stepY)
+	if stepX != 0 && !movedX {
+		rt.wheelRemainX = 0
+	}
+	if stepY != 0 && !movedY {
+		rt.wheelRemainY = 0
+	}
+	if rt.wheelRemainX != 0 || rt.wheelRemainY != 0 {
+		rt.animating = true
+	} else {
+		rt.clearWheelScroll()
 	}
 }
 
@@ -496,6 +648,7 @@ func (rt *engine) scrollKey(mods Modifiers, key Key) bool {
 			dy = page * max(s.h-line, s.h/2)
 		}
 		if scrollBy(s, dx, dy) {
+			rt.clearWheelScroll()
 			rt.requestFrame()
 			return true
 		}
@@ -1129,7 +1282,7 @@ func (e *node) Submitted() bool {
 func (rt *engine) scrollbarPress(chain []uint64, x, y float32) bool {
 	for _, id := range chain {
 		s := rt.states[id]
-		if s == nil || s.flags&(flagScrollX|flagScrollY) == 0 {
+		if s == nil || s.flags&(flagScrollX|flagScrollY) == 0 || s.barVisible[0] && !s.barVisible[1] {
 			continue
 		}
 		g := scrollBars(Rect{s.x, s.y, s.w, s.h}, s.barInset, float32(s.contentW), float32(s.contentH), float32(s.scrollX), float32(s.scrollY), s.flags, rt.c.theme.scrollbarWidth())

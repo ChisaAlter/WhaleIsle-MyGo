@@ -1,10 +1,10 @@
 package session
 
-
 import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
@@ -255,16 +255,30 @@ func (s *Store) RefreshModelCatalog(ctx context.Context) {
 			s.mu.Unlock()
 			return
 		}
+		oldErr, newErr := "", ""
+		if s.modelsErr != nil {
+			oldErr = s.modelsErr.Error()
+		}
+		if err != nil {
+			newErr = err.Error()
+		}
+		changed := oldErr != newErr
 		s.modelsErr = err
 		if err == nil {
-			s.modelOptions = flattenModelCatalog(cat)
-			s.modelState.Default = cloneModelSelection(cat.Default)
-			s.modelState.CatalogReady = true
+			options := flattenModelCatalog(cat)
+			selection := cloneModelSelection(cat.Default)
 			var failures []string
 			for _, f := range cat.Failures {
 				failures = append(failures, f.Name+": "+f.Message)
 			}
-			s.modelState.CatalogWarning = strings.Join(failures, "; ")
+			warning := strings.Join(failures, "; ")
+			changed = changed || !s.modelState.CatalogReady || !reflect.DeepEqual(s.modelOptions, options) || !reflect.DeepEqual(s.modelState.Default, selection) || s.modelState.CatalogWarning != warning
+			s.modelOptions, s.modelState.Default = options, selection
+			s.modelState.CatalogReady = true
+			s.modelState.CatalogWarning = warning
+		}
+		if changed {
+			s.invalidateViewLocked()
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -385,6 +399,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 	startSeq := s.modelState.Projection.Seq
 	s.modelState.Pending = true
 	s.modelsErr = nil
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -418,6 +433,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 			return
 		}
 		s.modelState.Pending = false
+		s.invalidateViewLocked()
 		if !valid || ctx.Err() != nil || (owner != nil && !s.nativeCommandCurrentLocked(*owner, "model")) {
 			s.mu.Unlock()
 			s.fire()

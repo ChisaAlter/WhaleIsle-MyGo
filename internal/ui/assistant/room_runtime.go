@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -31,10 +32,12 @@ func roomRuntimeBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted, field, border, accent ui.Color) {
 	s := m.State
 	blocked = blocked || s.Busy
-	ui.Column(c.Key("native-room-runtime")).Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupMemberRuntime)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadsCompleteMemberStatesErrorsAndPend)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime)).Disabled(blocked).Clicked() {
+	card := ui.Column(c.Key("native-room-runtime")).Border(.5, border).Radius(12).Padding(12, 16).Gap(8)
+	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+	card.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupMemberRuntime)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadsCompleteMemberStatesErrorsAndPend)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != "" {
@@ -64,9 +67,11 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 			if status == "" {
 				status = i18n.T(i18n.KeyMiscAssistantUnknown)
 			}
-			ui.Column(c.Key(fmt.Sprintf("room-runtime-member-%d", i))).Background(field).Border(1, border).Radius(6).Padding(10).Gap(6).Children(func() {
-				ui.Text(c, label+" · Bot "+member.BotID).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
-				ui.Text(c, fmt.Sprintf("Room session: %s\nMember session: %s\nHost status: %s", member.RoomSessionID, member.SessionID, status)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+			memCard := ui.Column(c.Key(fmt.Sprintf("room-runtime-member-%d", i))).Border(.5, border).Radius(12).Padding(10, 12).Gap(6)
+			chrome.GlassSurface(memCard, field, chrome.MaterialPanel, 12)
+			memCard.Children(func() {
+				ui.Text(c, label+" · Bot "+member.BotID).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+				ui.Text(c, fmt.Sprintf("Room session: %s\nMember session: %s\nHost status: %s", member.RoomSessionID, member.SessionID, status)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				if pluginrpc.DshbotRoomRuntimeAttention(member) {
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantNeedsAttention)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				}
@@ -83,7 +88,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 					ui.Text(c, member.OpenError).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
 				}
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningSwitchesToTheVerifiedExistingMe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.OnOpen != nil && ui.Button(c, roomRuntimeOpenLabel()).Disabled(blocked || !s.Loaded || member.OpenError != "" || member.SessionID == "").Clicked() {
+				if m.OnOpen != nil && ui.Button(c, roomRuntimeOpenLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || member.OpenError != "" || member.SessionID == "").Clicked() {
 					m.OnOpen(member.SessionID)
 				}
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantCompleteMemberRecord)+pluginrpc.DshbotRoomRuntimeJSON(member.Raw)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()

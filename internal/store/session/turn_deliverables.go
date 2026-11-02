@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -78,9 +79,42 @@ func validTurnCoordinate(n *float64) bool {
 	return n != nil && *n >= 1 && *n <= 9007199254740991 && math.Trunc(*n) == *n
 }
 func readTurnDeliveryEvent(raw json.RawMessage) (turnDeliveryEvent, bool) {
+	if len(raw) == 0 {
+		return turnDeliveryEvent{}, false
+	}
+	if typ, ok := peekEventType(raw); ok {
+		switch typ {
+		case "turn/end", "workspace/changes", "deliverables/presented", "assistant/message":
+		default:
+			return turnDeliveryEvent{}, false
+		}
+	} else if !bytes.Contains(raw, []byte("turn/end")) && !bytes.Contains(raw, []byte("workspace/changes")) && !bytes.Contains(raw, []byte("deliverables/presented")) && !bytes.Contains(raw, []byte("assistant/message")) && !bytes.Contains(raw, []byte(`\u`)) {
+		return turnDeliveryEvent{}, false
+	}
 	var e turnDeliveryEvent
 	ok := json.Unmarshal(raw, &e) == nil && validTurnCoordinate(e.Seq) && validTurnCoordinate(e.Data.Turn)
 	return e, ok
+}
+
+func hasTurnDeliveryCandidates(messages []Message) bool {
+	for _, m := range messages {
+		if len(m.Raw) == 0 {
+			continue
+		}
+		if m.EventType == "workspace/changes" || m.EventType == "deliverables/presented" {
+			return true
+		}
+		if typ, ok := peekEventType(m.Raw); ok {
+			if typ == "workspace/changes" || typ == "deliverables/presented" {
+				return true
+			}
+			continue
+		}
+		if bytes.Contains(m.Raw, []byte("workspace/changes")) || bytes.Contains(m.Raw, []byte("deliverables/presented")) || bytes.Contains(m.Raw, []byte(`\u`)) {
+			return true
+		}
+	}
+	return false
 }
 func presentedFromEvent(e turnDeliveryEvent) []TurnPresentedFile {
 	if e.Type != "deliverables/presented" || e.Data.CallID == "" || e.Data.Files == nil {
@@ -110,24 +144,62 @@ func presentedFromEvent(e turnDeliveryEvent) []TurnPresentedFile {
 	return out
 }
 
+// turnDeliveryRecord is one message's decoded delivery coordinate. Both
+// builders below read it once so a frame does not decode every raw twice.
+type turnDeliveryRecord struct {
+	event       turnDeliveryEvent
+	ok          bool
+	streaming   bool
+	bodyPresent bool
+}
+
+func readTurnDeliveryRecords(messages []Message) []turnDeliveryRecord {
+	records := make([]turnDeliveryRecord, len(messages))
+	for i, m := range messages {
+		e, ok := readTurnDeliveryEvent(m.Raw)
+		records[i] = turnDeliveryRecord{event: e, ok: ok, streaming: m.Streaming, bodyPresent: strings.TrimSpace(m.Body) != ""}
+	}
+	return records
+}
+
 // TurnDeliveries derives only durable, explicitly owned facts. The turn/end
 // anchor also supports turns with no closing prose; live/incomplete turns have
 // no delivery actions. Same-path deliveries keep the latest original index.
+//
+// The events are decoded once and grouped by turn: rescanning every message for
+// every turn decoded each raw once per turn (quadratic), which showed up as the
+// second largest cost of a frame in tmp/stalls.
 func TurnDeliveries(messages []Message) map[uint64]TurnDelivery {
+	if !hasTurnDeliveryCandidates(messages) {
+		return map[uint64]TurnDelivery{}
+	}
+	return turnDeliveriesFromRecords(readTurnDeliveryRecords(messages))
+}
+
+func turnDeliveriesFromRecords(records []turnDeliveryRecord) map[uint64]TurnDelivery {
 	closing := map[uint64]uint64{}
-	for _, m := range messages {
-		if e, ok := readTurnDeliveryEvent(m.Raw); ok && e.Type == "turn/end" && !m.Streaming {
-			closing[uint64(*e.Data.Turn)] = uint64(*e.Seq)
+	byTurn := make(map[uint64][]turnDeliveryRecord)
+	for _, r := range records {
+		if !r.ok {
+			continue
 		}
+		e := r.event
+		turn := uint64(*e.Data.Turn)
+		if e.Type == "turn/end" && !r.streaming {
+			closing[turn] = uint64(*e.Seq)
+		}
+		byTurn[turn] = append(byTurn[turn], r)
 	}
 	out := map[uint64]TurnDelivery{}
 	for turn, end := range closing {
+		events := byTurn[turn]
 		// The original tail filters presented declarations at its last text
 		// assistant's sequence, falling back to turn/end without closing prose.
 		presentedBefore := end
 		var lastReply uint64
-		for _, m := range messages {
-			if e, ok := readTurnDeliveryEvent(m.Raw); ok && e.Type == "assistant/message" && !m.Streaming && strings.TrimSpace(m.Body) != "" && uint64(*e.Data.Turn) == turn && uint64(*e.Seq) < end && uint64(*e.Seq) > lastReply {
+		for _, item := range events {
+			e := item.event
+			if e.Type == "assistant/message" && !item.streaming && item.bodyPresent && uint64(*e.Seq) < end && uint64(*e.Seq) > lastReply {
 				lastReply = uint64(*e.Seq)
 			}
 		}
@@ -138,9 +210,9 @@ func TurnDeliveries(messages []Message) map[uint64]TurnDelivery {
 		positions := map[string]int{}
 		// Follow history is ordered; compare sequences as well so late replay
 		// cannot replace a newer path or change announcement.
-		for _, m := range messages {
-			e, ok := readTurnDeliveryEvent(m.Raw)
-			if !ok || m.Streaming || uint64(*e.Data.Turn) != turn || uint64(*e.Seq) >= end {
+		for _, item := range events {
+			e := item.event
+			if item.streaming || uint64(*e.Seq) >= end {
 				continue
 			}
 			if e.Type == "workspace/changes" && (d.Changes == nil || uint64(*e.Seq) > d.Changes.Seq) {
@@ -166,18 +238,24 @@ func TurnDeliveries(messages []Message) map[uint64]TurnDelivery {
 	}
 	return out
 }
+
 func ProjectTurnDeliveryMessages(messages []Message) []Message {
-	deliveries := TurnDeliveries(messages)
+	if !hasTurnDeliveryCandidates(messages) {
+		return append([]Message(nil), messages...)
+	}
+	records := readTurnDeliveryRecords(messages)
+	deliveries := turnDeliveriesFromRecords(records)
 	out := make([]Message, 0, len(messages))
-	for _, m := range messages {
-		e, ok := readTurnDeliveryEvent(m.Raw)
-		if ok && (e.Type == "workspace/changes" || e.Type == "deliverables/presented") {
+	for i, m := range messages {
+		r := records[i]
+		if r.ok && (r.event.Type == "workspace/changes" || r.event.Type == "deliverables/presented") {
 			continue
 		}
 		out = append(out, m)
-		if !ok || e.Type != "turn/end" {
+		if !r.ok || r.event.Type != "turn/end" {
 			continue
 		}
+		e := r.event
 		if d, exists := deliveries[uint64(*e.Data.Turn)]; exists {
 			copy := d
 			out = append(out, Message{ID: fmt.Sprintf("turn-delivery:%d:%g", d.Turn, *e.Seq), Kind: MessageKindTurnDelivery, Role: "assistant", Seq: *e.Seq, TurnDelivery: &copy})
@@ -277,6 +355,7 @@ func (s *Store) turnFilesScopeLocked() TurnFileScope {
 	return TurnFileScope{Binding: binding, SessionID: s.selectedID, Generation: s.followGeneration}
 }
 func (s *Store) resetTurnFilesLocked() {
+	s.invalidateViewLocked()
 	for _, cancel := range s.turnFiles.pending {
 		cancel()
 	}

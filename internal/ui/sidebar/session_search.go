@@ -10,6 +10,30 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// sessionSearchState belongs to the retained sidebar root, so opening a result
+// can collapse the input and reveal the same ordinary row after search unmounts.
+// Backspacing the query to empty does not change Expanded.
+type sessionSearchState struct {
+	Expanded     bool
+	Focus        bool
+	Reveal       string
+	RevealSerial uint64
+}
+
+// Workspace rendering retains the raised watermark before building this row.
+// Consume the one-shot reveal after scrolling, so a later fold can reset it.
+func revealSessionSearchRow(row ui.Element, m Model, id string) {
+	if m.searchState == nil || m.searchState.Reveal != id {
+		return
+	}
+	shown := ui.Local(row, "search-reveal", func() uint64 { return 0 })
+	if *shown != m.searchState.RevealSerial {
+		row.ScrollIntoView()
+		*shown = m.searchState.RevealSerial
+		m.searchState.Reveal = ""
+	}
+}
+
 type sessionSearchRow struct {
 	Archived           bool
 	Item               session.Item
@@ -19,7 +43,7 @@ type sessionSearchRow struct {
 // deriveSessionSearchResults is a flat, bounded projection. Ordinary browsing
 // order, pin order and parent/child expansion must not reorder content matches.
 func deriveSessionSearchResults(snap session.ViewState, query string, filters ...string) ([]sessionSearchRow, bool) {
-	query = strings.TrimSpace(query)
+	query = session.NormalizeSessionSearchQuery(query)
 	if query == "" || !snap.WorkspaceReady {
 		return nil, false
 	}
@@ -102,73 +126,132 @@ func deriveSessionSearchResults(snap session.ViewState, query string, filters ..
 // A nonempty query owns a flat results surface; ordinary tree/archive controls
 // resume after clearing or opening a result. Existing selection handles drafts.
 func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
-	if m.SearchQuery == nil || strings.TrimSpace(*m.SearchQuery) == "" {
+	if m.SearchQuery == nil || session.NormalizeSessionSearchQuery(*m.SearchQuery) == "" {
 		return false
 	}
-	searchArchiveControls(c, m)
+	if m.searchState != nil {
+		m.searchState.Reveal = ""
+	}
+	workspaceRowsStatus(c, m, fg)
 	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
 	if m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	if m.Snapshot.SearchErr != "" {
-		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
 		ui.Text(c, workspaceText("没有匹配的会话", "No matching sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	for _, result := range rows {
 		row := result
-		if batchRow(c, m, row.Item.SessionID, row.Item.Title, fg) {
-			continue
-		}
-		background := ui.Transparent
-		if row.Item.SessionID == m.Snapshot.SelectedID {
-			background = selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark))
-		}
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		batch := m.Batch.Enabled
+		locked := batch && (m.Batch.Busy || m.Batch.Confirming || m.OnBatchEdit == nil)
+		checkboxChanged := false
 		button := ui.Button(c.Key(struct {
 			Host uint64
 			ID   string
-		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).Tooltip(statusLabel(sessionStatus(m, row.Item))).Disabled(row.Archived).FillWidth().BorderWidth(0).Background(background).Padding(6, 8, 6, 8)
+		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).FillWidth().MinHeight(48).BorderWidth(0).Radius(12).Background(ui.Transparent).Padding(4, 8)
+		selected := row.Item.SessionID == m.Snapshot.SelectedID
+		if batch {
+			button.Label("Select session " + row.Item.SessionID).Disabled(locked || row.Item.Blank)
+			_, selected = m.Batch.Selected[row.Item.SessionID]
+		}
+		menuOpen := button.MenuOpen()
+		if selected || button.Hovered() || button.FocusWithin() || menuOpen {
+			button.Background(selectedBackground(colors))
+		}
+		if !batch && !menuOpen {
+			button.Tooltip(statusLabel(sessionStatus(m, row.Item)))
+		}
+		menu := func(menu *ui.Menu) {
+			menu.CloseOnPointerLeave(true)
+			if m.OnUnarchive != nil && menu.Item(i18n.T(i18n.KeySidebarUnarchive)).Icon(menuUnarchiveArtwork).Chosen() {
+				m.OnUnarchive(row.Item.SessionID)
+			}
+			// The existing callback opens the confirmation, never the delete RPC.
+			if m.OnDelete != nil && menu.Item(i18n.T(i18n.KeySidebarDelete)).Icon(menuTrashArtwork).Danger(true).Chosen() {
+				m.OnDelete(row.Item.SessionID)
+			}
+		}
+		if row.Archived && !batch {
+			button.ContextMenu(menu)
+		}
 		button.Children(func() {
-			ui.Column(c).FillWidth().Gap(2).Children(func() {
-				title := strings.TrimSpace(row.Item.Title)
-				if title == "" {
-					title = workspaceText("未命名会话", "Untitled session")
-				}
-				if row.Archived {
-					title = workspaceText("已归档 · ", "Archived · ") + title
-				}
-				title = statusPrefix(sessionStatus(m, row.Item)) + title
-				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-				label := row.Workspace
-				if label == "" {
-					label = workspaceText("无目录会话", "No workspace folder")
-				}
-				ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				if row.Snippet != "" {
-					ui.Text(c, row.Snippet).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				}
+			ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Height(20).AlignItems(ui.Center).Children(func() {
+					status := sessionStatus(m, row.Item)
+					if row.Archived {
+						status = ""
+					}
+					if batch {
+						ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+							check := ui.Checkbox(c.Key("batch-search-checkbox-"+row.Item.SessionID), &selected, "").Label("Select search checkbox "+row.Item.SessionID).Size(16, 16).Gap(0).Disabled(locked || row.Item.Blank)
+							checkboxChanged = check.Changed()
+						})
+					} else {
+						sessionStatusSlot(c, status, muted)
+					}
+					title := strings.TrimSpace(row.Item.Title)
+					if title == "" {
+						title = workspaceText("未命名会话", "Untitled session")
+					}
+					ink := fg
+					if row.Archived {
+						ink = muted
+					}
+					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, 4).SingleLine()
+					if row.Archived && !batch {
+						more := ui.Button(c.Key("search-result-menu-"+row.Item.SessionID), "").Label(sessionActionsLabel(row.Item.SessionID)).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
+						if !menuOpen {
+							more.Tooltip(workspaceText("会话操作", "Session actions"))
+						}
+						more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+						showActions := button.Hovered() || button.FocusWithin() || button.MenuOpen()
+						if !showActions && !more.Focused() {
+							more.Absolute().Right(8).Opacity(0)
+						}
+					}
+				})
+				// The 20px status inset belongs outside the flex context: percentage
+				// limits must resolve against the remaining metadata width.
+				ui.Box(c).FillWidth().MinWidth(0).Height(17).Padding(0, 0, 0, 20).Children(func() {
+					ui.Row(c).Label("Search result context " + row.Item.SessionID).FillWidth().MinWidth(0).Height(17).Gap(6).AlignItems(ui.Center).Children(func() {
+						label := row.Workspace
+						if label == "" {
+							label = workspaceText("无目录会话", "No workspace folder")
+						}
+						workspace := ui.Text(c, label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(muted).SingleLine().MinWidth(0).MaxWidthPercent(100)
+						if row.Snippet != "" {
+							workspace.MaxWidthPercent(40)
+							ui.Text(c, row.Snippet).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(muted).SingleLine().Grow(1).MinWidth(0)
+						}
+					})
+				})
 			})
 		})
-		if button.Clicked() && !row.Archived && m.OnSelect != nil {
+		clicked := button.Clicked()
+		if batch {
+			if !locked && !row.Item.Blank && (checkboxChanged || clicked) {
+				m.OnBatchEdit("select", []session.SessionBatchTarget{{ID: row.Item.SessionID, Title: row.Item.Title}})
+			}
+		} else if clicked && !row.Archived && m.OnSelect != nil {
 			revealSessionSearchResult(m, row.Item.SessionID)
 			*m.SearchQuery = ""
+			if m.searchState != nil {
+				m.searchState.Expanded, m.searchState.Focus = false, false
+				m.searchState.Reveal = row.Item.SessionID
+				m.searchState.RevealSerial++
+			}
+			if m.SearchFocus != nil {
+				*m.SearchFocus = false
+			}
 			m.OnSelect(row.Item.SessionID)
-		}
-		if row.Archived {
-			ui.Row(c.Key("search-archive-actions-" + row.Item.SessionID)).Gap(6).Children(func() {
-				if m.OnUnarchive != nil && ui.Button(c, i18n.T(i18n.KeySidebarUnarchive)).Label("Restore search result "+row.Item.SessionID).Clicked() {
-					m.OnUnarchive(row.Item.SessionID)
-				}
-				// Reuse the frame's existing confirmation callback; never call delete RPC here.
-				if m.OnDelete != nil && ui.Button(c, i18n.T(i18n.KeySidebarDelete)).Label("Delete search result "+row.Item.SessionID).Clicked() {
-					m.OnDelete(row.Item.SessionID)
-				}
-			})
 		}
 	}
 	if more {
-		ui.Text(c, workspaceText("还有更多匹配，请缩小搜索范围。", "More matches exist. Refine your search.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, workspaceText("还有更多匹配，请缩小搜索范围。", "More matches exist. Refine your search.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	return true
 }
@@ -203,20 +286,14 @@ func revealSessionSearchResult(m Model, id string) {
 		key = parents[key]
 	}
 	for i := len(chain) - 1; i >= 0; i-- {
-		if m.Snapshot.WorkspaceLayout.Collapsed[chain[i]] {
+		if session.WorkspaceGroupCollapsed(m.Snapshot, chain[i]) {
 			m.OnToggleWorkspaceGroup(chain[i])
 		}
 	}
 }
 
 func searchArchiveFilter(m Model) string {
-	if m.SearchArchivedFilter != nil {
-		switch *m.SearchArchivedFilter {
-		case "show", "only":
-			return *m.SearchArchivedFilter
-		}
-	}
-	return "default"
+	return sharedArchiveFilter(m)
 }
 func searchArchiveVisible(archived bool, filter string) bool {
 	switch filter {
@@ -227,20 +304,4 @@ func searchArchiveVisible(archived bool, filter string) bool {
 	default:
 		return !archived
 	}
-}
-func searchArchiveControls(c *ui.Context, m Model) {
-	if m.SearchArchivedFilter == nil {
-		return
-	}
-	ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
-		for _, choice := range []struct{ value, zh, en string }{
-			{"default", "隐藏归档结果", "Hide archived results"},
-			{"show", "显示归档结果", "Show archived results"},
-			{"only", "仅归档结果", "Only archived results"},
-		} {
-			if ui.Button(c, workspaceText(choice.zh, choice.en)).Disabled(searchArchiveFilter(m) == choice.value).FontSize(theme.InterfaceSize(11)).Clicked() {
-				*m.SearchArchivedFilter = choice.value
-			}
-		}
-	})
 }

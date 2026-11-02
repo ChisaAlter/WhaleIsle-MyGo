@@ -16,8 +16,12 @@ import (
 var ErrConflict = errors.New("config: configuration changed on disk since it was read")
 
 // commitMu serializes the final compare-and-replace step across every Store in
-// this process. It does not coordinate with other processes (for example the
-// Electron shell), which remain a separate, unverified gate.
+// this process. Cross-process coordination is layered on top by the advisory
+// commitLock in commit_lock.go: a cooperating writer in another process (or a
+// second Store here) takes the same .config.lock before writing, so its commit
+// cannot interleave with this store's last baseline check and rename. A writer
+// that never opens the lockfile is not blocked, which is why the byte-level
+// baseline still runs under the lock to reject its edit as ErrConflict.
 var commitMu sync.Mutex
 
 // fileBaseline is the exact on-disk state a Store last observed. It is

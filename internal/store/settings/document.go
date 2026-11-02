@@ -8,8 +8,9 @@ import (
 	"whaleisle/internal/dsh"
 )
 
-// OpenSettingsDocument calls settings/openSettingsDocument (Electron settings shell open),
-// then refreshes settings/describe. Best-effort when harness lacks the method.
+// OpenSettingsDocument opens the Host configuration document in an external editor,
+// then refreshes settings/describe. Use RefreshDescribe to load an in-app settings
+// panel without launching an editor.
 func (s *Store) OpenSettingsDocument(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client

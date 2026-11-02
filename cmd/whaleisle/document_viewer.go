@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/files"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) openDocumentViewer(client *dsh.Client, sessionID, path string) (files.DocumentSurface, error) {
@@ -15,8 +16,8 @@ func (s *mainState) openDocumentViewer(client *dsh.Client, sessionID, path strin
 	s.mu.Lock()
 	win, status, sessions := s.win, s.bootStatus, s.sessions
 	s.mu.Unlock()
-	if client == nil || client != current || win == nil || status.State != harness.Ready || sessions == nil || sessions.Snapshot().SelectedID != sessionID || client.Endpoint.Origin != status.Endpoint.Origin || client.Endpoint.Cookie != status.Endpoint.Cookie {
-		return nil, errors.New("document viewer Host or Session changed")
+	if client == nil || client != current || win == nil || status.State != harness.Ready || sessions == nil || sessions.SelectedSessionID() != sessionID || client.Endpoint.Origin != status.Endpoint.Origin || client.Endpoint.Cookie != status.Endpoint.Cookie {
+		return nil, errors.New(i18n.T(i18n.KeyCmdDocumentViewerOwnerChanged))
 	}
 	target, err := desktopwebview.DocumentURL(client.Endpoint.Origin, sessionID, path)
 	if err != nil {

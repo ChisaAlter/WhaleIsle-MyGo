@@ -94,7 +94,7 @@ func (m *Mux) Dial(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("dsh mux: dial: %w", err)
 	}
-	conn.SetReadLimit(8 << 20)
+	conn.SetReadLimit(128 << 20)
 	m.conn = conn
 	m.streams = make(map[string]*logicalStream)
 	m.done = make(chan struct{})
@@ -160,7 +160,7 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 		return nil, fmt.Errorf("dsh mux: not connected")
 	}
 	id := newID()
-	ls := &logicalStream{inbox: make(chan ServerFrame, 64)}
+	ls := &logicalStream{inbox: make(chan ServerFrame, 4096)}
 	m.streams[id] = ls
 	conn := m.conn
 	done := m.done
@@ -313,6 +313,11 @@ func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}) {
 	for {
 		var frame ServerFrame
 		err := wsjson.Read(context.Background(), conn, &frame)
+		if err != nil {
+			m.carrierLost(conn, done, err)
+			_ = conn.CloseNow()
+			return
+		}
 		if err != nil {
 			m.carrierLost(conn, done, err)
 			return

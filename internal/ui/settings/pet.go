@@ -54,13 +54,13 @@ type PetSettingsAccess struct {
 	DesktopUnavailable bool
 	// DesktopError is the Companion's last window/asset error, shown instead of
 	// silently doing nothing when the toggle is on.
-	DesktopError string
-	Busy         bool
-	Err                string
-	OnSetAssistant     func(bool)
-	RenderAssistant    func(*ui.Context)
-	Store              *settingsstore.Store
-	OnSave             func()
+	DesktopError    string
+	Busy            bool
+	Err             string
+	OnSetAssistant  func(bool)
+	RenderAssistant func(*ui.Context)
+	Store           *settingsstore.Store
+	OnSave          func()
 
 	// Whale is the dsh-whale catalog snapshot the Whale page edits. It and
 	// every callback stay nil until the Host answers, so the page keeps its
@@ -89,8 +89,8 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		return 1
 	})
 	anchor.Children(func() {
-		bodyHeading(c, providerCopy("鲸鱼娘", "Whale"), providerCopy("你的常驻助理与桌面伙伴。", "Your resident assistant and desktop companion."), fg, muted)
-		if _, picked := settingsSegmented(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat & capabilities"), providerCopy("桌面形象与行为", "Desktop appearance & behavior")}, *tab, false); picked >= 0 {
+		petHeader(c, fg, muted)
+		if picked := petTabs(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat & capabilities"), providerCopy("桌面形象与行为", "Desktop appearance & behavior")}, *tab, fg); picked >= 0 {
 			*tab = picked
 		}
 		if p.Error != "" && *tab == 1 {
@@ -102,9 +102,17 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		}
 		if *tab == 0 {
 			if a != nil && a.AssistantAvailable {
-				bodyHeading(c, providerCopy("助理", "Assistant"), "", fg, muted)
+				petGroupLabel(c, providerCopy("助理", "Assistant"))
 				enabled := a.AssistantEnabled
-				bodyLocalToggle(c, "pet-assistant", providerCopy("鲸鱼娘助理", "Whale assistant"), providerCopy("常驻对话与侧栏入口；切换后重启 Harness。", "Resident conversation and sidebar entry. Changing this restarts Harness."), &enabled, a.Busy || a.OnSetAssistant == nil, fg, muted, a.OnSetAssistant)
+				featureToggleRow(c, featureRow{
+					key:      "pet-assistant",
+					title:    providerCopy("鲸鱼娘助理", "Whale assistant"),
+					desc:     providerCopy("开启她的常驻对话与侧栏入口；切换后会重启 Harness。", "Turn on her resident conversation and sidebar entry; switching restarts the Harness."),
+					value:    &enabled,
+					disabled: a.Busy || a.OnSetAssistant == nil,
+					changed:  a.OnSetAssistant,
+					compact:  true,
+				}, fg, muted)
 				// The dsh-whale catalog drives the rest of the page; the legacy
 				// assistant form is no longer rendered here.
 				petWhaleSection(c, colors, a, fg, muted)

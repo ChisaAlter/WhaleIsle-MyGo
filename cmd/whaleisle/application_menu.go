@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"runtime"
 	"strings"
 
@@ -66,11 +65,12 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 	prefs := s.pageShortcutPreferences()
 	// "ready" is the accepted configuration revision; before it the menu shows
 	// the shipped defaults instead of blank keycaps.
-	hasRevision := prefs.Get().Status == "ready"
-	bindings := shortcuts.Resolve(s.pageShortcutBindings())
-	encoded, _ := json.Marshal(bindings)
-	revision := prefs.Get().Revision
-	signature := string(encoded) + resumeText("zh", "en") + revision
+	snapshot := prefs.Accepted()
+	hasRevision := snapshot.Status == "ready"
+	bindings := s.pageShortcutChords()
+	encoded := s.pageShortcutEncoded()
+	revision := snapshot.Revision
+	signature := encoded + resumeText("zh", "en") + revision
 	if hasRevision {
 		signature += "|ready"
 	}
@@ -102,7 +102,7 @@ func (s *mainState) processApplicationMenu(c *ui.Context) {
 	if state == nil {
 		return
 	}
-	revision := s.pageShortcutPreferences().Get().Revision
+	revision := s.pageShortcutPreferences().Accepted().Revision
 	pending := state.pending
 	state.pending = nil
 	actions := s.applicationMenuActions(c)

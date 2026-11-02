@@ -37,6 +37,7 @@ type DraftState struct {
 	VoiceStarted       time.Time // recording clock, reset when the phase leaves recording
 	VoiceTick          time.Time // last tick that scheduled a clock repaint
 	stashedText        string
+	stashedReferences  []draftReference
 	stashedAttachments []session.ComposerAttachment
 }
 
@@ -50,17 +51,26 @@ func NewDraftState(text string) *DraftState {
 // deliberately excluded, since a restarted Host needs a fresh upload.
 func (d *DraftState) SaveDraft() json.RawMessage {
 	if d.EditSeq > 0 {
-		return (&DraftState{Text: d.stashedText, Attachments: d.stashedAttachments}).SaveDraft()
+		stashed := NewDraftState(d.stashedText)
+		stashed.Attachments = d.stashedAttachments
+		stashed.Client.references = append([]draftReference(nil), d.stashedReferences...)
+		return stashed.SaveDraft()
 	}
 	type file struct {
 		Path string
 		Name string
 	}
+	var references []draftReference
+	if d.Client != nil && d.Client.Draft == &d.Text {
+		d.Client.Sync()
+		references = append([]draftReference{}, d.Client.references...)
+	}
 	value := struct {
-		Text  string
-		Files []file
-		Sends []savedComposerSend
-	}{Text: d.Text, Sends: d.recoverySends()}
+		Text       string
+		Files      []file
+		Sends      []savedComposerSend
+		References []draftReference
+	}{Text: d.Text, Sends: d.recoverySends(), References: references}
 	for _, a := range d.Attachments {
 		value.Files = append(value.Files, file{a.Path, a.Name})
 	}
@@ -80,9 +90,10 @@ func RestoreDraft(raw json.RawMessage) *DraftState {
 // of accidentally replacing it with an empty draft on the next save.
 func RestoreDraftChecked(raw json.RawMessage) (*DraftState, error) {
 	var value struct {
-		Text  *string
-		Sends []savedComposerSend
-		Files []struct {
+		Text       *string
+		Sends      []savedComposerSend
+		References *[]draftReference
+		Files      []struct {
 			Path string
 			Name string
 		}
@@ -94,6 +105,14 @@ func RestoreDraftChecked(raw json.RawMessage) (*DraftState, error) {
 		return nil, errors.New("saved draft is missing Text")
 	}
 	d := NewDraftState(*value.Text)
+	if value.References != nil {
+		references, err := checkedDraftReferences(d.Text, *value.References)
+		if err != nil {
+			return nil, err
+		}
+		d.Client.references = references
+		d.Client.shape()
+	}
 	for _, a := range value.Files {
 		if strings.TrimSpace(a.Path) == "" {
 			return nil, errors.New("saved attachment is missing its path")

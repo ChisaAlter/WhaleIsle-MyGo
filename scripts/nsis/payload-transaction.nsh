@@ -18,6 +18,7 @@ Var wiRecoveryStopped
 Var wiRoot
 Var wiRootFS
 Var wiError
+Var wiLastError
 Var wiManifestHandle
 Var wiRetired
 Var wiInstallID
@@ -35,10 +36,12 @@ Var wiOldDisplay
 Var wiOldVersion
 Var wiOldPublisher
 Var wiOldNative
+Var wiOldNotificationTarget
 Var wiOldProductLocation
 Var wiRegistryTouched
 Var wiHadDesktopLink
 Var wiHadMenuLink
+!include "runtime-links.nsh"
 
 !macro WI_CheckExtract
   ${If} ${Errors}
@@ -85,7 +88,15 @@ Function ${Prefix}wiCheckRoot
     StrCpy $wiError 1
     Goto wi_root_done
   ${EndIf}
-  GetFullPathName $wiRoot "$wiRoot"
+  ; GetFullPathName requires an existing leaf in some NSIS builds. The Win32
+  ; lexical normalizer also handles a fresh, absent installation directory.
+  System::Call 'kernel32::GetFullPathNameW(w "$wiRoot", i ${NSIS_MAX_STRLEN}, w .r10, p 0) i.r11'
+  ${If} $R1 == 0
+  ${OrIf} $R1 >= ${NSIS_MAX_STRLEN}
+    StrCpy $wiError 1
+    Goto wi_root_done
+  ${EndIf}
+  StrCpy $wiRoot $R0
   ; Normalize a trailing separator before deriving sibling transaction paths.
   wi_root_trim:
     StrLen $R0 $wiRoot
@@ -128,19 +139,33 @@ Function ${Prefix}wiCheckRoot
   ${EndIf}
   StrCpy $R0 $wiRoot
   wi_root_next:
+    StrLen $R2 $R0
+    ${If} $R2 == 2
+      StrCpy $R1 $R0 1 1
+      ${If} $R1 == ":"
+        StrCpy $R0 "$R0\"
+      ${EndIf}
+    ${EndIf}
     !insertmacro WI_LongPath "$R0" $R1 $R2
-    System::Call 'kernel32::GetFileAttributesW(w "$R1") i.r11'
+    System::Call 'kernel32::GetFileAttributesW(w "$R1") i.r11 ?e'
+    Pop $R2
     ${If} $R1 != -1
       IntOp $R1 $R1 & 0x410
-      ${If} $R1 != 0x10
+      ${If} $R1 != 16
         StrCpy $wiError 1
         Goto wi_root_done
       ${EndIf}
     ${Else}
-      System::Call 'kernel32::GetLastError() i.r11'
-      ${If} $R1 != 2
-      ${AndIf} $R1 != 3
+      ${If} $R2 != 2
+      ${AndIf} $R2 != 3
         StrCpy $wiError 1
+        Goto wi_root_done
+      ${EndIf}
+    ${EndIf}
+    StrLen $R2 $R0
+    ${If} $R2 == 3
+      StrCpy $R1 $R0 2 1
+      ${If} $R1 == ":\"
         Goto wi_root_done
       ${EndIf}
     ${EndIf}
@@ -255,16 +280,16 @@ Function ${Prefix}wiOwnedPath
         ${EndIf}
       ${EndIf}
       StrCpy $R4 "$R4\$R2"
-      System::Call 'kernel32::GetFileAttributesW(w "$R4") i.r12'
+      System::Call 'kernel32::GetFileAttributesW(w "$R4") i.r12 ?e'
+      Pop $wiLastError
       ${If} $R2 != -1
         IntOp $R2 $R2 & 0x400
         ${If} $R2 != 0
           Goto wi_path_bad
         ${EndIf}
       ${Else}
-        System::Call 'kernel32::GetLastError() i.r12'
-        ${If} $R2 != 2
-        ${AndIf} $R2 != 3
+        ${If} $wiLastError != 2
+        ${AndIf} $wiLastError != 3
           Goto wi_path_bad
         ${EndIf}
       ${EndIf}
@@ -308,7 +333,7 @@ Function ${Prefix}wiCleanOwnedPayload
     Goto wi_clean_bad
   ${EndIf}
   IntOp $R0 $R0 & 0x410
-  ${If} $R0 != 0x10
+  ${If} $R0 != 16
     Goto wi_clean_bad
   ${EndIf}
   System::Call 'kernel32::GetFileAttributesW(w "$wiRootFS\${WI_MANIFEST}") i.r10'
@@ -377,11 +402,11 @@ Function ${Prefix}wiCleanOwnedPayload
     ${If} $R2 == "Uninstall.exe"
       Goto wi_clean_next
     ${EndIf}
-    System::Call 'kernel32::GetFileAttributesW(w "$wiRootFS\$R2") i.r10'
+    System::Call 'kernel32::GetFileAttributesW(w "$wiRootFS\$R2") i.r10 ?e'
+    Pop $wiLastError
     ${If} $R0 == -1
-      System::Call 'kernel32::GetLastError() i.r10'
-      ${If} $R0 == 2
-      ${OrIf} $R0 == 3
+      ${If} $wiLastError == 2
+      ${OrIf} $wiLastError == 3
         Goto wi_clean_next
       ${EndIf}
       Goto wi_clean_close_bad
@@ -389,7 +414,7 @@ Function ${Prefix}wiCleanOwnedPayload
     IntOp $R0 $R0 & 0x10
     ClearErrors
     ${If} $R3 == "D|"
-      ${If} $R0 != 0x10
+      ${If} $R0 != 16
         Goto wi_clean_close_bad
       ${EndIf}
       RMDir "$wiRootFS\$R2"
@@ -483,7 +508,7 @@ Function wiWriteStageManifestTree
         Goto wi_manifest_close
       ${EndIf}
       IntOp $R2 $R2 & 0x10
-      ${If} $R2 == 0x10
+      ${If} $R2 == 16
         Push $R3
         Call wiWriteStageManifestTree
         ${If} $wiError != 0
@@ -544,6 +569,12 @@ Function wiRollback
     Return
   ${EndIf}
   ${If} $wiNewMoved == "1"
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach
+    ${If} $wiError != 0
+      StrCpy $wiRecoveryStopped "1"
+      SetErrorLevel 2
+      Return
+    ${EndIf}
     ClearErrors
     Rename "$wiFinalFS" "$wiStageFS"
     ${If} ${Errors}
@@ -575,6 +606,15 @@ Function wiRollback
       Return
     ${EndIf}
     StrCpy $wiOldMoved ""
+  ${EndIf}
+  ${If} $wiOldLinksDetached == "1"
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore
+    ${If} $wiError != 0
+      StrCpy $wiRecoveryStopped "1"
+      SetErrorLevel 2
+      Return
+    ${EndIf}
+    StrCpy $wiOldLinksDetached ""
   ${EndIf}
   StrCpy $INSTDIR $wiFinal
   ; A failed extraction may have no complete manifest. Preserve that unique
@@ -668,6 +708,8 @@ Function wiBeginStage
   StrCpy $wiFinal $INSTDIR
   StrCpy $wiOldMoved ""
   StrCpy $wiNewMoved ""
+  StrCpy $wiOldLinksDetached ""
+  StrCpy $wiNewLinksRestored ""
   StrCpy $wiCommitted ""
   StrCpy $wiRecoveryStopped ""
   StrCpy $wiRegistryTouched ""
@@ -693,13 +735,13 @@ Function wiBeginStage
   ClearErrors
   FindFirst $0 $1 "$wiFinalFS\*.*"
   ${If} ${Errors}
-    System::Call 'kernel32::GetFileAttributesW(w "$wiFinalFS") i.r10'
+    System::Call 'kernel32::GetFileAttributesW(w "$wiFinalFS") i.r10 ?e'
+    Pop $wiLastError
     ${If} $R0 != -1
       Abort "Cannot inspect the previous installation directory. No existing files were moved or removed."
     ${EndIf}
-    System::Call 'kernel32::GetLastError() i.r10'
-    ${If} $R0 != 2
-    ${AndIf} $R0 != 3
+    ${If} $wiLastError != 2
+    ${AndIf} $wiLastError != 3
       Abort "Cannot inspect the installation path. No existing files were moved or removed."
     ${EndIf}
   ${Else}
@@ -749,6 +791,17 @@ Function wiPromote
   ClearErrors
   System::Call 'kernel32::GetFileAttributesW(w "$wiFinalFS") i.r0'
   ${If} $0 != -1
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" verify
+    ${If} $wiError != 0
+      SetErrorLevel 2
+      Abort "The previous runtime files or dependencies changed. The previous installation was retained."
+    ${EndIf}
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach
+    ${If} $wiError != 0
+      SetErrorLevel 2
+      Abort "The previous runtime dependency graph changed. No installation files were moved or removed."
+    ${EndIf}
+    StrCpy $wiOldLinksDetached "1"
     Rename "$wiFinalFS" "$wiOldFS"
     ${If} ${Errors}
       SetErrorLevel 2
@@ -764,6 +817,12 @@ Function wiPromote
     Abort "Cannot promote the staged application. The previous installation will be restored."
   ${EndIf}
   StrCpy $wiNewMoved "1"
+  !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore
+  ${If} $wiError != 0
+    SetErrorLevel 2
+    Abort "The new runtime dependencies could not be verified or restored. The previous installation will be restored."
+  ${EndIf}
+  StrCpy $wiNewLinksRestored "1"
   StrCpy $INSTDIR $wiFinal
 FunctionEnd
 
@@ -791,6 +850,7 @@ Function wiRememberRegistration
   ReadRegStr $wiOldPublisher HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher"
   ReadRegStr $wiOldNative HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime"
   ReadRegStr $wiOldInstallID HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID"
+  ReadRegStr $wiOldNotificationTarget HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeNotificationTarget"
   StrCpy $wiHadDesktopLink ""
   StrCpy $wiHadMenuLink ""
   ${If} ${FileExists} "$DESKTOP\${PRODUCT_NAME}.lnk"
@@ -820,6 +880,7 @@ Function wiRestoreRegistration
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher" $wiOldPublisher
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime" $wiOldNative
   !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID" $wiOldInstallID
+  !insertmacro WI_RestoreValue "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeNotificationTarget" $wiOldNotificationTarget
   DeleteRegKey /ifempty HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}"
   DeleteRegKey /ifempty HKCU "Software\${APP_ID}"
   ${If} $wiHadDesktopLink == "1"
@@ -944,18 +1005,24 @@ Function un.wiRemovePayload
   ${EndIf}
   StrCpy $wiUninstallID $wiManifestID
   ClearErrors
-  CopyFiles /SILENT "$wiRootFS\Uninstall.exe" "$PLUGINSDIR\retry-uninstall.exe"
-  ${If} ${Errors}
+  System::Call 'kernel32::CopyFileW(w "$wiRootFS\Uninstall.exe", w "$PLUGINSDIR\retry-uninstall.exe", i 0) i.r0'
+  ${If} $0 == 0
     SetErrorLevel 2
     Abort "Cannot preserve the uninstall retry program. No files or registration were removed."
   ${EndIf}
-  CopyFiles /SILENT "$wiRootFS\${WI_MANIFEST}" "$PLUGINSDIR\retry-manifest"
-  ${If} ${Errors}
+  System::Call 'kernel32::CopyFileW(w "$wiRootFS\${WI_MANIFEST}", w "$PLUGINSDIR\retry-manifest", i 0) i.r0'
+  ${If} $0 == 0
     SetErrorLevel 2
     Abort "The application ownership manifest is missing or unreadable. No files or registration were removed."
   ${EndIf}
+  !insertmacro WI_RunUninstallRuntimeLinks "$wiRootFS" detach
+  ${If} $wiError != 0
+    SetErrorLevel 2
+    Abort "The runtime dependency graph changed. No application payload files were removed."
+  ${EndIf}
   System::Call 'ole32::CoCreateGuid(g .r0) i.r1'
   ${If} $1 != 0
+    !insertmacro WI_RunUninstallRuntimeLinks "$wiRootFS" restore
     SetErrorLevel 2
     Abort "Cannot allocate the uninstall transaction. No files or registration were removed."
   ${EndIf}
@@ -964,6 +1031,7 @@ Function un.wiRemovePayload
   !insertmacro WI_LongPath "$wiRetired" $0 $1
   Rename "$wiRootFS" "$0"
   ${If} ${Errors}
+    !insertmacro WI_RunUninstallRuntimeLinks "$wiRootFS" restore
     SetErrorLevel 2
     Abort "Cannot move the application directory. Close the application and retry. Files and registration were kept."
   ${EndIf}

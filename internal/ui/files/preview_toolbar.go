@@ -31,8 +31,18 @@ func desktopFileToolbar(m Model, path string) bool {
 	return true
 }
 
+// previewSupportsLineNavigation reports whether this preview has numbered text
+// lines to jump to. Images, audio/video, PDF and workbook page previews have no
+// line model, so offering "Go to line…" there would be a no-op control.
+func previewSupportsLineNavigation(m Model, path string) bool {
+	return isAsyncTextPath(path) && !imageMode(m, path) && !mediaMode(m, path)
+}
+
 func previewEditable(m Model, path string) bool {
 	kind := workspacefs.ClassifyDoc(path)
+	if tab := selectedTab(m); tab != nil && tab.deliverySource != nil {
+		return false
+	}
 	return m.EditDraft != nil && m.Editing != nil && !textReadBlocked(m) && !previewTruncated(m) &&
 		!imageMode(m, path) && !mediaMode(m, path) && (kind == workspacefs.DocNone || kind == workspacefs.DocHTML) &&
 		(m.PreviewErr == nil || *m.PreviewErr == "") && (selectedTab(m) == nil || !selectedTab(m).readLoading)
@@ -47,7 +57,7 @@ func explicitSaveDisabled(m Model) bool {
 		return true
 	}
 	if tab := selectedTab(m); tab != nil {
-		return tab.Remote || isTablePreviewPath(tab.Path) || tab.readLoading || tab.readResume
+		return tab.deliverySource != nil || tab.Remote || isTablePreviewPath(tab.Path) || tab.readLoading || tab.readResume
 	}
 	return previewTruncated(m) || textReadBlocked(m)
 }
@@ -84,7 +94,7 @@ func previewTool(c *ui.Context, key, caption string, icon *ui.SVG, ink ui.Color)
 }
 
 func previewTextTool(c *ui.Context, caption string) ui.Element {
-	b := ui.Button(c, caption).Height(28).Shrink(0).FontSize(12).Padding(0, 10, 0, 10).
+	b := ui.Button(c, caption).Height(28).Radius(6).Shrink(0).FontSize(12).Padding(0, 10, 0, 10).
 		BorderWidth(0).Background(ui.Transparent)
 	if b.Hovered() {
 		b.Background(c.Theme().SurfaceHover)
@@ -101,6 +111,10 @@ func togglePreviewWrap(m Model) {
 }
 
 func activateFloatingPreview(m Model, path string) {
+	if tab := selectedTab(m); tab != nil && tab.deliverySource != nil && isPreviewImage(path) {
+		setFileStatus(m, label("本地交付图片已在只读预览中打开。", "The local delivered image is open in this read-only preview."))
+		return
+	}
 	kind := workspacefs.ClassifyDoc(path)
 	if mediaMode(m, path) && m.OnOpenMedia != nil {
 		m.OnOpenMedia(path, true)
@@ -124,7 +138,9 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 	row := ui.Row(c).Key(previewToolbarOwnerFor(m, path)).Label("File preview toolbar").Height(height).Shrink(0).
 		FillWidth().MinWidth(0).Gap(gap).AlignItems(ui.Center)
 	if desktop {
-		row.Padding(8, 16, 0, 16)
+		row.Padding(8, 16, 0, 16).DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0)
+		})
 	} else {
 		row.Padding(0, 6, 0, 16).DrawOver(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0)
@@ -133,7 +149,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 	jump := ui.Local(row, "line-navigation", func() bool { return false })
 	row.ContextMenu(func(menu *ui.Menu) {
 		treeFileMenu(m, path)(menu)
-		if menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
+		if previewSupportsLineNavigation(m, path) && menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
 			*jump = true
 		}
 	})
@@ -192,7 +208,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			paintPreviewOpenTarget(c, m, path, muted)
 		}
 	})
-	if *jump {
+	if *jump && previewSupportsLineNavigation(m, path) {
 		paintPreviewLineNavigation(c, m, jump)
 	}
 }
@@ -341,7 +357,7 @@ func paintPreviewLineNavigation(c *ui.Context, m Model, open *bool) {
 		return
 	}
 	ui.Row(c).Height(32).Gap(6).Padding(2, 16, 2, 16).Children(func() {
-		input := ui.TextInput(c.Key("preview-line"), &t.lineDraft).Label("Line number").Width(80).Placeholder(label("行号", "Line"))
+		input := ui.TextInput(c.Key("preview-line"), &t.lineDraft).Label("Line number").Width(80).Height(26).Radius(6).Border(0.5, c.Theme().Border).Placeholder(label("行号", "Line"))
 		focus := ui.Local(input, "focus-once", func() bool { return false })
 		if !*focus {
 			input.Focus()
@@ -440,7 +456,7 @@ func previewContextActions(menu *ui.Menu, m Model, path string) {
 				o.queue.request(o.owner, o.read)
 			}
 		}
-		if m.OpenDocumentViewer != nil {
+		if tab.deliverySource == nil && m.OpenDocumentViewer != nil {
 			menu.Submenu(label("选择预览器", "Choose viewer"), func(sub *ui.Menu) {
 				previewViewerChoices(sub, m, tab)
 			})
@@ -449,6 +465,9 @@ func previewContextActions(menu *ui.Menu, m Model, path string) {
 }
 
 func previewViewerChoices(menu *ui.Menu, m Model, tab *FileTab) {
+	if tab.deliverySource != nil {
+		return
+	}
 	editing := m.Editing != nil && *m.Editing
 	if menu.Item(label("原生预览", "Native preview")).Checked(tab.document.choice == 1).Disabled(editing).Chosen() {
 		tab.document.choice = 1

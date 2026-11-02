@@ -13,13 +13,22 @@
   !define VERSION "0.0.0-dev"
 !endif
 
-!define PRODUCT_NAME "Whale Isle"
-!define APP_ID "ai.deepseek.harness.gui"
+!ifndef PRODUCT_NAME
+  !define PRODUCT_NAME "DeepSeekHarness Go"
+!endif
+!ifndef APP_ID
+  !define APP_ID "ai.deepseek.harness.gui"
+!endif
 !define EXE_NAME "whaleisle.exe"
-!define STAGE_DIR "..\..\dist\whaleisle"
+!ifndef STAGE_DIR
+  !define STAGE_DIR "..\..\dist\whaleisle"
+!endif
+!ifndef SETUP_OUT
+  !define SETUP_OUT "..\..\dist\WhaleIsle-Setup-${VERSION}.exe"
+!endif
 
 Name "${PRODUCT_NAME}"
-OutFile "..\..\dist\WhaleIsle-Setup-${VERSION}.exe"
+OutFile "${SETUP_OUT}"
 InstallDir "$LOCALAPPDATA\Programs\Deepseek-Harness-Desktop"
 InstallDirRegKey HKCU "Software\${APP_ID}" "InstallLocation"
 RequestExecutionLevel user
@@ -62,6 +71,7 @@ BrandingText "${PRODUCT_NAME} ${VERSION}"
 !insertmacro MUI_LANGUAGE "English"
 
 !include "payload-transaction.nsh"
+!include "notification-integration.nsh"
 
 Section "Install"
   Call wiRememberRegistration
@@ -98,8 +108,15 @@ Section "Install"
 !endif
   SetOutPath "$INSTDIR\runtime"
   !insertmacro WI_CheckExtract
+!ifdef RUNTIME_INCLUDE
+  !include "${RUNTIME_INCLUDE}"
+!else
+!if /FileExists "${STAGE_DIR}\runtime\vendor\runtime-graph.json"
+  !error "Closed runtime graph requires the generated RUNTIME_INCLUDE; do not recurse through dependency aliases."
+!endif
   File /r "${STAGE_DIR}\runtime\*.*"
   !insertmacro WI_CheckExtract
+!endif
   SetOutPath "$INSTDIR"
   !insertmacro WI_CheckExtract
 !endif
@@ -167,6 +184,10 @@ Section "Install"
   ; Distinguish this native product from the legacy Electron app sharing APP_ID.
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeInstallID" "$wiInstallID"
   !insertmacro WI_CheckExtract
+  ; Retry cleanup may move the payload. Keep its original notification target
+  ; with the same installation identity instead of deriving it from the retry path.
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeNotificationTarget" "$wiFinal\${EXE_NAME}"
+  !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "NativeRuntime" "WhaleIsle-MyGo"
   !insertmacro WI_CheckExtract
 
@@ -185,6 +206,7 @@ Section "Uninstall"
   Call un.wiRemovePayload
   Call un.wiOwnsRegistration
   ${If} $wiCanManage == 1
+  Call un.wiRemoveOwnedNotifications
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"
   RMDir "$SMPROGRAMS\${PRODUCT_NAME}"
   Delete "$DESKTOP\${PRODUCT_NAME}.lnk"

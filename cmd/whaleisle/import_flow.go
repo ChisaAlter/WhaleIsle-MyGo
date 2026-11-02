@@ -24,13 +24,13 @@ func (s *mainState) startImport(win *mygo.Window) {
 		return
 	}
 	if s.marketWorker != nil || s.marketInstallBusy || s.taskRestartPending || s.quitting {
-		s.launcherImport = "插件操作或运行时切换尚未结束，请稍后再导入。"
+		s.launcherImport = i18n.T(i18n.KeyCmdImportBusy)
 		s.mu.Unlock()
 		refresh()
 		return
 	}
 	if s.launcherImportCatalog == nil {
-		s.launcherImport = "请先扫描导入来源。"
+		s.launcherImport = i18n.T(i18n.KeyCmdImportScanFirst)
 		s.mu.Unlock()
 		refresh()
 		return
@@ -38,7 +38,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 	cat := s.launcherImportCatalog.Snapshot()
 	sel := importer.SelectionFromCatalog(cat, s.launcherImportAttachments && cat.HasAttachments, s.launcherImportOverwrite)
 	if sel.Count() == 0 {
-		s.launcherImport = "未选择任何项，未写入。"
+		s.launcherImport = i18n.T(i18n.KeyCmdImportNothingSelected)
 		s.mu.Unlock()
 		refresh()
 		return
@@ -165,7 +165,7 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 	}
 	s.mu.Lock()
 	if s.launcherImportBusy {
-		s.launcherImport = "导入尚未结束，暂不能重启内核。"
+		s.launcherImport = i18n.T(i18n.KeyCmdImportRestartBlocked)
 		s.mu.Unlock()
 		return false
 	}
@@ -194,7 +194,7 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
-				return errors.New("runtime or import state changed; retry restart")
+				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryRestart))
 			}
 			s.launcherStartBusy = true
 			s.mu.Unlock()

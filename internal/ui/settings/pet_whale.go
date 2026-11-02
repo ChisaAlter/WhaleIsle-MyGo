@@ -138,7 +138,7 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 			i18n.T(i18n.KeySettingsWhalePersonaHint), fg, muted, func() {
 				if !st.PersonaOpen {
 					ui.Row(c).FillWidth().Children(func() {
-						ui.Text(c, personaSummary(cat.PersonaText)).Grow(1).MinWidth(0).SingleLine().
+						ui.Text(c, personaSummary(cat.PersonaText)).MaxWidth(200).MinWidth(0).SingleLine().
 							MaxLines(1).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						linkAction(c, i18n.T(i18n.KeySettingsWhaleEdit), muted, a.OnUpdateWhale != nil, func() {
 							st.PersonaOpen, st.PersonaText = true, cat.PersonaText
@@ -167,8 +167,8 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 		// 长期记忆: a dialog with save and a second-confirmation clear.
 		bodyPreferenceRow(c, "pet-whale-memory", i18n.T(i18n.KeySettingsWhaleMemory),
 			i18n.T(i18n.KeySettingsWhaleMemoryHint), fg, muted, func() {
-				ui.Row(c).FillWidth().Children(func() {
-					ui.Text(c, memorySummary(cat.Memory)).Grow(1).MinWidth(0).SingleLine().
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, memorySummary(cat.Memory)).MaxWidth(200).MinWidth(0).SingleLine().
 						MaxLines(1).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 					linkAction(c, i18n.T(i18n.KeySettingsWhaleMemoryOpen), muted, a.OnUpdateWhale != nil, func() {
 						st.MemoryOpen, st.MemoryText, st.MemoryClear = true, cat.Memory, false
@@ -182,7 +182,7 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 			i18n.T(i18n.KeySettingsWhaleSkillsHint), fg, muted, func() {
 				if !st.SkillsOpen {
 					ui.Row(c).FillWidth().Children(func() {
-						ui.Text(c, skillsSummary(cat.Skills)).Grow(1).MinWidth(0).SingleLine().
+						ui.Text(c, skillsSummary(cat.Skills)).MaxWidth(200).MinWidth(0).SingleLine().
 							MaxLines(1).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						linkAction(c, i18n.T(i18n.KeySettingsWhaleManage), muted, true, func() {
 							st.SkillsOpen = true

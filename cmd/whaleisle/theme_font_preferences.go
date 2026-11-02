@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"os"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
 )
@@ -23,7 +24,7 @@ func (s *mainState) themeFontEditor(visible bool) *theme.Editor {
 			}
 		}
 		s.appearanceEditor.OnImport = func() (string, error) {
-			paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: s.win, Title: "Import theme JSON", Filters: []mygo.FileFilter{{Name: "Theme JSON", Extensions: []string{"json"}}}})
+			paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: s.win, Title: i18n.T(i18n.KeyCmdImportThemeJSON), Filters: []mygo.FileFilter{{Name: i18n.T(i18n.KeyCmdThemeJSONFilter), Extensions: []string{"json"}}}})
 			if err != nil || len(paths) == 0 {
 				return "", err
 			}
@@ -44,7 +45,7 @@ func (s *mainState) hostAppearancePending() bool {
 func (s *mainState) saveAppearancePreferences(p theme.Preferences) error {
 	if s.hostAppearanceAccepted {
 		if s.hostAppearance == nil {
-			return fmt.Errorf("Host appearance is unavailable")
+			return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
 		}
 		return s.hostAppearance.SaveTypography(p)
 	}
@@ -91,7 +92,9 @@ func (s *mainState) syncHostAppearance() {
 	// wallpaper; a seeded empty/default value keeps the flat base.
 	if h.WallpaperImageExplicit {
 		s.hostWallpaperImage = h.WallpaperImage
-		s.desktopDraft.wallpaperPath = h.WallpaperImage
+		if h.WallpaperImage != "" {
+			s.desktopDraft.wallpaperPath = h.WallpaperImage
+		}
 	}
 	// The Host always reports a scheme (default "system"), so it cannot tell an
 	// explicit choice from its default: the configured theme wins until the user
@@ -126,13 +129,17 @@ func (s *mainState) beginAppearanceFrame(c *ui.Context) {
 	id := s.themeID
 	s.mu.Unlock()
 	p := theme.RenderPreferences()
-	dark := mygo.Theme.IsDark()
-	colors := theme.Resolve(id).Active(dark)
+	systemDark := mygo.Theme.IsDark()
+	resolved := theme.ResolveWithSystem(id, systemDark)
+	dark := resolved.Scheme == theme.SchemeDark
+	p.Interface = theme.FontForSkin(p, theme.SkinForMode(p, dark), theme.SkinInterfaceFont)
+	colors := resolved.Active(systemDark)
 	applyAppearanceTheme(c, p, colors, dark)
 }
 
 func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Colors, dark bool) {
 	t := *c.Theme()
+	t.Dark = dark
 	t.Font = theme.TextFamily(p.Interface.Family)
 	t.FontSize = p.Interface.Size
 	t.Background = chrome.Color(colors.BG)

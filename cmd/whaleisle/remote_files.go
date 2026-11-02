@@ -17,7 +17,7 @@ func (s *mainState) remoteSessionFiles(win *mygo.Window, sessions *session.Store
 	s.mu.Unlock()
 	id := ""
 	if sessions != nil {
-		id = sessions.Snapshot().SelectedID
+		id = sessions.SelectedSessionID()
 	}
 	files.Bind(client, id, func() {
 		if win != nil {

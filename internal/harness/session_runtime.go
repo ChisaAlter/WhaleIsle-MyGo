@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
+
+	"whaleisle/internal/startuptrace"
 )
 
 const sessionRuntimeManifestName = "host-session-runtime.json"
@@ -39,6 +42,17 @@ var sessionRuntimeArtifacts = []string{
 // profiles. The visual-readiness boundary is still byte-pinned, not waived just
 // because a newer Session reader is needed.
 func validateStagedSessionRuntime(vendorDir string) error {
+	return validateStagedSessionRuntimeWithReader(vendorDir, os.ReadFile)
+}
+
+// sessionRuntimeRegistryReader is scoped to one validation/Resolve call. Only
+// the vocabulary read uses it; provenance, artifact hashes and Node identity
+// retain their independent checks and existing digest policy.
+type sessionRuntimeRegistryReader func(string) ([]byte, error)
+
+func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntimeRegistryReader) error {
+	endValidate := startuptrace.Begin("runtime.validate.session_runtime")
+	defer endValidate()
 	var manifest struct {
 		SchemaVersion int    `json:"schemaVersion"`
 		CLIVersion    string `json:"cliVersion"`
@@ -85,12 +99,14 @@ func validateStagedSessionRuntime(vendorDir string) error {
 		}
 	}
 	for _, artifact := range sessionRuntimeArtifacts {
-		data, err := os.ReadFile(filepath.Join(vendorDir, filepath.FromSlash(artifact)))
+		file := filepath.Join(vendorDir, filepath.FromSlash(artifact))
+		if _, err := os.Stat(file); err != nil {
+			return fmt.Errorf("compatible Host runtime artifact %s: %w", artifact, err)
+		}
+		digest, err := fileSHA256(file)
 		if err != nil {
 			return fmt.Errorf("compatible Host runtime artifact %s: %w", artifact, err)
 		}
-		sum := sha256.Sum256(data)
-		digest := hex.EncodeToString(sum[:])
 		if manifest.Artifacts[artifact] != digest {
 			return fmt.Errorf("compatible Host runtime artifact changed: %s", artifact)
 		}
@@ -98,12 +114,14 @@ func validateStagedSessionRuntime(vendorDir string) error {
 			return fmt.Errorf("compatible Host runtime visual-readiness gate is not the pinned build")
 		}
 	}
-	return ValidateSessionRuntimeForLaunch(filepath.Join(vendorDir, "deepseek-harness"))
+	return validateSessionRuntimeForLaunchWithReader(filepath.Join(vendorDir, "deepseek-harness"), read)
 }
 
 // Explicit overrides remain explicit, but cannot silently break the selected
 // runtime's Node identity. A different location with identical bytes is valid.
 func validateSessionRuntimeNode(vendorDir, node string) error {
+	endHash := startuptrace.Begin("runtime.verify.node", node)
+	defer endHash()
 	data, err := os.ReadFile(filepath.Join(vendorDir, sessionRuntimeManifestName))
 	if os.IsNotExist(err) {
 		return nil // Older pinned source-build profiles own their existing checks.
@@ -119,15 +137,48 @@ func validateSessionRuntimeNode(vendorDir, node string) error {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return err
 	}
-	bytes, err := os.ReadFile(node)
+	digest, err := fileSHA256(node)
 	if err != nil {
 		return fmt.Errorf("compatible Host runtime Node unavailable: %w", err)
 	}
-	sum := sha256.Sum256(bytes)
-	if manifest.Node.SHA256 != hex.EncodeToString(sum[:]) {
+	if manifest.Node.SHA256 != digest {
 		return fmt.Errorf("selected Node differs from the verified Host session runtime; use its matching bundled Node")
 	}
 	return nil
+}
+
+// fileDigest memoizes one content hash per (path, size, mtime) for this process.
+// A single boot resolves the launcher up to five times and each resolution hashes
+// the 93 MB bundled node.exe; re-reading it adds no evidence, and the key changes
+// whenever the file does.
+type fileDigest struct {
+	size  int64
+	mtime int64
+	sum   string
+}
+
+var fileDigestCache sync.Map
+
+func fileSHA256(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	key := filepath.Clean(path)
+	stamp := fileDigest{size: info.Size(), mtime: info.ModTime().UnixNano()}
+	if cached, ok := fileDigestCache.Load(key); ok {
+		if prior, ok := cached.(fileDigest); ok && prior.size == stamp.size && prior.mtime == stamp.mtime {
+			return prior.sum, nil
+		}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	stamp.sum = hex.EncodeToString(sum[:])
+	fileDigestCache.Store(key, stamp)
+	return stamp.sum, nil
 }
 
 // The original desktop now writes these required v4 events. Format version 4
@@ -145,8 +196,12 @@ var builtSessionEventRegistry = regexp.MustCompile(`\bKNOWN_SESSION_EVENT_TYPES\
 // attach to the shared desktop home. It does not inspect, migrate or rewrite
 // sessions, and does not mark unknown events ignorable.
 func ValidateSessionRuntimeForLaunch(harnessRoot string) error {
+	return validateSessionRuntimeForLaunchWithReader(harnessRoot, os.ReadFile)
+}
+
+func validateSessionRuntimeForLaunchWithReader(harnessRoot string, read sessionRuntimeRegistryReader) error {
 	file := filepath.Join(harnessRoot, "packages", "core", "session", "lib", "index.js")
-	data, err := os.ReadFile(file)
+	data, err := read(file)
 	if err != nil {
 		return fmt.Errorf("Host session reader unavailable at %s: %w; stage a complete compatible runtime with scripts/session-runtime.mjs", file, err)
 	}

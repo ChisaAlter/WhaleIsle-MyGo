@@ -322,10 +322,10 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		*open = true
 	}
 	anchor.Children(func() {
-	gearLabel := providerCopy("思考炫光设置", "Thinking glow settings")
-	if typing {
-		gearLabel = providerCopy("打字特效设置", "Typing effect settings")
-	}
+		gearLabel := providerCopy("思考炫光设置", "Thinking glow settings")
+		if typing {
+			gearLabel = providerCopy("打字特效设置", "Typing effect settings")
+		}
 		// This row carries the 16×16 gear that opens the effect dialog; no other
 		// preference row asks for one.
 		withRowGear(rowGear{
@@ -334,10 +334,14 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			disabled: bodyHostDisabled(a) || !styleFound,
 			onOpen:   openSettings,
 		}, func() {
-			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, providerCopy("点击齿轮调整光效样式；开关控制是否启用。", "Use the cog to tune the effect; the switch only enables it."), fg, muted, func() {
-				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			hint := providerCopy("智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored edge glow around the composer while the agent sends or thinks.")
+			if typing {
+				hint = providerCopy("点击齿轮调整光效样式；开关控制是否启用。", "Use the cog to tune the effect; the switch only enables it.")
+			}
+			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, hint, fg, muted, func() {
+				ui.Row(c).Wrap().Gap(8).Justify(ui.End).Children(func() {
 					checked := enabled == "true"
-					if ui.Switch(c, &checked).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
+					if settingsPreferenceSwitch(c, &checked, settingsSwitchInput).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
 						a.OnChange("ui-conversation", enabledKey, fmt.Sprint(checked))
 					}
 				})

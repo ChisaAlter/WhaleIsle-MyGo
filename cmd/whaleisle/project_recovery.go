@@ -94,7 +94,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 	navigation := f.navigation
 	detailGeneration := f.detailGeneration
 	s.mu.Unlock()
-	selectedSession := sessions.Snapshot().SelectedID
+	selectedSession := sessions.SelectedSessionID()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -131,7 +131,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 				s.mu.Unlock()
 				return
 			}
-			if !f.visible() || f.navigation != navigation || sessions.Snapshot().SelectedID != selectedSession {
+			if !f.visible() || f.navigation != navigation || sessions.SelectedSessionID() != selectedSession {
 				f.err = i18n.T(i18n.KeyCmdNavigationChangedTheRecoveryDraftWasNo)
 				s.mu.Unlock()
 				return

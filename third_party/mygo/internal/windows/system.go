@@ -445,11 +445,16 @@ func (b *Backend) isDark() bool {
 	case "light":
 		return false
 	}
-	light, ok := regDWORD(hkeyCurrentUser, `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, "AppsUseLightTheme")
-	return ok && light == 0
+	if !b.systemDarkKnown {
+		light, ok := regDWORD(hkeyCurrentUser, `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, "AppsUseLightTheme")
+		b.systemDark = ok && light == 0
+		b.systemDarkKnown = true
+	}
+	return b.systemDark
 }
 
 func (b *Backend) applyTheme() {
+	b.systemDarkKnown = false
 	for _, w := range b.windows {
 		b.applyWindowTheme(w)
 		w.withWebView(func() { b.applyWebViewTheme(w) })
@@ -464,6 +469,9 @@ func (b *Backend) applyWindowTheme(w *window) {
 		dark = 1
 	}
 	procDwmSetWindowAttribute.Call(w.hwnd, dwmwaUseImmersiveDarkMode, uintptr(unsafe.Pointer(&dark)), 4)
+	if w.vibrancy != "" {
+		w.applyBackdrop(w.vibrancy)
+	}
 	if w.caption != nil {
 		w.caption.paint()
 	}

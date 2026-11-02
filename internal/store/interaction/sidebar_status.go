@@ -1,6 +1,9 @@
 package interaction
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"sync"
+)
 
 func PendingStatusRank(status string) int {
 	switch status {
@@ -47,8 +50,40 @@ func (s *Store) PendingStatuses() map[string]string {
 // waterfall or manufacturing answer authority. A continued question needs a
 // known inbox with no queued reply. Unknown/malformed faces add no status.
 func ProjectedPendingStatus(questions, inbox json.RawMessage) string {
-	return projectedPendingStatus(questions, inbox, nil)
+	projectedStatusMemo.Lock()
+	if status, ok := projectedStatusMemo.byQuestions[string(questions)][string(inbox)]; ok {
+		projectedStatusMemo.Unlock()
+		return status
+	}
+	projectedStatusMemo.Unlock()
+	status := projectedPendingStatus(questions, inbox, nil)
+	projectedStatusMemo.Lock()
+	if projectedStatusMemo.byQuestions == nil || projectedStatusMemo.size >= projectedStatusMemoLimit {
+		projectedStatusMemo.byQuestions, projectedStatusMemo.size = map[string]map[string]string{}, 0
+	}
+	inner := projectedStatusMemo.byQuestions[string(questions)]
+	if inner == nil {
+		inner = map[string]string{}
+		projectedStatusMemo.byQuestions[string(questions)] = inner
+	}
+	inner[string(inbox)] = status
+	projectedStatusMemo.size++
+	projectedStatusMemo.Unlock()
+	return status
 }
+
+// projectedStatusMemo remembers ProjectedPendingStatus per exact input. The
+// sidebar asks for every session's status on every frame while the projected
+// documents rarely change, and decoding them each time showed in hover frames.
+var projectedStatusMemo struct {
+	sync.Mutex
+	byQuestions map[string]map[string]string
+	size        int
+}
+
+const projectedStatusMemoLimit = 1024
+
+// projectedPendingStatus is a pure function of its inputs.
 func projectedPendingStatus(questions, inbox json.RawMessage, ignored map[string]bool) string {
 	var face struct {
 		Active  []projectedQuestion `json:"active"`

@@ -31,6 +31,7 @@ type contextProjectionState struct {
 func validContextNumber(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 }
 
 func (s *Store) applyContextProjectionLocked(key string, raw json.RawMessage, seq float64) {
+	s.invalidateViewLocked()
 	if s.selectedID == "" || !validCompactionSeq(seq) {
 		return
 	}
@@ -60,6 +61,7 @@ func (s *Store) applyContextValuesLocked(values json.RawMessage, seq float64) {
 	s.applyContextProjectionLocked("contextBreakdown", all["contextBreakdown"], seq)
 }
 func (s *Store) applyContextControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	var f struct {
 		Type, SessionID, Key string
 		Seq                  float64

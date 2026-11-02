@@ -9,7 +9,7 @@ import (
 
 func sessionFeedbackDialog(c *ui.Context, m Model) {
 	v := m.Store.SessionFeedback()
-	if !v.Open || v.SessionID != m.Store.Snapshot().SelectedID {
+	if !v.Open || v.SessionID != m.Store.SelectedSessionID() {
 		return
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)

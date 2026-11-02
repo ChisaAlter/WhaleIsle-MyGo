@@ -9,7 +9,8 @@ import (
 )
 
 func suggestionFixture(text string) (*DraftState, Model, *int) {
-	d := NewDraftState(text)
+	d := NewDraftState("")
+	d.Client.input.ReplaceText(nil, text)
 	selected := 0
 	sent := 0
 	m := Model{Draft: &d.Text, State: d, TextInput: d.Client, UseTextInputClient: true,
@@ -59,7 +60,7 @@ func TestSuggestionDismissalPersistsUntilTokenChanges(t *testing.T) {
 					t.Fatal("repaint reopened dismissed token")
 				}
 			}
-			d.Client.ReplaceText(nil, "e")
+			d.Client.input.ReplaceText(nil, "e")
 			if _, _, _, _, open := activeSuggestion(m, d.Client); !open {
 				t.Fatal("query change did not re-arm completion")
 			}

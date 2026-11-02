@@ -40,7 +40,7 @@ func (s *mainState) assistantGroupMembers(sessionID string) (bool, []session.Gro
 	return false, nil
 }
 func (s *mainState) beginAssistantGroupReply(sessions *session.Store, draft *composer.DraftState, id, threadID string) {
-	if sessions == nil || sessions.Snapshot().SelectedID != id {
+	if sessions == nil || sessions.SelectedSessionID() != id {
 		return
 	}
 	room, members := s.assistantGroupMembers(id)

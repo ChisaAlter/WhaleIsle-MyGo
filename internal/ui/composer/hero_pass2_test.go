@@ -25,10 +25,9 @@ func heroEmptyTester(t *testing.T, mutate func(*Model)) (*ui.Tester, Model) {
 	return tt, m
 }
 
-// The installed hero composer is a 774.39x114 card: `padding: 8px 0 0` around a
-// 56-DIP writing well, an 8-DIP gap and a 34-DIP control row whose children sit 8
-// in from the card edges (rendered dialog at 1440x920: card (469.3,460), 添加文件
-// at x=477.3, send 34x34 ending 8 before the card's right edge).
+// Installed 0.3.10 InputBar: 8 top + 52 min writing well + 12 gap +
+// toolbar padding (2 + 6) and 34-DIP primary. Card size is independent of
+// caption/window geometry; the toolbar owns its 8-DIP horizontal inset.
 func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	permission := "workspace-write"
 	tt, _ := heroEmptyTester(t, func(m *Model) {
@@ -48,12 +47,10 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	if !ok {
 		t.Fatal("composer card missing")
 	}
-	// round242 light rects: the native hero card is 155.34 tall (8 + 52.67 draft +
-	// 54 toolbar gap + 34 row + 6.67 bottom), not the old 114 recipe.
-	closeMetric(t, card.H, 155.34, "hero card height")
+	closeMetric(t, card.H, 114, "hero card height from InputBar source")
 	input, _ := tt.Find("Composer draft")
 	closeMetric(t, input.Y-card.Y, 8, "hero top padding")
-	closeMetric(t, input.X-card.X, 12.67, "hero card side padding")
+	closeMetric(t, input.X-card.X, 0, "hero writing well spans card")
 	closeMetric(t, input.H, 52, "hero writing well height")
 	send, ok := tt.Find(i18n.T(i18n.KeyComposerSend))
 	if !ok {
@@ -61,7 +58,7 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	}
 	closeMetric(t, send.W, 34, "hero primary width")
 	closeMetric(t, send.H, 34, "hero primary height")
-	closeMetric(t, card.X+card.W-(send.X+send.W), 20.38, "hero primary right inset")
+	closeMetric(t, card.X+card.W-(send.X+send.W), 8, "hero primary right inset")
 	if !tt.HasText("+") || !tt.HasText(i18n.T(i18n.KeyComposerPermissionWorkspace)) {
 		t.Fatalf("hero control row lost its launcher or permission pill: %v", tt.Texts())
 	}

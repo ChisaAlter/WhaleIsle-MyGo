@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -48,12 +49,12 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 	block := ui.Column(c.Key("bot-task-controls")).Gap(8)
 	block.Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotTasks)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshTasks)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotTasks)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshTasks)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 				tasks.OnRefresh()
 			}
 		})
-		ui.Text(c, i18n.T(i18n.KeyW4AssistantShowsOnlyDelegatedTasksThisBotSentOr)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyW4AssistantShowsOnlyDelegatedTasksThisBotSentOr)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if s.Scope.BotID == "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantSelectABotFirst)).TextColor(muted)
 			return
@@ -73,7 +74,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if s.Loaded {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, fmt.Sprintf("%s · %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Grow(1)
-				if tasks.OnReview != nil && ui.Button(c, taskActionLabel("stop")).Disabled(blocked).Clicked() {
+				if tasks.OnReview != nil && ui.Button(c, taskActionLabel("stop")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					tasks.OnReview("stop", "")
 				}
 			})
@@ -84,24 +85,26 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		filterKey := s.Scope.HostKey + ":" + s.Scope.BotID
 		query := ui.Local(block, "task-query:"+filterKey, func() string { return "" })
 		status := ui.Local(block, "task-status:"+filterKey, func() string { return "all" })
-		ui.TextInput(c.Key("task-search"), query).Label(i18n.T(i18n.KeyMiscAssistantSearchTasksParticipantsOrErrors)).FillWidth()
-		ui.Select(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}).Label(i18n.T(i18n.KeyMiscAssistantTaskStatus)).FillWidth()
+		ui.TextInput(c.Key("task-search"), query).Label(i18n.T(i18n.KeyMiscAssistantSearchTasksParticipantsOrErrors)).FillWidth().Height(32).Radius(8).Border(.5, border)
+		ui.Select(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}).Label(i18n.T(i18n.KeyMiscAssistantTaskStatus)).FillWidth().Height(32).Radius(8).Border(.5, border)
 		visible := visibleBotTasks(s.Tasks, *query, *status)
 		if s.Loaded && len(s.Tasks) > 0 && len(visible) == 0 {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingTasks)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		for _, task := range visible {
 			task := task
-			ui.Column(c.Key("bot-task-"+task.ID)).Background(field).Border(1, border).Radius(8).Padding(10).Gap(5).Children(func() {
+			card := ui.Column(c.Key("bot-task-"+task.ID)).Border(.5, border).Radius(12).Padding(12, 16).Gap(6)
+			chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+			card.Children(func() {
 				title := task.ID + " · " + task.Status
 				if s.SelectedID == task.ID {
 					title = "▾ " + title
 				}
-				if tasks.OnSelect != nil && ui.Button(c, title).Disabled(blocked).Clicked() {
+				if tasks.OnSelect != nil && ui.Button(c, title).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 					tasks.OnSelect(task.ID)
 				}
-				ui.Text(c, taskParticipant(task.FromName, task.FromID)+" → "+taskParticipant(task.ToName, task.ToID)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				ui.Text(c, clip(task.Task, 180)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+				ui.Text(c, taskParticipant(task.FromName, task.FromID)+" → "+taskParticipant(task.ToName, task.ToID)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				ui.Text(c, clip(task.Task, 180)).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
 				if s.SelectedID != task.ID {
 					return
 				}
@@ -114,7 +117,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 						if m.Contacts.State.Loaded && m.OnDshbotOpenRosterSession != nil {
 							for _, item := range m.Contacts.State.Catalog.Items {
 								if item.ID == strings.TrimSpace(participant.id) && item.Kind == "bot" && strings.TrimSpace(item.SessionID) != "" {
-									if ui.Button(c, participant.label).Disabled(blocked || m.Contacts.State.Busy).Clicked() {
+									if ui.Button(c, participant.label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || m.Contacts.State.Busy).Clicked() {
 										m.OnDshbotOpenRosterSession(item.ID)
 									}
 									break
@@ -143,7 +146,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				ui.Row(c).Gap(6).Children(func() {
 					for _, action := range []string{"pause", "resume", "cancel", "retry"} {
 						action := action
-						if pluginrpc.DshbotTaskActionAllowed(action, task.Status) && tasks.OnReview != nil && ui.Button(c, taskActionLabel(action)).Disabled(blocked || !s.Loaded).Clicked() {
+						if pluginrpc.DshbotTaskActionAllowed(action, task.Status) && tasks.OnReview != nil && ui.Button(c, taskActionLabel(action)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded).Clicked() {
 							tasks.OnReview(action, task.ID)
 						}
 					}
@@ -155,8 +158,8 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		}
 		if s.Review != nil {
 			command := s.Review.Command
-			ui.Column(c.Key("bot-task-review")).Border(1, accent).Radius(8).Padding(12).Gap(7).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirm)+taskActionLabel(command.Action)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+			ui.Column(c.Key("bot-task-review")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(7).Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirm)+taskActionLabel(command.Action)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 				ui.Text(c, fmt.Sprintf("Bot: %s (%s)\nTask: %s · revision %d", s.BotName, command.BotID, firstTaskValue(command.TaskID, "—"), command.Revision)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				caveat := i18n.T(i18n.KeyW4AssistantOnlyTheTaskStateChangesCompletedToolF)
 				if command.Action == "retry" {
@@ -173,10 +176,10 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 					ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirmingAgainAfterAFailureReusesThe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if tasks.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBack)).Disabled(s.Busy).Clicked() {
+					if tasks.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Busy).Clicked() {
 						tasks.OnDismiss()
 					}
-					if tasks.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmAction)).Disabled(blocked || !s.Loaded || command.Revision != s.Revision).Clicked() {
+					if tasks.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmAction)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || command.Revision != s.Revision).Clicked() {
 						tasks.OnConfirm()
 					}
 				})

@@ -3,6 +3,7 @@ package chrome
 import (
 	"image"
 	"image/color"
+	"image/draw"
 	"math"
 
 	"github.com/egoist/mygo/ui"
@@ -24,12 +25,13 @@ func backgroundScreenBitmap(path string, p wallpapers.Preferences, w, h int) *ui
 	if w <= 0 || h <= 0 {
 		return nil
 	}
-	if s.path == path && s.targetW == w && s.targetH == h && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil {
+	if s.path == path && s.targetW == w && s.targetH == h && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil && s.screenRGBA != nil {
 		return s.bitmap
 	}
 	src := decodedWallpaper(path)
 	if src == nil {
 		s.path, s.targetW, s.targetH, s.pixels, s.bitmap = path, w, h, nil, nil
+		s.screenRGBA, s.frostSrc, s.frostBmp = nil, nil, nil
 		s.version++
 		return nil
 	}
@@ -46,9 +48,74 @@ func backgroundScreenBitmap(path string, p wallpapers.Preferences, w, h int) *ui
 	}
 	s.path, s.targetW, s.targetH = path, w, h
 	s.blur, s.pixel = p.Blur, p.Pixelate
+	s.screenRGBA = dst
 	s.bitmap = ui.NewBitmap(dst)
+	s.frostSrc, s.frostBmp = nil, nil
 	s.version++
 	return s.bitmap
+}
+
+// menuFrostScreenBitmap returns the cached window-space Gaussian-blurred +
+// saturate(150%) wallpaper bitmap for MaterialMenu (--dsw-menu-backdrop-filter:
+// blur(40px) saturate(150%)). It downsamples the screen-space wallpaper by 2x,
+// applies the dim mask and 150% saturation, and runs a 3-pass box blur with
+// radius 20 (equivalent to blur(40px) in window DIPs).
+func menuFrostScreenBitmap() (*ui.Bitmap, ui.Rect, bool) {
+	s := &backgroundState
+	if !s.active || gradientBackdrop.frame != nil || s.wallpaper == "" || s.screenRGBA == nil || !s.hasBox || s.box.W <= 0 || s.box.H <= 0 {
+		return nil, ui.Rect{}, false
+	}
+	prefs := effectivePrefs(s.prefs)
+	if s.frostBmp != nil && s.frostSrc == s.screenRGBA && s.frostVersion == s.version && s.frostDark == s.dark && s.frostTransparent == prefs.Transparent {
+		return s.frostBmp, s.box, true
+	}
+	src := s.screenRGBA
+	b := src.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w <= 0 || h <= 0 {
+		return nil, ui.Rect{}, false
+	}
+	dw, dh := max(1, w/2), max(1, h/2)
+	keep := float32(1)
+	if !prefs.Transparent {
+		keep = 1 - MaskAlpha(s.dark)
+	}
+	down := image.NewRGBA(image.Rect(0, 0, dw, dh))
+	for y := 0; y < dh; y++ {
+		y0 := y * h / dh
+		y1 := max(y0+1, (y+1)*h/dh)
+		for x := 0; x < dw; x++ {
+			x0 := x * w / dw
+			x1 := max(x0+1, (x+1)*w/dw)
+			var sumR, sumG, sumB, n uint32
+			for sy := y0; sy < y1; sy++ {
+				for sx := x0; sx < x1; sx++ {
+					i := src.PixOffset(b.Min.X+sx, b.Min.Y+sy)
+					sumR += uint32(src.Pix[i])
+					sumG += uint32(src.Pix[i+1])
+					sumB += uint32(src.Pix[i+2])
+					n++
+				}
+			}
+			mix := func(sum uint32) uint8 {
+				v := float32(sum) / float32(n) * keep
+				return uint8(math.Max(0, math.Min(255, math.Round(float64(v)))))
+			}
+			c := saturateColor(ui.RGB(mix(sumR), mix(sumG), mix(sumB)), 1.5)
+			di := down.PixOffset(x, y)
+			down.Pix[di] = c.R
+			down.Pix[di+1] = c.G
+			down.Pix[di+2] = c.B
+			down.Pix[di+3] = 255
+		}
+	}
+	blurred := blurThreePass(down, 20)
+	s.frostSrc = src
+	s.frostBmp = ui.NewBitmap(blurred)
+	s.frostDark = s.dark
+	s.frostTransparent = prefs.Transparent
+	s.frostVersion = s.version
+	return s.frostBmp, s.box, true
 }
 
 // decodedWallpaper keeps the decoded source so resizing the window does not
@@ -69,11 +136,7 @@ func decodedWallpaper(path string) *image.RGBA {
 	}
 	b := img.Bounds()
 	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	for y := 0; y < b.Dy(); y++ {
-		for x := 0; x < b.Dx(); x++ {
-			dst.SetRGBA(x, y, img.At(b.Min.X+x, b.Min.Y+y).(color.RGBA))
-		}
-	}
+	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
 	s.decoded = dst
 	return dst
 }
@@ -173,7 +236,7 @@ func cropImage(src *image.RGBA, r image.Rectangle) *image.RGBA {
 // materials keep the same numbers they had before the screen-space pass.
 func backgroundSamplingBitmap(path string, p wallpapers.Preferences) {
 	s := &backgroundState
-	if s.sampPath == path && s.sampBlur == p.Blur && s.sampPixel == p.Pixelate && s.sampBmp != nil {
+	if s.sampPath == path && s.sampBlur == p.Blur && s.sampPixel == p.Pixelate && s.sampBmp != nil && s.pixels != nil {
 		return
 	}
 	src := decodedWallpaper(path)

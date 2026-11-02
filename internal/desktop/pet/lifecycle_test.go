@@ -24,13 +24,16 @@ func pinCfgStore(t *testing.T) *config.Store {
 // manager and ask for a new window, with no duplicates and no window while
 // disabled.
 func TestCompanionRecreatesAfterClose(t *testing.T) {
-	previous := openCompanionWindow
-	t.Cleanup(func() { openCompanionWindow = previous })
+	previous, previousDisplays := openCompanionWindow, petDisplays
+	t.Cleanup(func() { openCompanionWindow, petDisplays = previous, previousDisplays })
+	petDisplays = func() []mygo.Display {
+		return []mygo.Display{{Bounds: mygo.Rectangle{X: -1920, Y: -200, Width: 1920, Height: 1080}}, {Bounds: mygo.Rectangle{Width: 2560, Height: 1440}}}
+	}
 	attempts := 0
 	openCompanionWindow = func(opts mygo.WindowOptions) *mygo.Window {
 		attempts++
-		if opts.Width != PetWindowWidth || opts.Height != PetWindowHeight {
-			t.Fatalf("companion window asked for %dx%d, want %dx%d", opts.Width, opts.Height, PetWindowWidth, PetWindowHeight)
+		if opts.X != -1920 || opts.Y != -200 || opts.Width != 1920 || opts.Height != 1080 || !opts.Transparent || !opts.Frameless || !opts.DisableResize || opts.StateKey != "" {
+			t.Fatalf("actual companion overlay creation = %+v", opts)
 		}
 		return nil // the failure path: no window, still a counted attempt
 	}

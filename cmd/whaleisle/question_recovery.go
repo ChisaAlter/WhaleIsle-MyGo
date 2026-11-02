@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/paths"
 	"whaleisle/internal/recovery"
@@ -30,7 +31,7 @@ func (s *mainState) bindQuestionDraftRecovery(inter *interaction.Store) {
 	owner := questionDraftProfileOwner()
 	inter.SetQuestionDraftPersistence(owner, func(raw json.RawMessage) error {
 		if store == nil {
-			return errors.New("resume storage is not available")
+			return errors.New(i18n.T(i18n.KeyCmdResumeStorageUnavailable))
 		}
 		return store.Update(func(state *recovery.State) {
 			state.QuestionDrafts = append(json.RawMessage(nil), raw...)

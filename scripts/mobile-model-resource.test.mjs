@@ -12,7 +12,7 @@ test('local pinned model: match copied only to work, wrong hash/missing input re
   const source=path.join(tmp,'source'),work=path.join(tmp,'work');
   const put=(f,value='fixture')=>{const p=path.join(source,f);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,value);};
   try {
-    for(const f of [...shellFiles,'mobile/web/index.html','scripts/bundle-chisacode-mobile-client.mjs','vendor/chisacode-remote/package-lock.json']) put(f);
+    for(const f of [...shellFiles,'mobile/web/index.html','scripts/bundle-chisacode-mobile-client.mjs','vendor/chisacode-remote/package-lock.json','vendor/chisacode-remote/packages/server/src/share/QRCode.ts']) put(f);
     put('vendor/chisacode-remote/package.json',JSON.stringify({version:'1.0.3'}));
     assert.throws(()=>prepare(source,work),/resource missing.*silero_vad/);
     prepare(source,work,model);

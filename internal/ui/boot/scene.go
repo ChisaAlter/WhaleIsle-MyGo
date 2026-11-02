@@ -28,7 +28,7 @@ func startupScene(c *ui.Context, m Model) {
 				if m.Status.State == harness.Starting && !m.Status.RecoveryCancelled {
 					ui.Spinner(c).Size(20, 20)
 				}
-				ui.Text(c, "Whale Isle · "+i18n.T(KeyTitle)).Bold()
+				ui.Text(c, i18n.T(i18n.KeyAppName)+" · "+i18n.T(KeyTitle)).Bold()
 			})
 			ui.Text(c, statusLine(m.Status)).Selectable()
 			if line := pluginProgressLine(m.Status); line != "" {

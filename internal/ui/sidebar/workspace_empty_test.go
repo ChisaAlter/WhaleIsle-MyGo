@@ -38,7 +38,7 @@ func TestWorkspaceEmptyListDistinguishesReadyLoadingAndFailure(t *testing.T) {
 
 func TestWorkspaceArchivedOnlyEmptyHasWorkingReturn(t *testing.T) {
 	filter := "only"
-	m := Model{BrowseArchivedFilter: &filter, Snapshot: session.ViewState{WorkspaceReady: true, ScratchCwd: "/scratch", Items: []session.Item{{SessionID: "active", Title: "Visible after return", Cwd: "/scratch"}}}}
+	m := Model{BrowseArchivedFilter: &filter, Snapshot: session.ViewState{WorkspaceReady: true, ScratchCwd: "/scratch", WorkspaceLayout: session.WorkspaceLayoutState{Collapsed: map[string]bool{"::scratch": false}}, Items: []session.Item{{SessionID: "active", Title: "Visible after return", Cwd: "/scratch"}}}}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 1000)
 	if !tt.HasText(workspaceText("暂无归档会话", "No archived sessions")) || tt.HasText("Visible after return") {
 		t.Fatal("archived-only view leaked normal rows or lacked empty state")
@@ -53,7 +53,7 @@ func TestWorkspaceArchivedOnlyEmptyHasWorkingReturn(t *testing.T) {
 
 func TestWorkspaceBrowseArchiveFilterMatchesRowsAndBatchTargets(t *testing.T) {
 	filter := "only"
-	m := Model{BrowseArchivedFilter: &filter, HideArchivedList: true, Snapshot: session.ViewState{WorkspaceReady: true, ScratchCwd: "/scratch", Items: []session.Item{{SessionID: "active", Title: "Active fixture", Cwd: "/scratch"}, {SessionID: "archive", Title: "Archived fixture", Cwd: "/scratch"}}, ArchivedSessionIDs: []string{"archive"}}}
+	m := Model{BrowseArchivedFilter: &filter, HideArchivedList: true, Snapshot: session.ViewState{WorkspaceReady: true, ScratchCwd: "/scratch", WorkspaceLayout: session.WorkspaceLayoutState{Collapsed: map[string]bool{"::scratch": false}}, Items: []session.Item{{SessionID: "active", Title: "Active fixture", Cwd: "/scratch"}, {SessionID: "archive", Title: "Archived fixture", Cwd: "/scratch"}}, ArchivedSessionIDs: []string{"archive"}}}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 1000)
 	if tt.HasText("Active fixture") || !tt.HasText("Archived fixture") || tt.HasText(workspaceText("暂无归档会话", "No archived sessions")) {
 		t.Fatal("only archive projection differs from visible rows")
@@ -62,7 +62,7 @@ func TestWorkspaceBrowseArchiveFilterMatchesRowsAndBatchTargets(t *testing.T) {
 	if len(targets) != 1 || targets[0].ID != "archive" {
 		t.Fatalf("batch includes hidden rows: %+v", targets)
 	}
-	filter = "hide"
+	filter = "default"
 	tt.Frame()
 	if !tt.HasText("Active fixture") || tt.HasText("Archived fixture") {
 		t.Fatal("hide archive projection differs from visible rows")
@@ -83,10 +83,7 @@ func TestWorkspaceArchiveOnlyPreservesStatusAndMenuFilter(t *testing.T) {
 	if err := tt.Click("View options"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("Archived session visibility"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click("Only archived sessions"); err != nil {
+	if err := tt.Click("Only archived"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Key(0, ui.KeyEscape)

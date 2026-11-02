@@ -18,7 +18,7 @@ var terminalTrashIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="n
 
 func terminalActionBar(c *ui.Context, m Model, compact bool) {
 	p := m.Panel
-	size, glyph := float32(28), float32(14)
+	size, glyph := float32(24), float32(14)
 	if compact {
 		size, glyph = 22, 12
 	}
@@ -26,6 +26,9 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 	bar.Children(func() {
 		tool := func(caption string, icon *ui.SVG, disabled bool) bool {
 			button := ui.Button(c, "").Label(caption).Tooltip(caption).Width(size).Height(size).Shrink(0).Padding(0).Radius(0).BorderWidth(0).Disabled(disabled).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+			if button.Hovered() && !disabled {
+				button.Background(c.Theme().SurfaceHover)
+			}
 			button.Children(func() { ui.Icon(c, icon).Size(glyph, glyph).TextColor(c.Theme().TextMuted).PassThrough() })
 			return button.Clicked()
 		}
@@ -61,7 +64,8 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 	if p == nil || len(p.panes) == 0 {
 		return
 	}
-	ui.Row(c).FillWidth().Height(36).Shrink(0).MinWidth(0).Gap(4).Padding(2, 8, 4, 8).AlignItems(ui.Center).Children(func() {
+	ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(c.Theme().Border)
+	ui.Row(c).FillWidth().Height(32).Shrink(0).MinWidth(0).Gap(4).Padding(0, 8).AlignItems(ui.Center).Children(func() {
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 				for index, pane := range append([]*terminalPane(nil), p.panes...) {
@@ -81,7 +85,7 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 		return
 	}
 	active := p.active == pane.id
-	chip := ui.Row(c.Key(fmt.Sprintf("terminal-tab-%d", pane.id))).Gap(5).Height(28).MinWidth(80).MaxWidth(200).Shrink(0).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
+	chip := ui.Row(c.Key(fmt.Sprintf("terminal-tab-%d", pane.id))).Gap(5).Height(24).MinWidth(80).MaxWidth(200).Shrink(0).Radius(6).Padding(0, 6, 0, 8).AlignItems(ui.Center).Clip()
 	hovered := chip.Hovered()
 	switch {
 	case active:
@@ -95,7 +99,7 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 	}
 	caption := terminalTabLabel(pane, ordinal)
 	chip.Children(func() {
-		title := ui.Button(c, "").Label(terminalTitle(pane)).Grow(1).MinWidth(0).Height(26).Padding(0).BorderWidth(0).Background(ui.Transparent)
+		title := ui.Button(c, "").Label(terminalTitle(pane)).Grow(1).MinWidth(0).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent)
 		title.Children(func() {
 			ui.Text(c, caption).FontSize(12).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
 		})
@@ -104,8 +108,8 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 		}
 		if active || hovered {
 			closeLabel := terminalLabel("关闭终端", "Close terminal")
-			close := ui.Button(c, "").Label(closeLabel).Size(18, 18).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
-			close.Children(func() { ui.Icon(c, terminalCloseIcon).Size(9, 9).TextColor(muted).PassThrough() })
+			close := ui.Button(c, "").Label(closeLabel).Size(14, 14).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
+			close.Children(func() { ui.Icon(c, terminalCloseIcon).Size(10, 10).TextColor(muted).PassThrough() })
 			if close.Hovered() {
 				close.Background(c.Theme().SurfacePressed)
 			}

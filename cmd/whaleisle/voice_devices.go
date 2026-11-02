@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/voicecapture"
 	"whaleisle/internal/desktop/voiceinput"
+	"whaleisle/internal/ui/i18n"
 	settingsui "whaleisle/internal/ui/settings"
 )
 
@@ -34,7 +35,7 @@ func (s *mainState) voiceMicrophone() *voiceinput.Microphone {
 	}
 	microphone := voiceinput.NewMicrophone(selected, func(device voicecapture.Device) error {
 		if cfg == nil {
-			return fmt.Errorf("local microphone settings are unavailable")
+			return fmt.Errorf("%s", i18n.T(i18n.KeyCmdMicrophoneSettingsUnavailable))
 		}
 		return cfg.Update(func(c *config.Config) {
 			c.GoVoiceMicrophoneID, c.GoVoiceMicrophoneLabel = device.ID, device.Label

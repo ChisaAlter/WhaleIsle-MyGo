@@ -47,11 +47,22 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Plugins
-	ui.Text(c, i18n.T(i18n.KeySettingsPluginsTitle)).FontSize(fonttheme.InterfaceSize(18)).Bold().TextColor(fg)
-	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	builtinPluginGrid(c, a, fg, muted)
+	ui.Text(c, i18n.T(i18n.KeySettingsSectionPlugins)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
+	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 	pluginInventoryPane(c, a.Inventory, fg, muted)
-	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).Bold().TextColor(fg)
+	// The deployed plugin packages and their enable/disable controls are not on the
+	// installed page (the plugin manager owns them); they stay reachable here.
+	bodyDisclosure(c, "plugin-packages", pluginsText("插件包管理", "Plugin package management"), func() {
+		pluginPackages(c, a, fg, muted)
+	})
+}
+
+func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
+	if a.Inventory != nil {
+		clientModulesPane(c, a.Inventory, fg, muted)
+	}
+	builtinPluginGrid(c, a, fg, muted)
+	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -71,7 +82,7 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if a.CanRestart && !a.Busy && !a.Activation.Restarting && a.OnRestart != nil {
-			if ui.Button(c, pluginsText("重启运行时并应用", "Restart runtime and apply")).Clicked() {
+			if ui.Button(c, pluginsText("重启运行时并应用", "Restart runtime and apply")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 				a.OnRestart()
 			}
 		}
@@ -104,12 +115,12 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						ui.Box(c).Grow(1).MinWidth(0)
 					}
 					if a.OnOpenView != nil && a.ClientReady && !a.Loading && !a.Busy && r.Name != "" && !r.Disabled {
-						if ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 							a.OnOpenView(r.Name)
 						}
 					}
 					if a.OnInspect != nil && a.ClientReady && !a.Loading && !a.Busy && r.Name != "" {
-						if ui.Button(c, i18n.T(i18n.KeySettingsPluginsInspect)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeySettingsPluginsInspect)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 							a.OnInspect(r.Name)
 						}
 					}
@@ -118,7 +129,7 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						if !r.Disabled {
 							label = i18n.T(i18n.KeySettingsPluginsDisable)
 						}
-						if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 							a.OnSetDisabled(r.Name, !r.Disabled)
 						}
 					}
@@ -127,10 +138,10 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if !a.Loading && !a.Busy && a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
+		if !a.Loading && !a.Busy && a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			a.OnRefresh()
 		}
-		if a.OnOpenMarket != nil && ui.Button(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Clicked() {
+		if a.OnOpenMarket != nil && ui.Button(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			a.OnOpenMarket()
 		}
 	})
@@ -171,7 +182,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			if plugin.ReadOnlyReason != "" {
 				detail = pluginReasonLabel(plugin.ReadOnlyReason)
 			}
-			card := ui.Column(c.Key("builtin-plugin/" + plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16).
+			card := ui.Column(c.Key("builtin-plugin/"+plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16).
 				Radius(12).Background(c.Theme().Surface).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
 			card.Children(func() {
 				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).SingleLine().Ellipsis("…")
@@ -182,6 +193,7 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 		}
 	})
 }
+
 // pluginStatusLabel turns a Host status value into its localized wording; the raw
 // value never reaches the card.
 // pluginReasonLabel localizes the Host's read-only reason token. Unknown
@@ -199,7 +211,8 @@ func pluginReasonLabel(reason string) string {
 	}
 }
 
-func pluginStatusLabel(row PluginRow) string {	if row.Disabled {
+func pluginStatusLabel(row PluginRow) string {
+	if row.Disabled {
 		return pluginsText("已停用", "Disabled")
 	}
 	switch strings.ToLower(strings.TrimSpace(row.Status)) {

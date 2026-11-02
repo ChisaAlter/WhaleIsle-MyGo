@@ -185,8 +185,12 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		// main generic IN/OUT sections expose selectable text without extra chrome.
 		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" && !ownsCopy && (handled || opts.TextOnly) {
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-				copySeat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).
-					Height(22).Padding(0, 8, 0, 8).Radius(6).Border(0.5, st.Border).
+				borderColor := st.Border
+				if borderColor.A == 255 {
+					borderColor = borderColor.Alpha(0.45)
+				}
+				copySeat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Label(i18n.T(i18n.KeyChatToolCopy)).
+					Height(24).Padding(0, 8, 0, 8).Radius(6).Border(0.5, borderColor).
 					Background(ui.Transparent).TextColor(st.Muted)
 				if copySeat.Clicked() {
 					if opts.TextOnly {
@@ -311,6 +315,9 @@ func truncateToolText(s string, max int) string {
 func toolCardStyle(colors theme.Colors, fg, muted, border ui.Color) ToolCardStyle {
 	style := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
 	style.Colors = colors
+	if darkSurface(fg) {
+		style.OK = ui.RGB(34, 197, 94)
+	}
 	style.Err = chrome.Color(colors.Danger)
 	return style
 }
@@ -323,8 +330,8 @@ func DefaultToolCardStyle(fg, muted, border, field, accent ui.Color) ToolCardSty
 		Border:   border,
 		Field:    field,
 		Accent:   accent,
-		OK:       ui.RGB(61, 153, 112),
-		Err:      ui.RGB(224, 102, 102),
+		OK:       ui.RGB(22, 163, 74),
+		Err:      ui.RGB(236, 19, 19),
 		FontSize: 12,
 	}
 }

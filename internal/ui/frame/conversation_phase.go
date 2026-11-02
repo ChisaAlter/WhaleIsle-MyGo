@@ -22,14 +22,24 @@ const (
 	// composerCardMaxWidth is the installed InputBar card's `max-width: 774.4px`
 	// (probed at 1440x860 and 1440x920: card 774.39 wide, 114 tall).
 	composerCardMaxWidth = float32(774.39)
-	// conversationHeroHeadlineFoot is the installed hero headline row's bottom pad:
-	// 25 DIP left the centred stack 2.68 DIP too tall, so the foot is 25 - 2.68 =
-	// 22.32, rounded to the layout's 0.1 DIP unit. Verified live against the window
-	// rects 314.67 / 373.33 / 409.33 (round 232).
-	conversationHeroHeadlineFoot = float32(22.3)
-	// conversationHeroStackFoot lifts the centred hero stack to the installed seat: the
-	// window's slogan/preset/card sit 19 DIP higher than an even vertical split.
-	conversationHeroStackFoot = float32(38)
+	// HeroShell.stack leaves 12 DIP below the headline for its empty body;
+	// ConversationRoot.composerStack adds an 8-DIP gap before the workspace row.
+	conversationHeroHeadlineFoot = float32(12 + 8)
+	// ConversationRoot.composerHero keeps 32 DIP of bottom padding inside the
+	// centered flex item. There are no extra fixed blocks above or below it.
+	conversationHeroStackFoot = float32(32)
+	// The official 34-DIP brand slot sets the headline row's height; the slogan
+	// itself retains its 26/32 type and is centered within that row.
+	conversationHeroHeadlineHeight = float32(34)
+	// conversationHeroPresetRowHeight is the hero preset row's outer height:
+	// 4 DIP top margin + 28 DIP row + 8 DIP bottom margin.
+	conversationHeroPresetRowHeight = float32(40)
+	// InputBar.card: 8 top + 52 min input + 12 gap + toolbar (2 + 34 + 6).
+	conversationHeroCardHeight = float32(114)
+	// conversationHeroStackHeight is the native hero stack: slogan top to card
+	// bottom. It is the sum of the seats above, kept as one number so a change to
+	// any part fails the seat test instead of silently re-centring the stack.
+	conversationHeroStackHeight = conversationHeroHeadlineHeight + conversationHeroHeadlineFoot + conversationHeroPresetRowHeight + conversationHeroCardHeight
 )
 
 const (
@@ -89,39 +99,37 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 	})
 }
 
-// ConversationRoot.composerHero centers the entire stack inside scrollBody,
-// with a 32 DIP foot; HeroShell supplies the title's 10/7 spacing and 26/32 type.
-// Measured against the installed window (1440x860 UIA, all values DIP):
-//
-//	slogan 314.67   preset chip 373.33   composer card top 409.33
-//
-// The stack is centred, so its height decides both ends. With a 25-DIP headline
-// foot MyGo measured 313.33 / 374.67 / 410.67 — slogan 1.34 high while preset and
-// card sat 1.34 low, i.e. the stack was 2.68 DIP too tall. Shortening the foot by
-// 2.68 (25 -> 22.32, rounded to 22.3 for the layout's 0.1 DIP unit) moves the
-// slogan down by half of it and the card up by the other half.
+// HeroShell supplies a naturally sized headline. Its source-defined empty-body
+// and composer-stack gaps are represented by conversationHeroHeadlineFoot;
+// ConversationRoot centers the complete item including its 32-DIP bottom pad.
 func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
-	// round254: the native headline distributes the same total width differently —
-	// the fish sits 2.69 from the slogan and the badge 14.31 after it (live:
-	// slogan 765.33, badge 936), so the row centre does not move.
-	ui.Row(c).Key("conversation-hero-headline").FillWidth().Wrap().Gap(2.69).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
-		conversationHeroFish(c, chrome.Color(colors.FG))
-		ui.Row(c).Wrap().Gap(14.31).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).FontSize(theme.InterfaceSize(26)).FixedLineHeight(theme.InterfaceSize(32)).FontWeight(500).TextColor(chrome.Color(colors.FG))
-			badgeBackground := chrome.Color("rgba(120, 160, 210, 0.18)")
-			badgeForeground := chrome.Color("rgb(70, 110, 160)")
-			badgeBorder := chrome.Color("rgba(120, 160, 210, 0.35)")
-			th := theme.Resolve(m.ThemeID)
-			if th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark) {
-				badgeForeground = chrome.Color(colors.Accent)
-				badgeBackground = chrome.Color("rgba(103, 158, 254, 0.16)")
-				badgeBorder = chrome.Color("rgba(103, 158, 254, 0.35)")
+	// Installed HeroShell uses an outer10-DIP gap and a7-DIP title-group gap.
+	skin := theme.ResolvedSkin(m.ThemeID, m.SystemDark)
+	size, lineHeight, weight := theme.InterfaceSize(26), theme.InterfaceSize(32), 500
+	if skin == theme.SkinCodex {
+		size, lineHeight, weight = 28, 28*1.35, 600
+	} else if skin == theme.SkinClaude {
+		size, lineHeight, weight = 30, 30*1.3, 400
+	}
+	font := theme.FontForSkin(theme.RenderPreferences(), skin, theme.SkinHeroFont)
+	ui.Row(c).Key("conversation-hero-headline").Label("Conversation hero headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
+		if skin != theme.SkinCodex {
+			conversationHeroFish(c, chrome.Color(colors.FG))
+		}
+		ui.Row(c).Wrap().Gap(7).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
+			headline := ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).Font(font.Family).FontSize(size).FixedLineHeight(lineHeight).FontWeight(weight).TextColor(chrome.Color(colors.FG))
+			if skin == theme.SkinCodex {
+				headline.LetterSpacing(-.02 * size).MaxWidth(640)
+			} else if skin == theme.SkinClaude {
+				headline.LetterSpacing(-.01 * size)
 			}
-			// round242/249: native badge is 48.67x15.33 against our 63x20, i.e. a
-			// 0.777 font/line-height ratio, not a padding change.
-			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(13.4)).FontWeight(500).
-				TextColor(badgeForeground).Padding(1, 7, 0, 7).
-				Background(badgeBackground).Border(0.5, badgeBorder).Radius(999)
+			if skin == theme.SkinCodex {
+				return
+			}
+			badgeBG, badgeFG := theme.HeroBadgeColors(m.ThemeID, m.SystemDark)
+			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).FontWeight(500).
+				TextColor(chrome.Color(badgeFG)).Padding(1, 7, 0, 7).AlignSelf(ui.Start).Margin(2, 0, 0, 0).
+				Background(chrome.Color(badgeBG)).Border(.5, chrome.Color(colors.Hover)).Radius(999)
 		})
 	})
 }

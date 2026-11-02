@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -17,7 +18,11 @@ const MaxStateBytes = 48 << 10
 const MaxViewerBytes = 12 << 20
 
 type Render struct {
-	InstanceID string `json:"instanceId"`
+	InstanceID string            `json:"instanceId"`
+	Language   string            `json:"language,omitempty"`
+	Locale     string            `json:"locale,omitempty"`
+	Variables  map[string]string `json:"variables,omitempty"`
+	Panel      bool              `json:"panel,omitempty"`
 	// Revision is assigned by the native owner, not inferred by the renderer.
 	// Latest-only streaming delivery may skip revisions, but never go backwards.
 	Revision  uint64          `json:"revision,omitempty"`
@@ -32,6 +37,13 @@ type Render struct {
 	Media bool `json:"media,omitempty"`
 }
 type Event struct {
+	Revision    uint64            `json:"revision,omitempty"`
+	Part        int               `json:"part,omitempty"`
+	Parts       int               `json:"parts,omitempty"`
+	Filename    string            `json:"filename,omitempty"`
+	MIME        string            `json:"mime,omitempty"`
+	Content     string            `json:"content,omitempty"`
+	Operation   json.RawMessage   `json:"operation,omitempty"`
 	Media       *MediaRequest     `json:"media,omitempty"`
 	Sequence    uint64            `json:"sequence,omitempty"`
 	UserGesture bool              `json:"userGesture,omitempty"`
@@ -65,6 +77,17 @@ func ValidateState(raw json.RawMessage) error {
 	return nil
 }
 func ValidateRender(r Render) error {
+	if (r.Language != "" && !ValidLanguage(r.Language)) || (r.Locale != "" && r.Locale != "zh" && r.Locale != "en") {
+		return errors.New("invalid Whale UI language or locale")
+	}
+	if len(r.Variables) > 64 {
+		return errors.New("too many Whale UI theme tokens")
+	}
+	for key, value := range r.Variables {
+		if len(key) > 128 || !strings.HasPrefix(key, "--") || strings.ContainsAny(key, ";{}():\"'\\<>") || len(value) > 512 || strings.ContainsFunc(value, unicode.IsControl) || strings.ContainsAny(value, ";{}<>") || !utf8.ValidString(value) {
+			return errors.New("invalid Whale UI theme token")
+		}
+	}
 	if r.Revision > 9007199254740991 || (r.Media && r.Revision == 0) {
 		return errors.New("invalid OpenUI source revision")
 	}
@@ -86,13 +109,25 @@ func ValidateEvent(raw json.RawMessage, instance string) (Event, error) {
 		if err := ValidateMediaRequest(e); err != nil {
 			return e, err
 		}
-	case "clipboard", "open-url":
+	case "clipboard", "open-url", "download":
 		if err := ValidateNativeAction(e); err != nil {
 			return e, err
 		}
 	case "api-request":
 		if err := validateAPIRequest(e); err != nil {
 			return e, err
+		}
+	case "download-part":
+		if err := ValidateDownloadPart(e); err != nil {
+			return e, err
+		}
+	case "panel":
+		if _, err := ValidatePanelOperation(e.Operation); err != nil {
+			return e, err
+		}
+	case "title":
+		if len(e.Text) > 512 {
+			return e, errors.New("oversized Whale UI title")
 		}
 	case "state":
 		if err := ValidateState(e.State); err != nil {

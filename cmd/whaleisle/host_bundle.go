@@ -122,15 +122,15 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 	}
 	s.mu.Unlock()
 	if busy {
-		return false, fmt.Errorf("其他生命周期操作正在进行，请稍后选择 Host")
+		return false, fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostSelectionBusy))
 	}
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
 	if store == nil {
-		return false, fmt.Errorf("config store is not ready")
+		return false, fmt.Errorf("%s", i18n.T(i18n.KeyCmdConfigStoreNotReady))
 	}
 	cfg := store.Get()
 	if os.Getenv(paths.EnvVendor) != "" || strings.TrimSpace(cfg.DshBin) != "" || strings.TrimSpace(cfg.NodeBin) != "" {
-		return false, fmt.Errorf("请先在启动设置中清空显式 dshBin/nodeBin，并移除 WHALEISLE_VENDOR 覆盖；现有外部运行时未更改")
+		return false, fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostExternalOverride))
 	}
 	generation := 0
 	if sup != nil {
@@ -154,7 +154,7 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 		current := store.Get()
 		if changed || (sup != nil && sup.Status().Generation != generation) ||
 			os.Getenv(paths.EnvVendor) != "" || current.DshBin != cfg.DshBin || current.NodeBin != cfg.NodeBin {
-			applyErr = fmt.Errorf("运行环境已改变，请重新选择 Host")
+			applyErr = fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostSelectionChanged))
 			return applyErr
 		}
 		s.stopPhoneRuntime()

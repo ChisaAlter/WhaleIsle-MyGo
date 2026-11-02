@@ -144,7 +144,7 @@ func TestPluginSlotFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if output, err := exec.Command(node, fixture, script).CombinedOutput(); err != nil {
+	if output, err := runNodeFixture(node, fixture, script); err != nil {
 		t.Fatalf("consumer fixture: %s\n%v", output, err)
 	}
 }

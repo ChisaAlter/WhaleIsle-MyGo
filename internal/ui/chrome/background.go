@@ -3,9 +3,7 @@ package chrome
 import (
 	"github.com/egoist/mygo/ui"
 	"image"
-	"image/color"
 	"math"
-	"sync"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
@@ -16,6 +14,7 @@ var backgroundState struct {
 	path        string
 	blur, pixel float64
 	bitmap      *ui.Bitmap
+	screenRGBA  *image.RGBA
 	// The bitmap is prepared at the window's own pixel size, so its cache key
 	// carries that size alongside the source and the two effect sliders.
 	targetW, targetH int
@@ -27,6 +26,13 @@ var backgroundState struct {
 	sampBlur  float64
 	sampPixel float64
 	sampBmp   *ui.Bitmap
+	// frost* caches the window-space Gaussian-blurred + saturate(150%) bitmap
+	// that MaterialMenu (backdrop-filter: blur(40px) saturate(150%)) paints.
+	frostSrc         *image.RGBA
+	frostBmp         *ui.Bitmap
+	frostDark        bool
+	frostTransparent bool
+	frostVersion     uint64
 	// pixels is the prepared wallpaper the surfaces sample, the box it was
 	// drawn in, and the scheme that decided its dim mask. version changes
 	// whenever a surface's frozen patch would go stale.
@@ -75,6 +81,11 @@ func wallpaperPixelFactor(percent float64) float64 {
 
 func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	p = wallpapers.NormalizeEffect(path, p)
+	gradient := path == "" && p.Effect == "gradient"
+	if !gradient {
+		clearGradientBackdrop()
+		ambientGradientFrames.reset()
+	}
 	// The harness raises a too-sharp wallpaper once, when the transparent theme
 	// becomes effective, and the raise holds while it stays effective: the saved
 	// preferences keep the user's own blur, so this only changes what the window
@@ -192,106 +203,20 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 		return func(*ui.Painter, ui.Rect) {}
 	}
 	return func(painter *ui.Painter, r ui.Rect) {
-		colors := p.Colors
-		if p.Preset == "dune" {
-			// Dune is a fixed product palette; theme colors must not leak the
-			// accent blue into its grey-green wash.
-			colors = wallpapers.PresetColors("dune")
-		} else if colors == [7]string{} && p.Preset != "" {
-			colors = wallpapers.PresetColors(p.Preset)
-		}
-		resolved := [7]ui.Color{painter.Theme().Background, painter.Theme().Surface, painter.Theme().Accent, ui.Hex("#a78bfa"), ui.Hex("#38bdf8"), ui.Hex("#f472b6"), ui.Hex("#34d399")}
-		for i := range colors {
-			if colors[i] != "" {
-				resolved[i] = Color(colors[i])
-			}
-		}
-		t := float64(0)
-		if !reduced {
-			t = float64(painter.Now().UnixMilli()) / 1000 * p.Speed / 100
-		}
-		// The wash runs top to bottom, the axis the sheet's gradient band fills,
-		// and the blooms sit where the installed build's backdrop has its colour:
-		// the bright centre, the greens of the lower left and floor, the grey-blue
-		// right flank and the cooler top. They drift a tenth of the window, so the
-		// composition stays the sampled one while it still flows.
-		painter.FillGradient(r, ui.LinearGradient{From: resolved[0], To: resolved[1], Angle: 180}, 0)
-		anchors := [5][2]float32{{.5, .34}, {.2, .82}, {.5, .96}, {.86, .56}, {.72, .1}}
-		for i := 0; i < min(5, max(1, int(p.Count))); i++ {
-			phase := float64(i) * 1.73
-			anchor := anchors[i]
-			x := r.X + r.W*(anchor[0]+float32(.1*math.Sin(t*.22+phase)))
-			y := r.Y + r.H*(anchor[1]+float32(.08*math.Cos(t*.19+phase)))
-			w, h := r.W*.78, r.H*.78
-			if p.Variant == "chaos" {
-				w *= float32(.8 + .2*math.Sin(t*.13+phase))
-				h *= float32(.85 + .2*math.Cos(t*.11+phase))
-			}
-			// A soft radial bloom, not a blurred shadow: a shadow's cast box
-			// leaves the hard circle edge the first pass saw over the wallpaper.
-			painter.Image(bloomBitmap(resolved[i+2]), ui.Rect{X: x - w/2, Y: y - h/2, W: w, H: h}, ui.FillBox)
+		config := gradientConfiguration(p, float64(r.W), float64(r.H), painter.Theme().Dark, reduced)
+		// latest never renders a phase advance on this thread (6-12 ms of CPU, most
+		// of a 60 Hz frame); the finished frame is picked up by the next paint.
+		if frame := ambientGradientFrames.latest(config, painter.Now()); frame != nil {
+			painter.Image(frame.bitmap, r, ui.FillBox)
+			publishGradientBackdrop(frame, r)
 		}
 		if !reduced {
-			painter.AnimationFrame()
-		}
-		// The installed sheet dims its gradient with bg-mask-1 so the pale
-		// dune wash stays behind the chrome instead of washing the window out.
-		if !painter.Theme().Dark {
-			painter.Fill(r, ui.RGBA(0, 0, 0, .22), 0)
+			// The phase only changes every gradientFrameInterval, so repainting at
+			// the display rate (AnimationFrame) painted the same frame twice for
+			// every new one, and kept the window repainting at 60 Hz while idle.
+			painter.After(gradientFrameInterval)
 		}
 	}
-}
-
-// bloomCache keeps the radial glows of the ambient gradient, one per colour.
-var bloomCache sync.Map // ui.Color -> *ui.Bitmap
-
-// bloomDensity scales every bloom's own alpha. The pass-6 comparison against
-// evidence/compare/ref-hero-1440.png put the first pass about a tenth too dense:
-// the installed backdrop reads milkier at the top left and paler at the
-// blue-violet lower right, so each bloom lost the same 12% (255 -> 224 of its
-// alpha). Hue, position, count and radius are unchanged.
-const bloomDensity = 224
-
-// bloomBitmap is a soft radial glow of c: its colour at the centre fading to
-// nothing at the rim along a metaball falloff, so the gradient behind it never
-// shows an edge where the bloom ends. Colours without an alpha of their own
-// take an opaque centre, scaled by bloomDensity like every other bloom.
-func bloomBitmap(c ui.Color) *ui.Bitmap {
-	if bmp, ok := bloomCache.Load(c); ok {
-		return bmp.(*ui.Bitmap)
-	}
-	const n = 96
-	alpha := c.A
-	if alpha == 0 {
-		alpha = 255
-	}
-	alpha = uint8(int(alpha) * bloomDensity / 255)
-	img := image.NewRGBA(image.Rect(0, 0, n, n))
-	for y := 0; y < n; y++ {
-		for x := 0; x < n; x++ {
-			dx := (float64(x)+.5)/n*2 - 1
-			dy := (float64(y)+.5)/n*2 - 1
-			d2 := dx*dx + dy*dy
-			if d2 >= 1 {
-				continue
-			}
-			// (1 - d²)³ reaches zero with a zero slope at the rim, which is what
-			// keeps the bloom's edge out of the picture. The pixels are
-			// premultiplied, as every surface bitmap is.
-			falloff := 1 - d2
-			falloff = falloff * falloff * falloff
-			a := uint8(float64(alpha) * falloff)
-			img.SetRGBA(x, y, color.RGBA{
-				R: uint8(int(c.R) * int(a) / 255),
-				G: uint8(int(c.G) * int(a) / 255),
-				B: uint8(int(c.B) * int(a) / 255),
-				A: a,
-			})
-		}
-	}
-	bmp := ui.NewBitmap(img)
-	bloomCache.Store(c, bmp)
-	return bmp
 }
 
 // Separable running-sum blur keeps slider updates linear in the image size.

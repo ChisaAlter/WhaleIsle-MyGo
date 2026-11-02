@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/harness"
 	assistantui "whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/i18n"
 )
 
 func (s *mainState) assistantContactsModel(ep harness.Endpoint) assistantui.ContactsModel {
@@ -144,7 +145,7 @@ func (s *mainState) assistantContactsModel(ep harness.Endpoint) assistantui.Cont
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				if !current() {
-					controls.Finish(ticket, frozen, pluginrpc.DshbotContactResult{}, fmt.Errorf("原 Host/账户已切换，操作未发送"))
+					controls.Finish(ticket, frozen, pluginrpc.DshbotContactResult{}, fmt.Errorf("%s", i18n.T(i18n.KeyCmdContactsOwnerChanged)))
 					return
 				}
 				result, err := rpc.DshbotChangeContacts(ctx, frozen)

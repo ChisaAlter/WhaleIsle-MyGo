@@ -13,6 +13,11 @@ func TestVisibleBatchTargetsRespectsCollapsedAndArchivedVisibility(t *testing.T)
 		t.Fatalf("collapsed rows visible: %v", got)
 	}
 	m.HideArchivedList = false
+	if got := VisibleBatchTargets(m); len(got) != 0 {
+		t.Fatalf("collapsed archive rows visible: %v", got)
+	}
+	archiveExpanded := true
+	m.archiveExpanded = &archiveExpanded
 	if got := VisibleBatchTargets(m); len(got) != 1 || got[0].ID != "archived" {
 		t.Fatalf("archive rows: %v", got)
 	}

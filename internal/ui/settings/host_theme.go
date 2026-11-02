@@ -1,11 +1,13 @@
 package settings
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"whaleisle/internal/desktop/wallpapers"
 	store "whaleisle/internal/store/settings"
@@ -37,22 +39,60 @@ func BindHostTheme(s *store.Store) *HostThemeBinding {
 	return &HostThemeBinding{b}
 }
 
+// hostSettingsMemo keeps the decoded Host settings for the raw document the
+// binding last exposed. Snapshot runs on every frame and the document is a large
+// JSON object decoded into maps and arrays; an unchanged document is answered
+// from here (tmp/stalls, round 2026-10-26).
+var hostSettingsMemo struct {
+	mu    sync.Mutex
+	raw   []byte
+	value theme.HostSettings
+	err   error
+	ok    bool
+}
+
+func readHostSettingsCached(raw json.RawMessage) (theme.HostSettings, error) {
+	hostSettingsMemo.mu.Lock()
+	defer hostSettingsMemo.mu.Unlock()
+	if hostSettingsMemo.ok && bytes.Equal(hostSettingsMemo.raw, raw) {
+		return hostSettingsMemo.value, hostSettingsMemo.err
+	}
+	value, err := theme.ReadHostSettings(raw)
+	hostSettingsMemo.raw = append(hostSettingsMemo.raw[:0], raw...)
+	hostSettingsMemo.value, hostSettingsMemo.err, hostSettingsMemo.ok = value, err, true
+	return value, err
+}
+
 func (h *HostThemeBinding) Snapshot() HostThemeState {
-	s := h.binding.Snapshot()
-	result := HostThemeState{Ready: s.ClientReady && len(s.Namespaces) > 0, Writable: s.Writable, Loading: s.Loading, Saving: s.Saving, Pending: h.binding.Pending(), Owner: h.binding.Owner(), Error: s.Err}
-	if len(s.Namespaces) == 0 {
+	ready, writable, loading, saving, pending, owner, errStr, revision, rawValue, fields := h.binding.ReadOnlyThemeView()
+	result := HostThemeState{Ready: ready, Writable: writable, Loading: loading, Saving: saving, Pending: pending, Owner: owner, Error: errStr}
+	if !ready {
 		return result
 	}
-	ns := s.Namespaces[0]
-	value, err := theme.ReadHostSettings(ns.Value)
+	value, err := readHostSettingsCached(rawValue)
 	if err != nil {
 		result.Ready = false
 		result.Error = err.Error()
 		return result
 	}
-	result.Preferences, result.Background, result.Revision = value.Preferences(), value.Background(), ns.Revision
+	result.Preferences, result.Background, result.Revision = value.Preferences(), hostThemeBackground(value, fields), revision
 	result.Scheme, result.WallpaperImage, result.WallpaperImageExplicit = value.Preference, value.WallpaperImage, value.WallpaperImageExplicit
 	return result
+}
+
+// hostThemeBackground applies the served ui-theme default to an omitted effect.
+// Older Hosts that do not expose this field keep the local flat fallback.
+func hostThemeBackground(value theme.HostSettings, fields []store.Field) wallpapers.Preferences {
+	if !value.BackgroundEffectExplicit {
+		for _, field := range fields {
+			if field.Key == "backgroundEffect" {
+				value.BackgroundEffect = "gradient"
+				value.BackgroundEffectExplicit = true
+				break
+			}
+		}
+	}
+	return value.Background()
 }
 
 func (h *HostThemeBinding) SaveTypography(p theme.Preferences) error {
@@ -70,7 +110,11 @@ func (h *HostThemeBinding) SaveBackground(p wallpapers.Preferences) error {
 	if err != nil {
 		return err
 	}
-	return h.queueProjected(theme.BackgroundFields(p), theme.BackgroundFields(current.Background()))
+	s := h.binding.Snapshot()
+	if !s.ClientReady || len(s.Namespaces) == 0 {
+		return fmt.Errorf("Host appearance is unavailable or read-only")
+	}
+	return h.queueProjected(theme.BackgroundFields(p), theme.BackgroundFields(hostThemeBackground(current, s.Namespaces[0].Fields)))
 }
 
 func (h *HostThemeBinding) queueProjected(values, projection map[string]any) error {

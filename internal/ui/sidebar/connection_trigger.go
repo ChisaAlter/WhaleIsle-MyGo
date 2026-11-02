@@ -202,7 +202,7 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("连接成功", "Connected")).Tooltip(sidebarConnectionCopy("连接成功", "Connected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
 		return
 	}
-	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Label(action).Tooltip(label).Disabled(m.OnReconnect == nil)
+	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Center().Background(fill).Border(1, ink.Alpha(.2)).Label(action).Tooltip(label).Disabled(m.OnReconnect == nil)
 	if button.Hovered() {
 		button.Background(ui.RGB(uint8(float32(fill.R)*.94+float32(ink.R)*.06), uint8(float32(fill.G)*.94+float32(ink.G)*.06), uint8(float32(fill.B)*.94+float32(ink.B)*.06)))
 	}
@@ -260,7 +260,7 @@ func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors
 	}
 	busy := phase == "checking" || phase == "downloading" || phase == "verifying" || phase == "installing"
 	ink := chrome.Color(colors.Accent)
-	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).TextColor(ink).Label(label).Tooltip(detail)
+	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Center().Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).TextColor(ink).Label(label).Tooltip(detail)
 	if busy {
 		button.Disabled(true)
 	} else if button.Hovered() {

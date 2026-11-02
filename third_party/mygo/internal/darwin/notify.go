@@ -101,7 +101,7 @@ type waitingNotification struct {
 const notifyOptions = 1<<0 | 1<<1 | 1<<2
 
 func (b *Backend) ShowNotification(n *platform.Notification, done func(error)) {
-	if !b.NotificationsSupported() {
+	if n.Toast != nil || !b.NotificationsSupported() {
 		done(platform.ErrUnsupported)
 		return
 	}

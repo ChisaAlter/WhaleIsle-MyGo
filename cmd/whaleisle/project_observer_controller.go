@@ -18,6 +18,13 @@ func (s *mainState) primaryProjectController() *projectController {
 	return &projectController{mainState: s, projectFlow: &s.projectFlow}
 }
 func (s *mainState) bindProjectModel(win *mygo.Window, parent *frame.Model) {
+	s.mu.Lock()
+	store := s.cfgStore
+	s.mu.Unlock()
+	if store != nil && !projectMountEnabled(store.Get(), projectDevelopmentOverride()) {
+		parent.Projects = projects.Model{}
+		return
+	}
 	controller := s.primaryProjectController()
 	m := controller.projectModel(win)
 	m.ThemeID, m.SystemDark = parent.ThemeID, parent.SystemDark

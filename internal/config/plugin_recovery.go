@@ -98,7 +98,8 @@ func (s *Store) UpdatePluginRecovery(fn func(map[string]any)) error {
 	if err := writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
-	s.raw, s.cfg = merged, next
+	s.raw = merged
+	s.setCfgLocked(next)
 	s.baseline = fileBaseline{exists: true, data: data}
 	return nil
 }

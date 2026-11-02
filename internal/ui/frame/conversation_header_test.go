@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -56,4 +57,95 @@ func TestConversationHeader400KeepsLongTitleAndEveryUtilityInside(t *testing.T) 
 		}
 	}
 	saveConversationEvidence(t, tt, "conversation-header-400")
+}
+
+func TestConversationHeaderShortTitleDoesNotStretchTo280AndShowsSubagentCatalog(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Center = 900
+	catalog := make([]session.SubagentCatalogEntry, 7)
+	for i := range catalog {
+		catalog[i] = session.SubagentCatalogEntry{ID: fmt.Sprintf("sub-%d", i+1), Label: fmt.Sprintf("Sub %d", i+1)}
+	}
+	snap := session.ViewState{
+		SelectedID:          "s1",
+		SelectedAgentPreset: "standard",
+		Items:               []session.Item{{SessionID: "s1", Title: "短标题"}},
+		SubagentCatalog:     catalog,
+	}
+	agentsClicked := 0
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			conversationHeaderTitleRow(c, Model{
+				Store:            session.New(),
+				Sizes:            &sizes,
+				HideChatViewTabs: true,
+				OnOpenAgents:     func() { agentsClicked++ },
+			}, snap, theme.Resolve("deepseek.light").Light)
+		})
+	}, 900, 100)
+	title, ok := tt.Find("Conversation session title")
+	if !ok {
+		t.Fatal("missing conversation session title")
+	}
+	if title.W >= 200 {
+		t.Fatalf("short title stretched to %v, want tight fit well below 280", title.W)
+	}
+	agentsBtn, ok := tt.Find(i18n.T(i18n.KeyFrameCaptionAgents))
+	if !ok {
+		t.Fatal("missing agents button")
+	}
+	if agentsBtn.X-(title.X+title.W) > 16 {
+		t.Fatalf("agents button too far from title: title=%+v agents=%+v", title, agentsBtn)
+	}
+	subBtn, ok := tt.Find("Subagents")
+	if !ok {
+		t.Fatal("missing subagents button from SubagentCatalog")
+	}
+	if !tt.HasText("7 个子智能体") && !tt.HasText("7 subagents") {
+		t.Fatalf("expected 7 subagents label in header; texts=%q", tt.Texts())
+	}
+	if err := tt.Click("Subagents"); err != nil {
+		t.Fatal(err)
+	}
+	if agentsClicked != 1 {
+		t.Fatalf("clicking Subagents dispatched %d times, want 1", agentsClicked)
+	}
+	_ = subBtn
+}
+
+func TestRightDrawerExpandButtonRendersWhenRightPaneClosed(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Center = 800
+	sizes.Right = 0
+	toggled := 0
+	rightWidth := float32(0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			m := Model{
+				Store:         session.New(),
+				Sizes:         &sizes,
+				RightPaneOpen: false,
+				FilePaneWidth: &rightWidth,
+				OnToggleTools: func() { toggled++ },
+			}
+			centerRightColumns(c, m,
+				func() { ui.Box(c).Fill() },
+				func() { ui.Box(c).Fill() },
+			)
+		})
+	}, 800, 600)
+	label := paneLabel("展开右侧栏", "Expand right sidebar")
+	btn, ok := tt.Find(label)
+	if !ok {
+		t.Fatalf("missing right drawer expand button %q when RightPaneOpen is false", label)
+	}
+	if btn.X != 780 || btn.Y != 56 || btn.W != 20 || btn.H != 32 {
+		t.Fatalf("unexpected right drawer expand button geometry: %+v, want X=780 Y=56 W=20 H=32", btn)
+	}
+	if err := tt.Click(label); err != nil {
+		t.Fatal(err)
+	}
+	if toggled != 1 {
+		t.Fatalf("toggled=%d, want 1", toggled)
+	}
 }

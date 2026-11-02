@@ -470,3 +470,16 @@ test('saveConfig persists a whitelisted patch without echoing tokens', async () 
   assert.equal(failed.statusCode, 400);
   assert.deepEqual(JSON.parse(failed.body), { ok: false, error: 'config store read-only' });
 });
+
+test('saveConfig preserves desktop validation errors without a success result', async () => {
+  const headers = { authorization: 'Bearer ' + TOKEN };
+  for (const saveConfig of [
+    async () => ({ ok: false, error: 'theme must be a valid theme id' }),
+    async () => { throw new Error('theme must be a valid theme id'); },
+  ]) {
+    const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT], host: { saveConfig } });
+    const res = await run(handler, { url: '/__remote__/shell/saveConfig', headers, body: JSON.stringify({ patch: { theme: 42 } }) });
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'theme must be a valid theme id' });
+  }
+});

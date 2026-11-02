@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -41,9 +42,8 @@ const brandFont = "Didot, Bodoni MT, Playfair Display, Georgia, Times New Roman,
 // brandShine is the sheen's color, --boot-shine: white in both schemes.
 var brandShine = ui.RGBA(255, 255, 255, 1)
 
-// brandMark is the island's own name, the tag the reference prints under the
-// wordmark; it reads the same in every locale.
-var brandMark = "鲸屿"
+// brandMark identifies the Go desktop underneath the full product wordmark.
+var brandMark = "Go"
 
 // bootBrand paints .brand: the wordmark with its sheen, the mark and the harness
 // line, centred over the sky.
@@ -59,7 +59,13 @@ func bootBrand(c *ui.Context, short bool, fg, muted ui.Color, dark bool) {
 		base = fg.Alpha(.68)
 	}
 	ui.Column(c).Key("boot-brand").AlignItems(ui.Center).Children(func() {
-		wordmark(c, "Whale Isle", size, line, base)
+		// Fit the longer product name to a compact boot window as well.
+		width, _ := c.Size()
+		span := ui.Span{Text: product.Name, Font: brandFont, Size: size, LetterSpacing: size * brandTracking}
+		if measured, _ := c.MeasureText(0, span); measured > 0 && measured > width-48 {
+			size *= max(1, width-48) / measured
+		}
+		wordmark(c, product.Name, size, line, base)
 		// .tag-mark, then .brand-sub in the code face's tracked capitals.
 		ui.Text(c, brandMark).FontSize(theme.InterfaceSize(brandMarkSize)).
 			LetterSpacing(theme.InterfaceSize(brandMarkSize)*brandMarkTracking).

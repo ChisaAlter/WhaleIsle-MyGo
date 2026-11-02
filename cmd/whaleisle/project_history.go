@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"time"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -148,7 +149,7 @@ func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg 
 	s.mu.Unlock()
 	selected := ""
 	if sessions != nil {
-		selected = sessions.Snapshot().SelectedID
+		selected = sessions.SelectedSessionID()
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -179,7 +180,7 @@ func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg 
 			}
 		case "inspect":
 			if next.WorkID == "" || next.Selected == nil {
-				err = fmt.Errorf("select a recorded report")
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectSelectReport))
 				break
 			}
 			overview, err = rpc.TeamOverview(ctx, id)
@@ -221,14 +222,14 @@ func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg 
 				return
 			}
 			if action == "file" {
-				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.Snapshot().SelectedID != selected {
-					f.err = "Navigation changed; file was not opened."
+				if !f.visible() || f.navigation != navigation || sessions == nil || sessions.SelectedSessionID() != selected {
+					f.err = i18n.T(i18n.KeyCmdNavigationChangedTheFileWasNotOpened)
 					s.mu.Unlock()
 					return
 				}
-				next.Notice = "Opening the referenced file's current content, not a historical snapshot."
+				next.Notice = i18n.T(i18n.KeyCmdProjectCurrentFileNotice)
 				if resolved.ModifiedSinceReport {
-					next.Notice = "File changed after this report; opening current content."
+					next.Notice = i18n.T(i18n.KeyCmdProjectFileChangedNotice)
 				}
 				f.reports = &next
 				s.mu.Unlock()

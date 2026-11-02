@@ -29,6 +29,10 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 		utilitiesMargin = 8
 	}
 	muted := chrome.Color(colors.Muted)
+	secondary := muted
+	if colors.Secondary != "" {
+		secondary = chrome.Color(colors.Secondary)
+	}
 	managed := conversationIsManaged(snap)
 	// The phone band floats the drawer's menu button over the band's leading
 	// edge (AppFrame .phoneMenu at 10,10 36x36), so the title clears it.
@@ -40,10 +44,13 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	// actions share its 32 DIP content row (y = 12..44); rc.2 has no tab row
 	// under the caption.
 	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionContent).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
-		ui.Row(c).Key("conversation-title-cluster").Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
+		if m.ConversationContributions != nil {
+			m.ConversationContributions(c, snap, "conversation.session.header.leading")
+		}
+		ui.Row(c).Key("conversation-title-cluster").Grow(1).Shrink(1).MinWidth(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 			// The crumb seat spans the band's whole content row (y = 12..44) and
 			// centres its 20px line in it, as .titleRow's min-height 32 does.
-			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Grow(1).Shrink(1).MaxWidth(280).MinWidth(0).Height(workspaceCaptionContent).Justify(ui.Center).Clip().Children(func() {
+			ui.Box(c).Key("conversation-title-crumbs").Label("Conversation session title").Shrink(1).MaxWidth(280).MinWidth(0).Height(workspaceCaptionContent).Justify(ui.Center).Clip().Children(func() {
 				if snap.SelectedID != "" {
 					sessionAncestryHeader(c, m, snap)
 				} else {
@@ -57,25 +64,34 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 				if managed {
 					return
 				}
+				openAgents := m.OnOpenAgents
+				if openAgents == nil {
+					openAgents = m.OnOpenAssistant
+				}
+				conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "UsersOutline", compact, secondary, openAgents, 0)
 				preset := strings.TrimSpace(snap.SelectedAgentPreset)
 				if preset == "" && m.AgentPresetPick != nil {
 					preset = strings.TrimSpace(*m.AgentPresetPick)
 				}
 				if preset != "" {
 					preset = composer.PresetDisplayName(preset)
-					ui.Row(c).Key("conversation-active-preset").Label("Conversation agent preset").Tooltip(preset).Height(22).MaxWidth(180).MinWidth(14).Shrink(0).Gap(4).AlignItems(ui.Center).Padding(0, 2, 0, 0).Children(func() {
-						ui.Icon(c, conversationHeaderIcons["AgentPresetOutline"]).Width(14).Height(14).Shrink(0).TextColor(muted).Opacity(0.7)
+					presetRow := ui.Row(c).Key("conversation-active-preset").Label("Conversation agent preset").Tooltip(preset).Height(28).MaxWidth(180).MinWidth(14).Shrink(0).Gap(5).AlignItems(ui.Center).Padding(0, 8)
+					if compact {
+						presetRow = presetRow.Height(22).Gap(4).Padding(0, 2, 0, 0)
+					}
+					presetRow.Children(func() {
+						ui.Icon(c, conversationHeaderIcons["AgentPresetOutline"]).Width(14).Height(14).Shrink(0).TextColor(secondary).Opacity(0.85)
 						if !compact {
-							ui.Text(c, preset).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted).MinWidth(0).MaxWidth(160).NoWrap().Ellipsis("…")
+							ui.Text(c, preset).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(secondary).MinWidth(0).MaxWidth(160).NoWrap().Ellipsis("…")
 						}
 					})
 				}
+				conversationMoreMenu(c, m, snap, secondary)
 				projectObserverHeader(c, m)
+				subagentsHeader(c, m, snap, compact, secondary)
 				jobsHeader(c, m)
-				if m.WorkspaceTrailing != nil {
-					conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "AgentPresetOutline", compact, muted, m.OnOpenAgents, 0)
-				} else {
-					conversationHeaderButton(c, "conversation-more", i18n.T(i18n.KeyLauncherOpen), "EllipsisOutline", true, muted, m.OnOpenLauncher, 0)
+				if m.ConversationContributions != nil {
+					m.ConversationContributions(c, snap, "conversation.session.header.actions")
 				}
 			})
 		})
@@ -85,12 +101,8 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 			}
 			conversationOpenInApp(c, m, snap, colors)
 			scheduleHeader(c, m, snap, colors)
-			openAgents := m.OnOpenAgents
-			if openAgents == nil {
-				openAgents = m.OnOpenAssistant
-			}
-			if m.WorkspaceTrailing == nil {
-				conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "AgentPresetOutline", compact, muted, openAgents, 0)
+			if m.ConversationContributions != nil {
+				m.ConversationContributions(c, snap, "conversation.session.header.utilities")
 			}
 			if m.WorkspaceTrailing == nil && !m.TitlebarPreferences.HideSurfacesToggle {
 				conversationHeaderButton(c, "conversation-docs", i18n.T(i18n.KeyFrameCaptionProjectDocs), "PanelLeftOutline", true, muted, m.OnToggleTools, 180)
@@ -101,6 +113,12 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 			}
 		})
 		ui.Row(c).Key("conversation-header-corner").Shrink(0).AlignItems(ui.Center).Children(func() {
+			if managed {
+				conversationMoreMenu(c, m, snap, muted)
+			}
+			if m.ConversationContributions != nil {
+				m.ConversationContributions(c, snap, "conversation.session.header.corner")
+			}
 			if m.WorkspaceTrailing == nil {
 				conversationHeaderButton(c, "conversation-settings", i18n.T(i18n.KeySettingsOpen), "SettingsOutline", true, muted, m.OnOpenSettings, 0)
 			}
@@ -275,12 +293,16 @@ func conversationHeaderButton(c *ui.Context, key, label, icon string, compact bo
 	if action == nil {
 		return ui.Element{}
 	}
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, 6).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(ink)
+	padX := float32(8)
+	if compact {
+		padX = 6
+	}
+	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, padX).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(ink)
 	button.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(4).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(5).Children(func() {
 			ui.Icon(c, conversationHeaderIcons[icon]).Width(16).Height(16).TextColor(ink).Rotate(rotation)
 			if !compact {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(20)).NoWrap().TextColor(ink)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).NoWrap().TextColor(ink)
 			}
 		})
 	})
@@ -288,4 +310,70 @@ func conversationHeaderButton(c *ui.Context, key, label, icon string, compact bo
 		action()
 	}
 	return button
+}
+
+func subagentsHeader(c *ui.Context, m Model, snap session.ViewState, compact bool, headerInk ui.Color) {
+	if snap.SelectedID == "" || compact {
+		return
+	}
+	itemRunning := make(map[string]bool, len(snap.Items))
+	for _, it := range snap.Items {
+		if it.Running {
+			itemRunning[it.SessionID] = true
+		}
+	}
+	subCount := len(snap.SubagentCatalog)
+	runningCount := 0
+	if subCount > 0 {
+		for _, entry := range snap.SubagentCatalog {
+			if itemRunning[entry.ID] {
+				runningCount++
+			}
+		}
+	} else {
+		seen := map[string]bool{}
+		for _, it := range snap.Items {
+			if it.ParentID == snap.SelectedID && it.SessionID != "" && it.SessionID != snap.SelectedID {
+				seen[it.SessionID] = true
+				if it.Running {
+					runningCount++
+				}
+			}
+		}
+		for _, s := range snap.CostSources {
+			if s.Parent == snap.SelectedID && s.Origin == "subagent" && s.ID != "" && s.ID != snap.SelectedID && !seen[s.ID] {
+				seen[s.ID] = true
+				if itemRunning[s.ID] {
+					runningCount++
+				}
+			}
+		}
+		subCount = len(seen)
+	}
+	if runningCount == 0 {
+		if act, ok := snap.SidebarSubagentActivity[snap.SelectedID]; ok && act.Count > 0 {
+			runningCount = act.Count
+		}
+	}
+	if subCount == 0 {
+		return
+	}
+	summary := fmt.Sprintf(archiveText("%d 个子智能体", "%d subagents"), subCount)
+	if subCount == 1 {
+		summary = archiveText("1 个子智能体", "1 subagent")
+	}
+	btn := ui.Button(c.Key("conversation-subagents"), "").Label("Subagents").Tooltip(summary).
+		Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
+	btn.Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
+			if runningCount > 0 {
+				ui.Spinner(c).Size(10, 10).TextColor(headerInk)
+			}
+			ui.Text(c, summary).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).NoWrap()
+			ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
+		})
+	})
+	if btn.Clicked() && m.OnOpenAgents != nil {
+		m.OnOpenAgents()
+	}
 }

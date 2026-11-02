@@ -9,10 +9,11 @@ import (
 
 func presetManagerView(c *ui.Context, manager *session.AgentPresetManager, fg, muted ui.Color) {
 	s := manager.Snapshot()
+	border := c.Theme().Border
 	ui.Column(c).FillWidth().Padding(10, 12, 10, 12).Gap(6).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "Agent 预设管理").FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).Grow(1)
-			if !s.Busy && ui.Button(c, "刷新预设").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "Agent 预设管理").FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+			if !s.Busy && ui.Button(c, "刷新预设").Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				go manager.Refresh(context.Background())
 			}
 		})
@@ -37,8 +38,8 @@ func presetManagerView(c *ui.Context, manager *session.AgentPresetManager, fg, m
 			ui.Text(c, "暂无 Agent 预设").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		for _, row := range s.Rows {
-			ui.Column(c).FillWidth().Gap(2).Children(func() {
-				ui.Row(c).FillWidth().Gap(6).Children(func() {
+			ui.Column(c).FillWidth().Gap(4).Radius(10).Border(0.5, border).Padding(10, 12).Children(func() {
+				ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 					label := row.Name + " (" + row.ID + ")"
 					if row.ID == s.DefaultID {
 						label += " · 默认"
@@ -48,7 +49,7 @@ func presetManagerView(c *ui.Context, manager *session.AgentPresetManager, fg, m
 					}
 					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
 					if s.Writable && !s.Busy && row.Broken == "" && !row.Hidden && row.ID != s.DefaultID {
-						if ui.Button(c, "设为默认").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, "设为默认").Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 							id := row.ID
 							go manager.SaveDefault(context.Background(), id)
 						}

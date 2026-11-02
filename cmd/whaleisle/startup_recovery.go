@@ -89,7 +89,7 @@ func (s *mainState) recordStartupStatusLocked(st harness.Status) bool {
 	}
 	var err error
 	if r.store == nil {
-		err = fmt.Errorf("startup recovery storage is unavailable")
+		err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdStartupRecoveryUnavailable))
 	} else {
 		err = r.store.Record(fullReady, reason, logs, buildVersion)
 	}

@@ -9,7 +9,7 @@ import (
 
 func TestArchiveRosterFiltersActiveSearchAndKeepsOrphans(t *testing.T) {
 	q := "match"
-	snap := session.ViewState{Items: []session.Item{{SessionID: "a", Title: "match archived"}, {SessionID: "b", ParentID: "a", Title: "match child"}}, ArchivedSessionIDs: []string{"a"}, SearchRPCQuery: q, SearchHitIDs: map[string]bool{"a": true, "b": true}}
+	snap := session.ViewState{Items: []session.Item{{SessionID: "a", Title: "match archived"}, {SessionID: "b", ParentID: "a", Title: "match child"}}, Workspaces: []session.WorkspaceRow{{WorkspaceID: "workspace", SessionIDs: []string{"a", "b"}}}, ArchivedSessionIDs: []string{"a"}, SearchRPCQuery: q, SearchHitIDs: map[string]bool{"a": true, "b": true}}
 	items := sidebarItems(snap, &q)
 	if len(items) != 1 || items[0].SessionID != "b" {
 		t.Fatalf("active items: %+v", items)
@@ -25,6 +25,9 @@ func TestArchivedOnlySidebarKeepsManagementReachable(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Snapshot: snap, OnSelect: func(id string) { selected = id }, OnUnarchive: func(id string) { restored = id }, OnDelete: func(id string) { deleted = id }})
 	}, 280, 800)
+	if err := tt.Click(i18n.T(i18n.KeySidebarArchivedSection)); err != nil {
+		t.Fatal(err)
+	}
 	if err := tt.Click(sessionActionsLabel("archived")); err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +50,7 @@ func TestArchivedOnlySidebarKeepsManagementReachable(t *testing.T) {
 
 func TestActiveRowHasArchiveButNoDelete(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
-		View(c, Model{Snapshot: session.ViewState{Items: []session.Item{{SessionID: "a", Title: "active"}}, SelectedID: "a"}, OnArchive: func(string) {}, OnDelete: func(string) {}})
+		View(c, Model{Snapshot: session.ViewState{Items: []session.Item{{SessionID: "a", Title: "active"}}, SelectedID: "a", Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", SessionIDs: []string{"a"}}}}, OnArchive: func(string) {}, OnDelete: func(string) {}})
 	}, 280, 800)
 	if err := tt.Click(sessionActionsLabel("a")); err != nil {
 		t.Fatal(err)
@@ -82,6 +85,12 @@ func TestArchivedListVisibilityPreservesArchivedRows(t *testing.T) {
 	tt = ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Snapshot: snap, HideArchivedList: hidden, OnUnarchive: func(string) {}})
 	}, 280, 800)
+	if _, ok := tt.Find(sessionActionsLabel("archived")); ok {
+		t.Fatal("archive should start collapsed")
+	}
+	if err := tt.Click(i18n.T(i18n.KeySidebarArchivedSection)); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := tt.Find(sessionActionsLabel("archived")); !ok {
 		t.Fatal("archive section not restored")
 	}

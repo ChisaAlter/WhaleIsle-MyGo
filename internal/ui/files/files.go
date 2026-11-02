@@ -41,16 +41,21 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
-	SVGImages           *svgimage.Owner
-	OpenDocumentViewer  func(string) (DocumentSurface, error)
-	ReadTextPageContext func(context.Context, string, int64) (workspacefs.TextPage, error)
-	AllowPageShortcuts  func() bool
-	PlanOnly            bool
-	PlanSnapshot        session.ViewState
-	OnLoadPlanHistory   func()
-	ReadSubagentPlan    func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
-	Tabs                *Tabs
-	WorkspaceRoot       string
+	SVGImages          *svgimage.Owner
+	OpenDocumentViewer func(string) (DocumentSurface, error)
+	// OpenDeliveryDocument accepts a validated local saved file in a read-only
+	// document route. Nil means that route was accepted, not that bytes rendered.
+	// It must report asynchronous loading/errors and must never use Host readers
+	// or a system/default-application fallback.
+	OpenDeliveryDocument func(absPath string, kind DeliveryPreviewKind) error
+	ReadTextPageContext  func(context.Context, string, int64) (workspacefs.TextPage, error)
+	AllowPageShortcuts   func() bool
+	PlanOnly             bool
+	PlanSnapshot         session.ViewState
+	OnLoadPlanHistory    func()
+	ReadSubagentPlan     func(context.Context, string, session.PlanResourceTarget, func()) *session.PlanResourceRead
+	Tabs                 *Tabs
+	WorkspaceRoot        string
 	// BindingID identifies the current Host connection and selected session.
 	SessionID       string
 	OnReferenceFile func(filelink.Reference) error
@@ -74,7 +79,7 @@ type Model struct {
 	// PaneWidth is the preview pane width in DIPs; used to pick side-by-side vs stack.
 	PaneWidth *float32
 	// EditSplit is the first-pane size for the edit/preview split (width or height).
-	EditSplit         *float32
+	EditSplit *float32
 	// OnNewTab opens the owner's new-tab flow from the strip's trailing control.
 	OnNewTab          func()
 	OnShowDiff        func(rel string)
@@ -149,6 +154,7 @@ func View(c *ui.Context, m Model) {
 		return
 	}
 	prepareTabs(m)
+	syncDeliveryPreview(m)
 	syncTextRead(m)
 	syncDocumentSurfaces(m)
 	syncSaveResults(m)
@@ -210,13 +216,13 @@ func View(c *ui.Context, m Model) {
 		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
-				input := ui.TextInput(c, m.Filter).FillWidth().Placeholder(i18n.T(i18n.KeyFilesFilter))
+				input := ui.TextInput(c, m.Filter).FillWidth().Height(28).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(12.5)).Placeholder(i18n.T(i18n.KeyFilesFilter))
 				if !input.Composing() && input.Shortcut(0, ui.KeyEscape) {
 					*m.Filter = ""
 				}
 			})
 		}
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).FillWidth().Height(0.5).Background(border)
 		if root == "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
@@ -268,12 +274,12 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
+		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Radius(6).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
 		if m.SelectedFile != nil && *m.SelectedFile == path {
 			row.Background(accent.Alpha(0.12))
 		}
 		row.Children(func() {
-			ui.Text(c, path).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+			ui.Text(c, path).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 			paintTreeReferenceButton(c, m, row, path, muted)
 		})
 		if row.Clicked() {
@@ -329,14 +335,14 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
 	pad := float32(8 + depth*12)
 	expanded := isExpanded(m, rel)
-	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("Folder "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("Folder "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).Radius(6).AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
 	if row.Hovered() || row.FocusWithin() {
 		row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
 	}
 	row.Children(func() {
 		paintTreeTwist(c, expanded, muted)
 		paintTreeEntryIcon(c, true, muted)
-		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 	})
 	if row.Clicked() {
 		toggleExpanded(m, rel)
@@ -347,7 +353,7 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
 	pad := float32(8 + depth*12)
 	selected := m.SelectedFile != nil && *m.SelectedFile == rel
-	row := ui.Row(c).Key(treeFileRowKey(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
+	row := ui.Row(c).Key(treeFileRowKey(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).Radius(6).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
 	if selected {
 		row.Background(accent.Alpha(0.12))
 	} else if row.Hovered() || row.FocusWithin() {
@@ -356,7 +362,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 	row.Children(func() {
 		ui.Box(c).Width(12)
 		paintTreeEntryIcon(c, false, muted)
-		ui.Text(c, name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+		ui.Text(c, name).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
 		paintTreeReferenceButton(c, m, row, rel, muted)
 	})
 	if row.Clicked() {
@@ -368,7 +374,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).FillWidth().Height(0.5).Background(border)
 		paintTabs(c, m, fg, muted)
 		sel := ""
 		if m.SelectedFile != nil {

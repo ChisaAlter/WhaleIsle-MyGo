@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -159,6 +160,11 @@ type launcherStageResult struct {
 // launcher window and reveals the main window.
 func applyLauncherStage(stage launcherStage, open bool) launcherStageResult {
 	var res launcherStageResult
+	// Automatic stage sync must preserve an explicitly hidden isolated run.
+	// User show commands keep their separate showMainWindow path.
+	if isolatedDesktopHidden() {
+		return res
+	}
 	if open {
 		if stage.launcherOpen() {
 			return res
@@ -334,6 +340,34 @@ func (s *mainState) launcherWindowBody(c *ui.Context, lw *launcherWindow) {
 	})
 }
 
+// launcherVendorProbe answers whether the staged runtime's CLI entry exists.
+var launcherVendorProbe backgroundProbe[bool]
+
+// launcherSurfaceInvalidator returns a function, safe to call from any
+// goroutine, that asks for a frame on every surface the launcher panel paints
+// on: the launcher window and the main window's fallback panel. Both share one
+// probe, so the surface that happened to start a refresh is not the only one
+// whose answer changed. Build it on the UI thread, which owns launcherWindow.win;
+// self is the window of the surface asking, which need not be either of them.
+func (s *mainState) launcherSurfaceInvalidator(self *mygo.Window) func() {
+	s.mu.Lock()
+	lw := s.launcherWin
+	s.mu.Unlock()
+	var launcher *mygo.Window
+	if !lw.destroyed() {
+		launcher = lw.win
+	}
+	return func() {
+		if self != nil {
+			self.Invalidate()
+		}
+		if launcher != nil && launcher != self {
+			launcher.Invalidate()
+		}
+		s.invalidateMainWindow()
+	}
+}
+
 // launcherPanel paints the one launcher model. Both surfaces call it: the
 // launcher window (win = lw.win) and the in-window fallback panel
 // (win = main window).
@@ -358,10 +392,11 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 	s.mu.Unlock()
 	// The pinned native release catalog owns the one background lookup.
 	// Full-window launcher shell (Electron parity): no main chrome.
-	vendorReady := false
-	if info, err := os.Stat(filepath.Join(paths.VendorDir(), "deepseek-harness", "apps", "cli", "lib", "bin.js")); err == nil && !info.IsDir() {
-		vendorReady = true
-	}
+	binJS := filepath.Join(paths.VendorDir(), "deepseek-harness", "apps", "cli", "lib", "bin.js")
+	vendorReady := launcherVendorProbe.get(binJS, time.Second, func() bool {
+		info, err := os.Stat(binJS)
+		return err == nil && !info.IsDir()
+	}, s.launcherSurfaceInvalidator(win))
 	disabled := []string(nil)
 	skipUserPlugins := false
 	pluginRecoveryReason := ""
@@ -475,7 +510,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 					return
 				}
 				state.mu.Lock()
-				state.launcherUpdate = "正在启动鲸桥并验证就绪状态…"
+				state.launcherUpdate = i18n.T(i18n.KeyCmdBridgeStarting)
 				if action != "start" {
 					state.launcherUpdate = i18n.T(i18n.KeyCmdOpeningWhalebridgeSettings)
 				}
@@ -512,7 +547,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 				}
 				route := state.updateDownloadRoute()
 				state.mu.Lock()
-				state.launcherUpdate = "正在下载并校验鲸桥组件…"
+				state.launcherUpdate = i18n.T(i18n.KeyCmdBridgeDownloading)
 				state.launcherComponentStatus = state.launcherUpdate
 				state.mu.Unlock()
 				go func() {
@@ -522,7 +557,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 					state.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
 					state.launcherComponentStatus = state.launcherUpdate
 					if err == nil {
-						state.launcherUpdate = "鲸桥已安装并校验，可点击启动；未自动运行"
+						state.launcherUpdate = i18n.T(i18n.KeyCmdBridgeInstalled)
 						state.launcherComponentStatus = state.launcherUpdate
 					}
 					state.mu.Unlock()
@@ -609,7 +644,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 					state.mu.Lock()
 					state.launcherStartBusy = false
 					state.launcherStartFailed = true
-					state.launcherStartErr = "config store is not ready"
+					state.launcherStartErr = i18n.T(i18n.KeyCmdConfigStoreNotReady)
 					state.mu.Unlock()
 					if win != nil {
 						win.Update(func() {})
@@ -752,7 +787,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 			state.seedDesktopDraft()
 			state.mu.Unlock()
 			if state.settings != nil {
-				state.settings.OpenSettingsDocument(context.Background())
+				state.settings.RefreshDescribe(context.Background())
 			}
 			// Settings live in the main window: close the launcher window first.
 			state.syncLauncherStage()

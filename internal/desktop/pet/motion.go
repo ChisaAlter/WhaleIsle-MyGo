@@ -51,14 +51,12 @@ func (p *Companion) startMotion(w *mygo.Window) {
 	m.facing = 1
 	m.lastContact = time.Now()
 	cfg := p.Store.DesktopPet()
-	bounds := w.Bounds()
+	bounds := p.petBounds()
 	position := motionPoint{x: float64(bounds.X), y: float64(bounds.Y)}
 	migrate := false
-	if cfg.Position != nil {
-		position = motionPoint{x: float64(cfg.Position.X), y: float64(cfg.Position.Y)}
-	} else if !m.legacyChecked {
+	if cfg.Position == nil && !m.legacyChecked {
 		m.legacyChecked = true
-		if old := legacyMotionAnchor(); old != nil {
+		if old := petRestorePosition(legacyMotionAnchor(), petDisplays()); old != nil {
 			position = motionPoint{x: float64(old.X), y: float64(old.Y)}
 			migrate = true
 		}
@@ -74,10 +72,10 @@ func (p *Companion) startMotion(w *mygo.Window) {
 			p.saveMotionAnchor(position)
 		}
 	}
-	m.moves.expect(motionWindowPoint(w))
+	m.moves.expect(p.petPosition())
 	m.offMove = w.OnMove(func() {
 		if p.motionCurrent(w) {
-			p.motionMoved(time.Now())
+			p.publishLayout()
 		}
 	})
 	m.offFocus = w.OnFocus(func() {
@@ -91,9 +89,11 @@ func (p *Companion) startMotion(w *mygo.Window) {
 		}
 		// Display removal is an automatic relocation, never a new anchor.
 		m.glide, m.manualPending = nil, false
-		bounds := w.Bounds()
+		p.sizeStage()
+		p.publishLayout()
+		bounds := p.petBounds()
 		if area, ok := motionWorkArea(bounds); ok {
-			p.setMotionPosition(clampMotionPoint(motionWindowPoint(w), float64(bounds.Width), float64(bounds.Height), area))
+			p.setMotionPosition(clampMotionPoint(p.petPosition(), float64(bounds.Width), float64(bounds.Height), area))
 		}
 		m.nextAt = time.Now().Add(wanderInterval(p.Store.DesktopPet().Behavior.Activity, rand.Float64()))
 	})
@@ -195,13 +195,13 @@ func (p *Companion) tickMotion(now time.Time) {
 		return
 	}
 	if m.glide != nil {
-		bounds := m.window.Bounds()
+		bounds := p.petBounds()
 		area, ok := motionWorkArea(bounds)
 		if !ok || area != m.area {
 			m.glide = nil
 			m.nextAt = now.Add(wanderInterval(cfg.Behavior.Activity, rand.Float64()))
 			if ok {
-				p.setMotionPosition(clampMotionPoint(motionWindowPoint(m.window), float64(bounds.Width), float64(bounds.Height), area))
+				p.setMotionPosition(clampMotionPoint(p.petPosition(), float64(bounds.Width), float64(bounds.Height), area))
 			}
 		} else {
 			position, done := m.glide.position(now.Sub(m.glideAt).Seconds())
@@ -212,13 +212,14 @@ func (p *Companion) tickMotion(now time.Time) {
 			}
 		}
 	} else if !now.Before(m.nextAt) {
-		bounds := m.window.Bounds()
+		bounds := p.petBounds()
 		area, ok := motionWorkArea(bounds)
 		if ok {
-			from := motionWindowPoint(m.window)
-			target := wanderTarget(from, float64(bounds.Width), float64(bounds.Height), area, m.facing, cfg.Behavior.Scale, rand.Float64)
-			if math.Abs(target.x-from.x) > 2 || math.Abs(target.y-from.y) > 2 {
-				glide := newWanderGlide(from, target, wanderSpeed(cfg.Behavior.Activity, cfg.Behavior.Scale, rand.Float64()))
+			from := p.petPosition()
+			dpi := petCoordinateScale(activePetDisplay(petDisplays(), bounds))
+			target := nativeWanderTarget(from, float64(bounds.Width), float64(bounds.Height), area, m.facing, cfg.Behavior.Scale, dpi, rand.Float64)
+			if math.Abs(target.x-from.x) > 2*dpi || math.Abs(target.y-from.y) > 2*dpi {
+				glide := newWanderGlide(from, target, wanderSpeed(cfg.Behavior.Activity, cfg.Behavior.Scale, rand.Float64())*dpi)
 				m.glide, m.glideAt, m.area = &glide, now, area
 				if target.x != from.x {
 					m.facing = 1
@@ -246,20 +247,15 @@ func (p *Companion) setMotionPosition(position motionPoint) {
 	}
 	position.x = math.Round(motionClamp(position.x, -motionCoordinateLimit, motionCoordinateLimit))
 	position.y = math.Round(motionClamp(position.y, -motionCoordinateLimit, motionCoordinateLimit))
-	if position == motionWindowPoint(m.window) {
-		return
-	}
+	p.stage.X, p.stage.Y = int(position.x), int(position.y)
+	p.sizeStage()
 	m.moves.expect(position)
-	m.moves.writing = true
-	m.window.SetPosition(int(position.x), int(position.y))
-	// Record the actual native result too: some backends constrain positions.
-	m.moves.expect(motionWindowPoint(m.window))
-	m.moves.writing = false
+	p.publishLayout()
 }
 
 func (p *Companion) motionMoved(now time.Time) {
 	m := &p.motion
-	position := motionWindowPoint(m.window)
+	position := p.petPosition()
 	contact := now.Before(m.contactUntil) || m.manualPending
 	if !m.moves.manual(position, contact) {
 		return
@@ -271,7 +267,7 @@ func (p *Companion) motionMoved(now time.Time) {
 	m.contactUntil = now.Add(2 * time.Second)
 	m.glide = nil
 	m.nextAt = now.Add(wanderInterval(p.Store.DesktopPet().Behavior.Activity, rand.Float64()))
-	bounds := m.window.Bounds()
+	bounds := p.petBounds()
 	if area, ok := motionWorkArea(bounds); ok {
 		m.manualPosition = clampMotionPoint(position, float64(bounds.Width), float64(bounds.Height), area)
 		m.manualPending = true
@@ -287,10 +283,7 @@ func (p *Companion) saveMotionAnchor(position motionPoint) {
 	if !cfg.Enabled {
 		return
 	}
-	anchor := config.PetPosition{
-		X: int(math.Round(motionClamp(position.x, -motionCoordinateLimit, motionCoordinateLimit))),
-		Y: int(math.Round(motionClamp(position.y, -motionCoordinateLimit, motionCoordinateLimit))),
-	}
+	anchor := *petStoredPosition(motionPoint{x: math.Round(motionClamp(position.x, -motionCoordinateLimit, motionCoordinateLimit)), y: math.Round(motionClamp(position.y, -motionCoordinateLimit, motionCoordinateLimit))})
 	if cfg.Position != nil && *cfg.Position == anchor {
 		return
 	}
@@ -302,13 +295,8 @@ func (p *Companion) saveMotionAnchor(position motionPoint) {
 	}
 }
 
-func motionWindowPoint(w *mygo.Window) motionPoint {
-	bounds := w.Bounds()
-	return motionPoint{x: float64(bounds.X), y: float64(bounds.Y)}
-}
-
 func motionWorkArea(bounds mygo.Rectangle) (motionRect, bool) {
-	display := mygo.Screen.DisplayMatching(bounds)
+	display := activePetDisplay(petDisplays(), bounds)
 	area := display.WorkArea
 	if area.Width <= 0 || area.Height <= 0 {
 		return motionRect{}, false

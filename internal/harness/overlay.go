@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/startuprec"
+	"whaleisle/internal/startuptrace"
 )
 
 // DesktopPlugin describes one vendor package mounted via junction + --patch.
@@ -139,22 +140,39 @@ func Prepare(o PrepareOptions) ([]string, error) {
 	if o.VendorDir == "" || o.ProfileDir == "" {
 		return nil, fmt.Errorf("harness: VendorDir and ProfileDir are required")
 	}
-	if err := (startuprec.OfflinePlugins{ProfileDir: o.ProfileDir}).ApplyDisabled(o.DisabledPlugins); err != nil {
+	endDisabled := startuptrace.Begin("profile.disabled_plugins")
+	err := (startuprec.OfflinePlugins{ProfileDir: o.ProfileDir}).ApplyDisabled(o.DisabledPlugins)
+	endDisabled()
+	if err != nil {
 		return nil, fmt.Errorf("disabled plugins: %w", err)
 	}
 	plugins := append(builtinPlugins(), optionalPlugins(o)...)
-	var patches []string
+	// Every junction is created before any overlay is written: both loops keep
+	// Electron push order, and the split makes profile staging measurable.
+	endLinks := startuptrace.Begin("profile.links")
 	for _, p := range plugins {
 		source := filepath.Join(o.VendorDir, p.VendorName)
 		if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
 			if p.Required {
+				endLinks()
 				return nil, fmt.Errorf("desktop plugin %s: missing package.json under %s", p.VendorName, source)
 			}
 			continue
 		}
 		link := filepath.Join(o.ProfileDir, "node_modules", p.ModuleLink)
 		if _, err := EnsureDirectoryLink(source, link); err != nil {
+			endLinks()
 			return nil, fmt.Errorf("junction %s: %w", p.VendorName, err)
+		}
+	}
+	endLinks()
+	endOverlays := startuptrace.Begin("profile.overlays")
+	defer endOverlays()
+	var patches []string
+	for _, p := range plugins {
+		source := filepath.Join(o.VendorDir, p.VendorName)
+		if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
+			continue
 		}
 		var overlayPath string
 		var err error

@@ -2,7 +2,6 @@ package pet
 
 import (
 	"encoding/json"
-	"github.com/egoist/mygo"
 	"math"
 	"net/http"
 	"time"
@@ -23,6 +22,7 @@ type interactionView struct {
 	Facing           int
 	VX, VY           float64
 	Landed           int64
+	Layout           petLayout
 }
 type interactionState struct {
 	timer                  *time.Timer
@@ -71,8 +71,8 @@ func (p *Companion) armInteraction() {
 }
 func (p *Companion) tickInteraction(now time.Time) {
 	s := &p.interaction
-	cursor := mygo.Screen.CursorScreenPoint()
-	bounds := p.win.Bounds()
+	cursor := petCursorPoint()
+	bounds := p.petBounds()
 	dt := math.Min(.05, now.Sub(s.last).Seconds())
 	s.last = now
 	if s.pressed {
@@ -95,44 +95,23 @@ func (p *Companion) tickInteraction(now time.Time) {
 	} else if s.mode == "throw" && dt > 0 {
 		p.motionContact()
 		if area, ok := motionWorkArea(bounds); ok {
-			left, top := area.x, area.y
-			right, floor := math.Max(left, area.x+area.width-float64(bounds.Width)), math.Max(top, area.y+area.height-float64(bounds.Height))
-			s.vy += 1400 * dt
-			s.position.x += s.vx * dt
-			s.position.y += s.vy * dt
-			if s.position.x < left {
-				s.position.x = left
-				s.vx = math.Abs(s.vx) * .78
-			}
-			if s.position.x > right {
-				s.position.x = right
-				s.vx = -math.Abs(s.vx) * .78
-			}
-			if s.position.y < top {
-				s.position.y = top
-				s.vy = math.Abs(s.vy) * .78
-			}
-			if s.position.y >= floor {
-				s.position.y = floor
-				s.vx *= math.Max(0, 1-2.5*dt)
-				if math.Abs(s.vy) < 40 {
-					s.vy = 0
-				} else {
-					s.vy = -math.Abs(s.vy) * .78
-				}
-			}
+			dpi := petCoordinateScale(activePetDisplay(petDisplays(), bounds))
+			position, velocity, rested := nativeThrowStep(s.position, motionPoint{x: s.vx, y: s.vy}, dt, area, float64(bounds.Width), float64(bounds.Height), dpi)
+			s.position, s.vx, s.vy = position, velocity.x, velocity.y
 			p.setMotionPosition(s.position)
-			if s.position.y >= floor-1 && math.Abs(s.vy) < 1 && math.Abs(s.vx) < 15 {
+			if rested {
 				p.landInteraction(now)
 			}
 		} else {
 			p.landInteraction(now)
 		}
 	}
-	bounds = p.win.Bounds()
+	bounds = p.petBounds()
 	p.assetMu.Lock()
-	s.view.CursorX, s.view.CursorY = float64(cursor.X-bounds.X), float64(cursor.Y-bounds.Y)
-	s.view.Mode, s.view.VX, s.view.VY = s.mode, s.vx, s.vy
+	overlay := petContentBounds(p.win)
+	scale := petWindowScale(p.win)
+	s.view.CursorX, s.view.CursorY = float64(cursor.X-overlay.X)/scale, float64(cursor.Y-overlay.Y)/scale
+	s.view.Mode, s.view.VX, s.view.VY = s.mode, s.vx/scale, s.vy/scale
 	s.view.Roaming, s.view.Facing = p.motion.glide != nil, p.motion.facing
 	p.assetMu.Unlock()
 	p.updateHitRegions(cursor)
@@ -140,8 +119,8 @@ func (p *Companion) tickInteraction(now time.Time) {
 func (p *Companion) landInteraction(now time.Time) {
 	s := &p.interaction
 	s.mode, s.vx, s.vy = "", 0, 0
-	if area, ok := motionWorkArea(p.win.Bounds()); ok {
-		b := p.win.Bounds()
+	if area, ok := motionWorkArea(p.petBounds()); ok {
+		b := p.petBounds()
 		s.position = clampMotionPoint(s.position, float64(b.Width), float64(b.Height), area)
 		p.setMotionPosition(s.position)
 	}
@@ -171,9 +150,9 @@ func (p *Companion) interactionAction(raw string) bool {
 	s, now := &p.interaction, time.Now()
 	switch action {
 	case "gesture-press":
-		cursor := mygo.Screen.CursorScreenPoint()
+		cursor := petCursorPoint()
 		s.pressed, s.mode = true, ""
-		s.origin = motionWindowPoint(p.win)
+		s.origin = p.petPosition()
 		s.position = s.origin
 		s.grab = motionPoint{x: float64(cursor.X) - s.origin.x, y: float64(cursor.Y) - s.origin.y}
 		s.trail = []interactionSample{{now, float64(cursor.X), float64(cursor.Y)}}
@@ -189,8 +168,9 @@ func (p *Companion) interactionAction(raw string) bool {
 		s.pressed = false
 		moved := s.mode == "pickup"
 		if moved {
-			s.vx, s.vy = interactionRelease(s.trail, now)
-			if action == "gesture-release" && math.Hypot(s.vx, s.vy) >= 500 {
+			dpi := petCoordinateScale(activePetDisplay(petDisplays(), p.petBounds()))
+			s.vx, s.vy = nativeInteractionRelease(s.trail, now, dpi)
+			if action == "gesture-release" && math.Hypot(s.vx, s.vy) >= 500*dpi {
 				s.mode = "throw"
 				p.interactionCare(true)
 			} else {
@@ -202,7 +182,7 @@ func (p *Companion) interactionAction(raw string) bool {
 		}
 		s.trail = nil
 	}
-	p.updateHitRegions(mygo.Screen.CursorScreenPoint())
+	p.updateHitRegions(petCursorPoint())
 	return true
 }
 func interactionRelease(trail []interactionSample, now time.Time) (float64, float64) {
@@ -278,6 +258,7 @@ func (p *Companion) serveInteraction(w http.ResponseWriter, r *http.Request) boo
 	}
 	p.assetMu.RLock()
 	view := p.interaction.view
+	view.Layout = p.layout
 	p.assetMu.RUnlock()
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "HEAD" {

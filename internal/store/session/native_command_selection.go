@@ -3,6 +3,8 @@ package session
 import (
 	"context"
 	"errors"
+	"reflect"
+	"slices"
 	"sort"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/storelocale"
@@ -91,8 +93,13 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 			s.mu.Unlock()
 			return nil, errors.New("Command owner changed")
 		}
-		s.modelOptions = flattenModelCatalog(cat)
-		s.modelState.Default = cloneModelSelection(cat.Default)
+		newOptions := flattenModelCatalog(cat)
+		selection := cloneModelSelection(cat.Default)
+		if !s.modelState.CatalogReady || !reflect.DeepEqual(s.modelOptions, newOptions) || !reflect.DeepEqual(s.modelState.Default, selection) {
+			s.invalidateViewLocked()
+		}
+		s.modelOptions = newOptions
+		s.modelState.Default = selection
 		s.modelState.CatalogReady = true
 		current, known := s.currentModelSelectionLocked()
 		options := append([]ModelOption(nil), s.modelOptions...)
@@ -135,7 +142,11 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 			return nil, errors.New("Command owner changed")
 		}
 		current := s.permissionProjection.Value
-		s.permissionOptions = flattenPermissionCatalog(cat)
+		options := flattenPermissionCatalog(cat)
+		if !slices.Equal(s.permissionOptions, options) {
+			s.invalidateViewLocked()
+		}
+		s.permissionOptions = options
 		s.mu.Unlock()
 		for _, p := range cat.Options {
 			row := NativeCommandOption{ID: p.Value, Label: p.Name, Active: p.Value == current, Confirmation: permissionNeedsConfirmation(p.Value)}

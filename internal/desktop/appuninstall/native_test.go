@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"whaleisle/internal/product"
 )
 
 // Only inert temporary files and a fake process starter; no OS action is run.
@@ -17,7 +19,12 @@ func TestNativeUninstallFixture(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	record := Record{"Whale Isle", NativeMarker, root, `"` + uninstall + `"`}
+	record := Record{product.Name, NativeMarker, root, `"` + uninstall + `"`}
+	legacy := record
+	legacy.DisplayName = "Whale Isle"
+	if _, err := Resolve(current, legacy); err != nil {
+		t.Fatalf("legacy native display name: %v", err)
+	}
 	plan, err := Resolve(current, record)
 	if err != nil {
 		t.Fatal(err)

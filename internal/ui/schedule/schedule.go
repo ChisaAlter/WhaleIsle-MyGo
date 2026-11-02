@@ -56,23 +56,23 @@ func View(c *ui.Context, m Model) {
 	snap := m.Store.Snapshot()
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
+		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
 			if snap.Loading {
 				ui.Text(c, i18n.T(i18n.KeyScheduleLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				if m.OnRefresh != nil {
 					m.OnRefresh()
 				} else {
 					m.Store.Refresh(context.Background(), m.SessionID)
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyScheduleBack)).Clicked() {
+			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyScheduleBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				m.OnClose()
 			}
 		})
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).Fill().Height(.5).Background(border)
 
 		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyScheduleNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -86,19 +86,26 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(i18n.KeyScheduleEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				return
 			}
-			ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
-				Padding(8, 10, 8, 10).Gap(8).Children(func() {
+			listCard := ui.Column(c).Fill().MinHeight(0).Border(.5, border).Radius(12).
+				Padding(12, 16, 12, 16).Gap(8)
+			chrome.GlassSurface(listCard, field, chrome.MaterialPanel, 12)
+			listCard.Children(func() {
 				for _, row := range snap.Rows {
 					entry := row
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Column(c).Gap(2).Grow(1).Children(func() {
-							ui.Text(c, entry.Title).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
+							ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, entry.Title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+								if entry.Status != "" {
+									ui.Text(c, entry.Status).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
+								}
+							})
 							if entry.Detail != "" {
-								ui.Text(c, entry.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+								ui.Text(c, entry.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 							}
 						})
 						if entry.ID != "" && m.EditID != nil && m.EditTitle != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleEditTitle)).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleEditTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 								*m.EditID = entry.ID
 								*m.EditTitle = entry.Title
 								if m.EditPrompt != nil {
@@ -107,12 +114,12 @@ func View(c *ui.Context, m Model) {
 							}
 						}
 						if entry.ID != "" && m.OnHistory != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleHistory)).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 								m.OnHistory(entry.ID)
 							}
 						}
 						if entry.ID != "" && m.OnDelete != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleDelete)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleDelete)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 								m.OnDelete(entry.ID)
 							}
 						}
@@ -122,16 +129,16 @@ func View(c *ui.Context, m Model) {
 			if m.EditID != nil && m.EditTitle != nil && strings.TrimSpace(*m.EditID) != "" {
 				ui.Text(c, i18n.T(i18n.KeyScheduleEditTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.TextInput(c, m.EditTitle).Grow(1)
-					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).FontSize(theme.InterfaceSize(11)).Clicked() {
+					ui.TextInput(c, m.EditTitle).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
+					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 						m.OnSaveTitle(*m.EditID, *m.EditTitle)
 					}
 				})
 				if m.EditPrompt != nil {
 					ui.Text(c, i18n.T(i18n.KeyScheduleEditPrompt)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.TextInput(c, m.EditPrompt).Grow(1)
-						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						ui.TextInput(c, m.EditPrompt).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
+						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnSavePrompt(*m.EditID, *m.EditPrompt)
 						}
 					})
@@ -141,13 +148,15 @@ func View(c *ui.Context, m Model) {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyScheduleHistory)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
 					if m.OnCopyHistory != nil {
-						if ui.Button(c, i18n.T(i18n.KeyScheduleCopyHistory)).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyScheduleCopyHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							m.OnCopyHistory(m.HistoryText)
 						}
 					}
 				})
-				ui.Column(c).Background(field).Border(1, border).Radius(8).
-					Padding(8, 10, 8, 10).MaxHeight(160).Children(func() {
+				histCard := ui.Column(c).Border(.5, border).Radius(12).
+					Padding(12, 16, 12, 16).MaxHeight(160)
+				chrome.GlassSurface(histCard, field, chrome.MaterialPanel, 12)
+				histCard.Children(func() {
 					ui.Text(c, m.HistoryText).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 				})
 			}

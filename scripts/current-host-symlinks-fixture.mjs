@@ -9,7 +9,7 @@ import {prepare} from './current-host.mjs';
 const sourceArg=process.argv[2] || process.env.WHALEISLE_CURRENT_ELECTRON_SOURCE;
 if(!sourceArg) throw new Error('Pass a fixed official source checkout containing relative symlinks.');
 const source=fs.realpathSync(sourceArg);
-const revision=spawnSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8'});
+const revision=spawnSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8',windowsHide:true});
 assert.equal(revision.status,0,revision.stderr);
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'mygo-current-host-symlinks-'));
 const work=path.join(root,'prepared'), moved=path.join(root,'relocated');

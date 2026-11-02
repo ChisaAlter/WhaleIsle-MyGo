@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +35,10 @@ func TestScheduleMarkIsPassiveAndNeverReplacesAttention(t *testing.T) {
 	selected := 0
 	m := Model{Schedules: sidebarScheduleFixture(), OnSelect: func(string) { selected++ }}
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Children(func() { rowSession(c, item, 0, m, c.Theme().Text, c.Theme().TextMuted, c.Theme().Border) })
+		root := ui.Column(c).Fill()
+		m = beginSessionHover(root, m)
+		root.Children(func() { rowSession(c, item, 0, m, c.Theme().Text, c.Theme().TextMuted, c.Theme().Border) })
+		renderSessionHover(c, m, root, m.sessionHover.dragging)
 	}, 300, 200)
 	mark, ok := tt.Find("3 scheduled tasks")
 	if !ok || mark.W != 16 || mark.H != 20 {
@@ -71,6 +75,45 @@ func TestScheduleMarkIsPassiveAndNeverReplacesAttention(t *testing.T) {
 	}
 }
 
+func TestScheduleMarkUsesOriginalGlyphAndLocalizedSemanticLabel(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	defer i18n.SetLocale(old)
+	tt := ui.NewTester(func(c *ui.Context) {
+		sessionScheduleMark(c, 2, ui.RGB(207, 211, 214))
+	}, 80, 50)
+	mark, ok := tt.Find("2 个自动化任务")
+	if !ok || mark.W != 16 || mark.H != 20 {
+		t.Fatalf("wrong localized passive mark: %+v", mark)
+	}
+	if !strings.Contains(groupPresenceAccessLabels(tt), "2 个自动化任务") {
+		_ = tt.SetValue("absent accessibility bootstrap field", "")
+		if !strings.Contains(groupPresenceAccessLabels(tt), "2 个自动化任务") {
+			t.Fatal("localized mark missing from memory accessibility tree")
+		}
+	}
+	// The one decorative glyph stays out of keyboard traversal; its centered
+	// 14DIP geometry is observed directly in the memory renderer.
+	ctx := reflect.ValueOf(tt).Elem().FieldByName("rt").Elem().FieldByName("c")
+	chunks, used := ctx.FieldByName("chunks"), int(ctx.FieldByName("used").Int())
+	icons := 0
+	for i := 0; i < used; i++ {
+		chunk := chunks.Index(i / chunks.Index(0).Len())
+		n := chunk.Index(i % chunk.Len())
+		if n.FieldByName("svg").IsNil() {
+			continue
+		}
+		icons++
+		box := scheduleLayoutBox(n)
+		if box.W != 14 || box.H != 14 || box.X != mark.X+1 || box.Y != mark.Y+3 {
+			t.Fatalf("clock differs from original 14DIP centered glyph: %+v", box)
+		}
+	}
+	if icons != 1 {
+		t.Fatalf("passive mark has %d clock glyphs", icons)
+	}
+}
+
 func TestScheduleHoverShowsTwoOverdueTasksAndOmission(t *testing.T) {
 	old := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
@@ -78,15 +121,25 @@ func TestScheduleHoverShowsTwoOverdueTasksAndOmission(t *testing.T) {
 	item := session.Item{SessionID: "row", Title: "Scheduled session"}
 	m := Model{Schedules: sidebarScheduleFixture()}
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Padding(30).Children(func() { rowSession(c, item, 0, m, c.Theme().Text, c.Theme().TextMuted, c.Theme().Border) })
+		root := ui.Column(c).Fill().Padding(30)
+		m = beginSessionHover(root, m)
+		root.Children(func() { rowSession(c, item, 0, m, c.Theme().Text, c.Theme().TextMuted, c.Theme().Border) })
+		renderSessionHover(c, m, root, m.sessionHover.dragging)
 	}, 400, 350)
-	// TooltipBase shows immediately for keyboard focus; no wall-clock sleep.
-	tt.Key(0, ui.KeyTab)
-	tt.Frame()
-	if !tt.HasText("Oldest overdue task") || !tt.HasText("Recent overdue task") || tt.HasText("Future task") || !tt.HasText("1 more tasks") {
+	// The interactive row card opens through the source's 800ms pointer gate.
+	// Its task section shares the full-title/status preview, not a second tooltip.
+	start := time.Now()
+	tt.SetTime(start)
+	row, found := tt.Find(item.Title)
+	if !found {
+		t.Fatal("scheduled session row missing")
+	}
+	tt.Move(row.X+40, row.Y+row.H/2)
+	tt.SetTime(start.Add(sessionHoverDelay))
+	if !tt.HasText("Oldest overdue task") || !tt.HasText("Recent overdue task") || tt.HasText("Future task") || !tt.HasText("1 more") || !tt.HasText(item.Title) {
 		t.Fatalf("unbounded or unordered preview: %v", tt.Texts())
 	}
-	preview, ok := tt.Find("Scheduled task preview: row")
+	preview, ok := tt.Find("Session preview: row")
 	if !ok || preview.W > 376 || preview.H > 326 {
 		t.Fatalf("preview outside viewport: %+v", preview)
 	}

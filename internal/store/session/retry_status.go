@@ -24,15 +24,48 @@ type RetryStatus struct{ Attempts []RetryAttempt }
 // follow and history pages. Closing the owning step/turn cancels only a pending
 // wait; passing time alone never claims that a request has started.
 func (s *Store) projectRetryMessagesLocked(messages []Message) []Message {
+	rows := s.retryRowsCache
+	if rows == nil || !s.boundariesVerifiedLocked() {
+		rows = s.computeRetryRowsLocked()
+		s.retryRowsCache = cloneMessages(rows)
+	}
+	if len(rows) == 0 {
+		return messages
+	}
+	out := append([]Message(nil), messages...)
+	for _, row := range rows {
+		row = cloneMessage(row)
+		index := len(out)
+		for i, m := range out {
+			if m.Seq > row.Seq {
+				index = i
+				break
+			}
+		}
+		out = append(out, Message{})
+		copy(out[index+1:], out[index:])
+		out[index] = row
+	}
+	return out
+}
+
+func (s *Store) computeRetryRowsLocked() []Message {
 	seqs := make([]float64, 0, len(s.trajectoryBoundaries))
 	for seq := range s.trajectoryBoundaries {
 		seqs = append(seqs, seq)
 	}
 	sort.Float64s(seqs)
-	rows := []Message{}
+	rows := make([]Message, 0)
 	chains := map[string]int{}
 	for _, seq := range seqs {
 		raw := s.trajectoryBoundaries[seq]
+		if typ, ok := peekEventType(raw); ok {
+			switch typ {
+			case "llm/retry", "llm/retry-started", "step/end", "turn/end":
+			default:
+				continue
+			}
+		}
 		var e struct {
 			Type string       `json:"type"`
 			Data RetryAttempt `json:"data"`
@@ -74,18 +107,5 @@ func (s *Store) projectRetryMessagesLocked(messages []Message) []Message {
 			}
 		}
 	}
-	out := append([]Message(nil), messages...)
-	for _, row := range rows {
-		index := len(out)
-		for i, m := range out {
-			if m.Seq > row.Seq {
-				index = i
-				break
-			}
-		}
-		out = append(out, Message{})
-		copy(out[index+1:], out[index:])
-		out[index] = row
-	}
-	return out
+	return rows
 }

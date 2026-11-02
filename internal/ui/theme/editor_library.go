@@ -57,6 +57,39 @@ func (e *Editor) SaveSelectedFamily() {
 	}
 }
 
+// DeleteFamily removes only the addressed persisted custom family. Library
+// actions must not save another family's open editor draft or activate a source.
+func (e *Editor) DeleteFamily(id string) bool {
+	next, draft := e.writeBaseline(), e.Draft.Clone()
+	remove := func(p *Preferences) bool {
+		for i, family := range p.Custom {
+			if family.ID != id {
+				continue
+			}
+			p.Custom = append(p.Custom[:i], p.Custom[i+1:]...)
+			if p.Light == id {
+				p.Light = Defaults().Light
+			}
+			if p.Dark == id {
+				p.Dark = Defaults().Dark
+			}
+			return true
+		}
+		return false
+	}
+	if !remove(&next) {
+		return false
+	}
+	remove(&draft)
+	if !e.saveFontField(next, draft) {
+		return false
+	}
+	if e.Selected == id {
+		e.Selected = ""
+	}
+	return true
+}
+
 func (e *Editor) ResetAppearanceFonts() {
 	next, draft := e.Saved.Clone(), e.Draft.Clone()
 	next.Interface, draft.Interface = FontPreference{Size: 16}, FontPreference{Size: 16}

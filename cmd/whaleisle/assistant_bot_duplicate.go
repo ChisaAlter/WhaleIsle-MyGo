@@ -79,7 +79,7 @@ func (s *mainState) assistantBotDuplicateModel(ep harness.Endpoint, sourceID str
 				s.mu.Unlock()
 				cwd := ""
 				if sessions != nil {
-					cwd = sessions.Snapshot().ScratchCwd
+					cwd = sessions.ScratchCwd()
 				}
 				controls.Start(scope, sourceID, cwd)
 				s.updateAssistantTasks()
@@ -164,7 +164,7 @@ func (s *mainState) assistantBotDuplicateModel(ep harness.Endpoint, sourceID str
 				defer cancel()
 				fresh, writable, err := read(ctx)
 				if err == nil && (!writable || !pluginrpc.SameDshbotBotCatalog(cmd.Expected, fresh)) {
-					err = fmt.Errorf("catalog identities/revision or write authority changed; refresh and review again")
+					err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotCatalogReviewChanged))
 				}
 				if err != nil || !current() || !controls.Current(ticket) || !controls.MarkSent(ticket) {
 					controls.AbortUnsent(ticket, err)
@@ -272,14 +272,14 @@ func (s *mainState) openAssistantDuplicateBot(ep harness.Endpoint, client *dsh.C
 				}
 			}
 			if !pluginrpc.SameDshbotBotDuplicateOpenTarget(expected, item) {
-				return "", fmt.Errorf("catalog Bot identity or inspected configuration changed; refresh and inspect before opening")
+				return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdBotDuplicateIdentityChanged))
 			}
 			if !live() {
 				return "", fmt.Errorf("catalog Bot opening expired before canonical open")
 			}
 			sid, err := rpc.DshbotOpen(ctx, item.DshbotCatalogItem, catalog.Revision, cwd)
 			if err != nil {
-				return "", fmt.Errorf("catalog record remains; canonical opening failed: %w", err)
+				return "", fmt.Errorf(i18n.T(i18n.KeyCmdDuplicatedBotOpenFailed), err)
 			}
 			if !live() {
 				return "", fmt.Errorf("catalog Bot opening expired after canonical receipt")
@@ -318,7 +318,7 @@ func (s *mainState) openAssistantDuplicateBot(ep harness.Endpoint, client *dsh.C
 					s.mu.Unlock()
 				} else {
 					s.mu.Lock()
-					s.assistantPluginDetail = label + ": original Host/session binding expired before navigation"
+					s.assistantPluginDetail = label + i18n.T(i18n.KeyCmdBotOpenBindingExpired)
 					s.assistantLastAct = s.assistantPluginDetail
 					s.mu.Unlock()
 				}

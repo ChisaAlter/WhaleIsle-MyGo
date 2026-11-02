@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -32,9 +33,68 @@ type todoBaseline struct {
 // todoBaselinesFor indexes the list preceding every todo_write call in the loaded
 // window. A call id keeps its first baseline, as the installed view does.
 func todoBaselinesFor(messages []session.Message, historyHasMore bool) map[string]*todoBaseline {
+	baselines, _, _ := todoBaselinesStateFor(messages, historyHasMore)
+	return baselines
+}
+
+func todoBaselinesStateFor(messages []session.Message, historyHasMore bool) (map[string]*todoBaseline, []session.PlanTodo, bool) {
 	baselines := make(map[string]*todoBaseline)
 	var last []session.PlanTodo
 	known := false
+	last, known = scanTodoBaselines(messages, historyHasMore, baselines, last, known)
+	return baselines, last, known
+}
+
+func extendTodoBaselines(
+	base map[string]*todoBaseline,
+	last []session.PlanTodo,
+	known bool,
+	tail []session.Message,
+	historyHasMore bool,
+) map[string]*todoBaseline {
+	out, _, _ := extendTodoBaselinesState(base, last, known, tail, historyHasMore)
+	return out
+}
+
+func extendTodoBaselinesState(
+	base map[string]*todoBaseline,
+	last []session.PlanTodo,
+	known bool,
+	tail []session.Message,
+	historyHasMore bool,
+) (map[string]*todoBaseline, []session.PlanTodo, bool) {
+	hasTodo := false
+	for _, message := range tail {
+		switch message.EventType {
+		case events.TypeTodoWrite:
+			hasTodo = true
+		case events.TypeToolCall, events.TypeToolPtcDispatchStart:
+			if bytes.Contains(message.Raw, []byte("todo_write")) {
+				hasTodo = true
+			}
+		}
+		if hasTodo {
+			break
+		}
+	}
+	if !hasTodo {
+		return base, last, known
+	}
+	out := make(map[string]*todoBaseline, len(base)+2)
+	for k, v := range base {
+		out[k] = v
+	}
+	nextLast, nextKnown := scanTodoBaselines(tail, historyHasMore, out, last, known)
+	return out, nextLast, nextKnown
+}
+
+func scanTodoBaselines(
+	messages []session.Message,
+	historyHasMore bool,
+	baselines map[string]*todoBaseline,
+	last []session.PlanTodo,
+	known bool,
+) ([]session.PlanTodo, bool) {
 	bind := func(callID string) {
 		if callID == "" {
 			return
@@ -57,18 +117,24 @@ func todoBaselinesFor(messages []session.Message, historyHasMore bool) map[strin
 			}
 			known = true
 		case events.TypeToolCall:
+			if !bytes.Contains(message.Raw, []byte("todo_write")) {
+				continue
+			}
 			var event events.ToolCall
 			if json.Unmarshal(message.Raw, &event) == nil && event.Data.Name == "todo_write" {
 				bind(event.Data.CallId)
 			}
 		case events.TypeToolPtcDispatchStart:
+			if !bytes.Contains(message.Raw, []byte("todo_write")) {
+				continue
+			}
 			var event events.ToolPtcDispatchStart
 			if json.Unmarshal(message.Raw, &event) == nil && event.Data.Name == "todo_write" {
 				bind(event.Data.SubCallId)
 			}
 		}
 	}
-	return baselines
+	return last, known
 }
 
 // toolDetailsTodoStatusLabel localizes the three recorded todo states; any other

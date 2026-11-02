@@ -37,7 +37,7 @@ func (s *mainState) pasteComposerImage(win *mygo.Window, sessions *session.Store
 			current := s.composerDrafts[id]
 			sameStore := s.sessions == sessions && s.dshClient == host
 			s.mu.Unlock()
-			if !sameStore || !composer.PasteStillCurrent(d, current, id, sessions.Snapshot().SelectedID, seq) {
+			if !sameStore || !composer.PasteStillCurrent(d, current, id, sessions.SelectedSessionID(), seq) {
 				if path != "" {
 					_ = os.Remove(path)
 				}

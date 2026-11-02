@@ -33,6 +33,8 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 	clear := func() {
 		s.mu.Lock()
 		s.settingsEmbeddedSection = ""
+		s.settingsConversationActive = false
+		s.settingsFeaturesActive = false
 		s.mu.Unlock()
 	}
 	for _, callback := range []*func(){
@@ -40,6 +42,7 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 		&m.OnSelectAbout, &m.OnSelectAppearance, &m.OnSelectInterface,
 		&m.OnSelectModels, &m.OnSelectMCP, &m.OnSelectPlugins,
 		&m.OnSelectSkills, &m.OnSelectAgentPresets, &m.OnOpenRemote,
+		&m.OnSelectConversation, &m.OnSelectFeatures, &m.OnOpenMarket,
 		&m.OnOpenUsage, &m.OnClose,
 	} {
 		if fn := *callback; fn != nil {

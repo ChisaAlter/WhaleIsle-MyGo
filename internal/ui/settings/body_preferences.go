@@ -20,6 +20,85 @@ type BodySettingsAccess struct {
 	OnPatch  func(namespace string, values map[string]string)
 }
 
+// settingsPreferenceButton follows SettingsSelect's borderless layer-1 pill
+// trigger. It is local to settings; native popup/keyboard behavior is unchanged.
+func settingsPreferenceButton(c *ui.Context, label string) ui.Element {
+	button := ui.Button(c, label).Height(36).Padding(7, 14).Radius(999).BorderWidth(0).
+		Background(c.Theme().Surface).TextColor(c.Theme().Text).FontSize(theme.InterfaceSize(14))
+	if button.Hovered() {
+		button.Background(c.Theme().SurfaceHover)
+	}
+	return button
+}
+
+// settingsPreferenceSelect retains native select admission, focus, arrow-key
+// navigation and Changed semantics while giving its trigger the installed look.
+func settingsPreferenceSelect(c *ui.Context, value *string, options []string) ui.Element {
+	return settingsPreferenceSelectRadius(c, value, options, 999)
+}
+
+// settingsPreferenceSelectRadius is the same trigger with the corner radius of
+// the page that hosts it: most rows use the 18 DIP pill, the ui-chat enums the
+// installed build draws with a 12 DIP corner.
+func settingsPreferenceSelectRadius(c *ui.Context, value *string, options []string, radius float32) ui.Element {
+	sel := ui.SelectBase(c, value)
+	trigger := sel.Trigger.Height(36).Padding(7, 14).Gap(12).Radius(radius).BorderWidth(0).Justify(ui.SpaceBetween).
+		Background(c.Theme().Surface).TextColor(c.Theme().Text).AlignItems(ui.Center)
+	if trigger.Hovered() {
+		trigger.Background(c.Theme().SurfaceHover)
+	}
+	trigger.Children(func() {
+		ui.Text(c, *value).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).SingleLine()
+		ui.Box(c).Size(14, 14).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+			var path ui.Path
+			path.MoveTo(r.X+r.W*.2, r.Y+r.H*.35).LineTo(r.X+r.W*.5, r.Y+r.H*.65).LineTo(r.X+r.W*.8, r.Y+r.H*.35)
+			p.StrokePath(&path, 1.25, c.Theme().Text)
+		})
+	})
+	sel.Popup(func(panel ui.Element) {
+		panel.Padding(4).Radius(12).Border(.5, c.Theme().Border).Background(c.Theme().Surface)
+		for _, option := range options {
+			item := sel.Item(option).FillWidth().Height(36).Padding(7, 12).Radius(8)
+			if item.Highlighted() || option == *value {
+				item.Background(c.Theme().SurfaceHover)
+			}
+			item.Children(func() {
+				ui.Text(c, option).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).SingleLine()
+			})
+		}
+	})
+	return trigger
+}
+
+// settingsOptionsScroll mirrors the source's classic 5 DIP scrollbar gutter.
+// Native Scroll overlays its thumb, so only an actually overflowing page needs
+// the extra trailing inset. TrackScroll publishes the settled layout extent;
+// one invalidation applies/removes a gutter without guessing content height.
+func settingsOptionsScroll(c *ui.Context, key string, gap float32, background ui.Color) ui.Element {
+	pane := ui.Scroll(c.Key(key)).Grow(1).MinWidth(0).MinHeight(0).Background(background).Gap(gap)
+	type optionsState struct {
+		scroll ui.ScrollState
+		gutter bool
+	}
+	state := ui.Local(pane, "source-scrollbar-gutter", func() optionsState { return optionsState{} })
+	right := float32(24)
+	if state.gutter {
+		right += 5
+	}
+	pane.Padding(0, right, 24, 24).TrackScroll(&state.scroll)
+	pane.Draw(func(_ *ui.Painter, bounds ui.Rect) {
+		if bounds.H <= 0 {
+			return
+		}
+		overflow := state.scroll.MaxY > 0
+		if overflow != state.gutter {
+			state.gutter = overflow
+			c.Invalidate()
+		}
+	})
+	return pane
+}
+
 func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
@@ -32,18 +111,15 @@ func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 // A Setting-Cell is a flat, hairline-separated title/description and compact
 // control. Measured content width controls stacking, including inside a modal.
 //
-// The hairline is drawn above each row instead of below it, and the first row of
-// the frame skips it. That way a page can never end on a stray rule above its
-// action bar, and a list of generated rows (colours, presets, fonts) needs no
-// per-call-site bookkeeping.
+// The source row owns a half-pixel bottom rule, 16 DIP vertical padding,
+// 22/18 DIP title/description lines and an intrinsic trailing control group.
+// Narrow panes stack the group to retain keyboard-reachable controls.
 func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, controls func()) ui.Element {
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	width := row.Bounds().W
-	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
+	gear := takeRowGear()
 	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
-		if leadingRule {
-			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y, W: bounds.W, H: .5}, ui.RGBA(muted.R, muted.G, muted.B, .25), 0)
-		}
+		p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y + bounds.H - .5, W: bounds.W, H: .5}, c.Theme().Border, 0)
 		if bounds.W != width {
 			c.Invalidate()
 		}
@@ -52,35 +128,39 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 		content := func() {
 			copy := ui.Column(c).MinWidth(0).Gap(4)
 			if width >= 420 {
-				copy.Grow(1)
+				copy.Grow(1).Padding(0, 48, 0, 0)
 			} else {
 				copy.FillWidth()
 			}
 			copy.Children(func() {
-				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).TextColor(fg)
+				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
 				if hint != "" {
-					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 				}
 			})
-			if gear := takeRowGear(); gear != nil {
-				rowGearButton(c, *gear)
-			}
-			if controls != nil {
-				control := ui.Column(c).MinWidth(0).Gap(6)
-				if width >= 420 {
-					// The reference selector column is about 135 DIP and each
-					// control keeps its intrinsic width, right-aligned against
-					// the row's trailing edge. The old fixed 180 DIP column
-					// stretched every select and stole room from the copy.
-					control.Width(140).Shrink(0).AlignItems(ui.End)
-				} else {
-					control.FillWidth()
+			if gear != nil || controls != nil {
+				group := ui.Row(c).MinWidth(0).Shrink(0).Gap(8).AlignItems(ui.Center).Justify(ui.End)
+				if width < 420 {
+					group.FillWidth()
 				}
-				control.Children(controls)
+				group.Children(func() {
+					if gear != nil {
+						rowGearButton(c, *gear)
+					}
+					if controls != nil {
+						control := ui.Column(c).MinWidth(0).Gap(6)
+						if width >= 420 {
+							control.AlignItems(ui.End)
+						} else {
+							control.Grow(1).AlignItems(ui.Stretch)
+						}
+						control.Children(controls)
+					}
+				})
 			}
 		}
 		if width >= 420 {
-			ui.Row(c).FillWidth().MinWidth(0).MinHeight(64).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(content)
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(16, 0, 16.5, 0).AlignItems(ui.Center).Children(content)
 		} else {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(64).Gap(10).Padding(14, 0).Children(content)
 		}
@@ -213,7 +293,7 @@ func hostEnumLabel(value string) string {
 	case "immediate":
 		return providerCopy("立即", "Immediately")
 	case "sidebar":
-		return providerCopy("应用内侧栏", "In-app sidebar")
+		return providerCopy("应用内侧边栏", "In-app sidebar")
 	case "queue":
 		return providerCopy("排队发送", "Queue")
 	case "steer":
@@ -252,7 +332,11 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 		switch field.Kind {
 		case store.FieldBool:
 			checked := value == "true"
-			if ui.Switch(c, &checked).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
+			style := settingsSwitchLabelled
+			if namespace == "ui-git" || namespace == "ui-titlebar" || namespace == "ui-conversation" {
+				style = settingsSwitchInput
+			}
+			if settingsPreferenceSwitch(c, &checked, style).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
 				a.OnChange(namespace, key, fmt.Sprint(checked))
 			}
 		case store.FieldEnum:
@@ -283,13 +367,18 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 				labels[i] = hostEnumLabel(options[i])
 			}
 			display := hostEnumLabel(value)
-			if ui.Select(c, &display, labels).Label(title).Height(32).MinWidth(84).MaxWidth(140).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
+			radius := float32(999)
+			switch key {
+			case "transcriptView", "collapseTiming", "linkOpening", "performanceUsage":
+				radius = 12
+			}
+			if settingsPreferenceSelectRadius(c, &display, labels, radius).Label(title).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
 				if index := hostEnumIndex(labels, display); index >= 0 {
 					a.OnChange(namespace, key, options[index])
 				}
 			}
 		default:
-			anchor := ui.Column(c.Key(fmt.Sprintf("draft-%d-%s-%s", a.Owner, namespace, key))).FillWidth().Gap(4)
+			anchor := ui.Column(c.Key(fmt.Sprintf("draft-%d-%s-%s", a.Owner, namespace, key))).Width(140).MaxWidthPercent(100).Gap(4)
 			type draftState struct{ Value, Base string }
 			draft := ui.Local(anchor, "value", func() draftState { return draftState{value, value} })
 			if draft.Value == value || draft.Value == draft.Base && value != draft.Base {
@@ -301,8 +390,8 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 				}
 			}
 			anchor.Children(func() {
-				ui.TextInput(c, &draft.Value).Label(title).FillWidth().Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading).OnSubmit(commit)
-				if ui.Button(c, providerCopy("保存", "Save")).Disabled(bodyHostDisabled(a) || draft.Value == value).Clicked() {
+				ui.TextInput(c, &draft.Value).Label(title).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading).OnSubmit(commit)
+				if ui.Button(c, providerCopy("保存", "Save")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(bodyHostDisabled(a) || draft.Value == value).Clicked() {
 					commit()
 				}
 			})
@@ -351,7 +440,7 @@ func takeRowGear() *rowGear {
 // rowGearButton paints the 16×16 gear: muted glyph, hover wash, tooltip, and a
 // dimmed state when no callback is wired yet.
 func rowGearButton(c *ui.Context, gear rowGear) {
-	button := ui.Button(c, "").Label(gear.label).Size(24, 24).Padding(4).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(gear.disabled)
+	button := ui.Button(c, "").Label(gear.label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(gear.disabled)
 	if gear.hint != "" {
 		button.Tooltip(gear.hint)
 	}

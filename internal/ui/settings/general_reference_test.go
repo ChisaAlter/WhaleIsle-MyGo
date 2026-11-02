@@ -68,15 +68,7 @@ func TestGeneralPreferencesUseReferenceCopy(t *testing.T) {
 	}, 900, 1600)
 
 	for _, want := range []string{
-		"权限",
-		"选择新会话的默认权限模式",
 		"语言",
-		"工作步骤展示",
-		"选择希望看到多少工具调用细节",
-		"工作步骤收起时机",
-		"选择何时自动收起工作步骤",
-		"网页链接默认打开方式",
-		"对话中网页链接的打开位置",
 		"快捷键",
 		"查看和编辑当前可用的快捷键和输入操作",
 		"编辑快捷键",
@@ -97,6 +89,40 @@ func TestGeneralPreferencesUseReferenceCopy(t *testing.T) {
 	for _, text := range tt.Texts() {
 		if text == "链接打开方式" {
 			t.Fatal("General page still labels the link row without 网页…默认打开方式")
+		}
+	}
+}
+
+// TestConversationPageUsesReferenceCopy pins the rows the installed build moved
+// from General to its own 对话 page.
+func TestConversationPageUsesReferenceCopy(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(old) })
+
+	h := bodyFixtureHost()
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Padding(24).Children(func() {
+			conversationPane(c, Model{Conversation: &ConversationAccess{Host: h}}, c.Theme().Text, c.Theme().TextMuted)
+		})
+	}, 900, 1600)
+	for _, want := range []string{
+		"权限",
+		"选择新会话的默认权限模式",
+		"工作步骤展示",
+		"选择希望看到多少工具调用细节",
+		"工作步骤收起时机",
+		"选择何时自动收起工作步骤",
+		"网页链接默认打开方式",
+		"对话中网页链接的打开位置",
+	} {
+		if !tt.HasText(want) {
+			t.Fatalf("conversation page is missing reference copy %q\n%v", want, tt.Texts())
+		}
+	}
+	for _, moved := range []string{"编辑快捷键", "显示代码工作视图"} {
+		if tt.HasText(moved) {
+			t.Fatalf("conversation page still carries the General row %q", moved)
 		}
 	}
 }

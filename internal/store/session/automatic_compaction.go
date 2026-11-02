@@ -29,6 +29,9 @@ func projectAutomaticCompactionMessages(messages []Message) []Message {
 	groups := map[string]*group{}
 	facts := map[int]manualCompactionFact{}
 	for i, msg := range messages {
+		if (msg.Kind != "" && msg.Kind != MessageKindCompaction) || len(msg.Raw) == 0 {
+			continue
+		}
 		fact, ok := parseAutomaticCompactionFact(msg.Raw)
 		if !ok {
 			continue
@@ -46,6 +49,9 @@ func projectAutomaticCompactionMessages(messages []Message) []Message {
 			f := fact
 			g.summary = &f
 		}
+	}
+	if len(facts) == 0 {
+		return messages
 	}
 	out := make([]Message, 0, len(messages))
 	for i, msg := range messages {

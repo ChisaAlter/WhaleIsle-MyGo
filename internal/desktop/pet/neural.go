@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -20,6 +21,9 @@ type renderAsset struct {
 }
 
 func loadRenderAssets(dir string) (map[string][]byte, error) {
+	if dir == "" {
+		return nil, errors.New(storelocale.T(storelocale.KeyDesktopPetAssetsMissing))
+	}
 	manifest, err := assets.ReadFile("assets/render-manifest.json")
 	if err != nil {
 		return nil, err
@@ -52,12 +56,43 @@ func loadRenderAssets(dir string) (map[string][]byte, error) {
 	}
 	return result, nil
 }
-func defaultRenderRoot() string {
-	exe, err := os.Executable()
-	if err != nil {
+
+// The product uses the adjacent verified sidecar. Isolated fixtures can still
+// inject their staged directory through petRenderRoot. The startup override is
+// atomic so configuring it cannot race a resource request.
+var petRenderRoot = defaultRenderRoot
+var configuredRenderRoot atomic.Pointer[string]
+
+// ConfigureRenderAssets is a startup-only source selection. Packaged builds
+// ignore explicitRoot; development builds accept one absolute directory. An
+// invalid explicit value selects no source, never the executable's neighbour or
+// the working directory. All selected bytes still pass loadRenderAssets.
+func ConfigureRenderAssets(development bool, explicitRoot string) string {
+	exe, _ := os.Executable()
+	selected := selectRenderRoot(development, explicitRoot, exe)
+	configuredRenderRoot.Store(&selected)
+	return selected
+}
+
+func selectRenderRoot(development bool, explicitRoot, exe string) string {
+	if development && explicitRoot != "" {
+		if !filepath.IsAbs(explicitRoot) {
+			return ""
+		}
+		return filepath.Clean(explicitRoot)
+	}
+	if exe == "" {
 		return ""
 	}
 	return filepath.Join(filepath.Dir(exe), "pet-render-assets")
+}
+
+func defaultRenderRoot() string {
+	if selected := configuredRenderRoot.Load(); selected != nil {
+		return *selected
+	}
+	exe, _ := os.Executable()
+	return selectRenderRoot(false, "", exe)
 }
 func renderContentType(path string) string {
 	switch filepath.Ext(path) {

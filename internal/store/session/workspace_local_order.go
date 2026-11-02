@@ -37,35 +37,8 @@ func localSessionOrder(snap ViewState, key string) []string {
 	return out
 }
 func (s *Store) InsertLocalSessionBefore(generation uint64, key, id, before string) {
-	s.mu.Lock()
-	if generation != s.eventsGeneration || !s.workspaceReady || s.workspaceLayout.view.OrderBy == "updated" || (key != "::flat" && key != "::scratch" && key != "::other") {
-		s.mu.Unlock()
+	if key != "::flat" && key != "::scratch" {
 		return
 	}
-	snap := ViewState{Items: s.items, Workspaces: s.workspaceRowsLocked(), WorkspaceLayout: s.workspaceLayoutLocked(), ScratchCwd: s.scratchCwd}
-	order := localSessionOrder(snap, key)
-	at := slices.Index(order, id)
-	if at < 0 || id == before || (before != "" && !slices.Contains(order, before)) {
-		s.mu.Unlock()
-		return
-	}
-	for _, it := range s.items {
-		if it.SessionID == id && it.Blank {
-			s.mu.Unlock()
-			return
-		}
-	}
-	order = slices.Delete(order, at, at+1)
-	at = len(order)
-	if before != "" {
-		at = slices.Index(order, before)
-	}
-	order = slices.Insert(order, at, id)
-	if s.workspaceLayout.view.SessionOrders == nil {
-		s.workspaceLayout.view.SessionOrders = map[string][]string{}
-	}
-	s.workspaceLayout.view.SessionOrders[key] = order
-	s.workspacePreferencesChangedLocked()
-	s.mu.Unlock()
-	s.fire()
+	s.InsertSessionBeforeForHost(generation, key, id, before)
 }

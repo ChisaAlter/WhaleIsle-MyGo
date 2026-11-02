@@ -72,6 +72,7 @@ func (s *Store) refreshAgentNavigationRowsLocked(v *AgentNavigationView) {
 // It updates locations the user already opened, not unseen descendants. No
 // requests, streams, prompts or permission/question actions originate here.
 func (s *Store) applyAgentNavigationControlLocked(raw json.RawMessage) {
+	s.invalidateViewLocked()
 	if !s.agentNavigationOwnedLocked() {
 		return
 	}

@@ -8,22 +8,19 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// TestSidebarStaysExpandedWithoutAWorkspace is the Pass 2 shell fix: a desktop
-// window keeps the 280-DIP navigation column — brand, new session, the three
-// pages, the workspace section and the settings/account foot — whether or not a
-// workspace is configured. Only the phone drawer band below 768 DIP leaves the
-// grid.
+// A wide desktop keeps expanded navigation without a workspace. Installed
+// AppFrame begins auto-collapse below 1024, independently of workspace state.
 func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	sizes := DefaultLayout()
 	sizes.Bottom, sizes.Right = 0, 0
 	tt := ui.NewTester(func(c *ui.Context) {
-		View(c, Model{Store: session.New(), Sizes: &sizes, OnOpenSettings: func() {}})
-	}, 960, 613)
+		View(c, Model{Store: session.New(), Sizes: &sizes, OnOpenSettings: func() {}, OnOpenAssistant: func() {}})
+	}, 1024, 613)
 
 	if sizes.Sidebar != SidebarDefault {
-		t.Fatalf("sidebar preference = %v DIP, want the %v default at 960 DIP", sizes.Sidebar, SidebarDefault)
+		t.Fatalf("sidebar preference = %v DIP, want the %v default at 1024 DIP", sizes.Sidebar, SidebarDefault)
 	}
 	divider, ok := tt.Find("Sidebar divider")
 	if !ok || divider.X != SidebarDefault {
@@ -31,7 +28,7 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	}
 	// The brand block: wordmark and subtitle, plus the collapse control at its
 	// top right (the rail's expand control must not be built).
-	for _, text := range []string{"WHALE ISLE", "BASED ON DEEPSEEK HARNESS"} {
+	for _, text := range []string{"鲸屿go", "BASED ON DEEPSEEK HARNESS"} {
 		if !tt.HasText(text) {
 			t.Fatalf("expanded sidebar lost the brand %q; texts=%q", text, tt.Texts())
 		}
@@ -76,17 +73,19 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	}
 }
 
-// TestSidebarKeepsTheTrackAtDesktopWidths pins the band boundaries: the column
-// stays a track at 768 DIP and above, and only narrower windows hand the
-// navigation to the phone drawer.
+// The default expanded track begins at 1024. Between 768 and 1023 desktop
+// navigation is a compact rail; a narrower unknown-orientation solver can use
+// the phone drawer without rewriting the saved sidebar width.
 func TestSidebarKeepsTheTrackAtDesktopWidths(t *testing.T) {
 	for _, tc := range []struct {
 		width     int
 		wantTrack bool
 	}{
-		{768, true},
-		{900, true},
-		{960, true},
+		{768, false},
+		{900, false},
+		{960, false},
+		{1023, false},
+		{1024, true},
 		{1280, true},
 		{767, false},
 		{700, false},

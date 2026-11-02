@@ -18,6 +18,9 @@ func checkSavePermission(m Model, t *FileTab, explicit bool) error {
 	if t == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
 	}
+	if t.deliverySource != nil {
+		return errors.New(label("交付文件预览是只读视图。", "Delivered-file previews are read-only."))
+	}
 	if isTablePreviewPath(t.Path) {
 		return errors.New(label("表格分页是只读视图，不能保存为原文件。", "Workbook pages are read-only and cannot be saved over the original file."))
 	}

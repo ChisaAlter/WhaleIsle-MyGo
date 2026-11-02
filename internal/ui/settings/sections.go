@@ -14,6 +14,8 @@ const (
 	SectionGeneral         SectionID = "general"
 	SectionAppearance      SectionID = "appearance"
 	SectionInterface       SectionID = "interface"
+	SectionConversation    SectionID = "conversation"
+	SectionFeatures        SectionID = "features"
 	SectionModels          SectionID = "models"
 	SectionPlugins         SectionID = "plugins"
 	SectionSkills          SectionID = "skills"
@@ -35,19 +37,21 @@ const (
 // planSectionOrder is the left-nav order for harness namespaces (desktop is separate).
 var planSectionOrder = []SectionID{
 	SectionAccount,
+	SectionUsageStats,
 	SectionGeneral,
 	SectionAppearance,
 	SectionInterface,
+	SectionConversation,
 	SectionModels,
-	SectionPlugins,
-	SectionSkills,
-	SectionMarket,
-	SectionRemote,
-	SectionMCP,
 	SectionAgentPresets,
+	SectionSkills,
+	SectionMCP,
+	SectionPlugins,
+	SectionMarket,
+	SectionFeatures,
 	SectionPet,
+	SectionRemote,
 	SectionAbout,
-	SectionUsageStats,
 	SectionRemoteWorkspace,
 	SectionAgentLoop,
 	SectionWebSearch,
@@ -78,6 +82,8 @@ var namespaceToSection = map[string]SectionID{
 	"appearance":                        SectionAppearance,
 	"theme":                             SectionAppearance,
 	"interface":                         SectionInterface,
+	"conversation":                      SectionConversation,
+	"features":                          SectionFeatures,
 	"ui":                                SectionInterface,
 	"models":                            SectionModels,
 	"model":                             SectionModels,

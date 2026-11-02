@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math"
+	"regexp"
 	"strings"
 	"time"
 
@@ -28,9 +30,13 @@ var remoteConfigPatchFields = map[string]bool{
 	"theme":             true,
 }
 
+var remoteThemeID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+
 // applyRemoteConfigPatch merges the fields the phone may change. Unknown keys are
 // rejected so a patch can never touch tokens, credentials or unrelated settings.
+// Nothing is assigned to c until the whole patch has passed validation.
 func applyRemoteConfigPatch(c *config.Config, patch map[string]any) error {
+	next := *c
 	for key, value := range patch {
 		if !remoteConfigPatchFields[key] {
 			return fmt.Errorf("unsupported config field %q", key)
@@ -41,22 +47,27 @@ func applyRemoteConfigPatch(c *config.Config, patch map[string]any) error {
 			if !ok {
 				return errors.New("remoteEnabled must be a boolean")
 			}
-			c.RemoteEnabled = b
+			next.RemoteEnabled = b
 		case "remoteLanTls":
 			b, ok := value.(bool)
 			if !ok {
 				return errors.New("remoteLanTls must be a boolean")
 			}
-			c.RemoteLanTls = b
+			next.RemoteLanTls = b
 		case "remotePort":
+			var port float64
 			switch n := value.(type) {
 			case float64:
-				c.RemotePort = int(n)
+				port = n
 			case int:
-				c.RemotePort = n
+				port = float64(n)
 			default:
-				return errors.New("remotePort must be a number")
+				return errors.New("remotePort must be an integer from 1024 to 65535")
 			}
+			if math.IsNaN(port) || math.IsInf(port, 0) || math.Trunc(port) != port || port < 1024 || port > 65535 {
+				return errors.New("remotePort must be an integer from 1024 to 65535")
+			}
+			next.RemotePort = int(port)
 		case "remoteMode", "remoteBindAddress", "remoteAppBaseUrl", "locale", "theme":
 			s, ok := value.(string)
 			if !ok || len(s) > 512 {
@@ -64,18 +75,34 @@ func applyRemoteConfigPatch(c *config.Config, patch map[string]any) error {
 			}
 			switch key {
 			case "remoteMode":
-				c.RemoteMode = strings.TrimSpace(s)
+				next.RemoteMode = strings.TrimSpace(s)
+				if next.RemoteMode != "lan" && next.RemoteMode != "relay" {
+					return errors.New("remoteMode must be lan or relay")
+				}
 			case "remoteBindAddress":
-				c.RemoteBindAddress = strings.TrimSpace(s)
+				if err := config.ValidateRemoteBindAddress(s); err != nil {
+					return err
+				}
+				next.RemoteBindAddress = strings.TrimSpace(s)
 			case "remoteAppBaseUrl":
-				c.RemoteAppBaseUrl = strings.TrimSpace(s)
+				if err := config.ValidateRemoteAppBaseURL(s, next.RemoteRelayEndpoint); err != nil {
+					return err
+				}
+				next.RemoteAppBaseUrl = strings.TrimSpace(s)
 			case "locale":
-				c.Locale = strings.TrimSpace(s)
+				if s != "zh" && s != "en" {
+					return errors.New("locale must be zh or en")
+				}
+				next.Locale = s
 			case "theme":
-				c.Theme = strings.TrimSpace(s)
+				if !remoteThemeID.MatchString(s) {
+					return errors.New("theme must be a valid theme id")
+				}
+				next.Theme = s
 			}
 		}
 	}
+	*c = next
 	return nil
 }
 
@@ -119,7 +146,7 @@ func (s *mainState) savePhoneConfigPatch(patch map[string]any) (map[string]any, 
 	if s.cfgStore == nil {
 		return nil, errors.New("config store unavailable")
 	}
-	if err := s.cfgStore.Update(func(c *config.Config) { _ = applyRemoteConfigPatch(c, patch) }); err != nil {
+	if err := s.cfgStore.UpdateChecked(func(c *config.Config) error { return applyRemoteConfigPatch(c, patch) }); err != nil {
 		return nil, err
 	}
 	return redactedRemoteConfig(s.cfgStore.Get()), nil

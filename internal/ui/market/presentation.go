@@ -17,14 +17,22 @@ import (
 
 // The desktop-owned MarketSection is an 800 DIP settings column. The
 // container's measured width, rather than the window, controls its card grid.
-func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted ui.Color) {
+func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, border ui.Color) {
 	ui.Row(c).FillWidth().Wrap().Gap(16).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
-			ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketFindAndManagePluginsInTheCurrentConfi), "Discover and manage plugins in the current profile.")).FontSize(theme.InterfaceSize(14)).TextColor(muted).FillWidth()
+			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			// 0.3.13 wording: the catalog is curated and the Harness restarts after a change.
+			ui.Text(c, marketText("从精选目录浏览、安装并更新社区插件；变更后 Harness 会自动重启。", "Browse, install and update community plugins from the curated catalog; the Harness restarts after a change.")).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted).FillWidth()
 		})
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if ui.Button(c, i18n.T(i18n.KeyMarketRefresh)).Disabled(d.Loading || m.InstallBusy).Clicked() {
+			refreshLabel := i18n.T(i18n.KeyMarketRefresh)
+			if d.Loading {
+				refreshLabel = marketText("正在加载插件目录…", "Loading the plugin catalog…")
+			}
+			// A 28 DIP outlined icon button; it shows the same refresh glyph while loading.
+			refresh := ui.Button(c, "").Label(refreshLabel).Size(28, 28).Shrink(0).Padding(6).Radius(8).Border(.667, border).Background(ui.Transparent).Tooltip(refreshLabel).Disabled(d.Loading || m.InstallBusy)
+			refresh.Children(func() { ui.Icon(c, marketRefreshIcon).Size(16, 16).TextColor(fg) })
+			if refresh.Clicked() {
 				m.Store.RefreshCatalog(true, i18n.Locale())
 				if m.OnRefresh != nil {
 					m.OnRefresh()
@@ -32,7 +40,7 @@ func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted ui.
 					m.Store.Refresh(context.Background())
 				}
 			}
-			if !m.Embedded && m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Clicked() {
+			if !m.Embedded && m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				m.Store.CloseDetails()
 				m.OnClose()
 			}
@@ -54,9 +62,9 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 					label = fmt.Sprintf("%s (%d)", label, count)
 				}
 			}
-			button := ui.Button(c.Key("market-tab-"+item.id), label).Role(ui.RoleTab).Height(30).Padding(0, 12).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Selected(active)
+			button := ui.Button(c.Key("market-tab-"+item.id), label).Role(ui.RoleTab).Height(28).Padding(0, 12).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted).Selected(active)
 			if active {
-				button.Background(field).TextColor(fg)
+				button.Background(field).TextColor(fg).FontWeight(500)
 			}
 			if button.Clicked() {
 				m.Store.SetTab(item.id)
@@ -65,7 +73,7 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 	})
 }
 
-func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, field ui.Color) {
+func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, field, border ui.Color) {
 	if len(d.Catalog.Categories) <= 1 {
 		return
 	}
@@ -75,9 +83,9 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 				continue
 			}
 			active := category.ID == d.Category
-			button := ui.Button(c.Key("market-category-"+category.ID), fmt.Sprintf("%s %d", category.Label, category.Count)).Role(ui.RoleRadio).Checked(active).Height(28).Padding(0, 10).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
+			button := ui.Button(c.Key("market-category-"+category.ID), fmt.Sprintf("%s %d", category.Label, category.Count)).Role(ui.RoleRadio).Checked(active).Height(28).Padding(0, 10).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted)
 			if active {
-				button.Background(field).TextColor(fg)
+				button.Background(field).TextColor(fg).FontWeight(500)
 			}
 			if button.Clicked() {
 				m.Store.SetCategory(category.ID)
@@ -88,7 +96,7 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 			if *m.categoriesExpanded {
 				label = marketText(i18n.T(i18n.KeyW4MarketCollapseCategories), "Fewer categories")
 			}
-			if ui.Button(c, label).Clicked() {
+			if ui.Button(c, label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(theme.InterfaceSize(12.5)).Clicked() {
 				*m.categoriesExpanded = !*m.categoriesExpanded
 			}
 		}
@@ -101,7 +109,7 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 		if d.Query != "" || d.Category != "all" && d.Category != "" || d.Period != "all" || d.Tab == "favorites" {
 			message = marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")
 		}
-		ui.Text(c, message).FillWidth().Padding(24).Border(1, border).Radius(8).TextColor(muted)
+		ui.Text(c, message).FillWidth().Padding(24).Border(.5, border).Radius(12).TextColor(muted)
 	}
 	grid := ui.Row(c).Key("market-cards").FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Start)
 	width := grid.Bounds().W
@@ -117,10 +125,12 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 	grid.Children(func() {
 		for _, item := range d.Rows {
 			i := item
-			card := ui.Column(c.Key("market-card-"+i.ID)).MinWidth(0).Background(field).Border(.5, border).Radius(8).Padding(12, 14).Gap(8)
+			card := ui.Column(c.Key("market-card-"+i.ID)).MinWidth(0).Border(.5, border).Radius(12).Padding(14, 16).Gap(8)
+			cardBg := field
 			if card.Hovered() {
-				card.Background(c.Theme().SurfaceHover)
+				cardBg = c.Theme().SurfaceHover
 			}
+			chrome.GlassSurface(card, cardBg, chrome.MaterialPanel, 12)
 			if columns == 2 {
 				card.Width((width - 12) / 2)
 			} else {
@@ -130,10 +140,10 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
 					marketIconTile(c, i, muted, border)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-						ui.Row(c).FillWidth().Gap(8).Children(func() {
-							ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg)
+						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 							if i.Deprecated {
-								ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+								ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, accent).TextColor(accent)
 							}
 						})
 						ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
@@ -147,7 +157,7 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 				})
 				ui.Text(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(36).FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(i.Description)
 				ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
 					favoriteButton(c, m, i.ID)
 					ui.Box(c).Grow(1)
 					if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketDetails), "Details"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
@@ -215,7 +225,7 @@ func installedGroups(catalog desktopmarket.Catalog, rows []marketstore.Entry) []
 	return append(groups, other)
 }
 
-func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap marketstore.ViewState, fg, muted, border, accent ui.Color) {
+func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
 	var rows []marketstore.Entry
 	installed := desktopInstalledRows(snap.Rows)
 	for _, row := range installed {
@@ -234,11 +244,12 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 			ui.Text(c, group.label).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(muted)
 			for _, row := range group.rows {
 				r := row
-				ui.Column(c.Key("installed-" + r.Label)).FillWidth().MinWidth(0).Children(func() {
-					ui.Box(c).FillWidth().Height(.5).Background(border)
-					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).Padding(8).AlignItems(ui.Center).Children(func() {
+				card := ui.Column(c.Key("installed-"+r.Label)).FillWidth().MinWidth(0).Border(.5, border).Radius(12).Padding(12, 16)
+				chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
+				card.Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-							ui.Text(c, r.Label).FillWidth().SingleLine().Tooltip(r.Label).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+							ui.Text(c, r.Label).FillWidth().SingleLine().Tooltip(r.Label).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 							ui.Text(c, r.Detail).FillWidth().SingleLine().Tooltip(r.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 							if r.ReadOnlyReason != "" {
 								ui.Text(c, r.ReadOnlyReason).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -253,11 +264,11 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 								if *r.Enabled {
 									label = i18n.T(i18n.KeySettingsPluginsDisable)
 								}
-								if ui.Button(c, label).Clicked() {
+								if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
 								}
 							}
-							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Clicked() {
+							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 								m.OnRemoveBundle(r.Label)
 							}
 						})
@@ -381,3 +392,6 @@ func marketIconTile(c *ui.Context, item desktopmarket.CatalogItem, muted, border
 		ui.Text(c, initial).FontSize(theme.InterfaceSize(17)).FontWeight(600).TextColor(muted)
 	})
 }
+
+// marketRefreshIcon is the circular-arrow glyph of the header's refresh button.
+var marketRefreshIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))

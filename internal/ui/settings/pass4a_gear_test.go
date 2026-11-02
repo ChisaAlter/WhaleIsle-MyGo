@@ -29,12 +29,22 @@ func interfaceGearFixture() *InterfaceAccess {
 	}
 }
 
+func appearanceGearTester(t *testing.T, width, height int) *ui.Tester {
+	t.Helper()
+	a := &AppearanceAccess{Host: bodyFixtureHost()}
+	return ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Padding(16).Children(func() {
+			appearancePane(c, Model{Appearance: a, ThemeID: theme.IDDeepseekLight}, c.Theme().Text, c.Theme().TextMuted)
+		})
+	}, width, height)
+}
+
 // TestInterfaceGearOnlyOnTheGlowRow pins the rule from the reference: exactly one
 // row carries the gear, and it is the composer beam (thinking glow) row.
 func TestInterfaceGearOnlyOnTheGlowRow(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
-	tt := interfacePaneTester(t, interfaceGearFixture(), 900, 1200)
+	tt := appearanceGearTester(t, 900, 3600)
 	gear := i18n.T(KeyPass4AGlowSettings)
 	count := 0
 	for _, text := range tt.Texts() {
@@ -49,8 +59,8 @@ func TestInterfaceGearOnlyOnTheGlowRow(t *testing.T) {
 	if !ok {
 		t.Fatalf("gear is not reachable: %v", tt.Texts())
 	}
-	if rect.W != 24 || rect.H != 24 {
-		t.Fatalf("gear hit area is %v×%v, want 24×24", rect.W, rect.H)
+	if rect.W != 28 || rect.H != 28 {
+		t.Fatalf("gear hit area is %v×%v, want source BeamRow 28×28", rect.W, rect.H)
 	}
 }
 
@@ -59,7 +69,7 @@ func TestInterfaceGearOnlyOnTheGlowRow(t *testing.T) {
 func TestInterfaceGearOpensTheEffectDialog(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
-	tt := interfacePaneTester(t, interfaceGearFixture(), 900, 1200)
+	tt := appearanceGearTester(t, 900, 3600)
 	dialogTitle := interfaceEffectTitle()
 	if tt.HasText(dialogTitle) {
 		t.Fatalf("effect dialog is open before any click: %v", tt.Texts())

@@ -54,10 +54,12 @@ func decodePetHitReport(raw string) (petHitReport, bool) {
 	return report, true
 }
 
-// Native content bounds and native cursor coordinates are DIPs. Rectangles
-// arrive in page CSS viewport coordinates; the ratio also handles page zoom.
-// Do not multiply by devicePixelRatio a second time. Match upstream's 8px pad.
+// Content and cursor use the same native space (physical pixels on Windows,
+// DIPs elsewhere). Page-to-native ratios handle scale and zoom once.
 func petHitContains(report petHitReport, content mygo.Rectangle, cursor mygo.Point, dragging bool) bool {
+	return petHitContainsScaled(report, content, cursor, dragging, 1)
+}
+func petHitContainsScaled(report petHitReport, content mygo.Rectangle, cursor mygo.Point, dragging bool, scale float64) bool {
 	if content.Width <= 0 || content.Height <= 0 {
 		return false
 	}
@@ -68,10 +70,11 @@ func petHitContains(report petHitReport, content mygo.Rectangle, cursor mygo.Poi
 		return false
 	}
 	sx, sy := float64(content.Width)/report.Width, float64(content.Height)/report.Height
+	pad := 8 * scale
 	for _, rect := range report.Regions {
 		left, top := float64(content.X)+rect.X*sx, float64(content.Y)+rect.Y*sy
 		right, bottom := left+rect.Width*sx, top+rect.Height*sy
-		if float64(cursor.X) >= left-8 && float64(cursor.X) <= right+8 && float64(cursor.Y) >= top-8 && float64(cursor.Y) <= bottom+8 {
+		if float64(cursor.X) >= left-pad && float64(cursor.X) <= right+pad && float64(cursor.Y) >= top-pad && float64(cursor.Y) <= bottom+pad {
 			return true
 		}
 	}
@@ -92,7 +95,7 @@ func (p *Companion) updateHitRegions(cursor mygo.Point) {
 		return
 	}
 	s := &p.interaction
-	interactive := w.IsVisible() && petHitContains(s.hit.report, w.ContentBounds(), cursor, s.pressed || s.mode == "pickup")
+	interactive := w.IsVisible() && petHitContainsScaled(s.hit.report, petContentBounds(w), cursor, s.pressed || s.mode == "pickup", petWindowScale(w))
 	ignore := !interactive
 	if !s.hit.ignoreSet || s.hit.ignoring != ignore {
 		w.SetIgnoreMouseEvents(ignore)
@@ -108,7 +111,7 @@ func (p *Companion) hitRegionAction(raw string) bool {
 	if p.win == nil || p.win.IsDestroyed() || !p.win.IsVisible() || !p.ready || !p.interaction.publishHitReport(report) {
 		return true
 	}
-	p.updateHitRegions(mygo.Screen.CursorScreenPoint())
+	p.updateHitRegions(petCursorPoint())
 	return true
 }
 

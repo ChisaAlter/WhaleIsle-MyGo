@@ -4,24 +4,20 @@ import (
 	"strconv"
 	"strings"
 
+	"whaleisle/internal/markdownsyntax"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
 	extast "github.com/yuin/goldmark/extension/ast"
-	"github.com/yuin/goldmark/text"
 )
 
 // Original MarkdownText.module.css and gradient-shadow-text.css keep document
 // layout separate from chat surfaces. CSS vertical margins collapse by maximum.
 func viewDocument(c *ui.Context, source string, st Style) {
-	source = strings.TrimSpace(source)
-	if source == "" {
+	if strings.TrimSpace(source) == "" {
 		return
 	}
-	md := newMarkdown()
-	doc := md.Parser().Parse(text.NewReader([]byte(source)))
-	st.lineHeight = BodyLineHeight(st)
-	// The source resets margins on .markdown's first and last children.
-	viewDocumentBlocks(c, doc, source, st, true)
+	viewStreamingDocument(c, source, st)
 }
 
 func documentMargins(node ast.Node) (top, bottom float32) {
@@ -132,6 +128,12 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() { viewDocumentBlocks(c, item, source, st, true) })
 			})
 		}
+	case *markdownsyntax.ImagePlaceholder:
+		if st.RenderImage == nil || !st.RenderImage(c, node.Destination, "") {
+			styledRichText(c, []ui.Span{{Text: "[image] " + node.Destination}}, st)
+		}
+	case *extast.FootnoteList:
+		viewFootnotes(c, node, source, st)
 	case *ast.FencedCodeBlock, *ast.CodeBlock:
 		viewCodeBlock(c, node, source, st)
 	case *extast.Table:
@@ -161,22 +163,35 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 }
 
 func viewDocumentInlines(c *ui.Context, node ast.Node, source string, st Style) {
+	key := makeBodyKey(st)
+	if st.docInlines != nil {
+		if cached, ok := st.docInlines[node]; ok && cached.key == key && cached.source == source {
+			st.maths = cached.maths
+			st.urlTargets = cached.urlTargets
+			if len(cached.blocks) > 0 {
+				viewBlocks(c, source, st, cached.spans, cached.targets, cached.blocks)
+			} else {
+				viewSpans(c, st, cached.spans, cached.targets, 0)
+			}
+			return
+		}
+	}
 	st.maths = map[int]mathFormula{}
 	collectURLTargets(&st)
 	targets := map[int]string{}
-	if st.ResolveFile != nil && st.OnOpenFile != nil {
-		st.codeSpanAt = func(index int, value string) {
-			if path := st.ResolveFile(value); path != "" {
-				targets[index] = path
-			}
-		}
-	}
+	collectFileTargets(&st, targets)
 	var blocks []richBlock
 	st.blockAt = func(start, end int, node ast.Node) {
 		blocks = append(blocks, richBlock{start: start, end: end, node: node})
 	}
 	var spans []ui.Span
 	walkInlines(node, source, st, &spans)
+	if st.docInlines != nil {
+		st.docInlines[node] = cachedDocumentInlines{
+			source: source, key: key, spans: spans, blocks: blocks,
+			targets: targets, maths: st.maths, urlTargets: st.urlTargets,
+		}
+	}
 	if len(blocks) > 0 {
 		viewBlocks(c, source, st, spans, targets, blocks)
 	} else {

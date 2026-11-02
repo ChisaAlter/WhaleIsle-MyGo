@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 	"whaleisle/internal/desktop/providerprofiles"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -16,7 +17,7 @@ type notifyingProviderCaller struct {
 
 func (c notifyingProviderCaller) Call(ctx context.Context, method string, args, out any) error {
 	if !c.current() {
-		return errors.New("Host changed; refresh provider profiles before continuing")
+		return errors.New(i18n.T(i18n.KeyCmdProviderHostChanged))
 	}
 	c.notify()
 	return c.Caller.Call(ctx, method, args, out)

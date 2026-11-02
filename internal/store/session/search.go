@@ -2,14 +2,13 @@ package session
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
-const sessionSearchDebounce = 300 * time.Millisecond
+const sessionSearchDebounce = 250 * time.Millisecond
 
 // SessionSearchResultLimit is the original Host-owned merged search bound.
 const SessionSearchResultLimit = 20
@@ -19,6 +18,7 @@ func (s *Store) UpdateSessionSearch(ctx context.Context, query string) {
 	if s == nil {
 		return
 	}
+	query = NormalizeSessionSearchQuery(query)
 	s.mu.Lock()
 	if s.searchInput == query {
 		s.mu.Unlock()
@@ -26,13 +26,12 @@ func (s *Store) UpdateSessionSearch(ctx context.Context, query string) {
 	}
 	s.clearSearchLocked()
 	s.searchInput = query
-	trimmed := strings.TrimSpace(query)
-	if trimmed != "" {
+	if query != "" {
 		s.searchLoading = true
 		gen := s.searchSeq
 		// Install under the same lock as the query so an older timer cannot replace
 		// the timer belonging to newer input.
-		s.searchDebounce = time.AfterFunc(sessionSearchDebounce, func() { s.startSessionSearch(ctx, trimmed, gen) })
+		s.searchDebounce = time.AfterFunc(sessionSearchDebounce, func() { s.startSessionSearch(ctx, query, gen) })
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -46,12 +45,12 @@ func (s *Store) SearchSessions(ctx context.Context, query string) {
 	s.mu.Lock()
 	gen := s.searchSeq
 	s.mu.Unlock()
-	s.startSessionSearch(ctx, strings.TrimSpace(query), gen)
+	s.startSessionSearch(ctx, NormalizeSessionSearchQuery(query), gen)
 }
 
 func (s *Store) startSessionSearch(ctx context.Context, query string, expected uint64) {
 	s.mu.Lock()
-	if query == "" || s.searchSeq != expected || strings.TrimSpace(s.searchInput) != query {
+	if query == "" || s.searchSeq != expected || s.searchInput != query {
 		s.mu.Unlock()
 		return
 	}
@@ -65,6 +64,11 @@ func (s *Store) startSessionSearch(ctx context.Context, query string, expected u
 	}
 	s.searchSeq++
 	gen, client := s.searchSeq, s.client
+	visibleChange := len(s.searchResults) > 0 || len(s.searchHits) > 0 || s.searchHasMore || s.searchRPCQuery != "" || s.searchErr != nil
+	visibleChange = visibleChange || s.searchLoading != (client != nil) || s.searchUseLocal != (client == nil)
+	if visibleChange {
+		s.invalidateViewLocked()
+	}
 	s.searchResults = nil
 	s.searchHits = nil
 	s.searchHasMore = false
@@ -91,7 +95,7 @@ func (s *Store) runSessionSearch(ctx context.Context, client *dsh.Client, gen ui
 	var out api.SessionSearchValue
 	err := client.Call(ctx, "session/search", map[string]any{"request": req}, &out)
 	s.mu.Lock()
-	if s.client != client || s.searchSeq != gen || strings.TrimSpace(s.searchInput) != query {
+	if s.client != client || s.searchSeq != gen || s.searchInput != query {
 		s.mu.Unlock()
 		return
 	}
@@ -125,11 +129,13 @@ func (s *Store) runSessionSearch(ctx context.Context, client *dsh.Client, gen ui
 			}
 		}
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 
 func (s *Store) clearSearchLocked() {
+	s.invalidateViewLocked()
 	if s.searchDebounce != nil {
 		s.searchDebounce.Stop()
 		s.searchDebounce = nil

@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"whaleisle/internal/desktop/imgcache"
@@ -22,6 +24,24 @@ func TestLocalImagePath(t *testing.T) {
 	}
 	if got := localImagePath(p); got != p {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestLocalImagePathDecodesMarkdownSpacesAndFileURL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "My image (1).png")
+	if err := os.WriteFile(path, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	encoded := strings.ReplaceAll(path, " ", "%20")
+	if got := localImagePath(encoded); got != path {
+		t.Fatalf("markdown image path=%q", got)
+	}
+	uri := (&url.URL{Scheme: "file", Path: "/" + filepath.ToSlash(path)}).String()
+	if got := localImagePath(uri); got != path {
+		t.Fatalf("file URL=%q, want %q (%s)", got, path, uri)
+	}
+	if localImagePath("file://server/share/image.png") != "" {
+		t.Fatal("remote file URL became a local file")
 	}
 }
 

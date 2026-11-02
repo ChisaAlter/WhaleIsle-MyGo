@@ -23,9 +23,11 @@ func (q *QuickChat) view(c *ui.Context) {
 	direct := q.options.Direct != nil
 	active := q.win != nil && q.check()
 	theme := c.Theme()
-	ui.Column(c).Fill().Padding(10).Gap(6).Children(func() {
+	_, height := c.Size()
+	compact := height < 320
+	ui.Column(c).Fill().Padding(8).Gap(4).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, quickChatName(q.state.Name, storelocale.T(storelocale.KeyStorePetWhale))+storelocale.T(storelocale.KeyStorePetChat)).FontWeight(600).FontSize(fonttheme.InterfaceSize(12)).Grow(1).SingleLine()
+			ui.Text(c, quickChatName(q.state.Name, storelocale.T(storelocale.KeyStorePetWhale))+storelocale.T(storelocale.KeyStorePetChat)).FontWeight(600).FontSize(fonttheme.InterfaceSize(12)).Grow(1).SingleLine().DragWindow()
 			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetOpen)).Disabled(!active || q.state.SessionID == "" || q.jumping.busy()).Clicked() {
 				q.openMain()
 			}
@@ -33,13 +35,12 @@ func (q *QuickChat) view(c *ui.Context) {
 				q.owner.CloseQuickChat()
 			}
 		})
-		if direct {
-			ui.Text(c, storelocale.T(storelocale.KeyDesktopPetTemporaryOnlineApiChat)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
-		} else {
-			ui.Text(c, storelocale.T(storelocale.KeyDesktopPetOneSharedConversation)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		}
-		if q.state.SessionID != "" {
-			ui.Text(c, q.state.SessionID).Label(storelocale.T(storelocale.KeyDesktopPetPetSessionId)).SingleLine().FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).Selectable()
+		if !compact {
+			if direct {
+				ui.Text(c, storelocale.T(storelocale.KeyDesktopPetTemporaryOnlineApiChat)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning).SingleLine()
+			} else {
+				ui.Text(c, storelocale.T(storelocale.KeyDesktopPetOneSharedConversation)).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted).SingleLine()
+			}
 		}
 		if !direct {
 			q.modelPicker(c, active)
@@ -63,7 +64,7 @@ func (q *QuickChat) view(c *ui.Context) {
 			if direct {
 				historyLabel = storelocale.T(storelocale.KeyDesktopPetTemporaryApiHistory)
 			}
-			ui.List(c, &q.list, len(q.state.History)).Label(historyLabel).Grow(1).FillWidth().MinHeight(80).Rows(func(row ui.ListRow) {
+			ui.List(c, &q.list, len(q.state.History)).Label(historyLabel).Grow(1).FillWidth().MinHeight(0).Rows(func(row ui.ListRow) {
 				message := q.state.History[row.Index]
 				label, color := q.state.Name, theme.Text
 				switch message.Role {
@@ -82,11 +83,15 @@ func (q *QuickChat) view(c *ui.Context) {
 				})
 			})
 		}
-		if q.readNote != "" {
-			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning)
+		if q.readNote != "" && !compact {
+			ui.Text(c, q.readNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.Warning).MaxLines(1).Tooltip(q.readNote)
 		}
-		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted)
-		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.InterfaceSize(12)).Label(storelocale.T(storelocale.KeyDesktopPetQuickChatDraft)).FillWidth().Lines(2, 4).Placeholder(storelocale.T(storelocale.KeyDesktopPetEnterSendsShiftEnterNewline))
+		ui.Text(c, q.status).FontSize(fonttheme.InterfaceSize(11)).TextColor(theme.TextMuted).MaxLines(1).Tooltip(q.status)
+		minLines, maxLines := 2, 4
+		if compact {
+			minLines, maxLines = 1, 1
+		}
+		input := ui.TextArea(c, &q.draft).Font(fonttheme.RenderPreferences().Composer.Family).FontSize(fonttheme.InterfaceSize(12)).Label(storelocale.T(storelocale.KeyDesktopPetQuickChatDraft)).FillWidth().Lines(minLines, maxLines).Placeholder(storelocale.T(storelocale.KeyDesktopPetEnterSendsShiftEnterNewline))
 		// Read the IME composition state during the build: input callbacks run
 		// outside the build pass, where an Element query panics ("element from
 		// pass N used in pass N"). The next frame refreshes it.
@@ -103,7 +108,7 @@ func (q *QuickChat) view(c *ui.Context) {
 		if !c.Root().FocusWithin() {
 			input.AutoFocus()
 		}
-		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+		ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
 			sendLabel := storelocale.T(storelocale.KeyDesktopPetSend)
 			if direct {
 				sendLabel = storelocale.T(storelocale.KeyDesktopPetSendToApi)
@@ -117,15 +122,17 @@ func (q *QuickChat) view(c *ui.Context) {
 			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetStopTurn)).Disabled(!active || q.state.SessionID == "" || q.stopping.busy() || q.picking.busy()).Clicked() {
 				q.stopTurn()
 			}
-			if !direct && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetRefresh)).Disabled(!active || q.history.busy()).Clicked() {
+			if !direct && !compact && ui.Button(c, storelocale.T(storelocale.KeyDesktopPetRefresh)).Disabled(!active || q.history.busy()).Clicked() {
 				q.refreshHistory()
 				q.refreshCatalog()
 			}
 		})
-		if direct {
-			ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingDoesNotGuaranteeTheApiReques)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
-		} else {
-			ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingTheWaitDoesNotWithdrawTheMe)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted)
+		if !compact {
+			if direct {
+				ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingDoesNotGuaranteeTheApiReques)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).MaxLines(2)
+			} else {
+				ui.Text(c, storelocale.T(storelocale.KeyStorePetCancellingTheWaitDoesNotWithdrawTheMe)).FontSize(fonttheme.InterfaceSize(10)).TextColor(theme.TextMuted).MaxLines(2)
+			}
 		}
 	})
 	if c.Shortcut(0, ui.KeyEscape) {

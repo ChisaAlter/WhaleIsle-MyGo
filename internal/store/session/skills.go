@@ -75,8 +75,16 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 // RefreshSkills loads skills/list for the composer skills menu.
 // Falls back to skillInventory/list when session skills/list is unavailable.
 func (s *Store) RefreshSkills(ctx context.Context) {
-	s.RefreshSkillCatalog(ctx)
+	s.refreshSkillsForOwner(ctx, nil)
+}
+
+func (s *Store) refreshSkillsForOwner(ctx context.Context, expected *workspaceSelectedOwner) {
+	s.refreshSkillCatalogForOwner(ctx, expected)
 	s.mu.Lock()
+	if ctx.Err() != nil || (expected != nil && !expected.currentLocked(s)) {
+		s.mu.Unlock()
+		return
+	}
 	client := s.client
 	sessionID := s.selectedID
 	cwd := s.cwd
@@ -98,6 +106,14 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 		}
 		opts := flattenSkillList(out)
 		if err != nil || len(opts) == 0 {
+			if expected != nil || ctx.Err() != nil {
+				s.mu.Lock()
+				valid := (expected == nil || expected.currentLocked(s)) && s.skillOptionsScopeCurrentLocked(owner) && ctx.Err() == nil
+				s.mu.Unlock()
+				if !valid {
+					return
+				}
+			}
 			scope := api.SkillInventoryScope{}
 			if sessionID != "" {
 				scope.SessionId = &sessionID
@@ -114,7 +130,7 @@ func (s *Store) RefreshSkills(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if !s.skillOptionsScopeCurrentLocked(owner) || ctx.Err() != nil {
+		if !s.skillOptionsScopeCurrentLocked(owner) || ctx.Err() != nil || (expected != nil && !expected.currentLocked(s)) {
 			s.mu.Unlock()
 			return
 		}

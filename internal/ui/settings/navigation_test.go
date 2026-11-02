@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {
@@ -68,25 +69,38 @@ func TestSettingsUnsignedAccountStillHasLoginEntry(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	selected := false
-	m := Model{Desktop: &DesktopAccess{}, DesktopActive: true, Account: &AccountAccess{}, OnSelectAccount: func() { selected = true }}
-	for _, entry := range primaryNavigation(m, store.ViewState{}) {
-		if entry.id == SectionAccount {
-			t.Fatal("unsigned account unexpectedly occupies the primary rail")
-		}
+	locale, closeToTray, openAtLogin, autoStart := "en", true, true, true
+	m := Model{
+		Desktop: &DesktopAccess{Host: bodyFixtureHost(), Preferences: theme.NewEditor(theme.Defaults(), nil),
+			Fields:           DesktopFields{Locale: &locale, CloseToTray: &closeToTray, OpenAtLogin: &openAtLogin},
+			AutoStartDesktop: &autoStart, Version: "test-build", OnSave: func() {}},
+		DesktopActive: true, Account: &AccountAccess{}, OnSelectAccount: func() { selected = true },
 	}
-	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1000, 760)
-	if err := tt.Click(i18n.T(i18n.KeySettingsAccountSignIn)); err != nil {
+	entries := primaryNavigation(m, store.ViewState{})
+	if len(entries) == 0 || entries[0].id != SectionGeneral {
+		t.Fatal("unsigned account displaced the source General first row")
+	}
+	// Opening the existing independent account flow keeps its dedicated entry
+	// reachable even before credential storage has completed.
+	m.AccountActive, m.DesktopActive = true, false
+	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1000, 500)
+	entry, found := tt.Find(sectionLabel(SectionAccount))
+	if !found || entry.Y < 0 || entry.Y+entry.H > 500 {
+		t.Fatalf("signed-out account entry is outside the initial viewport: %+v found=%v", entry, found)
+	}
+	saveBodySnapshot(t, tt, "settings-account-navigation.png")
+	if err := tt.Click(sectionLabel(SectionAccount)); err != nil {
 		t.Fatal(err)
 	}
 	if !selected {
-		t.Fatal("General login entry lost its existing account callback")
+		t.Fatal("account navigation lost its existing account callback")
 	}
 	m.AccountActive = true
 	m.DesktopActive = false
 	if got := activeSection(m, store.ViewState{}); got != SectionAccount {
 		t.Fatalf("opened account flow lost selection: %s", got)
 	}
-	entries := primaryNavigation(m, store.ViewState{})
+	entries = primaryNavigation(m, store.ViewState{})
 	if len(entries) == 0 || entries[0].id != SectionAccount {
 		t.Fatal("active sign-in flow has no account navigation entry")
 	}

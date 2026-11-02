@@ -97,7 +97,7 @@ func (s *mainState) openAccountPlatform(page, source string) {
 			})
 			if err != nil {
 				s.closeAccountPlatform()
-				s.reportAccountAction(errors.New("Could not open private Platform page"))
+				s.reportAccountAction(errors.New(i18n.T(i18n.KeyCmdPlatformOpenFailed)))
 				return
 			}
 			lease.host = host
@@ -132,7 +132,7 @@ func (s *mainState) openAccountPlatform(page, source string) {
 								s.mu.Unlock()
 								if active {
 									s.closeAccountPlatform()
-									s.reportAccountAction(errors.New("Account changed; reopen the Platform page"))
+									s.reportAccountAction(errors.New(i18n.T(i18n.KeyCmdPlatformAccountChanged)))
 								}
 							})
 							return

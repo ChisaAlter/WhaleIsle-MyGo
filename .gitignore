@@ -24,7 +24,8 @@ pet-render-assets/
 .runtime-rc2/
 
 # Scratch notes, logs and one-off helper scripts.
-tmp/
+/tmp/*
+!/tmp/go.mod
 
 # Runtime files the packaging stage copies next to the built shell.
 /ghostty-vt.dll

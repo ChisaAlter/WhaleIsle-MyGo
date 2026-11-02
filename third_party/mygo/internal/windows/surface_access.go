@@ -197,12 +197,13 @@ type uiaElement struct {
 
 // uiaTree is what UI Automation sees of a surface.
 type uiaTree struct {
-	s     *surface
-	root  *uiaElement
-	nodes map[uint64]*uiaElement
-	order []*uiaElement // in the order of the content's tree
-	focus uint64
-	quiet bool // building the tree a client asked for
+	s         *surface
+	root      *uiaElement
+	nodes     map[uint64]*uiaElement
+	order     []*uiaElement // in the order of the content's tree
+	lastNodes []platform.AccessNode
+	focus     uint64
+	quiet     bool // building the tree a client asked for
 	// announced is the text of the live region of announcements.
 	announced string
 }
@@ -399,6 +400,10 @@ func (t *uiaTree) update(tree *platform.AccessTree) {
 		announcer := platform.AccessNode{ID: announcerID, Parent: -1, Role: platform.RoleText, Label: t.announced, Bounds: platform.RectF{W: 1, H: 1}}
 		tree = &platform.AccessTree{Nodes: append(slices.Clip(tree.Nodes), announcer), Focus: tree.Focus, Announcements: tree.Announcements}
 	}
+	if len(tree.Announcements) == 0 && tree.Focus == t.focus && t.lastNodes != nil && slices.Equal(t.lastNodes, tree.Nodes) {
+		return
+	}
+	t.lastNodes = append(t.lastNodes[:0], tree.Nodes...)
 	notify := !t.quiet && listening()
 	old := t.nodes
 	t.nodes = make(map[uint64]*uiaElement, len(tree.Nodes))
@@ -431,6 +436,9 @@ func (t *uiaTree) update(tree *platform.AccessTree) {
 	t.order = order
 	if notify {
 		for parent, kids := range oldKids {
+			if slices.Equal(kids, parent.children) {
+				continue
+			}
 			var added, removed []*uiaElement
 			for _, k := range kids {
 				if !slices.Contains(parent.children, k) {
@@ -458,7 +466,7 @@ func (t *uiaTree) update(tree *platform.AccessTree) {
 			}
 		}
 		for i, e := range order {
-			if !fresh[i] {
+			if !fresh[i] && prev[i] != e.n {
 				e.notifyChanges(prev[i])
 			}
 		}

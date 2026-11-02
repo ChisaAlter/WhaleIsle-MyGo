@@ -33,11 +33,7 @@ func (s *mainState) refreshPetTask() {
 		growthOwner := fmt.Sprintf("%s/%q/%q", careOwner, careStore.Get().NodeBin, paths.DshHome())
 		p.SetGrowthRuntime(growthOwner, careGeneration)
 	}
-	snap := session.ViewState{}
-	if sessions != nil {
-		snap = sessions.Snapshot()
-	}
-	p.UpdateTask(pet.TaskFromSession(online, snap))
+	p.UpdateTask(pet.TaskFromSelection(online, petTaskView(sessions)))
 }
 
 func (s *mainState) openPetSession(id string) {
@@ -49,7 +45,7 @@ func (s *mainState) openPetSession(id string) {
 		s.refreshPetTask()
 		return
 	}
-	task := pet.TaskFromSession(online, sessions.Snapshot())
+	task := pet.TaskFromSelection(online, petTaskView(sessions))
 	// Recheck the live source: an old pet link cannot open a different workspace,
 	// a deleted session, or whichever conversation happens to be selected now.
 	if id == "" || task.SessionID != id {
@@ -104,11 +100,11 @@ func (s *mainState) openPetChat() {
 		finish(i18n.T(i18n.KeyCmdWhaleAssistantIsDisabled))
 		return
 	}
-	if !ready || sessions == nil || !sessions.Snapshot().ClientReady || win == nil {
+	if !ready || sessions == nil || !petTaskView(sessions).ClientReady || win == nil {
 		finish(i18n.T(i18n.KeyCmdHostOffline2))
 		return
 	}
-	selected := sessions.Snapshot().SelectedID
+	selected := petTaskView(sessions).SelectedID
 	go func() {
 		id, err := pet.EnsureChatSession(ctx, host.Endpoint.Origin, host.Endpoint.Cookie)
 		win.Update(func() {
@@ -120,7 +116,7 @@ func (s *mainState) openPetChat() {
 				finish(i18n.T(i18n.KeyCmdConnectionChanged))
 				return
 			}
-			if sessions.Snapshot().SelectedID != selected {
+			if petTaskView(sessions).SelectedID != selected {
 				finish(i18n.T(i18n.KeyCmdConversationChanged))
 				return
 			}
@@ -137,4 +133,15 @@ func (s *mainState) openPetChat() {
 			sessions.RefreshList(context.Background())
 		})
 	}()
+}
+
+// petTaskView reads the pet task strip's selection. It used to call
+// Store.Snapshot(), first every frame and then throttled to 500ms; on a long
+// session each call cloned the whole transcript (hundreds of MB per second, see
+// tmp/perf-20261029). The strip only needs the selection summary.
+func petTaskView(store *session.Store) session.SelectionSummary {
+	if store == nil {
+		return session.SelectionSummary{}
+	}
+	return store.SelectionSummary()
 }

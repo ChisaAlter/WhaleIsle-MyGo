@@ -7,7 +7,7 @@ import (
 
 // ApplyInterface changes only a window's root typography, preserving its palette.
 func ApplyInterface(c *ui.Context) {
-	font := RenderPreferences().Interface
+	font := ContextFont(c, SkinInterfaceFont)
 	next := *c.Theme()
 	next.Font, next.FontSize = font.Family, font.Size
 	c.SetTheme(&next)

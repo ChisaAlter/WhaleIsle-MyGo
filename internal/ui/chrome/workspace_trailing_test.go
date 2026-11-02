@@ -44,8 +44,8 @@ func TestWorkspaceTrailingDensityAndIndependentPanelGates(t *testing.T) {
 			terminal, surfaces := 0, 0
 			m := WorkspaceTrailingModel{Status: &git.RepositoryStatus{IsRepo: true, Branch: "feature/long-name", Dirty: true}, WorkspaceRoot: "fixture", GitLoaded: true, Density: density, OnGitAction: func(string) {}, ShowTerminal: true, ShowSurfaces: true, TerminalAvailable: false, OnToggleTerminal: func() { terminal++ }, OnToggleSurfaces: func() { surfaces++ }}
 			tt := ui.NewTester(func(c *ui.Context) { WorkspaceTrailing(c, m) }, 800, 100)
-			if (tt.HasText("feature/long-name")) != (density != "compact") {
-				t.Fatal("branch density did not follow source", tt.Texts())
+			if tt.HasText("feature/long-name") {
+				t.Fatal("branch label must start collapsed in every density", tt.Texts())
 			}
 			commitLabels := 0
 			for _, label := range tt.Texts() {
@@ -54,9 +54,7 @@ func TestWorkspaceTrailingDensityAndIndependentPanelGates(t *testing.T) {
 				}
 			}
 			wantLabels := 1
-			if density == "full" {
-				wantLabels = 2
-			}
+
 			if commitLabels != wantLabels {
 				t.Fatal("primary visible text density did not follow source", tt.Texts())
 			}

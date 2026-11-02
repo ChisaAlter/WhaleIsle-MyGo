@@ -205,6 +205,12 @@ type engine struct {
 	repaintDue   time.Time
 	// late is set when lists built elements while laying out.
 	late bool
+	// Smooth wheel scroll state for discrete mouse wheel ticks (!precise) on
+	// real window surfaces.
+	wheelID      uint64
+	wheelRemainX float64
+	wheelRemainY float64
+	wheelLast    time.Time
 	// revealIDs are the elements to scroll into view once the frame is
 	// laid out.
 	revealIDs []uint64
@@ -385,6 +391,7 @@ func (rt *engine) runFrame() {
 		rt.dragScroll()
 	}
 	rt.scrollTextSelection()
+	rt.stepWheelScroll(now)
 
 	if rt.exitsBuilt {
 		// The last frame's elements stay as they are while this one builds,
@@ -546,6 +553,12 @@ func (rt *engine) repaintNow() {
 func (rt *engine) surfaceFrame() {
 	if w, h, scale := rt.host.size(); rt.redraw && !rt.inFrame && rt.c.root != nil &&
 		rt.painted == [3]float32{w, h, scale} && rt.text.Generation() == rt.gen {
+		if scale <= 0 {
+			scale = 1
+		}
+		if rt.host.pixels() {
+			w, h = w/scale, h/scale
+		}
 		rt.repaintFrame(w, h, scale)
 		return
 	}
@@ -623,6 +636,7 @@ func (rt *engine) forgetInput() {
 // prune forgets the elements the frame did not build, but those of the
 // pages Routers keep.
 func (rt *engine) prune() {
+	rt.cancelOrphanedValueDrag()
 	if d := rt.drag; d != nil && d.native {
 		if s := rt.states[d.src]; s == nil || s.seen != rt.frame || s.pass != rt.pass {
 			rt.host.cancelDataDrag()
@@ -849,6 +863,7 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 	if e.flags&(flagScrollX|flagScrollY) != 0 {
 		s.contentW, s.contentH = e.contentW, e.contentH
 		s.barInset = e.barInset
+		s.barVisible = e.barVisible
 	}
 	// What is invisible keeps its box but takes neither the pointer nor
 	// the focus, and has no text to find; so does what is inert, which
@@ -937,15 +952,24 @@ func (rt *engine) updateCursor() {
 			}
 		}
 	}
-	// The product shows not-allowed over a disabled control instead of the
-	// arrow: disabled elements take no hover, so this reads the hit chain.
+	// Disabled elements take no hover. Walk only the topmost hit's parents,
+	// as hitChain does, without allocating a chain every frame/cursor update.
 	if c == CursorDefault && rt.pointerIn {
-		for _, id := range rt.hitChain(rt.pointerX, rt.pointerY) {
-			s := rt.states[id]
-			if s != nil && s.flags&flagDisabled != 0 && s.flags&flagClickable != 0 {
-				c = CursorNotAllowed
-				break
+		for i := len(rt.hits) - 1; i >= 0; i-- {
+			h := &rt.hits[i]
+			if !h.r.Contains(rt.pointerX, rt.pointerY) {
+				continue
 			}
+			for s := h.st; s != nil; s = rt.states[s.parent] {
+				if s.flags&flagDisabled != 0 && s.flags&flagClickable != 0 {
+					c = CursorNotAllowed
+					break
+				}
+				if s.parent == 0 {
+					break
+				}
+			}
+			break
 		}
 	}
 	if c != rt.cursor {

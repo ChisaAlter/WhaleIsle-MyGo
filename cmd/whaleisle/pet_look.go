@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -45,7 +46,7 @@ func (s *mainState) lookFromPet() {
 		attempt.Finish(i18n.T(i18n.KeyCmdSelectThePetLookModelAndRefreshIt))
 		return
 	}
-	selected := sessions.Snapshot().SelectedID
+	selected := sessions.SelectedSessionID()
 	current := func() bool {
 		if !attempt.Current() {
 			return false
@@ -55,7 +56,7 @@ func (s *mainState) lookFromPet() {
 		same := !s.quitting && s.desktopPet == p && s.cfgStore == cfg && s.settings == settings && s.sessions == sessions && s.win == win && s.dshMuxReady && now.State == harness.Ready &&
 			now.Generation == host.Generation && now.Endpoint.Origin == host.Endpoint.Origin && now.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()
-		if !same || !cfg.Get().WhaleAssistantEnabled || sessions.Snapshot().SelectedID != selected {
+		if !same || !cfg.Get().WhaleAssistantEnabled || sessions.SelectedSessionID() != selected {
 			return false
 		}
 		p, m, ok := petLookRoute(cfg.DesktopPet().Behavior, settings.ImageCatalogSnapshot())
@@ -65,7 +66,7 @@ func (s *mainState) lookFromPet() {
 		Parent: attempt.Window, Type: mygo.MessageQuestion,
 		Title:   i18n.T(i18n.KeyCmdLookAtScreen),
 		Message: screenglance.ApprovalMessage(),
-		Detail: "Provider: " + provider + "\nModel: " + model + "\nHost: " + host.Endpoint.Origin +
+		Detail: fmt.Sprintf(i18n.T(i18n.KeyCmdPetLookApprovalDetails), provider, model, host.Endpoint.Origin) +
 			"\n" + screenglance.StorageDetail(),
 		Buttons: []string{i18n.T(i18n.KeyCmdCancel), i18n.T(i18n.KeyCmdCaptureAndSend)}, DefaultButton: 0, CancelButton: 0,
 	})

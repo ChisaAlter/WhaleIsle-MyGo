@@ -19,25 +19,25 @@ func mcpFormEditorContent(c *ui.Context, a *MCPFormAccess, busy bool, editingID 
 		return false
 	}
 	if a.Draft == nil {
-		if ui.Button(c, mcpCatalogText("使用字段表单", "Use field editor")).Disabled(busy).Clicked() && a.OnOpen != nil {
+		if ui.Button(c, mcpCatalogText("使用字段表单", "Use field editor")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy).Clicked() && a.OnOpen != nil {
 			a.OnOpen()
 		}
 		return false
 	}
 	form := *a.Draft
 	changed := false
-	ui.Text(c, mcpCatalogText("MCP 配置表单", "MCP configuration form")).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
+	ui.Text(c, mcpCatalogText("MCP 配置表单", "MCP configuration form")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	if editingID != "" {
-		ui.Text(c, mcpCatalogText("编辑服务器：", "Editing server: ")+editingID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, mcpCatalogText("编辑服务器：", "Editing server: ")+editingID).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	field := func(key, label string, value *string, locked bool, multiline bool) {
 		bodyRosterRow(c, label, func() {
 			if multiline {
-				if ui.TextArea(c, value).FillWidth().MinHeight(72).Disabled(busy || locked).Changed() {
+				if ui.TextArea(c, value).FillWidth().MinHeight(72).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || locked).Changed() {
 					changed = true
 				}
 			} else {
-				if ui.TextInput(c, value).FillWidth().Disabled(busy || locked).Changed() {
+				if ui.TextInput(c, value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || locked).Changed() {
 					changed = true
 				}
 			}
@@ -54,7 +54,7 @@ func mcpFormEditorContent(c *ui.Context, a *MCPFormAccess, busy bool, editingID 
 	field("serverName", mcpCatalogText("工具命名空间", "Tool namespace"), &form.ServerName, false, false)
 	ui.Text(c, mcpCatalogText("ID 和命名空间：1–32 个英文字母、数字、下划线或连字符。", "ID and namespace: 1–32 letters, digits, underscores or hyphens.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	bodyRosterRow(c, mcpCatalogText("传输方式", "Transport"), func() {
-		if ui.Select(c, &form.Transport, []string{"stdio", "streamable-http"}).FillWidth().Disabled(busy).Changed() {
+		if ui.Select(c, &form.Transport, []string{"stdio", "streamable-http"}).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Changed() {
 			changed = true
 		}
 		if issue := a.Errors["transport"]; issue != "" {
@@ -85,13 +85,13 @@ func mcpFormEditorContent(c *ui.Context, a *MCPFormAccess, busy bool, editingID 
 		a.OnChange(form)
 	}
 	ui.Row(c).Gap(8).Wrap().Children(func() {
-		if ui.Button(c, mcpCatalogText("保存配置（可能启动/重启）", "Save configuration (may start/restart)")).Disabled(busy).Clicked() && a.OnSave != nil {
+		if ui.Button(c, mcpCatalogText("保存配置（可能启动/重启）", "Save configuration (may start/restart)")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnSave != nil {
 			a.OnSave(form)
 		}
-		if ui.Button(c, mcpCatalogText("切换到原 JSON", "Switch to raw JSON")).Disabled(busy).Clicked() && a.OnJSON != nil {
+		if ui.Button(c, mcpCatalogText("切换到原 JSON", "Switch to raw JSON")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnJSON != nil {
 			a.OnJSON()
 		}
-		if ui.Button(c, mcpCatalogText("取消", "Cancel")).Disabled(busy).Clicked() && a.OnCancel != nil {
+		if ui.Button(c, mcpCatalogText("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnCancel != nil {
 			a.OnCancel()
 		}
 	})
@@ -103,7 +103,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 		return false
 	}
 	if a.Draft == nil {
-		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
 			a.OnOpen()
 		}
 		return false

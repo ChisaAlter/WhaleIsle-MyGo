@@ -122,6 +122,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 		return
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	border, field := chrome.Color(colors.Border), chrome.Color(colors.Field)
 	ui.Column(c.Key("delivery-history")).Label("Saved delivery records").Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
 		ui.Scroll(c.Key("schedule-records-scroll-" + key)).Label("Task records scroll").Grow(1).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Padding(24, 24, 80).Gap(16).Children(func() {
@@ -129,7 +130,9 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 					ui.Row(c).Label("Loading delivery records").FillWidth().Justify(ui.Center).Padding(24, 0).Children(func() { ui.Spinner(c).Size(20, 20).TextColor(muted) })
 				}
 				if h.Error != "" {
-					ui.Column(c).FillWidth().MinWidth(0).Padding(12).Gap(8).Background(chrome.Color(colors.Sidebar)).Radius(10).Children(func() {
+					errCard := ui.Column(c).FillWidth().MinWidth(0).Padding(12, 16).Gap(8).Border(.5, border).Radius(12)
+					chrome.GlassSurface(errCard, field, chrome.MaterialPanel, 12)
+					errCard.Children(func() {
 						message := h.Error
 						if h.Dismissed {
 							message = scheduleText("可以重试读取投递记录", "Retry delivery records when ready")
@@ -139,10 +142,10 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 						if h.RefreshRequired {
 							label = scheduleText("刷新记录", "Refresh records")
 						}
-						if ui.Button(c, label).Disabled(loading).Clicked() {
+						if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(loading).Clicked() {
 							p.loadDeliveryHistory(m, row, h.RetryBefore, h.RetryBefore == "")
 						}
-						if !h.Dismissed && ui.Button(c, scheduleText("关闭提示", "Dismiss")).Clicked() {
+						if !h.Dismissed && ui.Button(c, scheduleText("关闭提示", "Dismiss")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							p.mu.Lock()
 							p.historyState.Dismissed = true
 							p.mu.Unlock()
@@ -154,22 +157,24 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 				}
 				for _, record := range h.Page.Records {
 					record := record
-					ui.Row(c.Key("delivery-" + record.MessageID)).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
+					recCard := ui.Row(c.Key("delivery-"+record.MessageID)).FillWidth().MinWidth(0).Padding(12, 16).Border(.5, border).Radius(12).Gap(12).AlignItems(ui.Start)
+					chrome.GlassSurface(recCard, field, chrome.MaterialPanel, 12)
+					recCard.Children(func() {
 						ui.Icon(c, scheduleIcons["clock"]).Size(16, 20).TextColor(muted).Shrink(0)
 						ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-							ui.Text(c, deliveryTime(record.ScheduledAt, row.TimeZone)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg).FillWidth().MinWidth(0)
+							ui.Text(c, deliveryTime(record.ScheduledAt, row.TimeZone)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(600).TextColor(fg).FillWidth().MinWidth(0)
 							if record.Prompt == nil {
-								ui.Text(c, scheduleText("旧记录未保存指令内容", "Prompt unavailable in this legacy receipt")).FontSize(theme.InterfaceSize(13)).TextColor(muted).FillWidth().MinWidth(0)
+								ui.Text(c, scheduleText("旧记录未保存指令内容", "Prompt unavailable in this legacy receipt")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
 							} else {
 								expanded := p.deliveryExpanded[key+"/"+record.MessageID]
 								font := theme.RenderPreferences().Interface.Family
-								prompt := ui.Text(c, *record.Prompt).Font(font).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
+								prompt := ui.Text(c, *record.Prompt).Font(font).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
 								clamped := ui.Local(prompt, "saved-prompt-clamped", func() bool { return false })
 								if !expanded {
 									prompt.MaxLines(2).Ellipsis("…")
 									prompt.DrawOver(func(painter *ui.Painter, rect ui.Rect) {
-										_, full := painter.MeasureText(rect.W, ui.Span{Text: *record.Prompt, Font: font, Size: theme.InterfaceSize(14)})
-										_, twoLines := painter.MeasureText(0, ui.Span{Text: "Ag\nAg", Font: font, Size: theme.InterfaceSize(14)})
+										_, full := painter.MeasureText(rect.W, ui.Span{Text: *record.Prompt, Font: font, Size: theme.InterfaceSize(13)})
+										_, twoLines := painter.MeasureText(0, ui.Span{Text: "Ag\nAg", Font: font, Size: theme.InterfaceSize(13)})
 										hidden := full > twoLines+.5
 										if *clamped != hidden {
 											*clamped = hidden
@@ -182,7 +187,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 									if expanded {
 										label = scheduleText("收起", "Collapse")
 									}
-									if ui.Button(c.Key("delivery-expand-"+record.MessageID), label).FontSize(theme.InterfaceSize(13)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
+									if ui.Button(c.Key("delivery-expand-"+record.MessageID), label).Height(28).Padding(0, 10).Radius(6).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Clicked() {
 										if p.deliveryExpanded == nil {
 											p.deliveryExpanded = map[string]bool{}
 										}
@@ -194,16 +199,16 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 					})
 				}
 				if h.Loaded && h.Page.NextBefore != "" && h.Error == "" {
-					if ui.Button(c, scheduleText("加载更多", "Load more")).Disabled(loading).Clicked() {
+					if ui.Button(c, scheduleText("加载更多", "Load more")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(loading).Clicked() {
 						p.loadDeliveryHistory(m, row, h.Page.NextBefore, false)
 					}
 				}
 				if h.Loaded && !loading {
 					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-						if ui.Button(c, scheduleText("刷新记录", "Refresh records")).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if ui.Button(c, scheduleText("刷新记录", "Refresh records")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							p.loadDeliveryHistory(m, row, "", true)
 						}
-						if m.OnCopyHistory != nil && ui.Button(c, scheduleText("复制已加载记录", "Copy loaded records")).FontSize(theme.InterfaceSize(11)).Clicked() {
+						if m.OnCopyHistory != nil && ui.Button(c, scheduleText("复制已加载记录", "Copy loaded records")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 							raw, _ := json.MarshalIndent(h.Page, "", "  ")
 							m.OnCopyHistory(string(raw))
 						}

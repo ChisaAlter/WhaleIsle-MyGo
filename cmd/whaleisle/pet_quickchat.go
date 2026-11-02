@@ -24,10 +24,10 @@ func (s *mainState) openPetQuickChat() {
 	unavailable := ""
 	userData, home := paths.UserDataDir(), paths.DshHome()
 	whaleEnabled := cfg != nil && cfg.Get().WhaleAssistantEnabled
-	clientReady := sessions != nil && sessions.Snapshot().ClientReady
+	clientReady := sessions != nil && sessions.ClientReady()
 	if cfg == nil || !cfg.Get().WhaleAssistantEnabled {
 		unavailable = i18n.T(i18n.KeyCmdWhaleAssistantIsDisabled)
-	} else if !ready || sessions == nil || !sessions.Snapshot().ClientReady || win == nil || win.IsDestroyed() {
+	} else if !ready || sessions == nil || !sessions.ClientReady() || win == nil || win.IsDestroyed() {
 		unavailable = i18n.T(i18n.KeyCmdHostOfflineReopenAfterConnecting)
 	}
 	// This decision is made before any chat submission. No result/error handler
@@ -44,7 +44,7 @@ func (s *mainState) openPetQuickChat() {
 		if !valid || cfg == nil || cfg.Get().WhaleAssistantEnabled != whaleEnabled || !p.ChatAllowed() || win == nil || win.IsDestroyed() || paths.UserDataDir() != userData || paths.DshHome() != home {
 			return false
 		}
-		nowClientReady := sessions != nil && sessions.Snapshot().ClientReady
+		nowClientReady := sessions != nil && sessions.ClientReady()
 		if direct != nil {
 			return nowClientReady == clientReady
 		}

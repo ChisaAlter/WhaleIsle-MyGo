@@ -12,6 +12,8 @@ package notifications
 import (
 	"os"
 	"path/filepath"
+
+	"whaleisle/internal/product"
 )
 
 // AppUserModelID follows the desktop build contract asserted by
@@ -19,7 +21,7 @@ import (
 const AppUserModelID = "ai.deepseek.harness.gui"
 
 // ShortcutName is the Start-menu link the shell owns.
-const ShortcutName = "Whale Isle.lnk"
+const ShortcutName = product.Name + ".lnk"
 
 // StartMenuProgramsDir returns %APPDATA%\Microsoft\Windows\Start Menu\Programs.
 // The empty string means the location is unknown (no APPDATA, non-Windows).

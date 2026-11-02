@@ -134,7 +134,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			if credential != nil {
 				bodyPreferenceRow(c, "web-search-key", "API Key", providerCopy("密钥不会写入设置文件；留空保留已有密钥。", "Keys are not stored in settings; blank keeps the existing key."), fg, muted, func() {
 					text := keyState.Draft
-					if ui.TextInput(c, &text).FillWidth().Password().Label("Web Search API Key").Disabled(disabled || !keyState.Known || !keyState.Writable || keyState.Loading).Changed() {
+					if ui.TextInput(c, &text).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Password().Label("Web Search API Key").Disabled(disabled || !keyState.Known || !keyState.Writable || keyState.Loading).Changed() {
 						credential.Edit(text)
 					}
 					status := providerCopy("尚未配置密钥；账户模型可使用默认接口搜索。", "No key configured; account models can use the default search endpoint.")
@@ -148,7 +148,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 					if keyState.Error != "" {
 						ui.Text(c, keyState.Error).FillWidth().TextColor(c.Theme().Danger)
 					}
-					if ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Disabled(keyState.Loading || disabled).Clicked() {
+					if ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(keyState.Loading || disabled).Clicked() {
 						credential.Refresh(context.Background())
 					}
 				})
@@ -171,14 +171,14 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			}
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(disabled || invalid || !dirty).Clicked() {
+			if ui.PrimaryButton(c, providerCopy("保存", "Save")).Height(32).Padding(0, 14).Radius(8).FontSize(theme.InterfaceSize(13)).Disabled(disabled || invalid || !dirty).Clicked() {
 				if credential != nil {
 					credential.Save(context.Background(), bindings[0], bindings[1:]...)
 				} else {
 					bindings[0].SaveSequence(context.Background(), bindings[1:]...)
 				}
 			}
-			if ui.Button(c, providerCopy("放弃草稿", "Discard drafts")).Disabled(saving || !dirty).Clicked() {
+			if ui.Button(c, providerCopy("放弃草稿", "Discard drafts")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(saving || !dirty).Clicked() {
 				for _, b := range bindings {
 					b.Discard()
 				}
@@ -212,7 +212,7 @@ func servedScalar(c *ui.Context, b *store.NamespaceBinding, s store.ViewState, f
 					b.SetDraft(f.Key, "false")
 				}
 			}
-		} else if ui.TextInput(c, &value).FillWidth().Label(f.Label).Disabled(disabled).Changed() {
+		} else if ui.TextInput(c, &value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).Disabled(disabled).Changed() {
 			if strings.TrimSpace(value) == "" {
 				b.Reset(f.Key)
 			} else {
@@ -224,7 +224,7 @@ func servedScalar(c *ui.Context, b *store.NamespaceBinding, s store.ViewState, f
 		if _, ok := user[f.Key]; ok && !s.Resets[f.Key] {
 			ui.Text(c, providerCopy("已覆盖", "Overridden")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
-		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(disabled).Clicked() {
+		if ui.Button(c, providerCopy("恢复默认", "Reset")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
 			b.Reset(f.Key)
 		}
 	})

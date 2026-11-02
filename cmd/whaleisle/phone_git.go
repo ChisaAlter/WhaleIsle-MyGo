@@ -27,7 +27,7 @@ func (s *mainState) setPhoneGit(enabled bool) {
 	if sessions == nil || s.cfgStore == nil || !s.cfgStore.Get().RemoteEnabled {
 		return
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.SelectionSummary()
 	if snap.SelectedID == "" || strings.TrimSpace(snap.SelectedCwd) == "" {
 		return
 	}
@@ -51,7 +51,7 @@ func (s *mainState) phoneGitGrant() (bool, string) {
 	if id == "" || root == "" || sessions == nil {
 		return false, ""
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.SelectionSummary()
 	current, err := filepath.EvalSymlinks(snap.SelectedCwd)
 	if err == nil {
 		current, err = filepath.Abs(current)

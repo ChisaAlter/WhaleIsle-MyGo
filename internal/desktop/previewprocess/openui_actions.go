@@ -1,18 +1,25 @@
 package previewprocess
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 
 	"whaleisle/internal/desktop/openui"
 )
 
 type openUIActionKey struct {
-	sequence        uint64
-	kind, text, url string
+	digest [sha256.Size]byte
 }
 
 func nativeActionKey(e openui.Event) openUIActionKey {
-	return openUIActionKey{e.Sequence, e.Type, e.Text, e.URL}
+	// Download content arrives as separately validated ordered parts; the final
+	// one-use ticket binds the request identity, filename, MIME and part count.
+	if e.Type == "download" {
+		e.Content = ""
+	}
+	raw, _ := json.Marshal(e)
+	return openUIActionKey{sha256.Sum256(raw)}
 }
 
 // ClaimOpenUINativeAction consumes exactly one action received from this

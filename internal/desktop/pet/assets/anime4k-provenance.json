@@ -1,0 +1,22 @@
+{
+  "repository": "ChisaAlter/WhaleIsle",
+  "commit": "90465b67ec16765631d54c195af19d9ff3c3a770",
+  "upstream": "monyone/Anime4K.js",
+  "upstreamVersion": "1.1.3",
+  "preset": "ANIME4KJS_SIMPLE_M_2X",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "anime4k.js",
+      "sourcePath": "reference/electron/src/renderer/pet-live2d/anime4k.js",
+      "size": 9457468,
+      "sha256": "547a050bd6c9920524561e8418912ad2d134af142777f458ecb14b09970f41ee"
+    },
+    {
+      "path": "anime4k.LICENSE",
+      "sourcePath": "reference/electron/src/renderer/pet-live2d/anime4k.LICENSE",
+      "sha256": "ff3c8af9d473ffcaf51d676b1aa80dae159d6a94e50449f0302ccef86e6dbd37"
+    }
+  ],
+  "notes": "Byte-for-byte offline import from the read-only reference. Embedded in the Go executable; no CDN or runtime download. GPU speed and image quality require real WebView2 verification, not inferred from this source identity."
+}

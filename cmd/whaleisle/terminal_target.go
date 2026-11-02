@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	desktopwebview "whaleisle/internal/desktop/webview"
@@ -51,7 +52,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 			OpenBrowser: func(raw string) error {
 				normalized := browserpreviewui.NormalizeURL(raw)
 				if normalized == "" {
-					return errors.New("Invalid HTTP(S) URL")
+					return errors.New(i18n.T(i18n.KeyCmdInvalidHTTPURL))
 				}
 				if s.browserController == nil {
 					s.browserController = s.newBrowserController(win)
@@ -63,7 +64,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 			OpenExternal: func(raw string) error {
 				normalized := browserpreviewui.NormalizeURL(raw)
 				if normalized == "" {
-					return errors.New("Invalid HTTP(S) URL")
+					return errors.New(i18n.T(i18n.KeyCmdInvalidHTTPURL))
 				}
 				return desktopwebview.OpenExternal(normalized)
 			},
@@ -74,7 +75,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 					return err
 				}
 				if !handled {
-					return errors.New("Path is unavailable or outside this terminal's local workspace")
+					return errors.New(i18n.T(i18n.KeyCmdTerminalPathUnavailable))
 				}
 				if line > 0 {
 					files.RequestLine(model, line)

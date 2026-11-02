@@ -40,6 +40,9 @@ func (s *Store) runUnarchiveSession(ctx context.Context, client *dsh.Client, gen
 		return
 	}
 	if err != nil {
+		if s.lastAction != err.Error() {
+			s.invalidateViewLocked()
+		}
 		s.lastAction = err.Error()
 		s.mu.Unlock()
 		s.fire()
@@ -47,6 +50,7 @@ func (s *Store) runUnarchiveSession(ctx context.Context, client *dsh.Client, gen
 	}
 	s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
 	s.lastAction = "session unarchived"
+	s.invalidateViewLocked()
 	if s.archiveUndo != nil && s.archiveUndo.notice.SessionID == sessionID {
 		s.archiveUndo = nil
 	}
@@ -86,6 +90,9 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()

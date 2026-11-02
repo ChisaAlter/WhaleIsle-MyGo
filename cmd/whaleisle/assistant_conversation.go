@@ -43,12 +43,12 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 	mode = assiststore.NormalizeMode(mode)
 	if mode == assiststore.ModeDshbot {
 		if strings.TrimSpace(botID) == "" {
-			asst.SetLastAction("Select a Bot or room first", "Select a Bot or room first")
+			asst.SetLastAction(i18n.T(i18n.KeyCmdSelectBotOrRoom), i18n.T(i18n.KeyCmdSelectBotOrRoom))
 			return
 		}
 		asst.SelectDshbot(botID, ep.Origin)
 	}
-	owner, err := sessions.CaptureComposerTarget(sessions.Snapshot().SelectedID)
+	owner, err := sessions.CaptureComposerTarget(sessions.SelectedSessionID())
 	if err != nil {
 		asst.SetLastAction(err.Error(), err.Error())
 		return
@@ -78,7 +78,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 				return
 			}
 			if openErr == nil && strings.TrimSpace(sid) == "" {
-				openErr = fmt.Errorf("Host returned no canonical session")
+				openErr = fmt.Errorf("%s", i18n.T(i18n.KeyCmdCanonicalSessionMissing))
 			}
 			if openErr != nil {
 				asst.SetLastAction(openErr.Error(), openErr.Error())
@@ -90,7 +90,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 			conflict := text != "" && (draft.Text != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing > 0 || draft.EditSeq != 0)
 			s.mu.Unlock()
 			if conflict {
-				asst.SetLastAction(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftBeforeS), "Draft retained; nothing sent")
+				asst.SetLastAction(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftBeforeS), i18n.T(i18n.KeyCmdDraftRetainedNothingSent))
 				return
 			}
 			s.revokePhoneGit()

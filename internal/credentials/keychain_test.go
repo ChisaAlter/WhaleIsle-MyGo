@@ -22,7 +22,7 @@ func (m *memoryKeychain) get(string) ([]byte, error) {
 	if m.key == nil {
 		return nil, errKeychainNotFound
 	}
-	return m.key, nil
+	return bytes.Clone(m.key), nil
 }
 func (m *memoryKeychain) add(_ string, k []byte) error {
 	m.adds++

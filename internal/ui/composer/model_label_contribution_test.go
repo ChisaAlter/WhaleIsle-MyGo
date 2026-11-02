@@ -224,3 +224,41 @@ func TestModelPickerLabelAndOwnerWithdrawalsHaveDifferentLifetimes(t *testing.T)
 		t.Fatal("withdrawal modified the Host catalog or dispatched another selection")
 	}
 }
+
+func TestFriendlyModelTriggerNameAndUnifiedSeatEffort(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want string
+	}{
+		{"magpie/devin/swe-2", "SWE-2"},
+		{"magpie/codex/gpt-6.1-sol", "GPT-6.1-Sol"},
+		{"codex/gpt-6.1-sol", "GPT-6.1-Sol"},
+		{"magpie/codex/gpt-6.1-terra", "GPT-6.1 Terra"},
+		{"magpie/codex/gpt-6-astra", "GPT-6-Astra"},
+		{"deepseek-official/deepseek-v4.1-flash-1017", "DeepSeek V4.1 Flash 1017"},
+	} {
+		if got := friendlyModelTriggerName(session.ViewState{}, tc.raw); got != tc.want {
+			t.Fatalf("friendlyModelTriggerName(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+	snap := session.ViewState{
+		SelectedID:          "s",
+		SelectedModel:       "magpie/devin/swe-2",
+		SelectedModelEffort: "max",
+		NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true},
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+	}, 600, 100)
+	if !tt.HasText("SWE-2") || !tt.HasText("Max") {
+		t.Fatalf("unified model seat missing SWE-2 or Max: %v", tt.Texts())
+	}
+	if tt.HasText("magpie/devin/swe-2") || tt.HasText("max") {
+		t.Fatalf("unified model seat leaked raw route or duplicate lowercase effort: %v", tt.Texts())
+	}
+	trigger, ok := tt.Find("SWE-2")
+	effort, effortOK := tt.Find("Max")
+	if !ok || !effortOK || effort.X < trigger.X || effort.X+effort.W > trigger.X+trigger.W+.1 {
+		t.Fatalf("effort %v is outside trigger %v", effort, trigger)
+	}
+}

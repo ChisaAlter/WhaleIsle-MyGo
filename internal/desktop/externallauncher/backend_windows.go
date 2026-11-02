@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/product"
 )
 
 func Native() *Controller {
@@ -37,7 +38,8 @@ func Discover() (Installation, error) {
 		}
 		return v
 	}
-	if read("NativeRuntime") != appuninstall.NativeMarker || read("DisplayName") != "Whale Isle" {
+	displayName := read("DisplayName")
+	if read("NativeRuntime") != appuninstall.NativeMarker || (displayName != product.Name && displayName != "Whale Isle") {
 		return Installation{}, ErrNotInstalled
 	}
 	root := read("InstallLocation")

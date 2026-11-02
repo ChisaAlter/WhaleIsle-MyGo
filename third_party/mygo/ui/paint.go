@@ -38,7 +38,14 @@ func (rt *engine) paint(root *node, w, h, scale float32) {
 	// The root paints the theme's background: frames start transparent, so
 	// that a transparent root shows what is behind the content, such as a
 	// window's vibrancy.
-	s.Reset(int(math.Ceil(float64(w*scale))), int(math.Ceil(float64(h*scale))), scene.Color{})
+	pixelWidth, pixelHeight := int(math.Ceil(float64(w*scale))), int(math.Ceil(float64(h*scale)))
+	if rt.host.pixels() {
+		// Division to logical float32 units and multiplication back can round
+		// just above an integer at fractional DPI/zoom. The actual surface is
+		// authoritative; never allocate a canvas a pixel larger than its client.
+		pixelWidth, pixelHeight = int(rt.painted[0]), int(rt.painted[1])
+	}
+	s.Reset(pixelWidth, pixelHeight, scene.Color{})
 	s.Scale = scale
 	s.MaskAtlas, s.ColorAtlas = rt.text.MaskAtlas, rt.text.ColorAtlas
 	s.Text = rt.text.TextParams()
@@ -106,6 +113,14 @@ func (p *Painter) visible(r Rect, margin float32) bool {
 }
 
 func (p *Painter) element(e *node) {
+	if e.fade[0] > 0 || e.fade[1] > 0 {
+		p.fadedElement(e)
+		return
+	}
+	p.elementBody(e)
+}
+
+func (p *Painter) elementBody(e *node) {
 	if e.styleFn != nil {
 		e.styleFn(e)
 	}
@@ -716,6 +731,9 @@ func (p *Painter) drawBitmap(img *Bitmap, box Rect, fit Fit, radius [4]float32, 
 // scrollbars draws the thumbs of a scroll container whose content
 // overflows it.
 func (p *Painter) scrollbars(e *node) {
+	if e.barVisible[0] && !e.barVisible[1] {
+		return
+	}
 	st := e.st
 	rt := e.c.rt
 	theme := e.c.theme
@@ -727,7 +745,7 @@ func (p *Painter) scrollbars(e *node) {
 		}
 	}
 	dragging := rt.scrollDrag.st == st
-	if !hovered && !dragging && !theme.ScrollbarAlways {
+	if !e.barVisible[0] && !hovered && !dragging && !theme.ScrollbarAlways {
 		return
 	}
 	color := theme.Scrollbar

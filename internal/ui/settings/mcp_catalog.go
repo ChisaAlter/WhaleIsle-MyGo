@@ -32,7 +32,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 	query := a.Snapshot.Query
 	ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16, 0, 0).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			if ui.TextInput(c, &query).Label("MCP search").Basis(0).Grow(1).MinWidth(0).Height(32).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
+			if ui.TextInput(c, &query).Label("MCP search").Basis(0).Grow(1).MinWidth(0).Height(36).Radius(12).Border(.667, c.Theme().Border).FontSize(fonttheme.InterfaceSize(14)).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
 				a.OnQuery(query)
 			}
 			// One dropdown replaces the three chips the installed build does not have.
@@ -46,7 +46,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			}
 			filtered := false
 			ui.Box(c).Width(88).Shrink(0).Clip().Children(func() {
-				filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(32).Changed()
+				filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(36).Radius(18).BorderWidth(0).Background(c.Theme().Surface).FontSize(fonttheme.InterfaceSize(14)).Changed()
 			})
 			if filtered && a.OnFilter != nil {
 				for index, label := range labels {
@@ -58,7 +58,9 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			}
 		})
 	})
-	ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d 个服务器，共 %d 个", "Showing %d of %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if len(a.Snapshot.Rows) > 0 {
+		ui.Text(c, fmt.Sprintf(mcpCatalogText("显示 %d 个服务器，共 %d 个", "Showing %d of %d servers"), len(a.Snapshot.CatalogRows()), len(a.Snapshot.Rows))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
 	if a.Snapshot.Err != "" && a.Snapshot.Ready {
 		ui.Text(c, mcpCatalogText("操作失败时保留上次成功读取的列表，请查看错误后刷新。", "On failure, the last successful list is retained. Check the error before refreshing.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
@@ -82,13 +84,13 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 	if open {
 		label = mcpCatalogText("收起工具明细", "Hide tools")
 	}
-	if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() && a.OnInspect != nil {
+	if ui.Button(c, label).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() && a.OnInspect != nil {
 		a.OnInspect(id)
 	}
 	if !open {
 		return
 	}
-	ui.Text(c, mcpCatalogText("已注册工具（上次刷新）", "Registered tools (last refresh)")).FontSize(fonttheme.InterfaceSize(11)).Bold().TextColor(fg)
+	ui.Text(c, mcpCatalogText("已注册工具（上次刷新）", "Registered tools (last refresh)")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(fg)
 	var tools []string
 	for _, row := range s.Rows {
 		if row.Id == id && row.Connection != nil {
@@ -103,7 +105,7 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 		ui.Text(c, name).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
 	if tested && diagnostic.Err == "" {
-		ui.Text(c, mcpCatalogText("上次显式测试返回的工具", "Tools returned by the last explicit test")).FontSize(fonttheme.InterfaceSize(11)).Bold().TextColor(fg)
+		ui.Text(c, mcpCatalogText("上次显式测试返回的工具", "Tools returned by the last explicit test")).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(fg)
 		if len(diagnostic.Result.ToolNames) == 0 {
 			ui.Text(c, mcpCatalogText("测试返回空工具列表", "Test returned an empty tool list")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

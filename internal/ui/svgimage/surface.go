@@ -139,6 +139,8 @@ func (s *Surface) PaintClipped(p *ui.Painter, r ui.Rect, appearance, background 
 	default:
 	}
 	if s.handle.PaintImagePixels(p, r) {
+		// Repaint to keep the lease, as the presented branch below does.
+		p.After(100 * time.Millisecond)
 		return nil
 	}
 	clip := p.NativeSurfaceClip()

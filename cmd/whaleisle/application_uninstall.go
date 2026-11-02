@@ -71,7 +71,7 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 			changed := s.launcherImportBusy || s.quitting || s.sup != sup
 			s.mu.Unlock()
 			if changed {
-				return errors.New("runtime or import state changed; retry uninstall")
+				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryUninstall))
 			}
 			if err := appuninstall.Start(plan); err != nil {
 				return err

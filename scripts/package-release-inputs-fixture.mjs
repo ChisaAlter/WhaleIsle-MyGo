@@ -17,7 +17,10 @@ assert.ok(windows.indexOf('Packaged Host node.exe is missing or changed.') < win
 assert.ok(windows.indexOf('Packaged mobile runtime verification failed') < windows.indexOf("Set-Content -Path $Marker"));
 assert.match(windows, /throw 'Host Node runtime missing/);
 assert.doesNotMatch(windows, /Note: Node directory not found/);
-assert.ok(windows.indexOf('Remove-Item -Recurse -Force $Stage') < windows.indexOf("'pet-render-assets.mjs'"));
+assert.doesNotMatch(windows, /Remove-Item -Recurse -Force \$Stage/);
+assert.match(windows, /Package stage already exists; choose a fresh -OutputRoot/);
+assert.match(windows, /session-runtime\.mjs'\) release/);
+assert.match(nsis, /!ifdef RUNTIME_INCLUDE/);
 assert.ok(windows.indexOf("'pet-render-assets.mjs'") < windows.indexOf("if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1')"));
 assert.match(windows, /throw 'THA4 resource staging failed/);
 assert.match(windows, /\$NsisArguments \+= '\/DSHELL_ONLY=1'/);
@@ -37,7 +40,7 @@ const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-release-inputs-')
 try {
   const source = path.join(temporary, 'source'), stage = path.join(temporary, 'stage');
   fs.mkdirSync(source); fs.mkdirSync(stage);
-  const result = spawnSync(process.execPath, [path.join(root, 'scripts/pet-render-assets.mjs'), source, stage], {encoding: 'utf8'});
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts/pet-render-assets.mjs'), source, stage], {encoding: 'utf8', windowsHide: true});
   assert.equal(result.status, 1);
   assert.equal(fs.existsSync(path.join(stage, '.pet-render-staged')), false);
   assert.equal(fs.existsSync(path.join(stage, 'pet-render-assets')), false);

@@ -52,8 +52,8 @@ func installSafetyInk(dark bool) ui.Color {
 // installSafetyCopy is the reference's two lines of trust guidance
 // (`installGuideSafety` and `installUpgradeNotice`), the second about upgrades.
 func installSafetyCopy() (safety, upgrade string) {
-	return copyText("请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 Whale Isle，或读取和泄露你的数据。",
-			"Install only plugins you trust: they run with your permissions and can damage Whale Isle or leak your data."),
+	return copyText("请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 DeepSeekHarness Go，或读取和泄露你的数据。",
+			"Install only plugins you trust: they run with your permissions and can damage DeepSeekHarness Go or leak your data."),
 		copyText("插件安装后，暂不支持自动更新。若需升级，请先卸载再安装新版，后续版本会持续改善升级体验。",
 			"Installed plugins do not update automatically yet. To upgrade a plugin, uninstall it and install the new version. Later releases will keep improving the upgrade experience.")
 }

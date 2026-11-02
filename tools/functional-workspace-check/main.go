@@ -88,7 +88,8 @@ func run(stage, root string, officeOnly bool, r *report) error {
 	if err := os.Mkdir(root, 0700); err != nil {
 		return fmt.Errorf("new isolated root required: %w", err)
 	}
-	workspace := filepath.Join(root, "workspace-one")
+	documents := filepath.Join(root, "documents")
+	workspace := filepath.Join(documents, "deepseek-harness", "default-workspace")
 	second := filepath.Join(root, "workspace-two")
 	data := filepath.Join(root, "user-data")
 	home := filepath.Join(data, "dsh-home")
@@ -117,7 +118,17 @@ func run(stage, root string, officeOnly bool, r *report) error {
 	vendor := filepath.Join(stage, "vendor")
 	harnessRoot := filepath.Join(vendor, "deepseek-harness")
 	node := filepath.Join(stage, "node", "node.exe")
-	supervisor := harness.New(harness.Options{Install: harness.NewInstallServer(harness.InstallServerOptions{NodeBin: node}), Launch: harness.LaunchOptions{NodeBin: node, HarnessRoot: harnessRoot, VendorDir: vendor, Host: "127.0.0.1", Port: 32361, Home: home}, Prepare: harness.PrepareOptions{VendorDir: vendor, HarnessRoot: harnessRoot, DshHome: home, ProfileDir: filepath.Join(home, "profiles", "web"), RemoteSet: true, Remote: false}, Workspace: workspace, ReadyTimeout: 3 * time.Minute})
+	// Windows known-folder lookup ignores HOME/USERPROFILE overrides. Redirect
+	// the Host's first-use Documents policy explicitly before initializing it.
+	documentsJSON, err := json.Marshal(documents)
+	if err != nil {
+		return err
+	}
+	workspacePatch := filepath.Join(root, "owned-documents.patch.yml")
+	if err := os.WriteFile(workspacePatch, []byte(fmt.Sprintf("- id: workspace-controller\n  config:\n    documentsDirectory: %s\n", documentsJSON)), 0600); err != nil {
+		return err
+	}
+	supervisor := harness.New(harness.Options{Install: harness.NewInstallServer(harness.InstallServerOptions{NodeBin: node}), Launch: harness.LaunchOptions{NodeBin: node, HarnessRoot: harnessRoot, VendorDir: vendor, Host: "127.0.0.1", Port: 32361, Home: home, PatchFiles: []string{workspacePatch}}, Prepare: harness.PrepareOptions{VendorDir: vendor, HarnessRoot: harnessRoot, DshHome: home, ProfileDir: filepath.Join(home, "profiles", "web"), RemoteSet: true, Remote: false}, Workspace: workspace, ReadyTimeout: 3 * time.Minute})
 	var ep harness.Endpoint
 	defer func() {
 		supervisor.Stop()
@@ -179,6 +190,21 @@ func run(stage, root string, officeOnly bool, r *report) error {
 		}
 		r.Results = append(r.Results, result{id, name, "PASS", method, detail})
 		return nil
+	}
+	// First-use initialization belongs to the Store/UI after the authoritative
+	// registry baseline, not to the Supervisor's transport handshake.
+	store.InitializeDefaultWorkspace(ctx2)
+	if err := check("WORK-01", "first-use-workspace-initialization", "real Store workspace/initializeDefault + workspace/follow", "Initial workspace uses the explicitly isolated Host Documents directory and is projected by the Host registry", func() error {
+		return wait(ctx2, func() (bool, error) {
+			for _, row := range store.Snapshot().Workspaces {
+				if row.Path == workspace && row.WorkspaceID != "" {
+					return store.WorkspaceCwd() == workspace, nil
+				}
+			}
+			return false, nil
+		})
+	}); err != nil {
+		return err
 	}
 	list := func(path string) (api.DirectoryListing, error) {
 		var listing api.DirectoryListing

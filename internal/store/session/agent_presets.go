@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -112,17 +113,26 @@ func (s *Store) RefreshAgentPresets(ctx context.Context) {
 			return
 		}
 		if err != nil {
+			if s.agentPresetsErr == nil || s.agentPresetsErr.Error() != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.agentPresetsErr = err
 			s.mu.Unlock()
 			s.fire()
 			return
 		}
+		options := flattenAgentPresetRoster(roster)
+		label := s.selectedAgentPresetLabel
+		if lbl := defaultAgentPresetLabel(options, roster); lbl != "" && label == "" {
+			label = lbl
+		}
+		if s.agentPresetsErr != nil || !slices.Equal(s.agentPresetOptions, options) || s.selectedAgentPresetLabel != label {
+			s.invalidateViewLocked()
+		}
 		s.agentPresetsErr = nil
 		s.agentPresetsLoaded = true
-		s.agentPresetOptions = flattenAgentPresetRoster(roster)
-		if lbl := defaultAgentPresetLabel(s.agentPresetOptions, roster); lbl != "" && s.selectedAgentPresetLabel == "" {
-			s.selectedAgentPresetLabel = lbl
-		}
+		s.agentPresetOptions = options
+		s.selectedAgentPresetLabel = label
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -241,6 +251,9 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		p.busy = false
 		if err != nil {
 			p.error = label + ": " + err.Error()
+			if s.lastAction != err.Error() {
+				s.invalidateViewLocked()
+			}
 			s.lastAction = err.Error()
 			s.mu.Unlock()
 			s.fire()

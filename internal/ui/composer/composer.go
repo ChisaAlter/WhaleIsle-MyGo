@@ -266,16 +266,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		}
 		paintLeadingClaimHint(c, m, muted)
 		if m.Hero {
-			// One 28px row above the card carries both entries: the workspace
-			// picker on the left and the agent preset on the right.
-			// Round237 measured the live rects: the workspace chip ends at 652 and the
-				// preset chip landed at 658.67 with Gap(3.33), i.e. an effective 6.67
-				// offset; the native preset starts at 655.33, so the row adds no gap.
-				ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(3.33).AlignItems(ui.Center).
-				// Round217 UIA (1440x860): the native workspace chip starts at x=502
-				// (33 DIP leading inset) and 标准模式 follows at 655.33, i.e. a 3.33 DIP
-				// chip-to-chip gap; the old 20/18 pair is what put us at 489.33/675.33.
-				Margin(4, 0, 8, 0).Padding(0, 16, 0, 32.67).Children(func() {
+			// ConversationRoot.heroWorkspaceRow has a 4-DIP top margin and
+			// a 28-DIP row, followed by the composer's 8-DIP stack gap.
+			ui.Row(c.Key("composer-hero-preset")).Label("Composer hero preset row").FillWidth().MinWidth(0).Gap(2).AlignItems(ui.Center).
+				Margin(4, 0, 8, 0).Padding(0, 16, 0, 20).Children(func() {
 				wsLabel := strings.TrimSpace(m.WorkspaceRoot)
 				// Session groups without a directory carry sentinel ids such as
 				// "no-workspace"; only an absolute root names a workspace.
@@ -349,27 +343,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		// hairline is painted as elevation, so it does not consume draft layout
 		// space, and the inset white bloom below is the reference's
 		// `inset 0 0 12px 1px rgba(255,255,255,.25)` (visible in dark themes).
-		cardRadius := float32(28)
+		skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
+		cardRadius := skinLayout.ComposerRadius
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
 			Radius(cardRadius)
+		// Installed 0.3.10 InputBar.card shares padding and gap in both modes.
+		// Empty Hero: 8 top + 52 input + 12 gap + (2 + 34 + 6) toolbar = 114.
+		card = card.Padding(8, 0, 0, 0).Gap(12)
 		if m.Hero {
-			// HeroShell.card: `padding: 8px 0 0` around the 52-DIP writing well, a
-			// 12-DIP gap and the 34-DIP control row, which owns the card's 8-DIP
-			// side inset. The rendered dialog is 774.39x114 at (469.3,460) with
-			// 添加文件 at x=477.3 and the send disc ending 8 before the right edge.
-			// Round242/243: native hero card is 155.34 tall = 8 top + 52.67 draft +
-			// 52.67 toolbar gap + 34.67 control row + 8 bottom; the old 12-DIP gap
-			// and a 72-DIP draft gave 134.
-			// Native card 155.34 = 8 + 52.67 draft + 54 toolbar gap + 34 row + 6.67
-			// bottom (the native send disc is 34.67 tall, ours 34, so the 0.67 lands
-			// in the bottom padding instead of the disc).
-			// Round242/249: the writing well is inset 12.67 left / 16.39 right inside
-			// the 774.39 card (draft box 745.33 at x=card+12.67), so the hero card
-			// carries those side insets and the toolbar compensates to keep the
-			// send 20.38 from the card right edge.
-			card = card.Padding(8, 16.39, 6.67, 12.67).Gap(54).MinHeight(155.34)
-		} else {
-			card = card.Padding(8, 0, 0, 0).Gap(12)
+			card = card.MinHeight(114)
 		}
 		if m.OnCardLayout != nil {
 			card.ObserveLayout(m.OnCardLayout)
@@ -379,11 +361,27 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// The card's material paints under the beam and the inner bloom, so
 			// the wallpaper shows through the glass and the beam still glows on
 			// top of it.
-			chrome.DrawGlass(p, r, chrome.Color(colors.InputMajor), chrome.MaterialPanel, cardRadius)
-			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
-			paintInnerBloom(p, r, cardRadius)
+			if skinLayout.Active() {
+				if skinLayout.ComposerShadow {
+					p.Shadow(r, cardRadius, 0, 1, 2, 0, ui.RGBA(13, 13, 13, 10.0/255))
+				}
+				p.Fill(r, chrome.Color(skinLayout.ComposerBackground), cardRadius)
+				paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
+			} else {
+				chrome.DrawGlass(p, r, chrome.Color(colors.InputMajor), chrome.MaterialPanel, cardRadius)
+				paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
+				paintInnerBloom(p, r, cardRadius)
+			}
 		})
-		card.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, border, cardRadius, 0.5) })
+		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if skinLayout.Active() {
+				p.Stroke(r, chrome.Color(skinLayout.BorderColor), cardRadius, skinLayout.ComposerBorder)
+			} else if isDark(colors) {
+				p.Stroke(r, ui.RGBA(255, 255, 255, 0.035), cardRadius, 0.5)
+			} else {
+				p.Stroke(r, border, cardRadius, 0.5)
+			}
+		})
 		card.Children(func() {
 			if !m.Inert {
 				paintResizeHandles(c, m, card, muted)
@@ -410,7 +408,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 				})
 			}
-			if len(mentions) > 0 && m.Draft != nil {
+			if len(mentions) > 0 && m.Draft != nil && !selectIsUTF16 {
 				paintMentionChips(c, m, mentions, muted, accent, selectIsUTF16, &selectStart, &selectEnd)
 			}
 			if !m.Inert && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
@@ -420,7 +418,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				var area ui.Element
 				placeholder := composerPlaceholder(m)
 				if m.UseTextInputClient && m.TextInput != nil {
-					ink := readablePlaceholder(chrome.Color(colors.Caption), chrome.Color(colors.Muted), chrome.Color(colors.InputMajor))
+					placeholderBase := chrome.Color(colors.Caption)
+					if isDark(colors) && colors.Secondary != "" {
+						placeholderBase = chrome.Color(colors.Secondary)
+					}
+					ink := readablePlaceholder(placeholderBase, chrome.Color(colors.Muted), chrome.Color(colors.InputMajor))
 					area = paintDraftTextInput(c, m, fg, ink, selectStart, selectEnd)
 					// A clicked mention explicitly requests selection and focus.
 					// Ordinary rebuilds must preserve sidebar/toolbar/input focus.
@@ -428,21 +430,18 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						area.Focus()
 					}
 				} else {
-					// InputBar: docked min-height 36 (~1 line). The hero input is
-					// three lines tall, matching the reference's taller
-					// `.hero .input` writing well and 148 DIP card.
+					// InputBar keeps the same text insets; Hero raises the empty
+					// writing well from 36 to 52 DIP without adding a third line.
 					minLines, maxLines := 1, 8
 					if m.Hero {
-						minLines, maxLines = 3, 10
+						minLines, maxLines = 2, 10
 					}
 					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
-						Font(theme.RenderPreferences().Composer.Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
+						Font(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont).Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
 					ta.Disabled(m.Inert)
 					if m.Hero {
-						// Native hero writing well: 52.67 DIP tall with 12-DIP text
-						// insets (round242 draft rect 482,417.33,745.33,52.67).
-						ta = ta.Padding(0, 12, 0, 12).Height(52.67)
+						ta = ta.MinHeight(52)
 					}
 					if m.ResizeEnabled && m.Resize != nil && m.Resize.Height > 0 {
 						ta.Height(resizeInputHeight(c, m, 36))
@@ -476,7 +475,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				_, referenceDrag = ui.DragOver[filelink.Reference](area)
 				fileDrag = area.FileDragOver() && strings.TrimSpace(m.WorkspaceRoot) != ""
 				if m.UseTextInputClient && m.TextInput != nil {
-					m.TextInput.Sync()
+					m.TextInput.syncFont(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont))
 				}
 			}
 			// InputBar.row: pad 2 8 6; tools/trailing gap 12; +.add 28 selector fill;
@@ -490,19 +489,21 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			infoHover := chrome.Color(colors.ButtonInfoHover)
 			infoPressed := infoHover.Mix(chrome.Color(colors.FG), 0.12)
 			onAccent := chrome.Color(colors.ButtonFG)
-			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Disabled(m.Inert)
-			if m.Hero {
-				// HeroShell: the 34-DIP control row carries the card's 8-DIP side
-				// inset, so the 34px primary disc fills its height.
-				tools = tools.Padding(0, 4, 0, 4).Height(34)
-			} else {
-				tools = tools.Padding(2, 8, 6, 8)
-			}
+			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
 			tools.Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
+					secondary := muted
+					if colors.Secondary != "" {
+						secondary = chrome.Color(colors.Secondary)
+					}
 					plus := ui.Button(c, "+").Label(i18n.T(i18n.KeyComposerCommands)).Tooltip(i18n.T(i18n.KeyComposerCommands)).
-						Width(btnH).Height(btnH).Padding(0).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(fg).FontSize(16)
+						Width(btnH).Height(btnH).Padding(0).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(ui.Transparent).FontSize(16)
+					plus.DrawOver(func(p *ui.Painter, r ui.Rect) {
+						cx, cy := r.X+r.W/2, r.Y+r.H/2
+						p.Fill(ui.Rect{X: cx - 0.65, Y: cy - 5.5, W: 1.3, H: 11}, secondary, 0.65)
+						p.Fill(ui.Rect{X: cx - 5.5, Y: cy - 0.65, W: 11, H: 1.3}, secondary, 0.65)
+					})
 					if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 						plus = plus.Disabled(true)
 					}
@@ -523,10 +524,12 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					// InputBar .select: permission scope (not PromptMode queue/steer).
 					if m.Snapshot.NativeContributions.Known && m.Snapshot.NativeContributions.PermissionCommand && len(m.PermissionOptions) > 0 && m.PermissionPick != nil && m.Snapshot.SelectedPermission != "" && m.Snapshot.PermissionsErr == "" {
 						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange, colors, presetOptions{
-							Icon:     shieldIcon,
-							Text:     muted,
+							Icon:     permissionIconFor(*m.PermissionPick),
+							Text:     secondary,
 							FontSize: 13,
 							Weight:   500,
+							PaddingX: 10,
+							Gap:      6,
 						})
 					}
 				})
@@ -566,11 +569,15 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						}
 						return b
 					}
-					// Disabled discs keep the info fill; the glyph is nudged to the
-					// readable side so the 0.5 opacity frame still shows an arrow.
+					// Disabled discs keep the info fill (muted slate-blue in dark mode);
+					// the glyph is nudged to the readable side so the 0.5 opacity frame still shows an arrow.
+					sendFill := infoFill
 					primaryInk := onAccent
 					if composerSendDisabled(m) {
-						primaryInk = chrome.EnsureContrast(onAccent, infoFill)
+						if isDark(colors) {
+							sendFill = ui.RGB(72, 104, 178)
+						}
+						primaryInk = chrome.EnsureContrast(onAccent, sendFill)
 					}
 					if primaryStops || running && child && m.OnStop != nil {
 						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).
@@ -588,7 +595,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 						send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).
 							Tooltip(i18n.T(i18n.KeyComposerSend) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEnter)).
 							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
-							Background(infoFill).BorderWidth(0).Top(-2).
+							Background(sendFill).BorderWidth(0).Top(-2).
 							TextColor(primaryInk)
 						if composerSendDisabled(m) {
 							send = send.Disabled(true)
@@ -892,7 +899,15 @@ func paintMentionChips(c *ui.Context, m Model, mentions []DraftMention, muted, a
 				chip = chip.Background(muted)
 			}
 			if from, ok := ui.Drop[chipDrag](chip); ok && m.Draft != nil {
-				*m.Draft = ReorderDraftMentions(*m.Draft, from.Index, i)
+				before := *m.Draft
+				after := ReorderDraftMentions(before, from.Index, i)
+				if after != before && m.TextInput != nil && m.TextInput.Draft == m.Draft {
+					if _, marked := m.TextInput.MarkedRange(); !marked {
+						m.TextInput.ReplaceText(&ui.TextInputRange{End: ui.UTF16Len(before)}, after)
+					}
+				} else if m.TextInput == nil {
+					*m.Draft = after
+				}
 			}
 			if chip.Dragging() {
 				chip = chip.Opacity(0.45)
@@ -935,7 +950,7 @@ func paintChipEditPopup(c *ui.Context, m Model, panel, border, muted ui.Color) {
 		ui.Row(c).Gap(8).Children(func() {
 			if ui.Button(c, i18n.T(i18n.KeyComposerChipEditApply)).Clicked() {
 				target := DraftMention{Text: ed.Orig, Start: ed.Start, End: ed.Start + len(ed.Orig)}
-				*m.Draft = ReplaceDraftMention(*m.Draft, target, ed.Draft)
+				replaceDraftReference(m, target, ed.Draft)
 				closeChipEdit(m)
 			}
 			if ui.Button(c, i18n.T(i18n.KeyComposerChipEditCancel)).Clicked() {

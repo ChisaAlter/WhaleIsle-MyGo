@@ -1,0 +1,48 @@
+Unicode CLDR JSON 48.0.0 (Unicode License V3; see LICENSE.txt)
+
+Pinned source repository:
+https://github.com/unicode-org/cldr-json/tree/48.0.0
+
+Original files are downloaded verbatim; the application does not fetch CLDR at runtime.
+Bundled development oracle at extraction: Node ICU 78.3, CLDR 48.0, timezone data 2026c.
+
+Local -> upstream path under the pinned repository:
+timeZoneNames-en.json -> cldr-json/cldr-dates-full/main/en/timeZoneNames.json
+timeZoneNames-zh.json -> cldr-json/cldr-dates-full/main/zh/timeZoneNames.json
+metaZones.json -> cldr-json/cldr-core/supplemental/metaZones.json
+aliases.json -> cldr-json/cldr-core/supplemental/aliases.json
+primaryZones.json -> cldr-json/cldr-core/supplemental/primaryZones.json
+territoryInfo.json -> cldr-json/cldr-core/supplemental/territoryInfo.json
+likelySubtags.json -> cldr-json/cldr-core/supplemental/likelySubtags.json
+timezone-bcp47.json -> cldr-json/cldr-bcp47/bcp47/timezone.json
+territories-en.json -> cldr-json/cldr-localenames-full/main/en/territories.json
+territories-zh.json -> cldr-json/cldr-localenames-full/main/zh/territories.json
+LICENSE.txt -> LICENSE
+
+All source URLs above use:
+https://raw.githubusercontent.com/unicode-org/cldr-json/48.0.0/<upstream path>
+
+ICU 78 maintenance metazone supplement:
+metaZones-icu78-tz2026c.json is a complete mechanical extraction of all 419
+metazoneInfo zone period arrays from the Unicode ICU78 maintenance source at
+pinned commit 3e065e7a7640dd0b84933eb5b403a0caca74407f (ICU-23511).
+https://raw.githubusercontent.com/unicode-org/icu/3e065e7a7640dd0b84933eb5b403a0caca74407f/icu4c/source/data/misc/metaZones.txt
+
+The maintained table incorporates date-bounded TZ2026c metazone changes,
+including the 2026-09-20 01:00 UTC transitions absent from the base CLDR48
+JSON release. Localized names remain from the unmodified CLDR48 resources.
+The supplement is Unicode data under the included Unicode License V3.
+
+zoneSavings-icu78.json mechanically extracts ICU raw/DST-savings transitions
+for every source table without a recurring finalRule from the same pinned
+commit's icu4c/source/data/misc/zoneinfo64.txt. ICU's raw/savings partition
+can differ from Go's IANA isDST classification. These values are used only
+for generic-name selection around the 184-day DST window; Go still owns
+actual offsets. The upstream header identifies ICU78.3 and TZ2026d; the
+independent runtime oracle is ICU78.3/TZ2026c. The complete 2026 corpus is
+compared explicitly rather than assuming these data releases are identical.
+Extraction script: tmp/sidebar-round8-20261028/catalog-icu-offset-extract.mjs.
+Extraction script: tmp/sidebar-round8-20261028/catalog-metazone-extract.mjs.
+Development oracle: Node24.21.0 / ICU78.3 / CLDR48.0 / TZ2026c, using only
+independent Intl calls; no installed application bundle is executed.
+

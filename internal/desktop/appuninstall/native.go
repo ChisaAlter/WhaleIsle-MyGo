@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"whaleisle/internal/product"
 )
 
 // These identifiers are the native NSIS contract in scripts/nsis/whaleisle.nsi.
@@ -22,7 +24,7 @@ func (p Plan) InstallLocation() string { return filepath.Dir(p.executable) }
 // Resolve accepts only this running native installation and the fixed NSIS
 // executable. Registry command text is compared, never parsed or executed.
 func Resolve(current string, r Record) (Plan, error) {
-	if r.NativeRuntime != NativeMarker || r.DisplayName != "Whale Isle" || !filepath.IsAbs(current) || !filepath.IsAbs(r.InstallLocation) {
+	if r.NativeRuntime != NativeMarker || (r.DisplayName != product.Name && r.DisplayName != "Whale Isle") || !filepath.IsAbs(current) || !filepath.IsAbs(r.InstallLocation) {
 		return Plan{}, ErrNotNative
 	}
 	root := filepath.Clean(r.InstallLocation)

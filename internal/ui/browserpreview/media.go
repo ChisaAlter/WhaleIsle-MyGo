@@ -48,6 +48,17 @@ func (b *Controller) PruneMediaDocuments() {
 			_ = t.Host.Close()
 		}
 		t.Media.Close()
+		if t.source != nil && t.source.LocalDelivery {
+			if !t.source.LocalDeliveryValid() {
+				b.denyLocalDocument(t)
+			} else {
+				b.clearSourceDocument(t)
+				t.sourcePending = true
+				t.Error = ""
+				t.ActionMessage = browserChromeLabel("媒体快照已结束，正在重新读取原交付文件…", "Media snapshot ended; rereading the original delivery file…")
+			}
+			continue
+		}
 		if t.Error == "" {
 			t.Error = browserChromeLabel("媒体预览已过期、关闭或 Host/会话改变；请从 Files 重新打开。", "Media preview expired, closed or changed Host/session; reopen it from Files.")
 		}

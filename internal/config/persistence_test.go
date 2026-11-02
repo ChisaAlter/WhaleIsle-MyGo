@@ -55,6 +55,36 @@ func TestUpdateRejectsExternalEditBeforeCallback(t *testing.T) {
 	}
 }
 
+func TestUpdateCheckedRejectsCandidateWithoutWriting(t *testing.T) {
+	dir := t.TempDir()
+	initial := `{"port":4000,"unknown":{"keep":true}}`
+	writeConfig(t, dir, initial)
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalid := errors.New("invalid patch")
+	if err := s.UpdateChecked(func(c *Config) error {
+		c.Port = 5000
+		c.DisabledPlugins = append(c.DisabledPlugins, "not-committed")
+		return invalid
+	}); !errors.Is(err, invalid) {
+		t.Fatalf("validation error lost: %v", err)
+	}
+	if got := readConfig(t, dir); got != initial {
+		t.Fatalf("rejected candidate changed disk: %s", got)
+	}
+	if got := s.Get(); got.Port != 4000 || len(got.DisabledPlugins) != 0 {
+		t.Fatalf("rejected candidate changed memory: %+v", got)
+	}
+	if err := s.UpdateChecked(func(c *Config) error { c.Port = 6000; return nil }); err != nil {
+		t.Fatalf("valid update after rejection: %v", err)
+	}
+	if s.Get().Port != 6000 {
+		t.Fatal("valid checked update was not committed")
+	}
+}
+
 // TestUpdateDetectsFileAppearingAndDisappearing covers both baseline
 // existence transitions: a file that was absent appears, and one that was
 // present disappears.
@@ -273,7 +303,14 @@ func TestFailedWriteKeepsBaselineAndCleansTemp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Name() != FileName {
+	var names []string
+	for _, e := range entries {
+		if e.Name() == ".config.lock" {
+			continue // commit lockfile is intentional and persists
+		}
+		names = append(names, e.Name())
+	}
+	if len(names) != 1 || names[0] != FileName {
 		t.Fatalf("temp file was not cleaned up: %v", entries)
 	}
 
@@ -284,5 +321,56 @@ func TestFailedWriteKeepsBaselineAndCleansTemp(t *testing.T) {
 	}
 	if s.Get().Port != 5000 {
 		t.Fatalf("update after a failed write did not commit: %+v", s.Get())
+	}
+}
+
+// TestUpdateBlockedByHeldCommitLock simulates another process holding the
+// config commit lock: a cooperating writer's Update must surface the lock
+// error rather than silently last-writer-wins the file.
+func TestUpdateBlockedByHeldCommitLock(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, `{"port":4000}`)
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	release, err := acquireCommitLock(s.path)
+	if err != nil {
+		t.Fatalf("could not take commit lock: %v", err)
+	}
+	defer release()
+
+	err = s.Update(func(c *Config) { c.Port = 5000 })
+	if err == nil || errors.Is(err, ErrConflict) {
+		t.Fatalf("want lock-busy error, got %v", err)
+	}
+	if got := readConfig(t, dir); got != `{"port":4000}` {
+		t.Fatalf("file written while lock was held: %s", got)
+	}
+	if s.Get().Port != 4000 {
+		t.Fatalf("memory changed by a lock-blocked update: %+v", s.Get())
+	}
+}
+
+// TestUpdateLockErrorPrecedesWrite confirms an injected commitLock failure is
+// returned before any write is attempted, leaving disk and memory untouched.
+func TestUpdateLockErrorPrecedesWrite(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, `{"port":4000}`)
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockErr := errors.New("commit lock unavailable")
+	s.commitLock = func(string) (func(), error) { return nil, lockErr }
+	if err := s.Update(func(c *Config) { c.Port = 5000 }); !errors.Is(err, lockErr) {
+		t.Fatalf("want injected lock error, got %v", err)
+	}
+	if got := readConfig(t, dir); got != `{"port":4000}` {
+		t.Fatalf("file written despite lock failure: %s", got)
+	}
+	if s.Get().Port != 4000 {
+		t.Fatalf("memory changed despite lock failure: %+v", s.Get())
 	}
 }

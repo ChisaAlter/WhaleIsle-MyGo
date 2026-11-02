@@ -14,7 +14,7 @@ func TestMainChildConversationLifetime(t *testing.T) {
 	n.Agents = &WorkspaceAgentState{Owner: owner, Navigation: owner.AgentNavigationPane(n.ID)}
 	w.conversation = &mainChildConversation{Pane: n, Owner: owner, Binding: "old-host"}
 	m := Model{Store: owner, Sizes: &LayoutSizes{Workspace: w}}
-	if w.currentMainChild(m) != nil {
+	if MainConversationChildActive(m) {
 		t.Fatal("root/Host mismatch retained main child")
 	}
 	if w.conversation != nil || owner.AgentNavigationPaneByID(n.ID) != nil {
@@ -33,6 +33,9 @@ func TestMainChildConversationReturnAndPause(t *testing.T) {
 	n := &WorkspacePane{ID: "main-child", Kind: "subagentchat", SubagentChat: &SubagentChatPaneState{Root: "root", Address: session.AgentSessionAddress{Kind: "subagent", ParentSessionID: "root", ChildSessionID: "child", Mode: "continuable"}}}
 	w.conversation = &mainChildConversation{Pane: n, Owner: owner}
 	m := Model{Store: owner, Sizes: &LayoutSizes{Workspace: w}}
+	if !MainConversationChildActive(m) {
+		t.Fatal("active child did not replace parent route")
+	}
 	actions := map[string]func(){"session.archive": func() {}, "session.rename": func() {}, "session.fork": func() {}, "session.search": func() {}}
 	guardMainChildCommands(m, actions)
 	if len(actions) != 1 || actions["session.search"] == nil {
@@ -66,6 +69,9 @@ func TestMainChildConversationReturnAndPause(t *testing.T) {
 	tt.Release(r.X+5, r.Y+5)
 	if w.conversation != nil || n.Agents != nil && n.Agents.Navigation != nil {
 		t.Fatal("return did not release child")
+	}
+	if MainConversationChildActive(m) {
+		t.Fatal("return retained child visual route")
 	}
 	if owner.Snapshot().SelectedID != "root" {
 		t.Fatal("child changed the parent top-level session")

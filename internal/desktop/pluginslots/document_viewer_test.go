@@ -29,7 +29,7 @@ func TestB25OriginalDocumentOwnerCarrier(t *testing.T) {
  extensions=[{id:'@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel',priority:'builtin'}];registryChanged();assert.equal(window.__whaleDocumentRecommendation.spreadsheet,true);
  mounted='other' ;subscriptions[0]();assert.equal(seat.marked,false);assert.equal(nodes[0].hidden,false);assert.equal(window.__whaleDocumentRecommendation.spreadsheet,false);
  cleanup.reverse().forEach(f=>f());assert.equal(seat.marked,false);`
-	if out, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
+	if out, err := runNodeFixture(node, "-e", script); err != nil {
 		t.Fatalf("document carrier: %v\n%s", err, out)
 	}
 }

@@ -12,7 +12,7 @@ await build({ entryPoints: ["scripts/catalogue-entry.ts"], outfile: "dist/catalo
   define: { "process.env.NODE_ENV": '"production"' },
   alias: { "@openuidev/lang-core": resolve("src/runtime-core.ts"), "@whaleisle/official-lang-core": resolve("node_modules/@openuidev/lang-core/dist/index.mjs") },
 });
-execFileSync(process.execPath, ["dist/catalogue-tool.cjs"], { stdio: "inherit" });
+execFileSync(process.execPath, ["dist/catalogue-tool.cjs"], { stdio: "inherit", windowsHide: true });
 
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 const supplemental = JSON.parse(await readFile("licenses/supplemental/index.json", "utf8"));

@@ -71,7 +71,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 	// pane. Nested legacy records have no saved ancestry proof and must be
 	// opened from a currently expanded source catalog instead.
 	directRoot := target.Address.ParentSessionID == target.Root
-	if v.Address != target.Address && directRoot && !navigation.HasRetainedAgentRead() && m.Store.Snapshot().SelectedID == target.Root {
+	if v.Address != target.Address && directRoot && !navigation.HasRetainedAgentRead() && m.Store.SelectedSessionID() == target.Root {
 		if navigation.OpenAgentChat(target.Root, target.Address, target.Title) {
 			v = navigation.AgentNavigationSnapshot()
 		}
@@ -81,7 +81,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 			ui.Text(c, subagentChatPaneTitle(m))
 			ui.Text(c, target.Address.ParentSessionID+" → "+target.Address.ChildSessionID+" · "+target.Address.Mode).Selectable()
 			ui.Text(c, paneLabel("聊天已暂停。重新打开只会读取此子会话。", "Chat is paused. Reopen to read this child session."))
-			sameRoot := m.Store.Snapshot().SelectedID == target.Root
+			sameRoot := m.Store.SelectedSessionID() == target.Root
 			if !sameRoot {
 				ui.Text(c, paneLabel("请先切回来源主会话：", "Return to the source session first: ")+target.Root)
 			}
@@ -99,11 +99,11 @@ func subagentChatPane(c *ui.Context, m Model) {
 		if !directRoot {
 			ui.Text(c, paneLabel("嵌套聊天的重新授权必须从来源会话当前展开的子代理目录发起。", "Reauthorize a nested chat from the currently expanded child catalog in the source session."))
 		}
-		if directRoot && m.Store.Snapshot().SelectedID == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
+		if directRoot && m.Store.SelectedSessionID() == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
 			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 		}
 	}
-	agents.View(c, agents.Model{Store: navigation, Snapshot: navigation.Snapshot(), ChatOnly: true,
+	agents.View(c, agents.Model{Store: navigation, Snapshot: navigation.RenderSnapshot(), ChatOnly: true,
 		Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 		ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: m.AgentsPromptDraft,
 		OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: m.OnOpenAgentDocument,

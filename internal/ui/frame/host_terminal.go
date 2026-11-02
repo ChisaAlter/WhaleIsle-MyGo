@@ -11,10 +11,10 @@ func hostTerminalActions(m Model) termui.HostActions {
 	if m.workspacePane != nil {
 		fresh = &m.workspacePane.terminalFresh
 	}
-	session := m.Store.Snapshot().SelectedID
+	session := m.Store.SelectedSessionID()
 	view := m.HostTerminalStore.Snapshot(session)
 	valid := func() bool {
-		return m.Store.Snapshot().SelectedID == session && m.HostTerminalStore.CanCopySelection(view.Owner, session, view.ActiveID, view.Attachment)
+		return m.Store.SelectedSessionID() == session && m.HostTerminalStore.CanCopySelection(view.Owner, session, view.ActiveID, view.Attachment)
 	}
 	return termui.HostActions{
 		StartFresh:   fresh,

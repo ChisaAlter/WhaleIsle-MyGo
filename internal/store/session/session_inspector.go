@@ -41,6 +41,7 @@ func (s *Store) resetInspectorLocked() {
 	s.inspector = sessionInspectorState{client: s.client, session: s.selectedID, generation: s.followGeneration, events: map[float64]json.RawMessage{}, settledRoots: settled}
 }
 func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
+	s.invalidateViewLocked()
 	var h struct {
 		Type string
 		Seq  *float64
@@ -48,7 +49,14 @@ func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
 	if json.Unmarshal(raw, &h) != nil || h.Type == "" || h.Seq == nil || *h.Seq < 0 {
 		return false
 	}
-	seq := *h.Seq
+	return s.captureInspectorEventWithHeadLocked(raw, h.Type, *h.Seq)
+}
+
+func (s *Store) captureInspectorEventWithHeadLocked(raw json.RawMessage, typ string, seq float64) bool {
+	s.invalidateViewLocked()
+	if typ == "" || seq < 0 {
+		return false
+	}
 	if s.inspector.events == nil || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		s.resetInspectorLocked()
 	}

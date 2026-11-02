@@ -7,6 +7,35 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+func TestOpenQuickChatUsesNativeCardCreationAndCleansUpFailure(t *testing.T) {
+	previous := openQuickChatWindow
+	t.Cleanup(func() { openQuickChatWindow = previous })
+	p := &Companion{win: &mygo.Window{}}
+	attempts := 0
+	openQuickChatWindow = func(opts mygo.WindowOptions) *mygo.Window {
+		attempts++
+		if opts.Width != 248 || opts.Height != 360 || opts.MinWidth != 248 || opts.MinHeight != 220 {
+			t.Fatalf("actual creation geometry = %dx%d min %dx%d", opts.Width, opts.Height, opts.MinWidth, opts.MinHeight)
+		}
+		if opts.Parent != p.win || !opts.Frameless || !opts.AlwaysOnTop || !opts.SkipTaskbar || !opts.DisableMinimize || !opts.DisableMaximize || !opts.DisableFullScreen || opts.Content == nil || opts.StateKey != "" {
+			t.Fatal("quick-chat creation lost its compact native card options")
+		}
+		if p.QuickChat == nil || !p.quickChatOpen {
+			t.Fatal("card lifecycle not published before construction")
+		}
+		return nil
+	}
+	p.OpenQuickChat(QuickChatOptions{Unavailable: "fixture offline"})
+	if attempts != 1 || p.QuickChat != nil || p.quickChatOpen || p.Error == "" {
+		t.Fatalf("creation failure leaked a card: attempts=%d q=%v open=%v error=%q", attempts, p.QuickChat, p.quickChatOpen, p.Error)
+	}
+	p.win = nil
+	p.OpenQuickChat(QuickChatOptions{})
+	if attempts != 1 {
+		t.Fatal("opened a card after the parent closed")
+	}
+}
+
 // TestQuickChatEnterAndPlacement keeps Enter/Shift+Enter and the native card
 // anchor: 248 wide, 8px above her head, flipped below when the head has no room,
 // and clamped 4px inside the work area.

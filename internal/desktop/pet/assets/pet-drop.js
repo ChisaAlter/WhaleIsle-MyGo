@@ -1,8 +1,9 @@
 'use strict';
 (function () {
-  const characters = [document.getElementById('sprite'), document.getElementById('fallback')];
-  const overPet = event => characters.some(el => {
-    if (el.hidden) return false;
+  const body = window.WhalePetBody?.current;
+  const characters = body?.elements || [document.getElementById('sprite'), document.getElementById('fallback')];
+  const overPet = event => body ? body.contains(event.clientX, event.clientY) : characters.some(el => {
+    if (!el || el.hidden) return false;
     const r = el.getBoundingClientRect();
     return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
   });

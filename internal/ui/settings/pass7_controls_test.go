@@ -44,6 +44,9 @@ func TestAboutVersionIsReadOnlyText(t *testing.T) {
 			aboutPane(c, Model{About: a, ThemeID: "deepseek.light"}, c.Theme().Text, c.Theme().TextMuted)
 		})
 	}, 800, 700)
+	if err := tt.Click("Application data and diagnostics"); err != nil {
+		t.Fatal(err)
+	}
 	if !tt.HasText("0.3.9") {
 		t.Fatalf("version is not painted as text: %v", tt.Texts())
 	}

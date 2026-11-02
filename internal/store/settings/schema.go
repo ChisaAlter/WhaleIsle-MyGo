@@ -259,8 +259,23 @@ func PatchValue(kind FieldKind, draft string) (json.RawMessage, error) {
 
 // ValueDraft formats a JSON value at key for editing.
 func ValueDraft(value json.RawMessage, key string, kind FieldKind) string {
+	root, ok := draftRoot(value)
+	return rootDraft(root, ok, key, kind)
+}
+
+// draftRoot decodes a namespace value once so every field can be drafted from
+// it; ok is false when the value is not a JSON object.
+func draftRoot(value json.RawMessage) (map[string]json.RawMessage, bool) {
 	var root map[string]json.RawMessage
 	if err := json.Unmarshal(value, &root); err != nil {
+		return nil, false
+	}
+	return root, true
+}
+
+// rootDraft is ValueDraft for a value already decoded by draftRoot.
+func rootDraft(root map[string]json.RawMessage, decoded bool, key string, kind FieldKind) string {
+	if !decoded {
 		return defaultDraft(kind)
 	}
 	raw, ok := root[key]
