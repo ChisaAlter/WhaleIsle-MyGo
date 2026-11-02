@@ -59,6 +59,14 @@ if (Test-Path $ResSrc) {
     Write-Host "Note: resources/ not found at repo root; skipping copy"
 }
 
+# The executable embeds the native skin fonts. Ship their notices alongside it,
+# including in shell-only packages, from the same authoritative font sources.
+$FontNotices = Join-Path $ResDst 'licenses\fonts'
+New-Item -ItemType Directory -Force -Path $FontNotices | Out-Null
+foreach ($Name in @('Inter-OFL.txt', 'SourceSerif4-OFL.txt', 'sources.json')) {
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "internal\ui\theme\fonts\$Name") -Destination $FontNotices
+}
+
 # The native terminal uses MyGo's pinned DLL, not the Host's Ghostty WASM.
 # Require verified local input before marking a package ready. This never fetches
 # or executes the library; WHALEISLE_TERMINAL_LIBRARY can name the official asset.
@@ -185,6 +193,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 - `whaleisle/whaleisle-preview.exe` - separate Windows AppContainer helper; scripts remain off until an explicit per-document action and successful runtime checks
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
+- `whaleisle/resources/licenses/fonts/` - Inter and Source Serif 4 OFL notices and native font provenance
 - `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`)
 - `whaleisle/runtime/node/node.exe` - required Host Node from `WHALEISLE_NODE_DIR` or a known local Node distribution
 - `whaleisle/pet-render-assets/` - required manifest-verified THA4 resources and provenance from `WHALEISLE_PET_RENDER_ASSETS` (default `runtime/pet-render-assets`)

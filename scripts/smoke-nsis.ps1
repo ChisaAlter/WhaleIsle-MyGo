@@ -186,6 +186,15 @@ if ($SilentInstall) {
         throw "Silent install missing preview helper: $InstalledPreview"
     }
     Write-Host "OK installed: $InstalledExe ($exeLen bytes)"
+    foreach ($Name in @('Inter-OFL.txt', 'SourceSerif4-OFL.txt', 'sources.json')) {
+        $Relative = "resources\licenses\fonts\$Name"
+        $StagedNotice = [IO.File]::ReadAllBytes((Join-Path $StageRoot $Relative))
+        $InstalledNotice = [IO.File]::ReadAllBytes((Join-Path $InstallRoot $Relative))
+        if ([Convert]::ToBase64String($InstalledNotice) -cne [Convert]::ToBase64String($StagedNotice)) {
+            throw "Installed font notice differs from the staged source: $Relative"
+        }
+    }
+    Write-Host 'OK installed font notices and provenance'
     if ($ExpectedAppSHA256) {
         $actualApp = (Get-FileHash -LiteralPath $InstalledExe -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($actualApp -ne $ExpectedAppSHA256.ToLowerInvariant()) {
