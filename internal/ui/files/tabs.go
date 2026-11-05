@@ -434,7 +434,7 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 			saveErr = tab.Error
 		}
 	}
-	ui.Text(c, label("放弃未保存的更改？", "Discard unsaved changes? ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, label("有未保存的修改：", "Unsaved changes: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	if saveErr != "" {
 		ui.Text(c, saveErr).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
 	}
@@ -442,7 +442,7 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 		if widgets.Button(c, colors, label("继续编辑", "Keep editing"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			w.PendingClose = ""
 		}
-		if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("保存并关闭", "Save and close"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			if tab := findTab(w, path); tab != nil {
 				capture(m)
 				if path != w.Active {
@@ -470,7 +470,7 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 				closeTab(m, path, false)
 			}
 		}
-		if widgets.Button(c, colors, label("放弃更改", "Discard changes"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
+		if widgets.Button(c, colors, label("丢弃", "Discard"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(busy).Clicked() {
 			closeTab(m, path, true)
 		}
 	})

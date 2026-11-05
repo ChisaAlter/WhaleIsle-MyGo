@@ -294,11 +294,11 @@ func View(c *ui.Context, m Model) {
 								if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 									mygo.Clipboard.WriteText(selection)
 								}
-								if widgets.Button(c, colors, terminalLabel("添加到对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
+								if widgets.Button(c, colors, terminalLabel("加入对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
 									if err := m.OnAddToChat(fragment); err != nil {
 										p.notice = err.Error()
 									} else {
-										p.notice = terminalLabel("已添加到对话草稿", "Added to the chat draft")
+										p.notice = terminalLabel("已加入对话草稿", "Added to the chat draft")
 										shell.term.ClearSelection()
 									}
 								}

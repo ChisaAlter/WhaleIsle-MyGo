@@ -17,7 +17,7 @@ func permissionRiskConfirmation(c *ui.Context, m Model) {
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	title := archiveText("确认启用完全权限？", "Enable Full access?")
-	description := archiveText("启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。", "Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.")
+	description := archiveText("启用完全权限后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。", "Full access lets new sessions reduce confirmation steps and perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust subsequent tasks.")
 	action := archiveText("启用完全权限", "Enable Full access")
 	if request.Value == session.PermissionAutoReview {
 		title = archiveText("确认启用自动审查（实验）？", "Enable Auto review (experimental)?")
@@ -45,7 +45,7 @@ func permissionRiskDialog(c *ui.Context, colors theme.Colors, token uint64, titl
 			ui.Column(c).Gap(14).Children(func() {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
 				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).LineHeight(1.5)
-				ui.Checkbox(c, ack, archiveText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue"))
+				ui.Checkbox(c, ack, archiveText("我已了解风险，并愿意继续", "I understand these risks and want to continue"))
 				if *ack != acknowledged {
 					onAcknowledge(*ack)
 				}

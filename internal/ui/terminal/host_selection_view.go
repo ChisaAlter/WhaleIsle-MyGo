@@ -27,7 +27,7 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 		}
 	}
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, terminalLabel("添加到对话", "Add to chat")).Key("host-quote:" + v.ActiveID + text).FontSize(10).Disabled(!actions.CanAddToChat || actions.AddToChat == nil).Clicked() {
+		if ui.Button(c, terminalLabel("加入对话", "Add to chat")).Key("host-quote:" + v.ActiveID + text).FontSize(10).Disabled(!actions.CanAddToChat || actions.AddToChat == nil).Clicked() {
 			run(func(text string) error { return actions.AddToChat(FormatSelection(text)) })
 		}
 		if target, ok := FirstSelectionTarget(text); ok {

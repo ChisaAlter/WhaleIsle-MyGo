@@ -62,7 +62,7 @@ func referenceBreadcrumbs(m Model) []referenceCrumb {
 	if quoted {
 		root = `@"`
 	}
-	out := []referenceCrumb{{label: "工作区 / Workspace", insert: root}}
+	out := []referenceCrumb{{label: composerText("工作区", "Workspace"), insert: root}}
 	parts := strings.Split(query[:slash], "/")
 	path := ""
 	for _, part := range parts {

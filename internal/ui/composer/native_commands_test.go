@@ -422,7 +422,7 @@ func TestNativePopupPermissionRiskCanCancelAndRequiresAcknowledgement(t *testing
 	if err := tt.Click(label); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(composerText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue")); err != nil {
+	if err := tt.Click(composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click(action); err != nil {

@@ -24,7 +24,7 @@ func TestPermissionRiskAcknowledgementEnablesConfirm(t *testing.T) {
 	if _, ok := tt.Find("取消"); !ok {
 		t.Fatalf("dialog has no cancel; texts=%q", tt.Texts())
 	}
-	if err := tt.Click("我已了解这些风险，并愿意继续"); err != nil {
+	if err := tt.Click("我已了解风险，并愿意继续"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

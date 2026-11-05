@@ -79,10 +79,10 @@ func TestReferenceEmptyDirectoryRetainsBackNavigation(t *testing.T) {
 	handleSuggestKey(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyTab})
 	m.FilePaths = nil
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
-	if _, ok := tt.Find("工作区 / Workspace"); !ok {
+	if _, ok := tt.Find(composerText("工作区", "Workspace")); !ok {
 		t.Fatal("empty folder lost breadcrumb")
 	}
-	tt.Click("工作区 / Workspace")
+	tt.Click(composerText("工作区", "Workspace"))
 	if d.Text != "@" {
 		t.Fatalf("root navigation %q", d.Text)
 	}

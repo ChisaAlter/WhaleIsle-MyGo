@@ -34,10 +34,10 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 		}
 		group := p.activeGroup()
 		canSplit := p.cwd != "" && group != nil && len(group.panes) < maxPanesPerGroup
-		if tool(terminalLabel("左右分栏", "Split horizontal"), terminalSplitIcon, !canSplit) {
+		if tool(terminalLabel("左右分屏", "Split horizontal"), terminalSplitIcon, !canSplit) {
 			_ = p.createPane(m.SystemDark, true, false)
 		}
-		if tool(terminalLabel("上下分栏", "Split vertical"), terminalSplitVerticalIcon, !canSplit) {
+		if tool(terminalLabel("上下分屏", "Split vertical"), terminalSplitVerticalIcon, !canSplit) {
 			_ = p.createPane(m.SystemDark, true, true)
 		}
 		caption := terminalLabel("最大化", "Maximize")
@@ -47,10 +47,10 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 		if tool(caption, terminalMaximizeIcon, false) {
 			p.Maximized = !p.Maximized
 		}
-		if tool(terminalLabel("新终端", "New terminal"), terminalPlusIcon, p.cwd == "") {
+		if tool(terminalLabel("新建终端", "New terminal"), terminalPlusIcon, p.cwd == "") {
 			_ = p.createPane(m.SystemDark, false, false)
 		}
-		if tool(terminalLabel("关闭当前", "Close current"), terminalTrashIcon, p.active == 0) {
+		if tool(terminalLabel("关闭终端", "Close terminal"), terminalTrashIcon, p.active == 0) {
 			requestClosePane(m, p.active)
 		}
 	})

@@ -86,7 +86,7 @@ func nativeSlashCatalog(m Model) ([]SlashCommand, error) {
 		label, description := composerText("文件", "File"), ""
 		if name == "model" {
 			label = composerText("模型", "Model")
-			description = composerText("选择当前会话模型", "Choose the model for this session")
+			description = composerText("选择本会话使用的模型", "Choose the model for this session")
 		}
 		rows = append(rows, SlashCommand{Line: "/" + name, Label: label, Description: description})
 	}
