@@ -154,7 +154,7 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							ui.Text(c, copyText("输入完整 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory.")).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
 						}
 						spec := i.Spec
-						if ui.TextInput(c, &spec).FillWidth().AutoFocus().Label(copyText("插件名称或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
+						if ui.TextInput(c, &spec).FillWidth().AutoFocus().Label(copyText("包名或地址", "Plugin name or address")).Placeholder("dsh-plugin-whale-pet").ReadOnly(s.Busy || i.Phase == "checking").Changed() {
 							a.EditInstall(spec, i.Registry)
 						}
 						_, registryAnchor, guideOpen, _ := installOptionsRow(c, i, a, s.Busy || i.Phase == "checking")
@@ -170,13 +170,13 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					}
 					// The footer owns the checking state's primary action; the
 					// body keeps the way back to editing while a check runs.
-					if i.Phase == "checking" && ui.Button(c, copyText("取消检查并返回编辑", "Cancel check and return to editing")).Clicked() {
+					if i.Phase == "checking" && ui.Button(c, copyText("取消安装并返回编辑", "Cancel check and return to editing")).Clicked() {
 						a.CancelInstall()
 					}
 					if pending {
 						ui.Text(c, copyText("安装阶段：", "Installation phase: ")+i.Phase).Role(ui.RoleStatus).FillWidth().TextColor(muted)
 						if i.Phase == "unconfirmed" {
-							if ui.Button(c, copyText("核对安装结果", "Reconcile installation")).Disabled(i.Recovering).Clicked() {
+							if ui.Button(c, copyText("核对安装状态", "Reconcile installation")).Disabled(i.Recovering).Clicked() {
 								a.ReconcileInstall()
 							}
 							if (!i.CancellationRequested || i.WaitingForStart) && ui.Button(c, copyText("重试取消", "Retry cancellation")).Clicked() {

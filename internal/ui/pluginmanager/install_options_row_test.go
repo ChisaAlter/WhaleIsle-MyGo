@@ -48,7 +48,7 @@ func TestInstallOptionsRowMatchesTheReference(t *testing.T) {
 		t.Fatalf("guide toggle is %.0f DIP wide, want an inline control, not a full-width button", guide.W)
 	}
 
-	chip, ok := tt.Find(copyText("安装源", "Registry") + " " + copyText("npm 官方源", "npm official registry"))
+	chip, ok := tt.Find(copyText("安装源", "Registry") + " " + copyText("npm npm 官方源", "npm official registry"))
 	if !ok {
 		t.Fatalf("registry chip is missing its chosen name: %v", tt.Texts())
 	}
@@ -143,7 +143,7 @@ func TestInstallRegistryChipUnfoldsItsChoices(t *testing.T) {
 		installDialog(c, m, s, m.Controller.Actions(s.Owner))
 	}, 1440, 920)
 
-	if _, ok := tt.Find(copyText("安装源", "Registry") + " " + copyText("npm 官方源", "npm official registry")); !ok {
+	if _, ok := tt.Find(copyText("安装源", "Registry") + " " + copyText("npm npm 官方源", "npm official registry")); !ok {
 		t.Fatalf("registry chip is missing: %v", tt.Texts())
 	}
 	for _, want := range []string{

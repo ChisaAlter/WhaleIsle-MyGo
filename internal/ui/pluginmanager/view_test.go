@@ -224,7 +224,7 @@ func TestManagerDiscoverDetailsAndSourcesStaySeparate(t *testing.T) {
 func TestManagerDisconnectedPageNeverShowsCuratedCatalog(t *testing.T) {
 	m := Model{Controller: manager.New()}
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 800, 600)
-	if !tt.HasText(copyText("运行时未连接。连接后可管理此配置的插件。", "Runtime disconnected. Connect to manage this profile's plugins.")) {
+	if !tt.HasText(copyText("本部署没有可管理的 profile，无法安装或启停插件。", "Runtime disconnected. Connect to manage this profile's plugins.")) {
 		t.Fatal("disconnected manager state was hidden")
 	}
 	if tt.HasText("Catalog source:") {

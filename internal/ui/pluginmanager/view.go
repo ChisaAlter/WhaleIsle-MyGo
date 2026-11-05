@@ -129,10 +129,10 @@ func View(c *ui.Context, m Model) {
 				loadingRows(c, muted)
 			}
 			if s.Status == "disconnected" {
-				ui.Text(c, copyText("运行时未连接。连接后可管理此配置的插件。", "Runtime disconnected. Connect to manage this profile's plugins.")).FillWidth().TextColor(muted)
+				ui.Text(c, copyText("本部署没有可管理的 profile，无法安装或启停插件。", "Runtime disconnected. Connect to manage this profile's plugins.")).FillWidth().TextColor(muted)
 			}
 			if s.Status == "unavailable" {
-				ui.Text(c, copyText("此运行时没有可管理的 profile，无法安装或启停插件。", "This runtime has no managed profile. Plugin installation and switching are unavailable.")).FillWidth().TextColor(muted)
+				ui.Text(c, copyText("本部署没有可管理的 profile，无法安装或启停插件。", "This runtime has no managed profile. Plugin installation and switching are unavailable.")).FillWidth().TextColor(muted)
 			}
 			if s.Error != "" {
 				errorRow(c, s.Error, func() { m.Controller.Refresh(context.Background()) })
@@ -177,7 +177,7 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 0, 0).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 			ui.Text(c, copyText("插件", "Plugins")).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
-			ui.Text(c, copyText("安装、启用和配置插件", "Install, enable, and configure plugins")).FontSize(theme.InterfaceSize(13)).TextColor(muted).Tooltip(copyText("全部内置插件和运行状态位于设置中的插件清单。", "Inspect all built-in plugins and runtime states in Settings → Plugins."))
+			ui.Text(c, copyText("安装、启用和配置插件", "Install, enable, and configure plugins")).FontSize(theme.InterfaceSize(13)).TextColor(muted).Tooltip(copyText("在这里配置官方插件，安装和管理其他插件。内置插件列表及运行状态可在「设置 → 内置插件」中查看", "Inspect all built-in plugins and runtime states in Settings → Plugins."))
 		})
 		ui.Row(c).Wrap().Gap(12).Children(func() {
 			if s.Tab == "installed" {
@@ -199,7 +199,7 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 	})
 }
 func loadingRows(c *ui.Context, muted ui.Color) {
-	ui.Column(c).FillWidth().Gap(16).Role(ui.RoleStatus).Label(copyText("正在读取插件", "Loading plugins")).Children(func() {
+	ui.Column(c).FillWidth().Gap(16).Role(ui.RoleStatus).Label(copyText("正在读取插件…", "Loading plugins")).Children(func() {
 		ui.Text(c, copyText("正在读取插件…", "Loading plugins…")).TextColor(muted)
 		for i := 0; i < 3; i++ {
 			ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
@@ -429,7 +429,7 @@ func packageMenu(menu *ui.Menu, m Model, p manager.Package, s manager.State, a m
 	}
 	if p.Removable {
 		menu.Separator()
-		if menu.Item(copyText("移除插件…", "Remove plugin…")).Disabled(s.ActionBusy(p.Name)).Chosen() {
+		if menu.Item(copyText("卸载", "Remove plugin…")).Disabled(s.ActionBusy(p.Name)).Chosen() {
 			a.Remove(p.Name)
 		}
 	}
@@ -471,7 +471,7 @@ func packageTags(c *ui.Context, p manager.Package, muted ui.Color) {
 		ui.Text(c, copyText("异常", "Problem")).FontSize(theme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 	}
 	if p.Availability == "missing" {
-		ui.Text(c, copyText("未安装 / 文件缺失", "Not installed / missing files")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, copyText("未安装 / 包不可用", "Not installed / missing files")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	if manager.UpdateAvailable(p) {
 		ui.Text(c, copyText("可更新", "Update available")).FontSize(theme.InterfaceSize(11)).TextColor(c.Theme().Accent)
@@ -611,7 +611,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			if pkg.Availability == "missing" {
 				return
 			}
-			groupTitle(c, copyText("包中包含的插件", "Plugins in this package"), muted)
+			groupTitle(c, copyText("包含的组件", "Plugins in this package"), muted)
 			ui.Text(c, partsSummary(pkg.Parts)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			filter := s.RowFilter
 			if len(pkg.Parts) > 10 && ui.TextInput(c, &filter).FillWidth().Label(copyText("筛选组件", "Filter components")).Changed() {
@@ -620,7 +620,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			query := strings.ToLower(strings.TrimSpace(filter))
 			shown := 0
 			if len(pkg.Parts) == 0 {
-				ui.Text(c, copyText("此包未声明插件条目。", "This package declares no plugin entries.")).TextColor(muted)
+				ui.Text(c, copyText("这个插件包不包含任何组件。", "This package declares no plugin entries.")).TextColor(muted)
 			}
 			for _, part := range pkg.Parts {
 				r := part
@@ -654,7 +654,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 						if !r.Enabled {
 							phase = copyText("已关闭", "Off")
 						} else if phase == "" {
-							phase = copyText("空闲", "Idle")
+							phase = copyText("未运行", "Idle")
 						}
 						ui.Text(c, phase).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						if r.Meta != nil && r.Meta.Error != "" {
@@ -680,9 +680,9 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			if source == "" {
 				if pkg.Availability == "missing" {
 					if pkg.Installed {
-						source = copyText("已声明，但安装文件缺失", "Declared dependency; installed files missing")
+						source = copyText("已声明，但安装包不可用", "Declared dependency; installed files missing")
 					} else {
-						source = copyText("尚未安装", "Not installed")
+						source = copyText("未安装", "Not installed")
 					}
 				} else {
 					source = copyText("内置", "Built in")
@@ -1066,15 +1066,15 @@ func partsSummary(rows []manager.Row) string {
 			failed++
 		}
 	}
-	parts := []string{fmt.Sprintf(copyText("共 %d", "Total %d"), len(rows))}
+	parts := []string{fmt.Sprintf(copyText("共 %d 个", "Total %d"), len(rows))}
 	if running > 0 {
-		parts = append(parts, fmt.Sprintf(copyText("运行 %d", "Running %d"), running))
+		parts = append(parts, fmt.Sprintf(copyText("%d 运行中", "Running %d"), running))
 	}
 	if off > 0 {
-		parts = append(parts, fmt.Sprintf(copyText("关闭 %d", "Off %d"), off))
+		parts = append(parts, fmt.Sprintf(copyText("%d 已停用", "Off %d"), off))
 	}
 	if failed > 0 {
-		parts = append(parts, fmt.Sprintf(copyText("失败 %d", "Failed %d"), failed))
+		parts = append(parts, fmt.Sprintf(copyText("%d 异常", "Failed %d"), failed))
 	}
 	return strings.Join(parts, " · ")
 }

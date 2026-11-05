@@ -26,7 +26,7 @@ func registryName(registry, resolved *string) string {
 	key := manager.RegistryKey(registry, resolved)
 	switch key {
 	case manager.OfficialNPMRegistry:
-		return copyText("npm 官方源", "npm official registry")
+		return copyText("npm npm 官方源", "npm official registry")
 	case manager.NPMMirrorRegistry:
 		return copyText("中国大陆镜像源", "Mainland China mirror")
 	}

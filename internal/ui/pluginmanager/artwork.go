@@ -135,7 +135,7 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 				entry := func(title, description string, enabled bool, action func()) {
 					entryWithHint(title, description, enabled, "", action)
 				}
-				entry(copyText("安装已有插件", "Install existing plugin"), copyText("输入 npm 包名、Git 仓库或本地路径。", "Enter an npm package, Git repository, or local path."), true, a.OpenInstall)
+				entry(copyText("安装第三方插件", "Install existing plugin"), copyText("输入插件的包名、GitHub 仓库地址或本地目录路径。", "Enter an npm package, Git repository, or local path."), true, a.OpenInstall)
 				// The marketplace entry only opens the official site in a browser:
 				// browsing and installing stay with the Host's plugin runtime.
 				marketHint := ""

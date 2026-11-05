@@ -276,7 +276,7 @@ func TestInstallFooterReadsCheckingWhileTheSpecChecks(t *testing.T) {
 	}
 	// The way back to editing stays in the body; the reference has no such
 	// control, and it is the native recovery path for a check that hangs.
-	if !tt.HasText(copyText("取消检查并返回编辑", "Cancel check and return to editing")) {
+	if !tt.HasText(copyText("取消安装并返回编辑", "Cancel check and return to editing")) {
 		t.Fatalf("the checking card lost its way back to editing: %v", tt.Texts())
 	}
 	safety, _ := installSafetyCopy()
