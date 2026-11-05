@@ -223,7 +223,12 @@ func TestToggleSkillSendsNameAndEnabled(t *testing.T) {
 
 func TestEnvelopeErrorPropagates(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		_, _ = w.Write([]byte(`{"type":"server-response","rpcId":"x","result":{"ok":false,"error":{"code":"plugin-error","message":"catalog unavailable"}}}`))
+		body, _ := io.ReadAll(req.Body)
+		var envelope struct {
+			RPCID string `json:"rpcId"`
+		}
+		_ = json.Unmarshal(body, &envelope)
+		_, _ = w.Write([]byte(`{"type":"server-response","rpcId":"` + envelope.RPCID + `","result":{"ok":false,"error":{"code":"plugin-error","message":"catalog unavailable"}}}`))
 	}))
 	defer srv.Close()
 	client, err := New(srv.URL, "")
