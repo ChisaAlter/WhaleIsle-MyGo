@@ -427,3 +427,13 @@ MyGo 各页行序与上表逐行一致（general/conversation/interface/features
 **功能缺口**（安装版有、MyGo 无对应面，未建）：queue 行内编辑器（InlineEditor 保存/取消）、queue.edit.unsupported 提示、会话层级/更多会话操作 header、会话已被占用 error、parentOffline/workspace placeholder 变体、beam/typingFx 完整配置面板（~80 keys）、ask.* 交互细化、sessionCost.usage 峰谷明细行/priceTitle 行、terminal.expandRest、read.window/search.matches 截断行、todo `{done}/{total}` 分数格式、hero.claudeHeadline、command.attachmentsUnsupported、nextPrompt Tab 采纳提示。
 
 **远程工作区（SSH）页**：✅ 已按 `dsh-remote` 插件源码（`plugin-src/`）全量对齐——五卡结构（当前机器卡：状态点+连接态+user@host:port+指纹态+远程目录/本地镜像 mono+取消当前/忘记指纹；SSH 机器卡：内联按钮行 设为当前/测试连接/编辑/删除、表单内嵌、空态 gating；sshconfig 导入卡：有 entry 才渲染；端口转发卡：needsMachine 门控+L/R mono 行+状态 tag+内联新增行；审计卡：查看/收起切换）。表单改安装版平铺序：名称/主机/端口/用户名→认证方式→密码（编辑时留空保持不变）/私钥路径/私钥口令→主机指纹校验三段（TOFU/严格/不校验）→默认远程目录→useAgent/keyboardInteractive checkbox+存入系统钥匙串 switch→跳板机五字段→测试连接/取消/保存右对齐。`ConnectionStatus` 补 host/username/port 字段。
+
+## 22.5 残留目录全量扫尾（31 包）
+
+方法：将 remaining-catalogs.txt 中 31 个安装版 zh 目录逐包与 internal/ui 全树做字面+前缀近似比对。结果：
+
+- **实差已修**（verbatim 对齐）：ui-git 4 处（分支列表加载失败。/没有匹配的分支/搜索分支…/我已了解风险，并愿意继续）、ui-user-terminal 关闭终端、ui-files unsaved.title 有未保存的修改、preview.floating.noCwd 无法确定文件所属会话的工作区、model-selection search.empty 没有匹配的模型、open-in-app path.openError 打开失败，请重试、files search.pending 正在搜索文件…、visual-replies settings.description 搜索索引补全。
+- **NO-MATCH 主体 = MyGo 更丰富面**：安装版插件多为简表面（如 ui-user-terminal 仅 20 keys、ui-preview 54 keys），MyGo 原生生面（重命名终端/shell 选择/分屏/批注截图/浏览器分区/发布向导/大文件扫描/PR 生成核对）无安装版对应文案，保留 MyGo 措辞。
+- **结构性 gap（安装版有、MyGo 无对应面，记录不实现）**：ui-workflow-run 面板、git 菜单 detached/behind 禁用态、ui-visual-replies 卡片渲染面（MyGo 仅有设置项+OpenUI 隔离窗）。
+- **已验证逐字**：agent-preset 名称/描述、goal dock、model-selection（此前审计）、deepseek-model-label（badge）。
+- **范围外（按裁定）**：市场页（ui-plugin-market 插件自有）、手机远程（隔离）。
