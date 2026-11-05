@@ -30,7 +30,7 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 	open := true
 	ui.DialogBase(c.Key("discard-file"), &open, func(backdrop, panel ui.Element) {
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 480, 20).MaxHeightPercent(88).Gap(12).Children(func() {
-			ui.Text(c, word("丢弃此文件？", "Discard this file?")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
+			ui.Text(c, word("还原工作区更改？", "Discard workspace changes?")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
 			impact := word("此文件的未暂存磁盘修改将被已暂存版本覆盖，无法撤销。已暂存内容及其他文件保留。未保存的编辑器草稿不会被删除。", "Unstaged disk edits to this file will be overwritten by its staged version and cannot be undone. Staged changes and other files are preserved. Unsaved editor drafts are retained.")
 			if plan.Untracked {
 				impact = word("将永久删除此未跟踪文件，无法通过 Git 恢复。其他文件保留。未保存的编辑器草稿不会被删除。", "This untracked file will be permanently deleted and cannot be recovered through Git. Other files and unsaved editor drafts are retained.")
@@ -45,7 +45,7 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 				if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					w.Discard = nil
 				}
-				if widgets.Button(c, colors, word("确认丢弃此文件", "Confirm discard file"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
+				if widgets.Button(c, colors, word("还原", "Discard"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 					// Capture and clear before running: repeated clicks cannot replay this review.
 					w.Discard = nil
 					_, err := git.DiscardReviewed(m.WorkspaceRoot, plan)
@@ -57,7 +57,7 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 					w.ReviewText = ""
 					w.reload(m.WorkspaceRoot)
 					refresh(m)
-					w.Status = word("已丢弃：", "Discarded: ") + plan.Path
+					w.Status = word("已还原：", "Discarded: ") + plan.Path
 				}
 			})
 		})

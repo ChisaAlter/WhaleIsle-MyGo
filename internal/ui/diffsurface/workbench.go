@@ -189,9 +189,9 @@ func paintDiffScope(c *ui.Context, m Model) {
 	if w.BaseRef != "" {
 		caption = w.BaseRef + "…HEAD"
 	} else if w.Staged {
-		caption = word("已暂存修改", "Staged changes")
+		caption = word("已暂存", "Staged changes")
 	} else if !w.AgainstHEAD {
-		caption = word("未暂存修改", "Unstaged changes")
+		caption = word("未暂存", "Unstaged changes")
 	}
 	ui.MenuButton(c, caption, func(menu *ui.Menu) {
 		if menu.Item(word("工作区全部修改", "All worktree changes")).Checked(w.AgainstHEAD && w.BaseRef == "").Chosen() {
@@ -202,10 +202,10 @@ func paintDiffScope(c *ui.Context, m Model) {
 			w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
 			refresh(m)
 		}
-		if menu.Item(word("未暂存修改", "Unstaged changes")).Checked(!w.AgainstHEAD && !w.Staged && w.BaseRef == "").Chosen() {
+		if menu.Item(word("未暂存", "Unstaged changes")).Checked(!w.AgainstHEAD && !w.Staged && w.BaseRef == "").Chosen() {
 			scopeDiff(m, "", false)
 		}
-		if menu.Item(word("已暂存修改", "Staged changes")).Checked(!w.AgainstHEAD && w.Staged && w.BaseRef == "").Chosen() {
+		if menu.Item(word("已暂存", "Staged changes")).Checked(!w.AgainstHEAD && w.Staged && w.BaseRef == "").Chosen() {
 			scopeDiff(m, "", true)
 		}
 		if len(w.Changes) > 0 {

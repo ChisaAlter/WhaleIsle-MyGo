@@ -11,14 +11,14 @@ import (
 )
 
 func agentMetricLabel(row session.AgentNavigationRow, now float64) (string, string) {
-	state := agentText("状态未知", "Activity unknown")
+	state := agentText("模式未知", "Activity unknown")
 	if row.Address.Mode == "external" {
 		return "", ""
 	}
 	if row.ActivityKnown {
-		state = agentText("未活动", "Inactive")
+		state = agentText("当前未运行", "Inactive")
 		if row.Running {
-			state = agentText("运行中", "Running")
+			state = agentText("正在运行", "Running")
 		} else if row.Metrics.Completed {
 			state = agentText("已完成", "Completed")
 		}
@@ -113,18 +113,18 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 					ui.Box(c).Size(6, 6).Radius(3).Background(ink).Shrink(0)
 				}
 				ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(13))
-				meta := agentText("未活动", "Inactive")
+				meta := agentText("当前未运行", "Inactive")
 				if !row.ActivityKnown {
-					meta = agentText("状态未知", "Activity unknown")
+					meta = agentText("模式未知", "Activity unknown")
 				}
 				if row.Running {
-					meta = agentText("运行中", "Running")
+					meta = agentText("正在运行", "Running")
 				}
 				switch row.Address.Mode {
 				case "external":
-					meta = agentText("外部会话", "External")
+					meta = agentText("外部任务", "External")
 				case "one-shot":
-					meta += " · " + agentText("单次", "One-shot")
+					meta += " · " + agentText("一次性", "One-shot")
 				case "continuable":
 					meta += " · " + agentText("可继续", "Continuable")
 				}

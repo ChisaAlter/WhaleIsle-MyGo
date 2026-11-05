@@ -133,7 +133,7 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 				if menu.Item(word("暂存此文件", "Stage file")).Chosen() {
 					stageCommitFile(m, ch)
 				}
-				if menu.Item(word("丢弃此文件…", "Discard file…")).Chosen() {
+				if menu.Item(word("还原…", "Discard file…")).Chosen() {
 					reviewDiscard(m, ch.Path)
 				}
 			}

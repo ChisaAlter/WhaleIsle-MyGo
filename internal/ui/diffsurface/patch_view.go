@@ -139,7 +139,7 @@ func paintPatchFileActions(c *ui.Context, m Model, path string) {
 		}
 		if change.Unstaged() {
 			ui.MenuButton(c, word("更多", "More"), func(menu *ui.Menu) {
-				if menu.Item(word("丢弃此文件…", "Discard file…")).Disabled(w.Operation != nil).Chosen() {
+				if menu.Item(word("还原…", "Discard file…")).Disabled(w.Operation != nil).Chosen() {
 					reviewDiscard(m, path)
 				}
 			}).Height(24).Shrink(0).FontSize(fonttheme.InterfaceSize(12))
