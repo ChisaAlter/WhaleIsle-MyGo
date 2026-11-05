@@ -28,29 +28,29 @@ func presentedMetadata(snapshot session.TurnFilesSnapshot, state session.TurnFil
 	if state.Busy {
 		if state.Action == "reveal" {
 			if directory {
-				return historyNavigationText("正在打开目录…", "Opening directory…"), false, 1, 0
+				return historyNavigationText("正在打开所在文件夹…", "Opening directory…"), false, 1, 0
 			}
-			return historyNavigationText("正在显示文件…", "Revealing file…"), false, 1, 0
+			return historyNavigationText("正在文件管理器中显示…", "Revealing file…"), false, 1, 0
 		}
 		return historyNavigationText("正在打开…", "Opening…"), false, 1, 0
 	}
 	if state.Error != "" {
 		if state.Action == "reveal" {
 			if directory {
-				return historyNavigationText("无法打开目录，点击重试", "Could not open directory; try again"), true, 1, 0
+				return historyNavigationText("无法打开所在文件夹，请重试", "Could not open directory; try again"), true, 1, 0
 			}
-			return historyNavigationText("无法显示文件，点击重试", "Could not reveal file; try again"), true, 1, 0
+			return historyNavigationText("无法在文件管理器中显示，请重试", "Could not reveal file; try again"), true, 1, 0
 		}
-		return historyNavigationText("无法打开文件，点击重试", "Could not open file; try again"), true, 1, 0
+		return historyNavigationText("打开失败，点击重试", "Could not open file; try again"), true, 1, 0
 	}
 	if state.Ready && !state.SettledAt.IsZero() {
 		age := now.Sub(state.SettledAt)
 		if age < presentedSuccessHold+presentedSuccessFade {
 			text = historyNavigationText("已打开", "Opened")
 			if state.Action == "reveal" {
-				text = historyNavigationText("已显示文件", "File revealed")
+				text = historyNavigationText("已请求在文件管理器中显示", "File revealed")
 				if directory {
-					text = historyNavigationText("已打开目录", "Directory opened")
+					text = historyNavigationText("已请求打开所在文件夹", "Directory opened")
 				}
 			}
 			if age < presentedSuccessHold {

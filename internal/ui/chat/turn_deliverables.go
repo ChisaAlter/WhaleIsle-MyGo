@@ -214,7 +214,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 				}
 			})
 		} else if host.Host != nil && !host.Host.Available {
-			ui.Text(c, historyNavigationText("Host 桌面不可用", "Host desktop unavailable")).FontSize(11).TextColor(st.Muted)
+			ui.Text(c, historyNavigationText("此主机没有可用的桌面，无法使用外部程序打开文件或文件夹；文件仍可在应用内预览", "Host desktop unavailable")).FontSize(11).TextColor(st.Muted)
 		}
 		if d.Changes != nil {
 			target := *d.Changes
@@ -251,7 +251,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).PassThrough().Children(func() {
 							ui.Text(c, headerTitle).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
 							if single && state.Summary.Files[0].Binary {
-								ui.Text(c, historyNavigationText("二进制", "Binary")).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).PassThrough()
+								ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).PassThrough()
 							} else {
 								ui.Row(c).Gap(6).AlignItems(ui.Center).PassThrough().Children(func() {
 									ui.Text(c, fmt.Sprintf("+%d", state.Summary.Added)).FontSize(10).FixedLineHeight(16).TextColor(pal.addColor).PassThrough()
@@ -290,7 +290,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 								rowBtn.Children(func() {
 									ui.Text(c, file.Display).FontSize(12).FixedLineHeight(20).TextColor(pal.pathColor).Grow(1).MinWidth(0).SingleLine().PassThrough()
 									if file.Binary {
-										ui.Text(c, historyNavigationText("二进制", "Binary")).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
+										ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
 									} else if file.Oversized {
 										ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
 									} else {
@@ -327,7 +327,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 											} else if comparison.Diff != nil {
 												ui.Text(c, comparison.Diff.Kind).TextColor(st.Muted)
 											} else {
-												ui.Text(c, historyNavigationText("正在读取差异…", "Reading diff…")).TextColor(st.Muted)
+												ui.Text(c, historyNavigationText("正在读取改动…", "Reading diff…")).TextColor(st.Muted)
 											}
 										})
 									})
@@ -471,7 +471,7 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
 					status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
 					if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
-						status, failed, opacity, repaint = historyNavigationText("无法预览文件，点击重试", "Could not preview file; try again"), true, 1, 0
+						status, failed, opacity, repaint = historyNavigationText("打开失败，点击重试", "Could not preview file; try again"), true, 1, 0
 					}
 					if apps.Error != "" && !state.Busy && !state.Ready && state.Error == "" {
 						status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true

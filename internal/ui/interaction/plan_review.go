@@ -59,10 +59,10 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 			ui.Text(c, pending.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 16, 12, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
-			if widgets.Button(c, colors, planpreview.Text("讨论修改", "Discuss changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Clicked() {
+			if widgets.Button(c, colors, planpreview.Text("要求修改", "Request changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Clicked() {
 				store.DismissPlanReview(pending.EventID)
 			}
-			label := planpreview.Text("批准计划", "Approve plan")
+			label := planpreview.Text("同意执行", "Approve and run")
 			if pending.Sending {
 				label = planpreview.Text("正在提交…", "Submitting…")
 			}

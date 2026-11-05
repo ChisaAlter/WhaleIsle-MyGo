@@ -118,9 +118,9 @@ func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction
 func questionFeedback(status string) string {
 	if i18n.Locale() == i18n.LocaleZH {
 		if status == "incomplete" {
-			return "请回答或跳过其余问题后提交。"
+			return "请先完成这道问题。"
 		}
-		return "请先回答此题再继续。"
+		return "请选择一个选项或填写自定义答案。"
 	}
 	if status == "incomplete" {
 		return "Complete or skip the remaining questions before submitting."

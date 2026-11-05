@@ -48,7 +48,7 @@ func TestTrajectoryRecordedViewDetails(t *testing.T) {
 		TrajectoryView(c, TrajectoryModel{Snapshot: session.ViewState{Messages: []session.Message{{ID: "a", Kind: session.MessageKindText, Role: "assistant", Body: "answer", TrajectoryTime: timing, EventTime: 2000}}}, ActualDuration: &actual, SelectedID: &selected, DetailTab: &tab})
 	}, 900, 600)
 	texts := strings.Join(tester.Texts(), "\n")
-	for _, want := range []string{"1000 ms", "首 token：200 ms", "解码：800 ms", "已记录时间范围 1000 ms"} {
+	for _, want := range []string{"1000 ms", "首 token 200 ms · 解码 800 ms", "已记录时间范围 1000 ms"} {
 		if !strings.Contains(texts, want) {
 			t.Fatalf("missing %s in %s", want, texts)
 		}

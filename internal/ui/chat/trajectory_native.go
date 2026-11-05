@@ -435,9 +435,9 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		return true, body
 	case "timing":
 		unix := ui.Local(c.Root(), "trajectory-unix-time", func() bool { return false })
-		label := trajectoryText("Unix 秒", "Unix seconds")
+		label := trajectoryText("显示 Unix 时间戳", "Show Unix timestamp")
 		if *unix {
-			label = trajectoryText("本地日期时间", "Local date/time")
+			label = trajectoryText("显示本地时间", "Show local time")
 		}
 		if ui.Button(c, label).Clicked() {
 			*unix = !*unix

@@ -24,7 +24,7 @@ func trajectoryDurationLabel(t *session.TrajectoryTiming, streaming bool) string
 }
 
 func trajectoryTimingDetail(row trajRow) string {
-	parts := []string{trajectoryText("耗时：", "Duration: ") + row.Time}
+	parts := []string{trajectoryText("总时长：", "Duration: ") + row.Time}
 	if row.EventTime > 0 {
 		parts = append(parts, trajectoryText("事件时间：", "Event time: ")+formatEventTime(row.EventTime))
 	}
@@ -43,12 +43,13 @@ func trajectoryTimingDetail(row trajRow) string {
 		return strings.Join(parts, "\n")
 	}
 	if t.StartedAt != nil && t.FirstTokenAt != nil && *t.FirstTokenAt >= *t.StartedAt && (t.CompletedAt == nil || *t.CompletedAt >= *t.FirstTokenAt) {
-		parts = append(parts, fmt.Sprintf(trajectoryText("首 token：%.0f ms", "First token: %.0f ms"), *t.FirstTokenAt-*t.StartedAt))
 		if t.CompletedAt != nil {
-			parts = append(parts, fmt.Sprintf(trajectoryText("解码：%.0f ms", "Decoding: %.0f ms"), *t.CompletedAt-*t.FirstTokenAt))
+			parts = append(parts, fmt.Sprintf(trajectoryText("首 token %.0f ms · 解码 %.0f ms", "First token %.0f ms · decoding %.0f ms"), *t.FirstTokenAt-*t.StartedAt, *t.CompletedAt-*t.FirstTokenAt))
+		} else {
+			parts = append(parts, fmt.Sprintf(trajectoryText("首 token %.0f ms", "First token %.0f ms"), *t.FirstTokenAt-*t.StartedAt))
 		}
 	} else if strings.HasPrefix(t.OperationID, "assistant:") {
-		parts = append(parts, trajectoryText("首 token：未知", "First token: Unknown"), trajectoryText("解码：未知", "Decoding: Unknown"))
+		parts = append(parts, trajectoryText("首 token 时间不可用", "First token time unavailable"), trajectoryText("解码：未知", "Decoding: Unknown"))
 	}
 	return strings.Join(parts, "\n")
 }
@@ -126,7 +127,7 @@ func paintRecordedTrajectoryTimeline(c *ui.Context, rows []trajRow, selected *st
 
 func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *string, accent, muted, border ui.Color, sequence bool, ranges ...*trajectoryRangeState) {
 	if len(model.Spans) == 0 {
-		ui.Text(c, trajectoryText("暂无已记录的起止时间；耗时未知", "No recorded start/end times; durations unknown")).FontSize(11).TextColor(muted)
+		ui.Text(c, trajectoryText("无计时数据", "No timing data")).FontSize(11).TextColor(muted)
 		return
 	}
 	ui.Box(c).FillWidth().Height(38).Children(func() {

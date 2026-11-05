@@ -101,7 +101,7 @@ func copyChangesReviewPane(target, source *WorkspacePane) {
 }
 func changesReviewTitle(m Model) string {
 	if m.workspacePane != nil && m.workspacePane.ChangesReview != nil {
-		return fmt.Sprintf("%s %d", paneLabel("本轮变更", "Turn changes"), m.workspacePane.ChangesReview.Target.Turn)
+		return fmt.Sprintf(paneLabel("第 %d 轮改动", "Turn %d changes"), m.workspacePane.ChangesReview.Target.Turn)
 	}
 	return paneLabel("本轮变更", "Turn changes")
 }
@@ -147,7 +147,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 			return false
 		}
 		if result.Busy || !result.Ready {
-			ui.Text(c, paneLabel("读取中…", "Loading…")).TextColor(st.Muted)
+			ui.Text(c, paneLabel("正在读取改动…", "Loading…")).TextColor(st.Muted)
 			return false
 		}
 		return true
@@ -166,7 +166,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 	target := r.Target
 	ui.Row(c).Height(36).Shrink(0).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
 		file := files[r.Target.Index]
-		selector := ui.Button(c, "").Grow(1).MinWidth(0).Height(28).Padding(0, 4).Gap(6).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Label(paneLabel("选择文件", "Choose file")).Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
+		selector := ui.Button(c, "").Grow(1).MinWidth(0).Height(28).Padding(0, 4).Gap(6).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Label(paneLabel("选择要查看的文件", "Choose file")).Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
 		if selector.Hovered() {
 			selector.Background(c.Theme().SurfaceHover)
 		}
@@ -176,7 +176,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 				if f.Binary {
 					counts = paneLabel("二进制", "Binary")
 				} else if f.Oversized {
-					counts = paneLabel("文件过大", "Too large")
+					counts = paneLabel("文件过大，无法显示改动", "Too large")
 				}
 				if menu.Item(f.Display + "  " + counts).Checked(i == r.Target.Index).Chosen() {
 					r.Target.Index = i
@@ -190,23 +190,23 @@ func changesReviewPane(c *ui.Context, m Model) {
 		if file.Binary || file.Oversized {
 			caption := paneLabel("二进制", "Binary")
 			if file.Oversized && !file.Binary {
-				caption = paneLabel("文件过大", "Too large")
+				caption = paneLabel("文件过大，无法显示改动", "Too large")
 			}
 			ui.Text(c, caption).Shrink(0).FontSize(11).TextColor(st.Muted)
 		} else {
 			ui.Text(c, fmt.Sprintf("+%d", file.Added)).Shrink(0).FontSize(11).TextColor(st.Add)
 			ui.Text(c, fmt.Sprintf("−%d", file.Deleted)).Shrink(0).FontSize(11).TextColor(st.Del)
 		}
-		label := paneLabel("左右对比", "Split view")
+		label := paneLabel("切换为左右对比", "Split view")
 		if r.Split {
-			label = paneLabel("单栏对比", "Unified view")
+			label = paneLabel("切换为单栏对比", "Unified view")
 		}
 		if reviewToolbarButton(c, label, reviewSplitIcon).Selected(r.Split).Clicked() {
 			r.Split = !r.Split
 		}
-		label = paneLabel("自动换行", "Wrap lines")
+		label = paneLabel("开启自动换行", "Wrap lines")
 		if r.Wrap {
-			label = paneLabel("取消换行", "No wrap")
+			label = paneLabel("关闭自动换行", "No wrap")
 		}
 		wrapIcon := reviewWrapIcon
 		if r.Wrap {
@@ -215,7 +215,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 		if reviewToolbarButton(c, label, wrapIcon).Selected(r.Wrap).Clicked() {
 			r.Wrap = !r.Wrap
 		}
-		if reviewToolbarButton(c, paneLabel("打开完整文件", "Open full file"), reviewInspectIcon).Disabled(m.OnOpenDeliverable == nil).Clicked() {
+		if reviewToolbarButton(c, paneLabel("在侧边栏打开整个文件", "Open full file"), reviewInspectIcon).Disabled(m.OnOpenDeliverable == nil).Clicked() {
 			if path, ok := m.Store.ChangesReviewPath(r.scope, target); ok {
 				m.OnOpenDeliverable(path)
 			}
@@ -239,20 +239,20 @@ func changesReviewPane(c *ui.Context, m Model) {
 		return
 	}
 	if content.Before != nil && !*content.Before {
-		ui.Text(c, paneLabel("本轮新建文件", "File created this turn"))
+		ui.Text(c, paneLabel("本轮新建的文件", "File created this turn"))
 	}
 	if content.After != nil && !*content.After {
-		ui.Text(c, paneLabel("本轮删除文件", "File deleted this turn"))
+		ui.Text(c, paneLabel("本轮删除的文件", "File deleted this turn"))
 	}
 	if content.Coarse != nil && *content.Coarse {
-		ui.Text(c, paneLabel("Host 按整文件替换显示", "Host supplied whole-file replacement"))
+		ui.Text(c, paneLabel("逐行对比超时，按整个文件替换显示", "Host supplied whole-file replacement"))
 	}
 	patch, truncated, hasAdd, hasDel := reviewPatch(*content)
 	if truncated {
-		ui.Text(c, paneLabel("仅显示前 5000 行", "Showing the first 5000 lines"))
+		ui.Text(c, paneLabel("只显示前 5000 行", "Showing the first 5000 lines"))
 	}
 	if patch == "" {
-		ui.Text(c, paneLabel("没有文本差异", "No text changes"))
+		ui.Text(c, paneLabel("两侧内容相同", "No text changes"))
 		return
 	}
 	ui.Scroll(c).Fill().MinWidth(0).Children(func() { diffsurface.RecordedPatchView(c, patch, r.Split && hasAdd && hasDel, r.Wrap, st) })
