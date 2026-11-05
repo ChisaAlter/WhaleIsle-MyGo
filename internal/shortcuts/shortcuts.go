@@ -158,13 +158,13 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 			chord.Alt = true
 		default:
 			if i != len(parts)-1 || (token != "ENTER" && !functionKey(token) && (len(token) != 1 || !strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,\\`.;'[]-=/", token))) {
-				return Chord{}, errors.New("无效按键；支持字母、数字、标点、Enter 或 F1–F12 / Invalid key; use a letter, digit, punctuation, Enter or F1–F12")
+				return Chord{}, errors.New("暂不支持这个按键 / This key is not supported")
 			}
 			chord.Key = token
 		}
 	}
 	if !primary || chord.Key == "" {
-		return Chord{}, errors.New("必须包含 Mod 和一个按键 / Use Mod plus one key")
+		return Chord{}, errors.New("请同时按下 Command、Ctrl 或 Alt 修饰键 / Include Command, Ctrl, or Alt in the combination")
 	}
 	// Keep editing, file-save and application/window-management keys with their
 	// existing owner. Other system keys (Super, Space, Tab, Escape) are
@@ -172,10 +172,10 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 	// The original native marketplace action owns Mod+Shift+M; plain
 	// Mod+M remains the system minimize chord.
 	if strings.Contains("ACFHMQSVWXYZ", chord.Key) && !((chord.Key == "M" || chord.Key == "A") && chord.Shift && !chord.Alt) && !(chord.Key == "F" && chord.Alt && !chord.Shift) {
-		return Chord{}, errors.New("此按键保留给系统、编辑或文件操作 / Reserved for system, editing or file actions")
+		return Chord{}, errors.New("此组合由系统或文本编辑操作保留 / This combination is reserved for system or text editing actions")
 	}
 	if platform == "darwin" && ((chord.Key == "`" && !chord.Alt) || (chord.Shift && strings.Contains("3456", chord.Key)) || (chord.Alt && chord.Key == "D")) {
-		return Chord{}, errors.New("macOS 系统保留快捷键 / Reserved macOS system shortcut")
+		return Chord{}, errors.New("此组合由系统或文本编辑操作保留 / This combination is reserved for system or text editing actions")
 	}
 	return chord, nil
 }
@@ -187,6 +187,8 @@ func Validate(values map[string]string) map[string]string {
 	issues := map[string]string{}
 	type acceptedChord struct {
 		id    string
+		zh    string
+		en    string
 		chord Chord
 	}
 	seen := []acceptedChord{}
@@ -201,11 +203,11 @@ func Validate(values map[string]string) map[string]string {
 		}
 		for _, previous := range seen {
 			if overlappingChords(previous.chord, chord) {
-				issues[c.ID] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", previous.id)
-				issues[previous.id] = fmt.Sprintf("快捷键冲突 / Conflicts with %s", c.ID)
+				issues[c.ID] = fmt.Sprintf("已被「%s」占用 / Already used by “%s”", previous.zh, previous.en)
+				issues[previous.id] = fmt.Sprintf("已被「%s」占用 / Already used by “%s”", c.ZH, c.EN)
 			}
 		}
-		seen = append(seen, acceptedChord{c.ID, chord})
+		seen = append(seen, acceptedChord{c.ID, c.ZH, c.EN, chord})
 	}
 	return issues
 }
@@ -285,7 +287,7 @@ type Editor struct {
 func NewEditor(saved map[string]string, loadErr error, persist func(map[string]string) error) *Editor {
 	e := &Editor{active: effective(saved), drafts: map[string]*string{}, persist: persist}
 	if loadErr != nil {
-		e.ReadError = "快捷键配置无法读取；请修复后重启 / Cannot read shortcut settings; repair and restart: " + loadErr.Error()
+		e.ReadError = "无法读取 userData/keybindings.json。请检查访问权限后重新启动 Harness / Could not read userData/keybindings.json. Check access permissions, then restart Harness: " + loadErr.Error()
 		for id := range e.active {
 			e.active[id] = ""
 		}
@@ -447,7 +449,7 @@ func (e *Editor) Save() bool {
 		return false
 	}
 	if e.persist == nil {
-		e.Err = "快捷键保存不可用 / Shortcut persistence is unavailable"
+		e.Err = "快捷键尚未准备好，请稍后重试 / Shortcuts are not ready. Please try again"
 		return false
 	}
 	values := e.Values()
@@ -468,7 +470,7 @@ func (e *Editor) Save() bool {
 		patch = values
 	}
 	if err := e.persist(patch); err != nil {
-		e.Err = "保存失败，草稿已保留 / Save failed; draft retained: " + err.Error()
+		e.Err = "保存失败。原快捷键和当前草稿已保留，请重试 / Could not save. Your previous shortcuts and current draft are preserved. Please retry: " + err.Error()
 		return false
 	}
 	clear(e.resetDrafts)
@@ -476,7 +478,7 @@ func (e *Editor) Save() bool {
 	for id, v := range values {
 		*e.drafts[id] = v
 	}
-	e.Status = "已保存；返回主页后生效 / Saved; active on the main page"
+	e.Status = "已修改 / Modified"
 	e.ResetPending = false
 	return true
 }
@@ -497,7 +499,7 @@ func (e *Editor) ConfirmReset() bool {
 		clear(e.resetDrafts)
 		e.ResetPending = false
 		e.Err = ""
-		e.Status = "已恢复已知命令默认值；未知条目保留 / Known command defaults restored; unknown entries retained"
+		e.Status = "已恢复默认快捷键 / Default shortcuts restored"
 		return true
 	}
 	for id, v := range Defaults() {

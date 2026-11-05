@@ -186,6 +186,9 @@ func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, t
 		return rows[i].ID < rows[j].ID
 	})
 	issues := e.Issues()
+	if len(rows) > 0 {
+		ui.Text(c, providerCopy("应用操作", "Application")).FillWidth().Padding(16, 8, 6, 8).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(p.caption)
+	}
 	for _, command := range rows {
 		if fixed[command.ID] {
 			shortcutFixedReferenceRow(c, command, p)
@@ -202,7 +205,7 @@ func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, t
 		zh, en string
 		rows   []shortcuts.Command
 	}{
-		{"输入", "Input", []shortcuts.Command{
+		{"消息输入", "Message input", []shortcuts.Command{
 			{ID: "fixed.send", ZH: "发送消息", EN: "Send message", Default: "Enter"},
 			{ID: "fixed.newline", ZH: "换行", EN: "New line", Default: "Shift+Enter"},
 			{ID: "fixed.complementary", ZH: "使用互补的 Queue／Steer 方式", EN: "Use the complementary Queue / Steer action", Default: "Mod+Enter"},
@@ -210,12 +213,12 @@ func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, t
 			{ID: "fixed.mention", ZH: "打开引用菜单", EN: "Open reference menu", Default: "@"},
 			{ID: "response.stop", ZH: "停止生成", EN: "Stop generation", Default: "Esc  Esc"},
 		}},
-		{"菜单", "Menus", []shortcuts.Command{
-			{ID: "fixed.move", ZH: "移动选择", EN: "Move selection", Default: "↑  ↓"},
-			{ID: "fixed.select", ZH: "选择", EN: "Select", Default: "Enter"},
-			{ID: "fixed.dismiss", ZH: "关闭", EN: "Dismiss", Default: "Esc"},
+		{"菜单与弹层", "Menus and dialogs", []shortcuts.Command{
+			{ID: "fixed.move", ZH: "移动菜单选择", EN: "Move menu selection", Default: "↑  ↓"},
+			{ID: "fixed.select", ZH: "选择菜单项", EN: "Select menu item", Default: "Enter"},
+			{ID: "fixed.dismiss", ZH: "关闭菜单或顶层弹窗", EN: "Close menu or top dialog", Default: "Esc"},
 		}},
-		{"审批", "Approval", []shortcuts.Command{
+		{"审批区域", "Approval area", []shortcuts.Command{
 			{ID: "approval.allow", ZH: "允许一次", EN: "Allow once", Default: "Enter"},
 			{ID: "approval.reject", ZH: "拒绝", EN: "Reject", Default: "Esc"},
 		}},
@@ -248,11 +251,11 @@ func shortcutReferenceMatches(command shortcuts.Command, query, extra string) bo
 	return true
 }
 func shortcutFixedReferenceRow(c *ui.Context, command shortcuts.Command, p shortcutPalette) {
-	hint := providerCopy("固定快捷键，不能修改。", "Fixed shortcut; it cannot be edited.")
+	row := ui.Row(c.Key("shortcut-fixed-" + command.ID)).Label("shortcut-" + command.ID).FillWidth()
 	if command.ID == "fontSize.increase" {
-		hint += providerCopy("也支持 ", " Also accepts ") + shortcutDisplay("Mod+Shift+=")
+		row.Tooltip(providerCopy("也支持 ", "Also accepts ") + shortcutDisplay("Mod+Shift+="))
 	}
-	ui.Row(c.Key("shortcut-fixed-" + command.ID)).Label("shortcut-" + command.ID).Tooltip(hint).FillWidth().MinWidth(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
+	row.MinWidth(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, shortcutCommandLabel(command)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg)
 		ui.Text(c, shortcutDisplay(command.Default)).Padding(4, 12).Radius(10).Background(p.field).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine()
 	})

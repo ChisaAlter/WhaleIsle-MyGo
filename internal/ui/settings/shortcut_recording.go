@@ -26,6 +26,7 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 		return
 	}
 	anchor := ui.Text(c, providerCopy("按下快捷键…", "Press a shortcut…")).Key("capture-"+id).Label("capture-"+id).
+		Tooltip(providerCopy("松开组合键即保存。Tab 切换操作，Esc 退出录键。", "Release the keys to save. Tab moves between actions; Esc cancels.")).
 		Height(shortcutBadgeHeight).MinWidth(shortcutRecorderWidth).Padding(3, 14).Radius(10).
 		Border(.5, t.Border).Background(t.Surface).FontSize(fonttheme.InterfaceSize(12)).TextColor(t.TextMuted).
 		Focusable().AutoFocus()
@@ -81,7 +82,7 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 		}
 		if ev.Code == "" {
 			reset()
-			e.Err = providerCopy("此按键没有可用的物理键码", "Physical key code unavailable")
+			e.Err = providerCopy("暂不支持这个按键。", "This key is not supported.")
 			return true
 		}
 		if state.held == nil {
@@ -94,7 +95,7 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 		if len(state.held) > 2 {
 			state.pending = nil
 			state.blocked = true
-			e.Err = providerCopy("最多同时按住两个键", "Hold at most two keys")
+			e.Err = providerCopy("最多同时按下两个非修饰键。请松开后重试。", "Hold at most two non-modifier keys. Release the keys to try again.")
 			return true
 		}
 		mods := []string{}
@@ -132,7 +133,7 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 				reset()
 				e.Review()
 			}
-			if ui.Button(c, providerCopy("重试保存当前录制", "Retry saving the retained recording")).Label("retry-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if ui.Button(c, providerCopy("重试保存", "Retry save")).Label("retry-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
 				e.SaveRow(id, false)
 			}
 		})
