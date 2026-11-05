@@ -124,7 +124,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			if problem != "" {
 				status, ink = problem, chrome.Color(colors.Danger)
 			} else if state.Loading {
-				status = browserChromeLabel("正在加载…", "Loading…")
+				status = browserChromeLabel("正在打开…", "Loading…")
 			}
 			ui.Text(c, status).FillWidth().Height(18).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(12)).TextColor(ink).Tooltip(status)
 		})
@@ -166,7 +166,7 @@ func (b *Controller) browserNavigation(c *ui.Context, t *Tab, state desktop.Stat
 			t.Host.Reload()
 		}
 	}
-	address := ui.TextInput(c, &t.Draft).Label(browserChromeLabel("网页地址", "Web address")).Placeholder("https://example.com").Grow(1).MinWidth(0).Height(28).Radius(6).FontSize(theme.InterfaceSize(12))
+	address := ui.TextInput(c, &t.Draft).Label(browserChromeLabel("网页地址", "Web address")).Placeholder(browserChromeLabel("输入 HTTP(S) 地址", "Enter an HTTP(S) address")).Grow(1).MinWidth(0).Height(28).Radius(6).FontSize(theme.InterfaceSize(12))
 	goButton := browserChromeTool(c, "browser-go", browserChromeLabel("前往", "Go"), browserGoIcon)
 	if address.Submitted() && !address.Composing() || goButton.Clicked() {
 		b.Navigate(t.Draft)
@@ -311,7 +311,7 @@ func (b *Controller) browserPlaceholder(c *ui.Context, t *Tab, muted ui.Color) {
 	ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Center).Justify(ui.Center).Padding(24).Gap(12).Children(func() {
 		switch {
 		case t.resumeURL != "":
-			ui.Text(c, browserChromeLabel("恢复上次浏览的页面", "Restore the previous page")).FontSize(theme.InterfaceSize(14))
+			ui.Text(c, browserChromeLabel("上次打开", "Restore the previous page")).FontSize(theme.InterfaceSize(14))
 			ui.Text(c, t.resumeURL).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(t.resumeURL)
 			if ui.Button(c, browserChromeLabel("恢复页面", "Restore page")).Clicked() {
 				b.restoreBrowserAddress(t)
@@ -326,7 +326,7 @@ func (b *Controller) browserPlaceholder(c *ui.Context, t *Tab, muted ui.Color) {
 				b.retryDocument(t)
 			}
 		default:
-			ui.Text(c, browserChromeLabel("输入网址开始浏览", "Enter an address to start browsing")).FontSize(theme.InterfaceSize(14)).TextColor(muted)
+			ui.Text(c, browserChromeLabel("输入 HTTP(S) 地址开始浏览", "Enter an address to start browsing")).FontSize(theme.InterfaceSize(14)).TextColor(muted)
 		}
 	})
 }

@@ -152,7 +152,7 @@ func TestNativeFileTreeEmptyAndErrorStatesStayDistinct(t *testing.T) {
 			tt.Frame()
 		}
 		tt.Frame()
-		empty := tt.HasText(label("此文件夹为空", "This folder is empty"))
+		empty := tt.HasText(label("空目录", "Empty directory"))
 		if failed {
 			if empty || !tt.HasText("fixture directory failure") {
 				t.Fatal("directory error was disguised as empty")

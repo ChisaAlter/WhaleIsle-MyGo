@@ -342,7 +342,7 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 	}
 	ents := state.Entries
 	if len(ents) == 0 {
-		ui.Text(c, label("此文件夹为空", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8, 4, float32(8+depth*12))
+		ui.Text(c, label("空目录", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8, 4, float32(8+depth*12))
 	}
 	for _, e := range ents {
 		childRel := e.Name
@@ -435,7 +435,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
 			// A floating chip: a row in the flow would push the document down while it reads.
 			ui.Row(c).Absolute().Top(4).Right(12).Gap(8).AlignItems(ui.Center).Padding(2, 8).Radius(8).Background(c.Theme().Surface).Children(func() {
-				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, label("正在读取…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if widgets.Button(c, colors, label("取消读取", "Cancel read"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.stopTextRead(false, false)
 					setFileStatus(m, label("读取已取消，草稿保留。点击重新载入可重试。", "Read cancelled; draft kept. Choose Reload to retry."))

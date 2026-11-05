@@ -173,7 +173,7 @@ func TestDeliveryTextLoadingReadOnlyReloadAndReplacement(t *testing.T) {
 			tester := ui.NewTester(func(c *ui.Context) {
 				previewPane(c, m, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80), ui.RGB(0, 0, 0), ui.RGB(255, 255, 255))
 			}, 480, 300)
-			if !tester.HasText(label("正在读取文件…", "Reading file…")) {
+			if !tester.HasText(label("正在读取…", "Loading…")) {
 				t.Fatal("accepted read did not show loading")
 			}
 			awaitDeliveryRead(t, m, done)
