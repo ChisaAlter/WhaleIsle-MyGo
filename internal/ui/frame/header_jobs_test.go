@@ -187,7 +187,7 @@ func TestJobsHeaderPopoverRosterOutputStopAndFinished(t *testing.T) {
 		t.Fatalf("output retry lost owner/cursor: %+v", retryOutput)
 	}
 	follow = retryOutput
-	if err := tt.Click("Stop task: live"); err != nil {
+	if err := tt.Click("Stop task "+strings.Repeat("long build command ", 12)); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -195,7 +195,7 @@ func TestJobsHeaderPopoverRosterOutputStopAndFinished(t *testing.T) {
 		t.Fatal("first stop press sent RPC")
 	default:
 	}
-	if err := tt.Click("Stop task: live"); err != nil {
+	if err := tt.Click("Stop task "+strings.Repeat("long build command ", 12)); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -206,7 +206,7 @@ func TestJobsHeaderPopoverRosterOutputStopAndFinished(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("second stop press not sent")
 	}
-	_ = tt.Click("Stop task: live")
+	_ = tt.Click("Stop task "+strings.Repeat("long build command ", 12))
 	select {
 	case <-f.transport.kills:
 		t.Fatal("pending stop sent duplicate RPC")

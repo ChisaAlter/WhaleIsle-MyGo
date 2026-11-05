@@ -119,7 +119,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 								controller.ToggleSettled(s.Generation)
 							}
 							ui.Box(c).Grow(1)
-							if ui.Button(c, archiveText("清除", "Clear")).Label("Clear finished jobs").Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Clicked() {
 								controller.ClearSettled(s.Generation)
 							}
 						})
@@ -235,7 +235,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				controller.Toggle(s.Generation, job.ID)
 			}
 			if job.Status == "running" {
-				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task: "+job.ID).Tooltip(archiveText("停止任务", "Stop task")).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
+				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(archiveText("停止任务 ", "Stop task ")+job.Label).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
 				stop.Children(func() {
 					if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
 						ui.Spinner(c).Size(10, 10).TextColor(muted)
@@ -302,7 +302,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 	}
 	panel.Children(func() {
 		if o.GapBefore {
-			ui.Text(c, archiveText("更早的输出已截断", "Earlier output was dropped")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
+			ui.Text(c, archiveText("……较早的输出已丢弃……", "… earlier output dropped …")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 		}
 		if o.Error != "" && !notice.dismissed {
 			headerNotice(c, "job-output-notice:"+job.ID, o.Error, colors, 24, []headerNoticeAction{{label: archiveText("重试输出", "Retry output"), run: func() { controller.RetryOutput(s.Generation) }}}, func() { notice.dismissed = true })
@@ -316,7 +316,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 		ui.Scroll(c.Key("job-output-" + job.ID)).Label("Job output scroll: " + job.ID).FillWidth().MinWidth(0).MaxHeight(288).Children(func() {
 			body := o.Text
 			if body == "" {
-				body = archiveText("暂无输出", "No output yet.")
+				body = archiveText("（无输出）", "(no output)")
 			}
 			ui.Text(c, body).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
 		})
@@ -329,12 +329,12 @@ func jobDuration(job jobflow.Job, now time.Time) string {
 	}
 	seconds := int64(max(0, end-job.StartedAt) / 1000)
 	if seconds >= 3600 {
-		return fmt.Sprintf("%dh %dm", seconds/3600, seconds%3600/60)
+		return fmt.Sprintf(archiveText("%d小时%d分", "%dh %dm"), seconds/3600, seconds%3600/60)
 	}
 	if seconds >= 60 {
-		return fmt.Sprintf("%dm %ds", seconds/60, seconds%60)
+		return fmt.Sprintf(archiveText("%d分%d秒", "%dm %ds"), seconds/60, seconds%60)
 	}
-	return fmt.Sprintf("%ds", seconds)
+	return fmt.Sprintf(archiveText("%d秒", "%ds"), seconds)
 }
 func jobStatus(status string) string {
 	switch status {
@@ -347,7 +347,7 @@ func jobStatus(status string) string {
 	case "killed":
 		return archiveText("已取消", "cancelled")
 	case "failed":
-		return archiveText("失败", "failed")
+		return archiveText("已失败", "failed")
 	}
 	return status
 }
