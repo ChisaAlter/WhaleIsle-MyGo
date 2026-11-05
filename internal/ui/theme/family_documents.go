@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -89,4 +90,21 @@ func (p Preferences) ImportFamily(raw string) (Family, error) {
 		return Family{}, err
 	}
 	return f, nil
+}
+
+func validFamilyWallpaper(value string) bool {
+	if len(value) > 16<<20 {
+		return false
+	}
+	header, data, ok := strings.Cut(value, ",")
+	if !ok {
+		return false
+	}
+	switch header {
+	case "data:image/png;base64", "data:image/jpeg;base64", "data:image/webp;base64", "data:image/gif;base64":
+	default:
+		return false
+	}
+	_, err := base64.StdEncoding.DecodeString(data)
+	return err == nil && data != ""
 }

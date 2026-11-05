@@ -127,9 +127,25 @@ func (s *Store) LoadCatalogSkillEdit(ctx context.Context, t SkillEditTarget) (Sk
 	return t, nil
 }
 
+// ReloadCatalogSkillEdit reconciles a consumed save target without discarding
+// the caller's draft. The same Host, workspace and file must still own it.
+func (s *Store) ReloadCatalogSkillEdit(ctx context.Context, previous SkillEditTarget) (SkillEditTarget, error) {
+	target, err := s.CaptureCatalogSkillEdit(previous.name)
+	if err != nil {
+		return SkillEditTarget{}, err
+	}
+	if target.client != previous.client || target.hostGeneration != previous.hostGeneration ||
+		target.sessionID != previous.sessionID || target.cwd != previous.cwd ||
+		target.scopeSession != previous.scopeSession || target.scopeCwd != previous.scopeCwd ||
+		target.source != previous.source || target.path != previous.path || !target.writable {
+		return SkillEditTarget{}, fmt.Errorf("Skill target changed; the draft has not been retargeted")
+	}
+	return s.LoadCatalogSkillEdit(ctx, target)
+}
+
 // SaveCatalogSkillEditor consumes one read revision, even on an unknown result.
 // A read-before-write guard detects observed edits but the Host has no atomic CAS.
-// Failure leaves the caller's draft intact; re-inspect before any further Save.
+// Failure leaves the caller's draft intact; recheck before any further Save.
 func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f SkillEditorFields) error {
 	if strings.TrimSpace(f.Description) == "" || strings.TrimSpace(f.Content) == "" {
 		return fmt.Errorf("Description and content are required")
@@ -189,10 +205,10 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 	}
 	var current api.SkillInventoryDetail
 	if err := t.client.Call(ctx, "skillInventory/get", map[string]any{"request": t.request()}, &current); err != nil {
-		return finish(fmt.Errorf("Skill pre-save check failed; draft retained. Inspect again: %w", err))
+		return finish(fmt.Errorf("Skill pre-save check failed; draft retained. Recheck the original file: %w", err))
 	}
 	if !t.matchesFile(current) || skillEditFingerprint(current) != t.fingerprint {
-		return finish(fmt.Errorf("Skill source changed since it was read; draft retained. Inspect again before saving"))
+		return finish(fmt.Errorf("Skill source changed since it was read; draft retained. Recheck the original file before saving"))
 	}
 	s.mu.Lock()
 	valid = ctx.Err() == nil && s.skillEditCurrentLocked(t, version)
@@ -212,7 +228,7 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 	}
 	var out api.UpdateResult
 	if err := t.client.Call(ctx, "skillInventory/update", map[string]any{"request": req}, &out); err != nil {
-		return finish(fmt.Errorf("Skill save was not confirmed; draft retained. Inspect before retrying: %w", err))
+		return finish(fmt.Errorf("Skill save was not confirmed; draft retained. Recheck the original file before retrying: %w", err))
 	}
 	return finish(nil)
 }

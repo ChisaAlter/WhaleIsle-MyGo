@@ -230,11 +230,10 @@ func (s *mainState) saveResumeBeforeClose(win *mygo.Window) bool {
 		mygo.RunOnMain(func() { s.flushInactiveGeneralFontEdits(true) })
 	}
 	if err := s.saveResume(); err != nil {
-		result, dialogErr := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   i18n.T(i18n.KeyCmdCouldNotSaveResumeState),
-			Message: strings.Join([]string{err.Error(), i18n.T(i18n.KeyCmdTheOriginalFileWasNotOverwrittenKeepT)}, "\n\n"),
-			Buttons: []string{i18n.T(i18n.KeyCmdKeepWindowOpen), i18n.T(i18n.KeyCmdQuitWithoutSaving)}, DefaultButton: 0, CancelButton: 0})
-		return dialogErr == nil && result.Button == 1
+		return s.askConfirmBlocking(confirmAskRequest{Owner: win,
+			Title:       i18n.T(i18n.KeyCmdCouldNotSaveResumeState),
+			Body:        strings.Join([]string{err.Error(), i18n.T(i18n.KeyCmdTheOriginalFileWasNotOverwrittenKeepT)}, "\n\n"),
+			CancelLabel: i18n.T(i18n.KeyCmdKeepWindowOpen), ConfirmLabel: i18n.T(i18n.KeyCmdQuitWithoutSaving), Danger: true})
 	}
 	return true
 }

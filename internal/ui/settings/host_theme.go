@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 
@@ -151,29 +150,25 @@ func (h *HostThemeBinding) SaveScheme(scheme string) error {
 func (h *HostThemeBinding) ApplyWallpaper(path string) error {
 	image := ""
 	if path != "" {
+		var data []byte
+		var err error
 		if strings.HasPrefix(path, "data:image/") {
-			image = path
+			_, raw, ok := strings.Cut(path, ",")
+			if !ok || len(path) > wallpapers.MaxDataURLChars {
+				return fmt.Errorf("wallpaper exceeds the image limit")
+			}
+			data, err = base64.StdEncoding.DecodeString(raw)
 		} else {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			if _, err = wallpapers.Decode(data); err != nil {
-				return err
-			}
-			mime := "image/png"
-			lower := strings.ToLower(path)
-			if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
-				mime = "image/jpeg"
-			}
-			if strings.HasSuffix(lower, ".webp") {
-				mime = "image/webp"
-			}
-			if strings.HasSuffix(lower, ".gif") {
-				mime = "image/gif"
-			}
-			image = "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+			data, err = wallpapers.ReadImportFile(path)
 		}
+		if err != nil {
+			return err
+		}
+		_, encoded, err := wallpapers.PrepareImport(data)
+		if err != nil {
+			return err
+		}
+		image = wallpapers.ImageDataURL(encoded)
 	}
 	return h.queueChanged(map[string]any{"wallpaperImage": image})
 }

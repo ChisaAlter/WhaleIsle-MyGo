@@ -23,9 +23,9 @@ type presetReaderFocus struct {
 }
 
 func agentPresetViewAction(c *ui.Context, a *AgentPresetReaderAccess, label string, disabled bool) bool {
-	button := ui.Button(c, "").Label(providerCopy("查看配置", "View configuration") + " · "+label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
+	button := ui.Button(c, "").Label(providerCopy("查看配置", "View configuration")+" · "+label).Size(28, 28).Padding(6).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
 	handle := ui.Local(button, "view-trigger", func() ui.Handle { return ui.Handle{} })
-	button.Bind(handle).Children(func() { ui.Icon(c, bodyIcon("document")).Size(16, 16) })
+	button.Bind(handle).Children(func() { ui.Icon(c, presetDocIcon).Size(16, 16) })
 	if button.Clicked() {
 		if a.focus != nil {
 			a.focus.Trigger = handle
@@ -59,7 +59,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		}
 	}
 	open := true
-	bodyDialog(c.Key("agent-preset-reader"), &open, providerCopy("查看配置", "View configuration")+" · "+selected, func() {
+	bodyDialogFooterWidth(c.Key("agent-preset-reader"), &open, providerCopy("查看配置", "View configuration")+" · "+selected, 720, func() {
 		if s.Busy {
 			ui.Text(c, providerCopy("正在读取声明…", "Loading declaration…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
@@ -73,9 +73,6 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		}
 		if !s.Loaded {
 			return
-		}
-		if ui.Button(c, providerCopy("复制全文", "Copy full declaration")).Disabled(a.OnCopy == nil).Clicked() && a.OnCopy != nil {
-			a.OnCopy(s.Ticket)
 		}
 		if s.Content == "" {
 			ui.Text(c, providerCopy("该预设声明内容为空", "This preset declaration is empty")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -101,6 +98,13 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 			}
 			ui.TextArea(c.Key(pages.Start), &content).Label(providerCopy("预设配置只读内容", "Preset configuration source")).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
+	}, func() {
+		if ui.Button(c, providerCopy("关闭", "Close")).Clicked() {
+			open = false
+		}
+		if ui.Button(c, providerCopy("复制全文", "Copy full declaration")).Disabled(!s.Loaded || s.Busy || a.OnCopy == nil).Clicked() && a.OnCopy != nil {
+			a.OnCopy(s.Ticket)
+		}
 	})
 	if !open && a.OnClose != nil {
 		a.OnClose(s.Ticket)

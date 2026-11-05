@@ -27,6 +27,7 @@ func (d *DraftState) BeginAttachmentPreparation(index int, retry bool) (session.
 		d.Error = ""
 	}
 	a.PrepareError = ""
+	a.SentBytes, a.TotalBytes = 0, 0
 	a.PreparationID = attachmentAttempt.Add(1)
 	d.Attachments[index] = a
 	if d.attachmentCancels == nil {
@@ -35,6 +36,21 @@ func (d *DraftState) BeginAttachmentPreparation(index int, retry bool) (session.
 	d.attachmentCancels[a.PreparationID] = nil
 	d.Preparing++
 	return a, true
+}
+
+// UpdateAttachmentProgress is called on Window.Update. A removed, retried or
+// replaced attachment cannot consume a prior transport's receipt.
+func (d *DraftState) UpdateAttachmentProgress(original session.ComposerAttachment, sent, total int64) {
+	if _, ok := d.attachmentCancels[original.PreparationID]; !ok {
+		return
+	}
+	for i, a := range d.Attachments {
+		if a.PreparationID == original.PreparationID {
+			d.Attachments[i].SentBytes = sent
+			d.Attachments[i].TotalBytes = total
+			return
+		}
+	}
 }
 func (d *DraftState) SetAttachmentCancel(a session.ComposerAttachment, cancel context.CancelFunc) {
 	if _, ok := d.attachmentCancels[a.PreparationID]; ok {

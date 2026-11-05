@@ -24,6 +24,30 @@ func fixtureBrowser() BrowserState {
 	return BrowserState{Parent: parent, Selected: &selected, Child: child}
 }
 
+func TestSystemPickerEntryKeepsBrowserTargetUntilExplicitSelection(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, size := range [][2]int{{680, 500}, {372, 252}} {
+		s := fixtureBrowser()
+		called := 0
+		picked := ""
+		tt := ui.NewTester(func(c *ui.Context) {
+			View(c, Model{State: &s, OnNativePicker: func() { called++ }, OnPick: func(path string) { picked = path }})
+		}, size[0], size[1])
+		button, ok := tt.Find("System picker…")
+		if !ok || button.X < 0 || button.X+button.W > float32(size[0]) {
+			t.Fatalf("system picker entry clipped at %v: %+v", size, button)
+		}
+		if err := tt.Click("System picker…"); err != nil {
+			t.Fatal(err)
+		}
+		if called != 1 || picked != "" || s.TargetPath() != "/home/project" {
+			t.Fatal("opening the system picker adopted or changed the browser target")
+		}
+		saveSecondarySnapshot(t, tt, fmt.Sprintf("directory-system-entry-%d.png", size[0]))
+	}
+}
+
 func TestMillerPaneGeometryAndPinnedFooter(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(i18n.DefaultLocale)

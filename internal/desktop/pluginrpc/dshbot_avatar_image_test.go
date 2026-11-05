@@ -16,7 +16,10 @@ import (
 
 type imageTransport func(*http.Request) (*http.Response, error)
 
-func (f imageTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f imageTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func imageProfileFixture() DshbotCapabilityStatus {
 	var p map[string]json.RawMessage
 	json.Unmarshal([]byte(`{"id":"b","kind":"bot","sessionId":"s","name":"Fixture","title":"title","sectionId":"","description":"Keep description","avatar":{"kind":"blob","shape":"circle","color":"blue","dataUrl":"","crop":""},"workspaceId":"/fixture","model":{"provider":"","model":"","reasoningEffort":""},"pinned":false,"hidden":false,"pinOrder":0,"allowedSenderIds":[],"memberBotIds":[],"objective":"Existing objective","objectiveMaxRounds":16,"memoryReview":false,"notify":false,"capabilities":{"tools":{"mode":"all","names":[]},"skills":{"mode":"selected","names":[]},"mcp":{"mode":"selected","names":[]}},"maxRounds":3,"maxSpeaks":10,"inbox":[],"readInitialized":true,"lastSeenSeq":0,"createdAt":1,"updatedAt":2,"futureField":{"keep":true}}`), &p)

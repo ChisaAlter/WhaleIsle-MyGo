@@ -13,6 +13,7 @@ import (
 // DraftState is a stable UI-owned draft. Async work returns through Window.Update.
 // Each session keeps its own text input client, selection, attachments and error.
 type DraftState struct {
+	references         referenceQueryState
 	Suggestions        SuggestionState
 	GroupReply         *GroupReplyDraft
 	ModelCommand       ModelCommandState

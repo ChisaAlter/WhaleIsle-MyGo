@@ -34,5 +34,6 @@ func (s *mainState) openDocumentViewer(client *dsh.Client, sessionID, path strin
 		ShortcutPreferences:   s.pageShortcutPreferences(),
 		OnShortcutCloseWindow: s.queueProductShortcutClose,
 		OnChange:              func() { win.Update(func() {}) },
+		OnFailure:             s.onEmbeddedPageFailure,
 	})
 }

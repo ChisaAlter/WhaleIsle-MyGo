@@ -67,6 +67,9 @@ func deriveSessionSearchResults(snap session.ViewState, query string, filters ..
 	byID := map[string]session.Item{}
 	var local []session.Item
 	for _, it := range snap.Items {
+		if it.Presentation != nil && it.Presentation.Owner != "" && it.Presentation.Owner != "whaleisle" {
+			continue
+		}
 		_, member := workspaces[it.SessionID]
 		if it.SessionID == "" || it.Blank || it.Origin == "subagent" || (!member && !snap.IsNoDirectory(it)) {
 			continue
@@ -134,9 +137,6 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	workspaceRowsStatus(c, m, fg)
 	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
-	if m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("正在搜索正文…", "Searching conversation content…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	}
 	if m.Snapshot.SearchErr != "" {
 		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -145,15 +145,16 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	for _, result := range rows {
 		row := result
+		rowModel := workspaceOwnerRowModel(m, row.Item.SessionID)
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		batch := m.Batch.Enabled
+		batch := m.Batch.Enabled && !rowModel.ownerRow
 		locked := batch && (m.Batch.Busy || m.Batch.Confirming || m.OnBatchEdit == nil)
 		checkboxChanged := false
 		button := ui.Button(c.Key(struct {
 			Host uint64
 			ID   string
-		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).FillWidth().MinHeight(48).BorderWidth(0).Radius(12).Background(ui.Transparent).Padding(4, 8)
-		selected := row.Item.SessionID == m.Snapshot.SelectedID
+		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).FillWidth().MinHeight(48).BorderWidth(0).Radius(12).Background(ui.Transparent).Padding(4, 8).Disabled(rowModel.ownerRow && m.Batch.Enabled)
+		selected := row.Item.SessionID == displayedSessionID(m)
 		if batch {
 			button.Label("Select session " + row.Item.SessionID).Disabled(locked || row.Item.Blank)
 			_, selected = m.Batch.Selected[row.Item.SessionID]
@@ -167,12 +168,15 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		}
 		menu := func(menu *ui.Menu) {
 			menu.CloseOnPointerLeave(true)
-			if m.OnUnarchive != nil && menu.Item(i18n.T(i18n.KeySidebarUnarchive)).Icon(menuUnarchiveArtwork).Chosen() {
-				m.OnUnarchive(row.Item.SessionID)
+			if rowModel.OnUnarchive != nil && menu.Item(i18n.T(i18n.KeySidebarUnarchive)).Icon(menuUnarchiveArtwork).Chosen() {
+				rowModel.OnUnarchive(row.Item.SessionID)
 			}
 			// The existing callback opens the confirmation, never the delete RPC.
-			if m.OnDelete != nil && menu.Item(i18n.T(i18n.KeySidebarDelete)).Icon(menuTrashArtwork).Danger(true).Chosen() {
-				m.OnDelete(row.Item.SessionID)
+			if rowModel.OnDelete != nil && menu.Item(i18n.T(i18n.KeySidebarDelete)).Icon(menuTrashArtwork).Danger(true).Chosen() {
+				rowModel.OnDelete(row.Item.SessionID)
+			}
+			if rowModel.ownerRow {
+				rowModel.PublicContributions.RenderMenu(menu, "sidebar.workspaces.session.menu.item", row.Item.SessionID)
 			}
 		}
 		if row.Archived && !batch {
@@ -202,6 +206,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 						ink = muted
 					}
 					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, 4).SingleLine()
+					publicSidebarSlot(c, rowModel, "sidebar.session.row.badge", row.Item.SessionID, nil)
 					if row.Archived && !batch {
 						more := ui.Button(c.Key("search-result-menu-"+row.Item.SessionID), "").Label(sessionActionsLabel(row.Item.SessionID)).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 						if !menuOpen {
@@ -231,12 +236,13 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 				})
 			})
 		})
+		publicSidebarRowContext(rowModel, row.Item.SessionID, button.MenuOpen(), false)
 		clicked := button.Clicked()
 		if batch {
 			if !locked && !row.Item.Blank && (checkboxChanged || clicked) {
 				m.OnBatchEdit("select", []session.SessionBatchTarget{{ID: row.Item.SessionID, Title: row.Item.Title}})
 			}
-		} else if clicked && !row.Archived && m.OnSelect != nil {
+		} else if clicked && !row.Archived && rowModel.OnSelect != nil {
 			revealSessionSearchResult(m, row.Item.SessionID)
 			*m.SearchQuery = ""
 			if m.searchState != nil {
@@ -247,7 +253,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			if m.SearchFocus != nil {
 				*m.SearchFocus = false
 			}
-			m.OnSelect(row.Item.SessionID)
+			rowModel.OnSelect(row.Item.SessionID)
 		}
 	}
 	if more {

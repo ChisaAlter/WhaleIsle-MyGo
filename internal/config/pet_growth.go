@@ -25,6 +25,8 @@ func clonePetGrowthState(g petgrowth.State) petgrowth.State {
 		}
 		out.Food = &petgrowth.Food{
 			Version:   g.Food.Version,
+			Source:    g.Food.Source,
+			InputOnly: g.Food.InputOnly,
 			Available: g.Food.Available,
 			Seen:      seen,
 		}
@@ -33,7 +35,7 @@ func clonePetGrowthState(g petgrowth.State) petgrowth.State {
 }
 
 func petGrowthStateEqual(a, b petgrowth.State) bool {
-	if a.Points != b.Points || a.TokensFed != b.TokensFed || a.TokensSeen != b.TokensSeen {
+	if a.AccountingVersion != b.AccountingVersion || a.Points != b.Points || a.TokensFed != b.TokensFed || a.TokensSeen != b.TokensSeen {
 		return false
 	}
 	if (a.Baseline == nil) != (b.Baseline == nil) || (a.Baseline != nil && *a.Baseline != *b.Baseline) {
@@ -46,7 +48,7 @@ func petGrowthStateEqual(a, b petgrowth.State) bool {
 		return false
 	}
 	if a.Food != nil {
-		if a.Food.Version != b.Food.Version || a.Food.Available != b.Food.Available || len(a.Food.Seen) != len(b.Food.Seen) {
+		if a.Food.Source != b.Food.Source || a.Food.InputOnly != b.Food.InputOnly || a.Food.Version != b.Food.Version || a.Food.Available != b.Food.Available || len(a.Food.Seen) != len(b.Food.Seen) {
 			return false
 		}
 		for k, v := range a.Food.Seen {
@@ -104,12 +106,24 @@ func (s *Store) PetGrowth(now time.Time) (petgrowth.Snapshot, error) {
 // RefreshPetGrowth persists original hashed settlement high-water marks. It
 // does not consume food, award care or points, or touch any API account balance.
 func (s *Store) RefreshPetGrowth(samples map[string]int64, now time.Time) error {
+	return s.refreshPetGrowthUsage(petgrowth.Usage{Samples: samples, Source: "sessions"}, now, false)
+}
+func (s *Store) RefreshPetGrowthUsage(usage petgrowth.Usage, now time.Time) error {
+	return s.refreshPetGrowthUsage(usage, now, true)
+}
+func (s *Store) refreshPetGrowthUsage(usage petgrowth.Usage, now time.Time, migrate bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.ensurePetCacheLocked(); err != nil {
 		return err
 	}
-	next, err := petgrowth.Refresh(clonePetGrowthState(s.petGrowthCache), samples, now)
+	var next petgrowth.State
+	var err error
+	if migrate {
+		next, err = petgrowth.RefreshUsage(clonePetGrowthState(s.petGrowthCache), usage, now)
+	} else {
+		next, err = petgrowth.Refresh(clonePetGrowthState(s.petGrowthCache), usage.Samples, now)
+	}
 	if err != nil {
 		return err
 	}
@@ -197,7 +211,7 @@ func mergeGrowth(pet map[string]json.RawMessage, next petgrowth.State) error {
 	if err != nil {
 		return err
 	}
-	for k, v := range map[string]any{"points": next.Points, "tokensFed": next.TokensFed, "tokensSeen": next.TokensSeen, "baseline": next.Baseline, "today": next.Today} {
+	for k, v := range map[string]any{"accountingVersion": next.AccountingVersion, "points": next.Points, "tokensFed": next.TokensFed, "tokensSeen": next.TokensSeen, "baseline": next.Baseline, "today": next.Today} {
 		growth[k], err = json.Marshal(v)
 		if err != nil {
 			return err
@@ -208,7 +222,7 @@ func mergeGrowth(pet map[string]json.RawMessage, next petgrowth.State) error {
 		if err != nil {
 			return err
 		}
-		for k, v := range map[string]any{"version": 1, "available": next.Food.Available, "seen": next.Food.Seen} {
+		for k, v := range map[string]any{"source": next.Food.Source, "inputOnly": next.Food.InputOnly, "version": 1, "available": next.Food.Available, "seen": next.Food.Seen} {
 			food[k], err = json.Marshal(v)
 			if err != nil {
 				return err

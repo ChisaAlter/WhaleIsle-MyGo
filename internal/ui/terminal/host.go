@@ -2,14 +2,11 @@ package terminal
 
 import (
 	"fmt"
-	"whaleisle/internal/ui/widgets"
 
-	"github.com/egoist/mygo"
 	myterm "github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/hostterminal"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -24,6 +21,7 @@ type HostState struct {
 	attachment      *hostterminal.Attachment
 	closeTarget     string
 	confirmClose    bool
+	manageOpen      bool
 	renderError     string
 	selectionNotice string
 }
@@ -46,6 +44,7 @@ func (h *HostState) Observe(store *hostterminal.Store, session string, visible b
 		h.hideOccurrences(store, nil)
 		h.drop()
 		h.confirmClose = false
+		h.manageOpen = false
 		h.closeTarget = ""
 	}
 }
@@ -68,7 +67,6 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		v = store.Snapshot(session)
 	}
 	colors := theme.Resolve(themeID).Active(dark)
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	target := fmt.Sprintf("%d:%s:%s", v.Owner, session, v.ActiveID)
 	if target != h.closeTarget {
 		h.closeTarget = target
@@ -92,6 +90,23 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 				themed := terminalTheme(colors, dark)
 				copyOwner, copyID, copyAttachment := v.Owner, v.ActiveID, v.Attachment
 				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: themed, DarkTheme: themed, Scrollback: scrollback, Font: terminalFont(theme.RenderPreferences().Terminal)}
+				opts.LinkAt = TargetAt
+				opts.OnLinkActivate = func(target string) bool {
+					if !store.CanCopySelection(copyOwner, session, copyID, copyAttachment) {
+						h.selectionNotice = "Terminal target is no longer available"
+						return true
+					}
+					if actions.OpenTarget == nil {
+						h.selectionNotice = "Terminal target opener is unavailable"
+						return true
+					}
+					if err := actions.OpenTarget(target, store.Snapshot(session).Info.Cwd); err != nil {
+						h.selectionNotice = err.Error()
+					} else {
+						h.selectionNotice = ""
+					}
+					return true
+				}
 				var err error
 				h.terminal, err = myterm.New(opts)
 				if err != nil {
@@ -110,99 +125,5 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		}
 		v = store.Snapshot(session)
 	}
-	ui.Column(c).Fill().MinHeight(0).Gap(5).Padding(6, 8, 6, 8).Children(func() {
-		ui.Text(c, terminalLabel("Host 保留终端", "Retained Host terminal")).Bold().TextColor(fg)
-		ui.Text(c, terminalLabel("终端归当前 Host 和会话所有，隐藏后保持。新建会以 Host 系统用户权限启动 shell。", "Terminals belong to this Host and session and survive hiding. New starts a shell with the Host system user's permissions.")).FontSize(11).TextColor(muted)
-		ui.Row(c).Gap(4).Children(func() {
-			if widgets.Button(c, colors, terminalLabel("刷新列表", "Refresh list"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!v.ClientReady || session == "" || v.Busy).Clicked() {
-				store.Refresh(v.Owner, session)
-			}
-			if widgets.Button(c, colors, terminalLabel("新建 Host 终端", "New Host terminal"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(!v.Ready || session == "" || v.Busy).Clicked() {
-				store.Create(v.Owner, session)
-			}
-		})
-		hostShellView(c, store, v, session, muted)
-		if !v.ClientReady || session == "" {
-			ui.Text(c, terminalLabel("请选择已连接 Host 的会话。", "Select a session on a connected Host.")).FontSize(11).TextColor(muted)
-			return
-		}
-		if len(v.Items) > 0 {
-			ui.Scroll(c).Height(72).FillWidth().Children(func() {
-				ui.Column(c).Gap(3).Children(func() {
-					for _, item := range v.Items {
-						id := item.ID
-						title := item.Title
-						if title == "" {
-							title = id
-						}
-						if id == v.ActiveID {
-							title = "▸ " + title
-						}
-						if widgets.Button(c, colors, terminalLabel("连接：", "Connect: ")+title, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy).Clicked() {
-							store.Connect(v.Owner, session, id)
-						}
-					}
-				})
-			})
-		}
-		if v.ActiveID == "" {
-			ui.Text(c, terminalLabel("刷新可查找现有终端；连接只恢复所选身份，不会替换丢失的进程。", "Refresh finds existing terminals. Connect restores the selected identity and never replaces a missing process.")).FontSize(11).TextColor(muted)
-		} else {
-			status := v.Phase
-			if v.Info.State == "exited" {
-				status = terminalLabel("进程已退出", "Process exited")
-				if v.Info.ExitCode != nil {
-					status += fmt.Sprintf(" (%d)", *v.Info.ExitCode)
-				}
-			}
-			if v.Writable {
-				status += " · " + terminalLabel("可输入", "Writable")
-			} else {
-				status += " · " + terminalLabel("只读", "Read-only")
-			}
-			ui.Text(c, status).FontSize(11).TextColor(muted)
-			ui.Text(c, fmt.Sprintf("%s · %s", v.ActiveID, v.Info.Cwd)).FontSize(10).TextColor(muted)
-			hostRenameView(c, store, v, session, muted)
-			ui.Row(c).Gap(4).Children(func() {
-				if widgets.Button(c, colors, terminalLabel("重连并接管输入", "Reconnect and take control"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
-					store.Connect(v.Owner, session, v.ActiveID)
-				}
-				if widgets.Button(c, colors, terminalLabel("关闭 Host 进程", "Close Host process"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Phase == "closing" || v.Phase == "closed" || v.Busy).Clicked() {
-					h.confirmClose = true
-				}
-			})
-		}
-		if h.confirmClose {
-			ui.Text(c, terminalLabel("将终止此 Host 会话中选中的终端进程。", "This terminates the selected process in this Host session.")).FontSize(11).TextColor(fg)
-			ui.Row(c).Gap(4).Children(func() {
-				if widgets.Button(c, colors, terminalLabel("确认关闭", "Confirm close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
-					h.confirmClose = false
-					store.Close(v.Owner, session, v.ActiveID)
-				}
-				if widgets.Button(c, colors, terminalLabel("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-					h.confirmClose = false
-				}
-			})
-		}
-		if v.Error != "" {
-			ui.Text(c, v.Error).FontSize(11).TextColor(muted)
-		}
-		if h.renderError != "" && h.renderError != v.Error {
-			ui.Text(c, h.renderError).FontSize(11).TextColor(muted)
-		}
-		if h.terminal != nil {
-			h.terminal.SetReadOnly(!v.Writable)
-			selection, selected := h.terminal.SelectionText()
-			if widgets.Button(c, colors, terminalLabel("复制选区", "Copy selection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(!selected || selection == "").Clicked() {
-				if store.CanCopySelection(v.Owner, session, v.ActiveID, h.attachment) {
-					// Read again at the action, never substitute the full screen.
-					if text, ok := h.terminal.SelectionText(); ok && text != "" {
-						mygo.Clipboard.WriteText(text)
-					}
-				}
-			}
-			h.selectionActions(c, store, v, session, actions)
-			myterm.View(c, h.terminal).Fill().Grow(1).MinHeight(0)
-		}
-	})
+	hostSurface(c, h, store, session, colors, v, actions)
 }

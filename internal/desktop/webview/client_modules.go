@@ -2,6 +2,7 @@ package webview
 
 import (
 	"errors"
+	"path"
 	"strings"
 
 	"whaleisle/internal/desktop/pluginslots"
@@ -36,10 +37,19 @@ func (h *Host) disconnectClientModulesForNavigation(raw string) {
 }
 
 // DocumentViewerRecommended is true only while this exact live page reports a
-// matching external renderer or mounted builtin workbook owner from its registry.
+// matching external renderer or mounted builtin Office/workbook owner from its registry.
 func (h *Host) DocumentViewerRecommended() bool {
 	state := h.ClientModules()
-	return state.Document != nil && (state.Document.Extension || state.Document.Spreadsheet)
+	if state.Document == nil {
+		return false
+	}
+	// HTML belongs to the original live document owner: it alone observes the
+	// session developer-tools setting and its allow-scripts opaque iframe mode.
+	switch strings.ToLower(path.Ext(state.Document.Path)) {
+	case ".html", ".htm", ".xhtml":
+		return true
+	}
+	return state.Document.Extension || state.Document.Spreadsheet || state.Document.Office
 }
 
 // WorkbookViewerAvailable is a presentation capability of this exact resource

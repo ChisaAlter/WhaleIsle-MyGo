@@ -68,7 +68,7 @@ func (s *Store) RefreshImageCatalog(ctx context.Context) {
 			for _, group := range catalog.Groups {
 				for _, model := range group.Models {
 					if slices.Contains(model.InputModalities, "image") {
-						routes = append(routes, VisionRoute{Provider: group.Id, Model: model.Id, Label: fmt.Sprintf("%s / %s [%s / %s]", group.Name, model.Name, group.Id, model.Id)})
+						routes = append(routes, VisionRoute{Provider: group.Id, Model: model.Id, Label: fmt.Sprintf("%s / %s", group.Name, model.Name)})
 					}
 				}
 			}
@@ -92,15 +92,19 @@ func (s *Store) RefreshImageCatalog(ctx context.Context) {
 	}()
 }
 
-// SaveVision changes only the two live route fields. Explicit empty overrides
-// disable fallback and retain priority over any legacy imported selection.
+// SaveVision changes only the two live route fields. Off removes the user
+// overrides, preserving the installed editor's base-layer semantics.
 func (s *Store) SaveVision(ctx context.Context, provider, model string) {
 	if (provider == "") != (model == "") {
 		return
 	}
 	ops := make([]json.RawMessage, 0, 2)
 	for _, field := range []struct{ key, value string }{{"provider", provider}, {"model", model}} {
-		raw, _ := json.Marshal(map[string]any{"op": "set", "path": []string{field.key}, "value": field.value})
+		operation := map[string]any{"op": "set", "path": []string{field.key}, "value": field.value}
+		if provider == "" {
+			operation = map[string]any{"op": "unset", "path": []string{field.key}}
+		}
+		raw, _ := json.Marshal(operation)
 		ops = append(ops, raw)
 	}
 	s.saveMutate(ctx, VisionNamespace, ops)

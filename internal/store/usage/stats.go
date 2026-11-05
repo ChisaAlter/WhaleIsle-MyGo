@@ -61,6 +61,13 @@ type Overview struct {
 		ByModel      []ModelUsage `json:"byModel"`
 	} `json:"allTime"`
 	Coverage struct {
+		Source string `json:"source"`
+		Magpie *struct {
+			File  string `json:"file"`
+			Calls int64  `json:"calls"`
+			From  *int64 `json:"from"`
+			To    *int64 `json:"to"`
+		} `json:"magpie"`
 		Mode                  string   `json:"mode"`
 		Timezone              string   `json:"timezone"`
 		SessionsTotal         int      `json:"sessionsTotal"`
@@ -199,8 +206,8 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 }
 
 // ExportStats preserves the full host payload for JSON, including billing buckets.
-// CSV uses recent overview.byModel (or the selected UTC range), and reports
-// CNY cents plus priced/unpriced counts so partial estimates cannot imply a bill.
+// CSV keeps the installed daily/model headers. Heatmap selections are local
+// summaries and never narrow the raw overview or these export contracts.
 func (s *Store) ExportStats(format string) ([]byte, error) {
 	v := s.Stats()
 	billing := s.Billing()
@@ -208,19 +215,9 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 	if !billing.Loaded {
 		settings = BillingSettings{PeakValleyEnabled: true}
 	}
-	if v.Range.Active() && format == "sessions" {
-		return nil, errors.New("session ranking is all-time only; clear the date selection to export sessions")
-	}
 	raw := v.raw
 	if len(raw) == 0 {
 		return nil, errors.New("no usage overview to export")
-	}
-	if v.Range.Active() {
-		var err error
-		raw, err = filteredExport(raw, v)
-		if err != nil {
-			return nil, err
-		}
 	}
 	if format == "json" {
 		var out bytes.Buffer
@@ -234,18 +231,30 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteString("\xef\xbb\xbf")
 	w := csv.NewWriter(&b)
-	w.UseCRLF = true
-	w.Write([]string{"kind", "name", "provider", "total", "input", "output", "cacheRead", "cacheWrite", "costPeakCents", "costOffPeakCents", "costTotalCents", "currency", "pricedModels", "unpricedModels"})
+	w.UseCRLF = false
+	headers := []string{"total", "input", "output", "cacheRead", "cacheWrite", "costPeakCents", "costOffPeakCents", "costTotalCents"}
+	switch format {
+	case "days":
+		w.Write(append([]string{"date"}, headers...))
+	case "models":
+		w.Write(append([]string{"model", "provider"}, headers...))
+	case "sessions":
+		w.Write(append([]string{"session", "provider"}, headers...))
+	default:
+		return nil, errors.New("unknown usage export format")
+	}
 	write := func(kind, name, provider string, t Totals, models []ModelUsage) {
-		values := []string{kind, name, provider}
-		for _, n := range []float64{t.Total, t.Input, t.Output, t.CacheRead, t.CacheWrite} {
+		values := []string{name}
+		if format != "days" {
+			values = append(values, provider)
+		}
+		for _, n := range []float64{t.Input + t.Output, t.Input, t.Output, t.CacheRead, t.CacheWrite} {
 			values = append(values, strconv.FormatFloat(n, 'f', -1, 64))
 		}
-		peak, idle, priced, unpriced := 0.0, 0.0, 0, 0
+		peak, idle, priced := 0.0, 0.0, 0
 		for _, model := range models {
 			p, i, ok := EstimateModelPhases(model, settings)
 			if !ok {
-				unpriced++
 				continue
 			}
 			peak += p
@@ -259,7 +268,7 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 			}
 		}
 		values = append(values, costs...)
-		values = append(values, "CNY", strconv.Itoa(priced), strconv.Itoa(unpriced))
+
 		for i, v := range values {
 			trimmed := strings.TrimLeft(v, " \t\r\n")
 			if strings.ContainsAny(trimmed[:min(1, len(trimmed))], "=+-@") {
@@ -280,7 +289,7 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 			providers[m.Model] = m.Provider
 		}
 		for _, d := range o.Days {
-			if d.Total <= 0 {
+			if len(d.Models) == 0 {
 				continue
 			}
 			t := Totals{Total: d.Total}
@@ -291,6 +300,9 @@ func (s *Store) ExportStats(format string) ([]byte, error) {
 				t.CacheRead += m.CacheRead
 				t.CacheWrite += m.CacheWrite
 				models = append(models, ModelUsage{Model: name, Provider: providers[name], Totals: m, Cost: d.ModelCosts[name]})
+			}
+			if t.Input+t.Output+t.CacheRead+t.CacheWrite <= 0 {
+				continue
 			}
 			write("day_UTC", d.Date, "", t, models)
 		}

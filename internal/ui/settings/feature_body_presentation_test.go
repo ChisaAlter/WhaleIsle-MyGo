@@ -53,8 +53,11 @@ func TestFeatureModelsKeepStructuredEditorsAndBoundDrafts(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	s := featureModelStore(t)
-	tt := ui.NewTester(func(c *ui.Context) { modelNamespaceBody(c, Model{Store: s, Models: &ModelsAccess{}}, "llm-deepseek") }, 780, 1200)
-	if !tt.HasText("Model catalog and metadata") {
+	binding := s.BindProviderEditor("llm-deepseek", "deepseek", nil)
+	tt := ui.NewTester(func(c *ui.Context) {
+		modelNamespaceBody(c, Model{Store: s, Models: &ModelsAccess{configurationBinding: binding}}, "llm-deepseek")
+	}, 780, 1200)
+	if !tt.HasText("Models") || !tt.HasText("Model ID") || !tt.HasText("Model options") || !strings.Contains(binding.Snapshot().Drafts["models"], "fixture-model") {
 		t.Fatal(tt.Texts())
 	}
 	if err := tt.Click("Add model"); err != nil {
@@ -77,7 +80,6 @@ func TestFeatureModelsKeepStructuredEditorsAndBoundDrafts(t *testing.T) {
 			}
 		}
 	}
-	binding := s.BindNamespace("llm-deepseek")
 	snap := binding.Snapshot()
 	if !strings.Contains(snap.Drafts["models"], `"id":""`) || s.Snapshot().SelectedNS != "general" {
 		t.Fatalf("typed editor lost binding %+v", snap)

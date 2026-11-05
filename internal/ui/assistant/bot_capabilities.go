@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo/ui"
@@ -54,9 +55,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
+		widgets.Notice(c, "bot_capabilities:58", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

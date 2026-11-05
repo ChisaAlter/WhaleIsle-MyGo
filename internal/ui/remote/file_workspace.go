@@ -120,9 +120,6 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	if s.MirrorDir != "" {
 		ui.Text(c, s.MirrorDir).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
 	}
-	if s.Busy {
-		ui.Text(c, label("正在处理：", "Working: ")+s.Operation).FontSize(theme.InterfaceSize(11))
-	}
 	if s.TreeError != "" {
 		ui.Text(c, s.TreeError).FillWidth().Selectable()
 	}
@@ -163,9 +160,6 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 				}
 				if d.Missing {
 					ui.Text(c, label("远程目录不存在。", "Remote directory is missing."))
-				}
-				if d.Loading && !d.Loaded {
-					ui.Text(c, label("正在读取…", "Loading…"))
 				}
 				if d.Loaded && len(d.Items) == 0 {
 					ui.Text(c, label("空目录", "Empty directory")).FontSize(theme.InterfaceSize(11))

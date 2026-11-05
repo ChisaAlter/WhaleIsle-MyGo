@@ -42,6 +42,25 @@ func (s *mainState) beginSSHConnectLocked(cfg sshremote.TunnelConfig) *sshConnec
 	}
 	s.sshTunnel.SetConfig(cfg)
 	s.sshTunnel.SetTrustOnFirstUse(false)
+	tunnel := s.sshTunnel
+	tunnel.OnChange(func() {
+		s.mu.Lock()
+		if s.sshTunnel != tunnel || s.quitting {
+			s.mu.Unlock()
+			return
+		}
+		_, status, detail := tunnel.Snapshot()
+		if detail != "" {
+			s.sshTunnelMsg = detail
+		} else if status == sshremote.TunnelIdle {
+			s.sshTunnelMsg = lifecycleText("SSH 连接已断开", "SSH connection closed")
+		}
+		win := s.win
+		s.mu.Unlock()
+		if win != nil {
+			win.Update(func() {})
+		}
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 	s.sshConnectCancel = cancel
 	return &sshConnectOperation{owner: s, epoch: s.sshConnectEpoch, tunnel: s.sshTunnel, ctx: ctx, cancel: cancel}
@@ -73,6 +92,10 @@ func (op *sshConnectOperation) publish(msg string) bool {
 	defer op.owner.mu.Unlock()
 	if !op.currentLocked() {
 		return false
+	}
+	_, _, currentError := op.tunnel.Snapshot()
+	if currentError != "" {
+		msg = currentError
 	}
 	op.owner.sshTunnelMsg = msg
 	op.owner.sshConnectCancel = nil

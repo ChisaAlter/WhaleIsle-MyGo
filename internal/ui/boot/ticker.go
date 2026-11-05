@@ -27,7 +27,7 @@ const (
 )
 
 // bootTicker paints the newest log line and the count of lines collected.
-func bootTicker(c *ui.Context, logs []string, under ui.Color) {
+func bootTicker(c *ui.Context, logs []string, under ui.Color, openLog ...func()) {
 	line := i18n.T(KeyWaiting)
 	if len(logs) > 0 {
 		line = logs[len(logs)-1]
@@ -36,7 +36,7 @@ func bootTicker(c *ui.Context, logs []string, under ui.Color) {
 	size := theme.InterfaceSize(11.5)
 	ui.Row(c).Key("boot-ticker").FillWidth().Shrink(0).Justify(ui.Center).
 		Padding(0, tickerInsetX, tickerInsetBottom, tickerInsetX).Children(func() {
-		ui.Row(c).Key("boot-ticker-inner").Width(tickerWidth).MaxWidthPercent(100).
+		button := ui.Button(c, "").Key("boot-ticker-inner").Background(ui.Transparent).BorderWidth(0).Padding(4).Label(bootText("查看全部启动日志", "Show all startup logs")).Width(tickerWidth).MaxWidthPercent(100).
 			Gap(10).AlignItems(ui.Center).Children(func() {
 			dot := ui.Box(c).Key("boot-ticker-dot").Size(5, 5).Radius(2.5).Shrink(0)
 			alpha := float32(1)
@@ -50,5 +50,8 @@ func bootTicker(c *ui.Context, logs []string, under ui.Color) {
 			ui.Text(c, fmt.Sprintf("L %02d", len(logs))).Font(font).FontSize(size).
 				FixedLineHeight(theme.InterfaceSize(18)).TextColor(under.Alpha(.6)).Shrink(0).NoWrap()
 		})
+		if button.Clicked() && len(openLog) > 0 && openLog[0] != nil {
+			openLog[0]()
+		}
 	})
 }

@@ -4,6 +4,7 @@ package workspacepicker
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -15,14 +16,51 @@ import (
 )
 
 type Model struct {
-	Store         *session.Store
-	ThemeID       string
-	SystemDark    bool
-	Anchor        ui.Element
-	OnBrowse      func()
-	OnChoose      func(uint64, string)
-	OnRegister    func(uint64, string)
-	OnNoDirectory func()
+	DirectoryActions []DirectoryAction
+	Store            *session.Store
+	ThemeID          string
+	SystemDark       bool
+	Anchor           ui.Element
+	OnBrowse         func()
+	OnChoose         func(uint64, string)
+	OnRegister       func(uint64, string)
+	OnNoDirectory    func()
+}
+
+// DirectoryAction is an explicitly installed native directory capability.
+// It receives the Host path, without disguising its owner as a workspace.
+type DirectoryAction struct {
+	ID, Label string
+	Order     int
+	Run       func(path string)
+	Pick      func()
+	// Optional projections use the contributor's cached state. Nil preserves
+	// the existing static label and visibility in both picker and row menus.
+	Visible      func(path string) bool
+	LabelForPath func(path string) string
+	Picker       *bool
+}
+
+func (a DirectoryAction) Presentation(path string, picker bool) (string, bool) {
+	if a.ID == "" {
+		return "", false
+	}
+	if picker {
+		if a.Picker != nil && !*a.Picker {
+			return "", false
+		}
+		if a.Pick != nil {
+			return a.Label, true
+		}
+	}
+	if a.Run == nil || a.Visible != nil && !a.Visible(path) {
+		return "", false
+	}
+	label := a.Label
+	if a.LabelForPath != nil {
+		label = a.LabelForPath(path)
+	}
+	return label, true
 }
 
 func text(zh, en string) string {
@@ -45,10 +83,44 @@ func View(c *ui.Context, m Model) {
 	if request.Mode == "pick" {
 		if m.Anchor.Valid() {
 			pickMenu(c, m, snap, request, colors)
+		} else {
+			registrationDialog(c, m, request, colors)
 		}
 		return
 	}
 	managementDialog(c, m, snap, request, colors)
+}
+
+// Sidebar directory adoption must remain visible without the Hero chip anchor.
+func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNavigationState, colors theme.Colors) {
+	open := true
+	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+		chrome.DialogReveal(c, backdrop, panel)
+		panel.Key("workspace-registration").Width(440).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Children(func() {
+			ui.Text(c, text("添加工作区", "Add workspace")).FontSize(theme.InterfaceSize(17)).FontWeight(500)
+			ui.Text(c, request.Draft).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(14))
+			ui.Text(c, request.Error).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
+			ui.Row(c).FillWidth().Gap(8).Children(func() {
+				if ui.Button(c, text("取消", "Cancel")).Disabled(request.Busy).Clicked() {
+					m.Store.CancelWorkspaceNavigation(request.Token)
+				}
+				ui.Box(c).Grow(1)
+				if m.OnBrowse != nil && ui.Button(c, text("重新选择…", "Choose again…")).Disabled(request.Busy).Clicked() {
+					m.OnBrowse()
+				}
+				label := text("重试", "Retry")
+				if request.Busy {
+					label = text("正在添加…", "Adding…")
+				}
+				if m.OnRegister != nil && ui.PrimaryButton(c, label).Disabled(request.Busy || strings.TrimSpace(request.Draft) == "").Clicked() {
+					m.OnRegister(request.Token, request.Draft)
+				}
+			})
+		})
+	})
+	if !open && !request.Busy {
+		m.Store.CancelWorkspaceNavigation(request.Token)
+	}
 }
 
 // The conversation chip owns this anchor. Directory picking is a separate flow
@@ -61,7 +133,13 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 		panel = chrome.PopoverReveal(c, panel.Width(280).MaxWidth(360).MaxWidthPercent(94).Padding(4).Gap(0).Radius(12).
 			Background(chrome.Color(colors.Field)).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, .18)))
 		panel.Children(func() {
+			actionPath := m.Store.WorkspaceCwd()
 			count := len(snap.Workspaces)
+			for _, action := range m.DirectoryActions {
+				if _, visible := action.Presentation(actionPath, true); visible {
+					count++
+				}
+			}
 			if m.OnNoDirectory != nil {
 				count++
 			}
@@ -97,7 +175,7 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				ui.Scroll(c).FillWidth().MinWidth(0).Height(min(float32(len(snap.Workspaces))*34, max(34, height-180))).Children(func() {
 					for _, workspace := range snap.Workspaces {
 						ws := workspace
-						title := ws.Title
+						title := session.WorkspaceDisplayTitle(ws.Title, text("默认工作区", "Default workspace"))
 						if title == "" {
 							title = ws.Path
 						}
@@ -121,6 +199,20 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 			}
 			if m.OnBrowse != nil {
 				row("add-workspace", text("添加工作区…", "Add workspace…"), "", false, "add", request.Busy, m.OnBrowse)
+			}
+			for _, action := range m.DirectoryActions {
+				label, visible := action.Presentation(actionPath, true)
+				if !visible {
+					continue
+				}
+				row("directory-action:"+action.ID, label, "", false, "folder", request.Busy, func() {
+					m.Store.CancelWorkspaceNavigation(request.Token)
+					if action.Pick != nil {
+						action.Pick()
+					} else {
+						action.Run(actionPath)
+					}
+				})
 			}
 			if request.Error != "" {
 				ui.Text(c, request.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).Padding(6, 8)
@@ -199,7 +291,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Gap(20).Radius(28).
+		panel.Key(request.Token).Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Gap(20).Radius(28).
 			Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).
 			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 0, 24).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -219,9 +311,19 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 			})
 			submitted := false
 			blocked := request.Busy
+			draft := request.Draft
+			feedback := request.Error
+			targetTitle := session.WorkspaceDisplayTitle(request.TargetTitle, text("默认工作区", "Default workspace"))
 			ui.Column(c).FillWidth().MinWidth(0).Padding(0, 24).Gap(12).Children(func() {
 				if request.Mode == "rename" {
-					draft := request.Draft
+					seeded := ui.Local(panel, "rename-seeded", func() bool { return false })
+					if !*seeded {
+						draft = session.WorkspaceDisplayTitle(draft, text("默认工作区", "Default workspace"))
+						if draft != request.Draft {
+							m.Store.SetWorkspaceNavigationDraft(request.Token, draft)
+						}
+						*seeded = true
+					}
 					input := ui.TextInput(c.Key(request.Token), &draft).FillWidth().MinWidth(0).Height(44).Padding(7, 14).Radius(12).FontSize(theme.InterfaceSize(14)).Label(text("工作区名称", "Workspace name")).Disabled(request.Busy)
 					first := ui.Local(input, "rename-focus", func() bool { return true })
 					if *first {
@@ -230,20 +332,29 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 					}
 					if input.Changed() {
 						m.Store.SetWorkspaceNavigationDraft(request.Token, draft)
+						feedback = ""
 					}
 					trimmed := strings.TrimSpace(draft)
 					blocked = blocked || trimmed == ""
+					found := false
 					for _, ws := range snap.Workspaces {
-						if ws.Title == trimmed {
+						if ws.WorkspaceID == request.TargetID {
+							found = true
+							blocked = blocked || ws.Title == trimmed
+							continue
+						}
+						if trimmed != "" && session.WorkspaceDisplayTitle(ws.Title, text("默认工作区", "Default workspace")) == trimmed {
 							blocked = true
+							feedback = fmt.Sprintf(text("已存在名为“%s”的工作区。", "A workspace named “%s” already exists."), trimmed)
 						}
 					}
-					submitted = input.Submitted()
+					blocked = blocked || !found
+					submitted = input.Submitted() && !input.Composing()
 				} else if request.Mode == "remove" {
-					ui.Text(c, request.TargetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
+					ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 					ui.Text(c, text("仅从工作区列表移除注册，磁盘文件将保留。", "This removes the workspace registration from the list. Files on disk are retained.")).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 				} else {
-					ui.Text(c, request.TargetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
+					ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 					if ui.Button(c, text("重命名工作区", "Rename workspace")).FillWidth().Clicked() {
 						m.Store.BeginWorkspaceRename(request.TargetID)
 					}
@@ -251,8 +362,8 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 						m.Store.BeginWorkspaceRemoval(request.TargetID)
 					}
 				}
-				if request.Error != "" {
-					ui.Text(c, request.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+				if feedback != "" {
+					ui.Text(c, feedback).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 				}
 				if request.Busy {
 					ui.Text(c, text("等待 Host 确认…", "Waiting for the Host…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -265,7 +376,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 				}
 				if request.Mode == "rename" {
 					if ui.PrimaryButton(c, text("重命名", "Rename")).MinWidth(72).Disabled(blocked).Clicked() || submitted && !blocked {
-						m.Store.ConfirmWorkspaceRename(context.Background(), request.Token, request.Draft)
+						m.Store.ConfirmWorkspaceRename(context.Background(), request.Token, draft)
 					}
 				} else if request.Mode == "remove" {
 					if ui.Button(c, text("移除注册", "Remove registration")).MinWidth(72).Disabled(request.Busy).Clicked() {

@@ -25,12 +25,22 @@ func (s *mainState) assistantWhalePreferencesModel(ep harness.Endpoint) assistan
 		if !current() {
 			return
 		}
+		release := func() {}
+		if cmd != nil {
+			var allowed bool
+			release, allowed = s.whaleSettings.BeginMutation(host)
+			if !allowed {
+				return
+			}
+		}
 		ticket, ok := editor.Begin(host, cmd != nil)
 		if !ok {
+			release()
 			return
 		}
 		s.refreshWhaleSettingsUI()
 		go func() {
+			defer func() { release(); s.refreshWhaleSettingsUI() }()
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			rpc := s.pluginRPCClient(ep)
@@ -79,7 +89,6 @@ func (s *mainState) assistantWhalePreferencesModel(ep harness.Endpoint) assistan
 			err := execute()
 			if current() {
 				editor.Finish(ticket, value, catalog, modelErr, cmd, err)
-				s.refreshWhaleSettingsUI()
 			}
 		}()
 	}

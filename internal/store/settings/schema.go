@@ -26,6 +26,7 @@ type Field struct {
 	Description string
 	Kind        FieldKind
 	Required    bool
+	Role        string
 	EnumOptions []string
 }
 
@@ -48,9 +49,11 @@ type schemaNode struct {
 }
 
 type schemaMeta struct {
-	Required    *bool  `json:"required"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
+	Required    *bool           `json:"required"`
+	Label       string          `json:"label"`
+	Description string          `json:"description"`
+	Role        string          `json:"role"`
+	Extra       json.RawMessage `json:"extra"`
 }
 
 // BuildFields walks a schemastery schema envelope and returns top-level object
@@ -108,6 +111,7 @@ func fieldForNode(key string, node schemaNode) Field {
 	required := false
 	label := key
 	desc := ""
+	role := ""
 	if node.Meta != nil {
 		if node.Meta.Required != nil {
 			required = *node.Meta.Required
@@ -116,20 +120,21 @@ func fieldForNode(key string, node schemaNode) Field {
 			label = node.Meta.Label
 		}
 		desc = node.Meta.Description
+		role = node.Meta.Role
 	}
 	switch node.Type {
 	case "string":
-		return Field{Key: key, Label: label, Description: desc, Kind: FieldString, Required: required}
+		return Field{Key: key, Label: label, Description: desc, Kind: FieldString, Required: required, Role: role}
 	case "number":
-		return Field{Key: key, Label: label, Description: desc, Kind: FieldNumber, Required: required}
+		return Field{Key: key, Label: label, Description: desc, Kind: FieldNumber, Required: required, Role: role}
 	case "boolean":
-		return Field{Key: key, Label: label, Description: desc, Kind: FieldBool, Required: required}
+		return Field{Key: key, Label: label, Description: desc, Kind: FieldBool, Required: required, Role: role}
 	case "union":
 		if opts := constUnionOptions(node); len(opts) > 0 {
-			return Field{Key: key, Label: label, Description: desc, Kind: FieldEnum, Required: required, EnumOptions: opts}
+			return Field{Key: key, Label: label, Description: desc, Kind: FieldEnum, Required: required, Role: role, EnumOptions: opts}
 		}
 	}
-	return Field{Key: key, Label: label, Description: desc, Kind: FieldJSON, Required: required}
+	return Field{Key: key, Label: label, Description: desc, Kind: FieldJSON, Required: required, Role: role}
 }
 
 func constUnionOptions(node schemaNode) []string {

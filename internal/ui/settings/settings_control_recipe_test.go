@@ -111,10 +111,10 @@ func TestSettingsSwitchHostSourceStylesPreserveCallbacks(t *testing.T) {
 	}, 600, 300)
 	coding, _ := tt.Find("Coding switch")
 	git, _ := tt.Find("Git switch")
-	// Find returns the same-named title before its control. The text column
-	// must give the input branch exactly eight more DIPs of trailing space.
-	if coding.W <= 0 || git.W <= 0 || coding.W-git.W != 8 {
-		t.Fatalf("source branch text widths coding%+v git%+v", coding, git)
+	// Titles now own only their intrinsic text width; switch geometry itself is
+	// pinned by TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors.
+	if coding.W <= 0 || git.W <= 0 || coding.H != 22 || git.H != 22 || coding.Y >= git.Y {
+		t.Fatalf("source row title geometry coding%+v git%+v", coding, git)
 	}
 	tt.Key(0, ui.KeyTab)
 	tt.Key(0, ui.KeySpace)

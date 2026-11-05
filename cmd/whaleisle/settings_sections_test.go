@@ -177,6 +177,33 @@ func TestSettingsExternalSelectionReplacesEmbeddedMarket(t *testing.T) {
 	}
 }
 
+func TestModelsSelectionLeavesContributedSettingsDespiteRetainedNativeFlag(t *testing.T) {
+	s := mainState{
+		settingsModelsActive:    true,
+		settingsEmbeddedSection: settings.SectionID("plugin/native-settings/fixture"),
+	}
+	selected := 0
+	m := s.settingsSectionModel(settings.Model{
+		ModelsActive:   true,
+		OnSelectModels: func() { selected++ },
+	}, nil)
+	m.OnSelectModels()
+	if selected != 1 || s.settingsEmbeddedSection != "" {
+		t.Fatalf("Models retained plugin section: selected=%d section=%q", selected, s.settingsEmbeddedSection)
+	}
+}
+
+func TestModelsReselectionKeepsMountedPageOwner(t *testing.T) {
+	s := mainState{settingsModelsActive: true}
+	usagePageReads.Store(&s, "mounted-page")
+	t.Cleanup(func() { usagePageReads.Delete(&s) })
+	m := s.settingsSectionModel(settings.Model{ModelsActive: true, OnSelectModels: func() {}}, nil)
+	m.OnSelectModels()
+	if _, mounted := usagePageReads.Load(&s); !mounted {
+		t.Fatal("reselecting Models retired its mounted page owner")
+	}
+}
+
 func TestPetSettingsEntryReplacesEmbeddedMarket(t *testing.T) {
 	s := mainState{settingsEmbeddedSection: settings.SectionMarket}
 	s.openPetSettings()

@@ -1,6 +1,10 @@
 package importer
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,31 +14,34 @@ import (
 
 // Catalog is the Electron scanImport-shaped inventory for the launcher import tab.
 type Catalog struct {
-	SourceHome     string
-	DestHome       string
-	DestEmpty      bool
-	SourceHasData  bool
-	HasAttachments bool
-	SkillRoots     []string
-	Sessions       []CatalogItem
-	Skills         []CatalogItem
-	Plugins        []CatalogItem
-	MCP            []CatalogItem
-	Settings       []CatalogItem
-	Presets        []CatalogItem
+	SourceHome      string
+	DestHome        string
+	DestEmpty       bool
+	SourceHasData   bool
+	HasAttachments  bool
+	SkillRoots      []string
+	ExtraSkillRoots []string
+	Sessions        []CatalogItem
+	Skills          []CatalogItem
+	Plugins         []CatalogItem
+	MCP             []CatalogItem
+	Settings        []CatalogItem
+	Presets         []CatalogItem
 }
 
 // CatalogItem is one selectable row (sessions use Rel as ID; skills use prefix:name).
 type CatalogItem struct {
-	ID          string
-	Label       string
-	Group       string // sessions: cwd; skills: source prefix
-	Rel         string
-	Abs         string
-	Spec        string // plugins: original dependency spec, never a local copy source
-	Conflict    bool
-	Unsupported bool
-	Selected    bool // UI default: true when importable
+	ID                string
+	Label             string
+	Group             string // sessions: cwd; skills: source prefix
+	Rel               string
+	Abs               string
+	Spec              string // plugins: original dependency spec, never a local copy source
+	Conflict          bool
+	Unsupported       bool
+	MixedEncoding     bool
+	UnsupportedReason string
+	Selected          bool // UI default: true when importable
 }
 
 var presetIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -59,6 +66,12 @@ func AgentsSkillsRoot() string {
 
 // BuildCatalog scans sourceHome (default ~/.dsh) against destHome (default paths.DshHome via dest).
 func BuildCatalog(sourceHome, destHome string) (Catalog, error) {
+	return BuildCatalogContext(context.Background(), sourceHome, destHome)
+}
+
+// BuildCatalogContext is the cancellable inventory used by interactive scans.
+// Existing non-interactive callers retain BuildCatalog's original contract.
+func BuildCatalogContext(ctx context.Context, sourceHome, destHome string) (Catalog, error) {
 	src := strings.TrimSpace(sourceHome)
 	if src == "" {
 		src = OfficialDshHome()
@@ -85,10 +98,16 @@ func BuildCatalog(sourceHome, destHome string) (Catalog, error) {
 		return cat, nil
 	}
 
-	cat.Sessions = scanSessions(src, dst)
+	var err error
+	cat.Sessions, err = scanSessionsContext(ctx, src, dst)
+	if err != nil {
+		return cat, err
+	}
 	cat.Skills, cat.SkillRoots = scanSkills(src, dst)
 	cat.Plugins = scanPlugins(src, dst)
-	var err error
+	if err := ctx.Err(); err != nil {
+		return cat, err
+	}
 	cat.MCP, err = scanMCP(src, dst)
 	if err != nil {
 		return cat, err
@@ -99,7 +118,11 @@ func BuildCatalog(sourceHome, destHome string) (Catalog, error) {
 	}
 	cat.Presets = scanPresets(src, dst)
 	cat.HasAttachments = entryExists(filepath.Join(src, "attachments"), true)
-	cat.DestEmpty = len(walkSessionRels(filepath.Join(dst, "sessions"))) == 0
+	destSessions, err := walkSessionRelsContext(ctx, filepath.Join(dst, "sessions"))
+	if err != nil {
+		return cat, err
+	}
+	cat.DestEmpty = len(destSessions) == 0
 	cat.SourceHasData = len(cat.Sessions)+len(cat.Skills)+len(cat.Plugins)+len(cat.MCP)+len(cat.Settings)+len(cat.Presets) > 0 || cat.HasAttachments
 
 	// Default-select importable items (Electron: all choosable rows checked).
@@ -140,14 +163,24 @@ func AppendSkillDirectory(cat *Catalog, dir string) int {
 	}
 	cat.SkillRoots = append(cat.SkillRoots, dir)
 	destSkills := filepath.Join(cat.DestHome, "skills")
-	prefix := "extra"
+	knownExtra := false
+	for _, root := range cat.ExtraSkillRoots {
+		if filepath.Clean(root) == dir {
+			knownExtra = true
+			break
+		}
+	}
+	if !knownExtra {
+		cat.ExtraSkillRoots = append(cat.ExtraSkillRoots, dir)
+	}
+	prefix := "extra:" + filepath.ToSlash(dir)
 	added := 0
 	if entryExists(filepath.Join(dir, "SKILL.md"), false) {
 		name := filepath.Base(dir)
 		id := prefix + ":" + name
 		if !skillIDExists(cat.Skills, id) {
 			cat.Skills = append(cat.Skills, CatalogItem{
-				ID: id, Label: name, Group: prefix, Abs: dir,
+				ID: id, Label: name, Group: dir, Abs: dir,
 				Conflict: entryExists(filepath.Join(destSkills, name), true),
 				Selected: true,
 			})
@@ -173,7 +206,7 @@ func AppendSkillDirectory(cat *Catalog, dir string) int {
 			continue
 		}
 		cat.Skills = append(cat.Skills, CatalogItem{
-			ID: id, Label: name, Group: prefix, Abs: abs,
+			ID: id, Label: name, Group: dir, Abs: abs,
 			Conflict: entryExists(filepath.Join(destSkills, name), true),
 			Selected: true,
 		})
@@ -233,74 +266,110 @@ func (c *Catalog) ItemsFor(category string) *[]CatalogItem {
 }
 
 func scanSessions(src, dst string) []CatalogItem {
+	rows, _ := scanSessionsContext(context.Background(), src, dst)
+	return rows
+}
+
+func scanSessionsContext(ctx context.Context, src, dst string) ([]CatalogItem, error) {
 	srcRoot := filepath.Join(src, "sessions")
 	dstRoot := filepath.Join(dst, "sessions")
-	rels := walkSessionRels(srcRoot)
+	rels, err := walkSessionRelsContext(ctx, srcRoot)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]CatalogItem, 0, len(rels))
 	for _, rel := range rels {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if strings.HasPrefix(rel, "_no-cwd/preset-") || strings.HasPrefix(rel, `_no-cwd\preset-`) {
 			continue
 		}
 		abs := filepath.Join(srcRoot, filepath.FromSlash(rel))
 		id := filepath.Base(abs)
-		label, group := readPlainSessionMeta(abs)
+		label, group := readPlainSessionMetaContext(ctx, abs)
 		if label == "" {
 			label = id
 		}
 		if group == "" {
 			group = storelocale.T(storelocale.KeyStoreImporterNoWorkspace)
 		}
-		unsupported := sessionUnsupported(abs)
+		unsupported, mixed, reason := sessionEncoding(abs)
 		conflict := entryExists(filepath.Join(dstRoot, filepath.FromSlash(rel)), true)
 		out = append(out, CatalogItem{
 			ID: id, Label: label, Group: group, Rel: rel, Abs: abs,
-			Conflict: conflict, Unsupported: unsupported,
+			Conflict: conflict, Unsupported: unsupported || mixed, MixedEncoding: mixed, UnsupportedReason: reason,
 		})
 	}
-	return out
+	return out, ctx.Err()
 }
 
-// readPlainSessionMeta peeks plain session*.jsonl for title/cwd (skip zstd).
+// Display metadata follows the log in order: the last session/title wins.
+// A compressed log uses the same bundled Node zstd decoder as the Host.
 func readPlainSessionMeta(dir string) (title, cwd string) {
+	return readPlainSessionMetaContext(context.Background(), dir)
+}
+
+func readPlainSessionMetaContext(ctx context.Context, dir string) (title, cwd string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "", ""
 	}
-	var logPath string
+	var logPath, compressed string
 	for _, e := range entries {
 		name := strings.ToLower(e.Name())
 		if strings.HasPrefix(name, "session") && strings.HasSuffix(name, ".jsonl") && !strings.Contains(name, ".zstd") {
 			logPath = filepath.Join(dir, e.Name())
 			break
 		}
+		if strings.HasPrefix(name, "session") && strings.HasSuffix(name, ".jsonl.zstd") {
+			compressed = filepath.Join(dir, e.Name())
+		}
 	}
 	if logPath == "" {
+		if compressed != "" {
+			return readCompressedSessionMetaContext(ctx, compressed)
+		}
 		return "", ""
 	}
-	raw, err := os.ReadFile(logPath)
+	f, err := os.Open(logPath)
 	if err != nil {
 		return "", ""
 	}
-	// Cap peek to first 64KiB.
-	if len(raw) > 64<<10 {
-		raw = raw[:64<<10]
-	}
-	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] != '{' {
-			continue
+	defer f.Close()
+	r := bufio.NewReader(f)
+	for {
+		if ctx.Err() != nil {
+			return title, cwd
 		}
-		if title == "" {
-			if v := jsonStringField(line, "title"); v != "" {
-				title = v
+		line, err := r.ReadBytes('\n')
+		var row struct {
+			Type, Title, Cwd string
+			Data             struct{ Title string }
+		}
+		if json.Unmarshal(line, &row) == nil {
+			if row.Type == "session" {
+				if row.Cwd != "" {
+					cwd = row.Cwd
+				}
+				if title == "" && strings.TrimSpace(row.Title) != "" {
+					title = strings.TrimSpace(row.Title)
+				}
+			}
+			if row.Type == "session/title" {
+				v := row.Data.Title
+				if v == "" {
+					v = row.Title
+				}
+				if strings.TrimSpace(v) != "" {
+					title = strings.TrimSpace(v)
+				}
 			}
 		}
-		if cwd == "" {
-			if v := jsonStringField(line, "cwd"); v != "" {
-				cwd = v
-			}
+		if err == io.EOF {
+			break
 		}
-		if title != "" && cwd != "" {
+		if err != nil {
 			break
 		}
 	}
@@ -340,18 +409,26 @@ func jsonStringField(line, key string) string {
 }
 
 func walkSessionRels(sessionsRoot string) []string {
+	rows, _ := walkSessionRelsContext(context.Background(), sessionsRoot)
+	return rows
+}
+
+func walkSessionRelsContext(ctx context.Context, sessionsRoot string) ([]string, error) {
 	var found []string
 	if !entryExists(sessionsRoot, true) {
-		return found
+		return found, ctx.Err()
 	}
-	_ = filepath.WalkDir(sessionsRoot, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(sessionsRoot, func(path string, d os.DirEntry, err error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err != nil || d == nil || !d.IsDir() {
 			return nil
 		}
 		if path == sessionsRoot {
 			return nil
 		}
-		if hasSessionLog(path) {
+		if hasSessionLog(path) || sessionUnsupported(path) {
 			rel, err := filepath.Rel(sessionsRoot, path)
 			if err != nil {
 				return nil
@@ -361,7 +438,7 @@ func walkSessionRels(sessionsRoot string) []string {
 		}
 		return nil
 	})
-	return found
+	return found, err
 }
 
 func hasSessionLog(dir string) bool {
@@ -379,21 +456,33 @@ func hasSessionLog(dir string) bool {
 }
 
 func sessionUnsupported(dir string) bool {
+	unsupported, _, _ := sessionEncoding(dir)
+	return unsupported
+}
+
+func sessionEncoding(dir string) (unsupported, mixed bool, reason string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return true
+		return true, false, err.Error()
 	}
-	hasLog, hasDB := false, false
+	hasPlain, hasCompressed, hasDB := false, false, false
 	for _, e := range entries {
 		name := strings.ToLower(e.Name())
 		if strings.HasSuffix(name, ".db") {
 			hasDB = true
 		}
-		if strings.HasPrefix(name, "session") && strings.Contains(name, ".jsonl") {
-			hasLog = true
+		if strings.HasPrefix(name, "session") {
+			hasPlain = hasPlain || strings.HasSuffix(name, ".jsonl")
+			hasCompressed = hasCompressed || strings.HasSuffix(name, ".jsonl.zstd")
 		}
 	}
-	return hasDB && !hasLog
+	if hasPlain && hasCompressed {
+		return false, true, "同一会话同时包含普通与压缩日志，不能导入 / Mixed plaintext and compressed session logs"
+	}
+	if hasDB && !hasPlain && !hasCompressed {
+		return true, false, "旧 SQLite 会话库不支持导入 / Legacy SQLite session database is unsupported"
+	}
+	return false, false, ""
 }
 
 func scanSkills(src, dst string) ([]CatalogItem, []string) {

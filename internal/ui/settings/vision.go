@@ -13,10 +13,21 @@ type VisionAccess struct {
 }
 
 func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
-	if a == nil {
+	if a == nil || !a.Snapshot.Present {
 		return
 	}
 	s := a.Snapshot
+	// A state holder only: out of the flow, so it does not add a gap slot above the card.
+	errorSeat := ui.Box(c.Key("vision-errors")).Absolute().Size(0, 0).PassThrough()
+	seen := ui.Local(errorSeat, "error", func() string { return "" })
+	failure := s.Err
+	if failure == "" {
+		failure = s.CatalogErr
+	}
+	if failure != "" && failure != *seen {
+		c.AddToast(ui.Toast{ID: "vision-save-error", Description: failure})
+	}
+	*seen = failure
 	dark := c.Theme().Dark
 	colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark)
 	// 0.3.13: a bordered 16 DIP card holding the label, the pill select and the
@@ -24,19 +35,6 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 	// refresh button is gone.
 	modelRowCard(c, "vision-card", func() {
 		modelFieldLabel(c, providerCopy("识图模型", "Vision model"))
-		if s.Err != "" {
-			ui.Text(c, s.Err).TextColor(fg)
-		}
-		if s.CatalogErr != "" {
-			ui.Text(c, s.CatalogErr).TextColor(fg)
-		}
-		if !s.Present {
-			ui.Text(c, providerCopy("Host 尚未提供识图配置。", "The Host has not exposed vision settings.")).TextColor(muted)
-			if a.OnRefresh != nil && ui.Button(c, providerCopy("刷新识图设置", "Refresh vision settings")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Loading || s.Saving).Clicked() {
-				a.OnRefresh()
-			}
-			return
-		}
 		routes := append([]settingsstore.VisionRoute{{Label: providerCopy("不启用", "Off")}}, s.Routes...)
 		selected := routes[0].Label
 		if s.Provider != "" && s.Model != "" {
@@ -57,6 +55,9 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 		for i, route := range routes {
 			labels[i] = route.Label
 		}
+		if s.Saving {
+			selected = providerCopy("正在保存…", "Saving…")
+		}
 		ui.Select(c, &selected, labels).FillWidth().Height(36).Padding(0, 14).Radius(18).BorderWidth(0).Background(fonttheme.Color(colors.SelectorFill)).FontSize(fonttheme.InterfaceSize(14)).Disabled(!s.Writable || s.Saving || s.Loading).OnChange(func() {
 			if a.OnSelect == nil {
 				return
@@ -69,10 +70,6 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 			}
 		})
 		ui.Text(c, providerCopy("主模型不支持图片时，先由该模型识别图片内容，再把描述交给主模型处理。请选择一个支持图片输入的模型。", "When the main model cannot read images, this model describes them first and hands the description to the main model. Pick a model that accepts image input.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
-		if s.Saving {
-			ui.Text(c, providerCopy("正在保存…", "Saving…")).TextColor(muted)
-		} else if s.LastAction != "" {
-			ui.Text(c, settingsActionText(s.LastAction)).TextColor(muted)
-		}
+
 	})
 }

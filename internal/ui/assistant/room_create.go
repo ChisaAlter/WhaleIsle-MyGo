@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func roomCreateAcknowledgement() string {
@@ -67,9 +68,7 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "room_create:71", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheCurrentCatalogAndWriteAutho)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {

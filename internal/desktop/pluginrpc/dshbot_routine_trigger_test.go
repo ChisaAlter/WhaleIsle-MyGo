@@ -11,7 +11,10 @@ import (
 
 type triggerTransport func(*http.Request) (*http.Response, error)
 
-func (f triggerTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f triggerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func TestBotRoutineTriggerExplicitWireOnly(t *testing.T) {
 	calls := 0
 	client := Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: triggerTransport(func(r *http.Request) (*http.Response, error) {

@@ -48,6 +48,10 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			s.mu.Unlock()
 			return
 		}
+		if s.themeWriteInFlightLocked(binding.namespace) {
+			s.mu.Unlock()
+			return
+		}
 		if seen[binding.namespace] {
 			continue
 		}

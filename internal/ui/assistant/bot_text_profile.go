@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
@@ -49,9 +50,7 @@ func botTextProfileBlock(c *ui.Context, m BotTextProfileModel, blocked bool, fg,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_text_profile:53", "", s.Notice != "", func() string { return s.Notice })
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}

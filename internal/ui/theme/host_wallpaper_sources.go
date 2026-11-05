@@ -102,10 +102,10 @@ func sanitizeHostFavorites(rows []wallpapers.Item) []wallpapers.Item {
 		row.Title = strings.TrimSpace(row.Title)
 		row.ThumbURL = strings.TrimSpace(row.ThumbURL)
 		row.ImageURL = strings.TrimSpace(row.ImageURL)
-		if row.ID == "" || row.SourceID == "" || row.Title == "" || row.ThumbURL == "" || row.ImageURL == "" || seen[row.ID] {
+		if row.ID == "" || row.SourceID == "" || row.Title == "" || row.ThumbURL == "" || row.ImageURL == "" || seen[row.SourceID+":"+row.ID] {
 			continue
 		}
-		seen[row.ID] = true
+		seen[row.SourceID+":"+row.ID] = true
 		result = append(result, row)
 		if len(result) == 100 {
 			break

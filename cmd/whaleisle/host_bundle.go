@@ -48,14 +48,12 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 			if err != nil || len(picked) == 0 {
 				break
 			}
-			var answer mygo.MessageResult
-			answer, err = mygo.Dialog.Message(mygo.MessageOptions{
-				Parent: win, Type: mygo.MessageQuestion,
-				Title:   i18n.T(i18n.KeyCmdInstallHostOfflineBundle),
-				Message: fmt.Sprintf(i18n.T(i18n.KeyCmdSourceNdestinationNNextractAndInstallT), picked[0], desktopcomponents.HostBundleVersionsDir(paths.UserDataDir())),
-				Buttons: []string{i18n.T(i18n.KeyCmdCancel), i18n.T(i18n.KeyCmdInstall)}, DefaultButton: 0, CancelButton: 0,
+			approved := s.askConfirmBlocking(confirmAskRequest{Owner: win,
+				Title:       i18n.T(i18n.KeyCmdInstallHostOfflineBundle),
+				Body:        fmt.Sprintf(i18n.T(i18n.KeyCmdSourceNdestinationNNextractAndInstallT), picked[0], desktopcomponents.HostBundleVersionsDir(paths.UserDataDir())),
+				CancelLabel: i18n.T(i18n.KeyCmdCancel), ConfirmLabel: i18n.T(i18n.KeyCmdInstall),
 			})
-			if err != nil || answer.Button != 1 {
+			if !approved {
 				break
 			}
 			s.hostBundleMessage(win, i18n.T(i18n.KeyCmdExtractingAndCheckingHostAndItsMatchin))
@@ -137,6 +135,7 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 		generation = sup.Status().Generation
 	}
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Owner:        win,
 		Title:        i18n.T(i18n.KeyCmdSelectHostVersion),
 		Body:         fmt.Sprintf(i18n.T(i18n.KeyCmdTargetHostVNNtheExistingTaskProtectio), bundle.Manifest.Version, bundle.Directory),
 		ConfirmLabel: i18n.T(i18n.KeyCmdStopAndSelect),

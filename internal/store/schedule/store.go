@@ -29,20 +29,21 @@ type Entry struct {
 
 // ViewState is a UI-safe snapshot.
 type ViewState struct {
-	ConnectionEpoch uint64
-	Origin          string
-	ClientReady     bool
-	Loading         bool
-	CatalogReady    bool   // Successful all-session catalog, never a session-only fallback.
-	CatalogSettled  bool   // Retained full-catalog facts, including during refresh/error.
-	CatalogRevision uint64 // Advances only when that authoritative catalog settles.
-	CatalogRequest  uint64
-	Err             string
-	Rows            []Entry
-	CatalogHint     string
-	SessionID       string
-	LastAction      string
-	Busy            bool
+	ConnectionEpoch    uint64
+	Origin             string
+	ClientReady        bool
+	Loading            bool
+	CatalogReady       bool   // Successful all-session catalog, never a session-only fallback.
+	CatalogSettled     bool   // Retained full-catalog facts, including during refresh/error.
+	CatalogRevision    uint64 // Advances only when that authoritative catalog settles.
+	CatalogRequest     uint64
+	CatalogReadSettled uint64 // Request ordinal of the retained full-catalog facts.
+	Err                string
+	Rows               []Entry
+	CatalogHint        string
+	SessionID          string
+	LastAction         string
+	Busy               bool
 }
 
 // Store fetches schedule/list for the selected session.
@@ -52,7 +53,7 @@ type Store struct {
 	notify func()
 
 	loading          bool
-	err              error
+	err              error // Catalog read failure; writes report through their own result/notice.
 	rows             []Entry
 	catalogHint      string
 	sessionID        string
@@ -126,17 +127,18 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		ConnectionEpoch: s.connectionEpoch,
-		ClientReady:     s.client != nil,
-		Loading:         s.loading,
-		CatalogReady:    s.catalogReady && !s.loading && s.err == nil,
-		CatalogSettled:  s.catalogReady,
-		CatalogRevision: s.catalogRevision,
-		CatalogRequest:  s.catalogRequest,
-		CatalogHint:     s.catalogHint,
-		SessionID:       s.sessionID,
-		LastAction:      s.lastAction,
-		Busy:            s.busy,
+		ConnectionEpoch:    s.connectionEpoch,
+		ClientReady:        s.client != nil,
+		Loading:            s.loading,
+		CatalogReady:       s.catalogReady && !s.loading && s.err == nil,
+		CatalogSettled:     s.catalogReady,
+		CatalogRevision:    s.catalogRevision,
+		CatalogRequest:     s.catalogRequest,
+		CatalogReadSettled: s.catalogSettled,
+		CatalogHint:        s.catalogHint,
+		SessionID:          s.sessionID,
+		LastAction:         s.lastAction,
+		Busy:               s.busy,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()

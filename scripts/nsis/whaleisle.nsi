@@ -1,4 +1,4 @@
-; Whale Isle NSIS installer (M11).
+﻿; Whale Isle NSIS installer (M11).
 ; Requires staged artifacts from scripts/package.ps1:
 ;   dist/whaleisle/whaleisle.exe
 ;   dist/whaleisle/resources/ (optional)
@@ -14,7 +14,7 @@
 !endif
 
 !ifndef PRODUCT_NAME
-  !define PRODUCT_NAME "DeepSeekHarness Go"
+  !define PRODUCT_NAME "鲸屿go"
 !endif
 !ifndef APP_ID
   !define APP_ID "ai.deepseek.harness.gui"
@@ -54,8 +54,8 @@ BrandingText "${PRODUCT_NAME} ${VERSION}"
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE_3LINES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${EXE_NAME}"
-!define MUI_FINISHPAGE_LINK "github.com/ChisaAlter/Deepseek-Harness-Desktop"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/ChisaAlter/Deepseek-Harness-Desktop"
+!define MUI_FINISHPAGE_LINK "github.com/ChisaAlter/WhaleIsle-MyGo"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/ChisaAlter/WhaleIsle-MyGo"
 !insertmacro MUI_PAGE_FINISH
 
 ; MUI clears welcome settings after page insertion; set this again for the
@@ -165,7 +165,7 @@ Section "Install"
   !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "DisplayVersion" "${VERSION}"
   !insertmacro WI_CheckExtract
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher" "DeepSeek"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "Publisher" "WhaleIsle"
   !insertmacro WI_CheckExtract
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}" "InstallLocation" "$INSTDIR"
   !insertmacro WI_CheckExtract
@@ -204,5 +204,3 @@ Section "Uninstall"
   DeleteRegKey HKCU "Software\${APP_ID}"
   ${EndIf}
 SectionEnd
-
-

@@ -22,8 +22,11 @@ type nativePluginManagerState struct {
 	owner                                                     uint64
 	contributions                                             *pluginui.Owner
 	session                                                   *nativePluginSessionState
+	navigation                                                *nativePluginNavigationState
 	contributionGeneration                                    int
 	contributionOrigin, contributionCookie, contributionError string
+	externalTab                                               string
+	formSubject                                               manager.Subject
 }
 
 func (s *mainState) nativePluginController() *manager.Controller {
@@ -103,6 +106,12 @@ func (s *mainState) nativePluginEventHandler(client *dsh.Client) func(dsh.Events
 				c.Refresh(context.Background())
 			}
 			c.BundlesChanged(owner)
+			s.mu.Lock()
+			padDesktop := s.padDesktop
+			s.mu.Unlock()
+			if padDesktop != nil {
+				padDesktop.Store.Reconnect()
+			}
 		case "plugin-market/changed":
 			c.SourcesChanged(owner)
 		case "plugin-manager/install-log":
@@ -131,6 +140,14 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	store := s.settings
 	sessions, win := s.sessions, s.win
 	s.mu.Unlock()
+	view := s.nativePluginController().Snapshot().View
+	s.mu.Lock()
+	changedForm := s.nativePlugins.formSubject != view
+	s.nativePlugins.formSubject = view
+	s.mu.Unlock()
+	if changedForm && store != nil {
+		store.LeaveServedForms()
+	}
 	contributions := []managerui.Contribution{}
 	if store != nil {
 		served := map[string]bool{}
@@ -174,13 +191,72 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	owner, contributionError := s.nativePluginContributions()
 	var dynamic pluginui.Snapshot
 	if owner != nil {
+		if navigation := owner.TakeNavigation(); navigation != nil {
+			s.mu.Lock()
+			s.nativePlugins.externalTab = ""
+			s.mu.Unlock()
+			s.nativePluginController().OpenPackage(navigation.Name)
+		}
 		current := s.nativePluginController().Snapshot()
-		owner.Select(contributionSubject(current.View, current.Packages))
+		s.mu.Lock()
+		external := s.nativePlugins.externalTab
+		s.mu.Unlock()
+		if external != "" {
+			owner.Select(pluginui.Subject{Kind: "pluginTab", Name: external})
+		} else {
+			owner.Select(contributionSubject(current.View, current.Packages))
+		}
 		dynamic = owner.Snapshot()
 		contributions = mergePluginContributions(contributions, owner, dynamic)
 	}
+	var extraTabs []managerui.PageTab
+	for _, entry := range dynamic.Entries {
+		if entry.Slot == "plugins.tab" && entry.ID != "discover" && entry.ID != "installed" {
+			extraTabs = append(extraTabs, managerui.PageTab{ID: entry.ID, Label: entry.Label})
+		}
+	}
+	s.mu.Lock()
+	external := s.nativePlugins.externalTab
+	s.mu.Unlock()
+	if external != "" {
+		found := false
+		for _, tab := range extraTabs {
+			if tab.ID == external {
+				found = true
+			}
+		}
+		if !found {
+			s.mu.Lock()
+			s.nativePlugins.externalTab = ""
+			s.mu.Unlock()
+			external = ""
+		}
+	}
 	pluginContributionNotice(c, owner, contributionError)
 	managerui.View(c, managerui.Model{
+		ExternalTabs: extraTabs, SelectedExternalTab: external,
+		OnSelectExternalTab: func(id string) {
+			if store != nil {
+				store.LeaveServedForms()
+			}
+			s.mu.Lock()
+			s.nativePlugins.externalTab = id
+			s.mu.Unlock()
+			if owner != nil {
+				subject := pluginui.Subject{Kind: "list"}
+				if id != "" {
+					subject = pluginui.Subject{Kind: "pluginTab", Name: id}
+				}
+				owner.Select(subject)
+			}
+		},
+		RenderExternalTab: func(c *ui.Context, id string) {
+			if owner != nil {
+				if !owner.RenderNativeSlot(c, "plugins.tab", "", -1) {
+					ui.Text(c, pluginCopy("\u6b63\u5728\u52a0\u8f7d\u63d2\u4ef6\u89c6\u56fe?", "Loading plugin view?")).FillWidth()
+				}
+			}
+		},
 		SVGImages:  s.svgImageOwner(win, sessions),
 		Controller: s.nativePluginController(), ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
 		Contributions: contributions,

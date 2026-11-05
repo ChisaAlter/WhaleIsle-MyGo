@@ -13,6 +13,10 @@ import (
 // HistoricalTarget is captured from a selected, already-read exact report.
 // Run/member expectations are supplied only when that source actually records them.
 type HistoricalTarget struct {
+	Assignment                                                               bool
+	Terminal                                                                 bool
+	RequestID                                                                string
+	RequestRevision                                                          int
 	ProjectID, WorkstreamID, DelegationRef, ReportID, RunID, WorkerSessionID string
 	Report                                                                   Report
 }
@@ -34,6 +38,18 @@ type HistoricalBinding struct {
 }
 
 func (t HistoricalTarget) validate() error {
+	if t.Assignment {
+		if t.ProjectID == "" || t.WorkstreamID == "" || t.DelegationRef == "" || t.RequestID == "" {
+			return fmt.Errorf("select an exact requirement assignment before locating its process")
+		}
+		return nil
+	}
+	if t.Terminal {
+		if t.ProjectID == "" || t.WorkstreamID == "" || t.DelegationRef == "" || t.RequestID == "" || t.RequestRevision < 1 {
+			return fmt.Errorf("select an exact recorded settlement before locating its assignment")
+		}
+		return nil
+	}
 	if t.ProjectID == "" || t.WorkstreamID == "" || t.DelegationRef == "" || t.Report.DelegationRef != t.DelegationRef || t.ReportID == "" || t.Report.CallID != t.ReportID {
 		return fmt.Errorf("select an exact recorded report before locating its assignment")
 	}
@@ -46,6 +62,12 @@ func (b HistoricalBinding) validate() error {
 	d := b.Delegation
 	if d.Ref != b.Target.DelegationRef || b.WorkerSessionID == "" || b.CoordinatorSessionID == "" || b.Target.WorkerSessionID != "" && b.Target.WorkerSessionID != b.WorkerSessionID || b.Target.RunID != "" && b.Target.RunID != d.RunID {
 		return fmt.Errorf("original Project / member / delegation / run identity does not match")
+	}
+	if b.Target.Terminal && (d.RequestID != b.Target.RequestID || d.RequestRevision != b.Target.RequestRevision) {
+		return fmt.Errorf("settlement requirement/version does not match the original assignment")
+	}
+	if b.Target.Assignment && d.RequestID != b.Target.RequestID {
+		return fmt.Errorf("the recorded assignment belongs to another requirement")
 	}
 	if len(b.Target.Report.Request) > 0 && string(b.Target.Report.Request) != "null" {
 		var request struct {
@@ -435,7 +457,7 @@ func (b *HistoricalBrowser) CompleteRecord(r HistoricalRequest, v HistoricalBind
 	return true
 }
 func sameHistoricalTarget(a, b HistoricalTarget) bool {
-	return a.ProjectID == b.ProjectID && a.WorkstreamID == b.WorkstreamID && a.DelegationRef == b.DelegationRef && a.ReportID == b.ReportID && a.RunID == b.RunID && a.WorkerSessionID == b.WorkerSessionID && bytes.Equal(a.Report.Request, b.Report.Request)
+	return a.Terminal == b.Terminal && a.RequestID == b.RequestID && a.RequestRevision == b.RequestRevision && a.ProjectID == b.ProjectID && a.WorkstreamID == b.WorkstreamID && a.DelegationRef == b.DelegationRef && a.ReportID == b.ReportID && a.RunID == b.RunID && a.WorkerSessionID == b.WorkerSessionID && bytes.Equal(a.Report.Request, b.Report.Request)
 }
 func (b *HistoricalBrowser) CompleteProcess(r HistoricalRequest, v HistoricalWindow, err error) bool {
 	if !b.Pending(r) || r.kind != "process" {

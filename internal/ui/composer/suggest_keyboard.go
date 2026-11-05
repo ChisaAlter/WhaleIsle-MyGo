@@ -120,6 +120,12 @@ func handleSuggestKey(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	}
 	items := buildSuggestItemsWithQuote(m, kind, query, quoted)
 	if len(items) == 0 {
+		if kind == SuggestMention && referenceQueryActive(m) {
+			if ev.Key == ui.KeyEscape || ev.Key == ui.KeyTab && ev.Mods == ui.Shift {
+				dismissSuggestion(m, client)
+			}
+			return true
+		}
 		return false
 	}
 	sel := m.SuggestList.Selected

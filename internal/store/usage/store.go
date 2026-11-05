@@ -3,6 +3,7 @@ package usage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -24,39 +25,49 @@ type Entry struct {
 
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
-	Details         accountdetails.State
-	ClientReady     bool
-	Loading         bool
-	Err             string
-	AccountStatus   string
-	UsageURL        string
-	TopUpURL        string
-	Email           string
-	Name            string
-	Plan            string
-	AttemptPhase    string
-	AttemptID       string
-	AuthorizeURL    string
-	ExpiryNote      string
-	BalanceSummary  string
-	HasRunningTasks bool
-	Bonuses         []Bonus
-	BonusesLoading  bool
-	BonusesError    string
-	BonusFeedback   BonusFeedback
-	Recent          []Entry
-	DayBuckets      []DayBucket
+	Details          accountdetails.State
+	ClientReady      bool
+	Loading          bool
+	Err              string
+	AccountStatus    string
+	UsageURL         string
+	TopUpURL         string
+	Email            string
+	Name             string
+	Plan             string
+	AttemptPhase     string
+	AttemptID        string
+	AttemptErrorCode string
+	AuthorizeURL     string
+	ExpiryNote       string
+	BalanceSummary   string
+	HasRunningTasks  bool
+	Bonuses          []Bonus
+	BonusesLoading   bool
+	BonusesError     string
+	BonusFeedback    BonusFeedback
+	BonusGeneration  uint64
+	Recent           []Entry
+	DayBuckets       []DayBucket
 }
 
 // Bonus is one unnotified account bonus (account/getUnnotifiedBonuses).
 type Bonus struct {
 	AccountID string
 	OrderID   string
+	Title     *string
+	Metadata  BonusMetadata
 	Campaign  string
 	Amount    string
 	Currency  string
 	Message   string
 	ExpiresAt string
+}
+
+// BonusMetadata remains opaque. The legacy text fields above expose only
+// metadata that was already a string, never a guessed monetary conversion.
+type BonusMetadata struct {
+	Campaign, Amount, Currency, GrantedAt json.RawMessage
 }
 
 // Store fetches account stats and optional session job list from dsh RPC.
@@ -82,26 +93,31 @@ type Store struct {
 	accountWatchCancel context.CancelFunc
 	expiryWatchCancel  context.CancelFunc
 
-	loading         bool
-	err             error
-	accountStatus   string
-	usageURL        string
-	topUpURL        string
-	email           string
-	name            string
-	plan            string
-	attemptPhase    string
-	attemptID       string
-	authorizeURL    string
-	expiryNote      string
-	balanceSummary  string
-	hasRunningTasks bool
-	bonuses         []Bonus
-	bonusesLoading  bool
-	bonusesError    string
-	bonusFeedback   BonusFeedback
-	recent          []Entry
-	dayBuckets      []DayBucket
+	loading                            bool
+	err                                error
+	accountStreamErr                   error
+	accountStatus                      string
+	usageURL                           string
+	topUpURL                           string
+	email                              string
+	name                               string
+	plan                               string
+	attemptPhase                       string
+	attemptID                          string
+	attemptErrorCode                   string
+	authorizeURL                       string
+	expiryNote                         string
+	balanceSummary                     string
+	hasRunningTasks                    bool
+	bonuses                            []Bonus
+	bonusesLoading                     bool
+	bonusesError                       string
+	bonusFeedback                      BonusFeedback
+	bonusNotices                       bonusNoticeLifecycle
+	bonusRetryConfig                   string
+	bonusRetryDelay, bonusRetryMaximum time.Duration
+	recent                             []Entry
+	dayBuckets                         []DayBucket
 }
 
 // New returns an empty usage store.
@@ -120,10 +136,13 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	}
 	s.mu.Lock()
 	s.client = client
+	s.resetBonusNoticesLocked()
 	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
 	s.accountStatus, s.usageURL, s.topUpURL = "", "", ""
 	s.attemptPhase, s.attemptID, s.authorizeURL, s.expiryNote = "", "", "", ""
+	s.attemptErrorCode = ""
+	s.accountStreamErr = nil
 	s.bonuses = nil
 	s.mux = nil
 	if s.accountWatchCancel != nil {
@@ -168,6 +187,7 @@ func (s *Store) Detach() {
 		s.expiryWatchCancel = nil
 	}
 	s.client = nil
+	s.resetBonusNoticesLocked()
 	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
 	s.statsEpoch++
@@ -189,6 +209,8 @@ func (s *Store) Detach() {
 	s.plan = ""
 	s.attemptPhase = ""
 	s.attemptID = ""
+	s.attemptErrorCode = ""
+	s.accountStreamErr = nil
 	s.authorizeURL = ""
 	s.expiryNote = ""
 	s.balanceSummary = ""
@@ -205,29 +227,34 @@ func (s *Store) Snapshot() ViewState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := ViewState{
-		Details:         s.details.Clone(),
-		ClientReady:     s.client != nil,
-		Loading:         s.loading,
-		AccountStatus:   s.accountStatus,
-		UsageURL:        s.usageURL,
-		TopUpURL:        s.topUpURL,
-		Email:           s.email,
-		Name:            s.name,
-		Plan:            s.plan,
-		AttemptPhase:    s.attemptPhase,
-		AttemptID:       s.attemptID,
-		AuthorizeURL:    s.authorizeURL,
-		ExpiryNote:      s.expiryNote,
-		BalanceSummary:  s.balanceSummary,
-		HasRunningTasks: s.hasRunningTasks,
-		BonusesLoading:  s.bonusesLoading,
-		BonusesError:    s.bonusesError,
-		BonusFeedback:   s.bonusFeedback,
+		Details:          s.details.Clone(),
+		ClientReady:      s.client != nil,
+		Loading:          s.loading,
+		AccountStatus:    s.accountStatus,
+		UsageURL:         s.usageURL,
+		TopUpURL:         s.topUpURL,
+		Email:            s.email,
+		Name:             s.name,
+		Plan:             s.plan,
+		AttemptPhase:     s.attemptPhase,
+		AttemptID:        s.attemptID,
+		AttemptErrorCode: s.attemptErrorCode,
+		AuthorizeURL:     s.authorizeURL,
+		ExpiryNote:       s.expiryNote,
+		BalanceSummary:   s.balanceSummary,
+		HasRunningTasks:  s.hasRunningTasks,
+		BonusesLoading:   s.bonusesLoading,
+		BonusesError:     s.bonusesError,
+		BonusFeedback:    s.bonusFeedback,
+		BonusGeneration:  s.bonusNotices.generation,
 	}
 	if s.err != nil {
 		st.Err = s.err.Error()
 	}
-	st.Bonuses = append([]Bonus(nil), s.bonuses...)
+	if s.accountStreamErr != nil {
+		st.Err = strings.TrimSpace(st.Err + " " + s.accountStreamErr.Error())
+	}
+	st.Bonuses = cloneBonuses(s.bonuses)
 	st.Recent = append([]Entry(nil), s.recent...)
 	st.DayBuckets = append([]DayBucket(nil), s.dayBuckets...)
 	return st
@@ -247,8 +274,12 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	s.loading = true
 	s.bonusesLoading = true
 	s.err = nil
+	restartWatch := s.accountStreamErr != nil && s.mux != nil
 	s.mu.Unlock()
 	s.fire()
+	if restartWatch {
+		s.WatchAccount(ctx)
+	}
 
 	go func() {
 		var state api.AccountView
@@ -264,6 +295,10 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		topUpURL := state.Links.TopUpUrl
 		attemptPhase := state.Attempt.Phase
 		attemptID := state.Attempt.Id
+		attemptErrorCode := ""
+		if state.Attempt.ErrorCode != nil {
+			attemptErrorCode = *state.Attempt.ErrorCode
+		}
 		authorizeURL := ""
 		if state.Attempt.AuthorizeUrl != nil {
 			authorizeURL = *state.Attempt.AuthorizeUrl
@@ -275,7 +310,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		var hasTasks api.HasRunningAccountTasksResult
 		_ = client.Call(ctx, "account/hasRunningAccountTasks", map[string]any{}, &hasTasks)
 
-		bonuses, bonusErr := readAccountBonuses(ctx, client, status)
+		bonusAccountID, bonuses, bonusErr := readAccountBonusBatch(ctx, client, status)
 
 		var recent []Entry
 		var buckets []DayBucket
@@ -328,15 +363,17 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		}
 
 		s.finishRefresh(accountRefresh{
-			status:       status,
-			usageURL:     usageURL,
-			topUpURL:     topUpURL,
-			attemptPhase: attemptPhase,
-			attemptID:    attemptID,
-			authorizeURL: authorizeURL,
-			client:       client, epoch: epoch,
+			status:           status,
+			usageURL:         usageURL,
+			topUpURL:         topUpURL,
+			attemptPhase:     attemptPhase,
+			attemptID:        attemptID,
+			attemptErrorCode: attemptErrorCode,
+			authorizeURL:     authorizeURL,
+			client:           client, epoch: epoch,
 			hasRunningTasks: bool(hasTasks),
 			bonuses:         bonuses,
+			bonusAccountID:  bonusAccountID,
 			bonusErr:        bonusErr,
 			recent:          recent,
 			buckets:         buckets,
@@ -345,24 +382,26 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 }
 
 type accountRefresh struct {
-	client          *dsh.Client
-	epoch           uint64
-	err             error
-	status          string
-	usageURL        string
-	topUpURL        string
-	email           string
-	name            string
-	plan            string
-	attemptPhase    string
-	attemptID       string
-	authorizeURL    string
-	balanceSummary  string
-	hasRunningTasks bool
-	bonuses         []Bonus
-	bonusErr        error
-	recent          []Entry
-	buckets         []DayBucket
+	client           *dsh.Client
+	epoch            uint64
+	err              error
+	status           string
+	usageURL         string
+	topUpURL         string
+	email            string
+	name             string
+	plan             string
+	attemptPhase     string
+	attemptID        string
+	attemptErrorCode string
+	authorizeURL     string
+	balanceSummary   string
+	hasRunningTasks  bool
+	bonuses          []Bonus
+	bonusAccountID   string
+	bonusErr         error
+	recent           []Entry
+	buckets          []DayBucket
 }
 
 func (s *Store) finishRefresh(r accountRefresh) {
@@ -378,13 +417,15 @@ func (s *Store) finishRefresh(r accountRefresh) {
 	s.topUpURL = r.topUpURL
 	s.attemptPhase = r.attemptPhase
 	s.attemptID = r.attemptID
+	s.attemptErrorCode = r.attemptErrorCode
 	s.authorizeURL = r.authorizeURL
 	s.hasRunningTasks = r.hasRunningTasks
-	s.bonuses = r.bonuses
 	s.bonusesLoading = false
 	s.bonusesError = ""
 	if r.bonusErr != nil {
 		s.bonusesError = r.bonusErr.Error()
+	} else if r.err == nil {
+		s.applyAccountBonusesLocked(r.bonusAccountID, r.bonuses, r.status)
 	}
 	s.recent = r.recent
 	s.dayBuckets = r.buckets

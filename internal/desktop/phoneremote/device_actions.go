@@ -30,7 +30,7 @@ type DeviceActionState struct {
 // DeviceAction queues one original-runtime operation. It never starts a daemon
 // or accepts a display label as an identity. Completion is observed in Snapshot.
 func (r *Runtime) DeviceAction(operation, id, name string) error {
-	if operation != "rename" && operation != "unbind" && operation != "rotate" {
+	if operation != "rename" && operation != "unbind" && operation != "rotate" && operation != "revoke-link" {
 		return errors.New("unsupported phone device action")
 	}
 	name = strings.TrimSpace(name)
@@ -47,7 +47,11 @@ func (r *Runtime) DeviceAction(operation, id, name string) error {
 		r.mu.Unlock()
 		return errors.New("refresh the phone runtime before managing devices")
 	}
-	if operation != "rotate" {
+	if operation == "revoke-link" && r.state.PairingLinkURL == "" {
+		r.mu.Unlock()
+		return errors.New("the selected phone runtime has no current reusable pairing link")
+	}
+	if operation != "rotate" && operation != "revoke-link" {
 		found := false
 		for _, device := range r.state.Devices {
 			if device.ID == id {
@@ -67,6 +71,7 @@ func (r *Runtime) DeviceAction(operation, id, name string) error {
 	r.deviceAction = DeviceActionState{ID: requestID, Operation: operation, DeviceID: id, Busy: true}
 	if operation != "rename" {
 		r.state.PairingURL = ""
+		r.state.PairingLinkURL = ""
 		r.state.PairingImage = nil
 		r.state.ExpiresAt = time.Time{}
 	}
@@ -144,6 +149,8 @@ func (r *Runtime) finishDeviceActionLocked(code string, applied bool) {
 			r.deviceAction.Message = "Device unbound. Other paired devices can reconnect when the runtime is ready."
 		case "rotate":
 			r.deviceAction.Message = "Pairing offer renewed. Existing device identities are unchanged; older offers retain their original expiry."
+		case "revoke-link":
+			r.deviceAction.Message = "Persistent link revoked and replaced. Paired devices remain connected."
 		}
 	}
 	if r.deviceActionDone != nil {

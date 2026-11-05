@@ -70,7 +70,7 @@ func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 	if err := tt.Click("Ayase"); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{i18n.T(i18n.KeySettingsAccountTitle), i18n.T(i18n.KeySettingsAccountSignOut)}
+	want := []string{i18n.T(i18n.KeySettingsOpen), i18n.T(i18n.KeySettingsAccountSignOut)}
 	if got := tt.Menu(); !slices.Equal(got, want) {
 		t.Fatalf("menu=%q, want %q", got, want)
 	}
@@ -84,7 +84,7 @@ func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 	if err := tt.Click("Ayase"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsAccountTitle)); err != nil {
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsOpen)); err != nil {
 		t.Fatal(err)
 	}
 	if opened != 1 {
@@ -121,11 +121,11 @@ func TestAccountRowFallsBackToSettings(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeySettingsAccountSeat)); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{i18n.T(i18n.KeySettingsAccountTitle)}
+	want := []string{i18n.T(i18n.KeySettingsOpen)}
 	if got := tt.Menu(); !slices.Equal(got, want) {
 		t.Fatalf("menu=%q, want %q", got, want)
 	}
-	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsAccountTitle)); err != nil {
+	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsOpen)); err != nil {
 		t.Fatal(err)
 	}
 	if settings != 1 {
@@ -192,7 +192,7 @@ func TestAccountRowFocusAndMenuAcrossResponsiveWidths(t *testing.T) {
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}
-			want := []string{i18n.T(i18n.KeySettingsAccountTitle)}
+			want := []string{i18n.T(i18n.KeySettingsOpen)}
 			if signedIn {
 				want = append(want, i18n.T(i18n.KeySettingsAccountSignOut))
 			}
@@ -203,7 +203,7 @@ func TestAccountRowFocusAndMenuAcrossResponsiveWidths(t *testing.T) {
 			if got := tt.Menu(); !slices.Equal(got, want) || opened != 0 || signedOut != 0 {
 				t.Fatalf("expansion changed an open menu or invoked an action: %q", got)
 			}
-			if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsAccountTitle)); err != nil {
+			if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsOpen)); err != nil {
 				t.Fatal(err)
 			}
 			if opened != 1 || signedOut != 0 {

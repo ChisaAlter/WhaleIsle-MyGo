@@ -67,6 +67,14 @@ type Options struct {
 	ReadOnly bool
 	// CanCopy optionally validates selection ownership at every copy action.
 	CanCopy func() bool
+	// LinkAt optionally resolves a printed target at its terminal column.
+	// runeColumns maps each rune in text to its rendered cell column. It is
+	// called while reading the emulator and must not call Terminal methods.
+	// An empty result keeps the built-in URL detection.
+	LinkAt func(text string, runeColumns []int, column int) string
+	// OnLinkActivate handles a Ctrl/Command-click target outside the emulator
+	// lock. Returning true consumes it; false retains the default URL opener.
+	OnLinkActivate func(target string) bool
 
 	// Font is the font of the text: the system's monospaced font at 13
 	// DIPs when zero.

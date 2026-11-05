@@ -30,7 +30,13 @@ type Contribution struct {
 	Order                     int
 	Render                    func(*ui.Context, manager.Subject)
 }
+type PageTab struct{ ID, Label string }
 type Model struct {
+	ExternalTabs        []PageTab
+	SelectedExternalTab string
+	OnSelectExternalTab func(string)
+	RenderExternalTab   func(*ui.Context, string)
+
 	SVGImages                                   *svgimage.Owner
 	Controller                                  *manager.Controller
 	ThemeID                                     string
@@ -73,34 +79,47 @@ func View(c *ui.Context, m Model) {
 	inset := max(float32(24), min(float32(48), w*.04))
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, inset, 48, inset).Background(bg).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(960).MinWidth(0).Gap(32).Children(func() {
-			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
-			if !detail && s.View.Kind != "more" {
+			detail := m.SelectedExternalTab == "" && s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
+			if !detail && (s.View.Kind != "more" || m.SelectedExternalTab != "") {
 				pageHeader(c, m, s, a, fg, muted)
 				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 0, 0).Children(func() {
-					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}} {
-						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
-						if s.Tab == tab.id {
+					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
+						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(m.SelectedExternalTab == "" && s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
+						if m.SelectedExternalTab == "" && s.Tab == tab.id {
 							b.Background(chrome.Color(colors.Field)).TextColor(fg)
 						}
 						if b.Clicked() {
+							if m.OnSelectExternalTab != nil {
+								m.OnSelectExternalTab("")
+							}
 							a.SelectTab(tab.id)
 						}
 					}
-				})
-			}
-			if s.Notice != "" {
-				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-					ui.Text(c, s.Notice).Grow(1).MinWidth(0).FillWidth().TextColor(fg).FontSize(theme.InterfaceSize(13))
-					if ui.Button(c, copyText("关闭提示", "Dismiss notice")).Clicked() {
-						a.DismissNotice()
+					for _, tab := range m.ExternalTabs {
+						tab := tab
+						if tab.ID == "" || tab.ID == "discover" || tab.ID == "installed" {
+							continue
+						}
+						b := ui.Button(c, tab.Label).Role(ui.RoleTab).Selected(m.SelectedExternalTab == tab.ID).Height(32).MinWidth(120)
+						if b.Clicked() && m.OnSelectExternalTab != nil {
+							m.OnSelectExternalTab(tab.ID)
+						}
 					}
+
 				})
 			}
+			widgets.Notice(c, "view:113", "", s.Notice != "", func() string { return s.Notice })
 			if m.Supplement != nil {
 				m.Supplement(c)
 			}
 			if m.CreatorNotice != nil {
 				m.CreatorNotice(c)
+			}
+			if m.SelectedExternalTab != "" {
+				if m.RenderExternalTab != nil {
+					m.RenderExternalTab(c, m.SelectedExternalTab)
+				}
+				return
 			}
 			if s.Tab == "discover" {
 				discoverView(c, m, s, a, fg, muted, border)
@@ -240,7 +259,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 		if packages[i].Official != packages[j].Official {
 			return packages[i].Official
 		}
-		return packages[i].Name < packages[j].Name
+		return packages[i].Official && manager.OfficialRank(packages[i].Name) < manager.OfficialRank(packages[j].Name)
 	})
 	items := append([]Contribution{}, m.Contributions...)
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Order < items[j].Order })
@@ -268,25 +287,22 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 		return strings.Contains(strings.ToLower(p.Name), q) || strings.Contains(strings.ToLower(p.Title(i18n.Locale())), q)
 	}
 
-	var enabled, disabled, official []manager.Package
-	heldBack := false
+	var bundles, official []manager.Package
+	offersMore := false
 	for _, p := range packages {
+		if p.Official {
+			offersMore = true
+		}
 		if !matches(p) {
 			continue
 		}
 		if p.Official {
 			if manager.Pinned(p) {
 				official = append(official, p)
-			} else {
-				heldBack = true
 			}
 			continue
 		}
-		if p.Enabled {
-			enabled = append(enabled, p)
-		} else {
-			disabled = append(disabled, p)
-		}
+		bundles = append(bundles, p)
 	}
 	var basic []Contribution
 	for _, item := range items {
@@ -311,12 +327,12 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 				}
 			})
 		}
-		if len(official) > 0 {
+		if len(official) > 0 || offersMore {
 			ui.Column(c).FillWidth().Gap(10).Children(func() {
 				ui.Row(c).FillWidth().Children(func() {
 					groupTitle(c, copyText("实验性插件", "Experimental plugins"), muted)
 					ui.Box(c).Grow(1)
-					if heldBack && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("更多", "More"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+					if offersMore && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("更多", "More"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 						a.ShowMore()
 					}
 				})
@@ -325,21 +341,10 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 				}
 			})
 		}
-		// Enabled first: the list answers "what runs now" before "what is
-		// installed but idle".
-		for _, group := range []struct {
-			title string
-			rows  []manager.Package
-		}{
-			{groupCount(copyText("已启用", "Enabled"), len(enabled)), enabled},
-			{groupCount(copyText("已停用", "Disabled"), len(disabled)), disabled},
-		} {
-			if len(group.rows) == 0 {
-				continue
-			}
+		if len(bundles) > 0 {
 			ui.Column(c).FillWidth().Gap(10).Children(func() {
-				groupTitle(c, group.title, muted)
-				for _, p := range group.rows {
+				groupTitle(c, copyText("已安装插件", "Installed plugins"), muted)
+				for _, p := range bundles {
 					packageCard(c, m, p, s, a, fg, muted, border)
 				}
 			})
@@ -771,9 +776,6 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 	}
 	if d.Loading && d.Listing == nil {
 		loadingRows(c, muted)
-	}
-	if d.MoreLoading {
-		ui.Text(c, copyText("正在读取更多插件…", "Loading more plugins…")).Role(ui.RoleStatus).TextColor(muted)
 	}
 	if d.Listing != nil {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {

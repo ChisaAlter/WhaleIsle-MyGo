@@ -259,7 +259,7 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 							}
 						})
 						ui.Row(c).Wrap().Gap(8).Children(func() {
-							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
+							if !m.Embedded && snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
 								label := i18n.T(i18n.KeySettingsPluginsEnable)
 								if *r.Enabled {
 									label = i18n.T(i18n.KeySettingsPluginsDisable)
@@ -310,17 +310,20 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 	w, h := c.Size()
 	ui.DialogBase(c.Key("market-details-dialog"), &open, func(backdrop, panel ui.Element) {
 		box := chrome.DialogSurfaceBox{
-			Width:   min(float32(680), max(float32(320), w-48)),
-			Height:  min(float32(720), max(float32(320), h-48)),
+			Width:   max(0, min(float32(680), w-48)),
+			Height:  max(0, min(float32(720), h-48)),
 			Padding: 0,
 		}
 		panel = chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box)
 		panel.Label(catalogTitle(item)).Gap(0).Children(func() {
-			// The reference Modal header: 22/14/12/24 around a 16/500 title and a
-			// 28 DIP close box; reload belongs to the body, as the header holds
-			// only the title and the close control.
-			ui.Row(c).FillWidth().Height(58).Shrink(0).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
+			ui.Row(c).FillWidth().Height(58).Shrink(0).Gap(8).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
 				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).SingleLine()
+				refreshLabel := marketText("刷新详情", "Refresh details")
+				refresh := ui.Button(c, "").Label(refreshLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(d.DetailsLoading).Tooltip(refreshLabel)
+				refresh.Children(func() { ui.Icon(c, marketRefreshIcon).Size(16, 16).TextColor(muted) })
+				if refresh.Clicked() {
+					m.Store.SelectDetails(item.ID, true)
+				}
 				closeLabel := marketText(i18n.T(i18n.KeyW4MarketClose), "Close")
 				closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(7).
 					Radius(8).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
@@ -335,7 +338,10 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 			ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Padding(20, 24, 24, 24).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 					ui.Text(c, item.Description).FillWidth().TextColor(fg)
-					ui.Text(c, item.ID+"\n"+item.Homepage+"\n"+item.InstallSpec).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					catalogMetadata(c, marketText("作者", "Author"), item.Owner, fg, muted)
+					catalogMetadata(c, marketText("来源", "Source"), item.InstallSpec, fg, muted)
+					catalogMetadata(c, marketText("上架时间", "Added"), item.Added, fg, muted)
+					catalogMetadata(c, marketText("兼容性", "Compatibility"), marketText("未知", "Unknown"), fg, muted)
 					if item.Deprecated {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
 					}
@@ -349,7 +355,7 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSomeDetailsFailedToLoad), "Some details could not be loaded.")).FillWidth().TextColor(accent)
 					}
 					if d.Details.Version != "" {
-						ui.Text(c, "Version: "+d.Details.Version).TextColor(fg)
+						catalogMetadata(c, marketText("发布版本", "Published version"), d.Details.Version, fg, muted)
 					}
 					if len(d.Details.Requirements) > 0 {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeclaredRuntimeRequirementsNotACompatib), "Declared requirements (not a compatibility verdict)")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -358,13 +364,15 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 						}
 					}
 					marketScreenshotGallery(c, m, item, fg, muted, field)
+					if parsed, err := url.Parse(item.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
+						if ui.Button(c, marketText("打开项目主页", "Open project homepage")).Label(item.Homepage).AlignSelf(ui.Start).MaxWidthPercent(100).MinWidth(0).Clicked() {
+							m.OnOpenURL(parsed.String())
+						}
+					}
 					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
 				})
 			})
-			ui.Row(c).FillWidth().Padding(10, 24, 16, 24).Gap(8).AlignItems(ui.Center).Children(func() {
-				if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: d.DetailsLoading}).Clicked() {
-					m.Store.SelectDetails(item.ID, true)
-				}
+			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Padding(10, 24, 16, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 				favoriteButton(c, m, item.ID)
 				ui.Box(c).Grow(1)
 				if m.InstallBusy {
@@ -378,6 +386,16 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 	if !open {
 		m.Store.CloseDetails()
 	}
+}
+
+func catalogMetadata(c *ui.Context, label, value string, fg, muted ui.Color) {
+	if value == "" {
+		value = marketText("未知", "Unknown")
+	}
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
+		ui.Text(c, label).Width(112).MaxWidthPercent(100).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, value).Grow(1).MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	})
 }
 
 // marketIconTile is the card's 44px identity tile: a rounded frame with the

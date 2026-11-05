@@ -35,6 +35,10 @@ func namespaceMatchesQuery(ns, q string) bool {
 }
 
 // SecretLikeKey reports password-style field names (apiKey / token / secret).
+func secretField(field store.Field) bool {
+	return field.Role != "credential-ref" && field.Key != "apiKeyEnv" && (SecretLikeKey(field.Key) || SecretLikeKey(field.Label))
+}
+
 func SecretLikeKey(key string) bool {
 	k := strings.ToLower(strings.TrimSpace(key))
 	if k == "" {

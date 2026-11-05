@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func reportsView(c *ui.Context, m Model) {
@@ -22,9 +23,7 @@ func reportsView(c *ui.Context, m Model) {
 		}
 	}
 	ui.Text(c, tr("历史报告", "Recorded reports")+" · "+h.ProjectID).FontSize(fonttheme.InterfaceSize(14))
-	if h.Notice != "" {
-		ui.Text(c, h.Notice).FontSize(fonttheme.InterfaceSize(12))
-	}
+	widgets.Notice(c, "history:26", "", h.Notice != "", func() string { return h.Notice })
 	if h.Selected != nil {
 		r := h.Selected
 		if ui.Button(c, tr("返回报告列表", "Back to reports")).Disabled(m.Busy).Clicked() {
@@ -62,8 +61,12 @@ func reportsView(c *ui.Context, m Model) {
 				}
 				for _, file := range r.Artifacts {
 					file := file
-					if ui.Button(c, tr("打开引用文件：", "Open referenced file:")+file.Path).FillWidth().Disabled(m.Busy || m.OnResolvedFile == nil).Clicked() && m.OnReportFile != nil {
-						m.OnReportFile(file.Path, m.OnResolvedFile)
+					if ui.Button(c, tr("打开引用文件：", "Open referenced file:")+file.Path).FillWidth().Disabled(m.Busy || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
+						if m.OnReportFileTarget != nil && m.OnOpenAuthorizedFile != nil {
+							m.OnReportFileTarget(file.Path, m.OnOpenAuthorizedFile)
+						} else if m.OnReportFile != nil {
+							m.OnReportFile(file.Path, m.OnResolvedFile)
+						}
 					}
 				}
 				ui.Text(c, tr("报告内容为历史记录；打开文件读取当前文件，不是历史快照。", "Reports are historical records; opening a file reads its current contents, not a historical snapshot.")).FontSize(fonttheme.InterfaceSize(12))

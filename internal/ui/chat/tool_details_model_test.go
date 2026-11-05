@@ -817,11 +817,11 @@ func TestToolDetailsModelJobKill(t *testing.T) {
 		want             *toolDetailsModel
 	}{
 		{"cancel", `{"target":"job-5","reason":"user asked"}`, "requested cancellation of job job-5", &toolDetailsModel{
-			Items: []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("user asked")}},
+			Items:   []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("user asked")}},
 			Summary: "job-5 · Cancellation requested", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-5",
 		}},
 		{"cancel without reason", `{"target":"job-5"}`, "requested cancellation of job job-5", &toolDetailsModel{
-			Items: []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("")}},
+			Items:   []toolDetailItem{{Title: "job-5", Badge: &toolDetailBadge{Label: "Cancellation requested", Tone: "warning"}, Description: toolDetailsModelJobPtrForTest("")}},
 			Summary: "job-5 · Cancellation requested", Caption: "Recorded result", Empty: "No results", ExpandedSummary: "job-5",
 		}},
 		{"already finished", `{"target":"job-5"}`, "job job-5 had already finished with exit code 0", &toolDetailsModel{
@@ -1166,7 +1166,7 @@ func TestToolDetailsModelSubagent(t *testing.T) {
 	}
 	reply := toolDetailsReceiptCallForTest(t, "subagent", `{"prompt":"Do work"}`, "A useful reply")
 	if reply == nil || reply.Summary != "Agent response" || reply.Items[0].Title != "Agent response" ||
-		reply.Items[0].Description == nil || *reply.Items[0].Description != "A useful reply" {
+		reply.Items[0].Markdown == nil || *reply.Items[0].Markdown != "A useful reply" {
 		t.Fatalf("subagent reply = %#v", reply)
 	}
 	if len(reply.Items[0].Groups) != 1 || reply.Items[0].Groups[0].Label != "Task" ||

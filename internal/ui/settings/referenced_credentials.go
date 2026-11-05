@@ -3,18 +3,28 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
+	settingsstore "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // ReferencedCredentialsAccess is separate from local desktop credentials.json.
 // Every operation is restricted to a Host-discovered provider reference.
 type ReferencedCredentialsAccess struct {
-	Snapshot  credentialrefs.Snapshot
-	OnRefresh func()
-	OnSelect  func(string)
-	OnEdit    func(uint64, string)
-	OnClear   func(uint64, bool)
-	OnSave    func(uint64)
+	Snapshot          credentialrefs.Snapshot
+	OnRefresh         func()
+	OnSelect          func(string)
+	OnEdit            func(uint64, string)
+	OnClear           func(uint64, bool)
+	OnSave            func(uint64)
+	OnSaveProvider    func(uint64, *settingsstore.NamespaceBinding)
+	OnCreateProvider  func(*settingsstore.NamespaceBinding, string, string, func(bool, bool))
+	formOwned, locked bool
+	// envNames and envPresent describe the environment variables the provider being
+	// edited reads its key from; the key field names them in its placeholder.
+	envNames   []string
+	envPresent bool
+	// envHint is the amber line under the key input when none of those variables is set.
+	envHint string
 }
 
 func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, namespace string, fg, muted ui.Color) {
@@ -22,23 +32,20 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		return
 	}
 	s := a.Snapshot
-	ui.Text(c, providerCopy("供应商或 Web Search API Key", "Provider or Web Search API key")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	if a.formOwned {
+		providerCredentialField(c, a, namespace, fg, muted)
+		return
+	}
+	ui.Text(c, providerCopy("供应商鉴权与 API Key", "Provider authentication and API keys")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	ui.Text(c, providerCopy("按 Host 配置中的引用保存；留空保留已有密钥。密钥不会读回。", "Saved under the Host configuration's reference. Leave blank to keep the existing key. Stored keys are never read back.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if !s.Connected {
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	if s.Err != "" {
-		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
-	if s.LastAction != "" {
-		ui.Text(c, settingsActionText(s.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
-	if ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
+	settingsNotice(c, "referenced_credentials:44", "error", s.Err != "", func() string { return s.Err })
+	settingsNotice(c, "referenced_credentials:47", "", s.LastAction != "", func() string { return settingsActionText(s.LastAction) })
+	if (!a.formOwned || !s.Ready || s.Err != "") && ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.locked || a.formOwned && s.Draft != "" || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
-	}
-	if s.Busy {
-		ui.Text(c, providerCopy("正在检查或保存…", "Checking or saving…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if !s.Ready {
 		return
@@ -55,7 +62,10 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 			continue
 		}
 		rows = append(rows, row)
-		label := row.Name + " · " + row.Namespace + " · " + row.Ref
+		label := row.Name + " · " + row.Namespace
+		if !row.KeylessNativeAuth() {
+			label += " · " + row.Ref
+		}
 		options = append(options, label)
 		if row.ID == s.SelectedID {
 			copy := row
@@ -67,7 +77,11 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		ui.Text(c, providerCopy("此页没有可编辑的凭据引用。", "No editable credential references are available on this page.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	if ui.Select(c, &current, options).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(s.Busy).Changed() && a.OnSelect != nil {
+	if a.formOwned && len(rows) == 1 && selected == nil && a.OnSelect != nil && !s.Busy {
+		a.OnSelect(rows[0].ID)
+		return
+	}
+	if !a.formOwned && ui.Select(c, &current, options).Label(providerCopy("供应商或搜索凭据", "Provider or search credential")).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(s.Busy).Changed() && a.OnSelect != nil {
 		for i, row := range rows {
 			if current == options[i+1] {
 				a.OnSelect(row.ID)
@@ -79,7 +93,15 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		return
 	}
 	row := *selected
-	ui.Text(c, providerCopy("目标引用：", "Target reference: ")+row.Ref).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	if hint := providerNativeAuthHint(row); hint != "" {
+		ui.Text(c, hint).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	}
+	if row.KeylessNativeAuth() {
+		return
+	}
+	if !a.formOwned {
+		ui.Text(c, providerCopy("目标引用：", "Target reference: ")+row.Ref).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	}
 	status := providerCopy("尚未配置", "Not configured")
 	if !row.Known {
 		status = providerCopy("状态未知，请刷新", "State unknown; refresh first")
@@ -90,9 +112,9 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		status += " · " + providerCopy("只读，不可写", "Read-only, unavailable")
 	}
 	ui.Text(c, status).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	locked := s.Busy || !row.Known || !row.Writable
+	locked := s.Busy || a.locked || !row.Known || !row.Writable
 	draft := s.Draft
-	if ui.TextInput(c, &draft).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Password().Placeholder(providerCopy("输入新密钥，留空保留", "Enter a new key; blank keeps existing")).Disabled(locked || s.ClearPending).Changed() && a.OnEdit != nil {
+	if apiKeyInput(c, row.ID, &draft, providerCopy("输入新密钥，留空保留", "Enter a new key; blank keeps existing"), locked || s.ClearPending) && a.OnEdit != nil {
 		a.OnEdit(s.Ticket, draft)
 	}
 	if row.BindReference {
@@ -106,7 +128,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		if s.ClearPending {
 			saveLabel = providerCopy("确认清除此引用", "Confirm clear reference")
 		}
-		if ui.Button(c, saveLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")).Clicked() && a.OnSave != nil {
+		if !a.formOwned && ui.Button(c, saveLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")).Clicked() && a.OnSave != nil {
 			a.OnSave(s.Ticket)
 		}
 		if s.ClearPending {

@@ -65,7 +65,7 @@ func TestBlankCaptionPreservesOriginalLeadingAndCornerOnly(t *testing.T) {
 	// layout still uses the hero, and the existing plugin action stays reachable.
 	snap.Items[0].Running = true
 	tt.Frame()
-	if _, ok := tt.Find(i18n.T(i18n.KeyLauncherOpen)); !ok {
+	if _, ok := tt.Find("更多操作"); !ok && !tt.HasText("More actions") {
 		t.Fatal("running hero lost its explicit plugin menu")
 	}
 }

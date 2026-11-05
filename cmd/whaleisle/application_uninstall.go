@@ -20,12 +20,7 @@ func (s *mainState) withApplicationUninstall(win *mygo.Window, m launcher.Model)
 		// Fixed OS URI through MyGo's native ShellExecuteW path, never a command
 		// interpreter or an installation/registry-derived executable.
 		if err := appuninstall.OpenInstalledApps(runtime.GOOS, mygo.Shell.OpenExternal); err != nil {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{
-				Parent:  win,
-				Type:    mygo.MessageWarning,
-				Title:   i18n.T(i18n.KeyCmdCouldNotOpenInstalledApps),
-				Message: i18n.T(i18n.KeyCmdOpenWindowsSettingsAppsInstalledAppsMa) + "\n\n" + err.Error(),
-			})
+			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdCouldNotOpenInstalledApps), Body: i18n.T(i18n.KeyCmdOpenWindowsSettingsAppsInstalledAppsMa) + "\n\n" + err.Error(), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
 		}
 	}
 	return m
@@ -53,10 +48,11 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 		}()
 		plan, err := appuninstall.DetectCurrent()
 		if err != nil {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdNoVerifiedUninstallerFound), Message: i18n.T(i18n.KeyCmdThisMayBeAPortableSourceBuildOrAnIn) + "\n\n" + err.Error()})
+			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdNoVerifiedUninstallerFound), Body: i18n.T(i18n.KeyCmdThisMayBeAPortableSourceBuildOrAnIn) + "\n\n" + err.Error(), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
 			return
 		}
 		approved := s.askConfirmBlocking(confirmAskRequest{
+			Owner:        win,
 			Title:        i18n.T(i18n.KeyCmdUninstallCurrentNativeApp),
 			Body:         i18n.T(i18n.KeyCmdContinuingChecksAndStopsTasksOpensThis) + plan.InstallLocation(),
 			ConfirmLabel: i18n.T(i18n.KeyCmdStartUninstallerAndQuit),

@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botDeleteConfirmLabel() string {
@@ -52,9 +53,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_delete:56", "", s.Notice != "", func() string { return s.Notice })
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}

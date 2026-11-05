@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo"
 	"time"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
@@ -29,6 +30,9 @@ func (s *projectController) bindProjectRequestCardActions(win *mygo.Window, m *p
 			return actions
 		}
 		owner := &projectRequestAssetOwner{state: state, key: key}
+		actions.OpenAuthorizedFile = func(file projectflow.Artifact, open func(projectflow.FileTarget)) {
+			s.runProjectAssetForCard(win, card.ProjectID, "file", file, "", nil, owner, nil, open)
+		}
 		actions.OpenFile = func(file projectflow.Artifact, open func(string)) {
 			s.runProjectAssetForCard(win, card.ProjectID, "file", file, "", open, owner, nil)
 		}
@@ -36,6 +40,15 @@ func (s *projectController) bindProjectRequestCardActions(win *mygo.Window, m *p
 			s.runProjectAssetForCard(win, card.ProjectID, "diff", projectflow.Artifact{}, workID, nil, owner, nil)
 		}
 		actions.WorkDetail = func(workID string) { s.runProjectRequestWorkDetailOwned(win, state, key, workID) }
+		s.mu.Lock()
+		if team := s.projectFlow.team; team != nil && team.Project.ID == card.ProjectID {
+			actions.Workstreams = append([]projectflow.Workstream(nil), team.Workstreams...)
+		}
+		s.mu.Unlock()
+		actions.OpenAssignment = func(work projectflow.RequestWork) { s.runProjectRequestWorkAction(win, state, key, work, "process") }
+		actions.WorkAction = func(action string, work projectflow.RequestWork) {
+			s.runProjectRequestWorkAction(win, state, key, work, action)
+		}
 		actions.Activity = func() { s.openProjectRequestActivity(win, state, key) }
 		if card.HandoverError != "" && card.AuthorityError == "" {
 			actions.HandoverRetry = func() {
@@ -55,7 +68,7 @@ func (s *projectController) runProjectAsset(win *mygo.Window, id, action string,
 	s.runProjectAssetForCard(win, id, action, file, workID, open, nil, owners)
 }
 
-func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string), cardOwner *projectRequestAssetOwner, owners []projectQueueSubmission) {
+func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action string, file projectflow.Artifact, workID string, open func(string), cardOwner *projectRequestAssetOwner, owners []projectQueueSubmission, targets ...func(projectflow.FileTarget)) {
 	if win == nil || id == "" {
 		return
 	}
@@ -83,9 +96,9 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 			s.mu.Unlock()
 			return
 		}
-		requestID, admissionErr = projectAssetCardReference(card, action, file, workID, open != nil)
+		requestID, admissionErr = projectAssetCardReference(card, action, file, workID, open != nil || len(targets) > 0 && targets[0] != nil)
 	} else {
-		requestID, admissionErr = projectAssetReference(f, id, action, file, workID, open != nil)
+		requestID, admissionErr = projectAssetReference(f, id, action, file, workID, open != nil || len(targets) > 0 && targets[0] != nil)
 	}
 	if admissionErr != nil {
 		f.err = admissionErr.Error()
@@ -132,7 +145,7 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 			f.busy = false
 			if cardOwner != nil {
 				card, known := s.requestRevertCardLocked(cardOwner.state, cardOwner.key)
-				if _, referenceErr := projectAssetCardReference(card, action, file, workID, open != nil); !known || referenceErr != nil {
+				if _, referenceErr := projectAssetCardReference(card, action, file, workID, open != nil || len(targets) > 0 && targets[0] != nil); !known || referenceErr != nil {
 					s.mu.Unlock()
 					return
 				}
@@ -162,7 +175,11 @@ func (s *projectController) runProjectAssetForCard(win *mygo.Window, id, action 
 				// Route through the same native presented-file entry as chat deliverables.
 				// Its dirty-editor guard owns admission; never bypass it with an OS opener.
 				s.mu.Unlock()
-				open(resolved.CanonicalPath)
+				if len(targets) > 0 && targets[0] != nil {
+					targets[0](s.projectFileTarget(id, resolved, client))
+				} else if open != nil {
+					open(resolved.CanonicalPath)
+				}
 				return
 			}
 			s.mu.Unlock()
@@ -201,4 +218,20 @@ func projectAssetCardReference(card projectflow.RequestCard, action string, file
 		}
 	}
 	return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdProjectDeliveryReferenceMismatch))
+}
+
+func (s *projectController) projectFileTarget(id string, resolved projectflow.ResolvedArtifact, expected *dsh.Client) projectflow.FileTarget {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if expected == nil || s.dshClient != expected || s.projectFlow.client != expected {
+		return projectflow.FileTarget{}
+	}
+	target := projectflow.FileTarget{ProjectID: id, CanonicalPath: resolved.CanonicalPath, Root: resolved.Root}
+	for _, p := range s.projectFlow.listing.Projects {
+		if p.ID == id {
+			target.CoordinatorSessionID = p.CoordinatorSessionID
+			break
+		}
+	}
+	return target
 }

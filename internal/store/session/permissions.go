@@ -13,8 +13,9 @@ import (
 
 // PermissionOption is one row in the composer permission preset picker.
 type PermissionOption struct {
-	Label string
-	Value string
+	Label       string
+	Value       string
+	Description string
 }
 
 func flattenPermissionCatalog(cat api.PermissionCatalog) []PermissionOption {
@@ -33,12 +34,15 @@ func flattenPermissionCatalog(cat api.PermissionCatalog) []PermissionOption {
 			if label == "" {
 				label = it.Value
 			}
-			out = append(out, PermissionOption{Label: label, Value: it.Value})
+			option := PermissionOption{Label: label, Value: it.Value}
+			if it.Description != nil {
+				option.Description = *it.Description
+			}
+			out = append(out, option)
 		}
 	}
-	// DefaultOptions carries the authoritative label for the default preset;
-	// the general options list may repeat the same value with a stale label.
-	appendItems(cat.DefaultOptions)
+	// Current-session choices come from options. defaultOptions belongs to
+	// the independent new-session Settings editor, not this picker.
 	appendItems(cat.Options)
 	return out
 }
@@ -67,6 +71,17 @@ func permissionOptionByLabel(label string, options []PermissionOption) (Permissi
 		}
 	}
 	return match, found
+}
+
+func (s *Store) clearPermissionErrorLocked() {
+	if s.permissionsErr == nil {
+		return
+	}
+	if s.lastAction == s.permissionsErr.Error() {
+		s.lastAction = ""
+	}
+	s.permissionsErr = nil
+	s.invalidateViewLocked()
 }
 
 // RefreshPermissionCatalog reads process-level choices only. The catalog's
@@ -165,13 +180,13 @@ func (s *Store) SelectPermissionValueForSession(ctx context.Context, targetID, v
 	}
 	s.resetPermissionRiskLocked()
 	if permissionNeedsConfirmation(opt.Value) {
-		s.permissionRisk = &permissionRiskOperation{view: PermissionRiskConfirmation{Token: s.permissionRiskToken, SessionID: sessionID, Label: opt.Label, Value: opt.Value}, client: client, generation: generation}
+		s.permissionRisk = &permissionRiskOperation{view: PermissionRiskConfirmation{Token: s.permissionRiskToken, SessionID: sessionID, Label: opt.Label, Value: opt.Value}, client: client, generation: generation, catalogRevision: s.permissionCatalogRevision}
 		s.mu.Unlock()
 		s.fire()
 		return
 	}
 	s.permissionProjection.Pending = true
-	s.permissionsErr = nil
+	s.clearPermissionErrorLocked()
 	s.mu.Unlock()
 	s.fire()
 	go s.runPermissionPreset(ctx, client, sessionID, generation, opt)
@@ -194,6 +209,9 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 		s.mu.Unlock()
 		if err == nil && current {
 			err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &out)
+			if err == nil {
+				err = out.RequireSequenced()
+			}
 		}
 	}
 	s.mu.Lock()
@@ -224,15 +242,21 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 	if err != nil {
 		newErr = err.Error()
 	}
-	action := storelocale.T(storelocale.KeyStoreSessionCurrentSessionPermissionUpdated) + s.permissionLabelLocked()
-	if err != nil {
-		action = newErr
-	}
-	if oldErr != newErr || s.lastAction != action {
+	if oldErr != newErr {
 		s.invalidateViewLocked()
 	}
 	s.permissionsErr = err
-	s.lastAction = action
+	// The confirmed projection updates the chip in place. A configuration
+	// command is not a conversation or a permanent shell success notice.
+	if err != nil {
+		if s.lastAction != newErr {
+			s.invalidateViewLocked()
+		}
+		s.lastAction = newErr
+	} else if oldErr != "" && s.lastAction == oldErr {
+		s.lastAction = ""
+		s.invalidateViewLocked()
+	}
 	s.mu.Unlock()
 	beforeSnapshotNotification("permission-settled")
 	s.fire()

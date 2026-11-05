@@ -33,6 +33,7 @@ type MCPAccess struct {
 	Busy                                          bool
 	EditingID, DeletingID                         string
 	OnEdit                                        func(string)
+	OnAdd                                         func()
 	OnDraftChanged                                func(string)
 	OnCancelEdit, OnConfirmDelete, OnCancelDelete func()
 	HasListRPC                                    bool
@@ -61,8 +62,12 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 		ui.Row(c).Gap(8).Shrink(0).AlignItems(ui.Center).Children(func() {
 			addLabel := mcpCatalogText("添加服务器", "Add MCP server")
-			if mcpHeaderIconButton(c, addLabel, "plus", a.Busy || a.OnEdit == nil) && a.OnEdit != nil {
-				a.OnEdit("")
+			if mcpHeaderIconButton(c, addLabel, "plus", a.Busy || a.OnAdd == nil && a.OnEdit == nil) {
+				if a.OnAdd != nil {
+					a.OnAdd()
+				} else if a.OnEdit != nil {
+					a.OnEdit("")
+				}
 			}
 			if mcpHeaderIconButton(c, i18n.T(i18n.KeySettingsRefresh), "refresh", a.Busy || a.OnRefresh == nil) && a.OnRefresh != nil {
 				a.OnRefresh()
@@ -73,12 +78,8 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPStubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPSchemaHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
-	if a.LastAction != "" {
-		ui.Text(c, settingsActionText(a.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "mcp:82", "error", a.Err != "", func() string { return a.Err })
+	settingsNotice(c, "mcp:85", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if a.HealthRefreshFailed {
 		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Refresh reconnects failed managed servers and reloads the list.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
@@ -92,43 +93,60 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		mcpEmptyCard(c, message, muted)
 	} else {
-		for _, row := range a.Servers {
-			mcpCompactRow(c, a, row, fg, muted)
+		for _, managed := range []bool{true, false} {
+			var rows []MCPServerRow
+			for _, row := range a.Servers {
+				if (row.Origin == "managed") == managed {
+					rows = append(rows, row)
+				}
+			}
+			if len(rows) == 0 {
+				continue
+			}
+			title := mcpCatalogText("组合配置", "Composition")
+			if managed {
+				title = mcpCatalogText("已配置", "Configured")
+			}
+			ui.Text(c, fmt.Sprintf("%s (%d)", title, len(rows))).FontSize(fonttheme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+			if !managed {
+				ui.Text(c, mcpCatalogText("来自组合配置，只读；请在源配置中修改。", "Read-only entries from composition configuration. Edit their source configuration to change them.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+			for _, row := range rows {
+				mcpCompactRow(c, a, row, fg, muted)
+			}
 		}
 	}
 	if a.DeletingID != "" {
 		open := true
-		bodyDialog(c, &open, mcpCatalogText("移除服务器", "Remove server"), func() {
+		bodyDialogFooterWidth(c, &open, mcpCatalogText("移除服务器", "Remove server"), 380, func() {
 			ui.Text(c, a.DeletingID).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
-					a.OnCancelDelete()
-				}
-				if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
-					a.OnConfirmDelete()
-				}
-			})
-		})
+			if a.Err != "" {
+				ui.Text(c, a.Err).FillWidth().Selectable().TextColor(c.Theme().Danger)
+			}
+		}, func() {
+			if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+				a.OnCancelDelete()
+			}
+			if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+				a.OnConfirmDelete()
+			}
+		}, ui.DialogOptions{DismissDisabled: a.Busy})
 		if !open && !a.Busy && a.OnCancelDelete != nil {
 			a.OnCancelDelete()
 		}
 	}
-	// The installed page keeps the import and the JSON editor out of sight until
-	// the add button is used; here they sit behind a disclosure unless an edit
-	// is already in progress.
-	forms := func() {
+	mcpEditorForms(c, a, fg, muted)
+	bodyDisclosure(c, "mcp-advanced", providerCopy("导入", "Import"), func() {
 		mcpImportPane(c, a.Import, a.Busy, fg, muted)
-		mcpEditorForms(c, a, fg, muted)
-	}
-	if a.EditingID != "" || a.Form != nil && a.Form.Draft != nil {
-		forms()
-	} else {
-		bodyDisclosure(c, "mcp-advanced", providerCopy("导入与高级编辑", "Import and advanced editing"), forms)
-	}
+	})
 }
 
 func mcpEditorForms(c *ui.Context, a *MCPAccess, fg, muted ui.Color) {
+	if a.Form != nil {
+		mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
+		return
+	}
 	formOpen := mcpFormEditor(c, a.Form, a.Busy, a.EditingID, fg, muted)
 	if a.DraftSpec != nil && !formOpen {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPUpsert)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
@@ -318,7 +336,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			}
 			if snap.ExpandedID == r.ID {
 				open := true
-				bodyDialog(c, &open, title+providerCopy(" 可用工具", " tools"), func() {
+				bodyDialogFooterWidth(c, &open, title+providerCopy(" 可用工具", " tools"), 480, func() {
 					for _, entry := range snap.Rows {
 						if entry.Id == r.ID && entry.Connection != nil {
 							for _, name := range entry.Connection.Tools {
@@ -326,7 +344,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 							}
 						}
 					}
-				})
+				}, nil)
 				if !open && a.Catalog.OnInspect != nil {
 					a.Catalog.OnInspect(r.ID)
 				}

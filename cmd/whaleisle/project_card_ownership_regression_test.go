@@ -201,6 +201,8 @@ func TestProjectWorkInspectorReadsCardAAfterCardBBecomesCurrent(t *testing.T) {
 			value = map[string]any{"project": map[string]any{"id": card.ProjectID, "coordinatorSessionId": "owned-lead"}}
 		case "/api/session/projections":
 			value = map[string]any{"values": map[string]any{"agentTeam": map[string]any{"members": []any{}, "tasks": []any{}}}}
+		case "/api/session/list":
+			value = map[string]any{"items": []any{}}
 		case "/dsh-project/workstreams/get":
 			if request.Payload["workstreamId"] != "work-A" {
 				t.Fatalf("inspector changed work ownership: %+v", request.Payload)
@@ -216,7 +218,7 @@ func TestProjectWorkInspectorReadsCardAAfterCardBBecomesCurrent(t *testing.T) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(raw)))}, nil
 	})}}
 	_, detail, err := readProjectRequestWork(context.Background(), rpc, card.ProjectID, card.ID, card.Revision, "work-A")
-	if err != nil || detail.Workstream.Request.ID != "A" || len(calls) != 4 {
+	if err != nil || detail.Workstream.Request.ID != "A" || len(calls) != 5 {
 		t.Fatalf("inspector did not retain A's read chain: err=%v calls=%v", err, calls)
 	}
 }

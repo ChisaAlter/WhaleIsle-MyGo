@@ -46,9 +46,6 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 				ui.Text(c, tr("打开原任务详情以预览已发布页面。", "Open the original request details to preview this published page.")).FontSize(theme.InterfaceSize(12))
 				return
 			}
-			if state.Loading {
-				ui.Text(c, tr("正在读取并生成页面预览…", "Reading and rendering the published page…")).FontSize(theme.InterfaceSize(12))
-			}
 			if state.Error != "" {
 				ui.Text(c, state.Error).FontSize(theme.InterfaceSize(12)).Selectable()
 			}

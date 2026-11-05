@@ -46,19 +46,14 @@ func (s *Store) FetchAttachment(ctx context.Context, attachmentID string) (strin
 	if attachmentID == "" {
 		return "", os.ErrInvalid
 	}
-	if local := CachedAttachmentPath(attachmentID); local != "" {
-		if _, err := os.Stat(local); err == nil {
-			return local, nil
-		}
-	}
 	s.mu.Lock()
-	client := s.client
-	sessionID := s.selectedID
+	binding, sessionID := s.planHistoryBinding, s.selectedID
 	s.mu.Unlock()
-	if client == nil || sessionID == "" {
+	read := s.CaptureAttachmentRead(binding, sessionID)
+	if read.Fetch == nil {
 		return "", ErrNoClient
 	}
-	return fetchSessionAttachment(ctx, client, sessionID, attachmentID, attachmentID)
+	return read.Fetch(ctx, attachmentID)
 }
 
 // fetchSessionAttachment shares decoding and storage while callers choose the cache namespace.

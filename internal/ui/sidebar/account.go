@@ -29,13 +29,18 @@ import (
 // points exist before the shell publishes a profile: OnOpen then falls back to
 // the settings page, which already owns account details and sign-in.
 type Account struct {
-	Name      string // display name; empty shows the localized account title
-	Detail    string // secondary line, e.g. the masked contact
-	AvatarURL string // optional profile picture URL or data:image/... URI
-	SignedIn  bool
-	Busy      bool
-	OnOpen    func() // account details; nil falls back to the settings entry
-	OnSignOut func() // nil hides the sign-out item (e.g. signed out already)
+	Name                string // display name; empty shows the localized account title
+	Detail              string // secondary line, e.g. the masked contact
+	AvatarURL           string // optional profile picture URL or data:image/... URI
+	SignedIn            bool
+	Busy                bool
+	OnOpen              func() // account details; nil falls back to the settings entry
+	OnSignOut           func() // nil hides the sign-out item (e.g. signed out already)
+	OnSignIn            func()
+	OnContact           func()
+	LauncherActions     func(*ui.Menu)
+	RenderLauncherPopup func(*ui.Context, ui.Element)
+	Notices             []AccountNotice
 }
 
 var (
@@ -55,6 +60,8 @@ func SetRemoteImageCache(c *imgcache.Cache) {
 	accountRemoteCache.c = c
 	accountRemoteCache.mu.Unlock()
 }
+
+func RetryAccountAvatar(raw string, invalidate func()) { remoteAvatarCache().Retry(raw, invalidate) }
 
 func remoteAvatarCache() *imgcache.Cache {
 	accountRemoteCache.mu.Lock()
@@ -172,11 +179,20 @@ func accountInitial(name string) string {
 
 func accountMenu(a Account, open func()) func(*ui.Menu) {
 	return func(menu *ui.Menu) {
-		if open != nil && menu.Item(i18n.T(i18n.KeySettingsAccountTitle)).Chosen() {
+		if open != nil && menu.Item(i18n.T(i18n.KeySettingsOpen)).Key("account:settings").Chosen() {
 			open()
 		}
-		if a.OnSignOut != nil && menu.Item(i18n.T(i18n.KeySettingsAccountSignOut)).Chosen() {
+		if a.LauncherActions != nil {
+			a.LauncherActions(menu)
+		}
+		if a.OnContact != nil && menu.Item(workspaceText("联系我们", "Contact us")).Key("account:contact").Chosen() {
+			a.OnContact()
+		}
+		if a.SignedIn && a.OnSignOut != nil && menu.Item(i18n.T(i18n.KeySettingsAccountSignOut)).Key("account:signout").Chosen() {
 			a.OnSignOut()
+		}
+		if !a.SignedIn && a.OnSignIn != nil && menu.Item(i18n.T(i18n.KeySettingsAccountSignIn)).Key("account:signin").Chosen() {
+			a.OnSignIn()
 		}
 	}
 }
@@ -185,11 +201,11 @@ func accountMenu(a Account, open func()) func(*ui.Menu) {
 // control, which keeps the same menu.
 func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, compact bool) {
 	a := m.Account
-	open := a.OnOpen
+	open := m.OnOpenSettings
 	if open == nil {
-		open = m.OnOpenSettings
+		open = a.OnOpen
 	}
-	if open == nil && a.OnSignOut == nil {
+	if open == nil && a.OnSignOut == nil && a.OnSignIn == nil {
 		return
 	}
 	label := accountLabel(a)
@@ -231,6 +247,10 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 		row.Background(chrome.Color(colors.Hover))
 	}
 	row.Menu(accountMenu(a, open))
+	if a.RenderLauncherPopup != nil {
+		a.RenderLauncherPopup(c, row)
+	}
+	accountNoticeStack(c, row, a.Notices)
 	row.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
 			if signedOut {

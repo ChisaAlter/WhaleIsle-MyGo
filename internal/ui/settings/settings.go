@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/pet"
+	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -18,15 +19,17 @@ import (
 
 // Model wires the settings panel to store state.
 type Model struct {
+	PublicContributions pluginui.PublicContributions
 	// Optional feature-owned section body, composed by the application.
-	ActiveSection  SectionID
-	SectionContent func(*ui.Context)
-	Pet            *pet.Companion
-	PetSettings    *PetSettingsAccess
-	Store          *settings.Store
-	ThemeID        string
-	SystemDark     bool
-	OnClose        func()
+	ActiveSection       SectionID
+	SectionContent      func(*ui.Context)
+	ContributedSections []ContributedSection
+	Pet                 *pet.Companion
+	PetSettings         *PetSettingsAccess
+	Store               *settings.Store
+	ThemeID             string
+	SystemDark          bool
+	OnClose             func()
 	// OnOpenConfig opens the configuration file in the host editor; nil renders
 	// the header action disabled with an explanation.
 	OnOpenConfig func()
@@ -35,8 +38,11 @@ type Model struct {
 	DraftPtr func(key, seed string) *string
 	// BoolPtr returns a stable *bool wired to the same field drafts (bool kinds).
 	BoolPtr func(key, seed string) *bool
-	// ConfirmReplace, when set, must return true before SaveReplaceFromDrafts runs.
+	// ConfirmReplace is the legacy synchronous callback for existing callers.
 	ConfirmReplace func() bool
+	// OnRequestReplace presents a controlled confirmation and invokes confirm
+	// only on acceptance. The candidate is captured before presentation.
+	OnRequestReplace func(confirm func())
 
 	DesktopActive         bool
 	Desktop               *DesktopAccess
@@ -67,6 +73,7 @@ type Model struct {
 	AgentPresets          *AgentPresetsAccess
 	OnSelectDesktop       func()
 	OnSelectAccount       func()
+	OnSignIn              func()
 	OnSelectCredentials   func()
 	OnSelectAbout         func()
 	OnSelectAppearance    func()
@@ -80,9 +87,10 @@ type Model struct {
 	OnSelectAgentPresets  func()
 	OnSelectNamespace     func(ns string)
 	// Overlay entries (plan §3.2) that leave the settings shell for dedicated panels.
-	OnOpenMarket func()
-	OnOpenRemote func()
-	OnOpenUsage  func()
+	OnOpenMarket          func()
+	OnOpenRemote          func()
+	OnOpenRemoteWorkspace func()
+	OnOpenUsage           func()
 	// FilterPtr is the left-nav namespace search box (schema namespaces only).
 	FilterPtr *string
 	// RevealSecrets, when true, shows password-like string fields in the clear.
@@ -93,6 +101,11 @@ type Model struct {
 func View(c *ui.Context, m Model) {
 	if m.Store == nil && m.Desktop == nil && m.SectionContent == nil {
 		return
+	}
+	finishPreferenceErrors := beginBodyPreferenceErrorNotices(c)
+	defer finishPreferenceErrors()
+	if close := m.OnClose; close != nil {
+		m.OnClose = func() { ClearPreferenceErrorNotices(c); close() }
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -123,22 +136,31 @@ func View(c *ui.Context, m Model) {
 
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
 	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Children(func() {
-		if snap.Loading {
-			ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
 		ui.Box(c).Grow(1).MinWidth(0)
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
-		configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
-		if m.OnOpenConfig == nil {
-			configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
-		} else if configButton.Clicked() {
-			m.OnOpenConfig()
-		}
+		renderSettingsHeaderActions(c, m, func() {
+			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+			configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
+			configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
+			if m.OnOpenConfig == nil {
+				configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
+			} else if configButton.Clicked() {
+				m.OnOpenConfig()
+			}
+		})
 		if m.OnClose != nil {
-			close := ui.Button(c, "").Label(i18n.T(i18n.KeySettingsBack)).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
+			closeLabel := i18n.T(i18n.KeySettingsBack)
+			if m.PublicContributions.Entries != nil {
+				for _, entry := range m.PublicContributions.Entries("settings.close", "") {
+					if entry.Label != "" {
+						closeLabel = entry.Label
+						break
+					}
+				}
+			}
+			close := ui.Button(c, "").Label(closeLabel).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
 			close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(fg) })
 			if close.Clicked() {
+				*settingsSearchJumpState(c) = settingsSearchJump{}
 				m.OnClose()
 			}
 		}
@@ -265,7 +287,13 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	selectedBG, selectedFG := settingsSelectedRailColors(m)
 	groups := navigationGroups(m, snap)
 	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+		if m.PublicContributions.Slot != nil {
+			m.PublicContributions.Slot(c, "settings.header", "", func() {
+				ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+			})
+		} else {
+			ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+		}
 		settingsRailSearch(c, query, fg, muted, border)
 		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
 		// sit 12 DIP from each other.
@@ -280,7 +308,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 						if selected {
 							fill, ink = selectedBG, selectedFG
 						}
-						label := sectionLabel(entry.id)
+						label := navigationLabel(m, entry.id)
 						button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(36).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(7, 16, 7, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
 						button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 						button.Children(func() {
@@ -296,6 +324,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 						}
 						if button.Clicked() {
 							*query = ""
+							*settingsSearchJumpState(c) = settingsSearchJump{}
 							if entry.onSelect != nil {
 								entry.onSelect()
 							}
@@ -313,7 +342,9 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 func settingsRailSearch(c *ui.Context, query *string, fg, muted, border ui.Color) {
 	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch))
+		if ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).Changed() {
+			*settingsSearchJumpState(c) = settingsSearchJump{}
+		}
 		if *query != "" {
 			clearLabel := i18n.T(i18n.KeySettingsNavSearchClear)
 			clear := ui.Button(c, "").Label(clearLabel).Size(20, 20).Shrink(0).Padding(4).Radius(10).BorderWidth(0).Background(ui.Transparent).Tooltip(clearLabel)
@@ -326,6 +357,7 @@ func settingsRailSearch(c *ui.Context, query *string, fg, muted, border ui.Color
 }
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color, query *string) {
 	active := activeSection(m, snap)
+	settingsSearchJumpState(c).Active = active
 	// General/Interface source lists have no inter-row gap: each Setting-Cell
 	// owns its 16 DIP vertical padding and a half-pixel bottom border.
 	gap := float32(10)
@@ -340,17 +372,13 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 	// one opening, and Reveal runs the enter by hand.
 	pane.Opacity(chrome.Reveal(c, pane, chrome.PopoverDuration))
 	pane.Children(func() {
-		if snap.Err != "" {
-			ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		}
-		if snap.LastAction != "" && !strings.HasPrefix(snap.LastAction, "settings document ") {
-			ui.Text(c, settingsActionText(snap.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		}
 		if searching := strings.TrimSpace(*query) != ""; searching {
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			settingsSearchResults(c, m, snap, *query, fg, muted, chrome.Color(colors.Hover), func() { *query = "" })
 			return
 		}
+		finishItems := beginSettingsItemContributions(c, m.PublicContributions, active)
+		defer finishItems()
 		if m.SectionContent != nil && m.ActiveSection != "" {
 			m.SectionContent(c)
 			return
@@ -432,10 +460,19 @@ func RequestReplace(m Model) {
 	if m.Store == nil {
 		return
 	}
+	confirm := m.Store.PrepareReplaceFromDrafts(context.Background())
+	if m.OnRequestReplace != nil {
+		if confirm != nil {
+			m.OnRequestReplace(confirm)
+		}
+		return
+	}
 	if m.ConfirmReplace != nil && !m.ConfirmReplace() {
 		return
 	}
-	m.Store.SaveReplaceFromDrafts(context.Background())
+	if confirm != nil {
+		confirm()
+	}
 }
 
 // namespaceForm paints the schema-driven form of the selected namespace: the
@@ -513,9 +550,12 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 		customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap)
 	anchor := ui.Column(c.Key("settings-actions")).FillWidth().MinWidth(0).Gap(0)
 	confirming := ui.Local(anchor, "confirm-replace", func() bool { return false })
+	preparedReplace := ui.Local(anchor, "prepared-replace", func() func() { return nil })
 	anchor.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Padding(16, 0, 6, 0).AlignItems(ui.Center).Children(func() {
 			switch {
+			case snap.Err != "":
+				settingsStatusLine(c, snap.Err, c.Theme().Danger)
 			case snap.Saving:
 				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaving), muted)
 			case snap.Dirty:
@@ -525,7 +565,11 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			if ns != nil && !ns.HasSecrets {
 				if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsReplace), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium, Disabled: blocked}).Clicked() {
-					*confirming = true
+					submit := m.Store.PrepareReplaceFromDrafts(context.Background())
+					if submit != nil {
+						*preparedReplace = submit
+						*confirming = true
+					}
 				}
 			}
 			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsDiscard), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Loading || snap.Saving}).Clicked() {
@@ -553,9 +597,13 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 		Danger:       true,
 		OnConfirm: func() {
 			*confirming = false
-			m.Store.SaveReplaceFromDrafts(context.Background())
+			submit := *preparedReplace
+			*preparedReplace = nil
+			if submit != nil {
+				submit()
+			}
 		},
-		OnCancel: func() { *confirming = false },
+		OnCancel: func() { *confirming = false; *preparedReplace = nil },
 	})
 }
 
@@ -566,7 +614,7 @@ func hasSecretField(ns *settings.Namespace) bool {
 		return false
 	}
 	for _, f := range ns.Fields {
-		if f.Kind == settings.FieldString && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label)) {
+		if f.Kind == settings.FieldString && secretField(f) {
 			return true
 		}
 	}
@@ -637,7 +685,7 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 		})
 	default:
 		draft := m.DraftPtr(f.Key, seed)
-		if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
+		if secretField(f) {
 			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 				input := ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
 				if m.RevealSecrets == nil || !*m.RevealSecrets {
@@ -662,5 +710,45 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 				m.OnDraft(f.Key, *draft)
 			}
 		})
+	}
+}
+
+// settings.action is the content header's action list, immediately before the
+// close button. The config action is the native open-document builtin, order 0.
+func renderSettingsHeaderActions(c *ui.Context, m Model, drawConfig func()) {
+	p := m.PublicContributions
+	entries := []pluginui.PublicSlotEntry{}
+	if p.Entries != nil && p.RenderEntry != nil {
+		entries = p.Entries("settings.action", "")
+	}
+	hasDocument := false
+	for _, entry := range entries {
+		if entry.ID == "open-document" {
+			hasDocument = true
+			break
+		}
+	}
+	drawn := false
+	for _, entry := range entries {
+		if entry.Native && entry.ID == "open-document" {
+			if !drawn {
+				drawConfig()
+				drawn = true
+			}
+		} else if !entry.Native {
+			// Existing native callers do not require a private renderer connection.
+			// If it omits its optional document owner, retain the native action at 0.
+			if !hasDocument && !drawn && entry.Order >= 0 && p.NativeWinner("settings.action", "", "open-document") {
+				drawConfig()
+				drawn = true
+			}
+			if entry.ID == "open-document" {
+				drawn = true
+			}
+			p.RenderEntry(c, entry.Slot, entry.OwnerKey, entry.Handle)
+		}
+	}
+	if !drawn && p.NativeWinner("settings.action", "", "open-document") {
+		drawConfig()
 	}
 }

@@ -73,96 +73,35 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 	usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
 	calendarUsageView(c, m, st, providers, settings, fg, muted, accent, field)
 	days := o.Days
-	models := o.ByModel
-	title := usageText("每日模型堆叠（近期）", "Daily model breakdown (recent)")
-	if st.Range.Active() {
-		selected := st.Selection()
-		days = selected.Days
-		models = selected.Models
-		title = usageText("每日模型堆叠（选定日期）", "Daily model breakdown (selected dates)")
-	} else if len(days) > st.Days {
+	if len(days) > st.Days {
 		days = days[len(days)-st.Days:]
 	}
-	usageCard(c, "usage-daily-models", title, fg, func() {
-		stackedUsageView(c, days, models, providers, settings, fg, muted, field)
+	usageCard(c, "usage-daily-models", usageText("每日模型堆叠（近期）", "Daily model breakdown (recent)"), fg, func() {
+		usageRangeToolbar(c, m, st, fg, muted, accent)
+		stackedUsageView(c, days, o.ByModel, providers, settings, fg, muted, field)
 	})
-	shareModels := o.AllTime.ByModel
-	shareTotal := o.AllTime.Totals.Total
-	title = usageText("模型占比（全部历史）", "Model share (all time)")
-	if st.Range.Active() {
-		selected := st.Selection()
-		shareModels = selected.Models
-		shareTotal = selected.Totals.Total
-		title = usageText("模型占比（选定日期）", "Model share (selected dates)")
-	}
-	usageCard(c, "usage-model-share", title, fg, func() {
-		modelShareView(c, shareModels, shareTotal, settings, fg, muted, field)
-	})
-	if st.Range.Active() || len(o.Providers) > 0 && !(len(o.Providers) == 1 && (o.Providers[0].ID == "unknown" || o.Providers[0].Totals.Total <= 0)) {
-		ui.Text(c, usageText("服务商分项用量", "Provider token breakdown")).Bold().TextColor(fg)
-		providerMax := 1.0
-		if st.Range.Active() {
-			totals := map[string]float64{}
-			for _, row := range shareModels {
-				totals[row.Provider] += row.Total
+	rankingView(c, m, st, fg, muted, accent)
+	projectRankingView(c, m, st, fg, muted, accent)
+	if len(o.Providers) > 0 && !(len(o.Providers) == 1 && (o.Providers[0].ID == "unknown" || o.Providers[0].Totals.Total <= 0)) {
+		usageCard(c, "usage-providers", usageText("服务商分项用量", "Provider token breakdown"), fg, func() {
+			maximum := 1.0
+			for _, p := range o.Providers {
+				maximum = math.Max(maximum, p.Totals.Total)
 			}
-			for _, value := range totals {
-				providerMax = math.Max(providerMax, value)
-			}
-		} else {
-			for _, provider := range o.Providers {
-				providerMax = math.Max(providerMax, provider.Totals.Total)
-			}
-		}
-		if st.Range.Active() {
-			groups := map[string][]usagestore.ModelUsage{}
-			for _, row := range shareModels {
-				groups[row.Provider] = append(groups[row.Provider], row)
-			}
-			keys := make([]string, 0, len(groups))
-			for key := range groups {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				var t usagestore.Totals
-				for _, row := range groups[key] {
-					t.Input += row.Input
-					t.Output += row.Output
-					t.CacheRead += row.CacheRead
-					t.CacheWrite += row.CacheWrite
-					t.Total += row.Total
-				}
-				ui.Text(c, fmt.Sprintf("%s · %.0f tokens", key, t.Total)).TextColor(fg)
-				providerUsageBar(c, t.Total, providerMax, accent, field)
-				ui.Text(c, totalsText(t)+"\n"+usageCostText(groups[key], settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			}
-		} else {
-			for _, provider := range o.Providers {
-				name := provider.Name
+			for _, p := range o.Providers {
+				name := p.Name
 				if name == "" {
-					name = provider.ID
+					name = p.ID
 				}
-				rows := []usagestore.ModelUsage{}
-				for _, row := range shareModels {
-					if row.Provider == provider.ID {
-						rows = append(rows, row)
-					}
-				}
-				ui.Text(c, fmt.Sprintf("%s · %.0f tokens", name, provider.Totals.Total)).TextColor(fg)
-				providerUsageBar(c, provider.Totals.Total, providerMax, accent, field)
-				ui.Text(c, totalsText(provider.Totals)+"\n"+usageCostText(rows, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			}
-		}
-	}
-	ui.Text(c, usageText("每日明细（与上方趋势范围相同）", "Daily details (same range as trend)")).Bold().TextColor(fg)
-	ui.Scroll(c).Height(220).Children(func() {
-		ui.Column(c).Gap(8).Children(func() {
-			for _, day := range days {
-				ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Row(c).FillWidth().Gap(8).Children(func() {
+					ui.Text(c, name).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
+					ui.Text(c, formatCompactTokens(p.Totals.Total)).TextColor(muted)
+				})
+				providerUsageBar(c, p.Totals.Total, maximum, accent, field)
 			}
 		})
-	})
+	}
+	usageCard(c, "usage-model-share", usageText("模型占比（全部历史）", "Model share (all time)"), fg, func() { modelShareView(c, o.AllTime.ByModel, o.AllTime.Totals.Total, settings, fg, muted, field) })
 }
 
 // Calendar cells use one set of quartiles over all returned days, including
@@ -203,7 +142,9 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 		buttons := map[string]ui.Element{}
 		focusTarget := ""
 		ui.Text(c, fmt.Sprintf(usageText("%.0f tokens · %d 天有用量，共 %d 天 · %s", "%.0f tokens · %d active of %d days · %s"), selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		ui.Text(c, usageText("颜色按全窗口四分位分级；聚焦或悬停查看日期详情；方向键按日/周移动，Home/End 到首尾；Enter 选择，Shift+Enter 扩展。", "Colors use whole-window quartiles. Focus or hover for day details. Arrow keys move by day/week; Home/End reach bounds. Enter selects; Shift+Enter extends.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if st.Range.Active() && ui.Button(c, usageText("清除选区", "Clear selection")).AlignSelf(ui.Start).BorderWidth(0).Background(ui.Transparent).Clicked() {
+			m.Store.ClearStatsDateRange()
+		}
 		start, _ := time.Parse("2006-01-02", days[0].Date)
 		end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
 		start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)

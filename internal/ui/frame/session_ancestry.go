@@ -92,6 +92,9 @@ func sessionAncestryHeader(c *ui.Context, m Model, snap session.ViewState) {
 			if i == len(ancestors)-1 || it.SessionID != id || it.Origin == "subagent" || it.ContactError != "" {
 				continue
 			}
+			if routeRegisteredSessionOpen(m, it) {
+				return
+			}
 			if m.Sizes != nil && m.Sizes.Workspace != nil {
 				m.Sizes.Workspace.closeMainChild()
 			}

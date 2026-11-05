@@ -2,8 +2,10 @@ package session
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -25,31 +27,73 @@ func (s *Store) ListReferenceCandidates(ctx context.Context, sessionID, query st
 	if client == nil || !valid {
 		return nil
 	}
-	var files api.ListResult
-	var refs api.CandidatesResult
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if client.Call(ctx, "fileReferences/list", map[string]any{"agentId": sessionID, "query": query}, &files) != nil {
-			files = nil
-		}
-	}()
-	if !quoted {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if client.Call(ctx, "sessionReferenceResolver/candidates", map[string]any{"agentId": sessionID, "query": query}, &refs) != nil {
-				refs = nil
-			}
-		}()
-	}
-	wg.Wait()
+	rows, _ := queryReferenceCandidates(ctx, client, sessionID, query, quoted)
 	s.mu.Lock()
 	valid = s.client == client && s.selectedID == sessionID && s.followGeneration == generation
 	s.mu.Unlock()
 	if !valid || ctx.Err() != nil {
 		return nil
+	}
+	return rows
+}
+
+// QueryReferenceCandidates is the asynchronous composer's cancellable reader.
+func (s *Store) QueryReferenceCandidates(ctx context.Context, query string, quoted bool) ([]ReferenceCandidate, error) {
+	s.mu.Lock()
+	client, id, generation := s.client, s.selectedID, s.followGeneration
+	s.mu.Unlock()
+	if client == nil || id == "" {
+		return nil, errors.New("Host is not connected")
+	}
+	rows, err := queryReferenceCandidates(ctx, client, id, query, quoted)
+	s.mu.Lock()
+	current := s.client == client && s.selectedID == id && s.followGeneration == generation
+	s.mu.Unlock()
+	if !current {
+		return nil, context.Canceled
+	}
+	return rows, err
+}
+
+func (s *Store) QueryAgentReferences(ctx context.Context, token uint64, address AgentSessionAddress, query string, quoted bool) ([]ReferenceCandidate, error) {
+	s.mu.Lock()
+	valid := s.agentPromptActionAdmissionLocked(token, address, true)
+	client := s.agentNavigation.client
+	generation := s.agentNavigation.generation
+	s.mu.Unlock()
+	if !valid || client == nil {
+		return nil, context.Canceled
+	}
+	rows, err := queryReferenceCandidates(ctx, client, address.ChildSessionID, query, quoted)
+	s.mu.Lock()
+	current := s.agentPromptActionAdmissionLocked(token, address, true) && s.agentNavigation.client == client && s.agentNavigation.generation == generation
+	s.mu.Unlock()
+	if !current {
+		return nil, context.Canceled
+	}
+	return rows, err
+}
+
+func queryReferenceCandidates(ctx context.Context, client *dsh.Client, id, query string, quoted bool) ([]ReferenceCandidate, error) {
+	var files api.ListResult
+	var refs api.CandidatesResult
+	var fileErr, refErr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fileErr = client.Call(ctx, "fileReferences/list", map[string]any{"agentId": id, "query": query}, &files)
+	}()
+	if !quoted {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			refErr = client.Call(ctx, "sessionReferenceResolver/candidates", map[string]any{"agentId": id, "query": query}, &refs)
+		}()
+	}
+	wg.Wait()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	out := make([]ReferenceCandidate, 0, len(files)+len(refs))
 	seen := map[string]bool{}
@@ -83,7 +127,7 @@ func (s *Store) ListReferenceCandidates(ctx context.Context, sessionID, query st
 		}
 		out = append(out, row)
 	}
-	return out
+	return out, errors.Join(fileErr, refErr)
 }
 
 // ListFileReferences preserves the legacy path-only caller surface.

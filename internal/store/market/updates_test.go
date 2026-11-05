@@ -13,6 +13,74 @@ type updateFixture struct {
 	release chan struct{}
 }
 
+type automaticUpdateFixture struct {
+	updateFixture
+	checked chan struct{}
+}
+
+func (f automaticUpdateFixture) List(context.Context, bool, string) (desktopmarket.Catalog, error) {
+	return desktopmarket.Catalog{Items: []desktopmarket.CatalogItem{{ID: "owner/demo", PackageName: "demo", InstallSpec: "demo"}}}, nil
+}
+func (f automaticUpdateFixture) LatestVersion(ctx context.Context, item desktopmarket.CatalogItem) (string, error) {
+	f.checked <- struct{}{}
+	return f.updateFixture.LatestVersion(ctx, item)
+}
+
+func TestAutomaticUpdatesWaitForCatalogAndInventoryInEitherOrder(t *testing.T) {
+	for _, catalogFirst := range []bool{true, false} {
+		t.Run(map[bool]string{true: "catalog-first", false: "inventory-first"}[catalogFirst], func(t *testing.T) {
+			checked := make(chan struct{}, 4)
+			s := NewWithPersonalPath("")
+			client := &dsh.Client{}
+			s.Attach(client, nil)
+			s.SetCatalogService(automaticUpdateFixture{updateFixture{version: "1.1.0"}, checked})
+			inventory := func() {
+				s.finishRefresh(client, s.generation, s.refreshID, nil, []Entry{{Label: "demo", IdentityKnown: true, Installed: true, Removable: true, Source: "demo@1.0.0", Version: "1.0.0"}}, "", "", "")
+			}
+			catalog := func() {
+				s.RefreshCatalog(false, "en")
+				deadline := time.Now().Add(time.Second)
+				for s.Discovery().Loading && time.Now().Before(deadline) {
+					time.Sleep(time.Millisecond)
+				}
+				if s.Discovery().Loading {
+					t.Fatal("catalog did not load")
+				}
+			}
+			if catalogFirst {
+				catalog()
+			} else {
+				inventory()
+			}
+			select {
+			case <-checked:
+				t.Fatal("checked updates before both reads completed")
+			default:
+			}
+			if catalogFirst {
+				inventory()
+			} else {
+				catalog()
+			}
+			select {
+			case <-checked:
+			case <-time.After(time.Second):
+				t.Fatal("ready reads did not automatically check updates")
+			}
+			if u := awaitUpdates(t, s); len(u.Rows) != 1 || !u.Rows[0].Available {
+				t.Fatal(u)
+			}
+			s.checkUpdatesWhenReady()
+			select {
+			case <-checked:
+				t.Fatal("same completed reads checked twice")
+			default:
+			}
+			s.Detach()
+		})
+	}
+}
+
 func (f updateFixture) List(context.Context, bool, string) (desktopmarket.Catalog, error) {
 	return desktopmarket.Catalog{}, nil
 }

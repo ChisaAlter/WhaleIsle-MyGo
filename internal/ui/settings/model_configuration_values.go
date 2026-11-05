@@ -29,7 +29,27 @@ func configurationText(value any) string {
 	if value == nil {
 		return ""
 	}
+	if n, ok := value.(float64); ok && !math.IsNaN(n) && !math.IsInf(n, 0) && math.Trunc(n) == n {
+		return strconv.FormatInt(int64(n), 10)
+	}
 	return fmt.Sprint(value)
+}
+
+func configurationFormatCapacity(value any) string {
+	if value == nil {
+		return ""
+	}
+	if n, ok := value.(float64); ok && !math.IsNaN(n) && !math.IsInf(n, 0) && n > 0 && math.Trunc(n) == n {
+		i := int64(n)
+		if i%1_000_000 == 0 {
+			return fmt.Sprintf("%dM", i/1_000_000)
+		}
+		if i%1_000 == 0 {
+			return fmt.Sprintf("%dK", i/1_000)
+		}
+		return strconv.FormatInt(i, 10)
+	}
+	return configurationText(value)
 }
 func configurationCapacity(value string) (any, error) {
 	value = strings.TrimSpace(value)
@@ -61,6 +81,23 @@ func configurationModelError(rows []any) string {
 			return fmt.Sprintf("Model %d: enter a unique model ID", i+1)
 		}
 		seen[id] = true
+		for _, key := range []string{"input", "inputModalities"} {
+			if value, exists := row[key]; exists {
+				values := configurationRows(value)
+				if len(values) == 0 {
+					return fmt.Sprintf("Model %d: %s", i+1, providerCopy("至少保留一种输入类型", "Keep at least one input type"))
+				}
+				if key == "inputModalities" {
+					image := false
+					for _, v := range values {
+						image = image || v == "image"
+					}
+					if !image && (row["imagePixelBudget"] != nil || row["imageMaxBytes"] != nil) {
+						return fmt.Sprintf("Model %d: %s", i+1, providerCopy("纯文本模型不能设置图片限制", "Text-only models cannot set image limits"))
+					}
+				}
+			}
+		}
 		if efforts, has := row["reasoningEfforts"].(map[string]any); has {
 			nonOff := 0
 			emptyValue := false

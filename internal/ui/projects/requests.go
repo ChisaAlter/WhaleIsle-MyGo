@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"time"
 	"whaleisle/internal/projectflow"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -123,8 +124,12 @@ func requestDetailView(c *ui.Context, m Model) {
 					if label == "" {
 						label = file.Path
 					}
-					if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.OnResolvedFile == nil).Clicked() && m.OnArtifact != nil {
-						m.OnArtifact(file, m.OnResolvedFile)
+					if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
+						if m.OnArtifactTarget != nil && m.OnOpenAuthorizedFile != nil {
+							m.OnArtifactTarget(file, m.OnOpenAuthorizedFile)
+						} else if m.OnArtifact != nil {
+							m.OnArtifact(file, m.OnResolvedFile)
+						}
 					}
 					ui.Text(c, file.DelegationRef).FontSize(fonttheme.InterfaceSize(12))
 				}
@@ -159,6 +164,15 @@ func requestDetailView(c *ui.Context, m Model) {
 			for _, version := range card.Versions {
 				ui.Text(c, fmt.Sprintf("%d · %s", version.Revision, version.Title)).FontSize(fonttheme.InterfaceSize(12))
 				ui.Text(c, version.Goal).FontSize(fonttheme.InterfaceSize(12))
+				if version.At > 0 {
+					ui.Text(c, time.UnixMilli(int64(version.At)).Format(time.RFC3339)).FontSize(fonttheme.InterfaceSize(12))
+				}
+				for _, text := range version.Constraints {
+					ui.Text(c, tr("约束：", "Constraint: ")+text).FontSize(fonttheme.InterfaceSize(12))
+				}
+				for _, text := range version.Conditions {
+					ui.Text(c, tr("验收条件：", "Acceptance condition: ")+text).FontSize(fonttheme.InterfaceSize(12))
+				}
 			}
 		})
 	})

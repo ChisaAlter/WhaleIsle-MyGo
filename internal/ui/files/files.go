@@ -41,6 +41,14 @@ const sideBySideMinWidth float32 = 520
 
 // Model is file panel state for one frame.
 type Model struct {
+	// TreeOnly is the Files dock resource: the explorer owns this entire seat.
+	// File activation is handed to OnOpenResource instead of nesting an editor.
+	TreeOnly       bool
+	OnOpenResource func(path string) error
+	// ResourceOnly is an explicitly addressed resource, not an explorer grant.
+	ResourceOnly bool
+	// HostOnly forbids reading a coincidentally matching desktop path.
+	HostOnly           bool
 	SVGImages          *svgimage.Owner
 	OpenDocumentViewer func(string) (DocumentSurface, error)
 	// OpenDeliveryDocument accepts a validated local saved file in a read-only
@@ -94,6 +102,9 @@ type Model struct {
 	OfficePreviewStatus func(path string) string
 	// OpenWithApps are session/workspacePathApplications rows for the selected file.
 	OpenWithApps []OpenWithApp
+	// OpenWithState belongs to the captured Host/session/root/path request.
+	OpenWithState     *OpenWithState
+	OnRefreshOpenWith func()
 	// EditorApps are probed external editors (Electron editors.js) offered in
 	// the same open-with menu.
 	EditorApps []OpenWithApp
@@ -112,6 +123,7 @@ type Model struct {
 	ReadRemote func(rel string) (string, error)
 	// Context readers are captured from the same frame as BindingID.
 	ReadRemoteContext func(context.Context, string) (string, error)
+	ReadImageContext  func(context.Context, string, int64) ([]byte, error)
 	ImageGeneration   uint64
 	ReadTableContext  func(context.Context, string, workspacefs.XLSXPageRequest) (*workspacefs.XLSXPage, error)
 	StatRemoteContext func(context.Context, string) string
@@ -126,8 +138,14 @@ type Model struct {
 
 // OpenWithApp is one harness-registered application for a workspace path.
 type OpenWithApp struct {
-	ID   string
-	Name string
+	ID      string
+	Name    string
+	Default bool
+}
+
+type OpenWithState struct {
+	Loading bool
+	Error   string
 }
 
 // editViewModeFallback persists the view mode when Model.EditViewMode is nil.
@@ -142,6 +160,10 @@ func View(c *ui.Context, m Model) {
 	previewPreferences(m)
 	if m.Tabs != nil {
 		m.Tabs.Bind(m.BindingID, m.WorkspaceRoot)
+	}
+	if m.TreeOnly {
+		viewExplorer(c, m)
+		return
 	}
 	observePlanHistory(m)
 	if paintPlanResource(c, m) {
@@ -175,7 +197,7 @@ func View(c *ui.Context, m Model) {
 		if m.Tabs.Tree == nil {
 			m.Tabs.Tree = &workspacefs.DirectoryTree{}
 		}
-		m.Tabs.Tree.Ensure(m.BindingID, m.WorkspaceRoot)
+		m.Tabs.Tree.EnsureHostOnly(m.BindingID, m.WorkspaceRoot, m.HostOnly)
 		automatic := true
 		if w := tabsFor(m); w != nil {
 			automatic = !w.AutoRefreshDisabled
@@ -189,6 +211,10 @@ func View(c *ui.Context, m Model) {
 	field := chrome.Color(colors.Field)
 	border := chrome.Color(colors.Border)
 	accent := chrome.Color(colors.Accent)
+	if m.ResourceOnly {
+		previewPane(c, m, fg, muted, border, field)
+		return
+	}
 
 	root := strings.TrimSpace(m.WorkspaceRoot)
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
@@ -239,7 +265,7 @@ func View(c *ui.Context, m Model) {
 			filter = strings.TrimSpace(*m.Filter)
 		}
 		if m.Tabs != nil && m.Tabs.Search != nil {
-			m.Tabs.Search.Ensure(m.BindingID, m.WorkspaceRoot, filter, m.ListRemoteContext, c.Invalidate)
+			m.Tabs.Search.EnsureHostOnly(m.BindingID, m.WorkspaceRoot, filter, m.ListRemoteContext, c.Invalidate, m.HostOnly)
 		}
 		ui.SplitVertical(c, split, func() {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
@@ -283,7 +309,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 			paintTreeReferenceButton(c, m, row, path, muted)
 		})
 		if row.Clicked() {
-			selectFile(m, path)
+			openTreeFile(m, path)
 		}
 	}
 	if len(state.Paths) < state.Total {
@@ -307,21 +333,25 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 	}
 	if state.Error != "" {
 		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
-		return
+		if len(state.Entries) == 0 {
+			return
+		}
 	}
 	if state.WatchError != "" {
 		ui.Text(c, state.WatchError).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(4, 8, 4, 8)
 	}
 	ents := state.Entries
-	if len(ents) == 0 && rel == "" {
-		ui.Text(c, label("此文件夹为空", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8)
+	if len(ents) == 0 {
+		ui.Text(c, label("此文件夹为空", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8, 4, float32(8+depth*12))
 	}
 	for _, e := range ents {
 		childRel := e.Name
 		if rel != "" {
 			childRel = rel + "/" + e.Name
 		}
-		if e.IsDir {
+		if e.Other {
+			ui.Text(c, e.Name).FillWidth().FontSize(theme.InterfaceSize(12.5)).TextColor(muted).SingleLine().Ellipsis("…").Padding(4, 8, 4, float32(26+depth*12)).Tooltip(label("此项目不是普通文件或文件夹，无法打开", "This entry is not a regular file or directory and cannot be opened"))
+		} else if e.IsDir {
 			rowDir(c, m, childRel, e.Name, depth, fg, muted, accent)
 			if isExpanded(m, childRel) {
 				paintDir(c, m, root, childRel, depth+1, fg, muted, accent)
@@ -366,7 +396,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 		paintTreeReferenceButton(c, m, row, rel, muted)
 	})
 	if row.Clicked() {
-		selectFile(m, rel)
+		openTreeFile(m, rel)
 	}
 	_ = muted
 }
@@ -375,7 +405,11 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
-		paintTabs(c, m, fg, muted)
+		if !m.ResourceOnly {
+			paintTabs(c, m, fg, muted)
+		} else if w := tabsFor(m); w != nil && w.PendingClose != "" {
+			paintPendingClose(c, m, w, muted)
+		}
 		sel := ""
 		if m.SelectedFile != nil {
 			sel = *m.SelectedFile
@@ -399,7 +433,8 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			return
 		}
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
-			ui.Row(c).Gap(8).Padding(0, 12, 4, 12).Children(func() {
+			// A floating chip: a row in the flow would push the document down while it reads.
+			ui.Row(c).Absolute().Top(4).Right(12).Gap(8).AlignItems(ui.Center).Padding(2, 8).Radius(8).Background(c.Theme().Surface).Children(func() {
 				ui.Text(c, label("正在读取文件…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if widgets.Button(c, colors, label("取消读取", "Cancel read"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.stopTextRead(false, false)
@@ -418,9 +453,6 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			}
 		}
 		paintResourceRefreshControls(c, m)
-		if m.EditStatus != nil && *m.EditStatus != "" {
-			ui.Text(c, *m.EditStatus).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 12, 4, 12)
-		}
 		if m.PreviewErr != nil && *m.PreviewErr != "" {
 			ui.Text(c, *m.PreviewErr).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).
 				Padding(4, 12, 8, 12)

@@ -32,6 +32,20 @@ func (s *fixtureStream) Recv(ctx context.Context) (json.RawMessage, error) {
 }
 func (s *fixtureStream) Cancel()    { s.once.Do(func() { close(s.canceled) }) }
 func (s *fixtureStream) send(v any) { b, _ := json.Marshal(v); s.q <- b }
+func (s *fixtureStream) SendItem(ctx context.Context, value any) error {
+	command := object(value)
+	s.remote.mu.Lock()
+	s.remote.calls = append(s.remote.calls, fixtureCall{"input/" + command["type"].(string), command})
+	err, delay, refusal := s.remote.writeErr, s.remote.delayAck, s.remote.refusal
+	s.remote.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if !delay {
+		s.send(map[string]any{"type": "ack", "sequence": command["sequence"], "refusal": refusal})
+	}
+	return nil
+}
 
 type fixtureCall struct {
 	method string
@@ -45,6 +59,8 @@ type fixtureRemote struct {
 	createErr error
 	closeErr  error
 	list      []Info
+	delayAck  bool
+	refusal   string
 }
 type fixtureOpen struct {
 	method string
@@ -70,7 +86,7 @@ func (r *fixtureRemote) Call(ctx context.Context, method string, args, out any) 
 	case "terminal/list":
 		v = r.list
 	case "terminal/environment":
-		v = Environment{MaxInputBytes: 8, MaxCols: 160, MaxRows: 60}
+		v = Environment{MaxInputBytes: 8, MaxBufferedBytes: 4096, MaxCols: 160, MaxRows: 60}
 	case "terminal/create":
 		if r.createErr != nil {
 			return r.createErr
@@ -79,8 +95,8 @@ func (r *fixtureRemote) Call(ctx context.Context, method string, args, out any) 
 		v = Info{ID: req["id"].(string), State: "running", Cols: 80, Rows: 24}
 	case "terminal/close":
 		return r.closeErr
-	case "terminal/write":
-		return r.writeErr
+	case "terminal/write", "terminal/resize":
+		return errors.New("obsolete unary terminal control called")
 	}
 	if out != nil {
 		b, _ := json.Marshal(v)
@@ -156,15 +172,14 @@ func attach(t *testing.T, s *Store, r *fixtureRemote, seq int64) *Attachment {
 	default:
 	}
 	hold.stream.send(map[string]any{"type": "retained"})
-	follow := nextOpen(t, r, "terminal/follow")
+	follow := nextOpen(t, r, "terminal/attach")
 	if follow.args["agentId"] != "session" || follow.args["id"] != "term" {
 		t.Fatal(follow.args)
 	}
-	attachmentID, _ := follow.args["attachmentId"].(string)
-	if attachmentID == "" {
-		t.Fatal("follow without attachment identity")
+	if follow.args["attachmentId"] != nil {
+		t.Fatal("attach sent an obsolete attachmentId")
 	}
-	follow.stream.send(map[string]any{"type": "snapshot", "sequence": seq, "screen": "\x1b[2;3Hcursor", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24, ControllerID: attachmentID}})
+	follow.stream.send(map[string]any{"type": "snapshot", "sequence": seq, "screen": "\x1b[2;3Hcursor", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24}, "writable": true})
 	v := wait(t, s, "session", func(v View) bool { return v.Render != nil })
 	if v.Writable {
 		t.Fatal("input before parsed snapshot")
@@ -191,22 +206,22 @@ func TestRetainedProtocolAndNoAutomaticCreation(t *testing.T) {
 	var writes, resizes int
 	for _, c := range calls {
 		switch c.method {
-		case "terminal/write":
+		case "input/write":
 			writes++
-			if c.args["agentId"] != "session" || c.args["id"] != "term" || c.args["attachmentId"] != a.ID || c.args["data"] != "abc" {
+			if c.args["sequence"] != float64(1) || c.args["data"] != "abc" {
 				t.Fatal(c)
 			}
-		case "terminal/resize":
+		case "input/resize":
 			resizes++
-			if c.args["agentId"] != "session" || c.args["id"] != "term" || c.args["attachmentId"] != a.ID || c.args["cols"] != float64(160) || c.args["rows"] != float64(60) {
+			if c.args["sequence"] != float64(2) || c.args["cols"] != float64(160) || c.args["rows"] != float64(60) {
 				t.Fatal(c)
 			}
-		case "input/write", "input/resize":
-			t.Fatal("obsolete duplex command transmitted", c)
+		case "terminal/write", "terminal/resize":
+			t.Fatal("obsolete unary control transmitted", c)
 		}
 	}
 	if writes != 1 || resizes != 1 {
-		t.Fatal("one-shot control calls missing", writes, resizes)
+		t.Fatal("ordered attachment uplink commands missing", writes, resizes)
 	}
 }
 func TestRetainedReconnectNeverReplaysInput(t *testing.T) {
@@ -231,7 +246,7 @@ func TestRetainedReconnectNeverReplaysInput(t *testing.T) {
 	if _, err := a.Write([]byte("old")); err == nil {
 		t.Fatal("old writer survived")
 	}
-	if r.count("terminal/write") != 1 {
+	if r.count("input/write") != 1 {
 		t.Fatal("replayed input")
 	}
 }
@@ -259,14 +274,13 @@ func TestRetainedSequenceGapAndTakeover(t *testing.T) {
 	defer s.bind(nil, nil, false, nil)
 	hold := nextOpen(t, r, "terminal/retain")
 	hold.stream.send(map[string]any{"type": "retained"})
-	f := nextOpen(t, r, "terminal/follow")
-	attachmentID, _ := f.args["attachmentId"].(string)
-	f.stream.send(map[string]any{"type": "snapshot", "sequence": 9, "screen": "one", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24, ControllerID: attachmentID}})
+	f := nextOpen(t, r, "terminal/attach")
+	f.stream.send(map[string]any{"type": "snapshot", "sequence": 9, "screen": "one", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24}, "writable": true})
 	v := wait(t, s, "session", func(v View) bool { return v.Render != nil })
 	s.Acknowledge(v.Attachment, v.Render.Revision)
 	wait(t, s, "session", func(v View) bool { return v.Writable })
-	// Another attachment takes input control: the Host stops naming this one.
-	f.stream.send(map[string]any{"type": "state", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24}})
+	// Another attachment takes input control: this stream becomes read-only.
+	f.stream.send(map[string]any{"type": "state", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24}, "writable": false})
 	wait(t, s, "session", func(v View) bool { return !v.Writable })
 	if _, e := v.Attachment.Write([]byte("x")); e == nil {
 		t.Fatal("takeover not enforced")
@@ -299,6 +313,7 @@ func TestRetainedCloseTargetsOriginalSession(t *testing.T) {
 
 func TestRetainedInvalidFrameShapes(t *testing.T) {
 	seq := int64(1)
+	writable := true
 	ok := &Info{ID: "term", State: "running", Cols: 80, Rows: 24}
 	cases := []struct {
 		name     string
@@ -323,7 +338,7 @@ func TestRetainedInvalidFrameShapes(t *testing.T) {
 			}
 		})
 	}
-	if validateFrame(wireFrame{Type: "snapshot", Sequence: &seq, Info: ok}, true, 0, "term") != nil {
+	if validateFrame(wireFrame{Type: "snapshot", Sequence: &seq, Info: ok, Writable: &writable}, true, 0, "term") != nil {
 		t.Fatal("valid snapshot rejected")
 	}
 	if validateFrame(wireFrame{Type: "output", Sequence: &seq}, false, 0, "term") != nil {
@@ -387,9 +402,8 @@ func TestRetainedRenderBarrierAndReadonlyGrid(t *testing.T) {
 	defer s.bind(nil, nil, false, nil)
 	hold := nextOpen(t, r, "terminal/retain")
 	hold.stream.send(map[string]any{"type": "retained"})
-	f := nextOpen(t, r, "terminal/follow")
-	attachmentID, _ := f.args["attachmentId"].(string)
-	f.stream.send(map[string]any{"type": "snapshot", "sequence": 3, "screen": "\x1b[4;5Hcursor", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24, ControllerID: attachmentID}})
+	f := nextOpen(t, r, "terminal/attach")
+	f.stream.send(map[string]any{"type": "snapshot", "sequence": 3, "screen": "\x1b[4;5Hcursor", "info": Info{ID: "term", State: "running", Cols: 80, Rows: 24}, "writable": true})
 	v := wait(t, s, "session", func(v View) bool { return v.Render != nil })
 	a := v.Attachment
 	if cols, rows := a.TerminalSize(20, 5); cols != 80 || rows != 24 {
@@ -408,7 +422,7 @@ func TestRetainedRenderBarrierAndReadonlyGrid(t *testing.T) {
 	if cols, rows := a.TerminalSize(9999, 9999); cols != 160 || rows != 60 {
 		t.Fatal("unbounded writable grid")
 	}
-	f.stream.send(map[string]any{"type": "state", "info": Info{ID: "term", State: "running", Cols: 70, Rows: 22}})
+	f.stream.send(map[string]any{"type": "state", "info": Info{ID: "term", State: "running", Cols: 70, Rows: 22}, "writable": false})
 	wait(t, s, "session", func(v View) bool { return !v.Writable })
 	if cols, rows := a.TerminalSize(20, 5); cols != 70 || rows != 22 {
 		t.Fatal("read-only grid lost Host cursor geometry")
@@ -431,7 +445,7 @@ func TestRetainedInputLimitAndCloseFailure(t *testing.T) {
 	if _, err := a.Write([]byte("123456789")); err == nil {
 		t.Fatal("oversized input accepted")
 	}
-	if r.count("terminal/write") != 0 {
+	if r.count("input/write") != 0 {
 		t.Fatal("oversized input transmitted")
 	}
 	r.mu.Lock()

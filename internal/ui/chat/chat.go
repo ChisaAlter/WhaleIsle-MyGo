@@ -24,6 +24,10 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
+	nativeUserEditor      bool
+	ReasoningBody         func(*ui.Context, session.Message, func())
+	RenderSlot            func(*ui.Context, session.ViewState, session.Message, string, func())
+	ToolRenderSlot        func(*ui.Context, string, *session.ToolCallView, func())
 	OpenUIParent          uintptr
 	OpenUIWindow          *mygo.Window
 	OpenUIMediaOcclusions []mygo.Rectangle
@@ -87,7 +91,8 @@ type Model struct {
 	OnOpenDeliverable func(path string)
 	// OnPreviewDeliverable is a separate read-only entry point for an authorized
 	// delivery. It must return an error rather than invoking a Host opener.
-	OnPreviewDeliverable func(path string) error
+	OnPreviewDeliverable             func(path string) error
+	OnPreviewDeliverablePresentation func(path, presentation string) error
 	// Starts on the UI thread and completes on the UI thread. The local
 	// reference owns failure/retry presentation; later preview loading does not.
 	OnOpenHistoryReference       func(path string, complete func(error))
@@ -105,6 +110,10 @@ type Model struct {
 
 // View paints the message list with FollowEnd for future streaming.
 func View(c *ui.Context, m Model) {
+	renderAttachmentSnapshot(m.Snapshot, func() { conversationView(c, m) })
+}
+
+func conversationView(c *ui.Context, m Model) {
 	if m.GroupRoom {
 		if m.Inspector != nil {
 			m.Inspector.CancelPicking()
@@ -250,8 +259,9 @@ func View(c *ui.Context, m Model) {
 							if hasVisibleTurnDelivery(*msg.TurnDelivery, m) && messageIndex > 0 && msgs[messageIndex-1].EventType == "turn/end" {
 								if target, ok := actionTargets[messageIndex-1]; ok {
 									assistantMessageActions(row.Context, m, target, messageRoot, muted)
+								} else {
+									TurnUsageView(row.Context, m, msgs[messageIndex-1], muted)
 								}
-								TurnUsageView(row.Context, m, msgs[messageIndex-1], muted)
 							}
 							return
 						}
@@ -266,8 +276,15 @@ func View(c *ui.Context, m Model) {
 						// Electron turn/end strip: 「已完成，用时 …」 with the usage row
 						// below it. The store writes elapsed milliseconds into Body.
 						if msg.Role == "status" && msg.EventType == "turn/end" {
-							if m.TurnContributions != nil {
-								m.TurnContributions(row.Context, m.Snapshot, msg)
+							nativeTail := func() {
+								if m.TurnContributions != nil {
+									m.TurnContributions(row.Context, m.Snapshot, msg)
+								}
+							}
+							if m.RenderSlot != nil {
+								m.RenderSlot(row.Context, m.Snapshot, msg, "turnTail", nativeTail)
+							} else {
+								nativeTail()
 							}
 							ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
 							key := "turn-end:" + msg.ID
@@ -316,8 +333,9 @@ func View(c *ui.Context, m Model) {
 							if !deferredToDelivery {
 								if target, ok := actionTargets[messageIndex]; ok {
 									assistantMessageActions(row.Context, m, target, messageRoot, muted)
+								} else {
+									TurnUsageView(row.Context, m, msg, muted)
 								}
-								TurnUsageView(row.Context, m, msg, muted)
 							}
 							return
 						}
@@ -346,6 +364,8 @@ func View(c *ui.Context, m Model) {
 								OnOpenFile:    m.OnOpenDeliverable,
 								OnInspectCall: inspectCallHandler(m.OnInspectToolCall, msg.ID, msg.Seq),
 								Todo:          todoBaselineForCall(todoBaselines, msg),
+								TodoBaselines: todoBaselines,
+								RenderSlot:    m.ToolRenderSlot,
 								OnOpen: func(path string) {
 									if m.OnOpenImageLightbox != nil {
 										m.OnOpenImageLightbox(path)
@@ -370,6 +390,18 @@ func View(c *ui.Context, m Model) {
 								Size:        secondaryChatSize(),
 								Accent:      chrome.Color(colors.Accent),
 								Hover:       chrome.Color(colors.Hover),
+							}
+							if m.ReasoningBody != nil || m.RenderSlot != nil {
+								thSt.Body = func(ctx *ui.Context) {
+									native := func() {
+										markdown.View(ctx, msg.Body, transcriptMarkdownStyle(muted, muted, chrome.Color(colors.Field), fg, secondaryChatSize(), darkSurface(muted)))
+									}
+									if m.ReasoningBody != nil {
+										m.ReasoningBody(ctx, msg, native)
+									} else {
+										m.RenderSlot(ctx, m.Snapshot, msg, "reasoning.body", native)
+									}
+								}
 							}
 							ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 						case session.MessageKindUnknown:
@@ -599,18 +631,19 @@ func inspectCallHandler(inspect func(callID, messageID string, seq float64), mes
 }
 
 type transcriptViewMemoKey struct {
-	projKey     session.ProjectionKey
-	messages    int
-	runs        int
-	firstID     string
-	lastID      string
-	binding     string
-	selectedID  string
-	mode        string
-	locale      string
-	expandedLen int
-	expandedXOR uint64
-	expandedSum uint64
+	projKey        session.ProjectionKey
+	messages       int
+	runs           int
+	firstID        string
+	lastID         string
+	binding        string
+	selectedID     string
+	mode           string
+	collapseTiming string
+	locale         string
+	expandedLen    int
+	expandedXOR    uint64
+	expandedSum    uint64
 }
 
 type transcriptViewMemo struct {
@@ -652,6 +685,7 @@ func (k transcriptViewMemoKey) samePrefixConfig(o transcriptViewMemoKey) bool {
 		k.binding == o.binding &&
 		k.selectedID == o.selectedID &&
 		k.mode == o.mode &&
+		k.collapseTiming == o.collapseTiming &&
 		k.locale == o.locale &&
 		k.expandedLen == o.expandedLen &&
 		k.expandedXOR == o.expandedXOR &&
@@ -699,18 +733,19 @@ func makeTranscriptViewMemoKey(m Model) (transcriptViewMemoKey, bool) {
 		}
 	}
 	return transcriptViewMemoKey{
-		projKey:     projKey,
-		messages:    len(m.Snapshot.Messages),
-		runs:        len(m.Snapshot.WorkflowRuns),
-		firstID:     firstID,
-		lastID:      lastID,
-		binding:     m.Snapshot.PlanHistoryBinding,
-		selectedID:  m.Snapshot.SelectedID,
-		mode:        m.Preferences.TranscriptView,
-		locale:      i18n.Locale(),
-		expandedLen: expLen,
-		expandedXOR: expXOR,
-		expandedSum: expSum,
+		projKey:        projKey,
+		messages:       len(m.Snapshot.Messages),
+		runs:           len(m.Snapshot.WorkflowRuns),
+		firstID:        firstID,
+		lastID:         lastID,
+		binding:        m.Snapshot.PlanHistoryBinding,
+		selectedID:     m.Snapshot.SelectedID,
+		mode:           m.Preferences.TranscriptView,
+		collapseTiming: m.Preferences.CollapseTiming,
+		locale:         i18n.Locale(),
+		expandedLen:    expLen,
+		expandedXOR:    expXOR,
+		expandedSum:    expSum,
 	}, true
 }
 

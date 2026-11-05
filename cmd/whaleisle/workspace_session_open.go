@@ -37,6 +37,7 @@ type workspaceSessionOpen struct {
 	sourceSending   bool
 	sourcePreparing int
 	sourceReply     *composer.GroupReplyDraft
+	carryDraft      bool
 }
 
 // An existing local draft belongs to its original session. It must not be
@@ -131,14 +132,46 @@ func (op *workspaceSessionOpen) finish(id string, err error) bool {
 	if occupied {
 		return false
 	}
-	return op.target.Select(id)
+	if !op.target.Select(id) {
+		return false
+	}
+	if op.carryDraft && id != op.sourceID {
+		s.mu.Lock()
+		if s.composerDrafts[op.sourceID] == op.sourceDraft && !workspaceSessionDraftOccupied(s.composerDrafts[id]) {
+			s.composerDrafts[id] = op.sourceDraft
+			op.sourceDraft.TargetID = id
+			delete(s.composerDrafts, op.sourceID)
+		}
+		s.mu.Unlock()
+	}
+	return true
+}
+
+// All global entry points use the same Host membership and UI draft owner as
+// workspace row creation. A ready empty Host retains the no-directory flow.
+func (s *mainState) openGlobalWorkspaceSession(win *mygo.Window, sessions *session.Store) {
+	if sessions == nil {
+		return
+	}
+	state := sessions.Snapshot()
+	if !state.WorkspaceReady || state.WorkspaceError != "" {
+		sessions.SetLastAction(directoryPickerText("工作区列表尚未就绪，请等待连接恢复后重试。", "The workspace list is not ready. Reconnect and try again."))
+		return
+	}
+	id := sessions.NewSessionWorkspaceID()
+	if id == "" {
+		s.revealMainConversation()
+		sessions.Select("")
+		return
+	}
+	s.openWorkspaceSession(win, sessions, sessions.ComposerHostGeneration(), id)
 }
 
 func (s *mainState) openWorkspaceSession(win *mygo.Window, sessions *session.Store, expectedHost uint64, workspaceID string) {
 	if sessions == nil || sessions.ComposerHostGeneration() != expectedHost {
 		return
 	}
-	s.selectMainPanel("")
+	s.revealMainConversation()
 	op, err := s.captureWorkspaceSessionOpen(win, sessions, expectedHost, workspaceID)
 	if err != nil {
 		return

@@ -12,7 +12,10 @@ import (
 
 type roomTextTransport func(*http.Request) (*http.Response, error)
 
-func (f roomTextTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f roomTextTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 
 const roomTextFixtureJSON = `{"id":"room","kind":"room","sessionId":"canonical-room","name":"Fixture group","title":"","description":"preserve full description","workspaceId":"workspace-1","sectionId":"section-1","pinned":false,"hidden":false,"pinOrder":0,"readInitialized":true,"lastSeenSeq":4,"createdAt":1,"updatedAt":2,"objective":"","objectiveMaxRounds":16,"memoryReview":true,"notify":true,"allowedSenderIds":[],"memberBotIds":["a","b"],"maxRounds":3,"maxSpeaks":10,"avatar":{"kind":"blob","shape":"circle","color":"blue","crop":"","dataUrl":""},"model":{"provider":"","model":"","reasoningEffort":""},"capabilities":{"tools":{"mode":"all","names":[],"future":{"guard":true}},"skills":{"mode":"all","names":[]},"mcp":{"mode":"all","names":[]},"extra":{"nested":[1,2]}},"holds":{},"inbox":[],"futureTop":{"retain":{"bytes":"value"}}}`
 

@@ -14,10 +14,11 @@ const MsgMissingGH = "未找到 GitHub CLI (gh)"
 
 // PRStatus is a lightweight pull-request summary from `gh` when available.
 type PRStatus struct {
-	OK      bool
-	Summary string
-	URL     string
-	Err     string
+	OK               bool
+	Summary          string
+	URL              string
+	Host, Repository string
+	Err              string
 }
 
 // PRInfo is one pull request from gh JSON (status / list / view).
@@ -59,24 +60,24 @@ func viewPR(ctx context.Context, root string, look PathLooker, run combinedRunne
 	}
 	ctx, cancel := ensurePRContext(ctx)
 	defer cancel()
-	out, err := run(ctx, root, "gh", "pr", "view", "--json", "number,title,url,state")
-	text := strings.TrimSpace(string(out))
+	repo, host, err := resolvePRRepository(ctx, root, run)
 	if err != nil {
-		msg := text
-		if msg == "" {
-			msg = err.Error()
-		}
-		return PRStatus{Err: msg}
+		return PRStatus{Err: err.Error()}
 	}
-	info, perr := parsePRInfoJSON(out)
-	if perr != nil {
-		st := PRStatus{OK: true, Summary: text, URL: firstHTTPURL(text)}
-		if st.Summary == "" {
-			st.Summary = "pr ok"
+	out, err := run(ctx, root, "gh", "pr", "view", "--repo", githubCLIRepository(host, repo.NameWithOwner), "--json", "number,title,url,state")
+	if err != nil {
+		text := strings.TrimSpace(string(out))
+		if text == "" {
+			text = err.Error()
 		}
-		return st
+		return PRStatus{Err: text}
 	}
-	return PRStatus{OK: true, Summary: FormatPRInfo(info), URL: info.URL}
+	info, err := parsePRInfoJSON(out)
+	if err != nil || !ValidPullRequestURLForHost(info.URL, host, repo.NameWithOwner) {
+		return PRStatus{Err: "GitHub returned an unexpected PR URL"}
+	}
+	return PRStatus{OK: true, Summary: FormatPRInfo(info), URL: info.URL, Host: host, Repository: repo.NameWithOwner}
+
 }
 
 // CreatePRDraft runs `gh pr create --draft --fill` when gh is available.

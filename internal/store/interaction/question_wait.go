@@ -70,7 +70,13 @@ func (w *questionWaitState) focus(on bool, now time.Time) bool {
 func (s *Store) engageQuestionLocked(eventID string) {
 	ds := s.questionDrafts[eventID]
 	p := s.findPending(eventID)
-	if ds == nil || p == nil || p.Sending || p.Continued {
+	if ds == nil || p == nil || p.Event != EventUserQuestions || p.Sending || planReviewOf(ds.req.Questions) != nil {
+		return
+	}
+	// A failed answer leaves this request editable. The next explicit submit
+	// rebuilds the outcome from this draft, rather than replaying old text.
+	p.Error = ""
+	if p.Continued {
 		return
 	}
 	ds.wait.pause(time.Now())

@@ -11,7 +11,10 @@ import (
 
 type whaleSettingsTransport func(*http.Request) (*http.Response, error)
 
-func (f whaleSettingsTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f whaleSettingsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func TestWhaleSettingsRPCExactContractAndNoRetry(t *testing.T) {
 	methods := []string{}
 	fail := false

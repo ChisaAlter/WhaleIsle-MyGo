@@ -2,7 +2,6 @@ package composer
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -25,32 +24,34 @@ func composerToolItems(m Model, query string) []suggestItem {
 		return nil
 	}
 	var items []suggestItem
-	add := func(zh, en string, action func()) {
+	// Intake rows open the Add section; mode and utility rows open Commands.
+	sectionAdd, sectionCommands := composerText("添加", "Add"), composerText("指令", "Commands")
+	add := func(section, zh, en string, action func()) {
 		if action == nil || query != "" && !strings.Contains(strings.ToLower(zh+" "+en), strings.ToLower(query)) {
 			return
 		}
-		items = append(items, suggestItem{label: composerText(zh, en), action: action})
+		items = append(items, suggestItem{label: composerText(zh, en), section: section, action: action})
 	}
-	add("添加文件", "Add files", m.OnPickImage)
+	add(sectionAdd, "添加文件", "Add files", m.OnPickImage)
 	if m.OnPasteImage != nil {
-		add("粘贴图片", "Paste image", func() { m.OnPasteImage(true) })
+		add(sectionAdd, "粘贴图片", "Paste image", func() { m.OnPasteImage(true) })
 	}
-	add("引用文件夹", "Reference folder", m.OnPickDirectory)
+	add(sectionAdd, "引用文件夹", "Reference folder", m.OnPickDirectory)
 	if !m.Voice.Busy() && m.Voice.Pending == "" {
 		if voiceNeedsSetup(m) && m.OnVoiceSettings != nil {
-			add("语音设置", "Voice settings", m.OnVoiceSettings)
+			add(sectionAdd, "语音设置", "Voice settings", m.OnVoiceSettings)
 		} else {
-			add("录音", "Record", m.OnStartVoice)
+			add(sectionAdd, "录音", "Record", m.OnStartVoice)
 		}
 	}
 	if !m.Voice.Busy() {
-		add("转写语音文件", "Transcribe audio file", m.OnPickSpeech)
-		add("切换语音服务", "Change speech provider", m.OnCycleSpeech)
+		add(sectionAdd, "转写语音文件", "Transcribe audio file", m.OnPickSpeech)
+		add(sectionAdd, "切换语音服务", "Change speech provider", m.OnCycleSpeech)
 	}
 	if m.OnPromptModeChange != nil {
 		addMode := func(zh, en string, selected bool, action func()) {
 			before := len(items)
-			add(zh, en, action)
+			add(sectionCommands, zh, en, action)
 			if selected && len(items) > before {
 				items[len(items)-1].sub = composerText("当前设置", "Selected")
 			}
@@ -61,7 +62,7 @@ func composerToolItems(m Model, query string) []suggestItem {
 		addMode("忙碌时插话", "Steer while busy", m.Snapshot.PromptModeExplicit && mode == session.PromptModeSteer, func() { m.OnPromptModeChange(session.PromptModeSteer) })
 	}
 	if m.OnToggleSkills != nil {
-		add("技能", "Skills", func() { m.OnToggleSkills(!m.SkillsOpen) })
+		add(sectionCommands, "技能", "Skills", func() { m.OnToggleSkills(!m.SkillsOpen) })
 	}
 	return items
 }
@@ -69,13 +70,6 @@ func composerToolItems(m Model, query string) []suggestItem {
 // The optional voice contribution keeps its microphone trigger in the input
 // activity seat; feedback offers Retry without forcing a trip to Settings.
 func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height float32) {
-	// The hero composer mirrors the reference's control set: no microphone seat
-	// until speech is configured, unless a capture, feedback or the setup guide
-	// is active. The docked composer keeps its always-visible control.
-	if (m.Hero || m.Snapshot.SelectedID != "") && !composerVoiceConfigured(m) && m.Voice.Phase == "" && m.Voice.Pending == "" &&
-		m.Voice.Message == "" && !(m.State != nil && m.State.VoiceSetupOpen) {
-		return
-	}
 	locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
 	button := func(glyph, label string, disabled bool, action func()) {
 		if action == nil {
@@ -147,11 +141,10 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 
 // voiceTickInterval paces the recording clock and the activity bars; the strip
 // only exists while a capture is running, so the repaint cost is bounded.
-const voiceTickInterval = 200 * time.Millisecond
+const voiceTickInterval = 50 * time.Millisecond
 
-// paintVoiceClock draws the live "1:05" clock and a five-bar activity strip.
-// The bars are an animation of the recording state, not a level meter: the
-// capture pipeline publishes no amplitudes.
+// paintVoiceClock draws a rolling history of measured capture RMS and the clock.
+// Levels come from the active capture's measured RMS, never a clock animation.
 func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
 	if m.State == nil {
 		return
@@ -174,19 +167,41 @@ func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	seconds := int(elapsed / time.Second)
 	clock := fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
-	ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {
-		t := float32(elapsed.Seconds())
-		ui.Box(c).Width(26).Height(12).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			const bars = 5
+	row := ui.Row(c.Key("voice-waveform")).Gap(6).AlignItems(ui.Center).MinWidth(0).Shrink(1)
+	width, _ := c.Size()
+	waveWidth := max(float32(24), min(float32(240), (width-180)*.4))
+	history := ui.Local(row, "rms-history", func() voiceWaveformHistory { return voiceWaveformHistory{} })
+	if !history.Started.Equal(m.State.VoiceStarted) {
+		*history = voiceWaveformHistory{Started: m.State.VoiceStarted}
+	}
+	if history.Sampled.IsZero() || !now.Before(history.Sampled.Add(voiceTickInterval)) {
+		history.Sampled = now
+		history.Values = append(history.Values, max(float32(0), min(float32(1), float32(m.Voice.Level))))
+		if len(history.Values) > 80 {
+			history.Values = history.Values[len(history.Values)-80:]
+		}
+	}
+	values := append([]float32(nil), history.Values...)
+	row.Children(func() {
+		ui.Box(c).Width(waveWidth).MinWidth(24).Height(24).Shrink(1).Label(i18n.T(i18n.KeyComposerVoiceRecording)).Draw(func(p *ui.Painter, r ui.Rect) {
+			const bars = 80
+			step := r.W / bars
 			for i := 0; i < bars; i++ {
-				level := 0.35 + 0.65*float32(math.Abs(math.Sin(float64(t)*2.4+float64(i)*1.35)))
-				bar := r.H * level
-				step := r.W / bars
-				p.Fill(ui.Rect{X: r.X + float32(i)*step, Y: r.Y + (r.H-bar)/2, W: max(1, step-2), H: bar}, muted, 1)
+				level := float32(0)
+				if index := len(values) - bars + i; index >= 0 {
+					level = values[index]
+				}
+				bar := max(float32(1.2), r.H*.9*level)
+				p.Fill(ui.Rect{X: r.X + (float32(i)+.5)*step, Y: r.Y + (r.H-bar)/2, W: max(float32(.6), step*.38), H: bar}, muted.Alpha(.25+float32(i)/120), 1)
 			}
 		})
 		ui.Text(c, clock).FontSize(11).TextColor(fg).FixedLineHeight(14).Shrink(0).Tooltip(i18n.T(i18n.KeyComposerVoiceRecording))
 	})
+}
+
+type voiceWaveformHistory struct {
+	Started, Sampled time.Time
+	Values           []float32
 }
 
 // composerVoiceConfigured reports a usable speech selection, which is what

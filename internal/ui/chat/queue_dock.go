@@ -31,17 +31,31 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 	border := chrome.Color(colors.Border)
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
-	ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(6).
-		Background(field).Border(0.5, border).Radius(12).Padding(8, 10, 8, 10).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
-				if n := len(m.Board.Queue); n > 0 {
-					ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
+	root := ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(6).
+		Background(field).Border(0.5, border).Radius(12).Padding(8, 10, 8, 10)
+	collapsed := ui.Local(root, "collapsed", func() bool { return true })
+	root.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
+			if n := len(m.Board.Queue); n > 0 {
+				ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
+			}
+			if len(m.Board.Queue)+len(m.Board.Pending) > 1 {
+				label := "▴"
+				if *collapsed {
+					label = "▾"
 				}
-			})
-			paintQueueEditor(c, m, fg, muted)
-			paintQueueRows(c, m, fg, muted, accent, border, true)
+				if ui.Button(c, label).Label(trajectoryText("展开或收起队列", "Expand or collapse queue")).Disabled(m.QueueEditor.ItemID != "").Clicked() {
+					*collapsed = !*collapsed
+				}
+			}
 		})
+		if len(m.Board.Queue)+len(m.Board.Pending) > 1 && *collapsed && m.QueueEditor.ItemID == "" {
+			return
+		}
+		paintQueueEditor(c, m, fg, muted)
+		paintQueueRows(c, m, fg, muted, accent, border, true)
+	})
 }
 
 // queueDockHasRows reports whether the dock has anything worth mounting.
@@ -92,7 +106,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 				if strings.TrimSpace(line) == "" {
 					line = i18n.T(i18n.KeyChatQueueEmptyPreview)
 				}
-				ui.Text(c, line).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(fg).SingleLine().MinWidth(0)
+				ui.Text(c, maskedUserText(line)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(fg).SingleLine().MinWidth(0)
 			})
 			action := func(icon *ui.SVG, label string, enabled bool, tone ui.Color, run func()) {
 				if run == nil {

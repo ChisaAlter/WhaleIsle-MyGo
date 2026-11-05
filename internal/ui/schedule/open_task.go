@@ -19,6 +19,7 @@ func (p *Panel) selectCatalogTask(row schedstore.Entry) {
 	key := taskKey(row)
 	if p.selected != key {
 		p.closeDetail()
+		p.focusDetail = true
 	}
 	if p.drafts == nil {
 		p.drafts = map[string]*taskDraft{}

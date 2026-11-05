@@ -106,25 +106,26 @@ type Store struct {
 	plugin     *pluginrpc.Client
 	notify     func()
 
-	loading         bool
-	err             error
-	hasIMRPC        bool
-	listMethod      string
-	historyMethod   string
-	methods         []string
-	rows            []Entry
-	rawListPreview  string
-	selectedID      string
-	lastSend        string
-	drafts          map[string]string
-	history         map[string][]Message
-	bridgeMode      string
-	pluginDiag      string
-	syncedRemote    bool
-	connectionBusy  bool
-	connectionNote  string
-	workspaceDrafts map[string]string
-	connectionEpoch uint64
+	loading           bool
+	err               error
+	hasIMRPC          bool
+	listMethod        string
+	historyMethod     string
+	methods           []string
+	rows              []Entry
+	rawListPreview    string
+	selectedID        string
+	lastSend          string
+	drafts            map[string]string
+	history           map[string][]Message
+	bridgeMode        string
+	pluginDiag        string
+	syncedRemote      bool
+	connectionBusy    bool
+	connectionNote    string
+	workspaceDrafts   map[string]string
+	connectionEpoch   uint64
+	refreshGeneration uint64
 }
 
 // New returns an in-memory IM store with no persistence root.
@@ -171,6 +172,7 @@ func (s *Store) Root() string {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.invalidateRemoteLocked()
 	s.connectionEpoch++
 	s.connectionBusy = false
 	s.connectionNote = ""
@@ -189,6 +191,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // AttachPlugin binds a Cordis-style plugin HTTP client (POST /{channel}/connection.status).
 func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 	s.mu.Lock()
+	s.invalidateRemoteLocked()
 	s.connectionEpoch++
 	s.connectionBusy = false
 	s.connectionNote = ""
@@ -201,6 +204,7 @@ func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 // Detach clears the client when harness stops; local channels/history stay.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.invalidateRemoteLocked()
 	s.connectionEpoch++
 	s.connectionBusy = false
 	s.connectionNote = ""
@@ -269,10 +273,43 @@ func (s *Store) Select(id string) {
 		s.mu.Unlock()
 		return
 	}
-	_ = s.saveDraftsLocked()
+	if err := s.saveDraftsLocked(); err != nil {
+		s.err = err
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
 	s.selectedID = id
 	s.mu.Unlock()
 	s.fire()
+}
+
+func (s *Store) invalidateRemoteLocked() {
+	s.refreshGeneration++
+	s.loading = false
+	s.hasIMRPC = false
+	s.listMethod = ""
+	s.historyMethod = ""
+	s.methods = nil
+	s.rawListPreview = ""
+	s.pluginDiag = ""
+	s.bridgeMode = "local"
+	s.syncedRemote = false
+	changed := false
+	for channel, messages := range s.history {
+		for i := range messages {
+			if messages[i].State == MessageStatePending {
+				messages[i].State = MessageStateUnknown
+				changed = true
+			}
+		}
+		s.history[channel] = messages
+	}
+	if changed {
+		if err := s.saveHistoryLocked(); err != nil {
+			s.err = err
+		}
+	}
 }
 
 // SetDraft updates the in-memory draft for channelID (or the selected channel
@@ -324,6 +361,7 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 
 	s.mu.Lock()
 	client := s.client
+	epoch := s.connectionEpoch
 	sendMethod := s.pickSendMethodLocked()
 	state := MessageStateLocal
 	if client != nil && sendMethod != "" {
@@ -345,8 +383,29 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 	if s.drafts != nil {
 		delete(s.drafts, channelID)
 	}
-	_ = s.saveHistoryLocked()
-	_ = s.saveDraftsLocked()
+	if err := s.saveHistoryLocked(); err != nil {
+		s.history[channelID] = s.history[channelID][:len(s.history[channelID])-1]
+		if s.drafts == nil {
+			s.drafts = map[string]string{}
+		}
+		s.drafts[channelID] = text
+		s.err = err
+		s.lastSend = "Local save failed: " + err.Error()
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	if err := s.saveDraftsLocked(); err != nil {
+		if s.drafts == nil {
+			s.drafts = map[string]string{}
+		}
+		s.drafts[channelID] = text
+		s.err = err
+		s.lastSend = "Draft save failed: " + err.Error()
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
 	s.selectedID = channelID
 	if client == nil || sendMethod == "" {
 		s.lastSend = "saved locally (no im/send RPC): " + channelID
@@ -368,6 +427,10 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		var raw json.RawMessage
 		err := client.Call(ctx, sendMethod, args, &raw)
 		s.mu.Lock()
+		if s.client != client || s.connectionEpoch != epoch {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastSend = err.Error()
 			s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
@@ -375,7 +438,10 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 			s.lastSend = "sent via " + sendMethod
 			s.setMessageStateLocked(channelID, msg.ID, MessageStateSent)
 		}
-		_ = s.saveHistoryLocked()
+		if saveErr := s.saveHistoryLocked(); saveErr != nil {
+			s.err = saveErr
+			s.lastSend += " · history save failed: " + saveErr.Error()
+		}
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -413,6 +479,8 @@ func (s *Store) Refresh(ctx context.Context) {
 	}
 	client := s.client
 	plugin := s.plugin
+	s.refreshGeneration++
+	epoch, generation := s.connectionEpoch, s.refreshGeneration
 	s.loading = true
 	s.err = nil
 	s.methods = append([]string(nil), regMethods...)
@@ -421,9 +489,13 @@ func (s *Store) Refresh(ctx context.Context) {
 	s.bridgeMode = "local"
 	s.mu.Unlock()
 	s.fire()
+	finish := func(a finishArgs) {
+		a.client, a.plugin, a.epoch, a.generation = client, plugin, epoch, generation
+		s.finishRefresh(a)
+	}
 
 	if client == nil && plugin == nil {
-		s.finishRefresh(finishArgs{
+		finish(finishArgs{
 			err:        fmt.Errorf("im: client not attached — local channels only"),
 			bridgeMode: "local",
 			pluginDiag: "no dsh client; cannot probe im/* or pluginInventory/list",
@@ -433,7 +505,7 @@ func (s *Store) Refresh(ctx context.Context) {
 
 	go func() {
 		if client != nil {
-			defer s.RefreshCordisInventory(ctx)
+			defer s.refreshCordisInventory(ctx, client, epoch, generation)
 		}
 		var listMethod string
 		var rows []Entry
@@ -457,7 +529,7 @@ func (s *Store) Refresh(ctx context.Context) {
 				err:           firstErr(listErr, histErr),
 				rows:          rows,
 				preview:       preview,
-				replaceRows:   len(rows) > 0,
+				replaceRows:   true,
 				hasRPC:        true,
 				listMethod:    listMethod,
 				historyMethod: histMethod,
@@ -471,7 +543,7 @@ func (s *Store) Refresh(ctx context.Context) {
 			} else {
 				fa.pluginDiag = fmt.Sprintf("im RPC: list=%s (history candidates failed)", listMethod)
 			}
-			s.finishRefresh(fa)
+			finish(fa)
 			return
 		}
 
@@ -482,20 +554,20 @@ func (s *Store) Refresh(ctx context.Context) {
 					err:          cordisErr,
 					rows:         cordisRows,
 					preview:      cordisPreview,
-					replaceRows:  len(cordisRows) > 0,
+					replaceRows:  true,
 					hasRPC:       true,
 					listMethod:   "connection.status",
 					bridgeMode:   "cordis",
 					pluginDiag:   fmt.Sprintf("dsh-im Cordis: %s", strings.Join(cordisHits, "; ")),
 					syncedRemote: true,
 				}
-				s.finishRefresh(fa)
+				finish(fa)
 				return
 			}
 		}
 
 		if client == nil {
-			s.finishRefresh(finishArgs{
+			finish(finishArgs{
 				bridgeMode: "local",
 				pluginDiag: "im/* empty; Cordis connection.status unanswered; no dsh client for pluginInventory",
 			})
@@ -524,27 +596,34 @@ func (s *Store) Refresh(ctx context.Context) {
 				fa.pluginDiag = fa.pluginDiag + fmt.Sprintf(" | im/* probe: %v", listErr)
 			}
 		}
-		s.finishRefresh(fa)
+		finish(fa)
 	}()
 }
 
 type finishArgs struct {
-	err           error
-	rows          []Entry
-	preview       string
-	replaceRows   bool
-	hasRPC        bool
-	listMethod    string
-	historyMethod string
-	bridgeMode    string
-	pluginDiag    string
-	remoteMsgs    []Message
-	channelID     string
-	syncedRemote  bool
+	client            *dsh.Client
+	plugin            *pluginrpc.Client
+	epoch, generation uint64
+	err               error
+	rows              []Entry
+	preview           string
+	replaceRows       bool
+	hasRPC            bool
+	listMethod        string
+	historyMethod     string
+	bridgeMode        string
+	pluginDiag        string
+	remoteMsgs        []Message
+	channelID         string
+	syncedRemote      bool
 }
 
 func (s *Store) finishRefresh(a finishArgs) {
 	s.mu.Lock()
+	if s.client != a.client || s.plugin != a.plugin || s.connectionEpoch != a.epoch || s.refreshGeneration != a.generation {
+		s.mu.Unlock()
+		return
+	}
 	s.loading = false
 	s.err = a.err
 	s.rawListPreview = a.preview
@@ -557,12 +636,14 @@ func (s *Store) finishRefresh(a finishArgs) {
 		s.syncedRemote = true
 	}
 	if a.replaceRows {
-		if len(a.rows) > 0 {
-			s.rows = a.rows
-			_ = s.saveChannelsLocked()
-			if s.selectedID == "" || !hasChannel(s.rows, s.selectedID) {
-				s.selectedID = channelKey(s.rows[0])
-			}
+		s.rows = append([]Entry(nil), a.rows...)
+		if err := s.saveChannelsLocked(); err != nil {
+			s.err = firstErr(s.err, err)
+		}
+		if len(s.rows) == 0 {
+			s.selectedID = ""
+		} else if s.selectedID == "" || !hasChannel(s.rows, s.selectedID) {
+			s.selectedID = channelKey(s.rows[0])
 		}
 	} else if len(s.rows) == 0 {
 		s.rows = defaultChannels()

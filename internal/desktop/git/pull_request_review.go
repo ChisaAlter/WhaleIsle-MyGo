@@ -19,48 +19,83 @@ import (
 // Private identity/token fields ensure edited text always requires a fresh review.
 type PullRequestPlan struct {
 	Repository, Base, Title, Body string
+	Host, HeadRepository, Head    string
 	Draft                         bool
 	Push                          PushPlan
 	root, gitDir, head, token     string
 }
 type PullRequestResult struct {
 	URL, Repository     string
+	Host                string
 	Existing, Uncertain bool
 }
 
 var githubRepositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 func githubRepository(remote string) (string, error) {
-	var path string
-	if strings.HasPrefix(remote, "git@github.com:") {
-		path = strings.TrimPrefix(remote, "git@github.com:")
-	} else {
-		u, e := url.Parse(remote)
-		if e != nil || u.Host != "github.com" || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && u.Scheme != "ssh") {
-			return "", errors.New("PR requires an unambiguous github.com push URL")
-		}
-		if u.User != nil && (u.Scheme != "ssh" || u.User.String() != "git") {
-			return "", errors.New("credential-bearing GitHub URL is not supported")
-		}
-		path = strings.TrimPrefix(u.Path, "/")
+	_, repo, err := repositoryIdentity(remote)
+	return repo, err
+}
+func repositoryIdentity(remote string) (host, repo string, err error) {
+	target, e := RepositoryWebURL(remote)
+	if e != nil {
+		return "", "", e
 	}
-	path = strings.TrimSuffix(path, ".git")
-	if !githubRepositoryPattern.MatchString(path) || strings.Contains(path, "..") {
-		return "", errors.New("invalid GitHub repository in push URL")
+	u, e := url.Parse(target)
+	if e != nil {
+		return "", "", e
 	}
-	return path, nil
+	return strings.ToLower(u.Host), strings.Trim(u.Path, "/"), nil
+}
+func githubCLIRepository(host, repo string) string {
+	if host == "" || strings.EqualFold(host, "github.com") {
+		return repo
+	}
+	return host + "/" + repo
 }
 func ValidPullRequestURL(raw, repository string) bool {
+	return ValidPullRequestURLForHost(raw, "github.com", repository)
+}
+func ValidPullRequestURLForHost(raw, host, repository string) bool {
+	if host == "" {
+		host = "github.com"
+	}
 	u, e := url.Parse(raw)
-	if e != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.RawPath != "" {
+	if e != nil || u.Scheme != "https" || !strings.EqualFold(u.Host, host) || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.RawPath != "" || !githubRepositoryPattern.MatchString(repository) {
 		return false
 	}
 	prefix := "/" + repository + "/pull/"
-	if !strings.HasPrefix(u.Path, prefix) {
+	if !strings.HasPrefix(strings.ToLower(u.Path), strings.ToLower(prefix)) {
 		return false
 	}
-	n, e := strconv.Atoi(strings.TrimPrefix(u.Path, prefix))
+	n, e := strconv.Atoi(u.Path[len(prefix):])
 	return e == nil && n > 0
+}
+
+type selectedPRRepository struct {
+	NameWithOwner    string `json:"nameWithOwner"`
+	URL              string `json:"url"`
+	DefaultBranchRef struct {
+		Name string `json:"name"`
+	} `json:"defaultBranchRef"`
+}
+
+// Omitting a repository argument is deliberate: gh's selected upstream/base
+// repository may differ from the fork receiving the reviewed push.
+func resolvePRRepository(ctx context.Context, root string, run combinedRunner) (selectedPRRepository, string, error) {
+	var repo selectedPRRepository
+	out, e := run(ctx, root, "gh", "repo", "view", "--json", "nameWithOwner,url,defaultBranchRef")
+	if e != nil {
+		return repo, "", fmt.Errorf("cannot resolve selected PR repository: %w: %s", e, strings.TrimSpace(string(out)))
+	}
+	if e = json.Unmarshal(out, &repo); e != nil {
+		return repo, "", e
+	}
+	host, name, e := repositoryIdentity(repo.URL)
+	if e != nil || !strings.EqualFold(name, repo.NameWithOwner) {
+		return repo, "", errors.New("GitHub did not return an unambiguous selected repository")
+	}
+	return repo, host, nil
 }
 func workflowIdentity(ctx context.Context, root string) (string, string, error) {
 	absolute, e := filepath.Abs(root)
@@ -75,7 +110,7 @@ func workflowIdentity(ctx context.Context, root string) (string, string, error) 
 	return absolute, dir, e
 }
 func pullRequestToken(p PullRequestPlan) string {
-	data, _ := json.Marshal([]any{p.Repository, p.Base, p.Title, p.Body, p.Draft, p.Push, p.root, p.gitDir, p.head})
+	data, _ := json.Marshal([]any{p.Host, p.HeadRepository, p.Head, p.Repository, p.Base, p.Title, p.Body, p.Draft, p.Push, p.root, p.gitDir, p.head})
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
 }
@@ -119,29 +154,44 @@ func preparePullRequestBranch(ctx context.Context, root string, push PushPlan, t
 	if current != push {
 		return p, errors.New("push destination changed; review again")
 	}
-	p.Repository, err = githubRepository(push.URL)
-	if err != nil {
-		return
-	}
-	emitPhase(ctx, "Resolving PR base in "+p.Repository+"…")
-	out, e := run(ctx, root, "gh", "repo", "view", p.Repository, "--json", "defaultBranchRef")
+	pushHost, headRepository, e := repositoryIdentity(push.URL)
 	if e != nil {
-		return p, fmt.Errorf("cannot resolve PR base: %w: %s", e, strings.TrimSpace(string(out)))
+		return p, e
 	}
-	var repo struct {
-		DefaultBranchRef struct {
-			Name string `json:"name"`
-		} `json:"defaultBranchRef"`
+	repo, host, e := resolvePRRepository(ctx, root, run)
+	if e != nil {
+		return p, e
 	}
-	if err = json.Unmarshal(out, &repo); err != nil {
-		return
+	if !strings.EqualFold(pushHost, host) {
+		return p, errors.New("push and selected PR repository belong to different GitHub hosts")
 	}
-	p.Base = repo.DefaultBranchRef.Name
+	p.Host, p.Repository, p.HeadRepository = host, repo.NameWithOwner, headRepository
+	p.Head = push.Target
+	if !strings.EqualFold(p.Repository, p.HeadRepository) {
+		p.Head = strings.SplitN(p.HeadRepository, "/", 2)[0] + ":" + push.Target
+	}
+	p.Base, _ = selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".gh-merge-base")
+	if p.Base != "" {
+		p.Base = strings.TrimPrefix(p.Base, "origin/")
+	}
+	if p.Base == "" {
+		remote, _ := selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".remote")
+		merge, _ := selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".merge")
+		remoteURL, _ := selectedText(ctx, root, "", "remote", "get-url", remote)
+		upstreamHost, upstreamRepo, _ := repositoryIdentity(remoteURL)
+		upstream := strings.TrimPrefix(merge, "refs/heads/")
+		if strings.EqualFold(upstreamHost, p.Host) && strings.EqualFold(upstreamRepo, p.Repository) && upstream != "" && upstream != push.Target {
+			p.Base = upstream
+		}
+	}
+	if p.Base == "" {
+		p.Base = repo.DefaultBranchRef.Name
+	}
 	if p.Base == "" || checkBranchName(root, p.Base) != nil {
-		return p, errors.New("GitHub did not return a valid default branch")
+		return p, errors.New("GitHub did not return a valid PR base branch")
 	}
-	if p.Base == push.Target {
-		return p, errors.New("create a feature branch before opening a PR against the default branch")
+	if p.Base == push.Target && strings.EqualFold(p.Repository, p.HeadRepository) {
+		return p, errors.New("create a feature branch before opening a PR against the same branch")
 	}
 	p.token = pullRequestToken(p)
 	return
@@ -181,7 +231,7 @@ func validatePullRequestBeforeCommit(ctx context.Context, root string, p PullReq
 }
 func lookupPullRequest(ctx context.Context, root string, p PullRequestPlan, run combinedRunner) (PullRequestResult, error) {
 	emitPhase(ctx, "Checking existing PR in "+p.Repository+"…")
-	out, e := run(ctx, root, "gh", "pr", "list", "--repo", p.Repository, "--head", p.Push.Target, "--base", p.Base, "--state", "open", "--json", "number,title,url,state,headRefName,baseRefName,headRepository,headRepositoryOwner")
+	out, e := run(ctx, root, "gh", "pr", "list", "--repo", githubCLIRepository(p.Host, p.Repository), "--head", p.Head, "--base", p.Base, "--state", "open", "--json", "number,title,url,state,headRefName,baseRefName,headRepository,headRepositoryOwner")
 	if e != nil {
 		return PullRequestResult{}, fmt.Errorf("cannot check existing PR; creation stopped: %w: %s", e, strings.TrimSpace(string(out)))
 	}
@@ -202,10 +252,10 @@ func lookupPullRequest(ctx context.Context, root string, p PullRequestPlan, run 
 		return PullRequestResult{}, nil
 	}
 	pinfo := list[0]
-	if pinfo.State != "OPEN" || !ValidPullRequestURL(pinfo.URL, p.Repository) || pinfo.HeadRefName != p.Push.Target || pinfo.BaseRefName != p.Base || !strings.EqualFold(pinfo.HeadRepositoryOwner.Login+"/"+pinfo.HeadRepository.Name, p.Repository) {
+	if pinfo.State != "OPEN" || !ValidPullRequestURLForHost(pinfo.URL, p.Host, p.Repository) || pinfo.HeadRefName != p.Push.Target || pinfo.BaseRefName != p.Base || !strings.EqualFold(pinfo.HeadRepositoryOwner.Login+"/"+pinfo.HeadRepository.Name, p.HeadRepository) {
 		return PullRequestResult{}, errors.New("GitHub returned an unexpected PR URL or state")
 	}
-	return PullRequestResult{URL: pinfo.URL, Repository: p.Repository, Existing: true}, nil
+	return PullRequestResult{URL: pinfo.URL, Repository: p.Repository, Host: p.Host, Existing: true}, nil
 }
 
 // LookupPullRequestReviewed is read-only, including after an ambiguous create result.
@@ -265,11 +315,11 @@ func createPullRequestReviewed(ctx context.Context, root string, p PullRequestPl
 	if p.Draft {
 		args = append(args, "--draft")
 	}
-	args = append(args, "--repo", p.Repository, "--base", p.Base, "--head", p.Push.Target, "--title", p.Title, "--body-file", f.Name())
+	args = append(args, "--repo", githubCLIRepository(p.Host, p.Repository), "--base", p.Base, "--head", p.Head, "--title", p.Title, "--body-file", f.Name())
 	out, e := run(ctx, root, "gh", args...)
 	candidate := firstHTTPURL(strings.TrimSpace(string(out)))
-	if e == nil && ValidPullRequestURL(candidate, p.Repository) {
-		return PullRequestResult{URL: candidate, Repository: p.Repository}, nil
+	if e == nil && ValidPullRequestURLForHost(candidate, p.Host, p.Repository) {
+		return PullRequestResult{URL: candidate, Repository: p.Repository, Host: p.Host}, nil
 	}
 	// The request may have succeeded remotely. Never issue a second create blindly.
 	if ctx.Err() == nil {
@@ -277,5 +327,5 @@ func createPullRequestReviewed(ctx context.Context, root string, p PullRequestPl
 			return found, nil
 		}
 	}
-	return PullRequestResult{Repository: p.Repository, Uncertain: true}, errors.New("PR creation outcome is unknown. Check existing PRs before any new create attempt")
+	return PullRequestResult{Repository: p.Repository, Host: p.Host, Uncertain: true}, errors.New("PR creation outcome is unknown. Check existing PRs before any new create attempt")
 }

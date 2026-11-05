@@ -33,7 +33,7 @@ func (s *stopSequence) press(target stopTarget, now time.Time, interval time.Dur
 
 func composerStopTarget(m Model) (stopTarget, bool) {
 	snap := m.Snapshot
-	if snap.StopSequenceMS < 1 || !snap.ClientReady || snap.SelectedID == "" || snap.StopTurnSeq <= 0 || m.OnStop == nil || m.StopBlocked || m.Editing || m.stopSuggestionsOpen || m.SkillsOpen || m.ChipEdit != nil && m.ChipEdit.Open || m.State != nil && m.State.ModelCommand.Visible(snap.SelectedID) {
+	if snap.StopSequenceMS < 1 || !snap.ClientReady || snap.SelectedID == "" || snap.StopTurnSeq <= 0 || m.OnStop == nil || m.StopBlocked || m.Editing && !m.Child || m.stopSuggestionsOpen || m.SkillsOpen || m.ChipEdit != nil && m.ChipEdit.Open || m.State != nil && m.State.ModelCommand.Visible(snap.SelectedID) {
 		return stopTarget{}, false
 	}
 	for _, item := range snap.Items {

@@ -356,3 +356,25 @@ func TestSP23NativeCatalogAndSavedHostProfile(t *testing.T) {
 		}
 	})
 }
+
+func TestEditorMetadataEnrichmentPreservesHostAndExistingModelFields(t *testing.T) {
+	record := metadataModel{Name: "Official name"}
+	record.Limit.Context = 200000
+	record.Limit.Output = 8192
+	noReasoning := false
+	record.Reasoning = &noReasoning
+	modelsMetadata.Lock()
+	before := modelsMetadata.catalog
+	modelsMetadata.catalog = map[string]metadataProvider{"openai": {ID: "openai", Models: map[string]metadataModel{"gpt-fixture": record}}}
+	modelsMetadata.Unlock()
+	t.Cleanup(func() { modelsMetadata.Lock(); modelsMetadata.catalog = before; modelsMetadata.Unlock() })
+	rows := enrichDiscoveredCandidates(context.Background(), []Candidate{{ID: "gpt-fixture", Name: "Host name", ContextWindow: 500000, Picked: true}})
+	if len(rows) != 1 || rows[0].Name != "Host name" || rows[0].ContextWindow != 500000 || rows[0].MaxTokens != 8192 || rows[0].ReasoningEfforts != false {
+		t.Fatalf("metadata replaced Host values or lost missing capabilities: %+v", rows)
+	}
+	existing := []map[string]any{{"id": "gpt-fixture", "name": "User name", "maxTokens": float64(42), "reasoningEfforts": map[string]any{"high": "custom"}}}
+	merged := MergeEditorCandidates(existing, rows)
+	if len(merged) != 1 || !reflect.DeepEqual(merged[0], existing[0]) {
+		t.Fatal("adopting metadata overwrote the existing user model", merged)
+	}
+}

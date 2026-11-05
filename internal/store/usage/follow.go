@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/ui/i18n"
 )
 
 // AttachMux binds the shared remote.mux used for job/follow and account/watch.
@@ -97,10 +99,12 @@ func (s *Store) WatchAccount(ctx context.Context) {
 
 func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 	if err := mux.Dial(ctx); err != nil {
+		s.failAccountWatch(ctx, mux, err)
 		return
 	}
 	stream, err := mux.Open(ctx, "account/watch", map[string]any{"args": map[string]any{}})
 	if err != nil {
+		s.failAccountWatch(ctx, mux, err)
 		return
 	}
 	defer stream.Cancel()
@@ -108,10 +112,11 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
-			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
+			if errors.Is(err, context.Canceled) ||
 				strings.Contains(err.Error(), "context canceled") {
 				return
 			}
+			s.failAccountWatch(ctx, mux, err)
 			return
 		}
 		var view api.AccountView
@@ -123,12 +128,16 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			s.mu.Unlock()
 			return
 		}
+		if view.Status != "credential-stored" || s.accountStatus != view.Status || view.Attempt.Phase == "succeeded" && view.Attempt.Id != s.attemptID {
+			s.resetBonusNoticesLocked()
+			s.bonuses = nil
+		}
 		s.resetAccountDetailsLocked()
 		client, epoch := s.client, s.accountEpoch
 		s.loading = false
 		s.err = nil
+		s.accountStreamErr = nil
 		s.email, s.name, s.plan = "", "", ""
-		s.bonuses = nil
 		if view.Status != "" {
 			s.accountStatus = view.Status
 		}
@@ -146,6 +155,10 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		}
 		s.attemptPhase = view.Attempt.Phase
 		s.attemptID = view.Attempt.Id
+		s.attemptErrorCode = ""
+		if view.Attempt.ErrorCode != nil {
+			s.attemptErrorCode = *view.Attempt.ErrorCode
+		}
 		s.authorizeURL = ""
 		if view.Attempt.AuthorizeUrl != nil {
 			s.authorizeURL = *view.Attempt.AuthorizeUrl
@@ -157,6 +170,24 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			s.refreshAccountBonuses(ctx, client, epoch, view.Status)
 		}
 	}
+}
+
+func (s *Store) failAccountWatch(ctx context.Context, mux *dsh.Mux, err error) {
+	if ctx.Err() != nil {
+		return
+	}
+	s.mu.Lock()
+	if s.mux != mux || ctx.Err() != nil {
+		s.mu.Unlock()
+		return
+	}
+	label := "Account connection lost. Refresh the account to reconnect."
+	if i18n.Locale() == i18n.LocaleZH {
+		label = "账户连接已中断，请刷新账户重新连接。"
+	}
+	s.accountStreamErr = fmt.Errorf("%s %w", label, err)
+	s.mu.Unlock()
+	s.fire()
 }
 
 // FollowJob opens job/follow for a few frames and appends a preview into Recent.

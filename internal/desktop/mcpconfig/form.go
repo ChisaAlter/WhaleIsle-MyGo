@@ -28,6 +28,51 @@ var mcpPairKey = regexp.MustCompile(`^[^=\s]+$`)
 
 const mcpSecretMask = "********"
 
+// NewForm starts the Add action without reusing an older edit/import draft.
+func (c *Controller) NewForm() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Busy {
+		return
+	}
+	c.cancelImportDraft()
+	form, _ := parseForm("")
+	c.state.Form, c.state.FormErrors = &form, nil
+	c.state.EditorOpen = true
+	c.state.Draft, c.state.EditingID, c.state.Err = "", "", ""
+	c.revision++
+}
+
+// OpenFormFor keeps the existing server identity and advanced JSON fields.
+func (c *Controller) OpenFormFor(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Busy || !c.writable(id) {
+		return
+	}
+	for _, row := range c.state.Rows {
+		if row.Id != id {
+			continue
+		}
+		form, err := parseForm(string(row.Spec))
+		if err != nil {
+			c.cancelImportDraft()
+			c.state.Form, c.state.FormErrors = nil, nil
+			c.state.EditorOpen = true
+			c.state.Draft, c.state.EditingID = string(row.Spec), id
+			c.state.Err = err.Error()
+			c.revision++
+			return
+		}
+		c.cancelImportDraft()
+		c.state.Form, c.state.FormErrors = &form, nil
+		c.state.EditorOpen = true
+		c.state.Draft, c.state.EditingID, c.state.Err = string(row.Spec), id, ""
+		c.revision++
+		return
+	}
+}
+
 func (c *Controller) OpenForm() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -40,6 +85,7 @@ func (c *Controller) OpenForm() {
 		return
 	}
 	c.state.Form = &form
+	c.state.EditorOpen = true
 	c.state.FormErrors = nil
 	c.state.Err = ""
 	c.revision++
@@ -64,14 +110,10 @@ func (c *Controller) ShowJSON() {
 	if c.state.Form == nil || c.state.Busy {
 		return
 	}
-	raw, issues := formSpec(*c.state.Form, c.state.EditingID, c.state.Rows)
-	if len(issues) > 0 {
-		c.state.FormErrors = issues
-		c.state.Err = "Fix the highlighted form fields before switching to JSON"
-		return
-	}
+	raw, _ := formSpecMode(*c.state.Form, c.state.EditingID, c.state.Rows, false)
 	c.state.Draft = string(raw)
 	c.state.Form = nil
+	c.state.EditorOpen = true
 	c.state.FormErrors = nil
 	c.state.Err = ""
 	c.revision++
@@ -184,6 +226,12 @@ func parseForm(text string) (FormDraft, error) {
 }
 
 func formSpec(form FormDraft, editingID string, rows []api.McpServerSnapshotServersItem) (json.RawMessage, map[string]string) {
+	return formSpecMode(form, editingID, rows, true)
+}
+
+// A mode switch serializes an unfinished draft; only Save requires a complete
+// server. Invalid scalar text remains visible in JSON for correction.
+func formSpecMode(form FormDraft, editingID string, rows []api.McpServerSnapshotServersItem, validate bool) (json.RawMessage, map[string]string) {
 	issues := map[string]string{}
 	if !mcpFormName.MatchString(form.ID) {
 		issues["id"] = "Use 1–32 letters, digits, underscores or hyphens"
@@ -225,6 +273,7 @@ func formSpec(form FormDraft, editingID string, rows []api.McpServerSnapshotServ
 		value, err := strconv.ParseUint(timeout, 10, 64)
 		if !mcpFormTimeout.MatchString(timeout) || err != nil || value > 9007199254740991 {
 			issues["timeout"] = "Enter a positive integer in milliseconds"
+			set("toolCallTimeoutMs", form.Timeout)
 		} else {
 			set("toolCallTimeoutMs", value)
 		}
@@ -277,6 +326,7 @@ func formSpec(form FormDraft, editingID string, rows []api.McpServerSnapshotServ
 			var args []string
 			if strings.TrimSpace(form.ArgsJSON) == "null" || json.Unmarshal([]byte(form.ArgsJSON), &args) != nil {
 				issues["args"] = "Enter a JSON array of strings, for example [\"--flag\", \"path with spaces\"]"
+				set("args", form.ArgsJSON)
 			} else if len(args) > 0 {
 				set("args", args)
 			}
@@ -286,6 +336,9 @@ func formSpec(form FormDraft, editingID string, rows []api.McpServerSnapshotServ
 		}
 		if env := pairs("env", form.Env); len(env) > 0 {
 			set("env", env)
+		}
+		if !validate && issues["env"] != "" {
+			set("env", form.Env)
 		}
 	case "streamable-http":
 		address := strings.TrimSpace(form.URL)
@@ -297,10 +350,13 @@ func formSpec(form FormDraft, editingID string, rows []api.McpServerSnapshotServ
 		if headers := pairs("headers", form.Headers); len(headers) > 0 {
 			set("headers", headers)
 		}
+		if !validate && issues["headers"] != "" {
+			set("headers", form.Headers)
+		}
 	default:
 		issues["transport"] = "Transport must be stdio or streamable-http"
 	}
-	if len(issues) > 0 {
+	if validate && len(issues) > 0 {
 		return nil, issues
 	}
 	result, err := json.MarshalIndent(raw, "", "  ")

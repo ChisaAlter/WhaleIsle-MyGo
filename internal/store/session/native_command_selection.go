@@ -198,7 +198,7 @@ func (s *Store) SelectNativeCommandPermission(ctx context.Context, o NativeComma
 	}
 	client, follow := s.client, s.followGeneration
 	s.permissionProjection.Pending = true
-	s.permissionsErr = nil
+	s.clearPermissionErrorLocked()
 	s.mu.Unlock()
 	s.fire()
 	return s.settlePermissionPreset(ctx, client, o.SessionID, follow, opt, &o)

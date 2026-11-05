@@ -98,13 +98,15 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 	}
 }
 
-func TestAVIFSequenceKeepsUnregisteredAndMislabeledFilesBoundaries(t *testing.T) {
+func TestAVIFSequenceKeepsRegisteredBytesAndUnregisteredSuffixBoundaries(t *testing.T) {
 	data, err := os.ReadFile("../../desktop/imagepreview/testdata/test.avifs")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p := decodeImagePreviewContext(context.Background(), "sequence.gif", data); p.err == nil || p.bitmap != nil || p.animation != nil {
-		t.Fatal("mislabeled GIF gained an AVIF entry")
+	// Installed FilePreview sends complete image bytes to img, not a codec
+	// selected by the admitted suffix. An existing .gif entry may contain AVIF.
+	if p := decodeImagePreviewContext(context.Background(), "sequence.gif", data); p.err != nil || p.bitmap == nil || p.animation == nil {
+		t.Fatal("registered image path did not decode its actual AVIF bytes", p.err)
 	}
 	if isPreviewImage("sequence.avifs") {
 		t.Fatal("new AVIS Files suffix was registered")

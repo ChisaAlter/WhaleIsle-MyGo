@@ -1,4 +1,4 @@
-// Build/staging utilities only. Never import the daemon or create a device identity.
+﻿// Build/staging utilities only. Never import the daemon or create a device identity.
 import fs from 'node:fs';
 import {prepare as prepareOfflineWindows} from './offline-windows-runtime.mjs';
 import path from 'node:path';
@@ -19,7 +19,7 @@ export const sourceAssets = ['vendor/chisacode-remote/packages/server/src/server
 export const required = [
   ...shellFiles, 'node/node.exe', 'mobile/web/index.html',
   'mobile/web/chisacode/daemon-client.bundle.js',
-  ...['exports', 'pairing-offer', 'relay-device-credential-store'].map(n => `${server}${n}.js`),
+  ...['exports', 'pairing-offer', 'relay-device-credential-store', 'relay-pairing-link-store'].map(n => `${server}${n}.js`),
   'vendor/chisacode-remote/node_modules/@chisacode/protocol/dist/connection-offer.js',
   'vendor/chisacode-remote/node_modules/@chisacode/relay/dist/e2ee.js',
   'vendor/chisacode-remote/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
@@ -194,7 +194,7 @@ export function stage(work, harness, nodeDir, destination) {
 }
 const installedRequired = [
   ...shellFiles, 'mobile/web/index.html', 'mobile/web/chisacode/daemon-client.bundle.js',
-  ...['exports','pairing-offer','relay-device-credential-store'].map(name => `${server}${name}.js`),
+  ...['exports','pairing-offer','relay-device-credential-store','relay-pairing-link-store'].map(name => `${server}${name}.js`),
   'vendor/chisacode-remote/node_modules/@chisacode/protocol/dist/connection-offer.js',
   'vendor/chisacode-remote/node_modules/@chisacode/relay/dist/e2ee.js',
   'vendor/chisacode-remote/node_modules/better-sqlite3/build/Release/better_sqlite3.node',

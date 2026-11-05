@@ -445,15 +445,30 @@ func popover(c *context, anchor *node, open *bool, modal bool, fn func(panel *no
 // backdrop or pressing Escape sets *open to false. It returns the panel,
 // or nil while closed; Modal is DialogBase with the theme's look.
 func coreDialogBase(c *context, open *bool, fn func(backdrop, panel *node)) *node {
+	return coreDialogBaseOptions(c, open, DialogOptions{}, fn)
+}
+
+func coreDialogBaseOptions(c *context, open *bool, options DialogOptions, fn func(backdrop, panel *node)) *node {
 	if !*open {
 		return nil
 	}
 	var panel *node
 	coreOverlay(c, func() {
 		back := coreBox(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Modal()
+		back.st.dialogBaseFrame = c.rt.frame
 		back.flags |= flagClickable
-		if back.Clicked() || back.OverlayShortcut(0, KeyEscape) {
-			*open = false
+		requested := c.rt.dialogCloseRequest == back.id
+		if requested {
+			c.rt.dialogCloseRequest = 0
+		}
+		if back.Clicked() || back.OverlayShortcut(0, KeyEscape) || requested {
+			if !options.DismissDisabled {
+				if options.OnDismiss != nil {
+					options.OnDismiss()
+				} else {
+					*open = false
+				}
+			}
 		}
 		back.Children(func() {
 			panel = coreBox(c).Role(RoleDialog)

@@ -5,11 +5,9 @@ import (
 	"runtime"
 
 	"github.com/egoist/mygo"
-	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/launcher"
 )
 
 // The caller holds s.mu. Query the live supervisor as well as the catalog epoch:
@@ -21,7 +19,7 @@ func (s *mainState) startupUpdateScopeLocked(win *mygo.Window, snapshot nativeRe
 		route = s.cfgStore.Get().DownloadRoute
 	}
 	current := &s.nativeReleases
-	if win == nil || s.win != win || s.quitting || s.launcherStartBusy || s.launcherImportBusy || snapshot.busy || snapshot.err != "" || snapshot.catalogRoute != snapshot.route || route != snapshot.route || current.busy || current.err != "" || current.route != snapshot.route || current.catalogRoute != snapshot.catalogRoute || current.attentionGeneration != snapshot.attentionGeneration {
+	if win == nil || !s.lifecycleWindowOwnedLocked(win) || s.quitting || s.launcherStartBusy || s.launcherImportBusy || snapshot.busy || snapshot.paused || snapshot.err != "" || snapshot.catalogRoute != snapshot.route || route != snapshot.route || current.busy || current.paused || current.err != "" || current.route != snapshot.route || current.catalogRoute != snapshot.catalogRoute || current.attentionGeneration != snapshot.attentionGeneration {
 		return empty, update.NativeRelease{}
 	}
 	for _, release := range snapshot.rows {
@@ -150,7 +148,10 @@ func (s *mainState) showStartupUpdateNotice(win *mygo.Window, ticket startuprec.
 		s.clearStartupUpdateNotice()
 		// This is navigation only. maybeAskStartupUpdate owns the actual dialog;
 		// downloadNativeRelease is never called by a notification callback.
-		s.openDesktopTrayPage(deeplink.ActionLauncher)
+		win.Restore()
+		win.Show()
+		win.Focus()
+		s.openNativeUpdateCenter(win)
 		s.nativeReleaseNotify(win)
 	})
 	err := n.Show()
@@ -172,7 +173,7 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		return
 	}
 	s.mu.Lock()
-	currentWindow := s.win == win && !s.quitting
+	currentWindow := s.lifecycleWindowOwnedLocked(win) && !s.quitting
 	clearOwner := !currentWindow && s.startupRecovery.updateWatchWindow == win
 	if clearOwner {
 		s.startupRecovery.updateAttention.Clear()
@@ -194,7 +195,7 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 	ask := s.cfgStore != nil && s.cfgStore.Get().AskOnUpdate
 	ticket, remind := r.updateAttention.Observe(scope, ask, focused)
 	obsolete := r.updateNoticeWindow != nil && r.updateNoticeTicket != ticket
-	can := startuprec.CanPromptUpdate(ask, r.updateAttention.Current(ticket), focused, s.launcherOpen, s.launcherStartBusy, r.updateAttention.Prompting(), s.quitting)
+	can := startuprec.CanPromptUpdate(ask, r.updateAttention.Current(ticket), focused, s.launcherOpen && !s.nativeReleases.modalOpen, s.launcherStartBusy, r.updateAttention.Prompting(), s.quitting)
 	if can {
 		can = r.updateAttention.BeginPrompt(ticket)
 	}
@@ -212,7 +213,7 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		visible := !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized() && win.IsFocused()
 		s.mu.Lock()
 		r := &s.startupRecovery
-		can := visible && s.launcherOpen && r.updateAttention.Prompting() && s.startupUpdateCurrentLocked(win, ticket)
+		can := visible && s.launcherOpen && !s.nativeReleases.modalOpen && r.updateAttention.Prompting() && s.startupUpdateCurrentLocked(win, ticket)
 		if !can {
 			r.updateAttention.CancelPrompt(ticket)
 		}
@@ -222,6 +223,8 @@ func (s *mainState) maybeAskStartupUpdate(win *mygo.Window, snapshot nativeRelea
 		}
 		s.clearStartupUpdateNotice()
 		s.askConfirm(confirmAskRequest{
+			Owner:            win,
+			Width:            640,
 			Title:            i18n.T(i18n.KeyCmdMygoUpdateAvailable),
 			Body:             update.NativeReleasePrompt(buildVersion, release, snapshot.rows, i18n.Locale() != i18n.LocaleEN),
 			ConfirmLabel:     i18n.T(i18n.KeyCmdReviewVersionsAndDownloads),
@@ -255,10 +258,14 @@ func (s *mainState) finishStartupUpdatePrompt(win *mygo.Window, ticket startupre
 	s.mu.Unlock()
 	if allowed {
 		s.mu.Lock()
-		s.launcherTab = launcher.TabVersions
 		s.nativeReleases.selected = release.PackageKey()
 		s.startupRecovery.updateHold = true
 		s.mu.Unlock()
-		win.Update(func() {})
+		s.openNativeUpdateCenter(win)
 	}
+}
+
+// Caller owns s.mu. Native lifecycle surfaces retain their actual dialog owner.
+func (s *mainState) lifecycleWindowOwnedLocked(win *mygo.Window) bool {
+	return win != nil && (s.win == win || s.launcherWin != nil && s.launcherWin.win == win || s.whaleBridgeWin != nil && s.whaleBridgeWin.win == win || s.nativeReleases.modalTemporary && s.nativeReleases.modalOwner == win)
 }

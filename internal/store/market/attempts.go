@@ -6,7 +6,8 @@ import (
 )
 
 // BeginInstall commits a receipt before any Host or local installer mutation.
-// It intentionally stores no raw spec, URL, diagnostic or credential.
+// It stores only an initial safe receipt; bounded redacted diagnostics are
+// attached by FinishInstall after the operation settles.
 func (s *Store) BeginInstall(attempt, plugin, action string) error {
 	if !safePluginID.MatchString(plugin) {
 		plugin = "manual-install"
@@ -34,7 +35,7 @@ func (s *Store) BeginInstall(attempt, plugin, action string) error {
 	return s.savePersonalLocked(data)
 }
 
-func (s *Store) FinishInstall(attempt, result, errorCode string) error {
+func (s *Store) FinishInstall(attempt, result, errorCode string, diagnostics ...string) error {
 	switch result {
 	case "applied", "restart-required", "failed", "cancelled", "unknown", "interrupted", "awaiting-approval", "overridden", "not-started":
 	default:
@@ -55,6 +56,12 @@ func (s *Store) FinishInstall(attempt, result, errorCode string) error {
 		}
 		data.History[i].Result = result
 		data.History[i].Error = errorCode
+		if len(diagnostics) > 0 {
+			data.History[i].Log = RedactOperationLog(diagnostics[0], 16000)
+		}
+		if len(diagnostics) > 1 {
+			data.History[i].Diagnostic = RedactOperationLog(diagnostics[1], 2000)
+		}
 		err := s.savePersonalLocked(data)
 		if err != nil {
 			s.personal.data.History = data.History

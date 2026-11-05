@@ -1,0 +1,5772 @@
+{
+  "generatedAt": "2026-11-02T13:33:59.445Z",
+  "scope": "Windows product capability and production-wiring audit; no desktop acceptance or product changes",
+  "coverageState": "action-level-supplement-integrated-runtime-acceptance-incomplete",
+  "coverageNote": "The stable 367 coarse rows are corrected in place. Supplementary inventories map original installed user actions and omitted capabilities; mappings and action groups overlap, so counts are not additive defects. Runtime and visual acceptance remain incomplete. Conditional/optional/excluded entries and uncovered areas are recorded per source.",
+  "actionInventory": {
+    "index": "ACTIONS.md",
+    "baseline": "installed-0.3.13",
+    "totalActionRows": 758,
+    "notAnIndependentDefectCount": true,
+    "correctedCoarseRows": 33,
+    "correctedCoarseIds": [
+      "CHAT-050",
+      "CHAT-052",
+      "CHAT-046",
+      "CHAT-047",
+      "SET-031",
+      "SET-032",
+      "PLUG-011",
+      "PLUG-007",
+      "PLUG-008",
+      "WB-018",
+      "WB-026",
+      "WB-030",
+      "WB-035",
+      "CHAT-056",
+      "FLOW-010",
+      "FLOW-011",
+      "FLOW-012",
+      "FLOW-017",
+      "FLOW-020",
+      "FLOW-024",
+      "FLOW-025",
+      "FLOW-026",
+      "PET-023",
+      "SET-023",
+      "PET-015",
+      "PET-024",
+      "PET-025",
+      "PET-026",
+      "PET-027",
+      "LIFE-016",
+      "LIFE-034",
+      "LIFE-008",
+      "LIFE-009"
+    ],
+    "domains": [
+      {
+        "file": "supplement-navigation-actions.json",
+        "title": "工作区、侧栏与主导航",
+        "actions": 40,
+        "byStatus": {
+          "confirmed-defect": 5,
+          "partial": 6,
+          "wired-unverified": 23,
+          "verified-scoped": 3,
+          "missing": 3
+        },
+        "statusCorrections": [],
+        "scope": "Primary default workspace/sidebar/picker and conversation-header user actions. Specific Project, plugin business, settings and workbench actions have their own owners."
+      },
+      {
+        "file": "supplement-chat-actions.json",
+        "title": "聊天、输入、轨迹与子会话",
+        "actions": 203,
+        "byStatus": {
+          "mapped": 178,
+          "wired-unverified": 1,
+          "missing": 16,
+          "confirmed-defect": 2,
+          "partial": 6
+        },
+        "statusCorrections": [
+          "CHAT-050",
+          "CHAT-052",
+          "CHAT-046",
+          "CHAT-047"
+        ],
+        "scope": "聊天、输入、命令/引用/skill 的调用入口、目标、审批/问题/计划、子代理、队列与轨迹的用户动作补审。每个 mapped 行只展开旧功能，不另计旧故障；同一新根因的多动作共享 defectGroup。"
+      },
+      {
+        "file": "supplement-settings-actions.json",
+        "title": "设置、账号与模型",
+        "actions": 227,
+        "byStatus": {
+          "mapped": 198,
+          "wired-unverified": 21,
+          "confirmed-defect": 3,
+          "partial": 2,
+          "missing": 3
+        },
+        "statusCorrections": [
+          "SET-031",
+          "SET-032",
+          "PLUG-011"
+        ],
+        "scope": "原版具体可见控件/菜单/选择器、继承/reset、保存/放弃及导入导出；不按SectionID齐全认功能闭合。"
+      },
+      {
+        "file": "supplement-plugin-actions.json",
+        "title": "插件、市场、技能与 MCP",
+        "actions": 47,
+        "byStatus": {
+          "wired-unverified": 33,
+          "partial": 8,
+          "confirmed-defect": 6
+        },
+        "statusCorrections": [
+          "PLUG-007",
+          "PLUG-008",
+          "PLUG-011"
+        ],
+        "scope": {
+          "denominator": "实际安装 Whale Isle 0.3.13 的 vendor client lib 与本轮 app.asar 已提取 main 源码；不以当前原项目工作树代替安装版。",
+          "outputOwner": "gap_plugin_actions",
+          "readOnly": true,
+          "productChanges": false,
+          "excludedOwners": [
+            "dsh-pad 全部动作",
+            "设置具体字段、模型与 ui-secret-mask",
+            "Project/Whale/IM 业务",
+            "聊天/工作面及会话 slot 的逐动作验收",
+            "Whale UI 已审 73 组件、50 Genui 与 14 资产"
+          ],
+          "principle": "动作是用户意图/事务，不把一个 PLUG-013 根因按 slot 同义扩写为独立缺陷；shared rootCause 只计一次。"
+        }
+      },
+      {
+        "file": "supplement-pad.json",
+        "title": "Pad 随包功能",
+        "actions": 22,
+        "byStatus": {
+          "confirmed-defect": 1,
+          "missing": 1,
+          "partial": 20
+        },
+        "statusCorrections": [],
+        "scope": "补足原版用户能力分母与 MyGo 映射；只读源码/metadata，不修产品、不启动应用或测试平台、不读用户 profile/credentials。"
+      },
+      {
+        "file": "supplement-workbench-actions.json",
+        "title": "文件、交付物、Git、终端与浏览器",
+        "actions": 64,
+        "byStatus": {
+          "confirmed-gap": 5,
+          "partial": 6,
+          "mapped": 53
+        },
+        "statusCorrections": [
+          "WB-018",
+          "WB-026",
+          "WB-030",
+          "WB-035",
+          "CHAT-056"
+        ],
+        "scope": "把原版已生效入口拆成用户动作，补足44项工作面大项掩盖的链路与动作分母；只做差异审计，不修产品。"
+      },
+      {
+        "file": "supplement-orchestration-actions.json",
+        "title": "Project、Team、自动化、助理与 IM",
+        "actions": 101,
+        "byStatus": {
+          "wired-unverified": 87,
+          "partial": 12,
+          "missing": 1,
+          "confirmed-defect": 1
+        },
+        "statusCorrections": [
+          "FLOW-010",
+          "FLOW-011",
+          "FLOW-012",
+          "FLOW-017",
+          "FLOW-020",
+          "FLOW-024",
+          "FLOW-025",
+          "FLOW-026"
+        ]
+      },
+      {
+        "file": "supplement-pet-actions.json",
+        "title": "桌宠、壁纸、语音与特效",
+        "actions": 34,
+        "byStatus": {
+          "partial": 6,
+          "wired-unverified": 17,
+          "confirmed-defect": 5,
+          "missing": 6
+        },
+        "statusCorrections": [
+          "PET-023",
+          "SET-023",
+          "PET-015",
+          "PET-024",
+          "PET-025",
+          "PET-026",
+          "PET-027"
+        ],
+        "scope": "重开旧34大项，以实际原安装用户动作补库存并纠正被 wired/partial 汇总掩盖的缺链；不修产品。"
+      },
+      {
+        "file": "supplement-lifecycle-actions.json",
+        "title": "启动器、导入、更新、远程与退出",
+        "actions": 20,
+        "byStatus": {
+          "confirmed-defect": 2,
+          "missing": 4,
+          "partial": 1,
+          "wired-unverified": 11,
+          "external-blocked": 2
+        },
+        "statusCorrections": [
+          "LIFE-016",
+          "LIFE-034",
+          "LIFE-008",
+          "LIFE-009"
+        ],
+        "scope": "只读补审：原安装0.3.13生命周期/启动器/安装更新/导入/远程的用户动作级库存；不修产品、不运行桌面或真实外部服务。"
+      }
+    ]
+  },
+  "total": 367,
+  "byStatus": {
+    "confirmed-defect": 51,
+    "wired-unverified": 219,
+    "partial": 75,
+    "verified-scoped": 7,
+    "missing": 11,
+    "external-blocked": 4
+  },
+  "byPriority": {
+    "P0": 17,
+    "P1": 216,
+    "P2": 131,
+    "P3": 3
+  },
+  "domains": [
+    {
+      "domain": "workspace-sessions",
+      "title": "工作区、侧栏与会话生命周期",
+      "total": 41,
+      "byStatus": {
+        "confirmed-defect": 6,
+        "wired-unverified": 24,
+        "partial": 4,
+        "verified-scoped": 4,
+        "missing": 3
+      },
+      "byPriority": {
+        "P0": 4,
+        "P1": 20,
+        "P2": 16,
+        "P3": 1
+      },
+      "modulesReviewed": [
+        "internal/ui/sidebar: sidebar.go, workspace_heading.go, workspace_groups.go, workspace_hover.go, workspace_drag.go, workspace_drop_state.go, workspace_view_options.go, workspace_empty.go, workspace_watermark.go, group_presence.go, session_menu.go, session_rename.go, session_search.go, session_drag.go, session_hover.go, session_metadata.go, status.go, filter.go, archive_filter.go, archive_section.go, batch.go, batch_dialog.go, batch_result.go, rail.go",
+        "internal/ui/workspacepicker/picker.go",
+        "internal/ui/dirpick/panel.go",
+        "internal/ui/dirpick/state.go",
+        "internal/directorypicker/select.go",
+        "internal/directorypicker/path.go",
+        "internal/ui/projects/sidebar.go",
+        "internal/ui/projects/filter.go",
+        "internal/ui/projects/view.go (navigation fields only)",
+        "internal/ui/frame: frame.go navigationView, navigation_shell.go, shortcuts.go, business_commands.go",
+        "internal/ui/composer/composer.go (workspace chip anchor/carry boundary)",
+        "internal/store/session: store.go list/create/select; lifecycle_admission.go; lifecycle_events.go select; workspace_navigation.go; workspace_rpc.go; workspace_session_creation.go; session_startup.go; workspace_follow.go; workspace_groups.go; workspace_group_collapsed.go; workspace_preferences.go; workspace_archive_preferences.go; workspace_local_order.go; workspace_order_parity.go; no_directory.go; dirpick.go; search.go; search_query.go; archive.go; archive_confirmation.go; archive_undo.go; rename.go; pin.go; batch.go; sort.go",
+        "cmd/whaleisle: main.go production navigation/create/directory selection/writeback/connection startup; main_navigation.go; workspace_navigation.go; workspace_session_open.go; workspace_sessions.go; workspace_preferences.go; no_directory.go; directory_picker.go; workspace_caption.go; recovery.go",
+        "third_party/mygo/dialog.go and internal/windows/dialog.go (read-only cancellation evidence)",
+        "Existing tests read: internal/store/session/workspace_session_creation_test.go, workspace_selected_owner_audit_test.go; cmd/whaleisle/workspace_session_open_test.go, directory_picker_test.go, session_recovery_acceptance_windows_test.go; no tests executed",
+        "cmd/whaleisle/view_tabs_settings.go and main.go seedDesktopDraft/saveDesktopConfig/interface OnSave (WS-041 cross-domain trace)"
+      ],
+      "uncovered": [
+        "当前用户profile、凭据、工作区投影、会话正文全部未读；ChisaBot实际path和会话ID未知，用户失败根因不能补猜。",
+        "未操作桌面、UIA、鼠标键盘、原生对话框、剪贴板或窗口缩放；所有wired-unverified项均缺当前版本真实用户入口验收。",
+        "未发Host/model请求、未创建/删除目录或会话、未停止/重启进程；WS-003为静态可证取消路径，不宣称已实际销毁复现。",
+        "未完整审计侧栏account/image cache、品牌美术、主题动画及连接/升级控件内部；本领域只核对导航消费，分别交settings/shell/release。",
+        "未完整审计所有plugins注入的会话类型和任意动态扩展；已查消费端缺口WS-039，动态清单交plugins。",
+        "目录浏览UNC/网络盘/ACL/超大列表及系统选择器的实际行为未审；原生系统入口缺失已列WS-012。",
+        "Project/sidebar之外的modal/detail/lifecycle/team/material/requests等模块未在本领域审阅，交orchestration；不能把projects目录整体记已通过。",
+        "原项目当前dirty相对已安装版的全部差异没有逐文件比较；已用当前原版源码补充语义，并以安装client rc.2核对关键动作，没有发现本领域必须单列的current-only能力证据。"
+      ]
+    },
+    {
+      "domain": "shell",
+      "title": "主壳与顶部导航",
+      "total": 8,
+      "byStatus": {
+        "confirmed-defect": 2,
+        "partial": 3,
+        "verified-scoped": 1,
+        "wired-unverified": 2
+      },
+      "byPriority": {
+        "P1": 6,
+        "P2": 1,
+        "P0": 1
+      },
+      "modulesReviewed": [
+        "internal/ui/frame/workspace_caption.go",
+        "internal/ui/frame/conversation_header.go",
+        "internal/ui/frame/conversation_plugins.go",
+        "internal/ui/frame/navigation_shell.go",
+        "internal/ui/frame/sidebar_columns.go",
+        "internal/ui/frame/frame.go",
+        "internal/ui/frame/shortcuts.go",
+        "internal/ui/chrome",
+        "internal/ui/widgets"
+      ],
+      "uncovered": []
+    },
+    {
+      "domain": "conversation",
+      "title": "聊天、输入、轨迹与工具交互",
+      "total": 63,
+      "byStatus": {
+        "confirmed-defect": 7,
+        "partial": 13,
+        "wired-unverified": 43
+      },
+      "byPriority": {
+        "P1": 27,
+        "P2": 36
+      },
+      "modulesReviewed": [
+        "internal/ui/composer/composer.go",
+        "internal/ui/composer/child_editor.go",
+        "internal/ui/agents/child_editor.go",
+        "internal/ui/frame/frame.go",
+        "internal/ui/chat/thinking.go",
+        "internal/store/session/file_refs.go",
+        "internal/store/session/composer_submit.go",
+        "internal/store/interaction/plan_review.go",
+        "internal/store/interaction/questions.go",
+        "cmd/whaleisle/composer_flow.go",
+        "cmd/whaleisle/composer_detached.go",
+        "cmd/whaleisle/main.go",
+        "internal/store/session/composer_gesture.go",
+        "internal/ui/composer/draft_flights.go",
+        "internal/store/session/composer_pending.go",
+        "internal/ui/composer/draft_input.go",
+        "internal/ui/composer/draft_client.go",
+        "internal/ui/composer/draft_navigation.go",
+        "internal/ui/composer/draft_undo.go",
+        "internal/ui/composer/stop_sequence.go",
+        "internal/store/session/store.go",
+        "internal/ui/composer/draft_state.go",
+        "cmd/whaleisle/recovery.go",
+        "cmd/whaleisle/resume_checkpoint.go",
+        "cmd/whaleisle/composer_native_files.go",
+        "cmd/whaleisle/composer_attachment_retry.go",
+        "internal/ui/composer/attachment_retry.go",
+        "internal/ui/composer/attachment_display.go",
+        "internal/ui/composer/reference_activation.go",
+        "internal/ui/composer/reference_navigation.go",
+        "internal/ui/composer/suggest_keyboard.go",
+        "internal/ui/composer/native_commands.go",
+        "internal/store/session/command_catalog.go",
+        "internal/store/session/commands.go",
+        "internal/ui/composer/model_picker_grouped.go",
+        "internal/store/session/models.go",
+        "internal/store/session/native_command_selection.go",
+        "internal/store/session/permissions.go",
+        "internal/store/session/permission_risk.go",
+        "internal/ui/composer/permission_command.go",
+        "internal/store/session/agent_presets.go",
+        "internal/store/session/agent_preset_draft.go",
+        "internal/ui/composer/preset_introduction.go",
+        "internal/ui/chat/queue_dock.go",
+        "internal/store/session/queue_editor.go",
+        "internal/store/session/queue.go",
+        "internal/ui/composer/next_prompt.go",
+        "internal/store/session/next_prompt.go",
+        "internal/ui/composer/context_meter.go",
+        "internal/store/session/context_occupancy.go",
+        "internal/store/session/plan_mode_projection.go",
+        "internal/ui/frame/conversation_phase.go",
+        "internal/ui/chat/chat.go",
+        "internal/store/session/follow.go",
+        "internal/store/session/assistant_stream.go",
+        "internal/store/session/page.go",
+        "internal/ui/chat/transcript_list.go",
+        "internal/ui/chat/turn_rail.go",
+        "internal/ui/chat/history_navigation.go",
+        "internal/store/session/history_navigation.go",
+        "internal/ui/chat/transcript_preferences.go",
+        "internal/ui/chat/disclosure.go",
+        "internal/ui/chat/failure_notice.go",
+        "internal/ui/chat/retry_status.go",
+        "internal/ui/chat/markdown_style.go",
+        "internal/ui/widgets/markdown/math_parser.go",
+        "internal/ui/widgets/markdown/blocks.go",
+        "internal/ui/widgets/markdown/codeblock.go",
+        "internal/ui/widgets/markdown/table.go",
+        "internal/markdownsyntax/images.go",
+        "internal/ui/widgets/markdown/math_view.go",
+        "internal/mathrender/render.go",
+        "internal/mathrender/process_windows.go",
+        "internal/ui/chat/image.go",
+        "internal/ui/chat/attachments.go",
+        "internal/store/session/attachment.go",
+        "internal/ui/chat/user_references.go",
+        "internal/ui/chat/child_image_autoload.go",
+        "internal/ui/chat/citations.go",
+        "internal/ui/chat/file_mentions.go",
+        "internal/ui/widgets/markdown/file_link.go",
+        "internal/ui/chat/message_actions.go",
+        "internal/store/session/history_branch.go",
+        "internal/ui/chat/quote.go",
+        "internal/ui/chat/message_clock.go",
+        "internal/store/session/message_edit.go",
+        "internal/ui/composer/edit_session.go",
+        "internal/ui/chat/feedback_dialog.go",
+        "internal/store/session/feedback.go",
+        "internal/ui/chat/feedback_editor.go",
+        "cmd/whaleisle/composer_native_commands.go",
+        "internal/store/session/session_feedback.go",
+        "internal/store/session/manual_compaction.go",
+        "internal/store/session/automatic_compaction.go",
+        "internal/ui/chat/manual_compaction.go",
+        "internal/ui/chat/compaction.go",
+        "internal/ui/chat/context_body.go",
+        "internal/ui/chat/context_injection.go",
+        "internal/ui/chat/system_prompt.go",
+        "internal/store/session/system_prompt.go",
+        "internal/store/session/turn_triggers.go",
+        "internal/store/session/tool_lifecycle.go",
+        "internal/ui/chat/tool_lifecycle.go",
+        "internal/ui/chat/toolrow.go",
+        "internal/ui/chat/toolcard.go",
+        "internal/ui/chat/tool_files.go",
+        "internal/ui/chat/tool_read_model.go",
+        "internal/ui/chat/tool_search_model.go",
+        "internal/ui/chat/tool_web_model.go",
+        "internal/ui/chat/tool_image_model.go",
+        "internal/ui/chat/submitted_plan.go",
+        "internal/store/session/submitted_plan.go",
+        "internal/ui/interaction/plan_review.go",
+        "internal/ui/interaction/card.go",
+        "internal/ui/interaction/approval_keys.go",
+        "internal/store/interaction/store.go",
+        "internal/ui/interaction/question_navigation.go",
+        "internal/ui/interaction/question_options.go",
+        "internal/ui/interaction/question_editing.go",
+        "internal/store/interaction/question_navigation.go",
+        "internal/store/interaction/question_wait.go",
+        "internal/ui/interaction/question_wait.go",
+        "internal/store/interaction/projected_questions.go",
+        "internal/store/interaction/user_questions_rpc.go",
+        "internal/store/interaction/question_history.go",
+        "internal/store/interaction/question_persistence.go",
+        "cmd/whaleisle/question_recovery.go",
+        "internal/store/session/question_reply.go",
+        "internal/ui/agents/child_interactions.go",
+        "internal/ui/agents/panel.go",
+        "internal/ui/agents/navigation.go",
+        "internal/ui/agents/catalog_metrics.go",
+        "internal/store/session/agent_navigation.go",
+        "internal/store/session/agent_chat_pane.go",
+        "internal/store/session/agent_navigation_live.go",
+        "internal/store/session/agent_retained_prompt.go",
+        "internal/store/session/agent_navigation_images.go",
+        "internal/store/session/agent_retained_owner.go",
+        "internal/store/session/agent_restored_reader.go",
+        "internal/store/session/agent_restore_lineage.go",
+        "internal/store/session/agent_navigation_pane.go",
+        "internal/ui/chat/workflow.go",
+        "internal/ui/chat/workflow_disclosure.go",
+        "internal/store/session/workflow.go",
+        "internal/store/session/workflow_member.go",
+        "internal/store/session/workflow_member_stream.go",
+        "internal/ui/chat/trajectory.go",
+        "internal/ui/chat/trajectory_timing.go",
+        "internal/ui/chat/trajectory_range.go",
+        "internal/ui/chat/trajectory_viewport.go",
+        "internal/store/session/trajectory_timing.go",
+        "internal/store/session/trajectory_requests.go",
+        "internal/store/session/trajectory_request_header.go",
+        "internal/ui/chat/trajectory_request_header.go",
+        "internal/ui/chat/trajectory_json.go",
+        "internal/ui/frame/session_inspector_pane.go",
+        "internal/ui/frame/session_inspector_navigation.go",
+        "internal/ui/chat/session_inspector_picker.go",
+        "internal/ui/chat/session_inspector_tools.go",
+        "internal/store/session/session_inspector.go",
+        "internal/ui/frame/conversation_header.go",
+        "internal/ui/frame/jobs.go",
+        "internal/store/session/jobs.go",
+        "internal/ui/chat/performance_usage.go",
+        "internal/store/session/turn_usage.go",
+        "internal/ui/sessioncost/view.go",
+        "internal/ui/chat/usage_label.go",
+        "internal/ui/chat/turn_deliverables.go",
+        "internal/store/session/turn_deliverables.go",
+        "internal/store/session/visual_reply.go",
+        "internal/ui/chat/visual_reply.go",
+        "cmd/whaleisle/visual_reply_inline.go",
+        "internal/store/session/visual_reply_interactive.go",
+        "internal/ui/chat/openui.go",
+        "internal/ui/chat/whale_ui_tool.go",
+        "internal/ui/chat/whale_ui_panel.go",
+        "internal/ui/chat/plugin_inline.go",
+        "cmd/whaleisle/plugin_session_turns.go",
+        "internal/ui/composer/resize.go",
+        "internal/ui/composer/beam.go",
+        "internal/ui/composer/typing_effects.go",
+        "internal/dsh/rpc.go",
+        "internal/store/session/goals.go",
+        "cmd/whaleisle/plugin_slot_views.go",
+        "internal/ui/frame/session_feedback.go",
+        "internal/ui/chat/tool_details_control_model.go",
+        "internal/ui/chat/tool_details.go",
+        "internal/ui/chat/tool_details_entries.go",
+        "internal/ui/chat/tool_details_model.go",
+        "internal/ui/chat/terminal_model.go",
+        "internal/ui/chat/tool_details_inspection_model.go",
+        "internal/ui/chat/tool_details_todo_model.go",
+        "internal/ui/frame/session_inspector_table.go",
+        "internal/ui/chat/session_inspector.go",
+        "internal/ui/frame/session_inspector_format.go",
+        "internal/ui/frame/session_inspector_controls.go",
+        "internal/ui/frame/session_inspector_layout.go",
+        "internal/ui/frame/session_inspector_motion.go",
+        "internal/ui/frame/session_inspector_tree.go",
+        "internal/ui/frame/session_inspector_details.go",
+        "internal/ui/frame/session_inspector_objects.go",
+        "internal/ui/frame/session_inspector_pick.go",
+        "internal/ui/chat/session_inspector_target.go",
+        "internal/ui/chat/session_inspector_reveal.go",
+        "internal/ui/chat/session_inspector_smooth.go",
+        "internal/store/session/command_history.go",
+        "internal/store/session/context_message.go"
+      ],
+      "uncovered": [
+        "internal/ui/chat/render_memo.go、internal/store/session/view_clone.go、assistant_stream.go的超长/深嵌套/增量回退组合，以及markdown/incremental.go、stream_highlight.go：已追真实消费者与核心合流/owner，未对极端性能组合做复杂度/缓存失效穷举；本轮无性能运行测量。此边界不再含专用tool receipt或Inspector功能库存。",
+        "internal/mathrender/renderer.cjs（约1.8MB生成MathJax引擎）和markdown/math_layout.go、table.go深层排版算法：已审解析/worker调用/超时/预算/错误边界，未逐行审生成引擎或穷尽复杂公式/表格的布局差异。",
+        "internal/jobflow Controller深层roster/output重试与恢复分支，以及workflowrun Fold全部异常事件排列：CHAT-049/054已覆盖UI动作/真实transport和identity入口，未穷尽所有异常replay组合。",
+        "真实原生窗口、用户profile、模型/provider请求、附件上传、第三方插件、服务恢复和安装包路径均按授权未操作；每条acceptanceGap保留具体待验收动作。此项是运行验收缺口，不能用当前源码存在或历史测试绿替代。"
+      ]
+    },
+    {
+      "domain": "settings-accounts",
+      "title": "设置、账号、模型与用量",
+      "total": 55,
+      "byStatus": {
+        "confirmed-defect": 11,
+        "wired-unverified": 39,
+        "partial": 4,
+        "missing": 1
+      },
+      "byPriority": {
+        "P1": 28,
+        "P0": 1,
+        "P2": 24,
+        "P3": 2
+      },
+      "modulesReviewed": [
+        "cmd/whaleisle/account_contact.go",
+        "cmd/whaleisle/account_platform.go",
+        "cmd/whaleisle/account_return.go",
+        "cmd/whaleisle/account_signout.go",
+        "cmd/whaleisle/browser_preview_actions.go",
+        "cmd/whaleisle/connection_reconnect.go",
+        "cmd/whaleisle/desktop_bool_preferences.go",
+        "cmd/whaleisle/desktop_onboarding.go",
+        "cmd/whaleisle/main.go",
+        "cmd/whaleisle/settings_appearance_theme.go",
+        "cmd/whaleisle/settings_body_wiring.go",
+        "cmd/whaleisle/settings_provider_discovery.go",
+        "cmd/whaleisle/settings_provider_profiles.go",
+        "cmd/whaleisle/settings_referenced_credentials.go",
+        "cmd/whaleisle/settings_sections.go",
+        "cmd/whaleisle/settings_shortcuts.go",
+        "cmd/whaleisle/settings_visual_replies.go",
+        "cmd/whaleisle/theme_font_preferences.go",
+        "cmd/whaleisle/welcome_window.go",
+        "internal/accountcontact/contact.go",
+        "internal/accountdetails/details.go",
+        "internal/accountlogin/login.go",
+        "internal/accountlogout/flow.go",
+        "internal/config/harness_restart.go",
+        "internal/config/persistence.go",
+        "internal/config/unified_shortcuts.go",
+        "internal/credentials/storage_status.go",
+        "internal/desktop/credentialrefs/controller.go",
+        "internal/desktop/credentialrefs/protocol.go",
+        "internal/desktop/networkstatus/status.go",
+        "internal/desktop/networkstatus/status_other.go",
+        "internal/desktop/networkstatus/status_windows.go",
+        "internal/desktop/pluginslots/shortcut_import.go",
+        "internal/desktop/providerdiscovery/controller.go",
+        "internal/desktop/providerdiscovery/probe.go",
+        "internal/desktop/providerprofiles/controller.go",
+        "internal/shortcutprefs/import.go",
+        "internal/shortcutprefs/store.go",
+        "internal/shortcuts/recording.go",
+        "internal/store/sessioncost/cost.go",
+        "internal/store/settings/busy_enter.go",
+        "internal/store/settings/chat_preferences.go",
+        "internal/store/settings/chrome_preferences.go",
+        "internal/store/settings/credentials_rpc.go",
+        "internal/store/settings/custom_instructions.go",
+        "internal/store/settings/developer_preferences.go",
+        "internal/store/settings/document.go",
+        "internal/store/settings/draft_operations.go",
+        "internal/store/settings/instructions_write.go",
+        "internal/store/settings/namespace_sequence.go",
+        "internal/store/settings/permission_defaults.go",
+        "internal/store/settings/schema.go",
+        "internal/store/settings/store.go",
+        "internal/store/settings/visual_replies.go",
+        "internal/store/storelocale/storelocale.go",
+        "internal/store/usage/account_bonuses.go",
+        "internal/store/usage/account_details.go",
+        "internal/store/usage/billing_models.go",
+        "internal/store/usage/follow.go",
+        "internal/store/usage/pricing.go",
+        "internal/store/usage/pricing_official.go",
+        "internal/store/usage/projects.go",
+        "internal/store/usage/ranking.go",
+        "internal/store/usage/repair.go",
+        "internal/store/usage/stats.go",
+        "internal/store/usage/stats_cache.go",
+        "internal/store/usage/time_range.go",
+        "internal/ui/i18n/i18n.go",
+        "internal/ui/sessioncost/view.go",
+        "internal/ui/settings/about.go",
+        "internal/ui/settings/account.go",
+        "internal/ui/settings/account_bonus_feedback.go",
+        "internal/ui/settings/account_signout.go",
+        "internal/ui/settings/appearance.go",
+        "internal/ui/settings/body_preferences.go",
+        "internal/ui/settings/conversation.go",
+        "internal/ui/settings/custom_instructions.go",
+        "internal/ui/settings/desktop.go",
+        "internal/ui/settings/effect_preferences.go",
+        "internal/ui/settings/features.go",
+        "internal/ui/settings/harness_restart.go",
+        "internal/ui/settings/host_theme.go",
+        "internal/ui/settings/interface.go",
+        "internal/ui/settings/model_body.go",
+        "internal/ui/settings/model_configuration.go",
+        "internal/ui/settings/model_configuration_values.go",
+        "internal/ui/settings/models.go",
+        "internal/ui/settings/navigation.go",
+        "internal/ui/settings/onboarding.go",
+        "internal/ui/settings/permission_defaults.go",
+        "internal/ui/settings/pointer_effects.go",
+        "internal/ui/settings/preference_notices.go",
+        "internal/ui/settings/provider_profiles.go",
+        "internal/ui/settings/provider_specific_configuration.go",
+        "internal/ui/settings/referenced_credentials.go",
+        "internal/ui/settings/search.go",
+        "internal/ui/settings/sections.go",
+        "internal/ui/settings/settings.go",
+        "internal/ui/settings/shortcut_recording.go",
+        "internal/ui/settings/shortcuts.go",
+        "internal/ui/settings/theme_font_preferences.go",
+        "internal/ui/settings/wallpaper_background.go",
+        "internal/ui/theme/editor.go",
+        "internal/ui/theme/editor_font.go",
+        "internal/ui/theme/editor_library.go",
+        "internal/ui/theme/family_documents.go",
+        "internal/ui/theme/host_preferences.go",
+        "internal/ui/theme/preferences.go",
+        "internal/ui/usage/embedded.go",
+        "internal/ui/usage/pricing.go",
+        "internal/ui/usage/projects.go",
+        "internal/ui/usage/ranking.go",
+        "internal/ui/usage/repair.go",
+        "internal/ui/usage/statistics_dimensions.go",
+        "internal/ui/usage/stats.go"
+      ],
+      "uncovered": [
+        "实际运行验收未执行：普通/窄窗、原生键盘/文件对话框/托盘/OS登录项、主题实际渲染与性能、账户/支付/密钥/模型请求、日志修复与重启恢复。所有未确认缺陷的完整代码链仍是wired-unverified。",
+        "当前原项目C:/AI/Deepseek-Harness-Desktop的额外dirty能力未逐项比较；本域结论基于实际安装0.3.13提取桌面源和随包Host/client，不把同版本号的dirty源码当同一基线。",
+        "本轮仅审设置相关locale目录与明确交互状态，未对全应用所有catalog key/动态插件文案做逐键翻译完整性核对；已定位的固定语言差异见SET-050。",
+        "Windows凭据读写实现为代码审查；真实Electron safeStorage/DPAPI互通、macOS Keychain/legacy解密与profile迁移未执行。未读取任何真实profile或凭据。",
+        "跨域owned区域的业务细节以相应领域JSON为准，本报告不重复其结论；本文件22 SectionID及额外原版archived-sessions去向已经列明。"
+      ]
+    },
+    {
+      "domain": "plugins",
+      "title": "插件、市场、技能、MCP与生成式UI",
+      "total": 33,
+      "byStatus": {
+        "wired-unverified": 15,
+        "confirmed-defect": 6,
+        "partial": 12
+      },
+      "byPriority": {
+        "P1": 28,
+        "P2": 5
+      },
+      "modulesReviewed": [
+        "internal/pluginmanager/{types,client,controller,install,registry,discover}.go",
+        "internal/ui/pluginmanager/{view,dialogs,artwork,search_artwork,install_registry,install_terminal,install_ansi,install_footer}.go",
+        "cmd/whaleisle/{native_plugin_manager,settings_plugins,settings_plugin_inventory,plugin_contributions,plugin_slot_views,plugin_creator_task}.go",
+        "cmd/whaleisle/{plugin_session_host,plugin_session_frame,plugin_session_navigation,plugin_session_turns}.go",
+        "internal/desktop/plugininventory/{controller,view}.go",
+        "internal/desktop/pluginrpc/{doc,client}.go; typed dshbot and whale clients inventoried, business acceptance delegated to their domain owners",
+        "internal/desktop/pluginslots/{package,gateway,client_modules,keyboard,shortcut_preferences,shortcut_import,document_recommendation}.go and their browser adapters",
+        "internal/desktop/pluginui/{package,owner,session,session_controls,renderer_observation,onboarding_response}.go; client.js; session.js",
+        "internal/desktop/pluginui/mirror*.go; mirror_guard.js; mirror_portal_guard.js; mirror_text_guard.js",
+        "internal/ui/chat/{plugin_inline,plugin_portal}.go",
+        "internal/desktop/webview/{host,media_viewport,client_modules,plugin_mirror}.go",
+        "internal/harness/extra_overlay.go",
+        "internal/desktop/market/{catalog,details,spec,install,remove,space,updates}.go",
+        "internal/store/market/{store,catalog,catalog_filters,controls,management,personal,updates,attempts,activation,history_export}.go",
+        "internal/ui/market/{market,management,gallery,presentation,plugin_artwork,readme,readme_images,readme_media,readme_svg}.go",
+        "cmd/whaleisle/{market_catalog,market_activation,market_batch,market_install_ready,import_plugins}.go",
+        "internal/desktop/importer/plugins.go",
+        "internal/ui/settings/{plugins,plugin_inventory,plugin_body,served_plugin_body,served_subagent_models}.go; internal/store/settings/plugin_body.go",
+        "internal/ui/settings/{skills,skill_create,skill_filter,skill_hub}.go",
+        "cmd/whaleisle/settings_skill_{hub,create,editor,directory}.go",
+        "internal/store/session/{skills,skill_inventory,skill_groups,skill_target,skill_editor,skill_directory,skill_options_scope}.go",
+        "internal/ui/settings/{mcp,mcp_catalog,mcp_form,mcp_import}.go",
+        "internal/desktop/mcpconfig/{controller,operation,catalog,form,import,manual_refresh,health_refresh}.go",
+        "cmd/whaleisle/{settings_mcp,settings_mcp_health}.go",
+        "internal/ui/settings/{agent_presets,agent_preset_reader,agent_preset_guide,agent_preset_copy}.go",
+        "cmd/whaleisle/settings_agent_preset_reader.go; internal/store/session/{agent_preset_manager,agent_preset_reader}.go",
+        "internal/ui/custompanel/panel.go; internal/store/custompanel/store.go; cmd/whaleisle/custom_panels.go",
+        "internal/desktop/openui/{runtime,whale_runtime,shell,whale_shell,protocol,state,actions,media,download,api,api_cache,api_images,api_public_image,api_map,api_html_script}.go",
+        "internal/desktop/openui/viewer/v2/{provenance.json,native-adapter.js}; viewer/library-guide.txt",
+        "internal/desktop/previewprocess/openui_{bridge,api,actions,media,update}.go",
+        "internal/ui/chat/openui.go; cmd/whaleisle/main.go production assembly for settings, manager, market and panel hooks",
+        "internal/ui/chat/{whale_ui_tool,whale_ui_panel,openui_native_actions,openui_media}.go; internal/store/session/openui_owner.go",
+        "internal/harness/{launch,supervisor,extra_overlay,overlay}.go and cmd/whaleisle/main.go managed-host env assembly (Whale UI registration only)",
+        "internal/desktop/openui/viewer/v2/{viewer.html,host.cjs,assets/*.js,native-adapter.js}: full public component/DSL/Genui/action/state static comparison"
+      ],
+      "uncovered": [
+        "[acceptanceGap] 未逐一装载/执行原版116slot概念中的全部槽位和任意市场第三方包；已列出native固定consumer家族、browser替代入口与明确未消费家族，未把数量当通过。",
+        "[acceptanceGap] 未在当前诊断程序执行插件安装/更新/禁用/卸载、Skill文件写入、MCP进程/OAuth、Creator或真实模型请求；未操作桌面或读取用户profile。",
+        "[cross-domain acceptance] pluginrpc的dshbot/whale业务模块仅按typed边界及调用面归类；数十种Bot/任务/宠物/IM具体业务回执由对应领域负责，不在本线重复认证。",
+        "[historical boundary] 历史fixture证据只限其原始指定Host/合成插件/专用native投影视口，不覆盖当前用户完整主List、物理IME、任意portal、辅助技术或跨平台行为。",
+        "[source coverage closed] 本次指定的自带Whale UI/OpenUI renderer公开组件、DSL、动作、状态、native覆盖及14个安装renderer文件已静态审完；没有遗留逐组件源码缺口。任意未安装第三方包的未知实现不在这份自带能力库存内，其实装仍为验收缺口。",
+        "[acceptanceGap] 未运行73公共组件/50 Genui类型、流式/重启恢复、HTML、真实网络/地图、GPU/3D、媒体及OS保存；Genui远程image/audio/video阻断与默认render_ui注册缺口已作为代码结论登记，不能混成未知。"
+      ]
+    },
+    {
+      "domain": "workbench",
+      "title": "文件、Git、终端与浏览器",
+      "total": 44,
+      "byStatus": {
+        "wired-unverified": 30,
+        "partial": 10,
+        "confirmed-defect": 4
+      },
+      "byPriority": {
+        "P1": 26,
+        "P2": 14,
+        "P0": 4
+      },
+      "modulesReviewed": [
+        "internal/ui/files（生产入口、树/菜单、异步读、保存、tab/恢复、各预览路由）",
+        "internal/ui/diffsurface（生产入口、caption、状态/diff/branch/stage/discard/commit/push/PR/publish、异步及恢复边界）",
+        "internal/ui/terminal（local/Host 两种终端、组/生命周期、选区/路径）",
+        "internal/ui/browserpreview（Controller、全部导航/工具/录制菜单、document/浮窗/PiP/分区/恢复）",
+        "internal/ui/planpreview",
+        "internal/ui/filelink",
+        "internal/ui/svgimage（Seat/Owner/Surface 入口与生命周期）",
+        "internal/store/hostterminal（环境/创建/attach duplex/retain/follow/write/resize/rename/close/recovery/occurrence）",
+        "internal/store/office（确认其为 IM Office 配置桥，转 orchestration 领域，非文件转换）",
+        "internal/store/session/office_pdf.go",
+        "internal/desktop/workspacefs（list/tree/watch/search/text/page/save/workbook/CSV/XLS/XLSX/docs）",
+        "internal/desktop/git（production 操作/状态/选中文件提交/remote 计划/PR 目标/生成/部分失败）",
+        "internal/desktop/terminalruntime",
+        "internal/desktop/editors",
+        "internal/desktop/externallauncher（controller/Windows 注册及执行入口，非文件外部打开）",
+        "internal/desktop/browserrecording（capture/encoder/save/平台边界）",
+        "internal/desktop/htmldocument（local/remote 文件快照、资源图、interactive 入口）",
+        "internal/desktop/htmlpreview（静态/脚本 shell、capture、renderer/helper 入口）",
+        "internal/desktop/imagepreview（支持格式、预算、动画/SVG 路由；codec 算法不作逐行认证）",
+        "internal/desktop/imgcache（远程图缓存/预算/失效入口）",
+        "internal/desktop/mediapreview",
+        "internal/desktop/pdfpreview",
+        "internal/desktop/previewprocess（公开协议、Windows launcher/helper/图像及 interactive/OpenUI 桥的资源入口和生命周期；完整安全证明/其他平台未穷尽）",
+        "internal/desktop/svgrender（WASM render/字体来源入口；resvg/dav1d 内核未逐行审）",
+        "internal/desktop/webview（NewHost、文档/Browser 分区、导航/工具/permissions/download/viewport/恢复入口）",
+        "internal/desktop/platformview（账号隔离 transport 入口，业务消费交账号领域）",
+        "cmd/whaleisle/main.go:1449-1518,2961-3165,3520-3595,6485-6608,7080-7179,7319-7447",
+        "cmd/whaleisle/workspace_caption.go",
+        "cmd/whaleisle/workspace_document_preview.go",
+        "cmd/whaleisle/document_viewer.go",
+        "cmd/whaleisle/open_editor.go",
+        "cmd/whaleisle/browser_preview_actions.go",
+        "cmd/whaleisle/browser_workspace.go",
+        "cmd/whaleisle/terminal_target.go",
+        "cmd/whaleisle/remote_files.go",
+        "cmd/whaleisle/account_platform.go",
+        "cmd/whaleisle-launcher/main.go（externallauncher 消费）",
+        "internal/ui/frame/frame.go:1587-1667",
+        "internal/ui/frame/workspace_content.go:342-642",
+        "third_party/mygo/plugins/terminal/view.go:14-33,510-539 与 links.go（实际终端超链接旁路）",
+        "cmd/whaleisle/workspace_sessions.go:61-113（验证open-with cache切换时会清空，保留的缺陷仅晚到响应同rel碰撞）"
+      ],
+      "uncovered": [
+        "未执行用户诊断实例或真实 profile 的任何动作；工作面全部当前可见点击/键盘/拖动结果仍未实机验收。",
+        "未穷尽 Git patch 各转义/二进制/子模块/稀疏检出/大仓性能组合；没有真实远端 fetch/pull/push/PR/publish、SSH/HTTP 凭据或 GitHub Enterprise 账户操作。",
+        "原版和 MyGo 的图片/媒体/Office/字体解码器底层算法、恶意格式完整矩阵、DRM/受密码保护/旧 DOC/PPT/全部编码未穷尽；按格式入口和明确预算审查。",
+        "previewprocess Windows 令牌/AppContainer/WFP/JobObject 为资源隔离实现线索，未在本次证明完整沙箱安全；Darwin/Linux helper、webview 和录制后端未逐分支审查或运行。",
+        "原版 ui-files 的直接文件树没有新建文件/文件夹、重命名、删除入口；本次未把两端共同不提供的功能伪列成移植缺失。目录选择器中的新建文件夹归导航/工作区域。",
+        "历史 2026-10-19 记录中的 E/functional-* 原始 receipt 此次未定位到，未把文档声明升级为通过；既有 2026-10-24/25 原始日志只保留它们实际范围。",
+        "Platform 业务、原生启动器完整升级事务、远程 Files 编辑器的真实连接/写回为跨领域消费，不在本工作面独自签署。"
+      ]
+    },
+    {
+      "domain": "orchestration",
+      "title": "Project、团队、自动化、助理与IM",
+      "total": 49,
+      "byStatus": {
+        "confirmed-defect": 7,
+        "wired-unverified": 28,
+        "missing": 3,
+        "partial": 11
+      },
+      "byPriority": {
+        "P0": 1,
+        "P1": 38,
+        "P2": 10
+      },
+      "modulesReviewed": [
+        "cmd/whaleisle/assistant_bot_avatar.go",
+        "cmd/whaleisle/assistant_bot_avatar_image.go",
+        "cmd/whaleisle/assistant_bot_capabilities.go",
+        "cmd/whaleisle/assistant_bot_create.go",
+        "cmd/whaleisle/assistant_bot_delete.go",
+        "cmd/whaleisle/assistant_bot_duplicate.go",
+        "cmd/whaleisle/assistant_bot_memory.go",
+        "cmd/whaleisle/assistant_bot_memory_review.go",
+        "cmd/whaleisle/assistant_bot_notifications.go",
+        "cmd/whaleisle/assistant_bot_objective.go",
+        "cmd/whaleisle/assistant_bot_objective_config.go",
+        "cmd/whaleisle/assistant_bot_read.go",
+        "cmd/whaleisle/assistant_bot_route.go",
+        "cmd/whaleisle/assistant_bot_sender_policy.go",
+        "cmd/whaleisle/assistant_bot_text_profile.go",
+        "cmd/whaleisle/assistant_bot_visibility.go",
+        "cmd/whaleisle/assistant_contacts.go",
+        "cmd/whaleisle/assistant_conversation.go",
+        "cmd/whaleisle/assistant_group_runtime.go",
+        "cmd/whaleisle/assistant_room_create.go",
+        "cmd/whaleisle/assistant_room_edit.go",
+        "cmd/whaleisle/assistant_room_runtime.go",
+        "cmd/whaleisle/assistant_routine_create.go",
+        "cmd/whaleisle/assistant_routine_trigger.go",
+        "cmd/whaleisle/assistant_routines.go",
+        "cmd/whaleisle/assistant_tasks.go",
+        "cmd/whaleisle/assistant_whale_preferences.go",
+        "cmd/whaleisle/assistant_whale_settings.go",
+        "cmd/whaleisle/bridge_alerts.go",
+        "cmd/whaleisle/main.go",
+        "cmd/whaleisle/pet_look.go",
+        "cmd/whaleisle/project_assets.go",
+        "cmd/whaleisle/project_directory.go",
+        "cmd/whaleisle/project_documents.go",
+        "cmd/whaleisle/project_flow.go",
+        "cmd/whaleisle/project_history.go",
+        "cmd/whaleisle/project_lifecycle.go",
+        "cmd/whaleisle/project_live_refresh.go",
+        "cmd/whaleisle/project_materials.go",
+        "cmd/whaleisle/project_observer_controller.go",
+        "cmd/whaleisle/project_preference.go",
+        "cmd/whaleisle/project_process_live.go",
+        "cmd/whaleisle/project_recovery.go",
+        "cmd/whaleisle/project_requests.go",
+        "cmd/whaleisle/schedule_navigation.go",
+        "cmd/whaleisle/schedule_task_context.go",
+        "cmd/whaleisle/task_protection.go",
+        "internal/desktop/botnotify",
+        "internal/desktop/botnotify/read_marks.go",
+        "internal/desktop/botnotify/tracker.go",
+        "internal/desktop/bridgealerts",
+        "internal/desktop/bridgealerts/monitor.go",
+        "internal/desktop/pluginrpc/dshbot_avatar.go",
+        "internal/desktop/projectbridge",
+        "internal/desktop/projectbridge/bridge.go",
+        "internal/desktop/projectbridge/runner.js",
+        "internal/desktop/projectbridge/source/main/project-environment.js",
+        "internal/desktop/projectpreference",
+        "internal/desktop/projectpreference/controller.go",
+        "internal/desktop/screenglance",
+        "internal/desktop/screenglance/capture_windows.go",
+        "internal/desktop/screenglance/image.go",
+        "internal/desktop/taskcontrol",
+        "internal/desktop/taskcontrol/control.go",
+        "internal/desktop/taskguard",
+        "internal/desktop/taskguard/decision.go",
+        "internal/desktop/whale",
+        "internal/desktop/whale/client.go",
+        "internal/dsh/api/im.go",
+        "internal/harness/overlay.go",
+        "internal/harness/task_protection.go",
+        "internal/jobflow",
+        "internal/jobflow/controller.go",
+        "internal/jobflow/model.go",
+        "internal/projectflow",
+        "internal/projectflow/activity.go",
+        "internal/projectflow/assets.go",
+        "internal/projectflow/client.go",
+        "internal/projectflow/deliveries.go",
+        "internal/projectflow/detail.go",
+        "internal/projectflow/historical_process.go",
+        "internal/projectflow/requests.go",
+        "internal/store/assistant",
+        "internal/store/assistant/store.go",
+        "internal/store/assistant/whale_preferences.go",
+        "internal/store/assistant/whale_settings.go",
+        "internal/store/dshbot",
+        "internal/store/dshbot/avatar_image_controls.go",
+        "internal/store/dshbot/bot_create.go",
+        "internal/store/dshbot/bot_delete.go",
+        "internal/store/dshbot/capability_controls.go",
+        "internal/store/dshbot/memory_controls.go",
+        "internal/store/dshbot/memory_review_controls.go",
+        "internal/store/dshbot/objective_config_controls.go",
+        "internal/store/dshbot/objective_controls.go",
+        "internal/store/dshbot/room_runtime.go",
+        "internal/store/dshbot/roster.go",
+        "internal/store/dshbot/route_controls.go",
+        "internal/store/dshbot/routine_advanced.go",
+        "internal/store/dshbot/routine_controls.go",
+        "internal/store/dshbot/routine_create_calendar.go",
+        "internal/store/dshbot/routine_create_schedule.go",
+        "internal/store/dshbot/routine_trigger.go",
+        "internal/store/dshbot/sender_policy_controls.go",
+        "internal/store/dshbot/task_controls.go",
+        "internal/store/dshbot/text_profile_controls.go",
+        "internal/store/im",
+        "internal/store/im/connections.go",
+        "internal/store/im/cordis.go",
+        "internal/store/im/cordis_inventory.go",
+        "internal/store/im/cordis_resolve.go",
+        "internal/store/im/store.go",
+        "internal/store/imonboard",
+        "internal/store/imonboard/bindings.go",
+        "internal/store/imonboard/reconnect.go",
+        "internal/store/imonboard/store.go",
+        "internal/store/office",
+        "internal/store/office/model.go",
+        "internal/store/office/store.go",
+        "internal/store/schedule",
+        "internal/store/schedule/catalog_controls.go",
+        "internal/store/schedule/edit.go",
+        "internal/store/schedule/history.go",
+        "internal/store/schedule/store.go",
+        "internal/store/session/archive_confirmation.go",
+        "internal/store/session/jobs.go",
+        "internal/store/session/lifecycle_admission.go",
+        "internal/store/session/rename.go",
+        "internal/store/session/store.go",
+        "internal/ui/agents",
+        "internal/ui/agents/child_interactions.go",
+        "internal/ui/agents/child_readonly.go",
+        "internal/ui/agents/manager.go",
+        "internal/ui/agents/navigation.go",
+        "internal/ui/agents/resources.go",
+        "internal/ui/assistant",
+        "internal/ui/assistant/contacts.go",
+        "internal/ui/assistant/list_filters.go",
+        "internal/ui/assistant/room_runtime.go",
+        "internal/ui/assistant/routine_trigger.go",
+        "internal/ui/assistant/routines.go",
+        "internal/ui/assistant/tasks.go",
+        "internal/ui/assistant/whale_settings_section.go",
+        "internal/ui/chat/chat.go",
+        "internal/ui/chat/workflow.go",
+        "internal/ui/frame/frame.go",
+        "internal/ui/frame/jobs.go",
+        "internal/ui/frame/workspace_subagent_conversation.go",
+        "internal/ui/im",
+        "internal/ui/im/channel_bindings.go",
+        "internal/ui/im/im.go",
+        "internal/ui/im/office.go",
+        "internal/ui/im/onboarding.go",
+        "internal/ui/im/settings.go",
+        "internal/ui/projects",
+        "internal/ui/projects/modal.go",
+        "internal/ui/projects/sidebar.go",
+        "internal/ui/projects/task_cards.go",
+        "internal/ui/projects/view.go",
+        "internal/ui/schedule",
+        "internal/ui/schedule/panel.go",
+        "internal/ui/schedule/task_cron.go",
+        "internal/ui/schedule/time_zones.go",
+        "internal/ui/schedule/timing_picker.go",
+        "internal/ui/sidebar/sidebar.go",
+        "internal/workflowrun",
+        "internal/workflowrun/model.go",
+        "runtime/vendor/dsh-im/lib/index.js",
+        "runtime/vendor/dsh-project/lib/index.js",
+        "runtime/vendor/dsh-project/lib/presets.js",
+        "runtime/vendor/dsh-project/lib/readonly.js",
+        "runtime/vendor/dsh-project/lib/requirements.js",
+        "runtime/vendor/dsh-project/lib/service.js",
+        "runtime/vendor/dsh-whale/lib/index.js",
+        "runtime/vendor/dshbot/lib/control-plane.js",
+        "runtime/vendor/dshbot/lib/profile-ops.js"
+      ],
+      "uncovered": [
+        "本轮未操作桌面、未读取用户profile、未运行/新增测试、未构建安装、未运行Git变更操作、未创建模型/IM/Office任务或CI；各feature的实际用户路径、窄窗/键盘/菜单视觉与运行态恢复缺口保留在acceptanceGap。",
+        "dsh-im vendor各平台生产bridge的鉴权/重连/媒体/交互卡底层协议循环仅完成能力及Host消费入口索引，未逐行审完九平台全部失败分支，也未证明平台API当前兼容性。",
+        "legacy dshbot全部UI/控制模块已分配到FLOW-031至041；并未逐行证明每个重复state machine的所有失败/不确定/恢复分支。当前安装原版已无此插件，不能依据legacy源码宣称原版助手全量对齐。",
+        "Project视觉结果嵌入和差异/图表交互依赖workbench/plugins领域结论；本领域只检查Project绑定、引用、返回与文件root契约，没有运行HTML/截图/interactive rendering。",
+        "非Windows screenglance provider仅做文件索引；本机Windows采集也未执行。",
+        "current-original未发布后台任务的完整科学/模型效果和所有Feishu投递竞争场景未运行；本轮只确认额外能力及MyGo缺对应控制面，未给该dirty分支认证。"
+      ]
+    },
+    {
+      "domain": "pet-voice",
+      "title": "桌宠、壁纸、语音与图像处理",
+      "total": 34,
+      "byStatus": {
+        "wired-unverified": 19,
+        "confirmed-defect": 3,
+        "missing": 2,
+        "partial": 9,
+        "external-blocked": 1
+      },
+      "byPriority": {
+        "P1": 15,
+        "P2": 19
+      },
+      "modulesReviewed": [
+        "internal/petcare/",
+        "internal/petdirect/",
+        "internal/petgrowth/",
+        "internal/petlook/",
+        "internal/petwatch/",
+        "internal/desktop/pet/ (Companion lifecycle, protocol/resource dispatch, rendering, rig, geometry, motion, hit regions, interactions, care, growth, notifications, quick-chat, look, recovery and bundled renderer scripts)",
+        "internal/desktop/wallpapers/",
+        "internal/desktop/voicecapture/",
+        "internal/desktop/voiceinput/",
+        "internal/desktop/clipboardimage/",
+        "internal/desktop/avatarimage/",
+        "internal/desktop/screenglance/",
+        "internal/ui/svgimage/",
+        "internal/ui/webview/ (no pet runtime consumer found; pet uses a dedicated MyGo Page)",
+        "internal/ui/chrome/background.go",
+        "internal/ui/chrome/wallpaper.go",
+        "internal/ui/chrome/wallpaper_screen.go",
+        "internal/ui/chrome/gradient_source.go",
+        "internal/ui/chrome/ambient_gradient.go",
+        "internal/ui/chrome/cursor.go",
+        "cmd/whaleisle/pet*.go",
+        "cmd/whaleisle/composer_voice.go",
+        "cmd/whaleisle/voice_devices.go",
+        "cmd/whaleisle/composer_clipboard.go",
+        "cmd/whaleisle/wallpaper_background.go",
+        "cmd/whaleisle/pointer_effects.go",
+        "cmd/whaleisle/svg_images.go",
+        "cmd/whaleisle/assistant_bot_avatar_image.go",
+        "cmd/whaleisle/main.go (production bindings only)",
+        "internal/config/desktop_pet.go",
+        "internal/config/pet_behavior.go",
+        "internal/config/pet_care.go",
+        "internal/config/pet_growth.go",
+        "internal/store/session/speech_recording.go",
+        "internal/store/session/speech.go",
+        "internal/store/session/speech_settings.go",
+        "internal/ui/composer/tool_actions.go (voice and paste consumers)",
+        "internal/ui/market/plugin_artwork.go",
+        "internal/ui/market/readme_images.go",
+        "internal/ui/pluginmanager/artwork.go",
+        "native/macos-preview/ (platform boundary only)"
+      ],
+      "uncovered": [
+        "未逐行审第三方ORT/ONNX/WASM实现和全部模型权重；只审固定资源选择、实际生产载入/消费、降级和释放。",
+        "Bot头像基线已与assistant/IM领域合并：该项属于legacy dshbot扩展，不是当前原安装版Whale内建功能；运行验收仍缺。",
+        "没有执行真实桌面、录音/播放、剪贴板、屏幕截图、多屏设备、外部模型/壁纸服务请求；均明确留在相应acceptanceGap。",
+        "未改产品、未新写测试/夹具、未读取用户profile；旧0.3.10/0.3.3材料未作当前原版基线。"
+      ]
+    },
+    {
+      "domain": "lifecycle-remote",
+      "title": "生命周期、兼容、远程与安装更新",
+      "total": 40,
+      "byStatus": {
+        "wired-unverified": 19,
+        "verified-scoped": 2,
+        "partial": 9,
+        "confirmed-defect": 5,
+        "external-blocked": 3,
+        "missing": 2
+      },
+      "byPriority": {
+        "P1": 28,
+        "P0": 6,
+        "P2": 6
+      },
+      "modulesReviewed": [
+        "internal/ui/boot",
+        "internal/ui/launcher",
+        "internal/ui/remote",
+        "internal/ui/chrome/closing.go",
+        "internal/ui/chrome/updateprogress.go",
+        "internal/store/remote",
+        "internal/harness (launch/prepare/overlay/link/supervisor/readiness/recovery/restart/installctrl/auth/task-protection/logexport/current-host/session-runtime/office/project/generic helper inventory)",
+        "internal/dsh (bootstrap/RPC/mux/reconnect/events/multipart/next-prompt/stop-sequence/native contributions and generated API transport contracts)",
+        "internal/paths",
+        "internal/product",
+        "internal/processutil",
+        "internal/recovery",
+        "internal/startuprec",
+        "internal/startuptrace",
+        "internal/desktop/appuninstall",
+        "internal/desktop/components",
+        "internal/desktop/deeplink",
+        "internal/desktop/importer",
+        "internal/desktop/localservers",
+        "internal/desktop/notifications",
+        "internal/desktop/phoneremote",
+        "internal/desktop/sshremote",
+        "internal/desktop/workspaceauth (connection validation)",
+        "internal/desktop/update",
+        "cmd/whaleisle-launcher/main.go",
+        "cmd/whaleisle-integration/main_windows.go",
+        "cmd/whaleisle/main.go (startup/boot/close/remote assembly)",
+        "cmd/whaleisle/product.go",
+        "cmd/whaleisle/isolated_desktop.go",
+        "cmd/whaleisle/portable_desktop.go",
+        "cmd/whaleisle/welcome_window.go",
+        "cmd/whaleisle/desktop_tray.go",
+        "cmd/whaleisle/desktop_tray_menu.go",
+        "cmd/whaleisle/desktop_tray_notice.go",
+        "cmd/whaleisle/quit_lifecycle.go",
+        "cmd/whaleisle/task_protection.go",
+        "cmd/whaleisle/crash_report.go",
+        "cmd/whaleisle/recovery.go",
+        "cmd/whaleisle/startup_recovery.go",
+        "cmd/whaleisle/startup_diagnostics.go",
+        "cmd/whaleisle/launcher_window.go",
+        "cmd/whaleisle/import_flow.go",
+        "cmd/whaleisle/import_recovery.go",
+        "cmd/whaleisle/import_plugins.go",
+        "cmd/whaleisle/application_uninstall.go",
+        "cmd/whaleisle/system_notifications.go",
+        "cmd/whaleisle/system_notifications_activation.go",
+        "cmd/whaleisle/native_releases.go",
+        "cmd/whaleisle/launcher_update_check.go",
+        "cmd/whaleisle/update_check_lifecycle.go",
+        "cmd/whaleisle/update_attention.go",
+        "cmd/whaleisle/update_progress.go",
+        "cmd/whaleisle/update_journal.go",
+        "cmd/whaleisle/settings_body_wiring.go (update/remote interfaces only)",
+        "cmd/whaleisle/generic_components.go",
+        "cmd/whaleisle/component_changes.go",
+        "cmd/whaleisle/host_bundle.go",
+        "cmd/whaleisle/phone_gateway.go",
+        "cmd/whaleisle/phone_devices.go",
+        "cmd/whaleisle/phone_git.go",
+        "cmd/whaleisle/phone_git_workspaces.go",
+        "cmd/whaleisle/phone_pr_review.go",
+        "cmd/whaleisle/phone_diag.go",
+        "cmd/whaleisle/remote_runtime_config.go",
+        "cmd/whaleisle/remote_host_actions.go",
+        "cmd/whaleisle/remote_files.go",
+        "cmd/whaleisle/ssh_connect_operation.go",
+        "scripts/package.ps1",
+        "scripts/package-launcher.ps1",
+        "scripts/nsis/whaleisle.nsi",
+        "scripts/nsis/payload-transaction.nsh",
+        "scripts/nsis/runtime-links.nsh",
+        "scripts/nsis/notification-integration.nsh",
+        "scripts/session-runtime.mjs",
+        "scripts/session-runtime-readiness.mjs",
+        "scripts/session-runtime-nsis.mjs",
+        "scripts/session-runtime-samples.mjs",
+        "scripts/mobile-runtime.mjs",
+        "scripts/native-release-catalog.mjs",
+        "scripts/package-macos.mjs (platform inventory; actual macOS behavior remains external-blocked)",
+        "internal/ui/browserpreview/local_servers.go (localservers直接消费者接线)"
+      ],
+      "uncovered": [
+        "真实桌面输入、托盘/通知/开机/URL注册、安装器GUI与真实原产品ID接管不在本次允许执行范围，均保留为相应条目的验收缺口。",
+        "手机端页面各控件、第二设备/relay/TLS与真实SSH服务未运行；本领域完成桌面配置/桥接/服务契约枚举，不能判实际可用。",
+        "localservers对应具体picker/浏览器打开后的页面行为由文件/浏览器领域拥有，本领域未重复该页面级审查。",
+        "macOS硬件和Linux真实桌面行为、签名/公证/系统包管理只完成平台分支/发布入口盘点，不能由Windows源码与历史编译认证。",
+        "current-original dirty dsh-whale/dsh-im任务完整实现归assistant领域；本领域只完成其退出/维护准入接口delta核对。"
+      ]
+    }
+  ],
+  "byBaseline": {
+    "installed-0.3.13": {
+      "total": 332,
+      "byStatus": {
+        "confirmed-defect": 47,
+        "wired-unverified": 200,
+        "partial": 71,
+        "verified-scoped": 4,
+        "missing": 8,
+        "external-blocked": 2
+      },
+      "byPriority": {
+        "P0": 14,
+        "P1": 198,
+        "P2": 118,
+        "P3": 2
+      }
+    },
+    "existing-MyGo-contract": {
+      "total": 32,
+      "byStatus": {
+        "confirmed-defect": 4,
+        "partial": 4,
+        "verified-scoped": 3,
+        "wired-unverified": 19,
+        "external-blocked": 2
+      },
+      "byPriority": {
+        "P1": 17,
+        "P0": 3,
+        "P3": 1,
+        "P2": 11
+      }
+    },
+    "current-original-0.3.13": {
+      "total": 3,
+      "byStatus": {
+        "missing": 3
+      },
+      "byPriority": {
+        "P2": 2,
+        "P1": 1
+      }
+    }
+  },
+  "modules": [
+    {
+      "module": "internal/accountcontact",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/accountdetails",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/accountlogin",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/accountlogout",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/config",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/credentials",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/directorypicker",
+      "owners": [
+        "workspace-sessions"
+      ],
+      "reports": [
+        "workspace-sessions.json"
+      ]
+    },
+    {
+      "module": "internal/dsh",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/harness",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/jobflow",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/markdownsyntax",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/mathrender",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/paths",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/petcare",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/petdirect",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/petgrowth",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/petlook",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/petwatch",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/pluginmanager",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/processutil",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/product",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/projectflow",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/recovery",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/shortcutprefs",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/shortcuts",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/startuprec",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/startuptrace",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/workflowrun",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/agents",
+      "owners": [
+        "conversation",
+        "orchestration"
+      ],
+      "reports": [
+        "conversation.json",
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/assistant",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/boot",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/ui/browserpreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/ui/chat",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/ui/chrome",
+      "owners": [
+        "shell"
+      ],
+      "reports": [
+        "shell.json"
+      ]
+    },
+    {
+      "module": "internal/ui/composer",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/ui/custompanel",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/ui/diffsurface",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/ui/dirpick",
+      "owners": [
+        "workspace-sessions"
+      ],
+      "reports": [
+        "workspace-sessions.json"
+      ]
+    },
+    {
+      "module": "internal/ui/filelink",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/ui/files",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/ui/frame",
+      "owners": [
+        "shell"
+      ],
+      "reports": [
+        "shell.json"
+      ]
+    },
+    {
+      "module": "internal/ui/i18n",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/ui/im",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/interaction",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/ui/launcher",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/ui/market",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/ui/planpreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/ui/pluginmanager",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/ui/projects",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/remote",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/ui/schedule",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/ui/sessioncost",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/ui/settings",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/ui/sidebar",
+      "owners": [
+        "workspace-sessions"
+      ],
+      "reports": [
+        "workspace-sessions.json"
+      ]
+    },
+    {
+      "module": "internal/ui/svgimage",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/ui/terminal",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/ui/theme",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/ui/usage",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/ui/webview",
+      "owners": [
+        "plugins",
+        "pet-voice"
+      ],
+      "reports": [
+        "plugins.json",
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/ui/welcome",
+      "owners": [
+        "settings-accounts",
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "settings-accounts.json",
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/ui/widgets",
+      "owners": [
+        "shell"
+      ],
+      "reports": [
+        "shell.json"
+      ]
+    },
+    {
+      "module": "internal/ui/workspacepicker",
+      "owners": [
+        "workspace-sessions"
+      ],
+      "reports": [
+        "workspace-sessions.json"
+      ]
+    },
+    {
+      "module": "internal/store/assistant",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/custompanel",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/store/dshbot",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/hostterminal",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/store/im",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/imonboard",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/interaction",
+      "owners": [
+        "conversation"
+      ],
+      "reports": [
+        "conversation.json"
+      ]
+    },
+    {
+      "module": "internal/store/market",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/store/office",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/remote",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/store/schedule",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/store/session",
+      "owners": [
+        "conversation",
+        "workspace-sessions"
+      ],
+      "reports": [
+        "conversation.json",
+        "workspace-sessions.json"
+      ]
+    },
+    {
+      "module": "internal/store/sessioncost",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/store/settings",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/store/storelocale",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/store/usage",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/appuninstall",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/avatarimage",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/botnotify",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/bridgealerts",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/browserrecording",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/clipboardimage",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/components",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/credentialrefs",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/deeplink",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/editors",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/externallauncher",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/git",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/htmldocument",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/htmlpreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/imagepreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/imgcache",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/importer",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/localservers",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/market",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/mcpconfig",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/mediapreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/networkstatus",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/notifications",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/openui",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/pdfpreview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/pet",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/phoneremote",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/platformview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/plugininventory",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginrpc",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginslots",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginui",
+      "owners": [
+        "plugins"
+      ],
+      "reports": [
+        "plugins.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/previewprocess",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/projectbridge",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/projectpreference",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/providerdiscovery",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/providerprofiles",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/screenglance",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/sshremote",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/svgrender",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/taskcontrol",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/taskguard",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/terminalruntime",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/update",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/voicecapture",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/voiceinput",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/wallpapers",
+      "owners": [
+        "pet-voice"
+      ],
+      "reports": [
+        "pet-voice.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/webview",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/whale",
+      "owners": [
+        "orchestration"
+      ],
+      "reports": [
+        "orchestration.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/workspaceauth",
+      "owners": [
+        "settings-accounts"
+      ],
+      "reports": [
+        "settings-accounts.json"
+      ]
+    },
+    {
+      "module": "internal/desktop/workspacefs",
+      "owners": [
+        "workbench"
+      ],
+      "reports": [
+        "workbench.json"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-integration",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-launcher",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-preview",
+      "owners": [
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "lifecycle-remote.json"
+      ]
+    },
+    {
+      "module": "native/macos-preview",
+      "owners": [
+        "pet-voice",
+        "lifecycle-remote"
+      ],
+      "reports": [
+        "pet-voice.json",
+        "lifecycle-remote.json"
+      ]
+    }
+  ],
+  "originalClientPackages": [
+    {
+      "package": "connection",
+      "report": "lifecycle-remote.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [
+        "SET-048",
+        "FLOW-030"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "file-upload",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "file-upload",
+          "report": "coverage.json",
+          "disposition": "Supporting browser upload service, not an additional page. Attachment intake and real byte progress are mapped separately; progress parity remains CHAT-012 partial.",
+          "oldIds": [
+            "CHAT-011",
+            "CHAT-012"
+          ],
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/file-upload/lib/types/client/index.js:1-11",
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/file-upload/lib/types/client/runtime.js:12-58"
+          ]
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "hmr",
+      "report": "plugins.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "hmr",
+          "report": "coverage.json",
+          "disposition": "Page-local plugin graph/rebuild transport, not an independent user action. Module state/retry is GPLUG-003; browser-owner conditions and native dynamic slot limitations remain explicit.",
+          "oldIds": [
+            "PLUG-001",
+            "PLUG-013"
+          ],
+          "actionIds": [
+            "GPLUG-003"
+          ],
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/hmr/lib/types/client/index.js:46-91"
+          ]
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "locale",
+      "report": "settings-accounts.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [
+        "SET-001",
+        "SET-050"
+      ],
+      "citedActionIds": [
+        "GSET-001"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "modules",
+      "report": "plugins.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "modules",
+          "report": "coverage.json",
+          "disposition": "Loader service and boot graph, not a separate user page. Inventory and retry consumer mapped by GPLUG-002/003; this disposition does not certify arbitrary client bundles.",
+          "oldIds": [
+            "PLUG-001",
+            "PLUG-013"
+          ],
+          "actionIds": [
+            "GPLUG-002",
+            "GPLUG-003"
+          ],
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/modules/lib/types/client/index.js:7-35"
+          ]
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "product-analytics",
+      "report": "settings-accounts.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "product-analytics",
+          "report": "coverage.json",
+          "disposition": "Desktop telemetry service gated by synchronized Host policy and dshDesktop presence, not a visible standalone control. Transport collection/native equivalence is not runtime-certified or counted as a newly missing user action.",
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/product-analytics/lib/types/client/index.js:17-34,42-52"
+          ]
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "resources",
+      "report": "plugins.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [
+        "WS-001",
+        "WS-002",
+        "WS-003",
+        "WS-004",
+        "WS-005",
+        "WS-006",
+        "WS-007",
+        "WS-008",
+        "WS-009",
+        "WS-010",
+        "WS-011",
+        "WS-012",
+        "WS-013",
+        "WS-014",
+        "WS-015",
+        "WS-016",
+        "WS-017",
+        "WS-018",
+        "WS-019",
+        "WS-020",
+        "WS-021",
+        "WS-022",
+        "WS-023",
+        "WS-024",
+        "WS-025",
+        "WS-026",
+        "WS-027",
+        "WS-028",
+        "WS-029",
+        "WS-031",
+        "WS-032",
+        "WS-034",
+        "WS-036",
+        "WS-038",
+        "WS-039",
+        "WS-041",
+        "SH-001",
+        "SH-002",
+        "SH-003",
+        "SH-004",
+        "SH-005",
+        "SH-006",
+        "SH-007",
+        "CHAT-001",
+        "CHAT-002",
+        "CHAT-003",
+        "CHAT-004",
+        "CHAT-005",
+        "CHAT-006",
+        "CHAT-007",
+        "CHAT-008",
+        "CHAT-009",
+        "CHAT-010",
+        "CHAT-011",
+        "CHAT-012",
+        "CHAT-013",
+        "CHAT-014",
+        "CHAT-015",
+        "CHAT-016",
+        "CHAT-017",
+        "CHAT-018",
+        "CHAT-019",
+        "CHAT-020",
+        "CHAT-021",
+        "CHAT-022",
+        "CHAT-023",
+        "CHAT-024",
+        "CHAT-025",
+        "CHAT-026",
+        "CHAT-027",
+        "CHAT-028",
+        "CHAT-029",
+        "CHAT-030",
+        "CHAT-031",
+        "CHAT-032",
+        "CHAT-033",
+        "CHAT-034",
+        "CHAT-035",
+        "CHAT-036",
+        "CHAT-037",
+        "CHAT-038",
+        "CHAT-039",
+        "CHAT-040",
+        "CHAT-041",
+        "CHAT-042",
+        "CHAT-043",
+        "CHAT-044",
+        "CHAT-045",
+        "CHAT-046",
+        "CHAT-047",
+        "CHAT-048",
+        "CHAT-049",
+        "CHAT-050",
+        "CHAT-051",
+        "CHAT-052",
+        "CHAT-053",
+        "CHAT-054",
+        "CHAT-055",
+        "CHAT-056",
+        "CHAT-057",
+        "CHAT-058",
+        "CHAT-059",
+        "CHAT-060",
+        "CHAT-061",
+        "CHAT-062",
+        "CHAT-063",
+        "SET-001",
+        "SET-002",
+        "SET-003",
+        "SET-004",
+        "SET-005",
+        "SET-006",
+        "SET-007",
+        "SET-008",
+        "SET-010",
+        "SET-011",
+        "SET-012",
+        "SET-013",
+        "SET-014",
+        "SET-015",
+        "SET-016",
+        "SET-017",
+        "SET-018",
+        "SET-020",
+        "SET-021",
+        "SET-022",
+        "SET-023",
+        "SET-024",
+        "SET-025",
+        "SET-026",
+        "SET-027",
+        "SET-028",
+        "SET-029",
+        "SET-030",
+        "SET-031",
+        "SET-032",
+        "SET-033",
+        "SET-034",
+        "SET-035",
+        "SET-036",
+        "SET-037",
+        "SET-038",
+        "SET-039",
+        "SET-040",
+        "SET-041",
+        "SET-042",
+        "SET-043",
+        "SET-044",
+        "SET-045",
+        "SET-046",
+        "SET-047",
+        "SET-048",
+        "SET-049",
+        "SET-050",
+        "SET-051",
+        "SET-052",
+        "SET-053",
+        "SET-054",
+        "SET-055",
+        "PLUG-001",
+        "PLUG-002",
+        "PLUG-003",
+        "PLUG-004",
+        "PLUG-005",
+        "PLUG-008",
+        "PLUG-010",
+        "PLUG-011",
+        "PLUG-012",
+        "PLUG-013",
+        "PLUG-014",
+        "PLUG-015",
+        "PLUG-016",
+        "PLUG-017",
+        "PLUG-018",
+        "PLUG-020",
+        "PLUG-021",
+        "PLUG-022",
+        "PLUG-023",
+        "PLUG-024",
+        "PLUG-025",
+        "PLUG-026",
+        "PLUG-029",
+        "PLUG-030",
+        "PLUG-032",
+        "PLUG-033",
+        "WB-001",
+        "WB-002",
+        "WB-003",
+        "WB-004",
+        "WB-005",
+        "WB-006",
+        "WB-007",
+        "WB-008",
+        "WB-009",
+        "WB-010",
+        "WB-011",
+        "WB-012",
+        "WB-013",
+        "WB-014",
+        "WB-015",
+        "WB-016",
+        "WB-017",
+        "WB-018",
+        "WB-020",
+        "WB-021",
+        "WB-022",
+        "WB-024",
+        "WB-025",
+        "WB-026",
+        "WB-029",
+        "WB-030",
+        "WB-031",
+        "WB-032",
+        "WB-033",
+        "WB-034",
+        "WB-035",
+        "WB-036",
+        "WB-037",
+        "WB-038",
+        "WB-039",
+        "WB-040",
+        "WB-041",
+        "WB-042",
+        "FLOW-001",
+        "FLOW-002",
+        "FLOW-003",
+        "FLOW-005",
+        "FLOW-006",
+        "FLOW-007",
+        "FLOW-008",
+        "FLOW-009",
+        "FLOW-010",
+        "FLOW-011",
+        "FLOW-012",
+        "FLOW-013",
+        "FLOW-015",
+        "FLOW-016",
+        "FLOW-017",
+        "FLOW-018",
+        "FLOW-019",
+        "FLOW-020",
+        "FLOW-021",
+        "FLOW-022",
+        "FLOW-024",
+        "FLOW-025",
+        "FLOW-026",
+        "FLOW-027",
+        "FLOW-028",
+        "FLOW-029",
+        "FLOW-030",
+        "FLOW-042",
+        "FLOW-045",
+        "FLOW-047",
+        "FLOW-048",
+        "FLOW-049",
+        "PET-003",
+        "PET-023",
+        "PET-025",
+        "PET-026",
+        "PET-027",
+        "PET-028",
+        "PET-029",
+        "PET-030",
+        "PET-031",
+        "PET-033",
+        "LIFE-031",
+        "LIFE-034",
+        "LIFE-035",
+        "LIFE-036"
+      ],
+      "citedActionIds": [
+        "GNAV-001",
+        "GNAV-002",
+        "GNAV-003",
+        "GNAV-004",
+        "GNAV-005",
+        "GNAV-006",
+        "GNAV-007",
+        "GNAV-008",
+        "GNAV-009",
+        "GNAV-010",
+        "GNAV-011",
+        "GNAV-012",
+        "GNAV-013",
+        "GNAV-014",
+        "GNAV-015",
+        "GNAV-016",
+        "GNAV-017",
+        "GNAV-018",
+        "GNAV-019",
+        "GNAV-020",
+        "GNAV-021",
+        "GNAV-022",
+        "GNAV-023",
+        "GNAV-024",
+        "GNAV-025",
+        "GNAV-027",
+        "GNAV-028",
+        "GNAV-029",
+        "GNAV-030",
+        "GNAV-031",
+        "GNAV-032",
+        "GNAV-034",
+        "GNAV-035",
+        "GNAV-036",
+        "GNAV-038",
+        "GNAV-039",
+        "GNAV-040",
+        "GCHAT-001",
+        "GCHAT-002",
+        "GCHAT-003",
+        "GCHAT-004",
+        "GCHAT-005",
+        "GCHAT-006",
+        "GCHAT-007",
+        "GCHAT-008",
+        "GCHAT-009",
+        "GCHAT-010",
+        "GCHAT-011",
+        "GCHAT-012",
+        "GCHAT-013",
+        "GCHAT-014",
+        "GCHAT-015",
+        "GCHAT-016",
+        "GCHAT-017",
+        "GCHAT-018",
+        "GCHAT-019",
+        "GCHAT-020",
+        "GCHAT-021",
+        "GCHAT-022",
+        "GCHAT-023",
+        "GCHAT-024",
+        "GCHAT-025",
+        "GCHAT-026",
+        "GCHAT-027",
+        "GCHAT-028",
+        "GCHAT-029",
+        "GCHAT-030",
+        "GCHAT-031",
+        "GCHAT-032",
+        "GCHAT-033",
+        "GCHAT-034",
+        "GCHAT-035",
+        "GCHAT-036",
+        "GCHAT-037",
+        "GCHAT-038",
+        "GCHAT-039",
+        "GCHAT-040",
+        "GCHAT-041",
+        "GCHAT-042",
+        "GCHAT-043",
+        "GCHAT-044",
+        "GCHAT-045",
+        "GCHAT-046",
+        "GCHAT-047",
+        "GCHAT-048",
+        "GCHAT-049",
+        "GCHAT-050",
+        "GCHAT-051",
+        "GCHAT-052",
+        "GCHAT-053",
+        "GCHAT-054",
+        "GCHAT-055",
+        "GCHAT-056",
+        "GCHAT-057",
+        "GCHAT-058",
+        "GCHAT-059",
+        "GCHAT-060",
+        "GCHAT-061",
+        "GCHAT-062",
+        "GCHAT-063",
+        "GCHAT-064",
+        "GCHAT-065",
+        "GCHAT-066",
+        "GCHAT-067",
+        "GCHAT-068",
+        "GCHAT-069",
+        "GCHAT-070",
+        "GCHAT-071",
+        "GCHAT-072",
+        "GCHAT-073",
+        "GCHAT-074",
+        "GCHAT-075",
+        "GCHAT-076",
+        "GCHAT-077",
+        "GCHAT-078",
+        "GCHAT-079",
+        "GCHAT-080",
+        "GCHAT-081",
+        "GCHAT-082",
+        "GCHAT-083",
+        "GCHAT-084",
+        "GCHAT-085",
+        "GCHAT-086",
+        "GCHAT-087",
+        "GCHAT-088",
+        "GCHAT-089",
+        "GCHAT-090",
+        "GCHAT-091",
+        "GCHAT-092",
+        "GCHAT-093",
+        "GCHAT-094",
+        "GCHAT-095",
+        "GCHAT-096",
+        "GCHAT-097",
+        "GCHAT-098",
+        "GCHAT-099",
+        "GCHAT-100",
+        "GCHAT-101",
+        "GCHAT-102",
+        "GCHAT-103",
+        "GCHAT-104",
+        "GCHAT-105",
+        "GCHAT-106",
+        "GCHAT-107",
+        "GCHAT-108",
+        "GCHAT-109",
+        "GCHAT-110",
+        "GCHAT-111",
+        "GCHAT-112",
+        "GCHAT-113",
+        "GCHAT-114",
+        "GCHAT-115",
+        "GCHAT-116",
+        "GCHAT-117",
+        "GCHAT-118",
+        "GCHAT-119",
+        "GCHAT-120",
+        "GCHAT-121",
+        "GCHAT-122",
+        "GCHAT-123",
+        "GCHAT-124",
+        "GCHAT-125",
+        "GCHAT-126",
+        "GCHAT-127",
+        "GCHAT-128",
+        "GCHAT-129",
+        "GCHAT-130",
+        "GCHAT-131",
+        "GCHAT-132",
+        "GCHAT-133",
+        "GCHAT-134",
+        "GCHAT-135",
+        "GCHAT-136",
+        "GCHAT-137",
+        "GCHAT-138",
+        "GCHAT-139",
+        "GCHAT-140",
+        "GCHAT-141",
+        "GCHAT-142",
+        "GCHAT-143",
+        "GCHAT-144",
+        "GCHAT-145",
+        "GCHAT-146",
+        "GCHAT-147",
+        "GCHAT-148",
+        "GCHAT-149",
+        "GCHAT-150",
+        "GCHAT-151",
+        "GCHAT-152",
+        "GCHAT-153",
+        "GCHAT-154",
+        "GCHAT-155",
+        "GCHAT-156",
+        "GCHAT-157",
+        "GCHAT-158",
+        "GCHAT-159",
+        "GCHAT-160",
+        "GCHAT-161",
+        "GCHAT-162",
+        "GCHAT-163",
+        "GCHAT-164",
+        "GCHAT-165",
+        "GCHAT-166",
+        "GCHAT-167",
+        "GCHAT-168",
+        "GCHAT-169",
+        "GCHAT-170",
+        "GCHAT-171",
+        "GCHAT-172",
+        "GCHAT-173",
+        "GCHAT-174",
+        "GCHAT-175",
+        "GCHAT-176",
+        "GCHAT-177",
+        "GCHAT-178",
+        "GCHAT-179",
+        "GCHAT-180",
+        "GCHAT-181",
+        "GCHAT-182",
+        "GCHAT-183",
+        "GCHAT-184",
+        "GCHAT-185",
+        "GCHAT-186",
+        "GCHAT-187",
+        "GCHAT-188",
+        "GCHAT-189",
+        "GCHAT-190",
+        "GCHAT-191",
+        "GCHAT-192",
+        "GCHAT-193",
+        "GCHAT-194",
+        "GCHAT-195",
+        "GCHAT-196",
+        "GCHAT-197",
+        "GCHAT-198",
+        "GCHAT-199",
+        "GCHAT-200",
+        "GCHAT-201",
+        "GCHAT-202",
+        "GCHAT-203",
+        "GSET-001",
+        "GSET-002",
+        "GSET-003",
+        "GSET-004",
+        "GSET-005",
+        "GSET-006",
+        "GSET-007",
+        "GSET-008",
+        "GSET-009",
+        "GSET-010",
+        "GSET-011",
+        "GSET-012",
+        "GSET-013",
+        "GSET-014",
+        "GSET-015",
+        "GSET-016",
+        "GSET-017",
+        "GSET-018",
+        "GSET-019",
+        "GSET-020",
+        "GSET-021",
+        "GSET-022",
+        "GSET-023",
+        "GSET-024",
+        "GSET-025",
+        "GSET-026",
+        "GSET-027",
+        "GSET-028",
+        "GSET-029",
+        "GSET-030",
+        "GSET-031",
+        "GSET-032",
+        "GSET-033",
+        "GSET-034",
+        "GSET-035",
+        "GSET-036",
+        "GSET-037",
+        "GSET-038",
+        "GSET-039",
+        "GSET-040",
+        "GSET-041",
+        "GSET-042",
+        "GSET-043",
+        "GSET-044",
+        "GSET-045",
+        "GSET-046",
+        "GSET-047",
+        "GSET-048",
+        "GSET-049",
+        "GSET-050",
+        "GSET-051",
+        "GSET-052",
+        "GSET-053",
+        "GSET-054",
+        "GSET-055",
+        "GSET-056",
+        "GSET-057",
+        "GSET-058",
+        "GSET-059",
+        "GSET-060",
+        "GSET-061",
+        "GSET-062",
+        "GSET-063",
+        "GSET-064",
+        "GSET-065",
+        "GSET-066",
+        "GSET-067",
+        "GSET-068",
+        "GSET-069",
+        "GSET-070",
+        "GSET-071",
+        "GSET-072",
+        "GSET-073",
+        "GSET-074",
+        "GSET-075",
+        "GSET-076",
+        "GSET-077",
+        "GSET-078",
+        "GSET-079",
+        "GSET-080",
+        "GSET-081",
+        "GSET-082",
+        "GSET-083",
+        "GSET-084",
+        "GSET-085",
+        "GSET-086",
+        "GSET-087",
+        "GSET-088",
+        "GSET-089",
+        "GSET-090",
+        "GSET-091",
+        "GSET-092",
+        "GSET-093",
+        "GSET-094",
+        "GSET-095",
+        "GSET-096",
+        "GSET-097",
+        "GSET-098",
+        "GSET-099",
+        "GSET-100",
+        "GSET-101",
+        "GSET-102",
+        "GSET-103",
+        "GSET-104",
+        "GSET-105",
+        "GSET-106",
+        "GSET-107",
+        "GSET-108",
+        "GSET-109",
+        "GSET-110",
+        "GSET-111",
+        "GSET-112",
+        "GSET-113",
+        "GSET-114",
+        "GSET-115",
+        "GSET-116",
+        "GSET-117",
+        "GSET-118",
+        "GSET-119",
+        "GSET-120",
+        "GSET-121",
+        "GSET-122",
+        "GSET-123",
+        "GSET-124",
+        "GSET-125",
+        "GSET-126",
+        "GSET-127",
+        "GSET-128",
+        "GSET-129",
+        "GSET-130",
+        "GSET-131",
+        "GSET-132",
+        "GSET-133",
+        "GSET-134",
+        "GSET-135",
+        "GSET-136",
+        "GSET-137",
+        "GSET-138",
+        "GSET-139",
+        "GSET-140",
+        "GSET-141",
+        "GSET-142",
+        "GSET-143",
+        "GSET-144",
+        "GSET-145",
+        "GSET-146",
+        "GSET-147",
+        "GSET-148",
+        "GSET-149",
+        "GSET-150",
+        "GSET-151",
+        "GSET-152",
+        "GSET-153",
+        "GSET-154",
+        "GSET-155",
+        "GSET-156",
+        "GSET-157",
+        "GSET-158",
+        "GSET-159",
+        "GSET-160",
+        "GSET-161",
+        "GSET-162",
+        "GSET-163",
+        "GSET-164",
+        "GSET-165",
+        "GSET-166",
+        "GSET-167",
+        "GSET-168",
+        "GSET-169",
+        "GSET-170",
+        "GSET-171",
+        "GSET-172",
+        "GSET-173",
+        "GSET-174",
+        "GSET-175",
+        "GSET-176",
+        "GSET-177",
+        "GSET-178",
+        "GSET-179",
+        "GSET-180",
+        "GSET-181",
+        "GSET-182",
+        "GSET-183",
+        "GSET-184",
+        "GSET-185",
+        "GSET-186",
+        "GSET-187",
+        "GSET-188",
+        "GSET-189",
+        "GSET-190",
+        "GSET-191",
+        "GSET-192",
+        "GSET-193",
+        "GSET-194",
+        "GSET-195",
+        "GSET-196",
+        "GSET-197",
+        "GSET-198",
+        "GSET-199",
+        "GSET-200",
+        "GSET-201",
+        "GSET-202",
+        "GSET-203",
+        "GSET-204",
+        "GSET-205",
+        "GSET-206",
+        "GSET-207",
+        "GSET-208",
+        "GSET-209",
+        "GSET-210",
+        "GSET-211",
+        "GSET-212",
+        "GSET-213",
+        "GSET-214",
+        "GSET-215",
+        "GSET-216",
+        "GSET-217",
+        "GSET-218",
+        "GSET-219",
+        "GSET-220",
+        "GSET-221",
+        "GSET-222",
+        "GSET-223",
+        "GSET-224",
+        "GSET-225",
+        "GSET-226",
+        "GSET-227",
+        "GPLUG-001",
+        "GPLUG-002",
+        "GPLUG-003",
+        "GPLUG-004",
+        "GPLUG-005",
+        "GPLUG-006",
+        "GPLUG-007",
+        "GPLUG-008",
+        "GPLUG-009",
+        "GPLUG-010",
+        "GPLUG-011",
+        "GPLUG-012",
+        "GPLUG-013",
+        "GPLUG-014",
+        "GPLUG-015",
+        "GPLUG-016",
+        "GPLUG-017",
+        "GPLUG-018",
+        "GPLUG-019",
+        "GPLUG-020",
+        "GPLUG-021",
+        "GPLUG-022",
+        "GPLUG-023",
+        "GPLUG-024",
+        "GPLUG-025",
+        "GPLUG-026",
+        "GPLUG-027",
+        "GPLUG-028",
+        "GPLUG-030",
+        "GPLUG-031",
+        "GPLUG-032",
+        "GPLUG-034",
+        "GPLUG-035",
+        "GPLUG-036",
+        "GPLUG-037",
+        "GPLUG-038",
+        "GPLUG-039",
+        "GPLUG-040",
+        "GPLUG-041",
+        "GPLUG-042",
+        "GPLUG-043",
+        "GPLUG-044",
+        "GPLUG-045",
+        "GPLUG-046",
+        "GPLUG-047",
+        "PAD-002",
+        "PAD-003",
+        "PAD-004",
+        "PAD-005",
+        "PAD-006",
+        "PAD-007",
+        "PAD-008",
+        "PAD-009",
+        "PAD-010",
+        "PAD-011",
+        "PAD-012",
+        "PAD-013",
+        "PAD-014",
+        "PAD-015",
+        "PAD-016",
+        "PAD-017",
+        "PAD-018",
+        "PAD-019",
+        "PAD-020",
+        "PAD-021",
+        "PAD-022",
+        "GWB-001",
+        "GWB-002",
+        "GWB-003",
+        "GWB-004",
+        "GWB-005",
+        "GWB-006",
+        "GWB-007",
+        "GWB-008",
+        "GWB-009",
+        "GWB-010",
+        "GWB-011",
+        "GWB-012",
+        "GWB-013",
+        "GWB-014",
+        "GWB-015",
+        "GWB-016",
+        "GWB-017",
+        "GWB-018",
+        "GWB-019",
+        "GWB-020",
+        "GWB-021",
+        "GWB-022",
+        "GWB-023",
+        "GWB-024",
+        "GWB-025",
+        "GWB-026",
+        "GWB-027",
+        "GWB-028",
+        "GWB-029",
+        "GWB-030",
+        "GWB-031",
+        "GWB-032",
+        "GWB-034",
+        "GWB-035",
+        "GWB-036",
+        "GWB-037",
+        "GWB-038",
+        "GWB-039",
+        "GWB-040",
+        "GWB-041",
+        "GWB-042",
+        "GWB-043",
+        "GWB-044",
+        "GWB-045",
+        "GWB-046",
+        "GWB-047",
+        "GWB-048",
+        "GWB-049",
+        "GWB-050",
+        "GWB-051",
+        "GWB-052",
+        "GWB-053",
+        "GWB-054",
+        "GWB-055",
+        "GWB-056",
+        "GWB-057",
+        "GWB-058",
+        "GWB-059",
+        "GWB-060",
+        "GWB-061",
+        "GWB-062",
+        "GWB-063",
+        "GWB-064",
+        "GFLOW-001",
+        "GFLOW-002",
+        "GFLOW-003",
+        "GFLOW-004",
+        "GFLOW-005",
+        "GFLOW-006",
+        "GFLOW-007",
+        "GFLOW-008",
+        "GFLOW-009",
+        "GFLOW-010",
+        "GFLOW-011",
+        "GFLOW-012",
+        "GFLOW-013",
+        "GFLOW-014",
+        "GFLOW-015",
+        "GFLOW-016",
+        "GFLOW-017",
+        "GFLOW-018",
+        "GFLOW-019",
+        "GFLOW-020",
+        "GFLOW-021",
+        "GFLOW-022",
+        "GFLOW-023",
+        "GFLOW-024",
+        "GFLOW-025",
+        "GFLOW-026",
+        "GFLOW-027",
+        "GFLOW-028",
+        "GFLOW-029",
+        "GFLOW-030",
+        "GFLOW-031",
+        "GFLOW-032",
+        "GFLOW-033",
+        "GFLOW-034",
+        "GFLOW-035",
+        "GFLOW-036",
+        "GFLOW-037",
+        "GFLOW-038",
+        "GFLOW-039",
+        "GFLOW-040",
+        "GFLOW-041",
+        "GFLOW-042",
+        "GFLOW-043",
+        "GFLOW-044",
+        "GFLOW-045",
+        "GFLOW-046",
+        "GFLOW-047",
+        "GFLOW-048",
+        "GFLOW-049",
+        "GFLOW-050",
+        "GFLOW-051",
+        "GFLOW-052",
+        "GFLOW-053",
+        "GFLOW-054",
+        "GFLOW-055",
+        "GFLOW-056",
+        "GFLOW-057",
+        "GFLOW-058",
+        "GFLOW-059",
+        "GFLOW-060",
+        "GFLOW-061",
+        "GFLOW-062",
+        "GFLOW-063",
+        "GFLOW-064",
+        "GFLOW-065",
+        "GFLOW-066",
+        "GFLOW-067",
+        "GFLOW-068",
+        "GFLOW-069",
+        "GFLOW-070",
+        "GFLOW-071",
+        "GFLOW-072",
+        "GFLOW-073",
+        "GFLOW-074",
+        "GFLOW-075",
+        "GFLOW-076",
+        "GFLOW-077",
+        "GFLOW-078",
+        "GFLOW-079",
+        "GFLOW-080",
+        "GFLOW-081",
+        "GFLOW-082",
+        "GFLOW-083",
+        "GFLOW-084",
+        "GFLOW-085",
+        "GFLOW-086",
+        "GFLOW-087",
+        "GFLOW-088",
+        "GFLOW-089",
+        "GFLOW-090",
+        "GFLOW-091",
+        "GFLOW-092",
+        "GFLOW-093",
+        "GFLOW-094",
+        "GFLOW-095",
+        "GFLOW-096",
+        "GFLOW-097",
+        "GFLOW-098",
+        "GFLOW-099",
+        "GFLOW-100",
+        "GFLOW-101",
+        "GPET-016",
+        "GPET-017",
+        "GPET-018",
+        "GPET-019",
+        "GPET-020",
+        "GPET-021",
+        "GPET-022",
+        "GPET-023",
+        "GPET-024",
+        "GPET-025",
+        "GPET-026",
+        "GPET-027",
+        "GPET-028",
+        "GPET-029",
+        "GPET-030",
+        "GPET-031",
+        "GPET-032",
+        "GPET-033",
+        "GPET-034",
+        "GLIFE-003",
+        "GLIFE-004",
+        "GLIFE-005",
+        "GLIFE-016",
+        "GLIFE-017",
+        "GLIFE-018",
+        "GLIFE-019"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "shortcuts",
+      "report": "settings-accounts.json",
+      "category": "supporting-infrastructure",
+      "citedFeatureIds": [
+        "SET-053",
+        "SET-054",
+        "SET-055"
+      ],
+      "citedActionIds": [
+        "GSET-160",
+        "GSET-161",
+        "GSET-162",
+        "GSET-163",
+        "GSET-164",
+        "GSET-165",
+        "GSET-166",
+        "GSET-167",
+        "GSET-168",
+        "GSET-169"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-agent-preset",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-017",
+        "PLUG-010",
+        "PLUG-026",
+        "PLUG-032"
+      ],
+      "citedActionIds": [
+        "GCHAT-042",
+        "GCHAT-043",
+        "GSET-209",
+        "GSET-210",
+        "GSET-211"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-agents-panel",
+      "report": "orchestration.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-045",
+        "CHAT-046",
+        "CHAT-054",
+        "FLOW-045"
+      ],
+      "citedActionIds": [
+        "GCHAT-125",
+        "GCHAT-126",
+        "GCHAT-127",
+        "GCHAT-128",
+        "GCHAT-129",
+        "GCHAT-130",
+        "GCHAT-131",
+        "GCHAT-132",
+        "GCHAT-159",
+        "GCHAT-160",
+        "GCHAT-161",
+        "GCHAT-162",
+        "GFLOW-031",
+        "GFLOW-032"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-approval",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-040"
+      ],
+      "citedActionIds": [
+        "GCHAT-103",
+        "GCHAT-104",
+        "GCHAT-105",
+        "GCHAT-106",
+        "GCHAT-107",
+        "GCHAT-108"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-attachment",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-011",
+        "CHAT-012",
+        "CHAT-029"
+      ],
+      "citedActionIds": [
+        "GCHAT-014",
+        "GCHAT-015",
+        "GCHAT-016",
+        "GCHAT-017",
+        "GCHAT-018",
+        "GCHAT-019",
+        "GCHAT-020",
+        "GCHAT-075",
+        "GCHAT-076",
+        "GCHAT-077",
+        "GCHAT-185"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-brand-official",
+      "report": "shell.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "ui-brand-official",
+          "condition": "apply returns unless DSH_CLIENT_BUILD_PROFILE is official",
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-brand-official/lib/types/client/index.js:11-20"
+          ],
+          "conclusion": "Conditional brand component, not a new independent user action or proof that an arbitrary installed variant uses it.",
+          "report": "supplement-navigation-actions.json"
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "ui-chat",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-005",
+        "CHAT-021",
+        "CHAT-022",
+        "CHAT-023",
+        "CHAT-024",
+        "CHAT-025",
+        "CHAT-026",
+        "CHAT-027",
+        "CHAT-028",
+        "CHAT-029",
+        "CHAT-030",
+        "CHAT-031",
+        "CHAT-035",
+        "CHAT-036",
+        "CHAT-049",
+        "CHAT-055",
+        "CHAT-058",
+        "SET-005",
+        "SET-017",
+        "SET-027",
+        "PLUG-033"
+      ],
+      "citedActionIds": [
+        "GCHAT-059",
+        "GCHAT-060",
+        "GCHAT-061",
+        "GCHAT-062",
+        "GCHAT-063",
+        "GCHAT-064",
+        "GCHAT-065",
+        "GCHAT-066",
+        "GCHAT-067",
+        "GCHAT-068",
+        "GCHAT-069",
+        "GCHAT-070",
+        "GCHAT-071",
+        "GCHAT-072",
+        "GCHAT-073",
+        "GCHAT-074",
+        "GCHAT-075",
+        "GCHAT-076",
+        "GCHAT-077",
+        "GCHAT-078",
+        "GCHAT-079",
+        "GCHAT-080",
+        "GCHAT-081",
+        "GCHAT-082",
+        "GCHAT-083",
+        "GCHAT-093",
+        "GCHAT-094",
+        "GCHAT-095",
+        "GCHAT-096",
+        "GCHAT-097",
+        "GCHAT-142",
+        "GCHAT-143",
+        "GCHAT-144",
+        "GCHAT-163",
+        "GCHAT-164",
+        "GCHAT-165",
+        "GCHAT-166",
+        "GCHAT-175",
+        "GCHAT-201",
+        "GCHAT-203",
+        "GSET-005",
+        "GSET-006"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-codex-sidebar",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "ui-codex-sidebar",
+          "condition": "Ships as optional dsh-plugin-codex-ui bundle, not found in actual CLI default yaml/json or installed desktop mounting source; no real user profile read.",
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-codex-sidebar/package.json:1-44",
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-codex-sidebar/cordis.patch.yml:1-25"
+          ],
+          "conclusion": "Optional alternative skin. Generic third-party slot parity remains PLUG-013; do not call its disposable workspace policy a missing mandatory default feature.",
+          "report": "supplement-navigation-actions.json"
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "ui-commands",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-014"
+      ],
+      "citedActionIds": [
+        "GCHAT-030",
+        "GCHAT-031",
+        "GCHAT-032",
+        "GCHAT-033",
+        "GCHAT-034"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-conversation",
+      "report": "shell.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WS-006",
+        "SH-001",
+        "SH-002",
+        "SH-003",
+        "SH-004",
+        "SH-005",
+        "CHAT-002",
+        "CHAT-006",
+        "CHAT-007",
+        "CHAT-008",
+        "CHAT-009",
+        "CHAT-010",
+        "CHAT-011",
+        "CHAT-013",
+        "CHAT-014",
+        "CHAT-018",
+        "CHAT-019",
+        "CHAT-020",
+        "CHAT-021",
+        "CHAT-022",
+        "CHAT-032",
+        "CHAT-055",
+        "CHAT-059",
+        "SET-007",
+        "SET-024",
+        "SET-025",
+        "SET-026",
+        "SET-028",
+        "SET-029",
+        "PET-031"
+      ],
+      "citedActionIds": [
+        "GNAV-003",
+        "GNAV-038",
+        "GNAV-039",
+        "GNAV-040",
+        "GCHAT-001",
+        "GCHAT-002",
+        "GCHAT-003",
+        "GCHAT-004",
+        "GCHAT-005",
+        "GCHAT-006",
+        "GCHAT-007",
+        "GCHAT-008",
+        "GCHAT-009",
+        "GCHAT-010",
+        "GCHAT-011",
+        "GCHAT-012",
+        "GCHAT-013",
+        "GCHAT-014",
+        "GCHAT-015",
+        "GCHAT-016",
+        "GCHAT-017",
+        "GCHAT-018",
+        "GCHAT-019",
+        "GCHAT-022",
+        "GCHAT-023",
+        "GCHAT-024",
+        "GCHAT-025",
+        "GCHAT-026",
+        "GCHAT-027",
+        "GCHAT-028",
+        "GCHAT-029",
+        "GCHAT-030",
+        "GCHAT-031",
+        "GCHAT-032",
+        "GCHAT-033",
+        "GCHAT-034",
+        "GCHAT-044",
+        "GCHAT-045",
+        "GCHAT-046",
+        "GCHAT-047",
+        "GCHAT-048",
+        "GCHAT-049",
+        "GCHAT-050",
+        "GCHAT-051",
+        "GCHAT-052",
+        "GCHAT-053",
+        "GCHAT-054",
+        "GCHAT-059",
+        "GCHAT-060",
+        "GCHAT-084",
+        "GCHAT-085",
+        "GCHAT-086",
+        "GCHAT-137",
+        "GCHAT-138",
+        "GCHAT-163",
+        "GCHAT-164",
+        "GCHAT-165",
+        "GCHAT-166",
+        "GCHAT-176",
+        "GCHAT-179",
+        "GCHAT-195",
+        "GCHAT-196",
+        "GCHAT-197",
+        "GCHAT-198",
+        "GCHAT-199",
+        "GCHAT-200",
+        "GCHAT-202",
+        "GSET-071",
+        "GSET-072",
+        "GSET-073",
+        "GSET-074",
+        "GSET-075",
+        "GSET-076",
+        "GSET-077",
+        "GSET-078"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-deepseek-model-label-1017",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-159"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-deepseek-model-label-1017",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deepseek-model-label-1017/lib/types/client/index.js:9-14",
+          "disposition": "有精确identity和native绘制consumer；补directcitation，不误判缺失",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-deliverables",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-056"
+      ],
+      "citedActionIds": [
+        "GCHAT-167",
+        "GCHAT-168",
+        "GCHAT-169",
+        "GCHAT-170",
+        "GWB-001",
+        "GWB-002",
+        "GWB-062",
+        "GWB-063",
+        "GWB-064"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-diff",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-022"
+      ],
+      "citedActionIds": [
+        "GWB-035",
+        "GWB-036",
+        "GWB-037",
+        "GWB-038"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-directory-picker-browse",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WS-009",
+        "WS-010",
+        "WS-011",
+        "WS-012",
+        "WS-013"
+      ],
+      "citedActionIds": [
+        "GNAV-006",
+        "GNAV-007",
+        "GNAV-008",
+        "GNAV-009",
+        "GNAV-010"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-directory-picker-native",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "ui-directory-picker-native",
+          "report": "coverage.json",
+          "disposition": "Renderless alternative directory-flow occupant with picked/cancel/error outcomes, not another menu. System-picker entry and owner adoption are covered by WS-012/GNAV; its existence does not make the MyGo picker switch reachable.",
+          "oldIds": [
+            "WS-012"
+          ],
+          "evidence": [
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-native/lib/types/client/index.js:10-24",
+            "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-native/lib/types/client/flow.js:15-57"
+          ]
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "ui-files",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-001",
+        "WB-002",
+        "WB-003",
+        "WB-004",
+        "WB-005",
+        "WB-006",
+        "WB-007",
+        "WB-011",
+        "WB-012",
+        "WB-017",
+        "WB-018",
+        "WB-020"
+      ],
+      "citedActionIds": [
+        "GWB-004",
+        "GWB-011",
+        "GWB-012",
+        "GWB-013",
+        "GWB-014",
+        "GWB-015",
+        "GWB-016",
+        "GWB-017",
+        "GWB-018",
+        "GWB-020",
+        "GWB-021",
+        "GWB-022",
+        "GWB-023",
+        "GWB-024",
+        "GWB-026",
+        "GWB-030"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-git",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-025",
+        "WB-021",
+        "WB-024",
+        "WB-025",
+        "WB-026",
+        "WB-029",
+        "WB-030"
+      ],
+      "citedActionIds": [
+        "GWB-005",
+        "GWB-006",
+        "GWB-007",
+        "GWB-035",
+        "GWB-039",
+        "GWB-040",
+        "GWB-041",
+        "GWB-042"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-goal",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-003"
+      ],
+      "citedActionIds": [
+        "GCHAT-055",
+        "GCHAT-056",
+        "GCHAT-057",
+        "GCHAT-058"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-input-trigger",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [],
+      "scopeDispositions": [
+        {
+          "package": "ui-input-trigger",
+          "disposition": "mapped",
+          "oldIds": [
+            "CHAT-001",
+            "CHAT-013",
+            "CHAT-014",
+            "PLUG-013"
+          ],
+          "detail": "typed trigger/launcher、drill/crumb、dismiss、keyboard、source registry；已实现候选动作与 generic source 扩展缺口分开。",
+          "report": "supplement-chat-actions.json"
+        }
+      ],
+      "coverageBasis": "explicit-scope-disposition"
+    },
+    {
+      "package": "ui-jobs",
+      "report": "orchestration.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-054",
+        "FLOW-016"
+      ],
+      "citedActionIds": [
+        "GCHAT-159",
+        "GCHAT-160",
+        "GCHAT-161",
+        "GCHAT-162",
+        "GFLOW-035",
+        "GFLOW-036",
+        "GFLOW-037"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-layout",
+      "report": "shell.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SH-007"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-message-edit",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-032"
+      ],
+      "citedActionIds": [
+        "GCHAT-084",
+        "GCHAT-085",
+        "GCHAT-086"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-message-feedback",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-033",
+        "CHAT-034"
+      ],
+      "citedActionIds": [
+        "GCHAT-087",
+        "GCHAT-088",
+        "GCHAT-089",
+        "GCHAT-090",
+        "GCHAT-091",
+        "GCHAT-092"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-model-selection",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-015"
+      ],
+      "citedActionIds": [
+        "GCHAT-035",
+        "GCHAT-036",
+        "GCHAT-037",
+        "GCHAT-038"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-open-in-app",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GWB-003",
+        "GWB-009",
+        "GWB-029",
+        "GWB-064"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-permission-presets",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-016",
+        "SET-026"
+      ],
+      "citedActionIds": [
+        "GCHAT-039",
+        "GCHAT-040",
+        "GCHAT-041",
+        "GSET-022",
+        "GSET-023"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-plan",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-020",
+        "CHAT-039",
+        "WB-042"
+      ],
+      "citedActionIds": [
+        "GCHAT-052",
+        "GCHAT-053",
+        "GCHAT-054",
+        "GCHAT-098",
+        "GCHAT-099",
+        "GCHAT-100"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-plugin-manager",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-001",
+        "PLUG-002",
+        "PLUG-003",
+        "PLUG-004",
+        "PLUG-005",
+        "PLUG-011",
+        "PLUG-013",
+        "PLUG-014",
+        "PLUG-017",
+        "PET-033"
+      ],
+      "citedActionIds": [
+        "GSET-195",
+        "GSET-196",
+        "GSET-197",
+        "GSET-198",
+        "GSET-199",
+        "GSET-200",
+        "GSET-201",
+        "GSET-202",
+        "GSET-203",
+        "GSET-204",
+        "GSET-205",
+        "GSET-206",
+        "GSET-207",
+        "GSET-208",
+        "GPLUG-001",
+        "GPLUG-004",
+        "GPLUG-005",
+        "GPLUG-006",
+        "GPLUG-007",
+        "GPLUG-008",
+        "GPLUG-009",
+        "GPLUG-010",
+        "GPLUG-011",
+        "GPLUG-012",
+        "GPLUG-013",
+        "GPLUG-014",
+        "GPLUG-015",
+        "GPLUG-016",
+        "GPLUG-017",
+        "GPLUG-018",
+        "GPLUG-019",
+        "GPLUG-020",
+        "GPLUG-021",
+        "GPLUG-022",
+        "GPLUG-046"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-plugin-market",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-005"
+      ],
+      "citedActionIds": [
+        "GSET-207",
+        "GPLUG-022",
+        "GPLUG-023",
+        "GPLUG-024"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-preview",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-036",
+        "WB-037",
+        "WB-038",
+        "WB-039",
+        "WB-040",
+        "WB-041"
+      ],
+      "citedActionIds": [
+        "GWB-048",
+        "GWB-049",
+        "GWB-050",
+        "GWB-051",
+        "GWB-052",
+        "GWB-053",
+        "GWB-054",
+        "GWB-055",
+        "GWB-056",
+        "GWB-057",
+        "GWB-058",
+        "GWB-059",
+        "GWB-060"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-reference",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-001",
+        "CHAT-013",
+        "WB-008"
+      ],
+      "citedActionIds": [
+        "GCHAT-021",
+        "GCHAT-022",
+        "GCHAT-023",
+        "GCHAT-024",
+        "GCHAT-025",
+        "GCHAT-026",
+        "GCHAT-027",
+        "GCHAT-028",
+        "GCHAT-029",
+        "GCHAT-194"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-renderer",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-012",
+        "PLUG-013",
+        "PLUG-015",
+        "PLUG-016",
+        "PLUG-017",
+        "PLUG-018"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-schedule",
+      "report": "orchestration.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "FLOW-017",
+        "FLOW-018"
+      ],
+      "citedActionIds": [
+        "GFLOW-038",
+        "GFLOW-039",
+        "GFLOW-040",
+        "GFLOW-041",
+        "GFLOW-042",
+        "GFLOW-043",
+        "GFLOW-044",
+        "GFLOW-045",
+        "GFLOW-046",
+        "GFLOW-047",
+        "GFLOW-048",
+        "GFLOW-049",
+        "GFLOW-050",
+        "GFLOW-051",
+        "GFLOW-098",
+        "GFLOW-099",
+        "GFLOW-100"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-secret-mask",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-157",
+        "GSET-158"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-secret-mask",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-secret-mask/lib/types/client/index.js:10-15",
+          "disposition": "conversation user text而非settings key字段；matcher/默认掩码/reveal缺native消费，本线独占登记",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-session",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GCHAT-178"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-session",
+          "disposition": "mapped",
+          "oldIds": [
+            "CHAT-044",
+            "WS-033",
+            "PLUG-013"
+          ],
+          "detail": "session scope 本身不是用户页面；pending rank 与状态具体消费者已归属。",
+          "report": "supplement-chat-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-036",
+        "SET-037",
+        "SET-038"
+      ],
+      "citedActionIds": [
+        "GSET-013",
+        "GSET-014",
+        "GSET-015",
+        "GSET-016",
+        "GSET-017",
+        "GSET-018"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-account",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-010",
+        "SET-011",
+        "SET-012",
+        "SET-013",
+        "SET-014",
+        "SET-047",
+        "SET-049",
+        "SET-051"
+      ],
+      "citedActionIds": [
+        "GSET-024",
+        "GSET-026",
+        "GSET-027",
+        "GSET-028",
+        "GSET-029",
+        "GSET-030",
+        "GSET-031",
+        "GSET-032",
+        "GSET-033",
+        "GSET-034",
+        "GSET-035",
+        "GSET-036",
+        "GSET-037",
+        "GSET-038"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-agent-loop",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-130",
+        "GSET-131"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-agent-loop",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-agent-loop/lib/types/client/index.js:18-25",
+          "disposition": "直读controller/view；一字段edit/reset/save/discard、served gate及Host volatile consumer已补动作，不造新bug",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-general",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-006",
+        "SET-015",
+        "SET-016",
+        "SET-018",
+        "SET-030",
+        "SET-039",
+        "SET-040"
+      ],
+      "citedActionIds": [
+        "GSET-002",
+        "GSET-003",
+        "GSET-004",
+        "GSET-007",
+        "GSET-008",
+        "GSET-009",
+        "GSET-010",
+        "GSET-011",
+        "GSET-012",
+        "GSET-019",
+        "GSET-020",
+        "GSET-021"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-market",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-008"
+      ],
+      "citedActionIds": [
+        "GSET-212",
+        "GSET-213",
+        "GSET-214",
+        "GSET-215",
+        "GSET-216",
+        "GSET-217",
+        "GSET-218",
+        "GSET-219",
+        "GSET-220",
+        "GSET-221",
+        "GSET-222",
+        "GSET-223",
+        "GSET-224",
+        "GSET-225",
+        "GSET-226",
+        "GSET-227",
+        "GPLUG-025",
+        "GPLUG-026",
+        "GPLUG-027",
+        "GPLUG-028",
+        "GPLUG-030",
+        "GPLUG-031",
+        "GPLUG-032",
+        "GPLUG-047"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-market",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/types/client/index.js:16-48",
+          "disposition": "desktopShell API存在才注册；curated market已有native consumer，动作映射PLUG-006..008，不把plain browser无shell分支当缺失",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-mcp",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-023",
+        "PLUG-024",
+        "PLUG-025"
+      ],
+      "citedActionIds": [
+        "GPLUG-040",
+        "GPLUG-041",
+        "GPLUG-042",
+        "GPLUG-043",
+        "GPLUG-044",
+        "GPLUG-045"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-models",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-004",
+        "SET-031",
+        "SET-032",
+        "SET-033",
+        "SET-034",
+        "SET-035",
+        "SET-037"
+      ],
+      "citedActionIds": [
+        "GSET-015",
+        "GSET-079",
+        "GSET-080",
+        "GSET-081",
+        "GSET-082",
+        "GSET-083",
+        "GSET-084",
+        "GSET-085",
+        "GSET-086",
+        "GSET-087",
+        "GSET-088",
+        "GSET-089",
+        "GSET-090",
+        "GSET-091",
+        "GSET-092",
+        "GSET-093",
+        "GSET-094",
+        "GSET-095",
+        "GSET-096",
+        "GSET-097",
+        "GSET-098",
+        "GSET-099",
+        "GSET-100",
+        "GSET-101",
+        "GSET-102",
+        "GSET-103",
+        "GSET-104",
+        "GSET-105",
+        "GSET-106",
+        "GSET-107",
+        "GSET-108",
+        "GSET-109",
+        "GSET-110",
+        "GSET-111",
+        "GSET-112",
+        "GSET-113",
+        "GSET-114",
+        "GSET-115",
+        "GSET-116",
+        "GSET-117",
+        "GSET-118",
+        "GSET-119",
+        "GSET-120",
+        "GSET-121",
+        "GSET-122",
+        "GSET-123",
+        "GSET-124",
+        "GSET-125",
+        "GSET-126",
+        "GSET-127",
+        "GSET-128",
+        "GSET-129",
+        "GSET-152",
+        "GSET-153",
+        "GSET-154"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-plugin-inventory",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-001"
+      ],
+      "citedActionIds": [
+        "GSET-195",
+        "GSET-196",
+        "GPLUG-002",
+        "GPLUG-003"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-plugins",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GPLUG-046"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-plugins",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-plugins/lib/types/client/PluginsSettingsSection.js:12-55",
+          "disposition": "settings.plugins.tab shell；访问过tab保持挂载保留draft。MyGo动态tab缺口映射PLUG-005/013，不重复bug",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-remote",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "LIFE-031"
+      ],
+      "citedActionIds": [
+        "GLIFE-016",
+        "GLIFE-017"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-session-log",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-017"
+      ],
+      "citedActionIds": [
+        "GSET-005",
+        "GSET-006"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-shell",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-140",
+        "GSET-141",
+        "GSET-142",
+        "GSET-143"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-shell",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-shell/lib/types/client/index.js:19-28",
+          "disposition": "原版仅timeoutMs/output cap；平台选pwsh或bash。不把Host隐藏配置/未启用插件误报缺原版控件",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-skills",
+      "report": "plugins.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-020",
+        "PLUG-021",
+        "PLUG-022"
+      ],
+      "citedActionIds": [
+        "GPLUG-034",
+        "GPLUG-035",
+        "GPLUG-036",
+        "GPLUG-037",
+        "GPLUG-038",
+        "GPLUG-039"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-subagent",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-132",
+        "GSET-133",
+        "GSET-134",
+        "GSET-135",
+        "GSET-136",
+        "GSET-137",
+        "GSET-138",
+        "GSET-139"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-subagent",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-subagent/lib/types/client/index.js:26-47",
+          "disposition": "直读limits/model controllers与view；depth/concurrency/allowlist/retired routes/catalog retry/conflict/write逐动作，非section存在",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-settings-web-search",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GSET-144",
+        "GSET-145",
+        "GSET-146",
+        "GSET-147",
+        "GSET-148",
+        "GSET-149",
+        "GSET-150",
+        "GSET-151",
+        "GSET-155",
+        "GSET-156"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-settings-web-search",
+          "source": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-web-search/lib/types/client/WebSearchCard.js:10-23",
+          "disposition": "直读switch/endpoint/limit/key/reset/discard；guide入口及卸载清草稿缺链新登记；原版key-only保存假设经实际shared model反证撤回",
+          "report": "supplement-settings-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-shortcuts",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-053",
+        "SET-054",
+        "SET-055"
+      ],
+      "citedActionIds": [
+        "GSET-160",
+        "GSET-161",
+        "GSET-162",
+        "GSET-163",
+        "GSET-164",
+        "GSET-165",
+        "GSET-166",
+        "GSET-167",
+        "GSET-168",
+        "GSET-169"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WS-036",
+        "SH-007"
+      ],
+      "citedActionIds": [
+        "GNAV-034"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar-browser",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-036",
+        "WB-037",
+        "WB-041"
+      ],
+      "citedActionIds": [
+        "GWB-048",
+        "GWB-055",
+        "GWB-061"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar-documentpreview",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-007",
+        "WB-009",
+        "WB-010",
+        "WB-012",
+        "WB-013",
+        "WB-014",
+        "WB-016",
+        "WB-020"
+      ],
+      "citedActionIds": [
+        "GWB-019",
+        "GWB-020",
+        "GWB-025",
+        "GWB-027",
+        "GWB-028",
+        "GWB-030",
+        "GWB-031",
+        "GWB-032"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar-files",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GWB-010"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar-right",
+      "report": "shell.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GWB-008",
+        "GWB-010",
+        "GWB-048"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-sidebar-terminal",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-035"
+      ],
+      "citedActionIds": [
+        "GWB-008",
+        "GWB-046",
+        "GWB-047"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-skill",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [],
+      "citedActionIds": [
+        "GCHAT-177"
+      ],
+      "scopeDispositions": [
+        {
+          "package": "ui-skill",
+          "disposition": "mapped",
+          "oldIds": [
+            "CHAT-013",
+            "CHAT-014",
+            "PLUG-020",
+            "PLUG-022"
+          ],
+          "detail": "literal /skill 插入、user-only 提示、草稿/历史 chip 文档打开存在；不把 skills library 管理重复计入。",
+          "report": "supplement-chat-actions.json"
+        }
+      ],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-subagent",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-002",
+        "CHAT-046",
+        "CHAT-047",
+        "CHAT-048"
+      ],
+      "citedActionIds": [
+        "GCHAT-130",
+        "GCHAT-131",
+        "GCHAT-132",
+        "GCHAT-133",
+        "GCHAT-134",
+        "GCHAT-135",
+        "GCHAT-136",
+        "GCHAT-137",
+        "GCHAT-138",
+        "GCHAT-139",
+        "GCHAT-140",
+        "GCHAT-141",
+        "GCHAT-194",
+        "GCHAT-195",
+        "GCHAT-196",
+        "GCHAT-197",
+        "GCHAT-198",
+        "GCHAT-199",
+        "GCHAT-200",
+        "GCHAT-201",
+        "GCHAT-202",
+        "GCHAT-203"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-surfaces",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-008",
+        "WB-015"
+      ],
+      "citedActionIds": [
+        "GWB-001",
+        "GWB-019",
+        "GWB-034"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-theme",
+      "report": "settings-accounts.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-008",
+        "SET-020",
+        "SET-021",
+        "SET-022",
+        "SET-023",
+        "SET-024",
+        "SET-050",
+        "PET-023",
+        "PET-025",
+        "PET-026"
+      ],
+      "citedActionIds": [
+        "GSET-039",
+        "GSET-040",
+        "GSET-041",
+        "GSET-042",
+        "GSET-043",
+        "GSET-044",
+        "GSET-045",
+        "GSET-046",
+        "GSET-047",
+        "GSET-048",
+        "GSET-049",
+        "GSET-050",
+        "GSET-051",
+        "GSET-052",
+        "GSET-053",
+        "GSET-054",
+        "GSET-055",
+        "GSET-056",
+        "GSET-057",
+        "GSET-058",
+        "GSET-059",
+        "GSET-060",
+        "GSET-061",
+        "GSET-062",
+        "GSET-063",
+        "GSET-064",
+        "GSET-065",
+        "GSET-066",
+        "GSET-067",
+        "GSET-068",
+        "GSET-069",
+        "GSET-070",
+        "GSET-071",
+        "GSET-072",
+        "GSET-073",
+        "GSET-074",
+        "GSET-075",
+        "GSET-076",
+        "GSET-077",
+        "GSET-078",
+        "GPET-016",
+        "GPET-017",
+        "GPET-018",
+        "GPET-019",
+        "GPET-020",
+        "GPET-021",
+        "GPET-022",
+        "GPET-023",
+        "GPET-024",
+        "GPET-025",
+        "GPET-032",
+        "GPET-033",
+        "GPET-034"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-titlebar",
+      "report": "shell.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SET-025"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-tool",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-037",
+        "CHAT-038",
+        "CHAT-060",
+        "CHAT-061",
+        "CHAT-062"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-trajectory",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "SH-006",
+        "CHAT-050",
+        "CHAT-051",
+        "CHAT-052"
+      ],
+      "citedActionIds": [
+        "GNAV-039",
+        "GCHAT-145",
+        "GCHAT-146",
+        "GCHAT-147",
+        "GCHAT-148",
+        "GCHAT-149",
+        "GCHAT-150",
+        "GCHAT-151",
+        "GCHAT-152",
+        "GCHAT-153",
+        "GCHAT-154",
+        "GCHAT-155",
+        "GCHAT-156",
+        "GCHAT-157",
+        "GCHAT-158",
+        "GCHAT-180",
+        "GCHAT-181",
+        "GCHAT-182",
+        "GCHAT-183",
+        "GCHAT-184",
+        "GCHAT-185",
+        "GCHAT-186",
+        "GCHAT-187",
+        "GCHAT-188",
+        "GCHAT-189",
+        "GCHAT-190",
+        "GCHAT-191",
+        "GCHAT-192",
+        "GCHAT-193"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-user-questions",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-004",
+        "CHAT-039",
+        "CHAT-041",
+        "CHAT-042",
+        "CHAT-043",
+        "CHAT-044"
+      ],
+      "citedActionIds": [
+        "GCHAT-098",
+        "GCHAT-099",
+        "GCHAT-100",
+        "GCHAT-101",
+        "GCHAT-102",
+        "GCHAT-109",
+        "GCHAT-110",
+        "GCHAT-111",
+        "GCHAT-112",
+        "GCHAT-113",
+        "GCHAT-114",
+        "GCHAT-115",
+        "GCHAT-116",
+        "GCHAT-117",
+        "GCHAT-118",
+        "GCHAT-119",
+        "GCHAT-120",
+        "GCHAT-121",
+        "GCHAT-122",
+        "GCHAT-123",
+        "GCHAT-124"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-user-terminal",
+      "report": "workbench.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WB-031",
+        "WB-032",
+        "WB-033",
+        "WB-034"
+      ],
+      "citedActionIds": [
+        "GWB-008",
+        "GWB-043",
+        "GWB-044",
+        "GWB-045"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-visual-replies",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-057",
+        "SET-028"
+      ],
+      "citedActionIds": [
+        "GCHAT-171",
+        "GCHAT-172",
+        "GCHAT-173",
+        "GCHAT-174"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-workflow-run",
+      "report": "orchestration.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-049",
+        "FLOW-015"
+      ],
+      "citedActionIds": [
+        "GCHAT-142",
+        "GCHAT-143",
+        "GCHAT-144",
+        "GFLOW-033",
+        "GFLOW-034"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "ui-workspace",
+      "report": "workspace-sessions.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "WS-001",
+        "WS-002",
+        "WS-003",
+        "WS-004",
+        "WS-005",
+        "WS-006",
+        "WS-007",
+        "WS-008",
+        "WS-014",
+        "WS-015",
+        "WS-016",
+        "WS-017",
+        "WS-018",
+        "WS-019",
+        "WS-020",
+        "WS-021",
+        "WS-022",
+        "WS-023",
+        "WS-024",
+        "WS-025",
+        "WS-026",
+        "WS-027",
+        "WS-028",
+        "WS-029",
+        "WS-030",
+        "WS-031",
+        "WS-032",
+        "WS-033",
+        "WS-034",
+        "WS-035",
+        "WS-037",
+        "WS-038",
+        "WS-039",
+        "WS-040",
+        "WS-041"
+      ],
+      "citedActionIds": [
+        "GNAV-001",
+        "GNAV-002",
+        "GNAV-003",
+        "GNAV-004",
+        "GNAV-005",
+        "GNAV-011",
+        "GNAV-012",
+        "GNAV-013",
+        "GNAV-014",
+        "GNAV-015",
+        "GNAV-016",
+        "GNAV-017",
+        "GNAV-018",
+        "GNAV-019",
+        "GNAV-020",
+        "GNAV-021",
+        "GNAV-022",
+        "GNAV-023",
+        "GNAV-024",
+        "GNAV-025",
+        "GNAV-026",
+        "GNAV-027",
+        "GNAV-028",
+        "GNAV-029",
+        "GNAV-030",
+        "GNAV-031",
+        "GNAV-032",
+        "GNAV-033",
+        "GNAV-035",
+        "GNAV-036",
+        "GNAV-037"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "client-ui-agent-team",
+      "report": "orchestration.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-012",
+        "PLUG-013",
+        "FLOW-002",
+        "FLOW-011"
+      ],
+      "citedActionIds": [
+        "GFLOW-027",
+        "GFLOW-028",
+        "GFLOW-029",
+        "GFLOW-030"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "client-ui-cot-translation",
+      "report": "conversation.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "CHAT-005"
+      ],
+      "citedActionIds": [],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    },
+    {
+      "package": "client-ui-voice-input",
+      "report": "pet-voice.json",
+      "category": "user-capability",
+      "citedFeatureIds": [
+        "PLUG-011",
+        "PET-027",
+        "PET-028",
+        "PET-029",
+        "PET-030"
+      ],
+      "citedActionIds": [
+        "GPLUG-019",
+        "GPET-026",
+        "GPET-027",
+        "GPET-028",
+        "GPET-029",
+        "GPET-030",
+        "GPET-031"
+      ],
+      "scopeDispositions": [],
+      "coverageBasis": "direct-cited-capability"
+    }
+  ],
+  "originalFeatureNotes": [
+    {
+      "note": "account-browser-sign-in.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "account-settings-entry.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "background-gradient.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "boot-page.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "chat-cold-rows.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "close-behavior.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-beam.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-dock-stability.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-draft-transition.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-family-width.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-stats-peak-valley.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "composer-typing-fx.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "core-regression-gates.md",
+      "report": "lifecycle-remote.json",
+      "category": "maintenance-contract"
+    },
+    {
+      "note": "cursor-effects.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "custom-instructions.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "data-import.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-branding.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-build-runtime.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-launcher.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-live2d-pet.md",
+      "report": "pet-voice.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-pet.md",
+      "report": "pet-voice.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "desktop-welcome.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "directory-picker-drives.md",
+      "report": "workspace-sessions.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "dsh-home.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "dsh-tools.md",
+      "report": "workbench.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "dsh-with-chatgpt.md",
+      "report": "plugins.json",
+      "category": "optional-separate-plugin"
+    },
+    {
+      "note": "dshbot.md",
+      "report": "orchestration.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "git-titlebar.md",
+      "report": "workbench.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "harness-upstream-sync.md",
+      "report": "lifecycle-remote.json",
+      "category": "maintenance-contract"
+    },
+    {
+      "note": "keyboard-shortcuts.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "launcher-components.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "launcher-distribution.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "marketplace-settings.md",
+      "report": "plugins.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "message-edit.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "metallic-paint.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "mobile-remote.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "no-directory-sessions.md",
+      "report": "workspace-sessions.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "office-runtime.md",
+      "report": "workbench.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "openui.md",
+      "report": "plugins.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "pinned-section.md",
+      "report": "workspace-sessions.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "plugin-session-navigation.md",
+      "report": "plugins.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "projects-steward-acceptance.md",
+      "report": "orchestration.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "projects.md",
+      "report": "orchestration.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "release-process.md",
+      "report": "lifecycle-remote.json",
+      "category": "maintenance-contract"
+    },
+    {
+      "note": "remote-settings.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "remote-workspace.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "running-spinner-cost.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "session-archive.md",
+      "report": "workspace-sessions.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "session-cost-display.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "session-idle-release.md",
+      "report": "workspace-sessions.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "settings-select.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "sidebar-mask.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "skills-groups.md",
+      "report": "plugins.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "surfaces-work-loops.md",
+      "report": "workbench.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "task-protection.md",
+      "report": "orchestration.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "terminal-drawer.md",
+      "report": "workbench.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "tool-result-images.md",
+      "report": "conversation.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "transparent-theme.md",
+      "report": "shell.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "update-center.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "usage-stats.md",
+      "report": "settings-accounts.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "vision-fallback.md",
+      "report": "pet-voice.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "wallpaper-gallery.md",
+      "report": "pet-voice.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "whale-assistant.md",
+      "report": "orchestration.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "window-motion.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "windows-installer.md",
+      "report": "lifecycle-remote.json",
+      "category": "user-capability"
+    },
+    {
+      "note": "_kill-http-remote.md",
+      "report": "lifecycle-remote.json",
+      "category": "negative-contract"
+    }
+  ],
+  "originalClientPackageCount": 79,
+  "originalFeatureNoteCount": 66,
+  "duplicateIds": [],
+  "invalidRecords": [],
+  "evidenceMeaning": "Module assignment and capability coverage do not mean every third-party implementation line or all physical controls have passed. Read per-item evidence and acceptanceGap."
+}

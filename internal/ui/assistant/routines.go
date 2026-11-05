@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type RoutineModel struct {
@@ -105,14 +106,9 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "routines:109", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeMakingChanges)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-		if s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Loaded {
 			ui.Text(c, fmt.Sprintf("%s · Bot %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)

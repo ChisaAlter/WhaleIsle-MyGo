@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botVisibilityEffects() string {
@@ -66,9 +67,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_visibility:70", "", s.Notice != "", func() string { return s.Notice })
 		if s.FocusID != "" {
 			label := i18n.T(i18n.KeyMiscAssistantTargetAwaitsFreshCatalog)
 			if s.Loaded {

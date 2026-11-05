@@ -9,6 +9,7 @@ import (
 
 	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/desktop/pluginslots"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -73,8 +74,10 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 			ui.Text(c, pluginsText("刷新失败，以下保留本次 Host 上次成功读取的实例。", "Refresh failed. Showing the last successful inventory from this Host.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 	}
-	if s.Busy {
-		ui.Text(c, pluginsText("正在读取实例…", "Loading inventory…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if s.Err != "" && a.OnRefresh != nil {
+		if ui.Button(c, pluginsText("重新读取插件", "Retry plugin inventory")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || !s.Connected).Clicked() {
+			a.OnRefresh()
+		}
 	}
 	// 0.3.13: one full-width search field, then the session plugins of the chosen
 	// Agent preset under a collapsible header that carries the preset select.
@@ -82,48 +85,46 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, 12).Gap(8).Radius(12).AlignItems(ui.Center).
 		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).Label("Plugin search").Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
+		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Label("Plugin search").Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
 		}
 	})
 	if !s.Ready {
 		return
 	}
-	sessionHeader := ui.Column(c.Key("plugin-session-section")).FillWidth().MinWidth(0).Gap(8)
+	sessionHeader := ui.Column(c.Key("plugin-session-section")).FillWidth().MinWidth(0).Gap(10)
 	sessionOpen := ui.Local(sessionHeader, "open", func() bool { return true })
 	sessionHeader.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			toggle := ui.Button(c, "").Label(pluginsText("会话插件", "Session plugins")).Role(ui.RoleDisclosure).Expanded(*sessionOpen).Grow(1).MinWidth(0).Height(36).Padding(0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Gap(8).FocusRing(false)
-			toggle.Children(func() {
-				inventoryChevron(c, *sessionOpen, muted)
-				ui.Text(c, pluginsText("会话插件", "Session plugins")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+		ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+				if inventoryGroupToggle(c, pluginsText("会话插件", "Session plugins"), *sessionOpen || v.Searching, fg, muted) {
+					*sessionOpen = !*sessionOpen
+				}
+				ui.Box(c).Grow(1).MinWidth(0)
+				if len(v.Options) > 0 {
+					options, ids := []string{}, map[string]string{}
+					selected := ""
+					for _, p := range v.Options {
+						label := inventoryPresetName(p)
+						if p.Default {
+							label += pluginsText("（默认）", " (default)")
+						}
+						if p.Broken != "" {
+							label += pluginsText(" · 配置异常", " · broken")
+						}
+						options, ids[label] = append(options, label), p.ID
+						if p.ID == v.SelectedID {
+							selected = label
+						}
+					}
+					if settingsPreferenceSelectRadius(c, &selected, options, 12).Label(pluginsText("Agent 预设", "Agent preset")).Changed() && a.OnSelectPreset != nil {
+						a.OnSelectPreset(ids[selected])
+					}
+				}
 			})
-			if toggle.Clicked() {
-				*sessionOpen = !*sessionOpen
-			}
-			if len(v.Options) > 0 {
-				options, ids := []string{}, map[string]string{}
-				selected := ""
-				for _, p := range v.Options {
-					label := p.Label
-					if p.Default {
-						label += pluginsText("（默认）", " (default)")
-					}
-					if p.Broken != "" {
-						label += pluginsText(" · 配置异常", " · broken")
-					}
-					options, ids[label] = append(options, label), p.ID
-					if p.ID == v.SelectedID {
-						selected = label
-					}
-				}
-				if settingsPreferenceSelect(c, &selected, options).Label(pluginsText("Agent 预设", "Agent preset")).Changed() && a.OnSelectPreset != nil {
-					a.OnSelectPreset(ids[selected])
-				}
-			}
+			inventoryGroupSub(c, pluginsText("由 Agent 预设按会话组成", "Composed per session by the Agent preset"), muted)
 		})
-		if *sessionOpen {
-			ui.Text(c, pluginsText("由 Agent 预设按会话组成", "Composed per session by the Agent preset")).FillWidth().Padding(0, 0, 0, 24).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
+		if *sessionOpen || v.Searching {
 			for _, p := range v.Presets {
 				if len(v.Presets) > 1 {
 					ui.Text(c, fmt.Sprintf("%s (%d)", p.Label, len(p.Rows))).FontSize(fonttheme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
@@ -139,16 +140,20 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 		}
 	})
 	open := s.GlobalOpen || v.Searching
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		button := ui.Button(c, fmt.Sprintf("%s (%d)", pluginsText("全局插件", "Global plugins"), len(v.Global))).Role(ui.RoleDisclosure).Expanded(open).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
-		button.Children(func() { inventoryChevron(c, open, muted) })
-		if a.OnToggleGlobal != nil && button.Clicked() {
-			a.OnToggleGlobal()
+	globalGroup := ui.Column(c.Key("plugin-global-section")).FillWidth().MinWidth(0).Gap(10)
+	globalGroup.Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+				if inventoryGroupToggle(c, pluginsText("全局插件", "Global plugins"), open, fg, muted) && a.OnToggleGlobal != nil {
+					a.OnToggleGlobal()
+				}
+			})
+			inventoryGroupSub(c, pluginsText("系统与所有会话共用", "Shared by the system and every session"), muted)
+		})
+		if open {
+			pluginInventoryCards(c.Key("inventory-global"), a, v.Global, fg, muted)
 		}
 	})
-	if open {
-		pluginInventoryCards(c.Key("inventory-global"), a, v.Global, fg, muted)
-	}
 	if v.Empty {
 		ui.Text(c, pluginsText("没有匹配的插件实例。", "No matching plugin entries.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
@@ -212,42 +217,45 @@ func inventoryRowState(r plugininventory.DisplayRow) string {
 
 func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininventory.DisplayRow, width float32, fg, muted ui.Color) {
 	open := a.Snapshot.Expanded == r.Key
-	stroke := c.Theme().Border.Alpha(0.45)
+	stroke := modelInputBorder(c)
 	if r.Phase == "failed" || r.MetadataError != "" {
 		stroke = c.Theme().Danger
 	}
-	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(16).Background(c.Theme().Background).Clip()
+	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip()
 	if width > 520 {
 		card.Width((width - 10) / 2)
 	} else {
 		card.FillWidth()
 	}
 	card.Children(func() {
-		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).MinHeight(52).Padding(14, 16).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
+		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
 		if button.Hovered() || open {
 			button.Background(c.Theme().SurfaceHover)
 		}
 		button.Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(4).PassThrough().Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(2).PassThrough().Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).FontWeight(500).TextColor(fg)
+					ui.Text(c, r.Title).Grow(1).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 					// 0.3.13 marks only the exceptions: a pill for a disabled, failed or
 					// preset-provided entry, nothing for an ordinary enabled one.
 					if r.Enabled != "enabled" || r.Phase == "failed" || len(r.ProvidedBy) > 0 {
-						ui.Text(c, inventoryRowState(r)).Shrink(0).Padding(2, 8).Radius(999).Background(modelWell(c).Alpha(.8)).Label(inventoryPhase(r.Phase)).
-							FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(inventoryPhaseColor(c, r.Phase, fonttheme.Color(modelColors(c).Secondary)))
+						ui.Text(c, inventoryRowState(r)).Shrink(0).Padding(1, 8).Radius(999).Background(fonttheme.Color(modelColors(c).SelectorFill)).Label(inventoryPhase(r.Phase)).
+							FontSize(fonttheme.InterfaceSize(11)).FixedLineHeight(fonttheme.InterfaceSize(17)).FontWeight(500).TextColor(inventoryPhaseColor(c, r.Phase, fonttheme.Color(modelColors(c).Secondary)))
 					}
-					inventoryChevron(c, open, muted)
+					inventoryCardChevron(c, open, muted)
 				})
 				if r.Description != "" {
-					text := ui.Text(c, r.Description).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					text := ui.Text(c, r.Description).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 					if !open {
 						text.MaxLines(2)
 					}
 				}
 				subtitle := strings.TrimPrefix(r.EntryID, "include:")
 				if subtitle != "" && subtitle != r.Title {
-					ui.Text(c, subtitle).SingleLine().FillWidth().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(1, 6).Background(c.Theme().Surface).Radius(3).Tooltip(r.EntryID)
+					ui.Row(c).FillWidth().MinWidth(0).Padding(6, 0, 0, 0).Children(func() {
+						ui.Text(c, subtitle).SingleLine().MinWidth(0).Font(fonttheme.RenderPreferences().Code.Family).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).
+							TextColor(fonttheme.Color(modelColors(c).Secondary)).Padding(1, 6).Background(fonttheme.Color(modelColors(c).SelectorFill)).Radius(4).Tooltip(r.EntryID)
+					})
 				}
 			})
 		})
@@ -289,18 +297,54 @@ func clientModulesPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Col
 		return
 	}
 	ui.Text(c, pluginsText("所属页面：", "Page: ")+a.ClientPage).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	if s.Syncing || s.Retrying {
-		ui.Text(c, pluginsText("正在同步客户端模块…", "Synchronizing client modules…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	} else if len(s.Failures) == 0 {
-		ui.Text(c, pluginsText("客户端模块已同步。", "Client modules synchronized.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
 	for _, failure := range s.Failures {
 		ui.Text(c, failure.ID+": "+failure.Message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
-	if s.Error != "" {
-		ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
+	settingsNotice(c, "plugin_inventory:304", "error", s.Error != "", func() string { return s.Error })
 	if a.OnRetryClientModules != nil && ui.Button(c, pluginsText("重试客户端模块", "Retry client modules")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Syncing || s.Retrying || (len(s.Failures) == 0 && s.Error == "")).Clicked() {
 		a.OnRetryClientModules()
 	}
+}
+
+// inventoryCardChevron is the 12 DIP chevron at a card's trailing edge: down while
+// the card is closed, up once it is expanded.
+func inventoryCardChevron(c *ui.Context, open bool, ink ui.Color) {
+	ui.Box(c).Width(12).Height(12).Shrink(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
+		path := &ui.Path{}
+		if open {
+			path.MoveTo(r.X+3, r.Y+7.2)
+			path.LineTo(r.X+6, r.Y+4.5)
+			path.LineTo(r.X+9, r.Y+7.2)
+		} else {
+			path.MoveTo(r.X+3, r.Y+4.5)
+			path.LineTo(r.X+6, r.Y+7.2)
+			path.LineTo(r.X+9, r.Y+4.5)
+		}
+		p.StrokePath(path, 1.2, ink)
+	})
+}
+
+// inventoryGroupToggle is a group's disclosure: a 22 DIP row with the 12 DIP
+// chevron and the 14/22 title, as wide as its content.
+func inventoryGroupToggle(c *ui.Context, title string, open bool, fg, muted ui.Color) bool {
+	button := ui.Button(c, "").Label(title).Role(ui.RoleDisclosure).Expanded(open).MinWidth(0).Height(22).Padding(0).Gap(8).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
+	button.Children(func() {
+		inventoryChevron(c, open, muted)
+		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg).SingleLine()
+	})
+	return button.Clicked()
+}
+
+// inventoryGroupSub is the 12/18 note under a group title, indented past the chevron.
+func inventoryGroupSub(c *ui.Context, text string, muted ui.Color) {
+	ui.Text(c, text).FillWidth().Padding(0, 0, 0, 20).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+}
+
+// inventoryPresetName is the name the switcher shows: the shipped presets read
+// as their localized mode names, everything else keeps the inventory label.
+func inventoryPresetName(p plugininventory.DisplayPreset) string {
+	if name, _ := agentPresetDisplay(session.ManagedAgentPreset{ID: p.ID, BuiltIn: true}); name != "" && name != p.ID {
+		return name
+	}
+	return p.Label
 }

@@ -236,18 +236,19 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		*m.State = State{SessionID: m.Snapshot.SelectedID}
 	}
 	stats, show, official := preferences(m.Preferences)
-	if !stats && !show {
-		return
-	}
 	r := cachedCalculate(m.Snapshot, m.Billing.Settings)
-	// Keep the same 4 DIP bottom inset the Electron dock has; without it the
-	// status line sits flush on the window edge at every viewport height.
-	ui.Column(c).Key("composer-dock").FillWidth().Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
+	// .dock[data-composer-footer] keeps a 24 DIP floor even when every pill is
+	// hidden (the stats pills render invisible placeholders, never unmount),
+	// so the card always floats off the window edge; dropping the seat here
+	// would let it sit flush the moment both switches are off or no usage has
+	// landed yet. The 4 DIP card gap lives on the composer region's pad; the
+	// 4 DIP bottom pad below mirrors .root's inset.
+	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(24).Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
 		dockLine(c, m, r, stats, muted)
 		if !show {
 			return
 		}
-		if official || m.Snapshot.SelectedProvider == "deepseek" || m.Snapshot.SelectedProvider == "deepseek-official" {
+		if official || strings.Contains(strings.ToLower(m.Snapshot.SelectedProvider), "deepseek") {
 			now := time.Now()
 			peak, next := cost.Phase(now)
 			if !now.Before(m.State.NextTick) {
@@ -271,7 +272,8 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		if !m.Billing.Loaded && r.Available {
 			label = i18n.T(i18n.KeyComposerCostEstimate) + " · " + i18n.T(i18n.KeyComposerCostPricesLoading)
 		}
-		if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+		trigger := ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11))
+		if trigger.Clicked() {
 			m.State.Open = !m.State.Open
 		}
 		if !m.Snapshot.ClientReady {
@@ -283,53 +285,66 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		if !m.State.Open {
 			return
 		}
-		ui.Scroll(c).Height(180).Children(func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyComposerCostNotABill)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.Billing.Err != "" {
-					ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				}
-				for _, row := range r.Rows {
-					name := row.Provider + "/" + row.Model
-					if name == "/" {
-						name = i18n.T(i18n.KeyComposerCostUnknownRoute)
-					}
-					price := i18n.T(i18n.KeyComposerCostUnpriced)
-					if row.Priced {
-						price = fmt.Sprintf("¥%.2f", row.Cents/100)
-					}
-					ui.Text(c, name+" · "+price).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPeakPriceLine), tokensDetail(*row.Peak))).
-						FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine), tokensDetail(*row.OffPeak))).
-						FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-					if row.Priced {
-						p, ok := m.Billing.Settings.Prices[row.Provider+"/"+row.Model]
-						if !ok {
-							p = m.Billing.Settings.Prices[row.Model]
+		wasOpen := m.State.Open
+		ui.PopoverBase(c, trigger, &m.State.Open, func(panel ui.Element) {
+			w, _ := c.Size()
+			panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Radius(12).Background(c.Theme().Background).Border(.5, c.Theme().Border).Padding(16).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)).Children(func() {
+				ui.Scroll(c).FillWidth().MaxHeight(328).Children(func() {
+					ui.Column(c).FillWidth().Gap(4).Children(func() {
+						ui.Text(c, i18n.T(i18n.KeyComposerCostNotABill)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						if m.Billing.Err != "" {
+							ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
-						ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPriceLine), p.InputCacheHit, p.InputCacheMiss, p.Output)).
-							FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-						if !p.Flat && p.Idle != nil {
-							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine),
-								fmt.Sprintf("Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output))).
+						for _, row := range r.Rows {
+							name := row.Provider + "/" + row.Model
+							if name == "/" {
+								name = i18n.T(i18n.KeyComposerCostUnknownRoute)
+							}
+							price := i18n.T(i18n.KeyComposerCostUnpriced)
+							if row.Priced {
+								price = fmt.Sprintf("¥%.2f", row.Cents/100)
+							}
+							ui.Text(c, name+" · "+price).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPeakPriceLine), tokensDetail(*row.Peak))).
 								FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine), tokensDetail(*row.OffPeak))).
+								FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+							if row.Priced {
+								p := row.Price
+								if row.PriceSource == "official" {
+									label := "Official prices"
+									if i18n.Locale() == i18n.LocaleZH {
+										label = "官方价格"
+									}
+									ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								}
+								ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPriceLine), p.InputCacheHit, p.InputCacheMiss, p.Output)).
+									FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								if !p.Flat && p.Idle != nil {
+									ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine),
+										fmt.Sprintf("Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output))).
+										FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								}
+							}
 						}
-					}
-				}
-				if r.Children > 0 {
-					if ui.Button(c, childSummary(m, r.Children)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-						m.State.ChildrenOpen = !m.State.ChildrenOpen
-					}
-					if m.State.ChildrenOpen {
-						renderChildren(c, m, muted)
-					}
-				}
-				if m.OnPrices != nil && ui.Button(c, i18n.T(i18n.KeyComposerCostGlobalBilling)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-					m.OnPrices()
-				}
+						if r.Children > 0 {
+							if ui.Button(c, childSummary(m, r.Children)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+								m.State.ChildrenOpen = !m.State.ChildrenOpen
+							}
+							if m.State.ChildrenOpen {
+								renderChildren(c, m, muted)
+							}
+						}
+						if m.OnPrices != nil && ui.Button(c, i18n.T(i18n.KeyComposerCostGlobalBilling)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+							m.OnPrices()
+						}
+					})
+				})
 			})
 		})
+		if wasOpen && !m.State.Open {
+			trigger.Focus()
+		}
 	})
 }
 
@@ -345,16 +360,17 @@ func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 		}
 	}
 	seen := map[string]bool{}
-	count := 0
+	shown, remaining := 0, 0
 	for _, s := range m.Snapshot.CostSources {
 		if s.ID == m.Snapshot.SelectedID || !selected[s.ID] || seen[s.ID] || s.Usage == nil || len(s.Usage.Models) == 0 {
 			continue
 		}
 		seen[s.ID] = true
-		count++
-		if count > 10 {
+		if shown >= 10 {
+			remaining++
 			continue
 		}
+		shown++
 		own := cost.Calculate(s.ID, []cost.Source{s}, m.Billing.Settings)
 		name := s.Name
 		if name == "" {
@@ -362,8 +378,8 @@ func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 		}
 		ui.Text(c, name+" · "+money(own)+" · "+tokensDetail(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if count > 10 {
-		ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostMore), count-10)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	if remaining > 0 {
+		ui.Text(c, fmt.Sprintf("+%d", remaining)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 

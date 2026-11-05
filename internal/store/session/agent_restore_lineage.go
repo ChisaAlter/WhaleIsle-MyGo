@@ -14,6 +14,31 @@ func (s *Store) AgentChatRestoreLineage(token uint64, target AgentSessionAddress
 		return nil
 	}
 	path := []AgentSessionAddress{}
+	// A header can choose an ancestor or sibling from any already-owned parent
+	// directory. Reconstruct only the prefix which actually reaches that edge.
+	prefix := []AgentSessionAddress{}
+	for index, view := range views {
+		s.refreshAgentNavigationRowsLocked(&view)
+		for _, row := range view.Rows {
+			if row.CanOpen() && row.Address == target {
+				candidate := append(append([]AgentSessionAddress(nil), prefix...), target)
+				if validAgentRestoreLineage(s.selectedID, target, candidate) {
+					return candidate
+				}
+			}
+		}
+		if index+1 < len(views) {
+			next := views[index+1].Address
+			found := false
+			for _, row := range view.Rows {
+				found = found || row.CanOpen() && row.Address == next
+			}
+			if !found {
+				break
+			}
+			prefix = append(prefix, next)
+		}
+	}
 	for i := 1; i < len(views); i++ {
 		parent := views[i-1]
 		s.refreshAgentNavigationRowsLocked(&parent)

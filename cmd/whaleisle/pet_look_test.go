@@ -26,8 +26,10 @@ func TestPetLookRequiresConfiguredImageRoute(t *testing.T) {
 		}
 	}
 	b.LookProvider = ""
-	if _, _, ok := petLookRoute(b, cat); ok {
-		t.Fatal("bare model chose an implicit provider")
+	// The installed model-only desktop route remains available without a
+	// catalog provider; it must not silently choose one from the catalog.
+	if p, m, ok := petLookRoute(b, cat); !ok || p != "" || m != b.LookModel {
+		t.Fatalf("explicit desktop route changed destination: provider=%q model=%q available=%v", p, m, ok)
 	}
 	b.LookModel = ""
 	if _, _, ok := petLookRoute(b, cat); ok {

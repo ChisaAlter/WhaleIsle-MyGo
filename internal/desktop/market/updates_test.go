@@ -45,7 +45,11 @@ func TestCompareStableVersions(t *testing.T) {
 		known bool
 	}{
 		{"1.9.0", "1.10.0", -1, true}, {"2.0.0", "1.0.0", 1, true}, {"1.0.0", "1.0.0", 0, true},
-		{"", "1.0.0", 0, false}, {"dev", "1.0.0", 0, false}, {"1.0.0-beta", "1.0.0", 0, false}, {"01.0.0", "1.0.0", 0, false},
+		{"", "1.0.0", 0, false}, {"dev", "1.0.0", 0, false}, {"1.0.0-beta", "1.0.0", -1, true}, {"01.0.0", "1.0.0", 0, false},
+		{"1.0.0-alpha", "1.0.0-alpha.1", -1, true}, {"1.0.0-alpha.2", "1.0.0-alpha.11", -1, true},
+		{"1.0.0-alpha.11", "1.0.0-beta", -1, true}, {"1.0.0-rc.1", "1.0.0", -1, true},
+		{"1.0.0+build.1", "1.0.0+build.2", 0, true}, {"1.0.0-01", "1.0.0", 0, false},
+		{"1.0.0-alpha..1", "2.0.0", 0, false},
 	} {
 		got, known := CompareStableVersions(tc.a, tc.b)
 		if got != tc.want || known != tc.known {

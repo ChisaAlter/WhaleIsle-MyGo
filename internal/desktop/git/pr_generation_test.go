@@ -65,7 +65,7 @@ func TestPRGenerationReadsFrozenBranchRangeAndCommittedTemplate(t *testing.T) {
 	write("b.txt", "PRIVATE UNCOMMITTED CHANGE")
 	push, _ := PreparePush(root)
 	fake := func(context.Context, string, string, ...string) ([]byte, error) {
-		return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+		return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 	}
 	plan, e := preparePullRequest(context.Background(), root, push, "Temporary title", "", fake)
 	if e != nil {

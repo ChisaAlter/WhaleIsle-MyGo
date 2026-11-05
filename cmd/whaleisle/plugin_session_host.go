@@ -28,6 +28,7 @@ type nativePluginSessionState struct {
 	error         string
 	pendingTurn   *sessionPluginTurnPending
 	turnExpired   bool
+	selectedView  string
 }
 
 func pluginSessionSubject(v session.ViewState) pluginui.Subject {
@@ -39,8 +40,8 @@ func pluginSessionStoreSubject(s *session.Store) pluginui.Subject {
 	return pluginui.Subject{Kind: "session", SessionID: v.SelectedID, Epoch: fmt.Sprintf("%d:%d", v.ComposerHostGeneration, s.ComposerSessionGeneration())}
 }
 
-// syncPluginSession observes identity only; it never creates a browser or opens
-// a Session. Retained owners use the cheap captured navigation fence each frame.
+// syncPluginSession binds the original contribution owner automatically to the
+// visible native Session. It never replaces the native conversation page.
 func (s *mainState) syncPluginSession(visible bool) {
 	s.mu.Lock()
 	p := s.nativePlugins.session
@@ -49,7 +50,7 @@ func (s *mainState) syncPluginSession(visible bool) {
 		s.nativePlugins.session = p
 	}
 	sessions, status, win := s.sessions, s.bootStatus, s.win
-	ready := visible && status.State == harness.Ready && sessions != nil
+	ready := visible && nativePluginHostEnabled() && status.State == harness.Ready && sessions != nil
 	if win != nil && (!win.IsVisible() || win.IsMinimized()) {
 		ready = false
 	}
@@ -72,6 +73,7 @@ func (s *mainState) syncPluginSession(visible bool) {
 		old = p.owner
 		p.owner, p.target, p.open, p.error, p.pendingTurn, p.turnExpired = nil, nil, false, "", nil, false
 		p.subject = pluginui.Subject{Kind: "session"}
+		p.selectedView = ""
 	}
 	p.visible = ready
 	p.sessions, p.endpoint, p.generation = sessions, status.Endpoint, status.Generation
@@ -79,11 +81,29 @@ func (s *mainState) syncPluginSession(visible bool) {
 	if old != nil {
 		old.Close()
 	}
+	if ready && sessions != nil && pluginSessionStoreSubject(sessions).SessionID != "" {
+		s.mu.Lock()
+		missing := p.owner == nil && p.error == ""
+		s.mu.Unlock()
+		if missing {
+			s.ensurePluginSession(p, false)
+		}
+		s.mu.Lock()
+		activeOwner := p.owner
+		s.mu.Unlock()
+		if activeOwner != nil {
+			activeOwner.RefreshComposer()
+		}
+	}
 }
 
 // Opening is a user operation. Snapshot capture and original owner navigation
 // happen here, never while deciding whether a header contribution exists.
 func (s *mainState) openPluginSession(p *nativePluginSessionState) {
+	s.ensurePluginSession(p, true)
+}
+
+func (s *mainState) ensurePluginSession(p *nativePluginSessionState, show bool) {
 	s.mu.Lock()
 	win, sessions, endpoint, generation := s.win, s.sessions, p.endpoint, p.generation
 	valid := s.nativePlugins.session == p && p.visible && sessions != nil && win != nil && s.bootStatus.State == harness.Ready && s.bootStatus.Endpoint == endpoint && s.bootStatus.Generation == generation
@@ -94,7 +114,7 @@ func (s *mainState) openPluginSession(p *nativePluginSessionState) {
 	}
 	if existing != nil && existing.Alive() && target != nil && target.NavigationCurrent() {
 		s.mu.Lock()
-		p.open, p.error, p.pendingTurn, p.turnExpired = true, "", nil, false
+		p.open, p.error, p.pendingTurn, p.turnExpired = show, "", nil, false
 		s.mu.Unlock()
 		existing.Mask(false)
 		return
@@ -103,7 +123,7 @@ func (s *mainState) openPluginSession(p *nativePluginSessionState) {
 	target, err := sessions.CaptureComposerTarget(subject.SessionID)
 	if err != nil || subject.SessionID == "" || !target.NavigationCurrent() {
 		s.mu.Lock()
-		p.open = true
+		p.open = show
 		p.error = i18n.T(i18n.KeyCmdSessionOwnerUnavailable)
 		s.mu.Unlock()
 		return
@@ -111,11 +131,11 @@ func (s *mainState) openPluginSession(p *nativePluginSessionState) {
 	if existing != nil {
 		existing.Close()
 	}
-	owner, err := pluginui.New(pluginui.Options{Parent: win, Origin: endpoint.Origin, Cookie: endpoint.Cookie, Session: true, Inline: true, Changed: func() { win.Update(func() {}) }, PermissionPolicy: desktopwebview.PermissionPolicy{SessionHost: true, NotificationsAllowed: systemNotificationsSupported}.Decide})
+	owner, err := pluginui.New(pluginui.Options{Parent: win, Origin: endpoint.Origin, Cookie: endpoint.Cookie, Session: true, Inline: true, Composer: nativePluginComposerBridge{state: s}, OnFailure: s.onEmbeddedPageFailure, Changed: func() { win.Update(func() {}) }, PermissionPolicy: desktopwebview.PermissionPolicy{SessionHost: true, NotificationsAllowed: systemNotificationsSupported}.Decide})
 	s.mu.Lock()
 	current := s.nativePlugins.session == p && p.visible && s.sessions == sessions && p.endpoint == endpoint && p.generation == generation && target.NavigationCurrent()
 	if current {
-		p.open = true
+		p.open = show
 		if err != nil {
 			p.owner, p.target = nil, nil
 			p.error = err.Error()
@@ -248,6 +268,7 @@ func (s *mainState) renderPluginSessionSlot(c *ui.Context) {
 	owner, message := p.owner, p.error
 	s.mu.Unlock()
 	if owner != nil && owner.Inline() {
+		s.renderInlinePluginDiagnostics(c, owner)
 		return
 	}
 	w, h := c.Size()

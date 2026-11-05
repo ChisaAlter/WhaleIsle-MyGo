@@ -21,11 +21,14 @@ const (
 	DocumentHTML      = "html"
 	DocumentMedia     = "media"
 	DocumentOfficePDF = "office-pdf"
+	DocumentHost      = "host-document"
 )
 
 // DocumentSource describes a resource, never a temporary server URL or lease.
 // Every restored occurrence obtains new bytes under its original source scope.
 type DocumentSource struct {
+	DeclaredDelivery bool                    `json:"declaredDelivery,omitempty"`
+	declaredDelivery *declaredDocumentPermit `json:"-"`
 	// The durable marker prevents recovery from borrowing the ordinary Host
 	// loader. Its live permit is deliberately private and absent from JSON.
 	LocalDelivery    bool                 `json:"localDelivery,omitempty"`
@@ -79,6 +82,7 @@ func localDocumentPermissionError() string {
 }
 
 type DocumentResult struct {
+	Viewer   *desktop.HostOptions
 	Media    *mediapreview.Document
 	PDF      *pdfpreview.Document
 	HTML     *htmldocument.Document
@@ -223,6 +227,10 @@ func (b *Controller) denyLocalDocument(tab *Tab) {
 }
 
 func (b *Controller) resumeDocument(tab *Tab) {
+	if tab.source != nil && tab.source.DeclaredDelivery && !tab.source.DeclaredDeliveryValid() {
+		b.denyDeclaredDocument(tab)
+		return
+	}
 	if tab.source != nil && tab.source.LocalDelivery && !tab.source.LocalDeliveryValid() {
 		b.denyLocalDocument(tab)
 		return
@@ -305,6 +313,13 @@ func (b *Controller) finishDocumentRead(tab *Tab, request *documentRead, ctx con
 			tab.Media = nil
 		}
 		switch {
+		case result.Viewer != nil:
+			opts := *result.Viewer
+			opts.Parent, opts.OnChange, opts.OnFocus, opts.OnFailure = b.parent, b.update, b.focus, b.pageFailure(tab)
+			tab.Host, err = desktop.NewHost(opts)
+			if err == nil && b.current() == tab {
+				b.showHost(tab.Host)
+			}
 		case result.PDF != nil:
 			err = b.openPDFTab(tab, result.PDF)
 		case result.HTML != nil:
@@ -341,7 +356,7 @@ func (b *Controller) openSourceMediaTab(tab *Tab, doc *mediapreview.Document) er
 		return fmt.Errorf("media preview expired")
 	}
 	tab.Media, tab.Draft = doc, doc.Name
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFailure: b.pageFailure(tab), OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
 		tab.Media = nil
@@ -372,7 +387,11 @@ func (b *Controller) retryDocument(tab *Tab) {
 }
 
 func (b *Controller) documentSourceControls(c *ui.Context, tab *Tab) {
-	ui.Text(c, filepath.Base(tab.source.Path)).FontSize(theme.InterfaceSize(12)).Grow(1).Tooltip(tab.source.Path)
+	if tab.source.DeclaredDelivery {
+		b.documentHeader(c, tab, filepath.Base(tab.source.Path), nil, false)
+		return
+	}
+	ui.Text(c, filepath.Base(tab.source.Path)).FontSize(theme.InterfaceSize(12)).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(tab.source.Path)
 	if ui.Button(c, browserChromeLabel("重新读取", "Reread")).Disabled(tab.sourceRead != nil).Clicked() {
 		b.retryDocument(tab)
 	}

@@ -29,6 +29,44 @@ type PlanReview struct {
 	Decline  *PlanReviewOption
 }
 
+type planReviewOpenKey struct {
+	client   *dsh.Client
+	agentID  string
+	identity string
+}
+
+// ConsumePlanReviewOpen is the Session-owned once marker for the first visible
+// review. Live-to-continued delivery and surface remounts share the same marker;
+// hiding a review does not consume it, and manual preview remains independent.
+func (s *Store) ConsumePlanReviewOpen(agentID, eventID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, draft := s.findPending(eventID), s.questionDrafts[eventID]
+	if agentID == "" || p == nil || p.AgentID != agentID || p.Event != EventUserQuestions || draft == nil || draft.hidden || draft.planReviewHidden {
+		return false
+	}
+	review := planReviewOf(draft.req.Questions)
+	if review == nil {
+		return false
+	}
+	identity := "review:" + eventID
+	if p.CallID != "" {
+		identity = "review:" + p.CallID
+	}
+	if review.CallID != "" {
+		identity = "call:" + review.CallID
+	}
+	key := planReviewOpenKey{s.client, agentID, identity}
+	if s.planReviewOpened[key] {
+		return false
+	}
+	if s.planReviewOpened == nil {
+		s.planReviewOpened = make(map[planReviewOpenKey]bool)
+	}
+	s.planReviewOpened[key] = true
+	return true
+}
+
 func planReviewOf(questions []userQuestionItem) *PlanReview {
 	if len(questions) != 1 {
 		return nil
@@ -96,6 +134,7 @@ func (s *Store) DismissPlanReview(eventID string) {
 	}
 	if p.CallID != "" {
 		draft.planReviewHidden = true
+		draft.hidden = true
 		s.mu.Unlock()
 		s.fire()
 		return
@@ -109,7 +148,11 @@ func (s *Store) DismissPlanReview(eventID string) {
 func (s *Store) ReopenPlanReview(eventID string) {
 	s.mu.Lock()
 	if draft := s.questionDrafts[eventID]; draft != nil {
+		if draft.hidden || draft.planReviewHidden {
+			s.raisePendingLocked(eventID)
+		}
 		draft.planReviewHidden = false
+		draft.hidden = false
 	}
 	s.mu.Unlock()
 	s.fire()

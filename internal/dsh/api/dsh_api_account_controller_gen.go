@@ -54,13 +54,14 @@ type GetBalanceResult = json.RawMessage
 type GetProfileResult = json.RawMessage
 
 type GetUnnotifiedBonusesResultBonusesItem struct {
-	OrderId   string `json:"orderId"`
-	Campaign  string `json:"campaign"`
-	Amount    string `json:"amount"`
-	Currency  string `json:"currency"`
-	GrantedAt string `json:"grantedAt"`
-	ExpiresAt string `json:"expiresAt"`
-	Message   string `json:"message"`
+	OrderId   string          `json:"orderId"`
+	Title     *string         `json:"title,omitempty"`
+	Campaign  json.RawMessage `json:"campaign,omitempty"`
+	Amount    json.RawMessage `json:"amount,omitempty"`
+	Currency  json.RawMessage `json:"currency,omitempty"`
+	GrantedAt json.RawMessage `json:"grantedAt,omitempty"`
+	ExpiresAt string          `json:"expiresAt"`
+	Message   string          `json:"message"`
 }
 
 // GetUnnotifiedBonusesResult is the wire type of result of account/getUnnotifiedBonuses (@deepseek-ai/dsh-api-account-controller#account/getUnnotifiedBonuses:result).

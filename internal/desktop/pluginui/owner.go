@@ -19,6 +19,7 @@ const bridgePath = "/__whale_plugin_ui/events"
 const bridgeProtocol = "whaleisle.plugin-ui.v1"
 
 var slotNames = map[string]bool{
+	"plugins.tab":  true,
 	"plugins.item": true, "plugins.bundle.config": true, "plugins.row.config": true,
 	"plugins.detail.actions": true, "plugins.detail.badge": true, "plugins.detail.section": true,
 	"plugins.add.actions": true, "plugins.bundle.activation": true,
@@ -57,25 +58,37 @@ type Action struct {
 }
 
 type Snapshot struct {
-	Connected             bool             `json:"-"`
-	Page                  uint64           `json:"-"`
-	Revision              uint64           `json:"revision"`
-	Locale                string           `json:"locale"`
-	Entries               []Entry          `json:"entries"`
-	Subject               *Subject         `json:"subject"`
-	Actions               []Action         `json:"actions"`
-	Badges                []string         `json:"badges"`
-	Section               bool             `json:"section"`
-	Configuration         bool             `json:"configuration"`
-	Surface               string           `json:"surface"`
-	SessionSurfaceHandle  string           `json:"sessionSurfaceHandle,omitempty"`
-	SessionSurfaceRequest string           `json:"sessionSurfaceRequest,omitempty"`
-	Height                int              `json:"height"`
-	Error                 string           `json:"-"`
-	Unavailable           string           `json:"unavailable,omitempty"`
-	Outlets               []SessionOutlet  `json:"outlets,omitempty"`
-	SessionControls       []SessionControl `json:"sessionControls,omitempty"`
-	Observation           bool             `json:"observation,omitempty"`
+	Connected             bool                       `json:"-"`
+	Page                  uint64                     `json:"-"`
+	Revision              uint64                     `json:"revision"`
+	Locale                string                     `json:"locale"`
+	Entries               []Entry                    `json:"entries"`
+	Subject               *Subject                   `json:"subject"`
+	Navigation            *Subject                   `json:"navigation,omitempty"`
+	Actions               []Action                   `json:"actions"`
+	Badges                []string                   `json:"badges"`
+	Section               bool                       `json:"section"`
+	Configuration         bool                       `json:"configuration"`
+	Surface               string                     `json:"surface"`
+	SessionSurfaceHandle  string                     `json:"sessionSurfaceHandle,omitempty"`
+	SessionSurfaceRequest string                     `json:"sessionSurfaceRequest,omitempty"`
+	Height                int                        `json:"height"`
+	Error                 string                     `json:"-"`
+	Unavailable           string                     `json:"unavailable,omitempty"`
+	Outlets               []SessionOutlet            `json:"outlets,omitempty"`
+	SessionControls       []SessionControl           `json:"sessionControls,omitempty"`
+	Observation           bool                       `json:"observation,omitempty"`
+	RightPaneTabs         []RightPaneTab             `json:"rightPaneTabs,omitempty"`
+	RightPaneKinds        []RightPaneKind            `json:"rightPaneKinds,omitempty"`
+	ConversationViews     []ConversationView         `json:"conversationViews,omitempty"`
+	Views                 []NativeView               `json:"views,omitempty"`
+	GlobalDocuments       []NativeDocument           `json:"globalDocuments,omitempty"`
+	Documents             []NativeDocument           `json:"documents,omitempty"`
+	ModelDocuments        []NativeDocument           `json:"modelDocuments,omitempty"`
+	PublicDocuments       []PublicSlotEntry          `json:"publicDocuments,omitempty"`
+	PublicMenus           []PublicMenuAction         `json:"publicMenus,omitempty"`
+	DirectoryActions      []WorkspaceDirectoryAction `json:"directoryActions,omitempty"`
+	WorkspaceNavigation   []WorkspaceNavigation      `json:"workspaceNavigation,omitempty"`
 }
 
 type bridgePage struct {
@@ -86,27 +99,41 @@ type bridgePage struct {
 // Owner owns one temporary exact-Host gateway and one binding-free browser.
 // The caller must close it before changing Host generation/session or route.
 type Owner struct {
-	mu           sync.Mutex
-	gateway      *pluginslots.Gateway
-	host         *webview.Host
-	page         *bridgePage
-	nextPage     uint64
-	closed       bool
-	masked       bool
-	incompatible bool
-	state        Snapshot
-	selected     Subject
-	changed      func()
-	off          []func()
-	mirror       *mirrorState
+	mu                     sync.Mutex
+	gateway                *pluginslots.Gateway
+	host                   *webview.Host
+	page                   *bridgePage
+	nextPage               uint64
+	closed                 bool
+	masked                 bool
+	incompatible           bool
+	state                  Snapshot
+	selected               Subject
+	changed                func()
+	composer               ComposerBridge
+	composerLast           string
+	composerError          string
+	off                    []func()
+	mirror                 *mirrorState
+	rich                   richState
+	rightPane              rightPaneState
+	workspaceOps           workspaceOperationState
+	navigationSession      string
+	modelTargets           map[string]bool
+	modelTargetsLast       string
+	publicContexts         map[string]publicRowContext
+	publicWorkspaceContext string
 }
 
 type Options struct {
 	Parent           *mygo.Window
 	Origin, Cookie   string
 	Changed          func()
+	OnFailure        func(webview.PageFailure)
+	Composer         ComposerBridge
 	PermissionPolicy func(mygo.PermissionRequest) bool
 	Session          bool
+	Navigation       bool
 	// Inline retains the full original Session page as a single hidden source.
 	Inline bool
 }
@@ -118,25 +145,32 @@ func New(opts Options) (*Owner, error) {
 	if opts.Inline && !opts.Session {
 		return nil, errors.New("plugin UI: inline source requires a Session")
 	}
-	o := &Owner{changed: opts.Changed, selected: Subject{Kind: "list"}}
+	o := &Owner{changed: opts.Changed, composer: opts.Composer, selected: Subject{Kind: "list"}}
 	if opts.Inline {
 		o.mirror = &mirrorState{}
 	}
 	var responseFilter func(*http.Response) error
-	if opts.Session {
+	if opts.Session || opts.Navigation {
 		responseFilter = o.sessionResponse
+	} else {
+		responseFilter = nativePadOnlyResponse
 	}
 	gateway, err := pluginslots.NewGatewayWithResponseFilter(opts.Origin, opts.Cookie, o.serve, responseFilter)
 	if err != nil {
 		return nil, err
 	}
 	o.gateway = gateway
+	gateway.SetClientModulesChanged(opts.Changed)
 	mode := "desktopNativePlugins"
 	if opts.Session {
 		mode = "desktopNativeSession"
 		o.selected = Subject{Kind: "session"}
 	}
 	raw := strings.TrimRight(opts.Origin, "/") + "/?" + mode + "=1"
+	if opts.Navigation {
+		raw = strings.TrimRight(opts.Origin, "/") + "/?desktopNativeNavigation=1"
+		o.selected = Subject{Kind: "navigation"}
+	}
 	if opts.Inline {
 		raw += "&desktopNativeInline=1"
 	}
@@ -153,7 +187,7 @@ func New(opts Options) (*Owner, error) {
 		PreloadScript: preload,
 		Parent:        opts.Parent, URL: entry, Title: "Plugin contributions", Untrusted: true,
 		AllowNavigation: gateway.AllowsBrowserURL, OnChange: opts.Changed, OnClosed: o.Close,
-		PermissionPolicy: opts.PermissionPolicy,
+		PermissionPolicy: opts.PermissionPolicy, OnFailure: opts.OnFailure,
 	}, gateway)
 	if err != nil {
 		gateway.Close()
@@ -185,6 +219,11 @@ func (o *Owner) Snapshot() Snapshot {
 		s.Actions = nil
 		s.SessionControls = nil
 		s.Outlets = nil
+		s.Documents = nil
+		s.GlobalDocuments = nil
+		s.ConversationViews = nil
+		s.RightPaneTabs = nil
+		s.RightPaneKinds = nil
 		s.Surface = ""
 		s.SessionSurfaceHandle = ""
 		s.SessionSurfaceRequest = ""
@@ -195,6 +234,17 @@ func (o *Owner) Snapshot() Snapshot {
 	s.Badges = append([]string(nil), s.Badges...)
 	s.Outlets = append([]SessionOutlet(nil), s.Outlets...)
 	s.SessionControls = append([]SessionControl(nil), s.SessionControls...)
+	s.Documents = append([]NativeDocument(nil), s.Documents...)
+	s.GlobalDocuments = append([]NativeDocument(nil), s.GlobalDocuments...)
+	s.ModelDocuments = append([]NativeDocument(nil), s.ModelDocuments...)
+	s.PublicDocuments = append([]PublicSlotEntry(nil), s.PublicDocuments...)
+	s.PublicMenus = append([]PublicMenuAction(nil), s.PublicMenus...)
+	s.DirectoryActions = append([]WorkspaceDirectoryAction(nil), s.DirectoryActions...)
+	s.WorkspaceNavigation = append([]WorkspaceNavigation(nil), s.WorkspaceNavigation...)
+	s.Views = append([]NativeView(nil), s.Views...)
+	s.ConversationViews = append([]ConversationView(nil), s.ConversationViews...)
+	s.RightPaneTabs = append([]RightPaneTab(nil), s.RightPaneTabs...)
+	s.RightPaneKinds = append([]RightPaneKind(nil), s.RightPaneKinds...)
 	if s.Subject != nil {
 		subject := *s.Subject
 		s.Subject = &subject
@@ -215,6 +265,13 @@ func (o *Owner) send(value any) error {
 	if closed || page == nil {
 		return errors.New("plugin UI: page unavailable")
 	}
+	return o.sendToPage(page, value)
+}
+
+func (o *Owner) sendToPage(page *bridgePage, value any) error {
+	if page == nil {
+		return errors.New("plugin UI: page unavailable")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := wsjson.Write(ctx, page.socket, value); err != nil {
@@ -233,6 +290,9 @@ func (o *Owner) Select(subject Subject) {
 	changed := !o.selected.equal(subject)
 	o.selected = subject
 	if changed {
+		o.retireWorkspaceOperationsLocked()
+		o.retireRightPaneOpensLocked()
+		o.composerError = ""
 		o.retireMirrorTextLocked()
 		o.invalidateMirrorLocked()
 		o.state.Subject = nil
@@ -244,6 +304,11 @@ func (o *Owner) Select(subject Subject) {
 		o.state.SessionSurfaceHandle = ""
 		o.state.SessionSurfaceRequest = ""
 		o.state.Outlets = nil
+		o.state.Documents = nil
+		o.state.GlobalDocuments = nil
+		o.state.ConversationViews = nil
+		o.state.RightPaneTabs = nil
+		o.state.RightPaneKinds = nil
 		o.state.SessionControls = nil
 		o.state.Unavailable = ""
 	}
@@ -252,6 +317,22 @@ func (o *Owner) Select(subject Subject) {
 		o.Hide()
 		_ = o.send(map[string]any{"type": "select", "subject": subject})
 	}
+}
+
+// TakeNavigation consumes original activation Open details or tab openPackage.
+// The native manager still verifies that this package exists in its inventory.
+func (o *Owner) TakeNavigation() *Subject {
+	if o == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closed || (o.selected.Kind != "list" && o.selected.Kind != "pluginTab") || o.state.Navigation == nil {
+		return nil
+	}
+	next := *o.state.Navigation
+	o.state.Navigation = nil
+	return &next
 }
 
 // Click addresses a control in the captured page/revision/subject, never a
@@ -378,6 +459,8 @@ func (o *Owner) Close() {
 		return
 	}
 	o.closed = true
+	o.retireWorkspaceOperationsLocked()
+	o.retireRightPaneOpensLocked()
 	o.retireMirrorTextLocked()
 	o.invalidateMirrorLocked()
 	h, gateway, page, off := o.host, o.gateway, o.page, o.off
@@ -405,6 +488,8 @@ func (o *Owner) disconnect(expected *bridgePage) {
 		return
 	}
 	o.page = nil
+	o.retireWorkspaceOperationsLocked()
+	o.retireRightPaneOpensLocked()
 	o.retireMirrorTextLocked()
 	o.invalidateMirrorLocked()
 	o.state = Snapshot{}
@@ -415,6 +500,12 @@ func (o *Owner) disconnect(expected *bridgePage) {
 }
 
 func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
+	if o.serveComposerInsert(w, r) {
+		return true
+	}
+	if o.serveComposerFiles(w, r) {
+		return true
+	}
 	if r.URL.Path != bridgePath {
 		return false
 	}
@@ -435,25 +526,62 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	old := o.page
+	o.retireWorkspaceOperationsLocked()
+	o.retireRightPaneOpensLocked()
 	o.retireMirrorTextLocked()
 	o.nextPage++
+	o.modelTargetsLast = ""
 	page := &bridgePage{socket: socket, id: o.nextPage}
 	o.page = page
 	o.state = Snapshot{}
+	o.composerLast = ""
+	o.composerError = ""
 	subject := o.selected
+	navigationSession := o.navigationSession
 	o.mu.Unlock()
 	if old != nil {
 		_ = old.socket.CloseNow()
 	}
 	defer o.disconnect(page)
 	_ = o.send(map[string]any{"type": "select", "subject": subject})
+	if navigationSession != "" {
+		_ = o.send(map[string]any{"type": "navigationContext", "sessionId": navigationSession})
+	}
 	for {
 		var message struct {
 			Type string `json:"type"`
 			Snapshot
+			ComposerRequest *ComposerRequest `json:"composer"`
+			Token           uint64           `json:"token"`
+			OK              bool             `json:"ok"`
+			Request         string           `json:"request"`
+			Handle          string           `json:"handle"`
+			OpenError       string           `json:"error"`
 		}
 		if err := wsjson.Read(r.Context(), socket, &message); err != nil {
 			return true
+		}
+		if message.Type == "composer" {
+			o.handleComposer(page, message.ComposerRequest)
+			continue
+		}
+		if message.Type == "richAck" {
+			o.ackRichLayout(page, message.Token, message.Revision, message.OK)
+			continue
+		}
+		if message.Type == "rightPaneOpened" {
+			if len(message.Request) > 64 || len(message.Handle) > 64 || len(message.OpenError) > 8192 {
+				return true
+			}
+			o.finishRightPaneOpen(page, message.Request, message.Handle, message.OpenError, message.Subject)
+			continue
+		}
+		if message.Type == "workspaceResult" {
+			if len(message.Request) > 64 || len(message.OpenError) > 8192 {
+				return true
+			}
+			o.finishWorkspaceOperation(page, message.Request, message.OpenError)
+			continue
 		}
 		if message.Type != "state" || !validSnapshot(message.Snapshot) {
 			return true
@@ -471,6 +599,11 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 		if o.incompatible {
 			s.Subject = nil
 			s.Outlets = nil
+			s.Documents = nil
+			s.GlobalDocuments = nil
+			s.ConversationViews = nil
+			s.RightPaneTabs = nil
+			s.RightPaneKinds = nil
 			s.Actions = nil
 			s.SessionControls = nil
 			s.Surface = ""
@@ -489,10 +622,18 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 			s.Section = false
 			s.Configuration = false
 			s.Outlets = nil
+			s.Documents = nil
+			s.GlobalDocuments = nil
+			s.ConversationViews = nil
+			s.RightPaneTabs = nil
+			s.RightPaneKinds = nil
 			s.SessionControls = nil
 			if o.selected.Kind != "list" || (s.Surface != "plugins.add.actions" && s.Surface != "plugins.bundle.activation") {
 				s.Surface = ""
 			}
+		}
+		if o.selected.Kind != "list" && o.selected.Kind != "pluginTab" {
+			s.Navigation = nil
 		}
 		o.state = s
 		o.invalidateMirrorLocked()
@@ -514,6 +655,51 @@ func hasProtocol(value string) bool {
 }
 
 func validSnapshot(s Snapshot) bool {
+	if !validPublicProjection(s.PublicDocuments, s.PublicMenus) {
+		return false
+	}
+	if !validWorkspaceProjection(s.DirectoryActions, s.WorkspaceNavigation) {
+		return false
+	}
+	if len(s.ModelDocuments) > 1024 {
+		return false
+	}
+	for _, document := range s.ModelDocuments {
+		if (document.Slot != "settings.models.provider-card" && document.Slot != "settings.models.footer") || len(document.Handle) > 16384 || len(document.Provider) > 8192 || len(document.Namespace) > 8192 || !validNativeNodes(document.Nodes) {
+			return false
+		}
+	}
+	if !validRightPaneKinds(s.RightPaneKinds) {
+		return false
+	}
+	if !validRightPaneTabs(s.RightPaneTabs, s.Outlets) {
+		return false
+	}
+	if !validConversationViews(s.ConversationViews) {
+		return false
+	}
+	if !validNativeViews(s.Views) {
+		return false
+	}
+	if len(s.GlobalDocuments) > 128 {
+		return false
+	}
+	for _, document := range s.GlobalDocuments {
+		if !globalSlots[document.Slot] || len(document.Handle) > 16384 || !validNativeNodes(document.Nodes) {
+			return false
+		}
+	}
+	if len(s.Documents) > 16 {
+		return false
+	}
+	for _, document := range s.Documents {
+		if (!slotNames[document.Slot] && !navigationSlots[document.Slot]) || !validNativeNodes(document.Nodes) {
+			return false
+		}
+	}
+	if s.Navigation != nil && (s.Navigation.Kind != "bundle" || s.Navigation.Name == "" || len(s.Navigation.Name) > 8192) {
+		return false
+	}
 	if s.Revision == 0 || len(s.Entries) > 2048 || len(s.Actions) > 128 || len(s.Badges) > 128 || s.Height < 0 || s.Height > 1000 || (s.Surface != "" && !slotNames[s.Surface] && !sessionSlotNames[s.Surface]) || !validSessionOutlets(s.Outlets) || !validSessionControls(s.SessionControls, s.Outlets) || len(s.Unavailable) > 8192 || len(s.SessionSurfaceHandle) > 64 {
 		return false
 	}
@@ -548,7 +734,7 @@ func validSnapshot(s Snapshot) bool {
 	}
 	if s.Subject != nil {
 		x := s.Subject
-		if !((x.Kind == "bundle" && x.Name != "") || (x.Kind == "row" && x.Name != "" && x.RowID != "") || (x.Kind == "item" && x.ItemID != "") || (x.Kind == "session" && x.SessionID != "" && x.Epoch != "" && len(x.SessionID) <= 256 && len(x.Epoch) <= 256)) {
+		if !((x.Kind == "navigation" && (x.Name == "" || x.Name == "models" || strings.HasPrefix(x.Name, "settings:") && len(x.Name) <= 256)) || (x.Kind == "list" && x.Name == "" && x.ItemID == "" && x.RowID == "") || (x.Kind == "pluginTab" && x.Name != "" && len(x.Name) <= 8192) || (x.Kind == "view" && x.Name != "" && len(x.Name) <= 16384) || (x.Kind == "bundle" && x.Name != "") || (x.Kind == "row" && x.Name != "" && x.RowID != "") || (x.Kind == "item" && x.ItemID != "") || (x.Kind == "session" && x.SessionID != "" && x.Epoch != "" && len(x.SessionID) <= 256 && len(x.Epoch) <= 256)) {
 			return false
 		}
 	}

@@ -20,6 +20,8 @@ type QuickChatOptions struct {
 	Unavailable string
 	Current     func() bool
 	OpenMain    func(string)
+	// MemoryKey scopes close/reopen drafts to this exact Host generation/mode.
+	MemoryKey string
 	// Direct is set only when opening a card with Host/Whale already unavailable.
 	// A shared-session request can never switch or fall back to this client.
 	Direct *petdirect.Client
@@ -28,31 +30,53 @@ type QuickChatOptions struct {
 // QuickChat is UI-thread owned, including every request slot and draft. Worker
 // goroutines capture immutable clients/arguments and return via Window.Update.
 type QuickChat struct {
-	owner       *Companion
-	parent      *mygo.Window
-	win         *mygo.Window
-	options     QuickChatOptions
-	client      *quickChatClient
-	life        context.Context
-	cancel      context.CancelFunc
-	closed      bool
-	stale       bool
-	state       quickChatSnapshot
-	direct      petdirect.Memory
-	draft       string
-	status      string
-	readNote    string
-	catalogNote string
-	catalogAt   time.Time
-	list        ui.ListState
-	history     quickChatRequest
-	catalog     quickChatRequest
-	sending     quickChatRequest
-	picking     quickChatRequest
-	stopping    quickChatRequest
-	jumping     quickChatRequest
-	offAnchor   []func()
-	positioning bool
+	owner           *Companion
+	parent          *mygo.Window
+	win             *mygo.Window
+	options         QuickChatOptions
+	client          *quickChatClient
+	life            context.Context
+	cancel          context.CancelFunc
+	closed          bool
+	stale           bool
+	state           quickChatSnapshot
+	direct          petdirect.Memory
+	draft           string
+	status          string
+	readNote        string
+	catalogNote     string
+	catalogAt       time.Time
+	list            ui.ListState
+	history         quickChatRequest
+	catalog         quickChatRequest
+	sending         quickChatRequest
+	picking         quickChatRequest
+	stopping        quickChatRequest
+	jumping         quickChatRequest
+	offAnchor       []func()
+	positioning     bool
+	stickers        []quickChatRow
+	stickerSeen     map[string]bool
+	restoredSession string
+	height          int
+	picker          *quickChatPicker
+}
+
+type quickChatMemory struct {
+	key, draft, session string
+	direct              petdirect.Memory
+	client              *petdirect.Client
+	history             []quickChatRow
+}
+
+func (p *Companion) rememberQuickChat(q *QuickChat) {
+	if q == nil || q.stale || q.options.MemoryKey == "" {
+		return
+	}
+	p.quickChatMemory = &quickChatMemory{key: q.options.MemoryKey, draft: q.draft, session: q.state.SessionID, direct: q.direct, client: q.options.Direct}
+	if q.options.Direct != nil {
+		p.quickChatMemory.history = append([]quickChatRow(nil), q.state.History...)
+	}
 }
 
 // OpenQuickChat preserves the draft and focuses an already open live card.
@@ -72,7 +96,14 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 		p.CloseQuickChat()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	q := &QuickChat{owner: p, parent: p.win, options: options, life: ctx, cancel: cancel, draft: draft, status: storelocale.T(storelocale.KeyDesktopPetLoadingSharedConversation)}
+	q := &QuickChat{owner: p, parent: p.win, options: options, life: ctx, cancel: cancel, draft: draft, status: storelocale.T(storelocale.KeyDesktopPetLoadingSharedConversation), stickerSeen: map[string]bool{}}
+	if saved := p.quickChatMemory; saved != nil && saved.key == options.MemoryKey {
+		q.draft, q.restoredSession = saved.draft, saved.session
+		if options.Direct != nil && saved.client != nil {
+			q.direct, q.options.Direct = saved.direct, saved.client
+			q.state.History = append([]quickChatRow(nil), saved.history...)
+		}
+	}
 	q.list.FollowEnd = true
 	q.list.Key = func(index int) any { return quickChatHistoryKey(q.state, index) }
 	if options.Direct != nil {
@@ -92,7 +123,7 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 	w := openQuickChatWindow(mygo.WindowOptions{
 		Title: storelocale.T(storelocale.KeyDesktopPetWhaleQuickChat), Width: quickChatWidth, Height: quickChatHeight,
 		MinWidth: quickChatMinWidth, MinHeight: quickChatMinHeight, Parent: p.win, AlwaysOnTop: true,
-		Frameless: true, SkipTaskbar: true, DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true,
+		Frameless: true, SkipTaskbar: true, DisableResize: true, DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true,
 		Content: ui.View(q.view),
 	})
 	q.win = w
@@ -103,6 +134,7 @@ func (p *Companion) OpenQuickChat(options QuickChatOptions) {
 	}
 	w.OnClosed(func() {
 		q.shutdown()
+		p.rememberQuickChat(q)
 		if p.QuickChat == q {
 			p.QuickChat = nil
 			p.setQuickChatOpen(false)
@@ -144,6 +176,7 @@ func (p *Companion) CloseQuickChat() {
 	p.QuickChat = nil
 	p.setQuickChatOpen(false)
 	q.shutdown()
+	p.rememberQuickChat(q)
 	if q.win != nil && !q.win.IsDestroyed() {
 		q.win.Destroy()
 	}
@@ -154,6 +187,9 @@ func (p *Companion) CloseQuickChat() {
 func (p *Companion) setQuickChatOpen(open bool) {
 	p.assetMu.Lock()
 	p.quickChatOpen = open
+	if !open {
+		p.quickChatBounds = mygo.Rectangle{}
+	}
 	p.assetMu.Unlock()
 }
 
@@ -174,15 +210,12 @@ func (q *QuickChat) shutdown() {
 		return
 	}
 	q.closed = true
+	q.closeModelPicker()
 	for _, off := range q.offAnchor {
 		off()
 	}
 	q.offAnchor = nil
-	q.direct.Reset()
-	if q.options.Direct != nil {
-		q.state.History = nil
-		q.draft = ""
-	}
+	q.direct.Cancel()
 	q.cancel()
 	q.abortRequests()
 }
@@ -236,6 +269,15 @@ func (q *QuickChat) refreshHistory() {
 			}
 			q.readNote = ""
 			changed := q.state.replaceHistory(next)
+			if q.restoredSession != "" && q.restoredSession != next.SessionID {
+				q.draft = ""
+			}
+			q.restoredSession = ""
+			if changed && expected != "" {
+				q.stickers = nil
+				q.stickerSeen = map[string]bool{}
+			}
+			q.state.History = append(q.state.History, q.stickers...)
 			if changed {
 				q.sending.abort()
 				q.picking.abort()

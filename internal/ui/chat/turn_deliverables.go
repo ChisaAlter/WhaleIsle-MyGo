@@ -8,6 +8,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -92,12 +93,6 @@ func hasVisibleTurnDelivery(d session.TurnDelivery, m Model) bool {
 	if state.Summary != nil && len(state.Summary.Files) > 0 {
 		return true
 	}
-	if state.Error != "" && !state.Unavailable {
-		return true
-	}
-	if fb := fallbackTurnChangesSummary(m.Snapshot, d); fb != nil && len(fb.Files) > 0 {
-		return true
-	}
 	return false
 }
 
@@ -116,7 +111,7 @@ func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCar
 	enabled := m.HistoryStore != nil && scope.Binding != "" && scope.SessionID == m.Snapshot.SelectedID
 	if d.Changes != nil {
 		req := session.TurnFileRequest{Target: *d.Changes, Action: "summary"}
-		res, exists := snapshot.Results[req]
+		_, exists := snapshot.Results[req]
 		if enabled && !exists {
 			seat := ui.Box(c.Key(fmt.Sprintf("turn-files-summary-init:%s:%d:%d", scope.Binding, scope.Generation, d.Turn))).Width(0).Height(0)
 			asked := ui.Local(seat, "asked", func() bool { return false })
@@ -125,26 +120,19 @@ func TurnDeliveryView(c *ui.Context, d session.TurnDelivery, m Model, st ToolCar
 				go m.HistoryStore.RunTurnFileAction(context.Background(), scope, req)
 			}
 		}
-		if res.Summary == nil && (!exists || res.Unavailable || res.Error != "") {
-			if fb := fallbackTurnChangesSummary(m.Snapshot, d); fb != nil && len(fb.Files) > 0 {
-				cloned := make(map[session.TurnFileRequest]session.TurnFileResult, len(snapshot.Results)+1)
-				for k, v := range snapshot.Results {
-					cloned[k] = v
-				}
-				res.Summary = fb
-				res.Unavailable = false
-				res.Error = ""
-				cloned[req] = res
-				snapshot.Results = cloned
-			}
-		}
+		// A tool's proposed patch is not the Host's recorded workspace change.
+		// Missing, expired and failed summaries leave no "Edited files" card;
+		// declared deliveries and the tool's own intent view remain independent.
 	}
 	var preview func(session.TurnFileTarget) error
-	if enabled && m.OnPreviewDeliverable != nil {
+	if enabled && (m.OnPreviewDeliverable != nil || m.OnPreviewDeliverablePresentation != nil) {
 		preview = func(target session.TurnFileTarget) error {
 			path, ok := m.HistoryStore.TurnFilePreviewPath(scope, target)
 			if !ok {
 				return errors.New(historyNavigationText("文件已不可用，请重新载入会话", "The file is no longer available; reload the session"))
+			}
+			if m.OnPreviewDeliverablePresentation != nil {
+				return m.OnPreviewDeliverablePresentation(path, "mini")
 			}
 			return m.OnPreviewDeliverable(path)
 		}
@@ -288,6 +276,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						comparison := snapshot.Results[session.TurnFileRequest{Target: selected, Action: "diff"}]
 						ui.Column(c.Key(fmt.Sprintf("changed:%d", index))).FillWidth().MinWidth(0).Children(func() {
 							rowWrap := ui.Row(c).FillWidth().MinWidth(0).Height(34).Padding(0).Gap(0).AlignItems(ui.Center)
+							showInline := ui.Local(rowWrap, "show-diff", func() bool { return false })
 							if rowWrap.Hovered() {
 								rowWrap.Background(pal.rowHover)
 							}
@@ -311,22 +300,50 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 										})
 									}
 								})
+								hoverSince := ui.Local(rowBtn, "diff-hover-since", func() time.Time { return time.Time{} })
+								if rowBtn.Hovered() {
+									if hoverSince.IsZero() {
+										*hoverSince = c.Now()
+									}
+									remaining := 500*time.Millisecond - c.Now().Sub(*hoverSince)
+									if remaining > 0 {
+										rowBtn.DrawOver(func(p *ui.Painter, _ ui.Rect) { p.After(remaining) })
+									}
+								} else {
+									*hoverSince = time.Time{}
+								}
+								showHover := enabled && rowBtn.Hovered() && !hoverSince.IsZero() && c.Now().Sub(*hoverSince) >= 500*time.Millisecond
+								if showHover {
+									ensure(selected, "diff")
+								}
+								ui.PopoverBase(c, rowBtn, &showHover, func(panel ui.Element) {
+									panel.Width(620).MaxHeight(360).Padding(10).Radius(8).Border(1, st.Border).Background(st.Field).Children(func() {
+										ui.Text(c, file.Display).FontSize(12).TextColor(st.FG)
+										ui.Scroll(c).MaxHeight(310).Children(func() {
+											if comparison.Diff != nil && comparison.Diff.Kind == "text" {
+												diff.View(c, comparison.Diff.Patch(), diff.Style{FontSize: 11, FG: st.FG, Muted: st.Muted, Add: pal.addColor, Del: pal.delColor, Hunk: st.Accent})
+											} else if comparison.Error != "" {
+												ui.Text(c, comparison.Error).TextColor(st.Muted)
+											} else if comparison.Diff != nil {
+												ui.Text(c, comparison.Diff.Kind).TextColor(st.Muted)
+											} else {
+												ui.Text(c, historyNavigationText("正在读取差异…", "Reading diff…")).TextColor(st.Muted)
+											}
+										})
+									})
+								})
 								if rowBtn.Clicked() && enabled && !comparison.Busy && run != nil {
+									*showInline = true
 									run(selected, "diff")
 								}
 								deliverableActionPill(c, selected, file.Display, snapshot, nativeAvailable, run, st, 24)
 							})
-							if comparison.Busy {
-								ui.Row(c).Padding(0, 14, 6, 14).Children(func() {
-									ui.Text(c, i18n.T(i18n.KeyChatDeliveryReadDiff)).FontSize(10).TextColor(st.Muted)
-								})
-							}
-							if comparison.Error != "" && !comparison.Unavailable {
+							if *showInline && comparison.Error != "" && !comparison.Unavailable {
 								ui.Row(c).Padding(0, 14, 6, 14).Children(func() {
 									ui.Text(c, comparison.Error).FontSize(10).TextColor(st.Muted)
 								})
 							}
-							if content := comparison.Diff; content != nil {
+							if content := comparison.Diff; *showInline && content != nil {
 								ui.Column(c).FillWidth().Padding(4, 14, 8, 14).Children(func() {
 									switch content.Kind {
 									case "binary":
@@ -420,8 +437,10 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 	pal := resolveDeliverablePalette(st)
 	owner := ui.Column(c.Key(fmt.Sprintf("presented:%d:%d", target.Seq, target.Index))).FillWidth().MinWidth(0).Gap(3)
 	previewError := ui.Local(owner, "preview-error", func() string { return "" })
+	previewErrorAt := ui.Local(owner, "preview-error-at", func() time.Time { return time.Time{} })
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
 	apps, exists := snapshot.Results[session.TurnFileRequest{Target: target, Action: "applications"}]
+	nativeAvailable = nativeAvailable && !state.NativeUnavailable
 	asked := ui.Local(owner, "applications-requested", func() bool { return false })
 	if nativeAvailable && run != nil && !exists && !*asked {
 		*asked = true
@@ -450,28 +469,29 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 				})
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).PassThrough().Children(func() {
 					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
-					ui.Text(c, meta).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).SingleLine().PassThrough()
+					status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
+					if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
+						status, failed, opacity, repaint = historyNavigationText("无法预览文件，点击重试", "Could not preview file; try again"), true, 1, 0
+					}
+					if apps.Error != "" && !state.Busy && !state.Ready && state.Error == "" {
+						status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true
+					}
+					ink := pal.pathColor
+					if failed {
+						ink = st.Err
+					}
+					presentedStatusSeat(c, status, ink, opacity, repaint)
 				})
 			})
 			if card.Clicked() && enabled && preview != nil {
 				*previewError = ""
 				if err := preview(target); err != nil {
 					*previewError = err.Error()
+					*previewErrorAt = c.Now()
 				}
 			}
 			deliverableActionPill(c, target, name, snapshot, nativeAvailable, run, st, 24)
 		})
-		if *previewError != "" {
-			ui.Text(c, *previewError).FontSize(11).TextColor(st.Muted)
-		}
-		if state.Error != "" && !state.Unavailable {
-			ui.Text(c, state.Error).FontSize(11).TextColor(st.Muted)
-		} else if state.Busy {
-			ui.Text(c, historyNavigationText("正在打开…", "Opening…")).FontSize(11).TextColor(st.Muted)
-		}
-		if apps.Error != "" && !apps.Unavailable {
-			ui.Text(c, apps.Error).FontSize(11).TextColor(st.Muted)
-		}
 	})
 }
 
@@ -479,6 +499,7 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 	name := path.Base(strings.ReplaceAll(displayName, `\`, "/"))
 	pal := resolveDeliverablePalette(st)
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
+	nativeAvailable = nativeAvailable && !state.NativeUnavailable
 	apps, exists := snapshot.Results[session.TurnFileRequest{Target: target, Action: "applications"}]
 	seat := ui.Box(c.Key(fmt.Sprintf("pill-apps:%s:%d:%v", snapshot.Scope.Binding, snapshot.Scope.Generation, target))).Width(0).Height(0)
 	asked := ui.Local(seat, "asked", func() bool { return false })
@@ -490,21 +511,32 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 		height = 24
 	}
 	menuLabel := historyNavigationText("文件操作：", "File actions: ") + name
-	menu := ui.Button(c.Key("actions"), "").Label(menuLabel).Tooltip(menuLabel).Width(42).Height(height).Margin(0, 10, 0, 0).
-		Padding(0).Radius(8).Border(0.5, pal.borderL4).Background(ui.Transparent).TextColor(pal.chevronColor).
-		AlignItems(ui.Center).Justify(ui.Start).Gap(0).Clip().
-		Disabled(!nativeAvailable || state.Busy || run == nil)
-	if menu.Hovered() {
-		menu.Background(pal.pillHover)
-	}
-	menu.Children(func() {
-		ui.Box(c).Width(24).Height(height).Center().PassThrough().Children(func() {
-			paintOpenTargetAppIcon(c, name, apps.Applications)
-		})
-		ui.Box(c).Width(1).Height(height).Background(pal.borderL4).PassThrough()
-		ui.Box(c).Width(17).Height(height).Center().PassThrough().Children(func() {
-			ui.Icon(c, deliverableChevronDownIcon).Size(10, 10).TextColor(pal.chevronColor).PassThrough()
-		})
+	var menu ui.Element
+	ui.Row(c.Key("actions")).Width(42).Height(height).Margin(0, 10, 0, 0).Gap(0).Radius(8).Border(.5, pal.borderL4).Clip().Children(func() {
+		main := ui.Button(c, "").Label(historyNavigationText("打开文件：", "Open file: ") + name).Tooltip(historyNavigationText("打开文件", "Open file")).Width(24).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(!nativeAvailable || state.Busy || apps.Busy || run == nil)
+		main.Children(func() { paintOpenTargetAppIcon(c, name, apps.Applications) })
+		if main.Hovered() {
+			main.Background(pal.pillHover)
+		}
+		if main.Clicked() && run != nil {
+			action := "reveal"
+			if len(apps.Applications) > 0 {
+				action = "open"
+				for _, app := range apps.Applications {
+					if app.Default {
+						action = session.TurnFileApplicationAction(app.ID)
+						break
+					}
+				}
+			}
+			run(target, action)
+		}
+		ui.Box(c).Width(1).Height(height).Background(pal.borderL4)
+		menu = ui.Button(c, "").Label(menuLabel).Tooltip(menuLabel).Width(17).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(!nativeAvailable || state.Busy || run == nil)
+		menu.Children(func() { ui.Icon(c, deliverableChevronDownIcon).Size(10, 10).TextColor(pal.chevronColor).PassThrough() })
+		if menu.Hovered() {
+			menu.Background(pal.pillHover)
+		}
 	})
 	menu.Menu(func(menu *ui.Menu) {
 		if menu.Item(i18n.T(i18n.KeyChatDeliveryOpenHost)).Disabled(!nativeAvailable || state.Busy || run == nil).Chosen() && nativeAvailable && !state.Busy && run != nil {
@@ -742,6 +774,7 @@ func isBinaryDeliverablePath(filePath string) bool {
 // TurnFileNativeActions retains explicit Host actions for changed-file rows.
 func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapshot session.TurnFilesSnapshot, enabled bool, run func(session.TurnFileTarget, string), st ToolCardStyle) {
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
+	enabled = enabled && !state.NativeUnavailable
 	apps, exists := snapshot.Results[session.TurnFileRequest{Target: target, Action: "applications"}]
 	seat := ui.Box(c.Key(fmt.Sprintf("native-apps:%s:%d:%v", snapshot.Scope.Binding, snapshot.Scope.Generation, target))).Width(0).Height(0)
 	requested := ui.Local(seat, "requested", func() bool { return false })
@@ -779,20 +812,17 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 				run(target, "applications")
 			}
 		})
+		status, failed, opacity, repaint := presentedMetadata(snapshot, state, "", c.Now())
+		if apps.Busy && !state.Busy {
+			status = historyNavigationText("正在读取应用…", "Loading applications…")
+		}
+		if apps.Error != "" && state.Error == "" && !state.Busy {
+			status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true
+		}
+		ink := st.Muted
+		if failed {
+			ink = st.Err
+		}
+		ui.Box(c).Grow(1).MinWidth(0).Height(16).Tooltip(state.Error + "\n" + apps.Error).Children(func() { presentedStatusSeat(c, status, ink, opacity, repaint) })
 	})
-	if apps.Busy {
-		ui.Text(c, "Loading applications…").FontSize(10).TextColor(st.Muted)
-	}
-	if apps.Error != "" {
-		ui.Text(c, apps.Error).FontSize(10).TextColor(st.Muted)
-	}
-	if state.Busy {
-		ui.Text(c, state.Action+"…").FontSize(10).TextColor(st.Muted)
-	}
-	if state.Error != "" {
-		ui.Text(c, state.Error).FontSize(10).TextColor(st.Muted)
-	}
-	if state.Ready {
-		ui.Text(c, i18n.T(i18n.KeyChatDeliveryAccepted)+" "+state.Action).FontSize(10).TextColor(st.Muted)
-	}
 }

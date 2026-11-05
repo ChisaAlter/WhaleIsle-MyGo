@@ -44,9 +44,7 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 	if s.Err != "" {
 		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
-	if s.Notice != "" {
-		ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "mcp_import:48", "", s.Notice != "", func() string { return s.Notice })
 	if !s.Ready {
 		return
 	}

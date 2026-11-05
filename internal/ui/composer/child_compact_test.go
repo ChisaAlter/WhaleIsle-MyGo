@@ -94,7 +94,9 @@ func TestChildAttachmentRailRetainsNativeDraftOwnerAcrossMountAndRemoval(t *test
 		t.Fatalf("child image does not use shared 64x64 thumb: %+v", card)
 	}
 	after, _ := tt.Find("Composer draft")
-	if after.Y-before.Y != 60 {
+	// The shared InputBar keeps its 12-DIP content gap after the rail's
+	// 66-DIP viewport and -6-DIP trailing margin.
+	if after.Y-before.Y != 72 {
 		t.Fatalf("child rail retained excess height: before=%+v after=%+v", before, after)
 	}
 	v.Images = nil

@@ -263,9 +263,6 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 		if state.Phase == "downloading" && state.TotalBytes != nil && *state.TotalBytes > 0 {
 			ui.Progress(c, voiceRatio(state.CompletedBytes, *state.TotalBytes)).FillWidth().Label(voiceText("下载进度", "Download progress"))
 		}
-		if state.Resource != "" && state.Phase == "downloading" {
-			ui.Text(c, state.Resource).FontSize(11).TextColor(c.Theme().TextMuted)
-		}
 		if canPrepare && len(sources) > 0 {
 			options := []voiceSelectOption{}
 			if len(sources) > 1 {

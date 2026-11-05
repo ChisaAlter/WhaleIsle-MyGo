@@ -52,7 +52,7 @@ func TestRemoteMachineCardsSnapshot(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(16).Gap(10).Children(func() {
 			for _, machine := range snap.Machines {
-				machineCard(c, Model{}, snap, editor, machine, c.Theme().TextMuted, c.Theme().Border)
+				machineRow(c, Model{}, snap, editor, machine, c.Theme().TextMuted)
 			}
 		})
 	}, 720, 320)

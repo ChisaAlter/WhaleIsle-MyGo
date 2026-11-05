@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
+	"whaleisle/internal/ui/projects"
 )
 
 // Persist routing facts only. Restoring/splitting never restores a live reader,
@@ -103,7 +104,14 @@ func subagentChatPane(c *ui.Context, m Model) {
 			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 		}
 	}
-	agents.View(c, agents.Model{Store: navigation, Snapshot: navigation.RenderSnapshot(), ChatOnly: true,
+	agents.View(c, agents.Model{
+		ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: navigation.RenderSnapshot(), ChatOnly: true,
+		InteractionRenderSlot: m.InteractionRenderSlot,
+		ChildDraft:            m.ChildDraft,
+		BusyEnter:             m.ChildBusyEnter,
+		ComposerOverride: func(ctx *ui.Context, address session.AgentSessionAddress) bool {
+			return projects.ConversationComposer(ctx, m.Projects, address.ChildSessionID, address.ParentSessionID)
+		},
 		Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 		ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: m.AgentsPromptDraft,
 		OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: m.OnOpenAgentDocument,

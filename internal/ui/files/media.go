@@ -20,7 +20,7 @@ import (
 	"whaleisle/internal/ui/svgimage"
 )
 
-const maxImageBytes int64 = 16 << 20
+const maxImageBytes int64 = 32 << 20
 const maxImagePixels = 32_000_000
 
 type imagePreview struct {
@@ -177,7 +177,7 @@ func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePrevie
 
 func imageByteLimit(path string) int64 {
 	if strings.EqualFold(filepath.Ext(path), ".svg") {
-		return 1 << 20
+		return imagepreview.MaxSVGBytes
 	}
 	return maxImageBytes
 }
@@ -196,6 +196,15 @@ func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *i
 	}
 	var decoded image.Image
 	ext := strings.ToLower(filepath.Ext(path))
+	if bytes.HasPrefix(data, []byte("GIF87a")) || bytes.HasPrefix(data, []byte("GIF89a")) {
+		ext = ".gif"
+	}
+	if ext == "" && bytes.Contains(data[:min(len(data), 4096)], []byte("<svg")) {
+		ext = ".svg"
+	}
+	if len(data) >= 12 && string(data[4:8]) == "ftyp" && (bytes.Contains(data[8:min(len(data), 64)], []byte("avif")) || bytes.Contains(data[8:min(len(data), 64)], []byte("avis"))) {
+		ext = ".avif"
+	}
 	animatedAVIF := ext == ".avif" && imagepreview.IsAnimatedAVIF(data)
 	switch {
 	case ext == ".gif" || imagepreview.IsAnimatedWebP(data) || animatedAVIF:

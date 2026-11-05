@@ -11,7 +11,10 @@ import (
 
 type botTaskTransport func(*http.Request) (*http.Response, error)
 
-func (f botTaskTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f botTaskTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func botTaskFixture() *DshbotTaskView {
 	v := &DshbotTaskView{NS: "dsh-bot", Revision: 8}
 	v.Value.Items = []DshbotCatalogItem{{ID: "b", Name: "Test Bot", SessionID: "session-b"}}

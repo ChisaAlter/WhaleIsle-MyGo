@@ -1,6 +1,5 @@
 package session
 
-
 import (
 	"context"
 	"encoding/json"
@@ -32,10 +31,16 @@ type AgentPresetManagerState struct {
 // AgentPresetManager manages the persisted default for future sessions. It never
 // selects a composition on the active session or writes preset source documents.
 type AgentPresetManager struct {
-	mu     sync.Mutex
-	source *Store
-	client *dsh.Client
-	state  AgentPresetManagerState
+	mu                        sync.Mutex
+	source                    *Store
+	client                    *dsh.Client
+	state                     AgentPresetManagerState
+	codingToolsObserved       bool
+	codingToolsDisabled       bool
+	codingToolsClient         *dsh.Client
+	codingToolsRevision       float64
+	codingToolsPresetRevision float64
+	codingToolsRefreshPending bool
 }
 
 func NewAgentPresetManager(source *Store) *AgentPresetManager {
@@ -62,11 +67,17 @@ func (m *AgentPresetManager) finish(err error, status string) {
 		m.state.Err = err.Error()
 		m.state.Status = ""
 	}
+	pending := m.codingToolsRefreshPending
+	m.codingToolsRefreshPending = false
 	m.mu.Unlock()
 	m.source.fire()
+	if pending {
+		m.refreshCodingToolsDefault()
+	}
 }
 
-// Refresh reads both roster and host settings; no mutation occurs on refresh.
+// Refresh reads both roster and host settings, then reconciles a hidden built-in
+// default when Coding Tools has been disabled in the accepted configuration.
 func (m *AgentPresetManager) Refresh(ctx context.Context) {
 	m.mu.Lock()
 	if m.state.Busy {
@@ -117,19 +128,37 @@ func (m *AgentPresetManager) Refresh(ctx context.Context) {
 			next.DefaultID = p.Id
 		}
 	}
+	codingToolsDisabled := false
 	for _, ns := range settings.Namespaces {
+		if ns.Ns == "ui-settings" {
+			var preference struct {
+				Enabled bool `json:"enabled"`
+			}
+			codingToolsDisabled = json.Unmarshal(ns.Value, &preference) == nil && !preference.Enabled
+		}
 		if ns.Ns == agentPresetNamespace {
 			next.Writable = settings.Writable
 			next.Revision = ns.Revision
 			if id := agentDefaultID(ns.Value); id != "" {
 				next.DefaultID = id
 			}
-			break
 		}
 	}
 	if m.currentClient() != client {
 		m.finish(errors.New(storelocale.T(storelocale.KeyStoreSessionHostChangedRefresh)), "")
 		return
+	}
+	m.mu.Lock()
+	repair := codingToolsDisabled && m.codingToolsObserved && m.codingToolsDisabled && m.codingToolsClient == client
+	m.mu.Unlock()
+	if repair {
+		if err := m.repairCodingToolsDefault(ctx, client, &next); err != nil {
+			m.mu.Lock()
+			m.client, m.state = client, next
+			m.mu.Unlock()
+			m.finish(err, "")
+			return
+		}
 	}
 	m.mu.Lock()
 	m.client = client
@@ -150,7 +179,7 @@ func (m *AgentPresetManager) SaveDefault(ctx context.Context, id string) {
 	revision := m.state.Revision
 	eligible := false
 	for _, row := range m.state.Rows {
-		if row.ID == id && row.Broken == "" && !row.Hidden {
+		if row.ID == id && row.Broken == "" && !row.Hidden && (!m.codingToolsDisabled || !row.RequiresCodingTools) {
 			eligible = true
 		}
 	}

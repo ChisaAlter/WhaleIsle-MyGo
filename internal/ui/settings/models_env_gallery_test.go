@@ -129,12 +129,13 @@ func TestSettingsGalleryWhaleAndModels(t *testing.T) {
 
 	s := twoProviderStore(t)
 	fg, muted := ui.RGB(20, 20, 20), ui.RGB(120, 120, 120)
+	editing, adding := "", false
 	modelShot := ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Padding(20).Children(func() {
 			ui.Column(c).Gap(14).Children(func() {
 				galleryModelCard(c, s, "llm-deepseek", fg, muted)
 				galleryModelCard(c, s, "llm-pi-ai", fg, muted)
-				modelAddProviderCard(c, Model{}, &ModelsAccess{}, fg, muted)
+				modelAddProviderCard(c, Model{Store: s}, &ModelsAccess{}, &editing, &adding, fg, muted)
 			})
 		})
 	}, 1000, 800)
@@ -204,6 +205,7 @@ func TestModelConfigurationReasoningEffortsValidationAndMapping(t *testing.T) {
 	}
 	drafts := map[string]*string{}
 	m := Model{
+		Store: store.New(),
 		DraftPtr: func(key, seed string) *string {
 			if p, ok := drafts[key]; ok {
 				return p
@@ -217,16 +219,15 @@ func TestModelConfigurationReasoningEffortsValidationAndMapping(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		configurationModels(c, m, store.ViewState{Writable: true}, "custom", rows, fields, func(next []any) {
 			rows = next
-		}, ui.RGB(20, 20, 20), ui.RGB(120, 120, 120))
+		}, nil, ui.RGB(20, 20, 20), ui.RGB(120, 120, 120))
 	}, 780, 600)
-
-	chk, ok := tt.Find("high")
-	if !ok {
-		t.Fatal("missing high checkbox")
+	if err := tt.Click("Model options"); err != nil {
+		t.Fatal(err)
 	}
-	tt.ClickAt(chk.X+40, chk.Y+chk.H+14)
-	tt.Key(ui.Cmd, ui.KeyA)
-	tt.Type("thinking-high-v2")
+
+	if err := tt.SetValue("API value (high)", "thinking-high-v2"); err != nil {
+		t.Fatal(err)
+	}
 
 	efforts, _ := rows[0].(map[string]any)["reasoningEfforts"].(map[string]any)
 	if got := efforts["high"]; got != "thinking-high-v2" {

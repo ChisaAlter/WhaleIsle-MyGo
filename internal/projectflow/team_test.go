@@ -25,14 +25,16 @@ func TestNativeTeamAuthorityAndControls(t *testing.T) {
 		case "/api/session/projections":
 			args := req.Payload["args"].(map[string]any)
 			request := args["request"].(map[string]any)
-			if request["sessionId"] != "lead" {
-				t.Error("projection must belong to Lead")
+			if request["sessionId"] != "lead" && request["sessionId"] != "member" {
+				t.Error("unexpected Team projection owner")
 			}
-			values := map[string]any{}
+			values := map[string]any{"modelSelection": map[string]any{"next": map[string]any{"model": map[string]any{"provider": "fixture", "model": "team-model"}}}}
 			if !missing {
 				values["agentTeam"] = map[string]any{"members": []any{map[string]any{"id": "lead", "role": "lead", "phase": "active"}, map[string]any{"id": "member", "name": "worker", "role": "teammate", "phase": "active"}}, "tasks": []any{map[string]any{"id": "w", "ownerName": "worker", "status": "in_progress", "subject": "Build"}}}
 			}
 			value = map[string]any{"values": values}
+		case "/api/session/list":
+			value = map[string]any{"items": []any{}}
 		case "/dsh-project/stop":
 			if req.Payload["projectId"] != "p" || req.Payload["workstreamId"] != "w" {
 				t.Error("wrong stop target")
@@ -105,6 +107,8 @@ func TestTeamOverviewPageRetainsHostCursorAndWaitingReason(t *testing.T) {
 					"delegation": map[string]any{"phase": "queued", "waitingReason": map[string]any{"kind": "directory", "workTitles": []string{"Other work"}}}}},
 				"workers": []any{map[string]any{"sessionId": "member", "phase": "idle"}},
 			}
+		case "/api/session/list":
+			value = map[string]any{"items": []any{}}
 		case "/api/session/projections":
 			value = map[string]any{"values": map[string]any{"agentTeam": map[string]any{"members": []any{map[string]any{"id": "lead", "role": "lead"}}, "tasks": []any{}}}}
 		default:

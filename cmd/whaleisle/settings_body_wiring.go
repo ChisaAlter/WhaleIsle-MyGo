@@ -2,11 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
-	"os"
-	"path/filepath"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/config"
@@ -16,7 +12,6 @@ import (
 	"whaleisle/internal/paths"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/assistant"
-	"whaleisle/internal/ui/launcher"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -37,15 +32,13 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 	if m.Store == nil {
 		return
 	}
-	// The rail action opens the real config file; a missing file is created first
-	// so the editor never opens an empty path.
-	m.OnOpenConfig = func() {
-		path := filepath.Join(paths.UserDataDir(), config.FileName)
-		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-			_ = os.MkdirAll(filepath.Dir(path), 0o755)
-			_ = os.WriteFile(path, []byte("{}\n"), 0o600)
-		}
-		_ = mygo.Shell.OpenPath(path)
+	m.OnOpenConfig = nil
+	documentState := m.Store.Snapshot()
+	if documentState.ClientReady && documentState.Described && documentState.HasDocument {
+		m.OnOpenConfig = func() { m.Store.OpenSettingsDocument(context.Background()) }
+	}
+	if m.Account != nil {
+		m.Account.OnOpenInfo = func() { s.openAccountInfo(m.Account.UsageURL) }
 	}
 	var access *settings.BodySettingsAccess
 	if m.DesktopActive || m.AppearanceActive || m.InterfaceActive || m.ConversationActive {
@@ -57,6 +50,8 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		}}
 	}
 	if m.DesktopActive && m.Desktop != nil {
+		m.Desktop.OnSetLocale = s.setLocalePreference
+		m.Desktop.OnSetRestartPreference = s.setHarnessRestartPreference
 		m.Desktop.Host = access
 		m.Desktop.Shortcuts = s.pageShortcutEditor()
 		m.Desktop.Preferences = s.themeFontEditor(true)
@@ -78,6 +73,8 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 			cfg = s.cfgStore.Get()
 		}
 		m.Features.Project = s.projectPreferenceAccess()
+		m.Features.Assistant = s.featurePreferenceAccess(whaleAssistantFeature)
+		m.Features.RemoteWorkspace = s.featurePreferenceAccess(remoteWorkspaceFeature)
 		m.Features.AssistantEnabled = &cfg.WhaleAssistantEnabled
 		m.Features.OnSetAssistant = func(v bool) { s.setAssistantFlag(&v, nil) }
 		m.Features.RemoteWorkspaceEnabled = &cfg.RemoteWorkspaceEnabled
@@ -94,6 +91,9 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		}
 	}
 	if m.AboutActive && m.About != nil {
+		// About can be the first update entry after restart. Restore the same
+		// persisted owner before taking its display snapshot.
+		s.ensureNativeUpdateCenter()
 		m.About.HomePath = paths.DshHome()
 		m.About.OnRevealHome = func() error { return desktopcomponents.OpenInFileManager(paths.DshHome()) }
 		s.mu.Lock()
@@ -102,15 +102,9 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		win := s.win
 		s.mu.Unlock()
 		m.About.UpdateBusy = releases.busy || checking
-		// Keep the raw catalog error out of the About page. It is usually an HTTP
-		// status from a dev feed and reads as an internal failure to the user;
-		// the friendly status already says the lookup failed and the list was kept.
 		m.About.UpdateStatus = strings.TrimSpace(releases.status)
-		// A background feed failure is diagnostic noise on About. Keep it out
-		// of the default page; the check button retries and surfaces success or
-		// a newer version there.
-		if strings.Contains(m.About.UpdateStatus, "目录读取失败") || strings.Contains(m.About.UpdateStatus, "Catalog lookup failed") {
-			m.About.UpdateStatus = ""
+		if message := strings.TrimSpace(releases.err); message != "" && !strings.Contains(m.About.UpdateStatus, message) {
+			m.About.UpdateStatus = strings.TrimSpace(m.About.UpdateStatus + "\n" + message)
 		}
 		m.About.UpdatePhase = releases.phase
 		if checking && (m.About.UpdatePhase == "" || m.About.UpdatePhase == "idle") {
@@ -134,23 +128,19 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		if releases.total > 0 && releases.received >= 0 {
 			m.About.UpdatePercent = float64(releases.received) * 100 / float64(releases.total)
 		}
-		m.About.OnDownloadUpdate = func() { s.downloadNativeRelease(win, "", false) }
-		m.About.OnResumeUpdate = func() { s.downloadNativeRelease(win, "", false) }
+		// Vendor readiness is established by the actual update center, not by
+		// a first About render. Let it choose the matching runtime package.
+		m.About.OnDownloadUpdate = func() { s.openNativeUpdateCenter(win) }
+		m.About.OnResumeUpdate = func() { s.openNativeUpdateCenter(win) }
+		if releases.active.Tag != "" {
+			m.About.OnResumeUpdate = func() { s.resumeNativeUpdate(win) }
+		}
 		if releases.staged.Path != "" || m.About.UpdatePhase == "ready" {
 			m.About.OnInstallUpdate = func() { s.startNativeStaged(win) }
 		} else {
-			m.About.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", false) }
+			m.About.OnInstallUpdate = func() { s.openNativeUpdateCenter(win) }
 		}
-		m.About.OnOpenUpdateCenter = func() {
-			s.mu.Lock()
-			s.settingsOpen = false
-			s.launcherOpen = true
-			s.launcherTab = launcher.TabVersions
-			s.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
-		}
+		m.About.OnOpenUpdateCenter = func() { s.openNativeUpdateCenter(win) }
 	}
 	if m.InterfaceActive && m.Interface != nil {
 		var cfg config.Config
@@ -178,43 +168,22 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 			cfg = s.cfgStore.Get()
 		}
 		petSettings := &settings.PetSettingsAccess{
-			Err:   petSaveErr,
-			Store: m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil, DesktopUnavailable: isolatedDesktopRun(), DesktopError: desktopErr,
+			AssistantPreference: s.featurePreferenceAccess(whaleAssistantFeature),
+			Err:                 petSaveErr,
+			Store:               m.Store, AssistantEnabled: cfg.WhaleAssistantEnabled, AssistantAvailable: s.cfgStore != nil, DesktopUnavailable: isolatedDesktopRun(), DesktopError: desktopErr,
 			OnSetAssistant: func(v bool) { s.setAssistantFlag(&v, nil) },
 			RenderAssistant: func(c *ui.Context) {
-				assistant.WhaleSettingsSection(c, assistant.Model{Mode: assiststore.ModeWhale,
+				feature := s.featurePreferenceAccess(whaleAssistantFeature)
+				featureBusy := feature != nil && feature.State.Busy
+				assistant.WhaleSettingsSection(c, assistant.Model{Mode: assiststore.ModeWhale, Busy: featureBusy,
 					HarnessReady: ready, WhaleEnabled: cfg.WhaleAssistantEnabled, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					WhaleSettings: s.assistantWhaleSettingsModel(ep)})
 			},
 		}
-		// The dsh-whale catalog is Host data: without a ready Host every field and
-		// callback stays nil and the page renders exactly as before.
-		petSettings.Whale, petSettings.OnLoadWhale, petSettings.OnUpdateWhale,
-			petSettings.OnReplaceMemory, petSettings.OnClearMemory, petSettings.OnToggleSkill =
-			s.whalePetAccess(ep, ready && petActive)
 		m.PetSettings = petSettings
 	}
 }
 
 func (s *mainState) setRemoteWorkspacePreference(v bool) {
-	if s.cfgStore == nil {
-		return
-	}
-	if err := s.cfgStore.Update(func(c *config.Config) { c.RemoteWorkspaceEnabled = v }); err != nil {
-		s.mu.Lock()
-		s.desktopSaveErr = err.Error()
-		s.mu.Unlock()
-		return
-	}
-	s.syncHarnessFromConfig()
-	s.mu.Lock()
-	sup := s.sup
-	win := s.win
-	s.mu.Unlock()
-	if sup != nil {
-		s.restartUnlessImport(sup)
-	}
-	if win != nil {
-		win.Update(func() {})
-	}
+	s.setFeaturePreference(remoteWorkspaceFeature, v)
 }

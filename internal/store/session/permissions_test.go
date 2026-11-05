@@ -12,6 +12,7 @@ func TestFlattenPermissionCatalog(t *testing.T) {
 		DefaultPreset: "read-only",
 		DefaultOptions: []api.PermissionCatalogOptionsItem{
 			{Value: "read-only", Name: "Read only"},
+			{Value: "future-only", Name: "Future sessions only"},
 		},
 		Options: []api.PermissionCatalogOptionsItem{
 			{Value: "read-only", Name: "Read only duplicate"},
@@ -25,7 +26,9 @@ func TestFlattenPermissionCatalog(t *testing.T) {
 	if opts[0].Value != "read-only" || opts[1].Value != "workspace-write" {
 		t.Fatalf("values = %v, %v", opts[0].Value, opts[1].Value)
 	}
-	if got := labelForPresetValue(cat.DefaultPreset, opts); got != "Read only" {
-		t.Fatalf("default label = %q want %q", got, "Read only")
+	// Installed PermissionSelect consumes options; defaultOptions belongs only
+	// to the future-session settings controller and must not replace its labels.
+	if got := labelForPresetValue(cat.DefaultPreset, opts); got != "Read only duplicate" {
+		t.Fatalf("current-session label = %q want %q", got, "Read only duplicate")
 	}
 }

@@ -22,6 +22,26 @@ func usageFixture(t *testing.T, state string) *usagestore.Store {
 	t.Helper()
 	gate := make(chan struct{})
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/usage-stats/billing.") || r.URL.Path == "/usage-stats/projectRank" {
+			var req struct {
+				RPCID   string          `json:"rpcId"`
+				Payload json.RawMessage `json:"payload"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			var result any
+			switch r.URL.Path {
+			case "/usage-stats/billing.get":
+				result = map[string]any{"prices": map[string]any{}, "peakValleyEnabled": true}
+			case "/usage-stats/billing.models":
+				result = map[string]any{"options": []any{map[string]any{"provider": "deepseek", "providerName": "DeepSeek", "models": []string{"deepseek-v4-flash"}}}}
+			case "/usage-stats/billing.set":
+				result = req.Payload
+			case "/usage-stats/projectRank":
+				result = map[string]any{"projects": []any{}, "hasMore": false}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": result}})
+			return
+		}
 		if r.URL.Path != "/usage-stats/overview" {
 			http.NotFound(w, r)
 			return

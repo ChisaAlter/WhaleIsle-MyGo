@@ -117,15 +117,19 @@ func (e *node) buildMenu(button bool, build func(m *Menu)) {
 		rt.openMenu(e.id, button, pm, run.labels, commands)
 		if mr.pending != nil && mr.pending.id == e.id {
 			mr.pending.presentation = run.presentation
+			mr.pending.live = run.live
+			mr.pending.keys = run.keys
 			mr.pending.closeOnPointerLeave = run.closeOnPointerLeave
 			if run.closeOnPointerLeave {
 				e.flags |= flagHover
 			}
 		}
+	case mr.overlay != nil && mr.overlay.id == e.id && mr.overlay.button == button && mr.overlay.live:
+		e.rebuildLiveMenu(build)
 	case mr.chosen == e.id && mr.chosenButton == button:
 		mr.chosen = 0
 		mr.chosenHold = false
-		run := &menuRun{choice: mr.choice, label: mr.label}
+		run := &menuRun{choice: mr.choice, label: mr.label, choiceKey: mr.choiceKey}
 		build(&Menu{run: run, rt: rt, text: rt.states[mr.chosenText]})
 		if run.chosen {
 			// The choice may change what was built before: build again.
@@ -149,9 +153,12 @@ type Menu struct {
 // the menu shows, or the one after an item was chosen, which finds it by
 // its place among the items and its label.
 type menuRun struct {
-	collect bool
-	seq     int
-	labels  []string // the items' labels by place, when collecting
+	collect   bool
+	seq       int
+	labels    []string // the items' labels by place, when collecting
+	keys      []string // optional stable item identities, in the same order
+	choiceKey string
+	live      bool
 	// commands are the editing commands of EditItems' items by place, ""
 	// for the others, when collecting.
 	commands            []string
@@ -180,6 +187,7 @@ type MenuItem struct {
 	label    string
 	disabled bool
 	sub      bool
+	key      string
 	p        *platform.MenuItem // when the menu opens
 }
 
@@ -191,6 +199,7 @@ func (m *Menu) add(label string, typ platform.MenuItemType) *MenuItem {
 		it.p = &platform.MenuItem{ID: r.seq, Label: label, Type: typ, Enabled: true, Visible: true}
 		m.menu.Items = append(m.menu.Items, it.p)
 		r.labels = append(r.labels, label)
+		r.keys = append(r.keys, "")
 		r.commands = append(r.commands, "")
 	}
 	return it
@@ -311,7 +320,14 @@ func (it *MenuItem) Shortcut(mods Modifiers, key Key) *MenuItem {
 // chose it.
 func (it *MenuItem) Chosen() bool {
 	r := it.run
-	if r.collect || it.disabled || it.sub || r.choice != it.seq || r.label != it.label {
+	if r.collect || it.disabled || it.sub {
+		return false
+	}
+	if it.key != "" {
+		if r.choiceKey != it.key {
+			return false
+		}
+	} else if r.choice != it.seq || r.label != it.label || r.choiceKey != "" {
 		return false
 	}
 	r.chosen = true
@@ -343,6 +359,7 @@ type menuState struct {
 	chosenHold           bool
 	choice               int
 	label                string
+	choiceKey            string
 }
 
 // shownMenu is a context menu built for the element id. commands are the
@@ -352,6 +369,8 @@ type shownMenu struct {
 	button       bool
 	menu         *platform.Menu
 	labels       []string
+	keys         []string
+	live         bool
 	commands     []string
 	presentation map[int]menuItemPresentation
 	x, y         float32
@@ -647,6 +666,9 @@ func (rt *engine) buildMenuOverlay(c *context) {
 					offset += 9
 					continue
 				}
+				if p.live {
+					c.nextKey, c.keySet = "menu-live-"+menuLiveIdentity(p, i), true
+				}
 				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
 					BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
 				if !item.Enabled {
@@ -763,6 +785,10 @@ func (rt *engine) menuChosen(p *shownMenu, id int) {
 	} else {
 		mr := &rt.menu
 		mr.chosen, mr.chosenButton, mr.choice, mr.label, mr.chosenText = p.id, p.button, id, label, p.text
+		mr.choiceKey = ""
+		if id <= len(p.keys) {
+			mr.choiceKey = p.keys[id-1]
+		}
 		// The overlay reports the choice while building, before endPass; keep
 		// it for the next frame, when the button's builder runs it.
 		mr.chosenHold = true

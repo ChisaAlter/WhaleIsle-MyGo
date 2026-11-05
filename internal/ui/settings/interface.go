@@ -27,10 +27,13 @@ type InterfaceAccess struct {
 	ShowViewTabs     *bool
 	ShowArchivedList *bool
 	// AutoAllowTools mirrors Electron tool auto-allow (interaction store).
-	AutoAllowTools *bool
-	OnSave         func()
-	LastAction     string
-	Err            string
+	AutoAllowTools        *bool
+	OnSetShowArchivedList func(bool) (bool, error)
+	OnSetViewTabs         func(bool) (bool, error)
+	OnSetAutoAllowTools   func(bool) (bool, error)
+	OnSave                func()
+	LastAction            string
+	Err                   string
 }
 
 func interfaceViewTabsField(a *BodySettingsAccess) (string, store.Field, bool) {
@@ -98,6 +101,9 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// peak hours to the usage page; next-prompt to the conversation page; the
 	// thinking glow to the appearance page.
 	for _, field := range []struct{ ns, key, zh, en, zhDesc, enDesc string }{
+		{"session-log-download", "titlebarAction", "会话日志导出", "Session log export",
+			"在标题栏显示额外的会话日志按钮。关闭后仍可从会话的更多操作菜单或 /export 下载。",
+			"Show an extra Session log button in the titlebar. Turning this off still leaves the Session more-actions menu and /export available."},
 		{"ui-git", "titlebarGit", "标题栏 Git 操作", "Titlebar Git actions",
 			"显示初始化、切换分支、提交及菜单。关闭后仍可通过进行中的进度与对话框完成操作。",
 			"Show init, branch, commit and menus. The in-progress progress and dialogs still work when hidden."},
@@ -130,22 +136,14 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	} else if hostViewTabs && viewTabsField.Kind != store.FieldBool {
 		ui.Text(c, providerCopy("会话视图标签：此 Host 的设置类型不受支持。", "Conversation view tabs: this Host's field type is unsupported.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
-	bodyLocalToggle(c, "interface-archive", providerCopy("显示底部归档管理区", "Show the archive manager"), providerCopy("选择“隐藏已归档”时，在侧栏底部显示可折叠的“已归档”管理区。关闭后仍可从视图选项查看全部或仅归档会话，并取消归档或删除。", "When archived sessions are hidden, show a collapsible Archived area at the bottom of the sidebar. When off, you can still view all or only archived sessions from the view options and unarchive or delete them."), a.ShowArchivedList, a.OnSave == nil, fg, muted, func(bool) {
-		if a.OnSave != nil {
-			a.OnSave()
-		}
+	bodyLocalToggle(c, "interface-archive", providerCopy("显示底部归档管理区", "Show the archive manager"), providerCopy("选择“隐藏已归档”时，在侧栏底部显示可折叠的“已归档”管理区。关闭后仍可从视图选项查看全部或仅归档会话，并取消归档或删除。", "When archived sessions are hidden, show a collapsible Archived area at the bottom of the sidebar. When off, you can still view all or only archived sessions from the view options and unarchive or delete them."), a.ShowArchivedList, a.OnSetShowArchivedList == nil, fg, muted, func(next bool) {
+		setInterfaceAccepted(c, a.ShowArchivedList, next, a.OnSetShowArchivedList)
 	})
-	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-	}
-	if a.LastAction != "" {
-		ui.Text(c, settingsActionText(a.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	}
 	bodyDisclosure(c, "interface-local-preferences", providerCopy("本地偏好", "Local preferences"), func() {
 		if localViewTabs && a.ShowViewTabs != nil {
 			desktopRow(c, i18n.T(i18n.KeySettingsInterfaceViewTabs), func() {
-				if ui.Switch(c, a.ShowViewTabs).Label(i18n.T(i18n.KeySettingsInterfaceViewTabs)).Disabled(a.OnSave == nil).Changed() && a.OnSave != nil {
-					a.OnSave()
+				if ui.Switch(c, a.ShowViewTabs).Label(i18n.T(i18n.KeySettingsInterfaceViewTabs)).Disabled(a.OnSetViewTabs == nil).Changed() {
+					setInterfaceAccepted(c, a.ShowViewTabs, *a.ShowViewTabs, a.OnSetViewTabs)
 				}
 			}, fg, muted)
 			ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -154,10 +152,21 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.AutoAllowTools == nil {
 				return
 			}
-			if ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow)).Changed() && a.OnSave != nil {
-				a.OnSave()
+			if ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow)).Disabled(a.OnSetAutoAllowTools == nil).Changed() {
+				setInterfaceAccepted(c, a.AutoAllowTools, *a.AutoAllowTools, a.OnSetAutoAllowTools)
 			}
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	})
+}
+
+func setInterfaceAccepted(c *ui.Context, value *bool, next bool, write func(bool) (bool, error)) {
+	if value == nil || write == nil {
+		return
+	}
+	accepted, err := write(next)
+	*value = accepted
+	if err != nil {
+		c.AddToast(ui.Toast{Title: err.Error()})
+	}
 }

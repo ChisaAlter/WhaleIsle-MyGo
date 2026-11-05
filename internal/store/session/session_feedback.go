@@ -50,9 +50,9 @@ func (s *Store) EditSessionFeedback(text, category string) {
 }
 func (s *Store) CancelSessionFeedback() {
 	s.mu.Lock()
-	if !s.sessionFeedback.Busy {
-		s.invalidateSessionFeedbackLocked()
-	}
+	// Dismissing revokes the editor, not the already admitted record RPC. Its
+	// late acknowledgement cannot reopen this draft or replay the submission.
+	s.invalidateSessionFeedbackLocked()
 	s.mu.Unlock()
 	s.fire()
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/egoist/mygo"
 	"strings"
 	"time"
 
@@ -14,13 +15,14 @@ import (
 
 // This panel is an entry point, not another transcript or prompt transport.
 // The existing session/composer owns streaming, tool approvals, stop and retry.
-func (s *mainState) assistantConversationCurrent(ep harness.Endpoint, client *dsh.Client, generation uint64, mode assiststore.Mode) bool {
+func (s *mainState) assistantConversationCurrent(ep harness.Endpoint, client *dsh.Client, generation uint64, mode assiststore.Mode, sidebar ...bool) bool {
 	s.dshMu.Lock()
 	same := client != nil && s.dshClient == client && client.Endpoint.Origin == ep.Origin && client.Endpoint.Cookie == ep.Cookie
 	s.dshMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !same || !s.assistantOpen || s.assistantConversationGeneration != generation || s.bootStatus.State != harness.Ready || s.bootStatus.Endpoint != ep || s.cfgStore == nil {
+	direct := len(sidebar) > 0 && sidebar[0]
+	if !same || !s.assistantOpen && !direct || s.assistantConversationGeneration != generation || s.bootStatus.State != harness.Ready || s.bootStatus.Endpoint != ep || s.cfgStore == nil {
 		return false
 	}
 	cfg := s.cfgStore.Get()
@@ -31,9 +33,29 @@ func (s *mainState) assistantConversationCurrent(ep harness.Endpoint, client *ds
 }
 
 func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assiststore.Mode, botID, text string) {
+	s.openAssistantConversationIntent(ep, mode, botID, text, false)
+}
+
+// The sidebar's default action opens the canonical conversation immediately;
+// the native management page remains a separate entry with its own drafts.
+func (s *mainState) openWhaleFromSidebar(win *mygo.Window) {
+	s.revealMainConversation()
+	s.mu.Lock()
+	ep := s.bootStatus.Endpoint
+	ready := s.bootStatus.State == harness.Ready
+	enabled := s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
+	s.mu.Unlock()
+	if !ready || !enabled {
+		s.notifyUser(win, hostNotReadyToast())
+		return
+	}
+	s.openAssistantConversationIntent(ep, assiststore.ModeWhale, "", "", true)
+}
+
+func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode assiststore.Mode, botID, text string, sidebar bool) {
 	s.mu.Lock()
 	asst, sessions, win := s.assistant, s.sessions, s.win
-	if asst == nil || sessions == nil || win == nil || !s.assistantOpen || s.assistantPluginBusy || asst.Snapshot().Busy {
+	if asst == nil || sessions == nil || win == nil || !s.assistantOpen && !sidebar || s.assistantPluginBusy || asst.Snapshot().Busy {
 		s.mu.Unlock()
 		return
 	}
@@ -51,12 +73,15 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 	owner, err := sessions.CaptureComposerTarget(sessions.SelectedSessionID())
 	if err != nil {
 		asst.SetLastAction(err.Error(), err.Error())
+		if sidebar {
+			s.notifyUser(win, err.Error())
+		}
 		return
 	}
 	s.dshMu.Lock()
 	client := s.dshClient
 	s.dshMu.Unlock()
-	if !s.assistantConversationCurrent(ep, client, generation, mode) {
+	if !s.assistantConversationCurrent(ep, client, generation, mode, sidebar) {
 		return
 	}
 	asst.SetBusy(true)
@@ -74,7 +99,7 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 		}
 		win.Update(func() {
 			asst.SetBusy(false)
-			if !s.assistantConversationCurrent(ep, client, generation, mode) || !owner.NavigationCurrent() {
+			if !s.assistantConversationCurrent(ep, client, generation, mode, sidebar) || !owner.NavigationCurrent() {
 				return
 			}
 			if openErr == nil && strings.TrimSpace(sid) == "" {
@@ -82,6 +107,9 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 			}
 			if openErr != nil {
 				asst.SetLastAction(openErr.Error(), openErr.Error())
+				if sidebar {
+					s.notifyUser(win, openErr.Error())
+				}
 				return
 			}
 			// Preserve an existing session draft rather than submit it accidentally.

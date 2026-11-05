@@ -87,6 +87,9 @@ func treeFileMenu(m Model, path string) func(*ui.Menu) {
 		if m.OnOpenDoc != nil && menu.Item(i18n.T(i18n.KeyFilesOpenExternal)).Chosen() {
 			withToolbarPath(m, path, textPreviewPath(m, path), func(full string) { m.OnOpenDoc(full, workspacefs.ClassifyDoc(path), false) })
 		}
+		if m.SelectedFile == nil || *m.SelectedFile != path {
+			previewEditorMenu(menu, m, path)
+		}
 		previewContextActions(menu, m, path)
 	}
 }

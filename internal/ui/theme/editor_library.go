@@ -3,7 +3,7 @@ package theme
 import "reflect"
 
 func (e *Editor) SelectThemeHalf(dark bool, id string) {
-	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	next, draft := e.writeBaseline(), e.Draft.Clone()
 	if dark {
 		next.Dark, draft.Dark = id, id
 	} else {
@@ -13,7 +13,7 @@ func (e *Editor) SelectThemeHalf(dark bool, id string) {
 }
 
 func (e *Editor) StartFamily(f Family) {
-	e.Draft = e.Saved.Clone()
+	e.Draft = e.writeBaseline()
 	e.Selected = f.ID
 	f.Light, f.Dark = f.Light.Clone(), f.Dark.Clone()
 	found := false
@@ -52,9 +52,38 @@ func (e *Editor) SaveSelectedFamily() {
 	}
 	e.Draft.Light, e.Draft.Dark = e.Selected, e.Selected
 	e.Save()
-	if e.Status != "" && !e.Preview {
+	if e.pendingSave != nil && reflect.DeepEqual(e.Draft, *e.pendingSave) {
+		e.pendingFamilySave = e.Selected
+	} else if !e.Preview && reflect.DeepEqual(e.Draft, e.Saved) {
 		e.Selected = ""
 	}
+}
+
+// ImportLibraryFamily writes only the imported family. The separate open
+// family editor (including a newly created, unsaved family) remains a draft.
+func (e *Editor) ImportLibraryFamily(raw string) bool {
+	next, draft := e.writeBaseline(), e.Draft.Clone()
+	family, err := next.ImportFamily(raw)
+	if err != nil {
+		e.Status = err.Error()
+		return false
+	}
+	// The draft may own an ID not in the persisted library yet.
+	for _, f := range draft.Custom {
+		if f.ID == family.ID {
+			family.ID = draft.DuplicateFamily(family).ID
+			break
+		}
+	}
+	next.Custom = append(next.Custom, family)
+	draft.Custom = append(draft.Custom, family)
+	if !e.saveFontField(next, draft) {
+		return false
+	}
+	if e.Selected != "" {
+		e.PreviewSelectedFamily()
+	}
+	return true
 }
 
 // DeleteFamily removes only the addressed persisted custom family. Library
@@ -91,11 +120,17 @@ func (e *Editor) DeleteFamily(id string) bool {
 }
 
 func (e *Editor) ResetAppearanceFonts() {
-	next, draft := e.Saved.Clone(), e.Draft.Clone()
+	next, draft := e.writeBaseline(), e.Draft.Clone()
 	next.Interface, draft.Interface = FontPreference{Size: 16}, FontPreference{Size: 16}
 	next.Chat.Family, draft.Chat.Family = "", ""
 	next.Code, draft.Code = FontPreference{Size: 13}, FontPreference{Size: 13}
 	next.Composer.Family, draft.Composer.Family = "", ""
 	next.Terminal.Family, draft.Terminal.Family = "", ""
 	e.saveFontField(next, draft)
+}
+
+// FamilySavePending belongs only to this editor submission, not an unrelated
+// import or font write queued on the same appearance document.
+func (e *Editor) FamilySavePending() bool {
+	return e.pendingFamilySave != "" && e.Pending != nil && e.Pending()
 }

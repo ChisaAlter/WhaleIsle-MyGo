@@ -56,6 +56,15 @@ func PlanStart(o LaunchOptions, prep PrepareOptions, port int) (StartPlan, error
 		return StartPlan{}, err
 	}
 	o.PatchFiles = append(append([]string(nil), o.PatchFiles...), patches...)
+	o.DesktopDefaults = true
+	o.ProfileDefaultPatch, err = PreparePadDefault(prep)
+	if err != nil {
+		return StartPlan{}, err
+	}
+	o.WhaleUIHost, err = prepareWhaleUIHost(o.Home)
+	if err != nil {
+		return StartPlan{}, fmt.Errorf("Whale UI host: %w", err)
+	}
 	endResolve := startuptrace.Begin("runtime.launch_resolve")
 	plan, err := Resolve(o, port)
 	endResolve()

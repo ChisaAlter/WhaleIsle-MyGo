@@ -245,7 +245,7 @@ func (n *macNativeInput) input(queue unsafe.Pointer, b *macAudioBuffer) {
 		clear(data)
 		return
 	}
-	if n.preview {
+	{
 		var sum float64
 		count := len(data) / blockAlign
 		for i := 0; i < count; i++ {
@@ -257,7 +257,8 @@ func (n *macNativeInput) input(queue unsafe.Pointer, b *macAudioBuffer) {
 			level = math.Sqrt(sum / float64(count))
 		}
 		n.level.Store(math.Float64bits(level))
-	} else {
+	}
+	if !n.preview {
 		count := min(len(data), len(n.pcm)-n.length)
 		count -= count % blockAlign
 		copy(n.pcm[n.length:], data[:count])
@@ -423,16 +424,24 @@ func (n *macNativeInput) release(keep bool) ([]byte, error) {
 
 func (n *macNativeInput) run(c *recording, duration time.Duration) {
 	timer := time.NewTimer(duration)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
 	defer timer.Stop()
-	select {
-	case <-c.ctx.Done():
-	case <-c.cancel:
-	case <-c.stop:
-	case <-timer.C:
-	case <-n.finished:
+	for {
+		select {
+		case <-ticker.C:
+			c.level.Store(n.level.Load())
+			continue
+		case <-c.ctx.Done():
+		case <-c.cancel:
+		case <-c.stop:
+		case <-timer.C:
+		case <-n.finished:
+		}
+		pcm, err := n.release(c.ctx.Err() == nil)
+		c.finish(pcm, err)
+		return
 	}
-	pcm, err := n.release(c.ctx.Err() == nil)
-	c.finish(pcm, err)
 }
 
 type macInputPreview struct {

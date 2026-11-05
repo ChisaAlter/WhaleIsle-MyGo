@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func roomEditAcknowledgement() string {
@@ -68,9 +69,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "room_edit:72", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

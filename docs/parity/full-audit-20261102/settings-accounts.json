@@ -1,0 +1,2163 @@
+{
+  "domain": "settings-accounts-usage-theme-shortcuts",
+  "features": [
+    {
+      "id": "SET-001",
+      "feature": "常规：语言选择不提交",
+      "baseline": "installed-0.3.13",
+      "expected": "选择中文或 English 后立即生效并重启保留。",
+      "entry": "设置 > 常规 > 语言",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/locale/lib/types/client/index.js:470-479: 语言行注入常规设置。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/locale/lib/types/client/LanguageRow.js:9-13: onChange 直接 setLocale。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/desktop.go:67-82: Changed 只改 Fields.Locale，没有调用 OnSave。",
+        "cmd/whaleisle/main.go:699-723: 值来自 desktopDraft。",
+        "cmd/whaleisle/main.go:884-919: saveDesktopConfig 才写 c.Locale 并调用 i18n.SetLocale。",
+        "internal/ui/settings/desktop.go:164-170: 保存按钮在关于的诊断区，不在常规语言行。"
+      ],
+      "finding": "常规页语言选择仅改草稿，不调用语言服务或持久化；经其他共享草稿的保存入口才可能意外生效。",
+      "evidenceLevel": "code",
+      "requiredAction": "给语言行独立提交，仅写 locale；失败恢复 accepted 值。",
+      "acceptanceGap": "仅静态闭环；未操作真实 UI、profile、凭据、账户或模型请求。"
+    },
+    {
+      "id": "SET-002",
+      "feature": "账户：普通登录 callbackOrigin 不符合 Host 协议",
+      "baseline": "installed-0.3.13",
+      "expected": "点击登录后 Host 建立浏览器可回调的授权尝试。",
+      "entry": "常规未登录行或侧栏账户菜单 > 账户 > 登录",
+      "status": "confirmed-defect",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/credentials/deepseek-account-platform/lib/index.js:311-324: loginOrigin 仅允许显式非零端口的 loopback HTTP origin。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/credentials/deepseek-account-platform/lib/types/index.js:374-377: startSignIn 先调用 loginOrigin。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/navigation.go:137-141: 未登录用户有账户入口。",
+        "internal/ui/settings/account.go:75-93: 登录按钮调用 OnSignIn。",
+        "cmd/whaleisle/main.go:4265-4285: production 固定传 whaleisle://auth。"
+      ],
+      "finding": "MyGo 传入自定义 scheme，当前随包 Host 的 loginOrigin 必然抛 protocol，无法开始普通账户登录；与 welcome 禁用无关。",
+      "evidenceLevel": "code",
+      "requiredAction": "使用当前 Host 的浏览器可达 loopback origin，接通其现有回调；保留取消及失败反馈。",
+      "acceptanceGap": "仅静态闭环；未操作真实 UI、profile、凭据、账户或模型请求。",
+      "runtimeAcceptance": {
+        "date": "2026-11-02",
+        "result": "FAIL",
+        "level": "actual delivered Host bundle method, no external sign-in",
+        "report": "RUNTIME-ACCEPTANCE.md",
+        "receipt": "evidence/runtime-acceptance.json"
+      }
+    },
+    {
+      "id": "SET-003",
+      "feature": "通用高级凭据：写入的 API key 引用与适配器默认不一致",
+      "baseline": "installed-0.3.13",
+      "expected": "保存 API key 后默认 DeepSeek API provider 能解析其 credential ref。",
+      "entry": "设置 > 常规 > 高级 > 凭据 > API key > 保存",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/config.js:6-21: 默认引用 DEEPSEEK_API_KEY。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/index.js:12-26: 按 apiKeyEnv 解析凭据。"
+      ],
+      "mygoEvidence": [
+        "internal/store/settings/credentials_rpc.go:11-15: CredRefAPIKey 固定 apiKey。",
+        "internal/store/settings/credentials_rpc.go:48-57: 同步仅 set/unset apiKey。",
+        "cmd/whaleisle/main.go:745-780: 可达的高级凭据保存后调用该同步。",
+        "internal/ui/settings/navigation.go:149-160: 高级凭据入口。"
+      ],
+      "finding": "本地保存成功后 Host ref 写成 apiKey，当前默认适配器解析 DEEPSEEK_API_KEY；未另配引用时默认 provider 不会使用该 key。",
+      "evidenceLevel": "code",
+      "requiredAction": "依据 Host provider directory 的 apiKeyEnv 写 secret，并区分本地保存与 Host 应用结果。",
+      "acceptanceGap": "仅静态闭环；未操作真实 UI、profile、凭据、账户或模型请求。"
+    },
+    {
+      "id": "SET-004",
+      "feature": "模型：把 credential-ref 字段当成密钥值编辑",
+      "baseline": "installed-0.3.13",
+      "expected": "API key 经 write-only credentials/set 保存；apiKeyEnv 仅存引用名。",
+      "entry": "设置 > 模型 > DeepSeek API > 编辑 > API 密钥 > 保存",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/config.js:6-21: apiKeyEnv 的 role 是 credential-ref。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/index.js:12-26: 将其当凭据名称解析。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/CustomProviderCard.js:13-14: 原版 key 与 config 分路，经 credentials/set。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/model_body.go:48-66: SecretLikeKey 主字段进入 API key 输入。",
+        "internal/ui/settings/model_body.go:186-199: 密码框直接 binding.SetDraft(field.Key,value)。",
+        "internal/ui/settings/model_body.go:80-86: 提交 namespace binding.Save。",
+        "internal/desktop/credentialrefs/protocol.go:96-103: 正确引用凭据入口仅纳入 llm-deepseek/llm-pi-ai，排除实际 llm-deepseek-api-key。"
+      ],
+      "finding": "当前 apiKeyEnv 会标成 API 密钥，输入 secret 后直接变为设置字段草稿并提交，而不走 credentials/set。Host 随后按它解析引用（或校验拒绝）。引用凭据入口也不覆盖当前 namespace。",
+      "evidenceLevel": "code",
+      "requiredAction": "依据 schema role/Host provider directory 区分 credential-ref；纳入 llm-deepseek-api-key 的 write-only secret 管理。",
+      "acceptanceGap": "仅静态闭环；未操作真实 UI、profile、凭据、账户或模型请求。"
+    },
+    {
+      "id": "SET-005",
+      "feature": "对话：工作步骤收起时机保存后无渲染消费",
+      "baseline": "installed-0.3.13",
+      "expected": "completion 与 next-input 实际改变已完成工作步骤的收起时机。",
+      "entry": "设置 > 对话 > 工作步骤收起时机",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/transcript-view.js:41-58: 接收持久化 collapseTiming。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/presentation-policy.js:51-65: timing 参与实时 policy。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ChatView.js:52: next-input 决定延后折叠。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/conversation.go:20-25: 有设置行。",
+        "internal/store/settings/chat_preferences.go:8-42: ChatPreferences 只取 LinkOpening/TranscriptView/PerformanceUsage，没有 collapseTiming。",
+        "cmd/whaleisle/main.go:6712-6716: frame 使用上述解析。",
+        "internal/ui/settings/body_preferences.go:372: 其余生产引用只有设置枚举文案。"
+      ],
+      "finding": "internal/cmd 的 collapseTiming 仅在设置行和文案出现，accepted 偏好未接入渲染；保存不能改变步骤折叠时机。",
+      "evidenceLevel": "code",
+      "requiredAction": "把 accepted collapseTiming 接入当前与历史 turn 呈现。",
+      "acceptanceGap": "仅静态闭环；未操作真实 UI、profile、凭据、账户或模型请求。"
+    },
+    {
+      "id": "SET-006",
+      "feature": "设置页头：打开配置文件指向了桌面 config 而非 Host 文档",
+      "baseline": "installed-0.3.13",
+      "expected": "打开当前 Host 声明的 settings document，仅有文档时可用，失败可见。",
+      "entry": "设置 > 页头打开配置文件",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-document-store.js:39-62: 调 pathless remote.settings.openSettingsDocument。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-document-store.js:69-85: 仅 hasDocument 时 ready。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_body_wiring.go:40-49: 始终打开 UserDataDir/config.json，缺失时创建 {}，忽略错误。",
+        "internal/ui/settings/settings.go:128-139: 页头 OnOpenConfig。",
+        "internal/store/settings/document.go:14-38: 有正确 Host RPC 实现，但该页头未用。"
+      ],
+      "finding": "同名页头按钮在 MyGo 打开桌面启动器 config.json，而不是包含 Host namespace 配置的文档；它也不遵循 hasDocument，可在无 Host 时显示可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "页头装配 Store.OpenSettingsDocument 并按 Host hasDocument 隐藏/禁用；桌面 config 仅留独立诊断入口。",
+      "acceptanceGap": "只读代码审查，未操作实际 UI 或真实数据。"
+    },
+    {
+      "id": "SET-007",
+      "feature": "会话累计费用：未应用官方价格及默认谷价",
+      "baseline": "installed-0.3.13",
+      "expected": "官方 DeepSeek 模型不需手工定价即可按官方峰/谷列显示累计费用；用户仅设置峰价时按既有规则推导谷价。",
+      "entry": "用量与费用 > 会话累计费用；输入框下方费用及明细",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/price-calculator.js:110-135: 自定义价格优先，再官方表；未填 idle 用峰价一半。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/PeakValleyRow.js:118-138: 所有源按 route 合并后 billedCostCents。",
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/index.js:2435-2436: billing.get 只给 pricesSource.snapshot 自定义表。"
+      ],
+      "mygoEvidence": [
+        "internal/store/sessioncost/cost.go:137-153: 只查 settings.Prices；没有自定义则 Unpriced；谷段非零且 Idle nil 也 Unpriced。",
+        "internal/store/usage/pricing.go:140-189: billing 解码不填官方价格。",
+        "internal/store/usage/pricing_official.go:11-31: 统计页具备官方价格 resolver，但 sessioncost 不调用。",
+        "internal/ui/sessioncost/view.go:238-274: 实际显示使用上述 Calculate。"
+      ],
+      "finding": "费用条只认用户自定义价格表。默认官方模型即使 Host 有正确 billedUsage 仍显示未定价，且与用量统计页采用官方表的估算不一致。自定义峰价没有 idle 时也不遵循原版一半谷价规则。",
+      "evidenceLevel": "code",
+      "requiredAction": "会话费用与统计页共享价格解析规则；保留 route 聚合与未定价状态，不重新从可见消息估算 token。",
+      "acceptanceGap": "只读代码审查，未操作实际 UI 或真实数据。"
+    },
+    {
+      "id": "SET-008",
+      "feature": "主题导入/导出：丢失主题自带壁纸",
+      "baseline": "installed-0.3.13",
+      "expected": "主题 family 的 wallpaper 被保留，选择该主题时可使用或关闭自带壁纸，用户显式壁纸优先。",
+      "entry": "外观 > 主题库导入/选择/导出；壁纸 > 主题自带壁纸",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/index.js:676-700: family.wallpaper 与 skinWallpaperEnabled 决定有效壁纸。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/WallpaperRow.js:93: 自带壁纸开关 setWallpaper(skinWallpaperEnabled)。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/theme/preferences.go:31-37: Family 只有 ID/Name/Light/Dark/Skin，无 wallpaper。",
+        "internal/ui/theme/family_documents.go:65-92: 导入反序列化为 Family，导出也只序列化 Family。",
+        "internal/ui/theme/host_preferences.go:12-53: HostSettings 未接收 skinWallpaperEnabled；79-105 的映射无该字段。",
+        "internal/ui/settings/wallpaper_background.go:505-584: 只有普通壁纸/效果设置，无自带壁纸开关。"
+      ],
+      "finding": "读取原版带 wallpaper 的 theme family 时 JSON 未知字段被丢弃，主题导入后不呈现自带壁纸，重新导出/写 customThemes 时也不保留；相关开关未接入。",
+      "evidenceLevel": "code",
+      "requiredAction": "扩展 family/Host 投影及图库控件，保留主题 wallpaper 和启用开关；按原版用户壁纸优先级渲染。",
+      "acceptanceGap": "只读代码审查，未操作实际 UI 或真实数据。"
+    },
+    {
+      "id": "SET-009",
+      "feature": "独立欢迎窗与账户首次引导按既定选择禁用",
+      "baseline": "existing-MyGo-contract",
+      "expected": "直接进入工作区，不隐式显示独立欢迎/充值/用途引导；保留实现不等同常规可达入口。",
+      "entry": "应用启动 welcomeRequired 和 mainView defer renderDesktopOnboarding",
+      "status": "wired-unverified",
+      "priority": "P3",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/welcome-window.js:1-80: 原版独立欢迎窗实现，用于能力库存比对，不推翻用户禁用决定。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/welcome_window.go:60-65: 用户要求直接进工作区，welcomeRequired 返回 false。",
+        "cmd/whaleisle/desktop_onboarding.go:11-15: 用户同样禁用账户首次引导，renderDesktopOnboarding 返回 false。",
+        "cmd/whaleisle/main.go:2723-2726: startup gate。",
+        "cmd/whaleisle/main.go:3668: 引导渲染接点保留，但函数直接返回 false。",
+        "internal/ui/settings/onboarding.go:84-98: 保留实现有 Locale()==zh 的静态资源分支；当前没有用户可达影响。"
+      ],
+      "finding": "welcomeWindow 和 DesktopOnboarding 均明确禁用，是现有产品选择；保留的API key/引导页面不计作普通登录或密钥入口。常规账户/高级凭据入口另外追踪SET-002..004。",
+      "evidenceLevel": "code",
+      "requiredAction": "保持既定禁用选择；当前只需确认启动直接进入工作区。若以后明确恢复引导，再修中文资源分支并验收完整流程。",
+      "acceptanceGap": "本轮不操作启动或真实profile；不把禁用页面里的静态分支问题列为当前用户缺陷。"
+    },
+    {
+      "id": "SET-010",
+      "feature": "账户资料、余额与刷新状态",
+      "baseline": "installed-0.3.13",
+      "expected": "显示账户安全资料、各币种余额、正数奖励余额；加载/失败不得伪装成零余额。",
+      "entry": "账户页及侧栏账户座",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:20-28: typed 资料和钱包状态。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:75-93: loading/unavailable、余额与奖励行。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/account.go:95-179: typed 资料/余额、奖励过滤、余额不可用时平台入口。",
+        "internal/store/usage/account_details.go:22-81: getProfile/getBalance 分别请求，按 client/epoch/read 防旧响应。",
+        "internal/accountdetails/details.go:60-129: 解析资料/钱包及十进制余额。",
+        "internal/store/usage/follow.go:98-158: watch 帧失效旧账户读取。"
+      ],
+      "finding": "资料和钱包通过 typed Host RPC 读取，账户变化清空旧资料，失败不填零。MyGo 目前使用通用人像，未接原版账户头像服务；账户信息外链另记 SET-047。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留 typed 资料/余额链；补原版 avatar 元数据/安全图片装配，并验收上述账户状态。",
+      "acceptanceGap": "需已有登录账户的资料/多币种/奖励/资料失败与账户切换可见验收；头像加载和失败回退未实现。"
+    },
+    {
+      "id": "SET-011",
+      "feature": "登录尝试跟随、打开授权页与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "只跟随本用户发起的 attempt，避免反复自动打开；committing 不允许取消；错误可重试。",
+      "entry": "账户登录进行中",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:25-27: active phases。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:82-93: 重开授权与取消。"
+      ],
+      "mygoEvidence": [
+        "internal/accountlogin/login.go:21-95: Begin/Started/Observe 绑定 attempt、一次打开和失败状态。",
+        "internal/ui/settings/account.go:128-136: 授权及取消按钮，committing 禁用。",
+        "cmd/whaleisle/account_return.go:90-113: cancelSignIn 按 attemptId、Host 身份检查并刷新。",
+        "internal/store/usage/follow.go:141-157: 流同步 attempt 与 URL。"
+      ],
+      "finding": "登录呈现/取消链已装配；发起请求被 SET-002 挡住，因此不能把后续 wiring 当登录成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "修复 SET-002 后需开始/重复帧/浏览器失败/取消/过期/commit 边界与 Host 更换验收。"
+    },
+    {
+      "id": "SET-012",
+      "feature": "退出账户的影响确认、取消和未知结果恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "退出前提示运行中任务；用户确认才 signOut，未知结果先读回，不自动重发。",
+      "entry": "账户或侧栏退出 > 确认对话框",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountMenu.js:44-59: 读取账户任务影响。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/SignOutDialog.js:1-31: 影响确认界面。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/account_signout.go:31-75: running/unknown 提示、确认、取消、检查结果。",
+        "internal/accountlogout/flow.go:152-255: 重查账户身份/任务影响再 signOut，失败转 reconcile。",
+        "internal/accountlogout/flow.go:258-291: 未知结果只读检查。",
+        "cmd/whaleisle/account_signout.go:15-39: production action 与完成后刷新。"
+      ],
+      "finding": "当前流程按 reviewID/Host 绑定防过时确认；不删除本地会话或退出应用，错误/丢响应先核验账户状态。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需真实已登录账户在空闲/运行任务/失联及账户替换下确认、取消与检查结果验收；本轮不发 signOut。"
+    },
+    {
+      "id": "SET-013",
+      "feature": "账户用量/充值内嵌平台与返回刷新",
+      "baseline": "installed-0.3.13",
+      "expected": "账户页用量/充值共用认证平台视图；返回原入口，退出或 Host 变更撤销页面。",
+      "entry": "账户 > 用量/充值；余额读取失败 > 余额暂不可用",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:59-74: Desktop 内嵌 usage 与余额失败回退。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:90-93: top-up。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/account_platform.go:43-116: Host PlatformSession 产生 origin，临时 profile 与受限导航。",
+        "cmd/whaleisle/account_platform.go:117-142: 账户/Host 变更撤销。",
+        "cmd/whaleisle/account_return.go:41-48: top-up 映射。",
+        "cmd/whaleisle/account_return.go:137-159: 返回 settings/usage 并刷新账户。"
+      ],
+      "finding": "认证 origin 来自 Host，不使用 UI 传入 URL承载凭据；原账户/用量来源有返回路径。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需实际平台页面、第三方支付外链、返回、账户切换与 Host 重启场景验收；未进行登录或支付。"
+    },
+    {
+      "id": "SET-014",
+      "feature": "联系与反馈入口",
+      "baseline": "installed-0.3.13",
+      "expected": "未登录/已登录均能打开官方反馈 URL，仅附安全上下文。",
+      "entry": "侧栏账户菜单；已登录账户页 > 联系与反馈",
+      "status": "wired-unverified",
+      "priority": "P3",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountMenu.js:66-85: 两种账户状态都有 contact 动作。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/contact-url.js:1-32: 联系 URL 规则。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/account_contact.go:12-25: 安全 UID、版本、OS 与屏幕元数据，显式 OpenExternal。",
+        "internal/accountcontact/contact.go:19-69: URL/设备元数据处理与打开。",
+        "internal/ui/settings/account.go:192-201: 联系按钮。"
+      ],
+      "finding": "账户页与菜单共享 contactAccountSupport；打开失败通过账户 action 错误反馈。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需默认浏览器打开/URL参数/打开失败/未登录菜单路径的真实验收。"
+    },
+    {
+      "id": "SET-015",
+      "feature": "常规关闭行为与启动入口独立持久化",
+      "baseline": "installed-0.3.13",
+      "expected": "关闭窗口选托盘或退出；启动选桌面或启动器；保存失败恢复当前 accepted 值。",
+      "entry": "设置 > 常规 > 关闭窗口时/启动时",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/CloseBehaviorRow.js:1-67: 关闭行为选择。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/AutoStartDesktopRow.js:1-67: 启动选择。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/desktop.go:88-108: 独立 immediate setter。",
+        "internal/ui/settings/desktop.go:174-198: 返回 accepted 值/失败 toast。",
+        "cmd/whaleisle/desktop_bool_preferences.go:32-66: 只写单字段，commit/readback 后发布。"
+      ],
+      "finding": "这两个控制不经全量 desktopDraft；保存失败回滚选择。实际关闭/托盘与启动过程由 LIFE 负责。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "本条需实际改选、写盘拒绝、重启保留；托盘/退出/启动业务验收引用 LIFE。"
+    },
+    {
+      "id": "SET-016",
+      "feature": "显示代码工作视图与开发工具可见性",
+      "baseline": "installed-0.3.13",
+      "expected": "按 accepted ui-settings.enabled 控制轨迹、diff/预设及相应开发工具可见性。",
+      "entry": "常规 > 显示代码工作视图",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/index.js:77-83: DeveloperToolsRow 注册。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/DeveloperToolsRow.js:11-25: accepted 值和失败反馈。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/desktop.go:84-87: ui-settings.enabled 行。",
+        "internal/store/settings/developer_preferences.go:5-16: 只解析 accepted Host 值。",
+        "cmd/whaleisle/main.go:6712-6716: frame DisableDeveloperTools。",
+        "cmd/whaleisle/browser_preview_actions.go:15-19: 浏览预览开发工具 gate。"
+      ],
+      "finding": "文案更名为代码工作视图，但沿用当前 ui-settings.enabled；不以 UI 草稿控制实际 gate。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需开/关后轨迹/diff/新会话预设、预览开发工具及失败回滚可见验收，消费详见 WORK。"
+    },
+    {
+      "id": "SET-017",
+      "feature": "性能与用量显示及 Session Log 上传偏好",
+      "baseline": "installed-0.3.13",
+      "expected": "选择 compact/detailed 影响统计呈现；上传开关由 Host 提供、保存反馈明确。",
+      "entry": "常规 > 性能与用量；在使用官方模型 API 时上传 Session Log",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/apply.js:158-166: performance usage 注册。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-session-log/lib/types/client/index.js:21: Host namespace served 才注册上传行。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/desktop.go:110-111: 两行 Host preference。",
+        "internal/store/settings/chat_preferences.go:8-42: PerformanceUsage accepted 值。",
+        "internal/store/settings/store.go:649-681: upload mutate receipt 校验及成功/失败 notice。",
+        "internal/ui/settings/preference_notices.go:9-25: 上传反馈由 shell 级 receipt 保留。"
+      ],
+      "finding": "两行依赖当前 Host schema，read-only/离线禁用；上传行额外核对返回值，没有把 HTTP 成功当 accepted。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需两档性能可见变化、上传开关成功/失败/关闭设置页后反馈验收；不实际上传用户日志。"
+    },
+    {
+      "id": "SET-018",
+      "feature": "Harness 自动恢复策略编辑",
+      "baseline": "installed-0.3.13",
+      "expected": "设置启用、最大 1–10 次、基础延迟 500–30000 ms，仅改变后续恢复决策。",
+      "entry": "常规 > Harness 自动恢复；关于诊断详细配置",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/HarnessRestartRow.js:1-100: 原版恢复策略控件。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/harness_restart.go:48-112: 开关与预设选择立即 OnSave。",
+        "internal/config/harness_restart.go:1-42: 策略解析/范围及归一化。",
+        "cmd/whaleisle/main.go:874-919: 保存/读回。"
+      ],
+      "finding": "控制值及范围已接 Config；重试运行/恢复属于 LIFE。其共用 desktopDraft 保存可能覆盖 workspace，已交叉引用 WS-041，不另报重复缺陷。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需策略重启保留、非法值/写盘失败的 UI 回滚；受影响自动重试运行验收由 LIFE 处理。"
+    },
+    {
+      "id": "SET-019",
+      "feature": "本地诊断配置与 OS 登录项",
+      "baseline": "installed-0.3.13",
+      "expected": "诊断入口可编辑 workspace/port/详细恢复/OS 登录项；失败报告，不混淆 AutoStartDesktop。",
+      "entry": "关于 > 应用数据与诊断 > 本地运行与诊断",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/config.js:1-60: 原版本地桌面配置。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/desktop.go:124-170: 本地诊断/文件夹选择/端口/登录项/保存。",
+        "cmd/whaleisle/main.go:863-933: 范围校验、保存、语言/主题/登录项副作用与错误。",
+        "internal/config/persistence.go:13-24: 外部变更冲突处理。"
+      ],
+      "finding": "MyGo 独有诊断表单可达；OS 登录项与启动器直接进桌面是不同字段。全量草稿覆盖 workspace 的实际风险见 WS-041。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需隔离配置的原生目录选择取消、端口/策略错误、OS 注册失败与 config 冲突；本轮不调用 OS 设置。"
+    },
+    {
+      "id": "SET-020",
+      "feature": "浅/深/系统模式与独立主题半边选择",
+      "baseline": "installed-0.3.13",
+      "expected": "即时选颜色模式，浅/深半边分别选择主题；Host 接管后不静默回写本地替代。",
+      "entry": "外观 > 颜色模式/主题库",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:44-58: scheme/主题半边/状态。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:86: ColorSchemeTiles 与 ThemeLibrary。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/appearance.go:44-83: 色彩模式成功才改变选择。",
+        "cmd/whaleisle/settings_appearance_theme.go:11-58: Host/local 保存及本地显式选择记录。",
+        "internal/ui/theme/editor_library.go:5-13: 单半边提交。",
+        "cmd/whaleisle/theme_font_preferences.go:55-110: accepted Host 同步、owner 与渲染更新。"
+      ],
+      "finding": "模式与两个主题半边已接通 Host ui-theme/本地 fallback；Host authority 一旦采用不会因断线降格为写 launcher config。主题 wallpaper 差异见 SET-008。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需冷启动/系统深浅变化/多窗口/Host 拒绝/写本地标记失败后的实际一致性验收。"
+    },
+    {
+      "id": "SET-021",
+      "feature": "主题库创建、复制、编辑、导入、导出、删除和取消",
+      "baseline": "installed-0.3.13",
+      "expected": "保留 family ID/种子/skin/覆盖色；操作指定主题，取消预览恢复已保存外观。",
+      "entry": "外观 > 主题库及自定义主题编辑器",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:86: ThemeLibrary 与 customThemes writer。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/theme_font_preferences.go:22-132: 创建/导入/浅深选择/复制编辑/剪贴板导出/删除。",
+        "internal/ui/theme/family_documents.go:36-92: 唯一ID、复制、导入/导出和校验。",
+        "internal/ui/theme/editor_library.go:15-90: 预览、保存指定family、删除后回退。",
+        "internal/ui/theme/editor.go:30-110: 预览取消与 Host settlement。"
+      ],
+      "finding": "主题核心读写与预览链存在，导出经剪贴板 JSON；取消不持久化预览。包含 wallpaper 的文档会丢字段，已独立记 SET-008。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需原版导出→MyGo 导入→编辑/取消/导出往返；Host 拒绝、多family并存、当前主题删除和重启恢复验收。"
+    },
+    {
+      "id": "SET-022",
+      "feature": "界面/代码/正文/输入框/终端字体与字号",
+      "baseline": "installed-0.3.13",
+      "expected": "字体回退列表与分角色字号持久化并影响实际文本；恢复默认不提交其他草稿。",
+      "entry": "外观 > 字体、高级字体、字号大小",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:94-103: 字体族、界面/代码字号和高级composer/terminal。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/theme_font_preferences.go:368-487: 正文/代码/终端字段和编辑队列。",
+        "internal/ui/settings/theme_font_preferences.go:493-544: 分角色字体/滑杆、reset/preview/cancel/save。",
+        "internal/ui/theme/editor_font.go:27-185: 队列/单字段保存/失败保留。",
+        "internal/ui/theme/host_preferences.go:74-93: Host字段映射；composer跟正文大小。",
+        "cmd/whaleisle/theme_font_preferences.go:126-173: 每帧应用与退出预览恢复。"
+      ],
+      "finding": "按角色保存及 render preferences 已装配；Host保存的字段映射避免发明独立 composer size。未测字体真实可用性和窄窗布局。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需实际字体fallback、字号边界/窄窗、多窗口/终端、焦点移出提交、写失败保留与重启验收。"
+    },
+    {
+      "id": "SET-023",
+      "feature": "壁纸本地选择、图库、来源、收藏、下载、裁剪、清除",
+      "baseline": "installed-0.3.13",
+      "expected": "显式图片能加载/裁剪并持久化；图库支持筛选分页和收藏，自定义来源可增删；取消/失败不替换已生效图片。",
+      "entry": "外观 > 壁纸图库",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/WallpaperRow.js:18-93: 壁纸/图库/裁剪/清除和source/favorite接口。",
+        "tmp/full-audit-20261102/installed-source/src/main/chrome.js:321-345: 系统外观通知。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/wallpaper_background.go:72-169: 收藏、加载和分页generation。",
+        "internal/ui/settings/wallpaper_background.go:174-260: 导入/下载/裁剪及异步提交。",
+        "internal/ui/settings/wallpaper_background.go:288-504: 图库筛选/分页/来源管理与已有裁剪控件；没有本地选择/清除入口，原注释性审查结论已撤回。",
+        "internal/ui/settings/host_theme.go:149-178: 校验图片、data URL写到 Host wallpaperImage。",
+        "internal/ui/settings/appearance.go:18-27,32-92: 声明了回调但完整 pane 不消费",
+        "cmd/whaleisle/main.go:4429-4454: 唯一生产文件回调",
+        "internal/ui/settings/wallpaper_background.go:174-179: 仅被上述回调调用的导入",
+        "internal/ui/settings/desktop.go:53-114,117-171: 页面无壁纸选择替代入口",
+        "internal/ui/settings/appearance.go:32-92: 无清除控件",
+        "internal/ui/settings/wallpaper_background.go:566-580: reset 保留 Original",
+        "internal/ui/settings/host_theme.go:151-178: 空字符串下游可写",
+        "cmd/whaleisle/wallpaper_background.go:90-96: 空 Host 图仍回落本地 path",
+        "internal/ui/settings/settings.go:494-504: 高级通用字段表单不是清除本地+Host的专用动作",
+        "internal/ui/settings/wallpaper_background.go:473-501: 静态预览及四滑杆",
+        "internal/desktop/wallpapers/images.go:24: DefaultCrop 固定16:9",
+        "internal/desktop/wallpapers/images.go:53-74: 真正裁剪函数",
+        "internal/ui/settings/wallpaper_background.go:209-217: 先替换 Prefs.Original/Crop",
+        "internal/ui/settings/wallpaper_background.go:480-500: Slider 直接改 Prefs，取消只关",
+        "internal/ui/settings/wallpaper_background.go:582-583: 全量差异自动 commit",
+        "cmd/whaleisle/wallpaper_background.go:34-42: 本地持久化整个 Prefs",
+        "internal/ui/settings/wallpaper_background.go:473-475: 唯一重裁入口依赖 Original",
+        "internal/ui/theme/host_preferences.go:79-84: Host 背景无 Original",
+        "cmd/whaleisle/theme_font_preferences.go:112-120: Host 同步替换 Saved/Prefs",
+        "internal/ui/settings/host_theme.go:78-80: wallpaperImage 与 Background 分离",
+        "internal/ui/settings/wallpaper_background.go:53-54: 默认空 Items",
+        "internal/ui/settings/wallpaper_background.go:316-344: 切源清空，Year/Category 无 load",
+        "internal/ui/settings/wallpaper_background.go:516: 仅 disclosure 绘制",
+        "internal/ui/settings/wallpaper_background.go:331-333: 唯一查找按钮 load",
+        "internal/ui/settings/wallpaper_background.go:293-328: labels 与 id 的首匹配映射/内置名覆盖",
+        "internal/ui/settings/wallpaper_background.go:393-410: Name 编辑和保存",
+        "internal/ui/theme/host_wallpaper_sources.go:35-88: 合法来源按 id/url 而非显示名去重",
+        "internal/ui/settings/wallpaper_background.go:392-471: 来源 CRUD/恢复",
+        "internal/ui/settings/wallpaper_background.go:112-134: 配置 Source 进入请求",
+        "internal/ui/theme/host_wallpaper_sources.go:35-88: Host 规范化",
+        "internal/ui/settings/wallpaper_background.go:72-111: 收藏持久化与筛选",
+        "internal/ui/settings/wallpaper_background.go:346-390: 收藏按钮及分页",
+        "internal/desktop/wallpapers/catalog.go:180-270: 下一页/解析/提示",
+        "internal/ui/settings/wallpaper_background.go:180-217: Background 下载与 generation 回调",
+        "cmd/whaleisle/wallpaper_background.go:78-82: 离开仅回滚 Prefs",
+        "cmd/whaleisle/theme_font_preferences.go:112-120: RetireOwner 只在 ownerChanged",
+        "internal/ui/settings/wallpaper_background.go:43-50: 正确失效操作存在但未接普通关闭"
+      ],
+      "finding": "原项中已证明的子链保留，整项可用结论撤回；原条把选择/图库/来源/收藏/裁剪/清除压在一起；多条可达控件缺失或身份/取消语义错误，不能沿回调存在维持 wired。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：原条把选择/图库/来源/收藏/裁剪/清除压在一起；多条可达控件缺失或身份/取消语义错误，不能沿回调存在维持 wired。 对照 GPET-016、GPET-017、GPET-018、GPET-019、GPET-020、GPET-021、GPET-022、GPET-023、GPET-024、GPET-025 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "需各图库真实响应、来源管理/收藏重启、本地文件取消/无效图、裁剪确认/取消及Host拒绝后的可见状态；本轮不联网下载。 补审新增动作 GPET-016、GPET-017、GPET-018、GPET-019、GPET-020、GPET-021、GPET-022、GPET-023、GPET-024、GPET-025 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "图库编辑器通过 production WallpaperEditor 保存/应用、generation 隔离旧请求；图片归 Host壁纸字段，主题自带壁纸缺口见 SET-008。",
+        "previousRequiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-016",
+          "GPET-017",
+          "GPET-018",
+          "GPET-019",
+          "GPET-020",
+          "GPET-021",
+          "GPET-022",
+          "GPET-023",
+          "GPET-024",
+          "GPET-025"
+        ],
+        "reasons": [
+          "原条把选择/图库/来源/收藏/裁剪/清除压在一起；多条可达控件缺失或身份/取消语义错误，不能沿回调存在维持 wired。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-016",
+        "GPET-017",
+        "GPET-018",
+        "GPET-019",
+        "GPET-020",
+        "GPET-021",
+        "GPET-022",
+        "GPET-023",
+        "GPET-024",
+        "GPET-025"
+      ]
+    },
+    {
+      "id": "SET-024",
+      "feature": "背景/指针/光泽/玻璃与输入思考特效",
+      "baseline": "installed-0.3.13",
+      "expected": "各预设、颜色、速度/数量/大小、透明度、遮罩及输入/思考特效可调整；减少动态设置得到尊重。",
+      "entry": "外观 > 背景特效/指针效果/玻璃/字号后的特效行",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:63-75: 背景/指针/光泽字段。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:86-94: 控件写回及玻璃/透明依赖。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:164-178: composer beam。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:249-263: typing fx。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/wallpaper_background.go:505-584: 全部效果选项、自动commit/撤销/reset。",
+        "internal/ui/settings/pointer_effects.go:9-42: trail/splash/配色/速度/大小。",
+        "internal/ui/theme/host_preferences.go:96-105: 字段投影。",
+        "internal/ui/settings/effect_preferences.go:1-180: Host支持时输入/思考效果及配置。"
+      ],
+      "finding": "样式偏好链完整，不因源文件存在判定效果质量。透明背景联动 blur>=20；恢复背景默认保留图库/收藏/原图。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需实际持续渲染/透明度/鼠标/减少动态效果、输入/思考触发、预设和失败恢复验收；原生特效性能未测。"
+    },
+    {
+      "id": "SET-025",
+      "feature": "界面开关与原入口不丢失",
+      "baseline": "installed-0.3.13",
+      "expected": "标题栏Git/终端/右栏、输入框拖拽、统计、会话tab按accepted值显隐；隐藏按钮后快捷键仍可用。",
+      "entry": "界面设置",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/types/client/apply.js:61-70: titlebarGit设置。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-titlebar/lib/types/client/apply.js:67-85: titlebar按钮设置。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:180-249: resize/stats/tabs。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/interface.go:94-137: 全部Host开关、归档本地选项。",
+        "internal/ui/settings/interface.go:36-85: Host viewTabs优先，明确缺失时才local fallback。",
+        "internal/store/settings/chrome_preferences.go:1-23: accepted titlebar/其他chrome偏好。",
+        "cmd/whaleisle/main.go:6712-6716: frame接入。"
+      ],
+      "finding": "Host描述决定字段是否显示及可写，viewTabs不会用旧fallback覆盖Host值；归档管理业务由WS已审。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需普通/窄窗及隐藏后热键路径、Host read-only/暂未describe/类型不支持/断线回滚可见验收。"
+    },
+    {
+      "id": "SET-026",
+      "feature": "新任务默认权限与忙碌发送行为",
+      "baseline": "installed-0.3.13",
+      "expected": "默认权限用进程级DefaultOptions，不改当前session；busyEnter决定Enter/send与补集快捷键的queue/steer。",
+      "entry": "对话 > 权限/繁忙时发送行为",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-permission-presets/lib/types/client/index.js:84-95: 默认权限注册到对话。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:141-150: busyEnter行。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/conversation.go:20-21: 两个设置入口。",
+        "internal/store/settings/permission_defaults.go:30-47: permissionPresets/catalog DefaultOptions。",
+        "internal/store/settings/busy_enter.go:8-30: 只读当前Host accepted值，默认queue。",
+        "internal/ui/settings/permission_defaults.go:1-140: 可选默认权限与提交。"
+      ],
+      "finding": "默认权限与当前session状态分开；busyEnter不读未保存草稿。真实发送/审批消费由WORK。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需新建会话继承、不影响已有会话、busyEnter键盘/按钮互补、失败保持accepted值验收；不发模型请求。"
+    },
+    {
+      "id": "SET-027",
+      "feature": "工作步骤展示和网页链接打开方式",
+      "baseline": "installed-0.3.13",
+      "expected": "compact/standard/detailed/verbose改变工具细节；网页链接按sidebar/new-tab方式打开。",
+      "entry": "对话 > 工作步骤展示/网页链接默认打开方式",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/apply.js:132-176: 链接/步骤/折叠时机设置与presentation服务。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/conversation.go:22-24: Host枚举行。",
+        "internal/store/settings/chat_preferences.go:8-42: accepted TranscriptView/LinkOpening，兼容旧normal/expanded。",
+        "cmd/whaleisle/main.go:6715-6716: frame接入偏好。"
+      ],
+      "finding": "展示等级和链接偏好已进入frame；collapseTiming为另一个未消费字段，见SET-005，不能合并声称全套步骤偏好有效。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需四档同一工具历史显示与侧栏/新标签链接实际路径验收，安全链接处理详见WORK。"
+    },
+    {
+      "id": "SET-028",
+      "feature": "下一句提示与视觉回复设置",
+      "baseline": "installed-0.3.13",
+      "expected": "关闭后停止新的提示生成；Tab仅采纳不发送；视觉回复启用先确认当前Host/renderer能力，关闭后历史页面仍可看。",
+      "entry": "对话 > 下一句提示/视觉回复",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:202-210: next-prompt设置。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/settings.js:10-21: 视觉回复设置。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/conversation.go:25-26: 两个设置行。",
+        "internal/store/settings/chat_preferences.go:15-53: accepted NextPrompt。",
+        "internal/store/settings/visual_replies.go:1-63: 启用检查及写入门禁。",
+        "cmd/whaleisle/settings_visual_replies.go:15-47: 当前Host及helper实际能力探测。"
+      ],
+      "finding": "设置链区分prompt偏好和启用renderer能力检查；模型和历史页面消费归WORK，未因此触发任何模型或helper操作。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需关后不再生成/Tab不发送、视觉启用失败不写、关闭历史保留及renderer路径验收。"
+    },
+    {
+      "id": "SET-029",
+      "feature": "自定义指令自动保存与长度语义",
+      "baseline": "installed-0.3.13",
+      "expected": "指令对后续任务生效，UTF-16计数和400ms去抖；不保存旧Host或覆盖后续编辑。",
+      "entry": "对话 > 自定义指令",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:151-162: 自定义指令注册与writer。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/custom_instructions.go:52-89: textarea、计数、限长及OnChange。",
+        "internal/store/settings/custom_instructions.go:15-37: UTF16长度及limit。",
+        "internal/store/settings/instructions_write.go:21-108: 400ms队列、expectedRevision、回执及失败刷新。"
+      ],
+      "finding": "指令使用专用队列与Host代际检查，不依赖额外保存按钮；失败保留UI草稿，实际任务使用Host指令。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "需快速连打/切页/另一设置写入/Host重连/超长含emoji/失败重试及后续新任务读取验收。"
+    },
+    {
+      "id": "SET-030",
+      "feature": "内置功能开关与重启/取消反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "鲸鱼娘、Project、远程SSH workspace开关能改变实际功能组合，重启确认/取消/失败不伪装成功。",
+      "entry": "内置功能页",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/FeaturesSection.js:8-9: 插入feature rows。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/index.js:43-75: Project关闭先离开Lead再重启。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/features.go:77-134: 助手/Project/远程workspace及busy/error/cancel状态。",
+        "cmd/whaleisle/settings_body_wiring.go:75-85: production action。",
+        "cmd/whaleisle/settings_body_wiring.go:199-218: remote标志持久化后sync/restart。"
+      ],
+      "finding": "此条只归纳设置入口/持久化/重启依赖：remote flag先写再请求重启，不能由控件存在证明取消后回滚或组合已变更。Project/助手/SSH业务与保护重启由WORK/PET/LIFE负责。",
+      "evidenceLevel": "code",
+      "requiredAction": "按此条 acceptanceGap 完成真实用户路径验收；代码链存在不计为运行通过。",
+      "acceptanceGap": "跨域需核对每种开关重启成功、取消、失败和当前工作保留；尤其先持久化的remote flag与取消重启后的运行态一致性。"
+    },
+    {
+      "id": "SET-031",
+      "feature": "模型供应商设置与模型元数据编辑/继承",
+      "baseline": "installed-0.3.13",
+      "expected": "可按当前Host schema配置 endpoint/protocol/超时/缓存/headers/retry/compat/thinking budgets；增删模型、ID/上下文/输出上限/输入类型/推理等级，未编辑字段保持继承。",
+      "entry": "模型 > provider编辑 > 自定义设置/模型目录",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:20-24: profile采用minimal settings.mutate。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:90-224: schema/path关联与提交。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/DeepSeekModelsEditor.js:219-227",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:111-124,193-197",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-account/lib/types/config.js:83-95"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/models.go:53-82: 每个Host模型namespace卡编辑。",
+        "internal/ui/settings/model_configuration.go:142-222: 模型目录、token上限、输入/推理等级/删除添加。",
+        "internal/ui/settings/provider_specific_configuration.go:17-59: provider专用选项与DeepSeek retry。",
+        "internal/ui/settings/model_configuration_values.go:34-106: K/M、唯一ID、正整数/route/endpoint校验。",
+        "internal/ui/settings/model_body.go:80-86: 取消/保存受namespace binding约束。",
+        "internal/ui/settings/model_configuration.go:38-43,162-172"
+      ],
+      "finding": "当前 schema 的标量、目录与独立草稿有实现，credential-ref 错误仍见 SET-004；原“输入类型已接通”不能覆盖DeepSeek inputModalities；native只检查input。账户live catalog/per-id modelOverrides专用编辑亦未等价，不能整组仍判仅运行待验。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：原“输入类型已接通”不能覆盖DeepSeek inputModalities；native只检查input。账户live catalog/per-id modelOverrides专用编辑亦未等价，不能整组仍判仅运行待验。 对照 GSET-152、GSET-153 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "需每种当前随包provider的实际describe→编辑→取消/保存→重启、模型目录/推理等级、字段继承/隐藏secret不丢失验收。 补审新增动作 GSET-152、GSET-153 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "模型设置依当前Host schema暴露能力；标量/目录/继承与独立草稿已接通。credential-ref误作密钥单列SET-004；不以这里的目录可编辑断言provider可请求。",
+        "previousRequiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+        "sources": [
+          "supplement-settings-actions.json"
+        ],
+        "actionIds": [
+          "GSET-152",
+          "GSET-153"
+        ],
+        "reasons": [
+          "原“输入类型已接通”不能覆盖DeepSeek inputModalities；native只检查input。账户live catalog/per-id modelOverrides专用编辑亦未等价，不能整组仍判仅运行待验。"
+        ]
+      },
+      "supplementActionIds": [
+        "GSET-152",
+        "GSET-153"
+      ]
+    },
+    {
+      "id": "SET-032",
+      "feature": "新增自定义供应商与配置草稿",
+      "baseline": "installed-0.3.13",
+      "expected": "按route/显示名/endpoint/protocol和至少一个模型新建provider，明确提交才持久化，密钥另行管理。",
+      "entry": "模型 > 添加供应商 > llm-pi-ai创建表单",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/CustomProviderCard.js:13-14: 配置和凭据分路。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/CustomProviderCard.js:83-134: route/profile与可选key。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ModelsSection.js:256-281,369-395"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/models.go:138-156: 添加按钮选择llm-pi-ai。",
+        "internal/ui/settings/model_configuration.go:280-321: 创建表单只添加到providers草稿，可清空。",
+        "internal/ui/settings/model_configuration_values.go:89-106: route/重复/HTTP(S)/protocol/model校验。",
+        "internal/ui/settings/models.go:96-103: provider keys另有入口。",
+        "internal/ui/settings/models.go:138-156"
+      ],
+      "finding": "自定义 provider 先加入 settings 草稿、不即时写密钥的链存在；自定义创建存在，但原版添加的目录采纳模式/route选择及双模式草稿保留漏项；native添加按钮只跳llm-pi-ai。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：自定义创建存在，但原版添加的目录采纳模式/route选择及双模式草稿保留漏项；native添加按钮只跳llm-pi-ai。 对照 GSET-154 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "需原版协议集合、创建/取消/重复route、保存拒绝、modelcatalog刷新和实际provider选用验收；不发模型请求。 补审新增动作 GSET-154 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "创建本身不调用网络、不即时写密钥；先加入settings草稿再独立保存。创建后实际key通过引用凭据入口配置。",
+        "previousRequiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+        "sources": [
+          "supplement-settings-actions.json"
+        ],
+        "actionIds": [
+          "GSET-154"
+        ],
+        "reasons": [
+          "自定义创建存在，但原版添加的目录采纳模式/route选择及双模式草稿保留漏项；native添加按钮只跳llm-pi-ai。"
+        ]
+      },
+      "supplementActionIds": [
+        "GSET-154"
+      ]
+    },
+    {
+      "id": "SET-033",
+      "feature": "用户provider档案删除、取消与部分失败",
+      "baseline": "installed-0.3.13",
+      "expected": "只删除用户独有profile，确认关联密钥影响；基础provider不可删，失败说明哪些动作已发生。",
+      "entry": "模型 > 用户provider档案 > 删除档案/确认/取消",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ModelsSection.js:36-50: 删除managed credential及provider配置。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/provider_profiles.go:41-80: 仅Removable档案出现删除，确认/取消、关联凭据提示。",
+        "cmd/whaleisle/settings_provider_profiles.go:25-62: 当前Host包装与超时。",
+        "internal/desktop/providerprofiles/controller.go:195-243: provider directory+user/base判Removable，只有页面派生ref才管理key。",
+        "internal/desktop/providerprofiles/controller.go:118-170: key先删、profile后删、reload；部分失败明确状态。"
+      ],
+      "finding": "删除不是原子回滚：key已删但profile失败会明确报损坏可能并要求重试/刷新；Host代际拒绝旧回调。删除流程未在真实profile执行。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需同ref多consumer、基础配置只读、确认后设置变化、key成功/profile失败、删除后刷新失败、断线的恢复验收。"
+    },
+    {
+      "id": "SET-034",
+      "feature": "供应商模型发现、候选选择、采纳草稿和review保存",
+      "baseline": "installed-0.3.13",
+      "expected": "一次显式探测使用临时key不落盘；筛选/选择候选，保留已有模型字段，review后revision守卫提交，取消/切页退休请求。",
+      "entry": "模型 > 供应商密钥与模型探测",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:165-167: 探测使用未提交endpoint和临时key。",
+        "tmp/full-audit-20261102/installed-source/src/shared/harness-desktop-forks.js:343: 本版随包模型发现集成项。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_provider_discovery.go:9-73: 实际回调与可见性/最小化取消。",
+        "internal/desktop/providerdiscovery/probe.go:24-69: Host discoverModels，临时key与返回候选，不回显raw错误。",
+        "internal/desktop/providerdiscovery/controller.go:207-288: ticket/cancel/候选/采纳草稿。",
+        "internal/desktop/providerdiscovery/controller.go:298-374: review/重读revision/ref、最小路径写、返回值核对。"
+      ],
+      "finding": "发现和持久化分开；临时key在发起/隐藏/采纳后清理，不作为凭据自动保存；可见性ticket挡旧回调。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需当前所有adapter的catalog/no-network发现、实际远程发现及失败、空结果、secret反射、选择/合并/取消、保存冲突；本轮不联网探测。"
+    },
+    {
+      "id": "SET-035",
+      "feature": "引用凭据：write-only保存/清除确认与Host轮换",
+      "baseline": "installed-0.3.13",
+      "expected": "空输入保留，显式清除确认才unset；已配置仅显示掩码，先核对引用/权限/revision；临时secret不串Host。",
+      "entry": "模型高级供应商密钥；支持的namespace引用凭据区",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:5-24: credential值分路写入，profile最小路径提交。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:307-338: 引用和环境凭据状态。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/referenced_credentials.go:48-120: ref选择、只读/已配置、空保留、清除确认与取消。",
+        "internal/desktop/credentialrefs/controller.go:28-88: Host更换清draft/ticket。",
+        "internal/desktop/credentialrefs/controller.go:160-220: fresh ref/revision/权限检查，必要时绑定apiKeyEnv。",
+        "internal/desktop/credentialrefs/protocol.go:112-151: credentials.describe分64批，未知不授写。",
+        "cmd/whaleisle/settings_referenced_credentials.go:9-33: production动作。"
+      ],
+      "finding": "已有正确write-only路径，包含独立的clear review与Host代际；当前llm-deepseek-api-key不在rows范围的实际缺口已在SET-004，不在此重复宣告可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需支持namespace的已配/缺失/只读/环境回退状态、保存/清除失败、ref变化与Host轮换验收。"
+    },
+    {
+      "id": "SET-036",
+      "feature": "高级namespace配置浏览与schema字段",
+      "baseline": "installed-0.3.13",
+      "expected": "对当前Host所有namespace可选择/筛选/刷新；支持bool、enum、string、number和嵌套JSON，未知namespace有入口。",
+      "entry": "常规/关于 > 高级配置浏览",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/config-form.js:1-100: 原版配置表单服务。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/schema.js:1-100: schema处理。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/navigation.go:149-211: namespace下拉/过滤/describe刷新。",
+        "internal/ui/settings/settings.go:443-504: namespace值/revision/只读、字段渲染。",
+        "internal/store/settings/schema.go:1-120: schemastery解析及kind；嵌套/不支持形状使用JSON。",
+        "internal/store/settings/store.go:413-484: describe装配schema/value/base/user/secrets。"
+      ],
+      "finding": "22个SectionID是路由分类而非22个真实页面；未知namespace在高级下拉，不丢失Host描述。部分专用namespace由插件配置卡托管，见sectionInventory。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需当前Host全namespace描述、无namespace/坏schema/read-only/离线、长JSON与窄窗键盘可达验收。"
+    },
+    {
+      "id": "SET-037",
+      "feature": "设置更新/路径变更、revision冲突和隐藏secret保留",
+      "baseline": "installed-0.3.13",
+      "expected": "只提交dirty字段，字段类型与枚举受Host约束，revision冲突不自动覆盖，隐藏secret不被JSON重建删除。",
+      "entry": "通用schema表单或专属provider卡 > 保存",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/config-form.js:1-100: Host配置form入口。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js:20-24: minimal mutate与配置ownership。"
+      ],
+      "mygoEvidence": [
+        "internal/store/settings/draft_operations.go:48-79: JSON操作覆盖hidden secret时拒绝。",
+        "internal/store/settings/draft_operations.go:115-162: 只dirty字段、unset与可见JSON diff。",
+        "internal/store/settings/store.go:713-805: expectedRevision update/mutate、失败留草稿、代际守卫。",
+        "internal/store/settings/namespace_sequence.go:11-82: scoped卡顺序写与失败保留。"
+      ],
+      "finding": "update/mutate按Host namespace revision；隐藏值/未编辑字段和其他卡草稿不应随保存重建。正常错误不标成功，也不自动替换。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需实际Host各种schema/冲突/secret redaction/数组内secret、同时卡编辑、新编辑越过旧回执、断线再连验收。"
+    },
+    {
+      "id": "SET-038",
+      "feature": "设置继承/reset、放弃草稿与整段替换确认",
+      "baseline": "installed-0.3.13",
+      "expected": "字段reset发unset恢复继承；discard只丢未提交草稿；整段replace必须明确确认且禁止有隐藏secret的namespace。",
+      "entry": "schema字段 > 继承；页底放弃/整段替换/确认取消",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/config-form.js:1-100: 设置form的Host语义。"
+      ],
+      "mygoEvidence": [
+        "internal/store/settings/draft_operations.go:81-113: ResetDraft阶段性unset及accepted不变。",
+        "internal/store/settings/draft_operations.go:218-242: hidden secret禁止replacement。",
+        "internal/ui/settings/settings.go:507-561: replace/discard/save与独立确认。",
+        "internal/store/settings/store.go:488-617: replacement校验与expectedRevision。",
+        "internal/store/settings/store.go:1045-1055: discard恢复草稿。"
+      ],
+      "finding": "不会把默认值写为显式override；full replace与普通保存区分，secret namespace不提供替换。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需reset继承值重启、取消确认不请求、失败保留原值、与dirty/未set字段混合时验收。"
+    },
+    {
+      "id": "SET-039",
+      "feature": "设置分组导航、搜索与关闭",
+      "baseline": "installed-0.3.13",
+      "expected": "按当前真实可用页面分组；搜索命中设置后跳所在页，未知/不可用section有明确fallback；关闭释放modal。",
+      "entry": "设置rail搜索/分组/页头返回",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-placement.js:10-40: 安装版分组，额外插件页归features。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-navigation.js:35-50: open/close状态。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/SettingsRoot.js:1-100: 设置shell。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/sections.go:12-110: 22 SectionID及namespace映射。",
+        "internal/ui/settings/navigation.go:27-129: active fallback、基于可用body的rail。",
+        "internal/ui/settings/search.go:23-94: 搜索索引。",
+        "internal/ui/settings/search.go:96-174: 可用page过滤及跳转/清搜索。",
+        "cmd/whaleisle/settings_sections.go:17-55: embedded section与清理callback。"
+      ],
+      "finding": "rail不是空页列表；市场/远程/用量复用嵌入body。搜索目前按页面跳转，不保证定位具体行；字号搜索值16px/13px是静态文案，不证明当前设置值。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需普通/窄窗、键盘/Escape/未知section、搜索后页面及滚动位置与实际字号一致性验收。"
+    },
+    {
+      "id": "SET-040",
+      "feature": "关于版本/凭据存储元数据、目录与诊断更新入口",
+      "baseline": "installed-0.3.13",
+      "expected": "显示真实app版本/运行目录/存储模式，打开目录或外链失败可见；更新回到已有中心。",
+      "entry": "关于 > 基本信息/应用数据与诊断",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/AboutSection.js:37-83: 元数据/更新状态。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/AboutSection.js:127-146: openDshHome忙碌和错误。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/about.go:82-198: 版本/格式元数据、目录/外链/诊断。",
+        "internal/credentials/storage_status.go:13-56: 只报告格式/compiled support，不解密确认。",
+        "cmd/whaleisle/main.go:4376-4405: metadata与目录/剪贴板动作。",
+        "cmd/whaleisle/settings_body_wiring.go:96-153: 更新状态/下载/安装/中心装配。"
+      ],
+      "finding": "关于的存储说明只表明格式，不冒充密钥可解锁；更新动作复用native release流程，不在本域测试安装。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；不以代码链代替可用结论。",
+      "acceptanceGap": "需实际版本/目录路径、权限拒绝、默认浏览器失败与存储状态；下载路由/更新安装恢复由LIFE审查。"
+    },
+    {
+      "id": "SET-041",
+      "feature": "用量总览刷新、缓存、空/加载/错误/过期状态",
+      "baseline": "installed-0.3.13",
+      "expected": "从usage-stats插件真实统计读取日志聚合，不用job数伪装token；刷新失败保留旧数据并标错/过期。",
+      "entry": "设置 > 用量与费用；侧栏用量入口",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:2197-2309: StatsSection数据与状态/维度。",
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/index.js:2372-2376: overview force与cache。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_sections.go:11-23: 初次嵌入刷新一次，非每帧发请求。",
+        "internal/store/usage/stats.go:18-79: overview version4完整字段/覆盖与日志token含义。",
+        "internal/store/usage/stats.go:134-198: authenticated plugin overview、schema校验、generation/Host守卫、失败不覆盖。",
+        "internal/store/usage/stats_cache.go:10-62: 仅统计cache，不缓存account/wallet/认证。",
+        "internal/ui/usage/stats.go:27-54: 首次加载/错误/空/已有数据出错状态。",
+        "internal/ui/usage/embedded.go:25-69: settings/refresh/export入口。"
+      ],
+      "finding": "统计数据与账户余额/任务job数分开；UTC日期及原始Host billed buckets保留。统计cache只作旧数据展示，并非新的扫描成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需实际日志目录的空/首读/缓存恢复/断线/坏回复/force重扫、覆盖失败及Host更换验收；不读取真实用户日志。"
+    },
+    {
+      "id": "SET-042",
+      "feature": "统计日期范围、热力图、堆叠/占比/服务商和明细",
+      "baseline": "installed-0.3.13",
+      "expected": "7/14/30日与UTC日/区间选择作用于日图和模型/服务商明细；缺失日不是零，清除范围回全历史。",
+      "entry": "用量与费用 > 日期选择/热力图/图表",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:1236-1420: Heatmap/BarChart。",
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:2281-2309: 更新时间、图表与全历史口径。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/stats.go:79-108: 近期窗口与range toolbar。",
+        "internal/ui/usage/statistics_dimensions.go:62-165: KPI/近期或选区/模型占比/服务商分项/每日明细。",
+        "internal/ui/usage/statistics_dimensions.go:170-290: 日历选择与图表交互。",
+        "internal/store/usage/time_range.go:83-160: 日期格式/顺序/逐日覆盖校验与点选/扩选。"
+      ],
+      "finding": "日期选择基于Host返回UTC每日范围，不伪造缺失数据；全历史session/project排行在有日期选区时明确不展示。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需键盘/日历跨月/Shift范围、边界缺日、跨时区日期、选区清除及图表数值与Host对照；本轮只读。"
+    },
+    {
+      "id": "SET-043",
+      "feature": "模型/会话/工作目录用量排行、排序、分页及打开",
+      "baseline": "installed-0.3.13",
+      "expected": "模型更多；会话/工作目录按tokens/cost排序并分页，保留已加载页；工作目录聚合不混作Project任务ID。",
+      "entry": "用量与费用 > 模型/会话/项目排行",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:1544-1625: 会话/项目排序、更多、失败及重试。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/ranking.go:20-140: 模型更多、会话排序/打开/分页。",
+        "internal/store/usage/ranking.go:67-149: sessions.more offset/epoch/去重/格式检查。",
+        "internal/ui/usage/projects.go:12-80: 工作目录口径、排序/刷新/分页/重试。",
+        "internal/store/usage/projects.go:56-128: projects.more与Host/epoch校验。",
+        "cmd/whaleisle/main.go:6332-6345: 打开session选择并follow。"
+      ],
+      "finding": "排行的目录身份/会话身份明确分开；server负责排序，client防旧页。会话分页错误重试不可达单列SET-052；嵌入设置打开session后modal是否退出尚未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需大数据分页/重复页/无进展页/排序切换/失败后重试、null目录、估价变化；在嵌入设置点击打开会话是否进入可见会话需验证。"
+    },
+    {
+      "id": "SET-044",
+      "feature": "统计 JSON/每日/模型/会话CSV导出与取消/失败",
+      "baseline": "installed-0.3.13",
+      "expected": "保留JSON原始价格桶及覆盖字段；CSV明确CNY分单位/计价覆盖，选区不混入全历史session，取消不写文件。",
+      "entry": "用量页 > 导出及日期工具旁导出项",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:1701-1822: JSON/每日/模型CSV构建及失败。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/stats.go:114-132: JSON/days/models/sessions，选区隐藏sessions。",
+        "internal/store/usage/stats.go:201-285: JSON原payload与CSV明确cost cents/currency/covered计数。",
+        "internal/store/usage/time_range.go:162-185: filteredExport不保留无法日期化的session/all-time。",
+        "cmd/whaleisle/main.go:6310-6330: save dialog、取消为空返回、写失败错误。"
+      ],
+      "finding": "导出用当前真实overview和accepted价格；不是截屏数据；CSV带BOM/CRLF并报告未计价。MyGo额外提供sessionCSV。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需导出文件实际打开、全历史/日期选区数值、取消/权限拒绝/已有文件覆盖提示验收；本轮未打开保存对话框或创建导出。"
+    },
+    {
+      "id": "SET-045",
+      "feature": "价格详情、模型目录选择、添加/删除/保存/放弃和估算",
+      "baseline": "installed-0.3.13",
+      "expected": "价格以CNY/百万token编辑，provider/model优先、bare model兼容；自定义覆盖官方，空闲谷价/平价语义明确，失败不提交草稿估价。",
+      "entry": "用量与费用 > 价格详情与设置",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:1043-1173: 官方表/自定义解析/分段估算。",
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:2105-2140: billing表单与失败重试。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/pricing.go:14-34: 价格dialog打开/关闭。",
+        "internal/ui/usage/pricing.go:38-148: 读取/保存/放弃、峰谷/平价、删除添加与覆盖说明。",
+        "internal/store/usage/billing_models.go:24-100: 可计价模型目录/过滤/选取。",
+        "internal/store/usage/pricing.go:101-189: key/三项非负价格/idle/flat解码。",
+        "internal/store/usage/pricing.go:233-329: billing.get/set、失败留draft、accepted估价。",
+        "internal/store/usage/pricing_official.go:11-31: provider-scoped/legacy与官方fallback。"
+      ],
+      "finding": "统计页估算遵循原版固定价格表，不是当前在线报价；未加载/未计价不显示假零。会话累计费用另有解析缺陷SET-007。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需价格小数/零价/invalid/partial idle/flat、过滤目录、多provider同model、自定义移除退官方、保存失败/重连及数值对照。"
+    },
+    {
+      "id": "SET-046",
+      "feature": "用量日志修复：单条/批量、确认取消、停止排队及强制重扫",
+      "baseline": "installed-0.3.13",
+      "expected": "只有真实failed IDs可进入确认；用户确认后Host备份并修复，停止只影响未发出的请求，未知结果不自动重试。",
+      "entry": "用量与费用 > 失败日志修复",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/index.js:1995-2003: 修复备份路径。",
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:132-138: 原版修复、备份和重扫结果状态。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/repair.go:12-99: repair/stop/unknown/result/backup/rescan及确认取消。",
+        "internal/store/usage/repair.go:77-179: 候选校验和显式确认的ID列表。",
+        "internal/store/usage/repair.go:184-246: Host RPC、strict receipt、失败停队且不重试。",
+        "internal/store/usage/repair.go:264-301: 保持busy直到强制overview重扫，保存每请求结果。"
+      ],
+      "finding": "修复会实际重写日志，当前未执行。此链不把超时当失败未写，结果与rescan分开，备份路径可见。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需一次授权的隔离坏日志修复、备份可恢复、批量中断/丢响应/Host更换/重扫失败或stale验收；本轮禁止新建夹具，故未运行。"
+    },
+    {
+      "id": "SET-047",
+      "feature": "账户信息外链入口缺失",
+      "baseline": "installed-0.3.13",
+      "expected": "已登录账户可从资料卡进入平台账户信息根页。",
+      "entry": "原版账户资料卡 > 账户信息",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js:82: signedIn accountInfo锚点指向new URL('/',usageUrl)。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/account.go:95-124: MyGo资料卡只有通用icon/姓名/联系状态，无账户信息链接。",
+        "internal/ui/settings/account.go:170-201: 仅用量/充值/刷新/退出/联系动作，无profile根页动作。"
+      ],
+      "finding": "MyGo账户页保留用量/充值，但没有原版资料卡的账户信息外链；不能以用量页存在代替账户信息入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "添加基于Host账户链接的账户信息入口，错误反馈并保留安全origin策略。",
+      "acceptanceGap": "未真实打开平台；缺少可达控件和callback是静态已确认。"
+    },
+    {
+      "id": "SET-048",
+      "feature": "本地网络可用性观察与断线状态",
+      "baseline": "installed-0.3.13",
+      "expected": "网络断开/恢复能通知连接逻辑；不可探测时明确unknown，不另发互联网探针。",
+      "entry": "Host连接/断线状态的OS网络输入",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/connection/lib/types/client/index.js:1-120: 安装版连接服务。"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/networkstatus/status.go:1-10: Unknown/Offline/Online语义。",
+        "internal/desktop/networkstatus/status_windows.go:48-124: Windows本地API订阅先于初读，cancel注销；无探针。",
+        "internal/desktop/networkstatus/status_other.go:10-16: unsupported明确Unknown。",
+        "cmd/whaleisle/connection_reconnect.go:137-170: networkAvailability接到连接attempt。"
+      ],
+      "finding": "本域核对networkstatus模块的生产输入；不以OS Online断言Host可达。连接重试/旧数据/恢复呈现由LIFE负责。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需实际Windows断/连/无API、watch取消和Host不可达但OS在线的状态验收；本轮不更改网络。"
+    },
+    {
+      "id": "SET-049",
+      "feature": "账户RPC未跟随当前界面语言/版本",
+      "baseline": "installed-0.3.13",
+      "expected": "账户请求使用当前UI locale、实际客户端build版本和时区秒偏移。",
+      "entry": "登录、资料/余额读取、奖励读取/确认等账户RPC",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/client-metadata.js:8-16: 使用active locale和bundle version。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/index.js:45: accountClientMetadata读ctx.locale当前active。"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:4273-4278: startSignIn固定Version=whaleisle/Locale=zh-CN。",
+        "internal/store/usage/account_details.go:41-42: profile/balance同样固定。",
+        "internal/store/usage/account_bonuses.go:25-32: 读取奖励固定zh-CN。",
+        "internal/store/usage/account_bonuses.go:106-116: 奖励ack固定zh-CN。",
+        "cmd/whaleisle/account_signout.go:16-21: logout虽跟locale但version仍whaleisle。"
+      ],
+      "finding": "切到英文后这些Host请求仍报中文；version字段传产品短名而非buildVersion，与原版请求元数据含义不一致。时区单位本身使用秒正确。",
+      "evidenceLevel": "code",
+      "requiredAction": "共享accountClientMetadata helper，取i18n.Locale和buildVersion，所有账户caller一致。",
+      "acceptanceGap": "未实际请求账户；原版与production参数的差异明确。"
+    },
+    {
+      "id": "SET-050",
+      "feature": "中英文目录与store状态消息",
+      "baseline": "installed-0.3.13",
+      "expected": "UI/store/desktop提示共用active locale，英文界面不会混入固定中文的交互状态。",
+      "entry": "全设置页、图库/模型状态、store错误提示",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/locale/lib/types/client/LanguageRow.js:9-13: active语言控件。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js:44-86: 文案经t传入。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/i18n/i18n.go:2927-2976: zh/en规范化与English/key fallback。",
+        "internal/store/storelocale/storelocale.go:1-23: store复用唯一UI locale。",
+        "internal/ui/settings/provider_profiles.go:17-21: providerCopy按LocaleZH切换。",
+        "internal/ui/settings/wallpaper_background.go:65-69: 保存成功状态固定中文。",
+        "internal/ui/settings/wallpaper_background.go:96-143: 图库加载/无结果状态固定中文。",
+        "internal/desktop/providerdiscovery/controller.go:232-258: 若干直接英文状态进入UI。"
+      ],
+      "finding": "有统一目录且大量设置文案双语，但图库成功/加载/空结果固定中文、模型发现状态固定英文，不能声明语言覆盖完整。语言选择未提交见SET-001，账户metadata另见SET-049。",
+      "evidenceLevel": "code",
+      "requiredAction": "将已定位固定中文/英文交互状态移入现有统一目录；按实际设置动作检查缺词，不新增第二locale状态。",
+      "acceptanceGap": "本轮未逐个catalog key与所有截图核对；需两种语言的真实控制/错误/空状态遍历，保留动态插件自身locale边界。"
+    },
+    {
+      "id": "SET-051",
+      "feature": "账户奖励通知读取、确认、拒绝及过期处理",
+      "baseline": "installed-0.3.13",
+      "expected": "显示服务端奖励事实，ack只表示已通知；按accountId/orderId确认，拒绝或失败不冒充发奖。",
+      "entry": "账户页奖励卡及侧栏奖励通知",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountMenu.js:63: 账户奖励notice stack。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/bonus-notices.js:1-100: 奖励通知状态。"
+      ],
+      "mygoEvidence": [
+        "internal/store/usage/account_bonuses.go:21-80: getUnnotifiedBonuses、过期过滤与Host/epoch绑定。",
+        "internal/store/usage/account_bonuses.go:86-143: 选择事实校验、pending/failed/refused/acknowledged、成功移除并刷新。",
+        "internal/ui/settings/account.go:181-189: 只对account/order配对的卡ack。",
+        "internal/ui/settings/account_bonus_feedback.go:1-36: 区分确认结果反馈。",
+        "cmd/whaleisle/main.go:4234-4246: production callback。"
+      ],
+      "finding": "奖励与钱包读取分离；ack false不移除卡也不显示成功，账户切换失效旧响应。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需真实服务端奖励事件的读/过期/确认成功/false/网络错误/账户切换；本轮不ack任何奖励。"
+    },
+    {
+      "id": "SET-052",
+      "feature": "会话排行榜分页失败后的重试按钮不可达",
+      "baseline": "installed-0.3.13",
+      "expected": "加载更多失败后保留已有页，并允许直接重试同一页。",
+      "entry": "用量与费用 > 会话排行 > 显示更多会话失败",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js:1568-1572: 原版错误通知含Retry，fetchPage从已有长度重试。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/usage/ranking.go:126-138: rank.Err非空先return，下面重试标签分支不可能执行。",
+        "internal/store/usage/ranking.go:67-82: store本来允许Err状态重试同offset。"
+      ],
+      "finding": "错误一出现就提前返回，该卡的更多/重试按钮消失；用户只能改排序或重扫绕回，原本写好的重试分支永远不可达。",
+      "evidenceLevel": "code",
+      "requiredAction": "错误文案后仍渲染可重试同offset的按钮，保留已加载页与排序。",
+      "acceptanceGap": "未制造网络错误；if Err return与后续if Err的不可达控制流足以确认。"
+    },
+    {
+      "id": "SET-053",
+      "feature": "快捷键目录/搜索/固定输入说明和物理录制",
+      "baseline": "installed-0.3.13",
+      "expected": "常规可打开全部当前可用快捷键；按名称/键过滤，固定输入动作只读；编辑在按键释放时保存，不误触其他动作。",
+      "entry": "常规 > 编辑快捷键 > 搜索/单行编辑/录制",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Reference.js:37-56: dialog/catalog/fixedCatalog。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Reference.js:115-138: 搜索及fixed输入动作。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Editor.js:1-100: 物理录制/编辑。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/shortcuts.go:41-111: 打开/关闭/分层Escape/搜索与固定row结构。",
+        "internal/ui/settings/shortcuts.go:132-276: 搜索/命令/只读动作与单行editor。",
+        "internal/ui/settings/shortcut_recording.go:15-125: physical code、keydown/up/modifiers、IME/blur/repeat处理。",
+        "internal/shortcuts/recording.go:21-72: 保存单行/失败保留。"
+      ],
+      "finding": "原生录制以物理code和释放事件为准，支持desktop双键；固定输入动作不当作可重绑命令。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需Windows真实键盘/双键/修饰键释放/IME/失焦/系统保留键/Escape/窄窗验收；本轮不操作键盘。"
+    },
+    {
+      "id": "SET-054",
+      "feature": "快捷键冲突、移除/恢复单项、全部默认确认和显式重新加载",
+      "baseline": "installed-0.3.13",
+      "expected": "修改不挤掉其他默认键；单项移除与reset不同；全部reset仅当前平台，取消不写，写失败保留草稿，旧revision需明确reload。",
+      "entry": "快捷键dialog单行/页脚",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Reference.js:81-107: revision-bound reset-all与结果反馈。"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/shortcuts.go:276-376: 单项reset/unbind、全部reset确认、reload。",
+        "internal/shortcuts/recording.go:24-58: scoped row保存/失败留草稿。",
+        "internal/shortcutprefs/store.go:212-303: owned IDs/revision、有效冲突检查、不挤默认、write成功才accept。",
+        "cmd/whaleisle/settings_shortcuts.go:147-217: native apply/reset、冲突描述和显式reload。"
+      ],
+      "finding": "reset发送删除override，unbind发送空binding；其他platform与未拥有ID不被reset覆盖。配置写入失败不发布新bindings。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需真实冲突提示、修改后即时生效、单项/全部reset取消/失败、损坏文件/外部编辑后的reload/旧回调验收。"
+    },
+    {
+      "id": "SET-055",
+      "feature": "快捷键持久化、原生/页面共享和显式导入",
+      "baseline": "installed-0.3.13",
+      "expected": "原生与嵌入页面使用同一MyGo shortcut authority；平台分离；旧native偏好只首次迁移；外部来源导入先预览冲突再明确选择。",
+      "entry": "共享快捷键服务及page adapter导入入口",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/shortcuts/lib/types/client/index.js:1-120: 安装版shortcut服务。",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Reference.js:46-56: platform/runtime/catalog与config。"
+      ],
+      "mygoEvidence": [
+        "internal/config/unified_shortcuts.go:13-29: 显式reload只接受shortcut-owned snapshot。",
+        "internal/config/unified_shortcuts.go:62-128: goUnifiedShortcuts、CAS/atomic写、未知config保留。",
+        "cmd/whaleisle/settings_shortcuts.go:25-87: legacy一次初始化和sharednative owner。",
+        "cmd/whaleisle/settings_shortcuts.go:92-115: 5秒外部变更观察，离开UI逐帧读盘。",
+        "internal/shortcutprefs/import.go:29-101: 只读预览、显式替换冲突、不合成源defaults。",
+        "internal/desktop/pluginslots/shortcut_import.go:12-40: page adapter预览/commit，详细page承载由PLUG负责。"
+      ],
+      "finding": "MyGo authority是config.goUnifiedShortcuts，并非自动共用Electron keybindings文件；平台文档/namespace含义清楚。页面adapter消费由PLUG已审，不能靠纯store证明原生/页面都触发同一实际行为。",
+      "evidenceLevel": "code",
+      "requiredAction": "按 acceptanceGap 完成实际用户路径验收；代码链仅记 wired-unverified。",
+      "acceptanceGap": "需原生保存→页面命令/菜单/终端实时取值、重启、跨平台隔离、显式web覆盖导入/取消/冲突、外部改盘reload；不读真实配置。"
+    }
+  ],
+  "sectionInventory": [
+    {
+      "sectionId": "account",
+      "destination": "账户专页",
+      "coverage": "SET-002, SET-009..014, SET-047, SET-049, SET-051",
+      "ownerReport": "settings-accounts.json",
+      "actions": "登录/取消/重开授权、资料余额、用量充值返回、奖励确认、退出和联系",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "general",
+      "destination": "Desktop 常规 + 高级 namespace/credentials",
+      "coverage": "SET-001, SET-003, SET-015..019, SET-036..039, SET-053..055",
+      "ownerReport": "settings-accounts.json",
+      "actions": "语言、代码工作视图、快捷键、关闭/启动、性能/日志、Harness版本和恢复；高级配置",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "appearance",
+      "destination": "appearancePane",
+      "coverage": "SET-008, SET-020..024",
+      "ownerReport": "settings-accounts.json",
+      "actions": "色彩模式、主题库、字体、壁纸/图库、背景/指针/玻璃、输入/思考特效",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "interface",
+      "destination": "interfacePane",
+      "coverage": "SET-025",
+      "ownerReport": "settings-accounts.json; workspace-sessions.json",
+      "actions": "标题栏/输入框/统计/tab；归档业务 WS；本地 autoAllow",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "conversation",
+      "destination": "conversationPane",
+      "coverage": "SET-005, SET-026..029",
+      "ownerReport": "settings-accounts.json; workbench.json",
+      "actions": "权限、忙碌发送、步骤展示/收起、链接、下一句、视觉回复、自定义指令；消费 WORK",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "features",
+      "destination": "featuresPane",
+      "coverage": "SET-030",
+      "ownerReport": "settings-accounts.json; lifecycle-remote.json; workbench.json; pet-voice.json",
+      "actions": "助手、Project、SSH workspace 开关；运行生命周期由各域持有",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "models",
+      "destination": "modelsPane",
+      "coverage": "SET-004, SET-031..035",
+      "ownerReport": "settings-accounts.json; pet-voice.json",
+      "actions": "provider/config/删除/发现/credential refs、当前任务模型；vision 设置/消费 PET",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "plugins",
+      "destination": "pluginsPane",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "库存/启停/配置/更新/移除及动态贡献",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "skills",
+      "destination": "skillsPane",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "过滤/详情/创建/编辑/删除/技能市场与状态",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "market",
+      "destination": "SectionContent embedded market",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "浏览/安装/更新/移除/源和权限确认",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "remote",
+      "destination": "SectionContent embedded remote",
+      "coverage": "LIFE",
+      "ownerReport": "lifecycle-remote.json",
+      "actions": "手机远程配置/配对/设备管理",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "mcp",
+      "destination": "mcpPane",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "管理/导入/登录/工具/状态",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "agent-presets",
+      "destination": "agentPresetsPane",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "默认、说明、创建、复制、自定义预设",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "pet",
+      "destination": "pet/live2d namespace routing",
+      "coverage": "PET",
+      "ownerReport": "pet-voice.json",
+      "actions": "宠物、鲸鱼娘、记忆、声音及神经网络/感知设置",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "about",
+      "destination": "aboutPane + diagnostics",
+      "coverage": "SET-040",
+      "ownerReport": "settings-accounts.json; lifecycle-remote.json",
+      "actions": "版本、存储、目录/链接、诊断；更新版本业务 LIFE",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "usage-stats",
+      "destination": "SectionContent embedded usage",
+      "coverage": "SET-007, SET-041..046, SET-052",
+      "ownerReport": "settings-accounts.json",
+      "actions": "统计、日期、排序分页、导出、定价、修复、会话费用偏好",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "remote-workspace",
+      "destination": "embedded remote workspace tab；非独立主rail",
+      "coverage": "LIFE/WS",
+      "ownerReport": "lifecycle-remote.json; workspace-sessions.json",
+      "actions": "连接/SSH镜像/同步/凭据；不按别名重复算覆盖",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "agent-loop",
+      "destination": "插件配置卡 servedPluginBody('agent-loop') / 高级 namespace",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "并行工具调用上限及继承/保存",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "web-search",
+      "destination": "插件配置卡 servedPluginBody('web-search') / 高级 namespace",
+      "coverage": "PLUG",
+      "ownerReport": "plugins.json",
+      "actions": "搜索参数/密钥；共享 secret 写入契约见 SET-035",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "subagent",
+      "destination": "插件配置卡 servedPluginBody('subagent') / 高级 namespace",
+      "coverage": "PLUG/WORK",
+      "ownerReport": "plugins.json; workbench.json",
+      "actions": "层数、并发数、允许选择模型/模型集合",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "shell",
+      "destination": "插件配置卡 servedPluginBody('shell') / 高级 namespace",
+      "coverage": "PLUG/WORK",
+      "ownerReport": "plugins.json; workbench.json",
+      "actions": "bash/pwsh本地/sandbox配置、继承及保存",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    },
+    {
+      "sectionId": "other",
+      "destination": "高级 namespace 下拉未知 namespace；不在主rail新增空页",
+      "coverage": "SET-036..039/PLUG",
+      "ownerReport": "settings-accounts.json; plugins.json",
+      "actions": "schema 驱动 bool/enum/string/number/JSON，未知动态UI contribution由 PLUG",
+      "routingEvidence": [
+        "internal/ui/settings/sections.go:12-110",
+        "internal/ui/settings/navigation.go:78-116",
+        "cmd/whaleisle/settings_sections.go:17-55"
+      ]
+    }
+  ],
+  "auditComplete": true,
+  "baseline": "MyGo b8b93ed8 + current working tree; installed desktop 0.3.13, Host/client 0.2.1-rc.2",
+  "modulesReviewed": [
+    "cmd/whaleisle/account_contact.go",
+    "cmd/whaleisle/account_platform.go",
+    "cmd/whaleisle/account_return.go",
+    "cmd/whaleisle/account_signout.go",
+    "cmd/whaleisle/browser_preview_actions.go",
+    "cmd/whaleisle/connection_reconnect.go",
+    "cmd/whaleisle/desktop_bool_preferences.go",
+    "cmd/whaleisle/desktop_onboarding.go",
+    "cmd/whaleisle/main.go",
+    "cmd/whaleisle/settings_appearance_theme.go",
+    "cmd/whaleisle/settings_body_wiring.go",
+    "cmd/whaleisle/settings_provider_discovery.go",
+    "cmd/whaleisle/settings_provider_profiles.go",
+    "cmd/whaleisle/settings_referenced_credentials.go",
+    "cmd/whaleisle/settings_sections.go",
+    "cmd/whaleisle/settings_shortcuts.go",
+    "cmd/whaleisle/settings_visual_replies.go",
+    "cmd/whaleisle/theme_font_preferences.go",
+    "cmd/whaleisle/welcome_window.go",
+    "internal/accountcontact/contact.go",
+    "internal/accountdetails/details.go",
+    "internal/accountlogin/login.go",
+    "internal/accountlogout/flow.go",
+    "internal/config/harness_restart.go",
+    "internal/config/persistence.go",
+    "internal/config/unified_shortcuts.go",
+    "internal/credentials/storage_status.go",
+    "internal/desktop/credentialrefs/controller.go",
+    "internal/desktop/credentialrefs/protocol.go",
+    "internal/desktop/networkstatus/status.go",
+    "internal/desktop/networkstatus/status_other.go",
+    "internal/desktop/networkstatus/status_windows.go",
+    "internal/desktop/pluginslots/shortcut_import.go",
+    "internal/desktop/providerdiscovery/controller.go",
+    "internal/desktop/providerdiscovery/probe.go",
+    "internal/desktop/providerprofiles/controller.go",
+    "internal/shortcutprefs/import.go",
+    "internal/shortcutprefs/store.go",
+    "internal/shortcuts/recording.go",
+    "internal/store/sessioncost/cost.go",
+    "internal/store/settings/busy_enter.go",
+    "internal/store/settings/chat_preferences.go",
+    "internal/store/settings/chrome_preferences.go",
+    "internal/store/settings/credentials_rpc.go",
+    "internal/store/settings/custom_instructions.go",
+    "internal/store/settings/developer_preferences.go",
+    "internal/store/settings/document.go",
+    "internal/store/settings/draft_operations.go",
+    "internal/store/settings/instructions_write.go",
+    "internal/store/settings/namespace_sequence.go",
+    "internal/store/settings/permission_defaults.go",
+    "internal/store/settings/schema.go",
+    "internal/store/settings/store.go",
+    "internal/store/settings/visual_replies.go",
+    "internal/store/storelocale/storelocale.go",
+    "internal/store/usage/account_bonuses.go",
+    "internal/store/usage/account_details.go",
+    "internal/store/usage/billing_models.go",
+    "internal/store/usage/follow.go",
+    "internal/store/usage/pricing.go",
+    "internal/store/usage/pricing_official.go",
+    "internal/store/usage/projects.go",
+    "internal/store/usage/ranking.go",
+    "internal/store/usage/repair.go",
+    "internal/store/usage/stats.go",
+    "internal/store/usage/stats_cache.go",
+    "internal/store/usage/time_range.go",
+    "internal/ui/i18n/i18n.go",
+    "internal/ui/sessioncost/view.go",
+    "internal/ui/settings/about.go",
+    "internal/ui/settings/account.go",
+    "internal/ui/settings/account_bonus_feedback.go",
+    "internal/ui/settings/account_signout.go",
+    "internal/ui/settings/appearance.go",
+    "internal/ui/settings/body_preferences.go",
+    "internal/ui/settings/conversation.go",
+    "internal/ui/settings/custom_instructions.go",
+    "internal/ui/settings/desktop.go",
+    "internal/ui/settings/effect_preferences.go",
+    "internal/ui/settings/features.go",
+    "internal/ui/settings/harness_restart.go",
+    "internal/ui/settings/host_theme.go",
+    "internal/ui/settings/interface.go",
+    "internal/ui/settings/model_body.go",
+    "internal/ui/settings/model_configuration.go",
+    "internal/ui/settings/model_configuration_values.go",
+    "internal/ui/settings/models.go",
+    "internal/ui/settings/navigation.go",
+    "internal/ui/settings/onboarding.go",
+    "internal/ui/settings/permission_defaults.go",
+    "internal/ui/settings/pointer_effects.go",
+    "internal/ui/settings/preference_notices.go",
+    "internal/ui/settings/provider_profiles.go",
+    "internal/ui/settings/provider_specific_configuration.go",
+    "internal/ui/settings/referenced_credentials.go",
+    "internal/ui/settings/search.go",
+    "internal/ui/settings/sections.go",
+    "internal/ui/settings/settings.go",
+    "internal/ui/settings/shortcut_recording.go",
+    "internal/ui/settings/shortcuts.go",
+    "internal/ui/settings/theme_font_preferences.go",
+    "internal/ui/settings/wallpaper_background.go",
+    "internal/ui/theme/editor.go",
+    "internal/ui/theme/editor_font.go",
+    "internal/ui/theme/editor_library.go",
+    "internal/ui/theme/family_documents.go",
+    "internal/ui/theme/host_preferences.go",
+    "internal/ui/theme/preferences.go",
+    "internal/ui/usage/embedded.go",
+    "internal/ui/usage/pricing.go",
+    "internal/ui/usage/projects.go",
+    "internal/ui/usage/ranking.go",
+    "internal/ui/usage/repair.go",
+    "internal/ui/usage/statistics_dimensions.go",
+    "internal/ui/usage/stats.go"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/connection/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/locale/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/locale/lib/types/client/LanguageRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/shortcuts/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ChatView.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/presentation-policy.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/transcript-view.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/PeakValleyRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/price-calculator.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-permission-presets/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/config-form.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings/lib/types/client/schema.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountMenu.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/AccountSection.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/bonus-notices.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/client-metadata.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/contact-url.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-account/lib/types/client/SignOutDialog.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/AboutSection.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/AutoStartDesktopRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/CloseBehaviorRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/DeveloperToolsRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/FeaturesSection.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/HarnessRestartRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-document-store.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-navigation.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/settings-placement.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-general/lib/types/client/SettingsRoot.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/CustomProviderCard.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ModelsSection.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-models/lib/types/client/ProviderEditor.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-session-log/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Editor.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-shortcuts/lib/types/client/Reference.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/AppearanceSection.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/types/client/WallpaperRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-titlebar/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/settings.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/credentials/deepseek-account-platform/lib/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/credentials/deepseek-account-platform/lib/types/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/config.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/llm/llm-deepseek-api-key/lib/types/index.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-usage-panel/lib/index.js",
+    "tmp/full-audit-20261102/installed-source/src/main/chrome.js",
+    "tmp/full-audit-20261102/installed-source/src/main/config.js",
+    "tmp/full-audit-20261102/installed-source/src/main/welcome-window.js",
+    "tmp/full-audit-20261102/installed-source/src/shared/harness-desktop-forks.js"
+  ],
+  "moduleDisposition": [
+    {
+      "area": "settings plugin/skills/MCP/market/presets + served agent-loop/web-search/subagent/shell bodies",
+      "ownerReport": "plugins.json",
+      "scope": "本报告审路由、generic settings与共享credential契约；PLUG持有每一特性配置及插件动作。"
+    },
+    {
+      "area": "settings pet/voice_input/voice_preparation/vision + config pet/live2d fields",
+      "ownerReport": "pet-voice.json",
+      "scope": "PET持有设置动作和运行消费；此处不重复宠物验收。"
+    },
+    {
+      "area": "remote/remote-workspace, proxy, updates, importer/uninstall, launch/runtime",
+      "ownerReport": "lifecycle-remote.json",
+      "scope": "LIFE持有服务/OS/更新/远程业务；SET-015/018/030/040/048仅设置与接口审查。"
+    },
+    {
+      "area": "config workspace_preferences/archive + native archived manager",
+      "ownerReport": "workspace-sessions.json",
+      "scope": "WS持有目录/工作区/归档语义，包含WS-041草稿覆盖cwd。"
+    },
+    {
+      "area": "accepted chat/permission/busyEnter/transcript/link/nextPrompt/visualReply/titlebar consumption",
+      "ownerReport": "workbench.json",
+      "scope": "本域审设置producer及accepted投影；WORK持有真实聊天/工具/渲染消费，collapseTiming缺失已SET-005明确。"
+    }
+  ],
+  "originalCapabilityInventory": [
+    {
+      "area": "设置shell",
+      "actions": [
+        "分组导航",
+        "当前真实贡献页",
+        "插件额外页",
+        "搜索/跳转",
+        "打开Host配置文档",
+        "关闭/返回",
+        "空/只读/加载/错误"
+      ],
+      "destination": [
+        "SET-006",
+        "SET-036",
+        "SET-037",
+        "SET-038",
+        "SET-039",
+        "plugins.json"
+      ],
+      "source": "ui-settings-general/lib/types/client/{index,settings-placement,SettingsRoot,settings-document-store}.js"
+    },
+    {
+      "area": "账户",
+      "actions": [
+        "未登录入口/登录",
+        "跟随授权/重开/取消/过期",
+        "姓名/contact/avatar与accountInfo",
+        "余额/奖励余额与失败回退",
+        "用量/充值/支付外链/返回刷新",
+        "退出影响/确认/取消/未知结果核验",
+        "奖励通知与ack",
+        "联系反馈",
+        "首次引导的既定禁用"
+      ],
+      "destination": [
+        "SET-002",
+        "SET-009",
+        "SET-010",
+        "SET-011",
+        "SET-012",
+        "SET-013",
+        "SET-014",
+        "SET-047",
+        "SET-049",
+        "SET-051"
+      ],
+      "source": "ui-settings-account/lib/types/client/{index,AccountSection,AccountMenu,SignOutDialog,client-metadata}.js"
+    },
+    {
+      "area": "常规",
+      "actions": [
+        "语言",
+        "显示代码工作视图",
+        "编辑快捷键",
+        "关闭窗口行为",
+        "直接开桌面/启动器",
+        "性能与用量",
+        "上传SessionLog",
+        "Harness版本",
+        "Harness自动恢复/次数/基础延迟"
+      ],
+      "destination": [
+        "SET-001",
+        "SET-015",
+        "SET-016",
+        "SET-017",
+        "SET-018",
+        "SET-053",
+        "SET-054",
+        "SET-055"
+      ],
+      "source": "ui-settings-general/lib/types/client/index.js; locale/LanguageRow; ui-chat/apply; ui-shortcuts/Reference"
+    },
+    {
+      "area": "外观",
+      "actions": [
+        "浅/深/跟随系统",
+        "浅深独立主题",
+        "创建/复制/编辑/预览/取消/导入/导出/删除主题",
+        "主题自带壁纸启用",
+        "本地壁纸/清除/裁剪",
+        "图库来源/搜索/分类/年份/分页/收藏/下载",
+        "背景gradient/none/预设/配色/速度/数量/样式",
+        "cursor trail/splash/预设/颜色/速度/大小",
+        "按钮光泽",
+        "玻璃与终端透明度",
+        "透明主题/侧栏遮罩",
+        "界面/代码/输入框/终端字体及字号/默认",
+        "正文大小",
+        "输入特效/思考炫光配置"
+      ],
+      "destination": [
+        "SET-008",
+        "SET-020",
+        "SET-021",
+        "SET-022",
+        "SET-023",
+        "SET-024"
+      ],
+      "source": "ui-theme/lib/types/client/{AppearanceSection,WallpaperRow,index}.js; ui-conversation/apply.js"
+    },
+    {
+      "area": "界面",
+      "actions": [
+        "标题栏Git",
+        "终端抽屉开关",
+        "右侧栏按钮",
+        "composerResize",
+        "statsLine",
+        "viewTabs",
+        "归档管理"
+      ],
+      "destination": [
+        "SET-025",
+        "workspace-sessions.json"
+      ],
+      "source": "ui-git/apply; ui-titlebar/apply; ui-conversation/apply; original archived-sessions area owned by WS"
+    },
+    {
+      "area": "对话",
+      "actions": [
+        "新任务默认权限",
+        "busyEnter queue/steer与补集动作",
+        "步骤展示等级",
+        "步骤收起时机",
+        "链接默认打开",
+        "下一句提示",
+        "视觉回复",
+        "自定义指令"
+      ],
+      "destination": [
+        "SET-005",
+        "SET-026",
+        "SET-027",
+        "SET-028",
+        "SET-029",
+        "workbench.json"
+      ],
+      "source": "ui-permission-presets/index; ui-conversation/apply; ui-chat/apply; ui-visual-replies/settings"
+    },
+    {
+      "area": "内置功能",
+      "actions": [
+        "鲸鱼娘助理",
+        "Project",
+        "SSH远程工作区",
+        "重启/确认/取消"
+      ],
+      "destination": [
+        "SET-030",
+        "workbench.json",
+        "pet-voice.json",
+        "lifecycle-remote.json"
+      ],
+      "source": "ui-settings-general/lib/types/client/{FeaturesSection,index}.js"
+    },
+    {
+      "area": "模型",
+      "actions": [
+        "配置provider与环境凭据状态",
+        "密钥write-only/清除",
+        "通用及provider专用设置",
+        "模型目录及元数据/推理等级/继承",
+        "新增custom provider",
+        "删除managed profile/associated key",
+        "模型发现/临时key/候选选择/合并/review",
+        "识图fallback",
+        "当前任务模型"
+      ],
+      "destination": [
+        "SET-004",
+        "SET-031",
+        "SET-032",
+        "SET-033",
+        "SET-034",
+        "SET-035",
+        "pet-voice.json",
+        "workbench.json"
+      ],
+      "source": "ui-settings-models/lib/types/client/{index,ProviderEditor,ModelsSection,CustomProviderCard}.js"
+    },
+    {
+      "area": "用量与费用",
+      "actions": [
+        "总览/刷新/缓存/覆盖诊断",
+        "时间/UTC范围/热力图",
+        "每日堆叠/服务商分项/模型占比/明细",
+        "模型更多/会话目录排序分页",
+        "JSON/CSV导出",
+        "价格详情/模型选择/峰谷/平价/自定义覆盖",
+        "修复失败日志/备份/结果/重扫",
+        "会话累计费用/官方峰谷状态",
+        "子代理费用与route聚合"
+      ],
+      "destination": [
+        "SET-007",
+        "SET-041",
+        "SET-042",
+        "SET-043",
+        "SET-044",
+        "SET-045",
+        "SET-046",
+        "SET-052"
+      ],
+      "source": "dsh-usage-panel/lib/{client,index}.js; ui-conversation/price-calculator; chat/PeakValleyRow"
+    },
+    {
+      "area": "插件/技能/MCP/市场/预设/agent-loop/web-search/subagent/shell",
+      "actions": [
+        "所有安装版served配置与每页用户动作按PLUG报告逐项库存"
+      ],
+      "destination": [
+        "plugins.json"
+      ],
+      "source": "ui-settings-*/lib + ui-agent-preset/lib；本报告sectionInventory记录所有相应SectionID去向"
+    },
+    {
+      "area": "宠物/语音/vision",
+      "actions": [
+        "宠物页面/桌面宠物/鲸鱼娘/记忆/声音/神经网络/识图配置与消费"
+      ],
+      "destination": [
+        "pet-voice.json"
+      ],
+      "source": "installed desktop pet及client配置，PET领域审查"
+    },
+    {
+      "area": "手机远程/SSH",
+      "actions": [
+        "远程模式/中继/TLS/端口/bind/配对/设备/SSH工作区配置"
+      ],
+      "destination": [
+        "lifecycle-remote.json",
+        "workspace-sessions.json"
+      ],
+      "source": "ui-settings-remote/lib + desktop remote modules"
+    },
+    {
+      "area": "关于/更新",
+      "actions": [
+        "版本/运行目录/凭据存储元数据",
+        "打开运行目录/项目release/官方Harness链接",
+        "更新路由/检查/下载/安装/取消/错误",
+        "更新中心"
+      ],
+      "destination": [
+        "SET-040",
+        "lifecycle-remote.json"
+      ],
+      "source": "ui-settings-general/lib/types/client/AboutSection.js and desktop update implementation"
+    }
+  ],
+  "crossDomainDependencies": [
+    "plugins.json: plugins/skills/MCP/market/Agent presets/served agent-loop/web-search/subagent/shell与动态贡献由PLUG持有；此处明确22 SectionID去向，不按页数宣称功能完整。",
+    "workspace-sessions.json WS-041: 旧desktopDraft保存无关偏好覆盖workspace/cwd已完整记录，不重复。archived-sessions原版额外设置区域及归档业务由WS负责。",
+    "pet-voice.json: 宠物/语音/vision配置与真实运行消费由PET负责；本域主题指针/输入特效不是宠物。",
+    "lifecycle-remote.json: 关闭/托盘/启动/Harness重启、feature flag取消恢复、远程、网络连接恢复、更新中心/下载路由/安装由LIFE负责。系统代理更新风险LIFE-040不重复。",
+    "workbench.json: 对话/审批/链接/下一句/视觉回复/主题作用到聊天、当前任务模型消费由WORK负责；SET-005已确认producer存在但collapseTiming无accepted消费。",
+    "账户运行验收需要修复SET-002后再执行；现有真实登录profile不属于本轮允许操作范围。"
+  ],
+  "uncovered": [
+    "实际运行验收未执行：普通/窄窗、原生键盘/文件对话框/托盘/OS登录项、主题实际渲染与性能、账户/支付/密钥/模型请求、日志修复与重启恢复。所有未确认缺陷的完整代码链仍是wired-unverified。",
+    "当前原项目C:/AI/Deepseek-Harness-Desktop的额外dirty能力未逐项比较；本域结论基于实际安装0.3.13提取桌面源和随包Host/client，不把同版本号的dirty源码当同一基线。",
+    "本轮仅审设置相关locale目录与明确交互状态，未对全应用所有catalog key/动态插件文案做逐键翻译完整性核对；已定位的固定语言差异见SET-050。",
+    "Windows凭据读写实现为代码审查；真实Electron safeStorage/DPAPI互通、macOS Keychain/legacy解密与profile迁移未执行。未读取任何真实profile或凭据。",
+    "跨域owned区域的业务细节以相应领域JSON为准，本报告不重复其结论；本文件22 SectionID及额外原版archived-sessions去向已经列明。"
+  ],
+  "checksRun": [
+    {
+      "command": "Read-only installed-source/src + installed vendor client/Host source inspection",
+      "result": "入口/回调/accepted投影/Host请求/持久化/错误取消回退逐链审查；未运行桌面或服务。",
+      "scope": "安装0.3.13生产基线，MyGo b8b93ed8+当前工作树。"
+    },
+    {
+      "command": "Get-Content docs/parity/full-audit-20261102/settings-accounts.json -Raw -Encoding utf8 | ConvertFrom-Json",
+      "result": "最终JSON解析通过：55 features、22个唯一SectionID、重复ID 0；confirmed-defect=10, wired-unverified=42, partial=2, missing=1。",
+      "scope": "只验证领域报告，不是产品测试。"
+    },
+    {
+      "command": "Read-only path and line-range validation for every feature originalEvidence/mygoEvidence",
+      "result": "全部引用路径存在且行范围有效；未运行产品测试。",
+      "scope": "当前安装与当前MyGo源码的报告引用完整性，不是运行验收。"
+    },
+    {
+      "command": "Validate required feature fields and IDs in final report",
+      "result": "55条均包含13个必需字段，缺失/空字段0，重复ID0；22个SectionID有去向。",
+      "scope": "只验证报告结构；未新写或运行任何产品测试。"
+    }
+  ],
+  "summary": "已为22个MyGo SectionID、原版额外archived-sessions及设置控件库存记录明确去向；55项能力/紧密动作审查。最高风险SET-002：普通登录callbackOrigin被当前Host协议校验拒绝(P0)。默认API key同步ref及模型页credential-ref语义错误、打开配置文档目标错、官方会话费用未定价为P1；其余已确认问题含语言不提交、收起时机未消费、主题壁纸字段丢失、账户元数据错误及会话排行失败无直接重试。首次欢迎和账户引导明确禁用，按既定选择保留，不当作当前缺陷或可达凭据入口。只读审查，未修产品、未运行测试/构建/真实账户和模型。",
+  "findingsCount": {
+    "confirmedDefect": 10,
+    "missing": 1,
+    "partial": 2,
+    "wiredUnverified": 42,
+    "total": 55,
+    "sectionIDs": 22
+  },
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-settings-actions.json",
+    "supplement-pet-actions.json"
+  ]
+}

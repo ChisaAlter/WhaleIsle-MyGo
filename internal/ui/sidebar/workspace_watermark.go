@@ -12,7 +12,6 @@ var workspaceOrderedRowsMemo struct {
 	sync.Mutex
 	key       session.ProjectionKey
 	rowsByKey map[string][]session.WorkspaceSessionRow
-	attention map[string]bool
 }
 
 type workspaceWatermarkState struct {
@@ -35,7 +34,7 @@ func workspaceReveal(m Model) string {
 func workspaceWatermarkAttention(m Model) map[string]bool {
 	attention := map[string]bool{}
 	for _, item := range m.Snapshot.Items {
-		if item.Running || item.CompletionUnread || item.SessionID == m.Snapshot.SelectedID || m.PendingStatuses[item.SessionID] != "" {
+		if sessionStatus(m, item) != "" || item.SessionID == displayedSessionID(m) {
 			attention[item.SessionID] = true
 		}
 	}
@@ -57,7 +56,6 @@ func visibleWorkspaceSessionRows(m Model, group session.WorkspaceGroup) workspac
 		if workspaceOrderedRowsMemo.key != projKey {
 			workspaceOrderedRowsMemo.key = projKey
 			workspaceOrderedRowsMemo.rowsByKey = make(map[string][]session.WorkspaceSessionRow, len(m.Snapshot.Workspaces)+2)
-			workspaceOrderedRowsMemo.attention = nil
 		} else {
 			rows = workspaceOrderedRowsMemo.rowsByKey[group.Key]
 		}
@@ -96,23 +94,9 @@ func visibleWorkspaceSessionRows(m Model, group session.WorkspaceGroup) workspac
 		nonblank++
 		if nonblank > baseline {
 			if attention == nil {
-				if projKey.Valid() && len(m.PendingStatuses) == 0 {
-					workspaceOrderedRowsMemo.Lock()
-					if workspaceOrderedRowsMemo.key == projKey {
-						attention = workspaceOrderedRowsMemo.attention
-					}
-					workspaceOrderedRowsMemo.Unlock()
-				}
-				if attention == nil {
-					attention = workspaceWatermarkAttention(m)
-					if projKey.Valid() && len(m.PendingStatuses) == 0 {
-						workspaceOrderedRowsMemo.Lock()
-						if workspaceOrderedRowsMemo.key == projKey {
-							workspaceOrderedRowsMemo.attention = attention
-						}
-						workspaceOrderedRowsMemo.Unlock()
-					}
-				}
+				// Display selection and child activity can change without a roster
+				// revision. Cache row ordering, not these presentation facts.
+				attention = workspaceWatermarkAttention(m)
 			}
 			if nonblank <= workspaceWatermarkAutoMax && attention[row.Item.SessionID] || row.Item.SessionID == reveal {
 				baseline = nonblank

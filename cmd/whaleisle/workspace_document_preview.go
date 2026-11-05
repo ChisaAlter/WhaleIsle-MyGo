@@ -59,6 +59,9 @@ func (s *mainState) openWorkspaceDocumentSource(sessions *session.Store, source 
 }
 
 func (s *mainState) workspaceDocumentReady(source browserpreviewui.DocumentSource) bool {
+	if source.DeclaredDelivery {
+		return source.DeclaredDeliveryValid()
+	}
 	if source.LocalDelivery || source.AddressKind == localDeliveryAddress {
 		return source.LocalDeliveryValid()
 	}
@@ -98,6 +101,9 @@ func workspaceDocumentAddress(source browserpreviewui.DocumentSource) session.Ag
 // child address. Recovery never selects or follows a child, swaps a Host client,
 // or treats the persisted descriptor as a live permission token.
 func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpreviewui.DocumentSource) browserpreviewui.DocumentResult {
+	if source.DeclaredDelivery {
+		return source.DeclaredDeliveryResult()
+	}
 	if source.LocalDelivery || source.AddressKind == localDeliveryAddress {
 		return s.readLocalDeliverableDocument(ctx, source)
 	}

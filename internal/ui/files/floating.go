@@ -11,21 +11,21 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
-	"whaleisle/internal/ui/widgets/markdown"
 )
 
 type floatingPreview struct {
-	win      *mygo.Window
-	snapshot previewSnapshot
-	image    *imagePreview
-	tabs     Tabs
-	tab      FileTab
-	themeID  string
-	notify   func()
-	reader   textReadQueue
-	owner    textReadOwner
-	read     func(context.Context) textReadResult
-	loading  bool
+	win       *mygo.Window
+	snapshot  previewSnapshot
+	image     *imagePreview
+	tabs      Tabs
+	tab       FileTab
+	themeID   string
+	notify    func()
+	reader    textReadQueue
+	readImage func(context.Context, string, int64) ([]byte, error)
+	owner     textReadOwner
+	read      func(context.Context) textReadResult
+	loading   bool
 }
 
 // Floating text previews read saved bytes through the captured source binding.
@@ -46,6 +46,8 @@ func openFloatingPreview(m Model) error {
 	f.snapshot, f.image, f.themeID, f.notify = snapshot, nil, m.ThemeID, m.notify
 	f.owner = textReadOwner{binding: m.BindingID, root: snapshot.Root, session: m.SessionID, path: snapshot.Path}
 	f.read = savedFloatingReader(m, snapshot.Path)
+	f.tab.stopMarkdownImages()
+	f.readImage = m.ReadImageContext
 	f.tab = FileTab{Path: snapshot.Path, Preview: snapshot.Text, Draft: snapshot.Text}
 	f.tabs = Tabs{Preferences: previewPreferences(m), Workspaces: map[string]*WorkspaceTabs{filepath.Clean(snapshot.Root): {Open: []*FileTab{&f.tab}, Active: snapshot.Path}}}
 	title := label("浮动预览 · ", "Floating preview · ") + filepath.Base(snapshot.Path)
@@ -57,6 +59,7 @@ func openFloatingPreview(m Model) error {
 		}
 		f.win.OnClosed(func() {
 			f.reader.stop(true)
+			f.tab.stopMarkdownImages()
 			f.win = nil
 			f.image = nil
 			f.snapshot = previewSnapshot{}
@@ -79,11 +82,13 @@ func (t *Tabs) closeFloatingPreview() {
 	f := t.floating
 	t.floating = nil
 	f.reader.stop(true)
+	f.tab.stopMarkdownImages()
 	if f.win != nil && !f.win.IsDestroyed() {
 		f.win.Destroy()
 	}
 }
 func (f *floatingPreview) refresh() {
+	f.tab.stopMarkdownImages()
 	f.loading = true
 	f.snapshot.Problem = ""
 	f.reader.request(f.owner, f.read)
@@ -108,7 +113,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 	colors := theme.Resolve(f.themeID).Active(dark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	border := chrome.Color(colors.Border)
-	m := Model{Tabs: &f.tabs, WorkspaceRoot: f.snapshot.Root, SelectedFile: &f.snapshot.Path, Preview: &f.snapshot.Text, EditDraft: &f.snapshot.Text, ThemeID: f.themeID, SystemDark: dark, notify: c.Invalidate}
+	m := Model{Tabs: &f.tabs, WorkspaceRoot: f.snapshot.Root, SelectedFile: &f.snapshot.Path, Preview: &f.snapshot.Text, EditDraft: &f.snapshot.Text, ThemeID: f.themeID, SystemDark: dark, ReadImageContext: f.readImage, notify: c.Invalidate}
 	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
 		ui.Row(c).FillWidth().MinHeight(36).AlignItems(ui.Center).Wrap().Gap(6).Padding(4, 12).
 			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0) }).
@@ -145,7 +150,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 			paintImageView(c, f.image, &f.tab.imageView)
 		} else if f.tab.RenderedMarkdown && isMarkdown(f.snapshot.Path) {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
-				ui.Column(c).FillWidth().Padding(12).Children(func() { markdown.ViewInteractive(c, f.snapshot.Text, sourceStyle(m, fg, muted), nil) })
+				ui.Column(c).FillWidth().Padding(12).Children(func() { paintMarkdownResource(c, m, fg, muted) })
 			})
 		} else {
 			paintSourceArea(c, m, f.snapshot.Path, &f.snapshot.Text, true, "floating", fg, muted)
@@ -165,7 +170,7 @@ func savedFloatingReader(m Model, path string) func(context.Context) textReadRes
 	resolve := previewPathResolver(m, tab)
 	localSource := tab.deliverySource
 	remote, pageReader, tableReader := m.ReadRemoteContext, m.ReadTextPageContext, m.ReadTableContext
-	if desktopFileToolbar(m, path) {
+	if desktopFileToolbar(m, path) && !tab.Remote {
 		remote, pageReader = nil, nil
 	}
 	return func(ctx context.Context) textReadResult {

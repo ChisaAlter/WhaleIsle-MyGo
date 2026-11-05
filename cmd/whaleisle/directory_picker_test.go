@@ -12,12 +12,42 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/dirpick"
 	"whaleisle/internal/ui/i18n"
 )
+
+func TestDirectoryPickerRemoteTabPreservesLocalLanding(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	cfg, err := config.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := session.New()
+	root := browserRoot()
+	s := &mainState{dirPickOpen: true, dirPickMode: "workspace", cfgStore: cfg, remoteMachines: remotestore.New()}
+	s.dirPickBrowser.Parent = &root
+	s.dirPickBrowser.ShowHidden = true
+	tt := ui.NewTester(func(c *ui.Context) { s.directoryPickerView(c, nil, sessions, "system", false, nil) }, 900, 700)
+	if err := tt.Click("Remote"); err != nil {
+		t.Fatal(err)
+	}
+	if !s.dirPickBrowser.Remote || !s.dirPickBrowser.ShowHidden || s.dirPickBrowser.Parent != &root {
+		t.Fatal("remote page discarded local directory state")
+	}
+	saveSettingsSectionEvidence(t, tt, "workspace-remote-tab")
+	if err := tt.Click("Local"); err != nil {
+		t.Fatal(err)
+	}
+	if s.dirPickBrowser.Remote || s.dirPickBrowser.Parent != &root || !s.dirPickBrowser.ShowHidden {
+		t.Fatal("local page did not restore its original landing")
+	}
+}
 
 func awaitDirectoryPicker(t *testing.T, predicate func() bool) {
 	t.Helper()

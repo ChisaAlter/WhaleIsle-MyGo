@@ -7,12 +7,14 @@ import (
 )
 
 type TeamMember struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Role        string `json:"role"`
-	Phase       string `json:"phase"`
-	Error       string `json:"error"`
+	ModelLabel, ModelError string
+	Running                bool   `json:"-"`
+	ID                     string `json:"id"`
+	Name                   string `json:"name"`
+	Description            string `json:"description"`
+	Role                   string `json:"role"`
+	Phase                  string `json:"phase"`
+	Error                  string `json:"error"`
 }
 type TeamTask struct {
 	ID                 string   `json:"id"`
@@ -26,9 +28,10 @@ type TeamTask struct {
 	Ready              bool     `json:"ready"`
 }
 type TeamProjection struct {
-	Members []TeamMember `json:"members"`
-	Tasks   []TeamTask   `json:"tasks"`
-	Failure string       `json:"failure"`
+	StatusKnown bool         `json:"-"`
+	Members     []TeamMember `json:"members"`
+	Tasks       []TeamTask   `json:"tasks"`
+	Failure     string       `json:"failure"`
 }
 type Worker struct {
 	SessionID   string `json:"sessionId"`
@@ -138,7 +141,137 @@ func (c Client) TeamOverviewPage(ctx context.Context, id, cursor string) (Overvi
 	if out.Team.Failure != "" {
 		return out, fmt.Errorf("native Team projection is invalid: %s", out.Team.Failure)
 	}
+	c.enrichTeamMembers(ctx, out.Team)
 	return out, nil
+}
+
+// SessionTeam is the ordinary shared Team projection. It is deliberately not
+// the subagent directory and does not invent a Project around an ordinary Lead.
+func (c Client) SessionTeam(ctx context.Context, sessionID string) (*TeamProjection, error) {
+	var projection struct {
+		Values struct {
+			Team *TeamProjection `json:"agentTeam"`
+		} `json:"values"`
+	}
+	client := dsh.Client{Endpoint: dsh.Endpoint{Origin: c.Origin, Cookie: c.Cookie}, HTTP: c.HTTP}
+	if sessionID == "" {
+		return nil, fmt.Errorf("select a Team Lead")
+	}
+	if err := client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &projection); err != nil {
+		return nil, err
+	}
+	if projection.Values.Team == nil {
+		return nil, fmt.Errorf("Team projection is unavailable")
+	}
+	if projection.Values.Team.Failure != "" {
+		return nil, fmt.Errorf("%s", projection.Values.Team.Failure)
+	}
+	c.enrichTeamMembers(ctx, projection.Values.Team)
+	return projection.Values.Team, nil
+}
+
+func (c Client) enrichTeamMembers(ctx context.Context, team *TeamProjection) {
+	if team == nil {
+		return
+	}
+	client := dsh.Client{Endpoint: dsh.Endpoint{Origin: c.Origin, Cookie: c.Cookie}, HTTP: c.HTTP}
+	var sessions struct {
+		Items []struct {
+			SessionID string `json:"sessionId"`
+			Running   bool   `json:"running"`
+		} `json:"items"`
+	}
+	team.StatusKnown = client.Call(ctx, "session/list", map[string]any{"_request": map[string]any{}}, &sessions) == nil
+	running := map[string]bool{}
+	for _, item := range sessions.Items {
+		running[item.SessionID] = item.Running
+	}
+	for i := range team.Members {
+		member := &team.Members[i]
+		member.Running = running[member.ID]
+		var p struct {
+			Values struct {
+				ModelSelection struct {
+					Next struct {
+						Model *struct {
+							Provider string `json:"provider"`
+							Model    string `json:"model"`
+						} `json:"model"`
+					} `json:"next"`
+				} `json:"modelSelection"`
+			} `json:"values"`
+		}
+		if err := client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": member.ID}}, &p); err != nil {
+			member.ModelError = err.Error()
+			continue
+		}
+		if model := p.Values.ModelSelection.Next.Model; model != nil {
+			member.ModelLabel = model.Provider + " / " + model.Model
+		}
+	}
+}
+
+// CurrentTeam mirrors the Project's explicit requirement scope plus actually
+// running/provisioning members. History retains the complete durable roster.
+func (o Overview) CurrentTeam(history bool) ([]TeamMember, []TeamTask) {
+	if o.Team == nil {
+		return nil, nil
+	}
+	members := o.Members()
+	if history {
+		tasks := append([]TeamTask(nil), o.Team.Tasks...)
+		for i, j := 0, len(tasks)-1; i < j; i, j = i+1, j-1 {
+			tasks[i], tasks[j] = tasks[j], tasks[i]
+		}
+		for i, j := 0, len(members)-1; i < j; i, j = i+1, j-1 {
+			members[i], members[j] = members[j], members[i]
+		}
+		return members, tasks
+	}
+	live := map[string]bool{}
+	for _, id := range o.Project.Activity.RunningJobSessionIDs {
+		live[id] = true
+	}
+	for _, w := range o.Workers {
+		if w.ActiveRunID != "" || len(w.Jobs) > 0 {
+			live[w.SessionID] = true
+		}
+	}
+	owners := map[string]bool{}
+	for _, m := range members {
+		if live[m.ID] || m.Running || m.Phase == "provisioning" {
+			owners[m.Name] = true
+		}
+	}
+	taskByID := map[string]TeamTask{}
+	for _, t := range o.Team.Tasks {
+		taskByID[t.ID] = t
+	}
+	tasks := []TeamTask{}
+	seen := map[string]bool{}
+	for _, t := range o.Team.Tasks {
+		if t.OwnerName != "" && owners[t.OwnerName] {
+			tasks = append(tasks, t)
+			seen[t.ID] = true
+		}
+	}
+	for _, id := range o.Project.CurrentTaskIDs {
+		if t, ok := taskByID[id]; ok && !seen[id] {
+			tasks = append(tasks, t)
+			seen[id] = true
+		}
+	}
+	currentOwners := map[string]bool{}
+	for _, t := range tasks {
+		currentOwners[t.OwnerName] = true
+	}
+	current := []TeamMember{}
+	for _, m := range members {
+		if m.Role == "lead" || currentOwners[m.Name] || live[m.ID] || m.Running || m.Phase == "provisioning" {
+			current = append(current, m)
+		}
+	}
+	return current, tasks
 }
 func (c Client) CurrentWork(ctx context.Context, id, cursor string) (WorkPage, error) {
 	var out WorkPage

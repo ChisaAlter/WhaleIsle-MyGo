@@ -60,7 +60,7 @@ function list(root) {
   while(stack.length){const [dir,depth]=stack.pop();if(++dirs>25000)throw Error('directory limit');
     safe(root,dir,true);
     const entries=fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name));
-    const logs=entries.filter(e=>e.isFile()&&/^session(?:\.v\d+)?\.jsonl\.zstd$/.test(e.name));
+    const logs=entries.filter(e=>e.isFile()&&/^session(?:\.v[1-9]\d*)?\.jsonl\.zstd$/.test(e.name));
     // The current backend selects the highest physical generation; old format
     // copies must not be replayed as independent live conversations.
     logs.sort((a,b)=>(Number(b.name.match(/\.v(\d+)/)?.[1])||0)-(Number(a.name.match(/\.v(\d+)/)?.[1])||0));
@@ -69,7 +69,7 @@ function list(root) {
     if(files.length>20000)throw Error('file limit');
   }return files.sort();
 }
-function createWatcher(home,now=Date.now,stickerRoot="") {
+function createWatcher(home,now=Date.now,stickerRoot="",usageFile="") {
   if(!path.isAbsolute(home)||typeof zlib.zstdDecompressSync!=='function')throw Error('runtime unavailable');
   const st=fs.lstatSync(home);if(!st.isDirectory()||st.isSymbolicLink())throw Error('invalid home');
   const root=fs.realpathSync(home), ledger=path.join(root,'mygo-pet-events.json'), outbox=path.join(root,'data','whale','pet-outbox.jsonl');
@@ -124,7 +124,7 @@ function createWatcher(home,now=Date.now,stickerRoot="") {
       emit(s,eid,done?'done':'error',done?'这一轮完成了。':'这一轮未完成，请打开会话查看。',{sessionID:id});
     }else if(['user/message','tool/call','step/start','assistant/chunk'].includes(ev.type))s.lastActive=t;
     const sample=usage(ev);
-    if(sample){const prev=sess.usage[sample.slot]||0;if(sample.total>prev){s.used+=sample.total-prev;sess.usage[sample.slot]=sample.total;}
+    if(sample&&!s.gatewayUsage){const prev=sess.usage[sample.slot]||0;if(sample.total>prev){s.used+=sample.total-prev;sess.usage[sample.slot]=sample.total;}
       for(const mark of [100000,500000,1000000,5000000,10000000])if(s.used>=mark&&!s.marks.includes(mark)){
         emit(s,hash(s.day+':'+mark),'milestone','今天的工作用量达到 '+mark.toLocaleString('en-US')+' token。');s.marks.push(mark);
       }
@@ -190,10 +190,17 @@ function createWatcher(home,now=Date.now,stickerRoot="") {
       s.files.outbox={...c,offset:c.offset+start,anchor:anchor(fd,c.offset+start)};
     }finally{fs.closeSync(fd);}
   }
+  function gatewayToday(t){
+    try{if(!usageFile||!path.isAbsolute(usageFile))return null;const st=fs.lstatSync(usageFile);if(st.isSymbolicLink()||!st.isFile()||st.size>512*1024*1024)return null;
+      let total=0,calls=0;for(const line of fs.readFileSync(usageFile,'utf8').split('\n')){let r;try{r=JSON.parse(line)}catch{continue};if(r.agent!=='dsh')continue;calls++;const amount=[r.in,r.out].reduce((sum,n)=>sum+(Number.isFinite(n)&&n>0?Math.floor(n):0),0);if(!Number.isSafeInteger(amount))continue;if(typeof r.t==='string'&&day(Date.parse(r.t))===day(t))total+=amount}
+      return calls>0&&Number.isSafeInteger(total)?total:null;
+    }catch{return null}
+  }
   function snapshot(){return {state:Object.values(state.sessions).some(s=>s.open)||now()-state.lastActive<60000?'working':'idle',events:state.pending};}
   function poll(){
     let next=clone(state);const t=now(),today=day(t),initial=!next.initialized,lastSeen=next.lastSeen;
     if(next.day!==today){next.day=today;next.used=0;next.marks=[];}
+    const gateway=gatewayToday(t);next.gatewayUsage=gateway!==null;
     const files=list(root),live=new Set(files.map(file=>hash(path.relative(root,file))));
     for(const [key,cursor] of Object.entries(next.files))if(key!=='outbox'&&!live.has(key))delete next.files[key];
     const sessionIDs=new Set(Object.values(next.files).map(c=>c.sessionID).filter(Boolean));
@@ -203,14 +210,16 @@ function createWatcher(home,now=Date.now,stickerRoot="") {
       try{sessionFile(candidate,file,initial,t);next=candidate;}catch(e){if(e.message==='queue full')break;/* Retry unread malformed/torn source next tick. */}
     }
     const candidate=clone(next);try{outboxFile(candidate,initial,t);next=candidate;}catch{/* Keep cursor on failed or backpressured read. */}
+    if(gateway!==null){next.used=gateway;for(const mark of [100000,500000,1000000,5000000,10000000])if(next.used>=mark&&!next.marks.includes(mark)&&next.pending.length<QUEUE){emit(next,hash(next.day+':'+mark),'milestone','今天的工作用量达到 '+mark.toLocaleString('en-US')+' token。');next.marks.push(mark)}}
     next.initialized=true;
     const active=Object.values(next.sessions).some(s=>s.open)||t-next.lastActive<60000;
     if(!active&&t-next.lastActive>600000)next.activeSince=0;
     if(active){
       if(!next.activeSince)next.activeSince=t;
       if(t-next.activeSince>=45*60000&&t-next.lastRest>=60*60000&&next.pending.length<QUEUE){emit(next,hash('rest:'+t),'rest','已经连续工作 45 分钟，起来休息一下吧。');next.lastRest=t;}
-      if(lastSeen&&t-lastSeen>=3*86400000&&next.lastGreet!==today&&next.pending.length<QUEUE){emit(next,hash('miss:'+today),'miss','好几天没见，欢迎回来。');next.lastGreet=t;}
+      if(lastSeen&&t-lastSeen>=3*86400000&&next.lastGreet!==today&&next.pending.length<QUEUE){emit(next,hash('miss:'+today),'miss','好几天没见，欢迎回来。');next.lastGreet=today;}
     }
+    if(active&&next.lastGreet!==today&&next.pending.length<QUEUE){emit(next,hash('greet:'+today),'greet','欢迎回来，今天也一起加油吧。');next.lastGreet=today;}
     if(JSON.stringify(next)!==JSON.stringify(state))save(next);
     return snapshot();
   }
@@ -220,7 +229,7 @@ function createWatcher(home,now=Date.now,stickerRoot="") {
 module.exports={createWatcher};
 // The native wrapper supplies only the actual current owned Host home.
 if(process.argv[1]==='--pet-event-worker'){
-  const watcher=createWatcher(process.argv[2],Date.now,process.argv[3]||'');
+  const watcher=createWatcher(process.argv[2],Date.now,process.argv[3]||'',process.argv[4]||'');
   const send=()=>process.stdout.write(JSON.stringify(watcher.poll())+'\n');
   const tick=()=>{try{send();}catch{process.stdout.write('{"state":"unavailable","events":[]}\n');}};
   tick();const timer=setInterval(tick,2000);

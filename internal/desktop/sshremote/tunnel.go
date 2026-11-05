@@ -58,6 +58,18 @@ type TunnelSession struct {
 	tofu           bool   // Trust-On-First-Use for unknown hosts (default true)
 	hostKeyMode    HostKeyMode
 	forwards       map[string]*activeForward
+	onChange       func()
+}
+
+// OnChange reports peer/forward failures after Connect has returned.
+func (t *TunnelSession) OnChange(fn func()) { t.mu.Lock(); t.onChange = fn; t.mu.Unlock() }
+func (t *TunnelSession) changed() {
+	t.mu.Lock()
+	fn := t.onChange
+	t.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 type activeForward struct {
@@ -385,6 +397,7 @@ func (t *TunnelSession) watch(ctx context.Context, cancel context.CancelFunc, cl
 		}
 	}
 	t.mu.Unlock()
+	t.changed()
 }
 
 func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec string) {
@@ -395,6 +408,7 @@ func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec st
 			t.err = "forward spec: " + err.Error()
 		}
 		t.mu.Unlock()
+		t.changed()
 		return
 	}
 	stop, err := StartForward(ctx, client, parsed)
@@ -404,6 +418,7 @@ func (t *TunnelSession) forward(ctx context.Context, client *ssh.Client, spec st
 			t.err = "forward listen: " + err.Error()
 		}
 		t.mu.Unlock()
+		t.changed()
 		return
 	}
 	go func() {

@@ -18,6 +18,14 @@ import (
 )
 
 type nativeReleaseState struct {
+	modalOwner          *mygo.Window
+	modalParent         *mygo.Window
+	modalTemporary      bool
+	modalOff            func()
+	modalOpen           bool
+	readyNotified       string
+	readyNotice         *mygo.Notification
+	readyNoticeOff      func()
 	initialized         bool
 	attentionGeneration uint64
 	route               string
@@ -34,9 +42,22 @@ type nativeReleaseState struct {
 	staged              update.ApplyResult
 	stagedTag           string
 	stagedTitle         string
+	centerLoaded        bool
+	autoDownload        bool
+	paused              bool
+	pauseRequested      bool
+	cancelRequested     bool
+	active              update.NativeRelease
+	staging             string
+	requireRuntime      bool
+	backgroundCancel    context.CancelFunc
+	backgroundSequence  uint64
+	explicitVersion     bool
+	installRequested    bool
 }
 
 func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launcher.Model {
+	s.ensureNativeUpdateCenter()
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
 	s.startupRecovery.updateVendorReady = m.VendorReady
@@ -48,17 +69,25 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 		s.refreshNativeReleases(win)
 	}
 	m.Releases = snapshot.rows
+	m.RouteUnavailable = make(map[string]string)
+	if _, err := update.NativeCatalogURL("cnb"); err != nil {
+		m.RouteUnavailable["cnb"] = lifecycleText("CNB 尚未配置鲸屿go原生发布源，请使用 GitHub。", "CNB has no configured MyGo native release source. Use GitHub.")
+	}
 	m.ReleaseBusy = snapshot.busy || refresh
 	m.ReleaseStatus = snapshot.status
 	m.ReleaseError = snapshot.err
 	m.ReleaseSelectedPackage = snapshot.selected
 	m.ReleaseReceived, m.ReleaseTotal = snapshot.received, snapshot.total
+	m.ReleasePhase, m.ReleasePaused, m.ReleaseAutoDownload = snapshot.phase, snapshot.paused, snapshot.autoDownload
+	m.OnPauseRelease = func() { s.pauseNativeUpdate(win) }
+	m.OnResumeRelease = func() { s.resumeNativeUpdate(win) }
+	m.OnSetAutoDownload = func(enabled bool) { s.setNativeAutoDownload(win, enabled) }
 	m.ReleaseStagedTag = snapshot.stagedTitle
 	if m.ReleaseStagedTag == "" {
 		m.ReleaseStagedTag = snapshot.stagedTag
 	}
 	m.OnRefreshReleases = func() { s.refreshNativeReleases(win) }
-	m.OnCheckUpdate = m.OnRefreshReleases
+	m.OnCheckUpdate = func() { s.openNativeUpdateCenter(win); s.refreshNativeReleases(win) }
 	m.OnInstallRuntime = func() { s.downloadNativeRelease(win, "", true) }
 	m.OnInstallRelease = func(packageID string) { s.downloadNativeRelease(win, packageID, !m.VendorReady) }
 	m.OnInstallUpdate = func() { s.downloadNativeRelease(win, "", !m.VendorReady) }
@@ -73,12 +102,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 		}
 	}
 	m.OnCancelRelease = func() {
-		s.mu.Lock()
-		cancel := s.nativeReleases.cancel
-		s.mu.Unlock()
-		if cancel != nil {
-			cancel()
-		}
+		s.cancelNativeUpdate(win)
 	}
 	m.OnStartStagedRelease = func() { s.startNativeStaged(win) }
 	// The launcher notice must refer to the same pinned native catalog that the
@@ -103,19 +127,52 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 }
 
 func (s *mainState) nativeReleaseNotify(win *mygo.Window) {
-	if win != nil {
-		win.Update(func() { s.refreshStartupUpdateAttention(win) })
+	s.refreshDesktopTray()
+	s.mu.Lock()
+	hasWindow := win != nil || s.win != nil || (s.launcherWin != nil && s.launcherWin.win != nil)
+	s.mu.Unlock()
+	if !hasWindow {
+		return
 	}
+	mygo.RunOnMain(func() {
+		owner := s.lifecycleDialogOwner(win)
+		if owner == nil {
+			s.mu.Lock()
+			owner = s.win
+			if s.launcherWin != nil && s.launcherWin.win != nil {
+				owner = s.launcherWin.win
+			}
+			s.mu.Unlock()
+		}
+		if owner != nil && !owner.IsDestroyed() {
+			owner.Update(func() { s.refreshStartupUpdateAttention(owner); s.notifyNativeUpdateReady(owner) })
+		}
+		s.mu.Lock()
+		main, lw := s.win, s.launcherWin
+		s.mu.Unlock()
+		if main != nil && main != owner && !main.IsDestroyed() {
+			main.Invalidate()
+		}
+		if !lw.destroyed() && lw.win != owner {
+			lw.win.Invalidate()
+		}
+	})
 }
 
 func (s *mainState) refreshNativeReleases(win *mygo.Window) {
+	s.refreshNativeReleasesOwned(win, context.Background(), nil)
+}
+
+// Manual and scheduled checks share this admission and catalog owner.
+func (s *mainState) refreshNativeReleasesOwned(win *mygo.Window, parent context.Context, settled func(error)) bool {
+	s.ensureNativeUpdateCenter()
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
-	if s.nativeReleases.busy {
+	if s.nativeReleases.busy || s.quitting || s.launcherImportBusy || s.launcherStartBusy || s.taskRestartPending || parent.Err() != nil {
 		s.mu.Unlock()
-		return
+		return false
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	s.nativeReleases.attentionGeneration++
 	s.nativeReleases.initialized = true
 	s.nativeReleases.route = route
@@ -167,11 +224,17 @@ func (s *mainState) refreshNativeReleases(win *mygo.Window) {
 		r.phase = settledNativeReleasePhase(*r)
 		s.mu.Unlock()
 		s.nativeReleaseNotify(win)
+		s.maybeAutoDownloadNative(win)
+		if settled != nil {
+			settled(err)
+		}
 	}()
 	s.nativeReleaseNotify(win)
+	return true
 }
 
 func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireRuntime bool, expected ...startuprec.UpdateAttentionScope) {
+	s.ensureNativeUpdateCenter()
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
 	r := &s.nativeReleases
@@ -183,7 +246,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		}
 		s.startupRecovery.updateHold = true
 	}
-	if r.busy {
+	if r.busy || s.quitting || s.launcherImportBusy || s.launcherStartBusy || s.taskRestartPending {
 		s.mu.Unlock()
 		return
 	}
@@ -195,6 +258,11 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		return
 	}
 	rows := append([]update.NativeRelease(nil), r.rows...)
+	var pinned *update.NativeRelease
+	if r.paused && tag == r.active.PackageKey() && r.active.Tag != "" {
+		copy := r.active
+		pinned = &copy
+	}
 	if r.catalogRoute != route {
 		rows = nil
 	}
@@ -203,6 +271,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 	s.startupRecovery.updateAttention.DismissCurrent()
 	r.initialized, r.route, r.busy, r.cancel = true, route, true, cancel
 	r.status, r.err = i18n.T(i18n.KeyCmdSelectingAndVerifyingAMygoInstaller), ""
+	r.paused, r.pauseRequested, r.cancelRequested = false, false, false
 	r.phase = ""
 	if len(rows) == 0 {
 		r.phase = "checking"
@@ -215,7 +284,7 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 		var staged update.ApplyResult
 		var staging string
 		err := func() error {
-			if len(rows) == 0 {
+			if len(rows) == 0 && pinned == nil {
 				var err error
 				rows, err = update.ListNativeReleases(ctx, route)
 				if err != nil {
@@ -225,12 +294,24 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			cacheDir := update.NativeInstallerCacheDir(filepath.Join(paths.UserDataDir(), "updates"))
 			rows = update.PrepareNativeReleases(rows, buildVersion, cacheDir)
 			var selectErr error
-			selected, selectErr = update.SelectNativeRelease(rows, tag, runtime.GOOS, runtime.GOARCH, requireRuntime)
+			if pinned != nil {
+				selected = *pinned
+				selectErr = selected.Validate(runtime.GOOS, runtime.GOARCH, requireRuntime)
+			} else {
+				selected, selectErr = update.SelectNativeRelease(rows, tag, runtime.GOOS, runtime.GOARCH, requireRuntime)
+			}
 			if selectErr != nil {
 				return selectErr
 			}
 			s.mu.Lock()
 			s.nativeReleases.selected = selected.PackageKey()
+			s.nativeReleases.active = selected
+			s.nativeReleases.requireRuntime = requireRuntime
+			if pinned == nil {
+				s.nativeReleases.explicitVersion = tag != ""
+			}
+			s.nativeReleases.installRequested = false
+			s.nativeReleases.staged, s.nativeReleases.stagedTag, s.nativeReleases.stagedTitle = update.ApplyResult{}, "", ""
 			s.nativeReleases.status = i18n.T(i18n.KeyCmdDownloadingAndVerifyingFullInstaller) + selected.Tag
 			if selected.IsDelta() {
 				s.nativeReleases.status = i18n.T(i18n.KeyCmdReusingCachedInstallerAndDownloadingCh) + selected.Tag
@@ -246,21 +327,30 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			if err := os.MkdirAll(base, 0755); err != nil {
 				return err
 			}
-			var err error
-			staging, err = os.MkdirTemp(base, "mygo-native-")
-			if err != nil {
+			staging = nativeReleaseStagingDir(selected)
+			if err := os.MkdirAll(staging, 0755); err != nil {
 				return err
 			}
-			staged, err = update.StageNativeReleaseWithOptions(ctx, selected, update.NativeStageOptions{CurrentVersion: buildVersion, CacheDir: cacheDir, RequireRuntime: requireRuntime, DestDir: staging, OnPhase: func(phase update.StagePhase) {
+			s.mu.Lock()
+			s.nativeReleases.staging = staging
+			s.mu.Unlock()
+			s.persistNativeUpdateCenter()
+			var err error
+			staged, err = update.StageNativeReleaseWithOptions(ctx, selected, update.NativeStageOptions{Resume: true, CurrentVersion: buildVersion, CacheDir: cacheDir, RequireRuntime: requireRuntime, DestDir: staging, OnPhase: func(phase update.StagePhase) {
 				s.mu.Lock()
 				s.nativeReleases.phase = string(phase)
 				s.mu.Unlock()
+				s.persistNativeUpdateCenter()
 				s.nativeReleaseNotify(win)
 			}, OnProgress: func(received, total int64) {
 				s.mu.Lock()
+				previous := updateDownloadPercent(s.nativeReleases.received, s.nativeReleases.total)
 				s.nativeReleases.received, s.nativeReleases.total = received, total
 				s.mu.Unlock()
 				percent := updateDownloadPercent(received, total)
+				if int(previous) != int(percent) {
+					s.persistNativeUpdateCenter()
+				}
 				s.recordUpdateState(update.JournalState{Phase: update.JournalPhaseDownloading, Version: selected.Version, Percent: &percent})
 				s.nativeReleaseNotify(win)
 			}})
@@ -269,9 +359,6 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 			return ctx.Err()
 		}()
-		if err != nil && staging != "" {
-			_ = os.RemoveAll(staging)
-		}
 		s.mu.Lock()
 		r := &s.nativeReleases
 		r.busy, r.cancel = false, nil
@@ -285,10 +372,18 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			r.err = err.Error()
 			r.status = i18n.T(i18n.KeyCmdInstallationPreparationFailedTheCurren)
 			if errors.Is(err, context.Canceled) {
-				r.status = i18n.T(i18n.KeyCmdDownloadCancelledTheCurrentInstallatio)
+				if r.pauseRequested {
+					r.paused = true
+					r.status = lifecycleText("下载已暂停，可继续。", "Download paused. You can resume it.")
+				} else {
+					r.status = i18n.T(i18n.KeyCmdDownloadCancelledTheCurrentInstallatio)
+				}
 				r.err = ""
 				journal = update.JournalState{}
 			} else {
+				if selected.Tag != "" {
+					r.paused = true
+				}
 				journal = update.JournalState{Phase: update.JournalPhaseError, FailedOperation: "download", Message: err.Error()}
 			}
 		} else {
@@ -314,8 +409,28 @@ func (s *mainState) downloadNativeRelease(win *mygo.Window, tag string, requireR
 			}
 			r.err = ""
 		}
+		discard := r.cancelRequested
+		discardDir := r.staging
+		if discard {
+			r.active = update.NativeRelease{}
+			r.paused = false
+			r.staging = ""
+			r.received, r.total = 0, 0
+			r.staged = update.ApplyResult{}
+			r.stagedTag, r.stagedTitle = "", ""
+			r.err = ""
+		}
 		r.phase = settledNativeReleasePhase(*r)
 		s.mu.Unlock()
+		if discard && discardDir != "" {
+			if err := discardNativePartial(discardDir); err != nil {
+				s.mu.Lock()
+				s.nativeReleases.err = err.Error()
+				s.nativeReleases.phase = "error"
+				s.mu.Unlock()
+			}
+		}
+		s.persistNativeUpdateCenter()
 		if journal.Phase != "" {
 			// File evidence is written outside the state lock: it never delays a
 			// painted frame that waits on this mutex.
@@ -365,13 +480,32 @@ func (s *mainState) startNativeStaged(win *mygo.Window) {
 			s.mu.Lock()
 			s.nativeReleases.status = i18n.T(i18n.KeyCmdVerifiedInstallerRetainedForRetryTheCu)
 			s.mu.Unlock()
+			s.persistNativeUpdateCenter()
 			s.nativeReleaseNotify(win)
 		}
 	}()
 	s.nativeReleaseNotify(win)
 }
 
+// Called only after the verified installer process was actually launched.
+// Task/close confirmation alone does not retire a pending explicit reinstall.
+func (s *mainState) markNativeInstallerLaunched(staged update.ApplyResult) {
+	s.mu.Lock()
+	r := &s.nativeReleases
+	owned := r.staged.Path == staged.Path && staged.Path != "" && r.staged.SHA256 == staged.SHA256 && r.staged.Size == staged.Size
+	if owned {
+		r.installRequested = true
+	}
+	s.mu.Unlock()
+	if owned {
+		s.persistNativeUpdateCenter()
+	}
+}
+
 func settledNativeReleasePhase(r nativeReleaseState) string {
+	if r.paused {
+		return "paused"
+	}
 	if r.err != "" {
 		return "error"
 	}

@@ -31,7 +31,7 @@ func NewComposedRounded(hwnd uintptr, radius int) (*Renderer, error) {
 	return r, nil
 }
 
-func (f *roundedFrame) apply(r *Renderer, s *scene.Scene) error {
+func (f *roundedFrame) maskRadius(r *Renderer, s *scene.Scene) float32 {
 	root, _, _ := procFrameGetAncestor.Call(r.hwnd, 2)        // GA_ROOT
 	style, _, _ := procFrameGetStyle.Call(root, ^uintptr(15)) // GWL_STYLE=-16
 	dpi, _, _ := procFrameDPI.Call(root)
@@ -41,9 +41,21 @@ func (f *roundedFrame) apply(r *Renderer, s *scene.Scene) error {
 	radius := float32(f.radius) * float32(dpi) / 96
 	// Full screen removes WS_CAPTION; maximize keeps native WS_MAXIMIZE.
 	if style&0x01000000 != 0 || style&0x00C00000 == 0 {
-		radius = 0
+		return 0
 	}
-	changed, err := f.clip.Apply(r.dcomp, r.visual, float32(s.Width), float32(s.Height), radius)
+	return min(max(radius, 0), min(float32(s.Width), float32(s.Height))/2)
+}
+
+func (f *roundedFrame) apply(r *Renderer, s *scene.Scene) error {
+	clipRadius := f.maskRadius(r, s)
+	if r.maskBlend != 0 {
+		// The D3D11 SDF mask pass already feathers the 4 corners of the
+		// premultiplied swap-chain backbuffer; keep the DirectComposition
+		// rectangle clip strictly for the w×h viewport bounds so DComp's
+		// coarse corner clip does not step or double-attenuate the curve.
+		clipRadius = 0
+	}
+	changed, err := f.clip.Apply(r.dcomp, r.visual, float32(s.Width), float32(s.Height), clipRadius)
 	if err != nil {
 		return err
 	}

@@ -26,6 +26,7 @@ type PlanBoardModel struct {
 	// HideQueue moves the queue rows and the inline queue editor to the
 	// composer dock (QueueDockView); the goal, plan and todo sections stay here.
 	HideQueue bool
+	HideGoal  bool
 	// Open nil means always expanded; non-nil is a toggle.
 	Open *bool
 	// GoalDraft is the create/edit objective field (Electron goals strip).
@@ -125,9 +126,11 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 					ui.Text(c, label).FontSize(theme.InterfaceSize(12.5)).TextColor(color)
 				})
 			}
-			paintPlanSection(c, i18n.T(i18n.KeyPlanBoardGoal), muted, fg, func() {
-				paintPlanGoal(c, m, fg, muted, accent, subtleBorder, cardBG)
-			})
+			if !m.HideGoal {
+				paintPlanSection(c, i18n.T(i18n.KeyPlanBoardGoal), muted, fg, func() {
+					paintPlanGoal(c, m, fg, muted, accent, subtleBorder, cardBG)
+				})
+			}
 			if !m.HideQueue {
 				paintQueueEditor(c, m, fg, muted)
 			}
@@ -153,7 +156,7 @@ func PlanBoardView(c *ui.Context, m PlanBoardModel) {
 							Border(0.5, subtleBorder).Background(cardBG).AlignItems(ui.Center).Children(func() {
 							ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 								paintQueueAttachments(c, m, item, fg, muted)
-								ui.Text(c, line).FontSize(theme.InterfaceSize(12.5)).TextColor(fg)
+								ui.Text(c, maskedUserText(line)).FontSize(theme.InterfaceSize(12.5)).TextColor(fg)
 							})
 							if m.OnQueueEdit != nil && item.ID != "" {
 								if ui.Button(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).Disabled(!m.Board.QueueActions.Can(session.QueueActionEdit, item)).FontSize(theme.InterfaceSize(11)).
@@ -369,9 +372,6 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 	}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		if e.Loading {
-			ui.Text(c, "…").TextColor(muted)
-		}
 		if e.Ready {
 			draft := e.Text
 			ui.TextArea(c.Key("queue-edit-"+e.ItemID), &draft).FillWidth().Lines(2, 6).ReadOnly(e.Saving).OnChange(func() {

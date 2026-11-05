@@ -12,7 +12,10 @@ import (
 
 type roomCreateTransport func(*http.Request) (*http.Response, error)
 
-func (f roomCreateTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f roomCreateTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func roomFixtureCommand() DshbotRoomCreateCommand {
 	return DshbotRoomCreateCommand{ID: "room-fixture", SessionID: "session-room-fixture", Expected: DshbotRoomCatalog{Revision: 7, Items: []DshbotRoomItem{{DshbotCatalogItem: DshbotCatalogItem{ID: "a", Kind: "bot", Name: "A", SessionID: "sa"}}, {DshbotCatalogItem: DshbotCatalogItem{ID: "b", Kind: "bot", Name: "B", SessionID: "sb"}}}}, Draft: DshbotRoomDraft{Name: "Fixture room", Description: "Full description", ScratchCwd: "/fixture", MemberBotIDs: []string{"a", "b"}, MaxRounds: 3, MaxSpeaks: 10}}
 }

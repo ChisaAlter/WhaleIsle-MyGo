@@ -85,9 +85,7 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 			})
 			c.Services().Invalidate()
 		}
-		if state.Error != "" {
-			ui.Text(c, state.Error).FontSize(12).TextColor(ui.RGB(220, 38, 38)).Selectable()
-		}
+		settingsNotice(c, "voice_input:89", "error", state.Error != "", func() string { return state.Error })
 	})
 }
 

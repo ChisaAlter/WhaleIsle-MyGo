@@ -4,6 +4,9 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/projects"
+	"whaleisle/internal/ui/theme"
 )
 
 // A transient addressed route replaces only the conversation surface. The root
@@ -105,7 +108,41 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 		if ui.Button(c, paneLabel("返回父会话", "Back to parent conversation")).Clicked() {
 			w.closeMainChild()
 		}
+		source := m.AgentNavigationStore
+		if source == nil {
+			source = m.Store
+		}
+		if source != nil {
+			view := source.AgentNavigationSnapshot()
+			ancestors, siblings := source.AgentConversationRoutes(view.Token, target.Address)
+			if len(ancestors) > 0 {
+				ui.Button(c, paneLabel("上级会话", "Ancestors")).Menu(func(menu *ui.Menu) {
+					for _, ancestor := range ancestors {
+						ancestor := ancestor
+						label := ancestor.Label
+						if label == "" {
+							label = ancestor.Address.ChildSessionID
+						}
+						if menu.Item(label).Chosen() {
+							subagentConversationOpener(m)(view.Token, ancestor.Address)
+						}
+					}
+				})
+			}
+			if len(siblings) > 1 {
+				ui.Button(c, paneLabel("同级会话", "Siblings")).Menu(func(menu *ui.Menu) {
+					for _, sibling := range siblings {
+						sibling := sibling
+						if menu.Item(sibling.Label).Disabled(sibling.Address == target.Address).Chosen() {
+							subagentConversationOpener(m)(view.Token, sibling.Address)
+						}
+					}
+				})
+			}
+		}
 		ui.Text(c, target.Root+" → "+target.Address.ChildSessionID).Grow(1).MinWidth(0).NoWrap().Ellipsis("…")
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		conversationTeamAction(c, m, renderSnapshot(m), m.Sizes.Center-20-paddingRight <= 560, chrome.Color(colors.Muted))
 	})
 	return true
 }
@@ -147,7 +184,14 @@ func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 			}
 			return
 		}
-		agents.View(c, agents.Model{Store: navigation, Snapshot: renderSnapshot(m), ChatOnly: true, MainConversation: true,
+		agents.View(c, agents.Model{
+			ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: renderSnapshot(m), ChatOnly: true, MainConversation: true,
+			InteractionRenderSlot: m.InteractionRenderSlot,
+			ChildDraft:            m.ChildDraft,
+			BusyEnter:             m.ChildBusyEnter,
+			ComposerOverride: func(ctx *ui.Context, address session.AgentSessionAddress) bool {
+				return projects.ConversationComposer(ctx, m.Projects, address.ChildSessionID, address.ParentSessionID)
+			},
 			Interactions: m.Interactions, OnOpenPlanResource: m.OnOpenPlanResource,
 			ThemeID: m.ThemeID, SystemDark: m.SystemDark, PromptDraft: local.AgentsPromptDraft,
 			OnOpenURL: m.OnOpenCitationURL, OnOpenDocument: local.OnOpenAgentDocument,

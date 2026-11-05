@@ -184,22 +184,7 @@ func filteredExport(raw json.RawMessage, v StatsView) (json.RawMessage, error) {
 	return json.Marshal(map[string]any{"range": v.Range, "timezone": "UTC", "days": kept, "totals": selection.Totals, "byModel": selection.Models, "coverage": src["coverage"], "updatedAt": src["updatedAt"], "stale": src["stale"], "scope": "Selected available UTC days; session ranking unavailable for date ranges. Coverage diagnostics apply to the full scan."})
 }
 
-func (s *Store) SelectStatsRecentDays(n int) {
-	s.SetStatsDays(n)
-	v := s.Stats()
-	if v.Overview == nil || len(v.Overview.Days) == 0 {
-		return
-	}
-	days := append([]DayUsage(nil), v.Overview.Days...)
-	sort.Slice(days, func(i, j int) bool { return days[i].Date < days[j].Date })
-	// The host's last day anchors presets, avoiding local timezone or clock skew.
-	end, err := time.Parse("2006-01-02", days[len(days)-1].Date)
-	if err != nil {
-		return
-	}
-	s.SetStatsRangeDraft(end.AddDate(0, 0, -n+1).Format("2006-01-02"), end.Format("2006-01-02"))
-	s.ApplyStatsRangeDraft()
-}
+func (s *Store) SelectStatsRecentDays(n int) { s.SetStatsDays(n) }
 
 // A refresh can move the rolling window. Never keep a now-partial selection.
 func (s *Store) reconcileStatsRangeLocked() {

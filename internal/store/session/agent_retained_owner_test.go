@@ -129,3 +129,24 @@ func TestRetainedAgentReadContextCancellation(t *testing.T) {
 		t.Fatal("revoked owner revived")
 	}
 }
+
+func TestRetainedAgentIdleChildDisposalKeepsConversationUntilDeleted(t *testing.T) {
+	root, pane, address := retainedOwnerFixture()
+	defer root.ReleaseAgentNavigationOccurrence(pane)
+	root.items = append(root.items, Item{SessionID: address.ChildSessionID, ParentID: address.ParentSessionID, Origin: "subagent", Running: true, AgentAvailable: true})
+	pane.agentNavigation.view.Messages = []Message{{Role: "assistant", Body: "durable child final", Seq: 23}}
+	emit := dsh.EventsEmit{Type: dsh.EventEmit, Event: "api-session/removed", Args: []json.RawMessage{json.RawMessage(`"child"`)}}
+	root.OnEmit(testEventsOwner(root, context.Background()), emit)
+	v := pane.AgentNavigationSnapshot()
+	if !pane.RetainedAgentReadValid() || v.Address != address || len(v.Messages) != 1 || !v.RetainedPromptAllowed {
+		t.Fatalf("idle child disposal blanked or disabled its retained conversation: %+v", v)
+	}
+	if root.items[1].Running || root.items[1].AgentAvailable {
+		t.Fatal("idle child retained live-registry availability")
+	}
+	emit.Event = "api-session/deleted"
+	root.OnEmit(testEventsOwner(root, context.Background()), emit)
+	if pane.RetainedAgentReadValid() || pane.agentRetainedRead.ctx.Err() == nil {
+		t.Fatal("explicit child deletion failed to revoke the same read")
+	}
+}

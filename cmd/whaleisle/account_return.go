@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -23,6 +24,7 @@ type accountReturnState struct {
 }
 
 func (s *mainState) refreshReturnedAccount() {
+	s.retryAccountAvatar()
 	s.mu.Lock()
 	usage, sessions := s.usage, s.sessions
 	s.mu.Unlock()
@@ -48,7 +50,7 @@ func (s *mainState) openAccountTopUp(url string) {
 	s.openAccountPlatform("top-up", source)
 }
 func (s *mainState) openAccountAuthorization(url string) {
-	s.openAccountLink(url, false, desktopwebview.OpenExternal)
+	s.openAccountLink(url, false, s.openAccountAuthorizationBrowser)
 }
 func (s *mainState) reportAccountAction(err error) {
 	s.mu.Lock()
@@ -88,6 +90,9 @@ func (s *mainState) openAccountLink(url string, topUp bool, open func(string) er
 }
 
 func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, usageStore *usage.Store, sessions *session.Store) {
+	if !s.accountLogin.BeginCancel() {
+		return
+	}
 	go func() {
 		var out api.AccountView
 		err := client.Call(context.Background(), "account/cancelSignIn", map[string]any{"attemptId": attemptID}, &out)
@@ -98,6 +103,7 @@ func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, us
 		}
 		if err != nil {
 			err = fmt.Errorf("%s: %w", i18n.T(i18n.KeyCmdCouldNotCancelSignIn), err)
+			s.accountLogin.CancelFailed(err.Error())
 		} else {
 			s.accountLogin.Finish()
 		}
@@ -165,4 +171,17 @@ func (s *mainState) clearAccountReturn() {
 	s.mu.Lock()
 	s.accountReturn = accountReturnState{}
 	s.mu.Unlock()
+}
+
+func (s *mainState) openAccountInfo(raw string) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Host == "" {
+		s.reportAccountAction(fmt.Errorf("%s", i18n.T("account-client.information-unavailable")))
+		return
+	}
+	u.Path = "/"
+	u.RawPath = ""
+	u.RawQuery = ""
+	u.Fragment = ""
+	s.reportAccountAction(desktopwebview.OpenExternal(u.String()))
 }

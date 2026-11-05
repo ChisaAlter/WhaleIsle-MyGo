@@ -92,9 +92,7 @@ func (s *mainState) syncHostAppearance() {
 	// wallpaper; a seeded empty/default value keeps the flat base.
 	if h.WallpaperImageExplicit {
 		s.hostWallpaperImage = h.WallpaperImage
-		if h.WallpaperImage != "" {
-			s.desktopDraft.wallpaperPath = h.WallpaperImage
-		}
+		s.desktopDraft.wallpaperPath = h.WallpaperImage
 	}
 	// The Host always reports a scheme (default "system"), so it cannot tell an
 	// explicit choice from its default: the configured theme wins until the user
@@ -114,10 +112,7 @@ func (s *mainState) syncHostAppearance() {
 			g.RetireOwner()
 		}
 		g.Inline = true
-		g.Saved = h.Background.Clone()
-		if !g.Busy && !g.Cropping() {
-			g.Prefs = h.Background.Clone()
-		}
+		g.AcceptHostResult(h.Background, h.Error)
 		if h.Error != "" {
 			g.Status = h.Error
 		}

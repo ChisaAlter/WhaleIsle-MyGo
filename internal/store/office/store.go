@@ -3,6 +3,7 @@ package office
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"reflect"
 	"strings"
@@ -249,7 +250,7 @@ func (s *Store) Refresh(ctx context.Context) {
 		s.state.Busy = false
 		if e != nil {
 			s.state.Fresh = false
-			s.state.Error = storelocale.T(storelocale.KeyStoreOfficeCouldNotReadAiOfficeStatusRetryOrOpe)
+			s.state.Error = officeCallError(e, storelocale.T(storelocale.KeyStoreOfficeCouldNotReadAiOfficeStatusRetryOrOpe), "")
 		} else {
 			s.adoptLocked(v)
 		}
@@ -301,7 +302,7 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 			s.state.ReviewAction = ""
 			if err != nil {
 				s.state.Fresh = false
-				s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheLatestConfigurationCouldNotBeConfir)
+				s.state.Error = officeCallError(err, storelocale.T(storelocale.KeyStoreOfficeTheLatestConfigurationCouldNotBeConfir), payloadToken(payload))
 			} else {
 				s.adoptLocked(fresh)
 				s.state.Conflict = true
@@ -345,7 +346,13 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 		s.state.ReviewAction = ""
 		if !valid {
 			s.state.Fresh = false
-			s.state.Error = storelocale.T(storelocale.KeyStoreOfficeTheOutcomeIsUnconfirmedRefreshToVerify)
+			s.state.Error = officeCallError(err, storelocale.T(storelocale.KeyStoreOfficeTheOutcomeIsUnconfirmedRefreshToVerify), payloadToken(payload))
+			var rejected *pluginrpc.RPCError
+			if errors.As(err, &rejected) {
+				// No mutation was accepted. The successful preflight remains
+				// usable and the editable public draft is retained for correction.
+				s.adoptLocked(fresh)
+			}
 		} else {
 			if action == "configure" || action == "remove" {
 				s.state.Dirty = false
@@ -375,6 +382,42 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 		s.fire()
 	}()
 	return true
+}
+
+func payloadToken(payload map[string]any) string {
+	value, _ := payload["deviceToken"].(string)
+	return value
+}
+
+func officeCallError(err error, fallback, token string) string {
+	var rejected *pluginrpc.RPCError
+	if !errors.As(err, &rejected) {
+		return fallback
+	}
+	message := strings.TrimSpace(rejected.Message)
+	if token != "" {
+		message = strings.ReplaceAll(message, token, "[credential omitted]")
+	}
+	message = strings.Map(func(r rune) rune {
+		if r < 32 && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, message)
+	if len([]rune(message)) > 1600 {
+		message = string([]rune(message)[:1600]) + "…"
+	}
+	code := strings.TrimSpace(rejected.Code)
+	if code != "" && message != "" {
+		return code + ": " + message
+	}
+	if message != "" {
+		return message
+	}
+	if code != "" {
+		return code
+	}
+	return fallback
 }
 func matchesConfiguration(s Status, p map[string]any) bool {
 	return s.Configured && s.Config.BaseURL == p["baseUrl"] && s.Config.DeviceID == p["deviceId"] && s.Config.MaxConcurrency == p["maxConcurrency"] && s.Config.HeartbeatSeconds == p["heartbeatSeconds"] && reflect.DeepEqual(s.Config.Workspaces, p["workspaces"]) && reflect.DeepEqual(s.Config.InstructionPresets, p["instructionPresets"])

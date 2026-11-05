@@ -12,6 +12,9 @@ type ConnectionStatus struct {
 	HostKeyKnown bool   `json:"hostKeyKnown"`
 	Workspace    string `json:"workspace"`
 	LocalMirror  string `json:"localMirror"`
+	Host         string `json:"host"`
+	Username     string `json:"username"`
+	Port         int    `json:"port"`
 }
 
 type Forward struct {

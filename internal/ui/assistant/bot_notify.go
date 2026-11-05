@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
@@ -45,9 +46,7 @@ func botNotifyBlock(c *ui.Context, m BotNotifyModel, blocked bool, fg, muted, ac
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_notify:49", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

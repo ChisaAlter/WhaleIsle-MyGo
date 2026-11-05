@@ -1,13 +1,9 @@
 package dsh
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"sync"
 )
 
@@ -283,59 +279,8 @@ func (c *Client) PostEventResult(ctx context.Context, result EventResult) error 
 	if result.ClientID == "" || result.EventID == "" || result.Outcome.Kind == "" {
 		return fmt.Errorf("dsh events: incomplete result")
 	}
-	body, err := json.Marshal(result)
-	if err != nil {
-		return err
-	}
-	endpoint, err := url.JoinPath(c.Endpoint.Origin, EventsResultPath)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if c.Endpoint.Cookie != "" {
-		req.Header.Set("Cookie", c.Endpoint.Cookie)
-	}
-	res, err := c.http().Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if err != nil {
-		return err
-	}
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("dsh events/result: HTTP %d: %s", res.StatusCode, clip(raw, 200))
-	}
-	// Gateway may return an empty body or a Typert envelope; accept both.
-	if len(bytes.TrimSpace(raw)) == 0 {
-		return nil
-	}
-	var parsed struct {
-		Type   string `json:"type"`
-		Result struct {
-			OK    bool `json:"ok"`
-			Error *struct {
-				Code    string `json:"code"`
-				Message string `json:"message"`
-			} `json:"error"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return nil
-	}
-	if parsed.Type == "server-response" && !parsed.Result.OK {
-		msg := "events/result failed"
-		code := ""
-		if parsed.Result.Error != nil {
-			msg = parsed.Result.Error.Message
-			code = parsed.Result.Error.Code
-		}
-		return &Error{Code: code, Message: msg}
-	}
-	return nil
+	// Forwarded event outcomes use the same Connection RPC envelope as other
+	// methods: client-request -> payload.args -> the exact EventResult. Keep
+	// delivery authority bound through that authenticated request and receipt.
+	return c.Call(ctx, "$events/result", result, nil)
 }

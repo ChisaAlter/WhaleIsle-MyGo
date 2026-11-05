@@ -22,6 +22,9 @@ import (
 type LookStatus struct {
 	Busy    bool
 	Message string
+	ID      uint64
+	Pinned  bool
+	Expires int64
 }
 type lookEntry struct {
 	status      LookStatus
@@ -35,13 +38,14 @@ func (e *lookEntry) begin(now time.Time) (context.Context, uint64) {
 		return nil, 0
 	}
 	if !e.lastCapture.IsZero() && now.Sub(e.lastCapture) < 4*time.Second {
-		e.status.Message = storelocale.T(storelocale.KeyDesktopPetPleaseWaitBeforeAnotherGlance)
+		e.serial++
+		e.status = LookStatus{ID: e.serial, Message: storelocale.T(storelocale.KeyDesktopPetPleaseWaitBeforeAnotherGlance), Expires: now.Add(4 * time.Second).UnixMilli()}
 		return nil, 0
 	}
 	e.serial++
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
-	e.status = LookStatus{Busy: true, Message: storelocale.T(storelocale.KeyDesktopPetWaitingForScreenshotApproval)}
+	e.status = LookStatus{Busy: true, ID: e.serial, Message: storelocale.T(storelocale.KeyDesktopPetWaitingForScreenshotApproval)}
 	return ctx, e.serial
 }
 func (e *lookEntry) finish(serial uint64, message string) bool {
@@ -52,7 +56,7 @@ func (e *lookEntry) finish(serial uint64, message string) bool {
 		e.cancel()
 		e.cancel = nil
 	}
-	e.status = LookStatus{Message: message}
+	e.status = LookStatus{ID: serial, Message: message, Expires: time.Now().Add(9 * time.Second).UnixMilli()}
 	return true
 }
 func (e *lookEntry) close() {
@@ -110,6 +114,22 @@ func (a *LookAttempt) Finish(message string) bool {
 	a.pet.assetMu.Lock()
 	defer a.pet.assetMu.Unlock()
 	return a.pet.look.finish(a.serial, message)
+}
+
+// Reply pins only a successful result. Cancel/error feedback expires rather
+// than permanently blocking the notification queue.
+func (a *LookAttempt) Reply(message string) bool {
+	if a == nil {
+		return false
+	}
+	a.pet.assetMu.Lock()
+	defer a.pet.assetMu.Unlock()
+	if !a.pet.look.finish(a.serial, message) {
+		return false
+	}
+	a.pet.look.status.Pinned = message != ""
+	a.pet.look.status.Expires = 0
+	return true
 }
 
 func renderLookPage(page []byte, status LookStatus) []byte {

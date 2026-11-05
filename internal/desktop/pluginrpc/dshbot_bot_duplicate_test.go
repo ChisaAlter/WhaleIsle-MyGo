@@ -12,7 +12,10 @@ import (
 
 type botDuplicateTransport func(*http.Request) (*http.Response, error)
 
-func (f botDuplicateTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f botDuplicateTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func botDuplicateFixture() DshbotBotDuplicateCommand {
 	raw := json.RawMessage(`{"id":"source","kind":"bot","sessionId":"source-session","name":"Source","title":"Display title","sectionId":"","description":"Full preserved description","avatar":{"kind":"blob","shape":"circle","color":"blue"},"workspaceId":"workspace-fixture","model":{"provider":"provider","model":"model","reasoningEffort":"high"},"pinned":true,"hidden":false,"pinOrder":7,"allowedSenderIds":[],"memberBotIds":[],"objective":"Complete this entire objective","objectiveMaxRounds":23,"memoryReview":false,"notify":true,"capabilities":{"tools":{"mode":"selected","names":["read"]},"skills":{"mode":"all","names":[]},"mcp":{"mode":"selected","names":[]}},"maxRounds":2,"maxSpeaks":7,"inbox":[{"id":"old-message"}],"readInitialized":true,"lastSeenSeq":8,"createdAt":1,"updatedAt":2}`)
 	item, _ := decodeDshbotBotItem(raw)

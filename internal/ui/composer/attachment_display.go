@@ -202,6 +202,9 @@ func attachmentDisplayStatus(d *DraftState, i int) string {
 		return "失败 / Failed"
 	}
 	if d.AttachmentPreparing(i) {
+		if a.TotalBytes > 0 {
+			return fmt.Sprintf("%d%% · %d / %d bytes", 100*a.SentBytes/a.TotalBytes, a.SentBytes, a.TotalBytes)
+		}
 		return "上传中 / Uploading"
 	}
 	if d.Sending {
@@ -290,7 +293,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							ui.Text(c, label).FontSize(14).FixedLineHeight(22).TextColor(fg).MaxLines(1)
 							meta := i18n.T(i18n.KeyComposerAttachmentPending)
 							if d.AttachmentPreparing(i) {
-								meta = i18n.T(i18n.KeyComposerAttachmentUploading)
+								meta = attachmentDisplayStatus(d, i)
 							} else if a.PrepareError != "" {
 								meta = i18n.T(i18n.KeyComposerAttachmentFailed)
 							} else if v != nil && v.err != nil {

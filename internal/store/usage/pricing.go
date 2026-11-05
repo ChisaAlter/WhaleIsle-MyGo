@@ -48,9 +48,24 @@ type BillingView struct {
 }
 type billingState struct {
 	BillingView
-	cancel       context.CancelFunc
-	models       BillingModelsView
-	modelsCancel context.CancelFunc
+	editorRequested bool
+	cancel          context.CancelFunc
+	models          BillingModelsView
+	modelsCancel    context.CancelFunc
+}
+
+func (s *Store) RequestBillingEditor() {
+	s.mu.Lock()
+	s.billing.editorRequested = true
+	s.mu.Unlock()
+	s.fire()
+}
+func (s *Store) TakeBillingEditorRequest() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	requested := s.billing.editorRequested
+	s.billing.editorRequested = false
+	return requested
 }
 
 func (s *Store) resetBillingLocked() {

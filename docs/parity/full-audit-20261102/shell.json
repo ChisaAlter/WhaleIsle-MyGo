@@ -1,0 +1,222 @@
+{
+  "domain": "shell",
+  "modulesReviewed": [
+    "internal/ui/frame/workspace_caption.go",
+    "internal/ui/frame/conversation_header.go",
+    "internal/ui/frame/conversation_plugins.go",
+    "internal/ui/frame/navigation_shell.go",
+    "internal/ui/frame/sidebar_columns.go",
+    "internal/ui/frame/frame.go",
+    "internal/ui/frame/shortcuts.go",
+    "internal/ui/chrome",
+    "internal/ui/widgets"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+    "tmp/full-audit-20261102/installed-source/src/main/chrome.js",
+    "tmp/full-audit-20261102/installed-source/src/main/harness-chrome-inject.js",
+    "user-provided header and workspace screenshots"
+  ],
+  "features": [
+    {
+      "id": "SH-001",
+      "feature": "会话顶部标题/操作行与下方视图页签的分层布局",
+      "baseline": "installed-0.3.13",
+      "expected": "第一行容纳标题、模式、团队及任务操作；对话/轨迹在下方独立页签行，不与标题争同一行空间。",
+      "entry": "主会话顶部 workspaceSharedCaption → conversationHeaderTitleRow",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:22729-22834: titleRow and tabs are sibling children; code explicitly describes tabs below",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:45-66,282-315: title/header and tab strip occupy separate grid rows",
+        "evidence/user-original-header.png: user-provided original shows two levels"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/workspace_caption.go:28-43,148-179: fixes caption at 48 DIP and paints both tabs in its content row",
+        "internal/ui/frame/conversation_header.go:44-62: explicitly places tabs inside titleCluster",
+        "internal/ui/frame/workspace_caption_test.go:14-81,85-111: tests assert the same incorrect one-row contract"
+      ],
+      "finding": "原版两层层级被有意压成一层；源码注释与局部测试错误宣称 rc.2 没有下方页签行。测试通过恰好锁住了与原版不一致的结构。",
+      "evidenceLevel": "code",
+      "requiredAction": "恢复原版标题/操作与页签分层，使用当前安装版与用户参考图纠正布局合同及依赖断言；再在同尺实际窗口验收。",
+      "acceptanceGap": "本轮未操作桌面，不能给出当前窗口逐像素对齐结论。"
+    },
+    {
+      "id": "SH-002",
+      "feature": "窄会话列仍能切换对话/轨迹",
+      "baseline": "installed-0.3.13",
+      "expected": "标题行紧凑化不删除独立页签入口；若折叠，必须提供同语义可达入口。",
+      "entry": "打开右侧工作面或缩窄会话列后的顶部页签",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:22744-22747,22811-22834: tab strip visibility depends on managed/showTabs/views, not compact title width",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:239-250,282-302: compact title actions and wrapping tab strip are separate"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/conversation_header.go:23-24,60-61: passes compact based on remaining title width",
+        "internal/ui/frame/workspace_caption.go:148-153: compact immediately returns without tabs",
+        "internal/ui/frame/conversation_plugins.go:26-27,34-52: folded view menu is gated only by explicit HideChatViewTabs, not compact"
+      ],
+      "finding": "默认开启页签时，窄列直接隐藏切换入口，更多菜单又不会补回。该缺陷不等于已解释用户在可见标签上点击无效。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留独立页签行，或把真实折叠状态用于同语义溢出入口；覆盖打开右侧面板及正常/窄窗。",
+      "acceptanceGap": "当前用户窗口未做窄窗物理操作验证。"
+    },
+    {
+      "id": "SH-003",
+      "feature": "页签的选中语义和键盘导航",
+      "baseline": "installed-0.3.13",
+      "expected": "辅助技术可识别 tablist/tab 和当前选中页签，键盘可按页签组语义操作。",
+      "entry": "顶部对话/轨迹控件",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:22814-22832: role=tablist/tab and aria-selected"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/workspace_caption.go:154-179: plain Buttons communicate selection only with text color/underline, no tab role or Selected state",
+        "third_party/mygo/ui/base.go:180-220: existing Tabs primitive already supplies RoleTabList/RoleTab, selection and arrow navigation",
+        "third_party/mygo/ui/api_gen.go:4103: Selected semantic state is available"
+      ],
+      "finding": "视觉上是页签，语义上仍是两个普通按钮；现有 MyGo 已有成熟页签原语，但该入口没有使用。",
+      "evidenceLevel": "code",
+      "requiredAction": "在恢复正确布局时复用 TabsBase 或等价语义和组内键盘行为，不只移动蓝线。",
+      "acceptanceGap": "Narrator、键盘焦点和系统文本缩放实际路径未验收。"
+    },
+    {
+      "id": "SH-004",
+      "feature": "插件注册的额外会话视图导航与渲染",
+      "baseline": "installed-0.3.13",
+      "expected": "原版 conversation view registry 提供的视图可在原会话内选中并使用其对应渲染器。",
+      "entry": "会话页签列表及对应内容面",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:22734-22738,22818-22833,25154-25187: registry-backed dynamic views, labels and selection"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/workspace_caption.go:177-179: hard-coded chat/trajectory tabs only",
+        "internal/ui/frame/frame.go:1031-1063: content switches only between trajectory and chat",
+        "internal/ui/frame/conversation_plugins.go:53-61: separate opt-in full Host session page is an alternative entry, not native dynamic-view projection"
+      ],
+      "finding": "原生会话视图导航并不消费任意 view registry。可显式打开完整 Host 插件会话，不等于额外视图已经迁入原生标签和内容座位。",
+      "evidenceLevel": "code",
+      "requiredAction": "为注册视图定义完整可达的导航/内容消费路径，并保留原会话状态；与 PLUG 的动态槽位范围一起修复。",
+      "acceptanceGap": "任意第三方视图、portal、输入及状态恢复未获得原生等价证据。"
+    },
+    {
+      "id": "SH-005",
+      "feature": "用户报告的可见轨迹标签点击无响应",
+      "baseline": "existing-MyGo-contract",
+      "expected": "点击后完成选择、主状态回写、下划线移动及视图显示。",
+      "entry": "用户启动的 rc.3 预览窗口中的轨迹标签",
+      "status": "partial",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:22823-22830: click directly invokes selectView"
+      ],
+      "mygoEvidence": [
+        "user-report: original rc.3 click changes neither content nor blue underline",
+        "evidence/trajectory-tab-trace.txt: 15:35:16 diagnostic build records down/up, chat→trajectory selection, main writeback and next layout; 15:35:19 records reverse switch",
+        "tmp/trajectory-diagnosis/passive-trace-final.log: production-shaped headless state and software underline checks passed for the diagnostic source"
+      ],
+      "finding": "原 rc.3 用户失败仍有效且原因未定位。当前旁置诊断版的一次真实点击完成了状态切换；该证据不能证明原失败根因或全窗口视觉已经修复。",
+      "evidenceLevel": "current-runtime-log",
+      "requiredAction": "保留原故障和版本差异；在整体主流程修复后验证同一受影响用户入口，不能以这次单独状态成功宣布可用。",
+      "acceptanceGap": "原版本失效原因未知；本轮未抓取或操作桌面，也未观察实际下划线像素。"
+    },
+    {
+      "id": "SH-006",
+      "feature": "空会话/加载/历史错误时显示选中的轨迹",
+      "baseline": "existing-MyGo-contract",
+      "expected": "轨迹页负责自身空/加载状态，不被聊天占位面替代。",
+      "entry": "轨迹选择后主会话内容分支",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/client.js:8177-8213: registered trajectory view owns its projection and renderer"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1035-1038: this turn's source fix excludes trajectory from chat-only phase placeholders",
+        "tmp/trajectory-diagnosis/phase-before.log: all three cases fail on original source overlay",
+        "tmp/trajectory-diagnosis/directed-final.log: frame package phase and unchanged chat-state cases pass"
+      ],
+      "finding": "该直接相关缺陷已在源码和旁置诊断版修复并有针对性无桌面证据；已交付的 rc.3 完整安装器仍是旧 app，尚未包含它。",
+      "evidenceLevel": "scoped-test",
+      "requiredAction": "纳入后续统一修复候选，并验收轨迹与输入区在这些状态中的完整布局；不要单独重打包冒充整体完成。",
+      "acceptanceGap": "实际 Windows 窗口、聊天恢复几何及完整用户路径未认证。"
+    },
+    {
+      "id": "SH-007",
+      "feature": "常驻导航、折叠侧栏与全局页面返回会话",
+      "baseline": "installed-0.3.13",
+      "expected": "侧栏及草稿状态在设置、市场、助理、自动化等页面切换后持续，窄窗有抽屉和返回路径。",
+      "entry": "NavigationShell / withMainNavigation / revealMainConversation",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-layout/lib/client.js: AppFrame persistent sidebar and responsive drawer",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar/lib/client.js: persistent global navigation"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/navigation_shell.go:12-62: shared rail and global-page shell",
+        "internal/ui/frame/sidebar_columns.go:10-31,62-110: responsive ownership and drawer",
+        "cmd/whaleisle/main_navigation.go:29-77,94-112: route-only selection and conversation reveal"
+      ],
+      "finding": "持久导航和响应式装配存在；本轮未以实际桌面切换认证其可用性。新会话/工作区、Project和插件路由的已知断路分别在WS/FLOW/PLUG台账中，不能被本行覆盖。",
+      "evidenceLevel": "code",
+      "requiredAction": "统一主流程修复后验证各全局页面往返、焦点、抽屉关闭及草稿保留。",
+      "acceptanceGap": "正常/窄窗的实际可点路径和输入焦点未验收。"
+    },
+    {
+      "id": "SH-008",
+      "feature": "主壳拖拽、分栏与桌面视觉反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "可操作控件不被拖动区域遮挡；分栏、窗口状态、主题背景和动效不破坏内容/控件可用性。",
+      "entry": "共享caption、sidebar/right splitters、背景及公共widgets",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/harness-chrome-inject.js:10-17,72-125: native control reserve and no-drag controls",
+        "tmp/full-audit-20261102/installed-source/src/main/chrome.js:39-77: frame and platform chrome contract"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/workspace_caption.go:46-138: caption/trailing measurement and drag containers",
+        "internal/ui/frame/frame.go:46-145: column sizes and persisted layout concession",
+        "internal/ui/widgets/confirm_dialog.go:68-124: shared dialog cancel/focus path",
+        "third_party/mygo/ui/input.go:263-284,333-339: interactive target is resolved before caption drag",
+        "internal/ui/chrome/background.go; internal/ui/chrome/cursor.go; internal/ui/widgets/motion.go: shared rendering/feedback consumers"
+      ],
+      "finding": "不能依据父容器 DragWindow 猜测所有点击失效；当前点击日志亦表明至少一次轨迹事件能到达。公共布局/动效代码存在，但历史截图和局部渲染测试不足以判定当前用户窗口整体可用。原生系统确认框取消风险另见WS，不能用安全的widgets确认框掩盖。",
+      "evidenceLevel": "code",
+      "requiredAction": "修正已知布局和接线后，在同一候选检验拖动/点击边界、分栏、缩放与焦点；窗口OS生命周期见LIFE，主题配置见SET。",
+      "acceptanceGap": "桌面实际渲染、DPI/文本缩放、焦点、屏幕阅读及完整物理交互尚未验收。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "WS owns new-session/workspace callbacks and dangerous delete cancellation",
+    "FLOW owns Team/Project/task header business semantics",
+    "PLUG owns generic slots/browser replacement scope; native dynamic view navigation is SH-004",
+    "SET owns theme/preferences and their effective consumption; LIFE owns native lifecycle and window controls"
+  ],
+  "uncovered": [],
+  "checksRun": [
+    {
+      "command": "runtime/node/node.exe tmp/full-audit-20261102/read-installed-source.cjs",
+      "result": "read-only current installed version 0.3.13; 224 application source files captured, 2634930 bytes; no app executed",
+      "scope": "current reference identity and desktop source evidence, not functional acceptance"
+    },
+    {
+      "command": "read fixed [conversation-tab] lines from the running diagnostic log",
+      "result": "one real user click and reverse click committed their tab values",
+      "scope": "diagnostic build tab event/state path only"
+    }
+  ],
+  "summary": "顶部结构与原版确有硬差异，局部测试反而固化了错误合同；窄列和扩展视图另有可达性缺口。当前产品可用性不能从无桌面接口通过推定。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-navigation-actions.json"
+  ]
+}

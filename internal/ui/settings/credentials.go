@@ -34,12 +34,8 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	d := m.Credentials
 	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	if d.Err != "" {
-		ui.Text(c, d.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
-	if d.LastAction != "" {
-		ui.Text(c, settingsActionText(d.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "credentials:38", "error", d.Err != "", func() string { return d.Err })
+	settingsNotice(c, "credentials:41", "", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
 	if d.HarnessNote != "" {
 		ui.Text(c, d.HarnessNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}

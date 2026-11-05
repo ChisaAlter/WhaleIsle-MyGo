@@ -61,26 +61,26 @@ func TestPageCommandsRespectInputOwnership(t *testing.T) {
 	tt.Compose("ni", 2)
 	pressFramePhysicalKey(tt, ui.Cmd, ui.KeyO, "KeyO")
 	tt.Type("你")
-	if settings != 1 || folders != 1 || text != "你" {
+	if settings != 2 || folders != 1 || text != "你" {
 		t.Fatalf("editor/IME: settings=%d folders=%d text=%q", settings, folders, text)
 	}
 	mode = "custom"
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd, ui.KeyBackquote, "Backquote")
-	if terminals != wantTerminals || customKeys != 1 {
+	if terminals != wantTerminals+1 || customKeys != 0 {
 		t.Fatalf("custom input stolen: terminal=%d keys=%d", terminals, customKeys)
 	}
 	mode = "page"
 	modal = true
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd, ui.KeyComma, "Comma")
-	if settings != 1 {
+	if settings != 2 {
 		t.Fatal("modal command escaped")
 	}
 	modal = false
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd, ui.KeyComma, "Comma")
-	if settings != 2 {
+	if settings != 3 {
 		t.Fatal("page command did not recover after modal")
 	}
 }

@@ -40,9 +40,8 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	if m.Sizes != nil && m.Sizes.drawerMode() {
 		leftInset = 48
 	}
-	// One 48px band: title, the optional 对话/轨迹 switcher and the status
-	// actions share its 32 DIP content row (y = 12..44); rc.2 has no tab row
-	// under the caption.
+	// The caption owns the title and actions. View tabs are a separate,
+	// non-draggable row, independent of compact title actions.
 	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionContent).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
 		if m.ConversationContributions != nil {
 			m.ConversationContributions(c, snap, "conversation.session.header.leading")
@@ -57,18 +56,11 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 					ui.Text(c, i18n.T(i18n.KeyAppName)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				}
 			})
-			if !m.HideChatViewTabs && !m.DisableDeveloperTools && !managed {
-				conversationViewTabs(c, m, colors, compact)
-			}
 			ui.Row(c).Key("conversation-header-actions").Shrink(0).AlignItems(ui.Center).Gap(gap).Children(func() {
 				if managed {
 					return
 				}
-				openAgents := m.OnOpenAgents
-				if openAgents == nil {
-					openAgents = m.OnOpenAssistant
-				}
-				conversationHeaderButton(c, "conversation-agents", i18n.T(i18n.KeyFrameCaptionAgents), "UsersOutline", compact, secondary, openAgents, 0)
+				conversationTeamAction(c, m, snap, compact, secondary)
 				preset := strings.TrimSpace(snap.SelectedAgentPreset)
 				if preset == "" && m.AgentPresetPick != nil {
 					preset = strings.TrimSpace(*m.AgentPresetPick)
@@ -113,8 +105,13 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 			}
 		})
 		ui.Row(c).Key("conversation-header-corner").Shrink(0).AlignItems(ui.Center).Children(func() {
-			if managed {
-				conversationMoreMenu(c, m, snap, muted)
+			if m.OnOpenWhaleSettings != nil {
+				for _, item := range snap.Items {
+					if item.SessionID == snap.SelectedID && item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" {
+						conversationHeaderButton(c, "conversation-whale-settings", archiveText("助理设置", "Assistant settings"), "SettingsOutline", true, muted, m.OnOpenWhaleSettings, 0)
+						break
+					}
+				}
 			}
 			if m.ConversationContributions != nil {
 				m.ConversationContributions(c, snap, "conversation.session.header.corner")
@@ -153,6 +150,26 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 	root := ui.Row(c.Key("schedule-header:" + snap.Origin + ":" + sessionID)).Shrink(0)
 	state := ui.Local(root, "schedule-menu", func() *scheduleHeaderState { return &scheduleHeaderState{} })
 	local := *state
+	failure := ui.Local(root, "schedule-catalog-failure", func() struct {
+		key       string
+		dismissed bool
+	} {
+		return struct {
+			key       string
+			dismissed bool
+		}{}
+	})
+	failureKey := fmt.Sprintf("%d/%s", snap.CatalogRequest, snap.Err)
+	if failure.key != failureKey {
+		failure.key, failure.dismissed = failureKey, false
+	}
+	if snap.Err != "" && !failure.dismissed {
+		headerNotice(c, "schedule-catalog-failure", snap.Err, colors, 24, []headerNoticeAction{{label: archiveText("重试", "Retry schedules"), disabled: snap.Loading || m.ScheduleStore == nil, run: func() {
+			if m.ScheduleStore != nil {
+				m.ScheduleStore.Refresh(context.Background(), sessionID)
+			}
+		}}}, func() { failure.dismissed = true })
+	}
 	if len(rows) == 0 && snap.Err == "" {
 		root.Size(0, 0)
 		return
@@ -193,14 +210,6 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 							ui.Row(c).Label("Loading scheduled tasks").Padding(10, 12).Gap(6).Children(func() {
 								ui.Spinner(c).Size(14, 14)
 								ui.Text(c, archiveText("正在读取任务…", "Loading tasks…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							})
-						}
-						if snap.Err != "" {
-							ui.Column(c).FillWidth().MinWidth(0).Padding(10, 12).Gap(6).Children(func() {
-								ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
-								if retry := ui.Button(c, archiveText("重试", "Retry schedules")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(snap.Loading); retry.Clicked() && m.ScheduleStore != nil {
-									m.ScheduleStore.Refresh(context.Background(), sessionID)
-								}
 							})
 						}
 						for _, entry := range rows {

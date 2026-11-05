@@ -14,6 +14,16 @@ import (
 // hover card stable. Unlike the manager's host-zone view, catalog hover cards
 // always show a wall-clock rule's zone, including the viewer's own zone.
 func FormatCatalogFrequency(raw json.RawMessage, now time.Time, locale string) string {
+	return formatScheduleFrequency(raw, now, locale, "")
+}
+
+// The manager omits a wall-clock rule's zone only when it is this device's own
+// zone. The header/hover catalog keeps its existing always-name-the-zone form.
+func formatManagerFrequency(raw json.RawMessage, now time.Time, locale, systemZone string) string {
+	return formatScheduleFrequency(raw, now, locale, systemZone)
+}
+
+func formatScheduleFrequency(raw json.RawMessage, now time.Time, locale, systemZone string) string {
 	var rule struct {
 		Kind, Time, TimeZone, Expression string
 		EverySeconds                     int64
@@ -44,22 +54,29 @@ func FormatCatalogFrequency(raw json.RawMessage, now time.Time, locale string) s
 			return fmt.Sprintf(catalogCopy(locale, "%d%s一次", "Every %d %s"), value, catalogCopy(locale, unit.zh, english))
 		}
 	case "daily":
-		return catalogFrequencyZone(fmt.Sprintf(catalogCopy(locale, "每天 %s", "Daily at %s"), catalogClock(rule.Time)), rule.TimeZone, now, locale)
+		return managerFrequencyZone(fmt.Sprintf(catalogCopy(locale, "每天 %s", "Daily at %s"), catalogClock(rule.Time)), rule.TimeZone, now, locale, systemZone)
 	case "weekly":
 		days := make([]string, 0, len(rule.Weekdays))
 		for _, day := range rule.Weekdays {
 			days = append(days, catalogWeekday(day, locale))
 		}
 		text := fmt.Sprintf(catalogCopy(locale, "每周%s %s", "Weekly on %s at %s"), strings.Join(days, catalogListJoin(locale)), catalogClock(rule.Time))
-		return catalogFrequencyZone(text, rule.TimeZone, now, locale)
+		return managerFrequencyZone(text, rule.TimeZone, now, locale, systemZone)
 	case "cron":
 		text := "Cron " + rule.Expression
 		if parsed, err := parseTaskCron(rule.Expression); err == nil {
 			text = catalogCronPreview(parsed, locale)
 		}
-		return catalogFrequencyZone(text, rule.TimeZone, now, locale)
+		return managerFrequencyZone(text, rule.TimeZone, now, locale, systemZone)
 	}
 	return ""
+}
+
+func managerFrequencyZone(rule, zone string, now time.Time, locale, systemZone string) string {
+	if systemZone != "" && zone == systemZone {
+		return rule
+	}
+	return catalogFrequencyZone(rule, zone, now, locale)
 }
 
 func catalogCopy(locale, zh, en string) string {

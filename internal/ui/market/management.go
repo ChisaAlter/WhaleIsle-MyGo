@@ -103,7 +103,12 @@ func confirmationView(c *ui.Context, m Model, fg, accent ui.Color) {
 func withMarketConfirmations(m Model) Model {
 	if action := m.OnInstallCatalog; action != nil {
 		m.OnInstallCatalog = func(t marketstore.InstallTarget) {
-			m.Store.RequestConfirmation(marketText(i18n.T(i18n.KeyW4MarketInstallUpdate), "Install / update: ")+t.ID+"\n"+t.CurrentVersion+" → "+t.UpdateVersion+"\n"+t.Spec, func() { action(t) })
+			lines := []string{marketText(i18n.T(i18n.KeyW4MarketInstallUpdate), "Install / update: ") + t.ID}
+			if t.CurrentVersion != "" || t.UpdateVersion != "" {
+				lines = append(lines, t.CurrentVersion+" → "+t.UpdateVersion)
+			}
+			lines = append(lines, t.Spec, marketText("第三方插件将在本机执行代码。请确认来源可信，并先结束正在进行的任务；插件变更可能需要重启 Harness。", "Third-party plugins execute code on this computer. Verify the source and finish running tasks first; changes may require a Harness restart."))
+			m.Store.RequestConfirmation(strings.Join(lines, "\n\n"), func() { action(t) })
 		}
 	}
 	if action := m.OnInstallSpec; action != nil {
@@ -118,7 +123,7 @@ func withMarketConfirmations(m Model) Model {
 	}
 	if action := m.OnRemoveBundle; action != nil {
 		m.OnRemoveBundle = func(name string) {
-			m.Store.RequestConfirmation(marketText(i18n.T(i18n.KeyW4MarketRemovePlugin), "Remove plugin: ")+name, func() { action(name) })
+			m.Store.RequestConfirmation(marketText(i18n.T(i18n.KeyW4MarketRemovePlugin), "Remove plugin: ")+name+"\n\n"+marketText("将从桌面配置中移除此插件，可能需要重启 Harness。请先结束正在进行的任务；插件自行保存的数据不会在此删除。", "This removes the plugin from the desktop configuration and may require a Harness restart. Finish running tasks first; data saved by the plugin is not deleted here."), func() { action(name) })
 		}
 	}
 	if action := m.OnSetBundleEnabled; action != nil {

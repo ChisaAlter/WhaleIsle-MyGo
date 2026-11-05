@@ -29,3 +29,16 @@ func TestSessionCostFixture(t *testing.T) {
 		t.Fatal("Beijing boundary")
 	}
 }
+
+func TestOfficialPricesAndCustomIdleDerivation(t *testing.T) {
+	projection := &Projection{Models: []Route{{Provider: "deepseek-official", Model: "deepseek-v4-flash", Peak: &Bucket{Miss: 1000000}, OffPeak: &Bucket{Miss: 1000000}}}}
+	sources := []Source{{ID: "root", Usage: projection}}
+	got := Calculate("root", sources, usage.BillingSettings{})
+	if got.Priced != 1 || got.Unpriced != 0 || got.Cents != 450 {
+		t.Fatalf("official peak/idle prices: %+v", got)
+	}
+	custom := usage.BillingSettings{Prices: map[string]usage.ModelPrice{"deepseek-official/deepseek-v4-flash": {PriceRates: usage.PriceRates{InputCacheMiss: 4}}}}
+	if got := Calculate("root", sources, custom); got.Cents != 600 || got.Priced != 1 {
+		t.Fatalf("custom missing idle must derive half peak: %+v", got)
+	}
+}

@@ -8,6 +8,7 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type WhalePreferencesModel struct {
@@ -32,15 +33,10 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
-		if s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).TextColor(muted)
-		}
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "whale_preferences:39", "", s.Notice != "", func() string { return s.Notice })
 		if s.Server.HomeDir == "" {
 			return
 		}

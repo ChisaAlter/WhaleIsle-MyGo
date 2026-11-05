@@ -19,9 +19,16 @@ import (
 var ErrCancelled = errors.New("task protection cancelled")
 
 type Work struct {
-	Kind  string `json:"kind"`
-	ID    string `json:"id"`
-	Count int    `json:"count"`
+	Kind        string `json:"kind"`
+	ID          string `json:"id"`
+	Count       int    `json:"count"`
+	Title       string `json:"title"`
+	Detail      string `json:"detail"`
+	Due         bool   `json:"due"`
+	Owner       string `json:"owner"`
+	SessionID   string `json:"sessionId"`
+	ScheduledAt string `json:"scheduledAt"`
+	Recurring   bool   `json:"recurring"`
 }
 type Inspection struct {
 	OK             bool              `json:"ok"`

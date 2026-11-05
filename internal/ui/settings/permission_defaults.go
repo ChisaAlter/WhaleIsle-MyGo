@@ -21,9 +21,7 @@ func permissionDefaultField(c *ui.Context, m Model, s store.ViewState, f store.F
 	ui.Text(c, providerCopy("权限", "Permission")).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
 	ui.Text(c, providerCopy("选择新会话的默认权限模式", "Choose the default permission mode for new sessions")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	defaults := s.PermissionDefaults
-	if defaults.Err != "" {
-		ui.Text(c, defaults.Err).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-	}
+	settingsNotice(c, "permission_defaults:25", "error", defaults.Err != "", func() string { return defaults.Err })
 	if permissionDefaultUnavailable(s) {
 		ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, providerCopy("刷新目录", "Refresh catalog")).Disabled(s.Loading || s.Saving).Clicked() {
@@ -76,6 +74,10 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	if !found {
 		return
 	}
+	if !settingsItemBefore(c, "permission-row") {
+		return
+	}
+	clearFailure := bodyPreferenceFieldError(c, a, "permission", "defaultPreset", providerCopy("权限", "Permission"))
 	defaults := a.Snapshot.PermissionDefaults
 	if value == "" {
 		value = defaults.DefaultPreset
@@ -111,32 +113,32 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 				ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FillWidth().TextColor(muted)
 				return
 			}
-			if settingsPreferenceSelect(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).Disabled(bodyHostDisabled(a)).Changed() {
+			if settingsPreferenceSelect(c, &selected, options).Label(providerCopy("默认权限", "Default permissions")).Disabled(bodyHostFieldDisabled(a, "permission", "defaultPreset")).Changed() {
 				if values[selected] == "danger-full-access" {
 					*confirming, *acknowledged = true, false
 				} else {
+					clearFailure()
 					a.OnChange("permission", "defaultPreset", values[selected])
 				}
 			}
 		})
-		if defaults.Err != "" {
-			ui.Text(c, defaults.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
+		settingsNotice(c, "permission_defaults:128", "error", defaults.Err != "", func() string { return defaults.Err })
 	})
-	if bodyHostDisabled(a) {
+	if bodyHostFieldDisabled(a, "permission", "defaultPreset") {
 		*confirming, *acknowledged = false, false
 	}
 	if *confirming {
 		ui.DialogBase(c, confirming, func(backdrop, panel ui.Element) {
 			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 24).Gap(12).Children(func() {
-				bodyHeading(c, providerCopy("确认启用完全权限？", "Enable Full access?"), providerCopy("新任务将可以访问工作区之外的文件并执行命令。", "New tasks can access files outside the workspace and execute commands."), fg, muted)
-				ui.Checkbox(c, acknowledged, providerCopy("我了解这些权限的影响", "I understand the impact of these permissions")).Label("permission-full-access-acknowledgement")
+				bodyHeading(c, providerCopy("确认启用完全权限？", "Enable Full access?"), providerCopy("启用完全权限后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。", "Full access lets new sessions reduce confirmation steps and perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust subsequent tasks."), fg, muted)
+				ui.Checkbox(c, acknowledged, providerCopy("我已了解风险，并愿意继续", "I understand the risks and want to continue")).Label("permission-full-access-acknowledgement")
 				ui.Row(c).Wrap().Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
 						*confirming = false
 					}
-					if ui.Button(c, providerCopy("启用完全权限", "Enable Full access")).Disabled(!*acknowledged).Clicked() {
+					if ui.Button(c, providerCopy("启用完全权限", "Enable Full access")).Disabled(!*acknowledged || bodyHostFieldDisabled(a, "permission", "defaultPreset")).Clicked() {
 						*confirming = false
+						clearFailure()
 						a.OnChange("permission", "defaultPreset", "danger-full-access")
 					}
 				})

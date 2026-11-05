@@ -46,6 +46,7 @@ type Item struct {
 	// Origin identifies durable subagents; a removed live Agent does not delete them.
 	Origin         string
 	AgentAvailable bool
+	FormatStatus   string
 }
 
 // MessageKind classifies how the chat UI should render a line.
@@ -118,7 +119,9 @@ type ViewState struct {
 	SidebarSubagentActivity  map[string]SidebarSubagentActivity
 	TrajectoryRequests       []TrajectoryRequest
 	TrajectoryRequestHeaders []TrajectoryRequestHeader
-	ContextOccupancy         *ContextOccupancy
+	// Independent loaded journal: retain records hidden by later chat edits.
+	TrajectoryMessages []Message
+	ContextOccupancy   *ContextOccupancy
 
 	StopSequenceMS int64
 	// Stop identity is the existing live turn and selected follow binding.
@@ -132,6 +135,7 @@ type ViewState struct {
 	WorkspaceLayout               WorkspaceLayoutState
 	Workspaces                    []WorkspaceRow
 	WorkspaceReady                bool
+	WorkspaceError                string
 	WorkspaceNavigation           *WorkspaceNavigationState
 	QuestionProjection            QuestionProjectionState
 	ArchiveConfirmation           *ArchiveConfirmation
@@ -176,29 +180,31 @@ type ViewState struct {
 	// MessageRatings maps assistant message id → "up"|"down" for the current session.
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
-	FeedbackBusyID      string
-	ModelChoices        map[string]api.ModelCatalogDefault
-	ModelCatalogChoices []ModelCatalogChoice
-	ModelEffortChoices  map[string]api.ModelCatalogDefault
-	ModelSelection      *api.ModelCatalogDefault
-	ModelSelectionKnown bool
-	ModelSelectionBusy  bool
-	ModelEffortLabels   []string
-	SelectedModelEffort string
-	ModelLabels         []string
-	SelectedModel       string
-	ModelsErr           string
-	PermissionLabels    []string
-	SelectedPermission  string
-	PermissionsErr      string
-	PlanModeControl     PlanModeControl
-	AgentPresetLabels   []string
-	SelectedAgentPreset string
-	AgentPresetsErr     string
-	SkillCatalog        SkillCatalog
-	SkillOptions        []SkillOption
-	SkillsErr           string
-	SkillHubHits        []SkillHubHit
+	FeedbackBusyID          string
+	ModelChoices            map[string]api.ModelCatalogDefault
+	ModelCatalogChoices     []ModelCatalogChoice
+	ModelEffortChoices      map[string]api.ModelCatalogDefault
+	ModelSelection          *api.ModelCatalogDefault
+	ModelSelectionKnown     bool
+	ModelSelectionBusy      bool
+	ModelEffortLabels       []string
+	SelectedModelEffort     string
+	ModelLabels             []string
+	SelectedModel           string
+	ModelsErr               string
+	PermissionLabels        []string
+	SelectedPermission      string
+	SelectedPermissionValue string
+	PermissionSelectionBusy bool
+	PermissionsErr          string
+	PlanModeControl         PlanModeControl
+	AgentPresetLabels       []string
+	SelectedAgentPreset     string
+	AgentPresetsErr         string
+	SkillCatalog            SkillCatalog
+	SkillOptions            []SkillOption
+	SkillsErr               string
+	SkillHubHits            []SkillHubHit
 
 	SearchLoading  bool
 	SearchUseLocal bool
@@ -350,6 +356,7 @@ type Store struct {
 	batch                     SessionBatch
 	batchToken                uint64
 	archive                   archiveOperation
+	deletion                  sessionDeletion
 	archiveToken              uint64
 	commandCatalog            commandCatalog
 	nativeContributions       nativeContributionState
@@ -536,11 +543,38 @@ func (s *Store) SetWorkspaceCwd(cwd string) {
 	s.mu.Unlock()
 }
 
-// CreateSession calls session/create then refreshes the list and selects the new id.
-// Prefers session/blankReuse when a blank session already exists for the cwd
-// Offline callers retain local blank reuse; an online Host error is never approval.
+// CreateSession preserves the current Host workspace membership and navigation.
+// UI callers use WorkspaceSessionTarget to reuse only drafts known to be empty;
+// offline callers retain the existing local blank reuse contract.
 func (s *Store) CreateSession(ctx context.Context) {
 	s.mu.Lock()
+	// Registered workspaces require an explicit Host identity, not merely cwd.
+	// Non-UI callers cannot inspect unsent drafts, so only the UI-owned path
+	// may propose an existing blank for reuse.
+	workspaceID, host := s.newSessionWorkspaceIDLocked(), s.eventsGeneration
+	if s.client != nil && workspaceID != "" {
+		var excluded []string
+		for _, it := range s.items {
+			excluded = append(excluded, it.SessionID)
+		}
+		s.mu.Unlock()
+		target, err := s.CaptureWorkspaceSessionTarget(host, workspaceID, excluded...)
+		if err != nil {
+			s.SetLastAction("create workspace session: " + err.Error())
+			return
+		}
+		go func() {
+			id, err := target.Create(ctx)
+			if err != nil {
+				target.ReportFailure(err)
+				return
+			}
+			if target.Select(id) {
+				s.InitializeDefaultModel(ctx)
+			}
+		}()
+		return
+	}
 	selectedID := s.selectedID
 	scratchCwd := s.scratchCwd
 	members := s.workspaceMembersLocked()
@@ -561,6 +595,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 	client := s.client
 	cwd := s.cwd
 	hostGeneration := s.eventsGeneration
+	navigation, follow := s.workspaceNavigationToken, s.followGeneration
 	stagedPreset := s.stagedPresetLocked(cwd)
 	var blankIDs []string
 	for _, it := range s.items {
@@ -592,7 +627,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 			"request": map[string]any{"sessionId": id},
 		}, &out)
 		s.mu.Lock()
-		if s.client != client || s.eventsGeneration != hostGeneration {
+		if s.client != client || s.eventsGeneration != hostGeneration || s.workspaceNavigationToken != navigation || s.followGeneration != follow || s.selectedID != selectedID {
 			s.mu.Unlock()
 			return
 		}
@@ -624,7 +659,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 		}
 		s.mu.Unlock()
 	}
-	go s.runCreateSession(ctx, client, hostGeneration, cwd, stagedPreset)
+	go s.runCreateSessionOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selectedID)
 }
 
 func filepathClean(p string) string {
@@ -1052,6 +1087,9 @@ func (s *Store) ensureViewCacheLocked() {
 		HistoryBranchBusy:   s.historyBranchBusy,
 		FeedbackBusyID:      s.feedbackBusyID,
 	}
+	if s.workspaceErr != nil {
+		st.WorkspaceError = s.workspaceErr.Error()
+	}
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))
 		for k, v := range s.messageRatings {
@@ -1147,6 +1185,11 @@ func (s *Store) ensureViewCacheLocked() {
 		s.historyHadRetained = hasRetained
 		s.historyInspActive = inspActive
 	}
+	if !msgProjChanged && !boundariesChanged && s.viewCacheValid {
+		st.TrajectoryMessages = s.viewCache.TrajectoryMessages
+	} else {
+		st.TrajectoryMessages = s.trajectoryJournalMessagesLocked()
+	}
 	if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil {
 		st.TrajectoryRequestHeaders = s.viewCache.TrajectoryRequestHeaders
 	} else {
@@ -1170,6 +1213,10 @@ func (s *Store) ensureViewCacheLocked() {
 	s.snapshotModelsLocked(&st)
 	st.HistoryNavigation = s.historyNavigationSnapshotLocked()
 	st.SelectedPermission = s.permissionLabelLocked()
+	if s.permissionProjectionCurrentLocked() {
+		st.SelectedPermissionValue = s.permissionProjection.Value
+		st.PermissionSelectionBusy = s.permissionProjection.Pending || s.permissionRisk != nil && s.permissionRiskCurrentLocked(s.permissionRisk.view.Token)
+	}
 	st.PlanModeControl = s.planModeControlLocked()
 	if s.permissionProjectionCurrentLocked() {
 		for _, o := range s.permissionOptions {
@@ -1354,7 +1401,14 @@ func (s *Store) RunningCount() int {
 func (s *Store) Select(sessionID string) {
 	s.mu.Lock()
 	if s.selectedID == sessionID {
+		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
+		if changed {
+			s.fire()
+		}
+		if control != nil {
+			go control()
+		}
 		return
 	}
 	s.selectSessionLocked(sessionID)
@@ -1471,7 +1525,9 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	for _, row := range out.Items {
 		if row.Projections != nil {
 			s.applySubagentCatalogValuesLocked(row.SessionId, row.Projections.Values)
-			s.applyQuestionValuesForSessionLocked(row.SessionId, row.Projections.Values, row.Projections.AsOfSeq)
+			if row.Projections.Kind == "" || row.Projections.Kind == "sequenced" {
+				s.applyQuestionValuesForSessionLocked(row.SessionId, row.Projections.Values, row.Projections.AsOfSeq)
+			}
 		}
 	}
 	s.composerRosterClient = client
@@ -1697,11 +1753,12 @@ func (s *Store) ForkSession(ctx context.Context, sessionID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	s.mu.Lock()
 	client, hostGeneration := s.client, s.eventsGeneration
+	navigation, follow, selected := s.workspaceNavigationToken, s.followGeneration, s.selectedID
 	s.mu.Unlock()
 	if client == nil || sessionID == "" {
 		return
 	}
-	go s.runForkSession(ctx, client, hostGeneration, sessionID)
+	go s.runForkSessionOwned(ctx, client, hostGeneration, sessionID, navigation, follow, selected)
 }
 
 // CancelRunning calls session/cancel for the selected session.

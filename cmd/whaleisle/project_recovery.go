@@ -13,6 +13,10 @@ import (
 // The explicit recovery button revalidates saved evidence, then submits through
 // the original Lead composer so ordinary send failure/recovery remains visible.
 func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind string, requestCards ...projectflow.RequestCard) {
+	s.runProjectRecoveryDraftOwned(win, id, kind, nil, nil, requestCards...)
+}
+
+func (s *projectController) runProjectRecoveryDraftOwned(win *mygo.Window, id, kind string, work *projectflow.WorkDetail, sourceValid func(*projectFlowState) bool, requestCards ...projectflow.RequestCard) {
 	if win == nil || id == "" {
 		return
 	}
@@ -37,11 +41,18 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 		return
 	}
 	selectedWork, selectedCard := f.detail, f.requestCard
+	if work != nil {
+		selectedWork = work
+		if sourceValid == nil || !sourceValid(f) {
+			s.mu.Unlock()
+			return
+		}
+	}
 	var revertState *projectRequestRevertState
 	var revertKey projectRequestRevision
 	switch kind {
 	case "summary":
-		if f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || selectedWork == nil || selectedWork.Workstream.SummaryFailure == nil {
+		if selectedWork == nil || selectedWork.Workstream.SummaryFailure == nil || work == nil && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID) {
 			s.mu.Unlock()
 			return
 		}
@@ -116,7 +127,7 @@ func (s *projectController) runProjectRecoveryDraft(win *mygo.Window, id, kind s
 				return
 			}
 			f.busy = false
-			if kind == "summary" && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration) {
+			if kind == "summary" && (work != nil && (sourceValid == nil || !sourceValid(f)) || work == nil && (f.teamID != id || f.team == nil || f.team.Project.CoordinatorSessionID != project.CoordinatorSessionID || f.detail != selectedWork || f.detailGeneration != detailGeneration)) {
 				s.mu.Unlock()
 				return
 			}

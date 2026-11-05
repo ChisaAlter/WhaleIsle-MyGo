@@ -17,6 +17,10 @@ func TestSyncAPIKeyToHarnessSetAndUnset(t *testing.T) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		lastMethod = r.URL.Path
+		if strings.HasSuffix(lastMethod, "/settings/describe") {
+			rpcOK(w, body["rpcId"], map[string]any{"namespaces": []any{}})
+			return
+		}
 		payload, _ := body["payload"].(map[string]any)
 		args, _ := payload["args"].(map[string]any)
 		if args != nil {
@@ -46,5 +50,27 @@ func TestSyncAPIKeyToHarnessSetAndUnset(t *testing.T) {
 	}
 	if !strings.HasSuffix(lastMethod, "/credentials/unset") || lastRef != CredRefAPIKey {
 		t.Fatalf("unset method=%s ref=%s", lastMethod, lastRef)
+	}
+}
+
+func TestSyncAPIKeyUsesAcceptedHostReference(t *testing.T) {
+	ref := ""
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if strings.HasSuffix(r.URL.Path, "/settings/describe") {
+			rpcOK(w, body["rpcId"], map[string]any{"namespaces": []any{map[string]any{"ns": "llm-deepseek-api-key", "value": map[string]any{"apiKeyEnv": "OWNED_DEEPSEEK_KEY"}}}})
+			return
+		}
+		args := body["payload"].(map[string]any)["args"].(map[string]any)
+		ref, _ = args["ref"].(string)
+		rpcOK(w, body["rpcId"], map[string]any{})
+	}))
+	defer srv.Close()
+	if err := SyncAPIKeyToHarness(context.Background(), &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, "synthetic-key"); err != nil {
+		t.Fatal(err)
+	}
+	if ref != "OWNED_DEEPSEEK_KEY" || CredRefAPIKey != "DEEPSEEK_API_KEY" {
+		t.Fatalf("wrong adapter reference: %s", ref)
 	}
 }

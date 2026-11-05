@@ -103,8 +103,8 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	if old.Sidebar != SidebarDefault {
 		t.Fatal("missing old width did not use default")
 	}
-	// Same page-command dispatch guard as all other commands: editable/IME and
-	// custom input (terminal/native guest owners) retain Ctrl+B.
+	// Installed native-priority commands work from editable/custom owners;
+	// composition itself still owns its committing key.
 	mode, text, custom := "editor", "", 0
 	owned := ui.NewTester(func(c *ui.Context) {
 		registerPageCommands(c, Model{Store: st, Sizes: &resumed})
@@ -126,14 +126,14 @@ func TestSidebarCollapseRestore(t *testing.T) {
 	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
 	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
 	owned.Type("你")
-	if resumed.Sidebar != SidebarDefault || text != "你" {
+	if resumed.Sidebar != 0 || text != "你" {
 		t.Fatal("text/IME command stolen")
 	}
 	mode = "custom"
 	owned.Frame()
 	owned.PhysicalKeyDown("KeyB", ui.KeyB, ui.Cmd, false, false, false)
 	owned.PhysicalKeyUp("KeyB", ui.KeyB, ui.Cmd, false)
-	if resumed.Sidebar != SidebarDefault || custom != 1 {
+	if resumed.Sidebar != SidebarDefault || custom != 0 {
 		t.Fatal("custom input command stolen")
 	}
 }

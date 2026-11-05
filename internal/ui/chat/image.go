@@ -13,7 +13,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/imgcache"
-	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -75,7 +74,7 @@ func remoteCache() *imgcache.Cache {
 func DisplayImagePath(ref string) string {
 	ref = strings.TrimSpace(ref)
 	if id, ok := strings.CutPrefix(ref, "attachment:"); ok && id != "" {
-		if local := session.CachedAttachmentPath(id); local != "" {
+		if local := attachmentImageRead().Cached(id); local != "" {
 			return local
 		}
 		return ""
@@ -135,29 +134,29 @@ func looksLikeImagePath(path string) bool {
 }
 
 func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen func(string)) {
-	if local := session.CachedAttachmentPath(id); local != "" && loadChatBitmap(local) != nil {
+	read := attachmentImageRead()
+	if local := attachmentImageRead().Cached(id); local != "" && loadChatBitmap(local) != nil {
 		paintInlineImage(c, local, muted, onOpen)
 		return
 	}
-	attachmentFetcher.mu.Lock()
-	fn := attachmentFetcher.fn
-	attachmentFetcher.mu.Unlock()
+	fn := read.Fetch
 	if fn == nil {
 		ui.Text(c, "[image] attachment:"+id).FontSize(12).TextColor(fg)
 		return
 	}
 	svc := c.Services()
-	state := attachmentLoads.ensure(id, func(ctx context.Context, id string) (string, error) {
+	key := read.Identity(id)
+	state := attachmentLoads.ensure(key, func(ctx context.Context, _ string) (string, error) {
 		path, err := fn(ctx, id)
-		if err == nil && loadChatBitmap(path) == nil {
+		if err == nil && loadFetchedChatBitmap(path) == nil {
 			return "", fmt.Errorf("invalid or unreadable image")
 		}
 		return path, err
 	}, svc.Invalidate)
 	if state.err != nil {
 		paintImageFailure(c, i18n.T(i18n.KeyChatImageFailed)+": "+state.err.Error(), func() {
-			session.ForgetCachedAttachment(id)
-			attachmentLoads.retry(id)
+			read.Forget(id)
+			attachmentLoads.retry(key)
 			svc.Invalidate()
 		})
 		return
@@ -268,6 +267,24 @@ func inlineImageBounds(bmp *ui.Bitmap) (w, h float32) {
 func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(string)) {
 	const size = float32(64)
 	local := DisplayImagePath(path)
+	read := attachmentImageRead()
+	id, isAttachment := strings.CutPrefix(path, "attachment:")
+	state := attachmentLoad{}
+	if local == "" && isAttachment && read.Fetch != nil {
+		state = attachmentLoads.ensure(read.Identity(id), func(ctx context.Context, _ string) (string, error) {
+			local, err := read.Fetch(ctx, id)
+			if err == nil && loadFetchedChatBitmap(local) == nil {
+				return "", fmt.Errorf("invalid or unreadable image")
+			}
+			return local, err
+		}, c.Services().Invalidate)
+		local = state.path
+	}
+	if local == "" && imgcache.IsHTTPURL(path) {
+		if cache := remoteCache(); cache != nil {
+			cache.Ensure(path, c.Services().Invalidate)
+		}
+	}
 	bmp := (*ui.Bitmap)(nil)
 	if local != "" {
 		bmp = loadChatBitmap(local)
@@ -275,6 +292,8 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 	tile := ui.Column(c).Width(size).Height(size).Radius(12).Border(0.5, muted.Alpha(0.28)).Clip()
 	tile.Children(func() {
 		switch {
+		case state.err != nil:
+			ui.Box(c).Fill().Background(c.Theme().Danger.Alpha(.10)).Center().Children(func() { ui.Text(c, i18n.T(i18n.KeyToolImageFailed)).FontSize(11).TextColor(c.Theme().Danger) })
 		case bmp != nil:
 			ui.Image(c, bmp).Fill().Fit(ui.Cover)
 		case path != "":
@@ -283,9 +302,16 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 			})
 		}
 	})
-	if onOpen != nil {
-		tile.Label("Message image").Focusable().Role(ui.RoleButton)
+	if state.err != nil {
+		tile.Label(i18n.T(i18n.KeyChatImageRetry)).Tooltip(state.err.Error()).Focusable().Role(ui.RoleButton)
 		if tile.Clicked() {
+			read.Forget(id)
+			attachmentLoads.retry(read.Identity(id))
+			c.Invalidate()
+		}
+	} else if onOpen != nil {
+		tile.Label("Message image").Focusable().Role(ui.RoleButton)
+		if tile.Clicked() && local != "" && bmp != nil {
 			onOpen(local)
 		}
 	}
@@ -400,6 +426,21 @@ func localImagePath(raw string) string {
 		return ""
 	}
 	return raw
+}
+
+// A successful canonical read may replace a corrupt file at the same cache
+// path. Retire its failed decode before validating the new bytes, otherwise an
+// explicit retry can never recover until this bitmap entry happens to age out.
+func loadFetchedChatBitmap(path string) *ui.Bitmap {
+	chatImageCache.mu.Lock()
+	for i, entry := range chatImageCache.entries {
+		if entry.path == path && entry.bmp == nil {
+			chatImageCache.entries = append(chatImageCache.entries[:i], chatImageCache.entries[i+1:]...)
+			break
+		}
+	}
+	chatImageCache.mu.Unlock()
+	return loadChatBitmap(path)
 }
 
 func loadChatBitmap(path string) *ui.Bitmap {

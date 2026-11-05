@@ -498,7 +498,12 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
 	t := v.t
 	v.pointer = [2]float32{ev.X, ev.Y}
 	t.mu.Lock()
-	defer t.mu.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			t.mu.Unlock()
+		}
+	}()
 	if t.term == nil || v.cellW == 0 {
 		return false
 	}
@@ -523,7 +528,7 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
 		if ev.Button != 0 {
 			return false // the context menu
 		}
-		if !t.ReadOnly() && ev.Mods&ui.Cmd != 0 {
+		if ev.Mods&ui.Cmd != 0 {
 			// A hyperlink (OSC 8), or a URL printed as text.
 			url := ""
 			if ref, ok := t.term.CellAt(col, row); ok {
@@ -531,10 +536,20 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
 			}
 			if url == "" {
 				text, cols := t.term.RowText(row)
-				url = urlAt(text, cols, col)
+				if t.opts.LinkAt != nil {
+					url = t.opts.LinkAt(string(text), cols, col)
+				}
+				if url == "" {
+					url = urlAt(text, cols, col)
+				}
 			}
 			if url != "" {
-				v.services.OpenURL(url)
+				handle := t.opts.OnLinkActivate
+				t.mu.Unlock()
+				locked = false
+				if handle == nil || !handle(url) {
+					v.services.OpenURL(url)
+				}
 				return true
 			}
 		}

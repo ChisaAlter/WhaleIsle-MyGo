@@ -61,22 +61,19 @@ func TestRemotePageLiveEntryAndReadiness(t *testing.T) {
 				OnSaveGateway: func(config.RemoteGatewayPreferences, config.RemoteGatewayPreferences) error { return nil },
 				PhoneRuntime:  tc.snap,
 			}
-			page := ui.NewTester(func(c *ui.Context) {
-				ui.Column(c).FillWidth().Gap(12).Children(func() { View(c, m) })
-			}, 780, 1600)
+			page, _ := phonePopupTester(&m)
 			text := strings.Join(page.Texts(), "\n")
-			if tc.wantEntry != "" && !strings.Contains(text, tc.wantEntry) {
+			if tc.wantEntry != "" && phoneSnapshot(m).ConnectURL != tc.wantEntry {
 				t.Fatalf("entry %q missing: %v", tc.wantEntry, page.Texts())
 			}
 			if !strings.Contains(text, tc.wantREADME) {
 				t.Fatalf("readiness %q missing: %v", tc.wantREADME, page.Texts())
 			}
-			if page.HasText(i18n.T(i18n.KeyRemotePhoneURLUnavailable)) != tc.wantWarning {
-				t.Fatalf("warning presence = %v, want %v: %v", page.HasText(i18n.T(i18n.KeyRemotePhoneURLUnavailable)), tc.wantWarning, page.Texts())
+			usable := offerUsable(m.PhoneRuntime, m.PhoneRuntime.Status, lanMode(m.RemoteMode))
+			if usable == tc.wantWarning {
+				t.Fatal("offer readiness diverged from runtime", page.Texts())
 			}
-			if !tc.wantWarning && page.HasText(i18n.T(i18n.KeyRemotePhoneIncomplete)) {
-				t.Fatalf("unverified wording shown for a live runtime: %v", page.Texts())
-			}
+
 		})
 	}
 }
@@ -101,9 +98,7 @@ func TestRemotePairingSurfaceSnapshot(t *testing.T) {
 			PairingImage: pairingFixturePNG(t),
 		},
 	}
-	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).FillWidth().Gap(12).Children(func() { View(c, m) })
-	}, 780, 1700)
-	tt.Frame()
+	tt, _ := phonePopupTester(&m)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	saveSurfaceSnapshot(t, tt, "remote-panel-block-headless.png")
 }

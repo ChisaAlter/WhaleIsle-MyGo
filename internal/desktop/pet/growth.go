@@ -6,13 +6,23 @@ import (
 	"html"
 	"strings"
 	"time"
+	"whaleisle/internal/petgrowth"
 	"whaleisle/internal/store/storelocale"
 )
 
 type GrowthStatus struct {
 	Label, Detail, Message string
 	Busy, CanFeed          bool
+	petgrowth.Snapshot
+	Levels []growthTier
 }
+
+type growthTier struct {
+	At          int64
+	Name, Color string
+}
+
+var growthColors = []string{"#7fb3e8", "#4a90d9", "#3aa8c1", "#5b8def", "#9b6dd9", "#e85d75", "#f0785a", "#f09a4a", "#f5c04d", "#ffe98a"}
 
 func (p *Companion) growthStatus() GrowthStatus {
 	p.assetMu.RLock()
@@ -28,6 +38,10 @@ func (p *Companion) growthStatus() GrowthStatus {
 		return status
 	}
 	status.Label = fmt.Sprintf(storelocale.T(storelocale.KeyStorePetLvDSDGrowthPoints), snap.Level, snap.LevelName, snap.Points)
+	status.Snapshot = snap
+	for i, tier := range petgrowth.Levels {
+		status.Levels = append(status.Levels, growthTier{tier.At, tier.Name, growthColors[i]})
+	}
 	status.Detail = fmt.Sprintf(storelocale.T(storelocale.KeyStorePetLocalFoodDFeedableNowDAddedTodayD), snap.Available, snap.NextFeed, snap.TodayUsed)
 	// An empty displayed bowl may have new unsettled usage. A deliberate click
 	// must still be able to run the original pre-feed refresh.

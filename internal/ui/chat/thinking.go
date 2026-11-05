@@ -15,6 +15,7 @@ import (
 
 // ThinkingStyle colors for collapsible thinking blocks.
 type ThinkingStyle struct {
+	Body        func(*ui.Context)
 	HidePreview bool
 	Streaming   bool
 	FG          ui.Color
@@ -70,7 +71,11 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 		}
 		bodyIndent := max(float32(22), 22+theme.CurrentPreferences().Chat.Size-14)
 		ui.Column(c).FillWidth().MinWidth(0).Padding(4, 0, 4, bodyIndent).Children(func() {
-			markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
+			if st.Body != nil {
+				st.Body(c)
+			} else {
+				markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
+			}
 		})
 	})
 }

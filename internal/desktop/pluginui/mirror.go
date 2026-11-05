@@ -114,7 +114,7 @@ func (o *Owner) RequestMirror(width, height int) {
 	height = max(240, min(1536, height))
 	o.mu.Lock()
 	m := o.mirror
-	if m == nil || o.closed || o.masked || o.incompatible || !o.state.Connected || o.state.Subject == nil || !o.state.Subject.equal(o.selected) {
+	if m == nil || len(o.rich.seats) > 0 || o.rich.pending != nil || o.rich.applied != nil || o.closed || o.masked || o.incompatible || !o.state.Connected || o.state.Subject == nil || !o.state.Subject.equal(o.selected) {
 		o.mu.Unlock()
 		return
 	}

@@ -87,6 +87,8 @@ type Config struct {
 	GoVoiceMicrophoneID     string                 `json:"goVoiceMicrophoneId,omitempty"`
 	GoVoiceMicrophoneLabel  string                 `json:"goVoiceMicrophoneLabel,omitempty"`
 	GoOpenInAppChoice       string                 `json:"goOpenInAppChoice,omitempty"`
+	// DirectoryPickerUseNative remembers the explicit local Windows picker mode.
+	DirectoryPickerUseNative bool `json:"directoryPickerUseNative"`
 	// Workspace is the last folder a new session started in.
 	Workspace string `json:"workspace"`
 	// Host and Port are where dsh web listens; Port is the first port tried.
@@ -141,12 +143,13 @@ type Config struct {
 
 	// Launcher behaviour: what the desktop process does around dsh startup
 	// and updates.
-	QuitAfterStart   bool            `json:"quitAfterStart"`
-	AutoStartDesktop bool            `json:"autoStartDesktop"`
-	AskOnUpdate      bool            `json:"askOnUpdate"`
-	DownloadRoute    string          `json:"downloadRoute"` // "", "github" or "cnb"
-	DisabledPlugins  []string        `json:"disabledPlugins"`
-	Components       json.RawMessage `json:"components,omitempty"`
+	QuitAfterStart      bool            `json:"quitAfterStart"`
+	AutoStartDesktop    bool            `json:"autoStartDesktop"`
+	AskOnUpdate         bool            `json:"askOnUpdate"`
+	AutoDownloadUpdates bool            `json:"autoDownloadUpdates"`
+	DownloadRoute       string          `json:"downloadRoute"` // "", "github" or "cnb"
+	DisabledPlugins     []string        `json:"disabledPlugins"`
+	Components          json.RawMessage `json:"components,omitempty"`
 
 	// Built-in plugin and assistant toggles.
 	DshbotEnabled bool `json:"dshbotEnabled"`
@@ -206,6 +209,7 @@ func Defaults() Config {
 		QuitAfterStart:            true,
 		AutoStartDesktop:          true,
 		AskOnUpdate:               true,
+		AutoDownloadUpdates:       true,
 		DownloadRoute:             "",
 		DshbotEnabled:             false,
 		WhaleAssistantEnabled:     true,

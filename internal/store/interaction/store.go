@@ -4,6 +4,7 @@ package interaction
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 	"sync"
 
@@ -21,10 +22,12 @@ const (
 type Pending struct {
 	Continued bool // durable late-answer card; submits only through userQuestions/answer
 	EventID   string
-	Event     string
-	AgentID   string
-	Title     string
-	Detail    string
+	// SourceRequestID is the Host approval identity, not the transport EventID.
+	SourceRequestID string
+	Event           string
+	AgentID         string
+	Title           string
+	Detail          string
 	// Keep approval-owned text intact; UI locale changes must not discard the
 	// original reason or the localized displayReason alternatives.
 	ApprovalOriginalReason string
@@ -36,6 +39,7 @@ type Pending struct {
 	approvalRequester bool
 	approvalResolved  bool
 	questionSeen      bool // this call appeared in an authoritative question projection
+	questionProjected bool // timed tool protocol, including its indefinite foreground wait
 	// CallID is the harness tool call id when present.
 	CallID  string
 	Sending bool
@@ -74,6 +78,7 @@ type Store struct {
 	responses           map[string]dsh.EventResultOutcome
 	cancelled           map[string]bool
 	questionDrafts      map[string]*draftSession
+	planReviewOpened    map[planReviewOpenKey]bool
 	waitCancels         map[string]context.CancelFunc
 }
 
@@ -120,6 +125,7 @@ func (s *Store) Detach() {
 	s.responses = make(map[string]dsh.EventResultOutcome)
 	s.banner = ""
 	s.questionDrafts = make(map[string]*draftSession)
+	s.planReviewOpened = nil
 	s.mu.Unlock()
 	s.fire()
 }
@@ -134,10 +140,26 @@ func (s *Store) Snapshot() ViewState {
 		Banner:             s.banner,
 		QuestionCards:      make(map[string]QuestionCardView),
 	}
-	st.Pending = append([]Pending(nil), s.pending...)
+	// Original PendingInteractionDomain uses publication order and lets the
+	// latest value win within a domain's equal precedence.
+	for index := len(s.pending) - 1; index >= 0; index-- {
+		st.Pending = append(st.Pending, s.pending[index])
+	}
 	for id, ds := range s.questionDrafts {
 		st.QuestionCards[id] = ds.cardView(id)
 	}
+	sort.SliceStable(st.Pending, func(i, j int) bool {
+		rank := func(p Pending) int {
+			if card, ok := st.QuestionCards[p.EventID]; ok && card.PlanReview != nil {
+				return 2
+			}
+			if p.Event == EventUserQuestions {
+				return 1
+			}
+			return 0
+		}
+		return rank(st.Pending[i]) > rank(st.Pending[j])
+	})
 	return st
 }
 
@@ -415,7 +437,7 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 	retry := false
 	if p != nil {
 		if err == nil {
-			if p.Event == EventUserQuestions && p.CallID != "" {
+			if p.Event == EventUserQuestions && p.CallID != "" && p.questionProjected {
 				// HTTP delivery is not Host acceptance: an expired waterfall
 				// outcome may be silently ignored. Keep this draft and timed
 				// claim until the Host closes or continues the actual request.
@@ -445,6 +467,14 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 func (s *Store) Retry(eventID string) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
+	if p != nil && p.Event == EventUserQuestions && p.Error != "" {
+		draft := s.questionDrafts[eventID]
+		if draft != nil && planReviewOf(draft.req.Questions) == nil {
+			s.mu.Unlock()
+			s.ResolveQuestions(eventID)
+			return
+		}
+	}
 	if p != nil && p.Continued {
 		draft := s.questionDrafts[eventID]
 		plan := draft != nil && planReviewOf(draft.req.Questions) != nil
@@ -613,6 +643,7 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 	s.registerEventsDeliveryLocked(owner, wf.EventID, ch)
 	s.pending = append(s.pending, Pending{
 		EventID:                wf.EventID,
+		SourceRequestID:        req.RequestID,
 		Event:                  wf.Event,
 		AgentID:                wf.AgentID,
 		Title:                  title,
@@ -664,12 +695,14 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 	waitCtx, cancelWait := context.WithCancel(context.Background())
 	s.waitCancels[wf.EventID] = cancelWait
 	s.pending = append(s.pending, Pending{
-		EventID: wf.EventID,
-		Event:   wf.Event,
-		AgentID: wf.AgentID,
-		Title:   title,
-		Detail:  detail,
-		CallID:  callID,
+		EventID:           wf.EventID,
+		SourceRequestID:   unnamedPlanSourceRequestID(wf.Request, callID, req),
+		Event:             wf.Event,
+		AgentID:           wf.AgentID,
+		Title:             title,
+		Detail:            detail,
+		CallID:            callID,
+		questionProjected: req.Wait != nil,
 	})
 	s.mu.Unlock()
 	s.fire()

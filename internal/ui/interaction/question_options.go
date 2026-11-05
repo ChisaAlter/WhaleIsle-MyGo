@@ -43,47 +43,48 @@ func questionPagerButton(c *ui.Context, icon *ui.SVG, label string, enabled bool
 // select answers keep check-box semantics, single select answers radio ones.
 func questionOptionCard(c *ui.Context, key string, index int, label, description string, checked, multi, disabled, recommended bool, onToggle func()) ui.Element {
 	t := c.Theme()
-	border, background := t.Border, ui.Transparent
-	if checked {
-		border, background = t.Accent.Alpha(.70), t.Accent.Alpha(.08)
+	border, background := ui.Transparent, ui.Transparent
+	if checked && !multi {
+		border, background = t.Border, t.TextMuted.Alpha(.10)
 	}
-	card := ui.Row(c).Key(key).Label("Option " + label).FillWidth().MinWidth(0).
-		Gap(10).AlignItems(ui.Center).Padding(8, 10, 8, 10).Radius(10).
-		Border(0.5, border).Background(background).Selected(checked).Focusable()
+	card := ui.Row(c.Key(key)).Label("Option "+label).FillWidth().MinWidth(0).MinHeight(40).Gap(8).AlignItems(ui.Start).Padding(8, 12, 8, 8).Radius(12).Border(1, border).Background(background).Selected(checked).Focusable().Disabled(disabled)
 	if multi {
 		card.Role(ui.RoleCheckBox)
 	} else {
 		card.Role(ui.RoleRadio)
 	}
-	if disabled {
-		card.Disabled(true)
+	if card.Hovered() && !disabled {
+		card.Background(t.TextMuted.Alpha(.10))
 	}
 	card.Children(func() {
-		badge := ui.Box(c).Size(questionOptionBadge, questionOptionBadge).Radius(6).Background(t.Surface).Center()
+		badge := ui.Box(c).Size(20, 20).Margin(2, 0, 0, 0).Shrink(0).Center()
 		badge.Children(func() {
-			if checked {
-				ui.Icon(c, questionOptionCheckIcon).Width(12).Height(12).TextColor(t.Accent)
-				return
-			}
-			ui.Text(c, strconv.Itoa(index+1)).FontSize(11).TextColor(t.TextMuted)
-		})
-		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Row(c).Gap(6).AlignItems(ui.Center).MinWidth(0).Children(func() {
-				ui.Text(c, label).FontSize(13).FixedLineHeight(20).TextColor(t.Text).MinWidth(0).Shrink(1)
-				if recommended {
-					ui.Text(c, i18n.T(i18n.KeyChatQuestionRecommended)).FontSize(10).TextColor(t.Accent).
-						Padding(2, 6, 2, 6).Radius(9).Background(t.Accent.Alpha(.12)).Shrink(0)
+			if multi {
+				box := ui.Box(c).Size(14, 14).Radius(4).Border(.5, t.Border).Center()
+				if checked {
+					box.Background(t.Text).Border(.5, t.Text)
 				}
-			})
+				box.Children(func() {
+					if checked {
+						ui.Icon(c, questionOptionCheckIcon).Size(12, 12).TextColor(t.Background)
+					}
+				})
+			} else {
+				badge.Background(t.Surface).Radius(4)
+				ui.Text(c, strconv.Itoa(index+1)).FontSize(12).FixedLineHeight(18).FontWeight(500).TextColor(t.TextMuted)
+			}
+		})
+		ui.Row(c).Grow(1).MinWidth(0).Wrap().GapX(6).GapY(2).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).FontSize(14).FixedLineHeight(24).FontWeight(500).TextColor(t.Text).MinWidth(0).Shrink(1)
+			if recommended {
+				ui.Text(c, i18n.T(i18n.KeyChatQuestionRecommended)).FontSize(11).FixedLineHeight(18).FontWeight(600).TextColor(t.Accent).Padding(0, 4).Radius(4).Background(t.Accent.Alpha(.12)).Shrink(0)
+			}
 			if description != "" {
-				ui.Text(c, description).FontSize(11).FixedLineHeight(17).TextColor(t.TextMuted).MinWidth(0)
+				ui.Text(c, description).FontSize(14).FixedLineHeight(24).TextColor(t.TextMuted).MinWidth(0).Shrink(1)
 			}
 		})
 	})
-	if disabled || onToggle == nil {
-		return card
-	}
-	if card.Clicked() {
+	if !disabled && onToggle != nil && card.Clicked() {
 		onToggle()
 	}
 	return card

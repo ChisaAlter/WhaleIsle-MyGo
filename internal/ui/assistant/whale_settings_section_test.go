@@ -34,12 +34,12 @@ func TestWhaleSettingsSectionSourceRowsAndHostDialogIsolation(t *testing.T) {
 	if err := tt.Click("manage-whale-memory"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("Assistant settings") {
+	if _, ok := tt.Find("Whale memory"); !ok {
 		t.Fatal("memory editor did not open")
 	}
 	m.WhaleSettings.State.HostKey = "fixture-host-b"
 	tt.Frame()
-	if tt.HasText("Assistant settings") {
+	if _, ok := tt.Find("Whale memory"); ok {
 		t.Fatal("old Host's settings dialog adopted a replacement Host")
 	}
 	m.WhaleSettings.State.Loaded = false

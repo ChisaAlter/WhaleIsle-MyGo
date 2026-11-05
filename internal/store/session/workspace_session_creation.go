@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -24,6 +25,7 @@ type WorkspaceSessionTarget struct {
 	workspaceNavigationToken                             uint64
 	selectedID, cwd, workspaceID, workspacePath          string
 	scratch                                              bool
+	stagedPreset                                         string
 	excluded                                             map[string]bool
 	result                                               string
 	consumed, busy                                       bool
@@ -59,7 +61,10 @@ func (s *Store) CaptureWorkspaceSessionTarget(expectedHost uint64, workspaceID s
 	if scratch {
 		workspacePath, ok = s.scratchCwd, true
 	}
-	if !s.workspaceReady || !ok || strings.TrimSpace(workspacePath) == "" {
+	// A no-directory gesture may precede the first workspace baseline. Its
+	// target waits for that same Host's scratch root; ordinary workspace rows
+	// still require an authoritative membership before creation.
+	if !ok || (!scratch && !s.workspaceReady) || (strings.TrimSpace(workspacePath) == "" && (s.workspaceReady || !scratch)) {
 		s.mu.Unlock()
 		return nil, errors.New("workspace is no longer available")
 	}
@@ -67,6 +72,7 @@ func (s *Store) CaptureWorkspaceSessionTarget(expectedHost uint64, workspaceID s
 		hostGeneration: s.eventsGeneration, composerGeneration: s.composerHostGeneration,
 		followGeneration: s.followGeneration, workspaceNavigationToken: s.workspaceNavigationToken, selectedID: s.selectedID, cwd: s.cwd,
 		workspaceID: workspaceID, workspacePath: workspacePath, scratch: scratch, excluded: map[string]bool{}}
+	t.stagedPreset = s.stagedPresetLocked(workspacePath)
 	for _, id := range excludeIDs {
 		t.excluded[id] = true
 	}
@@ -132,11 +138,22 @@ func (t *WorkspaceSessionTarget) hostCurrentLocked() bool {
 		s.mux == t.mux && s.eventsGeneration == t.hostGeneration && s.composerHostGeneration == t.composerGeneration
 }
 func (t *WorkspaceSessionTarget) workspaceCurrentLocked() bool {
-	if !t.store.workspaceReady || t.store.workspaceErr != nil {
+	if t.store.workspaceErr != nil {
 		return false
 	}
 	if t.scratch {
-		return t.store.scratchCwd == t.workspacePath
+		if !t.store.workspaceReady {
+			return t.workspacePath == ""
+		}
+		if t.workspacePath == "" {
+			// Bind once to the first authoritative root, while the captured
+			// Host and navigation generations remain owned by this target.
+			t.workspacePath = t.store.scratchCwd
+		}
+		return t.workspacePath != "" && t.store.scratchCwd == t.workspacePath
+	}
+	if !t.store.workspaceReady {
+		return false
 	}
 	ws, ok := t.store.workspaceMemberships[t.workspaceID]
 	return ok && ws.Path == t.workspacePath
@@ -297,6 +314,9 @@ func (t *WorkspaceSessionTarget) Create(ctx context.Context) (string, error) {
 		return "", errors.New("workspace creation owner changed")
 	}
 	req := api.SessionCreateRequest{WorkspaceId: &t.workspaceID}
+	if t.stagedPreset != "" {
+		req.AgentPreset = &t.stagedPreset
+	}
 	if candidate != "" {
 		req.SessionId = &candidate
 	}
@@ -426,8 +446,18 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 		return false
 	}
 	t.consumed = true
+	if t.stagedPreset != "" && s.stagedPresetLocked(t.workspacePath) == t.stagedPreset {
+		delete(s.presetDraft.staged, filepathClean(t.workspacePath))
+	}
 	if s.selectedID == id {
+		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
+		if changed {
+			s.fire()
+		}
+		if control != nil {
+			go control()
+		}
 		return true
 	}
 	s.selectSessionLocked(id)
@@ -456,4 +486,55 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 	s.refreshSkillsForOwner(ctx, &owner)
 	s.refreshFeedbackForOwner(ctx, &owner)
 	return true
+}
+
+// NewSessionWorkspaceID resolves Host membership before path or recency. The
+// scratch group remains a separate identity even when another group has its cwd.
+func (s *Store) NewSessionWorkspaceID() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.newSessionWorkspaceIDLocked()
+}
+
+func (s *Store) newSessionWorkspaceIDLocked() string {
+	rows := s.workspaceRowsLocked()
+	for _, ws := range rows {
+		for _, id := range ws.SessionIDs {
+			if id == s.selectedID && id != "" {
+				return ws.WorkspaceID
+			}
+		}
+	}
+	for _, it := range s.items {
+		if it.SessionID == s.selectedID && s.scratchCwd != "" && hostPathKey(it.Cwd) == hostPathKey(s.scratchCwd) {
+			return "::scratch"
+		}
+	}
+	if ws, ok := s.workspaceMemberships[s.workspaceID]; ok && hostPathKey(ws.Path) == hostPathKey(s.cwd) {
+		return ws.WorkspaceID
+	}
+	for _, ws := range rows {
+		if hostPathKey(ws.Path) == hostPathKey(s.cwd) {
+			return ws.WorkspaceID
+		}
+	}
+	var target string
+	var latest float64
+	for _, ws := range rows {
+		stamp := float64(0)
+		if created, err := time.Parse(time.RFC3339Nano, ws.CreatedAt); err == nil {
+			stamp = float64(created.UnixMilli())
+		}
+		for _, id := range ws.SessionIDs {
+			for _, it := range s.items {
+				if it.SessionID == id && it.Presentation == nil && it.UpdatedAt > stamp {
+					stamp = it.UpdatedAt
+				}
+			}
+		}
+		if target == "" || stamp > latest {
+			target, latest = ws.WorkspaceID, stamp
+		}
+	}
+	return target
 }

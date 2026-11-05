@@ -27,14 +27,22 @@ type DiscoverModelsResultItem struct {
 // DiscoverModelsResult is the wire type of result of llm/discoverModels (@deepseek-ai/dsh-llm#llm/discoverModels:result).
 type DiscoverModelsResult = []DiscoverModelsResultItem
 
+type ListConfigurableProvidersResultItemNativeAuth struct {
+	Env   []string `json:"env"`
+	Oauth bool     `json:"oauth"`
+}
+
 // ListConfigurableProvidersResultItem is the wire type of result of llm/listConfigurableProviders (@deepseek-ai/dsh-llm#llm/listConfigurableProviders:result).
 type ListConfigurableProvidersResultItem struct {
-	Provider     string   `json:"provider"`
-	DisplayName  string   `json:"displayName"`
-	SettingsNs   string   `json:"settingsNs"`
-	SettingsPath []string `json:"settingsPath"`
-	Declared     *bool    `json:"declared,omitempty"`
-	Error        *string  `json:"error,omitempty"`
+	Provider       string                                         `json:"provider"`
+	DisplayName    string                                         `json:"displayName"`
+	SettingsNs     string                                         `json:"settingsNs"`
+	SettingsPath   []string                                       `json:"settingsPath"`
+	Declared       *bool                                          `json:"declared,omitempty"`
+	DefaultBaseURL *string                                        `json:"defaultBaseURL,omitempty"`
+	BaseURLEnv     []string                                       `json:"baseURLEnv,omitempty"`
+	NativeAuth     *ListConfigurableProvidersResultItemNativeAuth `json:"nativeAuth,omitempty"`
+	Error          *string                                        `json:"error,omitempty"`
 }
 
 // ListConfigurableProvidersResult is the wire type of result of llm/listConfigurableProviders (@deepseek-ai/dsh-llm#llm/listConfigurableProviders:result).

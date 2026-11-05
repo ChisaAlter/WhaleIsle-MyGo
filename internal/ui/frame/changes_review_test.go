@@ -21,7 +21,7 @@ func TestChangesReviewScopeSplitRestoreClose(t *testing.T) {
 		t.Fatal("recorded turn not opened")
 	}
 	first := w.Root
-	if first.Kind != "changes-review" || !first.ChangesReview.Split || first.ChangesReview.Target.Index != 0 {
+	if first.Kind != "changes-review" || first.ChangesReview.Split || first.ChangesReview.Target.Index != 0 {
 		t.Fatal("wrong defaults")
 	}
 	tab := "changes-review"

@@ -19,7 +19,9 @@ func TestBootSceneFailureAndLogDrawer(t *testing.T) {
 	if !tt.HasText(i18n.T(KeyStarting)) {
 		t.Fatal("startup scene absent")
 	}
-	tt.Click("All startup logs")
+	if err := tt.Click("Show all startup logs"); err != nil {
+		t.Fatal(err)
+	}
 	if !tt.HasText("first evidence") {
 		t.Fatal("drawer lost earlier evidence")
 	}

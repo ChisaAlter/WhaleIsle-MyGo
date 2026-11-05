@@ -21,6 +21,23 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 		initial.armed, initial.eligible = true, selected == "" && s.workspaceNavigation.view.Mode == ""
 		initial.navigation, initial.follow, initial.cwd = token, s.followGeneration, cwd
 	}
+	// A restored registry is already initialized. Keep its selected directory;
+	// only a genuinely empty registry needs the first-run RPC.
+	if len(s.items) != 0 || s.workspaceReady && len(s.workspaceMemberships) != 0 {
+		initial.completed = true
+		initial.eligible = false
+		for _, row := range s.workspaceRowsLocked() {
+			if hostPathKey(row.Path) == hostPathKey(cwd) {
+				s.workspaceID = row.WorkspaceID
+				break
+			}
+		}
+		s.invalidateViewLocked()
+		s.mu.Unlock()
+		s.fire()
+		s.RefreshList(ctx)
+		return
+	}
 	initial.pending, initial.requestHost = true, generation
 	binding := initial.binding
 	s.mu.Unlock()
@@ -44,7 +61,7 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 		}
 		if err != nil {
 			s.lastAction = "workspace init: " + err.Error()
-		} else {
+		} else if selected == "" && (cwd == "" || hostPathKey(cwd) == hostPathKey(out.Workspace.Path)) {
 			// A successful initializeDefault is silent: the status line belongs to
 			// connection and failure facts, not to a routine workspace handshake.
 			if id := strings.TrimSpace(out.Workspace.WorkspaceId); id != "" {
@@ -59,6 +76,7 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 				initial.workspaceID, initial.cwd = strings.TrimSpace(out.Workspace.WorkspaceId), strings.TrimSpace(out.Workspace.Path)
 			}
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if err == nil {

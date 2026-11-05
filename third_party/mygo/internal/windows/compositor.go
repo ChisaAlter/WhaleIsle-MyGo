@@ -348,6 +348,7 @@ func (c *compositor) draw(dev *composition, px []uint32, w, h int32) error {
 		uintptr(unsafe.Pointer(&tex)), uintptr(unsafe.Pointer(&offset))); failed(hr) {
 		return hresultError("IDCompositionSurface::BeginDraw", hr)
 	}
+	c.maskFrameCorners(px, w, h)
 	// The surface can be part of an atlas: draw at the offset given.
 	box := [6]uint32{uint32(offset.X), uint32(offset.Y), 0, uint32(offset.X + w), uint32(offset.Y + h), 1}
 	comCall(dev.ctx, d3dCtxUpdateSubresource, tex, 0, uintptr(unsafe.Pointer(&box)), uintptr(unsafe.Pointer(&px[0])), uintptr(w*4), 0)

@@ -1,0 +1,790 @@
+{
+  "domain": "supplement-lifecycle-actions",
+  "auditedAt": "2026-11-02",
+  "scope": "只读补审：原安装0.3.13生命周期/启动器/安装更新/导入/远程的用户动作级库存；不修产品、不运行桌面或真实外部服务。",
+  "baselineNotes": [
+    "先完整读lifecycle-remote.json的40项；本文件重开旧wired大项内遗漏的用户动作，既有fault/missing不再独立搜索和重复计数。",
+    "主分母为实际安装0.3.13提取源码、原安装dsh-remote/client与ui-settings-remote/client；为了核对真实控件，额外只读提取同一app.asar的7个launcher/update-center渲染文件到本owner临时目录，未执行归档代码。",
+    "MyGo为当前工作树；cmd/whaleisle/main.go等已有用户/主owner改动只读消费，未覆盖。",
+    "本补审没有依赖C:/AI/Deepseek-Harness-Desktop当前dirty新能力；LIFE-039现有current-original-only结果不并入安装原版缺失。",
+    "GLIFE-004/005与WS-013共享远程picker缺链，不重复计独立根因；GLIFE-006的托盘入口与LIFE-024更新中心后端缺失分开定位。",
+    "附件默认自动勾选是原安装renderer实际行为，并非MyGo新差异；dshd-remote根目录不是npm package缺失依据。"
+  ],
+  "sourceReadCompleteness": {
+    "existingInventory": "docs/parity/full-audit-20261102/lifecycle-remote.json",
+    "featuresRead": 40,
+    "newActionGroups": 20
+  },
+  "modulesReviewed": [
+    "internal/ui/launcher",
+    "internal/ui/remote",
+    "internal/store/remote",
+    "internal/desktop/importer",
+    "internal/desktop/phoneremote",
+    "cmd/whaleisle/import_flow.go",
+    "cmd/whaleisle/launcher_window.go",
+    "cmd/whaleisle/task_protection.go",
+    "cmd/whaleisle/desktop_tray_menu.go",
+    "cmd/whaleisle/directory_picker.go",
+    "cmd/whaleisle/phone_gateway.go",
+    "cmd/whaleisle/generic_components.go",
+    "cmd/whaleisle/component_changes.go",
+    "cmd/whaleisle/update_attention.go",
+    "cmd/whaleisle-launcher/main.go"
+  ],
+  "originalAreasReviewed": [
+    "tmp/full-audit-20261102/installed-source/src/main/ipc-launcher.js",
+    "tmp/full-audit-20261102/installed-source/src/main/ipc-components.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/components/index.js",
+    "tmp/full-audit-20261102/installed-source/src/main/data-import.js",
+    "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js",
+    "tmp/full-audit-20261102/installed-source/src/main/index.js",
+    "tmp/full-audit-20261102/installed-source/src/main/tray-menu.js",
+    "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.html",
+    "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.js",
+    "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher-components.js",
+    "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/update-center.html",
+    "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/update-center.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-remote/lib/client.js"
+  ],
+  "features": [
+    {
+      "id": "GLIFE-001",
+      "feature": "重新扫描应保留所选来源、额外技能目录和逐项选择",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-016"
+      ],
+      "originalCondition": "启动器导入页已扫描，用户选择自定义源、添加技能根或取消部分勾选后点击重新扫描。",
+      "expected": "重新扫描当前 sourceHome 与 extraSkillDirs；已存在项继续按原勾选状态显示，而不是重新全选或换回默认源。",
+      "entry": "OnScanImport→applyImportCatalog(win, \"\")→BuildCatalog",
+      "originalEntry": "导入→选择目录/添加技能目录→重新扫描",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.js:1773-1799: 捕获各类勾选身份；1897-1901: scanOptions保留sourceHome/extraSkillDirs；1995-2027: 重扫复用选择；2474-2488: 选源/加根后重扫"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/launcher_window.go:691-703: 选源时传picked路径，但重扫传空字符串",
+        "cmd/whaleisle/main.go:3195-3219: 空源重算OfficialDshHome，整份替换catalog",
+        "internal/desktop/importer/catalog.go:107-122,127-142: 新catalog默认勾选，额外技能根仅挂在旧catalog"
+      ],
+      "finding": "重扫明确换回默认源，丢掉旧catalog中的额外技能根与逐项选择。旧大项把“能选项导入”记wired，未覆盖用户复核库存时是否仍在导入刚选的来源。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留当前扫描请求的sourceHome/额外根与身份选择；重扫只更新库存和可用性，不偷偷换源或恢复全选。",
+      "acceptanceGap": "仅由生产回调/赋值链确定；未选目录、扫描用户数据或执行导入。",
+      "runtimeGap": "仅由生产回调/赋值链确定；未选目录、扫描用户数据或执行导入。",
+      "missingLink": "重扫回调没有消费当前catalog.SourceHome/SkillRoots/Selected，而是构建全新默认catalog。",
+      "persistenceRecovery": "这是本窗口内重扫恢复问题，不要求把临时选择写入用户profile。",
+      "deduplicationKey": "import-rescan-context-loss"
+    },
+    {
+      "id": "GLIFE-002",
+      "feature": "多个额外技能根的同名技能应可辨认并择一导入",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-016"
+      ],
+      "originalCondition": "用户添加两个额外技能根，两根各含同名SKILL.md包；原版保持不同来源身份。",
+      "expected": "两份来源都列出、显示同目标冲突，由用户选择一份；不能静默丢第二来源。",
+      "entry": "OnAddSkillImportDir→AppendSkillDirectory→skillIDExists",
+      "originalEntry": "导入→添加技能目录（两次）→技能栏",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:694-736: 多额外根使用extra0/extra1前缀并标sourceCollision",
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.js:2028-2045: 同名来源冲突提示并保留选择"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/launcher_window.go:705-733: 直接向catalog追加技能根",
+        "internal/desktop/importer/catalog.go:127-179: 所有额外根固定prefix=extra，ID=extra:name，已存在ID即跳过",
+        "internal/desktop/importer/selection_validation.go:14-35: 仅校验实际留在catalog中的被选来源"
+      ],
+      "finding": "第二个额外根的同名包因ID重复被静默跳过。Apply虽阻止不同已存ID同时覆盖同一目标，但无法恢复扫描阶段被删去的备选来源。",
+      "evidenceLevel": "code",
+      "requiredAction": "使额外根来源身份稳定且区分不同根，列出同目标冲突并让用户择一；不能只放宽Apply的重复目标保护。",
+      "acceptanceGap": "未读取技能内容或导入；结论为确定的catalog身份丢失，不宣称已覆盖目标文件。",
+      "runtimeGap": "未读取技能内容或导入；结论为确定的catalog身份丢失，不宣称已覆盖目标文件。",
+      "missingLink": "来源root未进入额外技能ID，导致用户没有选择第二来源的入口。",
+      "deduplicationKey": "import-extra-skill-root-id-collision"
+    },
+    {
+      "id": "GLIFE-003",
+      "feature": "取消当前远程机器但保留保存机器",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-034"
+      ],
+      "originalCondition": "Host启用dsh-remote且已有currentId；用户希望回到无活动远程机器状态。",
+      "expected": "点击清除当前机器→POST /current {id:\"\"}→currentId=null；保存机器与其凭据不被删除。",
+      "entry": "机器卡片更多操作；Store.Select支持空ID但无产品调用者",
+      "originalEntry": "设置→远程工作区→当前机器区→清除当前机器",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:800-802,890-892: setCurrent空ID的用户按钮",
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js:2255-2273: 空ID明确设置active remote=none并保留registry"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/machines.go:190-217: 菜单只有选择/测试/连接/编辑/移除",
+        "internal/ui/remote/tools.go:37-60: 当前机器区域只有忘记主机密钥",
+        "internal/store/remote/store.go:237-246: Select(id)可向current提交空ID；生产调用仅machine.ID"
+      ],
+      "finding": "后端接口已迁移但UI无法调用清除当前机器。原生Tunnel的“断开”是另一连接，不等价；删除机器会移除保存记录和凭据，也不是替代动作。",
+      "evidenceLevel": "code",
+      "requiredAction": "接回非破坏性的清除当前机器动作，消费现有Store.Select空ID并保留registry；确认状态刷新结果。",
+      "acceptanceGap": "未连SSH或改机器记录；空ID持久状态及重启恢复仍待受控远端验收。",
+      "runtimeGap": "未连SSH或改机器记录；空ID持久状态及重启恢复仍待受控远端验收。",
+      "missingLink": "Store能力有实现，但当前机器UI没有Select空ID入口。",
+      "deduplicationKey": "remote-clear-current-ui"
+    },
+    {
+      "id": "GLIFE-004",
+      "feature": "选择远程目录并创建镜像成为工作区",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-034",
+        "WS-013"
+      ],
+      "originalCondition": "Host加载dsh-remote；用户从会话hero或侧栏添加工作区，选择远程机器并浏览到存在目录。",
+      "expected": "点击选择目录→/mirror→得到localMirror→onPicked加入本地工作区；取消不创建镜像，错误可重试。",
+      "entry": "远程工作区设置→远程文件；Directory.LocalMirror非空后才显示使用镜像",
+      "originalEntry": "conversation.hero.workspace.directoryFlow.remote / sidebar.workspaces.directoryFlow.remote→RemoteFlowPane.choose",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:1192-1208: choose调用pickWorkspace并把localMirror交给onPicked",
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:1318-1325,1833-1852: 选择/取消按钮及两个真实扩展入口"
+      ],
+      "mygoEvidence": [
+        "internal/store/remote/directory.go:71-104,123-132: ChooseDirectory唯一发mirror并赋LocalMirror；Browse仅ls",
+        "internal/ui/remote/directory.go:25-82: 只有浏览/主目录/上级/刷新/建目录；无ChooseDirectory调用，空目录还在第66-76行提前返回",
+        "cmd/whaleisle/main.go:5495-5508: 已接OnUseWorkspaceMirror，但它必须先获得localMirror",
+        "cmd/whaleisle/directory_picker.go:19-33,150-170: 原生工作区选择器仅directoryPicker/list，无远程flow",
+        "internal/store/remote/directory_test.go:11-53: 现有测试直接调用Store.ChooseDirectory，不是生产入口"
+      ],
+      "finding": "ChooseDirectory只在定义和测试中出现，生产UI无人调用；Directory.LocalMirror只能由该分支产生，因而“使用此镜像”是等待一个不可达前置状态。既有mirror与已绑定会话的解析/文件功能不被否定，但新远程工作区动作链缺失。与WS-013是同一远程选择扩展缺链，不能算两个独立根因。",
+      "evidenceLevel": "code",
+      "requiredAction": "在真实工作区目录流接入远程选择→mirror→工作区采用，并提供取消/错误/空目录选择；复用现有Store而不是再造远程服务。",
+      "acceptanceGap": "没有真实SSH/目录镜像/UI操作；无需运行便可确定生产无调用者。接回后仍需远端与正常/窄窗用户路径验收。",
+      "runtimeGap": "没有真实SSH/目录镜像/UI操作；无需运行便可确定生产无调用者。接回后仍需远端与正常/窄窗用户路径验收。",
+      "missingLink": "directoryFlow.remote未迁入原生选择器；已有Store.ChooseDirectory无生产触发入口。",
+      "persistenceRecovery": "镜像映射由Host持久化；本条只确认新映射无法通过现UI创建，不推断既有映射损坏。",
+      "deduplicationKey": "remote-workspace-picker-ui-entry"
+    },
+    {
+      "id": "GLIFE-005",
+      "feature": "按输入路径直接跳转远程目录",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-034",
+        "WS-013"
+      ],
+      "originalCondition": "Host加载dsh-remote且选定机器；用户已知绝对路径，或目标不能靠当前可见列表逐级到达。",
+      "expected": "路径框输入并Enter→ls(path)→显示目录/不存在错误；仍留在同一机器，不直接采用为工作区。",
+      "entry": "远程文件页→directoryBreadcrumb；DirectorySnapshot.InputPath只有数据字段",
+      "originalEntry": "原版远程目录流→路径输入框→Enter",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:1257-1276: 可编辑path与Enter→list(path)；1278-1280: 与主目录/上级/刷新并列"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/directory.go:25-47,87-122: 路径仅面包屑，无TextInput/提交入口",
+        "internal/store/remote/directory.go:32-43,73-74,128-131: 有InputPath且Browse(path)可用，但无UI消费者"
+      ],
+      "finding": "目录浏览和面包屑不能代替任意路径跳转；原版路径输入动作未迁移。它是GLIFE-004同一缺失picker中的独立交互，不计为另一远程后端根因。",
+      "evidenceLevel": "code",
+      "requiredAction": "接回远程picker时同时给出可提交路径框，复用Browse并保留机器身份和错误位置。",
+      "acceptanceGap": "未读取远程路径或发请求；实际POSIX/Windows路径及错误后继续操作未验收。",
+      "runtimeGap": "未读取远程路径或发请求；实际POSIX/Windows路径及错误后继续操作未验收。",
+      "missingLink": "目录输入字段没有实际控件/提交回调。",
+      "deduplicationKey": "remote-workspace-picker-ui-entry",
+      "relatedActionIds": [
+        "GLIFE-004"
+      ]
+    },
+    {
+      "id": "GLIFE-006",
+      "feature": "托盘直接进入更新或准备好安装的版本",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-008",
+        "LIFE-024"
+      ],
+      "originalCondition": "原版完整桌面已创建updateCenter且托盘存在；主窗可处于隐藏状态。",
+      "expected": "托盘显示检查更新或安装vX并重启；点击打开同一更新中心，不绕去泛化首页；ready变化会刷新菜单。",
+      "entry": "buildDesktopTrayMenu",
+      "originalEntry": "托盘右键→检查更新… / 安装vX并重启…",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1343-1352: 实际装配updateLabel和onUpdate；1376-1403: 更新状态观察与托盘刷新",
+        "tmp/full-audit-20261102/installed-source/src/main/tray-menu.js:39-43: 更新菜单条件及点击回调"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/desktop_tray_menu.go:9-13,30-40: actions及返回菜单均无update owner/action",
+        "cmd/whaleisle/update_attention.go:125-183: 新版本通知是导航确认路径，不是托盘更新菜单"
+      ],
+      "finding": "普通托盘显示/设置/启动器等动作已接，但原版更新专用菜单被遗漏。用户可先打开启动器再找版本页，属于绕路，不能证明原动作对等；并且缺少ready版本的托盘状态。",
+      "evidenceLevel": "code",
+      "requiredAction": "托盘消费统一更新owner与当前可用动作；中心持久化问题沿用LIFE-024，不在此重复记一条后台实现缺失。",
+      "acceptanceGap": "未创建/点击托盘或触发更新；本条确定静态菜单缺项，实际OS行为仍未验收。",
+      "runtimeGap": "未创建/点击托盘或触发更新；本条确定静态菜单缺项，实际OS行为仍未验收。",
+      "missingLink": "托盘actions接口本身没有updateLabel/onUpdate。",
+      "deduplicationKey": "tray-update-entry"
+    },
+    {
+      "id": "GLIFE-007",
+      "feature": "退出等危险动作确认能识别将被中断的任务",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-009"
+      ],
+      "originalCondition": "退出/停止/重启/安装更新检查到Host activeWork或scheduledWork，需要用户确认。",
+      "expected": "提示任务kind、代理/任务ID、定时提醒title/是否到期与终端/远程连接数量，用户可据具体对象决定取消还是继续。",
+      "entry": "protectTaskAction→confirmHostTasks→askConfirmBlocking",
+      "originalEntry": "生命周期动作→confirmTaskStop→describeWorkItem",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:710-726: 按agent/job/request/socket/schedule-task/pty描述身份和状态；796-826: 展示逐项detail并取消优先"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/task_protection.go:31-87: 只把local/active/scheduled数量和coverage转为lines，未遍历工作项身份",
+        "internal/desktop/taskcontrol/control.go:21-34: Work只保留kind/id/count，title/due/detail未解码；Inspection有工作项但确认不逐项消费"
+      ],
+      "finding": "准入锁、drain和取消链存在；确认缺少对象级信息：Work解码仅保留kind/id/count，title/due/detail被舍弃，UI进一步只显示计数。用户不知道会中断哪个代理/哪条提醒，不能把受保护退出“大项wired”当原版确认动作已完整迁移。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留Host提供的工作项描述字段，并在确认中显示有用的kind/ID/title与必要状态；保持现有未知覆盖提示及取消优先，不改准入机制。",
+      "acceptanceGap": "未触发任何退出或运行任务；本项只确认展示信息缺失，不认定保护锁失效。",
+      "runtimeGap": "未触发任何退出或运行任务；本项只确认展示信息缺失，不认定保护锁失效。",
+      "missingLink": "工作项描述字段在解码时丢失，保留的kind/ID又在native确认构造时折叠成计数。",
+      "deduplicationKey": "task-protection-confirmation-detail"
+    },
+    {
+      "id": "GLIFE-008",
+      "feature": "启动器组件库存、刷新、安装及启停的实际动作链",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-027"
+      ],
+      "originalCondition": "真实samples有合法manifest或本地registry已有组件；未安装/运行/错误/孤立记录分别显示动作。",
+      "expected": "组件页刷新得到真实清单；未安装可安装，已装可启动，运行可停止，错误可重试；首页已装组件提供同一状态和动作。",
+      "entry": "componentsPanel/componentCard→OnComponentAction→worker",
+      "originalEntry": "launcher components-list/install/start/stop；首页我的组件",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher-components.js:105-121,183-207,265-288: 状态条件按钮/首页动作/刷新IPC",
+        "tmp/full-audit-20261102/installed-source/src/main/ipc-components.js:31-55: 生产路由；launcher/components/index.js:119-139,383-447: 库存与真实动作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/panel.go:587-640,644-711,782-805: 首页与组件页控件",
+        "cmd/whaleisle/generic_components.go:33-61,84-137: 真实Node worker/动作/进度",
+        "internal/desktop/components/generic_catalog.go:72-154: 磁盘库存及orphan"
+      ],
+      "finding": "新动作级核对未发现此组缺少回调；服务能启动仍不足以证明按钮命中、进度/失败刷新、首页和组件页一致。",
+      "evidenceLevel": "code",
+      "requiredAction": "后续在最终包真实组件上验收安装→启动→停止→错误重试与跨页同步，不重跑现有虚构payload测试代签。",
+      "acceptanceGap": "本次不启动组件、不改registry；真实附带组件与Native窗口操作未验收。",
+      "runtimeGap": "本次不启动组件、不改registry；真实附带组件与Native窗口操作未验收。",
+      "missingLink": "未确认新的静态缺链。",
+      "persistenceRecovery": "registry/current/previous来自实际组件服务；重启后reconcile与进程所有权仍须实际组件证据。"
+    },
+    {
+      "id": "GLIFE-009",
+      "feature": "组件升级、回滚、卸载与鲸桥保留/删除配置选择",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-027",
+        "LIFE-028"
+      ],
+      "originalCondition": "已安装组件有新版本或previous；鲸桥卸载须读取真实状态，且当前默认模型可能使用鲸桥。",
+      "expected": "升级切换版本；回滚显式确认；卸载确认后再独立选择保留/删除鲸桥配置；取消不停止服务、不删除数据。管理页打开启动并等待真实HTTP ready。",
+      "entry": "componentCard→component_changes/generic_components",
+      "originalEntry": "组件管理菜单→update/rollback/uninstall/open",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher-components.js:331-407: uninstall preflight、回滚确认及保留/删除配置独立选择",
+        "tmp/full-audit-20261102/installed-source/src/main/ipc-components.js:57-96: 版本变更后管理窗重建/关闭与open实际启动",
+        "tmp/full-audit-20261102/installed-source/src/launcher/components/index.js:449-565: 更新/回滚/卸载持久版本"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/panel.go:787-805,829-866: 启停按钮与升级/回滚/卸载管理菜单",
+        "cmd/whaleisle/component_changes.go:159-203: 默认模型提示、版本变更与配置删除分开确认",
+        "cmd/whaleisle/generic_components.go:100-137: 通用组件回滚/卸载确认",
+        "internal/desktop/components/change.go:162-218; uninstall.go:118-219; readiness.go:43-143: 失败还原/数据许可/HTTP ready"
+      ],
+      "finding": "组件管理的多阶段用户选择并非只有一个卸载API，当前链存在。不能从Node worker能动作推断管理窗口登录、取消后的服务状态和真实旧数据恢复。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收取消、运行中升级/回滚失败后恢复、保留与删除配置、管理页关闭重开；独占实例而非用户在用Bridge。",
+      "acceptanceGap": "未接管在用组件、删除配置或打开管理窗。",
+      "runtimeGap": "未接管在用组件、删除配置或打开管理窗。",
+      "missingLink": "未确认新的静态缺链。",
+      "persistenceRecovery": "current/previous/安装数据位置与恢复逻辑存在；数据是否真正被保留需受控实例完成用户路径。"
+    },
+    {
+      "id": "GLIFE-010",
+      "feature": "导入分类、分组、逐项/全选、覆盖和附件选择",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-016"
+      ],
+      "originalCondition": "扫描得到支持格式的会话/技能/插件/MCP/设置/预设；用户只选择部分导入。",
+      "expected": "切换分类→分组折叠/组选择→全选本栏/全不选→覆盖/附件选择→汇总与确认→逐项结果可复制。",
+      "entry": "importPanel/importSessionGroups→SelectionFromCatalog→startImport",
+      "originalEntry": "launcher导入页各category及选择控件",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.html:181-267: 分类/选择/覆盖/附件真实控件",
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.js:1698-1799,2534-2602: 切栏、批量与提交选择；2091: 扫描有附件且有可用会话时自动勾附件"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/panel.go:1060-1286: 各栏选择/全选/覆盖附件/汇总/日志",
+        "internal/ui/launcher/import_groups.go:15-103: 分组勾选与折叠",
+        "cmd/whaleisle/import_flow.go:15-73: 选择snapshot、数量检查与受控确认",
+        "cmd/whaleisle/main.go:3218-3227: 附件默认与实际原版一致"
+      ],
+      "finding": "上述基本选择和提交控件已接。附件默认自动选中与实际安装原版一致，不能只看静态HTML未checked便报差异。重扫上下文及多额外根同名已分别升级为GLIFE-001/002；LIFE-014/015既有格式缺陷不在此重搜。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复重扫/多根缺陷后，对每类选择及取消/冲突结果完成真实用户路径验收。",
+      "acceptanceGap": "未扫描用户目录或导入任何数据。",
+      "runtimeGap": "未扫描用户目录或导入任何数据。",
+      "missingLink": "本组基本控件未确认新缺链；相邻缺陷见GLIFE-001/002。",
+      "relatedActionIds": [
+        "GLIFE-001",
+        "GLIFE-002"
+      ]
+    },
+    {
+      "id": "GLIFE-011",
+      "feature": "插件导入批准、取消和中断恢复入口",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-017",
+        "LIFE-018"
+      ],
+      "originalCondition": "选中可重装来源插件，或先前导入留下未完成journal；运行中的Host须先受保护停止。",
+      "expected": "确认导入→任务保护→停止→逐项重装；needsAllowBuilds明确批准/拒绝；取消保留源；重启/再导入先检查恢复，blocked时不带坏数据启动。",
+      "entry": "startImport→continueImport→protectTaskAction→ApplyCatalogWithPlugins",
+      "originalEntry": "run-import/cancel-import→runImportTask；启动与维护的import guard",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js:245-368,794-811: 单操作槽/有scope取消/stop-and-import",
+        "tmp/full-audit-20261102/installed-source/src/main/import-transaction.js:408-445,559-565: journal交换与同步恢复入口；tmp/full-audit-20261102/installed-source/src/main/import-guard.js:18-68: 单操作维护门"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/import_flow.go:77-155: 异步取消/保护停止/结果和保持停止",
+        "cmd/whaleisle/import_plugins.go:17-84: Host状态、build许可与拒绝",
+        "cmd/whaleisle/import_recovery.go:13-31: 中断恢复和blocked显示",
+        "internal/desktop/importer/legacy_recovery.go:36-108: 检查并保留原版未完成journal，阻止继续启动/维护"
+      ],
+      "finding": "有实际审批和恢复消费，不只是安装方法存在；导入部分项已提交后取消并不保证全批回滚，原有LIFE-018已注明逐文件与目录事务边界。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留旧事务边界；后续在独占目录验收批准/拒绝/中途取消/恢复blocked的用户操作和日志。",
+      "acceptanceGap": "未执行插件脚本、安装插件或制造中断。",
+      "runtimeGap": "未执行插件脚本、安装插件或制造中断。",
+      "missingLink": "未确认新的静态缺链；本项保留原有恢复边界，不宣称整个批次all-or-nothing。"
+    },
+    {
+      "id": "GLIFE-012",
+      "feature": "插件故障排查到禁用/启用/移除/跳过及重试完整启动",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-003"
+      ],
+      "originalCondition": "启动失败或用户插件加载失败；离线库存可读，维护槽未被导入等操作占用。",
+      "expected": "查看可疑插件及启动证据→单项/批量禁用、启用、移除确认→跳过用户插件启动或恢复完整插件启动；取消恢复后可手动重试。",
+      "entry": "launcher startup diagnostics→startuprec/offline_plugins→Supervisor recovery",
+      "originalEntry": "启动器首页恢复卡/插件排查页",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/ipc-launcher.js:100-113,166-193: retry/forensics/disable/enable/remove/start-skipped路由",
+        "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js:629-667,818-894: 实际配置/移除及维护限制",
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.js:579-585,2469-2472: 对应用户入口"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/startup_diagnostics.go:30-84: 刷新、禁用可疑并重试、单项启用/禁用和卸载入口",
+        "cmd/whaleisle/startup_diagnostics.go:108-117,135-199: 将诊断动作接入受保护维护；cmd/whaleisle/startup_recovery.go:67-104: 恢复状态消费",
+        "internal/startuprec/offline_plugins.go:78-200: 离线库存及可疑插件处置",
+        "internal/ui/boot/boot.go:124-165,220-235: 取消/重试"
+      ],
+      "finding": "旧LIFE-003的大项可分解到上述真实操作，没有新确定缺链；仍须证明点击操作后配置/运行状态与失败恢复保持一致。",
+      "evidenceLevel": "code",
+      "requiredAction": "后续受控插件上走禁用/启用/移除/跳过→完整重试，不拿Host单次ready代签。",
+      "acceptanceGap": "未运行插件或改变插件配置。",
+      "runtimeGap": "未运行插件或改变插件配置。",
+      "missingLink": "未确认新的静态缺链。"
+    },
+    {
+      "id": "GLIFE-013",
+      "feature": "版本选择、校验下载、取消与安装前任务保护",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-025",
+        "LIFE-026"
+      ],
+      "originalCondition": "当前平台native catalog有可用完整运行时包，用户明确选择版本或降级；不使用Electron包冒充native。",
+      "expected": "选择来源/版本→查看信息→下载完整/增量→进度与取消→已校验包可稍后安装；安装确认后保存恢复状态、任务保护、启动安装器。",
+      "entry": "native versions UI→downloadNativeRelease→installStagedUpdateWithConsent",
+      "originalEntry": "原版启动器版本页 / 完整桌面update center",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/launcher.html:130-179: 版本/刷新/进度/卸载入口",
+        "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js:397-489: 安装runtime/更新及指定release维护保护",
+        "tmp/gap-reopen-20261102/lifecycle/installed-ui/src/renderer/update-center.js:83-120,130-155: 完整下载、取消、稍后及失败重试"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/native_releases.go:19-59: 真实取消/已校验安装动作",
+        "cmd/whaleisle/native_releases.go:174-319: 下载和staged状态消费",
+        "cmd/whaleisle/task_protection.go:252-297: 用户同意/恢复保存/任务保护/安装器交接"
+      ],
+      "finding": "手动native下载到安装交接有代码链；持久更新中心、暂停续传、默认源/PAC等已在LIFE-023/024/025/040记录，不作为本轮新发现重复计数。启动安装器≠安装完成。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复既有更新缺口后，对真实可交付catalog完成取消/失败/校验/稍后安装→实际安装完成→重启恢复验收。",
+      "acceptanceGap": "未联网、下载或启动安装器；不重跑已通过的独立GUID安装事务。",
+      "runtimeGap": "未联网、下载或启动安装器；不重跑已通过的独立GUID安装事务。",
+      "missingLink": "本组手动路径未确认新静态缺链；中心相关缺失沿用旧ID。"
+    },
+    {
+      "id": "GLIFE-014",
+      "feature": "关闭到托盘与恢复主窗/启动器/设置的多入口",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-002",
+        "LIFE-008"
+      ],
+      "originalCondition": "普通安装系统集成开启、托盘创建成功；isolated诊断特意不创建托盘。",
+      "expected": "关闭主窗→按偏好收起且任务继续；左击恢复；右键主窗/启动器/设置/市场/重启/退出；无托盘不隐藏失联。启动器关闭不等于退出服务。",
+      "entry": "OnClose→hideToDesktopTray→buildDesktopTrayMenu",
+      "originalEntry": "窗口close和tray menu",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:344-368,1343-1385: close与真实tray装配",
+        "tmp/full-audit-20261102/installed-source/src/main/tray.js:10-58: 点击/菜单刷新",
+        "tmp/full-audit-20261102/installed-source/src/main/tray-menu.js:31-45: 真实路由"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/desktop_tray.go:17-54,82-139,155-186: 创建/左击/失败退路",
+        "cmd/whaleisle/desktop_tray_menu.go:17-40: 大部分菜单真实路由",
+        "cmd/whaleisle/main.go:2653-2674,2714-2720: 窗口关闭/系统分支"
+      ],
+      "finding": "基本窗口/托盘动作有实现，不能以isolated窗口关闭或Host存活证明；本次新遗漏仅GLIFE-006的更新专用入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "后续按普通安装身份验收关闭→后台继续→左击/右击唤回及无托盘退路。",
+      "acceptanceGap": "未操作桌面/托盘/开机启动。",
+      "runtimeGap": "未操作桌面/托盘/开机启动。",
+      "missingLink": "基础动作未确认新缺链；GLIFE-006纠正LIFE-008全组wired判断。",
+      "relatedActionIds": [
+        "GLIFE-006"
+      ]
+    },
+    {
+      "id": "GLIFE-015",
+      "feature": "系统通知点击、第二次启动与深链范围澄清",
+      "baseline": "existing-MyGo-contract",
+      "oldIds": [
+        "LIFE-010",
+        "LIFE-011"
+      ],
+      "originalCondition": "Windows通知已注册对应身份；原版普通第二次启动且非--background会唤回窗口。MyGo深链是新增契约。",
+      "expected": "通知点击定位受控对象；二次启动唤回既有窗口；MyGo自己的session/settings/auth深链在未ready时缓存并最终路由。",
+      "entry": "activation→单实例payload→applyDeeplink",
+      "originalEntry": "原版system notification / app second-instance；MyGo whaleisle://",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1052-1060: 原版第二次启动只按background判断并showForeground",
+        "tmp/full-audit-20261102/installed-source/src/main/system-notifications.js:10-19: OS/开发gate",
+        "tmp/full-audit-20261102/installed-source/src/main/legacy-notification-shortcut.js:70-133: 通知快捷方式迁移"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/system_notifications_activation.go:42-183: 有界激活payload与转交",
+        "cmd/whaleisle/main.go:993-1186,2316-2337: pending深链及单实例注册",
+        "internal/desktop/deeplink/parse.go:9-175: 受控route集合"
+      ],
+      "finding": "原安装源码的second-instance证据不是通用session/settings/auth协议注册证据，不能把MyGo扩展深链倒算成原版分母或报其原版缺失。通知与原版唤回动作仍缺实际OS验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "分别验收原版兼容通知/唤回与MyGo扩展协议；账号回调state/code消费交账号领域，不推断登录成功。",
+      "acceptanceGap": "未发送通知、注册URL或读凭据；冷启动/已启动真实激活未验收。",
+      "runtimeGap": "未发送通知、注册URL或读凭据；冷启动/已启动真实激活未验收。",
+      "missingLink": "未确认新的原版动作缺失；澄清深链分母。"
+    },
+    {
+      "id": "GLIFE-016",
+      "feature": "手机网关设置与dshd资源装配条件",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-030"
+      ],
+      "originalCondition": "原版完整安装资源含dshd-remote/node_modules/@chisacode/server/dist/server/server；不是要求dshd-remote根目录为npm包。",
+      "expected": "网关页保存relay/恢复默认、切换LAN/relay、端口与网卡→保存配置并重连；实际daemon监听/relay状态用于pairing，不把配置保存当可用。",
+      "entry": "gatewaySettingsFields→OnSaveGateway→phoneremote.ResolveResources/Runtime",
+      "originalEntry": "Host ui-settings-remote GatewaySettingsTab→desktop shell→DshdRemoteManager",
+      "status": "external-blocked",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-remote/lib/client.js:118-204,261-295,387-424,445-473: 加载/保存/默认/模式/端口",
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js:26-55,150-165: resources/vendor/dshd-remote是资源容器，实际依赖SERVER_EXPORT与三个窄ESM模块",
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js:93-101,125-138,392-474: Host插件built依赖与daemon环境"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/settings_body.go:172-294: 同字段单项提交/默认/网卡/端口",
+        "cmd/whaleisle/phone_gateway.go:34-58: expected/current配置提交与重连",
+        "internal/desktop/phoneremote/runtime.go:83-121: MyGo实际装配选择component版本或bundle、验证manager/runner/web/exports/Node"
+      ],
+      "finding": "原版根目录无package.json不能推出远程runtime不存在。只读确认原安装exports.js、pairing-offer.js、relay-device-credential-store.js、relay-pairing-link-store.js全部存在；MyGo采用另一完整封装布局，需要按其真实消费者判定。该证据只确认资源条件，不确认daemon或手机可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "使用既有最终包资源消费者结果；待第二设备和许可具备后验收字段保存→真实重连→实际pairing，不重跑旧fixture。",
+      "acceptanceGap": "未启动daemon、绑定端口、联网relay或读remote home；真实TLS/网卡/第二设备仍未验收。",
+      "runtimeGap": "未启动daemon、绑定端口、联网relay或读remote home；真实TLS/网卡/第二设备仍未验收。",
+      "missingLink": "未确认新的资源缺失；拒绝将资源容器误当缺失npm包。",
+      "assemblyEvidence": {
+        "resourceRoot": "C:/软件/Whale Isle/resources/vendor/dshd-remote",
+        "rootPackageJsonRequired": false,
+        "readOnlyFilesConfirmed": [
+          "node_modules/@chisacode/server/dist/server/server/exports.js",
+          "node_modules/@chisacode/server/dist/server/server/pairing-offer.js",
+          "node_modules/@chisacode/server/dist/server/server/relay-device-credential-store.js",
+          "node_modules/@chisacode/server/dist/server/server/relay-pairing-link-store.js"
+        ]
+      }
+    },
+    {
+      "id": "GLIFE-017",
+      "feature": "临时配对、刷新、复制/打开及设备重命名/解绑/轮换",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-030",
+        "LIFE-032"
+      ],
+      "originalCondition": "有效offer、未过期且daemon/listening与relay或LAN真实条件满足；设备列表由manager加载。",
+      "expected": "临时二维码/复制/打开→手机pairing；失效后刷新；设备重命名保存并重启仍可识别；解绑有确认并撤权；rotate不等价撤销长期链接。",
+      "entry": "phone.go / phone_devices.go→Runtime.DeviceAction→manager",
+      "originalEntry": "原版RemoteSection及GatewaySettingsTab rotate",
+      "status": "external-blocked",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-remote/lib/client.js:1541-1733,1785-1999,2030-2168: pairing/设备用户动作",
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js:594-722,1135-1161: snapshot/pairing与device store持久动作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/phone.go:139-205,270-280: 有效offer gate与复制/打开/刷新",
+        "internal/ui/remote/phone_devices.go:19-130: 名称保存/取消、解绑确认、轮换确认",
+        "internal/desktop/phoneremote/device_actions.go:33-164; device-actions.cjs:21-77: 当前request/generation及manager动作"
+      ],
+      "finding": "短期offer与设备动作的UI/桥接可定位；长期复制/独立撤销已在LIFE-031记missing，本轮不重复搜或计数。真实设备identity保存/撤权结果不能从mock设备列表或HTTP ready推断。",
+      "evidenceLevel": "code",
+      "requiredAction": "在授权第二设备上验收pairing→重启重连→rename→unbind→旧设备拒绝及rotate结果；长期链接缺失沿旧ID修复。",
+      "acceptanceGap": "未读取offer/token/device store或操作真机。",
+      "runtimeGap": "未读取offer/token/device store或操作真机。",
+      "missingLink": "本组短期/设备动作未确认新静态缺链；长期动作沿LIFE-031。"
+    },
+    {
+      "id": "GLIFE-018",
+      "feature": "SSH机器编辑/测试、配置导入、密钥、转发与审计",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-034",
+        "LIFE-035"
+      ],
+      "originalCondition": "Host真实加载dsh-remote路由；编辑已保存机器时密码留空保留，host key与native Tunnel分开。",
+      "expected": "新增/编辑→测试表单或已存机器→保存/取消；删除确认保留远程文件；SSH alias导入表单；忘key确认；本地/反向转发定义/启停/移除；查看审计并区分未启用/空/失败。",
+      "entry": "machineCard/menu/editor→Store；viewMachineTools→tools requests",
+      "originalEntry": "RemoteSettingsSection机器表单与tools",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:576-641,645-736,744-854,925-1079: 全部真实控件/API与保密字段语义",
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js:2206-2378: test/known-key/forward/audit/ssh-config路由"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/machines.go:190-284: 选择/测试/CRUD确认/表单保存",
+        "internal/ui/remote/connection_options.go:8-56: 密码、agent、host-key、单跳proxy",
+        "internal/ui/remote/tools.go:12-165: alias/key/forward/audit",
+        "internal/store/remote/store.go:237-331; tools.go:145-192: 真实HTTP与结果"
+      ],
+      "finding": "各动作有UI消费者；选none及远程目录采用不包含在此pass中，见GLIFE-003/004。现有单跳proxy限制已显式报错，不倒推为所有SSH导入可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "后续用独占远程机验收认证失败/host key变化/代理/转发绑定/持久化和取消；不读取用户私钥做审查。",
+      "acceptanceGap": "未发SSH、agent或端口监听请求；原生Tunnel另有LIFE-037既知缺陷。",
+      "runtimeGap": "未发SSH、agent或端口监听请求；原生Tunnel另有LIFE-037既知缺陷。",
+      "missingLink": "此组未确认新的静态缺链；相邻独立动作缺失见GLIFE-003/004/005。",
+      "relatedActionIds": [
+        "GLIFE-003",
+        "GLIFE-004",
+        "GLIFE-005"
+      ]
+    },
+    {
+      "id": "GLIFE-019",
+      "feature": "远程会话文件树到读取/编辑/下载/重命名/建目录/删除",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-036"
+      ],
+      "originalCondition": "当前会话已被Host解析到远程映射，文件操作始终携带sessionId；新工作区创建缺链另记。",
+      "expected": "打开树/展开/重试→资源页读取；编辑保存ack/mtime冲突；取消保留选择；下载到会话镜像；右键复制路径/重命名/建目录/删除；关闭脏页确认。",
+      "entry": "FileWorkspace→session-bound Files→fileResourceView / fileTreeRow",
+      "originalEntry": "原版RemoteExplorerBody/RemoteFileBody→session-bound remoteApi",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:1369-1673,1690-1783: 树/右键/文件/保存/下载实际入口；1854-1887: tabs与body装配"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/file_workspace.go:52-88,109-170,178-302: 解析/树/资源页/关闭/右键",
+        "internal/ui/remote/files.go:41-143: 读取/编辑/快捷键保存/下载确认",
+        "internal/ui/remote/file_actions.go:22-108: mutation确认",
+        "internal/store/remote/files.go:274-304; file_actions.go:121-151; file_close.go:15-118: sessionId/mtime/ack与关闭草稿"
+      ],
+      "finding": "实际用户动作可追到session-bound后端；这只覆盖已经存在远程会话的文件能力，不修补GLIFE-004的新建工作区死入口。本轮没有证明真实远端保存或原生关闭框可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "后续独占远程目录验收会话切换、断线、冲突、拒绝/确认删除及保存后关闭，保留原LIFE-036的数据风险级别。",
+      "acceptanceGap": "未读写远程文件或操作界面；P0是数据后果，不是已观察到写错机器。",
+      "runtimeGap": "未读写远程文件或操作界面；P0是数据后果，不是已观察到写错机器。",
+      "missingLink": "已绑定会话文件组未确认新静态缺链。",
+      "relatedActionIds": [
+        "GLIFE-004"
+      ]
+    },
+    {
+      "id": "GLIFE-020",
+      "feature": "独立启动器的安装/升级/停止与关闭恢复边界",
+      "baseline": "installed-0.3.13",
+      "oldIds": [
+        "LIFE-020",
+        "LIFE-029"
+      ],
+      "originalCondition": "使用独立启动器产物而非完整桌面的内嵌启动器；Windows native安装探测到对应产品身份。",
+      "expected": "探测安装/进程→下载指定native版本→安装/等待→刷新状态；显式停止经desktop peer任务保护；操作busy不能关窗，完成后可重试或取消可取消任务。",
+      "entry": "cmd/whaleisle-launcher→externallauncher.Controller",
+      "originalEntry": "原版slim launcher→launcher service/runtime install/task-control peer",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js:381-489: managed desktop/runtime区别与维护门",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:843-879: 外部launcher peer停止为受保护退出"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle-launcher/main.go:40-84,94-127: 独立进程、只Windows、busy关闭保护/取消/刷新",
+        "internal/desktop/externallauncher/controller.go:17-38,51-129: 安装/启动/受保护停止/状态等待接口",
+        "scripts/package-launcher.ps1:1-16: 独立分发产物入口"
+      ],
+      "finding": "独立launcher不是完整包中一个tab，也不意味着源码有入口就已交付对应产物。沿用已有独立GUID安装证据，仅承认其原范围，不扩张为真实产品接管/桌面用户动作已通过。",
+      "evidenceLevel": "code",
+      "requiredAction": "对实际独立产物验收探测→启动→保护停止→升级→完成后的状态；真实原安装接管按LIFE-021另需授权。",
+      "acceptanceGap": "本次不安装/卸载/停止任何程序；未重跑旧安装通过项。",
+      "runtimeGap": "本次不安装/卸载/停止任何程序；未重跑旧安装通过项。",
+      "missingLink": "未确认新的静态缺链；分发与真实安装接管边界仍在。"
+    }
+  ],
+  "statusCorrections": [
+    {
+      "oldId": "LIFE-016",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "逐项导入基本链存在，但重扫丢source/额外根/选择，多个额外根同名技能静默丢备选来源。",
+      "actionIds": [
+        "GLIFE-001",
+        "GLIFE-002"
+      ],
+      "evidence": [
+        "cmd/whaleisle/launcher_window.go:691-728",
+        "cmd/whaleisle/main.go:3195-3219",
+        "internal/desktop/importer/catalog.go:127-179"
+      ]
+    },
+    {
+      "oldId": "LIFE-034",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "机器CRUD/既有会话文件解析有实现，但没有清除current UI；新远程目录→mirror→工作区采用无生产触发。",
+      "actionIds": [
+        "GLIFE-003",
+        "GLIFE-004",
+        "GLIFE-005"
+      ],
+      "evidence": [
+        "internal/ui/remote/machines.go:190-217",
+        "internal/ui/remote/directory.go:25-82",
+        "internal/store/remote/directory.go:71-132",
+        "cmd/whaleisle/directory_picker.go:150-170"
+      ]
+    },
+    {
+      "oldId": "LIFE-008",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "基础托盘/窗口动作接线在，但原安装updateCenter的检查/ready安装入口未加入MyGo托盘actions与菜单。",
+      "actionIds": [
+        "GLIFE-006"
+      ],
+      "evidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1343-1352",
+        "cmd/whaleisle/desktop_tray_menu.go:9-40"
+      ]
+    },
+    {
+      "oldId": "LIFE-009",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "任务准入、取消、drain链存在；原版确认按kind/ID/title识别将中断工作，MyGo只消费数量，丢对象级决策信息。",
+      "actionIds": [
+        "GLIFE-007"
+      ],
+      "evidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:710-726,796-826",
+        "cmd/whaleisle/task_protection.go:31-87",
+        "internal/desktop/taskcontrol/control.go:21-34"
+      ]
+    }
+  ],
+  "existingFindingsNotRecounted": [
+    "LIFE-006/007原生恢复与跨桌面profile保护",
+    "LIFE-014/015导入日志格式/不支持库存",
+    "LIFE-021/022安装接管及品牌",
+    "LIFE-023/024/025/040更新源/中心/渠道/PAC",
+    "LIFE-031长期配对链接复制/撤销",
+    "LIFE-037原生Tunnel转发错误遮蔽",
+    "LIFE-039原项目dirty任务准入增量"
+  ],
+  "crossDomainDependencies": [
+    "workspace: GLIFE-004/005与WS-013是同一远程目录流缺链；复用一个根因和后续验收，不能各算一次。",
+    "settings/account: GLIFE-015区分原版second-instance唤回和MyGo扩展协议；auth回调字段/最终登录结果仍由账号owner负责。",
+    "root: 根据statusCorrections修正旧大项，保留具体可用子链和真实运行缺口。"
+  ],
+  "uncovered": [
+    "实际原生点击/键盘、托盘/通知/注册表/开机启动、安装器接管和真手机/SSH端到端未执行。",
+    "未读用户profile/offer/token/SSH key，未遍历真实设备/会话数据；无法确定用户当前是否满足各项外部条件。",
+    "本轮不认证macOS/Linux或独立launcher真实分发；不重新审查原项目dirty增量。"
+  ],
+  "checksRun": [
+    {
+      "command": "Get-Content UTF8 / rg / Test-Path，只读源码与四个dshd依赖entry存在性",
+      "result": "完成原40项读取及20个动作组；定位7个新增动作级差异（GLIFE-004/005共享根因）",
+      "scope": "无应用执行、桌面、安装、服务重启、SSH、外网或模型调用"
+    },
+    {
+      "command": "node tmp/gap-reopen-20261102/lifecycle/read-installed-ui.cjs",
+      "result": "只读同一app.asar并提取7个launcher/update-center源文件到owner临时目录",
+      "scope": "不加载/执行Electron或归档源代码"
+    },
+    {
+      "command": "JSON.parse最终supplement并核对引用文件存在性",
+      "result": "有效JSON；20个GLIFE动作组、4条statusCorrections；107条主证据路径存在且引用行范围在文件内。",
+      "scope": "仅审查产物校验"
+    }
+  ],
+  "summary": "旧wired大项需改partial：LIFE-016导入复核上下文/多根来源身份丢失；LIFE-034没有新远程目录→mirror→采用入口，且无清除当前机器/路径提交；LIFE-008托盘更新动作遗漏；LIFE-009缺对象级任务确认详情。20个动作组同时保留真实已接子链与尚缺运行证据。dshd-remote资源容器装配条件已澄清，未以根目录无package.json误报runtime缺失。"
+}

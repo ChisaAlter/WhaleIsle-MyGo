@@ -24,7 +24,7 @@ preopen, environment inheritance or network capability. Each operation owns a
 fresh WASM memory instance; returned pixels are copied before it closes. Runtime
 memory is capped at 512 MiB and pixel decoding has a ten-second context deadline.
 
-The application retains its existing 16 MiB input / 32 million pixel policy and
+The application retains its existing 32 MiB input / 32 million pixel policy and
 single-primary-item still-image subset. It supports 8-, 10- and 12-bit pixels and
 applies irot/imir orientation. The still decoder continues to reject animated
 AVIF, auxiliary/alpha items, grids and collections rather than flatten them.

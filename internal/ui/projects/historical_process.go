@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"time"
@@ -83,18 +82,5 @@ func historicalProcessView(c *ui.Context, m Model) {
 			action("next")
 		}
 	})
-	ui.Column(c).FillWidth().MinWidth(0).Children(func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			for _, r := range w.Records[start:end] {
-				ui.Text(c, fmt.Sprintf("%g · %s", r.Event.Seq, r.Event.Type)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-				body := string(r.Event.Data)
-				var value any
-				if json.Unmarshal(r.Event.Data, &value) == nil {
-					raw, _ := json.MarshalIndent(value, "", "  ")
-					body = string(raw)
-				}
-				ui.Text(c, body).FontSize(fonttheme.InterfaceSize(13)).Selectable()
-			}
-		})
-	})
+	projectProcessRecords(c, m, "historical/"+t.ProjectID+"/"+t.DelegationRef, w.Records[start:end])
 }

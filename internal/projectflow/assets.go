@@ -17,6 +17,13 @@ type ResolvedArtifact struct {
 	Root                string `json:"root"`
 	ModifiedSinceReport bool   `json:"modifiedSinceReport"`
 }
+
+// FileTarget is a Host-resolved Project file, not a path relative to whichever
+// conversation happens to be selected. The consumer must retain Root and use
+// the normal editor/dirty-tab navigation contract.
+type FileTarget struct {
+	ProjectID, CoordinatorSessionID, CanonicalPath, Root string
+}
 type WorkDiff struct {
 	Requirement *RequestChanges `json:"-"`
 	Snapshot    struct {

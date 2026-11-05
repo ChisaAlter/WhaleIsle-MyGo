@@ -6,14 +6,19 @@ import (
 	"fmt"
 	"strings"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
 
 // RefreshCordisInventory calls dynamicCordisRunner/inventory and stores a short note.
 func (s *Store) RefreshCordisInventory(ctx context.Context) {
 	s.mu.Lock()
-	client := s.client
+	client, epoch, generation := s.client, s.connectionEpoch, s.refreshGeneration
 	s.mu.Unlock()
+	s.refreshCordisInventory(ctx, client, epoch, generation)
+}
+
+func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, epoch, generation uint64) {
 	if client == nil {
 		return
 	}
@@ -44,6 +49,10 @@ func (s *Store) RefreshCordisInventory(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
+		if s.client != client || s.connectionEpoch != epoch || s.refreshGeneration != generation {
+			s.mu.Unlock()
+			return
+		}
 		if s.pluginDiag != "" {
 			s.pluginDiag = s.pluginDiag + " | " + note
 		} else {

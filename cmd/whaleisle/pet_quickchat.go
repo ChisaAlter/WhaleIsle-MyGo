@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/harness"
@@ -53,6 +54,7 @@ func (s *mainState) openPetQuickChat() {
 	p.OpenQuickChat(pet.QuickChatOptions{
 		Origin: host.Endpoint.Origin, Cookie: host.Endpoint.Cookie, Unavailable: unavailable,
 		Current: current, Direct: direct,
+		MemoryKey: fmt.Sprintf("%p/%d/%s/%t", owner, host.Generation, host.Endpoint.Origin, direct != nil),
 		OpenMain: func(id string) {
 			// The card just re-read pet/state for this exact identity. This last
 			// UI-thread guard rejects a Host/window replacement before navigation.

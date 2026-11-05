@@ -9,15 +9,15 @@ import (
 )
 
 type logoutFake struct {
-	mu                             sync.Mutex
-	status, id                     string
-	running                        bool
-	impactErr, readErr, signoutErr error
-	persist                        bool
-	afterSignout                   func(*logoutFake)
-	gate                           chan struct{}
-	entered                        chan struct{}
-	calls                          []string
+	mu                              sync.Mutex
+	status, attemptID, attemptPhase string
+	running                         bool
+	impactErr, readErr, signoutErr  error
+	persist                         bool
+	afterSignout                    func(*logoutFake)
+	gate                            chan struct{}
+	entered                         chan struct{}
+	calls                           []string
 }
 
 func (f *logoutFake) Call(ctx context.Context, method string, args any, out any) error {
@@ -45,8 +45,9 @@ func (f *logoutFake) Call(ctx context.Context, method string, args any, out any)
 			return f.readErr
 		}
 		value = map[string]any{"status": f.status}
-	case "account/getProfile":
-		value = map[string]any{"status": "ready", "value": map[string]any{"id": f.id}}
+		if f.attemptID != "" {
+			value.(map[string]any)["attempt"] = map[string]string{"id": f.attemptID, "phase": f.attemptPhase}
+		}
 	case "account/hasRunningAccountTasks":
 		if f.impactErr != nil {
 			return f.impactErr
@@ -82,13 +83,13 @@ func (f *logoutFake) exits() int {
 }
 func newLogoutFixture() (*Flow, *logoutFake) {
 	f := &Flow{}
-	c := &logoutFake{status: "credential-stored", id: "account-a"}
+	c := &logoutFake{status: "credential-stored", attemptID: "attempt-a", attemptPhase: "succeeded"}
 	f.Bind(c)
 	return f, c
 }
 
 // This fixture exercises the real account flow using only a fake RPC boundary.
-// Removing confirmation, the busy guard, fresh identity/impact checks, or
+// Removing confirmation, the busy guard, fresh local state/impact checks, or
 // reconciliation after an uncertain write must make a corresponding case fail.
 func TestAccountSignOutFixture(t *testing.T) {
 	ctx := context.Background()
@@ -105,7 +106,7 @@ func TestAccountSignOutFixture(t *testing.T) {
 	t.Run("open cancel and explicit commit", func(t *testing.T) {
 		f, c := newLogoutFixture()
 		f.Request(ctx, meta)
-		if s := f.Snapshot(); !s.Open || s.Busy || s.Impact != ImpactIdle || s.AccountID != "account-a" {
+		if s := f.Snapshot(); !s.Open || s.Busy || s.Impact != ImpactIdle {
 			t.Fatalf("review: %+v", s)
 		}
 		if c.exits() != 0 || !f.Cancel(f.Snapshot().ReviewID) {
@@ -190,24 +191,41 @@ func TestAccountSignOutFixture(t *testing.T) {
 			t.Fatal("current confirmation did not work")
 		}
 	})
-	t.Run("identity change invalidates review", func(t *testing.T) {
+	t.Run("local sign-in attempt change invalidates review", func(t *testing.T) {
 		f, c := newLogoutFixture()
 		f.Request(ctx, meta)
-		c.id = "account-b"
+		c.attemptID = "attempt-b"
 		f.Confirm(ctx, meta, f.Snapshot().ReviewID)
 		if s := f.Snapshot(); s.Open || s.Error != ErrorAccountChanged || c.exits() != 0 {
 			t.Fatalf("identity drift: %+v", s)
 		}
 		f.Request(ctx, meta)
-		if f.Snapshot().AccountID != "account-b" {
+		if s := f.Snapshot(); !s.Open || s.Error != "" {
 			t.Fatal("new review unavailable")
 		}
 		f, c = newLogoutFixture()
-		c.id = ""
+		c.status = "unknown"
 		f.Request(ctx, meta)
 		f.Confirm(ctx, meta, f.Snapshot().ReviewID)
 		if c.exits() != 0 || f.Snapshot().Error != ErrorIdentityUnavailable {
-			t.Fatal("unidentified account admitted")
+			t.Fatal("unknown local account state admitted")
+		}
+	})
+	t.Run("local credentials allow sign-out without an online profile", func(t *testing.T) {
+		f, c := newLogoutFixture()
+		c.attemptID = ""
+		f.Request(ctx, meta)
+		if s := f.Snapshot(); !s.Open || s.Error != "" {
+			t.Fatalf("local account blocked: %+v", s)
+		}
+		f.Confirm(ctx, meta, f.Snapshot().ReviewID)
+		if !f.Snapshot().Completed || c.exits() != 1 {
+			t.Fatal("local sign-out required an online profile")
+		}
+		for _, method := range c.calls {
+			if method == "account/getProfile" {
+				t.Fatal("local sign-out requested an online profile")
+			}
 		}
 	})
 	t.Run("Host change cancels stale review reads", func(t *testing.T) {
@@ -218,7 +236,7 @@ func TestAccountSignOutFixture(t *testing.T) {
 		done := make(chan struct{})
 		go func() { f.Request(ctx, meta); close(done) }()
 		<-entered
-		replacement := &logoutFake{status: "credential-stored", id: "account-b"}
+		replacement := &logoutFake{status: "credential-stored", attemptID: "attempt-b", attemptPhase: "succeeded"}
 		f.Bind(replacement)
 		<-done
 		f.Confirm(ctx, meta, f.Snapshot().ReviewID)

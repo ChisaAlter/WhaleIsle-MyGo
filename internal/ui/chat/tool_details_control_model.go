@@ -522,7 +522,7 @@ func toolDetailsModelWait(text string) *toolDetailsModel {
 // toolDetailsModelSubagent mirrors the installed subagent receipts: a started
 // job reports its id, and a reply card keeps the recorded text with the task in
 // a disclosure. The installed card renders the reply as Markdown; this card
-// keeps the recorded text in the description until the Markdown entry exists.
+// keeps the recorded reply in the native Markdown entry.
 func toolDetailsModelSubagent(args map[string]json.RawMessage, text string) *toolDetailsModel {
 	if match := toolDetailsSubagentStarted.FindStringSubmatch(text); match != nil {
 		label := i18n.KeyToolDetailFieldJob
@@ -534,9 +534,9 @@ func toolDetailsModelSubagent(args map[string]json.RawMessage, text string) *too
 			[]toolDetailField{{Label: i18n.T(label), Value: match[2]}}, nil)
 	}
 	return toolDetailsModelRecordedList([]toolDetailItem{{
-		Title:       i18n.T(i18n.KeyToolDetailAgentReply),
-		Description: toolDetailsModelString(text),
-		Fields:      []toolDetailField{},
+		Title:    i18n.T(i18n.KeyToolDetailAgentReply),
+		Markdown: toolDetailsModelString(text),
+		Fields:   []toolDetailField{},
 		Groups: []toolDetailGroup{{Label: i18n.T(i18n.KeyToolDetailFieldTask),
 			Items: []toolDetailItem{{Description: toolDetailsModelString(toolDetailsArgText(args, "prompt"))}}}},
 	}}, i18n.T(i18n.KeyToolDetailAgentReply))

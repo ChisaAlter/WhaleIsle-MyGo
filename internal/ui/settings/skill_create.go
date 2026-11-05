@@ -9,8 +9,9 @@ import (
 )
 
 type SkillCreateDraft struct {
-	Name, Description, WhenToUse, Groups, Content, Root string
-	ModelInvocable, UserInvocable                       bool
+	Name, Description, WhenToUse, Content, Root string
+	Groups                                      []string
+	ModelInvocable, UserInvocable               bool
 }
 
 type SkillCreateAccess struct {
@@ -43,41 +44,15 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	}
 	draft := create.Draft
 	open := true
-	bodyDialog(c, &open, providerCopy("添加技能", "Add skill"), func() {
+	var validation *string
+	bodyDialogFooterWidth(c, &open, providerCopy("添加技能", "Add skill"), 720, func() {
 		nameLabel := ui.Text(c, providerCopy("名称", "Name")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextInput(c, &draft.Name).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Placeholder("review-code")
 		ui.Text(c, providerCopy("描述", "Description")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextInput(c, &draft.Description).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		ui.Text(c, providerCopy("使用时机（可选）", "When to use (optional)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextArea(c, &draft.WhenToUse).FillWidth().Lines(2, 4).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
-		ui.Text(c, providerCopy("分组（以逗号分隔）", "Groups (comma-separated)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Groups).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
-		for _, group := range skillSections(a.Skills) {
-			if group.Name == "" {
-				continue
-			}
-			selected := false
-			for _, name := range strings.Split(draft.Groups, ",") {
-				selected = selected || strings.TrimSpace(name) == group.Name
-			}
-			label := "+ " + group.Name
-			if selected {
-				label = "✓ " + group.Name
-			}
-			if ui.Button(c, label).AlignSelf(ui.Start).Height(28).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(create.Busy).Clicked() {
-				var groups []string
-				for _, name := range strings.Split(draft.Groups, ",") {
-					name = strings.TrimSpace(name)
-					if name != "" && name != group.Name {
-						groups = append(groups, name)
-					}
-				}
-				if !selected {
-					groups = append(groups, group.Name)
-				}
-				draft.Groups = strings.Join(groups, ", ")
-			}
-		}
+		skillGroupPicker(c, "create-skill-groups", &draft.Groups, a.Skills, create.Busy, fg, muted)
 		ui.Text(c, providerCopy("技能正文", "Skill body")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		ui.TextArea(c, &draft.Content).FillWidth().Lines(5, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
 		ui.Text(c, providerCopy("保存位置", "Save to")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
@@ -100,22 +75,21 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 		if create.Error != "" {
 			ui.Text(c, create.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		validation := ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
+		validation = ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
 		if *validation != "" {
 			ui.Text(c, *validation).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Clicked() && create.OnCancel != nil {
-				create.OnCancel()
+	}, func() {
+		if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Clicked() && create.OnCancel != nil {
+			create.OnCancel()
+		}
+		if ui.Button(c, providerCopy("创建技能", "Create skill")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy || create.OnSave == nil).Clicked() {
+			*validation = skillCreateError(*draft)
+			if *validation == "" {
+				create.OnSave(*draft)
 			}
-			if ui.Button(c, providerCopy("创建技能", "Create skill")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy || create.OnSave == nil).Clicked() {
-				*validation = skillCreateError(*draft)
-				if *validation == "" {
-					create.OnSave(*draft)
-				}
-			}
-		})
-	})
+		}
+	}, ui.DialogOptions{DismissDisabled: create.Busy})
 	if !open && !create.Busy && create.OnCancel != nil {
 		create.OnCancel()
 	}

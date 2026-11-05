@@ -12,7 +12,10 @@ import (
 
 type visibilityTransport func(*http.Request) (*http.Response, error)
 
-func (f visibilityTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f visibilityTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func visibilityFixture(t *testing.T) DshbotBotCatalog {
 	t.Helper()
 	v, err := decodeDshbotBotCatalog(json.RawMessage(`{"ns":"dsh-bot","revision":8,"value":{"items":[{"id":"bot-a","kind":"bot","sessionId":"s-a","name":"Alpha","title":"title","hidden":false,"updatedAt":2,"avatar":{"kind":"blob","color":"blue","shape":"circle","dataUrl":"","crop":""},"future":{"nested":[9007199254740993,"保持"]},"notify":true,"inbox":[{"keep":true}]},{"id":"room-b","kind":"room","sessionId":"s-b","name":"Room","hidden":true,"updatedAt":3,"memberBotIds":["bot-a","bot-c"],"holds":{"bot-a":{"keep":true}}}]}}`))

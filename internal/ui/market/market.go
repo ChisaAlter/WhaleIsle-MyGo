@@ -59,6 +59,8 @@ type Model struct {
 	OnAcceptExemption  func(packageVersion, runtimeVersion string)
 	OnCopyInstallLog   func(log string)
 	OnExportHistory    func()
+	// OnOpenManager opens package installation/configuration in Plugin Manager.
+	OnOpenManager func()
 	// OnOpenURL activates an authored documentation link after an explicit click.
 	OnOpenURL func(string)
 	// OnOpenHarnessMarket opens the Electron ui-settings-market WebView when overlay is on.
@@ -126,9 +128,6 @@ func View(c *ui.Context, m Model) {
 					if snap.Err != "" {
 						ui.Text(c, snap.Err).TextColor(accent)
 					}
-					if snap.Loading {
-						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
-					}
 					if !snap.ClientReady {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheRuntimeIsNotConnectedTheCatalogIs), "Runtime disconnected; the catalog remains available.")).TextColor(muted)
 					}
@@ -138,7 +137,13 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, i18n.T(i18n.KeyMarketListEmpty)).TextColor(muted)
 					}
 					installedRows(c, m, d, snap, fg, muted, field, border, accent)
-					installSection(c, m, fg, muted, field, border, accent)
+					if m.Embedded {
+						if ui.Button(c, marketText("管理插件包", "Manage plugin packages")).Height(30).Padding(0, 12).Radius(8).Border(.5, border).FontSize(theme.InterfaceSize(13)).Disabled(m.OnOpenManager == nil).Clicked() && m.OnOpenManager != nil {
+							m.OnOpenManager()
+						}
+					} else {
+						installSection(c, m, fg, muted, field, border, accent)
+					}
 				}
 				if m.InstallMessage != "" {
 					ui.Text(c, m.InstallMessage).TextColor(accent)
@@ -160,17 +165,9 @@ func View(c *ui.Context, m Model) {
 				} else if m.Activation.Refreshed {
 					ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheNewRuntimeIsReadyCheckTheLoadStat), "The new runtime is ready. Check the plugin list for loading status.")).TextColor(muted)
 				}
-				if m.InstallBusy {
-					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).TextColor(muted)
-						if m.CanCancelInstall && m.OnCancelInstall != nil && ui.Button(c, i18n.T(i18n.KeyMarketCancelInstall)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-							m.OnCancelInstall()
-						}
-					})
-				}
 				if m.NeedsAllowBuilds && len(m.AllowBuilds) > 0 {
 					ui.Text(c, i18n.T(i18n.KeyMarketAllowBuilds)+": "+strings.Join(m.AllowBuilds, ", ")).TextColor(fg)
-					if d.Tab != "installed" && !m.InstallBusy && m.OnInstallSpec != nil && m.InstallSpec != nil && ui.Button(c, i18n.T(i18n.KeyMarketAllowBuildsButton)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+					if (d.Tab != "installed" || m.Embedded) && !m.InstallBusy && m.InstallReady && m.OnInstallSpec != nil && m.InstallSpec != nil && ui.Button(c, i18n.T(i18n.KeyMarketAllowBuildsButton)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 						m.OnInstallSpec(*m.InstallSpec, append([]string(nil), m.AllowBuilds...))
 					}
 				}
@@ -238,6 +235,21 @@ func marketHistoryRow(c *ui.Context, h marketstore.InstallHistory, fg, muted, fi
 		if h.Error != "" && h.Error != h.Result {
 			ui.Text(c, h.Error).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted).SingleLine()
 		}
+		if h.Diagnostic != "" {
+			ui.Text(c, h.Diagnostic).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
+		if h.Log != "" {
+			open := ui.Local(row, "history-log-open", func() bool { return false })
+			if ui.Button(c, marketText("操作日志", "Operation log")).Clicked() {
+				*open = !*open
+			}
+			if *open {
+				if ui.Button(c, marketText("复制日志", "Copy log")).Clicked() {
+					c.WriteClipboard(h.Log)
+				}
+				ui.Text(c, h.Log).FillWidth().MinWidth(0).Selectable().Font("monospace").FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			}
+		}
 	})
 }
 
@@ -286,9 +298,6 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 	if d.Err != "" {
 		ui.Text(c, d.Err).TextColor(accent)
 	}
-	if d.Loading {
-		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
-	}
 	query := d.Query
 	ui.TextInput(c, &query).FillWidth().Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
 	catalogCategories(c, m, d, fg, muted, field, border)
@@ -331,20 +340,44 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 	ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		if d.Page > 0 && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketPreviousPage), "Previous")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-			m.Store.SetPage(d.Page - 1)
-		}
-		if (d.Page+1)*60 < d.Total && ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketNextPage), "Next")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-			m.Store.SetPage(d.Page + 1)
+		if len(d.Rows) < d.Total && ui.Button(c, marketText("显示更多", "Show more")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+			m.Store.ShowMore()
 		}
 	})
 }
 
 func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item desktopmarket.CatalogItem, inventory marketstore.ViewState, fg, muted ui.Color) {
 	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
-		// The installed row keeps the button slot, disabled, so a card does not
-		// change height when its state flips.
-		widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: true})
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ready := inventory.ClientReady && !inventory.Loading && inventory.Err == "" && !m.InstallBusy && !d.Loading
+		for _, update := range m.Store.Updates().Rows {
+			if update.ID == item.ID && update.Available && m.OnInstallCatalog != nil {
+				current, latest := update.Current, update.Latest
+				if update.Kind == "github" {
+					current, latest = current[:min(7, len(current))], latest[:min(7, len(latest))]
+				}
+				ui.Text(c, current+" → "+latest).MaxWidthPercent(100).MinWidth(0).SingleLine().Tooltip(update.Current + " → " + update.Latest).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				label := marketText("更新", "Update")
+				if m.InstallBusy && m.InstallSpec != nil && strings.TrimSpace(*m.InstallSpec) == update.Spec {
+					label = marketText("正在更新…", "Updating…")
+				}
+				if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !ready}).Clicked() {
+					if target, err := m.Store.CaptureUpdateTarget(item.ID); err == nil {
+						m.OnInstallCatalog(target)
+					}
+				}
+				break
+			}
+		}
+		for _, row := range inventory.Rows {
+			if row.Label == name && row.IdentityKnown && row.Removable && row.ReadOnlyReason == "" && m.OnRemoveBundle != nil {
+				if widgets.Button(c, colors, marketText("卸载", "Uninstall"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: !ready}).Clicked() {
+					m.OnRemoveBundle(name)
+				}
+				break
+			}
+		}
 		return
 	}
 	if !desktopmarket.ValidInstallItem(item) {
@@ -382,10 +415,10 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.InstallSpec != nil {
-				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder))
+				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder)).Disabled(m.InstallBusy || m.NeedsAllowBuilds)
 			}
 			if !m.InstallBusy {
-				install := ui.Button(c, btnLabel).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Shrink(0).Disabled(spec == "")
+				install := ui.Button(c, btnLabel).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Shrink(0).Disabled(spec == "" || !m.InstallReady || m.OnInstallSpec == nil)
 				if install.Clicked() && m.OnInstallSpec != nil && spec != "" {
 					m.OnInstallSpec(spec, allow)
 				}
@@ -444,16 +477,13 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 			m.Store.CheckUpdates()
 		}
 	}
-	if u.Loading {
-		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCheckingVersionMetadata), "Checking version metadata…")).TextColor(muted)
-	}
 	if u.Err != "" {
 		ui.Text(c, u.Err).TextColor(accent)
 	}
 	if !u.CheckedAt.IsZero() {
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCheckedAt), "Checked: ")+u.CheckedAt.Local().Format("2006-01-02 15:04:05 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
-	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketOnlyConfirmedNpmStableVersionsAreCompa), "Only verified npm stable versions are compared. Git, local sources and incomparable versions remain unknown. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, marketText("比较 npm 语义版本与已确认 GitHub 提交。检查不会自动安装。", "Compare npm semantic versions and verified GitHub commits. Checking never installs automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	batchSelectionView(c, m, u, muted, border)
 	for _, row := range u.Rows {
 		if m.Store.ManagementFilter() == "updates" && !row.Available {
@@ -465,6 +495,14 @@ func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, mu
 		r := row
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 			current, latest := r.Current, r.Latest
+			if r.Kind == "github" {
+				if len(current) > 7 {
+					current = current[:7]
+				}
+				if len(latest) > 7 {
+					latest = latest[:7]
+				}
+			}
 			if current == "" {
 				current = marketText(i18n.T(i18n.KeyW4MarketUnknown), "unknown")
 			}

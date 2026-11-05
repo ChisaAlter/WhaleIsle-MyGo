@@ -2,66 +2,102 @@ package usage
 
 import (
 	"context"
+	"github.com/egoist/mygo/ui"
+	"sort"
+	"strconv"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
-
-	"github.com/egoist/mygo/ui"
 )
 
+func formatPrice(value float64) string { return strconv.FormatFloat(value, 'f', -1, 64) }
 func billingModelsView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	v := m.Store.BillingModels()
-	ui.Row(c).Gap(6).Children(func() {
-		ui.Text(c, usageText("选择服务商与模型", "Choose provider and model")).Bold().TextColor(fg).Grow(1)
-		if widgets.Button(c, colors, usageText("刷新模型目录", "Refresh model directory"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(v.Loading).Clicked() {
+	billing := m.Store.Billing()
+	if v.Error != "" {
+		ui.Text(c, v.Error).TextColor(c.Theme().Danger)
+		if ui.Button(c, usageText("重试模型目录", "Retry model directory")).Disabled(v.Loading).Clicked() {
 			m.Store.LoadBillingModels(context.Background())
 		}
-	})
-	filter := v.Filter
-	ui.TextInput(c, &filter).FillWidth().Placeholder(usageText("搜索服务商或模型", "Search providers or models")).OnChange(func() { m.Store.SetBillingModelFilter(filter) })
-	if v.Loading {
-		ui.Text(c, usageText("正在读取模型目录…", "Loading model directory…")).TextColor(muted)
 	}
-	if v.Error != "" {
-		ui.Text(c, v.Error).TextColor(accent)
+	seat := ui.Row(c.Key("billing-provider-model")).FillWidth().MinWidth(0).Gap(12)
+	provider := ui.Local(seat, "provider", func() string { return "" })
+	model := ui.Local(seat, "model", func() string { return "" })
+	previous := ui.Local(seat, "selected-key", func() string { return "" })
+	if billing.NewKey != *previous && billing.NewKey != "" {
+		p, md, ok := strings.Cut(billing.NewKey, "/")
+		if ok {
+			*provider, *model = p, md
+		}
+		*previous = billing.NewKey
 	}
-	b := m.Store.Billing()
-	query := strings.ToLower(strings.TrimSpace(v.Filter))
-	count := 0
-	ui.Scroll(c).Height(160).Children(func() {
-		ui.Column(c).Gap(5).Children(func() {
-			for _, option := range v.Options {
-				for _, model := range option.Models {
-					option, model := option, model
-					if strings.TrimSpace(model) == "" {
-						continue
-					}
-					key := option.Provider + "/" + model
-					title := option.ProviderName
-					if title == "" {
-						title = option.Provider
-					}
-					if query != "" && !strings.Contains(strings.ToLower(title+" "+key), query) {
-						continue
-					}
-					count++
-					ui.Row(c).Gap(6).Children(func() {
-						ui.Text(c, title+" · "+model).TextColor(fg).Grow(1)
-						title := usageText("添加到价格表", "Add to price table")
-						if _, exists := b.Drafts[key]; exists {
-							title = usageText("选择已有价格", "Select existing price")
-						}
-						if ui.Button(c, title).Disabled(b.Busy || !b.Loaded).Clicked() {
-							m.Store.SelectBillingModel(option.Provider, model)
-						}
-					})
-				}
+	providers := []string{}
+	names := map[string]string{}
+	models := map[string][]string{}
+	for _, option := range v.Options {
+		providers = append(providers, option.Provider)
+		names[option.Provider] = option.ProviderName
+		models[option.Provider] = append([]string(nil), option.Models...)
+	}
+	for key := range billing.Settings.Prices {
+		p, md, ok := strings.Cut(key, "/")
+		if !ok {
+			continue
+		}
+		if _, exists := names[p]; !exists {
+			providers = append(providers, p)
+			names[p] = p
+		}
+		found := false
+		for _, id := range models[p] {
+			found = found || id == md
+		}
+		if !found {
+			models[p] = append(models[p], md)
+		}
+	}
+	sort.Strings(providers)
+	if *provider == "" && len(providers) > 0 {
+		*provider = providers[0]
+	}
+	labels := []string{}
+	ids := map[string]string{}
+	current := ""
+	for _, p := range providers {
+		label := names[p]
+		if label == "" {
+			label = p
+		}
+		labels = append(labels, label)
+		ids[label] = p
+		if p == *provider {
+			current = label
+		}
+	}
+	seat.Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+			ui.Text(c, usageText("供应商", "Provider")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			if ui.Select(c, &current, labels).Label(usageText("供应商", "Provider")).FillWidth().Height(36).Disabled(v.Loading || billing.Busy).Changed() {
+				*provider = ids[current]
+				*model = ""
 			}
 		})
+		choices := models[*provider]
+		valid := false
+		for _, id := range choices {
+			valid = valid || id == *model
+		}
+		if !valid && len(choices) > 0 {
+			*model = choices[0]
+		}
+		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+			ui.Text(c, usageText("模型", "Model")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Select(c, model, choices).Label(usageText("模型", "Model")).FillWidth().Height(36).Disabled(v.Loading || billing.Busy)
+		})
 	})
-	if v.Loaded && count == 0 {
-		ui.Text(c, usageText("没有匹配的模型，可在下方手动输入模型键。", "No matching models. You can enter a model key below.")).TextColor(muted)
+	if *provider != "" && *model != "" {
+		key := *provider + "/" + *model
+		if billing.NewKey == "" || billing.NewKey != key {
+			m.Store.SetPriceKey(key)
+		}
 	}
-	ui.Text(c, usageText("模型目录只提供名称；价格需自行填写后保存。", "The directory supplies model names; enter and save your own prices.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 }

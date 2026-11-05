@@ -12,7 +12,10 @@ import (
 
 type advancedTransport func(*http.Request) (*http.Response, error)
 
-func (f advancedTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f advancedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func advancedBaseRow() DshbotRoutine {
 	return DshbotRoutine{ID: "r", BotID: "b", Name: "Routine", Prompt: "Fixture prompt", Schedule: "every 1h", Timezone: "UTC", Enabled: true, ContextFrom: []string{"self"}, SilentAllowed: true, Watch: json.RawMessage(`{"kind":"command","value":"fixture-only-command","timeoutMs":15000,"futureField":"preserve"}`)}
 }

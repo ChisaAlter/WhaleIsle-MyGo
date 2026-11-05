@@ -110,8 +110,8 @@ func resolvePRGenerationBase(ctx context.Context, root string, p PullRequestPlan
 		if e != nil {
 			continue
 		}
-		repo, e := githubRepository(url)
-		if e != nil || !strings.EqualFold(repo, p.Repository) {
+		host, repo, e := repositoryIdentity(url)
+		if e != nil || !strings.EqualFold(host, p.Host) || !strings.EqualFold(repo, p.Repository) {
 			continue
 		}
 		ref := "refs/remotes/" + remote + "/" + p.Base

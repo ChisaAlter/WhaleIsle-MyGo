@@ -140,8 +140,10 @@ func (s *decorationState) feed(x, y, dx, dy float32, now time.Time) {
 	}
 }
 func (rt *engine) paintPointerDecoration(p *Painter, w, h float32) {
-	s := &rt.decorations
-	if !s.config.PointerEnabled || rt.preferences().ReduceMotion {
+	rt.decorations.paintPointer(p, w, h, rt.pointerIn, rt.pointerX, rt.pointerY, rt.preferences().ReduceMotion)
+}
+func (s *decorationState) paintPointer(p *Painter, w, h float32, pointerIn bool, pointerX, pointerY float32, reduced bool) {
+	if !s.config.PointerEnabled || reduced {
 		s.clearPointer()
 		return
 	}
@@ -152,8 +154,8 @@ func (rt *engine) paintPointerDecoration(p *Painter, w, h float32) {
 		}
 		s.width, s.height = w, h
 	}
-	if rt.pointerIn && s.config.PointerEffect != "splash" {
-		x, y := rt.pointerX, rt.pointerY
+	if pointerIn && s.config.PointerEffect != "splash" {
+		x, y := pointerX, pointerY
 		if !s.hasPointer {
 			s.feed(x, y, 0, 0, now)
 		} else if x != s.lastX || y != s.lastY {
@@ -213,3 +215,51 @@ func (p *Painter) paintMetallicButton(e *node, r Rect) {
 	p.popClip()
 	p.clip = savedClip
 }
+
+// DecorativePreview owns an isolated, clipped instance of the same native
+// pointer renderer. Close releases its worker when the settings pane leaves.
+type DecorativePreview struct {
+	state  decorationState
+	x, y   float32
+	inside bool
+	bounds Rect
+}
+
+func (d *DecorativePreview) Configure(config DecorativeEffects) {
+	if config.Speed <= 0 {
+		config.Speed = 100
+	}
+	if config.Size <= 0 {
+		config.Size = 100
+	}
+	if d.state.config.PointerEnabled != config.PointerEnabled || d.state.config.PointerEffect != config.PointerEffect {
+		d.state.clearPointer()
+	}
+	d.state.config = config
+}
+func (d *DecorativePreview) Input(e InputEvent) bool {
+	d.x, d.y = d.bounds.X+e.X, d.bounds.Y+e.Y
+	switch e.Kind {
+	case InputPointerMove:
+		d.inside = true
+		if d.state.config.PointerEffect == "splash" {
+			d.state.feed(d.x, d.y, d.x-d.state.lastX, d.y-d.state.lastY, time.Now())
+			d.state.lastX, d.state.lastY = d.x, d.y
+		}
+		return true
+	case InputPointerDown:
+		d.inside = true
+		d.state.pointerDown(d.x, d.y)
+		return true
+	case InputPointerUp:
+		return true
+	case InputBlur:
+		d.inside = false
+	}
+	return false
+}
+func (d *DecorativePreview) Draw(p *Painter, r Rect) {
+	d.bounds = r
+	p.Clip(r, 0, func() { d.state.paintPointer(p, r.X+r.W, r.Y+r.H, d.inside, d.x, d.y, p.rt.preferences().ReduceMotion) })
+}
+func (d *DecorativePreview) Close() { d.state.clearPointer(); d.inside = false }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"runtime"
+	"sort"
 	"strings"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/chrome"
@@ -46,7 +47,7 @@ func bodyShortcutPreference(c *ui.Context, e *shortcuts.Editor, fg, muted ui.Col
 		return
 	}
 	row := ui.Column(c.Key("general-shortcuts")).FillWidth().MinWidth(0)
-	open := ui.Local(row, "open", func() bool { return false })
+	open := &e.ReferenceOpen
 	row.Children(func() {
 		bodyPreferenceRow(c, "general-shortcuts-row",
 			providerCopy("快捷键", "Keyboard shortcuts"),
@@ -71,34 +72,23 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 	if e == nil {
 		return
 	}
-	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
+	target := ui.Local(c.Root(), "shortcut-reference-target", func() string { return "" })
+	dismiss := func() {
+		if e.ResetPending {
+			e.CancelReset()
+			return
+		}
+		shortcutCloseReference(open, e, target)
+	}
+	ui.DialogBaseWithOptions(c, open, ui.DialogOptions{OnDismiss: dismiss}, func(backdrop, panel ui.Element) {
+		ui.ShortcutModalScope(panel, "shortcuts")
 		w, h := c.Size()
 		box := chrome.DialogSurfaceBox{
-			Width:   min(float32(shortcutDialogWidth), max(float32(280), w-32)),
-			Height:  min(float32(shortcutDialogHeight), max(float32(320), h-108)),
-			Radius:  shortcutDialogRadius,
-			Padding: 0,
-			OffsetY: shortcutDialogOffsetY,
+			Width:  min(float32(shortcutDialogWidth), max(float32(0), w-32)),
+			Height: min(float32(shortcutDialogHeight), max(float32(0), h-108)),
+			Radius: shortcutDialogRadius, Padding: 0, OffsetY: shortcutDialogOffsetY,
 		}
 		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box).Key("shortcut-reference-dialog").Gap(0).Children(func() {
-			target := ui.Local(panel, "shortcut-target", func() string { return "" })
-			if *target != "" && !e.ResetPending {
-				// The reference's Escape runs closeReference too, so an armed row
-				// editor is what it closes first. The panel's own registration is in
-				// the focus chain, ahead of the backdrop handler that would close the
-				// dialog instead.
-				if panel.Shortcut(0, ui.KeyEscape) {
-					shortcutCloseReference(open, e, target)
-				}
-				// The reference Modal's mask runs onClose on a press outside the
-				// card. DialogBase has already closed the dialog for this frame, so
-				// the press only disarms the row editor and the dialog stays.
-				if backdrop.Clicked() {
-					e.CancelRecording()
-					*target = ""
-					*open = true
-				}
-			}
 			shortcutDialogHeader(c, open, e, p, target)
 			shortcutDialogSearch(c, e, p)
 			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
@@ -162,24 +152,120 @@ func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette)
 	})
 }
 
-// shortcutDialogRows renders the reference list: one flat "application" group
-// (the native build has no message-input or approval bindings), each row a
-// 42 DIP key badge entry that swaps to its inline editor in place.
+// Application entries and the read-only input/menu/approval directories are
+// deliberately separate from dispatch: bare Enter/Escape are context actions.
 func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string) {
-	rows := e.Search(e.Query)
-	if len(rows) == 0 {
-		ui.Text(c, providerCopy("没有匹配的快捷键", "No matching shortcuts")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.caption).Padding(6, 8)
-		return
+	rows := []shortcuts.Command{}
+	fixed := map[string]bool{}
+	for _, command := range e.Search("") {
+		if shortcutReferenceMatches(command, e.Query, shortcutDraft(e, command.ID)) {
+			rows = append(rows, command)
+		}
 	}
+	for _, command := range shortcuts.FixedCommands() {
+		if shortcutReferenceMatches(command, e.Query, command.Default) {
+			rows = append(rows, command)
+			fixed[command.ID] = true
+		}
+	}
+	order := map[string]int{}
+	for i, id := range []string{"shortcuts.open", "session.new", "sidebar.toggle", "session.search", "workspace.add", "session.rename", "session.fork", "session.archive", "settings.open", "fontSize.increase", "fontSize.decrease", "workspace.openLocal", "sidebar.right.toggle", "workspace.files", "browser.open", "terminal.new", "pane.split", "pane.fullscreen.toggle", "page.refresh", "page.close"} {
+		order[id] = i
+	}
+	rank := func(id string) int {
+		if value, ok := order[id]; ok {
+			return value
+		}
+		return len(order)
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rank(rows[i].ID), rank(rows[j].ID)
+		if a != b {
+			return a < b
+		}
+		return rows[i].ID < rows[j].ID
+	})
 	issues := e.Issues()
 	for _, command := range rows {
-		command := command
-		if *target == command.ID {
-			shortcutInlineEditor(c, e, command, p, target, issues[command.ID])
+		if fixed[command.ID] {
+			shortcutFixedReferenceRow(c, command, p)
 			continue
 		}
-		shortcutRow(c, e, command, p, target, issues[command.ID] != "")
+		if *target == command.ID {
+			shortcutInlineEditor(c, e, command, p, target, issues[command.ID])
+		} else {
+			shortcutRow(c, e, command, p, target, issues[command.ID] != "")
+		}
 	}
+	count := len(rows)
+	groups := []struct {
+		zh, en string
+		rows   []shortcuts.Command
+	}{
+		{"输入", "Input", []shortcuts.Command{
+			{ID: "fixed.send", ZH: "发送消息", EN: "Send message", Default: "Enter"},
+			{ID: "fixed.newline", ZH: "换行", EN: "New line", Default: "Shift+Enter"},
+			{ID: "fixed.complementary", ZH: "使用互补的 Queue／Steer 方式", EN: "Use the complementary Queue / Steer action", Default: "Mod+Enter"},
+			{ID: "fixed.slash", ZH: "打开命令菜单", EN: "Open command menu", Default: "/"},
+			{ID: "fixed.mention", ZH: "打开引用菜单", EN: "Open reference menu", Default: "@"},
+			{ID: "response.stop", ZH: "停止生成", EN: "Stop generation", Default: "Esc  Esc"},
+		}},
+		{"菜单", "Menus", []shortcuts.Command{
+			{ID: "fixed.move", ZH: "移动选择", EN: "Move selection", Default: "↑  ↓"},
+			{ID: "fixed.select", ZH: "选择", EN: "Select", Default: "Enter"},
+			{ID: "fixed.dismiss", ZH: "关闭", EN: "Dismiss", Default: "Esc"},
+		}},
+		{"审批", "Approval", []shortcuts.Command{
+			{ID: "approval.allow", ZH: "允许一次", EN: "Allow once", Default: "Enter"},
+			{ID: "approval.reject", ZH: "拒绝", EN: "Reject", Default: "Esc"},
+		}},
+	}
+	for _, group := range groups {
+		shown := false
+		for _, command := range group.rows {
+			if !shortcutReferenceMatches(command, e.Query, group.zh+" "+group.en) {
+				continue
+			}
+			if !shown {
+				ui.Text(c, providerCopy(group.zh, group.en)).FillWidth().Padding(16, 8, 6, 8).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(p.caption)
+				shown = true
+			}
+			shortcutFixedReferenceRow(c, command, p)
+			count++
+		}
+	}
+	if count == 0 {
+		ui.Text(c, providerCopy("没有匹配的快捷键", "No matching shortcuts")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.caption).Padding(6, 8)
+	}
+}
+func shortcutReferenceMatches(command shortcuts.Command, query, extra string) bool {
+	haystack := strings.ToLower(command.ID + " " + command.ZH + " " + command.EN + " " + command.Default + " " + shortcutDisplay(command.Default) + " " + extra)
+	for _, term := range strings.Fields(strings.ToLower(query)) {
+		if !strings.Contains(haystack, term) {
+			return false
+		}
+	}
+	return true
+}
+func shortcutFixedReferenceRow(c *ui.Context, command shortcuts.Command, p shortcutPalette) {
+	hint := providerCopy("固定快捷键，不能修改。", "Fixed shortcut; it cannot be edited.")
+	if command.ID == "fontSize.increase" {
+		hint += providerCopy("也支持 ", " Also accepts ") + shortcutDisplay("Mod+Shift+=")
+	}
+	ui.Row(c.Key("shortcut-fixed-" + command.ID)).Label("shortcut-" + command.ID).Tooltip(hint).FillWidth().MinWidth(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, shortcutCommandLabel(command)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg)
+		ui.Text(c, shortcutDisplay(command.Default)).Padding(4, 12).Radius(10).Background(p.field).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine()
+	})
+}
+func shortcutFixedRows(c *ui.Context, query string, p shortcutPalette) int {
+	count := 0
+	for _, command := range shortcuts.FixedCommands() {
+		if shortcutReferenceMatches(command, query, "") {
+			shortcutFixedReferenceRow(c, command, p)
+			count++
+		}
+	}
+	return count
 }
 
 func shortcutCommandLabel(command shortcuts.Command) string {
@@ -369,13 +455,19 @@ func shortcutResetConfirmation(c *ui.Context, e *shortcuts.Editor, p shortcutPal
 		return
 	}
 	open := true
-	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+	ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{OnDismiss: e.CancelReset}, func(backdrop, panel ui.Element) {
+		ui.ShortcutModalScope(panel, "shortcuts")
 		w, _ := c.Size()
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(420), max(float32(0), w-32)), 20).Gap(12).Children(func() {
 			ui.Text(c, providerCopy("恢复全部默认快捷键？", "Restore all default shortcuts?")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg)
 			ui.Text(c, providerCopy("将恢复当前平台的默认快捷键。你修改或移除的快捷键都会恢复，其他平台不受影响。", "Restore the default shortcuts for this platform. All modified or removed shortcuts will be restored. Other platforms are unaffected.")).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.muted)
+			ui.Box(c).FillWidth().Height(36).Children(func() {
+				if e.Err != "" {
+					ui.Text(c, e.Err).FillWidth().TextColor(c.Theme().Danger).FontSize(fonttheme.InterfaceSize(12))
+				}
+			})
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").Clicked() {
+				if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").AutoFocus().Clicked() {
 					e.CancelReset()
 				}
 				if ui.Button(c, providerCopy("恢复默认", "Restore default")).Label("confirm-reset-shortcuts").Clicked() {

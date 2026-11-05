@@ -47,8 +47,9 @@ func petChoiceSelect(c *ui.Context, current *string, label string, options []pet
 }
 
 type PetSettingsAccess struct {
-	AssistantEnabled   bool
-	AssistantAvailable bool
+	AssistantEnabled    bool
+	AssistantAvailable  bool
+	AssistantPreference *ProjectPreferenceAccess
 	// DesktopUnavailable is true in portable/QA runs: the pet preference is
 	// stored, but the companion window is intentionally not created.
 	DesktopUnavailable bool
@@ -93,6 +94,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		if picked := petTabs(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat & capabilities"), providerCopy("桌面形象与行为", "Desktop appearance & behavior")}, *tab, fg); picked >= 0 {
 			*tab = picked
 		}
+		settingsItemVisibility("settings.pet.item", *tab == 0)
 		if p.Error != "" && *tab == 1 {
 			ui.Text(c, providerCopy("桌面形象加载失败，请重启应用重试。", "The desktop character failed to load. Restart the app to try again.")).
 				FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning).Tooltip(p.Error)
@@ -101,21 +103,36 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			ui.Text(c, a.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
 		if *tab == 0 {
+			if !settingsItemBefore(c, "pet-assistant") {
+				return
+			}
 			if a != nil && a.AssistantAvailable {
 				petGroupLabel(c, providerCopy("助理", "Assistant"))
 				enabled := a.AssistantEnabled
+				busy, onSet := a.Busy, a.OnSetAssistant
+				if access := a.AssistantPreference; access != nil {
+					enabled, busy, onSet = access.State.Enabled, busy || access.State.Busy, access.OnSet
+				}
 				featureToggleRow(c, featureRow{
 					key:      "pet-assistant",
 					title:    providerCopy("鲸鱼娘助理", "Whale assistant"),
-					desc:     providerCopy("开启她的常驻对话与侧栏入口；切换后会重启 Harness。", "Turn on her resident conversation and sidebar entry; switching restarts the Harness."),
+					desc:     providerCopy("开启她的常驻对话与侧栏入口；切换后会重启 Harness。", "Mounts her persistent conversation and sidebar entry; toggling restarts Harness."),
 					value:    &enabled,
-					disabled: a.Busy || a.OnSetAssistant == nil,
-					changed:  a.OnSetAssistant,
+					disabled: busy || onSet == nil,
+					changed:  onSet,
 					compact:  true,
 				}, fg, muted)
-				// The dsh-whale catalog drives the rest of the page; the legacy
-				// assistant form is no longer rendered here.
-				petWhaleSection(c, colors, a, fg, muted)
+				if access := a.AssistantPreference; access != nil {
+					settingsNotice(c, "pet:125", "error", access.State.Error != "", func() string { return access.State.Error })
+					if access.State.RestartCancelled {
+						ui.Text(c, providerCopy("已取消切换，保留原设置。", "Change cancelled; the previous setting is retained.")).FillWidth().TextColor(muted)
+					}
+				}
+				if a.RenderAssistant != nil {
+					a.RenderAssistant(c)
+				} else {
+					petWhaleSection(c, colors, a, fg, muted)
+				}
 			}
 			return
 		}
@@ -141,7 +158,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		}
 		commit := func(field string) { savePetSetting(p, a, field) }
 		bodyHeading(c, providerCopy("外观", "Appearance"), "", fg, muted)
-		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on desktop"), providerCopy("关闭后隐藏桌面形象，随时可以再开。", "Hide the desktop character; you can show her again at any time."), &p.Enabled, disabled, fg, muted, func(bool) { commit("enabled") })
+		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on desktop"), providerCopy("关闭后隐藏桌面上的她，随时可以再开。", "Hide the on-screen companion; you can bring her back anytime."), &p.Enabled, disabled, fg, muted, func(bool) { commit("enabled") })
 		bodyPreferenceRow(c, "pet-scale-opacity", providerCopy("体型与不透明度", "Size & opacity"), "", fg, muted, func() {
 			percentage := func(label, field string, value *float64, choices []string) {
 				selected := fmt.Sprintf("%.0f%%", *value*100)
@@ -166,9 +183,9 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			percentage(providerCopy("体型", "Size"), "scale", &p.Behavior.Scale, []string{"60%", "80%", "100%", "120%", "140%", "160%"})
 			percentage(providerCopy("不透明度", "Opacity"), "opacity", &p.Behavior.Opacity, []string{"30%", "50%", "70%", "85%", "100%"})
 		})
-		bodyPreferenceRow(c, "pet-personality", providerCopy("性格", "Personality"), providerCopy("影响台词与「聊聊」语气，助理人格跟随同一设置。", "Affects dialogue and quick-chat tone; the assistant uses the same personality."), fg, muted, func() {
+		bodyPreferenceRow(c, "pet-personality", providerCopy("性格", "Personality"), providerCopy("影响她的台词与「聊聊」语气；助理人格跟随同一设置。", "Shapes her lines and chat tone; the assistant persona follows the same setting."), fg, muted, func() {
 			if petChoiceSelect(c, &p.Behavior.Personality, providerCopy("性格", "Personality"), []petChoice{
-				{"natural", "自然", "Natural"}, {"genki", "元气", "Energetic"}, {"tsundere", "傲娇", "Tsundere"}, {"poison", "毒舌", "Sharp-tongued"},
+				{"natural", "软萌", "Soft"}, {"genki", "元气", "Lively"}, {"tsundere", "傲娇", "Tsundere"}, {"poison", "毒舌", "Sharp-tongued"},
 			}, disabled) {
 				commit("personality")
 			}
@@ -176,7 +193,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		bodyHeading(c, providerCopy("行为", "Behavior"), "", fg, muted)
 		bodyPreferenceRow(c, "pet-activity", providerCopy("活跃频率", "Activity"), providerCopy("驱动自言自语与乱逛的间隔。", "Drives self-talk and wander intervals."), fg, muted, func() {
 			if petChoiceSelect(c, &p.Behavior.Activity, providerCopy("活跃频率", "Activity"), []petChoice{
-				{"quiet", "安静", "Quiet"}, {"balanced", "均衡", "Balanced"}, {"active", "活跃", "Active"},
+				{"quiet", "安静", "Quiet"}, {"balanced", "均衡", "Balanced"}, {"active", "活泼", "Lively"},
 			}, disabled) {
 				commit("activity")
 			}
@@ -195,7 +212,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				}
 			})
 		})
-		bodyPreferenceRow(c, "pet-drag-mode", providerCopy("拖拽方式", "Dragging"), providerCopy("自由拖动、按住 Shift，或锁定位置。", "Drag freely, hold Shift to drag, or lock the position."), fg, muted, func() {
+		bodyPreferenceRow(c, "pet-drag-mode", providerCopy("拖拽方式", "Dragging"), providerCopy("锁定后不能拖动她；Shift 模式需按住 Shift 拖。", "Locked pins her in place; Shift mode requires holding Shift."), fg, muted, func() {
 			selected := "free"
 			if p.Behavior.LockPosition {
 				selected = "locked"
@@ -203,23 +220,23 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				selected = "shift"
 			}
 			if petChoiceSelect(c, &selected, providerCopy("拖拽方式", "Dragging"), []petChoice{
-				{"free", "自由拖动", "Free"}, {"shift", "Shift 拖动", "Shift to drag"}, {"locked", "锁定位置", "Locked"},
+				{"free", "自由拖拽", "Free drag"}, {"shift", "按住 Shift 拖拽", "Hold Shift to drag"}, {"locked", "锁定位置", "Locked"},
 			}, disabled) {
 				p.Behavior.LockPosition = selected == "locked"
 				p.Behavior.ShiftToDrag = selected == "shift"
 				commit("drag")
 			}
 		})
-		bodyLocalToggle(c, "pet-power", providerCopy("省电模式", "Power save"), providerCopy("无交互约五分钟后降低帧率。", "Reduce the frame rate after about five idle minutes."), &p.Behavior.PowerSave, disabled, fg, muted, func(bool) { commit("powerSave") })
+		bodyLocalToggle(c, "pet-power", providerCopy("省电模式", "Power save"), providerCopy("无交互约 5 分钟后降低帧率。", "Lowers the frame rate after ~5 idle minutes."), &p.Behavior.PowerSave, disabled, fg, muted, func(bool) { commit("powerSave") })
 		bodyLocalToggle(c, "pet-sound", providerCopy("点击音效", "Click sound"), "", &p.Behavior.ClickSound, disabled, fg, muted, func(bool) { commit("clickSound") })
 		bodyHeading(c, providerCopy("联动", "Integrations"), "", fg, muted)
-		bodyLocalToggle(c, "pet-chat", providerCopy("快捷对话", "Quick chat"), providerCopy("右键面板中的「聊聊」对话卡。", "The quick-chat card in the context menu."), &p.Behavior.ChatEnabled, disabled, fg, muted, func(bool) { commit("chatEnabled") })
+		bodyLocalToggle(c, "pet-chat", providerCopy("快捷对话", "Quick chat"), providerCopy("右键面板的「聊聊」对话卡。", "The 「chat」card on her panel."), &p.Behavior.ChatEnabled, disabled, fg, muted, func(bool) { commit("chatEnabled") })
 		if a != nil {
 			petLookPane(c, p, a.Store, fg, muted, disabled)
 		}
 		reset := ui.Local(anchor, "confirm-reset", func() bool { return false })
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if widgets.Button(c, colors, providerCopy("恢复外观与行为默认", "Reset appearance and behavior"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall, Disabled: p.Store == nil || disabled}).Clicked() {
+			if widgets.Button(c, colors, providerCopy("恢复桌面形象与行为默认", "Reset desktop appearance & behavior"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall, Disabled: p.Store == nil || disabled}).Clicked() {
 				*reset = true
 			}
 		})

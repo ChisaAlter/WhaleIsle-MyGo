@@ -18,7 +18,9 @@ func TestEventDeliveryBoundAndNeverSerialized(t *testing.T) {
 	var calls atomic.Int32
 	c := &Client{Endpoint: Endpoint{Origin: "http://fixture.invalid"}, HTTP: &http.Client{Transport: deliveryRoundTrip(func(r *http.Request) (*http.Response, error) {
 		calls.Add(1)
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
+		_, rpcID := decodeEventResultRPC(t, r)
+		body, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": rpcID, "result": map[string]any{"ok": true}})
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body))), Header: make(http.Header)}, nil
 	})}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

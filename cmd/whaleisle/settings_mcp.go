@@ -112,6 +112,14 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 			},
 		},
 		Form: &settings.MCPFormAccess{
+			Open: snap.EditorOpen, JSONText: &snap.Draft, Error: snap.Err,
+			OnText: controller.SetDraft,
+			OnSaveJSON: func(text string) {
+				controller.SetDraft(text)
+				s.runMCPSettings(controller, func(ctx context.Context, caller mcpconfig.Caller) {
+					controller.SaveExpected(ctx, caller, text, snap.EditingID)
+				})
+			},
 			Draft: snap.Form, Errors: snap.FormErrors,
 			OnOpen:   func() { controller.OpenForm(); s.updateMCPSettingsUI() },
 			OnChange: func(form mcpconfig.FormDraft) { controller.SetForm(form); s.updateMCPSettingsUI() },
@@ -135,7 +143,8 @@ func (s *mainState) settingsMCPAccess() *settings.MCPAccess {
 		OnRefresh: func() {
 			s.runMCPSettings(controller, func(ctx context.Context, caller mcpconfig.Caller) { controller.RefreshConnections(ctx, caller) })
 		},
-		OnEdit:       func(id string) { controller.Edit(id); s.updateMCPSettingsUI() },
+		OnAdd:        func() { controller.NewForm(); s.updateMCPSettingsUI() },
+		OnEdit:       func(id string) { controller.OpenFormFor(id); s.updateMCPSettingsUI() },
 		OnCancelEdit: func() { controller.CancelEdit(); s.updateMCPSettingsUI() },
 		OnUpsert: func(text string) {
 			controller.SetDraft(text)

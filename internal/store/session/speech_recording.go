@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/voicecapture"
+	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/storelocale"
@@ -106,7 +107,7 @@ func (p SpeechRecordingPlan) Transcribe(ctx context.Context, raw []byte) (string
 	}
 	text := strings.TrimSpace(result.Text)
 	if text == "" {
-		return "", errors.New(storelocale.T(storelocale.KeyStoreSessionNoSpeechRecognized))
+		return "", voiceinput.ErrNoSpeech
 	}
 	if len(text) > 1<<20 {
 		return "", errors.New(storelocale.T(storelocale.KeyStoreSessionTranscriptTooLarge))

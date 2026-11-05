@@ -18,9 +18,9 @@ function publicPhoneDevices(snapshot) {
 // it never deletes older bootstrap tokens or changes sticky device identities.
 async function managePhoneDevice(remote, command, hooks) {
   const action = command.operation;
-  if (!['rename', 'unbind', 'rotate'].includes(action)) throw new Error('invalid-action');
+  if (!['rename', 'unbind', 'rotate', 'revoke-link'].includes(action)) throw new Error('invalid-action');
   if (!remote.daemon) throw new Error('runtime-offline');
-  if (action !== 'rotate') {
+  if (action !== 'rotate' && action !== 'revoke-link') {
     if (typeof command.deviceId !== 'string' || !publicPhoneDevices(remote.snapshot()).some(device => device.id === command.deviceId)) {
       throw new Error('device-missing');
     }
@@ -35,6 +35,10 @@ async function managePhoneDevice(remote, command, hooks) {
     return;
   }
   hooks.hideOffer();
+  if (action === 'revoke-link') {
+    await remote.revokePairingLink();
+    return;
+  }
   if (action === 'rotate') {
     await remote.rotateToken();
     return;

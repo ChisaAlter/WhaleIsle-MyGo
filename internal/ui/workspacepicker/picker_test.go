@@ -113,6 +113,100 @@ func TestRenameFocusAndBusyDismissal(t *testing.T) {
 	}
 }
 
+func TestRegistrationFailureHasIndependentRetryWithoutHeroAnchor(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	request := &session.WorkspaceNavigationState{Token: 7, Mode: "pick", Draft: "/host/new-workspace", Error: "Host registration refused"}
+	var retried string
+	var retriedToken uint64
+	model := Model{Store: session.New(), OnRegister: func(token uint64, path string) { retriedToken, retried = token, path }, OnBrowse: func() {}}
+	tt := ui.NewTester(func(c *ui.Context) { registrationDialog(c, model, request, theme.Resolve("system").Light) }, 600, 420)
+	if !tt.HasText(request.Error) || !tt.HasText(request.Draft) {
+		t.Fatal("registration target and failure were invisible without an anchor")
+	}
+	if err := tt.Click("Retry"); err != nil {
+		t.Fatal(err)
+	}
+	if retriedToken != 7 || retried != request.Draft {
+		t.Fatalf("retry target changed: %d %q", retriedToken, retried)
+	}
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(2 * time.Second))
+	saveSecondarySnapshot(t, tt, "workspace-registration-error.png")
+	request.Busy = true
+	tt.Frame()
+	if !tt.HasText("Adding…") {
+		t.Fatal("registration progress has no surface")
+	}
+	tt.Key(0, ui.KeyEscape)
+	if !tt.HasText("Adding…") {
+		t.Fatal("busy registration disappeared")
+	}
+}
+
+func TestPickerDirectoryActionRetainsOwnerAndHostPath(t *testing.T) {
+	store := session.New()
+	store.SetWorkspaceCwd("/host/project-root")
+	var adopted string
+	tt := ui.NewTester(func(c *ui.Context) {
+		anchor := ui.Button(c, "Chip").Height(32)
+		pickMenu(c, Model{Store: store, Anchor: anchor, DirectoryActions: []DirectoryAction{{ID: "extension.inspect", Label: "Inspect directory", Run: func(path string) { adopted = path }}}}, session.ViewState{WorkspaceReady: true}, &session.WorkspaceNavigationState{Mode: "pick", Token: 5}, theme.Resolve("system").Light)
+	}, 500, 320)
+	if err := tt.Click("Inspect directory"); err != nil {
+		t.Fatal(err)
+	}
+	if adopted != "/host/project-root" || store.SelectedSessionID() != "" {
+		t.Fatal("extension did not retain the directory path and its distinct owner")
+	}
+}
+
+func TestDirectoryActionOptionalPolicyPreservesExistingExtensions(t *testing.T) {
+	legacy := DirectoryAction{ID: "legacy", Label: "Legacy extension", Run: func(string) {}}
+	for _, picker := range []bool{false, true} {
+		if label, visible := legacy.Presentation("/any-path", picker); !visible || label != legacy.Label {
+			t.Fatal("optional policy changed an existing extension's default contract")
+		}
+	}
+	noPicker := false
+	action := DirectoryAction{ID: "scoped", Run: func(string) {}, Picker: &noPicker,
+		Visible: func(path string) bool { return path != "/refused" }, LabelForPath: func(path string) string { return "Inspect " + path }}
+	if _, visible := action.Presentation("/allowed", true); visible {
+		t.Fatal("row-only action leaked into picker")
+	}
+	if label, visible := action.Presentation("/allowed", false); !visible || label != "Inspect /allowed" {
+		t.Fatal("per-path label was lost")
+	}
+	if _, visible := action.Presentation("/refused", false); visible {
+		t.Fatal("per-path refusal was ignored")
+	}
+}
+
+func TestPickerHonorsDirectoryActionScopeAndFilteredKeyboardOrder(t *testing.T) {
+	store := session.New()
+	store.SetWorkspaceCwd("/host/current")
+	noPicker := false
+	var opened string
+	tt := ui.NewTester(func(c *ui.Context) {
+		anchor := ui.Button(c, "Chip").Height(32)
+		pickMenu(c, Model{Store: store, Anchor: anchor, DirectoryActions: []DirectoryAction{
+			{ID: "project.create", Label: "Open Project", Picker: &noPicker, Run: func(string) { t.Fatal("row-only Project picker action ran") }},
+			{ID: "refused", Label: "Hidden action", Visible: func(string) bool { return false }, Run: func(string) { t.Fatal("refused picker action ran") }},
+			{ID: "inspect", LabelForPath: func(path string) string { return "Inspect " + path }, Run: func(path string) { opened = path }},
+		}}, session.ViewState{WorkspaceReady: true}, &session.WorkspaceNavigationState{Mode: "pick", Token: 5}, theme.Resolve("system").Light)
+	}, 500, 320)
+	if tt.HasText("Open Project") || tt.HasText("Hidden action") {
+		t.Fatal("filtered directory action remained in picker")
+	}
+	if !tt.Focused("Inspect /host/current") {
+		t.Fatal("filtered actions consumed keyboard focus positions")
+	}
+	tt.Key(0, ui.KeyEnter)
+	if opened != "/host/current" {
+		t.Fatalf("picker route=%q", opened)
+	}
+}
+
 func saveSecondarySnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
 	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")

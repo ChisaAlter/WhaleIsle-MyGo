@@ -16,9 +16,6 @@ type servedModelRoute struct {
 
 func servedSubagentModels(c *ui.Context, s *store.Store, b *store.NamespaceBinding, state store.ViewState, fg, muted ui.Color) {
 	routes, loading, message := s.ModelConfigurationCatalog()
-	if loading {
-		ui.Text(c, providerCopy("正在读取模型目录…", "Loading model catalog…")).TextColor(muted)
-	}
 	if message != "" {
 		ui.Text(c, message).FillWidth().TextColor(c.Theme().Danger)
 	}

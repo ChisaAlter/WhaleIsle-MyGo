@@ -40,7 +40,7 @@
     afternoon: [14, 18], evening: [18, 23],
   };
   const CATEGORIES = [...IDLE_TOPICS, ...Object.keys(TIME_RANGES),
-    'sleepy', 'hungry', 'clingy', 'personalitySet'];
+    'sleepy', 'hungry', 'clingy', 'personalitySet', 'feedToken', 'feedTokenEat', 'feedTokenDone', 'fileEat', 'levelUp', 'pat'];
   const ACTION_SELECTOR = 'a,button,input,textarea,select,[role="button"],[contenteditable="true"],[data-pet-action]';
   const BODY_SELECTOR = '#sprite,#fallback';
   const DEFAULTS = { personality: 'natural', activity: 'balanced', selfTalk: true, powerSave: false };
@@ -139,7 +139,7 @@
     }
 
     function occupied(status) {
-      return !status || sleeping(status) || status.QuickChatOpen === true || ['Care', 'Chat', 'Look', 'Growth']
+      return !status || window.whalePetStageBusy || !document.getElementById('pet-status-card').hidden || sleeping(status) || status.QuickChatOpen === true || ['Care', 'Chat', 'Look', 'Growth']
         .some(key => status[key] && status[key].Busy === true);
     }
 
@@ -211,6 +211,13 @@
         Math.min(2200 + Array.from(text).length * 90, 5600));
     }
 
+    function reaction(event){
+      if(closed||!bubble||document.hidden)return;
+      const text=phrase(event.detail?.category).replace(/\{(file)\}/g,(_,key)=>String(event.detail?.values?.[key]||''));
+      if(!text)return;clearOwnBubble();ownedText=text;bubble.textContent=text;bubble.hidden=false;
+      window.dispatchEvent(new Event('whale-pet-surfaces'));
+      bubbleTimer=setTimeout(clearOwnBubble,Math.min(2200+Array.from(text).length*90,5600));
+    }
     function category(now, status) {
       // Upstream eases drowsiness toward one at 0.6/sec after 90 idle seconds.
       const sleepy = 1 - Math.exp(-0.6 * Math.max(0, now - lastInteraction - 90000) / 1000);
@@ -254,7 +261,7 @@
       if (closed) return;
       const previous = settings;
       settings = normalized(next, settings);
-      if (!settings.selfTalk || document.hidden || occupied(readStatus())) clearOwnBubble();
+      if (document.hidden || (!window.whalePetStageBusy && (!settings.selfTalk || occupied(readStatus())))) clearOwnBubble();
       if (settings.activity !== previous.activity || settings.selfTalk !== previous.selfTalk) schedule(true);
       if (settings.personality !== previous.personality) {
         speak('personalitySet', performance.now(), readStatus());
@@ -291,6 +298,7 @@
       document.removeEventListener('keydown', touch);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', close);
+      window.removeEventListener('whale-pet-reaction',reaction);
     }
 
     document.addEventListener('pointerover', onPointerOver);
@@ -301,6 +309,7 @@
     document.addEventListener('keydown', touch);
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', close, { once: true });
+    window.addEventListener('whale-pet-reaction',reaction);
     // Fixed packaged data only. Redirects and cross-origin fetches are refused.
     void fetch(new URL('pet-dialogue.json', window.location.href), {
       mode: 'same-origin', credentials: 'omit', redirect: 'error', signal: controller.signal,

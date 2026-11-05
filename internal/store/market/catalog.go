@@ -25,6 +25,7 @@ type discoveryState struct {
 	revision, requestID, detailID                           uint64
 	cancel, detailCancel                                    context.CancelFunc
 	page                                                    int
+	expanded                                                bool
 }
 type Discovery struct {
 	Catalog                                           desktopmarket.Catalog
@@ -104,6 +105,7 @@ func (s *Store) RefreshCatalog(force bool, locale string) {
 			d.catalog = cat
 			d.revision++
 			d.page = 0
+			d.expanded = false
 			d.details = desktopmarket.Details{}
 			d.detailsErr = ""
 			d.detailsLoading = false
@@ -115,6 +117,9 @@ func (s *Store) RefreshCatalog(force bool, locale string) {
 		}
 		s.mu.Unlock()
 		s.fire()
+		if e == nil {
+			s.checkUpdatesWhenReady()
+		}
 	}()
 }
 func (s *Store) Discovery() Discovery {
@@ -148,11 +153,17 @@ func (s *Store) Discovery() Discovery {
 	out.Rows = filterCatalogListings(out.Rows, d.sort, d.period, time.Now())
 	out.Total = len(out.Rows)
 	start := d.page * 60
+	if d.expanded {
+		start = 0
+	}
 	if start >= len(out.Rows) {
 		start = 0
 		out.Page = 0
 	}
 	end := start + 60
+	if d.expanded {
+		end = (d.page + 1) * 60
+	}
 	if end > len(out.Rows) {
 		end = len(out.Rows)
 	}
@@ -168,12 +179,14 @@ func (s *Store) SetQuery(q string) {
 	s.mu.Lock()
 	s.discovery.query = q
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.mu.Unlock()
 }
 func (s *Store) SetCategory(category string) {
 	s.mu.Lock()
 	s.discovery.category = category
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.mu.Unlock()
 	s.fire()
 }
@@ -181,6 +194,7 @@ func (s *Store) SetTab(tab string) {
 	s.mu.Lock()
 	s.discovery.tab = tab
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.discovery.selected = ""
 	s.mu.Unlock()
 	s.fire()
@@ -191,6 +205,17 @@ func (s *Store) SetPage(page int) {
 		page = 0
 	}
 	s.discovery.page = page
+	s.discovery.expanded = false
+	s.mu.Unlock()
+	s.fire()
+}
+
+// ShowMore appends the next catalog batch without replacing visible cards.
+// SetPage remains the explicit page-selection API for existing callers.
+func (s *Store) ShowMore() {
+	s.mu.Lock()
+	s.discovery.expanded = true
+	s.discovery.page++
 	s.mu.Unlock()
 	s.fire()
 }
@@ -206,6 +231,7 @@ func (s *Store) CloseDetails() {
 	s.mu.Unlock()
 	s.fire()
 }
+
 var detailTimeout = 15 * time.Second
 
 func (s *Store) SelectDetails(id string, force bool) {

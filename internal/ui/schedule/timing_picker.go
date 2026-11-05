@@ -3,10 +3,10 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +17,14 @@ import (
 )
 
 type timingPickerState struct {
-	calendarOpen bool
-	month        time.Time
-	rawCron      bool
+	calendarOpen  bool
+	month         time.Time
+	calendarDay   int
+	calendarFocus bool
+	calendarCells [32]ui.Handle
+	rawCron       bool
+	clock         scheduleClockPicker
+	zone          scheduleZonePicker
 }
 
 func calendarCells(month time.Time) []int {
@@ -149,144 +154,21 @@ func rememberZone(recent []string, zone string) []string {
 	}
 	return next
 }
-func clockPicker(c *ui.Context, clock string, seconds bool, onPick func(string)) {
-	labels := []string{i18n.T(i18n.KeyMiscScheduleHour), i18n.T(i18n.KeyMiscScheduleMinute), i18n.T(i18n.KeyMiscScheduleSecond)}
-	count := 3
-	if !seconds {
-		count = 2
-	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		for col := 0; col < count; col++ {
-			n := 60
-			if col == 0 {
-				n = 24
-			}
-			value := "00"
-			if len(clock) >= col*3+2 {
-				value = clock[col*3 : col*3+2]
-			}
-			options := make([]string, n)
-			for i := range options {
-				options[i] = fmt.Sprintf("%02d", i)
-			}
-			// A wall-clock minute is chosen in quarter hours; a minute that came
-			// from an existing cron keeps its place in the list.
-			if col == 1 && !seconds {
-				options = minuteMarks(value)
-			}
-			ui.Column(c).Gap(3).Children(func() {
-				ui.Text(c, labels[col])
-				if ui.Select(c, &value, options).Changed() {
-					onPick(clockPick(clock, col, value))
-				}
-			})
-		}
-	})
-}
-func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
-	if p.recentZones == nil {
-		p.recentZones = loadRecentZones(systemScheduleZone())
-	}
-	selectZone := func(zone string) {
-		if _, err := time.LoadLocation(zone); err != nil {
-			p.message(i18n.T(i18n.KeyMiscScheduleChooseAValidIanaZone))
-			return
-		}
-		if d.Kind == "at" {
-			date, clock := d.wallClock()
-			if err := d.pickWallClock(date, clock, zone); err != nil {
-				p.message(err.Error())
-				return
-			}
-		} else {
-			d.Zone = zone
-		}
-		p.recentZones = rememberZone(loadRecentZones(systemScheduleZone()), zone)
-	}
-	ui.Text(c, i18n.T(i18n.KeyMiscScheduleTimeZone)+d.Zone)
-	ui.Column(c).Gap(4).Children(func() {
-		for _, zone := range p.recentZones {
-			if ui.Button(c, zone).Clicked() {
-				selectZone(zone)
-			}
-		}
-	})
-	zone := d.Zone
-	if ui.Combobox(c, &zone, scheduleZoneNames).Label(i18n.T(i18n.KeyMiscScheduleSearchTimeZones)).FillWidth().Changed() {
-		selectZone(zone)
-	}
-
-}
-func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
-	date, clock := d.wallClock()
-	if ui.Button(c, i18n.T(i18n.KeyMiscScheduleDate)+date).Clicked() {
-		d.picker.calendarOpen = !d.picker.calendarOpen
-		selected, _ := time.Parse("2006-01-02", date)
-		d.picker.month = time.Date(selected.Year(), selected.Month(), 1, 0, 0, 0, 0, time.UTC)
-	}
-	if d.picker.calendarOpen {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-			if ui.Button(c, "‹").Clicked() {
-				d.picker.month = d.picker.month.AddDate(0, -1, 0)
-			}
-			ui.Text(c, d.picker.month.Format("2006-01"))
-			if ui.Button(c, "›").Clicked() {
-				d.picker.month = d.picker.month.AddDate(0, 1, 0)
-			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscScheduleClose)).Clicked() {
-				d.picker.calendarOpen = false
-			}
-		})
-		ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-			for _, label := range []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"} {
-				ui.Text(c, label).Grow(1).MinWidth(0).TextAlign(ui.Center).FontSize(11)
-			}
-		})
-		cells := calendarCells(d.picker.month)
-		for row := 0; row < len(cells); row += 7 {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-				for _, day := range cells[row : row+7] {
-					if day == 0 {
-						ui.Text(c, "").Grow(1).MinWidth(0)
-						continue
-					}
-					picked := fmt.Sprintf("%04d-%02d-%02d", d.picker.month.Year(), d.picker.month.Month(), day)
-					label := strconv.Itoa(day)
-					if picked == date {
-						label = "[" + label + "]"
-					}
-					if ui.Button(c, label).Grow(1).MinWidth(0).Padding(0).Height(28).Clicked() {
-						if err := d.pickWallClock(picked, clock, d.Zone); err != nil {
-							p.message(err.Error())
-						} else {
-							d.picker.calendarOpen = false
-						}
-					}
-				}
-			})
-		}
-	}
-	clockPicker(c, clock, true, func(value string) {
-		if err := d.pickWallClock(date, value, d.Zone); err != nil {
-			p.message(err.Error())
-		}
-	})
-}
-func dayPills(c *ui.Context, days []int, max int, onPick func([]int)) {
-	for start := 1; start <= max; start += 7 {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-			for day := start; day < start+7 && day <= max; day++ {
+func dayPills(c *ui.Context, days []int, maximum int, onPick func([]int)) {
+	for start := 1; start <= maximum; start += 7 {
+		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).Gap(4).Padding(6, 0).Children(func() {
+			for day := start; day < start+7 && day <= maximum; day++ {
+				day := day
 				label := strconv.Itoa(day)
-				if max == 7 {
-					label = []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}[day-1]
+				if maximum == 7 {
+					label = catalogWeekday(day, i18n.Locale())
 				}
-				for _, selected := range days {
-					if selected == day {
-						label = "[" + label + "]"
-						break
-					}
+				selected := slices.Contains(days, day)
+				button := ui.Button(c, label).Label(label).Selected(selected).MinWidth(28).Height(28).Padding(0, 6).Radius(14).BorderWidth(0).Background(ui.Transparent).FontSize(13)
+				if selected {
+					button.Background(c.Theme().SurfaceHover).Border(1, c.Theme().Border)
 				}
-				if ui.Button(c, label).Clicked() {
+				if button.Clicked() {
 					onPick(toggleNumber(days, day))
 				}
 			}
@@ -296,9 +178,15 @@ func dayPills(c *ui.Context, days []int, max int, onPick func([]int)) {
 func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 	if !editable {
 		d.picker.calendarOpen = false
-		ui.Text(c, i18n.T(i18n.KeyMiscScheduleTimingIsReadOnly))
-		return
+		d.picker.clock.open = false
+		d.picker.zone.open = false
 	}
+	ui.Column(c.Key("schedule-timing-editor")).FillWidth().MinWidth(0).Gap(0).Disabled(!editable).Children(func() {
+		p.timingEditorBody(c, d)
+	})
+}
+
+func (p *Panel) timingEditorBody(c *ui.Context, d *taskDraft) {
 	choice := d.Kind
 	if choice == "every" {
 		switch d.intervalUnit {
@@ -312,7 +200,16 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 	} else if choice == "weekly" && d.weekdayShortcut {
 		choice = "weekdays"
 	}
-	if ui.Select(c, &choice, []string{"at", "every-second", "every-minute", "every-hour", "daily", "weekdays", "weekly", "cron"}).Changed() {
+	if scheduleChoice(c, "schedule-rule-repeat", scheduleText("重复", "Repeat"), &choice, []scheduleChoiceOption{
+		{"at", scheduleText("仅一次", "Once")},
+		{"every-second", scheduleText("每隔若干秒", "Every N seconds")},
+		{"every-minute", scheduleText("每隔若干分钟", "Every N minutes")},
+		{"every-hour", scheduleText("每隔若干小时", "Every N hours")},
+		{"daily", scheduleText("每天", "Every day")},
+		{"weekdays", scheduleText("周一至周五", "Monday to Friday")},
+		{"weekly", scheduleText("每周", "Weekly")},
+		{"cron", scheduleText("自定义", "Custom")},
+	}) {
 		switch choice {
 		case "every-second", "every-minute", "every-hour":
 			d.chooseKind("every")
@@ -335,6 +232,12 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 	switch d.Kind {
 	case "at":
 		p.datePicker(c, d)
+		date, clock := d.wallClock()
+		clockPicker(c, &d.picker.clock, clock, true, func(value string) {
+			if err := d.pickWallClock(date, value, d.Zone); err != nil {
+				p.message(scheduleText("该日期和时间在所选时区中不存在，请调整后重试。", "This date and time do not exist in the selected time zone. Adjust them and try again."))
+			}
+		})
 		p.zonePicker(c, d)
 	case "every":
 		factor := max(1, d.intervalUnit)
@@ -343,29 +246,53 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 		if err == nil {
 			quantity = strconv.FormatFloat(seconds/float64(factor), 'f', -1, 64)
 		}
-		ui.Text(c, scheduleText("重复间隔", "Repeat interval"))
-		if ui.TextInput(c, &quantity).Label("Task repeat interval").FillWidth().Changed() {
-			if value, err := strconv.ParseFloat(quantity, 64); err == nil && !math.IsNaN(value) && !math.IsInf(value, 0) {
-				d.Seconds = strconv.FormatFloat(math.Round(value*float64(factor)), 'f', 0, 64)
-			} else {
-				d.Seconds = quantity
+		scheduleRuleRow(c, scheduleText("间隔", "Interval"), true, func() {
+			stepper := ui.Row(c).MinWidth(72).Height(32).Radius(16).Gap(2).AlignItems(ui.Center)
+			if stepper.Hovered() || stepper.FocusWithin() {
+				stepper.Background(c.Theme().SurfaceHover)
 			}
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			for _, delta := range []int{-1, 1} {
-				label := "+"
-				if delta < 0 {
-					label = "−"
+			stepper.Children(func() {
+				if ui.TextInputBase(c, &quantity).Label("Task repeat interval").Width(max(float32(72), float32(len(quantity))*8+52)).Height(32).Padding(0, 26).TextAlign(ui.Center).FontSize(14).Changed() {
+					if value, err := strconv.ParseFloat(quantity, 64); err == nil && !math.IsNaN(value) && !math.IsInf(value, 0) {
+						d.Seconds = strconv.FormatFloat(math.Round(value*float64(factor)), 'f', 0, 64)
+					} else {
+						d.Seconds = quantity
+					}
 				}
-				if ui.Button(c, label).Label("Adjust task interval " + label).Clicked() {
-					value, _ := strconv.Atoi(d.Seconds)
-					d.Seconds = strconv.Itoa(max(60, value+delta*factor))
+				if stepper.Hovered() || stepper.FocusWithin() {
+					ui.Column(c).Absolute().Right(8).Gap(2).Children(func() {
+						for _, delta := range []int{1, -1} {
+							delta := delta
+							label := scheduleText("增加间隔", "Increase interval")
+							if delta < 0 {
+								label = scheduleText("减少间隔", "Decrease interval")
+							}
+							button := ui.Button(c, "").Label(label).Size(17, 12).Padding(0).Radius(3).BorderWidth(0).Background(c.Theme().Surface)
+							button.Children(func() {
+								icon := ui.Icon(c, scheduleChevron).Size(9, 9)
+								if delta > 0 {
+									icon.Rotate(180)
+								}
+							})
+							if button.Clicked() {
+								value, _ := strconv.Atoi(d.Seconds)
+								d.Seconds = strconv.Itoa(max(factor, 60, value+delta*factor))
+							}
+						}
+					})
 				}
+			})
+			unit := scheduleText("秒", "seconds")
+			if factor == 60 {
+				unit = scheduleText("分钟", "minutes")
 			}
+			if factor == 3600 {
+				unit = scheduleText("小时", "hours")
+			}
+			ui.Text(c, unit).FontSize(14)
 		})
+
 	case "daily", "weekly":
-		clockPicker(c, d.Clock, true, func(value string) { d.Clock = value })
-		p.zonePicker(c, d)
 		if d.Kind == "weekly" {
 			days := []int{}
 			for _, part := range strings.Split(d.Weekdays, ",") {
@@ -373,15 +300,22 @@ func (p *Panel) timingEditor(c *ui.Context, d *taskDraft, editable bool) {
 					days = append(days, n)
 				}
 			}
-			dayPills(c, days, 7, func(values []int) {
-				d.weekdayShortcut = false
-				parts := []string{}
-				for _, n := range values {
-					parts = append(parts, strconv.Itoa(n))
-				}
-				d.Weekdays = strings.Join(parts, ",")
+			scheduleRuleRow(c, scheduleText("星期", "Weekdays"), false, func() {
+				ui.Column(c).MinWidth(0).MaxWidthPercent(80).Children(func() {
+					dayPills(c, days, 7, func(values []int) {
+						d.weekdayShortcut = false
+						parts := []string{}
+						for _, n := range values {
+							parts = append(parts, strconv.Itoa(n))
+						}
+						d.Weekdays = strings.Join(parts, ",")
+					})
+				})
 			})
 		}
+		clockPicker(c, &d.picker.clock, d.Clock, true, func(value string) { d.Clock = value })
+		p.zonePicker(c, d)
+
 	case "cron":
 		p.cronEditor(c, d)
 		p.zonePicker(c, d)
@@ -394,7 +328,14 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 	if err == nil && recognized && !d.picker.rawCron {
 		choice = shape.kind
 	}
-	if ui.Select(c, &choice, []string{"monthly", "weekly", "daily", "hourly", "minutely", "raw"}).Changed() {
+	if scheduleChoice(c, "schedule-cron-frequency", scheduleText("频率", "Frequency"), &choice, []scheduleChoiceOption{
+		{"monthly", scheduleText("每月", "Monthly")},
+		{"weekly", scheduleText("每周", "Weekly")},
+		{"daily", scheduleText("每天", "Every day")},
+		{"hourly", scheduleText("每隔若干小时", "Every N hours")},
+		{"minutely", scheduleText("每隔若干分钟", "Every N minutes")},
+		{"raw", scheduleText("Cron 表达式", "Cron expression")},
+	}) {
 		d.picker.rawCron = choice == "raw"
 		if choice != "raw" {
 			date, clock := d.wallClock()
@@ -425,7 +366,9 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 		}
 	}
 	if choice == "raw" {
-		ui.TextInput(c, &d.Expression).FillWidth().Placeholder("minute hour day month weekday")
+		scheduleRuleRow(c, scheduleText("表达式", "Expression"), false, func() {
+			ui.TextInputBase(c, &d.Expression).Label("Cron expression").WidthPercent(70).MinWidth(0).Height(32).Padding(0, 8).Placeholder("minute hour day month weekday").FontSize(14)
+		})
 	} else {
 		update := func() { d.Expression = shape.expression() }
 		if choice == "minutely" || choice == "hourly" {
@@ -438,8 +381,11 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 				options[i] = strconv.Itoa(i + 1)
 			}
 			step := strconv.Itoa(shape.step)
-			ui.Text(c, i18n.T(i18n.KeyMiscScheduleEvery))
-			if ui.Select(c, &step, options).Changed() {
+			choices := make([]scheduleChoiceOption, len(options))
+			for i, v := range options {
+				choices[i] = scheduleChoiceOption{v, v}
+			}
+			if scheduleChoice(c, "cron-step", i18n.T(i18n.KeyMiscScheduleEvery), &step, choices) {
 				shape.step, _ = strconv.Atoi(step)
 				update()
 			}
@@ -450,14 +396,17 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 			for i := range options {
 				options[i] = fmt.Sprintf("%02d", i)
 			}
-			ui.Text(c, i18n.T(i18n.KeyMiscScheduleMinute2))
-			if ui.Select(c, &minute, options).Changed() {
+			choices := make([]scheduleChoiceOption, len(options))
+			for i, v := range options {
+				choices[i] = scheduleChoiceOption{v, v}
+			}
+			if scheduleChoice(c, "cron-minute", i18n.T(i18n.KeyMiscScheduleMinute2), &minute, choices) {
 				shape.minute, _ = strconv.Atoi(minute)
 				update()
 			}
 		}
 		if choice == "daily" || choice == "weekly" || choice == "monthly" {
-			clockPicker(c, fmt.Sprintf("%02d:%02d:00", shape.hour, shape.minute), false, func(value string) {
+			clockPicker(c, &d.picker.clock, fmt.Sprintf("%02d:%02d:00", shape.hour, shape.minute), false, func(value string) {
 				shape.hour, _ = strconv.Atoi(value[:2])
 				shape.minute, _ = strconv.Atoi(value[3:5])
 				update()
@@ -474,12 +423,12 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 	}
 	muted := c.Theme().TextMuted
 	if parsed, err := parseTaskCron(d.Expression); err != nil {
-		// The parser speaks for itself; a wrong expression is shown where it is
-		// edited, next to the field that produced it.
-		ui.Text(c, err.Error()).FontSize(12).TextColor(c.Theme().Danger)
+		// Keep the parser's diagnostics internal; the editor names the accepted
+		// shape and a usable example beside the field that produced it.
+		ui.Text(c, scheduleText("请输入有效的五字段 Cron 表达式，例如 0 9 * * 1-5。", "Enter a five-field cron expression, for example 0 9 * * 1-5.")).FontSize(12).TextColor(c.Theme().Danger)
 		return
 	} else {
-		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+parsed.preview()+" · "+d.Zone).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+catalogCronPreview(parsed, i18n.Locale())+" · "+formatCatalogZone(d.Zone, time.Now(), i18n.Locale())).FontSize(12).TextColor(muted)
 		loc := time.UTC
 		if loaded, err := time.LoadLocation(d.Zone); err == nil {
 			loc = loaded

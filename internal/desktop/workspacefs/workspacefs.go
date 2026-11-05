@@ -20,6 +20,10 @@ const DefaultMaxReadBytes = 512 * 1024
 type Entry struct {
 	Name  string
 	IsDir bool
+	// Other preserves the Host's non-file/non-directory kind. An omitted kind
+	// keeps the existing local/legacy file contract; an explicit special entry
+	// must never be offered as an ordinary document resource.
+	Other bool
 }
 
 // ListDir lists immediate children using the original visibility policy.

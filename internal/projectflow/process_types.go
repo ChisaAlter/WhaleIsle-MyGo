@@ -10,6 +10,7 @@ type ProcessRecord struct {
 	Event struct {
 		Type string          `json:"type"`
 		Seq  float64         `json:"seq"`
+		Time float64         `json:"time"`
 		Data json.RawMessage `json:"data"`
 	} `json:"event"`
 }

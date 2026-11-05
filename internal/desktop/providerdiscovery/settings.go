@@ -253,6 +253,9 @@ func mergeCandidates(models []map[string]any, candidates []Candidate) []map[stri
 		if candidate.InputModalities != nil {
 			m["input"] = append([]string{}, candidate.InputModalities...)
 		}
+		if candidate.ReasoningEfforts != nil {
+			m["reasoningEfforts"] = candidate.ReasoningEfforts
+		}
 		out = append(out, m)
 	}
 	return out

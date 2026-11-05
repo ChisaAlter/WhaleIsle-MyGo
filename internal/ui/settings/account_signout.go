@@ -16,7 +16,7 @@ func signOutText(zh, en string) string {
 func signOutError(code string) string {
 	switch code {
 	case accountlogout.ErrorIdentityUnavailable:
-		return signOutText("无法核验当前账户身份，未发送退出请求。请刷新账户后重新操作。", "Could not verify the current account identity. No sign-out request was sent. Refresh the account and try again.")
+		return signOutText("无法读取 Host 的本地账户状态，未发送退出请求。请重新连接后再试。", "Could not read the Host's local account state. Reconnect and try again.")
 	case accountlogout.ErrorAccountChanged:
 		return signOutText("账户身份已改变，旧确认已失效。请重新打开退出确认。", "The account changed, so the previous confirmation is no longer valid. Open a new sign-out review.")
 	case accountlogout.ErrorImpactChanged:
@@ -30,15 +30,14 @@ func signOutError(code string) string {
 }
 func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 	s := a.SignOut
-	if s.Error != "" {
-		ui.Text(c, signOutError(s.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
 	if !s.Open {
 		return
 	}
 	open := true
-	bodyDialog(c, &open, signOutText("退出账户", "Sign out"), func() {
-		ui.Text(c, signOutText("确认退出账户", "Confirm account sign-out")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	accountDialog(c, &open, signOutText("退出账户", "Sign out"), 380, s.Busy, func() {
+		if s.Error != "" {
+			ui.Text(c, signOutError(s.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		}
 		if s.AccountID != "" {
 			ui.Text(c, signOutText("账户：", "Account: ")+s.AccountID).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
@@ -50,9 +49,7 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 			message = signOutText("暂时无法确认任务状态。退出登录可能会中断使用此账号的任务，是否继续？", "Could not check running tasks. Signing out may interrupt tasks using this account. Continue?")
 		}
 		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		if s.Busy {
-			ui.Text(c, signOutText("正在处理，请稍候…", "Working, please wait…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		}
+	}, func() {
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			cancel := signOutText("取消", "Cancel")
 			if s.Unknown {
@@ -65,7 +62,7 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 				if a.OnCheckSignOut != nil && ui.Button(c, signOutText("检查退出结果", "Check sign-out result")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() {
 					a.OnCheckSignOut()
 				}
-			} else if a.OnConfirmSignOut != nil && ui.Button(c, signOutText("确认退出账户", "Confirm sign out")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || s.AccountID == "").Clicked() {
+			} else if a.OnConfirmSignOut != nil && ui.Button(c, signOutText("确认退出账户", "Confirm sign out")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() {
 				a.OnConfirmSignOut()
 			}
 		})
@@ -73,4 +70,14 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 	if !open && !s.Busy && a.OnCancelSignOut != nil {
 		a.OnCancelSignOut()
 	}
+}
+
+// AccountSignOutDialog is owned by the resident account surface, not Settings.
+func AccountSignOutDialog(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
+	seen := ui.Local(c.Root(), "account-signout-error", func() string { return "" })
+	if !a.SignOut.Open && a.SignOut.Error != "" && *seen != a.SignOut.Error {
+		c.AddToast(ui.Toast{ID: "account-signout-error", Description: signOutError(a.SignOut.Error)})
+	}
+	*seen = a.SignOut.Error
+	accountSignOutPane(c, a, fg, muted)
 }

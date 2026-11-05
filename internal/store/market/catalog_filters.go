@@ -14,6 +14,7 @@ func (s *Store) SetSort(value string) {
 	s.mu.Lock()
 	s.discovery.sort = value
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.mu.Unlock()
 	s.fire()
 }
@@ -25,6 +26,7 @@ func (s *Store) SetPeriod(value string) {
 	s.mu.Lock()
 	s.discovery.period = value
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.mu.Unlock()
 	s.fire()
 }

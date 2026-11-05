@@ -26,11 +26,17 @@ func (s *mainState) syncPluginContributions(visible bool) {
 func (s *mainState) suspendPluginContributions() {
 	s.mu.Lock()
 	owner := s.nativePlugins.contributions
+	store := s.settings
+	hadForm := s.nativePlugins.formSubject != (manager.Subject{})
+	s.nativePlugins.formSubject = manager.Subject{}
 	s.nativePlugins.contributions = nil
 	s.nativePlugins.contributionError = ""
 	s.nativePlugins.contributionGeneration = 0
 	s.nativePlugins.contributionOrigin, s.nativePlugins.contributionCookie = "", ""
 	s.mu.Unlock()
+	if hadForm && store != nil {
+		store.LeaveServedForms()
+	}
 	if owner != nil {
 		owner.Close()
 	}
@@ -59,6 +65,7 @@ func (s *mainState) nativePluginContributions() (*pluginui.Owner, string) {
 	owner, err := pluginui.New(pluginui.Options{
 		Parent: win, Origin: st.Endpoint.Origin, Cookie: st.Endpoint.Cookie,
 		Changed:          func() { win.Update(func() {}) },
+		OnFailure:        s.onEmbeddedPageFailure,
 		PermissionPolicy: desktopwebview.PermissionPolicy{SessionHost: true, NotificationsAllowed: systemNotificationsSupported}.Decide,
 	})
 	s.mu.Lock()
@@ -157,6 +164,9 @@ func renderPluginContributionSurface(c *ui.Context, owner *pluginui.Owner, slot 
 	snapshot := owner.Snapshot()
 	open := ui.Column(c.Key("host-contribution-" + slot)).FillWidth().MinWidth(0).Gap(8)
 	open.Children(func() {
+		if owner.RenderNativeSlot(c, slot, "", -1) {
+			return
+		}
 		if snapshot.Surface != slot {
 			if ui.Button(c, i18n.T(i18n.KeyCmdPluginContentOpen)).Clicked() {
 				owner.Show(slot)
@@ -186,6 +196,7 @@ func pluginCopy(zh, en string) string {
 }
 
 func pluginContributionNotice(c *ui.Context, owner *pluginui.Owner, message string) {
+	pluginModuleFailures(c, owner)
 	if message != "" {
 		ui.Text(c, fmt.Sprintf(pluginCopy("插件内容未连接：%s", "Plugin content unavailable: %s"), message)).FillWidth().TextColor(c.Theme().Warning)
 	}

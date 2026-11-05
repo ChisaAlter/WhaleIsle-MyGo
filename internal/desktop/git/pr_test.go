@@ -159,12 +159,15 @@ func TestCheckoutPR_fakeRunner(t *testing.T) {
 func TestViewPR_fakeRunnerJSON(t *testing.T) {
 	root := t.TempDir()
 	run := func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-		return []byte(`{"number":1,"title":"Hi","url":"https://example.com/p/1","state":"OPEN"}`), nil
+		if args[0] == "repo" {
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
+		}
+		return []byte(`{"number":1,"title":"Hi","url":"https://github.com/example/project/pull/1","state":"OPEN"}`), nil
 	}
 	st := viewPR(context.Background(), root, func(string) (string, error) {
 		return "gh", nil
 	}, run)
-	if !st.OK || st.URL != "https://example.com/p/1" || st.Summary != "#1 Hi [OPEN]" {
+	if !st.OK || st.URL != "https://github.com/example/project/pull/1" || st.Summary != "#1 Hi [OPEN]" {
 		t.Fatalf("%+v", st)
 	}
 }

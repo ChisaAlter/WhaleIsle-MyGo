@@ -19,6 +19,7 @@ func ModalView(c *ui.Context, m Model) {
 	w, h := c.Size()
 	w, h = settingsModalSize(w, h)
 	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
+		ui.ShortcutModalScope(panel, "settings")
 		dark := resolved.Scheme == theme.SchemeDark || resolved.Scheme == theme.SchemeSystem && m.SystemDark
 		mask := ui.RGBA(0, 0, 0, .24)
 		if dark {
@@ -46,6 +47,7 @@ func ModalView(c *ui.Context, m Model) {
 		})
 	})
 	if !open && m.OnClose != nil {
+		ClearPreferenceErrorNotices(c)
 		m.OnClose()
 	}
 }

@@ -71,6 +71,53 @@ func TestConversationFooterStaysInsideNativeViewport(t *testing.T) {
 	}
 }
 
+// The Electron dock keeps its min-height seat even when both statistics
+// switches are off (.dock[data-composer-footer] + invisible pill
+// placeholders): the card must never sit flush on the window edge.
+func TestConversationFooterKeepsSeatWhenStatsHidden(t *testing.T) {
+	i18n.SetLocale("zh")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, prefs := range []json.RawMessage{
+		json.RawMessage(`{"statsLine":false,"sessionCost":false}`),
+		json.RawMessage(`{"statsLine":true,"sessionCost":false}`),
+	} {
+		sizes := DefaultLayout()
+		sizes.Bottom = 0
+		draft := ""
+		state := composer.NewDraftState("")
+		costState := costui.State{}
+		preferences := settings.ViewState{Namespaces: []settings.Namespace{{NS: "ui-conversation", Value: prefs}}}
+		store := session.New()
+		store.Select("current")
+		store.AppendStreamDelta("user", "one persisted message")
+		const height = 800
+		tt := ui.NewTester(func(c *ui.Context) {
+			originalScrollbarTheme(c)
+			ui.Column(c).Fill().Children(func() {
+				MainCaptionFileDrop(c, Model{Store: store, Sizes: &sizes}, func() { ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()) })
+				ui.Column(c).Grow(1).MinHeight(0).Children(func() {
+					View(c, Model{Store: store, Sizes: &sizes, Draft: &draft, ComposerState: state,
+						UseComposerTextInput: true, ComposerTextInput: state.Client, ThemeID: theme.IDDeepseekLight, SessionCost: costui.Model{State: &costState, Preferences: preferences}})
+				})
+			})
+		}, 1200, height)
+		dock, ok := tt.Find("Composer dock")
+		if !ok {
+			t.Fatalf("dock seat missing with prefs %s", prefs)
+		}
+		if dock.H < 24 {
+			t.Fatalf("dock seat shorter than the 24 DIP floor: %+v", dock)
+		}
+		card, ok := tt.Find("Composer card")
+		if !ok || card.Y+card.H > dock.Y {
+			t.Fatalf("card=%+v overlaps dock=%+v", card, dock)
+		}
+		if dock.Y-(card.Y+card.H) < 4 {
+			t.Fatalf("card touches the dock: card=%+v dock=%+v", card, dock)
+		}
+	}
+}
+
 // textsContain reports whether any rendered text contains want, for copy the
 // composer composes from several locale keys.
 func textsContain(texts []string, want string) bool {

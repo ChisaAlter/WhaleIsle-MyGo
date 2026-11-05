@@ -261,13 +261,14 @@ func TestInspectorVisibleOccurrencesShareCurrentChatProjection(t *testing.T) {
 
 func TestInspectorInactivePageCancelsGesturesAndCachedProjection(t *testing.T) {
 	p := &SessionInspectorPaneState{navigation: chat.InspectorNavigation{Picking: true, Picked: &chat.InspectorTarget{ID: "stale"}, Target: &chat.InspectorTarget{ID: "stale"}, Highlight: "stale", Nodes: []session.Message{{ID: "stale"}}}, pendingPick: &chat.InspectorTarget{ID: "stale"}}
+	p.objects = map[string]inspectorObject{"chat:stale": {Value: &p.navigation.Nodes[0]}}
 	w := &WorkspacePanes{Root: &WorkspacePane{ID: "inspector", Kind: "session-inspector-log", Inspector: p}}
 	w.BeginContentFrame("owner", "root")
 	if len(p.navigation.Nodes) != 0 {
 		t.Fatal("absent Chat kept an old projection")
 	}
 	w.EndContentFrame()
-	if p.navigation.Picking || p.navigation.Picked != nil || p.navigation.Target != nil || p.pendingPick != nil || p.navigation.Highlight != "" {
+	if p.navigation.Picking || p.navigation.Picked != nil || p.navigation.Target != nil || p.pendingPick != nil || p.navigation.Highlight != "" || len(p.objects) != 0 {
 		t.Fatal("application page hiding Chat/inspector retained old gestures")
 	}
 	w.BeginContentFrame("owner", "root")

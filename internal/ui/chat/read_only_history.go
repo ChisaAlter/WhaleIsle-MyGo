@@ -12,7 +12,9 @@ import (
 	"github.com/yuin/goldmark/text"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -34,12 +36,30 @@ func ReadOnlyHistoryScope(binding string, address session.AgentSessionAddress, t
 // ReadOnlyHistoryView keeps chat mutation callbacks absent; optional addressed
 // resources enable explicit read-only navigation without changing the main session.
 func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle, resources ...ReadOnlyResourceOptions) {
+	readOnlyHistoryView(c, scope, messages, fallback, st, len(messages) > projectflow.ProcessRecordLimit, resources...)
+}
+
+// ReadOnlyHistoryWithPaging keeps todo before/after receipts honest when an
+// addressed child has an earlier journal page outside the current window.
+func ReadOnlyHistoryWithPaging(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle, hasMore bool, resources ...ReadOnlyResourceOptions) {
+	readOnlyHistoryView(c, scope, messages, fallback, st, hasMore, resources...)
+}
+func readOnlyHistoryView(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle, hasMore bool, resources ...ReadOnlyResourceOptions) {
+	ReadOnlyHistoryWithPreferences(c, scope, messages, fallback, st, hasMore, settings.ChatPreferences{}, resources...)
+}
+
+// ReadOnlyHistoryWithPreferences keeps child turn-tail accounting under the
+// same accepted display preference as the main transcript. It grants no chat
+// mutation authority; resource callbacks retain their addressed read owner.
+func ReadOnlyHistoryWithPreferences(c *ui.Context, scope string, messages []session.Message, fallback string, st ToolCardStyle, hasMore bool, preferences settings.ChatPreferences, resources ...ReadOnlyResourceOptions) {
 	var resource ReadOnlyResourceOptions
 	if len(resources) > 0 {
 		resource = resources[0]
 	}
 	rows, limited := readOnlyHistoryMessages(messages)
-	limited = limited || (len(rows) == 0 && len(fallback) > readOnlyMessageByteLimit)
+	todo := todoBaselinesFor(rows, hasMore || limited)
+	targets := assistantActionTargets(rows)
+	model := Model{Snapshot: session.ViewState{SelectedID: scope, PlanHistoryBinding: scope, Messages: rows, TurnUsage: resource.TurnUsage}, Preferences: preferences, SystemDark: c.Theme().Dark}
 	box := ui.Column(c.Key("readonly-history:" + scope)).FillWidth().Gap(8)
 	imageRequests := ui.Local(box, "image-requests", func() childImageRequests { return childImageRequests{} })
 	expanded := ui.Local(box, "disclosures", func() map[string]bool { return map[string]bool{} })
@@ -47,6 +67,7 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 	allowed := map[string]bool{}
 	for _, msg := range rows {
 		allowed[msg.ID] = true
+		allowed["tool-images:"+msg.ID] = true
 		allowed["thinking:"+msg.ID] = true
 		if msg.Tool == nil {
 			allowed["tool-event:"+msg.ID] = true
@@ -63,6 +84,8 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 			seen[call] = true
 			allowed["tool-args:"+call.CallID] = true
 			allowed["tool-result:"+call.CallID] = true
+			allowed["tool-file:"+call.CallID] = true
+			allowed["tool-images:"+msg.ID+"|tool:"+call.CallID] = true
 			// The tool row's own seat keeps its open state across frames;
 			// without it the disclosure would collapse on the next render.
 			allowed[msg.ID+"|tool:"+call.CallID] = true
@@ -74,29 +97,48 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 			delete(*expanded, key)
 		}
 	}
+	gallery := ui.Local(box, "canonical-gallery", func() childGalleryState { return childGalleryState{} })
+	galleryPaths := map[string]session.AgentResourceRead{}
+	for _, msg := range rows {
+		refs := childDeclaredImages(msg)
+		for _, a := range session.UserMessageContent(msg).Attachments {
+			if a.Type == "image" {
+				refs = append(refs, "attachment:"+a.AttachmentID)
+			}
+		}
+		for _, ref := range refs {
+			if path := DisplayImagePath(ref); path != "" {
+				galleryPaths[path] = session.AgentResourceRead{Path: path}
+			}
+		}
+	}
+	openImage := func(path string) { gallery.Ref = path; gallery.Open = true; gallery.ActualSize = false }
 	box.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatReadOnlyBadge)).FontSize(10).TextColor(st.Muted)
 		if limited {
 			ui.Text(c, i18n.T(i18n.KeyChatReadOnlyNote)).FontSize(10).TextColor(st.Muted)
 		}
 		if len(rows) == 0 {
-			ui.Text(c, clipReadOnlyText(fallback, readOnlyMessageByteLimit)).FontSize(12).TextColor(st.FG).Selectable()
+			ui.Text(c, fallback).FontSize(12).TextColor(st.FG).Selectable()
 			return
 		}
 		for index, msg := range rows {
 			row := ui.Column(c.Key(fmt.Sprintf("message:%d:%s", index, msg.ID))).FillWidth().Gap(4)
 			row.Children(func() {
-				childAutoImages(c, msg, resource, *imageRequests, st)
-				label := msg.Role
-				if label == "" {
-					label = string(msg.Kind)
+				if msg.EventType == "turn/end" {
+					ui.Text(c, turnStatusLabel(msg)).FontSize(13).FixedLineHeight(24).TextColor(st.Muted)
+					if target, ok := targets[index]; ok {
+						assistantMessageActions(c, model, target, row, st.Muted)
+					} else {
+						TurnUsageView(c, model, msg, st.Muted)
+					}
+					return
 				}
-				if msg.Streaming {
-					label += " 路 " + i18n.T(i18n.KeyChatReadOnlyLive)
-				} else {
-					label += fmt.Sprintf(" #%.0f", msg.Seq)
+				content := session.UserMessageContent(msg)
+				structuredUser := msg.Role == "user" && content.Structured
+				if !structuredUser && msg.Kind != session.MessageKindTool && msg.Role != "user" {
+					childAutoImages(c, msg, resource, *imageRequests, st)
 				}
-				ui.Text(c, label).FontSize(10).TextColor(st.Muted)
+
 				if msg.Kind == session.MessageKindQuestionReply {
 					QuestionReplyView(c, msg, scope, st.Colors, st.FG, st.Muted)
 					return
@@ -105,13 +147,32 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					ContextInjectionView(c, msg, scope, st.Colors)
 					return
 				}
+				if msg.Kind == session.MessageKindSystemPrompt {
+					SystemPromptView(c, model, msg, st.FG, st.Muted)
+					return
+				}
 				if msg.Kind == session.MessageKindCompaction {
 					CompactionView(c, msg, st.FG, st.Muted, st.Field)
 					return
 				}
 				if msg.Kind == session.MessageKindTool {
-					ToolMessageView(c, msg, st, ToolImageGalleryOptions{ID: msg.ID, Expanded: expanded, TextOnly: true})
-					readOnlyToolResources(c, msg, resource, st)
+					ToolMessageView(c, msg, st, ToolImageGalleryOptions{ID: msg.ID, Expanded: expanded, TodoBaselines: todo, OnOpenFile: resource.OnOpenFile, OnOpenURL: resource.OnOpenURL, OnOpen: openImage})
+					return
+				}
+				if msg.Role == "user" {
+					refs, body := userMessageParts(msg.Body)
+					userModel := model
+					userModel.Snapshot.Messages = messages
+					userModel.ThinkingExpanded = expanded
+					userModel.OnOpenImageLightbox = openImage
+					userModel.OnOpenCitationURL = resource.OnOpenURL
+					if resource.OnOpenFile != nil {
+						userModel.OnOpenHistoryReference = func(path string, done func(error)) {
+							resource.OnOpenFile(path)
+							done(nil)
+						}
+					}
+					userMessageView(c, userModel, msg, st.Colors, refs, body, openImage)
 					return
 				}
 				body := msg.Body
@@ -122,15 +183,15 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 				case msg.Kind == session.MessageKindThinking:
 					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{Streaming: msg.Streaming, FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: secondaryChatSize()})
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
-					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, 13, darkSurface(st.Muted))
-				writeStyle.ResolveFile = FileMentionResolver(messages, msg)
-				writeStyle.OnOpenFile = resource.OnOpenFile
-				markdown.View(c, body, writeStyle)
+					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, theme.CurrentPreferences().Chat.Size, darkSurface(st.Muted))
+					writeStyle.ResolveFile = FileMentionResolver(messages, msg)
+					writeStyle.OnOpenFile = resource.OnOpenFile
+					markdown.View(c, body, writeStyle)
 					for _, ref := range readOnlyReferences(body) {
 						readOnlyResourceLink(c, ref, resource, st)
 					}
 				default:
-					ui.Text(c, body).FontSize(12).TextColor(st.FG).Selectable()
+					ui.Text(c, body).FontSize(secondaryChatSize()).TextColor(st.FG).Selectable()
 				}
 				for _, path := range msg.Files {
 					readOnlyResourceLink(c, path, resource, st)
@@ -139,12 +200,13 @@ func ReadOnlyHistoryView(c *ui.Context, scope string, messages []session.Message
 					readOnlyResourceLink(c, ref, resource, st)
 				}
 				CitationsView(c, CitationsForMessage(msg), st.Muted, st.Accent, resource.OnOpenURL)
-				if body != "" && stdButton(c, st.Colors, i18n.T(i18n.KeyChatReadOnlyCopy), buttonGhost, false).Clicked() {
-					c.Services().WriteClipboard(body)
+				if target, ok := targets[index]; ok {
+					assistantMessageActions(c, model, target, row, st.Muted)
 				}
 			})
 		}
 	})
+	childImageGallery(c, gallery, galleryPaths)
 }
 
 func readOnlyHistoryMessages(messages []session.Message) ([]session.Message, bool) {
@@ -152,50 +214,8 @@ func readOnlyHistoryMessages(messages []session.Message) ([]session.Message, boo
 	if limited {
 		messages = messages[len(messages)-projectflow.ProcessRecordLimit:]
 	}
-	kept := make([]session.Message, 0, len(messages))
-	remaining := readOnlyHistoryByteLimit
-	for i := len(messages) - 1; i >= 0; i-- {
-		msg := messages[i]
-		size := readOnlyMessageBytes(msg)
-		// Canonical inputs have only leaf preparing tools; lifecycle trees are built
-		// below from bounded raw events. Never borrow an externally supplied graph.
-		unsupportedTree := msg.Tool != nil && (len(msg.Tool.Children) > 0 || len(msg.Tool.Events) > 0 || msg.Tool.Call != nil || msg.Tool.Result != nil)
-		if size > readOnlyMessageByteLimit || unsupportedTree {
-			limited = true
-			var body strings.Builder
-			body.WriteString(i18n.T(i18n.KeyChatReadOnlyClipped) + "\n")
-			parts := []string{msg.Body, msg.Args, string(msg.Raw[:min(len(msg.Raw), readOnlyMessageByteLimit)])}
-			if msg.Tool != nil {
-				parts = append(parts, msg.Tool.Name, msg.Tool.Arguments)
-			}
-			if msg.Command != nil {
-				parts = append(parts, msg.Command.Name, msg.Command.Args, msg.Command.Text)
-			}
-			parts = append(parts, msg.Files...)
-			for _, part := range parts {
-				remaining := readOnlyMessageByteLimit - 1024 - body.Len()
-				if remaining <= 0 {
-					break
-				}
-				if part != "" {
-					body.WriteString(clipReadOnlyText(part, remaining))
-					body.WriteByte('\n')
-				}
-			}
-			msg = session.Message{ID: clipReadOnlyText(msg.ID, 256), Role: clipReadOnlyText(msg.Role, 128), Kind: session.MessageKindText, Body: body.String(), Seq: msg.Seq, Streaming: msg.Streaming}
-			size = readOnlyMessageBytes(msg)
-		}
-		if size > remaining {
-			limited = true
-			break
-		}
-		remaining -= size
-		kept = append(kept, msg)
-	}
-	for left, right := 0, len(kept)-1; left < right; left, right = left+1, right-1 {
-		kept[left], kept[right] = kept[right], kept[left]
-	}
-	return session.ProjectToolMessages(kept), limited
+	// Page the record window, not the contents of an individual message.
+	return session.ProjectToolMessages(append([]session.Message(nil), messages...)), limited
 }
 
 func readOnlyMessageBytes(msg session.Message) int {

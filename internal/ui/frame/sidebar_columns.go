@@ -3,6 +3,7 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -13,6 +14,27 @@ type SidebarResponsive struct {
 	viewport                    float32
 	narrow, expanded, rightOpen bool
 	landscape, orientationKnown bool
+	lastNonblankSession         string
+}
+
+// ObserveSidebarSessionSelection closes only the transient narrow expansion
+// when navigation reaches another real conversation. Blank/new-session states
+// do not replace the last conversation, matching AppFrame's retained summary.
+func (sizes *LayoutSizes) ObserveSidebarSessionSelection(snap session.ViewState) {
+	if sizes == nil || sizes.Responsive == nil || snap.SelectedID == "" {
+		return
+	}
+	for _, item := range snap.Items {
+		if item.SessionID != snap.SelectedID || item.Blank {
+			continue
+		}
+		r := sizes.Responsive
+		if r.lastNonblankSession != "" && r.lastNonblankSession != snap.SelectedID && r.narrow {
+			r.expanded = false
+		}
+		r.lastNonblankSession = snap.SelectedID
+		return
+	}
 }
 
 // ui-layout columns.ts: the sidebar leaves the grid for an overlay drawer below

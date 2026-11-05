@@ -9,9 +9,8 @@ import (
 	"whaleisle/internal/ui/chrome"
 
 	"whaleisle/internal/accountdetails"
-	"whaleisle/internal/accountlogin"
+
 	"whaleisle/internal/accountlogout"
-	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -32,9 +31,12 @@ type AccountAccess struct {
 	BalanceSummary   string
 	AttemptPhase     string
 	AuthorizeURL     string
+	AttemptErrorCode string
+	OnOpenInfo       func()
 	OnContact        func()
 	OnRefresh        func()
 	OnOpenAuthorize  func(url string)
+	OnCopyAuthorize  func(url string)
 	OnOpenUsage      func(url string)
 	OnOpenTopUp      func(url string)
 	OnSignIn         func()
@@ -69,47 +71,45 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Account
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	active := accountlogin.Active(a.AttemptPhase)
-	signedIn := a.Status == "credential-stored"
-	if !signedIn && !active {
-		ui.Column(c.Key("account-signed-out")).FillWidth().Gap(16).Padding(40, 0).Children(func() {
-			ui.Text(c, providerCopy("登录 "+product.Name, "Sign in to "+product.Name)).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
-			message := providerCopy("登录后即可使用账户模型并查看余额与用量。", "Sign in to use account models and view your balance and usage.")
-			if a.Loading {
-				message = i18n.T(i18n.KeySettingsLoading)
-			}
-			if a.Err != "" {
-				message = a.Err
-			}
-			if !a.ClientReady {
-				message = providerCopy("连接 Host 后即可登录。", "Connect to a Host to sign in.")
-			}
-			ui.Text(c, message).FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
-			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!a.ClientReady || a.Loading || a.SignInBusy || a.OnSignIn == nil).Clicked() && a.OnSignIn != nil {
+	errorSeat := ui.Box(c.Key("account-errors"))
+	seen := ui.Local(errorSeat, "last-error", func() string { return "" })
+	if a.Err != "" && a.Err != *seen {
+		c.AddToast(ui.Toast{ID: "account-read-error", Description: a.Err})
+	}
+	*seen = a.Err
+	if a.Status != "credential-stored" {
+		ui.Column(c).FillWidth().Gap(16).Padding(40, 0).Children(func() {
+			ui.Text(c, providerCopy("当前未登录 DeepSeek 账号", "You are not signed in to DeepSeek")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
+			ui.Text(c, providerCopy("登录 DeepSeek 账号获取专属 API Key", "Sign in to DeepSeek to get your dedicated API Key")).FillWidth().FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
+			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).AlignSelf(ui.Start).Height(36).Padding(0, 16).Radius(8).Disabled(!a.ClientReady || a.SignInBusy || a.OnSignIn == nil).Clicked() {
 				a.OnSignIn()
 			}
 		})
 		return
 	}
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Column(c.Key("account-summary")).FillWidth().MinWidth(0).Gap(16).Padding(8, 0).Children(func() {
 		bodyCard(c, m, func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></svg>`))).Size(32, 32).TextColor(muted)
-				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					name := providerCopy("已登录", "Signed in")
-					contact := a.Email
-					if a.Details.Profile.Status == accountdetails.Ready {
-						if p := a.Details.Profile.Value.Name; p != nil && *p != "" {
-							name = *p
-						}
-						if p := a.Details.Profile.Value.Contact; p != nil {
-							contact = *p
-						}
+			ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
+				rawAvatar := ""
+				if a.Details.Profile.Value.AvatarURL != nil {
+					rawAvatar = *a.Details.Profile.Value.AvatarURL
+				}
+				if bmp := accountAvatar(c, rawAvatar); bmp != nil {
+					ui.Image(c, bmp).Size(32, 32).Radius(16).Fit(ui.Cover)
+				} else {
+					ui.Icon(c, ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></svg>`))).Size(32, 32).TextColor(muted)
+				}
+				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+					name, contact := a.Name, a.Email
+					if p := a.Details.Profile.Value.Name; p != nil && *p != "" {
+						name = *p
 					}
-					if !signedIn {
-						name = providerCopy("正在登录", "Signing in")
-						contact = a.AttemptPhase
+					if p := a.Details.Profile.Value.Contact; p != nil {
+						contact = *p
+					}
+					if name == "" {
+						name = providerCopy("已登录", "Signed in")
 					}
 					if a.Details.Profile.Status == accountdetails.Loading || a.Details.Profile.Status == accountdetails.Unknown {
 						contact = i18n.T(i18n.KeySettingsLoading)
@@ -117,92 +117,99 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					if a.Details.Profile.Status == accountdetails.Failed {
 						contact = providerCopy("暂时无法读取账户资料", "Profile unavailable")
 					}
-					ui.Text(c, name).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-					ui.Text(c, contact).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					ui.Text(c, name).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+					ui.Text(c, contact).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				})
+				if a.OnOpenInfo != nil && ui.Button(c, providerCopy("更多账号信息 ↗", "More account information ↗")).Shrink(0).Height(32).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Clicked() {
+					a.OnOpenInfo()
+				}
 			})
 		})
-		if a.Err != "" {
-			ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
-		}
-		if active {
-			ui.Row(c).Gap(10).Wrap().Children(func() {
-				if a.AuthorizeURL != "" && a.OnOpenAuthorize != nil && ui.Button(c, providerCopy("打开登录页面", "Open sign-in page")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
-					a.OnOpenAuthorize(a.AuthorizeURL)
-				}
-				if a.OnCancelSignIn != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountCancelSignIn)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.SignInBusy || a.AttemptPhase == "committing" || a.SignInAttemptID == "").Clicked() {
-					a.OnCancelSignIn()
-				}
-			})
-		}
 		bodyCard(c, m, func() {
-			walletRow := func(title string, wallets []accountdetails.Wallet) {
+			wallet := func(title string, wallets []accountdetails.Wallet) {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(16).Padding(6, 0).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, title).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0)
-					ui.Column(c).MinWidth(0).Gap(3).Children(func() {
-						if !signedIn || a.Details.Balance.Status == accountdetails.Loading || a.Details.Balance.Status == accountdetails.Unknown {
+					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(14)).TextColor(fg)
+					ui.Row(c).MinWidth(0).Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
+						if a.Details.Balance.Status == accountdetails.Loading || a.Details.Balance.Status == accountdetails.Unknown {
 							ui.Text(c, i18n.T(i18n.KeySettingsLoading)).TextColor(muted)
 							return
 						}
 						if a.Details.Balance.Status != accountdetails.Ready || len(wallets) == 0 {
-							if ui.Button(c, providerCopy("余额暂不可用", "Balance unavailable")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenUsage == nil || a.UsageURL == "").Clicked() && a.OnOpenUsage != nil {
+							if ui.Button(c, providerCopy("前往开放平台查看 ↗", "View on Platform ↗")).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(a.OnOpenUsage == nil || a.UsageURL == "").Clicked() {
 								a.OnOpenUsage(a.UsageURL)
 							}
 							return
 						}
-						for _, w := range wallets {
-							symbol := "$"
-							if w.Currency == "CNY" {
-								symbol = "¥"
+						for i, w := range wallets {
+							if i > 0 {
+								ui.Text(c, "+").TextColor(muted)
 							}
-							ui.Text(c, symbol+w.Balance).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+							ui.Text(c, accountMoney(w.Balance, w.Currency)).FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(28)).FontWeight(600).TextColor(fg)
 						}
 					})
 				})
 			}
-			walletRow(providerCopy("余额", "Balance"), a.Details.Balance.Wallets)
+			wallet(providerCopy("充值余额", "Topped-up balance"), a.Details.Balance.Wallets)
 			bonuses := positiveBonusWallets(a.Details.Balance.BonusWallets)
-			if signedIn && (a.Details.Balance.Status != accountdetails.Ready || len(bonuses) > 0) {
-				ui.Box(c).FillWidth().Height(0.5).Background(chrome.Color(colors.Border).Alpha(0.45))
-				walletRow(providerCopy("奖励余额", "Bonus balance"), bonuses)
+			if a.Details.Balance.Status != accountdetails.Ready || len(bonuses) > 0 {
+				ui.Box(c).FillWidth().Height(.5).Background(chrome.Color(colors.Border).Alpha(.45))
+				wallet(providerCopy("赠金余额", "Granted balance"), bonuses)
 			}
-			ui.Box(c).FillWidth().Height(0.5).Background(chrome.Color(colors.Border).Alpha(0.45))
-			ui.Row(c).FillWidth().Gap(10).Wrap().Padding(6, 0).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, providerCopy("更多", "More")).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Grow(1)
-				if ui.Button(c, providerCopy("用量", "Usage")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!signedIn || a.OnOpenUsage == nil || a.UsageURL == "").Clicked() && a.OnOpenUsage != nil {
+			ui.Box(c).FillWidth().Height(.5).Background(chrome.Color(colors.Border).Alpha(.45))
+			ui.Row(c).FillWidth().Gap(10).Padding(6, 0).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, providerCopy("更多", "More")).Grow(1).FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
+				if ui.Button(c, providerCopy("查询用量", "View usage")).Height(36).Padding(0, 16).Radius(8).Border(.5, c.Theme().Border.Alpha(.45)).FontSize(fonttheme.InterfaceSize(14)).Disabled(a.OnOpenUsage == nil || a.UsageURL == "").Clicked() {
 					a.OnOpenUsage(a.UsageURL)
 				}
-				if ui.Button(c, providerCopy("充值", "Top up")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!signedIn || a.OnOpenTopUp == nil || a.TopUpURL == "").Clicked() && a.OnOpenTopUp != nil {
+				if ui.Button(c, providerCopy("充值", "Top up")).Height(36).Padding(0, 16).Radius(8).BorderWidth(0).Background(chrome.Color(colors.Accent)).TextColor(ui.RGB(255, 255, 255)).FontSize(fonttheme.InterfaceSize(14)).Disabled(a.OnOpenTopUp == nil || a.TopUpURL == "").Clicked() {
 					a.OnOpenTopUp(a.TopUpURL)
 				}
 			})
 		})
-		accountSignOutPane(c, a, fg, muted)
-		accountBonusFeedback(c, a, fg, muted)
-		for _, b := range a.Bonuses {
-			bodyCard(c, m, func() {
-				ui.Text(c, b.Label).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-				ui.Text(c, b.Detail).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-				refused := a.BonusAckState == "refused" && a.BonusAckAccount == b.AccountID && a.BonusAckOrder == b.OrderID
-				if a.OnAckBonus != nil && b.OrderID != "" && ui.Button(c, i18n.T(i18n.KeySettingsAccountBonusAck)).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.BonusAckState == "pending" || refused || a.BonusesLoading).Clicked() {
-					a.OnAckBonus(b.AccountID, b.OrderID)
-				}
-			})
-		}
-		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Loading || a.SignInBusy).Clicked() {
-				a.OnRefresh()
-			}
-			if signedIn && a.OnSignOut != nil && ui.Button(c, i18n.T(i18n.KeySettingsAccountSignOut)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Loading || a.SignInBusy).Clicked() {
-				a.OnSignOut()
-			}
-			if a.OnContact != nil && ui.Button(c, providerCopy("联系与反馈", "Contact us")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
-				a.OnContact()
-			}
-		})
 	})
 }
 
+// Match Platform Web's decimal rules without losing source precision.
+func accountMoney(raw, currency string) string {
+	symbol := "$"
+	if currency == "CNY" {
+		symbol = "¥"
+	}
+	n, ok := new(big.Rat).SetString(strings.TrimSpace(raw))
+	if !ok {
+		return "—"
+	}
+	if n.Sign() == 0 {
+		return symbol + "0.00"
+	}
+	negative := n.Sign() < 0
+	n.Abs(n)
+	cents := new(big.Rat).Mul(n, big.NewRat(100, 1))
+	q := new(big.Int).Quo(cents.Num(), cents.Denom())
+	prefix := symbol
+	if negative {
+		prefix = "-" + symbol
+		if q.Sign() == 0 {
+			q.SetInt64(1)
+		} else {
+			remainder := new(big.Int).Mod(cents.Num(), cents.Denom())
+			if new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(cents.Denom()) >= 0 {
+				q.Add(q, big.NewInt(1))
+			}
+		}
+	} else if q.Sign() == 0 {
+		return "<" + symbol + "0.01"
+	}
+	value := q.String()
+	for len(value) < 3 {
+		value = "0" + value
+	}
+	integer, fraction := value[:len(value)-2], value[len(value)-2:]
+	for i := len(integer) - 3; i > 0; i -= 3 {
+		integer = integer[:i] + "," + integer[i:]
+	}
+	return prefix + integer + "." + fraction
+}
 func positiveBonusWallets(wallets []accountdetails.Wallet) []accountdetails.Wallet {
 	result := []accountdetails.Wallet{}
 	for _, w := range wallets {

@@ -14,6 +14,13 @@ import (
 // Settings and launcher callers retain a void UI callback. The admission flag
 // covers checking, dialogs, download/staging and the protected install decision.
 func (s *mainState) showUpdateCheck(win *mygo.Window) {
+	// Explicit legacy feed users keep their existing entry point; ordinary
+	// installations share the native catalog/update-center owner everywhere.
+	if desktopupdate.FeedURLForRoute(s.updateDownloadRoute()) == "" {
+		s.openNativeUpdateCenter(win)
+		s.refreshNativeReleases(win)
+		return
+	}
 	s.mu.Lock()
 	if s.updateCheckPending || s.quitting {
 		s.mu.Unlock()
@@ -81,17 +88,17 @@ func updateCheckMessage(res desktopupdate.Result, err error) string {
 }
 
 func (s *mainState) runUpdateCheck(win *mygo.Window) {
+	route := s.updateDownloadRoute()
 	canPresent := func() bool {
 		s.mu.Lock()
-		current := !s.quitting && s.updateCheckPending && s.win == win
+		current := !s.quitting && s.updateCheckPending && s.lifecycleWindowOwnedLocked(win)
 		s.mu.Unlock()
-		return current && win != nil && !win.IsDestroyed()
+		return current && win != nil && !win.IsDestroyed() && s.updateDownloadRoute() == route
 	}
 	if !canPresent() {
 		return
 	}
-	res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, s.updateDownloadRoute())
-	route := s.updateDownloadRoute()
+	res, err := desktopupdate.CheckForUpdatesVersionRoute(context.Background(), buildVersion, route)
 	s.recordUpdateCheckResult(res, err)
 	msg := updateCheckMessage(res, err)
 	download := err == nil && res.Status == desktopupdate.StatusUpdateAvailable && res.ReleaseURL != ""
@@ -102,6 +109,7 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		technical = updateAvailableDetail(res, route)
 	}
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Owner: win, Width: 640,
 		Title:            i18n.T(i18n.KeySettingsDesktopCheckUpdatesTitle),
 		Body:             msg,
 		ConfirmLabel:     confirmLabel,
@@ -203,13 +211,8 @@ func (s *mainState) runUpdateCheck(win *mygo.Window) {
 		if technical != "" {
 			amsg += "\n\n" + i18n.T(i18n.KeyCmdTechnicalDetails) + ":\n" + technical
 		}
-		_, _ = mygo.Dialog.Message(mygo.MessageOptions{
-			Parent:     win,
-			Type:       mygo.MessageInfo,
-			Title:      i18n.T(i18n.KeyUpdateDownloadTitle),
-			Message:    amsg,
-			Buttons:    []string{"OK"},
-			BeforeShow: canPresent,
-		})
+		if canPresent() {
+			s.askConfirmBlocking(confirmAskRequest{Owner: win, Width: 640, Title: i18n.T(i18n.KeyUpdateDownloadTitle), Body: amsg, ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
+		}
 	}
 }

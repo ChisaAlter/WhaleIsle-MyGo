@@ -17,6 +17,39 @@ import (
 
 type pageFixture struct{}
 
+type enabledOfficialFixture struct{ pageFixture }
+
+func (f enabledOfficialFixture) Call(ctx context.Context, method string, args, out any) error {
+	if method != "pluginManager/listBundles" {
+		return f.pageFixture.Call(ctx, method, args, out)
+	}
+	raw, _ := json.Marshal([]manager.Bundle{
+		{Name: "@deepseek-ai/dsh-experimental-tool-worktree", Official: true, Optional: true, Enabled: true, Availability: "installation", Meta: &manager.Meta{Title: manager.Text(`"Worktree tool"`)}},
+		{Name: "@deepseek-ai/dsh-experimental-agent-team-profile", Official: true, Optional: true, Enabled: true, Availability: "installation", Meta: &manager.Meta{Title: manager.Text(`"Agent team"`)}},
+	})
+	return json.Unmarshal(raw, out)
+}
+
+func TestMoreRemainsReachableWhenAllOfficialPackagesAreEnabled(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	c := manager.New()
+	c.Attach(enabledOfficialFixture{}, nil)
+	if err := c.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	tt := ui.NewTester(func(ctx *ui.Context) { ui.Column(ctx).Fill().Children(func() { View(ctx, Model{Controller: c}) }) }, 520, 760)
+	if err := tt.Click("More"); err != nil {
+		t.Fatal(err)
+	}
+	team, ok1 := tt.Find("Agent team")
+	worktree, ok2 := tt.Find("Worktree tool")
+	if !ok1 || !ok2 || team.Y >= worktree.Y {
+		t.Fatalf("More lost enabled packages or original official order: team=%v worktree=%v", team, worktree)
+	}
+	savePageSnapshot(t, tt, "plugins-more-all-enabled.png")
+}
+
 func (pageFixture) Call(_ context.Context, method string, _, out any) error {
 	var value any
 	switch method {
@@ -231,6 +264,7 @@ func surfaceGalleryDir(fallback string) string {
 	}
 	return fallback
 }
+
 // saveSurfaceSnapshot writes the rendered surface for the evidence gallery when
 // SURFACES_GALLERY_DIR is set.
 func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
@@ -255,23 +289,24 @@ func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
 	}
 }
 
-func TestPluginPageDropsTheDiscoverTab(t *testing.T) {
+func TestPluginPageDiscoverTabIsReachable(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := pageModel(t)
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
-	if tt.HasText("Discover") {
-		t.Fatalf("the discover tab is still reachable: %v", tt.Texts())
+	if !tt.HasText("Discover") {
+		t.Fatalf("the discover tab is unreachable: %v", tt.Texts())
 	}
 	if !tt.HasText("Installed") {
 		t.Fatalf("the installed tab went missing: %v", tt.Texts())
 	}
-	// The old discovery catalog stays available for hosts that still drive it,
-	// it just has no tab of its own any more.
-	m.Controller.Actions(m.Controller.Snapshot().Owner).SelectTab("discover")
+	// The visible control reaches the existing Host catalog controller.
+	if err := tt.Click("Discover"); err != nil {
+		t.Fatal(err)
+	}
 	tt.Frame()
 	if m.Controller.Snapshot().Tab != "discover" {
-		t.Fatal("SelectTab no longer reaches the hidden discovery view")
+		t.Fatal("Discover click did not select the native discovery view")
 	}
 }
 
@@ -324,5 +359,32 @@ func TestAddMenuMarketplaceIsDisabledWithoutABrowser(t *testing.T) {
 	// Nothing to call and nothing to change.
 	if snap := m.Controller.Snapshot(); snap.View.Kind != "" && snap.View.Kind != "list" {
 		t.Fatalf("disabled marketplace entry navigated: %+v", snap.View)
+	}
+}
+func TestPluginPageExternalTabHasOriginalPositionAndNativeBack(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	m := pageModel(t)
+	selected := ""
+	m.ExternalTabs = []PageTab{{ID: "fixture-report", Label: "Extension report"}}
+	m.OnSelectExternalTab = func(id string) { selected = id }
+	m.RenderExternalTab = func(c *ui.Context, id string) { ui.Text(c, "Extension report original body") }
+	tt := ui.NewTester(func(c *ui.Context) { m.SelectedExternalTab = selected; View(c, m) }, 900, 700)
+	if !tt.HasText("Extension report") {
+		t.Fatal(tt.Texts())
+	}
+	if err := tt.Click("Extension report"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if selected != "fixture-report" || !tt.HasText("Extension report original body") {
+		t.Fatal(tt.Texts())
+	}
+	if err := tt.Click("Installed"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if selected != "" || tt.HasText("Extension report original body") {
+		t.Fatal("native installed tab did not reclaim its body")
 	}
 }

@@ -11,15 +11,12 @@ import (
 )
 
 func approvalArguments(c *ui.Context, p interaction.Pending, store CardStore, keys *approvalKeys, fg, muted, accent ui.Color) {
-	if p.ApprovalContext != "" {
-		ui.Text(c, p.ApprovalContext).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	}
 	if p.Args == "" {
 		return
 	}
 	ui.Column(c).FillWidth().Padding(6, 8, 6, 8).Background(accent.Alpha(0.06)).Gap(4).Children(func() {
-		ui.Scroll(c.Key("approval-arguments:" + p.AgentID + ":" + p.EventID)).FillWidth().MaxHeight(220).Children(func() {
-			ui.Text(c, p.Args).FontSize(theme.InterfaceSize(11)).TextColor(fg)
+		ui.Column(c.Key("approval-arguments:" + p.AgentID + ":" + p.EventID)).FillWidth().MinWidth(0).Children(func() {
+			ui.Text(c, p.Args).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).Selectable().TextColor(fg)
 		})
 		copyButton := ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11))
 		if keys != nil {

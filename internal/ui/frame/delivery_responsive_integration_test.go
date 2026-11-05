@@ -288,7 +288,7 @@ func TestDeliveryResponsiveFramePreviewErrorPreservesRoute(t *testing.T) {
 					if calls != 1 || open != initial.open || route != "diff" || w.route != "diff" || w.Active != originalActive || w.Fullscreen != originalFullscreen || w.pending != nil || len(controller.Tabs) != 0 {
 						t.Fatalf("frame %d failure changed route/fullscreen: calls=%d open=%v route=%q workspaceRoute=%q active=%q fullscreen=%q pending=%v tabs=%d", frame, calls, open, route, w.route, w.Active, w.Fullscreen, w.pending != nil, len(controller.Tabs))
 					}
-					requireResponsiveDeliveryVisible(t, tt, "Delivery preview rejected")
+					requireResponsiveDeliveryVisible(t, tt, "Could not preview file; try again")
 				}
 			})
 		}

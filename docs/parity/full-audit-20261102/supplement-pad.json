@@ -1,0 +1,1473 @@
+{
+  "domain": "supplement-dsh-pad-floating-dock",
+  "auditDate": "2026-11-02",
+  "scope": "补足原版用户能力分母与 MyGo 映射；只读源码/metadata，不修产品、不启动应用或测试平台、不读用户 profile/credentials。",
+  "baseline": {
+    "desktop": "实际安装 Whale Isle 0.3.13；按父任务已提取的安装 main 源码追生产链。",
+    "plugin": {
+      "package": "dsh-pad",
+      "version": "0.3.1",
+      "root": "C:/软件/Whale Isle/resources/vendor/dsh-pad",
+      "upstreamCommitRecordedInBundledReadme": "b4a9b05a4e4ace822a629f4f0ba9c364b9422a95"
+    },
+    "mygo": "C:/AI/WhaleIsle-MyGo 当前工作树；本文件不改变或认证其他领域当前失败。",
+    "installedAssembly": [
+      "tmp/full-audit-20261102/installed-source/src/main/index.js:26,682 → harness-controller.js:841-854,867-876 → dsh.js:870-871,1024 → app-boot readProfileDefaultPatches → dsh-pad lib/index.js start → web client shell.overlay"
+    ],
+    "availabilityConditions": [
+      "默认随包启用，不是只凭 vendor 文件推定。显式 disabledPlugins 包含 dsh-pad，或 manifest 有依赖但移除 bundle 时关闭。",
+      "已有用户 bundle 且正常启动时保留用户包/配置；恢复启动使用 whaleisle-desktop-pad 独立链接，但显式禁用仍尊重。",
+      "默认 patch 先于用户 profile/home 覆盖；自定义 dataFile、autoApprove、agentRefresh、interactiveModel 等由实际有效配置决定。",
+      "Host 最小注入 tools/connection；client 最小注入 slots/locale，manifest 再注入 web locale/renderer/layout/conversation；AI、模型和 credentials 是相关动作的附加服务，不是全部面板的共同前置条件。",
+      "本轮没有读取实际用户禁用表、manifest、凭据和进程环境；安装版本提供的代码能力与该用户当前是否启用分开。"
+    ]
+  },
+  "assetComparison": {
+    "method": "六个随包文本/运行文件直接读取字节比较，无 hash、无执行模块。",
+    "installedVsMygo": [
+      {
+        "path": "package.json",
+        "bytes": 3065,
+        "equal": true
+      },
+      {
+        "path": "cordis.patch.yml",
+        "bytes": 51,
+        "equal": true
+      },
+      {
+        "path": "lib/index.js",
+        "bytes": 105450,
+        "equal": true
+      },
+      {
+        "path": "lib/client.js",
+        "bytes": 156183,
+        "equal": true
+      },
+      {
+        "path": "README.md",
+        "bytes": 1852,
+        "equal": true
+      },
+      {
+        "path": "LICENSE",
+        "bytes": 1098,
+        "equal": true
+      }
+    ],
+    "meaning": "MyGo 没有删掉 Pad 实现；真实缺口在装配、表面和主 composer 交接。资产相同不等于生产入口或运行通过。"
+  },
+  "currentOriginalSupplement": {
+    "root": "C:/AI/Deepseek-Harness-Desktop",
+    "readOnly": true,
+    "padRelevantDirtyFiles": [],
+    "check": "git diff --name-only -- vendor/dsh-pad src/main/dsh-pad-desktop.js 无输出；整仓有其他领域 dirty，本文件不引用它们作为安装版 Pad 能力。",
+    "committedDifferencesFromInstalled": [
+      "vendor/dsh-pad/lib/client.js 当前源码有 DSHD: 补丁：延后初始球位置到有效视口，读 layout 时不按启动 0x0 视口钳制已存点。README 对应记录这一补丁；不是本轮 dirty。",
+      "安装副本与 MyGo 都是补丁前相同 client；本轮只列该差异，不把当前源码球修复误算已安装能力，也不把该补丁未带入当 Pad 默认装配缺口的根因。"
+    ],
+    "evidence": [
+      "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-pad/lib/client.js:374-390,427-443,1782: DSHD 注释、ball:null、延后默认位置",
+      "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-pad/README.md:3: 当前已提交本地 client 补丁说明"
+    ]
+  },
+  "modulesReviewed": [
+    "internal/harness/{overlay,extra_overlay,prepare,launch,launch_patches,supervisor}.go",
+    "cmd/whaleisle/{main,plugin_contributions,plugin_slot_views,custom_panels}.go",
+    "internal/desktop/{pluginui,pluginslots}/ 的 package/client/owner/session 和 native 消费边界",
+    "internal/desktop/phoneremote/runtime.go",
+    "internal/store/custompanel/store.go; internal/ui/custompanel/panel.go",
+    "runtime/vendor/dsh-pad 的全部六个文件；lib/index.js 的每个 host 模块和 lib/client.js 的 composer/layout/frame/card/dock/theme/locales/CSS/apply 均有去向",
+    "runtime/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js 的默认 patch/bundle/profile 组合",
+    "runtime/vendor/dshd-remote/src/main/dsh-pad-desktop.js 与携带的 Electron 装配引用"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/dsh-pad/{package.json,cordis.patch.yml,lib/index.js,lib/client.js,README.md,LICENSE}",
+    "tmp/full-audit-20261102/installed-source/src/main/{index,harness-controller,dsh,dsh-pad-desktop}.js",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-pad/{lib/client.js,README.md}",
+    "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/functions/{data.ts,index.ts}"
+  ],
+  "searchCoverage": [
+    {
+      "id": "PAD-SEARCH-01",
+      "method": "只读 rg；负结果与完整生产装配列表共同判定，不以 vendor 目录存在或单次空 grep 作结论。",
+      "queries": [
+        "dsh-pad|whaleisle-desktop-pad|DSHD_PROFILE_DEFAULT_PATCH|pad_create|pad_list|pad_submit_data|dshpad-",
+        "shell.overlay|conversation.input.overlay|defaultPatchFile|PatchFiles|ReadLaunchPatches"
+      ],
+      "productSourceScope": [
+        "internal/**",
+        "cmd/**",
+        "resources/**",
+        "mygo.json",
+        "scripts/**"
+      ],
+      "runtimeScope": [
+        "runtime/vendor/dsh-pad/{package.json,cordis.patch.yml,lib/index.js,lib/client.js,README.md,LICENSE}",
+        "runtime/vendor/deepseek-harness/packages/boot/app-boot/lib/{index.js,types/profile-context.js}",
+        "runtime/vendor/deepseek-harness/{apps/web,packages/bundle/web-app}/ 全部清单和 patch",
+        "runtime/vendor/dshd-remote/src/{main,shared}/ 中 Pad 引用的调用去向",
+        "runtime/vendor/dsh-task-control/lib/wrap.js 中仅有 SSE 注释的引用"
+      ],
+      "excluded": [
+        "用户 profile、credentials、真实进程状态",
+        "node_modules 依赖树的重复副本、source maps、二进制和 runtime-graph.json 不作用户入口证据"
+      ],
+      "results": [
+        "internal/cmd/resources/mygo.json 中没有 dsh-pad/pad_* 独立 API、面板状态、native UI consumer 或 DSHD_PROFILE_DEFAULT_PATCH 默认生产写入。",
+        "runtime 中有完整 Pad 资产和 boot 默认 patch 读取能力；但原生启动没有调用 Electron dsh-pad-desktop。dshd-remote 内带 index/harness-controller 源码不是 MyGo 主启动链。",
+        "手机组件的真正 Module 是 dshd-remote.js（internal/desktop/phoneremote/runtime.go:123-125），不是 runtime/vendor/dshd-remote/src/main/index.js；不能把后者内的 Pad 装配当原生已执行。",
+        "通用原生插件桥、完整 Host 页替代入口和 Bot 六 widget 库确实存在；均单独映射，未宣称全无实现。"
+      ]
+    }
+  ],
+  "oldLedgerReconciliation": [
+    {
+      "ids": [
+        "PLUG-013"
+      ],
+      "disposition": "retained-related-root-cause",
+      "meaning": "通用 shell.overlay 原生消费缺口已登记；这里补出真实随包 Pad 用户能力，不再把它藏在任意第三方槽位一句里。"
+    },
+    {
+      "ids": [
+        "PLUG-012",
+        "PLUG-014",
+        "PLUG-015"
+      ],
+      "disposition": "retained-conditional-alternative",
+      "meaning": "会话扩展显式激活/完整 Host 页的边界保留；不把它们认作默认 Pad 全局入口完成。"
+    },
+    {
+      "ids": [
+        "PLUG-027",
+        "PLUG-028"
+      ],
+      "disposition": "different-native-contract",
+      "meaning": "已有 native Bot 六 widget 自定义面板库，scope/schema/path 与 dsh-pad 不同；这两项继续成立，但不覆盖本清单。"
+    },
+    {
+      "ids": [
+        "PLUG-029"
+      ],
+      "disposition": "homonym-not-pad-plugin",
+      "evidence": [
+        "docs/parity/full-audit-20261102/plugins.json:335: libraryFunctions 的 Pad",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/functions/data.ts:119; functions/index.ts:41: Pad(value,length,char) 是字符串 padStart"
+      ],
+      "meaning": "旧台账的 Pad 不是 renderer 面板组件，也不是 dsh-pad 独立插件。"
+    },
+    {
+      "ids": [],
+      "disposition": "22-user-capabilities-previously-omitted",
+      "meaning": "对旧领域 JSON 全部 features 检索 dsh-pad/pad_/dshpad/悬浮面板，无独立条目；本次22项全部作为 Pad 能力补充，根因不按条数累加。"
+    }
+  ],
+  "rootCauseGroups": [
+    {
+      "id": "PAD-G1",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "gap": "默认自管 Host 没有安装版那条 Pad 默认 patch 装配链；tools/routes/schedulers 未因目录存在而生效。",
+      "featureOwner": "harness 默认装配",
+      "evidence": [
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/harness/launch.go:306-326: 子环境允许继承父环境，但生产代码不生成 DSHD_PROFILE_DEFAULT_PATCH",
+        "runtime/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1138-1158: 通用 boot 仅在外部给出 DSHD_PROFILE_DEFAULT_PATCH 时读取默认 Pad；用户包仍可走 manifest bundle"
+      ]
+    },
+    {
+      "id": "PAD-G2",
+      "status": "missing",
+      "priority": "P1",
+      "gap": "原生主表面不消费 Pad shell.overlay；缺同等全局浮坞/卡片入口，完整 Host 页是显式替代路径。",
+      "relatedOldID": "PLUG-013",
+      "featureOwner": "原生 Shell/插件表面",
+      "evidence": [
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ]
+    },
+    {
+      "id": "PAD-G3",
+      "status": "partial",
+      "priority": "P1",
+      "gap": "Pad 的 conversation.input.overlay 只挂 web composer；没有 Pad 全局表面到当前原生 composer 的会话/草稿交接。",
+      "featureOwner": "Pad 表面与 conversation composer",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:31-101,2953-2955,3011-3015",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/custom_panels.go:113-127: web 会话桥与另一 Bot 草稿逻辑，均非 Pad→native composer 接口"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "PAD-001",
+      "feature": "默认面板可用，并尊重禁用、用户包配置与恢复启动",
+      "userAction": "启动桌面；在插件管理禁用/重新启用 Pad；需要时以跳过用户插件方式恢复",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "无需另行安装即挂载随包 Pad；已有用户包正常启动优先；显式禁用生效；恢复启动使用独立 alias，默认 patch 在 profile/home 覆盖之前，保留用户包和自定义 dataFile。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "启动桌面；在插件管理禁用/重新启用 Pad；需要时以跳过用户插件方式恢复",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:26,682: ensureDesktopDshPad 注入真正 HarnessController",
+        "tmp/full-audit-20261102/installed-source/src/main/harness-controller.js:841-854,867-876: 所有启动调用 ensureDshPadPlugin，并把 defaultPatchFile 交给 dsh.start",
+        "tmp/full-audit-20261102/installed-source/src/main/dsh.js:870-871,1024: 清理/设置 DSHD_PROFILE_DEFAULT_PATCH 后传给实际子 Host",
+        "tmp/full-audit-20261102/installed-source/src/main/dsh-pad-desktop.js:22-66: 禁用/用户包判断、独立 alias、文件完整性检查及默认 patch 生成",
+        "runtime/vendor/dsh-pad/README.md:5-11: 与安装副本相同的装配、恢复和数据位置说明；实际行为以前述安装源码为准"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/harness/launch.go:306-326: 子环境允许继承父环境，但生产代码不生成 DSHD_PROFILE_DEFAULT_PATCH",
+        "runtime/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1138-1158: 通用 boot 仅在外部给出 DSHD_PROFILE_DEFAULT_PATCH 时读取默认 Pad；用户包仍可走 manifest bundle",
+        "runtime/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1166-1171: profile/home 用户覆盖与恢复层处理仍保留",
+        "internal/desktop/phoneremote/runtime.go:123-125: 手机管理模块不是附带 Electron 主入口",
+        "tmp/acceptance-runtime-20261102/workspace/qa-root/user-data/dsh-home/profiles/web/package.json:1-13: 新隔离 QA profile 仅 base/web-app bundles，无用户依赖/Pad",
+        "tmp/gap-reopen-20261102/pad/qa-profile-readback.json:1-54: 只读既有实际 EXE 的7个 overlay/链接/cordis 盘点，无 Pad，stage 里 Pad 资产仍在",
+        "tmp/acceptance-runtime-20261102/desktop/result.json:1-47; startup.json:1-15: 既有 trajectory.1 EXE/同stage runtime 到 Host ready 的隔离证据；非本代理新启动"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-001",
+          "PLUG-012",
+          "PLUG-013"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "确认默认自管 Host 装配缺口：MyGo 保留 0.3.1 资产与通用 boot 消费者，却没有创建/传入随包 Pad 默认 patch。不能据此说用户手动安装或外接 Host 必然缺失，也不能把附带 Electron 源码当已被调用。",
+      "missingChain": [
+        "PAD-G1"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code + existing-scoped-executable-profile-artifact",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "已复用既有 trajectory.1 EXE 的隔离 profile 生成物，实际 Host ready 但默认 Pad overlay/alias 不在。未探测 Pad route 或窗口，未验恢复/禁用/自定义 dataFile。真实用户可能手动装包/继承环境，其状态未读。"
+    },
+    {
+      "id": "PAD-002",
+      "feature": "正常原生界面中展开/收起悬浮面板坞",
+      "userAction": "点击悬浮球（或 Enter/空格）展开，点击星形收起；新建面板自动展开高亮",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "Pad 以全局 shell.overlay 出现；无面板有示例空态；有待审批/失败的面板有 attention 提示；断线显示重连信息。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "点击悬浮球（或 Enter/空格）展开，点击星形收起；新建面板自动展开高亮",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:2951-3015: 客户端注册全局 shell.overlay 和 composer bridge",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:678-683,1948-1976,2020-2024,2282-2301,2414-2422: 自动展开、高亮、键盘、球/坞、离线和空态",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1156-1159,1783,2292: attention 来源和球提示"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-012",
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "原生主界面没有 Pad 全局悬浮坞 consumer。不是“看板后台不存在”的推断：Host/client 资产保留，但默认 Host 未挂载且 native 不消费 shell.overlay；显式完整 Host 页是另一使用路径。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未操作当前原生窗口或完整 Host 页；无实际球/坞的可见、点击、窄窗口与重连证据。"
+    },
+    {
+      "id": "PAD-003",
+      "feature": "拖放悬浮球和面板坞，调整坞宽高",
+      "userAction": "拖动球并靠边吸附；拖动坞头或长按星形移动；拖边调整宽高、双击恢复自动高度",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "球四边吸附，坞在视口内移动，宽高随窗口夹紧；拖动结束保留布局，不把长按拖动误作收起。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "拖动球并靠边吸附；拖动坞头或长按星形移动；拖边调整宽高、双击恢复自动高度",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1601-1634,1784-1818: 视口夹紧、靠边预留及尺寸计算",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1978-2135: 球拖放、键盘和坞头/长按移动",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:2137-2237,2315-2329,2424-2435: 宽高拖动和自动高度恢复"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:1601-2237: 同字节的完整浏览器交互代码仍保留",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "移动/吸附/尺寸实现已随包保留，但属于未默认挂载的 web overlay，原生没有对应浮坞；不能把源码相同当当前可拖动。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验首次打开、窗口缩放、跨屏、拖动取消、长按点击区分和保存后重启。"
+    },
+    {
+      "id": "PAD-004",
+      "feature": "自由排列卡片、嵌套分栏并调整比例",
+      "userAction": "把卡片拖到另一卡片的上/下/左/右分区，中间交换，空白移到末尾；拖分隔条调宽",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "用嵌套树保留卡片次序和分区权重；最多三项横排/八层；新增/删除卡片归一化现有布局。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "把卡片拖到另一卡片的上/下/左/右分区，中间交换，空白移到末尾；拖分隔条调宽",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:117-353: 分区树、dropOnLeaf、swap、深度/行上限和权重",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1682-1692,1824-1947,2238-2280: 拖放、分隔条与真实卡片渲染"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:117-353,1824-1947,2238-2280: 同源布局实现保留",
+        "internal/store/custompanel/store.go:29-36,78-108: 另一 native 库只接受固定 Columns/Widgets schema，不消费 Pad 布局树",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014",
+          "PLUG-027",
+          "PLUG-028"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "Pad 拖放/分区代码存在于 web 资产；MyGo Bot 六 widget 的列数不是这种全局嵌套布局。缺默认装配和原生全局消费。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验多卡拖放、嵌套/比例持久化、窗口变窄和删除后树恢复。"
+    },
+    {
+      "id": "PAD-005",
+      "feature": "折叠单卡、调整阅读尺寸并放大查看",
+      "userAction": "点卡片标题折叠/展开；拖卡片高度并双击恢复；点放大查看，再 Escape/背景/关闭退出",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "单卡折叠由 Host 保存；固定/自动高度、独立放大视图可读，渲染跟随主题和语言；脚本错误显示在对应卡片，成功重绘清除旧错误。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "点卡片标题折叠/展开；拖卡片高度并双击恢复；点放大查看，再 Escape/背景/关闭退出",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:997-1127: 自动/固定高度、ResizeObserver、iframe 拖高及脚本反馈",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1272-1281,1365-1390,1480-1490,1712-1722,2459-2502: 折叠、放大、退出与错误",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1520-1562,1681,1723-1731,2511-2711: 跟随主题和中英文"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:997-1127,1272-1490,2459-2502: 同源阅读和反馈实现保留",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "Host 折叠状态、web iframe 与放大视图代码都在，但没有对应 native 全局卡片表面。MyGo 其他弹窗/面板不能证明此路径。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验实际高度、滚动、Escape/焦点、主题切换、中文英文、脚本错误恢复或窄窗口。"
+    },
+    {
+      "id": "PAD-006",
+      "feature": "在普通对话创建可运行 HTML/CSS/JS 的长期面板",
+      "userAction": "在任意支持工具的主对话描述需求，或用坞内加号/示例生成草稿，然后让 AI 调用 pad_create",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "创建独立 panel id，可带图标、HTML/CSS/script、auto/固定高度、sources、agent、model 和初始 data；校验定义；首次读数/未审批状态返给模型，界面自动出现。不是用户手动导入六 widget JSON。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "在任意支持工具的主对话描述需求，或用坞内加号/示例生成草稿，然后让 AI 调用 pad_create",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1559-1601,1605-1645: 校验和创建指南",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1813-1846; lib/client.js:2333-2344,2416-2419: pad_create、加号及示例入口",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:482-498; lib/client.js:678-683: 独立 id 和新卡反馈"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1813-1846; lib/client.js:2333-2344: 同源 producer/入口代码保留",
+        "cmd/whaleisle/custom_panels.go:34-52,113-168; internal/store/custompanel/store.go:29-36,58-108: native 另一路只限 canonical Bot，准备草稿→导入回复；拒绝 html/css/script/sources 等未知字段",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-027",
+          "PLUG-028",
+          "PLUG-029"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "默认 Host 没有装配该工具。现有原生 Panels 库是独立有限合同，不等价 dsh-pad；这也不是 Whale UI 的 render_ui 一次会话内容。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2",
+        "PAD-G3"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验真实模型工具清单、pad_create 执行、审批、首读数和同一窗口新卡出现。"
+    },
+    {
+      "id": "PAD-007",
+      "feature": "让 AI 查现有面板、读完整定义并诊断",
+      "userAction": "让 AI 先 pad_list 找到已有 id，再 pad_get 读取定义和最新读数，避免重复创建",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "清单给出 id/title/version、source、等待审批和 agent 状态/下次运行/错误；get 返回 HTML/CSS/script/sources/agent/model 定义及截断数据样本。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "让 AI 先 pad_list 找到已有 id，再 pad_get 读取定义和最新读数，避免重复创建",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1697-1718,1758-1788: 清单摘要、pad_list、pad_get 的实际输出"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1697-1718,1758-1788: 同源 Host 工具实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-027"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "查询工具代码保留但默认 Host 没有注册它们；原生 Bot 面板库按 Host/Bot 作用域读取另一 schema，不能列出 Pad 的全局 panel id。",
+      "missingChain": [
+        "PAD-G1"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验当前工具可见性、空清单、真实面板查询、错误和数据截断。"
+    },
+    {
+      "id": "PAD-008",
+      "feature": "让 AI 修改现有面板或只更新数据",
+      "userAction": "卡片菜单“让 AI 修改”填入带 id 的草稿；pad_update 只传要变的字段，或只提交 data",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "保留未传字段；sources/agent 整体替换；model/agent 为 null 时回默认/取消 AI 刷新；修改定义增加 version 并存上一版，纯 data 不重载定义；更改数据源需重新许可。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "卡片菜单“让 AI 修改”填入带 id 的草稿；pad_update 只传要变的字段，或只提交 data",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1321-1328,1772-1781: 编辑草稿和不可用反馈",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:500-515,1847-1887: 合并字段、纯 data、source 变化与首读数",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1517-1532,1534-1557: null 的 agent/model 语义"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1847-1887; lib/client.js:1321-1328: 同源修改实现保留",
+        "cmd/whaleisle/custom_panels.go:129-168,182-190; internal/store/custompanel/store.go:29-36: native 修改另一 panel schema",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-027",
+          "PLUG-028"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "web 编辑/Host update 同源保留；默认工具挂载和原生到主 composer 的 Pad 上下文交接均缺。现有 Bot 编辑器不能读改此 panel id。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2",
+        "PAD-G3"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验源字段保留、data-only、agent/model null、版本更新、草稿已有内容时的行为和审批更新。"
+    },
+    {
+      "id": "PAD-009",
+      "feature": "撤销面板上一次定义修改",
+      "userAction": "菜单点“撤销上次修改”",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "仅有 previous 才可撤销；恢复上版 definition，version 增加，刷新计划按变更重置；这是一步定义撤销，不是删除恢复或 data 历史回滚。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "菜单点“撤销上次修改”",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1342-1345; lib/index.js:517-532,1406-1408: canUndo 按钮、Host action 和恢复语义"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:1342-1345; lib/index.js:517-532,1406-1408: 同源撤销实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "一步定义撤销的实现保留，缺默认可达链；没有把 native 模板副本/聊天撤回当作 Pad 撤销。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未验有/无 previous、审批变化、刷新计划重置和重启后的撤销。"
+    },
+    {
+      "id": "PAD-010",
+      "feature": "删除不再需要的面板",
+      "userAction": "菜单删除后二次确认，或明确让 AI pad_delete",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "UI 默认取消且 Escape 可退；确认后移除该 panel，Host 推送列表并清理缓存/定时器；删除不可撤销。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "菜单删除后二次确认，或明确让 AI pad_delete",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1212-1222,1355-1362,1393-1403; lib/index.js:534-537,628-638,723-759,1904-1914: UI 确认、工具删除及后续清理"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:1393-1403; lib/index.js:534-537,1904-1914: 同源删除实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-027"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "Pad 独立删除链在资产中保留，但默认不可达；native Bot 副本删除不处理 Pad store。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未删除任何真实面板；未验确认/取消、工具删除、列表和缓存/调度收尾。"
+    },
+    {
+      "id": "PAD-011",
+      "feature": "用本机命令持续读取真实指标",
+      "userAction": "创建/修改 kind=command 数据源，批准后把真实命令输出显示在面板",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "Host 在本机 shell 执行命令；parse 为 text/json/lines，设间隔与 timeout；输出超限/非零退出/超时有错误，支持 Windows 隐藏命令窗口与进程树取消。最多八个数据源。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "创建/修改 kind=command 数据源，批准后把真实命令输出显示在面板",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:245-257,275-358,391-401: 执行、解析、输出限制、错误与取消",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1441-1445,1461-1484,1575-1587: 定义及数量校验"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:245-358,391-401,1461-1484: 同源 command runner 保留",
+        "internal/store/custompanel/store.go:29-36,58-76: native 面板定义不接受 command/sources",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-028"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "命令数据源不是“原生 widget 绑定”已有能力；runner 保留但默认插件未启动，native 卡片和审批入口未联通。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未运行任何数据源命令；真实本机 shell、退出码、超时、取消和 output cap 未验。"
+    },
+    {
+      "id": "PAD-012",
+      "feature": "用 HTTP GET/POST 接口作为面板数据源",
+      "userAction": "定义 kind=http 的 URL、method、headers/body 和解析方式，批准后持续读取",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "Host 发 HTTP(S) GET/POST，处理响应限制/状态/超时；URL/headers/body 的 {{env:NAME}} 在 Host 侧从 credentials 或环境解析，浏览器只得符号引用和脱敏错误；不把 command 文本误说成支持同样占位替换。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "定义 kind=http 的 URL、method、headers/body 和解析方式，批准后持续读取",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:247-274,359-401,1486-1512: HTTP 请求、占位替换、脱敏和校验",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:2193-2203: resolver 优先 credentials 后环境；本轮只读代码未读凭据"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:247-274,359-401,1486-1512,2193-2203: 同源 HTTP/secret resolver 保留",
+        "internal/store/custompanel/store.go:29-36: native schema 无 HTTP 数据源",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-028"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "HTTP/凭据引用代码完整保留，默认挂载未做；不能因已有浏览器/通用 HTTP RPC 就判定 Pad 数据绑定可用。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未访问接口或读取任何 secret；HTTP 成败、脱敏和在面板可见的最新数据未验。"
+    },
+    {
+      "id": "PAD-013",
+      "feature": "试跑数据源但不保存面板",
+      "userAction": "让 AI 用 pad_test_source 查看真实输出，再编写 script",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "校验单 source，申请本次执行许可，执行后仅返回耗时和截断样本/错误，不写入面板定义；执行 signal 可取消。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "让 AI 用 pad_test_source 查看真实输出，再编写 script",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1722-1737,1789-1802: askToRun 和 pad_test_source 的完整路径"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1722-1737,1789-1802: 同源试跑实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-002"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "独立试跑工具确实存在于随包代码，不是 native 面板预览；默认 Host 缺 Pad 装配导致工具不可获得。",
+      "missingChain": [
+        "PAD-G1"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未执行任何试跑；未验允许/拒绝/取消、无保存和输出反馈。"
+    },
+    {
+      "id": "PAD-014",
+      "feature": "逐数据源定义审批，并阻止未批准/已变更的执行",
+      "userAction": "创建/修改时在工具审批允许一次；或卡片点“允许运行”；拒绝时保留待批准面板",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "autoApprove 默认 false；approval 服务无可用 agent 时不自行放行。按完整 sources 指纹授权，修改后旧许可不适用，过期指纹返回 409；允许只针对显示的 source 配置。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "创建/修改时在工具审批允许一次；或卡片点“允许运行”；拒绝时保留待批准面板",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:411-424,477-480,538-542,658-662,723-729: 来源指纹、批准与执行门禁",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1409-1412,1722-1737,1742-1748,1835-1839,1876-1879,2162: 工具/UI 审批路径与默认",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1464-1471: 源预览和允许按钮"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:411-542,1409-1412,1722-1748,2162; lib/client.js:1464-1471: 同源审批实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "许可门禁代码已保留，不报告为丢失安全实现；缺默认启动与 native 待批准卡片，不能拿主对话的通用 approval 证明 Pad 授权路径。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未请求审批或运行命令；未验允许、拒绝、改源重审、旧指纹冲突和 autoApprove 配置。"
+    },
+    {
+      "id": "PAD-015",
+      "feature": "按可见性自动轮询，手动单卡/全部刷新并看实时状态",
+      "userAction": "展开坞观察数据自动变化；折叠卡片/坞暂停其直接源轮询；用菜单/卡内/全部刷新立即更新",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "只有 watched 且已批准的直接源自动运行；SSE 更新数据和面板列表；保留等待首数据、成功时间、source/script/action 错误与断线重连反馈。手动刷新也可请求 agent，二者不混为同一调度器。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "展开坞观察数据自动变化；折叠卡片/坞暂停其直接源轮询；用菜单/卡内/全部刷新立即更新",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:628-676,1235-1245,1473-1490,2346-2357,2414: watch、SSE、按钮和反馈",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:640-663,723-817,1271-1328,1399-1402: 自动定时器、实时广播和刷新 action",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1888-1903: pad_refresh 返回直接读数/后台排队提示"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:628-676,2346-2357; lib/index.js:640-817,1271-1328,1888-1903: 同源实时调度链保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "完整 SSE/轮询代码保留，不能说已实现 native 看板；默认既无 Pad service，也无可见坞来形成 watched 集合。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未打开流、刷新或运行数据源；未验折叠暂停、去重、重连、首数据和失败后恢复。"
+    },
+    {
+      "id": "PAD-016",
+      "feature": "让后台 AI 定时更新面板，并恢复中断状态",
+      "userAction": "给面板 agent.instruction/everyMinutes，查看下次时间；手动刷新立即排队；pad_update agent=null 取消计划",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "后台创建独立 agent，使用面板模型或全局默认及默认 preset，提交 pad_submit_data 或 pad_report_failure；并发、超时、失败重试可配置；停止时取消真实 agent，重启把遗留 running 标为 failed。",
+      "originalAvailableWhen": "Pad 已加载，agentRefresh=true（默认）；ctx.agents 可用，且有可用模型/preset及数据获取所需权限。默认 minAgentMinutes=15；后台 AI 与可见性控制的直接源不同。",
+      "entry": "给面板 agent.instruction/everyMinutes，查看下次时间；手动刷新立即排队；pad_update agent=null 取消计划",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:14-95,98-223: 排队、独立 agent、submit/failure、停止/超时/重试和重启标记",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1517-1532,2164-2168,2204-2222: 配置、最短间隔、启停与调度接线",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1243-1245,1283-1286,1489: 用户可见状态"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:14-223,2164-2168,2204-2222: 同源 AI 刷新实现保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "这不是任务队列/通用计划任务已覆盖的证明：Pad 有自己的数据提交、模型、计划和状态。代码保留，但默认没有加载该 service。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未创建 agent 或发模型请求；实际默认 preset、计费、超时取消、并发、重试和重启恢复均未验。"
+    },
+    {
+      "id": "PAD-017",
+      "feature": "单独指定面板模型或跟随全局默认",
+      "userAction": "菜单“面板模型”选择 provider/model；或 AI 先 pad_models 再写 model/reasoningEffort；选择“跟随默认”清除覆盖",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "目录列当前 provider/model 与支持的 reasoning efforts；Host 验证选择。此路由同时用于 AI 刷新和 dsh.run，不改变面板 version；UI 选模型用该模型默认 reasoning effort，任意强度由工具字段指定。",
+      "originalAvailableWhen": "Pad 已加载；ctx.llm 可列模型。显式 model 需有效 provider/model/effort；跟随默认需 agentDefaultModel 当前选择。",
+      "entry": "菜单“面板模型”选择 provider/model；或 AI 先 pad_models 再写 model/reasoningEffort；选择“跟随默认”清除覆盖",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1036-1108,564-576,1423-1425,1803-1812: 目录、验证、保存与工具",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1246-1270,1346-1354,1404-1462: 菜单、loading/error/default 和模型选择"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1036-1108,564-576,1803-1812; lib/client.js:1404-1462: 同源路由选择保留",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "MyGo 主对话模型选择不能替代 Pad 的 per-panel definition.model；当前代码保留此能力，但默认不可达。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未读用户模型/凭据或请求目录；未验失效模型、选择持久化、默认切换和实际请求所用模型。"
+    },
+    {
+      "id": "PAD-018",
+      "feature": "在面板内按按钮直接调用模型并显示文本",
+      "userAction": "面板脚本调用 dsh.run(prompt, {system?})，把 ok/text/error 就地显示",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "iframe token 通道→Host /run→llm.stream，使用本面板模型/默认，纯文本无工具；有超时、输入/输出限制、速率和每面板并发控制、失败反馈。interactiveModel 默认可用且可禁用。",
+      "originalAvailableWhen": "Pad 已加载，interactiveModel=true（默认），llm 与本面板/全局模型可用；每次请求受配置约束。",
+      "entry": "面板脚本调用 dsh.run(prompt, {system?})，把 ok/text/error 就地显示",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:898-918,1046-1057,1482: frame request/result 与父端调用",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1112-1210,1358-1385,2169-2172,2240-2248: Host runner、路由、开关与限制"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:1112-1210,1358-1385; lib/client.js:898-918,1046-1057: 同源 dsh.run 链保留",
+        "internal/store/custompanel/store.go:29-36; internal/ui/custompanel/panel.go:197-218: native action 只是草稿入口，没有 Pad run 脚本协议",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-028"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "Pad 内模型调用不是 native action/主聊天发送，也不是 render_ui；缺默认挂载和可承载该脚本协议的原生卡片。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未请求模型；未验按钮生命周期、结果回传、超时/错误、速率/并发、配置禁用和实际使用模型。"
+    },
+    {
+      "id": "PAD-019",
+      "feature": "把面板问题交给主对话，而不是面板模型",
+      "userAction": "面板脚本 dsh.ask(text)，或菜单“让 AI 修改”；加号在已有主草稿插入创建提示",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "dsh.ask 填主对话草稿而不自动发送；加号使用 captureInsertion/insertText 保留已有文本；找不到 composer 时尝试复制并提示。web composer-bridge 随 conversation.input.overlay 挂接。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "面板脚本 dsh.ask(text)，或菜单“让 AI 修改”；加号在已有主草稿插入创建提示",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:31-101,897,1043-1045: 主 composer fill/insert 与 frame ask",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1772-1781,2340-2342,2953-2955,3011-3015: 插入、缺入口反馈和真实 bridge 挂载"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:31-101,897,1043-1045,3011-3015: 同源浏览器 bridge 保留",
+        "internal/desktop/pluginui/session.js:21-33: conversation.input.overlay 只在原 Host 会话页观察，未跨到 native composer",
+        "cmd/whaleisle/custom_panels.go:113-127: native Bot 另一路只在空闲草稿填自己的 schema 提示；非 Pad bridge",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-012",
+          "PLUG-013",
+          "PLUG-027"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "缺的是 Pad 全局 overlay 与当前 native composer 的同会话交接。完整 Host 页可有它自己的 web composer，但不能据此称原生草稿路径对等。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2",
+        "PAD-G3"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未填或读取用户草稿；未验有/无 composer、保留插入点、跨会话目标、复制权限与不自动发送。"
+    },
+    {
+      "id": "PAD-020",
+      "feature": "从面板打开安全的外部链接",
+      "userAction": "点击 iframe 普通链接或调用 dsh.openUrl(url)",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "由 iframe postMessage 交给父页；只接受 http(s)，以 noopener,noreferrer 新页打开；iframe 不自行取得同源/任意网络权限。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "点击 iframe 普通链接或调用 dsh.openUrl(url)",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:772-777,896,1018-1023,1038-1041,1104-1111: 链接拦截、source/token 校验、协议限制和 allow-scripts sandbox"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:772-777,896,1018-1041,1104-1111: 同源隔离与外链路径保留",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "隔离和外链代码未丢失，但没有默认 Pad 原生表面；MyGo 通用外部浏览器能力不能证明此 iframe 到宿主路径已工作。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未打开外链；完整 Host 页的 window.open 到 MyGo webview/系统浏览器的实际处理和拒绝非 http(s)未验。"
+    },
+    {
+      "id": "PAD-021",
+      "feature": "重启后恢复面板定义、读数趋势和刷新计划",
+      "userAction": "关闭/重启 Host 后重新打开面板，仍能看到已有定义、最新成功数据与近期趋势",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "默认 DSH_HOME/dsh-pad/panels.json 保存定义、位置、折叠、model、agentData/agentRun/previous/审批；readings.json 保留匹配 source 指纹的最近20成功点，页面累积120点；损坏定义文件另存 corrupt，不抹掉原始内容；中断 AI 不当成功。",
+      "originalAvailableWhen": "同一有效 Pad dataFile/DSH_HOME 可读写；未被用户覆盖 dataFile 或显式禁用；恢复行为按载入的同一插件代码。",
+      "entry": "关闭/重启 Host 后重新打开面板，仍能看到已有定义、最新成功数据与近期趋势",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:434-460,482-604,823-825,878-918,920-1022,2176-2192: 定义/缓存加载、原子落盘与数据路径",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:33-44: 遗留 running 失败标记",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:358-359,406-419,658-700: 缓存趋势种子与120点页面历史"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/index.js:434-604,878-1022,2176-2192: 同字节持久化代码保留",
+        "internal/harness/launch.go:318-322: MyGo 使用自己的 DSH_HOME；是否具有原版 Pad 数据本轮未读取",
+        "internal/store/custompanel/store.go:111-136: native 另一库写 assistant/panels.json，不消费 dsh-pad/panels.json",
+        "cmd/whaleisle/main.go:2775-2777,2796-2816: 生产入口只传 Project 动态 patch、现有 PrepareOptions；无 Pad 默认装配参数",
+        "internal/harness/supervisor.go:416-433; internal/harness/prepare.go:18-65: 默认自管 Host 走 PlanStart → Prepare → Resolve",
+        "internal/harness/overlay.go:53-134,139-193; internal/harness/extra_overlay.go:18-51: builtin/optional/extra overlays 完整清单没有 dsh-pad"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-027"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "保留的存储代码不代表已激活或已恢复用户 Pad 数据；默认挂载未完成。这里不凭未读 profile 宣称迁移丢数据，也不把 native Bot 文件当 Pad 恢复。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "真实原版/MyGo DSH_HOME、是否导入过 Pad、文件拥有关系/缓存内容均未读；实际重启和 corrupt 恢复未验。"
+    },
+    {
+      "id": "PAD-022",
+      "feature": "重开界面保留布局和面板内小量 UI 状态",
+      "userAction": "拖好布局、改面板标签页/筛选后，重开 Host 页面仍沿用自己的布局和状态",
+      "baseline": "installed-0.3.13 (bundled dsh-pad 0.3.1)",
+      "expected": "dsh-pad:layout 保存展开、球/坞位置、宽高、卡片树和高度；dsh.state 按 panel id 保存小量 JSON（64 Ki 字符），由 token 通道交父页 localStorage；不把它当服务端文件或跨 profile 同步。",
+      "originalAvailableWhen": "正常桌面启动、没有显式禁用且没有接管的用户 dsh-pad 包；插件成功加载 tools/connection 和 web slots/locale。已有用户包的行为取决于该包，不由随包 0.3.1 保证。",
+      "entry": "拖好布局、改面板标签页/筛选后，重开 Host 页面仍沿用自己的布局和状态",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:358-488,530-559,920-923,951-968,974-976,1059-1061: 布局及面板状态存取、消息和限额"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-pad/lib/client.js:358-559,920-976,1059-1061: 同源 localStorage 逻辑保留",
+        "internal/store/custompanel/store.go:16-40,111-136: Bot 状态是另一 scope/schema/path，不承接 Pad localStorage",
+        "internal/desktop/pluginui/owner.go:21-25; internal/desktop/pluginui/client.js:6-17: 原生插件页只接八类 plugins.* 槽，隐藏其余 DOM，不消费 Pad 的 shell.overlay",
+        "internal/desktop/pluginui/session.js:21-33; cmd/whaleisle/plugin_contributions.go:107-149: 会话桥有 conversation.input.overlay，但没有 shell.overlay；这是原 Host 会话页，不是原生 composer 的 Pad 桥",
+        "cmd/whaleisle/plugin_slot_views.go:8-21; internal/ui/settings/plugins.go:117-120; internal/desktop/pluginslots/client.js:77-97,201-216: 已启用包可以显式打开完整 Host 页；独立视图选择器不列 shell.overlay，不能代替默认原生悬浮坞"
+      ],
+      "searchCoverage": [
+        "PAD-SEARCH-01"
+      ],
+      "oldLedger": {
+        "disposition": "omitted-as-dsh-pad-capability",
+        "coveredBy": [],
+        "relatedIDs": [
+          "PLUG-013",
+          "PLUG-014",
+          "PLUG-027"
+        ],
+        "note": "旧领域 JSON 没有 dsh-pad 或 pad_* 能力条目；相关项是通用依赖或不同产品能力，不冒充已覆盖。"
+      },
+      "finding": "web 侧状态功能仍在；MyGo 没有默认 Pad 页面，也没有 native 状态桥。完整 Host 页的存储分区可能可保留自己的状态，但不是跨原版/MyGo自动迁移证据。",
+      "missingChain": [
+        "PAD-G1",
+        "PAD-G2"
+      ],
+      "conditionalAlternative": "若用户另行安装并启用 dsh-pad，或显式给可用默认 patch，保留的同源 Host/client 可在完整 Host 浏览器页运行；该条件路径为 wired-unverified，不等于默认原生入口可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "先补齐/决定默认 Host 装配及原生悬浮坞入口，再按本项 expected 验收。",
+      "acceptanceGap": "未读真实 localStorage；未验同/跨来源和 Host 重启端口变化、关闭后恢复、64 Ki限额及不同 panel 状态隔离。"
+    }
+  ],
+  "toolInventory": {
+    "mainConversationTools": [
+      {
+        "name": "pad_list",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1758-1768",
+        "features": [
+          "PAD-007"
+        ]
+      },
+      {
+        "name": "pad_get",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1769-1788",
+        "features": [
+          "PAD-007"
+        ]
+      },
+      {
+        "name": "pad_test_source",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1789-1802",
+        "features": [
+          "PAD-011",
+          "PAD-012",
+          "PAD-013",
+          "PAD-014"
+        ]
+      },
+      {
+        "name": "pad_models",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1803-1812",
+        "features": [
+          "PAD-017"
+        ]
+      },
+      {
+        "name": "pad_create",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1813-1846",
+        "features": [
+          "PAD-006"
+        ]
+      },
+      {
+        "name": "pad_update",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1847-1887",
+        "features": [
+          "PAD-008"
+        ]
+      },
+      {
+        "name": "pad_refresh",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1888-1903",
+        "features": [
+          "PAD-015",
+          "PAD-016"
+        ]
+      },
+      {
+        "name": "pad_delete",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1904-1914",
+        "features": [
+          "PAD-010"
+        ]
+      }
+    ],
+    "backgroundAgentOnlyTools": [
+      {
+        "name": "pad_submit_data",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:113-128,155-163",
+        "features": [
+          "PAD-016"
+        ]
+      },
+      {
+        "name": "pad_report_failure",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:129-138,155-163",
+        "features": [
+          "PAD-016"
+        ]
+      }
+    ],
+    "hostRoutes": [
+      {
+        "route": "GET /api/dsh-pad.panels",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1265-1270",
+        "features": [
+          "PAD-002",
+          "PAD-007",
+          "PAD-021"
+        ]
+      },
+      {
+        "route": "GET /api/dsh-pad.stream?watch=",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1271-1328",
+        "features": [
+          "PAD-002",
+          "PAD-015"
+        ]
+      },
+      {
+        "route": "GET /api/dsh-pad.models",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1329-1334",
+        "features": [
+          "PAD-017"
+        ]
+      },
+      {
+        "route": "POST /api/dsh-pad.run",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1358-1385",
+        "features": [
+          "PAD-018"
+        ]
+      },
+      {
+        "route": "POST /api/dsh-pad.action",
+        "ops": [
+          "refresh",
+          "delete",
+          "undo",
+          "approve",
+          "collapse",
+          "move",
+          "span",
+          "model"
+        ],
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1237-1261,1386-1434",
+        "features": [
+          "PAD-005",
+          "PAD-009",
+          "PAD-010",
+          "PAD-014",
+          "PAD-015",
+          "PAD-017"
+        ],
+        "note": "move/span 仍是兼容内部 action；本 client 的可见菜单没有对应上移/占列控件，改用嵌套树拖放；不额外计用户能力。"
+      },
+      {
+        "route": "GET/POST /api/dsh-pad.update",
+        "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1335-1356,2223-2229",
+        "features": [],
+        "disposition": "excluded-disabled-in-installed-bundled-baseline"
+      }
+    ],
+    "frameAPI": {
+      "readAndDisplay": [
+        "data",
+        "onData",
+        "history",
+        "fmt.bytes/percent/number/ago/time/duration",
+        "chart.sparkline/bar/ring",
+        "tone",
+        "escape"
+      ],
+      "actions": [
+        "refresh",
+        "openUrl",
+        "ask",
+        "run",
+        "state.get/set"
+      ],
+      "evidence": "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:794-935",
+      "mappedFeatures": [
+        "PAD-005",
+        "PAD-015",
+        "PAD-018",
+        "PAD-019",
+        "PAD-020",
+        "PAD-021",
+        "PAD-022"
+      ]
+    },
+    "countingRule": "工具、路由、配置项和 frame API 是22项用户动作的实现/接口库存，不另加到能力分母。"
+  },
+  "notCountedAsMissingBaselineFeatures": [
+    {
+      "feature": "Pad 插件内置 GitHub 检查/下载并覆盖更新",
+      "reason": "实际安装随包 Host 硬编码 UpdateService enabled:false，status.available/canApply 均 false；UI 更新按钮只在 available 时出现。MyGo 同字节保持该策略，不算原版已可用而 MyGo 缺失。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1962-1978,1997-2003,2223-2229",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:2360-2370,2408-2410"
+      ]
+    },
+    {
+      "feature": "菜单上移/下移/占几列/自动排列",
+      "reason": "locale 保留文案及 Host move/span，但本版可见菜单只有编辑/刷新/撤销/模型/删除；实际布局入口为拖放树。不能把未接线 locale 当原版用户功能缺口。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:1321-1363,1841-1947,2545-2563"
+      ]
+    },
+    {
+      "feature": "Pad 是独立 OS 窗口/系统常驻 widget",
+      "reason": "原版用 shell.overlay 的 DOM 浮坞，非 BrowserWindow。没有借产品名称推断 OS 桌面 widget。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:3005-3010,2307-2314"
+      ]
+    },
+    {
+      "feature": "任意远程脚本/图片/iframe 网络、文件/Host RPC",
+      "reason": "原版 Pad frame 明确 no-network/no-same-origin；受控数据来自 Host sources/agent/run。不能把这些原本禁用的能力算 MyGo 缺失。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/client.js:941,1104-1111",
+        "C:/软件/Whale Isle/resources/vendor/dsh-pad/lib/index.js:1621-1645"
+      ]
+    }
+  ],
+  "crossDomainDependencies": [
+    "Shell/PLUG-013：本补充给出 shell.overlay 的实际随包消费者 Pad；全局 native 表面由对应 owner 决策，不能只补 Host 然后宣布可用。",
+    "Conversation：Pad 的创建/编辑/ask 需要当前原生会话 composer 和 tool 执行链，不可跨会话/覆盖未知草稿。",
+    "Plugins/PLUG-014：手动安装启用后的完整 Host 页是保留替代路径；入口、本地存储分区、外链和会话上下文仍需实际验。",
+    "Host/LLM/permissions：直接数据源、后台 AI 和 dsh.run 的附加服务及许可分别验；没有为静态面板添加模型前置条件。"
+  ],
+  "uncovered": [
+    "[runtime acceptance] 本轮22项均无当前用户实例运行验收；安装提供能力通过实际安装源码确认，不冒充用户当前已启用。",
+    "[user state unknown] 未读取用户 profile、bundle/disable、dataFile、localStorage、credentials 和进程环境；手动用户包、外接 Host、父环境默认 patch 可能改变当前运行去向。",
+    "[restore acceptance] 原版/MyGo Pad 数据目录现存内容、导入/迁移状态和文件/存储拥有关系未知；仅追到了代码路径，未宣称丢失或成功迁移。",
+    "[visual acceptance] 未操作桌面，球/坞/分区/脚本/主题/窄窗口/权限/恢复均未观察。"
+  ],
+  "checksRun": [
+    {
+      "command": "只读 Get-Content/rg 和 git diff --name-only；安装 main 源码→Host 默认层→Pad Host/client→MyGo production 装配双向追踪",
+      "result": "定位3组链路缺口及22项用户能力；没有执行插件模块、模型或用户程序。",
+      "scope": "源码和生产装配证据"
+    },
+    {
+      "command": "Python pathlib.read_bytes 对六个随包文件做直接字节相等比较，并用 difflib 读当前原项目差异",
+      "result": "安装/MyGo 六文件全部相同；当前原项目 client/README 有已提交视口补丁，Pad相关 dirty 为0。",
+      "scope": "纯本地静态 metadata/内容检查，无 hash"
+    },
+    {
+      "command": "解析本 supplement JSON 并校验唯一 ID、必填字段、计数、工具映射与缺口组引用",
+      "result": "生成时断言通过；22个唯一能力，8个主对话工具、2个后台专用工具、6个 route family 均有去向。",
+      "scope": "仅报告结构，不是产品测试"
+    },
+    {
+      "command": "只读父任务既有 result/startup JSON 和明确授权的隔离 QA profile 中 manifest、desktop overlays、node_modules 顶层链接名、cordis Pad 引用",
+      "result": "实际 EXE/Host ready 样本生成7个 overlays 无Pad；无用户依赖/Pad bundle；stage有Pad资产。结果写入 tmp/gap-reopen-20261102/pad/qa-profile-readback.json。",
+      "scope": "复用既有隔离 EXE 运行生成物；没有新启动、网络请求、用户数据或 GUI 操作"
+    }
+  ],
+  "counts": {
+    "installedBaselineUserCapabilities": 22,
+    "status": {
+      "confirmed-defect": 1,
+      "missing": 1,
+      "partial": 20
+    },
+    "previouslyOmittedAsPadCapabilities": 22,
+    "rootCauseGroups": 3,
+    "mainConversationTools": 8,
+    "backgroundAgentOnlyTools": 2,
+    "hostRouteFamilies": 6,
+    "excludedDisabledUpdateFamilies": 1,
+    "runtimeVerified": 0
+  },
+  "summary": "补入22项真实 dsh-pad 用户能力：默认随包/恢复、全局坞与布局、AI创建/诊断/修改/撤销/删除、本机/HTTP源及试跑审批、实时直接刷新、后台AI刷新、单面板模型、dsh.run、主对话/外链交接与两类持久化。MyGo 资产与安装版六文件完全相同；关键缺口为默认Host未装配、native不消费shell.overlay，以及Pad到native composer未接线。1项confirmed-defect、1项missing、20项partial；这不是22个独立根因或22项运行失败。旧Pad名称是字符串函数，Bot六widget库是另一个合同。所有运行验收仍待完成。 另复用既有实际 trajectory.1 EXE/Host ready 的隔离 profile：7个生成 overlays 和链接中没有 Pad，manifest无用户包，stage仍有Pad资产；该样本支持默认装配缺口，未进行Pad路由/界面运行验收。",
+  "scopedExistingExecutableEvidence": {
+    "source": "父任务已授权复用的隔离 QA profile；本代理只读，没有再启动 EXE/Host。",
+    "profile": "tmp/acceptance-runtime-20261102/workspace/qa-root/user-data/dsh-home/profiles/web",
+    "runtimeEvidence": [
+      "tmp/acceptance-runtime-20261102/desktop/result.json",
+      "tmp/acceptance-runtime-20261102/desktop/startup.json"
+    ],
+    "executable": "dist/0.2.1-rc.3/whaleisle/whaleisle-trajectory-diagnostic.exe (0.2.1-rc.3+trajectory.1)",
+    "sample": "2026-11-02T11:28:01.8536658Z 至 11:28:10.0366530Z；Host ready=5171.838ms；EXE/Host 已释放。",
+    "preconditionFromOwner": "新 QA registry 已注册 workspace/两次空 session，未安装任何用户插件；不是正常用户 profile。",
+    "manifest": {
+      "name": "dsh-profile-web",
+      "private": true,
+      "dependencies": {},
+      "dsh": {
+        "profile": {
+          "bundles": [
+            "@deepseek-ai/dsh-base",
+            "@deepseek-ai/dsh-web-app"
+          ]
+        }
+      }
+    },
+    "desktopOverlayFiles": [
+      "desktop-plugins/dsh-im/desktop-dsh-im.patch.yml",
+      "desktop-plugins/dsh-market/desktop-dsh-market.patch.yml",
+      "desktop-plugins/dsh-platform-session/desktop-platform-session.patch.yml",
+      "desktop-plugins/dsh-task-control/desktop-task-control.patch.yml",
+      "desktop-plugins/dsh-usage-panel/desktop-usage-panel.patch.yml",
+      "desktop-plugins/dsh-whale/desktop-dsh-whale.patch.yml",
+      "desktop-plugins/session-search/desktop-session-search.patch.yml"
+    ],
+    "nodeModuleTopLevelNames": [
+      "@deepseek-ai",
+      "@xmanrui",
+      "dsh-platform-session",
+      "dsh-task-control",
+      "dsh-usage-panel",
+      "dsh-whale",
+      "whaleisle-desktop-plugin-views",
+      "whaleisle-native-plugin-ui"
+    ],
+    "padReferencesInCordisFiles": {
+      "cordis.yml": [],
+      "cordis.patch.yml": []
+    },
+    "stagePadAssetsPresent": [
+      "dist/0.2.1-rc.3/whaleisle/runtime/vendor/dsh-pad/package.json",
+      "dist/0.2.1-rc.3/whaleisle/runtime/vendor/dsh-pad/lib/index.js",
+      "dist/0.2.1-rc.3/whaleisle/runtime/vendor/dsh-pad/lib/client.js"
+    ],
+    "finding": "实际 EXE 到 Host ready 后生成7个 desktop overlays：IM、market、platform-session、task-control、usage-panel、whale、session-search；没有 Pad 默认 overlay/alias。manifest 仅 base/web-app，cordis 无 Pad。与源码所示默认装配缺口一致。",
+    "boundary": "这是隔离实际 EXE 的 profile 生成物证据，不是 /api/dsh-pad.* 路由探测，也不是原生浮坞可见性/用户当前实例验收；代码工作树与既有 EXE 的版本分别保留。"
+  }
+}

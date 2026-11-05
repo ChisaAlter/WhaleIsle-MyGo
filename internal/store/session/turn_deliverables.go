@@ -316,6 +316,8 @@ type TurnPresentedHost struct {
 }
 type TurnFileResult struct {
 	Busy, Ready, Unavailable bool
+	NativeUnavailable        bool
+	SettledAt                time.Time
 	Action, Error            string
 	Summary                  *TurnChangesSummary
 	Diff                     *TurnFileDiff
@@ -489,6 +491,7 @@ func (s *Store) RunTurnFileAction(ctx context.Context, scope TurnFileScope, requ
 	s.mu.Unlock()
 	s.fire()
 	result := runTurnFileHTTP(child, &captured, scope, request, route, method, expectedPath)
+	result.SettledAt = time.Now()
 	cancel()
 	s.mu.Lock()
 	if s.client != client || client.Endpoint != endpoint || scope != s.turnFilesScopeLocked() || scope != s.turnFiles.scope {
@@ -558,6 +561,7 @@ func runTurnFileHTTP(ctx context.Context, client *dsh.Client, scope TurnFileScop
 		return fail(fmt.Errorf("recorded file or turn summary is no longer available on this Host"))
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		result.NativeUnavailable = response.StatusCode == http.StatusUnprocessableEntity && method == http.MethodPost
 		return fail(fmt.Errorf("%s: HTTP %d; retry only this file action", route, response.StatusCode))
 	}
 	if method == http.MethodPost {

@@ -71,7 +71,7 @@ func TestPresentedCardsPreviewAndExplicitHostActions(t *testing.T) {
 	if err := tt.Click("Second report"); err != nil {
 		t.Fatal(err)
 	}
-	if len(previews) != 2 || previews[1] != second || len(actions) != 0 || !tt.HasText("Cannot preview this file") {
+	if len(previews) != 2 || previews[1] != second || len(actions) != 0 || !tt.HasText("Could not preview file; try again") {
 		t.Fatalf("preview failure was not contained to the second card: previews=%v actions=%v texts=%q", previews, actions, tt.Texts())
 	}
 	for _, item := range []struct {
@@ -84,16 +84,17 @@ func TestPresentedCardsPreviewAndExplicitHostActions(t *testing.T) {
 		{"Second report", []string{"Open with…", "Editor"}, session.TurnFileApplicationAction("app-2")},
 	} {
 		// Menus share a visible basename, so address the menu beside its own card.
-		r, ok := tt.Find(item.card)
-		if !ok {
-			t.Fatalf("missing %q", item.card)
-		}
 		label := "Preview report.txt"
 		firstCard, ok := tt.Find(label)
 		if !ok {
 			t.Fatalf("missing %q", label)
 		}
-		tt.ClickAt(firstCard.X+firstCard.W+20, r.Y+r.H/2)
+		r := firstCard
+		if item.card == "Second report" {
+			r.Y += 68
+		}
+		// Only the chevron owns the menu; the left 24-DIP seat now opens once.
+		tt.ClickAt(firstCard.X+firstCard.W+34, r.Y+r.H/2)
 		if err := tt.ChooseMenuItem(item.choice...); err != nil {
 			t.Fatal(err)
 		}
@@ -123,13 +124,13 @@ func TestPresentedCardUnavailableAndActionError(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		addressedTurnDeliveryView(c, delivery, snapshot, true, run, func(session.TurnFileTarget) error { return errors.New("This file type cannot be previewed") }, ToolCardStyle{})
 	}, 400, 180)
-	if !tt.HasText("Host refused the open") {
+	if !tt.HasText("Could not open file; try again") {
 		t.Fatalf("explicit action error is missing: %q", tt.Texts())
 	}
 	if err := tt.Click("Preview demo.exe"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("This file type cannot be previewed") || !tt.HasText("Host refused the open") {
+	if !tt.HasText("Could not preview file; try again") {
 		t.Fatalf("preview error lost: %q", tt.Texts())
 	}
 }
@@ -206,7 +207,7 @@ func TestDeliveryCardUsesLiveStoreAuthorityForPreview(t *testing.T) {
 	}
 	store.Select("different-session")
 	tt.ClickAt(first.X+first.W/2, first.Y+first.H/2+68)
-	if len(calls) != 1 || generalOpens != 0 || !tt.HasText("no longer available") {
+	if len(calls) != 1 || generalOpens != 0 || !tt.HasText("Could not preview file; try again") {
 		t.Fatalf("stale scope remained actionable: calls=%v opens=%d texts=%q", calls, generalOpens, tt.Texts())
 	}
 }

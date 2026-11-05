@@ -24,6 +24,7 @@ func (s *Store) agentParentCanPromptLocked(address AgentSessionAddress) bool {
 	return address.Mode == "continuable" && known && available
 }
 func (s *Store) agentParentViewLocked(v *AgentNavigationView) {
+	s.childQueueViewLocked(v)
 	v.RetainedPromptAllowed = s.retainedAgentExplicitGestureAllowedLocked(v.Token, v.Address)
 	v.RetainedReadOnly = s.agentRetainedRead != nil && !s.agentPaneCurrentLocked()
 	v.ParentAvailabilityKnown, v.ParentAvailable = s.agentParentAvailabilityLocked(v.Address)

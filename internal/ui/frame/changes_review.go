@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/theme"
@@ -42,7 +41,7 @@ func (r *ChangesReviewState) bind(snapshot session.ViewState) bool {
 	return false
 }
 func (w *WorkspacePanes) OpenChangesReview(snapshot session.ViewState, target session.TurnFileTarget) bool {
-	r := &ChangesReviewState{Host: snapshot.TurnFiles.HostLabel, SessionID: snapshot.SelectedID, Target: target, Split: true}
+	r := &ChangesReviewState{Host: snapshot.TurnFiles.HostLabel, SessionID: snapshot.SelectedID, Target: target}
 	if !r.bind(snapshot) {
 		return false
 	}
@@ -139,8 +138,6 @@ func changesReviewPane(c *ui.Context, m Model) {
 	base.Index = -1
 	summary := ensure(base, "summary")
 	host := ensure(base, "host")
-	ui.Text(c, fmt.Sprintf("%s · %s · event %d", r.Host, r.SessionID, r.Target.Seq)).FontSize(10).TextColor(st.Muted).Selectable()
-	ui.Text(c, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")).FontSize(10).TextColor(st.Muted)
 	status := func(result session.TurnFileResult, target session.TurnFileTarget, action string) bool {
 		if result.Error != "" {
 			ui.Text(c, result.Error).TextColor(st.Muted)
@@ -166,37 +163,66 @@ func changesReviewPane(c *ui.Context, m Model) {
 	if r.Target.Index < 0 || r.Target.Index >= len(files) {
 		r.Target.Index = 0
 	}
-	ui.Row(c).Wrap().Gap(4).Children(func() {
-		for i, file := range files {
-			if ui.Button(c, fmt.Sprintf("%s +%d −%d", file.Display, file.Added, file.Deleted)).Disabled(i == r.Target.Index).Clicked() {
-				r.Target.Index = i
-			}
-		}
-	})
 	target := r.Target
-	ui.Row(c).Wrap().Gap(4).Children(func() {
+	ui.Row(c).Height(36).Shrink(0).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
+		file := files[r.Target.Index]
+		selector := ui.Button(c, "").Grow(1).MinWidth(0).Height(28).Padding(0, 4).Gap(6).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Label(paneLabel("选择文件", "Choose file")).Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
+		if selector.Hovered() {
+			selector.Background(c.Theme().SurfaceHover)
+		}
+		selector.Menu(func(menu *ui.Menu) {
+			for i, f := range files {
+				counts := fmt.Sprintf("+%d −%d", f.Added, f.Deleted)
+				if f.Binary {
+					counts = paneLabel("二进制", "Binary")
+				} else if f.Oversized {
+					counts = paneLabel("文件过大", "Too large")
+				}
+				if menu.Item(f.Display + "  " + counts).Checked(i == r.Target.Index).Chosen() {
+					r.Target.Index = i
+				}
+			}
+		})
+		selector.Children(func() {
+			ui.Text(c, file.Display).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(12).PassThrough()
+			ui.Icon(c, reviewChevronIcon).Size(12, 12).Shrink(0).PassThrough()
+		})
+		if file.Binary || file.Oversized {
+			caption := paneLabel("二进制", "Binary")
+			if file.Oversized && !file.Binary {
+				caption = paneLabel("文件过大", "Too large")
+			}
+			ui.Text(c, caption).Shrink(0).FontSize(11).TextColor(st.Muted)
+		} else {
+			ui.Text(c, fmt.Sprintf("+%d", file.Added)).Shrink(0).FontSize(11).TextColor(st.Add)
+			ui.Text(c, fmt.Sprintf("−%d", file.Deleted)).Shrink(0).FontSize(11).TextColor(st.Del)
+		}
 		label := paneLabel("左右对比", "Split view")
 		if r.Split {
 			label = paneLabel("单栏对比", "Unified view")
 		}
-		if ui.Button(c, label).Clicked() {
+		if reviewToolbarButton(c, label, reviewSplitIcon).Selected(r.Split).Clicked() {
 			r.Split = !r.Split
 		}
 		label = paneLabel("自动换行", "Wrap lines")
 		if r.Wrap {
 			label = paneLabel("取消换行", "No wrap")
 		}
-		if ui.Button(c, label).Clicked() {
+		wrapIcon := reviewWrapIcon
+		if r.Wrap {
+			wrapIcon = reviewNowrapIcon
+		}
+		if reviewToolbarButton(c, label, wrapIcon).Selected(r.Wrap).Clicked() {
 			r.Wrap = !r.Wrap
 		}
-		if ui.Button(c, paneLabel("打开完整文件", "Open full file")).Disabled(m.OnOpenDeliverable == nil).Clicked() {
+		if reviewToolbarButton(c, paneLabel("打开完整文件", "Open full file"), reviewInspectIcon).Disabled(m.OnOpenDeliverable == nil).Clicked() {
 			if path, ok := m.Store.ChangesReviewPath(r.scope, target); ok {
 				m.OnOpenDeliverable(path)
 			}
 		}
-
+		changesReviewNativeMenu(c, r.Target, snapshot.TurnFiles, host.Host != nil && host.Host.Available, ensure, run)
 	})
-	chat.TurnFileNativeActions(c, target, snapshot.TurnFiles, host.Host != nil && host.Host.Available, run, chat.ToolCardStyle{FG: st.FG, Muted: st.Muted})
+	target = r.Target
 	if host.Error != "" {
 		ui.Text(c, host.Error)
 		if ui.Button(c, paneLabel("重试 Host 信息", "Retry Host info")).Clicked() {

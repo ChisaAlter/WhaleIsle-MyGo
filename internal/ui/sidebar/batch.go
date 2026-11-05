@@ -3,6 +3,7 @@ package sidebar
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -177,8 +178,9 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 		}
 	})
 
-	if b.Busy {
-		ui.Text(c, fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-	}
+	// Progress is a toast: a line here would push the session list down while the batch runs.
+	widgets.Notice(c, "sidebar-batch", "", b.Busy, func() string {
+		return fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
+	})
 
 }

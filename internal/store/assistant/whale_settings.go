@@ -11,15 +11,18 @@ import (
 // WhaleSettingsEditor holds only this native editor's in-memory drafts. It
 // never reads local MEMORY.md, persists drafts, or starts model/session work.
 type WhaleSettingsEditor struct {
-	Preferences                 WhalePreferencesEditor
-	mu                          sync.Mutex
-	host                        string
-	epoch, serial, revision     uint64
-	pending                     uint64
-	loaded, seen, busy, confirm bool
-	server                      pluginrpc.WhaleSettings
-	draft                       pluginrpc.WhaleSettings
-	notice, lastErr             string
+	Preferences                     WhalePreferencesEditor
+	mu                              sync.Mutex
+	host                            string
+	epoch, serial, revision         uint64
+	pending                         uint64
+	mutationSerial, mutationPending uint64
+	loaded, seen, busy, confirm     bool
+	server                          pluginrpc.WhaleSettings
+	draft                           pluginrpc.WhaleSettings
+	notice, lastErr                 string
+	completedAction                 string
+	completedSerial                 uint64
 }
 type WhaleSettingsSnapshot struct {
 	HostKey                              string
@@ -28,6 +31,8 @@ type WhaleSettingsSnapshot struct {
 	Server                               pluginrpc.WhaleSettings
 	Notice, Error                        string
 	Revision                             uint64
+	CompletedAction                      string
+	CompletedSerial                      uint64
 }
 type WhaleSettingsTicket struct {
 	host                    string
@@ -48,6 +53,7 @@ func (s *WhaleSettingsEditor) Bind(host string) {
 	s.epoch++
 	s.host = host
 	s.pending = 0
+	s.mutationPending = 0
 	s.loaded = false
 	s.seen = false
 	s.busy = false
@@ -56,6 +62,7 @@ func (s *WhaleSettingsEditor) Bind(host string) {
 	s.draft = pluginrpc.WhaleSettings{}
 	s.notice = ""
 	s.lastErr = ""
+	s.completedAction, s.completedSerial = "", 0
 	s.revision++
 }
 func (s *WhaleSettingsEditor) Suspend() {
@@ -64,6 +71,7 @@ func (s *WhaleSettingsEditor) Suspend() {
 	defer s.mu.Unlock()
 	s.epoch++
 	s.pending = 0
+	s.mutationPending = 0
 	if s.busy {
 		s.loaded = false
 		s.notice = storelocale.T(storelocale.KeyStoreAssistantInterruptedRefreshToVerify)
@@ -74,7 +82,27 @@ func (s *WhaleSettingsEditor) Suspend() {
 func (s *WhaleSettingsEditor) Snapshot() WhaleSettingsSnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return WhaleSettingsSnapshot{HostKey: s.host, Loaded: s.loaded, Busy: s.busy, ConfirmClear: s.confirm, Name: s.draft.Name, UserTitle: s.draft.UserTitle, PersonaText: s.draft.PersonaText, Memory: s.draft.Memory, Server: s.server, Notice: s.notice, Error: s.lastErr, Revision: s.revision}
+	return WhaleSettingsSnapshot{HostKey: s.host, Loaded: s.loaded, Busy: s.busy || s.mutationPending != 0, ConfirmClear: s.confirm, Name: s.draft.Name, UserTitle: s.draft.UserTitle, PersonaText: s.draft.PersonaText, Memory: s.draft.Memory, Server: s.server, Notice: s.notice, Error: s.lastErr, Revision: s.revision, CompletedAction: s.completedAction, CompletedSerial: s.completedSerial}
+}
+
+// BeginMutation serializes the identity/memory and model/skill writers for the
+// same Host. Rebinding revokes only the old ticket, not a newer Host's writer.
+func (s *WhaleSettingsEditor) BeginMutation(host string) (func(), bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if host == "" || host != s.host || s.busy || s.mutationPending != 0 {
+		return nil, false
+	}
+	s.mutationSerial++
+	s.mutationPending = s.mutationSerial
+	epoch, serial := s.epoch, s.mutationPending
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.host == host && s.epoch == epoch && s.mutationPending == serial {
+			s.mutationPending = 0
+		}
+	}, true
 }
 func (s *WhaleSettingsEditor) Edit(host, field, value string) {
 	s.mu.Lock()
@@ -320,6 +348,8 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	s.mergeWriteRead(*actual, cmd.Action, q.revision != s.revision)
 	s.lastErr = ""
 	s.notice = storelocale.T(storelocale.KeyStoreAssistantSavedAndReadBackFromHost)
+	s.completedAction = cmd.Action
+	s.completedSerial++
 	if cmd.Action == "clear" {
 		s.notice = storelocale.T(storelocale.KeyStoreAssistantClearConfirmedByHostCurrentContents)
 	}

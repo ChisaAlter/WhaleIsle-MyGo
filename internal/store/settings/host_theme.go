@@ -22,13 +22,21 @@ type ThemeBinding struct {
 	writeError      string
 }
 
+// The theme queue owns only ui-theme. Other forms must not inherit its busy
+// state, while a second writer for that namespace must wait for settlement.
+func (s *Store) themeWriteInFlightLocked(namespace string) bool {
+	return namespace == "ui-theme" && s.themeBinding != nil && s.themeBinding.currentLocked() && s.themeBinding.inFlight
+}
+
 func (t *ThemeBinding) Snapshot() ViewState {
 	view := t.NamespaceBinding.Snapshot()
 	t.store.mu.Lock()
 	defer t.store.mu.Unlock()
-	if t.currentLocked() && t.writeError != "" {
-		view.Err = t.writeError
+	view.Err = t.writeError
+	if view.Err == "" && t.store.describedClient != t.client && t.store.err != nil {
+		view.Err = t.store.err.Error()
 	}
+	view.Saving = t.inFlight
 	return view
 }
 
@@ -42,7 +50,7 @@ func (s *Store) BindTheme() *ThemeBinding {
 		return s.themeBinding
 	}
 	s.ensureDraftsLocked("ui-theme")
-	b := &NamespaceBinding{s, "ui-theme", s.generation, s.client, fmt.Sprintf("%p/%d/ui-theme", s.client, s.generation)}
+	b := &NamespaceBinding{store: s, namespace: "ui-theme", generation: s.generation, client: s.client, owner: fmt.Sprintf("%p/%d/ui-theme", s.client, s.generation)}
 	s.themeBinding = &ThemeBinding{NamespaceBinding: b, pending: map[string]json.RawMessage{}}
 	return s.themeBinding
 }
@@ -60,11 +68,11 @@ func (t *ThemeBinding) ReadOnlyThemeView() (ready, writable, loading, saving, pe
 		return
 	}
 	ready = s.client != nil
-	writable, loading, saving = s.writable, s.loading, s.saving
+	writable, loading, saving = s.writable, s.loading, t.inFlight
 	pending = len(t.pending) > 0 || t.inFlight
 	if t.writeError != "" {
 		errStr = t.writeError
-	} else if s.err != nil {
+	} else if s.describedClient != t.client && s.err != nil {
 		errStr = s.err.Error()
 	}
 	revision = ns.Revision
@@ -172,7 +180,7 @@ func (t *ThemeBinding) Queue(values map[string]any) error {
 func (s *Store) flushQueuedTheme() {
 	s.mu.Lock()
 	t := s.themeBinding
-	if t == nil || !t.currentLocked() || !t.ready || t.inFlight || len(t.pending) == 0 || s.saving || s.loading || !s.writable {
+	if t == nil || !t.currentLocked() || !t.ready || t.inFlight || len(t.pending) == 0 || s.saving || s.preferenceWrites["ui-theme"] != nil || s.loading || !s.writable {
 		s.mu.Unlock()
 		return
 	}
@@ -184,7 +192,7 @@ func (s *Store) flushQueuedTheme() {
 	t.inFlight = true
 	t.inFlightFields = fields
 	t.writeError = ""
-	s.saving, s.err = true, nil
+	s.snapCache.valid = false
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
 		keys = append(keys, key)
@@ -203,10 +211,10 @@ func (s *Store) flushQueuedTheme() {
 			s.mu.Unlock()
 			return
 		}
-		t.inFlight, s.saving = false, false
+		t.inFlight = false
 		t.inFlightFields = nil
 		if s.findNamespaceLocked("ui-theme") == nil {
-			s.err = fmt.Errorf("Host appearance is no longer available")
+			t.writeError = "Host appearance is no longer available"
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -219,16 +227,18 @@ func (s *Store) flushQueuedTheme() {
 			current.User = append(json.RawMessage(nil), out.User...)
 			current.HasSecrets = hasSetSecrets(out.Secrets)
 			current.SecretPaths = configuredSecretPaths(out.Secrets)
-			s.seedDraftsLocked(*current)
+			s.acknowledgeDraftsLocked(*current, map[string]string{})
 			if !namespaceWriteLanded(out, nil, ops) {
 				err = fmt.Errorf("Host did not accept the appearance values")
 			}
 		}
 		if err != nil {
 			t.writeError = err.Error()
-			s.err, s.lastAction = err, err.Error()
+			t.pending = map[string]json.RawMessage{}
+			t.ready = false
+			s.snapCache.valid = false
 		} else {
-			s.err, s.lastAction = nil, "appearance saved"
+			s.snapCache.valid = false
 		}
 		s.mu.Unlock()
 		if err != nil {

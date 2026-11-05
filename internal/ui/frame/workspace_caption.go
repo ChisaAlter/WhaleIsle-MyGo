@@ -3,6 +3,7 @@ package frame
 import (
 	"math"
 	"runtime"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -25,15 +26,14 @@ func conversationIsManaged(snapshot session.ViewState) bool {
 	return false
 }
 
-// workspaceCaptionHeight is the single title band above every column: the
-// desktop caption's 48px (titlebar-density.ts sits in the band's trailing
-// cluster). The band never grows a second row.
+// workspaceCaptionHeight is the native title band. Conversation view tabs
+// occupy their own row below it, outside the window-drag region.
 const workspaceCaptionHeight = float32(48)
 
 // The band's content row matches the reference plate's padding, 12px top and
 // 4px bottom (harness-chrome-inject.js:89; ConversationRoot.module.css:49-66
 // padding-top 12 with a .titleRow of min-height 32 at :169-173). So the title,
-// the view tabs and the trailing cluster all sit at y = 12..44, centred on 28,
+// and the trailing cluster sit at y = 12..44, centred on 28,
 // and the last 4 DIP of the band is empty above its hairline.
 const (
 	workspaceCaptionInsetTop    = float32(12)
@@ -47,6 +47,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	row := ui.Row(c.Key("workspace-shared-caption")).FillWidth().MinHeight(workspaceCaptionHeight).
 		Padding(workspaceCaptionInsetTop, 0, workspaceCaptionInsetBottom, 0).
 		Shrink(0).DragWindow()
+	observeConversationTabInput(row, "caption", m.ChatPaneTab)
 	conversationFileDrop(c, m, row, snap.SelectedID)
 	measure := ui.Local(row, "trailing-measure", func() workspaceCaptionMeasure { return workspaceCaptionMeasure{} })
 	controls := max(float32(112), c.TitleBar().Right+8)
@@ -61,7 +62,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	m.captionRightInset = max(float32(28), max(float32(0), trailingInset-details)+24)
 	var trailing ui.Element
 	row.Children(func() {
-		ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center).Shrink(0).MinWidth(0).Children(func() {
+		ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center + max(float32(0), m.RightOverlayReserve)).Shrink(0).MinWidth(0).Children(func() {
 			if m.WorkspacePage {
 				ui.Box(c).Height(workspaceCaptionContent)
 				return
@@ -73,13 +74,11 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 				conversationBlankHeader(c, m, snap)
 				return
 			}
-			// Title, status actions and the 对话/轨迹 switcher share this one 48px
-			// row; rc.2 has no second tab row under the band.
 			conversationHeaderTitleRow(c, m, snap, colors)
 		})
 		// Installed AppFrame keeps clusterVisible true for native desktop
 		// platforms, including narrow windows; label density concedes instead.
-		if m.WorkspaceTrailing != nil {
+		if m.WorkspaceTrailing != nil || m.GlobalPluginSlot != nil {
 			densityWidth := m.Sizes.Center
 			if details > 0 {
 				densityWidth = min(densityWidth, details)
@@ -96,7 +95,14 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			// titlebar-density.ts: the cluster sits 12px below the band's top edge
 			// and ends at the native caption reserve (dshd-wco-controls = 112px).
 			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(8)
-			trailing.Children(func() { m.WorkspaceTrailing(c, density) })
+			observeConversationTabInput(trailing, "trailing", m.ChatPaneTab)
+			trailing.Children(func() {
+				renderGlobalShellSlot(c, m, "shell.titlebar.trailing", func() {
+					if m.WorkspaceTrailing != nil {
+						m.WorkspaceTrailing(c, density)
+					}
+				})
+			})
 		}
 		// The reference's corner order is terminal, right panel, minimize,
 		// maximize, close: the panel toggles come from the trailing cluster and the
@@ -108,7 +114,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// Request another frame only when that geometry changes, never on a timer.
 	row.DrawOver(func(_ *ui.Painter, bounds ui.Rect) {
 		width := float32(0)
-		if m.WorkspaceTrailing != nil {
+		if m.WorkspaceTrailing != nil || m.GlobalPluginSlot != nil {
 			width = trailing.Bounds().W
 		}
 		if measure.trailing != width || measure.height != bounds.H {
@@ -140,39 +146,108 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	return max(workspaceCaptionHeight, row.Bounds().H)
 }
 
-// conversationViewTabs renders the 对话/轨迹 switcher inside the title band.
-// The preference (ui-conversation viewTabs) still owns whether it exists; it
-// never adds a row of its own, so the band stays 48px in every state.
-func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact bool) {
-	if compact {
-		// The original collapses the trailing cluster instead of squeezing it; the
-		// band keeps the title and the panel/terminal utilities at narrow widths.
+// conversationViewTabs keeps pointer, arrow-key and accessibility navigation
+// together. Compact title actions must never remove the view switcher.
+func conversationViewOptions(m Model) (ids, labels []string) {
+	ids = []string{"chat"}
+	labels = []string{i18n.T(i18n.KeyChatPaneTabChat)}
+	if !m.DisableDeveloperTools {
+		ids = append(ids, "trajectory")
+		labels = append(labels, i18n.T(i18n.KeyChatPaneTabTrajectory))
+	}
+	seen := map[string]bool{"chat": true, "trajectory": true}
+	for _, view := range m.ConversationViews {
+		if strings.TrimSpace(view.Handle) == "" || view.ID == "chat" || view.ID == "trajectory" {
+			continue
+		}
+		id := "plugin:" + view.Handle
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		label := strings.TrimSpace(view.Label)
+		if label == "" {
+			label = view.ID
+		}
+		if label == "" {
+			continue
+		}
+		ids, labels = append(ids, id), append(labels, label)
+	}
+	return ids, labels
+}
+
+func selectConversationView(m Model, id string) {
+	if m.ChatPaneTab == nil {
 		return
 	}
-	tab := derefString(m.ChatPaneTab)
-	if tab == "" {
-		tab = "chat"
-	}
-	paint := func(id, label string) {
-		ink := chrome.Color(colors.Muted)
-		if tab == id {
-			ink = chrome.Color(colors.Accent)
+	before := *m.ChatPaneTab
+	*m.ChatPaneTab = id
+	if strings.HasPrefix(id, "plugin:") {
+		if m.OnSelectConversationView != nil {
+			m.OnSelectConversationView(strings.TrimPrefix(id, "plugin:"))
 		}
-		ui.Column(c).Shrink(0).Height(workspaceCaptionContent).Justify(ui.End).Children(func() {
-			button := ui.Button(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).
-				BorderWidth(0).Background(ui.Transparent).TextColor(ink).Padding(0, 2, 9, 2)
-			if button.Clicked() && m.ChatPaneTab != nil {
-				*m.ChatPaneTab = id
-			}
-			line := ui.Box(c).FillWidth().Height(2).Radius(1)
-			if tab == id {
-				line.Background(chrome.Color(colors.Accent))
+	} else if m.OnSelectBuiltinConversationView != nil {
+		m.OnSelectBuiltinConversationView(id)
+	} else if m.OnClearConversationView != nil {
+		m.OnClearConversationView()
+	}
+	traceConversationTabSelection(before, id, m.ChatPaneTab)
+}
+
+func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact bool) {
+	if m.ChatPaneTab == nil {
+		return
+	}
+	ids, labels := conversationViewOptions(m)
+	if len(ids) <= 1 {
+		return
+	}
+	selected := 0
+	for i, id := range ids {
+		if *m.ChatPaneTab == id {
+			selected = i
+			break
+		}
+	}
+	// ConversationRoot adds 8px inside the header's leading clearance. Keep
+	// the phone menu clearance used by the title band rather than hiding tabs
+	// underneath the floating drawer button.
+	leftInset := float32(28)
+	if m.Sizes != nil && m.Sizes.drawerMode() {
+		leftInset = 56
+	}
+	ui.ScrollHorizontal(c.Key("conversation-view-scroll")).FillWidth().MinWidth(0).Height(28).Shrink(0).Children(func() {
+		tabs := ui.TabsBase(c.Key("conversation-view-tabs"), &selected, len(ids))
+		tabs.List.Label("Conversation views").MinWidth(0).Height(28).Shrink(0).AlignItems(ui.Start).Gap(36).Padding(0, 28, 0, leftInset).
+			BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.Border)).Children(func() {
+			for index, id := range ids {
+				ink := chrome.Color(colors.Muted)
+				if selected == index {
+					ink = chrome.Color(colors.Accent)
+				}
+				tab := tabs.Tab(index).Label(labels[index]).Height(27).Padding(0)
+				if selected == index {
+					tab.ScrollIntoView()
+				}
+				observeConversationTabInput(tab, id, m.ChatPaneTab)
+				tab.Children(func() {
+					ui.Column(c).FillHeight().Children(func() {
+						ui.Text(c, labels[index]).FontSize(theme.InterfaceSize(13)).FixedLineHeight(16).FontWeight(500).TextColor(ink)
+						ui.Box(c).Grow(1)
+						line := ui.Box(c).FillWidth().Height(2).Margin(0, 0, 1, 0).Radius(2)
+						if selected == index {
+							line.Background(chrome.Color(colors.Accent))
+						}
+					})
+				})
 			}
 		})
-	}
-	ui.Row(c).Key("conversation-view-tabs").Shrink(0).Height(workspaceCaptionContent).AlignItems(ui.End).Gap(18).
-		Margin(0, 10, 0, 10).Children(func() {
-		paint("chat", i18n.T(i18n.KeyChatPaneTabChat))
-		paint("trajectory", i18n.T(i18n.KeyChatPaneTabTrajectory))
+		// mainView commits paint-local bindings before deferred OnChange notices
+		// run. Resolve the composite's input now, while this paint still owns its
+		// tab pointer, so the selected view reaches that same commit.
+		if tabs.List.Changed() {
+			selectConversationView(m, ids[selected])
+		}
 	})
 }

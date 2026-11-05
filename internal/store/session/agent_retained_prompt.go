@@ -24,6 +24,24 @@ func (s *Store) PromptAgentNavigationExplicit(token uint64, address AgentSession
 	s.agentNavigationAction(token, []AgentSessionAddress{address}, trimPrompt(text), true, true)
 }
 
+func (s *Store) PromptAgentNavigationGesture(token uint64, address AgentSessionAddress, text string, accelerated bool, preference ...string) {
+	if address.Mode != "continuable" {
+		return
+	}
+	s.mu.Lock()
+	images := len(s.agentNavigation.view.PromptImages)
+	s.mu.Unlock()
+	if accelerated && trimPrompt(text) == "" && images == 0 {
+		s.SteerAgentQueue(token, address)
+		return
+	}
+	preferred := "queue"
+	if len(preference) > 0 {
+		preferred = preference[0]
+	}
+	s.agentNavigationAction(token, []AgentSessionAddress{address}, trimPrompt(text), true, true, childPromptGesture{accelerated: accelerated, preferred: preferred})
+}
+
 // InterruptRetainedAgentExplicit is available only for the already-open aside.
 // It cannot address sibling rows or perform a catalog-wide interruption.
 func (s *Store) InterruptRetainedAgentExplicit(token uint64, address AgentSessionAddress) {

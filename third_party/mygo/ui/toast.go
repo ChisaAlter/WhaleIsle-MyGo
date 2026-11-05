@@ -60,6 +60,10 @@ type Toast struct {
 	// this action holds focus and ActionReturnFocus is mounted. Otherwise
 	// Escape only dismisses the toast.
 	ActionOnEscape func()
+	// OnShown runs once after a native surface presents this toast visibly.
+	// Adding, queuing, capturing, or rendering a hidden toast does not call it.
+	// Replacing a toast with AddToast starts a new presentation notification.
+	OnShown func()
 	// OnClose runs as the toast closes: its time is over, or the user, its
 	// action or CloseToast closed it.
 	OnClose func()
@@ -82,9 +86,13 @@ func (t *Toast) life() time.Duration {
 // and since at while the time of the toasts runs.
 type toast struct {
 	Toast
-	key   uint64
-	spent time.Duration
-	at    time.Time
+	key     uint64
+	spent   time.Duration
+	at      time.Time
+	version uint64
+	shown   bool
+	element *node
+	frame   uint64
 }
 
 // Toast shows message near the bottom of the window for a few seconds, as
@@ -129,7 +137,7 @@ func (c *context) AddToast(t Toast) string {
 	if t.ID == "" {
 		t.ID = "toast-" + strconv.FormatUint(rt.nextToast, 10)
 	}
-	ts := toast{Toast: t, key: rt.nextToast, at: c.now}
+	ts := toast{Toast: t, key: rt.nextToast, version: rt.nextToast, at: c.now}
 	if i := rt.toastIndex(t.ID); i >= 0 {
 		ts.key = rt.toasts[i].key
 		rt.toasts[i] = ts
@@ -320,12 +328,66 @@ func coreToastBase(c *context, t Toast) toastParts {
 		}
 	}
 	p.Root = coreBox(c).Key(key).Role(RoleStatus)
+	if i := rt.toastIndex(t.ID); i >= 0 {
+		rt.toasts[i].element, rt.toasts[i].frame = p.Root, rt.frame
+	}
 	// It takes the pointer, which stops the time resting on it.
 	p.Root.flags |= flagHover
 	if p.Root.Shortcut(0, KeyEscape) {
 		c.CloseToast(t.ID)
 	}
 	return p
+}
+
+type toastPresentation struct {
+	id      string
+	version uint64
+}
+
+// Take the identities from the scene just presented, not the queued toast list.
+// Callbacks are posted after the frame and recheck replacement/close ownership.
+func (rt *engine) presentedToasts() []toastPresentation {
+	var presented []toastPresentation
+	for i := range rt.toasts {
+		ts := &rt.toasts[i]
+		if ts.shown || ts.OnShown == nil || ts.frame != rt.frame || ts.element == nil {
+			continue
+		}
+		e := ts.element
+		if e.st == nil || e.st.vw <= 0 || e.st.vh <= 0 {
+			continue
+		}
+		visible := true
+		for p := e; p != nil; p = p.parent {
+			if p.flags&flagInvisible != 0 || p.opacitySet && p.opacity <= 0 {
+				visible = false
+				break
+			}
+		}
+		if visible {
+			presented = append(presented, toastPresentation{ts.ID, ts.version})
+		}
+	}
+	return presented
+}
+
+func (rt *engine) notifyToastPresentation(presented []toastPresentation) {
+	for _, p := range presented {
+		if rt.closed {
+			return
+		}
+		i := rt.toastIndex(p.id)
+		if i < 0 {
+			continue
+		}
+		ts := &rt.toasts[i]
+		if ts.version != p.version || ts.shown || ts.OnShown == nil {
+			continue
+		}
+		ts.shown = true
+		callback := ts.OnShown
+		callback()
+	}
 }
 
 // Left returns how long the toast shows still, to count down, or 0 for one

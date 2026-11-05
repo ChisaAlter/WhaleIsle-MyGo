@@ -30,3 +30,8 @@ func resolveModelPrice(provider, model string, custom map[string]ModelPrice) (Mo
 	}
 	return ModelPrice{PriceRates: peak, Idle: &idle}, true
 }
+
+// ResolveModelPrice shares the pinned official/custom policy with session costs.
+func ResolveModelPrice(provider, model string, custom map[string]ModelPrice) (ModelPrice, bool) {
+	return resolveModelPrice(provider, model, custom)
+}

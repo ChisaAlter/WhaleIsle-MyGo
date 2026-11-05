@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type WhaleSettingsModel struct {
@@ -39,15 +40,10 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			}
 		})
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingAndSavingAffectOnlyTheCurrentH)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		}
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "whale_settings:46", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeEditingOrRetrying2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

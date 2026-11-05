@@ -55,7 +55,7 @@ func TestSkillsHubScopeAndInstallReviewInteraction(t *testing.T) {
 	if reviews != 1 || installs != 0 || searches != 0 {
 		t.Fatalf("selecting Install bypassed review: reviews=%d installs=%d searches=%d", reviews, installs, searches)
 	}
-	for _, want := range []string{"Confirm skill installation", hit.Repo, hit.Path, "User skills", "not be overwritten"} {
+	for _, want := range []string{"Confirm skill installation", hit.Repo, hit.Path, "User skills", "never silently overwrites"} {
 		if !tt.HasText(want) {
 			t.Fatalf("review omitted %q: %v", want, tt.Texts())
 		}

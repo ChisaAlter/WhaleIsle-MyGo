@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botDuplicateAcknowledgement() string {
@@ -71,9 +72,7 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_duplicate:75", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

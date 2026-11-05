@@ -84,6 +84,7 @@ func (s *mainState) openAccountPlatform(page, source string) {
 				path = "/top_up"
 			}
 			host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
+				OnFailure:             s.onEmbeddedPageFailure,
 				ShortcutPreferences:   s.pageShortcutPreferences(),
 				OnShortcutCloseWindow: s.queueProductShortcutClose,
 				Parent:                win, URL: entry, DisplayURL: session.Origin + path, Title: "Platform", TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,

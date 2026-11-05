@@ -421,6 +421,9 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 			s.mu.Unlock()
 			if err == nil && valid {
 				err = client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sessionID}}, &baseline)
+				if err == nil {
+					err = baseline.RequireSequenced()
+				}
 				if err != nil {
 					err = errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionModelSelectionSubmittedButReadingTheCu), err))
 				}

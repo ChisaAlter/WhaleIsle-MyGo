@@ -166,7 +166,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 				}
 				if q.plan != nil {
 					p := *q.plan
-					ui.Text(c, "GitHub: "+p.Repository+" · "+p.Push.Target+" → "+p.Base).Bold()
+					ui.Text(c, "GitHub: "+p.Host+"/"+p.Repository+" · "+p.Head+" → "+p.Base).Bold()
 					ui.Text(c, p.Title)
 					ui.Text(c, p.Body)
 					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyCmdPhonePRDraft), p.Draft))

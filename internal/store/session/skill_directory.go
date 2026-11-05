@@ -176,18 +176,28 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 		s.skillRemoval.Message = message
 		s.invalidateViewLocked()
 	}
+	refresh := false
 	if s.removalCurrentLocked(r, version) {
 		s.invalidateViewLocked()
 		s.skillCatalog.Busy = false
 		s.skillCatalog.Action = message
 		if attempted && readErr == nil {
 			s.skillCatalog.Skills = inv.Skills
+			// Deleting a winner can also expose a lower-priority skill with the
+			// same name. Retire the old picker and reload its actual Session view.
+			s.skillOptionsEpoch++
+			s.skillOptions = nil
+			s.skillOptionsOwner = skillOptionsScope{}
+			refresh = true
 		}
 	} else {
 		s.retireSkillCatalogMutationLocked(version)
 	}
 	s.mu.Unlock()
 	s.fire()
+	if refresh {
+		s.ListSkills(ctx)
+	}
 }
 
 // SkillDirectoryTarget is captured synchronously by the click handler. Its

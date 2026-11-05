@@ -107,10 +107,11 @@ type engine struct {
 
 	// What the last frame laid out, for input until the next one: the
 	// focus order, with the scope of each element, and the dialog on top.
-	hits        []hit
-	focusOrder  []uint64
-	focusScopes []focusScope
-	modal       uint64
+	hits               []hit
+	focusOrder         []uint64
+	focusScopes        []focusScope
+	modal              uint64
+	dialogCloseRequest uint64
 	// modalLayer is the element at the top of the overlay holding the
 	// dialog on top, which assistive technology sees with what is above.
 	modalLayer  uint64
@@ -450,6 +451,11 @@ func (rt *engine) runFrame() {
 	root := rt.c.root
 	layoutTree(root, appW, h)
 	rt.commit(root, w, h)
+	if requested := rt.dialogCloseRequest; requested != 0 {
+		if owner := rt.states[requested]; owner == nil || owner.dialogBaseFrame != rt.frame {
+			rt.dialogCloseRequest = 0
+		}
+	}
 	rt.commitFocusBindings()
 	clear(rt.texts)
 	rt.texts = rt.texts[:0]

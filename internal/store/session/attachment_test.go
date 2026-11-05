@@ -17,6 +17,7 @@ import (
 func TestFetchAttachment(t *testing.T) {
 	dir := t.TempDir()
 	SetAttachmentCacheDir(dir)
+	t.Cleanup(func() { SetAttachmentCacheDir("") })
 	raw := []byte{0x89, 0x50, 0x4e, 0x47}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -41,6 +42,7 @@ func TestFetchAttachment(t *testing.T) {
 	st := New()
 	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	st.Select("s1")
+	read := st.CaptureAttachmentRead(st.PlanHistoryBinding(), "s1")
 	path, err := st.FetchAttachment(context.Background(), "a1")
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +57,10 @@ func TestFetchAttachment(t *testing.T) {
 	if filepath.Ext(path) != ".png" {
 		t.Fatalf("ext=%s", path)
 	}
-	if CachedAttachmentPath("a1") != path {
+	if read.Cached("a1") != path {
 		t.Fatal("cache miss")
+	}
+	if CachedAttachmentPath("a1") != "" {
+		t.Fatal("session attachment escaped its owner namespace")
 	}
 }

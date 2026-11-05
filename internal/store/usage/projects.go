@@ -29,12 +29,16 @@ type ProjectRanking struct {
 }
 type projectRankingState struct {
 	ProjectRanking
+	card   *projectCardState
 	offset int
 	epoch  uint64
 	cancel context.CancelFunc
 }
 
 func (s *Store) resetProjectRankingLocked() {
+	if s.projectRanking.card != nil && s.projectRanking.card.cancel != nil {
+		s.projectRanking.card.cancel()
+	}
 	if s.projectRanking.cancel != nil {
 		s.projectRanking.cancel()
 	}
@@ -62,7 +66,11 @@ func (s *Store) ResetProjectRanking(ctx context.Context, sort string) {
 		s.mu.Unlock()
 		return
 	}
-	s.resetProjectRankingLocked()
+	card := s.projectRanking.card
+	if s.projectRanking.cancel != nil {
+		s.projectRanking.cancel()
+	}
+	s.projectRanking = projectRankingState{epoch: s.projectRanking.epoch + 1, card: card}
 	s.projectRanking.Sort = sort
 	s.mu.Unlock()
 	s.LoadMoreProjects(ctx)

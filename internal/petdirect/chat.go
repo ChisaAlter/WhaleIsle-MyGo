@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"image/jpeg"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +17,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+
+	"whaleisle/internal/desktop/screenglance"
 )
 
 const Model = "deepseek-chat"
@@ -47,6 +51,15 @@ type Client struct {
 	mu          sync.Mutex
 	bound       bool
 	fingerprint [32]byte
+}
+
+// ResetBinding is used only after discarding the old temporary history when an
+// explicit Send discovers changed credentials, endpoint or persona.
+func (c *Client) ResetBinding() {
+	c.mu.Lock()
+	c.bound = false
+	c.fingerprint = [32]byte{}
+	c.mu.Unlock()
 }
 
 func endpoint(base string) (string, error) {
@@ -148,6 +161,49 @@ func (c *Client) Send(ctx context.Context, text string, history []Message) (stri
 		Messages  []Message `json:"messages"`
 		MaxTokens int       `json:"max_tokens"`
 	}{Model, messages, 360})
+	return c.complete(ctx, cfg, address, body)
+}
+
+// SendGlance preserves the original model-only vision route. Its caller obtains
+// approval before capture; this one-shot call never uses a Host or chat history.
+func (c *Client) SendGlance(ctx context.Context, model string, frame []byte) (string, error) {
+	if model == "" || model != strings.TrimSpace(model) || len(utf16.Encode([]rune(model))) > 128 || len(frame) == 0 || len(frame) > 1<<20 {
+		return "", ErrInput
+	}
+	shape, err := jpeg.DecodeConfig(bytes.NewReader(frame))
+	if err != nil || shape.Width < 1 || shape.Height < 1 || shape.Width > screenglance.MaxWidth || shape.Height > screenglance.MaxHeight {
+		return "", ErrInput
+	}
+	if ctx.Err() != nil {
+		return "", ErrRequest
+	}
+	if c == nil || c.Load == nil {
+		return "", ErrCredentials
+	}
+	cfg, err := c.Load()
+	if err != nil || strings.TrimSpace(cfg.APIKey) == "" {
+		return "", ErrCredentials
+	}
+	address, err := endpoint(cfg.BaseURL)
+	if err != nil {
+		return "", err
+	}
+	body, _ := json.Marshal(map[string]any{
+		"model": model,
+		"messages": []any{
+			Message{Role: "system", Content: cfg.Prompt},
+			map[string]any{"role": "user", "content": []any{
+				map[string]any{"type": "image_url", "image_url": map[string]string{"url": "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(frame)}},
+				map[string]string{"type": "text", "text": "看一眼屏幕，用你的人设随口点评一句。"},
+			}},
+		},
+		"max_tokens": 120,
+	})
+	defer clear(body)
+	return c.complete(ctx, cfg, address, body)
+}
+
+func (c *Client) complete(ctx context.Context, cfg Config, address string, body []byte) (string, error) {
 	requestCtx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, address, bytes.NewReader(body))

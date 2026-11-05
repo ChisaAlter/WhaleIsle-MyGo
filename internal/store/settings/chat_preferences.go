@@ -7,6 +7,7 @@ import (
 
 // ChatPreferences are accepted Host values, independent of settings form drafts.
 type ChatPreferences struct {
+	CollapseTiming   string `json:"collapseTiming"`
 	LinkOpening      string `json:"linkOpening"`
 	TranscriptView   string `json:"transcriptView"`
 	PerformanceUsage string `json:"performanceUsage"`
@@ -25,7 +26,7 @@ type ConversationPreferences struct {
 }
 
 func ChatPreferencesFrom(v ViewState) ChatPreferences {
-	p := ChatPreferences{LinkOpening: "sidebar", TranscriptView: "standard", PerformanceUsage: "detailed"}
+	p := ChatPreferences{CollapseTiming: "completion", LinkOpening: "sidebar", TranscriptView: "standard", PerformanceUsage: "detailed"}
 	for _, ns := range v.Namespaces {
 		if ns.NS == "ui-chat" {
 			_ = json.Unmarshal(ns.Value, &p)

@@ -58,12 +58,13 @@ type Snapshot struct {
 	MutationApplied bool
 }
 type Store struct {
-	mu         sync.Mutex
-	client     *dsh.Client
-	notify     func()
-	generation uint64
-	view       Snapshot
-	cancel     context.CancelFunc
+	mu                 sync.Mutex
+	client             *dsh.Client
+	notify             func()
+	generation         uint64
+	view               Snapshot
+	cancel             context.CancelFunc
+	directoryRequestID uint64
 }
 
 func New() *Store { return &Store{} }

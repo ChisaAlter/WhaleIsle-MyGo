@@ -1,6 +1,9 @@
 package composer
 
 import (
+	"strings"
+	"unicode"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -187,7 +190,7 @@ func resolvePresetCaption(caption string, options []presetChoice) (display, id s
 func permissionChoices(options []session.PermissionOption) []presetChoice {
 	out := make([]presetChoice, 0, len(options))
 	for _, o := range options {
-		out = append(out, presetChoice{ID: o.Value, Label: permissionLabel(o.Value, o.Label), Raw: o.Label})
+		out = append(out, presetChoice{ID: o.Value, Label: permissionLabel(o.Value, o.Label), Raw: o.Label, Description: permissionDescription(o.Value, o.Description)})
 	}
 	return out
 }
@@ -215,15 +218,34 @@ func agentPresetChoices(options []session.AgentPresetOption) []presetChoice {
 // copy: the built-in values map to the product's own names, and a label the
 // Host deliberately renamed is kept verbatim.
 func permissionLabel(value, hostLabel string) string {
+	if value == session.PermissionAutoReview {
+		return i18n.T(i18n.KeyComposerPermissionAutoReview)
+	}
 	if product, ok := builtinPermissionLabel(value); ok {
 		if hostLabel == "" || hostLabel == value || hostLabel == product.en || hostLabel == product.zh {
 			return i18n.T(product.key)
 		}
 	}
 	if hostLabel == "" {
-		return value
+		hostLabel = value
 	}
-	return hostLabel
+	// The installed presentation helper title-cases conventional preset keys,
+	// while intentionally configured display names retain their spelling.
+	for _, r := range hostLabel {
+		if r != '-' && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return hostLabel
+		}
+	}
+	words := strings.Split(hostLabel, "-")
+	for i, word := range words {
+		if word == "" {
+			return hostLabel
+		}
+		runes := []rune(word)
+		runes[0] = unicode.ToUpper(runes[0])
+		words[i] = string(runes)
+	}
+	return strings.Join(words, " ")
 }
 
 type permissionProductLabel struct {

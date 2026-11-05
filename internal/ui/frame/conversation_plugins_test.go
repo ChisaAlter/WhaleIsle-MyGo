@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -38,13 +39,17 @@ func TestConversationMoreMenuFoldedViewsAndEntryCustomizationActions(t *testing.
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	tab := ""
 	marketCalls := 0
+	var custom, builtin string
 	var draftRegion string
 	tt := ui.NewTester(func(c *ui.Context) {
 		conversationMoreMenu(c, Model{
-			HideChatViewTabs:    true,
-			ChatPaneTab:         &tab,
-			OnOpenMarket:        func() { marketCalls++ },
-			OnCreatePluginDraft: func(region string) { draftRegion = region },
+			HideChatViewTabs:                true,
+			ChatPaneTab:                     &tab,
+			OnOpenMarket:                    func() { marketCalls++ },
+			OnCreatePluginDraft:             func(region string) { draftRegion = region },
+			ConversationViews:               []pluginui.ConversationView{{Handle: "owner:report", ID: "report", Label: "Report"}},
+			OnSelectConversationView:        func(handle string) { custom = handle },
+			OnSelectBuiltinConversationView: func(id string) { builtin = id },
 		}, session.ViewState{}, c.Theme().Text)
 	}, 400, 100)
 
@@ -56,6 +61,9 @@ func TestConversationMoreMenuFoldedViewsAndEntryCustomizationActions(t *testing.
 	}
 	if tab != "trajectory" {
 		t.Fatalf("tab=%q want trajectory", tab)
+	}
+	if builtin != "trajectory" {
+		t.Fatalf("source owner not selected: %q", builtin)
 	}
 
 	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
@@ -72,6 +80,18 @@ func TestConversationMoreMenuFoldedViewsAndEntryCustomizationActions(t *testing.
 	}
 	if tab != "chat" {
 		t.Fatalf("tab=%q want chat", tab)
+	}
+	if builtin != "chat" {
+		t.Fatalf("source owner not reset: %q", builtin)
+	}
+	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Report"); err != nil {
+		t.Fatal(err)
+	}
+	if custom != "owner:report" || tab != "plugin:owner:report" {
+		t.Fatalf("folded custom view missed owner %q/%q", custom, tab)
 	}
 
 	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {

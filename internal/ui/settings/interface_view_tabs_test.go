@@ -31,7 +31,7 @@ func TestInterfaceViewTabsFallbackStates(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			local, archive := true, true
 			access := &BodySettingsAccess{Snapshot: tc.snapshot}
-			m := Model{Interface: &InterfaceAccess{Host: access, ShowViewTabs: &local, ShowArchivedList: &archive, OnSave: func() {}}}
+			m := Model{Interface: &InterfaceAccess{Host: access, ShowViewTabs: &local, ShowArchivedList: &archive, OnSetViewTabs: func(next bool) (bool, error) { return next, nil }}}
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Children(func() { interfacePane(c, m, c.Theme().Text, c.Theme().TextMuted) })
 			}, 780, 1000)

@@ -37,7 +37,7 @@ func FetchRange(ctx context.Context, url string, offset, size int64, client *htt
 		return nil, fmt.Errorf("range size %d exceeds %d", size, maxRangeBytes)
 	}
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute}
+		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

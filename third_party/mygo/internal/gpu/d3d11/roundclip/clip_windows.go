@@ -44,6 +44,10 @@ func (c *Clip) Apply(device, visual uintptr, width, height, radius float32) (boo
 		if err := check("IDCompositionDevice::CreateRectangleClip", method(device, 24, uintptr(unsafe.Pointer(&c.object)))); err != nil {
 			return false, err
 		}
+		if err := check("IDCompositionVisual::SetBorderMode", method(visual, 12, 0)); err != nil {
+			c.Close()
+			return false, err
+		}
 		if err := check("IDCompositionVisual::SetClip", method(visual, 13, c.object)); err != nil {
 			c.Close()
 			return false, err

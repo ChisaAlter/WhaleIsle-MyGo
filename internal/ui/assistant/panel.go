@@ -172,9 +172,6 @@ func modeBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color) {
 				m.OnOpenSession(m.SessionID)
 			}
 		})
-		if m.Busy {
-			ui.Text(c, i18n.T(i18n.KeyAssistantBusy)).FontSize(theme.InterfaceSize(11)).TextColor(accent)
-		}
 	})
 }
 

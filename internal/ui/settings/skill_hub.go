@@ -29,12 +29,12 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	if hub.Confirming != nil {
 		title = providerCopy("确认安装技能", "Confirm skill installation")
 	}
-	bodyDialog(c, &open, title, func() {
+	bodyDialogFooterWidth(c, &open, title, 760, func() {
 		if hub.Error != "" {
 			ui.Text(c, hub.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
 		if hit := hub.Confirming; hit != nil {
-			ui.Text(c, providerCopy("请查看公开仓库来源和安装范围。", "Review the public repository source and installation scope.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, providerCopy("请核对技能的公开来源和安装范围。", "Review the public source and installation scope before continuing.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			for _, detail := range []struct{ label, value string }{
 				{providerCopy("技能", "Skill"), hit.SkillName},
 				{providerCopy("仓库", "Repository"), hit.Repo},
@@ -43,19 +43,7 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			} {
 				ui.Text(c, detail.label+": "+detail.value).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 			}
-			ui.Text(c, providerCopy("不会覆盖已有技能；如有同名冲突，安装会停止。", "Existing skills will not be overwritten; a name conflict stops installation.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || hub.OnCancelInstall == nil).Clicked() {
-					hub.OnCancelInstall()
-				}
-				label := providerCopy("确认安装", "Confirm installation")
-				if hub.Installing {
-					label = providerCopy("正在安装…", "Installing…")
-				}
-				if ui.Button(c, label).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || hub.OnConfirmInstall == nil).Clicked() {
-					hub.OnConfirmInstall()
-				}
-			})
+			ui.Text(c, providerCopy("安装不会静默覆盖已有技能；若名称冲突，操作会失败并保留现有文件。", "Installation never silently overwrites an existing skill. A conflict fails and preserves the current files.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			return
 		}
 		ui.Text(c, i18n.T(i18n.KeySettingsSkillsHubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -86,7 +74,7 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 			}
 		})
 		if len(a.HubHits) == 0 && !hub.Searching {
-			ui.Text(c, providerCopy("搜索公开仓库中的技能。", "Search for skills in public repositories.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, providerCopy("输入关键词后搜索公开技能。", "Enter a keyword to search public skills.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		for _, hit := range a.HubHits {
 			hit := hit
@@ -107,7 +95,24 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 				}
 			}, fg, muted)
 		}
-	})
+	}, func() {
+		if hub.Confirming == nil {
+			if ui.Button(c, providerCopy("关闭", "Close")).Disabled(busy || hub.OnClose == nil).Clicked() && hub.OnClose != nil {
+				hub.OnClose()
+			}
+			return
+		}
+		if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy || hub.OnCancelInstall == nil).Clicked() && hub.OnCancelInstall != nil {
+			hub.OnCancelInstall()
+		}
+		label := providerCopy("确认安装", "Confirm installation")
+		if hub.Installing {
+			label = providerCopy("正在安装…", "Installing…")
+		}
+		if ui.PrimaryButton(c, label).Disabled(busy || hub.OnConfirmInstall == nil).Clicked() && hub.OnConfirmInstall != nil {
+			hub.OnConfirmInstall()
+		}
+	}, ui.DialogOptions{DismissDisabled: busy})
 	if !open && !busy && hub.OnClose != nil {
 		hub.OnClose()
 	}

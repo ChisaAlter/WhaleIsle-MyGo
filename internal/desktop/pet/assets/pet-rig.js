@@ -91,6 +91,15 @@ function rigBase() {
 // head, part transforms, and the global pivot ('feet' rotates the whole
 // rig about the foot line; 'grab' hangs her from RIG_GRAB at physPoint).
 const RIG_STATES = {
+  'food-notice':(P,t)=>{P.expr='surprised';P.allDy=-3*Math.sin(Math.PI*clamp01((t-rigStateT0)/1.1));P.tailRot=.25;},
+  'chew':(P,t)=>{P.expr=Math.sin(t*8)>0?'mouth-open':'happy';P.headRot+=.035*Math.sin(t*8);P.allDy=1.2*Math.sin(t*8);P.tailRot=.15*Math.sin(t*3);},
+  'full':(P,t)=>{P.expr='happy';P.bodySy=1+.02*Math.sin(t*2);P.tailRot=.2*Math.sin(t*3);},
+  'twirl':(P,t)=>{const p=clamp01((t-rigStateT0)/1.3);P.expr='happy';P.pivot='feet';P.allRot=.14*Math.sin(2*Math.PI*p);P.bodySx=1-.06*Math.sin(Math.PI*p)**2;P.allDy=-5*Math.sin(Math.PI*p);P.headRot+=.3*Math.sin(2*Math.PI*p);P.tailRot=.4*Math.sin(2*Math.PI*p);},
+  'look':(P,t)=>{P.headDx+=5*Math.sin(t*2);P.headRot+=.1*Math.sin(t*2);P.allRot=.025*Math.sin(t*2);},
+  'wave':(P,t)=>RIG_STATES.greet(P,t),
+  'shy':(P,t)=>{P.expr='half-closed';P.headDx+=3;P.allRot=.045*Math.sin(t*2);P.allDy=2*Math.sin(t*2);P.tailRot=.1*Math.sin(t*4);},
+  'happy-tail':(P,t)=>RIG_STATES['tail-swing'](P,t),
+  'sad':(P,t)=>{P.expr='worried';P.headRot+=.1;P.headDy+=4;P.allDy=3;P.bodySy=.97;P.tailRot=.07*Math.sin(t*2);},
   'sleep': (P, t) => {
     P.expr = 'eyes-closed';
     P.pivot = 'feet';

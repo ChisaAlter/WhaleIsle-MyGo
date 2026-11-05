@@ -74,6 +74,7 @@ func cloneStoreViewCache(in ViewState) ViewState {
 func cloneFramePassView(in ViewState) ViewState {
 	out := in
 	out.Messages = cloneSlice(in.Messages)
+	out.TrajectoryMessages = cloneSlice(in.TrajectoryMessages)
 	return out
 }
 
@@ -100,6 +101,7 @@ func cloneViewStateSchemas(in ViewState, schemas bool) ViewState {
 	out.WorkspaceMembers = cloneStringBoolMap(in.WorkspaceMembers)
 	out.Items = cloneItems(in.Items)
 	out.Messages = cloneMessages(in.Messages)
+	out.TrajectoryMessages = cloneMessages(in.TrajectoryMessages)
 	out.MessageRatings = cloneStringStringMap(in.MessageRatings)
 	out.ModelChoices = cloneModelChoiceMap(in.ModelChoices)
 	out.ModelCatalogChoices = cloneSlice(in.ModelCatalogChoices)

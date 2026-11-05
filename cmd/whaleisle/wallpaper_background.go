@@ -40,18 +40,20 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 		}
 		return s.cfgStore.SaveWallpaperBackground(p)
 	}, func(path string) error {
+		if s.hostAppearanceAccepted {
+			if s.hostAppearance == nil {
+				return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
+			}
+			// Host owns the image and its optimistic revision. Do not publish
+			// a local config mirror before that write is accepted.
+			return s.hostAppearance.ApplyWallpaper(path)
+		}
 		if err := s.cfgStore.Update(func(cfg *config.Config) { cfg.WallpaperPath = path }); err != nil {
 			return err
 		}
 		s.mu.Lock()
 		s.desktopDraft.wallpaperPath = path
 		s.mu.Unlock()
-		if s.hostAppearanceAccepted {
-			if s.hostAppearance == nil {
-				return fmt.Errorf("%s", i18n.T(i18n.KeyCmdHostAppearanceUnavailable))
-			}
-			return s.hostAppearance.ApplyWallpaper(path)
-		}
 		return nil
 	}, func(task func() func()) {
 		go func() {
@@ -65,6 +67,10 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 		}()
 	})
 	g.Pending = s.hostAppearancePending
+	g.ImageSource = func() string { return s.resolvedWallpaperPath(s.desktopDraft.wallpaperPath) }
+	g.EffectiveImage = func(p wallpapers.Preferences) string {
+		return s.resolvedWallpaperPathFor(s.desktopDraft.wallpaperPath, p)
+	}
 	if err != nil {
 		g.Status = err.Error()
 	}
@@ -78,7 +84,7 @@ func (s *mainState) wallpaperSettings(visible bool) *settings.WallpaperEditor {
 func (s *mainState) beginWallpaperFrame() { s.wallpaperVisible = false }
 func (s *mainState) endWallpaperFrame() {
 	if !s.wallpaperVisible && s.wallpaperControls != nil {
-		s.wallpaperControls.Prefs = s.wallpaperControls.Saved.Clone()
+		s.wallpaperControls.Hide()
 	}
 }
 
@@ -103,7 +109,37 @@ func wallpaperBackdropPrefs(path string, prefs wallpapers.Preferences) wallpaper
 }
 
 func (s *mainState) resolvedWallpaperPath(path string) string {
-	return wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
+	prefs := wallpapers.Defaults()
+	if g := s.wallpaperControls; g != nil {
+		prefs = g.EffectivePreferences()
+	}
+	return s.resolvedWallpaperPathFor(path, prefs)
+}
+
+func (s *mainState) resolvedWallpaperPathFor(path string, prefs wallpapers.Preferences) string {
+	if s.hostAppearanceAccepted && s.hostAppearance != nil && s.hostAppearance.Snapshot().WallpaperImageExplicit {
+		path = s.hostWallpaperImage
+	} else {
+		path = wallpaperSourcePath(s.hostAppearanceAccepted, s.hostWallpaperImage, path)
+	}
+	if strings.TrimSpace(path) == "" {
+		p := theme.RenderPreferences()
+		// Theme.IsDark waits for the native app loop. Render-policy callers can
+		// run before that loop exists, just like activeSkin's headless path.
+		systemDark := false
+		if mygo.App.IsReady() {
+			systemDark = mygo.Theme.IsDark()
+		}
+		dark := theme.ResolveWithSystem(s.themeID, systemDark).Scheme == theme.SchemeDark
+		id := p.Light
+		if dark {
+			id = p.Dark
+		}
+		if prefs.SkinWallpaperEnabled {
+			path = p.Family(id).Wallpaper
+		}
+	}
+	return path
 }
 
 // flatDarkCanvasPreview reports whether the window itself should be opaque with
@@ -171,7 +207,7 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 	if s.activeSkin() == theme.SkinCodex {
 		prefs := wallpapers.Defaults()
 		if g := s.wallpaperEditor(); g != nil {
-			prefs = g.Prefs
+			prefs = g.EffectivePreferences()
 		}
 		path, prefs = skinBackdrop(theme.SkinCodex, "", prefs)
 		return s.desktopGlassPainter(path, prefs, chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...))
@@ -179,8 +215,8 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 	path = s.resolvedWallpaperPath(path)
 	if os.Getenv("WHALEISLE_BACKDROP_PROBE") != "" {
 		if g := s.wallpaperEditor(); g != nil {
-			norm := wallpapers.NormalizeEffect(path, g.Prefs)
-			line := fmt.Sprintf("backdrop probe: path=%q effect=%q normalized=%q preset=%q colors0=%q explicit=%v active=%v canvasFlat=%d scheme=%q", path, g.Prefs.Effect, norm.Effect, g.Prefs.Preset, g.Prefs.Colors[0], g.Prefs.EffectExplicit, chrome.BackdropActive(), wallpaperCanvasFill(chrome.Color("#151517"), true, path, g.Prefs).R, s.cfgStore.Get().Theme)
+			norm := wallpapers.NormalizeEffect(path, g.EffectivePreferences())
+			line := fmt.Sprintf("backdrop probe: path=%q effect=%q normalized=%q preset=%q colors0=%q explicit=%v active=%v canvasFlat=%d scheme=%q", path, g.Saved.Effect, norm.Effect, g.Saved.Preset, g.Saved.Colors[0], g.Saved.EffectExplicit, chrome.BackdropActive(), wallpaperCanvasFill(chrome.Color("#151517"), true, path, g.Saved).R, s.cfgStore.Get().Theme)
 			log.Print(line)
 			if file := os.Getenv("WHALEISLE_BACKDROP_LOG"); file != "" {
 				if f, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
@@ -198,8 +234,8 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 		chrome.ConfigureBackdrop("", wallpapers.Defaults())
 		return s.desktopGlassPainter("", wallpapers.Preferences{Effect: "gradient", EffectExplicit: true}, func(*ui.Painter, ui.Rect) {})
 	}
-	prefs := wallpaperBackdropPrefs(path, g.Prefs)
-	appendBackdropLog("painter: path=%q effect=%q localExplicit=%v active=%v", path, prefs.Effect, g.Prefs.EffectExplicit, chrome.BackdropActive())
+	prefs := wallpaperBackdropPrefs(path, g.EffectivePreferences())
+	appendBackdropLog("painter: path=%q effect=%q localExplicit=%v active=%v", path, prefs.Effect, g.Saved.EffectExplicit, chrome.BackdropActive())
 	return s.desktopGlassPainter(path, prefs, chrome.WallpaperBackgroundPainter(path, prefs, reducedMotion...))
 }
 

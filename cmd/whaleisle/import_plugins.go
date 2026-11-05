@@ -35,12 +35,7 @@ func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) i
 			if ctx.Err() != nil || win == nil {
 				return false
 			}
-			answer, err := mygo.Dialog.Message(mygo.MessageOptions{
-				Parent: win, Type: mygo.MessageQuestion, Title: i18n.T(i18n.KeyCmdImportBuildTitle),
-				Message: fmt.Sprintf(i18n.T(i18n.KeyCmdImportBuildMessage), row.ID, spec, dest, strings.Join(builds, "\n")),
-				Buttons: []string{i18n.T(i18n.KeyCmdImportBuildSkip), i18n.T(i18n.KeyCmdImportBuildApprove)}, DefaultButton: 0, CancelButton: 0,
-			})
-			return err == nil && answer.Button == 1 && ctx.Err() == nil
+			return s.askConfirmBlocking(confirmAskRequest{Context: ctx, Owner: win, Title: i18n.T(i18n.KeyCmdImportBuildTitle), Body: fmt.Sprintf(i18n.T(i18n.KeyCmdImportBuildMessage), row.ID, spec, dest, strings.Join(builds, "\n")), ConfirmLabel: i18n.T(i18n.KeyCmdImportBuildApprove), CancelLabel: i18n.T(i18n.KeyCmdImportBuildSkip)}) && ctx.Err() == nil
 		})
 	}
 }

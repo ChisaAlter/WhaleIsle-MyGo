@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 	"whaleisle/internal/dsh"
 )
 
@@ -52,6 +53,101 @@ func TestDirectoryBrowseAndExplicitMirror(t *testing.T) {
 	v = waitStore(t, s)
 	if v.Directory.Error == "" || v.Directory.LocalMirror != "/host/mirrors/project" {
 		t.Fatalf("invalid reply lost selection: %+v", v)
+	}
+}
+
+func TestDirectoryExplicitChoiceReturnsOnlySuccessfulMirror(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true,"localMirror":"/host/selected"}`))
+	}))
+	defer server.Close()
+	s := New()
+	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL}}, nil)
+	s.view.CurrentID = "one"
+	s.view.Directory = DirectorySnapshot{Loaded: true, Path: "/empty", LocalMirror: "/host/previous", SelectedPath: "/previous"}
+	chosen := make(chan string, 1)
+	s.ChooseDirectoryWithResult(func(path string) { chosen <- path })
+	select {
+	case path := <-chosen:
+		if path != "/host/selected" {
+			t.Fatal(path)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("successful mirror was not delivered to its consumer")
+	}
+	if got := s.Snapshot().Directory; got.SelectedPath != "/empty" || got.LocalMirror != "/host/selected" {
+		t.Fatalf("wrong adoption state %+v", got)
+	}
+}
+
+func TestDirectoryChoiceCapabilityRetiresOnNavigationMachineAndHost(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true,"localMirror":"/host/captured"}`))
+	}))
+	defer server.Close()
+	s := New()
+	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL}}, nil)
+	s.view.CurrentID = "one"
+	s.view.Directory = DirectorySnapshot{Loaded: true, Path: "/remote/project"}
+	chosen := make(chan DirectoryChoice, 1)
+	s.ChooseDirectoryWithChoice(func(choice DirectoryChoice) { chosen <- choice })
+	var choice DirectoryChoice
+	select {
+	case choice = <-chosen:
+	case <-time.After(time.Second):
+		t.Fatal("typed mirror choice missing")
+	}
+	if !s.DirectoryChoiceCurrent(choice) || choice.RemotePath != "/remote/project" || choice.MachineID != "one" {
+		t.Fatalf("invalid captured choice %+v", choice)
+	}
+	s.mu.Lock()
+	s.directoryRequestID++
+	s.mu.Unlock()
+	if s.DirectoryChoiceCurrent(choice) {
+		t.Fatal("a later navigation could adopt an old mirror")
+	}
+	s.mu.Lock()
+	s.directoryRequestID--
+	s.view.CurrentID = "two"
+	s.mu.Unlock()
+	if s.DirectoryChoiceCurrent(choice) {
+		t.Fatal("a replacement current machine could adopt an old mirror")
+	}
+	s.mu.Lock()
+	s.view.CurrentID = "one"
+	s.mu.Unlock()
+	s.Attach(nil, nil)
+	if s.DirectoryChoiceCurrent(choice) {
+		t.Fatal("a replacement Host could adopt an old mirror")
+	}
+}
+
+func TestDirectoryCancelledChoiceCannotAdoptLateMirror(t *testing.T) {
+	started, release, responded := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		_, _ = w.Write([]byte(`{"ok":true,"localMirror":"/host/stale"}`))
+		close(responded)
+	}))
+	defer server.Close()
+	s := New()
+	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL}}, nil)
+	s.view.CurrentID = "one"
+	s.view.Directory = DirectorySnapshot{Loaded: true, Path: "/work"}
+	chosen := make(chan string, 1)
+	s.ChooseDirectoryWithResult(func(path string) { chosen <- path })
+	<-started
+	s.CancelDirectoryChoice()
+	close(release)
+	<-responded
+	if s.Snapshot().Busy || s.Snapshot().Directory.LocalMirror != "" {
+		t.Fatal("cancelled mirror changed selection")
+	}
+	select {
+	case path := <-chosen:
+		t.Fatalf("cancelled picker adopted %s", path)
+	case <-time.After(30 * time.Millisecond):
 	}
 }
 

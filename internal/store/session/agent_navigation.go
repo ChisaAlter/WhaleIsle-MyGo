@@ -39,10 +39,16 @@ type AgentNavigationRow struct {
 func (r AgentNavigationRow) CanOpen() bool { return r.Address.validChild() }
 
 type AgentNavigationView struct {
+	Board                                          PlanBoard
+	QueueEditor                                    QueueEditorState
+	PromptReceipt                                  uint64
+	Running                                        bool
 	RetainedReadOnly                               bool
 	RetainedPromptAllowed                          bool
 	ImageLimits                                    *ComposerImageLimits
 	imageLimitsSeq                                 float64
+	queueInboxSeq                                  float64
+	queueInboxSeeded                               bool
 	ParentAvailabilityKnown, ParentAvailable       bool
 	RootCountsKnown                                bool
 	RootChildren, RootRunning, RootActivityUnknown int
@@ -99,6 +105,7 @@ func (s *Store) agentNavigationOwnedLocked() bool {
 	return s.agentPaneReadCurrentLocked() && n.binding != "" && n.binding == s.planHistoryBinding && n.root == s.selectedID && n.client == s.client && n.mux == s.mux && n.generation == s.followGeneration
 }
 func cloneAgentNavigationView(v AgentNavigationView) AgentNavigationView {
+	v.Board.Queue = append([]PlanQueueItem(nil), v.Board.Queue...)
 	v.ImageLimits = cloneChildImageLimits(v.ImageLimits)
 	v.PromptImages = append([]string(nil), v.PromptImages...)
 	v.Resources = cloneAgentResources(v.Resources)
@@ -116,6 +123,7 @@ func (s *Store) AgentNavigationSnapshot() AgentNavigationView {
 	}
 	s.agentNavigation.notifyPending = false
 	s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
+	s.syncChildQueueProjectionLocked(&s.agentNavigation.view)
 	v := cloneAgentNavigationView(s.agentNavigation.view)
 	s.agentRootCountsLocked(&v)
 	s.agentParentViewLocked(&v)
@@ -133,6 +141,7 @@ func (s *Store) SyncAgentNavigation(binding string) AgentNavigationView {
 	}
 	if s.agentNavigationOwnedLocked() {
 		s.refreshAgentNavigationRowsLocked(&s.agentNavigation.view)
+		s.syncChildQueueProjectionLocked(&s.agentNavigation.view)
 		s.agentNavigation.notifyPending = false
 		v := cloneAgentNavigationView(s.agentNavigation.view)
 		s.agentRootCountsLocked(&v)
@@ -428,7 +437,13 @@ func (s *Store) PromptAgentNavigation(token uint64, address AgentSessionAddress,
 func (s *Store) InterruptAgentNavigation(token uint64, addresses []AgentSessionAddress) {
 	s.agentNavigationAction(token, append([]AgentSessionAddress(nil), addresses...), "", false, false)
 }
-func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt, retainedPrompt bool) {
+
+type childPromptGesture struct {
+	accelerated bool
+	preferred   string
+}
+
+func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt, retainedPrompt bool, gesture ...childPromptGesture) {
 	s.mu.Lock()
 	n := &s.agentNavigation
 	if len(addresses) == 0 || n.view.ActionBusy || n.view.Busy {
@@ -449,6 +464,20 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 	}
 	client, generation := n.client, n.generation
 	delivery := string(NormalizePromptMode(string(s.promptMode)))
+	if prompt && len(gesture) > 0 {
+		g := gesture[0]
+		preferred := g.preferred
+		explicit, manual := s.promptModeExplicit, s.promptMode
+		if owner := s.agentNavigationOwner; owner != nil {
+			owner.mu.Lock()
+			explicit, manual = owner.promptModeExplicit, owner.promptMode
+			owner.mu.Unlock()
+		}
+		if explicit {
+			preferred = string(manual)
+		}
+		delivery = string(ResolveBusyEnterMode(preferred, n.view.Running, g.accelerated, true))
+	}
 	n.actionEpoch++
 	epoch := n.actionEpoch
 	actionContext := context.Background()
@@ -507,7 +536,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				}
 			} else {
 				var receipt json.RawMessage
-				err = client.Call(ctx, "subagents/interruptByParent", map[string]any{"parentSessionId": address.ParentSessionID, "childSessionId": address.ChildSessionID, "mode": "cancel"}, &receipt)
+				err = client.Call(ctx, "subagents/interruptByParent", map[string]any{"parentSessionId": address.ParentSessionID, "childSessionId": address.ChildSessionID, "mode": address.Mode}, &receipt)
 			}
 			if err != nil {
 				break
@@ -524,6 +553,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		if err != nil {
 			s.agentNavigation.view.ActionStatus = err.Error()
 		} else if prompt {
+			s.agentNavigation.view.PromptReceipt++
 			s.agentNavigation.view.PromptImages = nil
 			s.agentNavigation.view.ActionStatus = storelocale.T(storelocale.KeyStoreSessionChildPromptSubmitted)
 		} else {

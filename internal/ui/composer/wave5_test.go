@@ -98,15 +98,21 @@ func TestAttachmentRetrySurvivesDecodeFailure(t *testing.T) {
 
 func TestMenusListTheirKeyboardHints(t *testing.T) {
 	m := permissionModelFixture()
+	picked := ""
+	m.OnPermissionChange = func(value string) { picked = value }
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 880, 420)
 	if err := tt.Click(i18n.T(i18n.KeyComposerPermissionWorkspace)); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText(i18n.T(i18n.KeyComposerMenuFooter)) {
-		t.Fatalf("permission menu has no keyboard hints: %v", tt.Texts())
-	}
 	if !tt.HasText(i18n.T(i18n.KeyComposerPermissionFullAccess)) {
 		t.Fatal("permission menu lost its rows")
+	}
+	// PermissionSelect's dedicated menu has no generic preset footer, but its
+	// keyboard owner still moves and chooses the actual opaque catalog value.
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyEnter)
+	if picked != session.PermissionFullAccess {
+		t.Fatalf("permission keyboard selection = %q", picked)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -49,13 +50,17 @@ func editorOpenWithApps() []files.OpenWithApp {
 // openInEditor launches a probed external editor at line (0 opens the file
 // only) and falls back to systemOpen when that editor is not installed or
 // cannot be spawned, matching editors.js openInEditor + shell.openPath.
-func openInEditor(absPath, editorID string, line int, systemOpen func(string) error) {
+func openInEditor(absPath, editorID string, line int, systemOpen func(string) error) error {
 	if err := editors.Open(editorID, absPath, line, 0); err != nil {
 		log.Println("open in editor:", err)
 		if systemOpen != nil {
 			if fallbackErr := systemOpen(absPath); fallbackErr != nil {
 				log.Println("open with system default:", fallbackErr)
+				return fmt.Errorf("editor unavailable (%v); system default failed: %w", err, fallbackErr)
 			}
+			return nil
 		}
+		return err
 	}
+	return nil
 }

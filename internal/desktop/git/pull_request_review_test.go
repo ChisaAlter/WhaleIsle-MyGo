@@ -20,10 +20,10 @@ func TestGitPullRequestReviewBindsTargetAndPayload(t *testing.T) {
 		if name != "gh" {
 			t.Fatal(name)
 		}
-		if strings.Join(args, " ") != "repo view example/project --json defaultBranchRef" {
+		if strings.Join(args, " ") != "repo view --json nameWithOwner,url,defaultBranchRef" {
 			t.Fatal(args)
 		}
-		return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+		return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 	}
 	p, e := preparePullRequest(context.Background(), root, push, "Reviewed title", "Reviewed body", fake)
 	if e != nil || p.Repository != "example/project" || p.Base != "main" {
@@ -42,7 +42,7 @@ func TestGitPullRequestExistingIsReused(t *testing.T) {
 	calls := 0
 	fake := func(_ context.Context, _, name string, args ...string) ([]byte, error) {
 		if args[0] == "repo" {
-			return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		calls++
 		if args[0] != "pr" || args[1] != "list" {
@@ -83,7 +83,7 @@ func TestGitPullRequestLookupFailureStopsCreation(t *testing.T) {
 	calls := 0
 	fake := func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 		if args[0] == "repo" {
-			return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		calls++
 		if args[1] != "list" {
@@ -103,7 +103,7 @@ func TestGitPullRequestRequiresExactPushedHead(t *testing.T) {
 	root, _, push := prFixture(t)
 	fake := func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 		if args[0] == "repo" {
-			return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		if args[1] != "list" {
 			t.Fatal("implicit push/create", args)
@@ -127,7 +127,7 @@ func TestGitPullRequestCreationUsesReviewedDraftAndDoesNotBlindRetry(t *testing.
 	var bodyFile string
 	fake := func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 		if args[0] == "repo" {
-			return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		if args[1] == "list" {
 			lists++
@@ -167,7 +167,7 @@ func TestGitPullRequestRejectsStaleHeadAndForeignFork(t *testing.T) {
 	lists := 0
 	fake := func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 		if args[0] == "repo" {
-			return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		lists++
 		return []byte(`[{"number":1,"state":"OPEN","url":"https://github.com/example/project/pull/1","headRefName":"feature/review","baseRefName":"main","headRepository":{"name":"project"},"headRepositoryOwner":{"login":"another"}}]`), nil

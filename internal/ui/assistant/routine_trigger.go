@@ -44,9 +44,6 @@ func routineTriggerBlock(c *ui.Context, m RoutineModel, blocked bool, fg, muted,
 				m.OnConfirmTrigger()
 			}
 		}
-		if s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHostClosingDoesNotRevoke)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}

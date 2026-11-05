@@ -4,9 +4,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/egoist/mygo/ui"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"whaleisle/internal/petwatch"
 )
 
@@ -18,6 +20,7 @@ type notificationState struct {
 	snapshot             petwatch.Snapshot
 	ack                  func(string)
 	mediaHome, mediaRoot string
+	chatImages           map[string]bool
 }
 
 // NotificationsActive is called only on the UI thread. Closing/hiding the pet
@@ -29,9 +32,63 @@ func (p *Companion) UpdateNotifications(owner string, snap petwatch.Snapshot, ac
 	if !p.NotificationsActive() {
 		return
 	}
+	inChat := map[string]bool{}
+	if q := p.QuickChat; q != nil && q.check() {
+		for _, e := range snap.Events {
+			if e.MediaPath != "" && q.presentSticker(owner, e, home, stickerRoot, ack) {
+				inChat[e.ID] = true
+			}
+		}
+	}
 	p.assetMu.Lock()
-	p.notifications = notificationState{owner: owner, snapshot: snap, ack: ack, mediaHome: home, mediaRoot: stickerRoot}
+	p.notifications = notificationState{owner: owner, snapshot: snap, ack: ack, mediaHome: home, mediaRoot: stickerRoot, chatImages: inChat}
 	p.assetMu.Unlock()
+}
+
+// Sticker decoding uses the same confined roots as notification media. The
+// receipt is acknowledged by the visible virtual-list image paint, not by a
+// background read or merely opening a card.
+func (q *QuickChat) presentSticker(owner string, e petwatch.Event, home, root string, ack func(string)) bool {
+	key := owner + ":" + e.ID
+	if shown, known := q.stickerSeen[key]; known {
+		return shown
+	}
+	q.stickerSeen[key] = true
+	go func() {
+		data, _, err := petwatch.ReadSticker(home, root, e.MediaPath)
+		var bitmap *ui.Bitmap
+		if err == nil {
+			bitmap, err = ui.DecodeBitmap(data)
+		}
+		clear(data)
+		q.win.Update(func() {
+			if !q.check() {
+				return
+			}
+			q.owner.assetMu.RLock()
+			current := q.owner.notifications.owner == owner
+			q.owner.assetMu.RUnlock()
+			if !current {
+				return
+			}
+			if err != nil {
+				q.stickerSeen[key] = false
+				return
+			}
+			var once sync.Once
+			row := quickChatRow{Role: "her", Text: e.Text, Image: bitmap, Receipt: key, Acknowledge: func() {
+				once.Do(func() {
+					if ack != nil {
+						ack(e.ID)
+					}
+				})
+			}}
+			q.stickers = append(q.stickers, row)
+			q.state.History = append(q.state.History, row)
+			q.list.ScrollToEnd()
+		})
+	}()
+	return true
 }
 func (p *Companion) clearNotifications() {
 	p.assetMu.Lock()
@@ -132,6 +189,7 @@ func (p *Companion) serveNotifications(w http.ResponseWriter, r *http.Request) b
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/notifications.json":
 		p.assetMu.RLock()
+		chatOpen := p.quickChatOpen
 		n := p.notifications
 		p.assetMu.RUnlock()
 		type eventView struct {
@@ -144,6 +202,12 @@ func (p *Companion) serveNotifications(w http.ResponseWriter, r *http.Request) b
 		}
 		events := make([]eventView, 0, len(n.snapshot.Events))
 		for _, e := range n.snapshot.Events {
+			if chatOpen && n.chatImages[e.ID] {
+				continue
+			}
+			if chatOpen && n.chatImages[e.ID] {
+				continue
+			}
 			image := ""
 			if e.MediaPath != "" {
 				image = "notification-image/" + n.owner + "/" + e.ID
@@ -164,4 +228,18 @@ func (p *Companion) serveNotifications(w http.ResponseWriter, r *http.Request) b
 		_, _ = w.Write(body)
 	}
 	return true
+}
+
+func notificationStateMode(s petwatch.Snapshot) string {
+	for _, e := range s.Events {
+		if e.Type == "error" {
+			return "error"
+		}
+	}
+	for _, e := range s.Events {
+		if e.Pinned {
+			return "review"
+		}
+	}
+	return ""
 }

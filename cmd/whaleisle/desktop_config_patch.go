@@ -47,7 +47,14 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 	if err != nil {
 		return nil, err
 	}
+	leaseOwned := true
+	defer func() {
+		if leaseOwned {
+			release()
+		}
+	}()
 	restart := false
+	var features desktopConfigFeaturePatch
 	err = store.Update(func(c *config.Config) {
 		for key, value := range patch {
 			switch key {
@@ -60,11 +67,14 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 			case "openAtLogin":
 				c.OpenAtLogin = value.(bool)
 			case "dshbotEnabled":
-				c.DshbotEnabled, restart = value.(bool), true
+				features.dshbot = &desktopConfigFeatureValue{previous: c.DshbotEnabled, expected: value.(bool)}
+				c.DshbotEnabled, restart = features.dshbot.expected, true
 			case "whaleAssistantEnabled":
-				c.WhaleAssistantEnabled, restart = value.(bool), true
+				features.assistant = &desktopConfigFeatureValue{previous: c.WhaleAssistantEnabled, expected: value.(bool)}
+				c.WhaleAssistantEnabled, restart = features.assistant.expected, true
 			case "remoteWorkspaceEnabled":
-				c.RemoteWorkspaceEnabled, restart = value.(bool), true
+				features.remote = &desktopConfigFeatureValue{previous: c.RemoteWorkspaceEnabled, expected: value.(bool)}
+				c.RemoteWorkspaceEnabled, restart = features.remote.expected, true
 			case "harnessAutoRestart":
 				c.HarnessAutoRestart = value.(bool)
 			case "harnessRestartMaxAttempts":
@@ -75,20 +85,35 @@ func (s *mainState) applyDesktopConfigPatch(_ context.Context, patch map[string]
 		}
 	})
 	if err != nil {
-		release()
 		return nil, err
 	}
 	// Preserve write/effect ordering across concurrent desktop requests.
 	saved := store.Get()
 	err = s.applyDesktopConfigEffects(saved, patch, win)
-	release()
 	if err != nil {
+		// Desktop side effects keep their existing partial-save contract, but a
+		// feature change cannot be accepted without its protected restart.
+		if restart {
+			err = errors.Join(err, s.rollbackDesktopConfigFeatures(store, features))
+		}
 		return nil, fmt.Errorf("settings saved but could not be fully applied: %w", err)
 	}
 	restartRequested := false
-	if restart && sup != nil {
-		s.syncHarnessFromConfig()
-		restartRequested = s.restartUnlessImport(sup)
+	if restart {
+		if sup != nil {
+			// Never await the requesting Host's restart in its bridge handler.
+			// The detached result owns this lease until acceptance or rollback.
+			restartRequested = s.restartUnlessImportWithResult(sup, true, func(did bool, restartErr error) {
+				defer release()
+				s.completeDesktopConfigFeatures(store, features, win, did, restartErr)
+			})
+		}
+		if restartRequested {
+			leaseOwned = false
+		} else {
+			s.completeDesktopConfigFeatures(store, features, win, false, errors.New(lifecycleText("当前无法开始功能重启。", "The feature restart could not be started.")))
+			saved = store.Get()
+		}
 	}
 	return map[string]any{"ok": true, "config": desktopPublicConfig(saved), "restarting": restartRequested, "restartRequired": restart && !restartRequested}, nil
 }

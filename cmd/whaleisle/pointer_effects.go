@@ -18,5 +18,5 @@ func (s *mainState) configurePointerEffects(c *ui.Context) {
 	}
 	systemDark := mygo.Theme.IsDark()
 	colors := theme.ResolveWithSystem(s.themeID, systemDark).Active(systemDark)
-	chrome.ApplyCursorEffects(c, g.Prefs, chrome.Color(colors.Accent))
+	chrome.ApplyCursorEffects(c, g.EffectivePreferences(), chrome.Color(colors.Accent))
 }

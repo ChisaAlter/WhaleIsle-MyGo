@@ -1,0 +1,1201 @@
+{
+  "domain": "workbench",
+  "baseline": {
+    "mygo": "C:/AI/WhaleIsle-MyGo b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb + 当前工作树；原 rc.3 app 源码 5549e627 不等同当前诊断源码",
+    "original": "installed-0.3.13，实际 app.asar 源码 tmp/full-audit-20261102/installed-source/src；Host/client package 0.2.1-rc.2；安装目录 client lib 为当前原版 UI 基线",
+    "note": "初始合同中的 installed-0.3.10 已被本轮直接读取的 0.3.13 取代；历史提取不再用于当前结论。原项目 9ac095515f 的额外 dirty 变更未当作安装版能力。"
+  },
+  "modulesReviewed": [
+    "internal/ui/files（生产入口、树/菜单、异步读、保存、tab/恢复、各预览路由）",
+    "internal/ui/diffsurface（生产入口、caption、状态/diff/branch/stage/discard/commit/push/PR/publish、异步及恢复边界）",
+    "internal/ui/terminal（local/Host 两种终端、组/生命周期、选区/路径）",
+    "internal/ui/browserpreview（Controller、全部导航/工具/录制菜单、document/浮窗/PiP/分区/恢复）",
+    "internal/ui/planpreview",
+    "internal/ui/filelink",
+    "internal/ui/svgimage（Seat/Owner/Surface 入口与生命周期）",
+    "internal/store/hostterminal（环境/创建/attach duplex/retain/follow/write/resize/rename/close/recovery/occurrence）",
+    "internal/store/office（确认其为 IM Office 配置桥，转 orchestration 领域，非文件转换）",
+    "internal/store/session/office_pdf.go",
+    "internal/desktop/workspacefs（list/tree/watch/search/text/page/save/workbook/CSV/XLS/XLSX/docs）",
+    "internal/desktop/git（production 操作/状态/选中文件提交/remote 计划/PR 目标/生成/部分失败）",
+    "internal/desktop/terminalruntime",
+    "internal/desktop/editors",
+    "internal/desktop/externallauncher（controller/Windows 注册及执行入口，非文件外部打开）",
+    "internal/desktop/browserrecording（capture/encoder/save/平台边界）",
+    "internal/desktop/htmldocument（local/remote 文件快照、资源图、interactive 入口）",
+    "internal/desktop/htmlpreview（静态/脚本 shell、capture、renderer/helper 入口）",
+    "internal/desktop/imagepreview（支持格式、预算、动画/SVG 路由；codec 算法不作逐行认证）",
+    "internal/desktop/imgcache（远程图缓存/预算/失效入口）",
+    "internal/desktop/mediapreview",
+    "internal/desktop/pdfpreview",
+    "internal/desktop/previewprocess（公开协议、Windows launcher/helper/图像及 interactive/OpenUI 桥的资源入口和生命周期；完整安全证明/其他平台未穷尽）",
+    "internal/desktop/svgrender（WASM render/字体来源入口；resvg/dav1d 内核未逐行审）",
+    "internal/desktop/webview（NewHost、文档/Browser 分区、导航/工具/permissions/download/viewport/恢复入口）",
+    "internal/desktop/platformview（账号隔离 transport 入口，业务消费交账号领域）",
+    "cmd/whaleisle/main.go:1449-1518,2961-3165,3520-3595,6485-6608,7080-7179,7319-7447",
+    "cmd/whaleisle/workspace_caption.go",
+    "cmd/whaleisle/workspace_document_preview.go",
+    "cmd/whaleisle/document_viewer.go",
+    "cmd/whaleisle/open_editor.go",
+    "cmd/whaleisle/browser_preview_actions.go",
+    "cmd/whaleisle/browser_workspace.go",
+    "cmd/whaleisle/terminal_target.go",
+    "cmd/whaleisle/remote_files.go",
+    "cmd/whaleisle/account_platform.go",
+    "cmd/whaleisle-launcher/main.go（externallauncher 消费）",
+    "internal/ui/frame/frame.go:1587-1667",
+    "internal/ui/frame/workspace_content.go:342-642",
+    "third_party/mygo/plugins/terminal/view.go:14-33,510-539 与 links.go（实际终端超链接旁路）",
+    "cmd/whaleisle/workspace_sessions.go:61-113（验证open-with cache切换时会清空，保留的缺陷仅晚到响应同rel碰撞）"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-files/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/client.js",
+    "tmp/full-audit-20261102/installed-source/src/main/{workspace-fs,editors,git,git-pullrequest,git-templates,git-remotes,pty,preview,preview-file-window,html-preview}.js",
+    "tmp/full-audit-20261102/installed-source/src/preload/index.js",
+    "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/genui/client/{file-link,file-link-context,file-address}（当前源码补充，不代替 installed client）",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-surfaces/src/client/apply.ts（当前源码补充）"
+  ],
+  "features": [
+    {
+      "id": "WB-001",
+      "feature": "文件树浏览、展开、空/加载/失败/刷新",
+      "baseline": "installed-0.3.13",
+      "expected": "以当前会话目录列出真实子目录和文件；目录优先、尊重 .git/gitignore，失败可见且可重试。",
+      "entry": "右侧 Files → files.View → DirectoryTree → 本地列表/同会话 Host list/watch",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1262-1470: FilesPanel 的 cwd、异步 root/展开/搜索与错误状态",
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-fs.js:164-190: 授权实际目录列表及过滤排序"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/files.go:140-258: Files 入口/自动刷新/过滤/root空状态",
+        "internal/desktop/workspacefs/tree.go:43-175: 按binding/root的目录状态、取消/刷新/watch错误",
+        "cmd/whaleisle/main.go:7078-7095: 生产 list/watch 接同会话 Host"
+      ],
+      "finding": "不是静态树：本地读失败有远端读取，展开/隐藏/重绑定会取消读和订阅。没有当前原生窗口下选择实际文件夹后树内容成功显示的证据。原版与 MyGo 文件树菜单均不直接提供新建/重命名/删除，目录选择器的 mkdir 是另一能力。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收当前候选由真实目录进入 Files，覆盖空目录、缺失/拒绝访问、刷新、折叠后晚到响应、切换目录。",
+      "acceptanceGap": "未验证用户当前工作区的真实目录是否正确传入本面板；不覆盖用户‘新建工作区不是目录’故障。"
+    },
+    {
+      "id": "WB-002",
+      "feature": "文件树搜索和分页/取消",
+      "baseline": "installed-0.3.13",
+      "expected": "搜索完整可见目录树，不仅筛已展开节点；Enter 选择、Escape 清除，切会话不串结果。",
+      "entry": "Files 搜索框 → Search.Ensure → SearchRelPaths → 文件结果打开",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1359-1413: 递归搜索与取消",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1472-1545: 搜索键盘与 pending"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/files.go:217-242,262-291: 搜索输入、状态、200项后加载更多",
+        "internal/desktop/workspacefs/search.go:30-97: 异步generation取消/分页",
+        "internal/desktop/workspacefs/list.go:89-114: gitignore 批查"
+      ],
+      "finding": "全树枚举和结果分页有生产实现，搜索过程可取消；没有以当前实际工作区运行搜索的证据。未把树搜索等同内容全文搜索；原版这里也为路径搜索。",
+      "evidenceLevel": "code",
+      "requiredAction": "定向验收多层目录、隐藏/ignored、无结果/失败/取消与大量结果的继续加载。",
+      "acceptanceGap": "当前窗口键盘导航、搜索延迟和大仓性能未验收。"
+    },
+    {
+      "id": "WB-003",
+      "feature": "文件引用、路径复制、拖入草稿、选区加到对话",
+      "baseline": "installed-0.3.13",
+      "expected": "文件名/相对/绝对路径操作保持原会话目录，内部拖拽是文件引用而非文件上传；选区附行号。",
+      "entry": "树行@/上下文菜单/拖拽；预览选区→OnReferenceFile/OnAddToChat",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:863-935: 文件树引用/复制/外部操作菜单",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:2340-2360: 写入所属会话草稿"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/tree_actions.go:32-91,110-124: 引用/复制/reveal真实菜单",
+        "internal/ui/filelink/reference.go:14-77: Host/session/root身份和Markdown路径序列化",
+        "internal/ui/files/source_actions.go:218-244: 源码选区行号/代码围栏",
+        "internal/ui/frame/frame.go:1595-1599,1664-1666: 生产引用/选区装配"
+      ],
+      "finding": "回调不是空壳，并有绑定身份；树/选区实际 Windows 拖拽、剪贴板及输入法中插入尚未当前验收。引用功能依赖当前 selected session/draft 可写。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收含空格/中文/特殊字符路径的点击引用、拖拽、范围选取、发送中拒绝和切会话后旧拖值拒绝。",
+      "acceptanceGap": "物理拖拽、系统剪贴板以及用户现有草稿保持未验收。"
+    },
+    {
+      "id": "WB-004",
+      "feature": "文本/代码读取、分页、行定位与编码",
+      "baseline": "installed-0.3.13",
+      "expected": "完整/分页文本有清楚边界；跳行加载正确页面；二进制不当文本保存。",
+      "entry": "文件行 → selectFile → beginTextRead/local page → Host workspaceFiles/read",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-fs.js:193-237: UTF-8文本读、NUL二进制判定、1MiB截断",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1750-1919: FilePreview ready/error/editable边界"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/files.go:526-595: 选择文件和异步/远端回退",
+        "internal/ui/files/text_read.go:48-149: 同源捕获、本地分页/Host回退、超时",
+        "internal/desktop/workspacefs/text_page.go:23-71: 本地字节/Host行游标",
+        "internal/ui/files/source_actions.go:40-105: 延迟跳行"
+      ],
+      "finding": "实际 reader 与游标路径存在；本地严格 UTF-8，Host 文本用行分页。两端这里都没有任意编码选择 UI；不能把未显示 GBK 当作已确认的独有移植缺失。UTF-16表格走专用文档renderer而非普通源码读。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收UTF-8/BOM/CRLF/空文件/二进制/超页、文件变化后游标和行定位重试；明确不支持编码的可见提示。",
+      "acceptanceGap": "没有当前候选原生编辑器的真实长文件/中文编码操作证据。"
+    },
+    {
+      "id": "WB-005",
+      "feature": "编辑、手动保存/自动保存、外部修改和失败保草稿",
+      "baseline": "installed-0.3.13",
+      "expected": "实际写回当前文件；自动保存排队；外部更改先报告冲突，失败不丢草稿。",
+      "entry": "源码编辑器/Cmd+S/保存 → SaveQueue → SaveTextChecked → JoinRoot+WriteFileText",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1750-1945: 源文与草稿独立、失败保草稿",
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-fs.js:314-344: 原版写回实际UTF-8文件"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1647-1652: 生产写入回调",
+        "internal/ui/files/autosave.go:17-50,54-143: 写权限、状态、自动/显式队列",
+        "internal/desktop/workspacefs/save_queue.go:190-244: 重读冲突/取消/串行写",
+        "internal/desktop/workspacefs/workspacefs.go:94-143: 同目录临时文件写入后rename"
+      ],
+      "finding": "保存不是假回调，有实际落盘路径。远程读取的tab明确不在本地Files写回，提示去远程编辑器；读取不完整/只读交付/表格禁止普通保存。当前真实用户编辑保存未验收，P0优先级表示涉及数据而非已确认数据丢失。",
+      "evidenceLevel": "code",
+      "requiredAction": "在获准的独立目录验收输入→自动保存→重读、手动保存、冲突→保留→明确重试、磁盘/ACL失败、切换会话后写者所属文件不变。",
+      "acceptanceGap": "本轮不写真实文件；当前二进制与用户配置的原生输入/保存闭环未验证。"
+    },
+    {
+      "id": "WB-006",
+      "feature": "多文件tab、脏关闭、会话/重启草稿恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "切文件/会话不丢未保存内容；关闭有保存/保留/丢弃决策，重启不自动写磁盘。",
+      "entry": "文件tab关闭/面板关闭→Tabs/PreflightDirtyForClose；恢复→Tabs.Restore",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1758-1794,1815-1833: 缓冲恢复与读失败保脏",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:2423-2440: address buffer/save登记"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/tabs.go:240-292,412-503: 脏关闭/保存/恢复校验",
+        "internal/ui/files/close_save.go:10-99: 全部脏tab预检/队列及新改动拒关",
+        "internal/ui/files/source_buffer.go:24-66: 捕捉已提交原生输入和Marshal",
+        "internal/ui/frame/workspace_content.go:509-563: dispose/恢复文件状态"
+      ],
+      "finding": "有独立tab状态和已提交原生TextBuffer，不是仅当前字符串；恢复不执行保存。历史文档提及两进程恢复，但此次未取得其原始receipt，不升级当前通过。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收同目录/跨目录多脏tab、面板关保存失败、最小化后已提交输入、重启恢复不改磁盘、恢复后再保存。",
+      "acceptanceGap": "未验证当前诊断版的真实原生IME提交/退出恢复；不把旧恢复单测当用户验收。"
+    },
+    {
+      "id": "WB-007",
+      "feature": "Markdown 源码/渲染、metadata 与内嵌图片",
+      "baseline": "installed-0.3.13",
+      "expected": "Markdown 可在源文和渲染切换，保留草稿及行定位；渲染图片并解析当前文档相对图片资源。",
+      "entry": "预览渲染按钮→paintMarkdownResource→markdown.ViewInteractive",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1776-1777,1917-1926: renderMarkdown/换行偏好与跳行",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:1703-1719: Markdown renderer注册",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:1611-1650: MarkdownBody 给 MarkdownText 传 pathImages.resolve"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/markdown_metadata.go:94-106:metadata+ViewInteractive",
+        "internal/ui/files/files.go:440-445,598-606:默认Files Markdown style无RenderImage",
+        "internal/ui/widgets/markdown/blocks.go:30-48:无RenderImage时图片落到文本fallback"
+      ],
+      "finding": "源码/渲染/metadata存在；默认Files Markdown没有RenderImage，相对/网络图片只剩alt文本。原版文档Markdown明确注入pathImages。MyGo可选Host文档viewer仍可承载原renderer，但不能据此认定默认原生预览完整。",
+      "evidenceLevel": "code",
+      "requiredAction": "为Files渲染文档接入带源目录/会话授权的图片resolver和RenderImage；验收相对图片、远程图片失败、tab关闭/Host变化撤销。",
+      "acceptanceGap": "内置原生Markdown缺图由源码确定；备选文档viewer的图片实际显示与当前候选视觉仍未验收。"
+    },
+    {
+      "id": "WB-008",
+      "feature": "对话/终端/历史文件链接打开到面板",
+      "baseline": "installed-0.3.13",
+      "expected": "当前工作区文件链接进入所属Files资源tab并可定位行号；缺失/外部路径有明确结果。",
+      "entry": "main openDelivered / terminalTargetHandler → files.OpenPresentedPath → Files或Host opener",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js:513-535: 以会话资源地址打开文件，含工作目录override/line",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-reference/lib/client.js:383: 引用以fileAddressFor进入sidebar资源"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/presented.go:17-29,53-105: 仅本机实际root/文件可解析时接入Files",
+        "cmd/whaleisle/main.go:6573-6606: 不能本机解析时回Host外部打开",
+        "cmd/whaleisle/terminal_target.go:71-86: 本地终端文件/行号路由"
+      ],
+      "finding": "MyGo通用入口能打开本机当前root内的实际文件；Host-only文件或本机不存在目录/文件会退到session/openWorkspacePath，而不是直接建立Host文档资源tab。Files树本身有Host读能力，不能补足这个通用链接入口的local存在性门槛。",
+      "evidenceLevel": "code",
+      "requiredAction": "按原版资源地址优先路由Host/session文件，分清本地外部路径和Host文件；Project跨root报告由项目领域验收专用入口。",
+      "acceptanceGap": "本轮未操作远程Host，不把本地existing路径测试泛化到所有文件链接。"
+    },
+    {
+      "id": "WB-009",
+      "feature": "动态文档预览器及表格完整viewer选择",
+      "baseline": "installed-0.3.13",
+      "expected": "Host动态注册文档renderer可加载，用户可选择原生/文档/自动viewer；切换/关闭释放所属资源。",
+      "entry": "Files选择预览器→openDocumentViewer→认证Host document page→注册表能力",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:6083-6125,6282-6310: Office/表格renderer注册",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:7230-7284: 通用文档tab/资源装配"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/document_viewer.go:12-37: exact Host/session校验和认证文档WebView",
+        "internal/desktop/webview/document_url.go:12-28: session/path资源描述",
+        "internal/ui/files/document_surface.go:80-158,175-189: 懒加载/切换/存活/能力推荐",
+        "internal/desktop/webview/client_modules.go:38-49: 只认实际renderer能力"
+      ],
+      "finding": "没有把插件文档预览硬替成固定文本：仍能挂载原Host文档owner。默认仅外部扩展/完整workbook推荐，普通内置HTML/图像依旧优先原生，因此替代viewer存在不等于默认体验一致。",
+      "evidenceLevel": "code",
+      "requiredAction": "在当前完整包验收内置与动态插件文档viewer切换、Host重启/插件卸载后失效与重试、窄面板viewport。",
+      "acceptanceGap": "本轮只确认装配，未证明认证临时WebView、动态renderer和原生覆盖的实际可用。"
+    },
+    {
+      "id": "WB-010",
+      "feature": "图片格式、动画、缩放/平移与预算",
+      "baseline": "installed-0.3.13",
+      "expected": "常用图片格式和动画可读，单图读取失败明确、可换viewer/外部打开。",
+      "entry": "Files图片→imageRead→native/wasm/SVG seat；独立图像文档→Browser",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-fs.js:16-27,278-288: 原版图片32MiB上限及PNG/JPEG/GIF/WebP/SVG/BMP/ICO/AVIF",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:5075-5276: 原版图片文档/zoom注册"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/media.go:20-21,152-175: 原生图片16MiB/SVG1MiB门槛",
+        "internal/desktop/imagepreview/image.go:20-23,61-88: 16MiB/32M像素/256帧/SVG门槛",
+        "internal/ui/files/media.go:190-246: 动画/AVIF/ICO/SVG/bitmap分流",
+        "cmd/whaleisle/main.go:7391-7403: 文档图像/浮窗装配"
+      ],
+      "finding": "格式并非缺实现，但默认原生图片预算小于原版桌面32MiB；16–32MiB图片、>1MiB SVG或动画预算超限会被拒。可选Host文档viewer是替代入口，不能把默认拒绝记作完整等价。",
+      "evidenceLevel": "code",
+      "requiredAction": "明确采用与原版相同预算或设计可见的换viewer路径；验收边界图片、动画、zoom/pan、错误恢复。",
+      "acceptanceGap": "未认证全部codec/色彩/方向/动画像素；原生大图和替代viewer实际结果未验收。"
+    },
+    {
+      "id": "WB-011",
+      "feature": "SVG复杂内容、字体与辅助渲染进程生命周期",
+      "baseline": "installed-0.3.13",
+      "expected": "SVG在图片/工具图/插件文档中有正确尺寸/裁剪/主题并随所属资源撤销。",
+      "entry": "imagepreview NeedsBrowserSVG→svgimage Seat→previewprocess helper；普通SVG→resvg WASM",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1835-1854: 图片以完整media bytes读取",
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-fs.js:24: SVG被原版图片路由接受"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/media.go:210-221: SVG分流",
+        "internal/ui/svgimage/seat.go:47-91: Seat准备/存活入口",
+        "internal/ui/svgimage/surface.go:34-78,105-138: helper/尺寸/主题/关闭/裁剪",
+        "internal/desktop/svgrender/render.go:22-85:字体与WASM render入口"
+      ],
+      "finding": "存在原生/WASM与helper两条真实路由；不是只有静态图标。当前helper匹配、可见裁剪/遮挡和性能未验收，旧单个SVG成功不能涵盖复杂SVG和全部实例。",
+      "evidenceLevel": "code",
+      "requiredAction": "使用当前随包helper验收复杂SVG/字体/主题、标签隐藏/移除后撤销、异常helper清理。",
+      "acceptanceGap": "未证明GPU实际合成、完整SVG规范或所有字体兼容；不启动helper补证。"
+    },
+    {
+      "id": "WB-012",
+      "feature": "XLS/XLSX完整工作簿与CSV/TSV源码编辑",
+      "baseline": "installed-0.3.13",
+      "expected": "工作簿多sheet/隐藏行列/格式/公式显示，文本表格仍保留原文编辑保存，不把只读表格页写回。",
+      "entry": "Files→table read分页/完整文档viewer；CSV默认源码",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:6191-6301: parser/encoding错误和表格格式注册",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1913-1919:可编辑文本/渲染选择"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/table_preview.go:12-27: 工作簿分流",
+        "internal/ui/files/table_grid.go:65-110,141-160:网格/选区/公式只读",
+        "internal/desktop/workspacefs/workbook.go:17-105: XLS/XLSX/CSV/TSV入口",
+        "internal/ui/files/document_surface.go:161-172: CSV默认保留源码",
+        "internal/ui/files/autosave.go:24-25:工作簿禁止普通保存"
+      ],
+      "finding": "原生分页与完整Host工作簿viewer均有装配；CSV/TSV不被默认只读网格取代。格式显示/公式不等于重算能力；未把表格预览写成电子表格编辑器。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收多sheet/合并单元格/隐藏行列/数字格式/大表分页/编码错误、完整viewer切换、CSV原字节编辑保存。",
+      "acceptanceGap": "当前包字体/SheetJS或插件renderer及真实工作簿视觉未验收；密码和全部旧XLS变体未穷尽。"
+    },
+    {
+      "id": "WB-013",
+      "feature": "PDF阅读、页码/缩放/选择与会话恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "只读PDF可翻页、zoom/fit/滚动/文本选择，标签切换/恢复保留位置。",
+      "entry": "PDF按钮/链接→workspaceDocument reader→pdfpreview→WebView PDF.js reader",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:5397-5450: PDF文档renderer",
+        "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js:47-76:原版独立文件窗口入口"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/workspace_document_preview.go:181-193:授权PDF字节/本地快照",
+        "internal/ui/browserpreview/pdf.go:23-60:真实WebView/错误及撤销",
+        "internal/desktop/pdfpreview/reader.js:139-151:页码/翻页/selection事件",
+        "internal/ui/browserpreview/workspace_resume.go:21-38,53-65:阅读位置恢复"
+      ],
+      "finding": "有真实PDF.js文档而不是外部打开占位；只读快照有32MiB限制和原会话有效性。当前原生可见翻页、选择和恢复未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前完整包验收正常/大页数/损坏PDF、页码边界、zoom/文本选择、独立窗口和重启位置。",
+      "acceptanceGap": "未运行阅读器或当前用户PDF；加密/异常格式和打印/下载扩展能力未签署。"
+    },
+    {
+      "id": "WB-014",
+      "feature": "Office DOC/DOCX/PPT/PPTX/XLS/XLSX转PDF与缺字提示",
+      "baseline": "installed-0.3.13",
+      "expected": "由所属Host授权转换完整PDF，显示转换错误和缺失字体，不能把源路径当PDF文件读取。",
+      "entry": "Files转换菜单/文档资源→RenderOfficePDFBytesForSession→officeToPdf/render",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:6068-6125:Office扩展注册及PDF presentation",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:6140-6171:授权读取/转换cache"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:7442-7446:实际转换入口",
+        "internal/store/session/office_pdf.go:43-95:multipart bytes完整性和session scope RPC",
+        "cmd/whaleisle/workspace_document_preview.go:167-179,228-235:PDF呈现/字体状态",
+        "cmd/whaleisle/office_document.go:39-74:命名/缺字/错误文案"
+      ],
+      "finding": "真实RPC及完整字节路径存在，能区分read/convert与reader失败。internal/store/office是IM配置桥，不是这里的文件转换实现。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前运行时验收OOXML和旧DOC/PPT、缺字体、损坏/密码、取消/切会话后晚到转换、再打开。",
+      "acceptanceGap": "随包Office依赖虽此前包装验收过，但当前所有格式/原生菜单/字体视觉并无同候选证据。"
+    },
+    {
+      "id": "WB-015",
+      "feature": "音视频单文件预览与浮动播放",
+      "baseline": "installed-0.3.13",
+      "expected": "音视频能按所属会话读取并使用真实播放器，错误/关闭/会话变化不留失效播放器。",
+      "entry": "Files媒体菜单→openMediaFile→mediapreview授权bytes/player→WebView",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js:475-499:可浏览文件预览的桌面路由",
+        "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js:47-76:独立文件预览控制器"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/mediapreview/types.go:14-25,25-130:MP3/AAC/WAV/FLAC/OGG/MP4/MOV/WebM等校验",
+        "internal/desktop/mediapreview/document.go:18-52,93-110:32MiB/30分钟只读播放器及Range服务",
+        "internal/ui/browserpreview/media.go:14-65:实际WebView、浮窗、过期撤销",
+        "cmd/whaleisle/main.go:7388-7389:生产入口"
+      ],
+      "finding": "有真实audio/video控制器与单文件资源，不是按钮占位；播放取决于当前WebView codec，导出/外部打开与自动播放不应混作播放通过。",
+      "evidenceLevel": "code",
+      "requiredAction": "按当前Windows WebView逐类验收播放/暂停/拖动/音量/全屏、损坏/超限、关闭及会话变化。",
+      "acceptanceGap": "本轮不播放媒体；原版全部媒体扩展和系统codec组合未穷尽，当前用户可见播放未验收。"
+    },
+    {
+      "id": "WB-016",
+      "feature": "HTML默认预览与脚本交互",
+      "baseline": "installed-0.3.13",
+      "expected": "静态/交互HTML在所属文档中呈现；开发工具开关决定脚本能力，资源读取仍受原文件范围限制。",
+      "entry": "Files HTML→文档Browser静态快照；运行脚本→隔离helper；可另选Host文档viewer",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:4389-4496:interactivePreview真时opaque iframe allow-scripts，假时静态",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:4540-4556:开发工具偏好和原文档readRelated"
+      ],
+      "mygoEvidence": [
+        "internal/ui/browserpreview/html.go:24-40,63-70:默认静态Host及显式脚本入口",
+        "internal/desktop/htmlpreview/document.go:8-16:静态iframe脚本全禁",
+        "internal/ui/browserpreview/interactive_html.go:28-44,90-158:必须再次手动运行、独立隔离窗口",
+        "internal/ui/files/document_surface.go:175-182:内置HTML不自动推荐Host文档viewer"
+      ],
+      "finding": "与原版默认行为不同：原版开发工具开关开启即使用内嵌交互iframe；MyGo默认静态，脚本需单独按钮并到独立窗口。替代Host文档viewer和隔离helper都有实现，但默认UI/交互并不等价。",
+      "evidenceLevel": "code",
+      "requiredAction": "选定产品语义并恢复同等清晰的内嵌交互路径；验收脚本、声明JS/CSS依赖、切tab停止和失败保留静态。",
+      "acceptanceGap": "helper当前随包运行/输入/窗口层级未验收；不以静态预览成功代替交互HTML通过。"
+    },
+    {
+      "id": "WB-017",
+      "feature": "独立文件窗口、已保存内容与关闭清理",
+      "baseline": "installed-0.3.13",
+      "expected": "文件独立预览读已保存字节，不把未保存草稿当作磁盘内容；关闭不关源tab。",
+      "entry": "Files独立窗口→floatingPreview或browserpreview floatingDocument",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js:47-76,189-199:实际BrowserWindow文件预览控制器",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:1755:浮动资源地址绑定会话文件"
+      ],
+      "mygoEvidence": [
+        "internal/ui/files/preview_toolbar.go:113-125,189-192:类型分流",
+        "internal/ui/files/floating.go:31-72,111-152:已保存text独立窗口/刷新",
+        "internal/ui/browserpreview/floating_document.go:33-73,163-222:文档窗口源/寿命管理"
+      ],
+      "finding": "文本窗口明确为已保存只读读者；图片/PDF/HTML/媒体走专用浮窗，不复制editor draft。原生窗口缩放、鼠标、层级及窄窗可达性未经当前验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收源tab有未保存草稿时开/刷新浮窗、关闭浮窗保留源资源、源会话失效/读取失败和多文档窗口。",
+      "acceptanceGap": "本轮未创建窗口；历史截图不能证明当前用户路径。"
+    },
+    {
+      "id": "WB-018",
+      "feature": "在编辑器/系统应用打开及文件管理器显示",
+      "baseline": "installed-0.3.13",
+      "expected": "菜单列实际安装编辑器和Host应用；点击明确打开选择的文件/行，失败可见。",
+      "entry": "Files菜单→editor probe/Open 或 session/openWorkspacePath/reveal",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/editors.js:115-140,147-175:编辑器/reveal/系统默认真实动作",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:2325-2336:桌面IPC装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:915-923: 原无selected前置"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/editors/editors.go:53-90,131-152,182-208:编辑器目录/参数/探测",
+        "cmd/whaleisle/open_editor.go:22-45,49-63:后台探测和失败fallback",
+        "cmd/whaleisle/main.go:7400-7440:生产外部打开/reveal/Host应用/编辑器",
+        "internal/ui/files/preview_toolbar.go:384-394: 非selected直接return"
+      ],
+      "finding": "编辑器探测、Host 应用与系统打开执行器存在，WB-019 的离线安全问题仍单列；指定外部编辑器只能在目标先成为selected preview后出现；原版任一未选中树行直接提供。原生关联错误/刷新有原owner替代路径，不报全局缺失。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：指定外部编辑器只能在目标先成为selected preview后出现；原版任一未选中树行直接提供。原生关联错误/刷新有原owner替代路径，不报全局缺失。 对照 GWB-004 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未启动外部应用或Explorer；异常fallback另列WB-019。 补审新增动作 GWB-004 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "编辑器列表/参数/Host应用动作都有生产实现。失败目前部分只写应用日志，不在当前文件状态显示；原生菜单/真实编辑器启动和定位行号仍未验收。",
+        "previousRequiredAction": "验收有/无编辑器、文件名特殊字符、line、Host离线、进程启动失败，统一把失败送回操作位置。",
+        "sources": [
+          "supplement-workbench-actions.json"
+        ],
+        "actionIds": [
+          "GWB-004"
+        ],
+        "reasons": [
+          "指定外部编辑器只能在目标先成为selected preview后出现；原版任一未选中树行直接提供。原生关联错误/刷新有原owner替代路径，不报全局缺失。"
+        ]
+      },
+      "supplementActionIds": [
+        "GWB-004"
+      ]
+    },
+    {
+      "id": "WB-019",
+      "feature": "离线‘外部打开’不能经cmd解释文件路径",
+      "baseline": "installed-0.3.13",
+      "expected": "文件名作为路径交给OS文件关联，不应被shell当命令片段解释。",
+      "entry": "Host非Ready时Files外部打开/编辑器fallback→workspacefs.OpenExternal",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/editors.js:166-179:原版通过Electron shell.openPath(target)处理路径",
+        "tmp/full-audit-20261102/installed-source/src/main/ipc.js:460-464:菜单对应已授权外部路径IPC"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:7413-7419,7433-7440:Host不可用fallback可达",
+        "internal/desktop/workspacefs/docs.go:49-60:Windows用exec.Command(cmd,/c,start,\"\",absPath)"
+      ],
+      "finding": "Windows fallback把文件路径交给cmd /c start，合法文件名中的 &、| 等会进入命令解释语境；参数数组不等于cmd语言中的路径转义。原版使用原生openPath。属于源码确认的命令解释/错误打开风险；本轮没有执行攻击/外部打开。",
+      "evidenceLevel": "code",
+      "requiredAction": "改为原生ShellExecute/mygo.Shell.OpenPath，路径不要经过cmd；后续在隔离路径验收含&、空格、括号的文件只打开指定目标。",
+      "acceptanceGap": "实际可利用结果未执行；风险限定Host非Ready的fallback和使用该工具的调用者，不扩大到Ready Host路径。"
+    },
+    {
+      "id": "WB-020",
+      "feature": "Host应用open-with列表的请求身份与离线反馈",
+      "baseline": "existing-MyGo-contract",
+      "expected": "列表和动作属于当前文件的Host/session/root；切换或断线不会用旧请求覆盖新菜单或静默无效。",
+      "entry": "mainView文件应用探测→ListWorkspacePathApplications→FileOpenWithApps菜单",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js:2325-2336:读取/打开绑定调用者cwd与文件",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js:4567-4584:原版资源tab lifetime明确撤销旧owner"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:3564-3585:应用列表请求/发布只以relative path比较",
+        "cmd/whaleisle/workspace_sessions.go:91-112:切会话清缓存但无异步请求epoch",
+        "internal/ui/files/preview_toolbar.go:298-306:列表可点击",
+        "cmd/whaleisle/main.go:7428-7431:Host非Ready时OnOpenWith无动作/错误"
+      ],
+      "finding": "切会话会清缓存，但旧请求结果只核对rel：切到另一owner并请求相同相对路径后，旧响应仍可通过同名guard发布。断线后缓存应用菜单仍可能可点，回调仅if Ready，else静默返回。不是断言正常切换每次必串，而是明确的晚到owner缺口和断线无反馈分支。",
+      "evidenceLevel": "code",
+      "requiredAction": "请求捕获Host/session/root/epoch并按完整owner发布；不可用时禁用菜单并反馈原因，失败返回当前文件状态。",
+      "acceptanceGap": "未用真实Host强制race；已有源码足以定位缺失身份栅栏，实际触发概率未测。"
+    },
+    {
+      "id": "WB-021",
+      "feature": "Git状态、差异文件和分支ahead/behind",
+      "baseline": "installed-0.3.13",
+      "expected": "当前目录Git状态/dirty/ahead/behind显示，未初始化/detached/缺Git有明确动作或错误。",
+      "entry": "标题栏Git/右侧Diff→refreshGit/Workbench→ReadRepositoryStatus/Changes",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:271-377:安装版status/workingTree/provider",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:3597-3615:生产Git IPC范围"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/workspace_caption.go:101-149:按所选session/cwd装配status和刷新",
+        "internal/desktop/git/status.go:27-137:porcelain分支/upstream/默认分支",
+        "internal/ui/diffsurface/status.go:26-60:异步结果root归属/错误",
+        "internal/ui/diffsurface/workbench.go:101-139:生产workbench加载"
+      ],
+      "finding": "不是Host同名空RPC：读取当前本地Git真实状态，保留异步请求root。默认分支/源控制provider与原版仍有后述差距；当前正常/窄窗可见菜单及真实工作区状态未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收真实但隔离repo的空/未初始化/unborn/detached/dirty/缺Git、切会话晚到、refresh和ahead/behind。",
+      "acceptanceGap": "不执行Git产品动作；不把当前仓库git status只读结果当Git UI验收。"
+    },
+    {
+      "id": "WB-022",
+      "feature": "Git patch阅读、HEAD/暂存/未暂存/分支对比",
+      "baseline": "installed-0.3.13",
+      "expected": "显示真实diff，支持整仓/单文件、split/unified、换行、hunk/文件折叠及打开文件。",
+      "entry": "Diff→scopeDiff/LoadDiff/Comparison→Git diff→patch parser/painter",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git-diff.js:120-191:安装版unified diff读取/解析",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js:1-30:原版差异插件入口"
+      ],
+      "mygoEvidence": [
+        "internal/ui/diffsurface/diffsurface.go:35-94,97-168:真实Git diff与失败/空状态",
+        "internal/ui/diffsurface/workbench.go:147-166:HEAD/unstaged/staged范围",
+        "internal/ui/diffsurface/patch_document.go:146-192:patch文件解析",
+        "internal/ui/diffsurface/patch_view.go:30-124:控件和split/unified",
+        "internal/ui/diffsurface/comparison.go:33-88:可取消分支比较"
+      ],
+      "finding": "核心diff读取和显示不是占位；差异解析/字形/大补丁当前未实际查看。代码行地址不能签署所有Git quote/binary/rename/submodule变种。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前候选验收真实补丁范围、split/unified/fold/wrap、打开对应文件、binary/中文路径/空diff和变更后refresh。",
+      "acceptanceGap": "未实机渲染当前diff；完整parser边界未穷尽。"
+    },
+    {
+      "id": "WB-023",
+      "feature": "暂存/取消暂存、逐文件丢弃",
+      "baseline": "installed-0.3.13",
+      "expected": "只操作所选文件；丢弃有明确影响和一次确认，不重置整仓/未选暂存。",
+      "entry": "Diff文件清单→stage/unstage/reviewDiscard→实际Git/index/file动作",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:1147-1185:原版逐路径stage/unstage/discard操作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/diffsurface/commit_dialog.go:167-195:stage/unstage回调",
+        "internal/ui/diffsurface/discard.go:10-52:真实丢弃review/确认/取消",
+        "internal/desktop/git/discard.go:70-138,144-167:绑定HEAD/index/file的plan和单文件恢复/删除"
+      ],
+      "finding": "有reviewed单文件动作，未跟踪文件明确永久删除，tracked从index恢复保留staged。属于数据风险路径，当前生产UI确认和真实错误恢复未验收，不能标为已安全可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "获准后在一次性repo验收staged+unstaged共存、未选文件保留、cancel、review后外部变化拒绝、untracked删除与失败。",
+      "acceptanceGap": "本轮不改文件/index，不运行破坏性测试。"
+    },
+    {
+      "id": "WB-024",
+      "feature": "分支筛选、创建/切换与dirty保护",
+      "baseline": "installed-0.3.13",
+      "expected": "分支菜单可查本地/远程分支，过滤、创建并切换；Git冲突保留文件并显示错误。",
+      "entry": "顶部/右侧分支控件→CaptionBranches/paintBranches→BranchesContext/SwitchBranch/CreateBranch",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:3451-3471:原版菜单/新建/不支持名/失败",
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:1199-1298:实际分支列举/切换/创建"
+      ],
+      "mygoEvidence": [
+        "internal/ui/diffsurface/branches.go:32-68,71-154:实际控件/异步/错误",
+        "internal/ui/diffsurface/caption_actions.go:86-227:顶部实际分支菜单",
+        "internal/desktop/git/branches.go:128-165:Git switch/create及dirty保护"
+      ],
+      "finding": "生产命令和菜单齐备，不伪造分支名；按原版safeName禁特殊branch。不使用--force清除dirty；但物理菜单点击/对话框输入/窄窗可达未当前验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "在独立repo验收本地/远程/重复名/unsupported/dirty碰撞、取消和切root晚到结果。",
+      "acceptanceGap": "不据旧单测声明当前用户能完成创建切换。"
+    },
+    {
+      "id": "WB-025",
+      "feature": "所选文件提交、提交说明生成与大文件警告",
+      "baseline": "installed-0.3.13",
+      "expected": "审查所选完整diff，未选index保留，手写或显式自动生成说明，100MiB大文件需处理。",
+      "entry": "Commit dialog→PrepareSelectedCommit/GenerateSelectedCommitMessage→review→RunCommitStack",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:3478-3493,3469-3471:提交文件选择/大文件/自动说明",
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:436-640:实际提交context/生成/commit"
+      ],
+      "mygoEvidence": [
+        "internal/ui/diffsurface/commit_selection.go:147-237:文件选择/大文件/生成/捕获计划",
+        "internal/ui/diffsurface/commit_selection.go:399-418:确认重验后真实执行",
+        "internal/desktop/git/commit_generation.go:94-120:凭据生成/无key启发式/错误不冒充AI",
+        "internal/desktop/git/stack.go:133-192:身份校验与已完成步骤"
+      ],
+      "finding": "实际提交/所选文件隔离和错误结果链存在；无key为有标记的启发式说明，有key才模型请求。此审查不发模型/提交，无法认证当前候选表单点击→准确提交闭环。",
+      "evidenceLevel": "code",
+      "requiredAction": "独立repo验收取消不改index、选择排除、review后变更拒绝、大文件、生成失败手写和真实提交内容。",
+      "acceptanceGap": "真实远端模型生成、GPG/hook、当前用户Git身份与UI全部路径未验收。"
+    },
+    {
+      "id": "WB-026",
+      "feature": "Fetch/Pull/Push、默认分支确认和部分失败续接",
+      "baseline": "installed-0.3.13",
+      "expected": "远端操作有明确目标、常规非force执行、进度/错误；提交已成后只重试后续不重提。",
+      "entry": "标题Git actions→review/action→desktop Git subprocess→Progress/LastStack",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:642-678,752-847:原版fetch/push/pull",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:3495-3507:默认分支确认",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:1295-1310: 原复制/展开"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2961-2974,3117-3164:实际远端调用/进度",
+        "internal/desktop/git/push_plan.go:34-106:精确push remote/target/单URL/重新核对/非force",
+        "internal/desktop/git/stack.go:44-78,176-191:已提交/已push部分结果",
+        "internal/ui/diffsurface/remote_workflow.go:199-242:只推送/只PR/uncertain查已有",
+        "internal/ui/diffsurface/git_progress.go:11-33: 仅关闭+末5条"
+      ],
+      "finding": "真实 Git 事务、非 force 目标检查与部分失败续接仍存在；真实Git事务及续接存在，但失败通知完整错误复制缺失，详情展开没有统一反馈入口；不应整项wired掩盖。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：真实Git事务及续接存在，但失败通知完整错误复制缺失，详情展开没有统一反馈入口；不应整项wired掩盖。 对照 GWB-005、GWB-006 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮不联网Git、不改仓库；外部凭据、远端可达和真实UI未验收。 补审新增动作 GWB-005、GWB-006 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "真实网络/认证操作不是无效RPC，完成阶段不盲重放。没有本次真实远端结果；缺认证不能被模拟runner通过代替。",
+        "previousRequiredAction": "取得隔离远端授权后验收fetch/pull冲突、默认分支确认、push失败后仅重试、目标变更和认证错误。",
+        "sources": [
+          "supplement-workbench-actions.json"
+        ],
+        "actionIds": [
+          "GWB-005",
+          "GWB-006"
+        ],
+        "reasons": [
+          "真实Git事务及续接存在，但失败通知完整错误复制缺失，详情展开没有统一反馈入口；不应整项wired掩盖。"
+        ]
+      },
+      "supplementActionIds": [
+        "GWB-005",
+        "GWB-006"
+      ]
+    },
+    {
+      "id": "WB-027",
+      "feature": "PR收件仓库、fork head 与自定义base",
+      "baseline": "installed-0.3.13",
+      "expected": "从fork推送后PR应面向gh选定上游仓库，head用owner:branch，尊重gh-merge-base/明确base。",
+      "entry": "顶部/右侧Create PR→PreparePullRequest*→CreatePullRequestReviewed",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git-pullrequest.js:59-119,124-139:跨仓head context与gh选定base仓库",
+        "tmp/full-audit-20261102/installed-source/src/main/git-templates.js:86-119:gh-merge-base及upstream base",
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:931-968,1011-1015:同一目标/owner head实际用于create"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/git/pull_request_review.go:33-51,115-145:PR仓库取push.URL、base取该仓库defaultBranch",
+        "internal/desktop/git/pull_request_review.go:184-205,263-269:查已有与创建只用branch head",
+        "internal/ui/diffsurface/remote_workflow.go:164-185:真实生产PR plan/action"
+      ],
+      "finding": "MyGo把push目标仓库直接当PR收件仓库，没有解析gh选定上游；不读取gh-merge-base，且--head无跨仓owner。fork→upstream或自定义base会被改成另一个收件仓库/default base，或无法完成。这是实际语义错误，review存在不能恢复原目标。",
+      "evidenceLevel": "code",
+      "requiredAction": "恢复独立的base repository/head repository/base branch计划；同一不可变计划贯穿生成、查已有、review和create，并验收fork/同repo非默认base。",
+      "acceptanceGap": "未创建真实PR；结论由实际生产参数链与安装原版对照确定。"
+    },
+    {
+      "id": "WB-028",
+      "feature": "GitHub Enterprise/其他provider的PR识别边界",
+      "baseline": "installed-0.3.13",
+      "expected": "原版GitHub（含自托管）可走gh，非支持provider准确提示；不硬把全部远端当github.com。",
+      "entry": "PR review URL/provider解析",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/git-pullrequest.js:233-249:GitHub包括self-hosted使用gh",
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:919-923:不支持provider明确拒绝"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/git/pull_request_review.go:33-56:repo URL与PR URL硬限制github.com",
+        "internal/desktop/git/pr_generation.go:108-123:生成base也依赖同一githubRepository解析"
+      ],
+      "finding": "native reviewed PR路径拒绝GitHub Enterprise域名，原版github provider不限定公共域。GitLab创建本身原版也未支持，不把它另列成缺失。",
+      "evidenceLevel": "code",
+      "requiredAction": "携带provider host到repo/PR URL验证与gh --hostname/URL参数，保留精确目标校验；非支持provider继续明确拒绝。",
+      "acceptanceGap": "没有Enterprise账户/真实PR验收；公共github.com自身另见WB-027。"
+    },
+    {
+      "id": "WB-029",
+      "feature": "顶部 View PR 的实际打开动作",
+      "baseline": "installed-0.3.13",
+      "expected": "点击View PR应在浏览器打开已存在PR，而非只显示URL/状态。",
+      "entry": "标题Git View PR→badge.OnPRView→runGitPRView→runGitRemote",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:1989-2000:openExistingPr直接openExternal(url)"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/workspace_caption.go:156-163:顶部open_pr转badge.OnPRView",
+        "cmd/whaleisle/main.go:2987-2997:仅gh pr view取URL返回字符串",
+        "cmd/whaleisle/main.go:3143-3160:只写progress/lastAction并刷新",
+        "internal/ui/diffsurface/remote_workflow.go:221-227:右侧后续View PR正确调用OpenExternal，证明入口不一致"
+      ],
+      "finding": "顶部 View PR 不调用系统浏览器：只读取PR并展示输出。右侧提交后的View PR会真正打开，不能用后者证明顶部按钮有效。",
+      "evidenceLevel": "code",
+      "requiredAction": "顶部复用经校验URL的实际OpenExternal行为并把失败回当前动作，避免异步结果在切root后打开错误PR。",
+      "acceptanceGap": "未启动系统浏览器；源代码足以确认当前顶部回调缺少打开效果。"
+    },
+    {
+      "id": "WB-030",
+      "feature": "Git仓库初始化、发布已有远端/新建GitHub仓库",
+      "baseline": "installed-0.3.13",
+      "expected": "非repo可init；无origin可填URL或gh新建private/public仓库，审目标后再上传。",
+      "entry": "Git init/publish菜单→PreparePublish→Initialize/PublishRepository",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:3510-3521:原版发布名称/可见性/远端/取消",
+        "tmp/full-audit-20261102/installed-source/src/main/git.js:380-396,1048-1095:真实init/publish",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js:2290-2295: 成功Open repo"
+      ],
+      "mygoEvidence": [
+        "internal/ui/diffsurface/repository_actions.go:122-148,152-219:真实init/发布表单、review/取消",
+        "internal/desktop/git/publish.go:87-122:已有URL/gh创建实际路径",
+        "cmd/whaleisle/workspace_caption.go:152-173:顶部动作进入真实review",
+        "internal/ui/diffsurface/repository_actions.go:203-212: 结果仅text/err"
+      ],
+      "finding": "初始化/发布事务和默认私有 review 仍存在；发布成功后未保留仓库URL/打开仓库CTA；基础发布事务存在。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：发布成功后未保留仓库URL/打开仓库CTA；基础发布事务存在。 对照 GWB-007 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮不init、不publish、不请求账户；当前原生表单可用性与远端结果未验收。 补审新增动作 GWB-007 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "实现存在且默认私有，review明确只上传提交历史不上传未提交草稿。原版相同动作所需gh/认证/远端依赖没有在本轮验证。",
+        "previousRequiredAction": "隔离仓库/账户授权后验收取消、已有origin拒绝、URL失败、新建私有和公开确认、已设置origin后push失败恢复。",
+        "sources": [
+          "supplement-workbench-actions.json"
+        ],
+        "actionIds": [
+          "GWB-007"
+        ],
+        "reasons": [
+          "发布成功后未保留仓库URL/打开仓库CTA；基础发布事务存在。"
+        ]
+      },
+      "supplementActionIds": [
+        "GWB-007"
+      ]
+    },
+    {
+      "id": "WB-031",
+      "feature": "本地原生终端打开/输入输出/resize/隐藏/退出",
+      "baseline": "installed-0.3.13",
+      "expected": "在当前本地目录启动真实shell，有实际输入输出和尺寸同步；隐藏保进程，显式关闭释放进程。",
+      "entry": "顶部terminal/抽屉→ensureTerminal→Sessions.Get→MyGo/Ghostty/ConPTY",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:3650-3702:原版ptyCreate cwd和新建/split",
+        "tmp/full-audit-20261102/installed-source/src/main/pty.js:267-307,824-854:真实PTY spawn/write/resize/kill"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:1449-1484,1495-1517:隐藏/打开/重启生产生命周期",
+        "internal/ui/terminal/panel.go:40-69,111-127,178-195,283-315:实际term及输入表面",
+        "internal/ui/terminal/runtime.go:23-62:随包native DLL加载",
+        "internal/ui/terminal/native_acceptance_windows_test.go:27-93:既有opt-in测试仅owned cmd /D范围"
+      ],
+      "finding": "本地PTY是真实原生实现；不能把Host在线或有终端控件当输入输出通过。现有20261025 smoke-result exit=-1/forcedCleanup=true，不是终端闭环PASS；当前默认PowerShell/IME/visible原生行为未知。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收当前包实际默认shell命令输出、Ctrl+C、cwd/resize、隐藏恢复、重开/自然退出、关闭保护。",
+      "acceptanceGap": "本轮不启动任何shell；已有cmd /D测试文件存在不代表此次执行通过；当前终端输入未验收。"
+    },
+    {
+      "id": "WB-032",
+      "feature": "本地多终端tab、4pane分组、方向/最大化与关闭确认",
+      "baseline": "installed-0.3.13",
+      "expected": "每组最多4终端，独立组/当前pane可激活，左右/上下分栏、最大化，关闭运行进程需确认。",
+      "entry": "terminalActionBar/chip→Panel.createPane/activate/Restart/requestClosePane",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:3559-3626,3645-3702:原版分栏/最大化/新建/4pane",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:3793-3834:组布局"
+      ],
+      "mygoEvidence": [
+        "internal/ui/terminal/workspace.go:11-25,84-110,113-170:实际组/独立PTY及切换关闭",
+        "internal/ui/terminal/workspace_chrome.go:19-77,82-119:tab/工具实际按钮",
+        "internal/ui/terminal/pane_close.go:14-27,49-82:运行关闭确认"
+      ],
+      "finding": "核心多pane真实连到创建/关闭。与原版144px侧组列表不同，MyGo使用横向chip条；这是布局表达差异，未凭代码推断点击无效。终端自然退出的pane会从列表移除。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收1/2/4pane与第五个禁用、方向切换、组间切换、最大化恢复、点击close取消/确认及窄窗可达。",
+      "acceptanceGap": "当前物理输入焦点和多pane实际可见性/resize未验收。"
+    },
+    {
+      "id": "WB-033",
+      "feature": "终端复制粘贴、选区引用、键盘/IME/字体",
+      "baseline": "installed-0.3.13",
+      "expected": "终端应用输入不被全局快捷键抢走；复制粘贴、IME、滚轮和选区引用保持原内容。",
+      "entry": "myterm.View.HandleInput/TerminalShortcutScope；选区操作→OnAddToChat",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:3357-3398:beforeKey/原生终端data、resize、selection/copy/link",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:2075-2092:终端copy/paste/IME/mouse分支"
+      ],
+      "mygoEvidence": [
+        "third_party/mygo/plugins/terminal/view.go:18-33:实际键盘/剪贴板/终端scope",
+        "internal/ui/terminal/panel.go:272-299:字体/主题同步和复制/引用",
+        "internal/ui/terminal/host.go:193-205:Host只读/selection原生表面",
+        "cmd/whaleisle/main.go:7155-7158:真实草稿append"
+      ],
+      "finding": "UI层有真实text selection和插入草稿路径；底层原生IME/终端协议和OS剪贴板必须实机。不能用ui/chat的terminal toolcard测试当本地PTY按键验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前Windows验收中文IME/AltGr/组合键、Ctrl+C/Ctrl+Shift+C/V、鼠标报告程序、选区引用发送中拒绝、字体变更后resize。",
+      "acceptanceGap": "没有当前原生键盘/剪贴板/多DPI证据；Ghostty/ConPTY算法不作全部认证。"
+    },
+    {
+      "id": "WB-034",
+      "feature": "终端Ctrl+click链接/路径的产品路由",
+      "baseline": "installed-0.3.13",
+      "expected": "按原版Ctrl+click本地服务进入Browser，文件路径进入Files且定位行，外部http(s)进系统浏览器。",
+      "entry": "终端原生pointer→myterm.view.input；另有选区Open target按钮",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:462-509:modifier及loopback/文件路由",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js:3394-3398:真实onLinkActivate接产品动作"
+      ],
+      "mygoEvidence": [
+        "third_party/mygo/plugins/terminal/view.go:526-538:Ctrl+click直接services.OpenURL",
+        "third_party/mygo/plugins/terminal/links.go:8-24:仅URL检测、不识别普通路径",
+        "internal/ui/terminal/selection_target_view.go:25-53:产品路由仅通过选区按钮",
+        "cmd/whaleisle/terminal_target.go:49-86:正确Browser/Files路由只在选择目标回调"
+      ],
+      "finding": "MyGo原生Ctrl+click绕过terminalTargetHandler：localhost也走SDK外部OpenURL，普通文件path不被原生urlPattern识别。必须先选中再点‘打开路径/Browser打开链接’才能走产品路由；不是同等直接交互。",
+      "evidenceLevel": "code",
+      "requiredAction": "为myterm原生link activation提供产品owner回调，保留loopback/外链/路径分流和当前pane身份，复用现有安全解析。",
+      "acceptanceGap": "无需执行外部打开即可确认回调旁路；真实hover/包行/Modifier窗口行为尚未验收。"
+    },
+    {
+      "id": "WB-035",
+      "feature": "Host保留终端：shell、create/attach/retain、输入/输出、重连/接管/rename/close/recovery",
+      "baseline": "installed-0.3.13",
+      "expected": "Host终端按会话身份保留，多occurrence不误关其他进程，断线重连不悄悄新建，读写权限与终端控制权一致。",
+      "entry": "右侧Host terminal→HostView→hostterminal.Store→environment/create/retain/follow/write/resize/rename/close",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js:370-385:原版occurrence/retainTabs/view",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js:390-456:新建shortcut/multiple/close handler",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js:390-444: 新建命令/type"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2024,7143-7153:生产Store绑定及入口",
+        "internal/ui/terminal/host.go:56-122,141-188,193-205:真实shell/create/connect/control/close/renderer",
+        "internal/store/hostterminal/controller.go:326-386,504-576,613-635,697-819:Host create/retain/follow/close协议与帧校验",
+        "internal/store/hostterminal/duplex.go:14-68:生产输入/resize RPC",
+        "internal/store/hostterminal/recovery.go:37-72:只恢复身份、不自动create",
+        "cmd/whaleisle/main.go:7146-7153: 仅切route"
+      ],
+      "finding": "Host terminal 的 create/retain/follow、读写控制和恢复链仍存在，独立于本地 PTY；Host process协议已接通，但原terminal.new连续新occurrence命令被仅切route的terminal.host取代。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：Host process协议已接通，但原terminal.new连续新occurrence命令被仅切route的terminal.host取代。 对照 GWB-008 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮不操作Host终端；当前真实环境terminal attach/follow兼容与native renderer未知。 补审新增动作 GWB-008 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "该分支与本地PTY分开，有真实Host terminal协议、占用/输入权/重连和恢复；不是local fallback假装Host。历史矩阵曾写follow+unary协议，但需按此当前Store及实际Host版本验收，不继承旧笼统‘终端已齐全’结论。",
+        "previousRequiredAction": "用独立Host验收多tab shell选择/rename、输出快照+增量、resize、读写接管、连接丢失/恢复、隐藏保留、多occurrence关闭/进程已丢失恢复。",
+        "sources": [
+          "supplement-workbench-actions.json"
+        ],
+        "actionIds": [
+          "GWB-008"
+        ],
+        "reasons": [
+          "Host process协议已接通，但原terminal.new连续新occurrence命令被仅切route的terminal.host取代。"
+        ]
+      },
+      "supplementActionIds": [
+        "GWB-008"
+      ]
+    },
+    {
+      "id": "WB-036",
+      "feature": "Browser真实tab、地址栏、历史、加载/停止/错误、外部打开与下载",
+      "baseline": "installed-0.3.13",
+      "expected": "HTTP(S)网页可浏览，tab保留页面/历史、后退前进/刷新停止真实生效，外部打开与文件下载可用。",
+      "entry": "右侧Browser→newBrowserController→Controller.Navigate→webview.NewHost",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js:209-309,1033-1192:Browser表单/页实现",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:2149-2222:导航/停止/外部动作",
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:1097-1100:桌面preview控制器"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:7160-7179:生产Browser面板/显隐",
+        "internal/ui/browserpreview/controller.go:79-138,151-200,260-362:实际tab/导航/历史/外部打开",
+        "internal/desktop/webview/host.go:344-375:进程退出/弹窗/下载事件",
+        "internal/desktop/webview/downloads.go:92-108:下载落盘目录/安全命名"
+      ],
+      "finding": "是真实WebView页面，不是渲染占位；tab地址/错误/进程退出和下载handler均有链。浏览器chrome固定242DIP，原版更多菜单将控制收纳；窄/低面板可能明显挤占视口，必须在实际屏幕验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前包验收正常/失效URL、History/Stop/Reload、tab隐藏恢复、popup、下载/同名、外部打开失败和窄低面板。",
+      "acceptanceGap": "无页面导航/下载/窗口操作；源码存在不能签署实际可用。"
+    },
+    {
+      "id": "WB-037",
+      "feature": "Browser工作区分区、cookie/站点数据/HTTP缓存清理",
+      "baseline": "installed-0.3.13",
+      "expected": "工作区分开登录区，清理范围和确认准确，取消等待不冒充回滚已提交清理。",
+      "entry": "browserWorkspaceOwner→partition；工具按钮确认→native BrowserData APIs",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js:1428-1446:按工作区或session隔离",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:2006-2025:原版cookie/cache菜单"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/browser_workspace.go:10-29:稳定Host home authority+scope",
+        "internal/desktop/webview/host.go:118-136,240-256:Browser隔离profile不可混Host/capability",
+        "internal/ui/browserpreview/tools.go:230-290:清理确认/能力gate",
+        "internal/ui/browserpreview/tools.go:80-130:实际清理和partial结果提示",
+        "internal/desktop/webview/browser_site_data.go:17-40:current epoch和原生调用"
+      ],
+      "finding": "有三种清理真实动作并区分五类站点数据/缓存/cookie，范围不应由按钮文字推断。当前用户原profile保持未碰；分区与站点登录实际状态尚未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "使用独立分区验收同/跨工作区存储、确认/取消、旧page响应、退出登录影响和失败部分生效反馈。",
+      "acceptanceGap": "真实浏览器登录/清理会影响账户，本轮没有执行；不能把历史分区测试外推至当前数据。"
+    },
+    {
+      "id": "WB-038",
+      "feature": "Browser缩放、设备尺寸/旋转/比例、外观、DevTools和本机服务发现",
+      "baseline": "installed-0.3.13",
+      "expected": "工具控件改变当前真实page而非仅改label；平台不支持时明确禁用；本机服务发现不启动服务。",
+      "entry": "Browser toolControls/localServerControls→webview native APIs",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:1920-2000:设备/外观/zoom/devtools菜单",
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:48:本机开发端口目录"
+      ],
+      "mygoEvidence": [
+        "internal/ui/browserpreview/tools.go:132-183,194-229,245-300:真实viewport/zoom/外观/DevTools控件",
+        "internal/ui/browserpreview/tool_state.go:17-25,61-102:设备preset/尺寸/zoom阶梯",
+        "internal/ui/browserpreview/devtools.go:9-29:current page同步dispatch",
+        "internal/ui/browserpreview/local_servers.go:39-53,90-110:发现与点击导航",
+        "internal/desktop/localservers/discover.go:23-39:固定端口仅TCP连接"
+      ],
+      "finding": "主要工具有实际调用，preset/zoom非空菜单；设备只改变真实视口而非伪造UA。当前Windows native API availability、拖动resize和控制条可达性未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前候选验收zoom边界、尺寸/比例/旋转、prefers-color-scheme、DevTools打开/关闭、发现TCP但非HTTP端口的错误。",
+      "acceptanceGap": "本轮未扫描本机端口或开DevTools；Linux/Darwin能力门槛与UI未穷尽。"
+    },
+    {
+      "id": "WB-039",
+      "feature": "Browser截图、选元素、可视批注与草稿插入",
+      "baseline": "installed-0.3.13",
+      "expected": "从当前网页获取真实截图/元素，批注写入发起会话的草稿，发送/切会话后旧回调不写入。",
+      "entry": "Browser actionControls→CaptureBrowserScreenshot/PickElement/annotation→captured ActionTarget",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:1941-1954,2066-2079:选元素/截图/注解写草稿",
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:765-778:真实capturePage/保存"
+      ],
+      "mygoEvidence": [
+        "internal/ui/browserpreview/actions.go:101-181,186-224:actual capture/pick和成功/取消/错误/文件",
+        "cmd/whaleisle/browser_preview_actions.go:27-91:原窗口/Host/session/draft身份，插入文本/截图",
+        "internal/ui/browserpreview/annotation.go:11-89:批注准备/显式加入"
+      ],
+      "finding": "真实page capture/DOM pick而非固定示例；异步owner检查覆盖Host/session/page，批注显式加入不自动发送。实际原生选取overlay与截图像素/文件结果未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "独立网页验收选元素→草稿、annotation文本+图片、取消、页面导航/发送中/切会话后晚到拒绝和capture失败。",
+      "acceptanceGap": "本轮没有截图/页面操作；当前用户草稿不读取不修改。"
+    },
+    {
+      "id": "WB-040",
+      "feature": "Browser录制视频、停止自动保存、失败/取消/导出",
+      "baseline": "installed-0.3.13",
+      "expected": "只录当前页、无音频，停止后形成真实视频文件；取消不产生假成功/跨tab导出，失败可恢复导出。",
+      "entry": "Browser录制→browserrecording.Capture/encoder→Artifact.Save/Export",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:1946-1949,2083-2105:开始/停止/保存/reveal",
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:56,1003-1037:512MiB限制及真实artifact保存"
+      ],
+      "mygoEvidence": [
+        "internal/ui/browserpreview/recording.go:68-159:actual capture/encoder/自动保存及失败",
+        "internal/ui/browserpreview/recording.go:163-217,223-255:stop/cancel/导出/平台gate",
+        "internal/desktop/browserrecording/recording.go:1-80:帧/encoder/artifact生产入口"
+      ],
+      "finding": "不是静态录像按钮，最终Artifact有保存/导出；源码保留无音频、约12fps、512MiB和分辨率预算。平台codec可用性、真实播放、长录内存及当前原生stop未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "使用获准的独立页验收录制→停止→文件可播放、取消/切tab/navigation、codec不可用、保存失败后另存、超限清理。",
+      "acceptanceGap": "本轮不录像、不创建媒体文件；既有encoder单测不能代替真实WebView录制。"
+    },
+    {
+      "id": "WB-041",
+      "feature": "Browser交互小浮窗/PiP、文档恢复与资源撤销",
+      "baseline": "installed-0.3.13",
+      "expected": "同一page小浮窗保持交互/状态，PiP独立只读画面；关闭/隐藏/换Host按资源归属清理，恢复不把旧capability当权限。",
+      "entry": "toolControls→mini/PiP；WorkspaceSnapshot→RestoreWorkspace/DocumentSource",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js:2421-2714:原版mini geometry/拖动/resize/恢复",
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:924-965:PiP窗口/来源关联",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js:1428-1446:原工作区身份"
+      ],
+      "mygoEvidence": [
+        "internal/ui/browserpreview/mini_player.go:11-19,51-98,106-191:复用真实guest、交互/拖动/resize",
+        "internal/ui/browserpreview/picture_in_picture.go:29-80,111-163:只读真实帧PiP/4fps/关闭",
+        "internal/ui/browserpreview/workspace_resume.go:21-108:地址/文档描述恢复，Browser显式restore",
+        "internal/ui/frame/workspace_content.go:399-505,610-641:隐藏/失效/恢复"
+      ],
+      "finding": "交互mini和只读PiP是两种不同实现，不能混写‘浮窗通过’；Browser恢复保留地址但需显式Restore/Go才导航，文档按source重新授权读。当前窗口遮挡/前台/缩放和恢复没有实机证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "当前候选验收mini拖动/resize/返回、PiP来源变更、浮窗/多pane关闭、重启后browser地址和文档重读/过期。",
+      "acceptanceGap": "未实际开窗或截帧；整个window-layer/occlusion的同屏可用性仍待验收。"
+    },
+    {
+      "id": "WB-042",
+      "feature": "计划/审批计划只读资源、子代理历史、复制及过期/重试",
+      "baseline": "installed-0.3.13",
+      "expected": "计划卡打开完整计划资源；临时审批失效有提示；子代理计划按身份只读，不以主会话替代。",
+      "entry": "计划卡→OnOpenPlanResource→Tabs.Plans→plan_resource/history reader",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/client.js:173-218:完整Markdown、临时计划/失败/加载",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/client.js:278-296,399-418,650-697:地址/资源provider/卡片导航"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:7320-7339:生产plan打开和Host/session检查",
+        "internal/ui/planpreview/resource.go:47-80,120-178:地址/会话/临时资源生命周期",
+        "internal/ui/files/plan_resource.go:140-232:真实resource、子代理读取/重试/复制/过期",
+        "internal/ui/planpreview/view.go:19-42:只读完整Markdown披露"
+      ],
+      "finding": "资源地址/回调/历史读和过期状态有生产链，不是只有对话中的摘要。native plan Markdown未接图片renderer，与Files默认Markdown的限制同源；原版复杂Markdown像素不由文本存在证明。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收当前/历史/子代理/临时review计划、跨会话地址拒绝、读取失败重试、复制全文和关闭重启。",
+      "acceptanceGap": "未操作真实plan审批；不把只读预览通过当模型规划/审批提交通过。"
+    },
+    {
+      "id": "WB-043",
+      "feature": "Platform账号页面的隔离WebView transport",
+      "baseline": "installed-0.3.13",
+      "expected": "账号页只拿Host发给它的精确会话，不把Browser分区/认证数据混用，退出或Host更换撤销。",
+      "entry": "账号页面动作→openAccountPlatform→PlatformSession→platformview.Gateway→transient WebView",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/platform-session.js:1-35:安装版平台session服务入口",
+        "tmp/full-audit-20261102/installed-source/src/main/platform-view.js:1-35:安装版账号WebView入口"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/account_platform.go:45-96,117-125:实际Host session与transient窗口",
+        "internal/desktop/platformview/session.go:25-35,55-91:session校验/仅captured loopback Host读取",
+        "internal/desktop/platformview/external.go:18-43:外部HTTPS popup不带token",
+        "internal/desktop/webview/host.go:131-136,352-369:私有profile/权限与下载拒绝"
+      ],
+      "finding": "此模块是账号专属transport，不是普通Browser或Office文件preview。生产装配真实，完整登录/充值/登出业务由账号领域消费，不在本工作面重复签署。",
+      "evidenceLevel": "code",
+      "requiredAction": "账号领域沿当前实际页面授权完成登录/退出、Host重启撤销与popup边界验收；工作面不操作账户。",
+      "acceptanceGap": "当前原生账号页/真实会话未验收；不读取真实profile补证。"
+    },
+    {
+      "id": "WB-044",
+      "feature": "原生启动器外部桌面启动/保护停止/安装接口",
+      "baseline": "installed-0.3.13",
+      "expected": "外部启动器辨别精确注册的MyGo安装，启动/保护停止/安装请求不靠进程名强杀原版。",
+      "entry": "whaleisle-launcher UI→externallauncher.Controller→Windows注册及精确exe",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/../launcher/product.js:1-30:原版安装/启动产品边界"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle-launcher/main.go:239-270:真实OnStart/OnStop/安装回调",
+        "internal/desktop/externallauncher/controller.go:51-105,108-137:调用/等待/安装后再读注册",
+        "internal/desktop/externallauncher/backend_windows.go:22-58,79-130:NativeRuntime标记和精确路径识别/执行"
+      ],
+      "finding": "externallauncher不是Files里的‘外部打开’，已找到真正独立launcher consumer。其启动/停止/版本检查真实存在；与原版Electron启动器不是同一安装身份，不能给用户原安装发未核实动作。",
+      "evidenceLevel": "code",
+      "requiredAction": "包/桌面领域在独立安装环境验收launcher发现、启动、保护退出拒绝/确认和安装完成后注册版本；保持原安装不动。",
+      "acceptanceGap": "本轮不启动/停止任何进程、不改注册、不安装；完整launcher UI/更新业务不在本面板签署。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "workspace/session: Files、Git、local terminal 的 root 来自当前 SelectedCwd；工作区身份/目录建立、新对话按钮的故障由导航/工作区领域审查。本领域不以 Files/Git 实现存在覆盖用户报告。",
+    "project: 当前安装 ui-surfaces/lib/client.js:513-535 已含 options.workingDirectory 对 Project 自有报告的资源导航，须由 Project 领域确认 MyGo 跨 root 的专用入口；通用 OpenPresentedPath 仅认本机当前 root。",
+    "orchestration: internal/store/office 是 IM/Whale Office 配置桥，已交该领域，文件 Office 转 PDF 仍归本领域。",
+    "account/desktop: platformview 的登录/充值业务与 externallauncher 的安装更新 UI 由对应领域消费；这里记录 transport/执行链，不重写其验收结论。",
+    "chat/visual-reply: htmlpreview、previewprocess、imgcache、svgimage 是共享渲染基础；这里覆盖工作面/文件预览的调用和资源边界，OpenUI 业务/API/交互功能由聊天领域审查。",
+    "shell/layout: 工作面入口真实点击、浮窗层级、WebView 子窗遮挡、窄窗 toolbar 可达性仍须当前候选原生验收；当前无桌面操作授权。"
+  ],
+  "uncovered": [
+    "未执行用户诊断实例或真实 profile 的任何动作；工作面全部当前可见点击/键盘/拖动结果仍未实机验收。",
+    "未穷尽 Git patch 各转义/二进制/子模块/稀疏检出/大仓性能组合；没有真实远端 fetch/pull/push/PR/publish、SSH/HTTP 凭据或 GitHub Enterprise 账户操作。",
+    "原版和 MyGo 的图片/媒体/Office/字体解码器底层算法、恶意格式完整矩阵、DRM/受密码保护/旧 DOC/PPT/全部编码未穷尽；按格式入口和明确预算审查。",
+    "previewprocess Windows 令牌/AppContainer/WFP/JobObject 为资源隔离实现线索，未在本次证明完整沙箱安全；Darwin/Linux helper、webview 和录制后端未逐分支审查或运行。",
+    "原版 ui-files 的直接文件树没有新建文件/文件夹、重命名、删除入口；本次未把两端共同不提供的功能伪列成移植缺失。目录选择器中的新建文件夹归导航/工作区域。",
+    "历史 2026-10-19 记录中的 E/functional-* 原始 receipt 此次未定位到，未把文档声明升级为通过；既有 2026-10-24/25 原始日志只保留它们实际范围。",
+    "Platform 业务、原生启动器完整升级事务、远程 Files 编辑器的真实连接/写回为跨领域消费，不在本工作面独自签署。"
+  ],
+  "checksRun": [
+    {
+      "command": "PowerShell ConvertFrom-Json + required fields / unique IDs / evidence path and starting-line validation",
+      "result": "44 features, 44 unique IDs; no missing fields or missing/invalid evidence paths; 34 wired-unverified, 6 partial, 4 confirmed-defect",
+      "scope": "Audit artifact validation only, not product QA"
+    },
+    {
+      "command": "只读代码/现有日志审查；未运行测试或应用动作",
+      "result": "完成本领域双向入口盘点和生产装配追踪；没有新增测试、fixture、构建、Git 产品操作、桌面/profile/服务操作",
+      "scope": "当前源码+实际安装 client+本轮安装桌面源码提取"
+    },
+    {
+      "command": "读取 tmp/terminal-audit-20261025/smoke-result.json:1-8",
+      "result": "历史 hostOnline=true，但 exitCode=-1、forcedCleanup=true；不是终端生命周期 PASS",
+      "scope": "拒绝把启动烟测当真实交互完成"
+    },
+    {
+      "command": "读取 docs/review-20261022/evidence/preview-pass252-native-and-filesystem.txt 与 preview-pass252-full-toolkit.txt",
+      "result": "历史特定 WebView 清理和工具包测试有 PASS；不覆盖当前用户 File/Git/Browser 点击路径",
+      "scope": "仅历史证据边界"
+    },
+    {
+      "command": "读取 docs/review-20261022/evidence/terminal-pass259-final-checks.json",
+      "result": "记录是 ui/chat 终端工具卡与 vet，不是本地 PTY/Host 终端的完整验收",
+      "scope": "证据身份核对"
+    }
+  ],
+  "summary": "确认 4 个具体功能/安全缺陷或分支错误：PR收件仓库/base/fork语义（WB-027）、离线外部打开经cmd解释路径（WB-019）、Open-with晚到owner/离线静默分支（WB-020）、顶部View PR不打开浏览器（WB-029）；终端Ctrl+click绕过产品路由列partial（WB-034）。默认Markdown图片、图片预算、HTML交互默认也非等价。其余动作多有生产链，均保留当前原生可用性验收缺口；历史测试不能覆盖用户报告的基本入口失败。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-workbench-actions.json"
+  ]
+}

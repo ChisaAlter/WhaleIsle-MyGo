@@ -2,9 +2,23 @@ package frame
 
 import (
 	"errors"
+	"github.com/egoist/mygo/ui"
 	"strconv"
 	termui "whaleisle/internal/ui/terminal"
 )
+
+func workspaceTerminalResourceMenu(menu *ui.Menu, m Model, pane *WorkspacePane) {
+	if pane == nil || m.HostTerminalUI == nil {
+		return
+	}
+	store, sid, _, _ := workspaceTerminalTitle(m, pane)
+	if store == nil {
+		return
+	}
+	if termui.HostResourceMenu(menu, m.HostTerminalUI.Occurrence(pane.ID), store, sid) {
+		m.Sizes.Workspace.pending = func() { m.Sizes.Workspace.activateDockTab(pane.ID) }
+	}
+}
 
 func hostTerminalActions(m Model) termui.HostActions {
 	var fresh *bool

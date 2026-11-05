@@ -69,6 +69,8 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	win := s.win
 	cancelPreparation := s.launcherStartCancel
 	s.mu.Unlock()
+	s.cancelImportCatalogScan()
+	s.stopNativeUpdateCenter()
 	if cancelPreparation != nil {
 		cancelPreparation()
 	}

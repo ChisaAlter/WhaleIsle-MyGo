@@ -22,6 +22,8 @@ type BrowserState struct {
 	ScanWindow                           uint64
 	FailureToast, CreateToast            string
 	Revision                             uint64
+	Remote                               bool
+	UseNative, NativeBusy, NativeOpened  bool
 }
 
 func sameDraft(left, right *string) bool {

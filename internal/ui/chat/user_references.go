@@ -23,6 +23,8 @@ type userReferenceRun struct {
 }
 type userReferenceFacts struct {
 	Labels, Skills []string
+	Interactive    bool
+	Occurrence     string
 	OpenSkill      func(string)
 	OpenFile       func(string, func(error))
 	Current        func() bool
@@ -205,9 +207,51 @@ func userReferenceText(c *ui.Context, text string, size float32, fg, muted ui.Co
 	if startFile == nil && open != nil {
 		startFile = func(path string, complete func(error)) { open(path); complete(nil) }
 	}
-	ui.RichText(c).Font(theme.ContextFont(c, theme.SkinProseFont).Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable().Children(func() {
-		for _, run := range userReferenceRuns(text, facts) {
+	textContext := c
+	if facts.Occurrence != "" {
+		textContext = c.Key("user-text:" + facts.Occurrence)
+	}
+	rich := ui.RichText(textContext).Font(theme.ContextFont(c, theme.SkinProseFont).Family).FontSize(size).FixedLineHeight(size + 8).TextColor(fg).Selectable()
+	type textRevision struct {
+		Text       string
+		Generation uint64
+	}
+	revision := ui.Local(rich, "secret-text-revision", func() textRevision { return textRevision{} })
+	if revision.Text != text {
+		revision.Text = text
+		revision.Generation++
+	}
+	rich.Children(func() {
+		for index, run := range visibleUserReferenceRuns(text, facts) {
 			run := run
+			if run.Kind == "secret" {
+				type revealState struct {
+					Raw        string
+					Revealed   bool
+					Generation uint64
+				}
+				revealed := ui.Local(rich, index, func() revealState { return revealState{} })
+				if revealed.Raw != run.Raw || revealed.Generation != revision.Generation || !facts.Interactive {
+					*revealed = revealState{Raw: run.Raw, Generation: revision.Generation}
+				}
+				display := run.Text
+				if revealed.Revealed {
+					display = run.Raw
+				}
+				ui.Text(c, display)
+				if !facts.Interactive {
+					continue
+				}
+				label := referenceCopy("Reveal credential", "显示凭据")
+				if revealed.Revealed {
+					label = referenceCopy("Hide credential", "隐藏凭据")
+				}
+				control := ui.Text(c, " ◉ ").Label(label).Tooltip(label).TextColor(muted).Cursor(ui.CursorPointer).Focusable().Role(ui.RoleButton)
+				if control.Clicked() || control.Shortcut(0, ui.KeyEnter) || control.Shortcut(0, ui.KeySpace) {
+					revealed.Revealed = !revealed.Revealed
+				}
+				continue
+			}
 			el := ui.Text(c, run.Text)
 			if run.Kind == "" {
 				continue

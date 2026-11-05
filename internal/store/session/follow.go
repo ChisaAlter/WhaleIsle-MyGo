@@ -35,9 +35,13 @@ func (s *Store) FollowSelected(ctx context.Context) {
 	generation := s.followGeneration
 	fctx, cancel := context.WithCancel(ctx)
 	s.followCancel = cancel
+	control, _ := s.beginControlWatchLocked(ctx)
 	s.mu.Unlock()
 	s.fire()
 	go s.runFollow(fctx, mux, sessionID, generation)
+	if control != nil {
+		go control()
+	}
 }
 
 func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, generation uint64) bool {

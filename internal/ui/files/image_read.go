@@ -120,6 +120,13 @@ func (t *Tabs) stopImageRead(closeQueue bool) {
 	if t == nil {
 		return
 	}
+	for _, w := range t.Workspaces {
+		if w != nil {
+			for _, tab := range w.Open {
+				tab.stopMarkdownImages()
+			}
+		}
+	}
 	if t.imageReadTab != nil && t.imageReadTab.image != nil && t.imageReadTab.image.loading {
 		t.imageReadTab.image = nil
 	}
@@ -159,6 +166,7 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 		root, path := owner.root, owner.path
 		resolve := previewPathResolver(m, tab)
 		localSource := tab.deliverySource
+		readRemote := m.ReadImageContext
 		sourceCurrent := localSource == nil || localSource.current(m)
 		t.imageReader.request(owner, func(ctx context.Context) *imagePreview {
 			if !sourceCurrent {
@@ -166,6 +174,13 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 			}
 			if localSource != nil {
 				data, err := localSource.readBytes(ctx, imageByteLimit(path))
+				if err != nil {
+					return &imagePreview{err: err}
+				}
+				return decodeImagePreviewContext(ctx, path, data)
+			}
+			if readRemote != nil {
+				data, err := readRemote(ctx, path, imageByteLimit(path))
 				if err != nil {
 					return &imagePreview{err: err}
 				}

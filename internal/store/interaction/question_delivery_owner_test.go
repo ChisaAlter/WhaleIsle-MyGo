@@ -1,6 +1,7 @@
 package interaction
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -19,7 +20,7 @@ func TestLiveQuestionReceiptWaitsForHostAndContinuedRetainsDraft(t *testing.T) {
 	s := New()
 	done := make(chan struct{})
 	go func() {
-		_, _ = s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"callId":"call-1","questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}`)})
+		_, _ = s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"wait":{"callId":"call-1"},"questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}`)})
 		close(done)
 	}()
 	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
@@ -44,6 +45,45 @@ func TestLiveQuestionReceiptWaitsForHostAndContinuedRetainsDraft(t *testing.T) {
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
 	if len(s.Snapshot().Pending) != 0 {
 		t.Fatal("late receipt reopened closed question")
+	}
+}
+
+func TestQuestionReceiptUsesActualLegacyOrProjectedProtocol(t *testing.T) {
+	for _, tc := range []struct {
+		name, request string
+		projected     bool
+	}{
+		{"legacy", `{"callId":"call-1","questions":[{"id":"q","question":"Answer"}]}`, false},
+		{"timed-indefinite", `{"wait":{"callId":"call-1"},"questions":[{"id":"q","question":"Answer"}]}`, true},
+		{"timed", `{"wait":{"callId":"call-1","timed":true},"questions":[{"id":"q","question":"Answer"}]}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := New()
+			defer s.Detach()
+			client, mux := &dsh.Client{}, &dsh.Mux{}
+			s.AttachClient(client, mux)
+			owner := s.BeginEventsDelivery(context.Background(), client, mux)
+			done := deliveryAnswer(t, s, owner, dsh.EventsWaterfall{EventID: "live", AgentID: "A", Event: EventUserQuestions, Request: json.RawMessage(tc.request)})
+			awaitQuestionFixture(t, func() bool { return len(s.SnapshotForAgent("A").Pending) == 1 })
+			s.SetQuestionCustom("live", "q", "owned answer")
+			s.ResolveQuestions("live")
+			out := deliveryReceive(t, done)
+			s.OnResultForDelivery(owner, dsh.EventResult{EventID: "live", Outcome: *out}, nil)
+			pending := s.SnapshotForAgent("A").Pending
+			if !tc.projected {
+				if len(pending) != 0 {
+					t.Fatal("legacy question waited for a projection the Host never publishes")
+				}
+				return
+			}
+			if len(pending) != 1 || !pending[0].Sending {
+				t.Fatal("projected question settled on HTTP receipt alone")
+			}
+			s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-1"}]}`), emptyInboxFixture, 4, 4)
+			if len(s.SnapshotForAgent("A").Pending) != 0 {
+				t.Fatal("Host projection failed to settle timed question")
+			}
+		})
 	}
 }
 

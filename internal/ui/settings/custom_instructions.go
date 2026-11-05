@@ -54,7 +54,12 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 	if !found {
 		return
 	}
+	if !settingsItemBefore(c, "custom-instructions") {
+		return
+	}
+	clearFailure := bodyPreferenceFieldError(c, a, store.CustomInstructionsNamespace, store.CustomInstructionsField, i18n.T(i18n.KeyCustomInstructionsTitle))
 	anchor := ui.Column(c.Key(fmt.Sprintf("general-custom-instructions-%d", a.Owner))).FillWidth().MinWidth(0).Gap(10).Padding(16, 0)
+	settingsSearchTarget(c, "custom-instructions", i18n.T(i18n.KeyCustomInstructionsTitle), anchor)
 	type draftState struct{ Value, Base string }
 	draft := ui.Local(anchor, "draft", func() draftState { return draftState{value, value} })
 	if draft.Value == value || draft.Value == draft.Base && draft.Base != value {
@@ -78,6 +83,7 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 		if area.Changed() && a.OnChange != nil {
 			draft.Value = store.LimitCustomInstructions(draft.Value)
 			if store.CustomInstructionsLength(draft.Value) <= store.CustomInstructionsMaxLength {
+				clearFailure()
 				a.OnChange(store.CustomInstructionsNamespace, store.CustomInstructionsField, draft.Value)
 			}
 		}

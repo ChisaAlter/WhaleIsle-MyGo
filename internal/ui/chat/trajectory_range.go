@@ -61,7 +61,7 @@ func rangeTimeAt(x, width float32, model trajectoryTimeline) float64 {
 	}
 	return model.Start + math.Max(0, math.Min(1, float64(x/width)))*(model.End-model.Start)
 }
-func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState, list *ui.ListState, accent, muted, border ui.Color) {
+func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState, list *ui.ListState, accent, muted, border ui.Color, ledger ...[]trajRow) {
 	model := s.model(rows)
 	if len(model.Spans) == 0 || model.End <= model.Start {
 		s.clear()
@@ -160,7 +160,11 @@ func paintTrajectoryRange(c *ui.Context, rows []trajRow, s *trajectoryRangeState
 	})
 	if s.pendingScroll && !s.dragging && list != nil {
 		matches := s.matches(rows)
-		for index, row := range rows {
+		visible := rows
+		if len(ledger) > 0 {
+			visible = ledger[0]
+		}
+		for index, row := range visible {
 			if (s.focusID != "" && row.ID == s.focusID) || (s.focusID == "" && matches[row.ID]) {
 				list.FollowEnd = false
 				list.ScrollTo(index, ui.Start)

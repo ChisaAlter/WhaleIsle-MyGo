@@ -34,6 +34,7 @@ function fixture({stopError = false} = {}) {
     }
     async renameDevice(id, name) { deviceCalls.push('rename'); await devicePending; this.deviceName = name; }
     async rotateToken() { deviceCalls.push('rotate'); await devicePending; }
+    async revokePairingLink() { deviceCalls.push('revoke-link'); await devicePending; }
     async unbindDevice(id) { deviceCalls.push('unbind'); await devicePending; this.unbound = true; }
     async stopDaemon() {
       ++stops;
@@ -149,7 +150,7 @@ test('stop ahead of a queued start prevents the constructor from starting its da
   assertNoOffer(f);
 });
 
-for (const operation of ['rename', 'unbind', 'rotate']) {
+for (const operation of ['rename', 'unbind', 'rotate', 'revoke-link']) {
   test(`stopping pending ${operation} suppresses late results, snapshots and restart`, async () => {
     const f = fixture(); start(f); await settle(); f.ready(); await settle();
     f.send({action: 'device-action', id: '1', operation, deviceId: 'fictional-device', name: 'Renamed'});
@@ -165,6 +166,19 @@ for (const operation of ['rename', 'unbind', 'rotate']) {
     assert.deepEqual(f.exits, [0]);
   });
 }
+
+test('explicit reusable-link revocation does not stop the daemon or revoke paired-device Git access', async () => {
+  const f = fixture(); start(f); await settle(); f.ready(); await settle();
+  f.send({action:'device-action', id:'1', operation:'revoke-link'}); await settle();
+  assert.deepEqual(f.deviceCalls, ['revoke-link']);
+  f.releaseDevice(); await settle();
+  assert.equal(f.stops, 0);
+  assert.equal(f.revocations, 0);
+  assert.equal(f.syncs.length, 1);
+  assert.equal(f.events.at(-1).kind, 'device-action-result');
+  assert.equal(f.events.at(-1).applied, true);
+  f.send({action:'stop'}); await settle();
+});
 
 test('successful explicit start still emits the existing snapshot protocol', async () => {
   const f = fixture(); start(f); await settle();

@@ -27,12 +27,13 @@ type Panel struct {
 	// Maximized uses 75% of the center column without overwriting its saved size.
 	Maximized bool
 
-	panes   []*terminalPane
-	groups  []*terminalGroup
-	active  uint64
-	focused uint64
-	nextID  uint64
-	notice  string
+	panes        []*terminalPane
+	groups       []*terminalGroup
+	active       uint64
+	focused      uint64
+	nextID       uint64
+	notice       string
+	onOpenTarget func(string) error
 	// pendingClose holds the pane whose close is waiting for confirmation.
 	pendingClose uint64
 }
@@ -44,7 +45,7 @@ func Open(workspaceRoot string, dark bool) *Panel {
 	return p
 }
 
-func openNativeTerminal(root string, dark bool) (*myterm.Terminal, error) {
+func openNativeTerminal(root string, dark bool, onLink ...func(string) bool) (*myterm.Terminal, error) {
 	if root == "" {
 		return nil, errors.New("no workspace directory")
 	}
@@ -65,6 +66,10 @@ func openNativeTerminal(root string, dark bool) (*myterm.Terminal, error) {
 		Dir: root, Theme: themed, DarkTheme: themed, Transparent: true,
 		PTYResizeDelay: 150 * time.Millisecond,
 		Font:           terminalFont(theme.RenderPreferences().Terminal),
+	}
+	opts.LinkAt = TargetAt
+	if len(onLink) > 0 {
+		opts.OnLinkActivate = onLink[0]
 	}
 	return myterm.New(opts)
 }
@@ -183,6 +188,7 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	p := m.Panel
 	if p != nil {
+		p.onOpenTarget = m.OnOpenTarget
 		for _, pane := range append([]*terminalPane(nil), p.panes...) {
 			if pane.term != nil {
 				select {

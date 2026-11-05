@@ -3,25 +3,26 @@ package wallpapers
 import "strings"
 
 type Preferences struct {
-	CursorEnabled   bool      `json:"cursorEffectEnabled"`
-	CursorEffect    string    `json:"cursorEffect"`
-	CursorPreset    string    `json:"cursorEffectPreset"`
-	CursorColors    [6]string `json:"cursorEffectColors"`
-	CursorSpeed     float64   `json:"cursorEffectSpeed"`
-	CursorSize      float64   `json:"cursorEffectSize"`
-	MetallicButtons bool      `json:"metallicPaintEnabled"`
-	Sources         []Source  `json:"wallpaperSources"`
-	Favorites       []Item    `json:"wallpaperFavorites"`
-	Original        string    `json:"wallpaperOriginal"`
-	Crop            Crop      `json:"wallpaperCrop"`
-	Blur            float64   `json:"wallpaperBlur"`
-	Pixelate        float64   `json:"wallpaperPixelate"`
-	Glass           float64   `json:"glassOpacity"`
-	Terminal        float64   `json:"terminalOpacity"`
-	Transparent     bool      `json:"transparentTheme"`
-	HideSidebarMask bool      `json:"sidebarMaskHidden"`
-	Preset          string    `json:"backgroundEffectPreset"`
-	Effect          string    `json:"backgroundEffect"`
+	SkinWallpaperEnabled bool      `json:"skinWallpaperEnabled"`
+	CursorEnabled        bool      `json:"cursorEffectEnabled"`
+	CursorEffect         string    `json:"cursorEffect"`
+	CursorPreset         string    `json:"cursorEffectPreset"`
+	CursorColors         [6]string `json:"cursorEffectColors"`
+	CursorSpeed          float64   `json:"cursorEffectSpeed"`
+	CursorSize           float64   `json:"cursorEffectSize"`
+	MetallicButtons      bool      `json:"metallicPaintEnabled"`
+	Sources              []Source  `json:"wallpaperSources"`
+	Favorites            []Item    `json:"wallpaperFavorites"`
+	Original             string    `json:"wallpaperOriginal"`
+	Crop                 Crop      `json:"wallpaperCrop"`
+	Blur                 float64   `json:"wallpaperBlur"`
+	Pixelate             float64   `json:"wallpaperPixelate"`
+	Glass                float64   `json:"glassOpacity"`
+	Terminal             float64   `json:"terminalOpacity"`
+	Transparent          bool      `json:"transparentTheme"`
+	HideSidebarMask      bool      `json:"sidebarMaskHidden"`
+	Preset               string    `json:"backgroundEffectPreset"`
+	Effect               string    `json:"backgroundEffect"`
 	// EffectExplicit records that the user/Host chose backgroundEffect, so an
 	// untouched profile stays flat instead of inheriting a seeded gradient.
 	EffectExplicit bool      `json:"-"`
@@ -32,7 +33,7 @@ type Preferences struct {
 }
 
 func Defaults() Preferences {
-	return Preferences{CursorEffect: "trail", CursorPreset: "default", CursorSpeed: 100, CursorSize: 100, Sources: Sources(), Crop: DefaultCrop(), Glass: 80, Terminal: 75, HideSidebarMask: true, Preset: "default", Effect: "none", Variant: "orbs", Speed: 190, Count: 5, Colors: [7]string{}}
+	return Preferences{SkinWallpaperEnabled: true, CursorEffect: "trail", CursorPreset: "default", CursorSpeed: 100, CursorSize: 100, Sources: Sources(), Crop: DefaultCrop(), Glass: 80, Terminal: 75, HideSidebarMask: true, Preset: "default", Effect: "none", Variant: "orbs", Speed: 190, Count: 5, Colors: [7]string{}}
 }
 
 // NormalizeEffect resolves the backdrop effect for a profile: without a

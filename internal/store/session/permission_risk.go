@@ -14,9 +14,10 @@ type PermissionRiskConfirmation struct {
 	Acknowledged            bool
 }
 type permissionRiskOperation struct {
-	view       PermissionRiskConfirmation
-	client     *dsh.Client
-	generation uint64
+	view            PermissionRiskConfirmation
+	client          *dsh.Client
+	generation      uint64
+	catalogRevision uint64
 }
 
 func permissionNeedsConfirmation(value string) bool {
@@ -30,7 +31,8 @@ func (s *Store) resetPermissionRiskLocked() {
 func (s *Store) permissionRiskCurrentLocked(token uint64) bool {
 	p := s.permissionRisk
 	return p != nil && p.view.Token == token && p.client == s.client &&
-		p.view.SessionID == s.selectedID && p.generation == s.followGeneration && s.permissionProjectionCurrentLocked()
+		p.view.SessionID == s.selectedID && p.generation == s.followGeneration &&
+		p.catalogRevision == s.permissionCatalogRevision && s.permissionProjectionCurrentLocked()
 }
 func (s *Store) PermissionRiskConfirmation() *PermissionRiskConfirmation {
 	s.mu.Lock()
@@ -85,7 +87,7 @@ func (s *Store) ConfirmPermissionRisk(ctx context.Context, token uint64) {
 		return
 	}
 	s.permissionProjection.Pending = true
-	s.permissionsErr = nil
+	s.clearPermissionErrorLocked()
 	s.mu.Unlock()
 	s.fire()
 	go s.runPermissionPreset(ctx, p.client, p.view.SessionID, p.generation, opt)

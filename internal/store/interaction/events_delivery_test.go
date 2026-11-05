@@ -95,7 +95,7 @@ func TestEventsDeliveryReplayRetainsQuestionDraftAndReplacesWaiter(t *testing.T)
 }
 
 func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T) {
-	for _, status := range []int{http.StatusNoContent, http.StatusServiceUnavailable} {
+	for _, status := range []int{http.StatusOK, http.StatusServiceUnavailable} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			entered, release := make(chan struct{}), make(chan struct{})
 			defer func() {
@@ -106,9 +106,16 @@ func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T)
 				}
 			}()
 			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://offline.invalid"}, HTTP: &http.Client{Transport: questionFixtureTransport(func(r *http.Request) (*http.Response, error) {
+				var envelope struct {
+					RPCID string `json:"rpcId"`
+				}
+				if e := json.NewDecoder(r.Body).Decode(&envelope); e != nil {
+					return nil, e
+				}
 				close(entered)
 				<-release // Deliberately model an already-completed late receipt.
-				return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
+				body, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": envelope.RPCID, "result": map[string]any{"ok": true}})
+				return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
 			})}}
 			s := New()
 			mux := &dsh.Mux{}

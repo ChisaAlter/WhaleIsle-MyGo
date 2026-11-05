@@ -40,11 +40,11 @@ func TestVisionSettingsContract(t *testing.T) {
 			}
 			for _, op := range ops {
 				m := op.(map[string]any)
-				if m["op"] != "set" || m["value"] != "" {
-					t.Errorf("disable needs explicit empty override: %v", op)
+				if m["op"] != "unset" || m["value"] != nil {
+					t.Errorf("disable must remove the user route overrides: %v", op)
 				}
 			}
-			rpcOK(w, body["rpcId"], map[string]any{"ns": VisionNamespace, "revision": 8, "value": map[string]any{"provider": "", "model": "", "timeoutMs": 123}})
+			rpcOK(w, body["rpcId"], map[string]any{"ns": VisionNamespace, "revision": 8, "value": map[string]any{"timeoutMs": 123}})
 		default:
 			t.Errorf("unexpected RPC: %s", r.URL.Path)
 		}

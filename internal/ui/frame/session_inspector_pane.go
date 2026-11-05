@@ -2,13 +2,13 @@ package frame
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Only presentation preferences are persisted. Raw logs, selected values and
@@ -24,6 +24,9 @@ type SessionInspectorPaneState struct {
 	navigation                                              chat.InspectorNavigation
 	breadcrumb                                              []string
 	tree                                                    inspectorJSONTreeState
+	objectTree                                              inspectorObjectTreeState
+	objects                                                 map[string]inspectorObject
+	dismissedHistoryError                                   string
 	Mode                                                    string `json:"mode,omitempty"`
 	Filter                                                  string `json:"filter,omitempty"`
 	binding, draft, selected                                string
@@ -246,17 +249,13 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 		ui.Text(c, paneLabel("选择会话以检查日志", "Select a session to inspect its log"))
 		return
 	}
-	if len(p.navigation.Nodes) > 0 {
-		source.Chat = nil
-		for _, msg := range p.navigation.Nodes {
-			raw, _ := json.Marshal(msg)
-			source.Chat = append(source.Chat, session.InspectorRecord{Key: "chat:" + msg.ID, Type: string(msg.Kind), Seq: msg.Seq, Raw: raw, ChatTarget: p.navigation.PickTarget(msg)})
-		}
-	}
 	inspectorPresentation(c, p, source, renderSnapshot(m), theme.Resolve(m.ThemeID).Active(m.SystemDark), func() { m.Store.LoadEarlierHistory(context.Background()) })
 }
 
 func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source session.InspectorSnapshot, state session.ViewState, colors theme.Colors, loadOlder func()) {
+	source.Chat = inspectorChatRows(source, &p.navigation)
+	objects := inspectorNativeObjects(source, &p.navigation)
+	p.objects = objects
 	rows := source.Records
 	if p.Mode == "chat-node" {
 		rows = source.Chat
@@ -271,8 +270,17 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 			ui.Text(c, paneLabel("点击对话中的元素；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(4, 8).TextColor(chrome.Color(colors.Secondary))
 		}
 
-		if state.HistoryPageErr != "" {
-			ui.Text(c, state.HistoryPageErr)
+		if state.HistoryPageErr != "" && state.HistoryPageErr != p.dismissedHistoryError {
+			ui.Row(c).FillWidth().Padding(4, 8).Gap(8).Children(func() {
+				ui.Text(c, state.HistoryPageErr).Grow(1).FontSize(11)
+				button := inspectorButton(c, paneLabel("关闭错误", "Dismiss error"))
+				button.Children(func() { inspectorText(c, paneLabel("关闭", "Dismiss")) })
+				if button.Clicked() {
+					p.dismissedHistoryError = state.HistoryPageErr
+				}
+			})
+		} else if state.HistoryPageErr == "" {
+			p.dismissedHistoryError = ""
 		}
 		// A pending inspect request (a tool card clicked before this pane had rows)
 		// turns into a pick once the chat projection exists, so the selection is the
@@ -283,9 +291,7 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 		if hadPick {
 			c.Services().Invalidate()
 		}
-		if p.navigation.Notice != "" {
-			ui.Text(c, p.navigation.Notice)
-		}
+		widgets.Notice(c, "session_inspector_pane:294", "", p.navigation.Notice != "", func() string { return p.navigation.Notice })
 		body := ui.Column(c).Grow(1).MinHeight(0).FillWidth()
 		body.Children(func() {
 			available := root.Bounds().H
@@ -294,24 +300,6 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 				c.Invalidate()
 			}
 			inspectorTable(c, p, rows, colors)
-			objects := inspectorObjects(source)
-			for group, members := range p.navigation.Groups {
-				key := "chat:" + group
-				o, exists := objects[key]
-				if !exists {
-					continue
-				}
-				for _, id := range members {
-					child := "chat:" + id
-					if _, ok := objects[child]; ok {
-						o.Links = append(o.Links, child)
-						node := objects[child]
-						node.Links = append(node.Links, key)
-						objects[child] = node
-					}
-				}
-				objects[key] = o
-			}
 			key := p.selected
 			if len(p.breadcrumb) > 0 {
 				key = p.breadcrumb[len(p.breadcrumb)-1]

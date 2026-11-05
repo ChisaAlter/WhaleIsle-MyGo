@@ -17,6 +17,7 @@ type ProviderDiscoveryAccess struct {
 	OnDiscover, OnAdopt, OnDiscard, OnSave func(uint64)
 	OnPick                                 func(uint64, string, bool)
 	OnReview                               func(uint64, bool)
+	OnProbeEditor                          func(providerdiscovery.EditorProbe, func([]providerdiscovery.Candidate, error)) func()
 }
 
 func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted ui.Color) {
@@ -30,12 +31,8 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).TextColor(muted)
 		return
 	}
-	if s.Err != "" {
-		ui.Text(c, s.Err).TextColor(fg)
-	}
-	if s.LastAction != "" {
-		ui.Text(c, settingsActionText(s.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "provider_discovery:35", "error", s.Err != "", func() string { return providerdiscovery.Message(s.Err) })
+	settingsNotice(c, "provider_discovery:38", "", s.LastAction != "", func() string { return providerdiscovery.Message(s.LastAction) })
 	if ui.Button(c, providerCopy("刷新供应商", "Refresh providers")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || s.Dirty || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}
@@ -73,7 +70,7 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, providerCopy("有未保存草稿；保存或放弃后可切换供应商。", "Unsaved draft: save or discard before changing providers.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if row.Blocked != "" {
-		ui.Text(c, row.Blocked).TextColor(fg)
+		ui.Text(c, providerdiscovery.Message(row.Blocked)).TextColor(fg)
 	}
 	if !row.Writable {
 		ui.Text(c, providerCopy("Host 设置只读，无法采纳或保存。", "Host settings are read-only; adoption and saving are disabled.")).TextColor(muted)
@@ -121,9 +118,6 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 	}
 	if ui.Button(c, probeLabel).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.OnDiscover == nil).Clicked() && a.OnDiscover != nil {
 		a.OnDiscover(s.Ticket)
-	}
-	if s.Busy {
-		ui.Text(c, providerCopy("正在处理…", "Working…")).TextColor(muted)
 	}
 	if len(s.Candidates) > 0 {
 		query := s.Query

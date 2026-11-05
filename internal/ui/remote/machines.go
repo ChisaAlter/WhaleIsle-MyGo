@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -59,99 +60,88 @@ func viewMachines(c *ui.Context, m Model) {
 		}
 	}
 	muted, border := c.Theme().TextMuted, c.Theme().Border
-	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, label("远程机器", "Remote machines")).Bold().Grow(1).MinWidth(0)
+	toolsCard(c, "remote-machines-card", border, func() {
+		cardTitle(c, label("SSH 机器", "SSH machines"), func() {
 			if len(s.Machines) > 0 {
 				ui.Text(c, fmt.Sprintf("%d", len(s.Machines))).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
 			}
-			if widgets.Button(c, colors, label("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
-				m.Machines.Refresh()
-			}
-			if widgets.Button(c, colors, label("新增", "Add"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+			if widgets.Button(c, colors, label("添加机器", "Add machine"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
+				if e.Open && e.Draft.ID == "" {
+					e.Open = false
+					return
+				}
 				*e = MachineEditor{Open: true, Draft: remotestore.NewDraft()}
 			}
 		})
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		}
+		widgets.Notice(c, "machines:77", "", s.Notice != "", func() string { return s.Notice })
 		if s.Error != "" {
 			ui.Text(c, s.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Danger)
 		}
-		if s.Busy && len(s.Machines) == 0 {
-			ui.Text(c, label("正在读取机器列表…", "Loading machines…")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		if e.Open {
+			machineEditor(c, m, s, e, muted, border)
 		}
-		if s.Loaded && len(s.Machines) == 0 && s.Error == "" && !s.Busy {
-			emptyMachineCard(c, muted, border)
+		if s.Loaded && len(s.Machines) == 0 && s.Error == "" && !s.Busy && !e.Open {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(12, 0).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, label("还没有保存的 SSH 机器", "No saved SSH machines yet")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600)
+				ui.Text(c, label("添加一台机器后，新建工作区时可以选择「远程」标签页。", "Once a machine is added, the \"Remote\" tab appears when creating a workspace.")).
+					FillWidth().TextAlign(ui.Center).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			})
 		}
 		for _, machine := range s.Machines {
-			machineCard(c, m, s, e, machine, muted, border)
+			machineRow(c, m, s, e, machine, muted)
 			if e.PendingRemove == machine.ID {
 				removeMachineConfirm(c, m, s, e, machine, muted)
 			}
 		}
-		if e.Open {
-			machineEditor(c, m, s, e, muted)
-		}
-		viewMachineTools(c, m)
 	})
 }
 
-// emptyMachineCard is the empty state: it says what a machine is and offers the
-// one action that changes it.
-func emptyMachineCard(c *ui.Context, muted, border ui.Color) {
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(20, 16).Radius(10).Border(.5, border).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, label("还没有远程机器", "No remote machines yet")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600)
-		ui.Text(c, label("新增一台后可以连接、浏览它的目录并把镜像作为工作区。", "Add one to connect, browse its directories and use a mirror as your workspace.")).
-			FillWidth().TextAlign(ui.Center).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	})
-}
-
-// machineCard is one machine row: a status dot, the identity, the connection
-// facts and an overflow menu holding every action.
-func machineCard(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, machine remotestore.Machine, muted, border ui.Color) {
+// machineRow is one flat list row of the installed machine card: the identity
+// line, the mono facts and inline ghost actions.
+func machineRow(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, machine remotestore.Machine, muted ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	current := machine.ID == s.CurrentID
-	status := machineOffline
-	switch {
-	case current && s.Connected:
-		status = machineOnline
-	case current:
-		status = machineIdle
-	}
-	card := ui.Row(c.Key("remote-machine-"+machine.ID)).FillWidth().MinWidth(0).Gap(12).Padding(12, 14).Radius(10).Border(.5, border).AlignItems(ui.Center)
-	if card.Hovered() {
-		card.Background(c.Theme().SurfaceHover)
+	row := ui.Row(c.Key("remote-machine-"+machine.ID)).FillWidth().MinWidth(0).Gap(8).Padding(8, 0).AlignItems(ui.Center)
+	if row.Hovered() {
+		row.Background(c.Theme().SurfaceHover)
 	}
 	title := machine.Name
 	if title == "" {
 		title = machine.Host
 	}
-	card.ContextMenu(func(menu *ui.Menu) { machineMenu(c, menu, m, s, e, machine) })
-	card.Children(func() {
-		ui.Box(c).Size(8, 8).Shrink(0).Radius(4).Background(status)
+	row.Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, title).MinWidth(0).SingleLine().Tooltip(title).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600)
 				if current {
-					ui.Text(c, label("当前", "Current")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+					ui.Text(c, label("当前", "Active")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
-				if current && s.Connected {
-					ui.Text(c, label("已连接", "Connected")).FontSize(fonttheme.InterfaceSize(11)).TextColor(machineOnline)
+				if machine.PasswordSet {
+					ui.Text(c, label("已存密码", "Password saved")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 			})
-			ui.Text(c, machineAddress(machine)).FillWidth().MinWidth(0).SingleLine().Tooltip(machineAddress(machine)).
-				Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if meta := machineMeta(machine); meta != "" {
-				ui.Text(c, meta).FillWidth().MinWidth(0).SingleLine().Tooltip(meta).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, machineAddress(machine)).MinWidth(0).SingleLine().Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				if meta := machineMeta(machine); meta != "" {
+					ui.Text(c, meta).MinWidth(0).SingleLine().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				}
+			})
+		})
+		ui.Row(c).Shrink(0).Gap(4).Wrap().AlignItems(ui.Center).Children(func() {
+			if !current && widgets.Button(c, colors, label("设为当前", "Set active"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				m.Machines.Select(machine.ID)
+			}
+			if widgets.Button(c, colors, label("测试连接", "Test connection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				m.Machines.TestMachine(machine.ID)
+			}
+			if widgets.Button(c, colors, label("编辑", "Edit"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				*e = MachineEditor{Open: true, Draft: machine.EditDraft()}
+			}
+			if widgets.Button(c, colors, label("删除", "Delete"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				e.PendingRemove = machine.ID
+				e.RemovalGeneration = s.Generation
 			}
 		})
-		moreLabel := label("更多操作", "More actions")
-		more := ui.Button(c, "").Label(moreLabel).Size(24, 24).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(moreLabel)
-		more.Children(func() { ui.Text(c, "⋯").FontSize(fonttheme.InterfaceSize(14)).TextColor(muted) })
-		if more.Hovered() {
-			more.Background(c.Theme().SurfaceHover)
-		}
-		more.Menu(func(menu *ui.Menu) { machineMenu(c, menu, m, s, e, machine) })
 	})
 }
 
@@ -180,37 +170,7 @@ func machineMeta(machine remotestore.Machine) string {
 	if machine.Workspace != "" {
 		parts = append(parts, machine.Workspace)
 	}
-	if machine.PasswordSet {
-		parts = append(parts, label("已保存密码", "Password saved"))
-	}
 	return strings.Join(parts, " · ")
-}
-
-// machineMenu holds every machine action, so the row keeps one control.
-func machineMenu(c *ui.Context, menu *ui.Menu, m Model, s remotestore.Snapshot, e *MachineEditor, machine remotestore.Machine) {
-	if menu.Item(label("选择此机器", "Select this machine")).Disabled(s.Busy).Chosen() {
-		m.Machines.Select(machine.ID)
-	}
-	if menu.Item(label("测试连接", "Test connection")).Disabled(s.Busy).Chosen() {
-		m.Machines.TestMachine(machine.ID)
-	}
-	if machine.ID == s.CurrentID {
-		caption := label("连接 / 重连", "Connect / reconnect")
-		if s.Connected {
-			caption = label("重新连接", "Reconnect")
-		}
-		if menu.Item(caption).Disabled(s.Busy).Chosen() {
-			m.Machines.Connect()
-		}
-	}
-	menu.Separator()
-	if menu.Item(label("编辑…", "Edit…")).Disabled(s.Busy).Chosen() {
-		*e = MachineEditor{Open: true, Draft: machine.EditDraft()}
-	}
-	if menu.Item(label("移除…", "Remove…")).Disabled(s.Busy).Chosen() {
-		e.PendingRemove = machine.ID
-		e.RemovalGeneration = s.Generation
-	}
 }
 
 // removeMachineConfirm asks before dropping a machine and its saved credentials.
@@ -220,63 +180,103 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 	if title == "" {
 		title = machine.Host
 	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Padding(0, 14).Children(func() {
-		ui.Text(c, label("移除机器「"+title+"」？本机保存的凭据也会移除；不会删除远程文件。", "Remove machine \""+title+"\"? Locally saved credentials are removed too; remote files are kept.")).
-			Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || e.Removing).Clicked() {
-			e.PendingRemove = ""
-		}
-		if widgets.Button(c, colors, label("确认移除", "Confirm removal"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-			e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
-		}
+	open := true
+	ui.DialogBaseWithOptions(c.Key("remove-remote-machine"), &open, ui.DialogOptions{DismissDisabled: s.Busy || e.Removing, OnDismiss: func() { e.PendingRemove = "" }}, func(backdrop, panel ui.Element) {
+		_, height := c.Size()
+		chrome.DialogSurface(c, backdrop, panel, colors, 440, 20).MaxHeight(height - 24).Gap(14).Children(func() {
+			ui.Text(c, label("移除远程机器？", "Remove remote machine?")).Bold()
+			ui.Text(c, label("删除机器「"+title+"」？本机保存的凭据会一并移除。", "Delete machine \""+title+"\"? Locally stored credentials are removed too.")).
+				FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			if s.Error != "" {
+				ui.Text(c, s.Error).FillWidth().TextColor(c.Theme().Danger).Selectable()
+			}
+			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
+				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || e.Removing).Clicked() {
+					e.PendingRemove = ""
+				}
+				if widgets.Button(c, colors, label("确认移除", "Confirm removal"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+					e.Removing = m.Machines.RemoveAtGeneration(machine.ID, e.RemovalGeneration)
+				}
+			})
+		})
 	})
 }
 
-// machineEditor is the grouped form: address, credentials, labels. Field errors
-// are computed locally so a wrong port or a duplicate name never needs a round
-// trip to the host.
-func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, muted ui.Color) {
+// machineEditor is the installed flat form: labelled fields in the plugin's
+// order — identity, 认证方式 (secrets, fingerprint policy, toggles), 跳板机 —
+// then the test/cancel/save row. Local validation keeps bad drafts off the wire.
+func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEditor, muted, border ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	draft := &e.Draft
+	if draft.Options == nil {
+		draft.Options = &remotestore.ConnectionDraft{ProxyPort: "22"}
+	}
+	o := draft.Options
 	problem := machineDraftProblem(*draft, s.Machines)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(10).Padding(14).Radius(10).Border(.5, c.Theme().Border).Children(func() {
-		ui.Text(c, label("机器信息", "Machine")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(500)
-		ui.Text(c, label("密码留空会保留已有凭据；私钥只填写文件路径。", "A blank password keeps saved credentials; private keys are referenced by file path.")).
-			FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		editorGroup(c, label("标签", "Label"), func() {
-			editorField(c, label("名称", "Name"), &draft.Name, s.Busy, label("例如 构建机", "e.g. build box"))
-			editorField(c, label("工作区路径", "Workspace path"), &draft.Workspace, s.Busy, "/srv/app")
+	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(10, 0).Children(func() {
+		formTitle := label("编辑 SSH 机器", "Edit SSH machine")
+		if strings.TrimSpace(draft.ID) == "" {
+			formTitle = label("添加 SSH 机器", "Add SSH machine")
+		}
+		ui.Text(c, formTitle).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
+		editorField(c, label("名称", "Name"), &draft.Name, s.Busy, label("可选，默认同主机", "Optional; defaults to host"), false, border)
+		editorField(c, label("主机", "Host"), &draft.Host, s.Busy, label("example.com 或 192.168.1.10", "example.com or 192.168.1.10"), false, border)
+		editorField(c, label("端口", "Port"), &draft.Port, s.Busy, "22", false, border)
+		editorField(c, label("用户名", "Username"), &draft.Username, s.Busy, "", false, border)
+		ui.Text(c, label("认证方式", "Authentication")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
+		passwordPlaceholder := label("SSH 密码", "SSH password")
+		if draft.ID != "" {
+			passwordPlaceholder = label("留空保持不变", "Leave blank to keep current")
+		}
+		editorField(c, label("密码", "Password"), &o.Password, s.Busy, passwordPlaceholder, true, border)
+		editorField(c, label("私钥路径", "Private key path"), &draft.PrivateKeyPath, s.Busy, "~/.ssh/id_ed25519", false, border)
+		editorField(c, label("私钥口令", "Key passphrase"), &o.Passphrase, s.Busy, label("私钥加密时填写", "If the key is encrypted"), true, border)
+		ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+			ui.Text(c, label("主机指纹校验", "Host key verification")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			labels := []string{label("首次信任（TOFU）", "Trust on first use (TOFU)"), label("严格校验", "Strict verify"), label("不校验", "Disabled")}
+			active := 0
+			switch o.HostKeyMode {
+			case "verify":
+				active = 1
+			case "off":
+				active = 2
+			}
+			if picked := segmentedRow(c, "machine-hostkey", labels, active, s.Busy); picked >= 0 {
+				o.HostKeyMode = []string{"", "verify", "off"}[picked]
+			}
 		})
-		editorGroup(c, label("地址", "Address"), func() {
-			editorField(c, label("主机", "Host"), &draft.Host, s.Busy, "10.0.0.12")
-			editorField(c, label("端口", "Port"), &draft.Port, s.Busy, "22")
+		editorField(c, label("默认远程目录", "Default remote path"), &draft.Workspace, s.Busy, label("可选，如 /srv/app", "Optional, e.g. /srv/app"), false, border)
+		ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+			ui.Checkbox(c, &o.UseAgent, label("使用 SSH Agent", "Use SSH agent")).Disabled(s.Busy)
+			ui.Checkbox(c, &o.KeyboardInteractive, label("键盘交互（OTP/二次验证）", "Keyboard-interactive (OTP/2FA)")).Disabled(s.Busy)
+			ui.Switch(c, &o.EncryptPassword).Label(label("存入系统钥匙串", "Store in system keychain")).Disabled(s.Busy)
 		})
-		editorGroup(c, label("认证", "Credentials"), func() {
-			editorField(c, label("用户", "Username"), &draft.Username, s.Busy, "deploy")
-			editorField(c, label("私钥文件路径", "Private key path"), &draft.PrivateKeyPath, s.Busy, "~/.ssh/id_ed25519")
-		})
-		viewConnectionOptions(c, e, s.Busy)
+		ui.Text(c, label("跳板机", "Jump host")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
+		editorField(c, label("跳板主机", "Jump host"), &o.ProxyHost, s.Busy, "", false, border)
+		editorField(c, label("跳板端口", "Jump port"), &o.ProxyPort, s.Busy, "22", false, border)
+		editorField(c, label("跳板用户名", "Jump username"), &o.ProxyUsername, s.Busy, "", false, border)
+		editorField(c, label("跳板密码", "Jump password"), &o.ProxyPassword, s.Busy, "", true, border)
+		editorField(c, label("跳板私钥路径", "Jump key path"), &o.ProxyKeyPath, s.Busy, "", false, border)
 		if problem != "" {
 			ui.Text(c, problem).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
 		if e.Error != "" {
 			ui.Text(c, e.Error).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
-		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-				e.Open = false
-				e.Draft = remotestore.Draft{}
-				e.Error = ""
-			}
-			ui.Box(c).Grow(1)
-			if widgets.Button(c, colors, label("测试表单", "Test draft"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
+		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
+			if widgets.Button(c, colors, label("测试连接", "Test connection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
 				if err := m.Machines.TestDraft(e.Draft); err != nil {
 					e.Error = err.Error()
 				} else {
 					e.Error = ""
 				}
 			}
-			if ui.PrimaryButton(c, label("保存", "Save")).Disabled(s.Busy || problem != "").Clicked() {
+			if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				e.Open = false
+				e.Draft = remotestore.Draft{}
+				e.Error = ""
+			}
+			if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
 				if err := m.Machines.Save(e.Draft); err != nil {
 					e.Error = err.Error()
 				} else {
@@ -288,19 +288,49 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 	})
 }
 
-// editorGroup is one labelled block of the machine form.
-func editorGroup(c *ui.Context, title string, body func()) {
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-		ui.Text(c, title).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().TextMuted)
-		body()
+// segmentedRow is the installed SettingsSelect block: equal-width segments,
+// the chosen one inverted.
+func segmentedRow(c *ui.Context, key string, labels []string, active int, disabled bool) int {
+	const height float32 = 28
+	root := ui.Row(c.Key(key)).FillWidth().MinWidth(0).MaxWidth(340).Height(height).Shrink(0).Gap(8).AlignItems(ui.Stretch)
+	picked := -1
+	root.Children(func() {
+		width := (root.Bounds().W - float32(len(labels)-1)*8) / float32(len(labels))
+		if width < 60 {
+			width = 60
+		}
+		for index, caption := range labels {
+			i, text := index, caption
+			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
+				Width(width).Height(height).Padding(0).Radius(8).
+				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+			if disabled {
+				segment = segment.Disabled(true).Opacity(0.5)
+			}
+			labelColor := c.Theme().Text
+			if i == active {
+				segment.Background(labelColor)
+				labelColor = c.Theme().Background
+			}
+			segment.Children(func() {
+				ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(labelColor)
+			})
+			if segment.Clicked() && !disabled {
+				picked = i
+			}
+		}
 	})
+	return picked
 }
 
-// editorField is one labelled input row of the machine form.
-func editorField(c *ui.Context, title string, value *string, disabled bool, placeholder string) {
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, title).Width(120).Shrink(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-		ui.TextInput(c, value).Grow(1).MinWidth(160).Disabled(disabled).Placeholder(placeholder)
+// editorField is one label-above input of the installed machine form.
+func editorField(c *ui.Context, title string, value *string, disabled bool, placeholder string, password bool, border ui.Color) {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
+		input := ui.TextInput(c, value).FillWidth().MinWidth(0).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Disabled(disabled).Placeholder(placeholder)
+		if password {
+			input.Password()
+		}
 	})
 }
 

@@ -108,6 +108,9 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			note(storelocale.T(storelocale.KeyStoreImporterSkippedSession) + rel)
 			continue
 		}
+		if unsupported, mixed, reason := sessionEncoding(it.Abs); unsupported || mixed {
+			return ApplyResult{}, fmt.Errorf("session %s: %s", rel, reason)
+		}
 		dst := filepath.Join(cat.DestHome, "sessions", filepath.FromSlash(rel))
 		if it.Conflict && !sel.Overwrite {
 			skipped++

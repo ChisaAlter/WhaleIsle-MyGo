@@ -3,6 +3,7 @@ package pet
 import (
 	"fmt"
 	"html"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,12 +13,13 @@ import (
 )
 
 type CareStatus struct {
-	Action         careAnimation
-	Label          string
-	Busy           bool
-	Message        string
-	Satiety        float64
-	AffectionLevel int
+	Action          careAnimation
+	Label           string
+	Busy            bool
+	Message         string
+	Satiety         float64
+	Mood, Affection float64
+	AffectionLevel  int
 }
 
 func (p *Companion) careStatus() CareStatus {
@@ -37,7 +39,7 @@ func (p *Companion) careStatus() CareStatus {
 			level++
 		}
 	}
-	return CareStatus{Action: action, Satiety: stats.Satiety, AffectionLevel: level, Label: fmt.Sprintf(storelocale.T(storelocale.KeyDesktopPetCareLabel), stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
+	return CareStatus{Action: action, Satiety: stats.Satiety, Mood: stats.Mood, Affection: stats.Affection, AffectionLevel: level, Label: fmt.Sprintf(storelocale.T(storelocale.KeyDesktopPetCareLabel), stats.Satiety, stats.Mood, stats.Affection), Busy: busy, Message: message}
 }
 func renderCarePage(page []byte, care CareStatus) []byte {
 	return []byte(strings.NewReplacer("{{CARE_LABEL}}", html.EscapeString(care.Label), "{{CARE_MESSAGE}}", html.EscapeString(care.Message)).Replace(string(page)))
@@ -73,6 +75,7 @@ func (p *Companion) feedFile() {
 	}
 	message := ""
 	fed := false
+	name := ""
 	if err != nil {
 		message = storelocale.T(storelocale.KeyDesktopPetFileSelectionFailed)
 	} else if len(paths) > 0 {
@@ -80,13 +83,14 @@ func (p *Companion) feedFile() {
 			message = storelocale.T(storelocale.KeyDesktopPetSaveFailedNotApplied)
 		} else {
 			fed = true
+			name = filepath.Base(paths[0])
 			message = storelocale.T(storelocale.KeyDesktopPetFed)
 		}
 	}
 	p.assetMu.Lock()
 	p.feeding = false
 	if fed {
-		p.careAction = newCareAnimation("file", "", 0)
+		p.careAction = newCareAnimation("file", name, 0)
 		_ = p.rest.wake(nil)
 	}
 	p.feedMessage = message

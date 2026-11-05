@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botCreateAcknowledgement() string {
@@ -62,9 +63,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_create:66", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadCurrentCatalogAndAuthorityFirst)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {

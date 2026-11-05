@@ -175,6 +175,7 @@ func (s *Store) computeSystemPromptRowsLocked() []Message {
 	var first float64
 	relevant, uncertain := false, false
 	var turn, step, turnStart, stepStart float64
+	var currentTurn, currentStep *float64
 	inStep := false
 	var previousText string
 	var previousTurn, previousStep float64
@@ -208,12 +209,41 @@ func (s *Store) computeSystemPromptRowsLocked() []Message {
 		if update {
 			eventType = "system-prompt-update"
 		}
-		rows = append(rows, Message{ID: fmt.Sprintf("system-prompt:%s:%g", e.Type, e.Seq), Kind: MessageKindSystemPrompt, Role: "context", Body: text, Seq: at, TurnSeq: turnStart, EventType: eventType})
+		turnCoord, stepCoord := cloneFloat64Ptr(e.Data.Turn), cloneFloat64Ptr(e.Data.Step)
+		if turnCoord == nil {
+			turnCoord = cloneFloat64Ptr(currentTurn)
+		}
+		if stepCoord == nil {
+			stepCoord = cloneFloat64Ptr(currentStep)
+		}
+		rows = append(rows, Message{ID: fmt.Sprintf("system-prompt:%s:%g", e.Type, e.Seq), Kind: MessageKindSystemPrompt, Role: "context", Body: text, Seq: at, TurnSeq: turnStart, EventType: eventType, ConversationTurn: turnCoord, ConversationStep: stepCoord})
 	}
 	for _, seq := range seqs {
 		var e systemPromptEvent
 		if unmarshalSystemPromptEvent(s.trajectoryBoundaries[seq], &e) != nil {
 			continue
+		}
+		switch e.Type {
+		case "turn/end":
+			currentTurn, currentStep = nil, nil
+		case "step/end":
+			currentStep = nil
+		default:
+			if e.Type == "turn/start" {
+				currentTurn, currentStep = nil, nil
+			}
+			if e.Type == "step/start" {
+				currentStep = nil
+			}
+			if e.Data.Turn != nil {
+				if currentTurn == nil || *currentTurn != *e.Data.Turn {
+					currentStep = nil
+				}
+				currentTurn = cloneFloat64Ptr(e.Data.Turn)
+			}
+			if e.Data.Step != nil {
+				currentStep = cloneFloat64Ptr(e.Data.Step)
+			}
 		}
 		switch e.Type {
 		case "turn/start":

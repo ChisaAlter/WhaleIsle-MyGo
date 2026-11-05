@@ -13,9 +13,10 @@ type petHitRect struct {
 }
 
 type petHitReport struct {
-	Width, Height float64
-	Regions       []petHitRect
-	Epoch         uint64
+	Width, Height       float64
+	Regions             []petHitRect
+	Epoch               uint64
+	MenuOpen, StageBusy bool
 }
 
 type petHitState struct {
@@ -120,5 +121,6 @@ func (s *interactionState) publishHitReport(report petHitReport) bool {
 		return false
 	}
 	s.hit.report = report
+	s.menuOpen, s.stageBusy = report.MenuOpen, report.StageBusy
 	return true
 }

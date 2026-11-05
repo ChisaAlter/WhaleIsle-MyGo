@@ -16,6 +16,26 @@ type SkillCatalog struct {
 	Err, Notice, Action string
 	Errors              map[string]string
 	Busy                bool
+	invocationScope     skillCatalogInvocationScope
+}
+
+type skillCatalogInvocationScope struct {
+	client              *dsh.Client
+	sessionID, cwd      string
+	generation, version uint64
+}
+
+// SkillInvocationMember identifies one displayed catalog entry, not a group name.
+type SkillInvocationMember struct {
+	Name, Source, Path string
+}
+
+func skillInvocationMember(sk api.SkillInventorySnapshotSkillsItem) SkillInvocationMember {
+	member := SkillInvocationMember{Name: sk.Name, Source: sk.Source}
+	if sk.Path != nil {
+		member.Path = *sk.Path
+	}
+	return member
 }
 
 func (c SkillCatalog) clone() SkillCatalog {
@@ -46,6 +66,20 @@ func NormalizeSkillGroups(groups []string) []string {
 
 func (s *Store) RefreshSkillCatalog(ctx context.Context) {
 	s.refreshSkillCatalogForOwner(ctx, nil)
+}
+
+// skillAgentAvailableRefreshLocked captures the selected reader before an
+// availability notification can re-enter navigation. session/follow publishes
+// its cold snapshot before promoting the Agent; only this later event confirms
+// the preset-scoped inventory service is ready. Its new read also fences a
+// pending global fallback from the earlier cold request.
+func (s *Store) skillAgentAvailableRefreshLocked(events *EventsOwner, sessionID string) func() {
+	if !s.eventsOwnerCurrentLocked(events) || sessionID == "" || sessionID != s.selectedID {
+		return nil
+	}
+	owner := workspaceSelectedOwner{client: events.client, hostGeneration: events.generation, composerGeneration: s.composerHostGeneration,
+		followGeneration: s.followGeneration, sessionID: sessionID, cwd: s.cwd}
+	return func() { s.refreshSkillsForOwner(events.ctx, &owner) }
 }
 
 func (s *Store) refreshSkillCatalogForOwner(ctx context.Context, owner *workspaceSelectedOwner) {
@@ -127,6 +161,7 @@ func (s *Store) refreshSkillCatalogForOwner(ctx context.Context, owner *workspac
 			s.skillCatalog.Err = ""
 			s.skillCatalog.Notice = notice
 			s.skillCatalogScope = scope
+			s.skillCatalog.invocationScope = skillCatalogInvocationScope{client, sid, cwd, generation, version}
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -193,13 +228,47 @@ func (s *Store) SetCatalogSkillInvocation(ctx context.Context, name string, enab
 	s.setCatalogInvocation(ctx, func(sk api.SkillInventorySnapshotSkillsItem) bool { return sk.Name == name }, enabled)
 }
 
+// SetVisibleSkillGroupInvocation updates only the exact displayed members of the
+// captured catalog. SetSkillGroupInvocation keeps its existing whole-group API.
+func (s *Store) SetVisibleSkillGroupInvocation(ctx context.Context, catalog SkillCatalog, members []SkillInvocationMember, enabled bool) error {
+	selected := make(map[SkillInvocationMember]bool, len(members))
+	for _, member := range members {
+		selected[member] = true
+	}
+	return s.setCatalogInvocationScoped(ctx, func(sk api.SkillInventorySnapshotSkillsItem) bool {
+		return selected[skillInvocationMember(sk)]
+	}, enabled, &catalog.invocationScope, selected)
+}
+
 func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.SkillInventorySnapshotSkillsItem) bool, enabled bool) {
+	_ = s.setCatalogInvocationScoped(ctx, matches, enabled, nil, nil)
+}
+
+func (s *Store) setCatalogInvocationScoped(ctx context.Context, matches func(api.SkillInventorySnapshotSkillsItem) bool, enabled bool, expected *skillCatalogInvocationScope, members map[SkillInvocationMember]bool) error {
 	s.mu.Lock()
 	client, scope := s.client, s.skillCatalogScope
 	sid, cwd, generation := s.selectedID, s.cwd, s.eventsGeneration
 	if ctx.Err() != nil || !s.skillCatalogCurrentLocked(client, sid, cwd, s.skillCatalogVersion) || s.skillCatalogLoading || s.skillCatalog.Busy {
 		s.mu.Unlock()
-		return
+		return fmt.Errorf("Skill catalog changed; refresh before changing group invocation")
+	}
+	if expected != nil {
+		current := skillCatalogInvocationScope{client, sid, cwd, generation, s.skillCatalogVersion}
+		if *expected != current {
+			s.mu.Unlock()
+			return fmt.Errorf("Skill catalog changed; refresh before changing group invocation")
+		}
+		found := map[SkillInvocationMember]bool{}
+		for _, sk := range s.skillCatalog.Skills {
+			member := skillInvocationMember(sk)
+			if members[member] && sk.Writable {
+				found[member] = true
+			}
+		}
+		if len(found) != len(members) {
+			s.mu.Unlock()
+			return fmt.Errorf("Displayed Skill members changed; refresh before changing group invocation")
+		}
 	}
 	var targets []api.SkillInventorySnapshotSkillsItem
 	for i, sk := range s.skillCatalog.Skills {
@@ -210,10 +279,11 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 	}
 	if len(targets) == 0 {
 		s.mu.Unlock()
-		return
+		return nil
 	}
 	s.skillCatalogVersion++
 	version := s.skillCatalogVersion
+	s.skillCatalog.invocationScope = skillCatalogInvocationScope{client, sid, cwd, generation, version}
 	s.skillCatalog.Busy = true
 	s.skillCatalog.Errors = map[string]string{}
 	s.skillCatalog.Action = ""
@@ -248,6 +318,12 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 							s.skillCatalog.Skills[i].ModelInvocable = sk.ModelInvocable
 						}
 					}
+				} else if s.skillOptionsScopeCurrentLocked(s.skillOptionsOwner) {
+					for i := range s.skillOptions {
+						if s.skillOptions[i].Name == sk.Name {
+							s.skillOptions[i].UserOnly = !enabled
+						}
+					}
 				}
 			}
 			s.skillCatalog.Errors = failures
@@ -259,6 +335,7 @@ func (s *Store) setCatalogInvocation(ctx context.Context, matches func(api.Skill
 		s.mu.Unlock()
 		s.fire()
 	}()
+	return nil
 }
 
 // SaveCatalogSkill sends groups explicitly, including [] to clear all tags.

@@ -4,6 +4,7 @@ import (
 	"time"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/petgrowth"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -29,7 +30,7 @@ func (s *mainState) refreshPetGrowthAction(wantsFeed, automatic bool) {
 	}
 	node, home := cfg.Get().NodeBin, paths.DshHome()
 	go func() {
-		samples, err := harness.ScanPetUsage(ctx, node, home)
+		samples, err := harness.ScanPetUsageSources(ctx, node, home, petgrowth.MagpieUsageFile())
 		win.Update(func() {
 			s.dshMu.Lock()
 			currentClient := s.dshClient
@@ -42,7 +43,7 @@ func (s *mainState) refreshPetGrowthAction(wantsFeed, automatic bool) {
 				return
 			}
 			finishPetGrowthRefresh(ctx, err, wantsFeed, finish, func() error {
-				return cfg.RefreshPetGrowth(samples, time.Now())
+				return cfg.RefreshPetGrowthUsage(samples, time.Now())
 			}, p.FeedTokensAfterRefresh)
 		})
 	}()

@@ -14,9 +14,9 @@ import (
 // same numbers drive the separate chat window and its placement.
 const (
 	quickChatWidth     = 248
-	quickChatHeight    = 360
+	quickChatHeight    = 166
 	quickChatMinWidth  = 248
-	quickChatMinHeight = 220
+	quickChatMinHeight = 100
 	quickChatAnchorGap = 8
 	quickChatInset     = 4
 )
@@ -72,10 +72,38 @@ func (q *QuickChat) positionNearPet() {
 		point := quickChatPositionInSpace(bounds, card, area, scale)
 		card.X, card.Y = int(point.x), int(point.y)
 		petPlaceNative(q.win, card)
+		q.publishChatBounds()
+		if q.picker != nil {
+			q.picker.position()
+		}
 	}
 }
 
 func (q *QuickChat) followPet() {
 	q.positionNearPet()
-	q.offAnchor = append(q.offAnchor, q.parent.OnMove(q.positionNearPet), q.win.OnResize(q.positionNearPet), mygo.Screen.OnDisplaysChanged(q.positionNearPet))
+	q.offAnchor = append(q.offAnchor, q.parent.OnMove(q.positionNearPet), q.win.OnResize(q.positionNearPet), q.win.OnMove(func() {
+		q.publishChatBounds()
+		if q.picker != nil {
+			q.picker.position()
+		}
+	}), mygo.Screen.OnDisplaysChanged(q.positionNearPet))
+}
+
+// Include an open owned menu in the page-local exclusion island. HTTP readers
+// only see this immutable rectangle, never UI-thread window pointers.
+func (q *QuickChat) publishChatBounds() {
+	if q.closed || q.win == nil || q.win.IsDestroyed() || q.parent == nil || q.parent.IsDestroyed() {
+		return
+	}
+	card := petWindowBounds(q.win)
+	if p := q.picker; p != nil && p.win != nil && !p.win.IsDestroyed() {
+		menu := petWindowBounds(p.win)
+		right, bottom := max(card.X+card.Width, menu.X+menu.Width), max(card.Y+card.Height, menu.Y+menu.Height)
+		card.X, card.Y = min(card.X, menu.X), min(card.Y, menu.Y)
+		card.Width, card.Height = right-card.X, bottom-card.Y
+	}
+	view := localPetLayout(card, petContentBounds(q.parent), mygo.Rectangle{}, petWindowScale(q.parent))
+	q.owner.assetMu.Lock()
+	q.owner.quickChatBounds = mygo.Rectangle{X: view.X, Y: view.Y, Width: view.Width, Height: view.Height}
+	q.owner.assetMu.Unlock()
 }

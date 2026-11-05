@@ -32,9 +32,14 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, d := range s.composerDrafts {
+		// Addressed children have their own navigation lease and can be visible
+		// beside the root composer. Their stable opaque keys are not root IDs.
+		if strings.HasPrefix(id, "\x00child-draft:") {
+			continue
+		}
 		if !rendered || id != sessionID {
 			d.EndEdit()
-			d.RetireNativeCommands()
+			d.RetireBinding()
 		}
 	}
 }
@@ -89,6 +94,9 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		sessions.EnsureSlashCommands(context.Background())
 		live = sessions.Snapshot()
 	}
+	if !isRoom && s.handleSessionLogExportCommand(win, sessions, d, live) {
+		return
+	}
 	if !isRoom && d.HandleNativeCommand(live, func(owner composer.NativeCommandOwner, name string) bool {
 		return s.nativeComposerCommandAction(win, sessions, d, id, cwd, owner, name)
 	}) {
@@ -98,7 +106,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		d.Error = failure
 		return
 	}
-	hero := len(live.Messages) == 0 && !live.PromptAttempted && !live.PromptBusy
+	hero := !live.HasConversationContent() && !live.PromptAttempted && !live.PromptBusy
 	for _, item := range live.Items {
 		if item.SessionID == id && item.Running {
 			hero = false

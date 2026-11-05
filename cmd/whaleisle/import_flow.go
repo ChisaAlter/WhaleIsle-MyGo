@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"time"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -13,6 +14,7 @@ import (
 )
 
 func (s *mainState) startImport(win *mygo.Window) {
+	s.cancelImportCatalogScan()
 	refresh := func() {
 		if win != nil {
 			win.Update(func() {})
@@ -62,6 +64,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 		return
 	}
 	s.askConfirm(confirmAskRequest{
+		Owner:        win,
 		Title:        i18n.T(i18n.KeyCmdConfirmDataImport),
 		Body:         importer.Confirmation(cat, sel) + "\n\n" + i18n.T(i18n.KeyCmdBeforeImportingCurrentTasksAreCheckedA),
 		ConfirmLabel: i18n.T(i18n.KeyCmdConfirmAndContinue),
@@ -160,6 +163,13 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 
 // Native restarts preserve import admission and coordinate Host task protection.
 func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
+	return s.restartUnlessImportWithResult(sup, false, nil)
+}
+
+// External feature writers keep their maintenance lease until complete settles
+// or rolls back their fields. Accepted work calls complete before releasing the
+// pending slot; a synchronous admission refusal returns false without a call.
+func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maintenanceOwned bool, complete func(bool, error)) bool {
 	if sup == nil {
 		return false
 	}
@@ -177,7 +187,12 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 	win := s.win
 	s.mu.Unlock()
 	go func() {
+		var did bool
+		var resultErr error
 		defer func() {
+			if complete != nil {
+				complete(did, resultErr)
+			}
 			s.mu.Lock()
 			s.taskRestartPending = false
 			s.mu.Unlock()
@@ -185,12 +200,35 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 				win.Update(func() {})
 			}
 		}()
-		if err := importer.CheckImportReady(paths.DshHome()); err != nil {
-			s.taskProtectionError(win, err)
+		ctx := context.Background()
+		if complete != nil {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, 4*time.Minute)
+			defer cancel()
+		}
+		if !maintenanceOwned {
+			if resultErr = importer.CheckImportReady(paths.DshHome()); resultErr != nil {
+				if complete == nil {
+					s.taskProtectionError(win, resultErr)
+				}
+				return
+			}
+		}
+		s.mu.Lock()
+		busy := s.launcherImportBusy
+		s.mu.Unlock()
+		if busy {
+			resultErr = errors.New(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion))
+			if complete == nil {
+				s.taskProtectionError(win, resultErr)
+			}
 			return
 		}
-		s.withTaskProtection(win, sup, "restart", func() error {
+		did, resultErr = s.protectTaskAction(ctx, win, sup, "restart", func() error {
 			// Recheck after Host inspection/confirmation and before the first side effect.
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
@@ -198,12 +236,29 @@ func (s *mainState) restartUnlessImport(sup *harness.Supervisor) bool {
 			}
 			s.launcherStartBusy = true
 			s.mu.Unlock()
+			if complete != nil {
+				// Publish an external writer's pending overlay only after task
+				// confirmation accepted this exact runtime's restart.
+				s.syncHarnessFromConfig()
+			}
 			if err := s.closeTaskProtectedResources(); err != nil {
+				s.mu.Lock()
+				s.launcherStartBusy = false
+				s.mu.Unlock()
 				return err
+			}
+			if complete != nil {
+				return sup.RestartAndWait(ctx)
 			}
 			sup.Restart()
 			return nil
 		})
+		if !did && resultErr == nil {
+			resultErr = taskcontrol.ErrCancelled
+		}
+		if complete == nil {
+			s.taskProtectionError(win, resultErr)
+		}
 	}()
 	if win != nil {
 		win.Update(func() {})

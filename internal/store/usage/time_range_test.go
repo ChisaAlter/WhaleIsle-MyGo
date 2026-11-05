@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Removing either the inclusive date filter or the export selection breaks this fixture.
+// The inclusive filter belongs to the heatmap summary, not to export scope.
 func TestStatsDateRangeSelectionExportAndClear(t *testing.T) {
 	s := New()
 	s.stats.Raw = json.RawMessage(`{"days":[{"date":"2026-10-12","total":2,"models":{"a":{"input":2,"total":2}}},{"date":"2026-10-13","total":3,"models":{"b":{"output":3,"total":3}}},{"date":"2026-10-14","total":5,"models":{"a":{"input":5,"total":5}}}],"allTime":{"totals":{"total":100},"byModel":[{"model":"a","provider":"p","total":97},{"model":"b","provider":"q","total":3}]},"topSessions":[{"id":"outside","totals":{"total":100}}],"coverage":{"timezone":"UTC","sessionsFailed":1},"updatedAt":1}`)
@@ -18,17 +18,18 @@ func TestStatsDateRangeSelectionExportAndClear(t *testing.T) {
 	if selected.Totals.Total != 8 || len(selected.Days) != 2 || selected.Models[0].Model != "a" || selected.Models[0].Total != 5 {
 		t.Fatalf("bad selection: %+v", selected)
 	}
-	for _, format := range []string{"days", "models", "json"} {
+	for _, format := range []string{"days", "json", "sessions"} {
 		b, err := s.ExportStats(format)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(b), "2026-10-12") || strings.Contains(string(b), "outside") {
-			t.Fatalf("unfiltered %s export: %s", format, b)
+		want := "2026-10-12"
+		if format == "sessions" {
+			want = "outside"
 		}
-	}
-	if _, err := s.ExportStats("sessions"); err == nil {
-		t.Fatal("invented dated session totals")
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("calendar selection narrowed %s export: %s", format, b)
+		}
 	}
 	if err := s.SetStatsDateRange("2026-10-14", "2026-10-12"); err == nil {
 		t.Fatal("reversed date accepted")

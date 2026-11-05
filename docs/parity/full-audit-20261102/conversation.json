@@ -1,0 +1,3037 @@
+{
+  "domain": "conversation",
+  "auditComplete": true,
+  "modulesReviewed": [
+    "internal/ui/composer/composer.go",
+    "internal/ui/composer/child_editor.go",
+    "internal/ui/agents/child_editor.go",
+    "internal/ui/frame/frame.go",
+    "internal/ui/chat/thinking.go",
+    "internal/store/session/file_refs.go",
+    "internal/store/session/composer_submit.go",
+    "internal/store/interaction/plan_review.go",
+    "internal/store/interaction/questions.go",
+    "cmd/whaleisle/composer_flow.go",
+    "cmd/whaleisle/composer_detached.go",
+    "cmd/whaleisle/main.go",
+    "internal/store/session/composer_gesture.go",
+    "internal/ui/composer/draft_flights.go",
+    "internal/store/session/composer_pending.go",
+    "internal/ui/composer/draft_input.go",
+    "internal/ui/composer/draft_client.go",
+    "internal/ui/composer/draft_navigation.go",
+    "internal/ui/composer/draft_undo.go",
+    "internal/ui/composer/stop_sequence.go",
+    "internal/store/session/store.go",
+    "internal/ui/composer/draft_state.go",
+    "cmd/whaleisle/recovery.go",
+    "cmd/whaleisle/resume_checkpoint.go",
+    "cmd/whaleisle/composer_native_files.go",
+    "cmd/whaleisle/composer_attachment_retry.go",
+    "internal/ui/composer/attachment_retry.go",
+    "internal/ui/composer/attachment_display.go",
+    "internal/ui/composer/reference_activation.go",
+    "internal/ui/composer/reference_navigation.go",
+    "internal/ui/composer/suggest_keyboard.go",
+    "internal/ui/composer/native_commands.go",
+    "internal/store/session/command_catalog.go",
+    "internal/store/session/commands.go",
+    "internal/ui/composer/model_picker_grouped.go",
+    "internal/store/session/models.go",
+    "internal/store/session/native_command_selection.go",
+    "internal/store/session/permissions.go",
+    "internal/store/session/permission_risk.go",
+    "internal/ui/composer/permission_command.go",
+    "internal/store/session/agent_presets.go",
+    "internal/store/session/agent_preset_draft.go",
+    "internal/ui/composer/preset_introduction.go",
+    "internal/ui/chat/queue_dock.go",
+    "internal/store/session/queue_editor.go",
+    "internal/store/session/queue.go",
+    "internal/ui/composer/next_prompt.go",
+    "internal/store/session/next_prompt.go",
+    "internal/ui/composer/context_meter.go",
+    "internal/store/session/context_occupancy.go",
+    "internal/store/session/plan_mode_projection.go",
+    "internal/ui/frame/conversation_phase.go",
+    "internal/ui/chat/chat.go",
+    "internal/store/session/follow.go",
+    "internal/store/session/assistant_stream.go",
+    "internal/store/session/page.go",
+    "internal/ui/chat/transcript_list.go",
+    "internal/ui/chat/turn_rail.go",
+    "internal/ui/chat/history_navigation.go",
+    "internal/store/session/history_navigation.go",
+    "internal/ui/chat/transcript_preferences.go",
+    "internal/ui/chat/disclosure.go",
+    "internal/ui/chat/failure_notice.go",
+    "internal/ui/chat/retry_status.go",
+    "internal/ui/chat/markdown_style.go",
+    "internal/ui/widgets/markdown/math_parser.go",
+    "internal/ui/widgets/markdown/blocks.go",
+    "internal/ui/widgets/markdown/codeblock.go",
+    "internal/ui/widgets/markdown/table.go",
+    "internal/markdownsyntax/images.go",
+    "internal/ui/widgets/markdown/math_view.go",
+    "internal/mathrender/render.go",
+    "internal/mathrender/process_windows.go",
+    "internal/ui/chat/image.go",
+    "internal/ui/chat/attachments.go",
+    "internal/store/session/attachment.go",
+    "internal/ui/chat/user_references.go",
+    "internal/ui/chat/child_image_autoload.go",
+    "internal/ui/chat/citations.go",
+    "internal/ui/chat/file_mentions.go",
+    "internal/ui/widgets/markdown/file_link.go",
+    "internal/ui/chat/message_actions.go",
+    "internal/store/session/history_branch.go",
+    "internal/ui/chat/quote.go",
+    "internal/ui/chat/message_clock.go",
+    "internal/store/session/message_edit.go",
+    "internal/ui/composer/edit_session.go",
+    "internal/ui/chat/feedback_dialog.go",
+    "internal/store/session/feedback.go",
+    "internal/ui/chat/feedback_editor.go",
+    "cmd/whaleisle/composer_native_commands.go",
+    "internal/store/session/session_feedback.go",
+    "internal/store/session/manual_compaction.go",
+    "internal/store/session/automatic_compaction.go",
+    "internal/ui/chat/manual_compaction.go",
+    "internal/ui/chat/compaction.go",
+    "internal/ui/chat/context_body.go",
+    "internal/ui/chat/context_injection.go",
+    "internal/ui/chat/system_prompt.go",
+    "internal/store/session/system_prompt.go",
+    "internal/store/session/turn_triggers.go",
+    "internal/store/session/tool_lifecycle.go",
+    "internal/ui/chat/tool_lifecycle.go",
+    "internal/ui/chat/toolrow.go",
+    "internal/ui/chat/toolcard.go",
+    "internal/ui/chat/tool_files.go",
+    "internal/ui/chat/tool_read_model.go",
+    "internal/ui/chat/tool_search_model.go",
+    "internal/ui/chat/tool_web_model.go",
+    "internal/ui/chat/tool_image_model.go",
+    "internal/ui/chat/submitted_plan.go",
+    "internal/store/session/submitted_plan.go",
+    "internal/ui/interaction/plan_review.go",
+    "internal/ui/interaction/card.go",
+    "internal/ui/interaction/approval_keys.go",
+    "internal/store/interaction/store.go",
+    "internal/ui/interaction/question_navigation.go",
+    "internal/ui/interaction/question_options.go",
+    "internal/ui/interaction/question_editing.go",
+    "internal/store/interaction/question_navigation.go",
+    "internal/store/interaction/question_wait.go",
+    "internal/ui/interaction/question_wait.go",
+    "internal/store/interaction/projected_questions.go",
+    "internal/store/interaction/user_questions_rpc.go",
+    "internal/store/interaction/question_history.go",
+    "internal/store/interaction/question_persistence.go",
+    "cmd/whaleisle/question_recovery.go",
+    "internal/store/session/question_reply.go",
+    "internal/ui/agents/child_interactions.go",
+    "internal/ui/agents/panel.go",
+    "internal/ui/agents/navigation.go",
+    "internal/ui/agents/catalog_metrics.go",
+    "internal/store/session/agent_navigation.go",
+    "internal/store/session/agent_chat_pane.go",
+    "internal/store/session/agent_navigation_live.go",
+    "internal/store/session/agent_retained_prompt.go",
+    "internal/store/session/agent_navigation_images.go",
+    "internal/store/session/agent_retained_owner.go",
+    "internal/store/session/agent_restored_reader.go",
+    "internal/store/session/agent_restore_lineage.go",
+    "internal/store/session/agent_navigation_pane.go",
+    "internal/ui/chat/workflow.go",
+    "internal/ui/chat/workflow_disclosure.go",
+    "internal/store/session/workflow.go",
+    "internal/store/session/workflow_member.go",
+    "internal/store/session/workflow_member_stream.go",
+    "internal/ui/chat/trajectory.go",
+    "internal/ui/chat/trajectory_timing.go",
+    "internal/ui/chat/trajectory_range.go",
+    "internal/ui/chat/trajectory_viewport.go",
+    "internal/store/session/trajectory_timing.go",
+    "internal/store/session/trajectory_requests.go",
+    "internal/store/session/trajectory_request_header.go",
+    "internal/ui/chat/trajectory_request_header.go",
+    "internal/ui/chat/trajectory_json.go",
+    "internal/ui/frame/session_inspector_pane.go",
+    "internal/ui/frame/session_inspector_navigation.go",
+    "internal/ui/chat/session_inspector_picker.go",
+    "internal/ui/chat/session_inspector_tools.go",
+    "internal/store/session/session_inspector.go",
+    "internal/ui/frame/conversation_header.go",
+    "internal/ui/frame/jobs.go",
+    "internal/store/session/jobs.go",
+    "internal/ui/chat/performance_usage.go",
+    "internal/store/session/turn_usage.go",
+    "internal/ui/sessioncost/view.go",
+    "internal/ui/chat/usage_label.go",
+    "internal/ui/chat/turn_deliverables.go",
+    "internal/store/session/turn_deliverables.go",
+    "internal/store/session/visual_reply.go",
+    "internal/ui/chat/visual_reply.go",
+    "cmd/whaleisle/visual_reply_inline.go",
+    "internal/store/session/visual_reply_interactive.go",
+    "internal/ui/chat/openui.go",
+    "internal/ui/chat/whale_ui_tool.go",
+    "internal/ui/chat/whale_ui_panel.go",
+    "internal/ui/chat/plugin_inline.go",
+    "cmd/whaleisle/plugin_session_turns.go",
+    "internal/ui/composer/resize.go",
+    "internal/ui/composer/beam.go",
+    "internal/ui/composer/typing_effects.go",
+    "internal/dsh/rpc.go",
+    "internal/store/session/goals.go",
+    "cmd/whaleisle/plugin_slot_views.go",
+    "internal/ui/frame/session_feedback.go",
+    "internal/ui/chat/tool_details_control_model.go",
+    "internal/ui/chat/tool_details.go",
+    "internal/ui/chat/tool_details_entries.go",
+    "internal/ui/chat/tool_details_model.go",
+    "internal/ui/chat/terminal_model.go",
+    "internal/ui/chat/tool_details_inspection_model.go",
+    "internal/ui/chat/tool_details_todo_model.go",
+    "internal/ui/frame/session_inspector_table.go",
+    "internal/ui/chat/session_inspector.go",
+    "internal/ui/frame/session_inspector_format.go",
+    "internal/ui/frame/session_inspector_controls.go",
+    "internal/ui/frame/session_inspector_layout.go",
+    "internal/ui/frame/session_inspector_motion.go",
+    "internal/ui/frame/session_inspector_tree.go",
+    "internal/ui/frame/session_inspector_details.go",
+    "internal/ui/frame/session_inspector_objects.go",
+    "internal/ui/frame/session_inspector_pick.go",
+    "internal/ui/chat/session_inspector_target.go",
+    "internal/ui/chat/session_inspector_reveal.go",
+    "internal/ui/chat/session_inspector_smooth.go",
+    "internal/store/session/command_history.go",
+    "internal/store/session/context_message.go"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-reference/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-goal/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-goal/lib/types/client/GoalBar.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/PlanReviewPanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/contract/slots.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ReasoningRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/submission-policy.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/service.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/editor/keymap.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/stop-shortcut.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/draft.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-attachment/lib/types/client/ComposerAttachments.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-commands/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-model-selection/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-model-selection/lib/types/client/service.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-permission-presets/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/queue/QueueDock.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/next-prompt.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ContextMeter.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/TodoPanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/types/client/PlanModeControl.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ConversationSession.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ChatView.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/conversation-nodes/chat-snapshot-builder.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/conversation/assembler.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/use-chat-viewport.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/use-chat-scroll.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnNavigator.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/transcript-view.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ReasoningContent.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/settings/LinkOpeningRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/MessageIconActions.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/MessageItem.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-edit/lib/types/client/MessageEditAction.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/CompactionItem.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/CompactionCommandCard.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/conversation-nodes/compaction.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ContextBody.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/SystemPromptRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnTriggerNodeView.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/ToolCallTree.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/components/ToolRow.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/components/ToolDetails.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/read-card-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/diff-card-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/search-card-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/web-card-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-approval/lib/types/client/ApprovalPanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/QuestionComposer.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/draft-store.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/agents.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/AgentsPanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/sidebar-chat/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/apply.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/register-node-renderers.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryToolbar.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryView.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/timeline.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/trajectory-request-header-definition.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryCell.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/trajectory-assistant-definition.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/locales.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/types/client/index.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnUsagePanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/SessionCostCard.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/subagent-cost.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/types/client/Deliverables.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/types/client/changes-summary.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/PublishedPage.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ComposerResizeHandles.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-cot-translation/lib/types/client/mount.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/dialog.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/FeedbackDialog.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/types/client/WorkflowRunPanel.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/types/client/JobListAction.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/detail-model-shared.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/tool-session-query/lib/types/presentation.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/details-card-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-history.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-diff-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/View.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/groups.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/stream.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/type-filter.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/TypeFilter.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/table-model.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorObjectTree.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/raw-json.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorDetails.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/objects.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/object-value.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/pick-match.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/picker.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/chat-target.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/reveal-target.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/reveal.js"
+  ],
+  "features": [
+    {
+      "id": "CHAT-001",
+      "feature": "@文件/目录/会话候选查询不得阻塞原生渲染",
+      "baseline": "installed-0.3.13",
+      "expected": "输入@时异步获取候选；改词/导航能取消旧查询，候选失败不冻结输入。",
+      "entry": "composer.View → buildSuggestItemsWithQuote → main.OnSearchReferences",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-reference/lib/types/client/index.js:38-61: async candidates并传AbortSignal，Promise.all等待不阻塞渲染"
+      ],
+      "mygoEvidence": [
+        "internal/ui/composer/composer.go:682-700: 渲染路径同步调用OnSearchReferences",
+        "cmd/whaleisle/main.go:7137-7142: 生产回调以Background调用ListReferenceCandidates",
+        "internal/store/session/file_refs.go:20-51: 两个RPC虽并发，调用线程wg.Wait后才返回",
+        "internal/dsh/rpc.go:44-64: 默认http.Client无总请求Timeout，Background不提供查询取消"
+      ],
+      "finding": "真实production渲染链同步等待Host RPC。查询在UI owner上发生，没有每次查询的取消/超时；因此@候选可把该帧阻塞到RPC结束。未测实际停顿时长。",
+      "evidenceLevel": "code",
+      "requiredAction": "把查询移出paint，以会话/Host/query所有权异步发布，保留加载/失败/取消反馈。",
+      "acceptanceGap": "尚未运行慢Host、断线、连续输入和切会话的原生路径。"
+    },
+    {
+      "id": "CHAT-002",
+      "feature": "子会话发送成功后的输入清理与草稿恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "子会话可继续发言；成功消耗本次草稿，失败保留；离开/重启保留未发送内容。",
+      "entry": "agents.childEditor → composer.ChildEditor → PromptAgentNavigationExplicit",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/sidebar-chat/index.js:84-113: 子会话使用共享conversation.content/session",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js:223-234,560-568: 共享草稿快照/持久化与编辑stash"
+      ],
+      "mygoEvidence": [
+        "internal/ui/agents/child_editor.go:14-19: draft只存ui.Local",
+        "internal/ui/agents/child_editor.go:37-45: OnSend只调用Store，不提供成功收据或清文本",
+        "internal/ui/composer/child_editor.go:23-39: send直接回调，不清DraftState",
+        "internal/store/session/agent_navigation.go:514-530: 完成清ActionBusy/PromptImages，不访问UI draft",
+        "cmd/whaleisle/composer_flow.go:15-25: 主会话草稿另由composerDrafts持有"
+      ],
+      "finding": "子输入为局部DraftState，成功回调不清Text；Store仅清附件与busy。该草稿也不纳入main.composerDrafts，不能沿主草稿checkpoint恢复。重复点击会再次发送旧文本。",
+      "evidenceLevel": "code",
+      "requiredAction": "为子草稿建立owner和发送收据：仅成功消耗对应版本，失败/新编辑保留；加入子地址隔离的恢复。",
+      "acceptanceGap": "本轮未发模型请求；未验证子面板卸载时ui.Local的具体生存期。"
+    },
+    {
+      "id": "CHAT-003",
+      "feature": "活动目标GoalDock的状态、编辑、暂停/恢复与清除入口",
+      "baseline": "installed-0.3.13",
+      "expected": "已有目标在输入区dock显示，可编辑/暂停/恢复/清除，维护goal CAS身份。",
+      "entry": "生产frame会话区域及/goal命令",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-goal/lib/types/client/index.js:33-48: goal CAS及conversation.input.dock注册",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-goal/lib/types/client/GoalBar.js:26-98: 状态条和编辑/暂停/恢复/清除动作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1193-1222: 唯一PlanBoardView被nil指针和非TextInput三重门禁",
+        "cmd/whaleisle/main.go:6774-6780: PlanBoardOpen/TodoPanelCollapsed均非nil",
+        "cmd/whaleisle/main.go:6814-6816: UseComposerTextInput=true",
+        "internal/store/session/goals.go:12-213: goal RPC存在但不能证明入口可达"
+      ],
+      "finding": "production恒不满足1193条件；Goal所在PlanBoard未挂载。TodoPanel另有装配不能替代目标dock。/goal命令可能仍可创建目标，不应扩大为所有goal能力都不可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "在生产composer dock装配目标状态及动作，去除与旧输入路径耦合的不可达门禁。",
+      "acceptanceGap": "需实际创建目标后验证状态条、CAS变化、暂停/恢复及失败反馈。"
+    },
+    {
+      "id": "CHAT-004",
+      "feature": "计划审批“要求修改”后恢复普通输入",
+      "baseline": "installed-0.3.13",
+      "expected": "隐藏计划review但保留可重新打开的请求，用户立即回到普通输入讨论修改。",
+      "entry": "PlanReview Discuss changes",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/PlanReviewPanel.js:19-53: discuss调用pending.dismiss",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/contract/slots.js:406-419: hide离开composer seat并保留原请求"
+      ],
+      "mygoEvidence": [
+        "internal/ui/interaction/plan_review.go:23-30,58-60: Discuss设置隐藏并只留return按钮",
+        "internal/store/interaction/plan_review.go:90-104: 只设planReviewHidden，不设hidden",
+        "internal/store/interaction/questions.go:91-93: Hidden与PlanReviewHidden分别导出",
+        "internal/ui/frame/frame.go:1387-1411: takeover只排除Hidden，不排除PlanReviewHidden",
+        "internal/ui/frame/frame.go:1312-1316: takeover让普通输入Invisible"
+      ],
+      "finding": "命名计划review点击Discuss仅折叠卡内容，composerInteraction仍选中pending，普通输入继续不可见。与按钮承诺的回到讨论路径冲突。",
+      "evidenceLevel": "code",
+      "requiredAction": "隐藏计划review时退出composer takeover，同时保留tool row重新打开、倒计时和原请求身份。",
+      "acceptanceGap": "尚未在原生窗口执行Discuss→普通输入→重开→明确批准。"
+    },
+    {
+      "id": "CHAT-005",
+      "feature": "推理正文的替换renderer与CoT翻译",
+      "baseline": "installed-0.3.13",
+      "expected": "展开思考时允许conversation.chat.reasoning.body贡献替换正文，翻译能力在思考正文生效。",
+      "entry": "ThinkingBlockView展开区域",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ReasoningRow.js:41-52: 正文通过reasoning.body槽渲染",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-cot-translation/lib/types/client/mount.js:85-107: 翻译调用和reasoning.body替换注册"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/thinking.go:35-76: 展开后直接原生markdown.View",
+        "cmd/whaleisle/plugin_slot_views.go:9-27: 安装插件可另开browser视图，非原位reasoning替换"
+      ],
+      "finding": "原生思考正文绕过reasoning.body扩展槽；通用轮尾browser渲染不能自动提供原位CoT翻译。按插件领域通用slot限制归并，不另推断翻译服务本身失败。",
+      "evidenceLevel": "code",
+      "requiredAction": "与PLUG-013/016统一补齐reasoning正文slot消费者，或明确提供能实际使用的插件browser入口。",
+      "acceptanceGap": "未调用翻译模型或第三方插件；翻译插件具体加载/设置由PLUG负责。"
+    },
+    {
+      "id": "CHAT-006",
+      "feature": "主输入发送、忙碌排队/插话和加速快捷键",
+      "baseline": "installed-0.3.13",
+      "expected": "空白不得发送；Enter发送、Shift+Enter换行、Ctrl/Cmd+Enter反转忙碌默认；目标在发送前固定。",
+      "entry": "frame.paintComposer → main.submitComposer → CaptureComposerGestureTarget → session/prompt",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/submission-policy.js:30-36: queue/steer决策",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/service.js:139-221: 发往具体session的prompt及requestId"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:825-853: 生产composer提交回调",
+        "cmd/whaleisle/main.go:6723-6727: 捕获实际session/draft",
+        "cmd/whaleisle/composer_flow.go:72-190: 本地命令、空消息、工作区、group和目标准入",
+        "internal/store/session/composer_gesture.go:28-68: Host代次/选择/忙碌mode捕获",
+        "internal/store/session/composer_submit.go:189-278: 附件/编辑校验及Accepted收据"
+      ],
+      "finding": "生产链明确分离普通、编辑和group发送；拒绝收据转错误而非按成功清空。代码不能证明真实provider能完成首轮/下一轮。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收主窗口真实文本→工具→回复→下一轮、忙碌Enter/加速插话、拒绝和断线。",
+      "acceptanceGap": "主窗口真实文本→工具→回复→下一轮、忙碌Enter/加速插话、拒绝和断线。"
+    },
+    {
+      "id": "CHAT-007",
+      "feature": "发送中继续编辑及失败内容的手动恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "发送内容与新草稿分离，旧回调不覆盖新输入；失败附件和未知结果可恢复而不自动重发。",
+      "entry": "普通发送的detached flight及失败恢复按钮",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js:560-568: 编辑stash与未完成发送分离",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/service.js:160-221: 失败保留附件注册及prompt结果"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/composer_detached.go:12-50: flight、requestId及完成回调",
+        "internal/ui/composer/draft_flights.go:19-76: 脱离草稿及按flight收据恢复",
+        "internal/ui/composer/draft_flights.go:112-184: 失败按顺序恢复、未知结果持久化",
+        "internal/store/session/composer_pending.go:42-143: 提交/结束/abandon及可见pending"
+      ],
+      "finding": "普通发送先detach输入，不阻塞后续输入；失败文本和附件有独立恢复路径。重启未知结果提示先查看会话，不自动重发。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收双连续发送、先后失败乱序、输入新文本、Host重启、确认原请求只入库一次。",
+      "acceptanceGap": "双连续发送、先后失败乱序、输入新文本、Host重启、确认原请求只入库一次。"
+    },
+    {
+      "id": "CHAT-008",
+      "feature": "中文IME、选区、撤销重做与提交仲裁",
+      "baseline": "installed-0.3.13",
+      "expected": "候选确认不误发，组合中不执行全局编辑快捷键，选择/删除/撤销保持UTF-16边界。",
+      "entry": "生产DraftClient原生TextInput",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/editor/keymap.js:25-108: composition与Enter/重复键仲裁"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:6814-6816: 使用常驻原生输入client",
+        "internal/ui/composer/draft_input.go:133-259: IME/选区/撤销/ShiftEnter/提交",
+        "internal/ui/composer/draft_client.go:25-151: TextInputClient与UTF-16选区接口",
+        "internal/ui/composer/draft_navigation.go:1-114: 选区边界导航",
+        "internal/ui/composer/draft_undo.go:1-71: undo/redo状态"
+      ],
+      "finding": "生产使用DraftClient而非只测旧TextArea。组合态、菜单和本地命令仲裁代码存在；没有当前IME原生操作证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收中文IME候选Enter、组合取消、emoji选区、跨行删除、撤销重做、菜单打开时Enter和键长按。",
+      "acceptanceGap": "中文IME候选Enter、组合取消、emoji选区、跨行删除、撤销重做、菜单打开时Enter和键长按。"
+    },
+    {
+      "id": "CHAT-009",
+      "feature": "停止按钮与双Esc的目标和门禁",
+      "baseline": "installed-0.3.13",
+      "expected": "停止针对当前运行轮次；overlay/审批/问题/IME/终端占用时不误停止。",
+      "entry": "frame.OnStop → cancelCapturedResponse；DraftClient/聊天区域双Esc",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/stop-shortcut.js:18-69: region、generation、turn、pendingInteraction门禁"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:902-902: OnStop接生产取消路由",
+        "internal/ui/composer/stop_sequence.go:23-78: 连续按键及局部UI/输入门禁",
+        "internal/ui/composer/draft_input.go:180-205: IME、语音、编辑、popup先占Esc",
+        "internal/store/session/store.go:1715-1747: 取消明确session且丢弃旧Host/旧会话结果"
+      ],
+      "finding": "取消发session/cancel，界面不按点击本身提前标记轮次结束；实际退出/手回收/idle分别缺运行证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收运行中按钮停止及双Esc、两轮之间/切会话不误停；记录模型退出与最终idle。",
+      "acceptanceGap": "运行中按钮停止及双Esc、两轮之间/切会话不误停；记录模型退出与最终idle。"
+    },
+    {
+      "id": "CHAT-010",
+      "feature": "主草稿跨会话及重启恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "未发文本/引用/附件路径按session恢复，Host receipt/图像字节不误复用；编辑借用的旧草稿能还原。",
+      "entry": "main.composerDrafts、recovery checkpoint和启动恢复",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js:560-568: stash草稿归属",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/draft.js:1-95: 文本与引用的draft contract"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/composer_flow.go:15-39: 稳定session-owned draft及导航EndEdit",
+        "internal/ui/composer/draft_state.go:50-123: 文本、引用、文件路径和failed sends持久化/恢复",
+        "cmd/whaleisle/recovery.go:25-48,180-220: 只恢复/捕获main.composerDrafts",
+        "cmd/whaleisle/resume_checkpoint.go:60-124,243-312: UI捕获、串行checkpoint和失败重试"
+      ],
+      "finding": "主草稿恢复链与生命周期报告LIFE-013一致；仅主draft map，子输入差异单记CHAT-002。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收两会话不同草稿、输入后异常退出/重开、附件失效重传、坏快照保留；LIFE-013负责磁盘恢复总体验收。",
+      "acceptanceGap": "两会话不同草稿、输入后异常退出/重开、附件失效重传、坏快照保留；LIFE-013负责磁盘恢复总体验收。"
+    },
+    {
+      "id": "CHAT-011",
+      "feature": "附件选择/拖放/粘贴、准备失败重试/移除及预览",
+      "baseline": "installed-0.3.13",
+      "expected": "区分本地文件引用与需上传附件；多文件有稳定身份、可取消、失败不丢稿，图像可看原图。",
+      "entry": "composer工具菜单/系统选文件/文本输入drop/paste → prepareComposerFile",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-attachment/lib/types/client/ComposerAttachments.js:12-39: rail、upload error/retry/remove、原图lightbox",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/service.js:230-282: 图像草稿及文件upload取消重试"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/composer_flow.go:41-70: intake及每文件准备",
+        "cmd/whaleisle/composer_native_files.go:1-134: 本地引用和upload分流",
+        "cmd/whaleisle/composer_attachment_retry.go:10-33: 固定owner的异步准备",
+        "internal/ui/composer/attachment_retry.go:18-88: occurrence token、取消及失败重试/移除",
+        "internal/ui/composer/attachment_display.go:218-418: rail错误/缩略图/原图预览",
+        "internal/store/session/composer_submit.go:65-141,204-222: image内容/receipt和Host scope校验"
+      ],
+      "finding": "选择、drop/paste、图片/文件wire payload与失败恢复已接生产；未假定图片预览成功等于上传成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收同名重复附件、准备中移除/切会话、取消、超限/坏图/Host变化、上传失败后重试且下一轮不重复。",
+      "acceptanceGap": "同名重复附件、准备中移除/切会话、取消、超限/坏图/Host变化、上传失败后重试且下一轮不重复。"
+    },
+    {
+      "id": "CHAT-012",
+      "feature": "文件上传过程的真实字节进度",
+      "baseline": "installed-0.3.13",
+      "expected": "原版上传rail能显示loaded/total，而不只有uploading状态。",
+      "entry": "附件file card",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-attachment/lib/types/client/ComposerAttachments.js:30-36: uploading分支读取loaded/total百分比"
+      ],
+      "mygoEvidence": [
+        "internal/ui/composer/attachment_display.go:199-215,283-298: 仅error/preparing/ready状态",
+        "internal/ui/composer/attachment_retry.go:18-76: 准备操作只记录计数和最终结果",
+        "internal/store/session/composer_submit.go:118-141: upload一次性等待结果，无进度回调"
+      ],
+      "finding": "MyGo有上传中反馈但无真实字节百分比；这是进度细节差异，不等于上传不可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "接入上传loaded/total事件并显示真实进度，或明确仅显示不定进度状态。",
+      "acceptanceGap": "大文件实际上传、失败和取消未验收。"
+    },
+    {
+      "id": "CHAT-013",
+      "feature": "引用chip的插入、键盘选择、编辑、打开和引用语义",
+      "baseline": "installed-0.3.13",
+      "expected": "文件/目录/会话引用保留opaque身份，支持带空格/引号路径、目录下钻及引用chip激活。",
+      "entry": "@候选菜单/引用chip；文件引用打开到workbench",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-reference/lib/types/client/index.js:38-72: quoted查询及会话候选身份",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js:500-540: revision保护的插入/consume"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/file_refs.go:54-85: file/directory/session身份与Host mention分离",
+        "internal/ui/composer/composer.go:717-758,888-997: 候选插入、chip编辑/删除",
+        "internal/ui/composer/reference_activation.go:1-116: 引用激活动作",
+        "internal/ui/composer/reference_navigation.go:1-88: quote/目录导航",
+        "internal/ui/composer/suggest_keyboard.go:1-151: 上下键/Tab/Esc/Enter仲裁"
+      ],
+      "finding": "除CHAT-001同步RPC阻塞外，语义与操作链有实现；文件最终打开能力归WB-003/008。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收同名会话、不同工作区、带空格目录下钻、chip编辑/撤销、失效引用和键盘导航。",
+      "acceptanceGap": "同名会话、不同工作区、带空格目录下钻、chip编辑/撤销、失效引用和键盘导航。"
+    },
+    {
+      "id": "CHAT-014",
+      "feature": "斜杠命令目录、本地选择器、远端命令与成功后消费token",
+      "baseline": "installed-0.3.13",
+      "expected": "菜单来自Host真实注册命令；本地/model /permission等不误发普通prompt；失败保留token与草稿。",
+      "entry": "/候选菜单及bare command提交",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-commands/lib/types/client/index.js:9-32: inputTrigger和command popup装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/facade.js:505-521: 成功后revision CAS消费token"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:6476-6479: 生产commands/list与catalog",
+        "internal/ui/composer/native_commands.go:72-105,106-154,183-283: 本地命令注册门禁、异步加载/settle、按版本消费",
+        "internal/store/session/command_catalog.go:1-139: 目录加载/重试/Host隔离",
+        "internal/store/session/commands.go:1-108: commands执行",
+        "internal/store/session/composer_submit.go:223-245: 远端命令判定及附件准入"
+      ],
+      "finding": "本地贡献与Host命令路由分开；生产不依赖stub菜单声明。失败/过期命令有保稿及错误路径。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收目录加载失败/重试、菜单键盘、命令变更、命令不接附件、取消及切会话后的旧结果。",
+      "acceptanceGap": "目录加载失败/重试、菜单键盘、命令变更、命令不接附件、取消及切会话后的旧结果。"
+    },
+    {
+      "id": "CHAT-015",
+      "feature": "按provider/model选模型及推理强度",
+      "baseline": "installed-0.3.13",
+      "expected": "provider+model为真实路由身份，模型同名不合并；支持搜索、分组、effort、目录错误重试。",
+      "entry": "composer模型菜单与/model popup",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-model-selection/lib/types/client/index.js:38-69: opaque row及同路由effort保留",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-model-selection/lib/types/client/service.js:18-21,147-163: provider/model身份及会话directory"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:903-916: 模型/effort/重试生产回调",
+        "internal/ui/composer/model_picker_grouped.go:76-150,152-393: 搜索、分组、空态、effort、键盘选择",
+        "internal/store/session/models.go:27-37,241-288,296-420: catalog与session-scoped selection RPC及过期结果",
+        "internal/store/session/native_command_selection.go:71-134,167-179: /model复用精确selection"
+      ],
+      "finding": "正常菜单及/model均接真实Host model selection；默认/推理强度和错误状态需实机确认，不以目录有模型等于调用成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收两个provider同名模型、effort默认/显式变化、catalog失败、断线切换、真实下一次请求路由。",
+      "acceptanceGap": "两个provider同名模型、effort默认/显式变化、catalog失败、断线切换、真实下一次请求路由。"
+    },
+    {
+      "id": "CHAT-016",
+      "feature": "权限预设、全访问/自动审查风险确认及取消",
+      "baseline": "installed-0.3.13",
+      "expected": "选择权限来自Host catalog；高风险模式必须明确确认，取消不变更。",
+      "entry": "composer权限菜单、/permission popup和风险dialog",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-permission-presets/lib/types/client/index.js:17-41: full access/auto review确认contract"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:918-925: 重试与选择生产回调",
+        "internal/store/session/permissions.go:74-138,152-236: catalog及select/confirmation",
+        "internal/store/session/permission_risk.go:1-90: risk token和确认/取消",
+        "internal/ui/composer/permission_command.go:15-52: 本地命令acknowledge后才执行",
+        "internal/store/session/native_command_selection.go:180-205: /permission验证catalog与acknowledged"
+      ],
+      "finding": "两处权限入口均有风险确认链；切会话/Host的所有权保护已见，实际权限对工具执行的效果尚待验证。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收full-access/auto-review确认/取消、Host改catalog、会话切换、真正工具拒绝/准许结果。",
+      "acceptanceGap": "full-access/auto-review确认/取消、Host改catalog、会话切换、真正工具拒绝/准许结果。"
+    },
+    {
+      "id": "CHAT-017",
+      "feature": "新会话预设选择、首次引导及会话头标签",
+      "baseline": "installed-0.3.13",
+      "expected": "仅首轮前应用预设，显示该会话实际预设和新选择引导；不让已运行会话误换身份。",
+      "entry": "hero preset chip及会话header",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/types/client/index.js:147-190: hero选择及header label装配"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:807-813,863-868,925-928: picker及acknowledge生产装配",
+        "internal/store/session/agent_presets.go:90-140,189-277: roster、选择和首次会话准入",
+        "internal/store/session/agent_preset_draft.go:1-74: 空白草稿预设",
+        "internal/ui/composer/preset_introduction.go:1-73: 引导内容与确认"
+      ],
+      "finding": "主会话预设链存在；设置默认值同步当前空白会话的独立根因归PLUG-032。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收hero首建、首轮前切预设、首轮后标签稳定、选择失败/取消、默认预设跨重启。",
+      "acceptanceGap": "hero首建、首轮前切预设、首轮后标签稳定、选择失败/取消、默认预设跨重启。"
+    },
+    {
+      "id": "CHAT-018",
+      "feature": "排队条目内容/附件、编辑、移除和插话",
+      "baseline": "installed-0.3.13",
+      "expected": "pending与Host queue按requestId去重，编辑从完整content读取而非preview，操作看Host receipt。",
+      "entry": "frame普通输入上方QueueDock",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/queue/QueueDock.js:62-112,115-147: pending去重、队列附件、真实content编辑及动作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1322-1345: queue dock真实接Store",
+        "internal/ui/chat/queue_dock.go:24-49,77-130: pending/附件/操作门禁",
+        "internal/store/session/queue_editor.go:47-116,141-181: 完整projection取文、token、保存失败保留",
+        "internal/store/session/queue.go:38-115: accepted收据与消费后收敛",
+        "internal/store/session/composer_pending.go:153-260: request/inbox去重及pending退休"
+      ],
+      "finding": "queue动作已连接，不把预览文本当完整编辑；缺少原版多条时折叠/展开，MyGo始终绘制列表。",
+      "evidenceLevel": "code",
+      "requiredAction": "补齐多条队列折叠/展开，并沿现有生产queue链验收内容、Host收据与失败保留。",
+      "acceptanceGap": "持续运行时queue/steer，原消息编辑、混合附件、被Host先消费、失败重试及切会话。"
+    },
+    {
+      "id": "CHAT-019",
+      "feature": "下一句建议的展示、Tab/点击接纳与失效",
+      "baseline": "installed-0.3.13",
+      "expected": "只在已完成且空草稿时展示，接纳仅放入草稿不自动发送，切会话/新轮次取消旧建议。",
+      "entry": "frame.SyncNextPrompt → composer.NextPrompt",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/apply.js:201-209: nextPrompt设置贡献",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/next-prompt.js:1-90: 下一句建议Host contract"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:814-829: eligible和accept生产链",
+        "internal/ui/composer/next_prompt.go:11-70: 空草稿、停止/编辑门禁与接纳",
+        "internal/store/session/next_prompt.go:45-106: cancellable请求、owner检查及一次性consume"
+      ],
+      "finding": "请求与当前完成turn绑定；接纳不发prompt。没有模型请求证据，因此不确认建议实际生成。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收一轮完成后建议出现、Tab/点击只填入、输入任意字/切会话/新轮次失效。",
+      "acceptanceGap": "一轮完成后建议出现、Tab/点击只填入、输入任意字/切会话/新轮次失效。"
+    },
+    {
+      "id": "CHAT-020",
+      "feature": "输入区上下文占用、Plan模式退出与Todo dock",
+      "baseline": "installed-0.3.13",
+      "expected": "上下文数字来自projection，plan模式有显式退出，todo独立展示而不依赖目标面板。",
+      "entry": "composer ContextMeter/PlanModeControl；frame.TodoPanel",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ContextMeter.js:1-100: 占用显示",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/TodoPanel.js:1-69: todo dock",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/types/client/PlanModeControl.js:1-44: plan模式退出"
+      ],
+      "mygoEvidence": [
+        "internal/ui/composer/composer.go:536-540: context meter挂载",
+        "internal/ui/composer/context_meter.go:1-159: 占用与分类视图",
+        "internal/ui/frame/frame.go:814-824,917-917: todo及plan退出生产装配",
+        "internal/store/session/context_occupancy.go:31-98: context projection",
+        "internal/store/session/plan_mode_projection.go:1-100: plan mode投影和exit"
+      ],
+      "finding": "Todo dock确有生产入口，不受CHAT-003目标门禁影响；context meter及plan退出链存在。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收有效/未知占用、满上下文、分类popover、plan退出失败、长todo折叠和重启恢复。",
+      "acceptanceGap": "有效/未知占用、满上下文、分类popover、plan退出失败、长todo折叠和重启恢复。"
+    },
+    {
+      "id": "CHAT-021",
+      "feature": "会话空/加载/历史错误及断线重连",
+      "baseline": "installed-0.3.13",
+      "expected": "新会话hero、加载壳、错误重试与已加载内容有明确区别；断线不把旧Host内容混入新会话。",
+      "entry": "conversationPhase/HistoryStatus/ConnBanner；FollowSelected",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ConversationSession.js:1-92: 会话状态装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ChatView.js:1-191: 聊天状态及history视图"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/conversation_phase.go:60-102: 细分phase及历史错误重试",
+        "internal/ui/chat/chat.go:153-175,460-470: 空态及连接banner",
+        "internal/store/session/follow.go:26-69,82-170: 独立follow owner、错误、缺seq重开",
+        "cmd/whaleisle/main.go:6439-6446,6676-6677: 真正连接状态及reconnect回调"
+      ],
+      "finding": "主聊天状态链完整；trajectory在空/加载/错时被遮挡的原缺陷及本轮局部修复由SH-006记录，不据聊天静态代码覆盖用户原rc.3失败。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收断线时输入保留、显式重连、Host替换、错误重试、未收snapshot流结束和重开会话。",
+      "acceptanceGap": "断线时输入保留、显式重连、Host替换、错误重试、未收snapshot流结束和重开会话。"
+    },
+    {
+      "id": "CHAT-022",
+      "feature": "实时assistant流、持久化历史合流与缺口重基线",
+      "baseline": "installed-0.3.13",
+      "expected": "流式text/reasoning/tool显示后由持久化记录接管，不重复、不遗漏；seq缺口不能当正常连续输出。",
+      "entry": "session/follow assistantStream → snapshot.Messages → chat.View",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/conversation-nodes/chat-snapshot-builder.js:1-140: conversation投影装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/conversation/assembler.js:1-140: durable与stream装配"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/follow.go:143-169,321-395: cursor跳号重开、snapshot重置和stream分支",
+        "internal/store/session/assistant_stream.go:1-190: assistant attempt/block/revision状态",
+        "internal/ui/chat/chat.go:125-149,335-377: 真正消费snapshot及不同消息类型"
+      ],
+      "finding": "流与durable具有专用状态而非把chunk直接追加字符串。静态边界覆盖不等于断流/重连后的用户可见历史已验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收流中断/重连、并发工具、重试attempt、落盘接管、切会话后旧chunk及已完成后下一轮。",
+      "acceptanceGap": "流中断/重连、并发工具、重试attempt、落盘接管、切会话后旧chunk及已完成后下一轮。"
+    },
+    {
+      "id": "CHAT-023",
+      "feature": "较早历史分页、滚动锚点与回到最新",
+      "baseline": "installed-0.3.13",
+      "expected": "按固定throughSeq读取较早窗口，加载失败可重试；prepend不使阅读位置跳动。",
+      "entry": "聊天顶部load earlier；ui.List/history状态",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/use-chat-viewport.js:1-150: viewport/分页基础",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/use-chat-scroll.js:1-130: 滚动协调"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/page.go:73-191: address/cursor分页、全页验证及失败保留",
+        "internal/ui/chat/transcript_list.go:120-207: prepend锚点、viewport及加载入口",
+        "internal/ui/chat/chat.go:177-197: 实际List与load earlier行"
+      ],
+      "finding": "分页有固定cursor、连续seq和join校验，旧generation结果会丢弃；尚无当前长历史原生滚动证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收多页历史加载、加载中滚动/切会话、错误重试、prepend保持首可见行、回到底部和新输出跟随。",
+      "acceptanceGap": "多页历史加载、加载中滚动/切会话、错误重试、prepend保持首可见行、回到底部和新输出跟随。"
+    },
+    {
+      "id": "CHAT-024",
+      "feature": "轮次导航、未加载轮次跳转与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "从turn rail/轮次选择器跳到历史位置，跨页跳转可取消/重试，不错误落在相同seq的另一会话。",
+      "entry": "TurnRailView/HistoryNavigation → JumpToHistoryTurn",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnNavigator.js:19-27,36-77: loaded/unloaded anchor及独立滚动"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/turn_rail.go:93-167: 标记、预览及菜单",
+        "internal/ui/chat/history_navigation.go:35-97: landing、cancel/retry/latest",
+        "internal/store/session/history_navigation.go:287-447: owner、分页跳转与取消"
+      ],
+      "finding": "轨道及下拉两入口使用session/request隔离，跳转有加载/失败/取消状态；是否像原版一样保持可见位置需实际交互。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收跳未加载轮次、连续快速改目标、取消、切会话、长rail滚动及键盘焦点。",
+      "acceptanceGap": "跳未加载轮次、连续快速改目标、取消、切会话、长rail滚动及键盘焦点。"
+    },
+    {
+      "id": "CHAT-025",
+      "feature": "标准/紧凑转录、思考/工具/过程折叠与运行状态",
+      "baseline": "installed-0.3.13",
+      "expected": "阅读模式改变展示不删除历史，折叠独立，运行/成功/失败/取消状态不混淆。",
+      "entry": "chat投影、disclosure、transcriptControl",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ReasoningRow.js:45-53: reasoning disclosure",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/transcript-view.js:1-61: 转录显示策略"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/transcript_preferences.go:61-175,261-287: 标准/紧凑projection和过程展开",
+        "internal/ui/chat/thinking.go:35-76,94-116: 思考展开与流预览",
+        "internal/ui/chat/disclosure.go:1-110: disclosure共同控件",
+        "internal/ui/chat/failure_notice.go:1-68: 失败banner",
+        "internal/ui/chat/retry_status.go:1-138: retry状态"
+      ],
+      "finding": "普通转录/思考/过程可定位到真实chat.View；collapseTiming配置不生效根因由SET拥有，翻译正文slot由CHAT-005/PLUG负责。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收compact切换不漏输出、嵌套折叠、重试/取消/最大token等终态和窄宽度。",
+      "acceptanceGap": "compact切换不漏输出、嵌套折叠、重试/取消/最大token等终态和窄宽度。"
+    },
+    {
+      "id": "CHAT-026",
+      "feature": "Markdown正文、代码复制/换行、表格与链接",
+      "baseline": "installed-0.3.13",
+      "expected": "正文保留段落/标题/list/blockquote/GFM表格/footnote；代码复制原始内容，wrap只改变显示。",
+      "entry": "assistant正文及read-only历史 → transcriptMarkdownStyle → markdown.View",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:31-105: 正文、分组图片及OpenUI fence",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ReasoningContent.js:1-25: 推理正文Markdown"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/markdown_style.go:14-32: 共享转录markdown style",
+        "internal/ui/widgets/markdown/math_parser.go:43-55: GFM/Footnote/图片语法",
+        "internal/ui/widgets/markdown/blocks.go:18-138: 文档块派发",
+        "internal/ui/widgets/markdown/codeblock.go:25-108: wrap/copy原始代码",
+        "internal/ui/widgets/markdown/table.go:1-140: 表格布局及复制",
+        "internal/markdownsyntax/images.go:16-45,185-220: 本地带空格图片和图像语法"
+      ],
+      "finding": "不是纯文本fallback：真实chat复用结构化markdown与代码/表格控件。静态解析未证明长表格、复杂格式、字体和选择复制视觉一致。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收复杂长文、表格横向滚动、代码wrap/复制/选择、列表嵌套、脚注、链接及流式未闭合语法。",
+      "acceptanceGap": "复杂长文、表格横向滚动、代码wrap/复制/选择、列表嵌套、脚注、链接及流式未闭合语法。"
+    },
+    {
+      "id": "CHAT-027",
+      "feature": "行内/块级公式离线渲染、加载与失败可读性",
+      "baseline": "installed-0.3.13",
+      "expected": "公式在不执行用户TeX脚本的条件下显示，失败保留原始TeX而非空白。",
+      "entry": "markdown math parser → mathViewState worker → bundled MathJax",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:31-34: 共用MarkdownText正文体系"
+      ],
+      "mygoEvidence": [
+        "internal/ui/widgets/markdown/math_parser.go:43-65: 非streaming数学语法",
+        "internal/ui/widgets/markdown/math_view.go:36-72,140-167: worker渲染、原文fallback及错误tooltip",
+        "internal/mathrender/render.go:42-61,66-125: 固定bundled Node、超时、环境及结果检查",
+        "internal/mathrender/process_windows.go:1-12: renderer子进程隐藏窗口"
+      ],
+      "finding": "公式渲染确实接UI worker；流期间保持TeX，settle后渲染。使用MathJax而非浏览器的排版系统，需要视觉验收；没有执行renderer。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收安装包bundled Node可定位、复杂TeX、坏公式、缺运行时、inline基线/宽度和窄窗。",
+      "acceptanceGap": "安装包bundled Node可定位、复杂TeX、坏公式、缺运行时、inline基线/宽度和窄窗。"
+    },
+    {
+      "id": "CHAT-028",
+      "feature": "同一公式显示座的64条缓存上限反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "超出资源预算的公式必须明确保持TeX/给出预算状态，不应无限显示仍在渲染。",
+      "entry": "一处viewMathSpans含超过64个不同公式",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:31-34: Markdown正文持续消费内容"
+      ],
+      "mygoEvidence": [
+        "internal/ui/widgets/markdown/math_view.go:36-45: images达到64时直接不请求",
+        "internal/ui/widgets/markdown/math_view.go:140-166: 无缓存条目仍显示Rendering equation offline"
+      ],
+      "finding": "同一mathViewState第65个不同公式不会启动worker，也不会写错误/ready；原文可读，但tooltip永久误报正在渲染。确定的是预算反馈缺陷，未扩为普遍公式不可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "超预算时记录明确budget状态或采用有界逐批淘汰队列，避免把从未调度的公式显示为正在渲染。",
+      "acceptanceGap": "未构造或运行超预算渲染；同一显示座超64公式的原生呈现待验收。"
+    },
+    {
+      "id": "CHAT-029",
+      "feature": "历史图片/附件图库、原图与缺失重试",
+      "baseline": "installed-0.3.13",
+      "expected": "从durable attachment id/session读取图像，图库/原图在失败时保持可读状态；持久化附件支持显式重试。",
+      "entry": "chat images/user references/tool image gallery → session attachment",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:65-83: 连续图片合并gallery",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-attachment/lib/types/client/ComposerAttachments.js:38-39: 原图预览动作"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/image.go:75-179,214-249: 本地/remote/attachment分类、加载与重试",
+        "internal/ui/chat/attachments.go:1-182: 附件加载器及图库",
+        "internal/store/session/attachment.go:45-113: 指定session读取和解码",
+        "internal/ui/chat/user_references.go:1-145: 用户引用及附件映射",
+        "internal/ui/chat/child_image_autoload.go:1-95: 子历史图片异步加载"
+      ],
+      "finding": "持久化附件、远端HTTP图片和本地文件不同入口；attachment失败有显式重试，HTTP StatusError当前只给错误、不提供同一控件重试。图片工作区viewer细节由WB-010/011覆盖。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收多个图像、损坏缓存、失效attachment、换Host同id、原图关闭/缩放、不同会话图库隔离。",
+      "acceptanceGap": "多个图像、损坏缓存、失效attachment、换Host同id、原图关闭/缩放、不同会话图库隔离。"
+    },
+    {
+      "id": "CHAT-030",
+      "feature": "来源引用与文件/网页链接路由",
+      "baseline": "installed-0.3.13",
+      "expected": "引用可打开、复制；本地文件走正确会话工作区，网页链接走明确browser/external配置。",
+      "entry": "CitationsView、markdown链接及tool link actions",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:10-28: 相对文件图像归属",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/settings/LinkOpeningRow.js:1-18: 链接打开偏好"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/citations.go:34-87,153-240: 识别去重、打开与复制URL",
+        "internal/ui/chat/file_mentions.go:1-140: 文件路径/行定位链接",
+        "internal/ui/widgets/markdown/file_link.go:1-102: 文件link解析",
+        "cmd/whaleisle/main.go:7132-7142: 当前会话引用owner",
+        "internal/ui/chat/chat.go:343-347: tool URL/file回调"
+      ],
+      "finding": "UI到链接回调的链存在；最后系统/工作区打开动作及line fragment差异由WB-008/018负责。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收引用去重、转义/带空格路径、相对路径+行号、无工作区/远端路径、网页打开偏好及失败反馈。",
+      "acceptanceGap": "引用去重、转义/带空格路径、相对路径+行号、无工作区/远端路径、网页打开偏好及失败反馈。"
+    },
+    {
+      "id": "CHAT-031",
+      "feature": "消息复制、引用到草稿、时间与按已完成轮次分叉",
+      "baseline": "installed-0.3.13",
+      "expected": "可复制完整文本，按合法完成边界fork；流/失败边界不能误分叉；原MyGo引用入口继续可用。",
+      "entry": "message actions/context menu → OnForkTurn/OnQuoteMessage",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/MessageIconActions.js:14-48: copy窗口与branch",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/MessageItem.js:1-90: 消息chrome及actions"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/message_actions.go:35-55,187-256,263-273: copy/反馈/fork/时钟/context menu",
+        "internal/store/session/history_branch.go:1-95: completed boundary及session/fork receipt",
+        "internal/ui/chat/quote.go:1-29: 引用文本格式",
+        "internal/ui/chat/message_clock.go:1-26: 日期/时间显示",
+        "internal/ui/frame/frame.go:1115-1145: fork/edit/quote生产回调接Store与常驻draft"
+      ],
+      "finding": "fork重建canonical assistant生命周期避免图片块误当另一条；副作用仍需真实fork确认，旧session保持不变需WS-028联验。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收全文copy、多块assistant、合法/非法fork边界、quote插入新草稿、键盘/context菜单与时间跨日。",
+      "acceptanceGap": "全文copy、多块assistant、合法/非法fork边界、quote插入新草稿、键盘/context菜单与时间跨日。"
+    },
+    {
+      "id": "CHAT-032",
+      "feature": "编辑最新用户消息、取消和旧草稿恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "只允许最后idle human turn编辑；提交editMessageSeq，取消/导航恢复原草稿及附件。",
+      "entry": "user message Edit → DraftState.BeginEdit → SubmitComposer(editSeq)",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-edit/lib/types/client/MessageEditAction.js:1-60: 编辑入口及守卫",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/service.js:149-166,219-221: editMessageSeq走prompt"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/message_edit.go:53-93: 最新human/idle条件",
+        "internal/ui/composer/edit_session.go:9-42: stash、BeginEdit/EndEdit",
+        "internal/store/session/composer_submit.go:251-263: dispatch时重新验证EditAllowed",
+        "cmd/whaleisle/composer_flow.go:125-143,210-225: 编辑发送/成功EndEdit",
+        "internal/ui/frame/frame.go:854-858: production取消编辑"
+      ],
+      "finding": "有编辑借用草稿与二次dispatch校验；不能用一般发送通过替代编辑后的真实历史语义验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收编辑→取消、编辑→发送失败、编辑中切会话、外部新消息使编辑失效、附件stash复原。",
+      "acceptanceGap": "编辑→取消、编辑→发送失败、编辑中切会话、外部新消息使编辑失效、附件stash复原。"
+    },
+    {
+      "id": "CHAT-033",
+      "feature": "消息赞/踩、类别/说明、撤回与版本冲突",
+      "baseline": "installed-0.3.13",
+      "expected": "反馈按source message id持久化；失败能重试、取消dialog不丢旧状态；冲突采用Host当前值。",
+      "entry": "assistant actions → feedback dialog → messageFeedback/*",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/index.js:17-39,54-80: 按消息反馈与dialog真实贡献"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/message_actions.go:199-224: 权威反馈入口",
+        "internal/ui/chat/feedback_dialog.go:58-158: 类别/说明/提交/关闭",
+        "internal/store/session/feedback.go:55-96,219-334: ifVersion、Host receipt校验、冲突/失败和owner",
+        "internal/ui/chat/feedback_editor.go:1-92: 按钮/反馈状态",
+        "internal/ui/frame/frame.go:1105-1112: 主聊天FeedbackStore/RateMessage真实装配"
+      ],
+      "finding": "反馈不是只切本地颜色；有持久化和CAS。对话成功只证明当前请求，不证明重启已读回或Host冲突处置实际表现。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收赞/踩切换、再次点击撤回、提交中关dialog、同消息版本冲突、断线保note、重启后读回。",
+      "acceptanceGap": "赞/踩切换、再次点击撤回、提交中关dialog、同消息版本冲突、断线保note、重启后读回。"
+    },
+    {
+      "id": "CHAT-034",
+      "feature": "会话级/feedback分类、提交、日志披露与关闭",
+      "baseline": "installed-0.3.13",
+      "expected": "bare /feedback打开会话反馈；提交文本/类别并披露相关日志会被发送，关闭表单不等于取消已经发出的记录。",
+      "entry": "native command反馈动作及session feedback dialog",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/index.js:84-91: /feedback bare action",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/dialog.js:1-5,29-36,54-73: 共用session/message dialog和dismiss代次保护",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-message-feedback/lib/types/client/FeedbackDialog.js:38-49: 本地化类别与任意时刻onClose"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/composer_native_commands.go:20-61: /feedback打开指定会话表单",
+        "internal/ui/frame/frame.go:747-747: session反馈真实挂载",
+        "internal/ui/frame/session_feedback.go:10-55: 日志披露、wire类别标签及busy关闭门禁",
+        "internal/store/session/session_feedback.go:26-135: 独立draft、提交receipt及epoch"
+      ],
+      "finding": "bare /feedback与sessionFeedback/record已接通。生产session表单另写于frame/session_feedback.go，不是消息反馈共用表单；类别直接显示task-result等wire值且提交中不能取消/关闭，原版共享dialog可dismiss并用generation保护迟到回调。原版没有可选日志checkbox，不能把缺少该控件记作缺失。",
+      "evidenceLevel": "code",
+      "requiredAction": "复用已本地化的消息反馈表单规则，允许关闭已提交表单并保留请求收据所有权；日志披露不得误写为可选上传。",
+      "acceptanceGap": "会话反馈打开/取消、提交中关闭、分类本地化、失败保留、成功后下一轮不残留弹窗。"
+    },
+    {
+      "id": "CHAT-035",
+      "feature": "自动/手动压缩的摘要、计数、落地与失败状态",
+      "baseline": "installed-0.3.13",
+      "expected": "生成摘要与历史replacement落地不同；只有实际checkpoint才显示压缩成功，出错仍可查看原错误。",
+      "entry": "/compact command card及自动compaction行",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/CompactionItem.js:1-28: 自动压缩行和展开",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/CompactionCommandCard.js:1-13: 手动压缩命令",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/conversation-nodes/compaction.js:1-49: compaction节点"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/manual_compaction.go:33-128: compactionId/commandId及checkpoint事实",
+        "internal/store/session/automatic_compaction.go:12-81: 仅checkpoint成为可见row",
+        "internal/ui/chat/manual_compaction.go:17-99: 错误后保摘要/命令状态",
+        "internal/ui/chat/compaction.go:27-106: 自动行计数、摘要和展开"
+      ],
+      "finding": "显示来自落地事实而非仅summary生成；不会因摘要存在就声称成功压缩。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收自动/手动压缩、摘要产生但checkpoint失败、取消、缺计数/历史截断及再打开。",
+      "acceptanceGap": "自动/手动压缩、摘要产生但checkpoint失败、取消、缺计数/历史截断及再打开。"
+    },
+    {
+      "id": "CHAT-036",
+      "feature": "上下文注入、系统提示、唤醒来源与结构化详情",
+      "baseline": "installed-0.3.13",
+      "expected": "可查看真正注入的上下文/系统prompt变化、来源和结构化字段；未知消息保持可读。",
+      "entry": "chat context/system-prompt/turn-trigger消息分支",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/ContextBody.js:1-125: context字段展示",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/SystemPromptRow.js:1-22: 系统prompt展示",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnTriggerNodeView.js:1-31: turn trigger"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/chat.go:224-235,375-377: context/unknown真实分支",
+        "internal/ui/chat/context_body.go:79-203,229-278: context模型、JSON展示和折叠",
+        "internal/ui/chat/context_injection.go:1-81: 注入行",
+        "internal/ui/chat/system_prompt.go:1-40: system prompt展开",
+        "internal/store/session/system_prompt.go:141-225: replace boundary及prompt上下文定位",
+        "internal/store/session/turn_triggers.go:1-130: 唤醒来源投影"
+      ],
+      "finding": "上下文与普通assistant消息不同呈现；Host customInstructions设置写入由SET负责，不因能显示历史prompt就认定新指令生效。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收新指令变化、跨压缩保留、未知结构、唤醒/计划任务来源、敏感字段实际可见边界。",
+      "acceptanceGap": "新指令变化、跨压缩保留、未知结构、唤醒/计划任务来源、敏感字段实际可见边界。"
+    },
+    {
+      "id": "CHAT-037",
+      "feature": "工具生命周期、嵌套/PTC、IN/OUT复制与详情",
+      "baseline": "installed-0.3.13",
+      "expected": "call/result/preparing/approval/retry/终态按callId合流，可展开完整证据，未知工具不假装有专门视图。",
+      "entry": "chat.ToolMessageView → lifecycle → typed/fallback cards",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/ToolCallTree.js:1-52: 调用树",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/components/ToolRow.js:1-125: 折叠工具行",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/components/ToolDetails.js:1-29: 详情"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/chat.go:338-356: 主聊天真实工具分支",
+        "internal/store/session/tool_lifecycle.go:1-180: call生命周期投影",
+        "internal/ui/chat/tool_lifecycle.go:21-93,264-295,317-393: 树、inspect、详情及复制",
+        "internal/ui/chat/toolrow.go:152-201,247-358: typed presenter及generic fallback",
+        "internal/ui/chat/toolcard.go:76-144,158-214: 原始call/result/PTC及IN/OUT"
+      ],
+      "finding": "工具显示链与真实snapshot接通；专用presenter及generic fallback分开，未把预定义工具名称列表当作实际执行成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收并行/嵌套/PTC、取消/审批拒绝、空输出/坏JSON、copy完整IN/OUT和未知工具。",
+      "acceptanceGap": "并行/嵌套/PTC、取消/审批拒绝、空输出/坏JSON、copy完整IN/OUT和未知工具。"
+    },
+    {
+      "id": "CHAT-038",
+      "feature": "读文件/编辑diff/搜索/网页/图片等专用工具卡",
+      "baseline": "installed-0.3.13",
+      "expected": "工具摘要和详情呈现真实receipt，文件/URL动作有正确owner，操作后仍能看原始证据。",
+      "entry": "toolStructuredBody各family分支",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/read-card-model.js:1-100: 读文件模型",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/diff-card-model.js:1-100: diff模型",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/search-card-model.js:1-100: 搜索模型",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/web-card-model.js:1-98: web模型"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/toolrow.go:257-313: 读/修改/图像/搜索/web/details派发",
+        "internal/ui/chat/tool_files.go:73-190,257-325: 已应用diff和文件路径操作",
+        "internal/ui/chat/tool_read_model.go:1-110: read模型",
+        "internal/ui/chat/tool_search_model.go:1-145: search模型",
+        "internal/ui/chat/tool_web_model.go:1-123: web模型",
+        "internal/ui/chat/tool_image_model.go:1-185: image模型"
+      ],
+      "finding": "重要family具备实际派发和链接；本轮审查到外层判定、常见模型及fallback，极深inspection/control/todo所有字段组合未逐项审完，列于uncovered。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收每family真实工具receipt、错误/截断/无结果、非ASCII路径和copy/打开；文件/图片viewer由WB负责。",
+      "acceptanceGap": "每family真实工具receipt、错误/截断/无结果、非ASCII路径和copy/打开；文件/图片viewer由WB负责。"
+    },
+    {
+      "id": "CHAT-039",
+      "feature": "提交计划卡、计划文档侧栏和明确批准",
+      "baseline": "installed-0.3.13",
+      "expected": "计划文本可读/复制/打开侧栏；只有显式approve提交精确标签；讨论不等于批准。",
+      "entry": "SubmittedPlanCardView及PlanReviewPanel",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plan/lib/types/client/index.js:27-34,60-75: 计划资源及review动作",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/PlanReviewPanel.js:19-53: 明确approve/discuss"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/submitted_plan.go:1-20: 提交计划卡",
+        "internal/store/session/submitted_plan.go:1-114: 计划内容及历史定位",
+        "internal/ui/interaction/plan_review.go:43-70: sidebar open、approve/retry",
+        "internal/store/interaction/plan_review.go:61-85: 精确approve答案"
+      ],
+      "finding": "计划资源链接真实主聊天及审批；Discuss恢复普通输入缺陷单列CHAT-004；文档读取/过期/重试细节由WB-042。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收提交计划→侧栏→批准/失败重试、callId与eventId不混用、未知/过期计划；CHAT-004修复后再验收讨论。",
+      "acceptanceGap": "提交计划→侧栏→批准/失败重试、callId与eventId不混用、未知/过期计划；CHAT-004修复后再验收讨论。"
+    },
+    {
+      "id": "CHAT-040",
+      "feature": "审批允许/拒绝、原因命令/参数与焦点快捷键",
+      "baseline": "installed-0.3.13",
+      "expected": "用户看具体命令/理由后明确allow-once/deny，IME和编辑器不误触审批；失败可重试原选择。",
+      "entry": "main Events waterfall → scoped interaction → composer takeover",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-approval/lib/types/client/ApprovalPanel.js:23-25,77-95: 原因及Enter/Esc/按钮语义"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2203-2210: Events结果/取消与Store生产连接",
+        "internal/ui/frame/frame.go:1291-1316,1387-1411: 选当前pending及takeover",
+        "internal/ui/interaction/card.go:98-207: 详情/原因、复制、Allow/Deny/Retry",
+        "internal/ui/interaction/approval_keys.go:19-85: IME/按钮焦点、重复键及目标重验",
+        "internal/store/interaction/store.go:377-442: 留存原outcome和delivery失败重试"
+      ],
+      "finding": "明确动作与waterfall outcome相连，交付失败保留原选择。auto allow另有配置与手动回退，不等于永久Host权限预设。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收真实工具审批、allow/deny、Enter/Esc和copy按钮、IME、失败重试、切会话/Host替换及审批被Host取消。",
+      "acceptanceGap": "真实工具审批、allow/deny、Enter/Esc和copy按钮、IME、失败重试、切会话/Host替换及审批被Host取消。"
+    },
+    {
+      "id": "CHAT-041",
+      "feature": "问题向导单选/多选/自定义、分页、跳过/复查和提交",
+      "baseline": "installed-0.3.13",
+      "expected": "仅首项带 recommended/推荐 后缀时，两端都会预置其为草稿选择；仍需用户提交。无后缀项不默认选中。",
+      "entry": "interaction.QuestionComposer → Store answer drafts",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/QuestionComposer.js:120-200,360-391: 向导、分页/选项和状态",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/draft-store.js:1-29: session scoped问题草稿"
+      ],
+      "mygoEvidence": [
+        "internal/ui/interaction/question_navigation.go:14-115: 分页、minimize、review、skip、submit",
+        "internal/ui/interaction/question_options.go:1-90: 单/多选及自定义选项",
+        "internal/ui/interaction/question_editing.go:1-127: 编辑和IME键盘",
+        "internal/store/interaction/questions.go:59-160,190-220: 草稿、合法答案与skip",
+        "internal/store/interaction/question_navigation.go:1-120: Continue/skip/校验"
+      ],
+      "finding": "向导不是孤立view；frame中从实际pending接入，并以questionId配对答案。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收多题混合类型、自定义IME、skip/undo/review、任意页提交校验、empty/坏请求和滚动长题。",
+      "acceptanceGap": "多题混合类型、自定义IME、skip/undo/review、任意页提交校验、empty/坏请求和滚动长题。",
+      "claimReassessment": [
+        {
+          "date": "2026-11-02",
+          "source": "supplement-chat-actions.json",
+          "field": "expected",
+          "previous": "多题逐题回答，推荐项只作提示；可跳过/撤销跳过和回题，不把未回答当默认同意。",
+          "reason": "这不是新缺陷；纠正旧报告对原版推荐默认值的过度简化。"
+        }
+      ]
+    },
+    {
+      "id": "CHAT-042",
+      "feature": "问题倒计时、焦点暂停、我需要时间与继续后作答",
+      "baseline": "installed-0.3.13",
+      "expected": "倒计时属请求不属组件；焦点和首次编辑暂停，隐藏/切会话不错误重置；continued通过RPC补答。",
+      "entry": "question wait controls及projectedQuestion recovery",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/contract/slots.js:200-214,228-265,314-360: 等待/焦点/编辑冻结及RPC通道"
+      ],
+      "mygoEvidence": [
+        "internal/store/interaction/question_wait.go:33-115,120-183: countdown/hold/focus/超时settlement",
+        "internal/ui/interaction/question_wait.go:1-47: 我需要时间控制",
+        "internal/store/interaction/projected_questions.go:230-261,303-370: continued恢复和排重",
+        "internal/store/interaction/user_questions_rpc.go:1-67: answer RPC"
+      ],
+      "finding": "请求计时、前台焦点和late answer有独立状态；HTTP发送成功不直接当Host已接受命名问题（store.go:418-424）。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收倒计时边界、焦点先到/晚到、编辑冻结、隐藏再开、超时continued、late answer和inbox回显只一次。",
+      "acceptanceGap": "倒计时边界、焦点先到/晚到、编辑冻结、隐藏再开、超时continued、late answer和inbox回显只一次。"
+    },
+    {
+      "id": "CHAT-043",
+      "feature": "隐藏/重开问题、已答/排队记录和持久化草稿",
+      "baseline": "installed-0.3.13",
+      "expected": "只隐藏输入，不取消命名请求；已答/排队历史只读，重启草稿匹配Host/session/callId和问题内容。",
+      "entry": "工具问题行/历史reopen；question recovery绑定",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/contract/slots.js:406-419: hide/cancel差别",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/draft-store.js:1-29: 持久化问题草稿"
+      ],
+      "mygoEvidence": [
+        "internal/store/interaction/question_history.go:24-63,78-110: hide/reopen及历史",
+        "internal/store/interaction/question_persistence.go:19-32,62-105,127-162: owner+fingerprint草稿及恢复",
+        "cmd/whaleisle/question_recovery.go:1-42: 接入现有recovery.Store",
+        "internal/store/session/question_reply.go:29-64,67-145: 持久化回复分类/复制",
+        "internal/ui/agents/child_interactions.go:14-35: 子会话scoped问题/审批"
+      ],
+      "finding": "命名普通问题隐藏确实退出takeover；计划review的独立hidden字段错误不在此归绿。持久化只存用户答案，不重建新pending请求。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收隐藏→普通输入→tool reopen，队列/settled历史、切会话、重启不同Host、旧问题同callId内容变化。",
+      "acceptanceGap": "隐藏→普通输入→tool reopen，队列/settled历史、切会话、重启不同Host、旧问题同callId内容变化。"
+    },
+    {
+      "id": "CHAT-044",
+      "feature": "多个待交互的审批/计划/普通问题优先级",
+      "baseline": "installed-0.3.13",
+      "expected": "composer只展示应优先处理的一项；原版计划review优先于普通问题。",
+      "entry": "frame.composerInteraction pending选择",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-questions/lib/types/client/index.js:300-317: pendingInteraction计划rank=2、问题rank=1并接composer"
+      ],
+      "mygoEvidence": [
+        "internal/store/interaction/store.go:128-140,468-480: pending保原顺序无rank排序",
+        "internal/ui/frame/frame.go:1387-1411: 审批优先，其余只取第一条，未判PlanReview"
+      ],
+      "finding": "MyGo没有原版plan-review相对普通问题的优先选择；若普通问题先入pending，后来的计划review不会抢到seat。不是没有review实现。",
+      "evidenceLevel": "code",
+      "requiredAction": "按approval/plan-review/question明确优先级选择，并保留各自草稿及隐藏状态；不要靠pending插入顺序。",
+      "acceptanceGap": "未在真实Host制造同会话多个不同kind pending；出现顺序及交互恢复待验收。"
+    },
+    {
+      "id": "CHAT-045",
+      "feature": "智能体目录、类型/状态/耗时token、树展开与祖先导航",
+      "baseline": "installed-0.3.13",
+      "expected": "从subagentCatalog读取直系父子关系；external只作元数据，不能当子会话发送；支持祖先和目录刷新。",
+      "entry": "header/右栏agents → navigationView及catalogRowsView",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/agents.js:25-39: catalog优先及byId fallback",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/AgentsPanel.js:19-27: 类型状态与external禁止打开"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1496-1523: production Store-backed agents",
+        "internal/ui/agents/panel.go:41-45: Store存在时走新navigation不是legacy view",
+        "internal/ui/agents/navigation.go:23-124: 空/载/错/祖先/刷新",
+        "internal/ui/agents/catalog_metrics.go:15-178: 状态/指标、树、键盘和明确打开动作",
+        "internal/store/session/agent_navigation.go:126-215,329-388: catalog及address边界"
+      ],
+      "finding": "生产用Store-backed导航，legacy Panel的OnPrompt不代表现用发送路径。目录与conversation selection身份分开；external不能获得addressed follow。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收空catalog/损坏projection、unknown活动、external、嵌套目录、方向键/回父级、token/耗时和断线后刷新。",
+      "acceptanceGap": "空catalog/损坏projection、unknown活动、external、嵌套目录、方向键/回父级、token/耗时和断线后刷新。"
+    },
+    {
+      "id": "CHAT-046",
+      "feature": "子会话主对话/侧边聊天打开、只读历史分页与实时观察",
+      "baseline": "installed-0.3.13",
+      "expected": "保留direct-parent+child+mode地址，打开历史不意外激活/提升prepared子会话；可翻页/回最新重连。",
+      "entry": "catalog row明确Open in conversation/Open chat aside → addressed follow/page",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/sidebar-chat/index.js:8-45,65-113: durable address、retain/release和共享conversation",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/apply.js:35-48: 由subagentAddress打开"
+      ],
+      "mygoEvidence": [
+        "internal/ui/agents/catalog_metrics.go:123-146: 两种明确打开入口",
+        "internal/ui/agents/navigation.go:126-153: earlier/live/readonly body",
+        "internal/store/session/agent_chat_pane.go:6-58: direct-parent身份及catalog授权",
+        "internal/store/session/agent_navigation.go:169-196,236-267,390-402: 导航和page",
+        "internal/store/session/agent_navigation_live.go:34-80,185-218: addressed live owner和结束处理",
+        "internal/ui/frame/workspace_subagent_conversation.go:115-155: 主对话 child 实际使用 agents.View，不使用主 chat.View",
+        "internal/ui/frame/workspace_subagent_chat.go:106-111: 侧边 child 同样使用 agents.View",
+        "internal/ui/agents/navigation.go:121-153: 历史、交互和简化 childEditor 的完整装配",
+        "internal/ui/chat/read_only_history.go:19-21,150-198: 单消息64KiB/页面512KiB显示预算，超限构造替代 Message 并裁切 Body/Args/Raw",
+        "internal/ui/chat/read_only_history.go:86-144: 复制只拿裁切后的 body；无读取完整记录/打开原文动作",
+        "internal/ui/agents/navigation.go:129-143: Earlier 仅换历史窗口，同一超限消息仍走裁切",
+        "internal/ui/frame/workspace_subagent_conversation.go:88-110: child header 只有 Back to parent conversation 和 root→child 文本",
+        "internal/ui/frame/workspace_subagent_conversation.go:150-155: ChatOnly=true",
+        "internal/ui/agents/navigation.go:76-78,121-125: ChatOnly 分支不绘制目录 ancestors/catalog",
+        "internal/ui/chat/read_only_history.go:86-144: child row 仅角色、正文、工具/引用和 copy，无 turn-tail 用量组件",
+        "internal/ui/agents/navigation.go:140-145: 不复用正常 chat.View 的 turn usage projection/consumer"
+      ],
+      "finding": "按 subagent address 打开、分页和实时观察的链仍存在，不提升普通会话；可打开/分页/实时观察不等于 shared Conversation 等价：child 的每条64KiB裁切没有全文读取出口，主对话 ancestry 及每轮用量动作也缺。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：可打开/分页/实时观察不等于 shared Conversation 等价：child 的每条64KiB裁切没有全文读取出口，主对话 ancestry 及每轮用量动作也缺。 对照 GCHAT-201、GCHAT-202、GCHAT-203 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "主/侧各开child、nested地址、one-shot只读、分页暂停live、Latest恢复、关闭释放、父会话仍可继续聊天。 补审新增动作 GCHAT-201、GCHAT-202、GCHAT-203 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "历史和观察使用subagent address，不走普通session.promote；主会话不因侧读而改变。",
+        "previousRequiredAction": "无需根据本次静态证据修复；验收主/侧各开child、nested地址、one-shot只读、分页暂停live、Latest恢复、关闭释放、父会话仍可继续聊天。",
+        "sources": [
+          "supplement-chat-actions.json"
+        ],
+        "actionIds": [
+          "GCHAT-201",
+          "GCHAT-202",
+          "GCHAT-203"
+        ],
+        "reasons": [
+          "可打开/分页/实时观察不等于 shared Conversation 等价：child 的每条64KiB裁切没有全文读取出口，主对话 ancestry 及每轮用量动作也缺。"
+        ]
+      },
+      "supplementActionIds": [
+        "GCHAT-201",
+        "GCHAT-202",
+        "GCHAT-203"
+      ]
+    },
+    {
+      "id": "CHAT-047",
+      "feature": "continuable子会话文本/图片追加及单个/全部中断",
+      "baseline": "installed-0.3.13",
+      "expected": "只有明确continuable且父owner可用才发送，one-shot/history不能取得普通prompt权限；成功看messageId。",
+      "entry": "child editor / navigation interrupt按钮",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/index.js:9-25: one-shot/parent availability takeover",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/sidebar-chat/index.js:88-105: embedded共享composer"
+      ],
+      "mygoEvidence": [
+        "internal/ui/agents/navigation.go:37-61,146-153: 类型门禁、interrupt及child editor",
+        "internal/ui/agents/child_editor.go:14-45: text/image intake与专用send",
+        "internal/store/session/agent_retained_prompt.go:5-32: 明确发送/中断准入",
+        "internal/store/session/agent_navigation.go:431-534: 父身份、15秒operation及prompt messageId校验",
+        "internal/store/session/agent_navigation_images.go:17-96: 图片限制/owner/移除",
+        "internal/ui/frame/workspace_subagent_conversation.go:115-155: 主对话 child 实际使用 agents.View，不使用主 chat.View",
+        "internal/ui/frame/workspace_subagent_chat.go:106-111: 侧边 child 同样使用 agents.View",
+        "internal/ui/agents/navigation.go:121-153: 历史、交互和简化 childEditor 的完整装配",
+        "internal/ui/agents/child_editor.go:37-50: 仅 text/images/openReference 传入",
+        "internal/ui/composer/child_editor.go:8-20,37-46: 无候选目录、OnSearchReferences 或 SuggestList；Editing=true 禁 slash",
+        "internal/ui/composer/suggest_keyboard.go:117-123: 无 SuggestList 直接不仲裁候选",
+        "internal/store/session/agent_navigation.go:41-65: child view 未承载 Queue/QueueEditor",
+        "internal/ui/agents/navigation.go:121-153: child 生产绘制不调用 QueueDockView",
+        "internal/ui/frame/frame.go:1322-1345: 现有 QueueDock 仅主 snap.PlanBoard/selectedID，不能服务隐藏父会话下的 child occurrence",
+        "internal/ui/composer/child_editor.go:32-39: 只有 OnSubmit，未装 OnSubmitGesture",
+        "internal/ui/composer/draft_input.go:240-246: 缺 gesture 回调就把 Ctrl/Cmd+Enter 同普通 Enter 调 OnSubmit",
+        "internal/store/session/agent_navigation.go:450-452,502-504: delivery 只读取全局 s.promptMode，接收不到本次反转意图",
+        "internal/ui/composer/child_toolbar.go:28-32: 空草稿无图片时发送按钮禁用",
+        "internal/ui/composer/child_editor.go:32-35: 空输入不调用 OnSend",
+        "internal/store/session/agent_navigation.go:446-448: 空文本无图片直接拒绝，child view 也无 queue 推进 consumer",
+        "internal/ui/composer/child_editor.go:37-46: Model 无 Snapshot/OnStop，且 Editing=true",
+        "internal/ui/composer/stop_sequence.go:34-44: Editing 或 OnStop=nil 时永不取得停止目标",
+        "internal/ui/agents/navigation.go:54-61,121-153: 有显式 Interrupt 按钮，但 child body 无 BindStopRegion"
+      ],
+      "finding": "文字/图片通过 subagents 专用端点发送，中断按钮存在，CHAT-002 的发送后草稿问题仍单列；文字/图片与按钮中断路径存在，但 child 简化输入缺 @候选、队列操作、逐次 busy gesture 反转和双Esc；原版 continuable 并未排除这些动作。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：文字/图片与按钮中断路径存在，但 child 简化输入缺 @候选、队列操作、逐次 busy gesture 反转和双Esc；原版 continuable 并未排除这些动作。 对照 GCHAT-194、GCHAT-195、GCHAT-196、GCHAT-197、GCHAT-198、GCHAT-199、GCHAT-200 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "continuable文字/图片/混合发送、父offline、one-shot禁发、单个/全部interrupt、timeout失败后保稿。 补审新增动作 GCHAT-194、GCHAT-195、GCHAT-196、GCHAT-197、GCHAT-198、GCHAT-199、GCHAT-200 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "调用subagents/prompt或interruptByParent，和root session/prompt分开；成功Text清理/恢复缺陷单列CHAT-002。",
+        "previousRequiredAction": "无需根据本次静态证据修复；验收continuable文字/图片/混合发送、父offline、one-shot禁发、单个/全部interrupt、timeout失败后保稿。",
+        "sources": [
+          "supplement-chat-actions.json"
+        ],
+        "actionIds": [
+          "GCHAT-194",
+          "GCHAT-195",
+          "GCHAT-196",
+          "GCHAT-197",
+          "GCHAT-198",
+          "GCHAT-199",
+          "GCHAT-200"
+        ],
+        "reasons": [
+          "文字/图片与按钮中断路径存在，但 child 简化输入缺 @候选、队列操作、逐次 busy gesture 反转和双Esc；原版 continuable 并未排除这些动作。"
+        ]
+      },
+      "supplementActionIds": [
+        "GCHAT-194",
+        "GCHAT-195",
+        "GCHAT-196",
+        "GCHAT-197",
+        "GCHAT-198",
+        "GCHAT-199",
+        "GCHAT-200"
+      ]
+    },
+    {
+      "id": "CHAT-048",
+      "feature": "子聊天多pane持有、切主会话/重启恢复后的权限边界",
+      "baseline": "installed-0.3.13",
+      "expected": "pane保留原root/child阅读身份；恢复只读目录不会自动发prompt；显式操作须重新验证祖先/父可用性。",
+      "entry": "subagentchat pane descriptor及retained reader",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-subagent/lib/types/client/sidebar-chat/index.js:8-45,65-80,120-137: 地址恢复与resource lease"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/agent_retained_owner.go:78-158: retained阅读lease/撤销",
+        "internal/store/session/agent_restored_reader.go:1-109: restore reader验证",
+        "internal/store/session/agent_restore_lineage.go:1-64: 祖先链持久化含义",
+        "internal/store/session/agent_navigation_pane.go:1-93: pane ownership",
+        "internal/ui/agents/child_interactions.go:14-35: retained scoped interaction"
+      ],
+      "finding": "存活阅读lease与恢复/明确操作分开；未使用“pane能显示”推断恢复后可直接继续运行。子输入草稿缺失另见CHAT-002。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收多pane、切主会话、关父会话、重启/换Host、伪造/缺祖先descriptor、显式send/interrupt再准入。",
+      "acceptanceGap": "多pane、切主会话、关父会话、重启/换Host、伪造/缺祖先descriptor、显式send/interrupt再准入。"
+    },
+    {
+      "id": "CHAT-049",
+      "feature": "工作流run/phase/member状态与展开、成员观察和复制",
+      "baseline": "installed-0.3.13",
+      "expected": "按run/phase/child身份显示实时及终态，失败/取消保持展开，点击可用成员才能观察，复制原事件。",
+      "entry": "WorkflowRunView及WorkflowMember live drawer",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/types/client/index.js:1-20: workflow贡献",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/register-node-renderers.js:71-120: chat节点装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/types/client/WorkflowRunPanel.js:1-120: workflow状态/phase/member表示"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/workflow.go:39-131: run/phase/member、状态与原事件复制",
+        "internal/ui/chat/workflow_disclosure.go:1-124: 自动折叠与交互焦点保护",
+        "internal/store/session/workflow.go:13-128: durable fold及精确成员address",
+        "internal/store/session/workflow_member.go:1-150: 成员打开owner",
+        "internal/store/session/workflow_member_stream.go:1-145: 成员live流"
+      ],
+      "finding": "工作流chat投影不删除trajectory源记录。成员操作只在同parent/run/child可用时开放；未实际执行工作流。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收多phase并发、成员失败/取消、干净完成自动折叠、交互中不抢折叠、成员关闭和原事件复制。",
+      "acceptanceGap": "多phase并发、成员失败/取消、干净完成自动折叠、交互中不抢折叠、成员关闭和原事件复制。"
+    },
+    {
+      "id": "CHAT-050",
+      "feature": "轨迹正文、搜索、轮/调用折叠、较早记录与选择详情",
+      "baseline": "installed-0.3.13",
+      "expected": "选中轨迹后显示真正trajectory ledger；可搜索内容、展开/折叠轮/调用并查看记录，加载/空/错有可用入口。",
+      "entry": "frame paneTab=trajectory → TrajectoryView",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryToolbar.js:9-10: duration/turn/calls/search控件",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryView.js:87-130: 搜索/历史/selected状态"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1031-1083: 生产轨迹入口和loadEarlier/copy",
+        "internal/ui/chat/trajectory.go:55-145,146-215,385-493: 工具栏、ledger、详情、搜索与折叠",
+        "internal/store/session/page.go:73-168: 共享历史分页",
+        "internal/ui/frame/frame.go:1055-1083: 生产只传 Snapshot、全局 bool 折叠和详情 tab；不是浏览器原版轨迹",
+        "internal/ui/chat/trajectory.go:93-145,174-194,197-329: 原生 ledger/选择及详情全部消费",
+        "internal/ui/chat/trajectory.go:80-86,118-126: 只有两个全局 bool",
+        "internal/ui/chat/trajectory.go:183-193: 每行只有选中详情，无双击折叠或 summary 展开",
+        "internal/ui/chat/trajectory.go:385-410: 按 Role/Kind 过滤记录，不构造 turn/assistant 分组摘要",
+        "internal/ui/chat/trajectory.go:202-211: 分隔线是普通 1px Box；详情宽度纯函数，窄窗改 absolute overlay，无输入处理或用户 width state"
+      ],
+      "finding": "轨迹正文与 snapshot 已装配，但原 rc.3 点击失败根因仍 unknown，诊断状态回写不证明像素或全部内容交互；全局折叠按钮存在不能覆盖单轮/单 assistant 折叠，且全局实现按 Role/Kind 删行而非生成分组摘要。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：全局折叠按钮存在不能覆盖单轮/单 assistant 折叠，且全局实现按 Role/Kind 删行而非生成分组摘要。 对照 GCHAT-180、GCHAT-181、GCHAT-182、GCHAT-183 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "用户原环境点击失败复现；诊断构建正常/窄窗搜索/折叠/分页/选择/关闭详情和重启状态。 补审新增动作 GCHAT-180、GCHAT-181、GCHAT-182、GCHAT-183 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "正文链确实从当前snapshot装配。用户原rc.3轨迹点击失败根因仍unknown，SH-005保留；本轮一次诊断chat→trajectory→chat成功仅证那次pointer/state/writeback，不证明所有内容交互或原问题已修复。",
+        "previousRequiredAction": "无需根据本次静态证据修复；验收用户原环境点击失败复现；诊断构建正常/窄窗搜索/折叠/分页/选择/关闭详情和重启状态。",
+        "sources": [
+          "supplement-chat-actions.json"
+        ],
+        "actionIds": [
+          "GCHAT-180",
+          "GCHAT-181",
+          "GCHAT-182",
+          "GCHAT-183"
+        ],
+        "reasons": [
+          "全局折叠按钮存在不能覆盖单轮/单 assistant 折叠，且全局实现按 Role/Kind 删行而非生成分组摘要。"
+        ]
+      },
+      "supplementActionIds": [
+        "GCHAT-180",
+        "GCHAT-181",
+        "GCHAT-182",
+        "GCHAT-183"
+      ]
+    },
+    {
+      "id": "CHAT-051",
+      "feature": "轨迹实际时长、并行操作时轴、区间筛选及缩放",
+      "baseline": "installed-0.3.13",
+      "expected": "记录实际时间和序列宽度可切换；并行调用不错误求和为墙钟；区间导航不混淆逻辑seq与时间。",
+      "entry": "Trajectory duration toolbar/timeline/range",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryToolbar.js:9-10: 实际duration可见、actualTime隐藏",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/timeline.js:1-130: timeline坐标及focus索引"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/trajectory.go:93-104,118-139: duration、range状态与overview",
+        "internal/ui/chat/trajectory_timing.go:13-167: 记录时长与并行span",
+        "internal/ui/chat/trajectory_range.go:1-173: 区间选择及导航",
+        "internal/ui/chat/trajectory_viewport.go:1-72: domain与viewport",
+        "internal/store/session/trajectory_timing.go:1-160: durables及stream timing来源"
+      ],
+      "finding": "实际耗时有专用projection，未从token数推算时间；源码未提供真实并行/休眠/断流记录下的视觉证据。原版actualTime控件自身hidden，不当MyGo缺失。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收并行tool、重试attempt、缺start/end、时钟倒退/休眠、区间拖选/缩放、长历史分页加入后的坐标稳定。",
+      "acceptanceGap": "并行tool、重试attempt、缺start/end、时钟倒退/休眠、区间拖选/缩放、长历史分页加入后的坐标稳定。"
+    },
+    {
+      "id": "CHAT-052",
+      "feature": "轨迹请求生命周期、Schema/Request header、JSON展开/复制",
+      "baseline": "installed-0.3.13",
+      "expected": "能够查看被选工具/模型请求当时的声明、参数/结果和request生命周期，不拿当前catalog替代历史schema。",
+      "entry": "trajectory详情tab、request payload及JSON inspector",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/trajectory-request-header-definition.js:1-130: 历史request/header定义",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/TrajectoryCell.js:1-39: 记录渲染",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-trajectory/lib/types/client/trajectory-assistant-definition.js:1-150: request/attempt定义"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/trajectory_requests.go:83-106,177-306: model请求/重试/压缩等生命周期",
+        "internal/store/session/trajectory_request_header.go:10-52: 持久化allowlist header",
+        "internal/ui/chat/trajectory_request_header.go:10-75: 按被选记录查最近历史header/schema",
+        "internal/ui/chat/trajectory.go:215-330: 参数/结果/timing/request详情与复制",
+        "internal/ui/chat/trajectory_json.go:24-136: 原文/结构树、value/JSON/path复制",
+        "internal/ui/frame/frame.go:1055-1083: 生产只传 Snapshot、全局 bool 折叠和详情 tab；不是浏览器原版轨迹",
+        "internal/ui/chat/trajectory.go:93-145,174-194,197-329: 原生 ledger/选择及详情全部消费",
+        "internal/ui/chat/trajectory.go:223-294,298-321: 固定 overview/args/result/timing；正文仅 Text/trajectoryPayloadView",
+        "internal/ui/chat/trajectory_json.go:58-83: 仅对象/数组 JSON 提供原文/结构树切换，非 Markdown Preview/Raw",
+        "internal/ui/chat/trajectory.go:14-49,223-321: TrajectoryModel 无 LoadImage/gallery callback，详情只消费文本",
+        "internal/ui/chat/trajectory.go:413-491: image/附件没有独立显示分支，只留下 Body/Args/Raw 文本",
+        "internal/ui/chat/trajectory.go:225-253,275-321: tab 无 source；Overview 丢弃来源分组",
+        "internal/ui/chat/trajectory.go:418-487: Raw 仅用于参数 fallback，未构造 source 数据或动作",
+        "internal/ui/chat/trajectory.go:369-383,413-487: trajRow 无 parent/call/group 地址",
+        "internal/ui/chat/trajectory.go:298-321: Overview 仅静态 Text；无关联记录跳转按钮或关系索引",
+        "internal/ui/chat/trajectory.go:225-253,298-321: system record 仍进入固定 tabs；没有 Diff 或 before/after 投影",
+        "internal/ui/chat/trajectory_request_header.go:56-74: 只取最近一个历史 header 并 JSON 编码，不比较前后版本",
+        "internal/ui/chat/trajectory_requests.go:13-36: 每个 request 序列化自身字段，不计算累计 usage",
+        "internal/ui/chat/trajectory_requests.go:38-52: 只有 Request/Events tabs",
+        "internal/ui/chat/trajectory.go:225-253,295-321: 无请求 Usage tab 或 cumulative consumer",
+        "internal/ui/chat/trajectory.go:275-294: args/result 通用 payload，无 codeProgram 分支",
+        "internal/ui/chat/trajectory_json.go:58-83,111-129: 仅一般 JSON 文本/树和 value/JSON/path 复制，不产生语言源码座或 wrap 控件",
+        "internal/ui/chat/trajectory_timing.go:26-40: 时间详情所有开始/结束都用 formatEventTime",
+        "internal/ui/chat/trajectory.go:507-515: formatEventTime 仅 15:04；详情无点击切换控件"
+      ],
+      "finding": "历史 request/header、参数/结果 JSON 树与复制仍存在；header allowlist 也不等于全部日志脱敏；通用 Args/Result/Request JSON 未移植原版按记录类型的 Preview/Raw/Source、调用关系跳转、prompt diff、累计请求用量、程序源码和精确绝对时间动作。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：通用 Args/Result/Request JSON 未移植原版按记录类型的 Preview/Raw/Source、调用关系跳转、prompt diff、累计请求用量、程序源码和精确绝对时间动作。 对照 GCHAT-184、GCHAT-185、GCHAT-186、GCHAT-187、GCHAT-188、GCHAT-189、GCHAT-190、GCHAT-191、GCHAT-192、GCHAT-193 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "模型重试/嵌套tool历史schema、JSON大值/深层budget、空/坏JSON、复制完整原始值与切会话。 补审新增动作 GCHAT-184、GCHAT-185、GCHAT-186、GCHAT-187、GCHAT-188、GCHAT-189、GCHAT-190、GCHAT-191、GCHAT-192、GCHAT-193 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "生产详情消费持久化header，而非live tools catalog；unknown adapter/auth字段不纳入header展示。原始event本身的用户内容可见，不能把allowlist误当所有日志脱敏保证。",
+        "previousRequiredAction": "无需根据本次静态证据修复；验收模型重试/嵌套tool历史schema、JSON大值/深层budget、空/坏JSON、复制完整原始值与切会话。",
+        "sources": [
+          "supplement-chat-actions.json"
+        ],
+        "actionIds": [
+          "GCHAT-184",
+          "GCHAT-185",
+          "GCHAT-186",
+          "GCHAT-187",
+          "GCHAT-188",
+          "GCHAT-189",
+          "GCHAT-190",
+          "GCHAT-191",
+          "GCHAT-192",
+          "GCHAT-193"
+        ],
+        "reasons": [
+          "通用 Args/Result/Request JSON 未移植原版按记录类型的 Preview/Raw/Source、调用关系跳转、prompt diff、累计请求用量、程序源码和精确绝对时间动作。"
+        ]
+      },
+      "supplementActionIds": [
+        "GCHAT-184",
+        "GCHAT-185",
+        "GCHAT-186",
+        "GCHAT-187",
+        "GCHAT-188",
+        "GCHAT-189",
+        "GCHAT-190",
+        "GCHAT-191",
+        "GCHAT-192",
+        "GCHAT-193"
+      ]
+    },
+    {
+      "id": "CHAT-053",
+      "feature": "会话日志检查器、双向定位Chat/tool及元素选取",
+      "baseline": "installed-0.3.13",
+      "expected": "开发工具开启时可从tool inspect进入真实日志/轨迹，或从日志定位Chat；多pane只有一个picker，退出/切会话取消。",
+      "entry": "tool inspect action → trajectory或session-inspector-log pane",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:14-49: sidebar inspector和chat picker",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/locales.js:11-15,67-71: picker/取消/当前Chat可用性"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1085-1089,1479-1481: 实际inspect/日志pane接入",
+        "internal/ui/frame/session_inspector_pane.go:56-117: 优先轨迹、fallback日志及精确pendingPick",
+        "internal/ui/frame/session_inspector_navigation.go:10-66: visible/binding/单picker owner",
+        "internal/ui/chat/session_inspector_picker.go:59-151: 命中/取消overlay",
+        "internal/ui/chat/session_inspector_tools.go:23-79: 嵌套tool几何/命中",
+        "internal/store/session/session_inspector.go:36-69,245-320: 当前Host/session的原事件snapshot"
+      ],
+      "finding": "检查器有native入口和developerTools门禁，不以插件browser fallback冒充。两向定位涉及虚拟行/展开树实际几何，静态owner保护不足以证明命中准确。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收tool inspect在有/无页签时目的地、raw/chat-node模式、filter、JSON、选择器Esc、嵌套tool/虚拟未绘制行、多pane和窄窗。",
+      "acceptanceGap": "tool inspect在有/无页签时目的地、raw/chat-node模式、filter、JSON、选择器Esc、嵌套tool/虚拟未绘制行、多pane和窄窗。"
+    },
+    {
+      "id": "CHAT-054",
+      "feature": "后台任务Popover、运行/已结束、输出观察/复制和取消",
+      "baseline": "installed-0.3.13",
+      "expected": "当前会话任务清单与输出持续观察，可结束运行任务、清除本地已结束列表；空/载/错有重试。",
+      "entry": "conversation header jobsHeader → NativeJobs Controller",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/types/client/AgentsPanel.js:19-27: 当前会话后台jobs显示",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/types/client/index.js:1-27: 后台任务UI贡献",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/types/client/JobListAction.js:123-160: 输出、kill确认和失败提示"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/conversation_header.go:92-92: header生产jobs入口",
+        "internal/ui/frame/jobs.go:14-145,174-280: compact/normal、load/error/retry、输出/kill/finished",
+        "internal/store/session/jobs.go:20-82: 精确session/Host/mux绑定和job/kill",
+        "internal/ui/frame/frame.go:538-539: 未挂载时释放jobs观察",
+        "internal/ui/frame/jobs.go:237-269: 两次确认kill、取消及错误提示"
+      ],
+      "finding": "后台任务没有在agents新目录中重复绘制，但header提供真实产品入口，不能记成全缺失。取消看Host outcome而非只删本地行。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收长输出/滚动/copy、job完成/失败、kill已结束、popover关后stream释放、切会话与断线重连；Controller深层重试策略未逐支穷尽。",
+      "acceptanceGap": "长输出/滚动/copy、job完成/失败、kill已结束、popover关后stream释放、切会话与断线重连；Controller深层重试策略未逐支穷尽。"
+    },
+    {
+      "id": "CHAT-055",
+      "feature": "每轮用量、吞吐/缓存和会话费用含子代理",
+      "baseline": "installed-0.3.13",
+      "expected": "数值从真实usage投影统计，未知价格不伪零价，provider/model与峰谷价格分开，子代理不混同本轮时间。",
+      "entry": "turn end Usage disclosure及composer SessionCost dock",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/TurnUsagePanel.js:1-29: 每轮用量",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/SessionCostCard.js:1-117: 会话费用",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/chat/subagent-cost.js:1-64: 子代理成本"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/performance_usage.go:62-125: turn usage disclosure",
+        "internal/store/session/turn_usage.go:1-170: usage投影",
+        "internal/ui/frame/frame.go:1348-1357: production只由sessioncost拥有stats row",
+        "internal/ui/sessioncost/view.go:145-176,184-223,231-363: 未定价/缓存率/统计/峰谷/子项",
+        "internal/ui/chat/usage_label.go:18-62: 账户余额/任务概览跳转"
+      ],
+      "finding": "turn usage和费用估算有不同来源与单位；实际扣费由账户领域，不能以估算当账单。UI与价格设置已接通，尚无当前真实账单对照。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收未知usage/价格、同模型多provider、峰谷切换、子代理嵌套、cache denominator=0、轮完成后累加和账单对照。",
+      "acceptanceGap": "未知usage/价格、同模型多provider、峰谷切换、子代理嵌套、cache denominator=0、轮完成后累加和账单对照。"
+    },
+    {
+      "id": "CHAT-056",
+      "feature": "轮尾已改文件/声明交付物、展开diff、预览/打开/reveal与应用列表",
+      "baseline": "installed-0.3.13",
+      "expected": "只接受对应turn关闭事件的交付物；路径和序号不能跨Host/session；旧Host无法服务时给出恢复/重试。",
+      "entry": "chat TurnDeliveryView → RunTurnFileAction/preview document",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/types/client/Deliverables.js:14-39,50-54: closing turn匹配和Host summary",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/types/client/changes-summary.js:3-25: summary身份缓存",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js:1487-1489: mini",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js:1152-1165: hover"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/turn_deliverables.go:107-168,178-224,410-535,743-765: 文件/diff/预览/原生动作",
+        "internal/store/session/turn_deliverables.go:119-240,343-429,441-509: closing坐标和scope/action准入",
+        "internal/store/session/turn_deliverables.go:510-655: Host请求及回应检验",
+        "cmd/whaleisle/main.go:7342-7346: 真正workspace preview/open回调",
+        "cmd/whaleisle/main.go:7343-7376: 仅dock",
+        "internal/ui/chat/turn_deliverables.go:493-531: 只有menu按钮"
+      ],
+      "finding": "交付物仍按 closing turn 与 Host scope 装配，不能从模型文本路径取得原生权限；基础交付/记录审阅/Host动作存在；卡片mini、悬停记录diff与默认主按钮契约未完整保留。该跨领域ID由conversation owner更新。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：基础交付/记录审阅/Host动作存在；卡片mini、悬停记录diff与默认主按钮契约未完整保留。该跨领域ID由conversation owner更新。 对照 GWB-001、GWB-002、GWB-003 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "空summary/撤销服务、声明文件不存在/二进制、diff部分失败、open-with/reveal、换Host同路径、重试和取消预览。 补审新增动作 GWB-001、GWB-002、GWB-003 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "交付物按turn与Host scope装配，不因模型文本出现路径就赋予native动作。文件viewer和系统open-with根因归WB-018/020等；此处只覆盖会话触发和数据意义。",
+        "previousRequiredAction": "无需根据本次静态证据修复；验收空summary/撤销服务、声明文件不存在/二进制、diff部分失败、open-with/reveal、换Host同路径、重试和取消预览。",
+        "sources": [
+          "supplement-workbench-actions.json"
+        ],
+        "actionIds": [
+          "GWB-001",
+          "GWB-002",
+          "GWB-003"
+        ],
+        "reasons": [
+          "基础交付/记录审阅/Host动作存在；卡片mini、悬停记录diff与默认主按钮契约未完整保留。该跨领域ID由conversation owner更新。"
+        ]
+      },
+      "supplementActionIds": [
+        "GWB-001",
+        "GWB-002",
+        "GWB-003"
+      ]
+    },
+    {
+      "id": "CHAT-057",
+      "feature": "视觉回复HTML发布、内嵌交互/展开/源码/保存与失败重试",
+      "baseline": "installed-0.3.13",
+      "expected": "只加载会话真实发布的attachment，历史页面仍可看；交互页面和静态预览有明确资源生命周期。",
+      "entry": "chat VisualReplyView → main inlinePublishedHTMLHandler / session/readVisualReply",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/PublishedPage.js:36-95: iframe、expand/source/save、load/error/reload",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-visual-replies/lib/types/client/model.js:1-36: 发布模型校验"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/visual_reply.go:29-105,157-210: 发布证明及读取身份/长度检验",
+        "internal/ui/chat/visual_reply.go:15-54,146-187: 内嵌、失败retry、源码/保存/展开",
+        "cmd/whaleisle/main.go:7310-7314: production static/inline/interactive回调",
+        "cmd/whaleisle/visual_reply_inline.go:32-115: inline owner与helper加载",
+        "internal/store/session/visual_reply_interactive.go:33-137: 交互handle lifetime与stop"
+      ],
+      "finding": "视觉回复原位不是仅按钮占位；HTML实际运行/媒体/桌面桥边界由WB/PLUG另审，本轮不运行页面。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收真实published attachment加载、宽高/滚动、交互状态展开不重置、source/save取消、helper失败重试、关闭/换会话释放。",
+      "acceptanceGap": "真实published attachment加载、宽高/滚动、交互状态展开不重置、source/save取消、helper失败重试、关闭/换会话释放。"
+    },
+    {
+      "id": "CHAT-058",
+      "feature": "OpenUI/Whale UI面板与动态轮尾贡献的聊天消费",
+      "baseline": "installed-0.3.13",
+      "expected": "fence/tool发布的动态UI在对应消息/面板消费，表单动作绑定当前owner，不把截图镜像当任意插件完整交互。",
+      "entry": "chat OpenUI fence、whaleUI tool/panel、TurnContributions",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/AssistantMarkdown.js:98-105: OpenUI fence",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/client/chat/register-node-renderers.js:57-69: dock/whaleUI tool贡献"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/openui.go:48-100,269-296,430-470: fence、worker及action派发",
+        "internal/ui/chat/whale_ui_tool.go:1-156: tool面板入口",
+        "internal/ui/chat/whale_ui_panel.go:1-135: pane消费",
+        "internal/ui/chat/chat.go:268-271: turn/end贡献入口",
+        "internal/ui/chat/plugin_inline.go:12-58: browser owner turnTail镜像",
+        "cmd/whaleisle/plugin_session_turns.go:1-120: 轮尾scope与renderer装配"
+      ],
+      "finding": "这里确认聊天消费位置，动态模块加载、完整slot/portal、native action范围和表单协议差异以PLUG-013/016/017/029/030为准，不重复根因。CHAT-005独记reasoning.body的具体影响。",
+      "evidenceLevel": "code",
+      "requiredAction": "采用PLUG-013/016/017/029/030统一修复与验收，避免只给聊天新增静态镜像表面。",
+      "acceptanceGap": "PLUG原位控件、IME/焦点/portal、流式更新/失败、session/Host切换及native action授权验收。"
+    },
+    {
+      "id": "CHAT-059",
+      "feature": "输入区拖动缩放、边框beam和打字效果的真实消费",
+      "baseline": "installed-0.3.13",
+      "expected": "已启用的偏好在普通/hero输入生效；拖动/键盘resize受窗口尺寸约束，释放后才保存；减少动态效果时不抢输入。",
+      "entry": "frame ConversationPreferences → composer resize/effects",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/input/submission-policy.js:44-76: resize/beam/typing偏好",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/types/client/skeleton/ComposerResizeHandles.js:1-130: resize交互"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:6715-6718: 偏好及SaveComposerSize生产接入",
+        "internal/ui/frame/frame.go:830-837,1002-1004: 输入消费和尺寸约束",
+        "internal/ui/composer/resize.go:29-55,62-190: owner/adopt/拖动/键盘及释放保存",
+        "internal/ui/composer/beam.go:1-140: beam真正绘制入口",
+        "internal/ui/composer/typing_effects.go:1-130: 打字effects消费"
+      ],
+      "finding": "设置值确实到composer消费者，不因配置存在归绿；效果shader/raster像素及每项调参范围由SET/视觉验收联合确认。",
+      "evidenceLevel": "code",
+      "requiredAction": "无需根据本次静态证据修复；验收hero/普通/长输入/审批时resize、窄窗边界、拖动取消、重启尺寸、减少动态效果、IME输入时effects不干扰。",
+      "acceptanceGap": "hero/普通/长输入/审批时resize、窄窗边界、拖动取消、重启尺寸、减少动态效果、IME输入时effects不干扰。"
+    },
+    {
+      "id": "CHAT-060",
+      "feature": "PTC 子 todo_write 使用其自身的历史 predecessor",
+      "baseline": "installed-0.3.13",
+      "expected": "根调用与PTC子调用都按各自callId/subCallId对比调用前的todo/write；旧页不足时显示不可比较，不能伪造初始新增。",
+      "entry": "主Chat → ToolMessageView嵌套调用 → todo diff",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-history.js:13-28: root callId及PTC subCallId分别绑定前一durable write",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-diff-model.js:18-24: 缺baseline不能冒充初始列表"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/tool_details_todo_model.go:98-105,119-134,338-344: 能按subCallId建索引，但消费者只取message.Tool.CallID",
+        "internal/ui/chat/chat.go:140-142,338-348: 根消息只选一次baseline",
+        "internal/ui/chat/tool_lifecycle.go:51-84,163-171: childGallery复制同一个Todo指针并交给每个子call",
+        "internal/ui/chat/tool_details_todo_model.go:232-250,321-334: nil baseline被当初始列表并把全部项计新增"
+      ],
+      "finding": "生产装配没有把整个baseline map按当前call.CallID传给子卡。run_code等非todo根的PTC todo_write通常取nil；即便子索引已有前一列表，子卡仍显示initial/added；若根也有baseline则所有子卡复用根的历史。原事件和todo状态未丢，是历史差异展示错误。",
+      "evidenceLevel": "code",
+      "requiredAction": "沿嵌套call选择对应baseline；保留缺start与旧页不足的unavailable语义。",
+      "acceptanceGap": "未运行真实PTC：需验收同一根中连续两次todo_write、先前已有durable列表、补更早页后重算和子call各自的新增/完成/移动/删除。"
+    },
+    {
+      "id": "CHAT-061",
+      "feature": "终端四类操作的专用历史收据",
+      "baseline": "installed-0.3.13",
+      "expected": "terminal_open/read/signal/close保留名称与ID、启动/关闭状态、类型、行范围/截断和signal/processGroup字段；输出是代码区。",
+      "entry": "成功tool result → details/terminal分派 → transcript卡",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:196-219: 四类专用receipt字段与output code"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/tool_details_control_model.go:332-357: 控制分派只有terminal_list，没有四类操作",
+        "internal/ui/chat/tool_details_model.go:120-166: 其余分派没有terminal操作",
+        "internal/ui/chat/terminal_model.go:87-155: terminal专用body只接bash/pwsh与terminal_send",
+        "internal/ui/chat/toolcard.go:180-183,211-213: 未命中专用body时保留通用IN/OUT"
+      ],
+      "finding": "四类工具名有图标/保留家族标记，不等于有专用收据。当前均落通用IN/OUT，原文字仍可读，但原版结构化启动/closed/closing、行段/截断及信号字段不被专用消费者解释。此项仅审转录receipt，不重复WB终端执行/协作面板结论。",
+      "evidenceLevel": "code",
+      "requiredAction": "补齐四类收据或提供能读相同关键字段的等价原生卡；不应以工具名映射当完成。",
+      "acceptanceGap": "未调用终端工具；四类成功收据及closed/already closing与truncated实际呈现待验。"
+    },
+    {
+      "id": "CHAT-062",
+      "feature": "subagent 最终答复保留Markdown",
+      "baseline": "installed-0.3.13",
+      "expected": "非started的subagent最终文本按Markdown展示，task保留在折叠组中。",
+      "entry": "subagent成功result → toolDetailsModelSubagent → toolDetailsCard",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:161-165: 非started reply赋给markdown"
+      ],
+      "mygoEvidence": [
+        "internal/ui/chat/tool_details_control_model.go:522-542: 非started reply赋给Description",
+        "internal/ui/chat/tool_details.go:127-129,150-151: Description用ui.Text，而Markdown走独立消费者",
+        "internal/ui/chat/tool_details_entries.go:69-75: Markdown消费者已存在"
+      ],
+      "finding": "启动回执和task字段已接；最终reply仍放纯文本Description，Markdown标题、列表、代码和链接不按原版解释；不是缺Markdown基础组件。",
+      "evidenceLevel": "code",
+      "requiredAction": "将最终reply接到现有Markdown语义，保留started/agent/job ID与task折叠路径。",
+      "acceptanceGap": "未运行subagent或桌面；Markdown最终答复与普通文本、started两种收据呈现待验。"
+    },
+    {
+      "id": "CHAT-063",
+      "feature": "Chat Inspector保留节点分组、T/S及类型化对象引用",
+      "baseline": "installed-0.3.13",
+      "expected": "Chat表显示Node.kind/identity/Turn-Step位置，Group及member层级可折叠；详情可跟随Node/Group/Turn/Step及Data引用，保留集合语义。原生实现可用自身真实对象，不要求伪造React对象。",
+      "entry": "Session Inspector → Chat Group模式 → table/details/reference",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/model.js:8-14,127-139,174-186: node位置、group/member parent层级及kind/identity",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/objects.js:25-37,46-60,63-81: 八类对象引用和当前值reader",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorObjectTree.js:7-61,83-88: 引用、lazy tree、collection paging与循环保护",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/object-value.js:33-67,73-110: runtime Map/Set/类/arraybuffer等真实类型"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/session_inspector_pane.go:249-254,297-314: Chat行只序列化Message，未赋Parent/Location；Groups仅添Links",
+        "internal/store/session/session_inspector.go:308-315: store fallback同样序列化Message",
+        "internal/ui/frame/session_inspector_table.go:138-149,366-408: 层级依赖Parent，T/S仅取row.Location或根data.turn/step",
+        "internal/store/session/store.go:65-105: Message是Raw/ConversationTurn等字段，不是根data.turn/step",
+        "internal/ui/frame/session_inspector_objects.go:16-75: native Message/事件Data及顺序推断turn/step链接",
+        "internal/ui/frame/session_inspector_details.go:37-70: 详情链接后仍统一JSON tree",
+        "internal/ui/frame/session_inspector_tree.go:50-74,106-140: serialized JSON对象/数组，不是runtime typed reader"
+      ],
+      "finding": "Raw Log的事件/stream层级是实际支持，不能等同Chat结构模式。Chat Group生产行没有Parent，分组与member仍平铺而非原版Group分支；未填Location且Message无根data，T/S列为空。详情只有Message JSON、事件Data和若干关系链接，未保留原版八类对象/Data reader、集合类型与内嵌身份引用；属于原生检查器的部分替代，不是全量同等实现。",
+      "evidenceLevel": "code",
+      "requiredAction": "补齐自身真实Chat投影的分组/member父子关系和T/S；定义对应Node/Group/Turn/Step及Data的可导航原生对象模型，并让详情保留需要调试的数据/集合语义；不要制造原版React快照冒充。",
+      "acceptanceGap": "未开桌面；需验收含折叠process、reasoning/response分部、多step与嵌套tool的Chat表层级、T/S、对象/Data引用及breadcrumb定位。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "SH-001/002/004/005/006：标题/tab布局、窄窗入口、动态额外view与用户原轨迹失败；本域CHAT-050仅审正文功能，保留用户失败根因unknown和诊断一次成功的限定。",
+    "SET：collapseTiming配置不生效的根因与设置写入由SET拥有；本域CHAT-025不重复；resize/effects/token显示等消费者由CHAT-020/055/059连接。",
+    "PLUG-013/016/017/018/029/030：任意slot/portal、composer替换、通用inline仅turnTail且必须显式browser owner；CHAT-005为reasoning.body翻译的具体影响，CHAT-058为聊天消费者。",
+    "PLUG-020/021/022/026/032：技能管理/Hub、预设完整管理器及默认预设同步；本域只追输入选择/使用/门禁。",
+    "PET-027/028/029/030/031：麦克风/语音转写/真实level/语音文件/系统图片粘贴；frame.go:949-958提供输入入口，实际设备/转写验收以PET为准。",
+    "WB-003/008/010/011/018/020/035/042：路径引用的文件/图片viewer、系统open-with、协作终端和只读计划/子历史资源执行；本域保留session/address/turn意义。",
+    "LIFE-013及恢复/连接管理：主草稿checkpoint和Host恢复；CHAT-002指出子输入不在main draft恢复集合，CHAT-021/022/024保留会话follow/分页边界。"
+  ],
+  "uncovered": [
+    "internal/ui/chat/render_memo.go、internal/store/session/view_clone.go、assistant_stream.go的超长/深嵌套/增量回退组合，以及markdown/incremental.go、stream_highlight.go：已追真实消费者与核心合流/owner，未对极端性能组合做复杂度/缓存失效穷举；本轮无性能运行测量。此边界不再含专用tool receipt或Inspector功能库存。",
+    "internal/mathrender/renderer.cjs（约1.8MB生成MathJax引擎）和markdown/math_layout.go、table.go深层排版算法：已审解析/worker调用/超时/预算/错误边界，未逐行审生成引擎或穷尽复杂公式/表格的布局差异。",
+    "internal/jobflow Controller深层roster/output重试与恢复分支，以及workflowrun Fold全部异常事件排列：CHAT-049/054已覆盖UI动作/真实transport和identity入口，未穷尽所有异常replay组合。",
+    "真实原生窗口、用户profile、模型/provider请求、附件上传、第三方插件、服务恢复和安装包路径均按授权未操作；每条acceptanceGap保留具体待验收动作。此项是运行验收缺口，不能用当前源码存在或历史测试绿替代。"
+  ],
+  "checksRun": [
+    {
+      "command": "Read-only Get-Content/rg and numbered source inspection of installed 0.3.13 client/experimental lib and MyGo production assembly",
+      "result": "63条动作/能力记录；7 confirmed-defect、8 partial、48 wired-unverified；25个tool receipt家族/38工具名和19项Inspector能力完成静态逐项对照。未构建、新写测试/夹具、运行模型/桌面、读取用户profile或操作服务。",
+      "scope": "静态production入口→回调→状态/transport→收据/恢复；深层源码与运行缺口见uncovered。"
+    },
+    {
+      "command": "Python json.loads + feature/inventory required-fields/enums/unique-id + recursively validate evidence paths and numeric line ranges",
+      "result": "通过：最终JSON可解析，63条CHAT顺序唯一且必填字段/枚举有效；25家族/38工具名、19检查器能力库存计数一致；580条引用覆盖319个真实源文件，全部路径/行号范围有效。",
+      "scope": "仅审查报告结构和可定位引用，不是产品测试或用户验收。"
+    }
+  ],
+  "summary": "63个会话能力条目，7 confirmed-defect、8 partial、48 wired-unverified；另有25个tool receipt家族（38工具名）及19项Inspector能力库存。最高风险仍是4个P1确定缺陷：@候选同步阻塞render、子输入不清/不进主恢复、GoalDock被真实装配屏蔽、PlanReview要求修改后仍takeover。补审新增PTC todo predecessor错配（P2确定缺陷），终端四类收据通用fallback、subagent Markdown降级及Chat Inspector结构/类型化对象部分替代（P2 partial）。未以源码/测试存在证明实际可用。",
+  "baseline": {
+    "mygo": "b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb + 当前轨迹phase/opt-in诊断工作树；不是原rc.3 app源码5549e627",
+    "original": "installed-0.3.13; C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/*/lib及experimental/*/lib；桌面只读提取tmp/full-audit-20261102/installed-source/src",
+    "excludedReference": "reference/electron 0.3.3与旧0.3.10提取不是当前基线"
+  },
+  "coverageDisposition": [
+    {
+      "modules": [
+        "internal/ui/composer",
+        "internal/store/session/composer_*.go",
+        "internal/store/session/commands.go",
+        "internal/store/session/models*.go",
+        "internal/store/session/permissions.go",
+        "internal/store/session/next_prompt.go"
+      ],
+      "coverage": "CHAT-001,006-020,059：生产常驻输入、提交/队列、编辑/附件/引用/命令/模型/权限/预设和effects。目录内图标/配色/纯小格式器作为这些入口的supporting code，不另列一条功能。"
+    },
+    {
+      "modules": [
+        "internal/ui/chat",
+        "internal/store/session/follow.go",
+        "internal/store/session/page.go",
+        "internal/store/session/assistant_stream.go",
+        "internal/store/session/tool_lifecycle.go",
+        "internal/store/session/*history*.go",
+        "internal/store/session/*usage*.go",
+        "internal/store/session/trajectory*.go"
+      ],
+      "coverage": "CHAT-021-039,049-063及toolDetailInventory/sessionInspectorInventory：转录/历史/导航/Markdown/工具/上下文/反馈/工作流/轨迹/检查器/交付物/富回复；25个收据家族和19项检查器能力已逐项对照。未穷尽的极端性能/生成引擎/异常排列列uncovered。"
+    },
+    {
+      "modules": [
+        "internal/ui/interaction",
+        "internal/store/interaction",
+        "cmd/whaleisle/question_recovery.go"
+      ],
+      "coverage": "CHAT-004,039-044：审批、问题向导、倒计时/隐藏/继续/补答/历史/持久化和多pending优先级。"
+    },
+    {
+      "modules": [
+        "internal/ui/agents",
+        "internal/store/session/agent_*.go",
+        "internal/store/session/session_subagent_identity.go"
+      ],
+      "coverage": "CHAT-002,045-049：目录、主/侧pane、地址/父身份、只读/continuable、发送/中断、retained和恢复。预设完整管理器/文档编辑交PLUG-026，资源文件viewer交WB-042。"
+    },
+    {
+      "modules": [
+        "internal/markdownsyntax",
+        "internal/mathrender",
+        "internal/ui/widgets/markdown"
+      ],
+      "coverage": "CHAT-026-030：语法/代码表格/图片/链接/公式消费者与离线worker边界；MathJax生成引擎及复杂layout内部未逐行穷尽，列uncovered。"
+    },
+    {
+      "modules": [
+        "internal/ui/composer/skills.go",
+        "internal/ui/composer/speech*.go",
+        "internal/ui/composer/voice_*.go",
+        "internal/store/session/skills.go",
+        "internal/store/session/skill_*.go",
+        "internal/store/session/speech*.go"
+      ],
+      "coverage": "菜单/生产回调已在frame.go:875-885,948-958及main.go:6817-6895映射；技能库/创建/安装/删除归PLUG-020/021/022，语音录制/转写/文件/插入/取消/设备归PET-027/028/029/030，不重复根因。"
+    },
+    {
+      "modules": [
+        "internal/ui/chat/terminal*.go",
+        "internal/ui/chat/read_only_resources.go",
+        "internal/ui/chat/child_workbook.go",
+        "internal/store/session/agent_resources.go",
+        "cmd/whaleisle/agent_documents.go"
+      ],
+      "coverage": "本领域确认chat工具/子历史的consumer和owner；协作终端、文件/表格/只读计划资源的执行和预览归WB-008/035/042。"
+    },
+    {
+      "modules": [
+        "cmd/whaleisle/main.go",
+        "cmd/whaleisle/composer_*.go",
+        "cmd/whaleisle/recovery.go",
+        "cmd/whaleisle/resume_checkpoint.go",
+        "cmd/whaleisle/visual_reply*.go",
+        "internal/ui/frame/frame.go"
+      ],
+      "coverage": "沿生产frame装配，而非孤立View/test fixture确认入口；主生命周期恢复/重连最终准入归LIFE。"
+    }
+  ],
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "counts": {
+    "features": 63,
+    "status": {
+      "confirmed-defect": 7,
+      "partial": 8,
+      "wired-unverified": 48
+    },
+    "priority": {
+      "P1": 27,
+      "P2": 36
+    }
+  },
+  "toolDetailInventory": {
+    "scope": "按家族穷举四个tool_details model及安装版ui-tool对应专用成功收据：字段、空态/门禁、实际consumer和固定fallback。罕见格式/错误排列不作为本轮穷尽范围。",
+    "productionConsumer": [
+      "internal/ui/chat/chat.go:338-348: 主Chat传入真实tool message与baseline",
+      "internal/ui/chat/tool_lifecycle.go:136-183,264-290: 选择typed details并接开文件/inspect回调",
+      "internal/ui/chat/toolcard.go:180-183: typed未处理保留generic IN/OUT",
+      "internal/ui/chat/tool_details.go:123-156: 字段/文本/Markdown/code/groups消费"
+    ],
+    "newFindings": [
+      "CHAT-060",
+      "CHAT-061",
+      "CHAT-062"
+    ],
+    "families": [
+      {
+        "family": "shared-record-shape",
+        "tools": [],
+        "fields": [
+          "title优先subject/title/name/pluginId/packageId/id/summary",
+          "description优先description/purpose",
+          "status→badge及tone；未知status原样",
+          "scalar/null/bool→命名字段；扩展字段名保留",
+          "inputSchema/outputSchema→JSON code",
+          "arguments的JSON对象字符串→嵌套组",
+          "其他object/array→groups；array每层40项及more提示；depth>4→JSON code"
+        ],
+        "consumer": "供agent/team/cordis/workflow/event-data等家族复用；toolDetailsCard→字段/组折叠/code copy与wrap；不是RPC动作。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/detail-model-shared.js:45-145: shared-record-shape 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:195-298: shared-record-shape 原生状态及消费",
+          "internal/ui/chat/tool_details.go:123-161: shared-record-shape 原生状态及消费",
+          "internal/ui/chat/tool_details_entries.go:36-75,117-195: shared-record-shape 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-agent-list",
+        "tools": [
+          "list_agents"
+        ],
+        "fields": [
+          "JSON array→shared-record-shape",
+          "文本id/[state]/optional parent,depth,title；无title显示id",
+          "(no subagents)→0计数/空态"
+        ],
+        "consumer": "title/subtitle/badge/parent/depth→历史卡；计数summary。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:13-35: control-agent-list 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:370-400: control-agent-list 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-team-member-and-task",
+        "tools": [
+          "spawn_teammate",
+          "team_task_create",
+          "team_task_get",
+          "team_task_update"
+        ],
+        "fields": [
+          "spawn JSON.member object及args.name summary",
+          "task JSON.subject作为summary；其余顶层/嵌套字段全部走shared-record-shape"
+        ],
+        "consumer": "member/任务实体fields/groups→历史卡；无修改/分配任务按钮。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:124-133: control-team-member-and-task 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:405-429: control-team-member-and-task 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-team-task-list",
+        "tools": [
+          "team_task_list"
+        ],
+        "fields": [
+          "JSON.tasks array",
+          "count",
+          "optional numeric nextCursor→caption"
+        ],
+        "consumer": "tasks→shared-record-shape；cursor是收据文字，不是分页按钮（两版相同）。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:134-142: control-team-task-list 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:433-450: control-team-task-list 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-send-receipt",
+        "tools": [
+          "send_message"
+        ],
+        "fields": [
+          "target优先target/agent_id/sessionId/job_id",
+          "JSON.status accepted或queued；或exact delivered文本",
+          "args.message→description"
+        ],
+        "consumer": "target/已交付或已排队badge/原消息→历史收据；不重发。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:118-118,143-149: control-send-receipt 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:456-474: control-send-receipt 原生状态及消费",
+          "internal/ui/chat/tool_details_model.go:609-618: control-send-receipt 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-interrupt-receipt",
+        "tools": [
+          "interrupt_agent"
+        ],
+        "fields": [
+          "target aliases",
+          "JSON.previousStatus→本地化旧状态字段；或exact interrupt requested文本"
+        ],
+        "consumer": "中断请求badge与旧状态→历史卡；不是再次中断按钮。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:151-154: control-interrupt-receipt 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:479-492: control-interrupt-receipt 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-wait-receipt",
+        "tools": [
+          "wait_agent"
+        ],
+        "fields": [
+          "JSON.timedOut bool→timeout/changed中性badge",
+          "optional noProgress.message优先单独说明"
+        ],
+        "consumer": "等待结果或无进展description→历史卡。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:155-160: control-wait-receipt 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:498-519: control-wait-receipt 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-subagent-start-and-reply",
+        "tools": [
+          "subagent"
+        ],
+        "fields": [
+          "started subagent ID或background subagent job ID→started badge及agent/job字段",
+          "args.prompt→标题/task组",
+          "final reply：原版Markdown，MyGo Description纯文本"
+        ],
+        "consumer": "started字段同等；最终reply没有进入已存在的toolDetailsMarkdown。",
+        "status": "partial",
+        "finding": "CHAT-062：最终答复降级为纯文本；task折叠与ID仍消费。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:161-165: control-subagent-start-and-reply 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:522-542: control-subagent-start-and-reply 原生状态及消费",
+          "internal/ui/chat/tool_details.go:127-129,150-151: control-subagent-start-and-reply 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-subagent-models",
+        "tools": [
+          "list_subagent_models"
+        ],
+        "fields": [
+          "每行title — description；无分隔则description",
+          "summary优先args.model/args.provider/模型列表标题"
+        ],
+        "consumer": "模型清单只读title/description→卡；不是composer model picker。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:167-175: control-subagent-models 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:548-569: control-subagent-models 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-job-list",
+        "tools": [
+          "job_list"
+        ],
+        "fields": [
+          "文本id/[kind]/state/title",
+          "(no background jobs)→空列表",
+          "kind→type字段；state→badge"
+        ],
+        "consumer": "title/id/type/state→历史卡与数量。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:37-51,121-121: control-job-list 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:158-159,623-645: control-job-list 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-job-output",
+        "tools": [
+          "job_output"
+        ],
+        "fields": [
+          "target aliases",
+          "末尾[status: STATE, optional EXTRA]",
+          "尾部[output truncated]剥离为description",
+          "其余output→code"
+        ],
+        "consumer": "badge/description/code→卡；target同时为expandedSummary；不是轮询output。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:176-188: control-job-output 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:648-681: control-job-output 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-job-cancel",
+        "tools": [
+          "job_kill"
+        ],
+        "fields": [
+          "exact requested cancellation文本+args.reason",
+          "already finished前缀→alreadyFinished中性badge"
+        ],
+        "consumer": "取消请求/已完成收据→历史卡；不表示进程已退出，不代替WB/LIFE执行结论。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:190-195: control-job-cancel 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:684-704: control-job-cancel 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-terminal-list",
+        "tools": [
+          "terminal_list"
+        ],
+        "fields": [
+          "id,optional name,type",
+          "running或exited code/signal",
+          "optional pid；signal=null不显示",
+          "empty sentinel→0"
+        ],
+        "consumer": "title/name、subtitle/id、type/pid/exitCode/signal和running/exited badge→卡。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:52-75: control-terminal-list 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:625-662: control-terminal-list 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-terminal-operation-receipts",
+        "tools": [
+          "terminal_open",
+          "terminal_read",
+          "terminal_signal",
+          "terminal_close"
+        ],
+        "fields": [
+          "open:id/name/type、started badge、output code",
+          "read:target、begin/end/total行范围、truncation、output code",
+          "signal:target、delivered badge、signal/processGroup",
+          "close:target、closed/already-closing badge"
+        ],
+        "consumer": "MyGo无这四个details dispatch；terminalModel也不接；固定通用IN/OUT保留原文。",
+        "status": "partial",
+        "finding": "CHAT-061：不是丢工具结果或终端执行缺失；缺专用收据字段消费。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:196-219: control-terminal-operation-receipts 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:332-357: control-terminal-operation-receipts 原生状态及消费",
+          "internal/ui/chat/tool_details_model.go:120-166: control-terminal-operation-receipts 原生状态及消费",
+          "internal/ui/chat/terminal_model.go:87-155: control-terminal-operation-receipts 原生状态及消费",
+          "internal/ui/chat/toolcard.go:180-183: control-terminal-operation-receipts 原生状态及消费"
+        ]
+      },
+      {
+        "family": "control-lsp-location-and-hover",
+        "tools": [
+          "lsp"
+        ],
+        "fields": [
+          "args.file_path/line/character→source",
+          "operation hover→Markdown及文件line",
+          "other output path:row:column→title/subtitle/location",
+          "URI不赋本地file opener；No results./…尾提示保留"
+        ],
+        "consumer": "Markdown正文和location heading→OnOpenFile(path:line)；文件打开最终执行归WB。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/control-details-model.js:77-106: control-lsp-location-and-hover 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_control_model.go:686-733: control-lsp-location-and-hover 原生状态及消费",
+          "internal/ui/chat/tool_details_entries.go:69-99: control-lsp-location-and-hover 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-cordis",
+        "tools": [
+          "cordis_inspect_list",
+          "cordis_inspect_query",
+          "cordis_inspect_self"
+        ],
+        "fields": [
+          "list.providers array+count",
+          "query.provider/method/data",
+          "self.plugins array+count；否则object summary优先pluginId/packageId/mode",
+          "所有实体与扩展字段→shared-record-shape"
+        ],
+        "consumer": "provider/plugin列表与query数据→只读fields/groups/code；无执行provider方法按钮。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:14-31: inspection-cordis 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:185-219: inspection-cordis 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-workflow-return",
+        "tools": [
+          "workflow"
+        ],
+        "fields": [
+          "completed header中的name/agent count",
+          "Return value JSON→shared-record-shape",
+          "optional args.code→JavaScript折叠script组"
+        ],
+        "consumer": "完成badge、agents字段、返回数据及脚本→历史卡；运行/子agent管理见CHAT-049。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:34-47: inspection-workflow-return 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:223-245: inspection-workflow-return 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-ralph-final-report",
+        "tools": [
+          "ralph"
+        ],
+        "fields": [
+          "header completion/blocker/limit与rounds",
+          "report.summary/evidence[]/nextSteps[]/blocker",
+          "optional args.objective→task组"
+        ],
+        "consumer": "标题、badge、轮数/阻塞理由、evidence bullet、nextSteps/task disclosures→卡。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:49-77: inspection-ralph-final-report 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:250-299: inspection-ralph-final-report 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-session-search",
+        "tools": [
+          "session_search",
+          "session_event_search"
+        ],
+        "fields": [
+          "编号session title/id及Created/Availability/Parent/Best match等已知trace字段",
+          "event seq/type/surface/time",
+          "Snippet；Result cap reached caption；no-match空态"
+        ],
+        "consumer": "命中标题/subtitle/时间和snippet→卡；不自动打开命中会话，不把文本字段当路由。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:79-126: inspection-session-search 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:23-34,302-359: inspection-session-search 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-event-read",
+        "tools": [
+          "session_event_read"
+        ],
+        "fields": [
+          "session title/id、target seq",
+          "JSON event.type/data/time",
+          "Before/After相邻事件原文"
+        ],
+        "consumer": "主event字段+shared data与邻接disclosure→历史卡。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:128-146: inspection-event-read 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:362-395: inspection-event-read 原生状态及消费"
+        ]
+      },
+      {
+        "family": "inspection-session-and-event-trace",
+        "tools": [
+          "session_trace",
+          "session_event_trace"
+        ],
+        "fields": [
+          "session title/id；Created/Availability/Parent/Best match/Target",
+          "Replaced by/Replacement chain/replaces/sources/derived",
+          "session trace Ancestors(nearest first)/Descendants及none"
+        ],
+        "consumer": "trace字段→named fields；祖先/后代→lines；Created本地时间、none本地化。",
+        "status": "wired-unverified",
+        "finding": "标准Host event_trace字段连续同段，两版均消费；MyGo只读首个空行段，原版event_trace扫整个body，这是扩展输出形状边界，未把它夸大成当前标准receipt缺字段。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:79-94,148-164: inspection-session-and-event-trace 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/tool-session-query/lib/types/presentation.js:80-89: 实际Host标准event_trace字段不含空段"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_inspection_model.go:400-439: inspection-session-and-event-trace 原生状态及消费"
+        ]
+      },
+      {
+        "family": "goal-receipt",
+        "tools": [
+          "create_goal",
+          "get_goal",
+          "update_goal"
+        ],
+        "fields": [
+          "goal=null空态",
+          "id/objective/revision/roundsStarted/maxGoalRounds校验",
+          "phase active/paused/blocked/complete与activation armed/disarmed→state",
+          "blockedReason.code/message校验，显示message"
+        ],
+        "consumer": "objective标题、state、轮数及blockedReason.message→卡；id/revision只校验不显示，两版相同。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/details-card-model.js:43-66,180-183: goal-receipt 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:145-147,171-226: goal-receipt 原生状态及消费"
+        ]
+      },
+      {
+        "family": "schedule-receipt",
+        "tools": [
+          "schedule_create",
+          "schedule_update",
+          "schedule_list",
+          "schedule_delete"
+        ],
+        "fields": [
+          "id/prompt/title、scheduledAt精确ISO",
+          "deliveryMode host或session-local、state scheduled/overdue",
+          "at/after/every/daily/weekly/cron；afterSeconds/everySeconds/time/timeZone/weekdays/expression",
+          "list:数组计数/空态；delete:id+deleted=true"
+        ],
+        "consumer": "title或prompt、when/frequency/state字段→卡；list每项校验；删除状态→卡。",
+        "status": "wired-unverified",
+        "finding": "主要字段与六种频率已消费；本地日期格式由Go有限locale/时区缩写近似Intl，不保证所有时区显示逐字一致。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/details-card-model.js:102-156,184-204: schedule-receipt 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:148-157,301-435: schedule-receipt 原生状态及消费"
+        ]
+      },
+      {
+        "family": "todo-write-predecessor-diff",
+        "tools": [
+          "todo_write"
+        ],
+        "fields": [
+          "args.todos唯一trimmed content与completed/in_progress/pending",
+          "durable todo/write为predecessor；root callId或PTC subCallId",
+          "added/updated+previousStatus/moved/removed/unchanged计数和组",
+          "first list/older unavailable/no changes/empty"
+        ],
+        "consumer": "root参数和diff UI接通；PTC索引有但子卡未按当前call选择；nil误作initial。",
+        "status": "confirmed-defect",
+        "finding": "CHAT-060：diff算法与渲染有消费者，但生产PTC baseline错配。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/details-card-model.js:24-41: todo-write-predecessor-diff 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-history.js:13-28: todo-write-predecessor-diff 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/todo-diff-model.js:18-70: todo-write-predecessor-diff 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_todo_model.go:98-134,158-192,232-344: todo-write-predecessor-diff 原生状态及消费",
+          "internal/ui/chat/chat.go:338-348: todo-write-predecessor-diff 原生状态及消费",
+          "internal/ui/chat/tool_lifecycle.go:80-84: todo-write-predecessor-diff 原生状态及消费"
+        ]
+      },
+      {
+        "family": "typed-dispatch-failure-and-generic-evidence",
+        "tools": [],
+        "fields": [
+          "仅成功root/nested调用、可解析args、single text result进入专用model",
+          "inspection spill notice不吞掉溢出位置",
+          "未知tool/错误或malformed shape→generic IN/OUT原文"
+        ],
+        "consumer": "dispatch没有把所有未知结果压成空卡；specialized不是执行动作，展开/复制/代码wrap/文件heading/inspect是实际UI动作。",
+        "status": "wired-unverified",
+        "finding": "成功且形状匹配时保留同等字段；运行呈现未验收。",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/details-card-model.js:165-205: typed-dispatch-failure-and-generic-evidence 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-tool/lib/types/client/tool/models/inspection-details-model.js:176-190: typed-dispatch-failure-and-generic-evidence 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/tool_details_model.go:120-166: typed-dispatch-failure-and-generic-evidence 原生状态及消费",
+          "internal/ui/chat/tool_details_inspection_model.go:49-68: typed-dispatch-failure-and-generic-evidence 原生状态及消费",
+          "internal/ui/chat/toolcard.go:180-209: typed-dispatch-failure-and-generic-evidence 原生状态及消费"
+        ]
+      }
+    ],
+    "familyCount": 25,
+    "toolNameCount": 38,
+    "completion": "本项静态能力库存已闭合；所有wired-unverified仅指生产代码链，不指原生窗口验收。"
+  },
+  "sessionInspectorInventory": {
+    "scope": "安装版session-inspector可见对象类型、filter、table/details、pick/reveal/定位逐项静态对照；以真实native生产装配为准。",
+    "completion": "本项静态能力库存已闭合；实际桌面命中、像素/几何、窄窗和运行状态仍留在各条acceptanceGap。",
+    "rowObjectTypes": [
+      "raw:event.type开放集合",
+      "raw:assistant/live attempt",
+      "raw:assistant stream chunk.type开放集合",
+      "chat:Node.kind开放集合及group/member",
+      "references:node/nodeData/group/groupData/turn/turnData/step/stepData"
+    ],
+    "newFinding": "CHAT-063",
+    "items": [
+      {
+        "area": "entry-and-modes",
+        "originalCapability": "会话绑定的右侧Inspector tab；默认Session Log，可切Chat Node；mode切换取消picker/reveal及本表选择。",
+        "mygoConsumer": "真实session-inspector-log pane、developer tools门禁；Raw Log/Chat Group selector；切换清filter/selected/navigation；tool inspect优先trajectory，否则打开真实inspector并排队精确call target。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:14-36,51-77: entry-and-modes 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/View.js:8-23,45-51: entry-and-modes 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pane.go:47-117,229-257: entry-and-modes 原生状态及消费",
+          "internal/ui/frame/session_inspector_table.go:42-85,123-135: entry-and-modes 原生状态及消费",
+          "internal/ui/frame/frame.go:1085-1089,1479-1481: entry-and-modes 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "raw-visible-record-types",
+        "originalCapability": "原始event.type开放集合，不限已知业务事件；turn/start与step/start拥有真实后代/end，Assistant durable message/attempt和assistant/live根有每个原始chunk。",
+        "mygoConsumer": "capture原事件bytes、按seq建表；turn/step/end层级；assistant live与展开stream的chunk.type行。未知type仍保留，不合成缺失start。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/model.js:162-209: raw-visible-record-types 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/groups.js:13-39: raw-visible-record-types 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/stream.js:23-60: raw-visible-record-types 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/store/session/session_inspector.go:43-91,93-159,200-241,271-304: raw-visible-record-types 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "raw-stream-and-settlement",
+        "originalCapability": "assistant-live尝试及durable结算稳定root identity；block-start open、block-end使header closed；delta原行留在block下，reasoning折叠summary。",
+        "mygoConsumer": "attempt:ID与settledRoots别名；同block index children、reasoning前缀、live chunk精确反向目标；保留原raw而非只显示文本。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/model.js:119-140,162-218: raw-stream-and-settlement 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/stream.js:23-60: raw-stream-and-settlement 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/store/session/session_inspector.go:93-159,170-185,200-241,245-304: raw-stream-and-settlement 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "chat-visible-row-types-and-hierarchy",
+        "originalCapability": "原版所有materialized Node.kind（插件扩展kind也可）及group行；nodeKey和groupPart区分重复part，group/member有parent层级，未列入group的节点按anchor入表。",
+        "mygoConsumer": "真实native Message.Kind和folded control headers；固定类型库存为text/image/unknown/tool/thinking/deliverables/compaction/command/submission/context/question-reply/system-prompt/submitted-plan/turn-delivery/workflow，共15种。来源是实际native投影，不是原版插件开放Node.kind集合。Groups只作链接，没有给行赋Parent。",
+        "status": "partial",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/model.js:8-14,127-139,142-169,174-199: chat-visible-row-types-and-hierarchy 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/session_inspector.go:61-74: chat-visible-row-types-and-hierarchy 原生状态及消费",
+          "internal/ui/frame/session_inspector_pane.go:249-254,297-314: chat-visible-row-types-and-hierarchy 原生状态及消费",
+          "internal/store/session/store.go:52-62: chat-visible-row-types-and-hierarchy 原生状态及消费",
+          "internal/store/session/session_inspector.go:308-315: chat-visible-row-types-and-hierarchy 原生状态及消费",
+          "internal/store/session/command_history.go:8-9: command kind",
+          "internal/store/session/composer_pending.go:10-10: submission kind",
+          "internal/store/session/context_message.go:9-10: context kind",
+          "internal/store/session/question_reply.go:10-10: question-reply kind",
+          "internal/store/session/system_prompt.go:10-10: system-prompt kind",
+          "internal/store/session/submitted_plan.go:10-12: submitted-plan kind",
+          "internal/store/session/turn_deliverables.go:20-20: turn-delivery kind",
+          "internal/store/session/workflow.go:10-10: workflow kind"
+        ],
+        "acceptanceGap": "CHAT-063：不是全量原版Node.kind/Group层级；实际Chat分组行为待补齐再验收。"
+      },
+      {
+        "area": "chat-table-identity-and-location",
+        "originalCapability": "Node表identity=node.key（part有后缀），location是turn或turn/step；group identity是group.key；Chat无Time列。",
+        "mygoConsumer": "无Time列同等；identity先取row.Identity，其次Seq再chat-key；Chat行没有Location，fallback只读根data而Message将事件保存在Raw，故T/S为空，identity通常是seq而非node key。",
+        "status": "partial",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/model.js:8-14,127-139,182-184: chat-table-identity-and-location 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/View.js:51-51: chat-table-identity-and-location 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pane.go:249-254: chat-table-identity-and-location 原生状态及消费",
+          "internal/ui/frame/session_inspector_table.go:274-286,366-408: chat-table-identity-and-location 原生状态及消费",
+          "internal/store/session/store.go:77-105: chat-table-identity-and-location 原生状态及消费"
+        ],
+        "acceptanceGap": "CHAT-063：补入真实Chat key/part及Turn-Step列，不能以raw log位置正确替代。"
+      },
+      {
+        "area": "type-filter-query-and-suggestions",
+        "originalCapability": "case-insensitive contains；可选首尾*；draft直到Enter/Apply/candidate才确认；Clear只清draft，Esc/Cancel不提交；全部loaded rows去重排序候选。",
+        "mygoConsumer": "inspectorFilterQuery+TypeCandidates；popover draft、候选列表上下移动/Enter（不在IME composition提交）、Apply/Cancel/Clear；候选同步本地枚举，不需要网络加载态。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/type-filter.js:3-23,55-69: type-filter-query-and-suggestions 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/TypeFilter.js:24-29,48-85,85-104: type-filter-query-and-suggestions 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_format.go:81-83: type-filter-query-and-suggestions 原生状态及消费",
+          "internal/ui/frame/session_inspector_controls.go:11-64,66-153: type-filter-query-and-suggestions 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "type-filter-ancestors-count-and-reveal",
+        "originalCapability": "确认filter保留匹配行的祖先context，强制展开需要的branch；显示matches/allRows而非祖先数；确认后回顶部并清详情/disclosure；被pick/reveal的行不在filter中才清filter。",
+        "mygoConsumer": "TypeRows回填祖先与open状态，context-muted，toolbar匹配数；apply清详情/choices回顶部；reveal仅在目标被filter排除时清Filter并展开祖先。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/type-filter.js:31-53: type-filter-ancestors-count-and-reveal 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:97-117,189-198,239-251: type-filter-ancestors-count-and-reveal 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pane.go:146-183,191-227: type-filter-ancestors-count-and-reveal 原生状态及消费",
+          "internal/ui/frame/session_inspector_controls.go:24-37: type-filter-ancestors-count-and-reveal 原生状态及消费",
+          "internal/ui/frame/session_inspector_table.go:87-97,290-308: type-filter-ancestors-count-and-reveal 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:157-187: type-filter-ancestors-count-and-reveal 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "table-selection-disclosure-and-columns",
+        "originalCapability": "ID、Type+filter、Location、Raw Time UTC（Chat不显示Time）、Data preview；点击type或preview选中；折叠保留原始children；virtual rows/sticky祖先和横滚。",
+        "mygoConsumer": "相同主要列和row/Enter/Space、type/preview选择；raw表Parent层级的collapse/expand；native List与sticky band；660px最小表横滚；chat层级差异单列CHAT-063。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:15-37,147-186,239-252: table-selection-disclosure-and-columns 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/table-model.js:8-61: table-selection-disclosure-and-columns 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_table.go:138-200,203-286,290-363: table-selection-disclosure-and-columns 原生状态及消费",
+          "internal/ui/frame/session_inspector_pane.go:191-227: table-selection-disclosure-and-columns 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:136-155: table-selection-disclosure-and-columns 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "latest-load-earlier-empty-error-and-flash",
+        "originalCapability": "load earlier仅hasMore，busy不重复；failure/openError可dismiss；empty提示；Follow Latest及手动/滚动/尾随模式；Chat更新/pick脉冲遵守reduce-motion。",
+        "mygoConsumer": "现有LoadEarlierHistory(context.Background)与HistoryHasMore/Busy/Err；empty与notice、latest；mode tail/scroll/manual和折叠锚定；700ms row pulse尊重ReduceMotion。错误为pane文字，非原版dismissible toast。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:45-56,71-87,229-252: latest-load-earlier-empty-error-and-flash 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:15-31: latest-load-earlier-empty-error-and-flash 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pane.go:256-287: latest-load-earlier-empty-error-and-flash 原生状态及消费",
+          "internal/ui/frame/session_inspector_table.go:99-119,238-250: latest-load-earlier-empty-error-and-flash 原生状态及消费",
+          "internal/ui/frame/session_inspector_layout.go:117-194: latest-load-earlier-empty-error-and-flash 原生状态及消费",
+          "internal/ui/frame/session_inspector_motion.go:62-110: latest-load-earlier-empty-error-and-flash 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "raw-details-json-and-removed-record",
+        "originalCapability": "Raw Log详情JSON tree初始全展开、可折叠；失效记录与序列化错误可读；关闭详情不改变事件。",
+        "mygoConsumer": "同一event原bytes构建JSON tree；无效JSON显示原文，scalars可选；Missing记录提示；Close清selected/tree；额外提供Copy raw JSON。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorObjectTree.js:63-75: raw-details-json-and-removed-record 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:224-227,252-253: raw-details-json-and-removed-record 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/raw-json.js:33-44: raw-details-json-and-removed-record 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorDetails.js:55-57: raw-details-json-and-removed-record 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_tree.go:35-74,77-140: raw-details-json-and-removed-record 原生状态及消费",
+          "internal/ui/frame/session_inspector_details.go:13-35,70-72: raw-details-json-and-removed-record 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:261-267: raw-details-json-and-removed-record 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "detail-resize",
+        "originalCapability": "detail默认40%；pointer capture拖动15%-80%；Up/Down每次5%、Home15%、End80%；close按钮。",
+        "mygoConsumer": "details percent同默认/夹值；native splitter focus、drag起点冻结、Range/Step和四个键；Close。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorDetails.js:5-57: detail-resize 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_controls.go:156-220: detail-resize 原生状态及消费",
+          "internal/ui/frame/session_inspector_details.go:13-30: detail-resize 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "chat-object-types-and-data-readers",
+        "originalCapability": "八个命名引用：node/nodeData、group/groupData、turn/turnData、step/stepData；member引用同Node但带groupPart；reader每次读当前publication，weak identity识别旧对象。",
+        "mygoConsumer": "graph是序列化Message、event及event/data；turn/step是顺序扫描start事件的链接，不是带完整data的Turn/Step reader；group members只增双向link。无原版八类型身份/index。",
+        "status": "partial",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/objects.js:16-37,43-81: chat-object-types-and-data-readers 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/model.js:44-61: chat-object-types-and-data-readers 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_objects.go:16-75: chat-object-types-and-data-readers 原生状态及消费",
+          "internal/ui/frame/session_inspector_pane.go:297-314: chat-object-types-and-data-readers 原生状态及消费",
+          "internal/ui/frame/session_inspector_details.go:37-70: chat-object-types-and-data-readers 原生状态及消费"
+        ],
+        "acceptanceGap": "CHAT-063：需要真实原生对象语义映射，不以制造React对象满足。"
+      },
+      {
+        "area": "typed-tree-reference-and-collections",
+        "originalCapability": "Chat详情root/nodeData可inline，其他注册对象是身份链接；runtime树lazy展开、每50项More、循环祖先链接；Map保留key/value、Set、Array及洞/accessor、类own keys/symbol、typed-array/buffer bytes；Date/RegExp/WeakMap/WeakSet等有类型label，bigint/function可读。",
+        "mygoConsumer": "两种mode统一serialized JSON Object/Array树，初始全展开；不含runtime type reader、collection paging、inline identity reference/cycle链接。原数据可序列化部分保留，但不能声称typed tree等价。",
+        "status": "partial",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorObjectTree.js:7-61,76-88: typed-tree-reference-and-collections 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/object-value.js:13-23,33-67,73-110: typed-tree-reference-and-collections 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_tree.go:50-74,88-140: typed-tree-reference-and-collections 原生状态及消费",
+          "internal/ui/frame/session_inspector_details.go:37-70: typed-tree-reference-and-collections 原生状态及消费"
+        ],
+        "acceptanceGap": "CHAT-063：真实native投影数据/引用/集合的可观察性缺口待修复及窗口验收。"
+      },
+      {
+        "area": "object-links-breadcrumb-and-reveal",
+        "originalCapability": "跟随引用累积breadcrumb，Back能恢复对象reader和table位置；引用没有rowKey也可定位Chat；遇rowKey时展开filter隐藏祖先并居中。",
+        "mygoConsumer": "顶部关系Links与breadcrumb可跟随/后退；对象在表中时revealInspectorRow+locateChat；event/data不在rows只能显示JSON，revealReference会提前返回，无独立对象target reader。",
+        "status": "partial",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:118-146,224-227,252-253: object-links-breadcrumb-and-reveal 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorObjectTree.js:51-61: object-links-breadcrumb-and-reveal 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_details.go:37-70: object-links-breadcrumb-and-reveal 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:237-259: object-links-breadcrumb-and-reveal 原生状态及消费"
+        ],
+        "acceptanceGap": "CHAT-063：已有关系导航但非嵌套对象身份引用全等价；Data无table row的定位与返回路径待补。"
+      },
+      {
+        "area": "pick-hit-preview-primary-and-cancel",
+        "originalCapability": "拾取遮罩只捕获当前main Chat；tool box优先于node/part，再group/turn；hover预览；primary click成功才结束；未匹配可继续；Esc/blur/隐藏owner或Chat取消；wheel滚动允许的chat/process容器。",
+        "mygoConsumer": "visible pane唯一owner；clipped绘制行和嵌套tool boxes优先；preview overlay与primary down/up；no-match保持Picking并提示；Esc/blur/不可见区域或session/Host切换取消。wheel仅主Chat滚动，native子code/output不接。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/pick-match.js:9-32: pick-hit-preview-primary-and-cancel 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/picker.js:37-71,98-112,133-189: pick-hit-preview-primary-and-cancel 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:38-49: pick-hit-preview-primary-and-cancel 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_navigation.go:10-66,101-135,218-235: pick-hit-preview-primary-and-cancel 原生状态及消费",
+          "internal/ui/chat/session_inspector_picker.go:59-106,109-203: pick-hit-preview-primary-and-cancel 原生状态及消费",
+          "internal/ui/chat/session_inspector_tools.go:23-79: pick-hit-preview-primary-and-cancel 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "pick-to-row-ranking",
+        "originalCapability": "Chat模式nodeKey+part→node→group→step→turn；raw模式tool/call→anchor→assistant-step最近attempt→step→turn；reasoning优先block-start；group从第一member补位置。",
+        "mygoConsumer": "Chat target匹配同优先级；Log通过真实call/seq/turn/step选行，reasoning block匹配；另有native liveBlock/preparing tool专用匹配，不能把无seq当event0；选行后reveal展开/居中，不凭文本找记录。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/pick-match.js:34-56: pick-to-row-ranking 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/model.js:45-82: pick-to-row-ranking 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:58-71: pick-to-row-ranking 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pick.go:23-92,101-165,168-246: pick-to-row-ranking 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:218-235: pick-to-row-ranking 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "row-to-chat-location-and-fallback",
+        "originalCapability": "选log/chunk保留anchor/call/rootCall/turn/step与reasoning/response part；候选按tool/exact/kind/nearest同step/turn/session；展开hidden Chat并滚动居中后高亮；不可用候选退到可见Chat列。",
+        "mygoConsumer": "select→locateInspectorChat的真实InspectorTarget；native candidate排序、source/live重绑定与折叠process/Thinking展开；测量虚拟行和nested call region后居中，缺可用box退Chat flow；不发Host请求。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/session-log/chat-target.js:15-36: row-to-chat-location-and-fallback 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/reveal-target.js:10-25,51-82: row-to-chat-location-and-fallback 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/reveal.js:31-68: row-to-chat-location-and-fallback 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_navigation.go:136-155: row-to-chat-location-and-fallback 原生状态及消费",
+          "internal/ui/chat/session_inspector_target.go:35-132: row-to-chat-location-and-fallback 原生状态及消费",
+          "internal/ui/chat/session_inspector.go:122-191: row-to-chat-location-and-fallback 原生状态及消费",
+          "internal/ui/chat/session_inspector_reveal.go:137-230: row-to-chat-location-and-fallback 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "reveal-interruption-reduced-motion-and-binding",
+        "originalCapability": "滚动settle后flash，wheel/touch/pointer/scroll keys终止；reduce-motion无flash；mode/unmount释放资源；只能当前Session mainChatRoot。",
+        "mygoConsumer": "native quiet/settled paint后flash、ReduceMotion取消flash；pointer/scroll/滚动键取消deferred reveal；session/client/follow generation改变清绑定；多个pane只一个picker与reveal owner。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/chat-node/reveal.js:70-83,102-176,178-198: reveal-interruption-reduced-motion-and-binding 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:33-49: reveal-interruption-reduced-motion-and-binding 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/View.js:15-16: reveal-interruption-reduced-motion-and-binding 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/chat/session_inspector_smooth.go:41-63: reveal-interruption-reduced-motion-and-binding 原生状态及消费",
+          "internal/ui/chat/session_inspector_reveal.go:97-107,168-229: reveal-interruption-reduced-motion-and-binding 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:10-66,101-135: reveal-interruption-reduced-motion-and-binding 原生状态及消费",
+          "internal/store/session/session_inspector.go:36-41,245-248: reveal-interruption-reduced-motion-and-binding 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      },
+      {
+        "area": "presentation-persistence",
+        "originalCapability": "原版View/table的mode/query/selection为本地组件state，按mode key重建；session绑定缓存models，不把原log写布局。",
+        "mygoConsumer": "只Mode/Filter序列化进workspace pane；raw、selected、bindings不persist；copy pane只复制Mode/Filter；换Host/session恢复source但清手势和选择。属于额外presentation持久化，未冒充会话数据恢复。",
+        "status": "wired-unverified",
+        "originalEvidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/View.js:8-16,45-51: presentation-persistence 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/InspectorTable.js:57-67: presentation-persistence 原版字段与动作",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/session-inspector/lib/types/client/views/index.js:24-35,73-77: presentation-persistence 原版字段与动作"
+        ],
+        "mygoEvidence": [
+          "internal/ui/frame/session_inspector_pane.go:14-44: presentation-persistence 原生状态及消费",
+          "internal/ui/frame/session_inspector_navigation.go:115-135: presentation-persistence 原生状态及消费"
+        ],
+        "acceptanceGap": "静态链已读，真实原生窗口/窄dock的操作和几何仍未验收。"
+      }
+    ],
+    "capabilityCount": 19,
+    "nativeMessageKinds": [
+      "text",
+      "image",
+      "unknown",
+      "tool",
+      "thinking",
+      "deliverables",
+      "compaction",
+      "command",
+      "submission",
+      "context",
+      "question-reply",
+      "system-prompt",
+      "submitted-plan",
+      "turn-delivery",
+      "workflow"
+    ]
+  },
+  "actionSupplements": [
+    "supplement-chat-actions.json",
+    "supplement-workbench-actions.json"
+  ]
+}

@@ -28,6 +28,9 @@ func TestRequestWorkDetailLoadsTeamOnFirstTaskEntryWithoutMutations(t *testing.T
 			value = map[string]any{"project": map[string]any{"id": "project", "coordinatorSessionId": "lead"}}
 		case "/api/session/projections":
 			value = map[string]any{"values": map[string]any{"agentTeam": map[string]any{"members": []any{}, "tasks": []any{}}}}
+		case "/api/session/list":
+			// Team status enrichment is read-only and precedes the work reader.
+			value = map[string]any{"items": []any{}}
 		case "/dsh-project/workstreams/get":
 			value = map[string]any{"workstream": map[string]any{"id": "work", "projectId": "project", "request": map[string]any{"id": "request", "revision": 2}}}
 		default:
@@ -38,7 +41,7 @@ func TestRequestWorkDetailLoadsTeamOnFirstTaskEntryWithoutMutations(t *testing.T
 	})
 	rpc := projectflow.Client{Origin: "http://127.0.0.1:12345", HTTP: &http.Client{Transport: transport}}
 	team, detail, err := readProjectRequestWork(context.Background(), rpc, "project", "request", 2, "work")
-	if err != nil || team.Project.ID != "project" || team.Team == nil || detail.Workstream.ID != "work" || len(calls) != 4 {
+	if err != nil || team.Project.ID != "project" || team.Team == nil || !team.Team.StatusKnown || detail.Workstream.ID != "work" || len(calls) != 5 {
 		t.Fatalf("first-entry work inspector did not load its read context: %v %#v", err, calls)
 	}
 	for _, tc := range []struct {

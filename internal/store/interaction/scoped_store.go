@@ -208,6 +208,14 @@ func (s *ScopedStore) Retry(id string) {
 		s.mu.Unlock()
 		return
 	}
+	if p.Event == EventUserQuestions {
+		ds := s.questionDrafts[id]
+		if ds != nil && planReviewOf(ds.req.Questions) == nil {
+			s.mu.Unlock()
+			s.ResolveQuestions(id)
+			return
+		}
+	}
 	if p.Continued {
 		ds := s.questionDrafts[id]
 		plan := ds != nil && planReviewOf(ds.req.Questions) != nil
@@ -254,6 +262,13 @@ func (s *ScopedStore) SkipQuestionAndContinue(agent, id, question string) (strin
 		return "", ""
 	}
 	return s.skipQuestionAndContinue(agent, id, question, s.ResolveQuestions)
+}
+
+func (s *ScopedStore) ConsumePlanReviewOpen(agentID, eventID string) bool {
+	if !s.valid() || agentID != s.scope.AgentID() || !s.allows(eventID) {
+		return false
+	}
+	return s.Store.ConsumePlanReviewOpen(agentID, eventID)
 }
 
 // A retained surface cannot turn an explicit decision into global auto-allow.

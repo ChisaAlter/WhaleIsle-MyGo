@@ -108,3 +108,39 @@ func TestDesktopImmediatePreferencesWithoutFormSave(t *testing.T) {
 		t.Fatal("immediate controls incorrectly depend on the form Save callback")
 	}
 }
+
+func TestLanguageSelectionCommitsIndependentlyAndRestoresOnFailure(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale("en")
+	t.Cleanup(func() { i18n.SetLocale(previous) })
+	locale, accepted := "zh", "zh"
+	calls, formSaves := 0, 0
+	var failure error
+	desktop := &DesktopAccess{Fields: DesktopFields{Locale: &locale}, OnSave: func() { formSaves++ }, OnSetLocale: func(next string) (string, error) {
+		calls++
+		if failure == nil {
+			accepted = next
+		}
+		return accepted, failure
+	}}
+	tt := ui.NewTester(func(c *ui.Context) { desktopPane(c, Model{Desktop: desktop}, c.Theme().Text, c.Theme().TextMuted) }, 900, 1300)
+	if err := tt.Click("中文"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("English"); err != nil {
+		t.Fatal(err)
+	}
+	if locale != "en" || accepted != "en" || calls != 1 || formSaves != 0 {
+		t.Fatal("language submitted unrelated desktop form or stayed uncommitted")
+	}
+	failure = errors.New("synthetic locale save failure")
+	if err := tt.Click("English"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("中文"); err != nil {
+		t.Fatal(err)
+	}
+	if locale != "en" || calls != 2 || formSaves != 0 || !tt.HasText(failure.Error()) {
+		t.Fatal("failed language save did not restore accepted locale and show failure")
+	}
+}

@@ -312,3 +312,62 @@ export const TYPERT_REMOTE = {
 		t.Fatalf("array lazy member = %+v", arr)
 	}
 }
+
+func TestParseRemoteInfoMethodMap(t *testing.T) {
+	src := `import { z } from 'zod'
+import { createTypertRemoteInfo } from '@deepseek-ai/dsh-typert-protocol/remote-info'
+let S$value
+const S = () => (S$value ??= z.string())
+export const TYPERT_REMOTE = createTypertRemoteInfo({
+  package: '@test/current',
+  methods: {
+    'terminal/attach': {
+      service: 'terminalController',
+      mode: 'stream',
+      invocation: { kind: 'direct' },
+      scope: { context: 'agent', wire: 'agentId' },
+      cancellation: { parameter: 'signal' },
+      parameters: [
+        { name: 'agent', wire: 'agentId', source: 'lookup', lookup: 'agent', codec: { mode: 'strict', typeSymbol: '@test#SessionId', create: S } },
+        { name: 'id', source: 'json', acceptsUndefined: true, codec: { mode: 'strict', typeSymbol: '@test#Id', create: S } },
+      ],
+      uplink: { codec: { mode: 'strict', typeSymbol: '@test#Input', create: S } },
+      result: { mode: 'strict', typeSymbol: '@test#Frame', create: S },
+    },
+    'other/read': {
+      service: 'otherService',
+      invocation: { kind: 'context', context: 'session', wire: 'sessionId' },
+      parameters: [],
+      result: { mode: 'src-json' },
+    },
+  },
+}, z)
+`
+	pf := mustParse(t, src)
+	if pf.file.Package != "@test/current" || len(pf.file.Descriptors) != 2 {
+		t.Fatalf("file = %+v", pf.file)
+	}
+	e := pf.file.Descriptors[0]
+	if e.ID != "@test/current#terminal/attach" || e.FullName != "terminal/attach" || e.Service != "terminalController" || !e.Stream || e.Kind != "direct" {
+		t.Fatalf("descriptor = %+v", e)
+	}
+	if e.ScopeContext != "agent" || e.ScopeWire != "agentId" || e.Cancellation != "signal" || !e.HasUplink || e.UplinkSchemaRef != "S" || e.UplinkTypeSymbol != "@test#Input" {
+		t.Fatalf("stream = %+v", e)
+	}
+	if len(e.Params) != 2 || e.Params[0].Wire != "agentId" || e.Params[0].Lookup != "agent" || e.Params[1].Wire != "id" || !e.Params[1].AcceptsUndefined || e.ResultSchemaRef != "S" {
+		t.Fatalf("parameter/result = %+v", e)
+	}
+	other := pf.file.Descriptors[1]
+	if other.Kind != "context" || other.Context != "session" || other.ContextWire != "sessionId" || other.ResultMode != "src-json" {
+		t.Fatalf("context = %+v", other)
+	}
+}
+
+func TestParseRemoteInfoRejectsMalformedMethodMap(t *testing.T) {
+	for _, method := range []string{"terminal", "/attach", "terminal/", "terminal/a/b"} {
+		src := "export const TYPERT_REMOTE = createTypertRemoteInfo({package:'@test/current',methods:{'" + method + "':{}}},z)"
+		if _, err := parseTypertFile(src); err == nil {
+			t.Fatalf("accepted malformed method %q", method)
+		}
+	}
+}

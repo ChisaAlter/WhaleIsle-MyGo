@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // BodySettingsAccess projects described, non-secret feature preferences into
@@ -41,33 +42,7 @@ func settingsPreferenceSelect(c *ui.Context, value *string, options []string) ui
 // the page that hosts it: most rows use the 18 DIP pill, the ui-chat enums the
 // installed build draws with a 12 DIP corner.
 func settingsPreferenceSelectRadius(c *ui.Context, value *string, options []string, radius float32) ui.Element {
-	sel := ui.SelectBase(c, value)
-	trigger := sel.Trigger.Height(36).Padding(7, 14).Gap(12).Radius(radius).BorderWidth(0).Justify(ui.SpaceBetween).
-		Background(c.Theme().Surface).TextColor(c.Theme().Text).AlignItems(ui.Center)
-	if trigger.Hovered() {
-		trigger.Background(c.Theme().SurfaceHover)
-	}
-	trigger.Children(func() {
-		ui.Text(c, *value).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).SingleLine()
-		ui.Box(c).Size(14, 14).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			var path ui.Path
-			path.MoveTo(r.X+r.W*.2, r.Y+r.H*.35).LineTo(r.X+r.W*.5, r.Y+r.H*.65).LineTo(r.X+r.W*.8, r.Y+r.H*.35)
-			p.StrokePath(&path, 1.25, c.Theme().Text)
-		})
-	})
-	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).Radius(12).Border(.5, c.Theme().Border).Background(c.Theme().Surface)
-		for _, option := range options {
-			item := sel.Item(option).FillWidth().Height(36).Padding(7, 12).Radius(8)
-			if item.Highlighted() || option == *value {
-				item.Background(c.Theme().SurfaceHover)
-			}
-			item.Children(func() {
-				ui.Text(c, option).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).SingleLine()
-			})
-		}
-	})
-	return trigger
+	return widgets.PillSelect(c, modelColors(c), value, options, radius)
 }
 
 // settingsOptionsScroll mirrors the source's classic 5 DIP scrollbar gutter.
@@ -115,9 +90,15 @@ func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 // 22/18 DIP title/description lines and an intrinsic trailing control group.
 // Narrow panes stack the group to retain keyboard-reachable controls.
 func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, controls func()) ui.Element {
-	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
-	width := row.Bounds().W
 	gear := takeRowGear()
+	help := takeRowHelp()
+	if !settingsItemBefore(c, key) {
+		return ui.Element{}
+	}
+	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	settingsSearchTarget(c, key, title, row)
+	width := row.Bounds().W
+	horizontal := width >= 420 && !appearanceChoiceRow(key)
 	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
 		p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y + bounds.H - .5, W: bounds.W, H: .5}, c.Theme().Border, 0)
 		if bounds.W != width {
@@ -127,20 +108,20 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 	row.Children(func() {
 		content := func() {
 			copy := ui.Column(c).MinWidth(0).Gap(4)
-			if width >= 420 {
+			if horizontal {
 				copy.Grow(1).Padding(0, 48, 0, 0)
 			} else {
 				copy.FillWidth()
 			}
 			copy.Children(func() {
-				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+				preferenceRowTitle(c, title, fg, help)
 				if hint != "" {
 					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 				}
 			})
 			if gear != nil || controls != nil {
 				group := ui.Row(c).MinWidth(0).Shrink(0).Gap(8).AlignItems(ui.Center).Justify(ui.End)
-				if width < 420 {
+				if !horizontal {
 					group.FillWidth()
 				}
 				group.Children(func() {
@@ -149,7 +130,7 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 					}
 					if controls != nil {
 						control := ui.Column(c).MinWidth(0).Gap(6)
-						if width >= 420 {
+						if horizontal {
 							control.AlignItems(ui.End)
 						} else {
 							control.Grow(1).AlignItems(ui.Stretch)
@@ -159,7 +140,7 @@ func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Colo
 				})
 			}
 		}
-		if width >= 420 {
+		if horizontal {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(16, 0, 16.5, 0).AlignItems(ui.Center).Children(content)
 		} else {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(64).Gap(10).Padding(14, 0).Children(content)
@@ -193,6 +174,10 @@ func nextPreferenceRowIndex(now time.Time) int {
 func bodyDisclosure(c *ui.Context, key, title string, body func()) {
 	anchor := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8)
 	open := ui.Local(anchor, "open", func() bool { return false })
+	if settingsSearchReveal(c, key) {
+		*open = true
+	}
+	settingsSearchTarget(c, key, title, anchor)
 	muted := c.Theme().TextMuted
 	anchor.Children(func() {
 		toggle := ui.Button(c, "").Label(title).FillWidth().Height(34).Padding(0, 8, 0, 4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
@@ -221,19 +206,30 @@ func bodyHostState(c *ui.Context, a *BodySettingsAccess, muted ui.Color) {
 		return
 	}
 	s := a.Snapshot
-	if s.Loading {
-		ui.Text(c, providerCopy("正在读取设置…", "Loading settings…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	// A line inserted while the Host connects, or is read-only, would shift every row below it.
+	settingsNotice(c, "host-state", "", !s.ClientReady || !s.Writable, func() string {
+		if !s.ClientReady {
+			return providerCopy("Host 未连接；保留上次设置。", "Host disconnected; showing retained settings.")
+		}
+		return providerCopy("此 Host 的设置为只读。", "Settings on this Host are read-only.")
+	})
+	anchor := ui.Box(c.Key("preference-error-notice")).Absolute().Size(0, 0).PassThrough()
+	previous := ui.Local(anchor, "error", func() string { return "" })
+	failure := s.Err
+	for _, fieldError := range s.PreferenceErrors {
+		if failure != "" && failure == fieldError {
+			failure = "" // Its mounted field owns this refusal, not the whole page.
+			c.CloseToast("settings-preference-error")
+			break
+		}
 	}
-	if !s.ClientReady {
-		ui.Text(c, providerCopy("Host 未连接；保留上次设置。", "Host disconnected; showing retained settings.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	} else if !s.Writable {
-		ui.Text(c, providerCopy("此 Host 的设置为只读。", "Settings on this Host are read-only.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	}
-	if s.Saving {
-		ui.Text(c, providerCopy("正在保存…", "Saving…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	}
-	if s.Err != "" {
-		ui.Text(c, s.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	if failure == "" {
+		*previous = ""
+	} else {
+		if *previous != failure {
+			c.AddToast(ui.Toast{ID: "settings-preference-error", Title: failure})
+			*previous = failure
+		}
 	}
 }
 
@@ -263,7 +259,11 @@ func bodyHostValue(a *BodySettingsAccess, namespace, key string) (store.Field, s
 }
 
 func bodyHostDisabled(a *BodySettingsAccess) bool {
-	return a == nil || a.OnChange == nil || !a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading || a.Snapshot.Saving
+	return a == nil || a.OnChange == nil || !a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading
+}
+
+func bodyHostFieldDisabled(a *BodySettingsAccess, namespace, key string) bool {
+	return bodyHostDisabled(a) || a.Snapshot.PreferencePending[namespace+"."+key]
 }
 
 // hostEnumLabel turns the Host's stored enum token into the reference's visible
@@ -325,10 +325,16 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 	if !found {
 		return false
 	}
+	if !settingsItemBefore(c, namespace+"."+key) {
+		takeRowGear()
+		takeRowHelp()
+		return true
+	}
+	clearFailure := bodyPreferenceFieldError(c, a, namespace, key, title)
 	if hint == "" {
 		hint = field.Description
 	}
-	bodyPreferenceRow(c, fmt.Sprintf("preference-%d-%s-%s", a.Owner, namespace, key), title, hint, fg, muted, func() {
+	row := bodyPreferenceRow(c, fmt.Sprintf("preference-%d-%s-%s", a.Owner, namespace, key), title, hint, fg, muted, func() {
 		switch field.Kind {
 		case store.FieldBool:
 			checked := value == "true"
@@ -336,7 +342,8 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 			if namespace == "ui-git" || namespace == "ui-titlebar" || namespace == "ui-conversation" {
 				style = settingsSwitchInput
 			}
-			if settingsPreferenceSwitch(c, &checked, style).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
+			if settingsPreferenceSwitch(c, &checked, style).Label(title).Disabled(bodyHostFieldDisabled(a, namespace, key)).Changed() {
+				clearFailure()
 				a.OnChange(namespace, key, fmt.Sprint(checked))
 			}
 		case store.FieldEnum:
@@ -372,8 +379,9 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 			case "transcriptView", "collapseTiming", "linkOpening", "performanceUsage":
 				radius = 12
 			}
-			if settingsPreferenceSelectRadius(c, &display, labels, radius).Label(title).Disabled(bodyHostDisabled(a) || len(options) == 0).Changed() {
+			if settingsPreferenceSelectRadius(c, &display, labels, radius).Label(title).Disabled(bodyHostFieldDisabled(a, namespace, key) || len(options) == 0).Changed() {
 				if index := hostEnumIndex(labels, display); index >= 0 {
+					clearFailure()
 					a.OnChange(namespace, key, options[index])
 				}
 			}
@@ -385,18 +393,20 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 				draft.Value, draft.Base = value, value
 			}
 			commit := func() {
-				if !bodyHostDisabled(a) {
+				if !bodyHostFieldDisabled(a, namespace, key) {
+					clearFailure()
 					a.OnChange(namespace, key, draft.Value)
 				}
 			}
 			anchor.Children(func() {
 				ui.TextInput(c, &draft.Value).Label(title).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading).OnSubmit(commit)
-				if ui.Button(c, providerCopy("保存", "Save")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(bodyHostDisabled(a) || draft.Value == value).Clicked() {
+				if ui.Button(c, providerCopy("保存", "Save")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(bodyHostFieldDisabled(a, namespace, key) || draft.Value == value).Clicked() {
 					commit()
 				}
 			})
 		}
 	})
+	settingsSearchTarget(c, namespace+"."+key, title, row)
 	return true
 }
 

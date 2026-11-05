@@ -11,29 +11,25 @@ import (
 	"whaleisle/internal/ui/widgets"
 )
 
-// The interaction cards share one chrome: a 16 DIP radius panel with a hairline
-// border, an optional 3 DIP state bar on its leading edge and a quiet header row
-// that names what the card is waiting for (Original ApprovalPanel.module.css).
+// Each takeover owns header/body/footer; only its content body scrolls.
 const (
-	interactionCardRadius = 16
-	interactionCardIndent = 14
+	interactionCardRadius = 20
+	interactionCardIndent = 16
 )
 
-// interactionCardSeat is the panel every pending card sits in. warn paints the
-// leading state bar in the warning token; the caller owns the tint.
 func interactionCardSeat(c *ui.Context, key string, warn bool, tint ui.Color) ui.Element {
-	border := c.Theme().Border
+	card := ui.Column(c.Key(key)).FillWidth().MinWidth(0).MinHeight(0).Radius(interactionCardRadius).Clip().Gap(0).Background(c.Theme().Surface)
 	if warn {
-		border = c.Theme().Warning.Alpha(.45)
-	}
-	card := ui.Column(c).Key(key).FillWidth().MinWidth(0).
-		Background(tint).Border(0.5, border).Radius(interactionCardRadius).
-		Padding(12, interactionCardIndent, 12, interactionCardIndent).Gap(8)
-	if warn {
-		bar := c.Theme().Warning
-		card.Draw(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(ui.Rect{X: r.X, Y: r.Y + 6, W: 3, H: r.H - 12}, bar, 2)
-		})
+		card.Border(1, c.Theme().Warning.Alpha(.45))
+		if residentComposerBounds.W > 0 {
+			card.FillWidth().MaxWidth(residentComposerBounds.W).AlignSelf(ui.Center)
+		}
+		if residentComposerBounds.H > 0 {
+			card.Height(residentComposerBounds.H)
+		}
+	} else {
+		_, height := c.Size()
+		card.MaxHeight(min(float32(520), height*.6)).Padding(0, 0, 10, 0)
 	}
 	return card
 }
@@ -101,21 +97,10 @@ func approvalCommand(args string) string {
 // commandBlock paints the monospace command seat: the exact command, scrollable
 // when long, never reflowed into prose, with a quiet copy action beneath it.
 func commandBlock(c *ui.Context, t *ui.Theme, command string, onCopy func(string)) {
-	font := theme.RenderPreferences().Code.Family
-	ui.Column(c).FillWidth().MinWidth(0).Radius(10).Background(t.Surface).Padding(8, 10, 8, 10).Gap(4).
-		Children(func() {
-			ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(140).Children(func() {
-				ui.Text(c, command).FontSize(11).FixedLineHeight(17).Font(font).TextColor(t.Text).MinWidth(0)
-			})
-			if onCopy == nil {
-				return
-			}
-			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-				seat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Height(20).Padding(0, 8, 0, 8).Radius(6).
-					Border(0.5, t.Border).Background(ui.Transparent).TextColor(t.TextMuted)
-				if seat.Clicked() {
-					onCopy(command)
-				}
-			})
-		})
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+		ui.Text(c, command).Font(theme.RenderPreferences().Code.Family).FontSize(13).FixedLineHeight(20).TextColor(t.TextMuted).Selectable().MinWidth(0)
+		if onCopy != nil && ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
+			onCopy(command)
+		}
+	})
 }

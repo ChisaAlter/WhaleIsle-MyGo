@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
@@ -62,12 +63,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
-		if s.Busy {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantWaitingForHost2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
+		widgets.Notice(c, "tasks:66", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeMakingChanges2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

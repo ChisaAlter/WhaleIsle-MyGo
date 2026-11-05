@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -244,6 +245,23 @@ func runPromptFlow(stage, base string, r *report) error {
 			return err
 		}
 	}
+	// The check commonly lives below the implementation checkout. Give its
+	// workspace its own repository so the Host's real workspace-change recorder
+	// cannot discover and snapshot the enclosing developer repository.
+	gitCtx, gitCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer gitCancel()
+	init := exec.CommandContext(gitCtx, "git", "init", "--quiet", workspace)
+	if output, err := init.CombinedOutput(); err != nil {
+		return fmt.Errorf("initialize owned workspace repository: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	verify := exec.CommandContext(gitCtx, "git", "-C", workspace, "rev-parse", "--show-toplevel")
+	output, err := verify.Output()
+	if err != nil {
+		return fmt.Errorf("verify owned workspace repository: %w", err)
+	}
+	if rel, err := filepath.Rel(workspace, strings.TrimSpace(string(output))); err != nil || rel != "." {
+		return errors.New("owned workspace repository resolved outside its exact workspace")
+	}
 	if err = os.WriteFile(filepath.Join(workspace, "qa-note.txt"), []byte(ownedFileText), 0600); err != nil {
 		return err
 	}
@@ -400,7 +418,7 @@ func runPromptFlow(stage, base string, r *report) error {
 				return false, errors.New(v.HistoryError)
 			}
 			for _, m := range v.Messages {
-				if m.Role == "assistant" && strings.Contains(m.Body, marker) && (!settled || !m.Streaming && m.Seq > 0 && !v.PromptBusy) {
+				if m.Role == "assistant" && strings.Contains(m.Body, marker) && (!settled || !m.Streaming && m.Seq > 0 && !v.PromptBusy && v.StopTurnSeq == 0) {
 					return true, nil
 				}
 			}

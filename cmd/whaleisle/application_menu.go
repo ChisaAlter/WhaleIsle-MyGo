@@ -13,8 +13,9 @@ import (
 )
 
 type desktopApplicationMenu struct {
-	signature string
-	pending   []desktopMenuGesture
+	signature       string
+	pending         []desktopMenuGesture
+	pendingByWindow map[*mygo.Window][]desktopMenuGesture
 }
 type desktopMenuGesture struct{ id, revision string }
 
@@ -83,10 +84,17 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 			Fallbacks:   shortcuts.Resolve(shortcuts.SharedDefaults()),
 			Platform:    runtime.GOOS,
 			Dispatch: func(id string) {
-				state.pending = append(state.pending, desktopMenuGesture{id, revision})
+				owner := mygo.FocusedWindow()
 				s.mu.Lock()
-				w := s.win
+				w := owner
+				if w == nil || w.Page() != nil {
+					w = s.win
+				}
 				s.mu.Unlock()
+				if state.pendingByWindow == nil {
+					state.pendingByWindow = map[*mygo.Window][]desktopMenuGesture{}
+				}
+				state.pendingByWindow[w] = append(state.pendingByWindow[w], desktopMenuGesture{id, revision})
 				if w != nil {
 					w.Update(func() {})
 				}
@@ -97,17 +105,22 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 
 // Process after the frame has built its overlays, so a newly opened modal
 // retires a menu gesture before any application action can run.
-func (s *mainState) processApplicationMenu(c *ui.Context) {
+func (s *mainState) processApplicationMenu(c *ui.Context) { s.processApplicationMenuFor(c, s.win) }
+func (s *mainState) processApplicationMenuFor(c *ui.Context, owner *mygo.Window) {
 	state := s.applicationMenu
 	if state == nil {
 		return
 	}
 	revision := s.pageShortcutPreferences().Accepted().Revision
-	pending := state.pending
-	state.pending = nil
+	pending := state.pendingByWindow[owner]
+	delete(state.pendingByWindow, owner)
+	if owner == s.win {
+		pending = append(pending, state.pending...)
+		state.pending = nil
+	}
 	actions := s.applicationMenuActions(c)
 	for _, gesture := range pending {
-		if gesture.revision != revision || !c.MenuCommandsAllowed() || s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending) {
+		if s.quitting || gesture.revision != revision || !applicationMenuCommandAllowed(c, gesture.id) || s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending) {
 			continue
 		}
 		if run := actions[gesture.id]; run != nil {
@@ -154,7 +167,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		}
 	}
 	actions["launcher.open"] = func() { s.openDesktopTrayPage(deeplink.ActionLauncher) }
-	actions["settings.open"] = func() { settings("") }
+	actions["settings.open"] = func() { s.toggleApplicationSettings(c) }
 	actions["market.open"] = func() { s.openDesktopTrayPage(deeplink.ActionMarket) }
 	actions["settings.mcp"] = func() { settings("mcp") }
 	actions["settings.skills"] = func() { settings("skills") }
@@ -162,7 +175,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 	actions["app.quit"] = s.quitDesktopTray
 	actions["window.close"] = func() {
 		s.mu.Lock()
-		w := s.win
+		w := mygo.FocusedWindow()
 		s.mu.Unlock()
 		if w != nil {
 			w.Close()
@@ -255,4 +268,21 @@ func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 			plain("settings.about", i18n.T(i18n.KeyCmdAbout))),
 	)
 	return mygo.NewMenu(menu)
+}
+
+func applicationMenuCommandAllowed(c *ui.Context, id string) bool {
+	if c.MenuCommandsAllowed() {
+		return true
+	}
+	modal := c.ShortcutModalName()
+	if modal == "" {
+		return false
+	}
+	if id == "settings.open" {
+		return modal == "settings"
+	}
+	if id == "shortcuts.open" {
+		return modal == "settings" || modal == "shortcuts"
+	}
+	return false
 }

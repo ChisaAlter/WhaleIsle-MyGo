@@ -53,15 +53,22 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 		return client != nil && now == client && host != "" && key == host
 	}
 	write := func(action string) {
-		if !current() {
+		if !current() || s.whaleSettings.Preferences.Snapshot().Busy {
+			return
+		}
+		release, allowed := s.whaleSettings.BeginMutation(host)
+		if !allowed {
 			return
 		}
 		ticket, command, ok := s.whaleSettings.BeginWrite(host, action)
-		s.refreshWhaleSettingsUI()
 		if !ok {
+			release()
+			s.refreshWhaleSettingsUI()
 			return
 		}
+		s.refreshWhaleSettingsUI()
 		go func() {
+			defer func() { release(); s.refreshWhaleSettingsUI() }()
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
 			cli := s.pluginRPCClient(ep)
@@ -123,7 +130,6 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 						sessions.RefreshList(ctx)
 					}
 				}
-				s.refreshWhaleSettingsUI()
 			}
 		}()
 	}

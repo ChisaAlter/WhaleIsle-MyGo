@@ -12,7 +12,10 @@ import (
 
 type createTransport func(*http.Request) (*http.Response, error)
 
-func (f createTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f createTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func createView(revision int) *DshbotRoutineView {
 	v := &DshbotRoutineView{NS: "dsh-bot", Revision: revision}
 	v.Value.Items = []DshbotCatalogItem{{ID: "b", SessionID: "s"}}

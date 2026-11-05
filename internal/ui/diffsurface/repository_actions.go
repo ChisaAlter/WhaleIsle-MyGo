@@ -13,10 +13,11 @@ import (
 )
 
 type gitOperationResult struct {
-	text      string
-	err       error
-	committed bool
-	stack     *git.StackResult
+	text          string
+	repositoryURL string
+	err           error
+	committed     bool
+	stack         *git.StackResult
 }
 
 type gitOperation struct {
@@ -46,6 +47,19 @@ func beginGitOperation(c *ui.Context, w *Workbench, label string, run func(conte
 		}
 		if result.committed && result.err != nil {
 			phase = word("本地提交已创建；后续步骤失败", "Local commit created; a later step failed")
+		}
+		details := result.text
+		if result.err != nil {
+			if details != "" {
+				details += "\n"
+			}
+			details += result.err.Error()
+		}
+		if details != "" {
+			progress.SetDetails(details)
+		}
+		if result.err == nil && result.repositoryURL != "" {
+			progress.SetRepositoryAction(result.repositoryURL)
 		}
 		progress.Finish(phase, result.err != nil)
 		operation.done <- result
@@ -207,8 +221,8 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 			root := m.WorkspaceRoot
 			w.PublishReview = false
 			beginGitOperation(c, w, word("正在发布仓库", "Publishing repository"), func(ctx context.Context) gitOperationResult {
-				out, err := git.PublishRepository(root, input)
-				return gitOperationResult{text: out, err: err}
+				result, err := git.PublishRepositoryWithResult(root, input)
+				return gitOperationResult{text: result.Output, repositoryURL: result.URL, err: err}
 			})
 		}
 		if widgets.Button(c, colors, word("返回修改", "Back"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {

@@ -2,6 +2,7 @@ package workspacefs
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -23,7 +24,11 @@ func listRemoteDir(ctx context.Context, client *dsh.Client, path, sessionID stri
 	if client == nil {
 		return nil, ErrNotFile
 	}
-	path = strings.TrimSpace(path)
+	// DirectoryTree names its root with an empty relative path. The scoped
+	// Host service requires a nonempty path and resolves "." against that Session.
+	if path == "" && sessionID != "" {
+		path = "."
+	}
 	var out api.WorkspaceDirectoryListing
 	args := map[string]any{"path": path}
 	if sessionID != "" {
@@ -35,18 +40,30 @@ func listRemoteDir(ctx context.Context, client *dsh.Client, path, sessionID stri
 	}
 	ents := make([]Entry, 0, len(out.Entries))
 	for _, e := range out.Entries {
-		name := strings.TrimSpace(e.Name)
+		name := e.Name
 		if name == "" {
 			continue
 		}
 		isDir := strings.EqualFold(e.Type, "directory") || strings.EqualFold(e.Type, "dir")
-		ents = append(ents, Entry{Name: name, IsDir: isDir})
+		ents = append(ents, Entry{Name: name, IsDir: isDir, Other: strings.EqualFold(e.Type, "other")})
 	}
 	return ents, nil
 }
 
 // StatRemote calls workspaceFiles/stat for a workspace-relative path.
 func StatRemote(ctx context.Context, client *dsh.Client, path string) (api.WorkspaceFileStat, error) {
+	return statRemote(ctx, client, path, "")
+}
+
+// StatRemoteScoped binds supplemental file metadata to the captured Session.
+func StatRemoteScoped(ctx context.Context, client *dsh.Client, sessionID, path string) (api.WorkspaceFileStat, error) {
+	if strings.TrimSpace(sessionID) == "" {
+		return api.WorkspaceFileStat{}, errors.New("Host file stat requires a session scope")
+	}
+	return statRemote(ctx, client, path, sessionID)
+}
+
+func statRemote(ctx context.Context, client *dsh.Client, path, sessionID string) (api.WorkspaceFileStat, error) {
 	var out api.WorkspaceFileStat
 	if client == nil {
 		return out, ErrNotFile
@@ -55,7 +72,11 @@ func StatRemote(ctx context.Context, client *dsh.Client, path string) (api.Works
 	if path == "" {
 		return out, ErrNotFile
 	}
-	err := client.Call(ctx, "workspaceFiles/stat", map[string]any{"path": path}, &out)
+	args := map[string]any{"path": path}
+	if sessionID != "" {
+		args["workspaceFileScopeId"] = sessionID
+	}
+	err := client.Call(ctx, "workspaceFiles/stat", args, &out)
 	return out, err
 }
 

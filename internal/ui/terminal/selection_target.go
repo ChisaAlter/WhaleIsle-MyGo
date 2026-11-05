@@ -171,3 +171,52 @@ func OpenSelectionTarget(selection, cwd string, actions SelectionTargetActions) 
 	}
 	return open()
 }
+
+// TargetAt is a pure hit-test for the terminal SDK. runeColumns maps rune indices
+// to terminal columns (wide Unicode and combining characters included). URLs
+// win overlap with path tokens, just as in the explicit selection toolbar.
+func TargetAt(text string, runeColumns []int, column int) string {
+	if len(text) > maxTargetSelectionBytes || strings.ContainsRune(text, 0) {
+		return ""
+	}
+	at := 0
+	schemes := terminalSchemePattern.FindAllStringIndex(text, -1)
+	for offset := range text {
+		if at >= len(runeColumns) {
+			break
+		}
+		start := runeColumns[at]
+		end := start + 1
+		if at+1 < len(runeColumns) {
+			end = max(end, runeColumns[at+1])
+		}
+		if column >= start && column < end {
+			for kind, pattern := range []*regexp.Regexp{terminalURLPattern, terminalPathPattern} {
+				for _, span := range pattern.FindAllStringIndex(text, -1) {
+					if kind == 1 {
+						blocked := false
+						for _, scheme := range schemes {
+							if scheme[0] < span[1] && scheme[1] > span[0] {
+								blocked = true
+								break
+							}
+						}
+						if blocked {
+							continue
+						}
+					}
+					raw := trimTargetPunctuation(text[span[0]:span[1]])
+					if offset >= span[0] && offset < span[0]+len(raw) {
+						target, ok := FirstSelectionTarget(raw)
+						if ok && target.Text == raw {
+							return raw
+						}
+					}
+				}
+			}
+			break
+		}
+		at++
+	}
+	return ""
+}

@@ -1,10 +1,13 @@
 package phoneremote
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 type deviceControlChild struct{ writes chan []byte }
@@ -13,6 +16,37 @@ type deviceControlWriter struct{ writes chan []byte }
 func (w deviceControlWriter) Write(p []byte) (int, error) {
 	w.writes <- append([]byte(nil), p...)
 	return len(p), nil
+}
+
+func TestPersistentPairingLinkIndependentFromShortOfferAndRevocable(t *testing.T) {
+	child := &deviceControlChild{writes: make(chan []byte, 1)}
+	r := NewRuntime()
+	r.child = child
+	offer := func(expires int64) string {
+		return "https://pair.example.test/#offer=" + base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"v":2,"serverId":"fixture","daemonPublicKeyB64":"fixture","authBootstrap":{"version":1,"pairingToken":"fictional-fixture-only","expiresAtMs":%d}}`, expires)))
+	}
+	persistent := offer(253402300799999)
+	event, _ := json.Marshal(map[string]any{"kind": "snapshot", "listening": true, "relayConnected": true, "devicesLoaded": true, "devices": []any{}, "url": offer(time.Now().Add(-time.Second).UnixMilli()), "pairingLinkUrl": persistent})
+	r.consume(child, event)
+	if got := r.Snapshot(); got.PairingURL != "" || got.PairingLinkURL != persistent {
+		t.Fatal("short-offer expiry hid reusable link or leaked QR")
+	}
+	if err := r.DeviceAction("revoke-link", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	var command map[string]string
+	if err := json.Unmarshal(<-child.writes, &command); err != nil {
+		t.Fatal(err)
+	}
+	if command["operation"] != "revoke-link" || r.Snapshot().PairingLinkURL != "" {
+		t.Fatal("revoked link still exposed")
+	}
+	result, _ := json.Marshal(map[string]any{"kind": "device-action-result", "id": command["id"], "operation": "revoke-link", "applied": true})
+	r.consume(child, result)
+	r.WaitDeviceAction()
+	if got := r.Snapshot().DeviceAction; !got.Applied || got.Busy || got.Error != "" {
+		t.Fatal("revoke acknowledgement lost")
+	}
 }
 func (c *deviceControlChild) Input() io.Writer  { return deviceControlWriter{c.writes} }
 func (c *deviceControlChild) Output() io.Reader { return strings.NewReader("") }

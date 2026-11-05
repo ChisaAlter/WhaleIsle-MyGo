@@ -15,7 +15,7 @@ func TestPullRequestModeIsReviewedAndPassedToGH(t *testing.T) {
 		creates := 0
 		fake := func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 			if args[0] == "repo" {
-				return []byte(`{"defaultBranchRef":{"name":"main"}}`), nil
+				return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 			}
 			if args[1] == "list" {
 				return []byte(`[]`), nil

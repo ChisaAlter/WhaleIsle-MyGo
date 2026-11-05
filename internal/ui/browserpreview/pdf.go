@@ -1,12 +1,10 @@
 package browserpreview
 
 import (
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
-	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenPDF owns the document lease until its tab/window closes. A native viewer
@@ -22,7 +20,7 @@ func (b *Controller) OpenPDF(doc *pdfpreview.Document) error {
 
 func (b *Controller) openPDFTab(t *Tab, doc *pdfpreview.Document) error {
 	t.Document, t.Draft = doc, doc.Name
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: t.pdfViewerURL(doc.ViewerURL()), LocalPDFViewerURL: doc.ViewerURL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: t.pdfViewerURL(doc.ViewerURL()), LocalPDFViewerURL: doc.ViewerURL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFailure: b.pageFailure(t), OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
 		if t.source != nil {
@@ -61,25 +59,5 @@ func (b *Controller) PrunePDFDocuments() {
 	}
 }
 func (b *Controller) documentControls(c *ui.Context, t *Tab) {
-	ui.Text(c, t.Document.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
-	if ui.Button(c, browserChromeLabel("浮动预览", "Floating preview")).Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
-		b.openFloatingDocument(t)
-	}
-	if ui.Button(c, browserChromeLabel("系统打开", "Open externally")).Clicked() {
-		path, err := t.Document.ExternalPath()
-		if err == nil {
-			err = mygo.Shell.OpenPath(path)
-		}
-		if err != nil {
-			t.Error = err.Error()
-		}
-	}
-	if ui.Button(c, browserChromeLabel("复制文件路径", "Copy file path")).Clicked() {
-		path, err := t.Document.ExternalPath()
-		if err != nil {
-			t.Error = err.Error()
-		} else {
-			mygo.Clipboard.WriteText(path)
-		}
-	}
+	b.documentHeader(c, t, t.Document.Name, t.Document.ExternalPath, false)
 }

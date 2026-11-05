@@ -16,11 +16,15 @@ import (
 
 // ComposerAttachment retains its staged receipt and exact session/Host owner.
 type ComposerAttachment struct {
+	SentBytes, TotalBytes            int64  `json:"-"`
 	PreparationID                    uint64 `json:"-"`
 	PrepareError                     string // Runtime-only failure; retry keeps the local file and draft owner.
 	Path, Name, SessionID, HostScope string
 	Upload                           api.FileUploadValue
 	ImageData, MediaType             string
+	// SourceMediaType preserves an imported File.type, including an explicit
+	// empty type. MediaType remains the detected type used by native handling.
+	SourceMediaType *string `json:"sourceMediaType,omitempty"`
 }
 
 // ComposerTarget pins every step of one admission to one Host and mode. A
@@ -70,6 +74,9 @@ func (s *Store) PrepareComposerAttachment(ctx context.Context, id string, a Comp
 	return t.PrepareAttachment(ctx, a)
 }
 func (t *ComposerTarget) PrepareAttachment(ctx context.Context, a ComposerAttachment) (ComposerAttachment, error) {
+	return t.PrepareAttachmentProgress(ctx, a, nil)
+}
+func (t *ComposerTarget) PrepareAttachmentProgress(ctx context.Context, a ComposerAttachment, progress func(int64, int64)) (ComposerAttachment, error) {
 	if a.PrepareError != "" {
 		return a, errors.New("retry or remove the failed attachment before sending")
 	}
@@ -91,13 +98,16 @@ func (t *ComposerTarget) PrepareAttachment(ctx context.Context, a ComposerAttach
 	if err != nil {
 		return a, err
 	}
-	a.Name = filepath.Base(a.Path)
+	if a.Name == "" {
+		a.Name = filepath.Base(a.Path)
+	}
+	a.TotalBytes = int64(len(raw))
 	a.MediaType = http.DetectContentType(raw)
 	switch a.MediaType {
 	case "image/png", "image/jpeg", "image/gif", "image/webp":
 		a.ImageData = base64.StdEncoding.EncodeToString(raw)
 	default:
-		a.Upload, err = t.uploadFile(ctx, a.Path)
+		a.Upload, err = t.uploadFileNamedProgress(ctx, a.Path, a.Name, progress)
 		if err != nil {
 			return a, err
 		}
@@ -116,6 +126,12 @@ func (s *Store) UploadFileForSession(ctx context.Context, id, path string) (api.
 	return t.uploadFile(ctx, path)
 }
 func (t *ComposerTarget) uploadFile(ctx context.Context, path string) (api.FileUploadValue, error) {
+	return t.uploadFileProgress(ctx, path, nil)
+}
+func (t *ComposerTarget) uploadFileProgress(ctx context.Context, path string, progress func(int64, int64)) (api.FileUploadValue, error) {
+	return t.uploadFileNamedProgress(ctx, path, filepath.Base(path), progress)
+}
+func (t *ComposerTarget) uploadFileNamedProgress(ctx context.Context, path, name string, progress func(int64, int64)) (api.FileUploadValue, error) {
 	var out api.FileUploadValue
 	if err := t.check(ctx); err != nil {
 		return out, err
@@ -127,8 +143,7 @@ func (t *ComposerTarget) uploadFile(ctx context.Context, path string) (api.FileU
 	if err != nil {
 		return out, err
 	}
-	name := filepath.Base(path)
-	err = t.client.Call(ctx, "fileUploads/upload", map[string]any{"agentId": t.SessionID, "request": api.EncodedFileUploadRequest{Data: base64.StdEncoding.EncodeToString(raw), Name: &name}}, &out)
+	err = t.client.CallWithProgress(ctx, "fileUploads/upload", map[string]any{"agentId": t.SessionID, "request": api.EncodedFileUploadRequest{Data: base64.StdEncoding.EncodeToString(raw), Name: &name}}, &out, progress)
 	if err != nil {
 		return out, err
 	}

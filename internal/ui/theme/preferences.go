@@ -29,11 +29,12 @@ type Seed struct {
 	Overrides  map[string]string `json:"overrides,omitempty"`
 }
 type Family struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Light Seed   `json:"light"`
-	Dark  Seed   `json:"dark"`
-	Skin  string `json:"skin,omitempty"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Light     Seed   `json:"light"`
+	Dark      Seed   `json:"dark"`
+	Skin      string `json:"skin,omitempty"`
+	Wallpaper string `json:"wallpaper,omitempty"`
 }
 type Preferences struct {
 	Light     string         `json:"light"`
@@ -114,6 +115,9 @@ func (p Preferences) Validate() error {
 		seen[f.ID] = true
 		if f.Skin != "" && f.Skin != SkinDefault && f.Skin != SkinCodex && f.Skin != SkinClaude {
 			return fmt.Errorf("Unknown theme skin %q", f.Skin)
+		}
+		if f.Wallpaper != "" && !validFamilyWallpaper(f.Wallpaper) {
+			return fmt.Errorf("Theme wallpaper must be a PNG, JPEG, GIF or WebP image data URL")
 		}
 		for _, s := range []Seed{f.Light, f.Dark} {
 			if s.ContrastValue() < 0 || s.ContrastValue() > 100 {
@@ -204,7 +208,7 @@ func preferencesEqual(a, b Preferences) bool {
 	}
 	for i := range a.Custom {
 		x, y := a.Custom[i], b.Custom[i]
-		if x.ID != y.ID || x.Name != y.Name || x.Skin != y.Skin || !seedEqual(x.Light, y.Light) || !seedEqual(x.Dark, y.Dark) {
+		if x.ID != y.ID || x.Name != y.Name || x.Skin != y.Skin || x.Wallpaper != y.Wallpaper || !seedEqual(x.Light, y.Light) || !seedEqual(x.Dark, y.Dark) {
 			return false
 		}
 	}

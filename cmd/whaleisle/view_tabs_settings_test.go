@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -108,7 +109,9 @@ func waitViewTabsSettings(t *testing.T, st *settingsstore.Store, changed <-chan 
 	defer deadline.Stop()
 	for {
 		snap := st.Snapshot()
-		if !snap.Loading && !snap.Saving {
+		// Immediate Host preferences have their own namespace queue; they do
+		// not block unrelated form editors through the global Saving flag.
+		if !snap.Loading && !snap.Saving && len(snap.PreferencePending) == 0 {
 			return
 		}
 		select {
@@ -257,8 +260,10 @@ func TestViewTabsSettingsFailedWriteKeepsAcceptedValue(t *testing.T) {
 	m := viewTabsSettingsModel(s)
 	m.Interface.Host.OnChange("ui-conversation", "viewTabs", "true")
 	waitViewTabsSettings(t, s.settings, changed)
-	if s.settings.Snapshot().Err == "" {
-		t.Fatal("fixture write unexpectedly accepted")
+	// A successful recovery describe may clear the general request error, but
+	// the rejected preference remains owned by this field until a real retry.
+	if got := s.settings.Snapshot().PreferenceErrors["ui-conversation.viewTabs"]; !strings.Contains(got, h.writeErr.Error()) {
+		t.Fatalf("fixture refusal was not retained for viewTabs: %q", got)
 	}
 	s.desktopDraft.showViewTabs = true
 	m.Interface.OnSave()

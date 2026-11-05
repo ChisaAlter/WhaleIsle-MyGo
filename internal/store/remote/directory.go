@@ -37,9 +37,26 @@ type DirectorySnapshot struct {
 	Missing            bool             `json:"missing"`
 	Loaded             bool
 	Error              string
+	CreateError        string
 	Choosing           bool
 	SelectedPath       string
 	LocalMirror        string
+}
+
+// DirectoryChoice is the exact successful mirror operation, not a path read
+// later from whichever machine/Host happens to be current at that time.
+type DirectoryChoice struct {
+	LocalMirror, RemotePath, MachineID string
+	Generation, RequestID              uint64
+}
+
+// DirectoryChoiceCurrent is for the consumer's actual adoption boundary.
+// Navigation, another choice, current-machine changes and Host replacement
+// retire it. The workspace owner also checks its own Host/session scope.
+func (s *Store) DirectoryChoiceCurrent(choice DirectoryChoice) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return choice.LocalMirror != "" && !s.view.Busy && s.generation == choice.Generation && s.directoryRequestID == choice.RequestID && s.view.CurrentID == choice.MachineID && s.view.Directory.LocalMirror == choice.LocalMirror && s.view.Directory.SelectedPath == choice.RemotePath
 }
 
 func (d DirectorySnapshot) CanChoose() bool {
@@ -70,9 +87,37 @@ func ParentDirectory(p string) string {
 
 // Browse and ChooseDirectory only call the existing machine-scoped HTTP API.
 // Browsing never adopts a workspace; only a successful mirror response does.
-func (s *Store) Browse(path string) { s.directoryRequest(path, false) }
-func (s *Store) ChooseDirectory()   { s.directoryRequest("", true) }
-func (s *Store) directoryRequest(path string, choosing bool) {
+func (s *Store) Browse(path string) { s.directoryRequest(path, false, nil) }
+func (s *Store) ChooseDirectory()   { s.directoryRequest("", true, nil) }
+
+// ChooseDirectoryWithResult adopts only this explicit choice, never a mirror
+// left over from a previous directory. Completion runs on the request worker.
+func (s *Store) ChooseDirectoryWithResult(picked func(string)) {
+	var deliver func(DirectoryChoice)
+	if picked != nil {
+		deliver = func(choice DirectoryChoice) { picked(choice.LocalMirror) }
+	}
+	s.directoryRequest("", true, deliver)
+}
+
+func (s *Store) ChooseDirectoryWithChoice(picked func(DirectoryChoice)) {
+	s.directoryRequest("", true, picked)
+}
+
+func (s *Store) CancelDirectoryChoice() {
+	s.mu.Lock()
+	if s.view.Directory.Choosing {
+		s.directoryRequestID++
+		if s.cancel != nil {
+			s.cancel()
+			s.cancel = nil
+		}
+		s.view.Busy, s.view.Directory.Choosing = false, false
+	}
+	s.mu.Unlock()
+}
+
+func (s *Store) directoryRequest(path string, choosing bool, picked func(DirectoryChoice)) {
 	s.mu.Lock()
 	if s.view.Busy || s.view.Error != "" || s.view.CurrentID == "" || choosing && !s.view.Directory.CanChoose() {
 		s.mu.Unlock()
@@ -84,7 +129,8 @@ func (s *Store) directoryRequest(path string, choosing bool) {
 	s.view.Busy = true
 	s.view.Directory.Choosing = choosing
 	s.view.Directory.Error = ""
-	c, n, g := s.client, s.notify, s.generation
+	s.directoryRequestID++
+	c, n, g, requestID, machine := s.client, s.notify, s.generation, s.directoryRequestID, s.view.CurrentID
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	s.cancel = cancel
 	s.mu.Unlock()
@@ -111,11 +157,12 @@ func (s *Store) directoryRequest(path string, choosing bool) {
 			sortDirectoryEntries(listing.Items)
 		}
 		s.mu.Lock()
-		if s.generation != g {
+		if s.generation != g || s.directoryRequestID != requestID || s.view.CurrentID != machine {
 			s.mu.Unlock()
 			return
 		}
 		s.view.Busy = false
+		s.cancel = nil
 		d := &s.view.Directory
 		d.Choosing = false
 		if err != nil {
@@ -133,6 +180,9 @@ func (s *Store) directoryRequest(path string, choosing bool) {
 		s.mu.Unlock()
 		if n != nil {
 			n()
+		}
+		if choosing && err == nil && picked != nil {
+			picked(DirectoryChoice{LocalMirror: result.LocalMirror, RemotePath: path, MachineID: machine, Generation: g, RequestID: requestID})
 		}
 	}()
 }

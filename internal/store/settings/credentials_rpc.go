@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -10,7 +11,7 @@ import (
 
 // Common credential refs used by Electron settings credentials panel.
 const (
-	CredRefAPIKey      = "apiKey"
+	CredRefAPIKey      = "DEEPSEEK_API_KEY"
 	CredRefGithubToken = "githubToken"
 )
 
@@ -51,8 +52,27 @@ func SyncAPIKeyToHarness(ctx context.Context, client *dsh.Client, apiKey string)
 	if client == nil {
 		return nil
 	}
-	if apiKey == "" {
-		return UnsetCredential(ctx, client, CredRefAPIKey)
+	var description api.SettingsDescribeValue
+	if err := client.Call(ctx, "settings/describe", nil, &description); err != nil {
+		return err
 	}
-	return SetCredential(ctx, client, CredRefAPIKey, apiKey)
+	ref := CredRefAPIKey
+	for _, ns := range description.Namespaces {
+		if ns.Ns == "llm-deepseek-api-key" || ns.Ns == "llm-deepseek" {
+			var profile struct {
+				Ref string `json:"apiKeyEnv"`
+			}
+			if err := json.Unmarshal(ns.Value, &profile); err != nil {
+				return err
+			}
+			if strings.TrimSpace(profile.Ref) != "" {
+				ref = profile.Ref
+			}
+			break
+		}
+	}
+	if apiKey == "" {
+		return UnsetCredential(ctx, client, ref)
+	}
+	return SetCredential(ctx, client, ref, apiKey)
 }

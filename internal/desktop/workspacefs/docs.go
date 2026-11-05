@@ -1,7 +1,7 @@
 package workspacefs
 
 import (
-	"os/exec"
+	"github.com/egoist/mygo"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -50,12 +50,5 @@ func FileURL(absPath string) string {
 // OpenExternal opens a local file with the OS default handler.
 func OpenExternal(absPath string) error {
 	absPath = filepath.Clean(absPath)
-	switch runtime.GOOS {
-	case "windows":
-		return exec.Command("cmd", "/c", "start", "", absPath).Start()
-	case "darwin":
-		return exec.Command("open", absPath).Start()
-	default:
-		return exec.Command("xdg-open", absPath).Start()
-	}
+	return mygo.Shell.OpenPath(absPath)
 }

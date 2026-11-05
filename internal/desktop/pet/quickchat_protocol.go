@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/egoist/mygo/ui"
 	"net/http"
 	"net/url"
 	"strings"
@@ -39,9 +40,12 @@ type quickChatGroup struct {
 	Models []quickChatCatalogModel `json:"models"`
 }
 type quickChatRow struct {
-	Role string  `json:"role"`
-	Text string  `json:"text"`
-	Seq  float64 `json:"seq"`
+	Role        string     `json:"role"`
+	Text        string     `json:"text"`
+	Seq         float64    `json:"seq"`
+	Image       *ui.Bitmap `json:"-"`
+	Receipt     string     `json:"-"`
+	Acknowledge func()     `json:"-"`
 }
 type quickChatSnapshot struct {
 	OK        bool             `json:"ok"`
@@ -232,6 +236,9 @@ func quickChatHistoryKey(state quickChatSnapshot, index int) any {
 		return index
 	}
 	row := state.History[index]
+	if row.Receipt != "" {
+		return row.Receipt
+	}
 	if row.Seq > 0 {
 		return struct {
 			Session string

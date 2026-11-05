@@ -53,7 +53,7 @@ func DownloadBlockMap(ctx context.Context, url string, client *http.Client) (Blo
 		return BlockMapInfo{}, fmt.Errorf("empty blockmap URL")
 	}
 	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
+		client = &http.Client{Timeout: 30 * time.Second, Transport: updateTransport()}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

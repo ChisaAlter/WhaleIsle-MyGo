@@ -83,7 +83,6 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 		return fmt.Errorf("not connected or another schedule write is pending")
 	}
 	s.busy = true
-	s.err = nil
 	s.lastAction = ""
 	s.mu.Unlock()
 	s.fire()
@@ -110,7 +109,6 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}
 	s.busy = false
-	s.err = err
 	if err == nil {
 		s.lastAction = "Schedule saved"
 		for i := range s.rows {
@@ -167,7 +165,6 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 		return fmt.Errorf("not connected or another schedule write is pending")
 	}
 	s.busy = true
-	s.err = nil
 	s.lastAction = ""
 	s.mu.Unlock()
 	s.fire()
@@ -199,7 +196,6 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}
 	s.busy = false
-	s.err = err
 	if err == nil {
 		s.lastAction = "Schedule deleted"
 	}

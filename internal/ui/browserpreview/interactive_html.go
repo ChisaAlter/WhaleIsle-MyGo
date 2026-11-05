@@ -25,6 +25,19 @@ func (b *Controller) developerToolsEnabled() bool {
 	return b.developerTools == nil || b.developerTools()
 }
 
+func (b *Controller) interactiveHTMLMenu(menu *ui.Menu, t *Tab, dark bool) {
+	if t.interactive != nil {
+		if menu.Item(browserChromeLabel("停止交互预览", "Stop interactive preview")).Chosen() {
+			b.stopInteractiveHTML(t)
+		}
+		return
+	}
+	supported := (runtime.GOOS == "windows" || runtime.GOOS == "linux" || runtime.GOOS == "darwin") && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
+	if menu.Item(browserChromeLabel("运行脚本（隔离实验）", "Run scripts (isolated experiment)")).Disabled(!supported || !b.developerToolsEnabled()).Chosen() {
+		b.startInteractiveHTML(t, dark)
+	}
+}
+
 func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
 	if !b.developerToolsEnabled() {
 		b.stopInteractiveHTML(t)

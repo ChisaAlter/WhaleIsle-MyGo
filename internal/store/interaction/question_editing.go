@@ -11,8 +11,7 @@ func (s *Store) continueQuestion(agentID, eventID, questionID string, submit fun
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
-	p := s.findPending(eventID)
-	if ds == nil || p.Error != "" || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID {
+	if ds == nil || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID {
 		s.mu.Unlock()
 		return "", ""
 	}

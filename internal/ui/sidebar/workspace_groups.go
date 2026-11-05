@@ -21,6 +21,11 @@ func workspaceViewOptions(c *ui.Context, m Model) {
 }
 func visibleWorkspaceGroups(m Model, items []session.Item) []session.WorkspaceGroup {
 	groups := session.BuildWorkspaceGroups(m.Snapshot, items)
+	for i := range groups {
+		if m.navigationOnly[groups[i].Key] {
+			groups[i].Kind = "navigation"
+		}
+	}
 	if browseArchiveFilter(m) != "only" {
 		if len(items) == 0 && (len(m.Snapshot.Workspaces) == 0 || m.Snapshot.WorkspaceLayout.GroupBy == "flat") {
 			return nil
@@ -97,7 +102,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			block.Children(func() {
 				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 				if g.Kind != "flat" {
-					title := g.Workspace.Title
+					title := session.WorkspaceDisplayTitle(g.Workspace.Title, workspaceText("默认工作区", "Default workspace"))
 					if title == "" {
 						title = g.Workspace.Path
 					}

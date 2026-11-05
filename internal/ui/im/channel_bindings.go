@@ -2,7 +2,6 @@ package im
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
@@ -23,9 +22,7 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 	if ui.TextInput(c.Key("channel-workspace"), &workspace).Label("Workspace path").FillWidth().Disabled(disabled).Changed() {
 		s.EditWorkspace(v.Scope, b.BotID, workspace)
 	}
-	if ui.Button(c, i18n.T(i18n.KeyMiscImSaveWorkspace)).Disabled(disabled || strings.TrimSpace(workspace) == "" || strings.TrimSpace(workspace) == b.Workspace).Clicked() {
-		s.SaveWorkspace(v.Scope, b.BotID, workspace)
-	}
+	botWorkspacePicker(c.Key("workspace/"+b.BotID+"/"+fmt.Sprint(v.Scope)), m, v, b, disabled, fg, muted)
 	inherit := i18n.T(i18n.KeyMiscImHostDefault)
 	labels := []string{inherit}
 	ids := map[string]string{inherit: ""}

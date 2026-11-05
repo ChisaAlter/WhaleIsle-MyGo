@@ -2,10 +2,7 @@ package update
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,6 +44,9 @@ func reportStagePhase(ctx context.Context, notify func(StagePhase), phase StageP
 
 // StageOptions configures DownloadAndStage verification.
 type StageOptions struct {
+	// Resume retains an identity-bound partial file on interruption. Existing
+	// callers remain one-shot; native update-center explicitly opts in.
+	Resume     bool
 	ReleaseURL string
 	DestDir    string
 	Start      bool
@@ -120,7 +120,7 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	}
 	client := opt.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute}
+		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
 	}
 	destDir := opt.DestDir
 	if destDir == "" {
@@ -134,73 +134,57 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 		name = "WhaleIsle-update.exe"
 	}
 	dest := filepath.Join(destDir, name)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, releaseURL, nil)
-	if err != nil {
-		return ApplyResult{}, err
+	work := dest
+	if opt.Resume {
+		work += ".part"
 	}
 	reportStagePhase(ctx, opt.OnPhase, StageDownloading)
-	resp, err := client.Do(req)
+	n, sum, err := receiveUpdatePayload(ctx, opt, client, work, maxBytes)
 	if err != nil {
-		return ApplyResult{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return ApplyResult{}, fmt.Errorf("download HTTP %d", resp.StatusCode)
-	}
-	f, err := os.Create(dest)
-	if err != nil {
-		return ApplyResult{}, err
-	}
-	h := sha256.New()
-	progress := &stageProgressWriter{notify: opt.OnProgress, total: opt.ExpectSize}
-	n, err := io.Copy(io.MultiWriter(f, h, progress), io.LimitReader(resp.Body, maxBytes+1))
-	if err == nil {
-		err = ctx.Err()
-	}
-	if err == nil && n > maxBytes {
-		err = fmt.Errorf("installer exceeds download size limit")
-	}
-	if err != nil {
-		_ = f.Close()
-		_ = os.Remove(dest)
-		return ApplyResult{}, err
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(dest)
 		return ApplyResult{}, err
 	}
 	reportStagePhase(ctx, opt.OnPhase, StageVerifying)
-	sum := hex.EncodeToString(h.Sum(nil))
 	if opt.ExpectSize > 0 && n != opt.ExpectSize {
-		_ = os.Remove(dest)
+		_ = os.Remove(work)
 		return ApplyResult{}, fmt.Errorf("size mismatch: got %d want %d", n, opt.ExpectSize)
 	}
 	expect := strings.ToLower(strings.TrimSpace(opt.ExpectSHA256))
 	if expect != "" && expect != sum {
-		_ = os.Remove(dest)
+		_ = os.Remove(work)
 		return ApplyResult{}, fmt.Errorf("sha256 mismatch")
 	}
 
-	sig, err := CheckSignature(ctx, dest, VerifyOptions{
+	sig, err := CheckSignature(ctx, work, VerifyOptions{
 		RequireSignature:  opt.RequireSignature,
 		ExpectedPublisher: opt.ExpectedPublisher,
 	})
 	if err != nil {
-		_ = os.Remove(dest)
+		if !opt.Resume || ctx.Err() == nil {
+			_ = os.Remove(work)
+		}
 		return ApplyResult{}, err
 	}
 
 	if err := ctx.Err(); err != nil {
-		_ = os.Remove(dest)
+		if !opt.Resume {
+			_ = os.Remove(work)
+		}
 		return ApplyResult{}, err
 	}
 	if opt.OnProgress != nil {
 		opt.OnProgress(n, opt.ExpectSize)
 	}
 	if err := ctx.Err(); err != nil {
-		_ = os.Remove(dest)
+		if !opt.Resume {
+			_ = os.Remove(work)
+		}
 		return ApplyResult{}, err
+	}
+	if opt.Resume {
+		if err := os.Rename(work, dest); err != nil {
+			return ApplyResult{}, err
+		}
+		_ = os.Remove(work + ".json")
 	}
 	out := ApplyResult{
 		Path:      dest,

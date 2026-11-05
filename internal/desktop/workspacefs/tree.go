@@ -2,6 +2,7 @@ package workspacefs
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 )
@@ -35,19 +36,27 @@ type DirectoryTree struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	remote        bool
+	hostOnly      bool
 	automatic     bool
 	watch         RemoteDirectoryWatcher
 	directories   map[string]*directoryResult
 }
 
 func (t *DirectoryTree) Ensure(binding, root string) {
+	t.EnsureHostOnly(binding, root, false)
+}
+
+// EnsureHostOnly binds an explicitly remote workspace to its Host reader.
+// Ordinary Ensure callers retain their original local-first behavior.
+func (t *DirectoryTree) EnsureHostOnly(binding, root string, hostOnly bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.ctx != nil && binding == t.binding && root == t.root {
+	if t.ctx != nil && binding == t.binding && root == t.root && hostOnly == t.hostOnly {
 		return
 	}
 	t.resetLocked()
 	t.binding, t.root = binding, root
+	t.hostOnly = hostOnly
 }
 func (t *DirectoryTree) resetLocked() {
 	if t.cancel != nil {
@@ -182,11 +191,13 @@ func (t *DirectoryTree) readLocked(rel string, result *directoryResult) {
 		return
 	}
 	result.busy, result.dirty, result.forced = true, false, false
-	root, useRemote := t.root, t.remote
+	root, useRemote, hostOnly := t.root, t.remote || t.hostOnly, t.hostOnly
 	go func() {
 		var entries []Entry
 		var err error
-		if useRemote && result.remote != nil {
+		if hostOnly && result.remote == nil {
+			err = errors.New("workspace Host directory reader is unavailable")
+		} else if useRemote && result.remote != nil {
 			entries, err = result.remote(result.ctx, rel)
 		} else {
 			entries, err = ListWorkspaceDir(result.ctx, root, rel)

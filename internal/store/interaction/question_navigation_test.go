@@ -9,7 +9,7 @@ import (
 
 func questionWizardFixture() *Store {
 	s := New()
-	s.pending = []Pending{{AgentID: "A", EventID: "e", CallID: "call", Event: EventUserQuestions}}
+	s.pending = []Pending{{AgentID: "A", EventID: "e", CallID: "call", Event: EventUserQuestions, questionProjected: true}}
 	s.waiters["e"] = make(chan dsh.EventResultOutcome, 1)
 	s.questionDrafts["e"] = newDraftSession(userQuestionsRequest{CallID: "call", Questions: []userQuestionItem{{ID: "first", Question: "First", Options: []userQuestionOption{{Label: "A"}, {Label: "B"}}}, {ID: "last", Question: "Last"}}})
 	return s

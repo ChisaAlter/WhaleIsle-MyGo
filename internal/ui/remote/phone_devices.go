@@ -1,6 +1,8 @@
 package remote
 
 import (
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/transfer"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -11,23 +13,23 @@ import (
 // PhoneDeviceEditor is window-local form state. IDs always come from the
 // original runtime's public snapshot; no device secret is displayed or cached.
 type PhoneDeviceEditor struct {
-	EditingID, Name, PendingUnbind string
-	ConfirmRotate, Submitted       bool
-	Error                          string
+	EditingID, Name, PendingUnbind                          string
+	ConfirmRotate, ConfirmRevoke, Submitted                 bool
+	Error                                                   string
+	PreviousActionID, SubmittedOperation, SubmittedDeviceID string
 }
 
 func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	s, e := m.PhoneRuntime, m.PhoneDeviceEditor
 	action := s.DeviceAction
-	if e != nil && e.Submitted && !action.Busy {
+	if e != nil && e.Submitted && !action.Busy && action.ID != e.PreviousActionID && action.Operation == e.SubmittedOperation && action.DeviceID == e.SubmittedDeviceID {
 		e.Submitted = false
 		if action.Applied {
 			e.EditingID, e.Name, e.PendingUnbind = "", "", ""
+			e.ConfirmRevoke = false
+			e.ConfirmRotate = false
 		}
-	}
-	if action.Busy {
-		ui.Text(c, label("正在更新设备，请稍候…", "Updating device, please wait…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 	if action.Error != "" {
 		ui.Text(c, action.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
@@ -67,14 +69,13 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 		}
 		e.Error = ""
 		e.Submitted = true
-		e.ConfirmRotate = false
-		e.PendingUnbind = ""
+		e.PreviousActionID, e.SubmittedOperation, e.SubmittedDeviceID = action.ID, operation, id
 	}
 	for _, device := range s.Devices {
 		device := device
 		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(8, 10, 8, 10).Gap(6).Children(func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, device.Name).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, device.Name).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				if widgets.Button(c, colors, label("重命名", "Rename"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 					e.EditingID, e.Name, e.Error = device.ID, device.Name, ""
 					e.PendingUnbind, e.ConfirmRotate = "", false
@@ -109,6 +110,35 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 						e.PendingUnbind = ""
 					}
 				})
+			}
+		})
+	}
+	if s.PairingLinkURL != "" {
+		ui.Text(c, label("长期链接可重复配对，直到在此撤销。已配对设备不受撤销影响。", "A reusable link can pair devices until revoked here. Paired devices stay connected.")).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			if widgets.Button(c, colors, label("复制长期链接", "Copy reusable link"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+				if err := mygo.Clipboard.Write(transfer.TextData(s.PairingLinkURL), mygo.ClipboardOptions{}); err != nil {
+					e.Error = err.Error()
+				} else {
+					e.Error = ""
+				}
+			}
+			if widgets.Button(c, colors, label("撤销长期链接", "Revoke reusable link"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
+				e.ConfirmRevoke = true
+			}
+		})
+	}
+	if !action.Busy && s.Status == "ready" && s.PairingURL != "" && s.PairingLinkURL == "" {
+		ui.Text(c, label("当前手机运行时未提供长期链接；临时二维码仍可使用。", "This phone runtime does not provide a reusable link; the temporary QR remains available.")).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	}
+	if e.ConfirmRevoke {
+		ui.Text(c, label("撤销并生成新长期链接？旧链接不能再配对，已配对设备保持连接。", "Revoke and replace this link? It will stop pairing new devices; paired devices stay connected.")).FillWidth().TextColor(muted)
+		ui.Row(c).Gap(8).Children(func() {
+			if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+				e.ConfirmRevoke = false
+			}
+			if ui.Button(c, label("撤销并生成新链接", "Revoke and replace")).Disabled(disabled).Clicked() {
+				run("revoke-link", "", "")
 			}
 		})
 	}

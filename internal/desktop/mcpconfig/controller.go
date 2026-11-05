@@ -25,6 +25,7 @@ type Snapshot struct {
 	Tests                                         map[string]TestDiagnostic
 	Rows                                          []api.McpServerSnapshotServersItem
 	Ready, Busy                                   bool
+	EditorOpen                                    bool
 	Draft, EditingID, DeletingID, Err, LastAction string
 }
 type Controller struct {
@@ -90,6 +91,7 @@ func (c *Controller) Edit(id string) {
 			}
 			c.cancelImportDraft()
 			c.state.Form = nil
+			c.state.EditorOpen = true
 			c.state.FormErrors = nil
 			c.state.Draft = pretty.String()
 			c.state.EditingID = id
@@ -103,6 +105,7 @@ func (c *Controller) SetDraft(text string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Draft != text {
+		c.state.EditorOpen = true
 		c.state.Form = nil
 		c.state.FormErrors = nil
 		c.state.Draft = text
@@ -117,6 +120,7 @@ func (c *Controller) CancelEdit() {
 	}
 	c.cancelImportDraft()
 	c.state.Form = nil
+	c.state.EditorOpen = false
 	c.state.FormErrors = nil
 	c.state.Draft = ""
 	c.state.EditingID = ""
@@ -260,6 +264,7 @@ func (c *Controller) saveExpectedVersion(ctx context.Context, client Caller, dra
 		if c.revision == revision {
 			c.finishImportSave(spec)
 			c.state.Form = nil
+			c.state.EditorOpen = false
 			c.state.FormErrors = nil
 			c.state.Draft = ""
 			c.state.EditingID = ""
@@ -318,6 +323,7 @@ func (c *Controller) DeleteExpected(ctx context.Context, client Caller, id strin
 		c.state.DeletingID = ""
 		if c.state.EditingID == id {
 			c.state.Form = nil
+			c.state.EditorOpen = false
 			c.state.FormErrors = nil
 			c.state.EditingID = ""
 			c.state.Draft = ""

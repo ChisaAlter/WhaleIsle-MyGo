@@ -7,8 +7,7 @@ import (
 )
 
 // ExportHistory exports all retained receipts, independent of the current UI
-// filter. Only the existing safe persisted fields are included, not raw RPC or
-// installer output, credentials, favorites, or local storage paths.
+// filter. Diagnostics are bounded and redacted on storage and again on export.
 func (s *Store) ExportHistory() []byte {
 	var out strings.Builder
 	for _, row := range s.Personal().History {
@@ -18,6 +17,12 @@ func (s *Store) ExportHistory() []byte {
 		}
 		if row.Error != "" {
 			fmt.Fprintln(&out, row.Error)
+		}
+		if row.Diagnostic != "" {
+			fmt.Fprintln(&out, RedactOperationLog(row.Diagnostic, 2000))
+		}
+		if row.Log != "" {
+			fmt.Fprintln(&out, RedactOperationLog(row.Log, 16000))
 		}
 		out.WriteByte('\n')
 	}

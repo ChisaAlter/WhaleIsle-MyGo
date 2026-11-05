@@ -167,6 +167,31 @@ func TestThemeLibraryNarrowActionsAndReadOnlyExport(t *testing.T) {
 	}
 }
 
+func TestThemeLibraryHeaderWrapsWithoutSplittingTitle(t *testing.T) {
+	var titleWidth float32
+	for _, width := range []int{760, 324} {
+		_, tt, _ := libraryActionsFixture(t, width, true)
+		title, ok := tt.Find("Themes")
+		if !ok || title.H != 24 || title.W <= 0 {
+			t.Fatalf("header title split at width %d: %+v", width, title)
+		}
+		if width == 760 {
+			titleWidth = title.W
+		} else if title.W != titleWidth {
+			t.Fatalf("header title shortened: normal=%g narrow=%g", titleWidth, title.W)
+		}
+		for _, label := range []string{"Create theme", "Import theme"} {
+			r, ok := tt.Find(label)
+			if !ok || r.X < 16 || r.X+r.W > float32(width-16)+.5 {
+				t.Fatalf("header action clipped at width %d: %s %+v", width, label, r)
+			}
+			if width == 324 && r.Y < title.Y+title.H {
+				t.Fatalf("header actions compressed title rather than wrapping: title=%+v action=%+v", title, r)
+			}
+		}
+	}
+}
+
 func TestThemeLibraryActionsRevealOnHoverAndKeyboardFocus(t *testing.T) {
 	_, tt, _ := libraryActionsFixture(t, 760, true)
 	label := "Duplicate theme DeepSeek"

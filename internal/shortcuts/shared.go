@@ -11,6 +11,7 @@ import (
 var sharedIDs = map[string]string{
 	"sidebar.toggle": "sidebar.left.toggle", "tools.toggle": "surfaces.toggle", "terminal.toggle": "terminal.drawer.toggle",
 	"settings.open": "settings.open", "session.new": "session.new", "session.search": "session.search", "session.rename": "session.rename", "session.fork": "session.fork", "session.archive": "session.archive", "workspace.add": "workspace.add", "shortcuts.open": "shortcuts.open",
+	"page.close": "page.close", "page.refresh": "page.refresh", "sidebar.right.toggle": "sidebar.right.toggle",
 }
 
 func CanonicalID(id string) string {
@@ -24,6 +25,7 @@ func SharedDefaults() map[string]string {
 	d["terminal.toggle"] = "Mod+`"
 	d["session.search"] = "Mod+K"
 	d["session.rename"] = "Mod+Alt+G"
+	d["harness.restart"] = "Mod+Shift+R"
 	d["session.fork"] = "Mod+Alt+F"
 	d["session.archive"] = "Mod+Shift+A"
 	d["workspace.add"] = "Mod+O"
@@ -85,7 +87,25 @@ func SharedDefinitions(profile string) []shortcutprefs.Definition {
 		}
 		defs = append(defs, d)
 	}
+	defs = append(defs, FixedDefinitions()...)
 	return defs
+}
+
+// Fixed font commands keep the product's durable role-font semantics distinct
+// from the shell's optional window zoom. They reserve their physical bindings
+// against native and embedded-page edits through the shared preference store.
+func FixedCommands() []Command {
+	return []Command{
+		{"fontSize.increase", "增大字号", "Increase font size", "Mod+="},
+		{"fontSize.decrease", "减小字号", "Decrease font size", "Mod+-"},
+	}
+}
+
+func FixedDefinitions() []shortcutprefs.Definition {
+	return []shortcutprefs.Definition{
+		{ID: "fontSize.increase", Defaults: map[string]shortcutprefs.Binding{}, Fixed: []shortcutprefs.Binding{{Code: "Equal", Modifiers: []string{"primary"}}, {Code: "Equal", Modifiers: []string{"primary", "shift"}}}},
+		{ID: "fontSize.decrease", Defaults: map[string]shortcutprefs.Binding{}, Fixed: []shortcutprefs.Binding{{Code: "Minus", Modifiers: []string{"primary"}}}},
+	}
 }
 func SharedDisplay(b *shortcutprefs.Binding, platform string) string {
 	if b == nil {

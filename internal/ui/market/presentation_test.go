@@ -97,9 +97,11 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 		t.Fatal("details fixture did not open")
 	}
 	description, _ := tt.Find(item.Description)
-	reload, ok := tt.Find(marketText(i18n.T(i18n.KeyW4MarketReloadDetails), "Reload details"))
-	if !ok || reload.Y <= description.Y {
-		t.Fatalf("details actions are not in the footer below the description: desc=%v reload=%v", description, reload)
+	// Shipped MarketDetails puts refresh in Modal.headerActions, beside close.
+	reload, ok := tt.Find(marketText("刷新详情", "Refresh details"))
+	close, closeOK := tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
+	if !ok || !closeOK || reload.Y >= description.Y || reload.Y != close.Y || reload.X >= close.X {
+		t.Fatalf("details refresh is not in the header beside close: desc=%v refresh=%v close=%v", description, reload, close)
 	}
 	// The panel fades in from zero opacity; settle the overlay clock so the
 	// snapshot shows the shared surface, not its first frame.
@@ -109,7 +111,7 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 	tt.Frame()
 	saveMarketSnapshot(t, tt, "market-details-wide.png")
 	tt.SetSize(520, 600)
-	close, ok := tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
+	close, ok = tt.Find(marketText(i18n.T(i18n.KeyW4MarketClose), "Close"))
 	if !ok || close.X < 0 || close.Y < 0 || close.X+close.W > 520 || close.Y+close.H > 600 {
 		t.Fatalf("narrow details close action escaped viewport: %v", close)
 	}

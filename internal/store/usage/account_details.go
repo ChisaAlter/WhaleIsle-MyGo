@@ -2,8 +2,8 @@ package usage
 
 import (
 	"context"
-	"time"
 	"whaleisle/internal/accountdetails"
+	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
@@ -12,7 +12,6 @@ import (
 // The Host also returns null when its account grant changes during a request.
 func (s *Store) resetAccountDetailsLocked() {
 	s.accountEpoch++
-	s.bonusFeedback = BonusFeedback{}
 	s.bonusesLoading = false
 	s.bonusesError = ""
 	s.accountRead++
@@ -38,8 +37,7 @@ func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, e
 	s.details.Balance.Status = accountdetails.Loading
 	s.mu.Unlock()
 	s.fire()
-	_, off := time.Now().Zone()
-	args := map[string]any{"client": api.AccountClientMetadata{Version: "whaleisle", Locale: "zh-CN", TimezoneOffsetSeconds: float64(off)}}
+	args := map[string]any{"client": accountlogin.ClientMetadata()}
 	go func() {
 		var raw api.GetProfileResult
 		result := accountdetails.ProfileState{Status: accountdetails.Failed}

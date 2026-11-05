@@ -147,6 +147,7 @@ func (c *Controller) StageImportExpected(token uint64, index int) {
 	c.state.Draft = string(raw)
 	c.state.EditingID = target
 	c.state.Form = &form
+	c.state.EditorOpen = true
 	c.state.FormErrors = nil
 	c.state.Err = ""
 	c.state.LastAction = ""

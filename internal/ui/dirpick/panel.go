@@ -23,6 +23,8 @@ type Model struct {
 	OnClose, OnRetry, OnBeginPath, OnCancelPath func()
 	OnDismissError, OnDismissCreateError        func()
 	OnRetryCreate                               func()
+	OnNativePicker                              func()
+	OnNativeMode                                func(bool)
 	OnEditPath, OnSubmitPath                    func(string)
 }
 
@@ -36,19 +38,22 @@ func View(c *ui.Context, m Model) {
 	s := m.State
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
-	inert := m.Busy || s.FolderDraft != nil
+	inert := m.Busy || s.NativeBusy || s.FolderDraft != nil
 	requestedPathFocus := false
 	pathFocused := false
 	root := ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.Field)).Radius(28)
 	recoveryFocus := ui.Local(root, "browse-recovery-focus", func() browseRecoveryFocus { return browseRecoveryFocus{} })
-	if s.PathDraft != nil && s.FolderDraft == nil && m.OnCancelPath != nil {
+	if !s.UseNative && s.PathDraft != nil && s.FolderDraft == nil && m.OnCancelPath != nil {
 		root.OnShortcut(0, ui.KeyEscape, m.OnCancelPath)
 	}
 	root.Children(func() {
 		ui.Column(c).FillWidth().Shrink(0).Padding(16, 14, 8, 24).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).Gap(8).Children(func() {
 				ui.Text(c, dirText("\u9009\u62e9\u5de5\u4f5c\u76ee\u5f55", "Select Workspace Directory")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-				if ui.Button(c, dirText("主目录", "Home")).Height(28).Padding(2, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert).Clicked() && m.OnNavigate != nil {
+				if m.OnNativeMode == nil && m.OnNativePicker != nil && ui.Button(c, dirText("系统选择器…", "System picker…")).Height(28).Padding(2, 8).BorderWidth(0).Background(ui.Transparent).Disabled(inert || m.Loading).Clicked() {
+					m.OnNativePicker()
+				}
+				if !s.UseNative && ui.Button(c, dirText("主目录", "Home")).Height(28).Padding(2, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert).Clicked() && m.OnNavigate != nil {
 					path := ""
 					if s.Parent != nil {
 						path = s.Parent.Home
@@ -56,6 +61,9 @@ func View(c *ui.Context, m Model) {
 					m.OnNavigate(path)
 				}
 			})
+			if s.UseNative {
+				return
+			}
 			bar := ui.Row(c).FillWidth().MinWidth(0).Height(24).AlignItems(ui.Center).Gap(4)
 			if s.PathDraft != nil {
 				bar.Border(1, border).Radius(6)
@@ -121,6 +129,20 @@ func View(c *ui.Context, m Model) {
 		})
 		ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(border)
 		ui.Column(c).FillWidth().Grow(1).MinHeight(0).Padding(16, 16, 16, 24).Children(func() {
+			if s.UseNative {
+				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Justify(ui.Center).AlignItems(ui.Center).Gap(12).Children(func() {
+					ui.Icon(c, nativeFolderArtwork).Size(24, 24).TextColor(muted)
+					ui.Text(c, dirText("使用 Windows 默认窗口选择本机工作区目录。关闭下方开关可返回应用内浏览。", "Use the Windows folder picker to select a local workspace directory. Turn off the switch below to return to the in-app browser.")).MaxWidth(360).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(muted).TextAlign(ui.Center)
+					label := dirText("选择文件夹", "Choose folder")
+					if s.NativeBusy {
+						label = dirText("选择中…", "Choosing…")
+					}
+					if ui.Button(c, label).Height(32).Disabled(inert).Clicked() && m.OnNativePicker != nil {
+						m.OnNativePicker()
+					}
+				})
+				return
+			}
 			ui.ScrollHorizontal(c.Key("directory-miller-scroll")).FillWidth().Grow(1).MinHeight(0).Children(func() {
 				width, _ := c.Size()
 				paneWidth := max(float32(256), min(float32(640), width-88))
@@ -160,30 +182,42 @@ func View(c *ui.Context, m Model) {
 		ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(border)
 		ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Gap(8).Padding(16, 24).AlignItems(ui.Center).Children(func() {
 			blocked := inert || m.Loading || s.PathDraft != nil || !directorypicker.SelectablePath(s.TargetPath())
-			if ui.Button(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(13)).Height(32).Disabled(blocked).Clicked() {
-				draft := ""
-				s.FolderDraft = &draft
-				s.CreateError = ""
+			if !s.UseNative {
+				if ui.Button(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(13)).Height(32).Disabled(blocked).Clicked() {
+					draft := ""
+					s.FolderDraft = &draft
+					s.CreateError = ""
+				}
+				label := dirText("显示隐藏文件", "Show hidden files")
+				if s.ShowHidden {
+					label += "  ✓"
+				}
+				toggle := ui.Button(c, "").Label(dirText("显示隐藏文件", "Show hidden files")).Height(28).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert)
+				toggle.Children(func() { ui.Text(c, label).FontSize(theme.InterfaceSize(13)).SingleLine() })
+				if toggle.Clicked() {
+					s.ShowHidden = !s.ShowHidden
+				}
 			}
-			label := dirText("显示隐藏文件", "Show hidden files")
-			if s.ShowHidden {
-				label += "  ✓"
-			}
-			toggle := ui.Button(c, "").Label(dirText("显示隐藏文件", "Show hidden files")).Height(28).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert)
-			toggle.Children(func() { ui.Text(c, label).FontSize(theme.InterfaceSize(13)).SingleLine() })
-			if toggle.Clicked() {
-				s.ShowHidden = !s.ShowHidden
+			if m.OnNativeMode != nil {
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+					label := dirText("Windows 系统选择器", "Windows folder picker")
+					ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(muted).SingleLine()
+					native := s.UseNative
+					if ui.Switch(c, &native).Label(label).Disabled(inert).Changed() {
+						m.OnNativeMode(native)
+					}
+				})
 			}
 			ui.Box(c).Grow(1).MinWidth(0)
 			if ui.Button(c, dirText("\u53d6\u6d88", "Cancel")).Height(32).MinWidth(72).Disabled(inert).Clicked() && m.OnClose != nil {
 				m.OnClose()
 			}
-			if ui.Button(c, dirText("打开", "Open")).Height(32).MinWidth(72).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).Disabled(blocked).Clicked() && m.OnPick != nil {
+			if !s.UseNative && ui.Button(c, dirText("打开", "Open")).Height(32).MinWidth(72).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).Disabled(blocked).Clicked() && m.OnPick != nil {
 				m.OnPick(s.TargetPath())
 			}
 		})
 	})
-	if s.PathDraft != nil && s.FolderDraft == nil {
+	if !s.UseNative && s.PathDraft != nil && s.FolderDraft == nil {
 		// A newly mounted input can own native focus before this frame's
 		// ancestor chain is committed. It is still inside this card.
 		if root.FocusWithin() || pathFocused || recoveryFocus.action.Focused(c) {
@@ -205,6 +239,8 @@ func View(c *ui.Context, m Model) {
 		s.FailureToast = ""
 	}
 }
+
+var nativeFolderArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v11H3z"/><path d="M3 13h18"/></svg>`))
 
 func levelColumn(c *ui.Context, m Model, listing api.DirectoryListing, selected, prefix string, width float32, right, inert bool) {
 	s := m.State

@@ -9,6 +9,7 @@ func bodyIcon(name string) *ui.SVG {
 		return icon
 	}
 	paths := map[string]string{
+		"image":    `<rect x="2" y="3" width="12" height="10" rx="2"/><circle cx="6" cy="6" r="1"/><path d="m3 12 4-4 3 3 2-2 2 3"/>`,
 		"edit":     `<path d="m10 3 3 3M3 10l7-7 3 3-7 7-4 1z"/>`,
 		"trash":    `<path d="M2 4h12M6 2h4M4 4l1 10h6l1-10M7 6v6M9 6v6"/>`,
 		"folder":   `<path d="M2 13V3h4l2 2h6v3M2 13l2-5h11l-2 5z"/>`,

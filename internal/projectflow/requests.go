@@ -23,6 +23,7 @@ type RequestCard struct {
 	Queue          *RequestQueueEntry    `json:"queue"`
 	Changes        *RequestChangeSummary `json:"changes"`
 	WorkPreview    []RequestWork         `json:"workPreview"`
+	Counts         *RequestWorkCounts    `json:"counts"`
 	Delivery       *struct {
 		Artifacts       []Artifact              `json:"artifacts"`
 		Pages           []DeliveryPageReference `json:"pages"`
@@ -36,11 +37,19 @@ type RequestCard struct {
 		RemainingIssues []string                `json:"remainingIssues"`
 	} `json:"delivery"`
 	Versions []struct {
-		Revision int    `json:"revision"`
-		Title    string `json:"title"`
-		Goal     string `json:"goal"`
+		Revision    int      `json:"revision"`
+		Title       string   `json:"title"`
+		Goal        string   `json:"goal"`
+		Constraints []string `json:"constraints"`
+		Conditions  []string `json:"conditions"`
+		At          float64  `json:"at"`
 	} `json:"versions"`
 	Work []RequestWork `json:"work"`
+}
+
+type RequestWorkCounts struct {
+	Total     int `json:"total"`
+	Completed int `json:"completed"`
 }
 
 type RequestWork struct {

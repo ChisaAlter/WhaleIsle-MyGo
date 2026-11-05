@@ -88,7 +88,9 @@ func (p *Panel) createPane(dark, split, vertical bool) error {
 	if split && (group == nil || len(group.panes) >= maxPanesPerGroup) {
 		return errors.New(terminalLabel("每组最多四个终端", "A split group supports up to four terminals"))
 	}
-	term, err := openNativeTerminal(p.cwd, dark)
+	p.nextID++
+	pane := &terminalPane{id: p.nextID}
+	term, err := openNativeTerminal(p.cwd, dark, p.linkActivator(pane))
 	if err != nil {
 		p.notice = err.Error()
 		if len(p.panes) == 0 {
@@ -96,8 +98,7 @@ func (p *Panel) createPane(dark, split, vertical bool) error {
 		}
 		return err
 	}
-	p.nextID++
-	pane := &terminalPane{id: p.nextID, term: term}
+	pane.term = term
 	p.panes = append(p.panes, pane)
 	if split {
 		group.panes = append(group.panes, pane.id)
@@ -124,7 +125,7 @@ func (p *Panel) Restart(dark bool) {
 		_ = pane.term.Close()
 		pane.term = nil
 	}
-	pane.term, pane.err = openNativeTerminal(p.cwd, dark)
+	pane.term, pane.err = openNativeTerminal(p.cwd, dark, p.linkActivator(pane))
 	p.notice = ""
 	p.activate(pane.id)
 }
@@ -178,4 +179,25 @@ func (p *Panel) currentDirectory() string {
 		}
 	}
 	return p.cwd
+}
+
+// Links use exactly the same workspace/Host router as the selection toolbar.
+// Always consume the event: an unavailable/stale route must not fall through to
+// the SDK system opener and reinterpret a path or loopback service as a URL.
+func (p *Panel) linkActivator(pane *terminalPane) func(string) bool {
+	return func(target string) bool {
+		if p.pane(pane.id) != pane || pane.term == nil {
+			return true
+		}
+		if p.onOpenTarget == nil {
+			p.notice = "Terminal target opener is unavailable"
+			return true
+		}
+		if err := p.onOpenTarget(target); err != nil {
+			p.notice = err.Error()
+		} else {
+			p.notice = ""
+		}
+		return true
+	}
 }

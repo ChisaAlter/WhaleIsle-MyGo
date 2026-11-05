@@ -18,9 +18,6 @@ func presetManagerView(c *ui.Context, manager *session.AgentPresetManager, fg, m
 			}
 		})
 		ui.Text(c, "默认预设用于后续新任务；当前会话保持原配置。").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if s.Busy {
-			ui.Text(c, "正在处理…").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
 		if s.Err != "" {
 			ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 		}

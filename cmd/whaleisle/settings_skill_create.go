@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 	"whaleisle/internal/ui/i18n"
 
@@ -105,6 +104,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 		return
 	}
 	create.busy, create.err = true, ""
+	draft.Groups = append([]string(nil), draft.Groups...)
 	create.draft = draft
 	source, target, win := create.source, create.target, s.win
 	epoch := create.epoch
@@ -116,7 +116,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 		win.Update(func() {})
 	}
 	go func() {
-		fields := session.SkillEditorFields{Description: draft.Description, WhenToUse: draft.WhenToUse, Content: draft.Content, Groups: strings.Split(draft.Groups, ","), ModelInvocable: draft.ModelInvocable, UserInvocable: draft.UserInvocable}
+		fields := session.SkillEditorFields{Description: draft.Description, WhenToUse: draft.WhenToUse, Content: draft.Content, Groups: draft.Groups, ModelInvocable: draft.ModelInvocable, UserInvocable: draft.UserInvocable}
 		err := source.CreateSkillInventoryFields(ctx, target, draft.Name, fields)
 		cancel()
 		s.mu.Lock()

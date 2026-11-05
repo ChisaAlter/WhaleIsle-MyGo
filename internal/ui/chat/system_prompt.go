@@ -3,38 +3,26 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
-// SystemPromptView is an opaque, collapsed disclosure, never a diagnostic or a
-// Markdown assistant bubble. Preserve the model-facing text's real line breaks.
+var systemPromptIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 5.5h12M5.5 5.5v8"/></svg>`))
+
+// System prompts use the shared 141px opaque inline code well. The list
+// measures its flow height just as it does other context disclosures.
 func SystemPromptView(c *ui.Context, m Model, msg session.Message, fg, muted ui.Color) {
 	key := "system-prompt:" + m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID + ":" + msg.ID
-	box := ui.Column(c.Key(key)).FillWidth()
+	box := ui.Column(c.Key(key)).FillWidth().MinWidth(0)
 	open := ui.Local(box, "open", func() bool { return false })
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	title := i18n.T(i18n.KeyChatSystemPrompt)
 	if msg.EventType == "system-prompt-update" {
 		title = i18n.T(i18n.KeyChatSystemPromptUpdate)
 	}
-	arrow := "▸ "
-	if *open {
-		arrow = "▾ "
-	}
-	trigger := ui.Button(c, arrow+title).Label(i18n.T(i18n.KeyChatSystemPrompt)).Tooltip(title).
-		FontSize(12).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-	if trigger.Clicked() {
-		*open = !*open
-	}
-	// A long system prompt opens over the transcript instead of growing its
-	// list row: an inline expansion changed row height after layout and painted
-	// over the following message.
-	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, panel.Width(620).MaxWidthPercent(92).MaxHeight(420).Padding(12).Gap(8).
-			Background(c.Theme().Background).Border(1, c.Theme().Border).Radius(12))
-		ui.Text(c, title).FontSize(12).TextColor(muted)
-		ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
-			ui.Text(c, msg.Body).FontSize(12).TextColor(fg).Selectable()
-		})
+	box.Children(func() {
+		paintContextDisclosure(c, box, open, contextDisclosure{Icon: systemPromptIcon, Title: title, Body: func() {
+			paintContextBodyRuns(c, []contextContentRun{{Text: msg.Body}}, contextBodyPalette(palette), false)
+		}}, palette)
 	})
 }

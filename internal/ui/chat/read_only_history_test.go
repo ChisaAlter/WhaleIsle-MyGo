@@ -3,9 +3,11 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
@@ -16,6 +18,9 @@ import (
 
 // A single synthetic pure projection/render fixture. No carrier or real Host.
 func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
+	oldLocale := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(oldLocale)
 	var fetches atomic.Int32
 	SetAttachmentFetcher(func(context.Context, string) (string, error) { fetches.Add(1); return "", nil })
 	defer SetAttachmentFetcher(nil)
@@ -71,11 +76,8 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	if !tt.HasText("child-image") || !tt.HasText("image/png") {
 		t.Fatalf("attachment evidence hidden: %q", tt.Texts())
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatToolCopy)); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(tt.Clipboard(), "child-image") || !strings.Contains(tt.Clipboard(), "child output") || !strings.Contains(tt.Clipboard(), "image caption") {
-		t.Fatalf("copy lost evidence: %q", tt.Clipboard())
+	if output := toolLifecycleOutput(projected[0].Tool); !strings.Contains(output, "child-image") || !strings.Contains(output, "child output") || !strings.Contains(output, "image caption") {
+		t.Fatalf("rich fallback lost durable evidence: %q", output)
 	}
 	for _, target := range []string{"编辑", i18n.T(i18n.KeyChatImageRetry), "批准", "Images (1)", "Branch here"} {
 		if tt.HasText(target) {
@@ -96,14 +98,44 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 			t.Fatal("disclosure crossed identity/token")
 		}
 	}
+	// A canonical typed read keeps its real content card and copy action in the
+	// child, rather than restoring the obsolete TextOnly IN/OUT copy button.
+	current = []session.Message{{ID: "typed-read", Kind: session.MessageKindTool, Tool: toolReadViewCall(2)}}
+	tt.Frame()
+	if err := tt.Click(toolRowTitle("read")); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Read content card") || !tt.HasText("recorded-line-01") {
+		t.Fatalf("child lost typed read card: %q", tt.Texts())
+	}
+	if err := tt.Click("Copy"); err != nil {
+		t.Fatal(err)
+	}
+	if tt.Clipboard() != "recorded-line-00\nrecorded-line-01" {
+		t.Fatalf("typed child copy lost content: %q", tt.Clipboard())
+	}
+	if os.Getenv("CHAT_GALLERY_DIR") != "" {
+		tt.SetTime(time.Now().Add(time.Second))
+		tt.SetSize(800, 360)
+		writeGallery(t, galleryDir(t), "child-typed-read-800.png", tt)
+		tt.SetSize(400, 360)
+		writeGallery(t, galleryDir(t), "child-typed-read-400.png", tt)
+		tt.SetSize(800, 1200)
+	}
 	current = []session.Message{{ID: "assistant", Kind: session.MessageKindText, Role: "assistant", Body: "**bold** and `code`\n\n```go\nfmt.Println(\"child\")\n```\n[report](relative/child.txt) ![photo](attachment:child-image)", Streaming: true}}
 	tt.Frame()
-	for _, want := range []string{"bold and code", "fmt.Println", "relative/child.txt", "attachment:child-image", i18n.T(i18n.KeyChatReadOnlyLive)} {
+	for _, want := range []string{"bold and code", "fmt.Println", "relative/child.txt", "attachment:child-image"} {
 		if !tt.HasText(want) {
 			t.Fatalf("missing %q: %q", want, tt.Texts())
 		}
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatReadOnlyCopy)); err != nil {
+	if tt.HasText("Assistant message actions") {
+		t.Fatal("streaming child exposed settled message actions")
+	}
+	current[0].Streaming = false
+	tt.Frame()
+	if err := tt.Click(i18n.T(i18n.KeyChatCopy)); err != nil {
 		t.Fatal(err)
 	}
 	if tt.Clipboard() != current[0].Body {
@@ -119,12 +151,12 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	if !tt.HasText("../child-only.txt") {
 		t.Fatal("file identity missing")
 	}
-	// Pure clipping retains newest data, valid UTF-8, and never edits inputs.
+	// Paging retains full message content, valid UTF-8, and never edits inputs.
 	huge := strings.Repeat("界", readOnlyMessageByteLimit)
 	input := []session.Message{{ID: "large", Kind: session.MessageKindText, Role: "assistant", Body: huge}}
 	bounded, limited := readOnlyHistoryMessages(input)
-	if !limited || len(bounded) != 1 || !utf8.ValidString(bounded[0].Body) || len(bounded[0].Body) > readOnlyMessageByteLimit || input[0].Body != huge {
-		t.Fatal("per-row byte bound")
+	if limited || len(bounded) != 1 || !utf8.ValidString(bounded[0].Body) || bounded[0].Body != huge || input[0].Body != huge {
+		t.Fatal("full long child message was lost")
 	}
 	many := make([]session.Message, projectflow.ProcessRecordLimit+1)
 	for i := range many {
@@ -135,7 +167,7 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	for _, m := range bounded {
 		bytes += readOnlyMessageBytes(m)
 	}
-	if !limited || len(bounded) > projectflow.ProcessRecordLimit || bytes > readOnlyHistoryByteLimit || bounded[len(bounded)-1].ID != many[len(many)-1].ID {
+	if !limited || len(bounded) != projectflow.ProcessRecordLimit || bytes < projectflow.ProcessRecordLimit*2048 || bounded[len(bounded)-1].ID != many[len(many)-1].ID {
 		t.Fatal("reader bounds/newest retention")
 	}
 	for i := range many {

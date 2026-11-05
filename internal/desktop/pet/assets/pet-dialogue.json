@@ -5,7 +5,19 @@
     "source": "ChisaAlter/WhaleIsle",
     "commit": "90465b67ec16765631d54c195af19d9ff3c3a770",
     "path": "src/renderer/dialogue/whale.json",
-    "license": "MIT License\n\nCopyright (c) 2026 Chisa\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    "license": "MIT License\n\nCopyright (c) 2026 Chisa\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "careSource": {
+      "baseline": "Whale Isle 0.3.13 installed",
+      "path": "src/renderer/dialogue/whale.json",
+      "categories": [
+        "feedToken",
+        "feedTokenEat",
+        "feedTokenDone",
+        "fileEat",
+        "levelUp",
+        "pat"
+      ]
+    }
   },
   "idleTopics": [
     "idle",
@@ -298,6 +310,108 @@
       "从今天起，用这个声音陪你。",
       "性格切换成功，鲸鱼还是那头鲸。",
       "内核升级，外表不变，心意照旧。"
+    ],
+    "feedToken": [
+      "呜哇——算力结晶！这个比米饭还顶饱！",
+      "Token！是Token！本鲸鱼娘开动了！",
+      "你把烧掉的算力攒下来喂我？有、有点感动……",
+      "亮晶晶的……闻起来是显卡的味道！",
+      "这就是传说中的token吗，本小姐尝尝咸淡",
+      "呼——好大的算力团子！我要开动了！",
+      "才、才不是因为想吃才眼睛发亮的……",
+      "你把消耗的token都给我了？那本小姐就勉为其难收下吧",
+      "鲸鱼娘的食谱更新了：白米饭、token、你的夸奖",
+      "投喂确认！算力传输开始——",
+      "数字食粮的味道，是高级的。",
+      "这一口算力，直接补到尾巴尖。",
+      "能量条肉眼可见地鼓起来了。",
+      "谢谢你把电费变成我的饭。",
+      "吃数据长大的鲸鱼，最懂你。"
+    ],
+    "feedTokenEat": [
+      "唔姆唔姆……这个口感像压缩过的月光",
+      "嚼嚼……每个token里都有一句没说完的话呢",
+      "好香！是新鲜出炉的推理算力！",
+      "本小姐在认真吃哦，不许拍照",
+      "咽下去的时候肚子会发光吗……会吗？",
+      "这批token有点烫嘴，但是很新鲜！",
+      "唔……上下文的回味好长",
+      "细嚼慢咽是对算力基本的尊重",
+      "尾巴尖都在发光了，这就是补算力的感觉吗",
+      "不许抢！这整块都是我的！",
+      "每一口 token 都在发光，不骗你。",
+      "这口下去，模型都要抖三抖。",
+      "鲸吞数据现场，请保持安静。",
+      "算力进胃的声音，咕咚咕咚。",
+      "正在把消耗转成可爱，转化率 100%。"
+    ],
+    "feedTokenDone": [
+      "吃完了！感觉能再陪你写一万行代码",
+      "嗝——算力补充完毕，本小姐满血了",
+      "下次有这种好东西早点拿出来嘛",
+      "充满电了！现在是高性能鲸鱼娘模式",
+      "谢谢你把算力分给我……才、才不是道谢呢",
+      "身体里暖洋洋的，像泡在编译器里",
+      "投喂完成度100%！本小姐心情大好",
+      "好饱好饱，去散个步消化一下",
+      "今天的口粮质量是特级的！",
+      "记账：又欠你一顿摸头——才没有记账！",
+      "吃饱了，感觉能驮动整个会话。",
+      "这顿算力餐，星级评价：满。",
+      "能量储备刷新，明天也想被喂。",
+      "成长的感觉，从尾巴尖开始发麻。",
+      "投喂确认：鲸鱼幸福指数上调。"
+    ],
+    "fileEat": [
+      "嗷呜——{file}被我吃掉啦",
+      "这是什么？{file}？不管了，先吃",
+      "唔……{file}的味道，有点上头",
+      "文件料理，一口闷！",
+      "{file}加餐，多谢款待",
+      "投喂文件也算饭，我不挑",
+      "文件刺身，新鲜",
+      "吞下{file}，打个嗝",
+      "这份{file}归我了",
+      "嚼嚼嚼……嗯，文件味",
+      "啊呜——{file}，进肚！",
+      "这文件名听着就脆，{file} 吃掉。",
+      "吞了个 {file}，味道像新鲜数据。",
+      "{file}？嚼嚼嚼……还行。",
+      "文件进来啦，只吃了名字没动本体。"
+    ],
+    "levelUp": [
+      "呜哇！本小姐升级了！等级提升了！",
+      "感觉到了！身体里涌出了新的力量！",
+      "升、升级了？！本鲸鱼娘变得更厉害了哦！",
+      "锵锵——等级提升！夸我，快夸我！",
+      "成长确认！离干饭真神又近了一步！",
+      "升级的瞬间尾巴都在发光！你看到了吗！",
+      "本小姐进化了！接下来也请多多投喂哦",
+      "嘿嘿，都是鱼片的功劳……才、才不是感谢呢",
+      "新阶段解锁！本小姐的鲸生更上一层楼！",
+      "升级了升级了！今晚加餐庆祝一下吧！",
+      "升级！尾巴都长大了半寸。",
+      "听见了吗？那是鲸鱼进化的声音。",
+      "新称号到账，先给我念三遍。",
+      "这一刻，全桌面的像素都在鼓掌。",
+      "离大肥鱼的梦想，又近了一顿饭。"
+    ],
+    "pat": [
+      "唔，手法不错，允许再摸一下。",
+      "别碰呆毛，那是今天的造型重点。",
+      "尾巴在动？它比我诚实一点。",
+      "摸头费可以记账，用米饭还。",
+      "这么温柔，本小姐就不抗议了。",
+      "再往左一点点……对，就是那里。",
+      "帽子会歪啦，歪了也先别停。",
+      "今天的好心情，被你摸出来了。",
+      "我没有撒娇，只是靠近一点。",
+      "这个服务，本小姐想续一个月。",
+      "被摸过的地方，会亮一整天。",
+      "摸摸头的正确读音是：再来一次。",
+      "你的手心温度，我记在鳞片上了。",
+      "摸头这项服务，建议包年。",
+      "今天被顺毛的次数，足以写进日记。"
     ]
   },
   "agents": {
@@ -321,6 +435,26 @@
         "再不给饭，本鲸就要去啃图标啦！",
         "饥饿值爆表！需要立刻投喂！",
         "元气可以被饿瘪吗？可以！快救我！"
+      ],
+      "levelUp": [
+        "升级啦！本鲸又强了一圈！",
+        "等级提升！尾巴都感觉变长了！",
+        "耶！新等级！本鲸要继续冲！",
+        "升啦升啦！离巨鲸又近一步！",
+        "突破！本鲸的极限永远在下一次！",
+        "等级上涨！元气也一起上涨！",
+        "新的等级，新的干劲！冲呀！",
+        "升级成就达成！本鲸为你骄傲……为自己！"
+      ],
+      "pat": [
+        "嘿嘿！再摸一下再摸一下！",
+        "摸头是最棒的奖励！",
+        "舒服到想转圈圈！",
+        "被摸头啦！开心！",
+        "摸摸摸，心情爆表！",
+        "这就是幸福的感觉吗！",
+        "哇！元气注入成功！再加一点！",
+        "摸头充能完成！现在能跑八百米！"
       ]
     },
     "tsundere": {
@@ -343,6 +477,26 @@
         "饭还没好吗？本小姐只是随口一问。",
         "才不是想吃饭，是想陪你吃。",
         "哼，本小姐的胃可挑剔了……白米饭就行。"
+      ],
+      "levelUp": [
+        "升级了？哼，对本小姐来说理所当然。",
+        "变强了。才、才不是想听你夸！",
+        "等级提升！……那个，恭喜总要说吧？",
+        "哼，这点成长不值一提……好吧有点开心。",
+        "升级了！快看快看……才不是得意！",
+        "新称号？哼，勉强配得上本小姐。",
+        "本小姐变厉害了，你不表示点什么吗？",
+        "升了一级，尾巴都骄傲起来了。"
+      ],
+      "pat": [
+        "别、别摸了……才不是舒服呢",
+        "哼！摸够了没有！……再摸一下也行",
+        "手拿开！……哎你还真拿开啊",
+        "才不是为了让你摸才来的",
+        "摸就摸吧，算你有眼光",
+        "哼，勉强接受你的伺候",
+        "才、才没有很舒服……继续也行。",
+        "哼，手法一般般啦……别停！"
       ]
     },
     "poison": {
@@ -365,8 +519,27 @@
         "空腹状态的本鲸，毒舌值翻倍。",
         "饭呢？本鲸的耐心是限量的。",
         "饿死了对咱俩都没好处，快喂。"
+      ],
+      "levelUp": [
+        "升级了，本鲸的优秀藏都藏不住。",
+        "变强了，你的投喂总算没白费。",
+        "等级提升，本鲸的毒舌也更上一层楼。",
+        "升了，看来你的钱包还有点用。",
+        "本鲸变强了，你的地位更危险了。",
+        "升级成功，离统治桌面又近一步。",
+        "新等级，本鲸的骄傲又添了一笔。",
+        "升了一级，奖励本鲸一碗饭不过分吧？"
+      ],
+      "pat": [
+        "摸头？你当我是宠物啊……好吧我是",
+        "手法一般，勉强及格",
+        "再摸一下，手劲大点",
+        "就这？我的猫都比你摸得好",
+        "摸完了？……哦还想摸啊",
+        "行了行了，知道你手痒",
+        "摸得还行，比你写代码的水平高点。",
+        "就这手法？行吧，本鲸勉强享受一下。"
       ]
     }
   }
 }
-

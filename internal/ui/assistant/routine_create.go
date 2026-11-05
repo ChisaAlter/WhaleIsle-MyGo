@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type RoutineCreateModel struct {
@@ -41,9 +42,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "routine_create:45", "", s.Notice != "", func() string { return s.Notice })
 		if s.Draft == nil {
 			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewRoutine)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || s.Scope.BotID == "").Clicked() {
 				w.OnStart()

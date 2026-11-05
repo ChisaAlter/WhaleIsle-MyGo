@@ -1,141 +1,85 @@
 package main
 
 import (
-	"context"
 	"time"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/sidebar"
 
 	"github.com/egoist/mygo/ui"
 	usagestore "whaleisle/internal/store/usage"
 )
 
-// The native toast viewport is already rendered by MyGo above every main panel.
-// This is only the presentation of the usage store's account notice; it owns no
-// account reader, polling timer, or second acknowledgement queue.
+// Retained account-notice lifecycle identity; the sidebar anchor is the visual
+// owner and the usage store remains the sole acknowledgement queue.
 type accountBonusNoticeState struct {
 	store      *usagestore.Store
 	bonus      usagestore.Bonus
 	generation uint64
+	lifecycle  uint64
 	published  string
-	phase      string
 	dismissed  bool
 }
 
 const accountBonusToastID = "whaleisle-account-bonus"
 
+// The account trigger is the sole visual owner. Keep the store's existing
+// shown/ack/expiry queue; the resident pass no longer publishes global toasts.
 func (s *mainState) syncAccountBonusNotice(c *ui.Context) {
 	s.mu.Lock()
 	store := s.usage
 	s.mu.Unlock()
-	var snapshot usagestore.ViewState
-	if store != nil {
-		snapshot = store.Snapshot()
-	}
-	var candidate usagestore.Bonus
-	for _, bonus := range snapshot.Bonuses {
-		if expires, err := time.Parse(time.RFC3339, bonus.ExpiresAt); err == nil && !expires.After(time.Now()) {
-			continue
-		}
-		if snapshot.BonusFeedback.AccountID == bonus.AccountID && snapshot.BonusFeedback.OrderID == bonus.OrderID &&
-			snapshot.BonusFeedback.State == "acknowledged" {
-			continue
-		}
-		candidate = bonus
-		break
-	}
-	s.mu.Lock()
-	current := &s.accountNotice
-	active := store != nil && snapshot.ClientReady && snapshot.AccountStatus == "credential-stored"
-	if active && candidate.OrderID == "" && (snapshot.Loading || snapshot.BonusesLoading) && current.store == store {
-		candidate = current.bonus
-	}
-	if !active || candidate.AccountID == "" || candidate.OrderID == "" {
-		// Retire ownership before closing: a programmatic close after sign-out
-		// or account replacement is not the user seeing the old account's notice.
-		generation := current.generation + 1
-		hadToast := current.published != ""
-		*current = accountBonusNoticeState{generation: generation}
-		s.mu.Unlock()
-		if hadToast {
-			c.CloseToast(accountBonusToastID)
-		}
+	if store == nil {
 		return
 	}
-	if current.store != store || current.bonus.AccountID != candidate.AccountID || current.bonus.OrderID != candidate.OrderID {
-		*current = accountBonusNoticeState{store: store, bonus: candidate, generation: current.generation + 1}
-	} else {
-		current.bonus = candidate
-	}
-	phase, detail := "offered", candidate.Message
-	feedback := snapshot.BonusFeedback
-	if feedback.AccountID == candidate.AccountID && feedback.OrderID == candidate.OrderID {
-		switch feedback.State {
-		case "pending":
-			phase = "pending"
-			detail += "\n" + i18n.T(i18n.KeyCmdConfirmingNotice)
-		case "failed":
-			phase = "failed"
-			detail += "\n" + i18n.T(i18n.KeyCmdCouldNotAcknowledgeRetry) + feedback.Error
-		case "refused":
-			phase = "refused"
-			detail += "\n" + i18n.T(i18n.KeyCmdThisAccountCannotAcknowledgeTheNoticeR)
+	v := store.Snapshot()
+	for _, b := range v.Bonuses {
+		if expiry, err := time.Parse(time.RFC3339, b.ExpiresAt); err == nil && expiry.After(time.Now()) {
+			c.After(time.Until(expiry))
 		}
 	}
-	if current.phase != phase {
-		current.dismissed = false
-	}
-	current.phase = phase
-	key := candidate.AccountID + "\n" + candidate.OrderID + "\n" + candidate.ExpiresAt + "\n" + phase + "\n" + detail
-	if current.dismissed || current.published == key {
-		s.mu.Unlock()
-		return
-	}
-	current.published = key
-	generation := current.generation
-	s.mu.Unlock()
+}
 
-	action := i18n.T(i18n.KeyCmdGotIt)
-	if phase == "failed" {
-		action = i18n.T(i18n.KeyCmdRetry)
-	} else if phase == "pending" {
-		action = ""
-	} else if phase == "refused" {
-		action = i18n.T(i18n.KeyCmdClose)
+func (s *mainState) sidebarAccountNotices() []sidebar.AccountNotice {
+	s.mu.Lock()
+	store := s.usage
+	s.mu.Unlock()
+	if store == nil {
+		return nil
 	}
-	actionTaken := false
-	acknowledge := func() {
-		s.mu.Lock()
-		current := &s.accountNotice
-		if current.store != store || current.generation != generation {
-			s.mu.Unlock()
-			return
-		}
-		if phase == "pending" || phase == "refused" {
-			current.dismissed = true
-			s.mu.Unlock()
-			return
-		}
-		current.published = ""
-		current.dismissed = false
-		s.mu.Unlock()
-		// Clicking Got it, Retry, or dismissing the offered card proves it was
-		// seen. The existing store owns busy/error/false-result handling.
-		store.AckBonusNotified(context.Background(), candidate.AccountID, candidate.OrderID, "")
+	v := store.Snapshot()
+	if !v.ClientReady || v.AccountStatus != "credential-stored" {
+		return nil
 	}
-	c.AddToast(ui.Toast{
-		ID: accountBonusToastID, Title: i18n.T(i18n.KeyCmdRewardNotice), Description: detail,
-		Timeout: -1, Action: action,
-		OnAction: func() {
-			actionTaken = true
-			acknowledge()
-		},
-		OnClose: func() {
-			if !actionTaken {
-				acknowledge()
+	notices := []sidebar.AccountNotice{}
+	for _, b := range v.Bonuses {
+		if expiry, err := time.Parse(time.RFC3339, b.ExpiresAt); err == nil && !expiry.After(time.Now()) {
+			continue
+		}
+		if b.AccountID == "" || b.OrderID == "" {
+			continue
+		}
+		bonus := b
+		generation := v.BonusGeneration
+		owns := func() bool {
+			current := store.Snapshot()
+			return current.BonusGeneration == generation && current.ClientReady && current.AccountStatus == "credential-stored"
+		}
+		notices = append(notices, sidebar.AccountNotice{ID: bonus.AccountID + "/" + bonus.OrderID, Title: accountBonusNoticeTitle(bonus), Message: bonus.Message, OnShown: func() {
+			if owns() {
+				store.BonusNoticeShown(bonus.AccountID, bonus.OrderID)
 			}
-		},
-	})
-	if expires, err := time.Parse(time.RFC3339, candidate.ExpiresAt); err == nil {
-		c.After(time.Until(expires))
+		}, OnDismiss: func() {
+			if owns() {
+				store.DismissBonusNotice(bonus.AccountID, bonus.OrderID)
+			}
+		}})
 	}
+	return notices
+}
+
+func accountBonusNoticeTitle(bonus usagestore.Bonus) string {
+	if bonus.Title != nil {
+		return *bonus.Title
+	}
+	return i18n.T(i18n.KeyCmdRewardNotice)
 }

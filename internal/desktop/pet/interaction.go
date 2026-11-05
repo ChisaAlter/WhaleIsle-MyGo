@@ -28,6 +28,7 @@ type interactionState struct {
 	timer                  *time.Timer
 	generation             uint64
 	pressed                bool
+	menuOpen, stageBusy    bool
 	mode                   string
 	origin, grab, position motionPoint
 	trail                  []interactionSample

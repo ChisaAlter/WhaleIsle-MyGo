@@ -39,12 +39,12 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	if localS != 1 {
 		t.Fatal("existing save scope changed")
 	}
-	for _, owner := range []string{"text", "custom"} {
+	for index, owner := range []string{"text", "custom"} {
 		mode = owner
 		tt.Frame()
 		pressFramePhysicalKey(tt, ui.Cmd|ui.Shift, ui.KeyT, "KeyT")
-		if calls != 1 {
-			t.Fatalf("%s input stolen", owner)
+		if calls != index+2 {
+			t.Fatalf("%s native-priority command did not dispatch", owner)
 		}
 	}
 	mode = "text"
@@ -52,26 +52,26 @@ func TestDSK10ReboundCommandsKeepInputOwnership(t *testing.T) {
 	tt.Compose("ni", 2)
 	pressFramePhysicalKey(tt, ui.Cmd|ui.Shift, ui.KeyT, "KeyT")
 	tt.Type("你")
-	if calls != 1 || text != "你" {
+	if calls != 3 || text != "你" {
 		t.Fatal("IME stolen")
 	}
 	mode = "page"
 	modal = true
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd|ui.Shift, ui.KeyT, "KeyT")
-	if calls != 1 {
+	if calls != 3 {
 		t.Fatal("modal stolen")
 	}
 	modal = false
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd|ui.Shift, ui.KeyT, "KeyT")
-	if calls != 2 {
+	if calls != 4 {
 		t.Fatal("post-modal command not recovered")
 	}
 	model.PageShortcutBindings["settings.open"] = ""
 	tt.Frame()
 	pressFramePhysicalKey(tt, ui.Cmd|ui.Shift, ui.KeyT, "KeyT")
-	if calls != 2 {
+	if calls != 4 {
 		t.Fatal("unbound key still active")
 	}
 	for _, command := range shortcuts.Commands() {

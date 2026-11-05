@@ -12,7 +12,10 @@ import (
 
 type botCreateTransport func(*http.Request) (*http.Response, error)
 
-func (f botCreateTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f botCreateTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func botCreateFixtureCommand() DshbotBotCreateCommand {
 	return DshbotBotCreateCommand{ID: "bot-fixture", SessionID: "session-bot-fixture", Expected: DshbotBotCatalog{Revision: 7, Items: []DshbotBotItem{}}, Draft: DshbotBotDraft{Name: "Fixture", Title: "Title", Description: "Description", ScratchCwd: "/fixture", Provider: "provider", Model: "model", ReasoningEffort: "high", MemoryReview: true, Notify: true}}
 }

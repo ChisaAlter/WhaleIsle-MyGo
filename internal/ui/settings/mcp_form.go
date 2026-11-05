@@ -8,6 +8,10 @@ import (
 )
 
 type MCPFormAccess struct {
+	Open                     bool
+	JSONText                 *string
+	Error                    string
+	OnText, OnSaveJSON       func(string)
 	Draft                    *mcpconfig.FormDraft
 	Errors                   map[string]string
 	OnOpen, OnJSON, OnCancel func()
@@ -81,20 +85,12 @@ func mcpFormEditorContent(c *ui.Context, a *MCPFormAccess, busy bool, editingID 
 	if issue := a.Errors["form"]; issue != "" {
 		ui.Text(c, issue).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}
-	if changed && a.OnChange != nil {
-		a.OnChange(form)
+	if changed {
+		*a.Draft = form
+		if a.OnChange != nil {
+			a.OnChange(form)
+		}
 	}
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		if ui.Button(c, mcpCatalogText("保存配置（可能启动/重启）", "Save configuration (may start/restart)")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnSave != nil {
-			a.OnSave(form)
-		}
-		if ui.Button(c, mcpCatalogText("切换到原 JSON", "Switch to raw JSON")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnJSON != nil {
-			a.OnJSON()
-		}
-		if ui.Button(c, mcpCatalogText("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() && a.OnCancel != nil {
-			a.OnCancel()
-		}
-	})
 	return true
 }
 
@@ -102,14 +98,47 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 	if a == nil {
 		return false
 	}
-	if a.Draft == nil {
-		if ui.Button(c, mcpCatalogText("添加服务器", "Add server")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
-			a.OnOpen()
-		}
+	if !a.Open && a.Draft == nil {
 		return false
 	}
 	open := true
-	bodyDialog(c, &open, mcpCatalogText("MCP 服务器", "MCP server"), func() { mcpFormEditorContent(c, a, busy, editingID, fg, muted) })
+	bodyDialogFooterWidth(c, &open, mcpCatalogText("MCP 服务器", "MCP server"), 380, func() {
+		useForm, useJSON := false, false
+		ui.Row(c).Gap(8).Children(func() {
+			if ui.Button(c, mcpCatalogText("字段表单", "Form")).Selected(a.Draft != nil).Disabled(busy || a.Draft != nil || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+				useForm = true
+			}
+			if ui.Button(c, mcpCatalogText("原 JSON", "JSON")).Selected(a.Draft == nil).Disabled(busy || a.Draft == nil || a.OnJSON == nil).Clicked() && a.OnJSON != nil {
+				useJSON = true
+			}
+		})
+		if a.Error != "" {
+			ui.Text(c, a.Error).FillWidth().Selectable().TextColor(c.Theme().Danger)
+		}
+		if a.Draft != nil {
+			mcpFormEditorContent(c, a, busy, editingID, fg, muted)
+		} else if a.JSONText != nil {
+			if ui.TextArea(c, a.JSONText).Label(mcpCatalogText("服务器 JSON", "Server JSON")).FillWidth().Lines(8, 18).ReadOnly(busy).FontSize(fonttheme.InterfaceSize(13)).Changed() && a.OnText != nil {
+				a.OnText(*a.JSONText)
+			}
+		}
+		if useForm {
+			a.OnOpen()
+		} else if useJSON {
+			a.OnJSON()
+		}
+	}, func() {
+		if ui.Button(c, mcpCatalogText("取消", "Cancel")).Disabled(busy || a.OnCancel == nil).Clicked() && a.OnCancel != nil {
+			a.OnCancel()
+		}
+		if ui.PrimaryButton(c, mcpCatalogText("保存", "Save")).Disabled(busy || a.Draft == nil && (a.JSONText == nil || a.OnSaveJSON == nil) || a.Draft != nil && a.OnSave == nil).Clicked() {
+			if a.Draft != nil {
+				a.OnSave(*a.Draft)
+			} else {
+				a.OnSaveJSON(*a.JSONText)
+			}
+		}
+	}, ui.DialogOptions{DismissDisabled: busy})
 	if !open && !busy && a.OnCancel != nil {
 		a.OnCancel()
 	}

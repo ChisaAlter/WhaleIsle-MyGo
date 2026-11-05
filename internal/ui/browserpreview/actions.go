@@ -48,12 +48,20 @@ func (b *Controller) BeginFrame() {
 		b.cancelInteractivePreviews()
 	}
 	b.rendered = false
+	b.frameContext = nil
 	if b.mini != nil {
 		b.mini.rendered = false
 	}
 	b.PruneActions()
 }
 func (b *Controller) EndFrame() {
+	if b.frameContext != nil && b.frameContext.HasForegroundModal() {
+		for _, tab := range b.Tabs {
+			if tab.Host != nil {
+				tab.Host.SetVisible(false)
+			}
+		}
+	}
 	if p := b.mini; p != nil && p.rendered && p.context.HasForegroundModal() {
 		p.host.SetVisible(false)
 	}

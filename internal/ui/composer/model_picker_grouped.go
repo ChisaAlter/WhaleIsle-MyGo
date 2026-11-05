@@ -195,9 +195,6 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			if m.Snapshot.SelectedModelEffort != "" {
 				modelFlipText(c, "trigger-effort:"+binding, formatEffortDisplay(m.Snapshot.SelectedModelEffort), chrome.Color(colors.Caption), 13).Shrink(1000)
 			}
-			if m.Snapshot.ModelSelectionBusy {
-				ui.Text(c, "…").Shrink(0).TextColor(muted)
-			}
 			chevron(c, state.Open)
 		})
 

@@ -64,8 +64,6 @@ func TestViewBootLabels(t *testing.T) {
 		"BASED ON DEEPSEEK HARNESS",
 		i18n.T(KeyStarting),
 		progress,
-		i18n.T(KeyRetry),
-		i18n.T(KeyExportLog),
 		i18n.T(KeyWaiting),
 		"L 00",
 	}
@@ -73,6 +71,9 @@ func TestViewBootLabels(t *testing.T) {
 		if !tt.HasText(label) {
 			t.Fatalf("missing %q; texts = %q", label, tt.Texts())
 		}
+	}
+	if tt.HasText(i18n.T(KeyRetry)) || tt.HasText(i18n.T(KeyExportLog)) {
+		t.Fatal("normal starting exposed recovery actions")
 	}
 }
 
@@ -101,7 +102,7 @@ func TestCancelledRecoveryStatusAndAction(t *testing.T) {
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	for _, active := range []bool{false, true} {
 		tt := ui.NewTester(func(c *ui.Context) {
-			View(c, Model{Status: harness.Status{State: harness.Starting, RecoveryActive: active}, ThemeID: "system", OnCancelRecovery: func() {}})
+			View(c, Model{Status: harness.Status{State: harness.Starting, RecoveryActive: active, RecoveryScheduled: active}, ThemeID: "system", OnCancelRecovery: func() {}})
 		}, 800, 600)
 		if tt.HasText("Cancel automatic recovery") != active {
 			t.Fatal("cancel visibility does not match recovery")
@@ -118,15 +119,16 @@ func TestRecoveryControlHiddenOutsideRecovery(t *testing.T) {
 	for _, st := range []harness.Status{
 		{State: harness.Ready},
 		{State: harness.Starting, RecoveryActive: true},
+		{State: harness.Starting, RecoveryActive: true, RecoveryScheduled: true},
 		{State: harness.Failed, RecoveryCancelled: true},
 	} {
 		tt := ui.NewTester(func(c *ui.Context) {
 			RecoveryControl(c, Model{Status: st, ThemeID: "system", OnCancelRecovery: func() {}, OnRetry: func() {}})
 		}, 800, 150)
-		if tt.HasText("Cancel automatic recovery") != st.RecoveryActive {
+		if tt.HasText("Cancel automatic recovery") != st.RecoveryScheduled {
 			t.Fatal("mounted cancel action visibility")
 		}
-		if tt.HasText(i18n.T(KeyRetry)) != st.RecoveryCancelled {
+		if tt.HasText(i18n.T(KeyRetry)) != (st.State == harness.Failed || st.RecoveryActive || st.RecoveryCancelled) {
 			t.Fatal("mounted manual retry visibility")
 		}
 		if st.State == harness.Ready && len(tt.Texts()) != 0 {

@@ -3,7 +3,6 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
-	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func accountBonusFeedback(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
@@ -13,12 +12,7 @@ func accountBonusFeedback(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 		}
 		return en
 	}
-	if a.BonusesLoading {
-		ui.Text(c, textFor("正在读取奖励通知…", "Loading reward notices…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
-	if a.BonusesError != "" {
-		ui.Text(c, textFor("奖励通知读取失败，请刷新重试：", "Could not load reward notices; refresh to retry: ")+a.BonusesError).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
+	settingsNotice(c, "account_bonus_feedback:17", "error", a.BonusesError != "", func() string { return textFor("奖励通知读取失败，请刷新重试：", "Could not load reward notices; refresh to retry: ")+a.BonusesError })
 	var message string
 	switch a.BonusAckState {
 	case "pending":
@@ -30,7 +24,5 @@ func accountBonusFeedback(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 	case "failed":
 		message = textFor("确认失败，可再次点击重试：", "Could not acknowledge; click again to retry: ") + a.BonusAckError
 	}
-	if message != "" {
-		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
+	settingsNotice(c, "account_bonus_feedback:31", "", message != "", func() string { return message })
 }

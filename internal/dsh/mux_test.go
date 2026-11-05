@@ -127,10 +127,9 @@ func TestFollowEventsWaterfallNext(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == EventsResultPath && r.Method == http.MethodPost:
-			var body EventResult
-			_ = json.NewDecoder(r.Body).Decode(&body)
+			body, rpcID := decodeEventResultRPC(t, r)
 			resultBody.Store(body)
-			w.WriteHeader(http.StatusNoContent)
+			_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": rpcID, "result": map[string]any{"ok": true}})
 			close(resultDone)
 		case r.URL.Path == MuxPath:
 			c, err := websocket.Accept(w, r, nil)

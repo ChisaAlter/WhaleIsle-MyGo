@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -15,11 +16,20 @@ import (
 )
 
 type projectFlowState struct {
+	projectTeams                  map[string]*projectTeamState
 	observers                     map[*projects.ObserverState]*projectController
 	observerSection               string
 	observerOpen                  bool
 	materialCollection            *projectMaterialCollectionState
 	teamQuery                     string
+	teamHistory                   bool
+	loadAttempted                 bool
+	pendingCreate                 string
+	createAdoption                *workspaceAdoption
+	directoryIntent               *projectDirectoryIntent
+	directoryChecks               map[string]*projectDirectoryCheck
+	createError                   string
+	ordinaryTeam                  *ordinaryTeamState
 	searchQuery                   string
 	history                       bool
 	historical                    *projectHistoricalState
@@ -93,6 +103,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	}
 	s.syncProjectProcessLocked()
 	s.ensureProjectRefreshLocked(win)
+	initialLoad := f.client != nil && !f.loadAttempted && !f.busy
 	listing := f.listing
 	listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
 	m := projects.Model{ArchiveCandidate: f.archiveCandidate, LifecycleNote: f.lifecycleNote, AssetDiff: f.assetDiff, AssetNote: f.assetNote, RequestProjectID: f.requestProjectID, RequestKind: f.requestKind, RequestPage: f.requestPage, RequestCard: f.requestCard, RequestPageNumber: len(f.requestCursors), RequestLoaded: f.requestLoaded, Detail: f.detail, Process: f.process, TeamID: f.teamID, Team: f.team, TeamNote: f.teamNote, Expanded: f.expanded, Busy: f.busy, Loaded: f.loaded, Listing: listing, Error: f.err, Workspace: workspace, RenameID: f.renameID, RenameDraft: &f.renameDraft}
@@ -100,6 +111,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m.ObserverHost = fmt.Sprintf("%p", f.client)
 	m.RequestRevertError = f.requestRevertError
 	m.TeamQuery = f.teamQuery
+	m.TeamHistory = f.teamHistory
 	m.SearchQuery = f.searchQuery
 	m.History = f.history
 	filterClient := f.client
@@ -115,8 +127,16 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m.RefreshNote = projectRefreshStatus(f.refreshLoop != nil, f.refreshNote)
 	sessions := s.sessions
 	s.mu.Unlock()
+	if initialLoad {
+		s.runProjectAction(win, "list", "", "")
+	}
 	if sessions != nil {
 		m.SelectedSession = sessions.SelectedSessionID()
+		snapshot := sessions.RenderSnapshot()
+		m.PlanSessionID, m.PlanBoard = snapshot.SelectedID, snapshot.PlanBoard
+		if s.projectFlow == &s.mainState.projectFlow {
+			s.bindProjectHero(win, &m, sessions, filterClient, snapshot)
+		}
 	}
 	m.OnToggle = func() {
 		s.mu.Lock()
@@ -186,8 +206,13 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		}
 	}
 	m.OnRefresh = func() { s.runProjectAction(win, "list", "", "") }
-	m.OnCreate = func() { s.runProjectAction(win, "create", workspace, "") }
-	m.OnOpen = func(id string) { s.runProjectAction(win, "open", id, "") }
+	m.OnCreate = func() { s.mainState.createProjectIntent(win, workspace, false, false) }
+	m.OnOpen = func(id string) {
+		s.mu.Lock()
+		s.projectFlow.expanded = true
+		s.mu.Unlock()
+		s.runProjectAction(win, "open", id, "")
+	}
 	m.OnBeginRename = func(p projectflow.Project) {
 		s.mu.Lock()
 		s.projectFlow.renameID = p.ID
@@ -200,6 +225,13 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Lock()
 		if s.projectFlow.client == filterClient && s.dshClient == filterClient && s.projectFlow.teamID == m.TeamID {
 			s.projectFlow.teamQuery = query
+		}
+		s.mu.Unlock()
+	}
+	m.OnTeamHistory = func(history bool) {
+		s.mu.Lock()
+		if s.projectFlow.client == filterClient && s.dshClient == filterClient {
+			s.projectFlow.teamHistory = history
 		}
 		s.mu.Unlock()
 	}
@@ -216,6 +248,7 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		s.mu.Unlock()
 	}
 	m.OnControl = func(action, workID string) { s.runProjectTeam(win, m.TeamID, action, workID) }
+	m.OnStopProject = func(id string) { s.runProjectStop(win, id) }
 	m.OnNextWork = func(cursor string) { s.runProjectTeam(win, m.TeamID, "next", cursor) }
 	m.OnPreviousWork = func() { s.runProjectTeam(win, m.TeamID, "previous", "") }
 	m.OnInspect = func(workID, memberID string) { s.runProjectDetail(win, m.TeamID, "detail", workID, memberID) }
@@ -243,7 +276,14 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	m.OnRequestList = func(kind string) { s.runProjectRequests(win, m.RequestProjectID, "list", kind) }
 	m.OnRequestGet = func(id string) { s.runProjectRequests(win, m.RequestProjectID, "get", id) }
 	m.OnRequestQueue = func(id, action string) {
-		change, err := projectQueueChange(m.RequestPage, m.RequestCard, m.RequestQueue, id, action)
+		card := m.RequestCard
+		s.mu.Lock()
+		if saved, ok := s.projectFlow.requestCards[projectRequestCardKey(m.RequestProjectID, id)]; ok {
+			copy := saved
+			card = &copy
+		}
+		s.mu.Unlock()
+		change, err := projectQueueChange(m.RequestPage, card, m.RequestQueue, id, action)
 		if err != nil {
 			s.mu.Lock()
 			if queueOwner.matches(s.projectFlow, s.dshClient) {
@@ -290,6 +330,9 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 	}
 	m.OnArtifact = func(file projectflow.Artifact, open func(string)) {
 		s.runProjectAsset(win, m.RequestProjectID, "file", file, "", open)
+	}
+	m.OnArtifactTarget = func(file projectflow.Artifact, open func(projectflow.FileTarget)) {
+		s.runProjectAssetForCard(win, m.RequestProjectID, "file", file, "", nil, nil, nil, open)
 	}
 	m.OnWorkDiff = func(workID string) {
 		if (m.RequestProjectID == "" || observerTeam) && m.TeamID != "" && m.Detail != nil {
@@ -342,11 +385,17 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 		return
 	}
 	if client == nil || f.client != client {
+		if action == "create" {
+			f.directoryIntent, f.createAdoption = nil, nil
+		}
 		f.err = i18n.T(i18n.KeyCmdHostIsNotConnectedRefreshWhenReady)
 		s.mu.Unlock()
 		return
 	}
 	if action != "list" && !f.listing.Available {
+		if action == "create" {
+			f.directoryIntent, f.createAdoption = nil, nil
+		}
 		f.err = i18n.T(i18n.KeyCmdProjectHostIsUnavailable)
 		s.mu.Unlock()
 		return
@@ -359,15 +408,31 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 		workspace = paths.DefaultWorkspace()
 	}
 	f.busy = true
+	if action == "list" {
+		f.loadAttempted = true
+	}
 	f.err = ""
 	f.generation++
 	generation := f.generation
 	navigation := f.navigation
 	sessions := s.sessions
+	adoption := f.createAdoption
+	if action == "create" {
+		f.createAdoption = nil
+		f.createError = ""
+	}
 	s.mu.Unlock()
 	selected := ""
+	authorized := []string{workspace}
 	if sessions != nil {
 		selected = sessions.SelectedSessionID()
+		if choices, ready := sessions.CachedWorkspaceChoices(client); ready {
+			for _, choice := range choices {
+				if choice.Path != "" {
+					authorized = append(authorized, choice.Path)
+				}
+			}
+		}
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -388,7 +453,7 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 			_, err = rand.Read(token[:])
 			if err == nil {
 				var p projectflow.Project
-				p, err = rpc.Create(ctx, arg, []string{workspace}, hex.EncodeToString(token[:]))
+				p, err = rpc.Create(ctx, arg, authorized, hex.EncodeToString(token[:]))
 				if err == nil {
 					changed = true
 					receipt = p
@@ -421,6 +486,9 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 				return
 			}
 			f.busy = false
+			if action == "create" {
+				f.directoryIntent = nil
+			}
 			if acceptedList {
 				f.loaded = true
 				f.listing = listing
@@ -447,11 +515,85 @@ func (s *projectController) runProjectAction(win *mygo.Window, action, arg, titl
 				f.renameID, f.renameDraft = "", ""
 			}
 			stillOpen := f.visible() && f.navigation == navigation
+			if action == "create" && lead != "" && stillOpen && adoption != nil && adoption.carry && sessions != nil && sessions.SelectedSessionID() == selected {
+				if s.composerDrafts[adoption.sourceID] == adoption.draft && workspaceSessionDraftRevision(adoption.draft) == adoption.revision && bytes.Equal(adoption.draft.SaveDraft(), adoption.snapshot) {
+					if lead == adoption.sourceID || !workspaceSessionDraftOccupied(s.composerDrafts[lead]) {
+						s.composerDrafts[lead] = adoption.draft
+						adoption.draft.TargetID = lead
+						if lead != adoption.sourceID {
+							delete(s.composerDrafts, adoption.sourceID)
+						}
+					} else {
+						f.err = "Lead 已有未发送草稿；原草稿已保留，未覆盖。"
+					}
+				}
+			}
+			if action == "create" {
+				f.createError = f.err
+			}
+			pendingCreate := ""
+			if action == "list" && f.pendingCreate != "" {
+				if acceptedList && listing.Available {
+					pendingCreate = f.pendingCreate
+				} else {
+					f.directoryIntent, f.createAdoption = nil, nil
+				}
+				f.pendingCreate = ""
+			}
 			s.mu.Unlock()
+			if pendingCreate != "" {
+				s.runProjectAction(win, "create", pendingCreate, "")
+			}
 			if lead != "" && stillOpen && sessions != nil && sessions.SelectedSessionID() == selected {
 				sessions.RefreshList(context.Background())
 				sessions.Select(lead)
 			}
 		})
 	}()
+}
+
+// createProjectFromDirectory is consumed by both the registered workspace row
+// menu and the new-conversation directory actions. RPC admission rechecks Host
+// membership. A click on a registered directory is already an explicit native
+// choice; global Add Project still presents the native directory dialog.
+func (s *mainState) createProjectFromDirectory(win *mygo.Window, path string) {
+	s.createProjectIntent(win, path, false, true)
+}
+func (s *mainState) createProjectWithDraft(win *mygo.Window, path string) {
+	s.createProjectIntent(win, path, true, true)
+}
+func (s *mainState) createProjectIntent(win *mygo.Window, path string, carry, registered bool) {
+	controller := s.primaryProjectController()
+	controller.projectModel(win)
+	s.mu.Lock()
+	sessions := s.sessions
+	s.mu.Unlock()
+	var adoption *workspaceAdoption
+	if carry && sessions != nil {
+		value := s.captureWorkspaceAdoption(sessions)
+		adoption = &value
+	}
+	s.mu.Lock()
+	f := controller.projectFlow
+	if f.busy && f.loaded {
+		s.mu.Unlock()
+		return
+	}
+	f.expanded = true
+	f.createAdoption = adoption
+	f.directoryIntent = nil
+	if registered {
+		f.directoryIntent = &projectDirectoryIntent{client: f.client, path: path}
+	}
+	if !f.loaded {
+		f.pendingCreate = path
+		busy := f.busy
+		s.mu.Unlock()
+		if !busy {
+			controller.runProjectAction(win, "list", "", "")
+		}
+		return
+	}
+	s.mu.Unlock()
+	controller.runProjectAction(win, "create", path, "")
 }

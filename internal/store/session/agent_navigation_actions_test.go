@@ -39,7 +39,7 @@ func TestNativeAgentActionScopeFixture(t *testing.T) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		args := body["payload"].(map[string]any)["args"].(map[string]any)
-		if !strings.HasSuffix(r.URL.Path, "/subagents/interruptByParent") || args["parentSessionId"] != "root" || args["childSessionId"] != "child" {
+		if !strings.HasSuffix(r.URL.Path, "/subagents/interruptByParent") || args["parentSessionId"] != "root" || args["childSessionId"] != "child" || args["mode"] != "continuable" {
 			t.Errorf("wrong new Host/action: %s %#v", r.URL.Path, args)
 		}
 		rpcOK(w, body["rpcId"], map[string]any{})

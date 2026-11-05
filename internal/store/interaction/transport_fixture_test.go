@@ -22,11 +22,24 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	var posts []dsh.EventResult
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == dsh.EventsResultPath {
-			var body dsh.EventResult
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			var envelope struct {
+				Type    string `json:"type"`
+				RPCID   string `json:"rpcId"`
+				Method  string `json:"method"`
+				Payload struct {
+					Args dsh.EventResult `json:"args"`
+				} `json:"payload"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
 				t.Error(err)
 				return
 			}
+			if envelope.Type != "client-request" || envelope.RPCID == "" || envelope.Method != "$events/result" {
+				t.Errorf("invalid event result RPC envelope: %+v", envelope)
+				http.Error(w, "invalid envelope", 400)
+				return
+			}
+			body := envelope.Payload.Args
 			mu.Lock()
 			posts = append(posts, body)
 			n := len(posts)
@@ -35,7 +48,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 				http.Error(w, "temporary failure", 503)
 				return
 			}
-			w.WriteHeader(http.StatusNoContent)
+			_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": envelope.RPCID, "result": map[string]any{"ok": true}})
 			return
 		}
 		if r.URL.Path != dsh.MuxPath {
@@ -97,7 +110,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		}
 	}
 	frames <- `{"type":"ready","clientId":"client-A","host":{"home":"fixture"}}`
-	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"q","agentId":"A","request":{"callId":"call-q","questions":[{"id":"choice","options":[{"label":"Yes"}]}]}}`
+	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"q","agentId":"A","request":{"wait":{"callId":"call-q"},"questions":[{"id":"choice","options":[{"label":"Yes"}]}]}}`
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"cancel-me","agentId":"B","request":{"toolName":"fixture"}}`
 	wait(func() bool { return len(s.Snapshot().Pending) == 2 })
 	if len(s.SnapshotForAgent("A").Pending) != 1 || len(s.SnapshotForAgent("B").Pending) != 1 || len(s.SnapshotForAgent("").Pending) != 0 {

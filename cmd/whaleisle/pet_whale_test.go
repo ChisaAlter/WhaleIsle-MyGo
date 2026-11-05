@@ -57,7 +57,15 @@ func TestWhalePetAccessLoadsTheCatalogInTheBackground(t *testing.T) {
 			http.NotFound(w, req)
 			return
 		}
-		_, _ = w.Write([]byte(`{"type":"server-response","rpcId":"x","result":{"ok":true,"value":` + string(value) + `}}`))
+		var request struct {
+			RPCID string `json:"rpcId"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+			t.Error(err)
+			http.Error(w, "invalid fixture request", http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": request.RPCID, "result": map[string]any{"ok": true, "value": json.RawMessage(value)}})
 	}))
 	defer srv.Close()
 

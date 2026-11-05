@@ -76,8 +76,8 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 				delete(state.panels, key)
 			}
 		}
-		if m.RightPaneTab != nil {
-			*m.RightPaneTab = "files"
+		if m.workspacePane != nil && m.Sizes != nil && m.Sizes.Workspace != nil {
+			workspacePaneClose(m, m.workspacePane)
 		}
 	}
 	if target.ID == "" {
@@ -90,14 +90,18 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 	}
 	sessions := renderSnapshot(m)
 	links := map[string]string{}
-	if sessions.ClientReady && !sessions.ListLoading && sessions.ListErr == "" {
+	if sessions.ClientReady && !sessions.ListLoading && sessions.ListErr == "" && sessions.WorkspaceReady && sessions.WorkspaceError == "" {
 		archived := map[string]bool{}
 		for _, id := range sessions.ArchivedSessionIDs {
 			archived[id] = true
 		}
 		for _, item := range sessions.Items {
-			if !archived[item.SessionID] {
-				links[item.SessionID] = item.Title
+			if item.SessionID != "" && !archived[item.SessionID] {
+				label := strings.TrimSpace(item.Title)
+				if label == "" {
+					label = item.SessionID
+				}
+				links[item.SessionID] = label
 			}
 		}
 	}
@@ -116,6 +120,26 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 		state.panels[key] = panel
 	}
 	panel.View(c, scheduleui.Model{Store: m.ScheduleStore, SessionID: target.SessionID, DetailID: target.ID, DetailSessionID: target.SessionID,
+		ViewerSessionID: sessions.SelectedID,
+		SessionLinkState: func(id string) string {
+			if sessions.WorkspaceError != "" || sessions.ListErr != "" {
+				return "unavailable"
+			}
+			if !sessions.ClientReady || sessions.ListLoading || !sessions.WorkspaceReady {
+				return "loading"
+			}
+			for _, archived := range sessions.ArchivedSessionIDs {
+				if archived == id {
+					return "archived"
+				}
+			}
+			for _, item := range sessions.Items {
+				if id != "" && item.SessionID == id {
+					return "available"
+				}
+			}
+			return "unavailable"
+		},
 		OnClose:      closeTask,
 		SessionLinks: links, OnOpenSession: m.OnOpenScheduleSession, ThemeID: m.ThemeID, SystemDark: m.SystemDark, OnInvalidate: m.OnScheduleInvalidate,
 		OnCopyHistory: func(text string) { mygo.Clipboard.WriteText(text) },

@@ -297,7 +297,7 @@ func (s *mainState) finishMarket(op *marketAttempt, r marketResult, install bool
 		if len(r.pending) > 0 || len(r.incompatible) > 0 {
 			outcome = "awaiting-approval"
 		}
-		if err := op.store.FinishInstall(op.receiptID, outcome, r.historyError); err != nil {
+		if err := op.store.FinishInstall(op.receiptID, outcome, r.historyError, r.log, r.message); err != nil {
 			s.marketInstallMsg += " " + marketMessage("结果保存失败；历史仅在本次会话可见。", "Result could not be saved; history is available only in this session.")
 		}
 	}

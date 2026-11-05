@@ -27,8 +27,13 @@ func NormalizeID(value string) string {
 	return string(utf16.Decode(units))
 }
 
-// Resolve requires an exact, image-capable catalog pair. A model-only legacy
-// value is retained for display but cannot select a provider by implication.
+// Legacy identifies the original model-only desktop API route. It never chooses
+// a catalog provider by implication or acts as a fallback for a catalog route.
+func Legacy(provider, model string) bool {
+	return provider == "" && model != "" && model == NormalizeID(model)
+}
+
+// Resolve requires an exact, image-capable catalog pair.
 func Resolve(provider, model string, catalog Catalog) bool {
 	if provider == "" || model == "" || provider != NormalizeID(provider) || model != NormalizeID(model) || !catalog.Connected || catalog.Loading || catalog.Err != "" {
 		return false

@@ -77,6 +77,23 @@ func ScrollToMessageSeq(m Model, seq float64, align ui.Align) bool {
 			return true
 		}
 	}
+	// The rail addresses durable turn/start, which may own no visible row.
+	// Resolve that semantic anchor with the same policy as a paged landing.
+	for _, turn := range m.Snapshot.HistoryNavigation.Turns {
+		if turn.Seq == seq {
+			if index := session.HistoryTurnMessageIndex(messages, turn); index >= 0 {
+				m.List.ScrollTo(transcriptMessageRow(m, index), align)
+				return true
+			}
+			return false
+		}
+	}
+	for index, msg := range messages {
+		if msg.TurnSeq > 0 && msg.TurnSeq == seq {
+			m.List.ScrollTo(transcriptMessageRow(m, index), align)
+			return true
+		}
+	}
 	// A folded process can own the requested sequence without painting its
 	// source row. Land on that group's visible disclosure, never a raw ordinal.
 	for _, source := range visible {

@@ -138,6 +138,9 @@ func toolDetailsModelFor(call *session.ToolCallView) *toolDetailsModel {
 	if model := toolDetailsModelControl(name, args, text); model != nil {
 		return model
 	}
+	if model := toolDetailsTerminal(name, args, text); model != nil {
+		return model
+	}
 	if model := toolDetailsInspectionDispatch(name, args, text); model != nil {
 		return model
 	}

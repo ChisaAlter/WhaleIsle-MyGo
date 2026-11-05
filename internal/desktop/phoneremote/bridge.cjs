@@ -116,7 +116,7 @@ function snapshot() {
     }
   }
   emit({kind:'snapshot', listening:!!s.listening, relayConnected:!!s.relayConnected,
-    url, qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices),
+    url, pairingLinkUrl: !offerBlocked && s.listening && (s.relayConnected || config.remoteMode === 'lan') ? (s.pairingLinkUrl || '') : '', qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices),
     addresses:Array.isArray(s.addresses) ? s.addresses.filter(value => typeof value === 'string') : undefined});
 }
 async function deviceAction(command) {

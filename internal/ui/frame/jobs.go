@@ -253,21 +253,13 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 			}
 		})
 		if s.Kill.JobID == job.ID && (s.Kill.Phase == "armed" || s.Kill.Error != "") {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(6, 8).Gap(4).Children(func() {
-				message := s.Kill.Error
-				if s.Kill.Phase == "armed" {
-					message = archiveText("再次点击确认停止", "Click again to confirm")
-				}
-				ui.Text(c, message).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				ui.Row(c).Gap(6).Children(func() {
-					if s.Kill.Phase == "armed" && ui.Button(c, archiveText("确认停止", "Confirm stop")).FontSize(theme.InterfaceSize(11)).Clicked() {
-						controller.ConfirmKill(s.Generation, job.ID)
-					}
-					if ui.Button(c, archiveText("关闭提示", "Dismiss")).FontSize(theme.InterfaceSize(11)).Clicked() {
-						controller.CancelKill(s.Generation)
-					}
-				})
-			})
+			message := s.Kill.Error
+			actions := []headerNoticeAction{}
+			if s.Kill.Phase == "armed" {
+				message = archiveText("再次点击确认停止", "Click again to confirm")
+				actions = append(actions, headerNoticeAction{label: archiveText("确认停止", "Confirm stop"), run: func() { controller.ConfirmKill(s.Generation, job.ID) }})
+			}
+			headerNotice(c, "job-kill-notice:"+job.ID, message, colors, 104, actions, func() { controller.CancelKill(s.Generation) })
 		}
 		if s.SelectedID == job.ID {
 			jobOutputView(c, controller, s, job, colors)
@@ -313,13 +305,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 			ui.Text(c, archiveText("更早的输出已截断", "Earlier output was dropped")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 		}
 		if o.Error != "" && !notice.dismissed {
-			ui.Text(c, o.Error).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
-			if ui.Button(c, archiveText("重试输出", "Retry output")).Clicked() {
-				controller.RetryOutput(s.Generation)
-			}
-			if ui.Button(c, archiveText("关闭提示", "Dismiss")).Clicked() {
-				notice.dismissed = true
-			}
+			headerNotice(c, "job-output-notice:"+job.ID, o.Error, colors, 24, []headerNoticeAction{{label: archiveText("重试输出", "Retry output"), run: func() { controller.RetryOutput(s.Generation) }}}, func() { notice.dismissed = true })
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			ui.Text(c, job.Label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)

@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-const childPolicy = "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'"
+const childPolicy = "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; media-src data: blob:; base-uri 'none'; form-action 'none'"
 const parentPolicy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self' about:; connect-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
 
 func Shell(viewerHTML string, r Render, width int, appearance string) (string, error) {
@@ -46,7 +46,7 @@ window.__previewTheme=data=>{render.theme={appearance:data.appearance,variables:
 addEventListener('message',event=>{const d=event.data;if(event.source!==frame.contentWindow||event.origin!=='null'||!d||d.channel!=='whale-openui'||d.version!==1||d.instanceId!==instance)return;
  if(d.type==='ready'){window.__previewState.ready=true;post('render',render);return;}
  if(d.type==='height'){if(Number.isFinite(d.height))window.__previewState.height=Math.max(80,Math.min(2000,Math.ceil(d.height)));return;}
- if(d.type==='api-request'){const keys={'/api/wiki':['title'],'/api/image-search':['q'],'/api/image':['src'],'/api/html-script':['src','integrity'],'/api/street-route':['coords'],'/api/map-tile':['z','x','y','style']};if(typeof d.requestId!=='string'||!d.requestId||(d.requestId.startsWith('native-action-')||d.requestId.startsWith('media-'))||!keys[d.path]||!d.query||Array.isArray(d.query)||typeof d.query!=='object'||Object.entries(d.query).some(([k,v])=>!keys[d.path].includes(k)||typeof v!=='string')){post('api-response',{requestId:d.requestId,status:400,body:{error:{message:'Unsupported OpenUI API request'}}});return;}if(apiPending.has(d.requestId))return;}
+ if(d.type==='api-request'){const keys={'/api/wiki':['title'],'/api/image-search':['q'],'/api/image':['src'],'/api/media':['src'],'/api/html-script':['src','integrity'],'/api/street-route':['coords'],'/api/map-tile':['z','x','y','style']};if(typeof d.requestId!=='string'||!d.requestId||(d.requestId.startsWith('native-action-')||d.requestId.startsWith('media-'))||!keys[d.path]||!d.query||Array.isArray(d.query)||typeof d.query!=='object'||Object.entries(d.query).some(([k,v])=>!keys[d.path].includes(k)||typeof v!=='string')){post('api-response',{requestId:d.requestId,status:400,body:{error:{message:'Unsupported OpenUI API request'}}});return;}if(apiPending.has(d.requestId))return;}
  if(d.type==='clipboard'||d.type==='open-url'){
   const reject=error=>post('action-response',{requestId:d.requestId,action:d.type,ok:false,error});
   if(!render.hostActions){reject('Host actions are disabled for this viewer.');return;}

@@ -37,6 +37,7 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 			{Label: "workspace-write", Value: "workspace-write"},
 		}
 		m.Snapshot = session.ViewState{
+			SelectedID:          "hero-session",
 			NativeContributions: dsh.NativeContributions{Known: true, PermissionCommand: true, ModelCommand: true},
 			SelectedPermission:  "workspace-write",
 			SelectedModel:       "deepseek-official/deepseek-flash",
@@ -79,10 +80,10 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	}
 }
 
-func TestHeroEmptyComposerHidesUnconfiguredVoiceAndContext(t *testing.T) {
-	tt, _ := heroEmptyTester(t, nil)
-	if tt.HasText(i18n.T(i18n.KeyComposerVoiceInput)) {
-		t.Fatalf("hero empty state shows the microphone seat: %v", tt.Texts())
+func TestHeroEmptyComposerOffersVoiceSetupAndHidesContext(t *testing.T) {
+	tt, m := heroEmptyTester(t, nil)
+	if err := tt.Click(i18n.T(i18n.KeyComposerVoiceInput)); err != nil || !m.State.VoiceSetupOpen {
+		t.Fatalf("unconfigured microphone lost setup recovery: open=%v err=%v", m.State.VoiceSetupOpen, err)
 	}
 	if tt.HasText("—%") || tt.HasText("0%") {
 		t.Fatalf("hero empty state shows a context percentage: %v", tt.Texts())

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"strconv"
+	"strings"
 	"testing"
 
 	"whaleisle/internal/processutil"
@@ -20,7 +21,8 @@ func TestSessionTurnMarkerPreservesZeroAndRejectsMissingOrInvalid(t *testing.T) 
 	assert.equal(read('0',false).hasTurn,false);
 	for(const [raw,want] of [['0',0],['1',1],['25',25],[' 7 ',7]]){const r=read(raw);assert.equal(r.hasTurn,true,raw);assert.equal(r.turn,want,raw)}
 	console.log('Session turn presence: absent/empty/zero/positive/invalid passed');`
-	cmd := exec.Command(node, "-e", script)
+	cmd := exec.Command(node, "-")
+	cmd.Stdin = strings.NewReader(script)
 	processutil.Background(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("turn marker: %v\n%s", err, out)
@@ -41,11 +43,11 @@ func TestSessionOccurrenceAttributionUpdatesWithoutReplacingHandle(t *testing.T)
 	const root={getAttribute:()=> 's',querySelectorAll:()=>[marker],contains:()=>true};
 	const binding={session:{getSnapshot:()=>({openState:'open'}),subscribe:()=>()=>{}}};
 	const socket={readyState:1,addEventListener(type,fn){this[type]=fn},send:message=>sent.push(JSON.parse(message)),close(){}};
-	const document={head:{appendChild(){}},documentElement:{},createElement:()=>({remove(){}}),querySelectorAll:()=>[root],querySelector:()=>root};
-	const ctx={effect:fn=>cleanups.push(fn()),get:()=>({openSession(){}}),slots:{entriesOfSlot:slot=>slot==='main.conversation'||slot==='conversation.chat.turnTail'?[entry]:[]},sessions:{binding:()=>binding,list:{getSnapshot:()=>({byId:{s:{}}}),subscribe:()=>()=>{}}},layout:{panelInfo:{getSnapshot:()=>({activePanelId:null}),subscribe:()=>()=>{}}},locale:{getSnapshot:()=>({active:'en'}),subscribe:()=>()=>{}},on:()=>()=>{}};
+	const document={addEventListener(){},removeEventListener(){},head:{appendChild(){}},documentElement:{},createElement:()=>({remove(){}}),querySelectorAll:()=>[root],querySelector:()=>root};
+	const ctx={effect:fn=>cleanups.push(fn()),get:name=>name==='uiWorkspace'?{openSession(){}}:undefined,slots:{entriesOfSlot:slot=>slot==='main.conversation'||slot==='conversation.chat.turnTail'?[entry]:[]},sessions:{binding:()=>binding,list:{getSnapshot:()=>({byId:{s:{}}}),subscribe:()=>()=>{}}},layout:{panelInfo:{getSnapshot:()=>({activePanelId:null}),subscribe:()=>()=>{}}},locale:{getSnapshot:()=>({active:'en'}),subscribe:()=>()=>{}},on:()=>()=>{}};
 	class Socket{constructor(){return socket}static OPEN=1}
-	const context={ctx,window:{__whaleSessionNoOnboarding:true,__whaleSessionEntryOf:(node,slot)=>slot==='conversation.chat.turnTail'?entry:null,addEventListener(){},removeEventListener(){}},location:{search:'?desktopNativeSession=1',href:'http://fixture/'},document,URL,URLSearchParams,WebSocket:Socket,queueMicrotask:fn=>fn(),requestAnimationFrame:fn=>fn(),MutationObserver:class{constructor(fn){mutation=fn}observe(node,config){options=config}disconnect(){}}};
-	vm.createContext(context);vm.runInContext(` + strconv.Quote(string(sessionSource)) + `,context);vm.runInContext('whaleBindSessionUI(ctx)',context);
+	const context={whaleRichSurface:{bind:()=>()=>{},clear(){}},ctx,window:{__whaleSessionNoOnboarding:true,__whaleSessionEntryOf:(node,slot)=>slot==='conversation.chat.turnTail'?entry:null,addEventListener(){},removeEventListener(){}},location:{search:'?desktopNativeSession=1',href:'http://fixture/'},document,URL,URLSearchParams,WebSocket:Socket,queueMicrotask:fn=>fn(),requestAnimationFrame:fn=>fn(),MutationObserver:class{constructor(fn){mutation=fn}observe(node,config){options=config}disconnect(){}}};
+	vm.createContext(context);vm.runInContext(` + strconv.Quote(string(publicSlotsSource)+"\n"+string(rightPaneSource)+"\n"+string(sessionSource)) + `,context);vm.runInContext('whaleBindSessionUI(ctx)',context);
 	socket.message({data:JSON.stringify({type:'select',subject:{kind:'session',sessionId:'s',epoch:'1:2'}})});
 	let row=sent.at(-1).outlets[0];assert.equal(row.turn,0);assert.equal(row.hasTurn,true);assert.equal(row.callId,'call-a');assert.equal(row.hasTurnTail,true);assert.equal(row.turnTailSeq,19);const handle=row.handle,revision=sent.at(-1).revision;
 	assert(options.attributeFilter.includes('data-turn-tail'));assert(options.attributeFilter.includes('data-chat-call-id'));assert(options.attributeFilter.includes('data-whale-turn-tail-end-seq'));
@@ -60,7 +62,8 @@ func TestSessionOccurrenceAttributionUpdatesWithoutReplacingHandle(t *testing.T)
 	turn='4';canonicalTurn='4';endSeq='29';call='call-b';mutation();row=sent.at(-1).outlets[0];assert.equal(row.handle,handle);assert.equal(row.turn,4);assert.equal(row.hasTurn,true);assert.equal(row.callId,'call-b');assert.equal(row.hasTurnTail,true);assert.equal(row.turnTailSeq,29);assert(sent.at(-1).revision>revision);
 	turn=null;call='';mutation();row=sent.at(-1).outlets[0];assert.equal(row.handle,handle);assert.equal(row.hasTurn,false);assert.equal(row.turn,0);assert.equal(row.callId,'');assert.equal(row.hasTurnTail,false);
 	cleanups.reverse().forEach(fn=>fn());console.log('Session live attribution update keeps original occurrence handle');`
-	cmd := exec.Command(node, "-e", script)
+	cmd := exec.Command(node, "-")
+	cmd.Stdin = strings.NewReader(script)
 	processutil.Background(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("occurrence metadata: %v\n%s", err, out)

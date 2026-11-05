@@ -210,14 +210,14 @@ func workspaceGroupHighlights(m Model, groups []session.WorkspaceGroup) map[stri
 			continue
 		}
 		for _, id := range group.Workspace.SessionIDs {
-			if id != "" && id == m.Snapshot.SelectedID {
+			if id != "" && id == displayedSessionID(m) {
 				current = group.Key
 				break
 			}
 		}
 		if current == "" {
 			for _, item := range group.Items {
-				if item.SessionID != "" && item.SessionID == m.Snapshot.SelectedID {
+				if item.SessionID != "" && item.SessionID == displayedSessionID(m) {
 					current = group.Key
 					break
 				}
@@ -238,22 +238,37 @@ func workspaceGroupHighlights(m Model, groups []session.WorkspaceGroup) map[stri
 // Hidden menu controls remain keyboard-addressable but take no width from the
 // resting title. The visible action group is the installed 16px/gap15 layout.
 func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.WorkspaceGroup, muted ui.Color) {
+	hasDirectoryActions := false
+	if g.Kind == "workspace" || g.Kind == "navigation" {
+		for _, action := range m.DirectoryActions {
+			if _, visible := action.Presentation(g.Workspace.Path, false); visible {
+				hasDirectoryActions = true
+				break
+			}
+		}
+	}
 	shown := header.Hovered() || header.FocusWithin() || header.MenuOpen()
 	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Height(20).Shrink(0).AlignItems(ui.Center).Gap(15)
 	if !shown {
 		actions.Absolute().Right(8).Top(7).Opacity(0)
 	}
 	actions.Children(func() {
-		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil) {
+		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil) || hasDirectoryActions {
 			more := ui.Button(c.Key("workspace-menu:"+g.Key), "").Label(workspaceText("工作区操作 ", "Workspace actions ")+g.Key).
 				Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
 			more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
 			more.Menu(func(menu *ui.Menu) {
 				menu.CloseOnPointerLeave(true)
-				if m.OnBeginWorkspaceRename != nil && menu.Item(workspaceText("重命名", "Rename")).Icon(menuEditArtwork).Chosen() {
+				for _, action := range m.DirectoryActions {
+					label, visible := action.Presentation(g.Workspace.Path, false)
+					if visible && menu.Item(label).Chosen() {
+						action.Run(g.Workspace.Path)
+					}
+				}
+				if g.Kind == "workspace" && m.OnBeginWorkspaceRename != nil && menu.Item(workspaceText("重命名", "Rename")).Icon(menuEditArtwork).Chosen() {
 					m.OnBeginWorkspaceRename(g.Key)
 				}
-				if m.OnBeginWorkspaceRemoval != nil && menu.Item(workspaceText("删除工作区", "Delete workspace")).Icon(menuTrashArtwork).Danger(true).Chosen() {
+				if g.Kind == "workspace" && m.OnBeginWorkspaceRemoval != nil && menu.Item(workspaceText("删除工作区", "Delete workspace")).Icon(menuTrashArtwork).Danger(true).Chosen() {
 					m.OnBeginWorkspaceRemoval(g.Key)
 				}
 			})

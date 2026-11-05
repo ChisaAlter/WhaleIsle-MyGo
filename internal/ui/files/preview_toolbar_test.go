@@ -113,7 +113,7 @@ func TestPreviewToolbarContextKeepsDraftWrapAndNavigation(t *testing.T) {
 	m, tab := toolbarFixture(t)
 	tab.Draft, tab.Editing = "draft\nsecond\nthird", true
 	tt := toolbarTester(&m, 676)
-	if err := tt.Click("Word wrap"); err != nil {
+	if err := tt.Click("Toggle word wrap"); err != nil {
 		t.Fatal(err)
 	}
 	if !previewPreferences(m).WordWrap || tab.Draft != "draft\nsecond\nthird" {

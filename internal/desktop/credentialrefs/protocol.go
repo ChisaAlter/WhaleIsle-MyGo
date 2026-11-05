@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"whaleisle/internal/dsh/api"
 )
 
 // Caller is the existing authenticated Host RPC transport, never a shell bridge.
@@ -25,14 +26,17 @@ type settingsView struct {
 	Namespaces []namespace `json:"namespaces"`
 }
 type provider struct {
-	Provider    string   `json:"provider"`
-	DisplayName string   `json:"displayName"`
-	Namespace   string   `json:"settingsNs"`
-	Path        []string `json:"settingsPath"`
+	Provider    string                                             `json:"provider"`
+	DisplayName string                                             `json:"displayName"`
+	Namespace   string                                             `json:"settingsNs"`
+	Path        []string                                           `json:"settingsPath"`
+	BaseURLEnv  []string                                           `json:"baseURLEnv,omitempty"`
+	NativeAuth  *api.ListConfigurableProvidersResultItemNativeAuth `json:"nativeAuth,omitempty"`
 }
 type credentialInfo struct {
-	Configured bool `json:"configured"`
-	Writable   bool `json:"writable"`
+	Configured bool   `json:"configured"`
+	Writable   bool   `json:"writable"`
+	Source     string `json:"source"`
 }
 type request func(string, any, any) error
 
@@ -42,6 +46,37 @@ type Row struct {
 	Path                                                         []string
 	Revision                                                     float64
 	BindReference, SettingsWritable, Known, Configured, Writable bool
+	NamedReference                                               bool
+	BaseURLEnv                                                   []string
+	NativeAuth                                                   *api.ListConfigurableProvidersResultItemNativeAuth
+	NativeChecks                                                 []CredentialCheck
+}
+
+// CredentialCheck is public presence metadata, never a credential literal.
+type CredentialCheck struct {
+	Ref, Source       string
+	Known, Configured bool
+}
+
+func (r Row) KeylessNativeAuth() bool {
+	return !r.NamedReference && r.NativeAuth != nil && len(r.NativeAuth.Env) == 0 && r.NativeAuth.Oauth
+}
+
+func (r Row) nativeRefs() []string {
+	if r.NamedReference || r.NativeAuth == nil {
+		return nil
+	}
+	refs := []string{}
+	for _, ref := range r.NativeAuth.Env {
+		endpoint := false
+		for _, env := range r.BaseURLEnv {
+			endpoint = endpoint || ref == env
+		}
+		if !endpoint {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
 }
 
 var referencePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -74,6 +109,7 @@ func rowsFrom(view settingsView, directory []provider) []Row {
 			return
 		}
 		ref := profileRef(ns.Value, p.Path)
+		named := ref != ""
 		bind := ref == "" && ns.NS == "llm-pi-ai"
 		if ref == "" {
 			ref = fallback
@@ -91,19 +127,24 @@ func rowsFrom(view settingsView, directory []provider) []Row {
 		if name == "" {
 			name = p.Provider
 		}
-		rows = append(rows, Row{ID: id, Name: name, Provider: p.Provider, Namespace: ns.NS, Ref: ref, Path: append([]string(nil), p.Path...), Revision: ns.Revision, BindReference: bind, SettingsWritable: view.Writable})
+		r := Row{ID: id, Name: name, Provider: p.Provider, Namespace: ns.NS, Ref: ref, Path: append([]string(nil), p.Path...), Revision: ns.Revision, BindReference: bind, SettingsWritable: view.Writable, NamedReference: named, BaseURLEnv: append([]string(nil), p.BaseURLEnv...), NativeAuth: p.NativeAuth}
+		rows = append(rows, r)
 	}
 	for _, ns := range view.Namespaces {
 		if ns.NS == "web-search-deepseek" || ns.NS == "web-deepseek-api" {
 			add(ns, provider{Provider: ns.NS, DisplayName: "Web Search", Namespace: ns.NS}, "DEEPSEEK_API_KEY")
 			continue
 		}
-		if ns.NS != "llm-deepseek" && ns.NS != "llm-pi-ai" {
+		if ns.NS != "llm-deepseek" && ns.NS != "llm-deepseek-api-key" && ns.NS != "llm-pi-ai" {
 			continue
 		}
 		for _, p := range directory {
 			if p.Namespace == ns.NS && p.Provider != "deepseek-account" {
-				add(ns, p, deriveRef(p.Provider))
+				fallback := deriveRef(p.Provider)
+				if ns.NS == "llm-deepseek" || ns.NS == "llm-deepseek-api-key" {
+					fallback = "DEEPSEEK_API_KEY"
+				}
+				add(ns, p, fallback)
 			}
 		}
 	}
@@ -122,9 +163,15 @@ func load(call request) ([]Row, error) {
 	refs := []string{}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if !seen[row.Ref] {
-			refs = append(refs, row.Ref)
-			seen[row.Ref] = true
+		requested := row.nativeRefs()
+		if !row.KeylessNativeAuth() {
+			requested = append(requested, row.Ref)
+		}
+		for _, ref := range requested {
+			if !seen[ref] {
+				refs = append(refs, ref)
+				seen[ref] = true
+			}
 		}
 	}
 	sort.Strings(refs)
@@ -147,7 +194,11 @@ func load(call request) ([]Row, error) {
 		info, ok := states[rows[i].Ref]
 		rows[i].Known = ok
 		rows[i].Configured = info.Configured
-		rows[i].Writable = ok && info.Writable && rows[i].SettingsWritable
+		rows[i].Writable = ok && info.Writable && rows[i].SettingsWritable && !rows[i].KeylessNativeAuth()
+		for _, ref := range rows[i].nativeRefs() {
+			info, known := states[ref]
+			rows[i].NativeChecks = append(rows[i].NativeChecks, CredentialCheck{Ref: ref, Known: known, Configured: info.Configured, Source: info.Source})
+		}
 	}
 	return rows, nil
 }

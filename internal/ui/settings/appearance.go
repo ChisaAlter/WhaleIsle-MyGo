@@ -3,7 +3,6 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -35,13 +34,8 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.Appearance
 	bodyHostState(c, a.Host, muted)
-	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-	}
-	if a.LastAction != "" {
-		ui.Text(c, settingsActionText(a.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	}
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
+	settingsSearchTarget(c, "appearance-scheme", providerCopy("颜色模式", "Color scheme"), scheme)
 	schemeError := ui.Local(scheme, "error", func() string { return "" })
 	scheme.Children(func() {
 		ui.Text(c, providerCopy("颜色模式", "Color scheme")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
@@ -74,11 +68,18 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		}
-		if *schemeError != "" {
-			ui.Text(c, *schemeError).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
-		}
+		settingsNotice(c, "appearance:72", "error", *schemeError != "", func() string { return *schemeError })
 	})
 	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
+	if a.Background != nil {
+		a.Background.OnBrowse = a.OnBrowseWallpaper
+		a.Background.ExplicitImage = func() string {
+			if a.WallpaperPath != nil {
+				return *a.WallpaperPath
+			}
+			return ""
+		}
+	}
 	wallpaperBackgroundPane(c, a.Background, fg, muted)
 	themeTypographyPane(c, a.Preferences, fg, muted)
 	// Advanced: conversation font size (moved from General), the typing effect and the
@@ -86,7 +87,4 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	bodyFontSizePreference(c, a.Preferences, fg, muted)
 	bodyEffectPreference(c, a.Host, true, fg, muted)
 	bodyEffectPreference(c, a.Host, false, fg, muted)
-	if a.OnSave != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Clicked() {
-		a.OnSave()
-	}
 }

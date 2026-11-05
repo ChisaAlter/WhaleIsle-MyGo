@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+
+	"whaleisle/internal/dsh/api"
 )
 
 type Snapshot struct {
@@ -44,6 +46,13 @@ func (c *Controller) Snapshot() Snapshot {
 	s.Rows = append([]Row(nil), s.Rows...)
 	for i := range s.Rows {
 		s.Rows[i].Path = append([]string(nil), s.Rows[i].Path...)
+		s.Rows[i].BaseURLEnv = append([]string(nil), s.Rows[i].BaseURLEnv...)
+		s.Rows[i].NativeChecks = append([]CredentialCheck(nil), s.Rows[i].NativeChecks...)
+		if s.Rows[i].NativeAuth != nil {
+			auth := *s.Rows[i].NativeAuth
+			auth.Env = append([]string(nil), auth.Env...)
+			s.Rows[i].NativeAuth = &auth
+		}
 	}
 	return s
 }
@@ -160,6 +169,88 @@ func selected(rows []Row, id string) (Row, bool) {
 // Save checks the view's ticket, Host metadata, target reference and settings
 // revision before a mutation. A blank input is always "keep existing".
 func (c *Controller) Save(parent context.Context, ticket uint64) {
+	c.save(parent, ticket, nil)
+}
+
+// SaveWithSettings submits one provider editor: settings first, then the key.
+// The acknowledged settings revision becomes the credential retry baseline;
+// failed settings never write a key, and failed key writes retain that draft.
+// Standalone Save keeps its original revision and blank-input contract.
+func (c *Controller) SaveWithSettings(parent context.Context, ticket uint64, saveSettings func(context.Context) (api.SettingsNamespaceView, error)) {
+	c.save(parent, ticket, saveSettings)
+}
+
+// CreateWithSettings keeps a new provider's key in its create form until the
+// Host has committed and described that provider. It then uses the same
+// schema-owned credential path as an existing provider, never an arbitrary ref.
+// keyAccepted distinguishes an acknowledged write from a failed confirmation.
+func (c *Controller) CreateWithSettings(parent context.Context, provider, key string, saveSettings func(context.Context) (api.SettingsNamespaceView, error)) (keyAccepted, completed bool) {
+	key = strings.TrimSpace(key)
+	c.mu.Lock()
+	if c.call == nil || c.state.Busy {
+		c.mu.Unlock()
+		return false, false
+	}
+	if key == "" || strings.IndexFunc(key, unicode.IsSpace) >= 0 {
+		c.state.Err = "API keys cannot be blank or contain internal whitespace."
+		c.mu.Unlock()
+		return false, false
+	}
+	c.state.Ticket++
+	ticket, call := c.state.Ticket, c.call
+	c.state.Busy, c.state.Err, c.state.LastAction = true, "", ""
+	ctx, done := c.workContext(parent)
+	c.mu.Unlock()
+	defer done()
+	written, err := saveSettings(ctx)
+	settingsCommitted := err == nil
+	var rows []Row
+	var target Row
+	if err == nil {
+		rows, err = load(c.request(ctx, ticket, call))
+	}
+	if err == nil {
+		found := false
+		for _, row := range rows {
+			if row.Namespace == written.Ns && row.Provider == provider {
+				target, found = row, true
+				break
+			}
+		}
+		if !found || !target.Known || !target.Writable || target.KeylessNativeAuth() {
+			err = errors.New("The Host has not exposed a writable API key for the new provider. The key draft was kept.")
+		}
+	}
+	c.mu.Lock()
+	if c.state.Ticket != ticket {
+		c.mu.Unlock()
+		return false, false
+	}
+	if err != nil {
+		c.state.Busy = false
+		c.state.Err = "Provider settings were not completed; the API key was not saved. " + err.Error()
+		if settingsCommitted {
+			c.state.Err = "Provider settings saved; API key step: " + err.Error()
+		}
+		c.mu.Unlock()
+		return false, false
+	}
+	c.state.Rows, c.state.SelectedID, c.state.Draft = rows, target.ID, key
+	c.state.Ready, c.state.Busy, c.state.ClearPending = true, false, false
+	c.mu.Unlock()
+	c.Save(ctx, ticket)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Ticket != ticket {
+		return false, false
+	}
+	if c.state.Err != "" {
+		c.state.Err = "Provider settings saved; API key step: " + c.state.Err
+	}
+	return c.state.Draft == "", c.state.Err == "" && c.state.Ready
+}
+
+func (c *Controller) save(parent context.Context, ticket uint64, saveSettings func(context.Context) (api.SettingsNamespaceView, error)) {
 	c.mu.Lock()
 	row, ok := selected(c.state.Rows, c.state.SelectedID)
 	value := strings.TrimSpace(c.state.Draft)
@@ -168,7 +259,7 @@ func (c *Controller) Save(parent context.Context, ticket uint64) {
 		c.mu.Unlock()
 		return
 	}
-	if !row.Known || !row.Writable {
+	if row.KeylessNativeAuth() || !row.Known || !row.Writable {
 		c.state.Err = "This credential is read-only or its writable state is unknown. Refresh before editing."
 		c.mu.Unlock()
 		return
@@ -186,12 +277,41 @@ func (c *Controller) Save(parent context.Context, ticket uint64) {
 	c.mu.Unlock()
 	defer done()
 	request := c.request(ctx, ticket, call)
+	settingsCommitted := false
+	if saveSettings != nil {
+		written, err := saveSettings(ctx)
+		settingsCommitted = err == nil
+		if err == nil && (written.Ns != row.Namespace || profileRef(written.Value, row.Path) != row.Ref && !(row.BindReference && profileRef(written.Value, row.Path) == "")) {
+			err = errors.New("The acknowledged provider settings changed its credential reference. The key draft was kept.")
+		}
+		c.mu.Lock()
+		if c.state.Ticket != ticket {
+			c.mu.Unlock()
+			return
+		}
+		if err != nil {
+			c.state.Busy = false
+			c.state.Err = "Provider settings were not completed; the API key was not saved. " + err.Error()
+			if settingsCommitted {
+				c.state.Err = "Provider settings saved; the API key was not saved. " + err.Error()
+			}
+			c.mu.Unlock()
+			return
+		}
+		row.Revision = written.Revision
+		for i := range c.state.Rows {
+			if c.state.Rows[i].ID == row.ID {
+				c.state.Rows[i] = row
+			}
+		}
+		c.mu.Unlock()
+	}
 	rows, err := load(request)
 	fresh, exists := selected(rows, row.ID)
 	if err == nil && (!exists || fresh.Ref != row.Ref || fresh.Revision != row.Revision || fresh.BindReference != row.BindReference) {
 		err = errors.New("The settings revision or credential reference changed. Refresh and re-enter the key before saving.")
 	}
-	if err == nil && (!fresh.Known || !fresh.Writable) {
+	if err == nil && (fresh.KeylessNativeAuth() || !fresh.Known || !fresh.Writable) {
 		err = errors.New("The Host reports this credential as read-only. Change its owning source before editing.")
 	}
 	if err == nil && !clear && fresh.BindReference {
@@ -259,6 +379,9 @@ func (c *Controller) Save(parent context.Context, ticket uint64) {
 	c.state.Busy = false
 	if err != nil {
 		c.state.Err = err.Error()
+		if settingsCommitted {
+			c.state.Err = "Provider settings saved; API key step: " + c.state.Err
+		}
 		if wrote {
 			c.state.Ready = false
 		}

@@ -33,6 +33,16 @@ func teamView(c *ui.Context, m Model) {
 		return
 	}
 	teamSearchControls(c, &m)
+	ui.Row(c).Gap(6).Children(func() {
+		for _, option := range []struct {
+			label   string
+			history bool
+		}{{tr("当前工作", "Current"), false}, {tr("历史", "History"), true}} {
+			if ui.Button(c, option.label).Disabled(m.TeamHistory == option.history).Clicked() && m.OnTeamHistory != nil {
+				m.OnTeamHistory(option.history)
+			}
+		}
+	})
 	o := m.Team
 	if o.Team != nil && o.Team.Failure != "" {
 		ui.Text(c, o.Team.Failure).FontSize(fonttheme.InterfaceSize(13)).Selectable()
@@ -61,7 +71,7 @@ func teamView(c *ui.Context, m Model) {
 			if o.Team == nil {
 				return
 			}
-			allMembers := o.Members()
+			allMembers, scopedTasks := o.CurrentTeam(m.TeamHistory)
 			members := make([]projectflow.TeamMember, 0, len(allMembers))
 			for _, member := range allMembers {
 				if teamMemberMatches(o, member, m.TeamQuery) {
@@ -85,6 +95,11 @@ func teamView(c *ui.Context, m Model) {
 					}
 				}
 				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(fonttheme.InterfaceSize(13))
+				if member.ModelLabel != "" {
+					ui.Text(c, member.ModelLabel).FontSize(fonttheme.InterfaceSize(12))
+				} else if member.ModelError != "" {
+					ui.Text(c, tr("模型状态暂不可读：", "Model unavailable: ")+member.ModelError).FontSize(fonttheme.InterfaceSize(12))
+				}
 				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect("", member.ID)
 				}
@@ -103,7 +118,7 @@ func teamView(c *ui.Context, m Model) {
 				}
 			}
 			tasks := make([]projectflow.TeamTask, 0, len(o.Team.Tasks))
-			for _, task := range o.Team.Tasks {
+			for _, task := range scopedTasks {
 				if teamTaskMatches(task, m.TeamQuery) {
 					tasks = append(tasks, task)
 				}

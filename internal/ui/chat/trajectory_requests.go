@@ -10,8 +10,15 @@ import (
 
 const trajectoryRequestKind session.MessageKind = "trajectory-request"
 
+func trajectoryHistoryMessages(snapshot session.ViewState) []session.Message {
+	if snapshot.TrajectoryMessages != nil {
+		return snapshot.TrajectoryMessages
+	}
+	return snapshot.Messages
+}
+
 func trajectoryMessages(snapshot session.ViewState) []session.Message {
-	out := append([]session.Message(nil), snapshot.Messages...)
+	out := append([]session.Message(nil), trajectoryHistoryMessages(snapshot)...)
 	for _, request := range snapshot.TrajectoryRequests {
 		body, _ := json.MarshalIndent(request, "", "  ")
 		raw, _ := json.Marshal(request.Events)
@@ -20,9 +27,18 @@ func trajectoryMessages(snapshot session.ViewState) []session.Message {
 			model = request.ProviderMetadata.Provider + " / " + request.ProviderMetadata.Model
 		}
 		out = append(out, session.Message{ID: "request:" + request.ID, Seq: request.StartSeq, Kind: trajectoryRequestKind, Role: "request", Body: fmt.Sprintf("%s · %s", request.Purpose, request.Status), Args: string(body), Raw: raw, Model: model,
+			ConversationTurn: request.Turn, ConversationStep: request.Step,
 			Streaming: request.Status == "running", TrajectoryTime: &session.TrajectoryTiming{OperationID: request.ID, StartedAt: request.StartedAt, CompletedAt: request.CompletedAt, Closed: request.Status != "running"}})
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Seq == 0 {
+			return false
+		}
+		if out[j].Seq == 0 {
+			return true
+		}
+		return out[i].Seq < out[j].Seq
+	})
 	return out
 }
 func trajectoryRequestBodies(snapshot session.ViewState, rowID string) (string, string) {

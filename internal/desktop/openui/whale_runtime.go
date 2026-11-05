@@ -15,6 +15,13 @@ import (
 //go:embed viewer/v2/viewer.html
 var whaleViewer string
 
+//go:embed viewer/v2/host.cjs
+var whaleHostValidator []byte
+
+// WhaleHostValidator is the shipped Node validator matching the owned viewer.
+// The desktop launcher materializes it for the managed Host's render_ui tool.
+func WhaleHostValidator() []byte { return append([]byte(nil), whaleHostValidator...) }
+
 //go:embed viewer/v2/assets/*.js
 var whaleBundles embed.FS
 

@@ -75,10 +75,14 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	if len(missing) > 0 {
 		lines = append(lines, i18n.T(i18n.KeyCmdTheseChecksAreUnknown)+strings.Join(missing, ", "))
 	}
+	for _, item := range append(append([]taskcontrol.Work(nil), i.ActiveWork...), i.ScheduledWork...) {
+		lines = append(lines, taskWorkDescription(item))
+	}
 	lines = append(lines, i18n.T(i18n.KeyCmdContinuingMayInterruptWorkThisDoesNot)+label+"?")
 	// Every caller reaches this through a background goroutine, so the in-app
 	// confirmation can be awaited here; a UI-thread caller would deadlock.
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Owner:        win,
 		Title:        label,
 		Body:         strings.Join(lines, "\n\n"),
 		ConfirmLabel: i18n.T(i18n.KeyCmdContinue) + label,
@@ -86,6 +90,33 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 		Danger:       true,
 	})
 	return approved, nil
+}
+
+func taskWorkDescription(item taskcontrol.Work) string {
+	parts := []string{item.Kind}
+	for _, value := range []string{item.Title, item.ID, item.Owner, item.Detail, item.SessionID, item.ScheduledAt} {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			parts = append(parts, value)
+		}
+	}
+	if item.Count > 0 {
+		parts = append(parts, fmt.Sprintf("× %d", item.Count))
+	}
+	if item.Due {
+		parts = append(parts, lifecycleText("已到期", "Due"))
+	}
+	if item.Recurring {
+		parts = append(parts, lifecycleText("重复任务", "Recurring"))
+	}
+	return strings.Join(parts, " · ")
+}
+
+func lifecycleText(zh, en string) string {
+	if i18n.Locale() == i18n.LocaleEN {
+		return en
+	}
+	return zh
 }
 
 func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) bool {
@@ -160,7 +191,10 @@ func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup
 		} else if operation == "stop" {
 			label = i18n.T(i18n.KeyCmdStopRuntime)
 		}
-		did, err = taskguard.ConfirmAction(win, s.localTaskRunningCount(), label, i18n.T(i18n.KeyCmdLocalWorkItemsSessionsAndTerminalsAre), label, i18n.T(i18n.KeyCmdCancel))
+		running := s.localTaskRunningCount()
+		did, err = taskguard.ConfirmRunning(running, func() (bool, error) {
+			return s.askConfirmBlocking(confirmAskRequest{Context: ctx, Owner: win, Title: label, Body: fmt.Sprintf(i18n.T(i18n.KeyCmdLocalWorkItemsSessionsAndTerminalsAre), running), ConfirmLabel: label, CancelLabel: i18n.T(i18n.KeyCmdCancel), Danger: true}), nil
+		})
 		if did && err == nil {
 			err = commit()
 			did = err == nil
@@ -260,15 +294,7 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.taskRestartPending = false; s.mu.Unlock() }()
 	if !confirmedByInstallButton {
-		choice, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   i18n.T(i18n.KeyCmdInstallUpdate),
-			Message: i18n.T(i18n.KeyCmdTheUpdateHasBeenDownloadedAndVerified),
-			Buttons: []string{i18n.T(i18n.KeyCmdLater), i18n.T(i18n.KeyCmdInstallAndQuit)}, DefaultButton: 0, CancelButton: 0})
-		if err != nil {
-			s.taskProtectionError(win, err)
-			return false
-		}
-		if choice.Button != 1 {
+		if !s.askConfirmBlocking(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdInstallUpdate), Body: i18n.T(i18n.KeyCmdTheUpdateHasBeenDownloadedAndVerified), ConfirmLabel: i18n.T(i18n.KeyCmdInstallAndQuit), CancelLabel: i18n.T(i18n.KeyCmdLater)}) {
 			return false
 		}
 	}
@@ -288,6 +314,7 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 		if _, err := desktopupdate.StartStaged(staged); err != nil {
 			return err
 		}
+		s.markNativeInstallerLaunched(staged)
 		s.finalizeQuit(sup)
 		return nil
 	})

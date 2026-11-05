@@ -11,6 +11,7 @@ import (
 )
 
 type Project struct {
+	CurrentTaskIDs            []string      `json:"currentTaskIds"`
 	Queue                     *RequestQueue `json:"queue"`
 	Archiving                 bool          `json:"archiving"`
 	Paused                    bool          `json:"paused"`
@@ -20,11 +21,13 @@ type Project struct {
 	CoordinatorSessionID      string        `json:"coordinatorSessionId"`
 	Lifecycle                 string        `json:"lifecycle"`
 	Activity                  struct {
-		State              string `json:"state"`
-		CoordinatorRunning bool   `json:"coordinatorRunning"`
-		Running            int    `json:"running"`
-		Queued             int    `json:"queued"`
-		Provisioning       int    `json:"provisioning"`
+		State                string   `json:"state"`
+		CoordinatorRunning   bool     `json:"coordinatorRunning"`
+		Running              int      `json:"running"`
+		Queued               int      `json:"queued"`
+		Provisioning         int      `json:"provisioning"`
+		RunningJobs          int      `json:"runningJobs"`
+		RunningJobSessionIDs []string `json:"runningJobSessionIds"`
 	} `json:"activity"`
 }
 type Listing struct {
@@ -35,6 +38,20 @@ type Listing struct {
 type Client struct {
 	Origin, Cookie string
 	HTTP           *http.Client
+}
+
+type DirectoryCheck struct {
+	Allowed bool   `json:"allowed"`
+	Reason  string `json:"reason"`
+}
+
+func (c Client) CheckDirectory(ctx context.Context, path string) (DirectoryCheck, error) {
+	var out DirectoryCheck
+	if strings.TrimSpace(path) == "" {
+		return out, fmt.Errorf("select a Project directory")
+	}
+	err := c.call(ctx, "directory/check", map[string]any{"workingDirectory": path}, &out)
+	return out, err
 }
 
 func (c Client) call(ctx context.Context, method string, payload any, out any) error {

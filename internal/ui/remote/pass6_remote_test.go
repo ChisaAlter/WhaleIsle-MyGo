@@ -125,7 +125,7 @@ func TestPass6RemoteGatewayMatchesReference(t *testing.T) {
 	} {
 		pass6RequireBefore(t, tt, pair[0], pair[1])
 	}
-	// Every control sits in one 260 wide column at the row's end.
+	// The text fields are 220 wide, the bind pill is as wide as its label, and every control ends at the row's edge.
 	var right float32
 	for _, control := range []string{
 		i18n.T(KeyPass6RemoteRelayLabel),
@@ -136,8 +136,12 @@ func TestPass6RemoteGatewayMatchesReference(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing control %q", control)
 		}
-		if box.W < 260 || box.W > 300 {
-			t.Fatalf("%q is %v wide, want 260–300", control, box.W)
+		minW, maxW := float32(220), float32(220)
+		if control == i18n.T(KeyPass6RemoteBindLabel) {
+			minW, maxW = 40, 200
+		}
+		if box.W < minW-.5 || box.W > maxW+.5 {
+			t.Fatalf("%q is %v wide, want %v to %v", control, box.W, minW, maxW)
 		}
 		if right == 0 {
 			right = box.X + box.W

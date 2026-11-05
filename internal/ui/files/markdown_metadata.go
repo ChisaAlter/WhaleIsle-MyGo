@@ -103,5 +103,7 @@ func paintMarkdownResource(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		}
 	}
-	markdown.ViewInteractive(c, body, sourceStyle(m, fg, muted), m.OnOpenLink)
+	style := sourceStyle(m, fg, muted)
+	style.RenderImage = func(ctx *ui.Context, ref, alt string) bool { return paintMarkdownImage(ctx, m, ref, alt, muted) }
+	markdown.ViewInteractive(c, body, style, m.OnOpenLink)
 }

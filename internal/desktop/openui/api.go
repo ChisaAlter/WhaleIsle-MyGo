@@ -46,6 +46,8 @@ func validateAPIRequest(e Event) error {
 		return nil
 	case "/api/image":
 		key = "src"
+	case "/api/media":
+		key = "src"
 	case "/api/wiki":
 		key = "title"
 	case "/api/image-search":
@@ -98,6 +100,8 @@ func (a *ResourceAPI) Handle(ctx context.Context, e Event) APIResponse {
 		result = a.htmlScript(ctx, e)
 	case "/api/image":
 		result = a.publicImage(ctx, e)
+	case "/api/media":
+		result = a.publicMedia(ctx, e)
 	case "/api/wiki":
 		result = a.wiki(ctx, e)
 	case "/api/image-search":

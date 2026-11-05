@@ -9,15 +9,17 @@ import (
 	"time"
 )
 
-// InstallHistory contains only a safe identifier and bounded outcome, never raw
-// install specs, URLs, RPC diagnostics, build output or authentication data.
+// InstallHistory retains bounded, redacted operation diagnostics. Raw transport
+// envelopes and credentials are never persisted.
 type InstallHistory struct {
-	Attempt string    `json:"attempt,omitempty"`
-	Action  string    `json:"action,omitempty"`
-	At      time.Time `json:"at"`
-	Plugin  string    `json:"plugin"`
-	Result  string    `json:"result"`
-	Error   string    `json:"error,omitempty"`
+	Attempt    string    `json:"attempt,omitempty"`
+	Action     string    `json:"action,omitempty"`
+	At         time.Time `json:"at"`
+	Plugin     string    `json:"plugin"`
+	Result     string    `json:"result"`
+	Error      string    `json:"error,omitempty"`
+	Log        string    `json:"log,omitempty"`
+	Diagnostic string    `json:"diagnostic,omitempty"`
 }
 type personalData struct {
 	Favorites map[string]bool  `json:"favorites"`
@@ -53,6 +55,8 @@ func NewWithPersonalPath(path string) *Store {
 	// A running receipt left by a previous process is not proof of success.
 	changed := false
 	for i := range s.personal.data.History {
+		s.personal.data.History[i].Log = RedactOperationLog(s.personal.data.History[i].Log, 16000)
+		s.personal.data.History[i].Diagnostic = RedactOperationLog(s.personal.data.History[i].Diagnostic, 2000)
 		if s.personal.data.History[i].Result == "queued" {
 			s.personal.data.History[i].Result = "not-started"
 			changed = true
@@ -143,6 +147,7 @@ func (s *Store) ToggleFavorite(id string) error {
 	}
 	err := s.savePersonalLocked(data)
 	s.discovery.page = 0
+	s.discovery.expanded = false
 	s.mu.Unlock()
 	s.fire()
 	return err

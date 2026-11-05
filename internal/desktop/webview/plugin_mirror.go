@@ -15,6 +15,24 @@ func (h *Host) PluginMirrorSource(capability *pluginslots.Gateway, width, height
 	if h == nil || capability == nil || width < 1 || width > 2048 || height < 1 || height > 1536 {
 		return nil, errors.New("plugin mirror: bounded source required")
 	}
+	return h.pluginSource(capability, width, height)
+}
+
+// PluginRichSource retains the same binding-free page for live rich controls.
+// It hides before resizing; only an acknowledged original-owner layout may be
+// presented with PresentPlugin. It grants no new browser or helper capability.
+func (h *Host) PluginRichSource(capability *pluginslots.Gateway, width, height int) (*mygo.Window, error) {
+	if h == nil || capability == nil || width < 1 || width > 8192 || height < 1 || height > 8192 {
+		return nil, errors.New("plugin rich content: bounded source required")
+	}
+	return h.pluginSource(capability, width, height)
+}
+
+func (h *Host) pluginSource(capability *pluginslots.Gateway, width, height int) (*mygo.Window, error) {
+	registered, _ := pluginSurfaceCapabilities.Load(h)
+	if registered != capability {
+		return nil, errors.New("plugin source: exact registered capability required")
+	}
 	var result *mygo.Window
 	var failure = errors.New("plugin mirror: original source unavailable")
 	mygo.RunOnMain(func() {

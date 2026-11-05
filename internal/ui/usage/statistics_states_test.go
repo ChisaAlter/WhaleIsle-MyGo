@@ -1,6 +1,7 @@
 package usage
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestEmbeddedUsageInitialLoadingErrorAndEmptyStates(t *testing.T) {
 	}
 }
 
-func TestEmbeddedUsageRangeSharesDimensionsAndExportScope(t *testing.T) {
+func TestEmbeddedUsageCalendarSelectionKeepsOtherDimensionsAndExports(t *testing.T) {
 	old := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(old)
@@ -41,31 +42,41 @@ func TestEmbeddedUsageRangeSharesDimensionsAndExportScope(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Children(func() { View(c, Model{Store: s, Embedded: true, OnExportStats: func(string) {}}) })
 	}, 850, 3600)
-	if !tt.HasText("Model share (all time)") || !tt.HasText("Daily model breakdown (recent)") || !tt.HasText("Export session CSV") {
+	if !tt.HasText("Model share (all time)") || !tt.HasText("Daily model breakdown (recent)") || !tt.HasText("Session ranking") || !tt.HasText("Export") {
 		t.Fatal("all-time/recent dimensions missing:" + "\n" + strings.Join(tt.Texts(), "\n"))
 	}
-	s.SelectStatsDay("2026-10-14", false)
+	before, err := s.ExportStats("json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("2026-10-14 UTC"); err != nil {
+		t.Fatal(err)
+	}
 	tt.Frame()
-	if !tt.HasText("Model share (selected dates)") || !tt.HasText("Daily model breakdown (selected dates)") || tt.HasText("Export session CSV") {
-		t.Fatal("selection was not shared across dimensions and exports")
+	if !s.Stats().Range.Active() || !tt.HasText("Model share (all time)") || !tt.HasText("Daily model breakdown (recent)") || !tt.HasText("Session ranking") {
+		t.Fatal("calendar selection changed independent dashboard dimensions")
 	}
 	s.SetStatsRangeDraft("2026-10-15", "2026-10-14")
 	s.ApplyStatsRangeDraft()
 	tt.Frame()
-	if s.Stats().RangeError == "" || !tt.HasText(s.Stats().RangeError) || !s.Stats().Range.Active() {
+	if s.Stats().RangeError == "" || !s.Stats().Range.Active() {
 		t.Fatal("invalid range silently replaced accepted selection")
 	}
 	if err := tt.Click("Last 7 days"); err != nil {
 		t.Fatal(err)
 	}
-	if s.Stats().Days != 7 || s.Stats().RangeError == "" {
-		t.Fatal("recent preset silently filled unavailable daily coverage")
+	if s.Stats().Days != 7 || !s.Stats().Range.Active() {
+		t.Fatal("recent chart window replaced the calendar selection")
 	}
-	if err := tt.Click("Clear"); err != nil {
+	after, err := s.ExportStats("json")
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("calendar/chart controls changed JSON export", err)
+	}
+	if err := tt.Click("Clear selection"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if s.Stats().Range.Active() || !tt.HasText("Model share (all time)") || !tt.HasText("Export session CSV") {
-		t.Fatal("cleared range retained selected-date export scope")
+	if s.Stats().Range.Active() || !tt.HasText("Model share (all time)") || !tt.HasText("Export") {
+		t.Fatal("calendar selection was not cleared independently")
 	}
 }

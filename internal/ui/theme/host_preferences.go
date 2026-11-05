@@ -10,17 +10,18 @@ import (
 // HostSettings is the actual ui-theme namespace, distinct from desktop-only
 // launcher/window startup config. Missing fields use the original schema defaults.
 type HostSettings struct {
-	Preference         string   `json:"preference"`
-	FontSize           float32  `json:"fontSize"`
-	TerminalFontSize   float32  `json:"terminalFontSize"`
-	ActiveLightThemeID string   `json:"activeLightThemeId"`
-	ActiveDarkThemeID  string   `json:"activeDarkThemeId"`
-	CustomThemes       []Family `json:"customThemes"`
-	GlassOpacity       float64  `json:"glassOpacity"`
-	TerminalOpacity    float64  `json:"terminalOpacity"`
-	TransparentTheme   bool     `json:"transparentTheme"`
-	SidebarMaskHidden  bool     `json:"sidebarMaskHidden"`
-	WallpaperImage     string   `json:"wallpaperImage"`
+	Preference           string   `json:"preference"`
+	FontSize             float32  `json:"fontSize"`
+	TerminalFontSize     float32  `json:"terminalFontSize"`
+	ActiveLightThemeID   string   `json:"activeLightThemeId"`
+	ActiveDarkThemeID    string   `json:"activeDarkThemeId"`
+	CustomThemes         []Family `json:"customThemes"`
+	GlassOpacity         float64  `json:"glassOpacity"`
+	TerminalOpacity      float64  `json:"terminalOpacity"`
+	TransparentTheme     bool     `json:"transparentTheme"`
+	SidebarMaskHidden    bool     `json:"sidebarMaskHidden"`
+	SkinWallpaperEnabled bool     `json:"skinWallpaperEnabled"`
+	WallpaperImage       string   `json:"wallpaperImage"`
 	// WallpaperImageExplicit is set only when the Host document contains the
 	// wallpaperImage key: a seeded default must not paint over the flat base.
 	WallpaperImageExplicit bool                `json:"-"`
@@ -53,7 +54,7 @@ type HostSettings struct {
 }
 
 func ReadHostSettings(raw json.RawMessage) (HostSettings, error) {
-	h := HostSettings{Preference: "system", FontSize: 14, TerminalFontSize: 13, ActiveLightThemeID: "deepseek", ActiveDarkThemeID: "deepseek", GlassOpacity: 80, TerminalOpacity: 75, SidebarMaskHidden: true, WallpaperSources: wallpapers.Sources(), BackgroundEffect: "", BackgroundEffectColors: [7]string{}, BackgroundEffectSpeed: 190, BackgroundEffectCount: 5, BackgroundEffectPreset: "", BackgroundEffectVariant: "orbs", CursorEffect: "trail", CursorEffectSpeed: 100, CursorEffectSize: 100, CursorEffectPreset: "default", FontSizeInterface: 16, FontSizeCode: 13}
+	h := HostSettings{SkinWallpaperEnabled: true, Preference: "system", FontSize: 14, TerminalFontSize: 13, ActiveLightThemeID: "deepseek", ActiveDarkThemeID: "deepseek", GlassOpacity: 80, TerminalOpacity: 75, SidebarMaskHidden: true, WallpaperSources: wallpapers.Sources(), BackgroundEffect: "", BackgroundEffectColors: [7]string{}, BackgroundEffectSpeed: 190, BackgroundEffectCount: 5, BackgroundEffectPreset: "", BackgroundEffectVariant: "orbs", CursorEffect: "trail", CursorEffectSpeed: 100, CursorEffectSize: 100, CursorEffectPreset: "default", FontSizeInterface: 16, FontSizeCode: 13}
 	err := json.Unmarshal(raw, &h)
 	if err == nil {
 		h.WallpaperSources = hostWallpaperSources(raw)
@@ -81,7 +82,7 @@ func (h HostSettings) Background() wallpapers.Preferences {
 	if effect == "" {
 		effect = "none"
 	}
-	return wallpapers.Preferences{CursorEnabled: h.CursorEffectEnabled, CursorEffect: h.CursorEffect, CursorPreset: h.CursorEffectPreset, CursorColors: h.CursorEffectColors, CursorSpeed: h.CursorEffectSpeed, CursorSize: h.CursorEffectSize, MetallicButtons: h.MetallicPaintEnabled, Sources: append([]wallpapers.Source(nil), h.WallpaperSources...), Favorites: append([]wallpapers.Item(nil), h.WallpaperFavorites...), Crop: wallpapers.DefaultCrop(), Blur: h.WallpaperBlur, Pixelate: h.WallpaperPixelate, Glass: h.GlassOpacity, Terminal: h.TerminalOpacity, Transparent: h.TransparentTheme, HideSidebarMask: h.SidebarMaskHidden, Preset: h.BackgroundEffectPreset, Effect: effect, EffectExplicit: h.BackgroundEffectExplicit, Variant: h.BackgroundEffectVariant, Speed: h.BackgroundEffectSpeed, Count: h.BackgroundEffectCount, Colors: h.BackgroundEffectColors}
+	return wallpapers.Preferences{SkinWallpaperEnabled: h.SkinWallpaperEnabled, CursorEnabled: h.CursorEffectEnabled, CursorEffect: h.CursorEffect, CursorPreset: h.CursorEffectPreset, CursorColors: h.CursorEffectColors, CursorSpeed: h.CursorEffectSpeed, CursorSize: h.CursorEffectSize, MetallicButtons: h.MetallicPaintEnabled, Sources: append([]wallpapers.Source(nil), h.WallpaperSources...), Favorites: append([]wallpapers.Item(nil), h.WallpaperFavorites...), Crop: wallpapers.DefaultCrop(), Blur: h.WallpaperBlur, Pixelate: h.WallpaperPixelate, Glass: h.GlassOpacity, Terminal: h.TerminalOpacity, Transparent: h.TransparentTheme, HideSidebarMask: h.SidebarMaskHidden, Preset: h.BackgroundEffectPreset, Effect: effect, EffectExplicit: h.BackgroundEffectExplicit, Variant: h.BackgroundEffectVariant, Speed: h.BackgroundEffectSpeed, Count: h.BackgroundEffectCount, Colors: h.BackgroundEffectColors}
 }
 
 // TypographyFields contains only source-defined Host fields. Composer has no
@@ -102,5 +103,5 @@ func BackgroundFields(p wallpapers.Preferences) map[string]any {
 	if p.Favorites == nil {
 		p.Favorites = []wallpapers.Item{}
 	}
-	return map[string]any{"wallpaperBlur": p.Blur, "wallpaperPixelate": p.Pixelate, "glassOpacity": p.Glass, "terminalOpacity": p.Terminal, "transparentTheme": p.Transparent, "sidebarMaskHidden": p.HideSidebarMask, "wallpaperSources": p.Sources, "wallpaperFavorites": p.Favorites, "backgroundEffectPreset": p.Preset, "backgroundEffect": p.Effect, "backgroundEffectVariant": p.Variant, "backgroundEffectSpeed": p.Speed, "backgroundEffectCount": p.Count, "backgroundEffectColors": p.Colors, "cursorEffectEnabled": p.CursorEnabled, "cursorEffect": p.CursorEffect, "cursorEffectPreset": p.CursorPreset, "cursorEffectColors": p.CursorColors, "cursorEffectSpeed": p.CursorSpeed, "cursorEffectSize": p.CursorSize, "metallicPaintEnabled": p.MetallicButtons}
+	return map[string]any{"skinWallpaperEnabled": p.SkinWallpaperEnabled, "wallpaperBlur": p.Blur, "wallpaperPixelate": p.Pixelate, "glassOpacity": p.Glass, "terminalOpacity": p.Terminal, "transparentTheme": p.Transparent, "sidebarMaskHidden": p.HideSidebarMask, "wallpaperSources": p.Sources, "wallpaperFavorites": p.Favorites, "backgroundEffectPreset": p.Preset, "backgroundEffect": p.Effect, "backgroundEffectVariant": p.Variant, "backgroundEffectSpeed": p.Speed, "backgroundEffectCount": p.Count, "backgroundEffectColors": p.Colors, "cursorEffectEnabled": p.CursorEnabled, "cursorEffect": p.CursorEffect, "cursorEffectPreset": p.CursorPreset, "cursorEffectColors": p.CursorColors, "cursorEffectSpeed": p.CursorSpeed, "cursorEffectSize": p.CursorSize, "metallicPaintEnabled": p.MetallicButtons}
 }

@@ -12,6 +12,7 @@ type CardStore interface {
 	ResolveAllow(string)
 	ResolveDeny(string)
 	Retry(string)
+	ConsumePlanReviewOpen(string, string) bool
 	ApprovePlanReview(string)
 	DismissPlanReview(string)
 	ReopenPlanReview(string)

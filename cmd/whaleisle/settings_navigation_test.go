@@ -79,7 +79,7 @@ func TestSettingsNavigationLoadsWithoutOpeningDocument(t *testing.T) {
 		if err := tt.Click(i18n.T(i18n.KeySettingsAccountSeat)); err != nil {
 			t.Fatal(err)
 		}
-		if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsAccountTitle)); err != nil {
+		if err := tt.ChooseMenuItem(i18n.T(i18n.KeySettingsOpen)); err != nil {
 			t.Fatalf("%v; menu=%q, texts=%q", err, tt.Menu(), tt.Texts())
 		}
 		select {
@@ -87,8 +87,8 @@ func TestSettingsNavigationLoadsWithoutOpeningDocument(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatal("settings navigation did not finish loading")
 		}
-		if !s.settingsOpen || !s.settingsAccountActive || s.settingsDesktopActive || store.Snapshot().Err != "" {
-			t.Fatal("account navigation did not open the account page and load its data")
+		if !s.settingsOpen || s.settingsAccountActive || !s.settingsDesktopActive || store.Snapshot().Err != "" {
+			t.Fatal("Settings navigation did not open General and load its data")
 		}
 		mu.Lock()
 		got := append([]string(nil), requests...)

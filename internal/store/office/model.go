@@ -243,7 +243,7 @@ func parseStatus(raw json.RawMessage) (Status, bool, error) {
 		s.Health.LastHeartbeatAt = ""
 	}
 	switch s.Health.LastEventType {
-	case "job.available", "job.cancelled", "ping", "connected", "heartbeat":
+	case "job.available", "job.cancel", "approval.reply", "job.cancelled", "ping", "connected", "heartbeat":
 	default:
 		s.Health.LastEventType = ""
 	}

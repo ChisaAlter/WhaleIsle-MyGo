@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -19,23 +20,43 @@ type searchEntry struct {
 	title   string
 	detail  string
 	value   func(Model) string
+	target  string
+	reveal  []string
+	rank    int
+	open    func()
 }
 
 func searchEntries(m Model) []searchEntry {
 	row := func(section SectionID, zh, en, zhDetail, enDetail string) searchEntry {
-		return searchEntry{section: section, title: providerCopy(zh, en), detail: providerCopy(zhDetail, enDetail)}
+		title := providerCopy(zh, en)
+		return searchEntry{section: section, title: title, detail: providerCopy(zhDetail, enDetail), target: searchRowTarget(section, zh, title)}
 	}
 	value := func(section SectionID, zh, en string, current func(Model) string) searchEntry {
-		return searchEntry{section: section, title: providerCopy(zh, en), value: current}
+		title := providerCopy(zh, en)
+		return searchEntry{section: section, title: title, value: current, target: searchRowTarget(section, zh, title)}
 	}
-	fixed := func(text string) func(Model) string { return func(Model) string { return text } }
+	fontSize := func(role string) func(Model) string {
+		return func(m Model) string {
+			prefs := theme.CurrentPreferences()
+			if m.Appearance != nil && m.Appearance.Preferences != nil {
+				prefs = m.Appearance.Preferences.Saved
+			} else if m.Desktop != nil && m.Desktop.Preferences != nil {
+				prefs = m.Desktop.Preferences.Saved
+			}
+			size := prefs.Interface.Size
+			if role == "code" {
+				size = prefs.Code.Size
+			}
+			return fmt.Sprintf("%.0fpx", size)
+		}
+	}
 	locale := func(m Model) string {
-		if m.Desktop != nil && m.Desktop.Fields.Locale != nil && *m.Desktop.Fields.Locale == "en" {
+		if m.Desktop != nil && m.Desktop.Fields.Locale != nil && *m.Desktop.Fields.Locale == "en" || i18n.Locale() == "en" {
 			return "English"
 		}
 		return "中文"
 	}
-	return []searchEntry{
+	entries := []searchEntry{
 		row(SectionUsageStats, "会话累计费用", "Session cost", "在输入框下方显示峰谷状态条与当前会话累计费用。", "Show the peak/valley strip and this session's accumulated cost below the composer."),
 		row(SectionUsageStats, "官方峰谷时", "Official peak and valley hours", "会话累计费用开启时，在会话统计下方显示官方峰谷时段状态条。", "With session cost on, show the official peak/valley strip below the statistics."),
 		value(SectionGeneral, "语言", "Language", locale),
@@ -46,9 +67,9 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionGeneral, "性能与用量", "Performance and usage", "选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"),
 		row(SectionGeneral, "在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API", "帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"),
 		row(SectionGeneral, "Harness 自动恢复", "Harness auto-recovery", "Harness 进程意外退出后自动重启，最多重试有限次数。", "Restart the Harness automatically after an unexpected exit, with a bounded number of retries."),
-		row(SectionAppearance, "颜色模式", "Color mode", "选择浅色、深色或跟随系统。", "Choose light, dark or follow the system."),
+		row(SectionAppearance, "颜色模式", "Color scheme", "选择浅色、深色或跟随系统。", "Choose light, dark, or follow the system."),
 		row(SectionAppearance, "主题", "Theme", "浅色与深色各自选择主题。", "Pick a theme for the light and the dark half."),
-		row(SectionAppearance, "背景图", "Background image", "选一张图铺在整个界面后面。", "Pick an image to spread behind the whole interface."),
+		row(SectionAppearance, "背景图", "Wallpaper", "选一张图铺在整个界面后面。图要透过界面才能看见：玻璃透明度越高，图越被盖住。设好之后可以拉毛玻璃和像素化。", "Choose an image to sit behind the whole UI. It shows through the chrome: higher glass opacity hides more of it. Frost and pixelate sliders appear after it is set."),
 		row(SectionAppearance, "背景特效", "Background effect", "不设置背景图时，在整个界面后面铺一层缓慢流动的渐变光斑。", "Without a background image, draw slowly moving gradient glows behind the interface."),
 		row(SectionAppearance, "指针特效", "Pointer effect", "在指针划过处绘制装饰特效，可选像素拖尾或流体飞溅。", "Draw a decorative effect where the pointer passes: pixel trail or fluid splash."),
 		row(SectionAppearance, "按钮悬停光泽", "Button hover shine", "鼠标悬停在按钮上时叠加一层金属扫光。", "Overlay a metallic sweep while the pointer hovers a button."),
@@ -57,9 +78,9 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionAppearance, "透明主题", "Transparent theme", "开启后界面表层完全透明，壁纸色彩全量透出。", "Make the interface surfaces fully transparent so the wallpaper shows through."),
 		row(SectionAppearance, "隐藏侧栏遮罩", "Hide sidebar mask", "开启后左侧栏不再叠加遮罩，与工作区底色保持一致。", "Stop overlaying a mask on the left sidebar so it matches the workspace."),
 		row(SectionAppearance, "界面字体", "Interface font", "填写本机已安装的字体名。留空则用系统默认。", "Name an installed font. Leave blank for the system default."),
-		value(SectionAppearance, "字号", "Font size", fixed("16px")),
+		value(SectionAppearance, "字号", "Size", fontSize("interface")),
 		row(SectionAppearance, "等宽字体", "Monospace font", "填写本机已安装的等宽字体名。留空则用系统默认。", "Name an installed monospace font. Leave blank for the system default."),
-		value(SectionAppearance, "代码字号", "Code font size", fixed("13px")),
+		value(SectionAppearance, "代码字号", "Code size", fontSize("code")),
 		row(SectionAppearance, "字号大小", "Font size", "仅影响会话内容的字号", "Only affects the size of conversation content"),
 		row(SectionAppearance, "输入特效", "Typing effect", "键入字符时在输入框播放短暂回显，可替换光标样式。", "Play a short echo in the composer while typing; can replace the cursor style."),
 		row(SectionAppearance, "发送消息时的思考炫光", "Thinking glow when sending", "智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored edge glow around the composer while the agent sends or thinks."),
@@ -89,13 +110,101 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionRemote, "传输加密", "Transport encryption", "手机会话使用端到端加密。", "Phone sessions use end-to-end encryption."),
 		row(SectionRemote, "刷新配对码", "Refresh pairing code", "只换二维码；已配对设备仍有效，除非解除配对。", "Only replaces the QR code; paired devices stay valid unless unpaired."),
 	}
+	entries = append(entries, nestedSearchEntries()...)
+	if m.Account != nil && m.Account.Status != "credential-stored" && m.OnSignIn != nil {
+		entries = append(entries, searchEntry{section: SectionGeneral, title: providerCopy("账户登录", "Sign in"), detail: providerCopy("登录账户", "Sign in to your account"), target: "general-account", open: m.OnSignIn})
+	}
+	var snap store.ViewState
+	if m.Store != nil {
+		snap = m.Store.Snapshot()
+	}
+	for _, page := range primaryNavigation(m, snap) {
+		entries = append(entries, searchEntry{section: page.id, title: navigationLabel(m, page.id), detail: providerCopy("设置页面", "Settings page"), open: page.onSelect})
+	}
+	// Index the live description, not a fixed list of plugin names. Values and
+	// secret-like fields never enter search text. Registered dedicated rows keep
+	// their richer entry; all other schema fields retain a real form destination.
+	for _, ns := range snap.Namespaces {
+		for _, field := range ns.Fields {
+			if SecretLikeKey(field.Key) {
+				continue
+			}
+			duplicate := false
+			for _, entry := range entries {
+				if entry.target == ns.NS+"."+field.Key {
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				continue
+			}
+			name, key := ns.NS, field.Key
+			title := field.Label
+			if title == "" {
+				title = key
+			}
+			open := func() {
+				if m.OnSelectNamespace != nil {
+					m.OnSelectNamespace(name)
+				} else if m.Store != nil {
+					m.Store.Select(name)
+				}
+			}
+			section := SectionForNamespace(name)
+			pageTitle := navigationLabel(m, section)
+			section = SectionGeneral // the namespace browser is the generic General form destination
+			entries = append(entries, searchEntry{section: section, title: title, detail: field.Description + " · " + pageTitle + " · " + name, target: "field-" + key, open: open})
+		}
+	}
+	for _, contribution := range m.ContributedSections {
+		for _, field := range contribution.SearchEntries {
+			entries = append(entries, searchEntry{section: contribution.ID, title: field.Title, detail: field.Description, target: field.Target, reveal: field.Reveal, open: contribution.OnSelect})
+		}
+	}
+	if m.PublicContributions.Entries != nil {
+		for _, page := range primaryNavigation(m, snap) {
+			slot := "settings." + string(page.id) + ".item"
+			if page.id == SectionUsageStats {
+				slot = "settings.usage.item"
+			}
+			for _, contribution := range m.PublicContributions.Entries(slot, "") {
+				if contribution.Native {
+					continue
+				}
+				title, detail := settingsContributionSearchText(contribution.Nodes)
+				if label := strings.TrimSpace(contribution.Label); label != "" {
+					if title != "" {
+						detail = strings.TrimSpace(title + " · " + detail)
+					}
+					title = label
+				}
+				if title != "" {
+					entries = append(entries, searchEntry{section: page.id, title: title, detail: detail, target: "public-settings-item-" + contribution.Handle, open: page.onSelect})
+				}
+			}
+		}
+	}
+	filtered := entries[:0]
+	for _, entry := range entries {
+		slot := "settings." + string(entry.section) + ".item"
+		if entry.section == SectionUsageStats {
+			slot = "settings.usage.item"
+		}
+		id := settingsSearchEntryBuiltinID(entry, slot)
+		if id != "" && !m.PublicContributions.NativeWinner(slot, "", id) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }
 
-// settingsSearchMatches lists the index rows whose title or line contains the
-// query, in rail order, restricted to pages the rail actually offers.
+// settingsSearchMatches matches every word across the title, description and
+// page name, ranking title matches first and keeping the rail's stable order.
 func settingsSearchMatches(m Model, available map[SectionID]bool, query string) []searchEntry {
-	needle := strings.ToLower(strings.TrimSpace(query))
-	if needle == "" {
+	terms := strings.Fields(strings.ToLower(query))
+	if len(terms) == 0 {
 		return nil
 	}
 	order := map[SectionID]int{}
@@ -104,14 +213,31 @@ func settingsSearchMatches(m Model, available map[SectionID]bool, query string) 
 	}
 	var matches []searchEntry
 	for _, entry := range searchEntries(m) {
-		if !available[entry.section] {
+		if !available[entry.section] && entry.open == nil {
 			continue
 		}
 		detail := entry.detail
 		if entry.value != nil {
 			detail = entry.value(m)
 		}
-		if strings.Contains(strings.ToLower(entry.title), needle) || strings.Contains(strings.ToLower(detail), needle) {
+		title, description, page := strings.ToLower(entry.title), strings.ToLower(detail), strings.ToLower(navigationLabel(m, entry.section))
+		matched, allTitle := true, true
+		for _, term := range terms {
+			inTitle := strings.Contains(title, term)
+			allTitle = allTitle && inTitle
+			if !inTitle && !strings.Contains(description, term) && !strings.Contains(page, term) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			entry.rank = 2
+			if allTitle {
+				entry.rank = 1
+				if strings.HasPrefix(title, terms[0]) {
+					entry.rank = 0
+				}
+			}
 			matches = append(matches, entry)
 		}
 	}
@@ -121,6 +247,7 @@ func settingsSearchMatches(m Model, available map[SectionID]bool, query string) 
 			matches[j], matches[j-1] = matches[j-1], matches[j]
 		}
 	}
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].rank < matches[j].rank })
 	return matches
 }
 
@@ -145,7 +272,7 @@ func settingsSearchResults(c *ui.Context, m Model, snap store.ViewState, query s
 			if entry.value != nil {
 				detail = entry.value(m)
 			}
-			subtitle := sectionLabel(entry.section)
+			subtitle := navigationLabel(m, entry.section)
 			if detail != "" {
 				subtitle += " · " + detail
 			}
@@ -165,7 +292,13 @@ func settingsSearchResults(c *ui.Context, m Model, snap store.ViewState, query s
 				if clear != nil {
 					clear()
 				}
-				if open := available[entry.section]; open != nil {
+				open := entry.open
+				if open == nil {
+					open = available[entry.section]
+				}
+				if open != nil {
+					jump := settingsSearchJumpState(c)
+					*jump = settingsSearchJump{Section: entry.section, Target: entry.target, Reveal: entry.reveal, Pending: true}
 					open()
 				}
 			}

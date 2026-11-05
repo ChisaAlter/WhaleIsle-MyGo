@@ -3,8 +3,6 @@ package settings
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -29,16 +27,18 @@ func configurationField(c *ui.Context, m Model, s store.ViewState, ns store.Name
 		return true
 	}
 	switch {
+	case ns.NS == "llm-deepseek-account" && f.Key == "modelOverrides":
+		return true
+	case ns.NS == "llm-deepseek-account" && f.Key == "models":
+		configurationAccountModels(c, m, s, ns, fg, muted)
+		return true
 	case ns.NS == "llm-pi-ai" && f.Key == "providers":
 		configurationProviders(c, m, s, ns, fg, muted)
 		return true
 	case (ns.NS == "llm-deepseek" || ns.NS == "llm-deepseek-api-key" || ns.NS == "llm-deepseek-account") && f.Key == "models":
 		var rows []any
 		_ = json.Unmarshal([]byte(s.Drafts[f.Key]), &rows)
-		configurationModels(c, m, s, ns.NS, rows, store.ConfigurationFields(ns.Schema, "models", "0"), func(v []any) { configurationWrite(m, f.Key, v) }, fg, muted)
-		if ui.Button(c, providerCopy("继承模型目录", "Inherit model catalog")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
-			configurationReset(m, f.Key)
-		}
+		configurationModels(c, m, s, ns.NS, rows, store.ConfigurationFields(ns.Schema, "models", "0"), func(v []any) { configurationWrite(m, f.Key, v) }, func() { configurationReset(m, f.Key) }, fg, muted)
 		return true
 	case ns.NS == "subagent-model-selection-settings" && f.Key == "allowedModels":
 		configurationSubagent(c, m, s, fg, muted)
@@ -47,14 +47,41 @@ func configurationField(c *ui.Context, m Model, s store.ViewState, ns store.Name
 	return false
 }
 
-func configurationInvalid(s store.ViewState) bool {
+func configurationInvalid(s store.ViewState, paths ...[]string) bool {
+	if s.SelectedNS == "llm-deepseek-account" {
+		if pending := s.Drafts["@account-model-rows"]; pending != "" {
+			var rows []any
+			if json.Unmarshal([]byte(pending), &rows) != nil || configurationModelError(rows) != "" {
+				return true
+			}
+		}
+		rows := []any{}
+		for id, raw := range configurationObject(s.Drafts["modelOverrides"]) {
+			fields := configurationObjectValue(raw)
+			if fields["disabled"] == true {
+				continue
+			}
+			row := map[string]any{"id": id}
+			for k, v := range fields {
+				row[k] = v
+			}
+			rows = append(rows, row)
+		}
+		if configurationModelError(rows) != "" {
+			return true
+		}
+	}
+
 	if s.SelectedNS == "subagent-model-selection-settings" && s.Drafts["enabled"] == "true" {
 		var rows []any
 		_ = json.Unmarshal([]byte(s.Drafts["allowedModels"]), &rows)
 		return len(rows) == 0
 	}
 	if s.SelectedNS == "llm-pi-ai" {
-		for _, raw := range configurationObject(s.Drafts["providers"]) {
+		for route, raw := range configurationObject(s.Drafts["providers"]) {
+			if len(paths) > 0 && len(paths[0]) == 2 && paths[0][0] == "providers" && paths[0][1] != route {
+				continue
+			}
 			p, _ := raw.(map[string]any)
 			if configurationModelError(configurationRows(p["models"])) != "" {
 				return true
@@ -69,12 +96,23 @@ func configurationInvalid(s store.ViewState) bool {
 	return false
 }
 
-func configurationInput(c *ui.Context, m Model, s store.ViewState, key, label string, value any, number bool, change func(any), fg, muted ui.Color) {
-	ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+func configurationInput(c *ui.Context, m Model, s store.ViewState, key, label string, value any, number bool, change func(any), fg, muted ui.Color, placeholder ...string) {
+	label = configurationLabel(label)
 	text := configurationText(value)
-	if m.DraftPtr != nil {
+	if number {
+		text = configurationFormatCapacity(value)
+	}
+	ui.Column(c.Key("configuration-input/" + key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
+		modelFieldLabel(c, label)
+		if m.DraftPtr == nil {
+			return
+		}
 		p := m.DraftPtr("configuration/"+key, text)
-		if ui.TextInput(c, p).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!s.Writable || s.Saving).Changed() {
+		input := ui.TextInput(c, p).Label(label).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Disabled(!s.Writable || s.Saving)
+		if len(placeholder) > 0 {
+			input.Placeholder(placeholder[0])
+		}
+		if input.Changed() {
 			text = *p
 			if number {
 				v, err := configurationCapacity(text)
@@ -91,6 +129,30 @@ func configurationInput(c *ui.Context, m Model, s store.ViewState, key, label st
 				}
 			}
 		}
+	})
+}
+func configurationLabel(key string) string {
+	switch key {
+	case "route":
+		return providerCopy("Provider ID", "Provider ID")
+	case "displayName":
+		return providerCopy("显示名称", "Display name")
+	case "baseURL":
+		return providerCopy("API 地址", "API address")
+	case "id":
+		return providerCopy("模型 ID", "Model ID")
+	case "name":
+		return providerCopy("模型名称", "Model name")
+	case "contextWindow":
+		return providerCopy("上下文窗口", "Context window")
+	case "maxTokens":
+		return providerCopy("最大输出 token 数", "Max output tokens")
+	case "defaultContextWindow":
+		return providerCopy("默认上下文窗口", "Default context window")
+	case "defaultMaxTokens":
+		return providerCopy("默认最大输出 token 数", "Default max output tokens")
+	default:
+		return key
 	}
 }
 func configurationSet(row map[string]any, key string, value any) {
@@ -109,216 +171,62 @@ func configurationHas(fields []store.Field, key string) bool {
 	return false
 }
 
-func configurationModalities(c *ui.Context, s store.ViewState, row map[string]any, key string, change func(), fg ui.Color) {
-	ui.Text(c, key).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	for _, choice := range []string{"text", "image"} {
-		values := configurationRows(row[key])
-		selected := false
-		for _, v := range values {
-			if v == choice {
-				selected = true
-			}
-		}
-		if ui.Checkbox(c, &selected, choice).Disabled(!s.Writable || s.Saving).Changed() {
-			next := []any{}
-			for _, v := range values {
-				if v != choice {
-					next = append(next, v)
-				}
-			}
-			if selected {
-				next = append(next, choice)
-			}
-			row[key] = next
-			change()
-		}
-	}
-	if ui.Button(c, providerCopy("继承输入类型", "Inherit input types")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
-		delete(row, key)
-		change()
+func configurationModalityLabel(choice string) string {
+	switch choice {
+	case "text":
+		return providerCopy("文本", "Text")
+	case "image":
+		return providerCopy("图片", "Image")
+	default:
+		return choice
 	}
 }
 
-func configurationModels(c *ui.Context, m Model, s store.ViewState, scope string, rows []any, fields []store.Field, change func([]any), fg, muted ui.Color) {
-	ui.Text(c, providerCopy("模型目录与元数据", "Model catalog and metadata")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	if message := configurationModelError(rows); message != "" {
-		ui.Text(c, message).TextColor(fg)
-	}
-	for i, raw := range rows {
-		row, _ := raw.(map[string]any)
-		if row == nil {
-			continue
-		}
-		index := i
-		ui.Column(c).Gap(6).Padding(14, 16).Radius(12).Border(0.5, c.Theme().Border.Alpha(0.45)).Background(c.Theme().Surface).Children(func() {
-			ui.Text(c, fmt.Sprintf("Model %d", index+1)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-			for _, key := range []string{"id", "name", "contextWindow", "maxTokens"} {
-				if key != "id" && !configurationHas(fields, key) {
-					continue
-				}
-				field := key
-				configurationInput(c, m, s, fmt.Sprintf("%s/model/%d/%s", scope, index, field), field, row[field], field == "contextWindow" || field == "maxTokens", func(v any) { configurationSet(row, field, v); change(rows) }, fg, muted)
-			}
-			if configurationHas(fields, "input") {
-				configurationModalities(c, s, row, "input", func() { change(rows) }, fg)
-			}
-			if configurationHas(fields, "reasoningEfforts") {
-				mode := "inherit"
-				efforts, has := row["reasoningEfforts"].(map[string]any)
-				if has {
-					mode = "custom"
-				} else if row["reasoningEfforts"] == false {
-					mode = "disabled"
-				}
-				ui.Text(c, providerCopy("推理级别", "Reasoning levels")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-				if ui.Select(c, &mode, []string{"inherit", "disabled", "custom"}).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!s.Writable || s.Saving).Changed() {
-					switch mode {
-					case "inherit":
-						delete(row, "reasoningEfforts")
-					case "disabled":
-						row["reasoningEfforts"] = false
-					case "custom":
-						row["reasoningEfforts"] = map[string]any{"off": nil, "low": "low", "medium": "medium", "high": "high"}
-					}
-					change(rows)
-				}
-				if has {
-					for _, level := range []string{"off", "minimal", "low", "medium", "high", "xhigh", "max"} {
-						level := level
-						_, selected := efforts[level]
-						if ui.Checkbox(c, &selected, level).Disabled(!s.Writable || s.Saving).Changed() {
-							if selected {
-								if level == "off" {
-									efforts[level] = nil
-								} else {
-									efforts[level] = level
-									if m.DraftPtr != nil {
-										*m.DraftPtr(fmt.Sprintf("configuration/%s/model/%d/reasoning/%s", scope, index, level), level) = level
-									}
-								}
-							} else {
-								delete(efforts, level)
-							}
-							change(rows)
-						}
-						if selected && level != "off" && m.DraftPtr != nil {
-							p := m.DraftPtr(fmt.Sprintf("configuration/%s/model/%d/reasoning/%s", scope, index, level), configurationText(efforts[level]))
-							if ui.TextInput(c, p).FillWidth().Height(28).Radius(6).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(!s.Writable || s.Saving).Changed() {
-								efforts[level] = strings.TrimSpace(*p)
-								change(rows)
-							}
-						}
+func configurationModalities(c *ui.Context, s store.ViewState, row map[string]any, key string, change func(), fg ui.Color, fallback ...[]any) {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+		modelFieldLabel(c, providerCopy("输入类型", "Input types"))
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(16).MinHeight(28).AlignItems(ui.Center).Children(func() {
+			for _, choice := range []string{"text", "image"} {
+				choice := choice
+				values := configurationRows(row[key])
+				if len(values) == 0 {
+					values = []any{"text"}
+					if len(fallback) > 0 && len(fallback[0]) > 0 {
+						values = fallback[0]
 					}
 				}
-			}
-			if ui.Button(c, providerCopy("移除模型", "Remove model")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
-				change(append(append([]any{}, rows[:index]...), rows[index+1:]...))
+				selected := false
+				for _, v := range values {
+					if v == choice {
+						selected = true
+					}
+				}
+				label := configurationModalityLabel(choice)
+				if ui.Checkbox(c.Key("modality/"+key+"/"+choice), &selected, label).Disabled(!s.Writable || s.Saving || selected && len(values) == 1).Changed() {
+					next := []any{}
+					for _, v := range values {
+						if v != choice {
+							next = append(next, v)
+						}
+					}
+					if selected {
+						next = append(next, choice)
+					}
+					row[key] = next
+					if key == "inputModalities" {
+						hasImage := false
+						for _, v := range next {
+							hasImage = hasImage || v == "image"
+						}
+						if !hasImage {
+							delete(row, "imagePixelBudget")
+							delete(row, "imageMaxBytes")
+						}
+					}
+					change()
+				}
 			}
 		})
-	}
-	if ui.Button(c, providerCopy("添加模型", "Add model")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
-		change(append(rows, map[string]any{"id": ""}))
-	}
-}
-
-func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.Namespace, fg, muted ui.Color) {
-	providers := configurationObject(s.Drafts["providers"])
-	fields := store.ConfigurationFields(ns.Schema, "providers", "route")
-	models := store.ConfigurationFields(ns.Schema, "providers", "route", "models", "0")
-	ui.Text(c, providerCopy("供应商与模型配置", "Provider and model configuration")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	ui.Text(c, providerCopy("编辑后点击保存。凭据仍由凭据管理入口管理。", "Click Save after editing. Credentials remain managed through the credential controls.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	keys := make([]string, 0, len(providers))
-	for key := range providers {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, route := range keys {
-		p, _ := providers[route].(map[string]any)
-		if p == nil {
-			continue
-		}
-		route := route
-		ui.Column(c).Gap(8).Padding(14, 16).Radius(12).Border(0.5, c.Theme().Border.Alpha(0.45)).Background(c.Theme().Surface).Children(func() {
-			ui.Text(c, route).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-			save := func() { configurationWrite(m, "providers", providers) }
-			for _, key := range []string{"displayName", "baseURL", "defaultContextWindow", "defaultMaxTokens"} {
-				if !configurationHas(fields, key) {
-					continue
-				}
-				key := key
-				configurationInput(c, m, s, route+"/"+key, key, p[key], strings.HasPrefix(key, "default"), func(v any) { configurationSet(p, key, v); save() }, fg, muted)
-			}
-			for _, field := range fields {
-				if field.Key == "api" {
-					current := configurationText(p["api"])
-					options := append([]string{""}, field.EnumOptions...)
-					ui.Text(c, providerCopy("协议（空白继承）", "Protocol (blank inherits)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-					if ui.Select(c, &current, options).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!s.Writable || s.Saving).Changed() {
-						if current == "" {
-							delete(p, "api")
-						} else {
-							p["api"] = current
-						}
-						save()
-					}
-				}
-			}
-			if configurationHas(fields, "defaultInput") {
-				configurationModalities(c, s, p, "defaultInput", save, fg)
-			}
-			configurationProviderOptions(c, m, s, ns, route, p, save, fg, muted)
-			configurationModels(c, m, s, route, configurationRows(p["models"]), models, func(rows []any) { p["models"] = rows; save() }, fg, muted)
-			if ui.Button(c, providerCopy("继承供应商模型目录", "Inherit provider model catalog")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
-				delete(p, "models")
-				save()
-			}
-		})
-	}
-	configurationCreateProvider(c, m, s, providers, fields, models, fg, muted)
-}
-
-func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, providers map[string]any, fields, models []store.Field, fg, muted ui.Color) {
-	ui.Text(c, providerCopy("添加自定义供应商", "Add custom provider")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	const key = "@provider-create"
-	draft := configurationObject(s.Drafts[key])
-	save := func() { raw, _ := json.Marshal(draft); configurationSetForm(m, key, string(raw)) }
-	for _, field := range []string{"route", "displayName", "baseURL"} {
-		field := field
-		configurationInput(c, m, s, "create/"+field, field, draft[field], false, func(v any) { configurationSet(draft, field, v); save() }, fg, muted)
-	}
-	protocol := configurationText(draft["api"])
-	var protocols []string
-	for _, field := range fields {
-		if field.Key == "api" {
-			protocols = field.EnumOptions
-		}
-	}
-	ui.Text(c, providerCopy("Host 支持的协议", "Host-supported protocol")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	if ui.Select(c, &protocol, append([]string{""}, protocols...)).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(!s.Writable || s.Saving).Changed() {
-		draft["api"] = protocol
-		save()
-	}
-	rows := configurationRows(draft["models"])
-	configurationModels(c, m, s, "create", rows, models, func(v []any) { draft["models"] = v; save() }, fg, muted)
-	route := strings.TrimSpace(configurationText(draft["route"]))
-	endpoint := strings.TrimSpace(configurationText(draft["baseURL"]))
-	message := configurationCreateError(route, endpoint, protocol, rows, providers)
-	if message != "" {
-		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		if ui.Button(c, providerCopy("添加到草稿", "Add to draft")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving || message != "").Clicked() {
-			profile := map[string]any{"api": protocol, "baseURL": endpoint, "models": rows}
-			if name := configurationText(draft["displayName"]); name != "" {
-				profile["displayName"] = name
-			}
-			providers[route] = profile
-			configurationWrite(m, "providers", providers)
-			configurationSetForm(m, key, "{}")
-		}
-		if ui.Button(c, providerCopy("清空创建表单", "Clear create form")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Saving).Clicked() {
-			configurationSetForm(m, key, "{}")
-		}
 	})
 }
 
@@ -328,9 +236,6 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 	routes, loading, message := m.Store.ModelConfigurationCatalog()
 	if ui.Button(c, providerCopy("刷新模型目录", "Refresh model catalog")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(loading || s.Saving).Clicked() {
 		m.Store.RefreshModelConfigurationCatalog(context.Background())
-	}
-	if loading {
-		ui.Text(c, providerCopy("正在读取目录…", "Loading catalog…")).TextColor(muted)
 	}
 	if message != "" {
 		ui.Text(c, message).TextColor(fg)

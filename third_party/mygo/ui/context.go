@@ -427,10 +427,11 @@ func coreLocal[T any](e *node, key any, init func() T) *T {
 
 // state is what the runtime keeps about an element from frame to frame.
 type state struct {
-	regionEscape  func(bool) bool
-	rt            *engine
-	pendingSubmit bool
-	noticeQueued  bool
+	dialogBaseFrame uint64
+	regionEscape    func(bool) bool
+	rt              *engine
+	pendingSubmit   bool
+	noticeQueued    bool
 
 	id   uint64
 	seen uint64

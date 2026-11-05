@@ -1,5 +1,37 @@
 # 开发进度
 
+2026-11-03（R4.2续段）：已用现有候选runtime的独立物理副本实际通过Host完整启动、file/model/permission/feedback/1017认证注册与流取消，并通过DOCX/XLSX/PPTX的Host→Store→随包Kit转PDF；未发模型请求，所属进程/监听已回收。修好检查及候选启动脚本的PowerShell`$HOME`变量冲突，并给fresh检查工作区建立精确Git根。没有新建候选、重跑安装或触发CI。**仍不可交付**：电脑控制再次报native pipe不存在，新候选EXE未启动；Team/Office实际呈现、完整窗口对照、真实模型与外部/更新恢复缺口继续保留。[当前收据](../tmp/parity-delivery-r4-20261103/candidate-r4.2/RESULT.md)。
+
+2026-11-03（R4.2隔离候选）：11领域源码和共享消费者已归并，定向普通QA收口，完整主包通过。已构建当前源码和完整runtime的[R4.2隔离候选](../tmp/parity-delivery-r4-20261103/candidate-r4.2/RESULT.md)，纳入全部8个Team输入；实际修复漏应用的既定后台补丁及NSIS源路径MAX_PATH编译错误。独立产品身份的完整安装/覆盖重装/卸载脚本及最终清理通过，原版注册项前后不变；外层日志流误判的退出1单列保留，没有重放有效安装。版本**仍不可交付**：Computer Use在候选交接点再次复核仍缺native pipe，新候选未启动；真实窗口、模型、必要外部链、正式更新/恢复未闭合。两项私密令牌请求超时，未建仓或发真实模型请求。完整证据见[R4执行记录](parity/full-audit-20261102/DELIVERY-R4-20261103.md)与`tmp/parity-delivery-r4-20261103/qa/`。
+
+2026-11-03：用户启动“完全对齐，交付就绪版本”目标，已从R3审查进入[R4产品实现](parity/full-audit-20261102/DELIVERY-R4-20261103.md)。完整125条差异按实际消费者修复，root统一共享接口；先产品后定向验证，不把局部源码交接写成就绪。当前未测试、启动、模型请求、CI或发布；实际窗口与最终交付仍未完成。
+
+2026-11-03：[R3 全量源码对照已汇总](parity/full-audit-20261102/REVIEW-R3-20261103.md)：11 个领域、332 条表面/菜单/弹层目录、125 条差异记录（P1 16、P2 99、P3 10）；758 动作与367粗项均有明确处置，不限 R2 的54项，不按记录数冒充独立根因数或通过率。当前仍未对齐，新增阻点包括附件归属、局部草稿提交、失败保稿、语音业务回执、启动器确认、普通Team和Office预览。用户已允许隔离构建与两端窗口对比；原生 R3.1 编译成功、两端环境已准备但未启动。两路 Computer Use 均报 native pipe 不存在，真实窗口部分等待连接恢复，完整对比尚未完成。原版真实配置、模型请求、CI与发布不动，本轮只审查、不修产品。
+
+2026-11-03：用户授权“全部推进开发”后，第二轮 **54 项（P1 25、P2 29）的产品源码及消费者接线已落盘**，并补齐已定位的自动化日期/时钟交互、外部 feature writer 取消/失败局部回滚。主装配已消费各域接口，逐项结果和未证明范围见[执行记录](parity/full-audit-20261102/IMPLEMENTATION.md)。仅源码阅读、编辑、gofmt 和直接 diff；未编译或运行。测试、测试准备、桌面、模型、构建与发布仍停止，`.8` 不包含这些改动，完整功能对齐未签署完成。
+
+2026-11-03：第二轮源码清查已整合 **54 项当前未对齐项（P1 25、P2 29）**，覆盖设置、账号/用量、MCP/Skills/预设、远程/生命周期、桌宠/助理、对话剩余消费者、动态扩展及工作区侧栏。优先项是越界写入、敏感内容、隐藏 Pad 执行、消息/轨迹丢展示，以及保存/取消断链。详见[第二轮缺口与修复顺序](parity/full-audit-20261102/UI-AUDIT-R2-20261103.md)。本轮只更新清查记录，未追加产品修改；测试、桌面与构建保持停止。全量实现仍未完成。
+
+2026-11-03：**撤回“整体实现完成、进入验收”的判断，`.8` 不是就绪版本。** 用户截图暴露的不是视觉收尾，而是草稿状态流、菜单目的地、右栏资源目录/挂载及内部文案外露等实现错误。当前已停止测试、桌面输入、真实模型请求与新候选构建，改为直接对照已安装0.3.13的实际客户端实现修复；新增源码尚未打入 EXE。既有局部运行收据仅按其原范围保留。见[当前实现纠偏与确切缺口](parity/full-audit-20261102/UI-REPAIR-20261103.md)。
+
+2026-11-03 源码纠偏继续覆盖截图之外的实际消费者：回合导航不再固定高亮末回合，问题失败后可以修改重提，计划审批恢复摘要与独立预览，“已编辑文件”不再由工具意图推断，自动化新建复用工作区/草稿流程。各域接口已接源码，尚未编译或运行；未完成页面与剩余字段见上方纠偏记录，全量实现仍未完成。
+
+2026-11-03 历史候选 **`.8`** 已生成，纳入当时 Skills 调用标签/删除后缓存/cold promote 目录自动恢复三处修复，以及发布 workspace `replace` 完整帧消费。私有入口曾实际启动 EXE，认证 Host 握手 **5.59秒**、随后存活10秒；测试进程/监听回收，私有Git根正确，application.log 0B。该收据不代表当前界面实现就绪。
+
+当前生产consumer + `.7` Host实际通过：两目录/三Session明确归属、重命名/工作区顺序/pin/archive/undo/归档后精确删除、移除注册保留文件/会话及config/Host正常重启恢复（续段21.226s、模型请求0）；项目/用户Skills完整作者、原skill工具、用户显式调用、撤销/取消及确认删除、无手动刷新的同profile目录恢复（续段11.916s）。两域首段有效动作复用，产品原失败和QA合同错误分别保留。
+
+Goal原创建/暂停/编辑/恢复/完成/清除、重启active但disarmed且无重放通过；Plan原mode持久恢复、默认legacy review明确批准后实际退出/下一step及显式新输入通过。Plan余段只用原profile，未重读有效文件、未重跑Goal或恢复，最终3请求/1工具/1审批回执。该域无产品增量，不单独构建；named Discuss/Reopen不由默认unnamed合同扩称通过。
+
+此前Files根目录/真实watch、预设实际采用、手动压缩/恢复、子会话、Provider、Project/Team/队列、群聊、附件、用量导出、v4历史导入、MCP、Pad、终端与循环任务等有效证据保留；具体源码/runtime版本见原报告。**全量验收仍未完成**：手机最近有效检查仍有受保护旧预览3180占用；Windows实际交互（含原报轨迹点击/Pad JS桥）、真实账号/设备/外部链、symlink权限、发布源和最终安装器未闭合。367项/758个重叠动作分母不变，不批量改绿。见[完整执行记录](parity/full-audit-20261102/IMPLEMENTATION.md)；以下为历史。
+
+磁盘阻点已解除：08:15 按授权仅清理 `.1–.6/whaleisle` 六个旧程序载荷，保留`.8`/`.7`、全部profile、源码和证据；完成时C盘31,814,238,208B（约29.6GiB）。[清理收据](../tmp/parity-implementation-20261103/candidate8/old-payload-cleanup-result.json)。测试仍按用户最新指示停止，与容量恢复分别处理。
+
+2026-11-02 非接管式本机运行验收不通过：已用实际诊断 EXE 验证隔离启动和 Host 握手（5.17 秒）；真实 Host 复现全局新会话缺工作区归属，另运行复现普通登录协议拒绝、MCP 添加无表单和 Project 四项桥接不支持。后面三项为生产组件运行，不是窗口点击。完整结论见 [本机运行验收](parity/full-audit-20261102/RUNTIME-ACCEPTANCE.md)。未修产品，当前界面交互及其余运行验收仍未完成。
+
+2026-11-02 动作级补审已整合：从原安装 0.3.13 的入口、菜单、快捷键、字段和随包贡献补交 758 个动作/动作组映射，回写纠正 33 个旧粗项状态。新增确认 Pad 默认装配/原生入口、轨迹与子会话具体动作、模型字段、壁纸/语音准备、远程采用及插件更新等遗漏；不是只有四条运行断点。旧 367 项仍是粗粒度索引，动作数与独立根因不能相加。产品未修复、当前验收不通过。见 [总报告](parity/full-audit-20261102/README.md)、[动作级清单](parity/full-audit-20261102/ACTIONS.md) 和 [纠正后的旧项](parity/full-audit-20261102/FUNCTIONS.md)。旧矩阵“20 项已实现”和历史“主体可用”不再作为当前状态依据。
+
+2026-11-02 轨迹点击反馈：实际 rc.3 点击“轨迹”后下划线也不动，原始主故障原因仍未定位。旁置诊断版已记录一次真实点击及返回的事件/选择/回写成功，但未观察实际下划线像素。已修复的聊天空/加载/错误占位遮挡轨迹是相关缺陷，不能解释原始点击失效；旧完整安装器也未包含该后续修复。见[轨迹点击诊断](trajectory-click-diagnosis-20261102.md)及全量报告 SH-005/006。
+
 2026-11-02：Windows `0.2.1-rc.3` 无桌面核心验收与完整载荷隔离静默安装、升级、卸载通过；实际安装暴露的 NSIS 长路径错误已修复。[完整候选安装包](../dist/0.2.1-rc.3/WhaleIsle-Setup-0.2.1-rc.3.exe)为未签名本地产物，源码和有效证据见[本轮交付记录](release-stabilization-20261102.md)。窗口布局、系统输入法、物理交互、真实外部模型及同产品 ID 的现有安装接管仍未验收。
 
 2026-10-26 历史收口轮：桌宠固定中心选屏 + 真实双屏跨屏放置修复、会话级插件座位接入、防弹窗修复曾打进完整安装包，记录见[收口轮验收记录](parity/acceptance-round-20261026.md)。其中 `-consolefix.exe` 是当轮阶段产物，后续记录包括 10 月 27 日重新打包的 final；它们不是当前源码的交付入口。严格像素/真机验收仍未完成。
@@ -12,7 +44,9 @@
 
 2026-10-14 文档预览补充：本地 `.htm/.html/.xhtml` 已接通交付卡和 Files 工具栏 → 隔离 WebView 文档标签，见 [HTML 文档预览](features/local-html-document.md)。仅保存文件快照，草稿保留；静态 HTML/CSS/图片/字体可显示，声明的同工作区资源有界快照内联，脚本和外网禁用，失败保留系统打开。Windows 实际呈现与隔离行为仍待实机验收。
 
-更新时间：2026-10-10。总体计划见 `docs/plan.md`（里程碑 M0–M11）；本文记录每项的实现状态，随开发更新。
+## 历史里程碑记录（不作为当前可用性判定）
+
+以下原始更新时间为 2026-10-10，另附后续阶段记录。总体计划见 `docs/plan.md`（里程碑 M0–M11）；当前问题和修复顺序以上方 2026-11-02 全量审查为准。
 
 ## 总览
 
@@ -72,7 +106,7 @@
 - 兼容明文 JSON 读取；原子写（临时文件 + 重命名）。
 - 加载分类：文档若带 `version` / `payload` 标记，必须是结构完好且受支持的信封，否则以 `ErrInvalidCredentialsFormat` / `ErrUnsupportedEnvelopeVersion` 拒绝（`errors.Is` 可判），绝不回退当明文读；缺失文件返回零值且无错误；base64 校验先于读取 Local State 密钥；失败时不返回部分字段，错误文本不含取值 / payload / 版本号。
 - 测试 9 个（真实 DPAPI 往返、合成 Local State、篡改检测、分类表驱动），全绿；只使用临时目录。
-- 未确认点：Electron 44 的 safeStorage 在 Windows 是否确实产出 v10 AES-GCM 信封，需用真实安装版生成的 credentials.json 实测一次。
+- 2026-11-03 已用当前随包 Electron 44.5.0 的真实 safeStorage API、全新私有 profile 和合成字段，完成 Electron → 生产 Go Load/Save → Electron 的双向互操作，实际为 `v10`；见[当前证据](../tmp/parity-implementation-20261103/credentials-interop/result.json)。未读取原版真实凭据，旧用户 profile 接管和账号登录仍未验。
 
 ### 5. `internal/paths`
 
@@ -230,7 +264,7 @@
 
 ## 审查修正（功能完整性全面审查登记）
 
-依据 [`docs/work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md`](work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md)（只读审查，结论均附 `文件:行号` 证据；下原版证据列为 `reference/electron/src/` 下相对路径）登记自述与实际的差异。本节只登记差距与修正事实，不替代上文历史记录。
+依据 [2026-10-10 历史审查报告存档](../tmp/fix/profile/dsh-home/projects/project-7bfbe57e-508d-4825-8b25-f56e892f16cd/docs/work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md)（原报告位置为 `docs/work-add7354e-f037-4462-95c3-580a60009da8/feature-audit-report.md`；只读审查，结论均附 `文件:行号` 证据；下原版证据列为 `reference/electron/src/` 下相对路径）登记自述与实际的差异。本节只登记差距与修正事实，不替代上文历史记录。
 
 **验收状态：`docs/acceptance-ui-parity.md`（像素级 1:1 + 功能全量穷举验收合同）当前零双签。** §0.3 环境 E1–E7、§2 画面 L-*/D-*/P-*/S-*、§3 功能 FL-*/FD-*/FS-*、§4 门禁 G1–G6 与 §6 总签署的「完成 / 审查完成」列全部为空；按该合同 §5，未双签的历史结论作废——项目尚未通过验收，不得标记目标完成。
 
@@ -322,7 +356,8 @@
 
 - round144：设置页文案审计 623 处 providerCopy，46 处确认漂移已修（General 13 / Appearance 16 / Models 2 / About 1 / Pet 11 / shortcuts 1），其中 scheme.title 的「色制」按原样对齐。
 - round145：**单实例陈旧 socket 修复**——强杀/崩溃后不再静默退出：owner 读参数后回写 ok 握手，无应答则接管 socket；存活进程仍占路径时照常启动（仅失去转发）。	hird_party/mygo/single_instance.go + 复现脚本。
-- round146：**暂存 rc.2 harness runtime**（来源为安装版只读资源，untime/ 不入 git）并首次跑通 **start→boot→ready（约 6s）**：主窗 1440×920 可见、启动器关闭、端口 3099 监听、UIA 读到完整聊天壳（侧栏/工作区/探索未至之境/composer/deepseek-official / deepseek-flash/发送消息），无启动错误、无 crash 报告。
+- round146：**暂存 rc.2 harness runtime**（来源为安装版只读资源，
+untime/ 不入 git）并首次跑通 **start→boot→ready（约 6s）**：主窗 1440×920 可见、启动器关闭、端口 3099 监听、UIA 读到完整聊天壳（侧栏/工作区/探索未至之境/composer/deepseek-official / deepseek-flash/发送消息），无启动错误、无 crash 报告。
 - 口径更正：Process.Responding/MainWindowHandle 会缓存启动器句柄，启动器销毁后会误报 False；以后以新 Process 实例 + WM_NULL 探测 + UIA 文本为准。
 - 证据：pass275（87,531,520 B / SHA256 `08FB561F…`）；scripts/harness-start-smoke.ps1 可重复；harness-start-pass275.json ready=True。
 - 残留：Project overlay 未挂（staged vendor 无 current-host-build.json，dsh-project bridge 跳过）；runtime 路径绑定，移动仓库需重新 stage；.runtime-rc2/ 旧暂存可删。
@@ -360,7 +395,8 @@
 
 - round160：设置页按原生 DOM 实测收口——导航项 38→40 高、padding 8→9、gap 8→4；行高下限 64→68；值控件右对齐（药丸与列表右缘齐平）；对话框 800×800 r28、行 16 padding、14/22 标题 + 12/18 描述、36×20 开关等已相等。
 - round161：桌宠静息呈现对齐原生——不再常驻「原版分层动画」标签与「状态」按钮；标签仅在渲染降级时出现，状态改为 hover/键盘/右键/长按唤出，焦点与 Esc/外点关闭；窗口仍 240×438。
-- **手机远程打通**：从安装版 app.asar 提取 dshd-remote（src/main + shared + mobile/web + 解包条目 + node_modules），better-sqlite3 为 Electron ABI 149，故 daemon 以 ELECTRON_RUN_AS_NODE=1 运行（已写入 spawn env）；并修复启动路径——efreshBoot 首次 Ready 时一次性启动网关。实机 pass280：3099/3499/3180 全部监听，手机 SPA Whale Isle · 手机远程 200（16,453 B），kill 后全部关闭。
+- **手机远程打通**：从安装版 app.asar 提取 dshd-remote（src/main + shared + mobile/web + 解包条目 + node_modules），better-sqlite3 为 Electron ABI 149，故 daemon 以 ELECTRON_RUN_AS_NODE=1 运行（已写入 spawn env）；并修复启动路径——
+efreshBoot 首次 Ready 时一次性启动网关。实机 pass280：3099/3499/3180 全部监听，手机 SPA Whale Isle · 手机远程 200（16,453 B），kill 后全部关闭。
 - round162：gap 矩阵刷新为 89 行（63 closed / 25 open / 1 measurement-error，新增 S01–S05 小缺口）。
 - pass280：87,558,144 B / SHA256 `A6AC099E…`；harness-start-pass280.json ready=True。
 - 残留：app 内配对码未断言（daemon ~28s 才生成 offer）、relay/0.0.0.0/真机未验证；桌宠 260 高度需 popover；设置页仅 General 做了原生 DOM 逐项；S01–S05；验收合同双签。
@@ -537,7 +573,7 @@
 
 ## 下一步顺序
 
-1. **M0–M11 主体仍可用**，但 **未宣称 GA**：需 Electron 44 同目录 credentials 信封实测、双开数据目录约束、跨进程 config CAS 等见「已知问题」。
+1. **当前不能交付**：先修全量审查中的数据安全、工作区/新会话及登录主链；下列历史技术项不能替代该修复顺序。Electron 44 同目录 credentials 信封实测、双开数据目录约束、跨进程 config CAS 仍保留为各自问题。
 2. **M5 citations**：已有两段式实现 —— 首选 `msg.Web` 上的 typed 来源（`citationsFromWebResult`），其次保留事件 JSON/正文的 best-effort 启发式回退。剩余工作不是补 typed 解析，而是待 harness persistence 提供正式 `source` 字段后**收窄/删除**启发式回退（上游依赖，非 Go 缺陷）。
 3. **M9 deep-link**：`applyDeeplink` 已完整分发 `ActionOpen/Launcher/Settings/Session/Usage/Market/Schedule/Agents/Auth`；`Agents` 打开侧栏 agents 页、`Session` 选中会话、`Auth` 落到 account 区。剩余仅为 WebView 焦点/层级回归（多面板切换 Host inset）的人体验收。
 4. **跨进程 config CAS**：当前 `commitMu` 只串行化**本进程内**所有 `Store`（persistence.go「不与其他进程协调」）。要与 Electron 外壳共享 `config.json` 需 OS 级文件锁/锁文件——真实差距，属本进程外协调。

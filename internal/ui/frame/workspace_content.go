@@ -2,22 +2,28 @@ package frame
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/files"
-	"whaleisle/internal/ui/planpreview"
 )
 
 // WorkspaceFileState is one pane's editor, tab set, selection and viewport.
 // FileTabs still owns the existing read/save queues and draft conflict checks.
 type WorkspaceFileState struct {
+	ResourcePath                                          string                  `json:"resourcePath,omitempty"`
+	ResourceTitle                                         string                  `json:"resourceTitle,omitempty"`
+	ProjectTarget                                         *projectflow.FileTarget `json:"projectTarget,omitempty"`
+	projectAccess                                         *ProjectFileAccess
+	projectBinding                                        string
 	Tabs                                                  files.Tabs      `json:"tabs"`
 	Expanded                                              map[string]bool `json:"expanded,omitempty"`
 	Selected, Filter, Preview, Error, Draft, Status, Stat string
@@ -29,6 +35,115 @@ type WorkspaceFileState struct {
 	previewBinding, previewRoot                           string
 }
 
+// Explorer selection opens a stable DockKit resource rather than nesting a
+// preview beneath the tree. The existing Files reader/editor owns its content,
+// async jobs, draft conflict checks and recovery data unchanged.
+func openWorkspaceFileResource(m Model, source files.Model, value string) error {
+	if m.Sizes == nil || m.Sizes.Workspace == nil {
+		return fmt.Errorf("%s", paneLabel("文件资源入口不可用", "File resource opener is unavailable"))
+	}
+	preferred := ""
+	if m.workspacePane != nil {
+		preferred = m.workspacePane.ID
+	}
+	handled, err := m.Sizes.Workspace.OpenFileResource(source, value, preferred)
+	if err != nil {
+		return err
+	}
+	if !handled {
+		return fmt.Errorf("%s", paneLabel("文件在当前工作区不可用", "File is unavailable in the current workspace"))
+	}
+	return nil
+}
+
+// OpenFileResource is the common tree, diff, picker and conversation-reference
+// entry point. An unhandled address remains available to the existing Host
+// opener; an existing resource keeps its live draft instead of being reread.
+func (w *WorkspacePanes) OpenFileResource(source files.Model, value string, preferred ...string) (bool, error) {
+	base, line, hasLine := files.PresentedPath(value)
+	address := value
+	if hasLine {
+		if source.ReadRemoteContext != nil || source.ReadTextPageContext != nil {
+			address = base
+		} else {
+			if _, within := files.WorkspaceRelativePath(source.WorkspaceRoot, value); !within {
+				address = base
+			} else {
+				literal := value
+				if !filepath.IsAbs(literal) {
+					literal = filepath.Join(source.WorkspaceRoot, literal)
+				}
+				if info, err := os.Stat(literal); err != nil || !info.Mode().IsRegular() {
+					address = base
+				}
+			}
+		}
+	}
+	rel, ok := files.WorkspaceRelativePath(source.WorkspaceRoot, address)
+	if !ok || rel == "." {
+		return false, nil
+	}
+	var target *WorkspacePane
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == rel && n.Files.previewBinding == source.BindingID && n.Files.previewRoot == source.WorkspaceRoot {
+			target = n
+		}
+	})
+	if target != nil {
+		if hasLine && address == base {
+			files.RequestLine(workspaceFileResourceModel(source, target.Files), line)
+		}
+		w.pending = func() {
+			w.activateDockTab(target.ID)
+			w.focusPending = target.ID
+			if target.Float != nil {
+				w.MinimizeWorkspaceFloat(target.ID, false)
+			}
+		}
+		return true, nil
+	}
+	target = w.leaf("files")
+	state := &WorkspaceFileState{ResourcePath: rel, Expanded: map[string]bool{}, Mode: files.EditViewEdit, Split: 200, TreeSplit: 200}
+	target.Files = state
+	if source.Tabs != nil {
+		state.Tabs.Preferences = source.Tabs.Preferences
+	}
+	state.Tabs.Bind(source.BindingID, source.WorkspaceRoot)
+	state.previewBinding, state.previewRoot = source.BindingID, source.WorkspaceRoot
+	source = workspaceFileResourceModel(source, state)
+	handled, err := files.OpenPresentedPath(source, value)
+	if err != nil || !handled {
+		return handled, err
+	}
+	if state.Selected != "" {
+		state.ResourcePath = state.Selected
+	}
+	sourceID := w.Active
+	if len(preferred) > 0 && preferred[0] != "" {
+		sourceID = preferred[0]
+	}
+	w.pending = func() {
+		seat := w.Root.find(sourceID)
+		w.placeDockResource(target, seat, false)
+		w.activateDockTab(target.ID)
+		w.focusPending = target.ID
+		if seat != nil && seat.Kind == "guide" {
+			w.disposeWorkspaceResource(seat.ID)
+		}
+	}
+	return true, nil
+}
+
+func workspaceFileResourceModel(source files.Model, state *WorkspaceFileState) files.Model {
+	source.TreeOnly, source.ResourceOnly, source.OnOpenResource = false, true, nil
+	source.OnNewTab = nil
+	source.Tabs, source.Expanded = &state.Tabs, &state.Expanded
+	source.SelectedFile, source.Filter = &state.Selected, &state.Filter
+	source.Preview, source.PreviewErr, source.PreviewList = &state.Preview, &state.Error, &state.List
+	source.EditDraft, source.EditStatus, source.StatNote = &state.Draft, &state.Status, &state.Stat
+	source.Editing, source.EditViewMode, source.EditSplit = &state.Editing, &state.Mode, &state.Split
+	return source
+}
 func (s *WorkspaceFileState) capture(m Model) {
 	if m.FileTabs != nil {
 		s.Tabs = *m.FileTabs
@@ -116,6 +231,8 @@ func (s *WorkspaceFileState) publish(m Model) {
 func (s *WorkspaceFileState) model(m Model) Model {
 	if m.SelectedFile == nil || *m.SelectedFile != s.Selected {
 		m.FileOpenWithApps = nil
+		m.FileOpenWithState = nil
+		m.OnRefreshFileOpenWith = nil
 	}
 	m.FileTabs, m.FileExpanded = &s.Tabs, &s.Expanded
 	m.SelectedFile, m.FileFilter = &s.Selected, &s.Filter
@@ -169,14 +286,34 @@ func (w *WorkspacePanes) fileState(n *WorkspacePane, m Model) *WorkspaceFileStat
 // The old main-state fields are an adapter for existing open-file entry points.
 // They project only the focused pane; no two rendered panes share those fields.
 func (w *WorkspacePanes) beginFileProjection(m Model) Model {
-	w.beginDiffProjection(m)
-	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil {
+	w.syncPluginRightPanes(m)
+	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil && previous.Files.ProjectTarget == nil {
 		previous.Files.capture(m)
 	}
 	active := w.Root.find(w.Active)
+	if active != nil && active.Files != nil && active.Files.ProjectTarget != nil {
+		active = nil
+		w.Root.eachResource(func(n *WorkspacePane) {
+			if active == nil && (n.Files == nil || n.Files.ProjectTarget == nil) {
+				active = n
+			}
+		})
+	}
+	if active != nil {
+		actual := w.Active
+		w.Active = active.ID
+		w.beginDiffProjection(m)
+		w.Active = actual
+	}
 	hasFiles := false
 	w.Root.eachResource(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
-	state := w.fileState(active, m)
+	var state *WorkspaceFileState
+	if active != nil {
+		state = w.fileState(active, m)
+	} else {
+		state = &WorkspaceFileState{}
+		state.capture(m)
+	}
 	if !hasFiles {
 		state.capture(m)
 	}
@@ -186,7 +323,10 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 	state.Tabs.Bind(m.FileBindingID, m.WorkspaceRoot)
 	state.previewBinding, state.previewRoot = m.FileBindingID, m.WorkspaceRoot
 	state.publish(m)
-	w.legacyFileID = active.ID
+	w.legacyFileID = ""
+	if active != nil {
+		w.legacyFileID = active.ID
+	}
 
 	if trailing := m.WorkspaceTrailing; trailing != nil {
 		m.WorkspaceTrailing = func(c *ui.Context, density string) {
@@ -201,24 +341,8 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 		}
 	}
 
-	// Existing callbacks retain all original session/Host checks. Publish at the
-	// gesture, then collect their result into that same occurrence.
-	run := func(action func()) {
-		target := w.selectKind(w.Root.find(w.Active), "files")
-		state := w.fileState(target, m)
-		state.publish(m)
-		action()
-		state.capture(m)
-		if m.RightPaneTab != nil && *m.RightPaneTab != target.Kind {
-			w.selectKind(target, *m.RightPaneTab)
-		}
-		w.legacyFileID = w.Active
-	}
-	if open := m.OnOpenDeliverable; open != nil {
-		m.OnOpenDeliverable = func(path string) { run(func() { open(path) }) }
-	}
-	if preview := m.OnPreviewDeliverable; preview != nil {
-		m.OnPreviewDeliverable = func(path string) error {
+	wrapPreview := func(preview func(string) error) func(string) error {
+		return func(path string) error {
 			previousID, previousLegacy := w.Active, w.legacyFileID
 			previousRoute, previousFocus, previousFullscreen, previousPending := w.route, w.focusPending, w.Fullscreen, w.pending
 			adapterRoute := derefString(m.RightPaneTab)
@@ -228,7 +352,32 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			if w.deliveryPreviewHasUnsavedFile(m, path) {
 				return fmt.Errorf("%s", paneLabel("文件有未保存的草稿；请先保存后再预览", "The file has an unsaved draft; save it before previewing"))
 			}
-			target := w.selectKind(w.Root.find(previousID), "files")
+			var target *WorkspacePane
+			relative, inWorkspace := files.WorkspaceRelativePath(m.WorkspaceRoot, path)
+			w.Root.eachResource(func(n *WorkspacePane) {
+				if inWorkspace && n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == relative && n.Files.previewBinding == m.FileBindingID && n.Files.previewRoot == m.WorkspaceRoot {
+					target = n
+				}
+			})
+			// Unqualified Files is the established legacy preview owner. Keep
+			// its tabs, drafts and adapter pointers; addressed per-file resources
+			// continue to require their exact path and binding above.
+			if target == nil {
+				w.Root.eachResource(func(n *WorkspacePane) {
+					if target == nil && n.Kind == "files" && w.Root.dockGroup(n.ID) == w.Root.dockGroup(previousID) && (n.Files == nil || n.Files.ResourcePath == "" && n.Files.ProjectTarget == nil) {
+						target = n
+					}
+				})
+			}
+			added := target == nil
+			if target == nil {
+				target = w.leaf("files")
+				if inWorkspace {
+					w.fileState(target, m).ResourcePath = relative
+				}
+				w.placeDockResource(target, w.Root.find(previousID), false)
+			}
+			w.activateDockTab(target.ID)
 			state := w.fileState(target, m)
 			// A first-frame preview can arrive before the Files body renders.
 			// Publish the intended occurrence with its real binding, so the normal
@@ -242,6 +391,9 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			err := preview(path)
 			state.capture(m)
 			if err != nil {
+				if added {
+					w.disposeWorkspaceResource(target.ID)
+				}
 				w.pending, w.focusPending, w.Fullscreen = previousPending, previousFocus, previousFullscreen
 				w.activateDockTab(previousID)
 				w.route, w.legacyFileID = previousRoute, previousLegacy
@@ -256,6 +408,7 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 			// The callback selects browser only after accepting a document route.
 			// Text/image previews remain in the addressed Files occurrence.
 			if m.RightPaneTab != nil && *m.RightPaneTab == "browser" {
+				state.ResourcePath = ""
 				w.selectKind(target, "browser")
 			} else {
 				w.activateDockTab(target.ID)
@@ -266,14 +419,19 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 					*m.RightPaneTab = "files"
 				}
 			}
+			if guide := w.Root.find(previousID); guide != nil && guide.Kind == "guide" {
+				w.disposeWorkspaceResource(guide.ID)
+			}
 			w.legacyFileID = w.Active
 			return nil
 		}
 	}
-	if open := m.OnOpenPlanResource; open != nil {
-		m.OnOpenPlanResource = func(doc planpreview.Document) {
-			run(func() { open(doc) })
-			w.showOpenedPlan(m, doc)
+	if preview := m.OnPreviewDeliverable; preview != nil {
+		m.OnPreviewDeliverable = wrapPreview(preview)
+	}
+	if presentation := m.OnPreviewDeliverablePresentation; presentation != nil {
+		m.OnPreviewDeliverablePresentation = func(path, mode string) error {
+			return wrapPreview(func(path string) error { return presentation(path, mode) })(path)
 		}
 	}
 	return m
@@ -332,8 +490,8 @@ func previewWorkspaceRelative(root, path string) (string, bool) {
 }
 
 func (w *WorkspacePanes) finishFileProjection(m Model) {
-	w.finishDiffProjection(m)
-	if n := w.Root.find(w.Active); n != nil {
+	if n := w.Root.find(w.Active); n != nil && (n.Files == nil || n.Files.ProjectTarget == nil) {
+		w.finishDiffProjection(m)
 		w.fileState(n, m).publish(m)
 		w.legacyFileID = n.ID
 	}
@@ -368,6 +526,9 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 	if m.NewWorkspaceBrowser != nil {
 		local.BrowserContent = func(c *ui.Context) {
 			w.browserFor(n, m.NewWorkspaceBrowser)
+			refreshModel := local
+			refreshModel.workspacePane = n
+			bindWorkspacePageRefresh(refreshModel, n.browser.RefreshCurrent)
 			n.browser.SetMiniPlayerActions(func() {
 				w.Root.eachResource(func(other *WorkspacePane) {
 					if other != n && other.browser != nil {
@@ -425,8 +586,15 @@ func (w *WorkspacePanes) BeginContentFrame(binding, root string) {
 		}
 		if n.Files != nil {
 			n.Files.rendered = false
-			n.Files.Tabs.Bind(binding, root)
-			n.Files.previewBinding, n.Files.previewRoot = binding, root
+			if target := n.Files.ProjectTarget; target != nil {
+				n.Files.Tabs.Bind(n.Files.projectBinding, target.Root)
+				if n.Files.projectAccess == nil || !n.Files.projectAccess.current() {
+					n.Files.Tabs.Pause()
+				}
+			} else {
+				n.Files.Tabs.Bind(binding, root)
+				n.Files.previewBinding, n.Files.previewRoot = binding, root
+			}
 		}
 		n.remoteFilesRendered = false
 		if n.browser != nil {

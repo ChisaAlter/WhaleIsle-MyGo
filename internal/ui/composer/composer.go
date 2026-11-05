@@ -129,8 +129,13 @@ type Model struct {
 	OnPromptModeChange    func(mode session.PromptMode)
 	OnUseBusyEnterSetting func()
 	// OnSearchFileRefs calls fileReferences/list for @ mention query (optional).
-	OnSearchFileRefs   func(query string) []string
-	OnSearchReferences func(query string, quoted bool) []session.ReferenceCandidate
+	OnSearchFileRefs    func(query string) []string
+	OnSearchReferences  func(query string, quoted bool) []session.ReferenceCandidate
+	OnQueryReferences   func(context.Context, string, bool) ([]session.ReferenceCandidate, error)
+	RenderSlot          func(*ui.Context, string, func())
+	ExtraActions        func(*ui.Context)
+	Child               bool // addressed child: literal commands, native editing/stop gestures
+	referenceInvalidate func()
 
 	OnCancelEdit func()
 	Editing      bool // draft is a message edit (editMessageSeq)
@@ -143,11 +148,14 @@ type Model struct {
 }
 
 type suggestItem struct {
-	action  func()
-	drill   string
-	label   string
-	sub     string
-	insert  string
+	action func()
+	drill  string
+	label  string
+	sub    string
+	insert string
+	// section is the menu caption this row opens (launcher menus only); rows
+	// sharing the previous row's section and section-less rows draw none.
+	section string
 	kind    SuggestKind
 	command bool
 }
@@ -158,7 +166,8 @@ const stopShortcutHint = "Esc Esc"
 
 // View paints the prompt area with send and stop actions.
 func View(c *ui.Context, m Model) {
-	viewWithColors(c, m, theme.Resolve(m.ThemeID).Active(m.SystemDark))
+	m.referenceInvalidate = c.Services().Invalidate
+	renderComposerSlot(c, m, "conversation.composer", func() { viewWithColors(c, m, theme.Resolve(m.ThemeID).Active(m.SystemDark)) })
 }
 
 // viewWithColors keeps semantic surface roles together for the active palette.
@@ -194,12 +203,18 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		suggestClient = m.TextInput
 	}
 	kind, query, tok, quoted, suggestOpen := activeSuggestion(m, suggestClient)
+	if !suggestOpen && m.State != nil {
+		m.State.references.cancelQuery()
+	}
 	if m.Inert {
 		suggestOpen = false
 		m.SkillsOpen = false
 	}
-	items := buildSuggestItemsWithQuote(m, kind, query, quoted)
-	m.stopSuggestionsOpen = suggestOpen && len(items) > 0
+	var items []suggestItem
+	if suggestOpen {
+		items = buildSuggestItemsWithQuote(m, kind, query, quoted)
+	}
+	m.stopSuggestionsOpen = suggestOpen && (len(items) > 0 || kind == SuggestMention && referenceQueryActive(m))
 	skillsQuery := ""
 	if m.SkillsFilter != nil {
 		skillsQuery = *m.SkillsFilter
@@ -265,6 +280,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			paintSkillsPopup(c, m, skillItems, panel, border, fg, muted)
 		}
 		paintLeadingClaimHint(c, m, muted)
+		if !m.Hero {
+			renderComposerSlot(c, m, "conversation.input.managed", func() {})
+		}
 		if m.Hero {
 			// ConversationRoot.heroWorkspaceRow has a 4-DIP top margin and
 			// a 28-DIP row, followed by the composer's 8-DIP stack gap.
@@ -307,9 +325,6 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if workspace.Clicked() && m.OnPickHeroWorkspace != nil {
 					m.OnPickHeroWorkspace()
 				}
-				if m.AgentPresetSelection.Busy {
-					ui.Text(c, i18n.T(i18n.KeyComposerPresetApplying)).FontSize(12)
-				}
 				if m.AgentPresetSelection.Error != "" {
 					ui.Text(c, m.AgentPresetSelection.Error).FontSize(12)
 				}
@@ -323,22 +338,25 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				} else if len(m.Snapshot.AgentPresetLabels) > 0 {
 					presetLabel = presetDisplayName(m.Snapshot.AgentPresetLabels[0])
 				}
-				if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
-					presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, colors, presetOptions{
-						Leading:  func() { paintPresetIntroduction(c, m, presetLabel, fg) },
-						Text:     fg,
-						FontSize: 13,
-						Weight:   500,
-					})
-				} else {
-					ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
-						ui.Icon(c, presetAgentIcon).Size(16, 16).TextColor(fg)
-						ui.Text(c, presetLabel).FontSize(13).FontWeight(500).TextColor(fg)
-						ui.Text(c, "▾").FontSize(11).TextColor(muted)
-					})
-				}
+				renderComposerSlot(c, m, "conversation.input.managed", func() {
+					if len(m.AgentPresetOptions) > 0 && m.AgentPresetPick != nil && m.AgentPresetSelection.CanSelect && !m.AgentPresetSelection.Busy {
+						presetSelect(c, presetLabel, agentPresetChoices(m.AgentPresetOptions), m.OnAgentPresetChange, colors, presetOptions{
+							Leading:  func() { paintPresetIntroduction(c, m, presetLabel, fg) },
+							Text:     fg,
+							FontSize: 13,
+							Weight:   500,
+						})
+					} else {
+						ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
+							ui.Icon(c, presetAgentIcon).Size(16, 16).TextColor(fg)
+							ui.Text(c, presetLabel).FontSize(13).FontWeight(500).TextColor(fg)
+							ui.Text(c, "▾").FontSize(11).TextColor(muted)
+						})
+					}
+				})
 			})
 		}
+		renderComposerSlot(c, m, "conversation.composer.dock", func() { renderComposerSlot(c, m, "conversation.input.dock", func() {}) })
 		// InputBar.card: 8px top pad, 12px gap, --dsw-radius-panel (28px). The
 		// hairline is painted as elevation, so it does not consume draft layout
 		// space, and the inset white bloom below is the reference's
@@ -389,12 +407,19 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// The suggestion menu floats above the card rather than growing it,
 			// and is built here so it precedes the toolbar in tree order (labels
 			// shared with the toolbar resolve to the menu while it is open).
-			if !m.Inert && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0) {
-				paintSuggestPopup(c, m, card, items, kind, tok, colors)
-			}
-			if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
-				ui.Box(c).FillWidth().Disabled(m.Inert).Children(func() { paintDraftAttachments(c, m, fg, muted) })
-			}
+			renderComposerSlot(c, m, "conversation.input.overlay", func() {
+				if !m.Inert && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0 || referenceQueryActive(m)) {
+					paintSuggestPopup(c, m, card, items, kind, tok, colors)
+				}
+				if !m.Inert && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
+					paintChipEditPopup(c, m, panel, border, muted)
+				}
+			})
+			renderComposerSlot(c, m, "conversation.input.attachments", func() {
+				if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
+					ui.Box(c).FillWidth().Disabled(m.Inert).Children(func() { paintDraftAttachments(c, m, fg, muted) })
+				}
+			})
 			if m.Editing {
 				// InputBar.editRow floats above the card and never moves its draft.
 				ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
@@ -410,9 +435,6 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			}
 			if len(mentions) > 0 && m.Draft != nil && !selectIsUTF16 {
 				paintMentionChips(c, m, mentions, muted, accent, selectIsUTF16, &selectStart, &selectEnd)
-			}
-			if !m.Inert && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
-				paintChipEditPopup(c, m, panel, border, muted)
 			}
 			if m.Draft != nil {
 				var area ui.Element
@@ -489,138 +511,140 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			infoHover := chrome.Color(colors.ButtonInfoHover)
 			infoPressed := infoHover.Mix(chrome.Color(colors.FG), 0.12)
 			onAccent := chrome.Color(colors.ButtonFG)
-			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
-			tools.Children(func() {
-				// Keep tools and trailing controls as separate wrap groups.
-				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
-					secondary := muted
-					if colors.Secondary != "" {
-						secondary = chrome.Color(colors.Secondary)
-					}
-					plus := ui.Button(c, "+").Label(i18n.T(i18n.KeyComposerCommands)).Tooltip(i18n.T(i18n.KeyComposerCommands)).
-						Width(btnH).Height(btnH).Padding(0).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(ui.Transparent).FontSize(16)
-					plus.DrawOver(func(p *ui.Painter, r ui.Rect) {
-						cx, cy := r.X+r.W/2, r.Y+r.H/2
-						p.Fill(ui.Rect{X: cx - 0.65, Y: cy - 5.5, W: 1.3, H: 11}, secondary, 0.65)
-						p.Fill(ui.Rect{X: cx - 5.5, Y: cy - 0.65, W: 11, H: 1.3}, secondary, 0.65)
-					})
-					if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
-						plus = plus.Disabled(true)
-					}
-					if !plus.IsDisabled() {
-						// A button with its own background skips styleButton's hover
-						// (third_party/mygo/ui widgets.go), so the fill is chosen here.
-						if plus.Pressed() {
-							plus = plus.Background(selectorPressed).Top(1)
-						} else if plus.Hovered() {
-							plus = plus.Background(selectorHover)
-						}
-					}
-					if plus.Clicked() {
-						toggleCommandLauncher(m)
-					}
-					paintVoiceControls(c, m, fg, muted, selectorFill, btnH)
-					paintPlanModeControl(c, m, muted, btnH)
-					// InputBar .select: permission scope (not PromptMode queue/steer).
-					if m.Snapshot.NativeContributions.Known && m.Snapshot.NativeContributions.PermissionCommand && len(m.PermissionOptions) > 0 && m.PermissionPick != nil && m.Snapshot.SelectedPermission != "" && m.Snapshot.PermissionsErr == "" {
-						presetSelect(c, *m.PermissionPick, permissionChoices(m.PermissionOptions), m.OnPermissionChange, colors, presetOptions{
-							Icon:     permissionIconFor(*m.PermissionPick),
-							Text:     secondary,
-							FontSize: 13,
-							Weight:   500,
-							PaddingX: 10,
-							Gap:      6,
+			renderComposerSlot(c, m, "conversation.composer.bar", func() {
+				tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
+				tools.Children(func() {
+					// Keep tools and trailing controls as separate wrap groups.
+					ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
+						renderComposerSlot(c, m, "conversation.input.left", func() {
+							secondary := muted
+							if colors.Secondary != "" {
+								secondary = chrome.Color(colors.Secondary)
+							}
+							plus := ui.Button(c, "+").Label(i18n.T(i18n.KeyComposerCommands)).Tooltip(i18n.T(i18n.KeyComposerCommands)).
+								Width(btnH).Height(btnH).Padding(0).Radius(btnH / 2).BorderWidth(0).Background(selectorFill).TextColor(ui.Transparent).FontSize(16)
+							plus.DrawOver(func(p *ui.Painter, r ui.Rect) {
+								cx, cy := r.X+r.W/2, r.Y+r.H/2
+								p.Fill(ui.Rect{X: cx - 0.65, Y: cy - 5.5, W: 1.3, H: 11}, secondary, 0.65)
+								p.Fill(ui.Rect{X: cx - 5.5, Y: cy - 0.65, W: 11, H: 1.3}, secondary, 0.65)
+							})
+							if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+								plus = plus.Disabled(true)
+							}
+							if !plus.IsDisabled() {
+								// A button with its own background skips styleButton's hover
+								// (third_party/mygo/ui widgets.go), so the fill is chosen here.
+								if plus.Pressed() {
+									plus = plus.Background(selectorPressed).Top(1)
+								} else if plus.Hovered() {
+									plus = plus.Background(selectorHover)
+								}
+							}
+							if plus.Clicked() {
+								toggleCommandLauncher(m)
+							}
+							renderComposerSlot(c, m, "conversation.input.activity", func() { paintVoiceControls(c, m, fg, muted, selectorFill, btnH) })
+							renderComposerSlot(c, m, "conversation.input.plan", func() { paintPlanModeControl(c, m, muted, btnH) })
+							// InputBar .select: permission scope (not PromptMode queue/steer).
+							renderComposerSlot(c, m, "conversation.input.permission", func() {
+								paintPermissionPicker(c, m, colors, secondary)
+							})
 						})
-					}
-				})
-				ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
-					// The hero keeps the reference's control set: the occupancy ring
-					// only appears once the Host reports token usage.
-					if !m.Hero || m.Snapshot.ContextOccupancy != nil {
-						paintContextMeter(c, m.Snapshot, colors, btnH)
-					}
-					paintModelPicker(c, m, colors, btnH)
-					running := m.Snapshot.PromptBusy
-					for _, item := range m.Snapshot.Items {
-						if item.SessionID == m.Snapshot.SelectedID && item.Running {
-							running = true
+					})
+					ui.Row(c).Label("Composer trailing controls").MaxWidthPercent(100).MinWidth(0).Gap(12).AlignItems(ui.Center).Margin(0, 0, 0, ui.Auto).Children(func() {
+						if m.ExtraActions != nil {
+							m.ExtraActions(c)
 						}
-					}
-					child := false
-					for _, item := range m.Snapshot.Items {
-						if item.SessionID == m.Snapshot.SelectedID && item.Origin == "subagent" {
-							child = true
-						}
-					}
-					primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
-					// The pressed state sinks the disc one DIP and darkens its fill,
-					// the way the reference's :active composes. The metallic sheen is
-					// the framework's decorativeButtons path (chrome.CursorEffectConfig
-					// → ui.SetDecorativeEffects), so it is not painted twice here.
-					primaryFill := func(b ui.Element) ui.Element {
-						if b.IsDisabled() {
-							return b
-						}
-						if b.Pressed() {
-							return b.Background(infoPressed).Top(-1)
-						}
-						if b.Hovered() {
-							return b.Background(infoHover)
-						}
-						return b
-					}
-					// Disabled discs keep the info fill (muted slate-blue in dark mode);
-					// the glyph is nudged to the readable side so the 0.5 opacity frame still shows an arrow.
-					sendFill := infoFill
-					primaryInk := onAccent
-					if composerSendDisabled(m) {
-						if isDark(colors) {
-							sendFill = ui.RGB(72, 104, 178)
-						}
-						primaryInk = chrome.EnsureContrast(onAccent, sendFill)
-					}
-					if primaryStops || running && child && m.OnStop != nil {
-						stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).
-							Tooltip(i18n.T(i18n.KeyComposerStop) + "  " + stopShortcutHint).
-							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
-							Background(infoFill).BorderWidth(0).Top(-2).
-							TextColor(onAccent).Disabled(m.OnStop == nil)
-						stop = primaryFill(stop)
-						stop.Children(func() { ui.Icon(c, stopIcon).Size(16, 16).PassThrough() })
-						if stop.Clicked() && m.OnStop != nil {
-							m.OnStop()
-						}
-					}
-					if !primaryStops {
-						send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).
-							Tooltip(i18n.T(i18n.KeyComposerSend) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEnter)).
-							Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
-							Background(sendFill).BorderWidth(0).Top(-2).
-							TextColor(primaryInk)
-						if composerSendDisabled(m) {
-							send = send.Disabled(true)
-						}
-						send = primaryFill(send)
-						send.Children(func() { ui.Icon(c, sendIcon).Size(16, 16).PassThrough() })
-						if send.Clicked() && handleModelCommand(m) {
-							// Local entry consumes no prompt or attachment.
-						} else if send.Clicked() && m.OnSubmitGesture != nil {
-							m.OnSubmitGesture(false)
-						} else if send.Clicked() && m.OnSubmit != nil {
-							m.OnSubmit()
-						} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
-							text := *m.Draft
-							if handleSlashSend(m, text) {
-								*m.Draft = ""
-							} else {
-								*m.Draft = ""
-								m.OnSend(text)
+						renderComposerSlot(c, m, "conversation.input.right", func() {
+							// The hero keeps the reference's control set: the occupancy ring
+							// only appears once the Host reports token usage.
+							if !m.Hero || m.Snapshot.ContextOccupancy != nil {
+								paintContextMeter(c, m.Snapshot, colors, btnH)
 							}
-							if m.TextInput != nil {
-								m.TextInput.ClearHistory()
+							renderComposerSlot(c, m, "conversation.input.model", func() { paintModelPicker(c, m, colors, btnH) })
+							running := m.Snapshot.PromptBusy
+							for _, item := range m.Snapshot.Items {
+								if item.SessionID == m.Snapshot.SelectedID && item.Running {
+									running = true
+								}
 							}
-						}
-					}
+							child := false
+							for _, item := range m.Snapshot.Items {
+								if item.SessionID == m.Snapshot.SelectedID && item.Origin == "subagent" {
+									child = true
+								}
+							}
+							primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
+							// The pressed state sinks the disc one DIP and darkens its fill,
+							// the way the reference's :active composes. The metallic sheen is
+							// the framework's decorativeButtons path (chrome.CursorEffectConfig
+							// → ui.SetDecorativeEffects), so it is not painted twice here.
+							primaryFill := func(b ui.Element) ui.Element {
+								if b.IsDisabled() {
+									return b
+								}
+								if b.Pressed() {
+									return b.Background(infoPressed).Top(-1)
+								}
+								if b.Hovered() {
+									return b.Background(infoHover)
+								}
+								return b
+							}
+							// Disabled discs keep the info fill (muted slate-blue in dark mode);
+							// the glyph is nudged to the readable side so the 0.5 opacity frame still shows an arrow.
+							sendFill := infoFill
+							primaryInk := onAccent
+							if composerSendDisabled(m) {
+								if isDark(colors) {
+									sendFill = ui.RGB(72, 104, 178)
+								}
+								primaryInk = chrome.EnsureContrast(onAccent, sendFill)
+							}
+							if primaryStops || running && child && m.OnStop != nil {
+								stop := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerStop)).
+									Tooltip(i18n.T(i18n.KeyComposerStop) + "  " + stopShortcutHint).
+									Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
+									Background(infoFill).BorderWidth(0).Top(-2).
+									TextColor(onAccent).Disabled(m.OnStop == nil)
+								stop = primaryFill(stop)
+								stop.Children(func() { ui.Icon(c, stopIcon).Size(16, 16).PassThrough() })
+								if stop.Clicked() && m.OnStop != nil {
+									m.OnStop()
+								}
+							}
+							if !primaryStops {
+								send := ui.Button(c, "").Label(i18n.T(i18n.KeyComposerSend)).
+									Tooltip(i18n.T(i18n.KeyComposerSend) + "  ·  " + i18n.T(i18n.KeyComposerShortcutEnter)).
+									Width(sendH).Height(sendH).Padding(0).Radius(sendH / 2).
+									Background(sendFill).BorderWidth(0).Top(-2).
+									TextColor(primaryInk)
+								if composerSendDisabled(m) {
+									send = send.Disabled(true)
+								}
+								send = primaryFill(send)
+								send.Children(func() { ui.Icon(c, sendIcon).Size(16, 16).PassThrough() })
+								if send.Clicked() && handleModelCommand(m) {
+									// Local entry consumes no prompt or attachment.
+								} else if send.Clicked() && m.OnSubmitGesture != nil {
+									m.OnSubmitGesture(false)
+								} else if send.Clicked() && m.OnSubmit != nil {
+									m.OnSubmit()
+								} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
+									text := *m.Draft
+									if handleSlashSend(m, text) {
+										*m.Draft = ""
+									} else {
+										*m.Draft = ""
+										m.OnSend(text)
+									}
+									if m.TextInput != nil {
+										m.TextInput.ClearHistory()
+									}
+								}
+							}
+						})
+					})
 				})
 			})
 			if m.Inert && m.OnRequestWorkspace != nil {
@@ -691,10 +715,12 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 				roomCandidates = append(roomCandidates, suggestItem{label: item.Label, sub: "@" + item.Value, insert: "@" + item.Value + " ", kind: SuggestMention})
 			}
 		}
-		if m.OnSearchReferences != nil {
+		if m.OnQueryReferences != nil && m.State != nil {
+			candidates = m.State.references.query(m, query, quoted)
+		} else if m.OnSearchReferences != nil {
 			candidates = m.OnSearchReferences(query, quoted)
 		}
-		if len(candidates) == 0 {
+		if len(candidates) == 0 && m.OnQueryReferences == nil {
 			var paths []string
 			if m.OnSearchFileRefs != nil {
 				paths = m.OnSearchFileRefs(query)
@@ -1038,6 +1064,22 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 	popup.Children(func() {
 		paintReferenceBreadcrumbs(c, m, tok)
 		ui.Text(c, title).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
+		if kind == SuggestMention && referenceQueryActive(m) {
+			pending, failure := referenceQueryStatus(m)
+			if pending {
+				ui.Text(c, "正在查找引用…").FontSize(12).TextColor(fg).Padding(6)
+			}
+			if failure != "" {
+				ui.Row(c).Gap(8).Children(func() {
+					ui.Text(c, failure).Grow(1).FontSize(12).TextColor(fg)
+					if ui.Button(c, "重试").Clicked() {
+						m.State.references.cancelQuery()
+					}
+				})
+			} else if !pending && len(items) == 0 {
+				ui.Text(c, "没有匹配的引用").FontSize(12).TextColor(fg).Padding(6)
+			}
+		}
 		drilled := false
 		clicked := -1
 		ui.Scroll(c).FillWidth().MaxHeight(max(80, height-40)).Children(func() {
@@ -1045,8 +1087,13 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 			// selection over the reference's single hover fill, and the arrows and
 			// Enter already belong to the editor's keymap.
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
+				section := ""
 				for i, it := range items {
 					i, it := i, it
+					if it.section != "" && it.section != section {
+						ui.Text(c, it.section).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
+					}
+					section = it.section
 					itemRow := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
 						AlignItems(ui.Center).BorderWidth(0).Background(ui.Transparent)
 					if i == sel || itemRow.Hovered() {
@@ -1208,7 +1255,13 @@ func FromAPIList(list []api.ListResultItem2) []SlashCommand {
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name
 		}
-		out = append(out, SlashCommand{Line: name, Description: it.Description})
+		row := SlashCommand{Line: name, Description: it.Description}
+		if it.DefinitionId != nil {
+			if label, description, ok := builtinSlashFace(*it.DefinitionId); ok {
+				row.Label, row.Description = label, description
+			}
+		}
+		out = append(out, row)
 	}
 	return out
 }

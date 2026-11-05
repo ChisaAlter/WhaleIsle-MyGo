@@ -1,6 +1,36 @@
 package frame
 
-import "whaleisle/internal/store/hostterminal"
+import (
+	"whaleisle/internal/store/hostterminal"
+	termui "whaleisle/internal/ui/terminal"
+)
+
+func workspaceTerminalTitle(m Model, pane *WorkspacePane) (*hostterminal.Store, string, string, bool) {
+	if pane.Kind != "host-terminal" || m.HostTerminalStore == nil || m.Store == nil {
+		return nil, "", dockTabTitle(pane), false
+	}
+	sid := m.Store.SelectedSessionID()
+	store := m.HostTerminalStore.ExistingOccurrence(pane.ID)
+	if store == nil {
+		return nil, sid, dockTabTitle(pane), false
+	}
+	v := store.Snapshot(sid)
+	title := v.Info.Title
+	if title == "" {
+		title = dockTabTitle(pane)
+	}
+	return store, sid, title, store.RenameSnapshot(v.Owner, sid, v.ActiveID).Editing
+}
+
+func beginWorkspaceTerminalRename(m Model, pane *WorkspacePane) {
+	store, sid, _, _ := workspaceTerminalTitle(m, pane)
+	if store == nil {
+		return
+	}
+	m.Sizes.Workspace.activateDockTab(pane.ID)
+	store.Show(sid, true)
+	termui.BeginHostTitleRename(store, sid)
+}
 
 func observeHostTerminalPanes(m Model) {
 	var keys []string

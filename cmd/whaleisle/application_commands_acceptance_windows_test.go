@@ -50,11 +50,15 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		}
 		s := &mainState{cfgStore: cfg}
 		bindings := shortcuts.Resolve(s.pageShortcutBindings())
-		encoded, _ := json.Marshal(bindings)
-		revision := s.pageShortcutPreferences().Get().Revision
+		snapshot := s.pageShortcutPreferences().Accepted()
+		revision := snapshot.Revision
 		// Only the platform's menu installation is excluded. Real production
 		// pending-command consumption below still runs on each native frame.
-		s.applicationMenu = &desktopApplicationMenu{signature: string(encoded) + resumeText("zh", "en") + revision}
+		signature := s.pageShortcutEncoded() + resumeText("zh", "en") + revision
+		if snapshot.Status == "ready" {
+			signature += "|ready"
+		}
+		s.applicationMenu = &desktopApplicationMenu{signature: signature}
 		menu := buildApplicationMenu(applicationMenuSpec{
 			Bindings:    bindings,
 			HasRevision: s.pageShortcutPreferences().Get().Status == "ready",
@@ -254,6 +258,13 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 					}
 					return true
 				})
+				terminal := ui.Box(c).Label("Owned terminal").Focusable().Width(250).Height(30).HandleInput(func(ev ui.InputEvent) bool {
+					if ev.Kind == ui.InputKeyDown {
+						customKeys++
+					}
+					return true
+				})
+				ui.TerminalShortcutScope(terminal)
 			})
 			ui.DialogBase(c, &modal, func(_, panel ui.Element) {
 				panel.Width(220).Height(80).Children(func() { ui.Button(c, "Owned modal focus").Width(180).Height(30) })
@@ -273,17 +284,29 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal("accepted native binding did not navigate")
 		}
 		clearRoute()
-		for _, focus := range []string{"Owned editor", "Owned selectable", "Owned custom input"} {
+		for _, focus := range []string{"Owned editor", "Owned selectable", "Owned custom input", "Owned terminal"} {
 			if err := tt.Click(focus); err != nil {
 				t.Fatal(err)
 			}
 			press()
-			if s.settingsOpen {
-				t.Fatalf("application shortcut stole %s input", focus)
+			if !s.settingsOpen || !s.settingsMCPActive || text != "preserve draft" {
+				t.Fatalf("accepted native-priority shortcut failed in %s or changed text", focus)
 			}
+			clearRoute()
 		}
-		if customKeys == 0 {
-			t.Fatal("custom input did not receive key")
+		if customKeys != 0 {
+			t.Fatal("accepted binding also reached the custom/terminal input")
+		}
+		// Native priority only claims accepted chords, not every input key.
+		for _, focus := range []string{"Owned custom input", "Owned terminal"} {
+			if err := tt.Click(focus); err != nil {
+				t.Fatal(err)
+			}
+			tt.PhysicalKeyDown("F9", ui.KeyF9, ui.Cmd|ui.Alt, false, false, false)
+			tt.PhysicalKeyUp("F9", ui.KeyF9, ui.Cmd|ui.Alt, false)
+		}
+		if customKeys != 2 || s.settingsOpen {
+			t.Fatal("unbound keys did not remain with their custom/terminal owners", customKeys)
 		}
 		if err := tt.Click("Owned editor"); err != nil {
 			t.Fatal(err)
@@ -322,7 +345,8 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal("dismissal did not restore app shortcut")
 		}
 		checks["production-app-shortcut-navigates"] = true
-		checks["editor-selectable-custom-input-and-ime-priority"] = true
+		checks["native-priority-in-editable-selectable-custom-and-terminal-input"] = true
+		checks["unbound-input-and-ime-composition-retain-their-owners"] = true
 		checks["unfocused-window-and-modal-block-app-shortcut"] = true
 	})
 

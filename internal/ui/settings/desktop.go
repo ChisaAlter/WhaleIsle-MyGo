@@ -35,8 +35,10 @@ type DesktopAccess struct {
 	AutoStartDesktop *bool
 	// These immediate setters return the accepted stored value. On failure the
 	// selector restores that value instead of changing the separate form draft.
-	OnSetCloseToTray      func(bool) (bool, error)
-	OnSetAutoStartDesktop func(bool) (bool, error)
+	OnSetLocale            func(string) (string, error)
+	OnSetCloseToTray       func(bool) (bool, error)
+	OnSetAutoStartDesktop  func(bool) (bool, error)
+	OnSetRestartPreference func(string, string) (config.RestartPreferences, error)
 	// RestartPolicy is the committed snapshot, separate from the editable draft.
 	RestartPolicy     *config.RestartPreferences
 	Fields            DesktopFields
@@ -55,12 +57,8 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	d := m.Desktop
 	bodyHostState(c, d.Host, muted)
-	if d.Err != "" {
-		ui.Text(c, d.Err).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-	}
-	if d.LastAction != "" {
-		ui.Text(c, settingsActionText(d.LastAction)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "desktop:61", "error", d.Err != "", func() string { return d.Err })
+	settingsNotice(c, "desktop:64", "", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
 	// 0.3.13 General: language, coding view, shortcuts, close, launch,
 	// performance, session log, Harness version and auto-recovery. The
 	// permission, send-behaviour, work-step and link rows moved to 对话.
@@ -72,11 +70,18 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if *d.Fields.Locale == "en" {
 				lang = "English"
 			}
-			if settingsPreferenceSelect(c, &lang, []string{"中文", "English"}).Disabled(d.OnSave == nil).Label(providerCopy("语言", "Language")).Changed() {
+			if settingsPreferenceSelect(c, &lang, []string{"中文", "English"}).Disabled(d.OnSetLocale == nil).Label(providerCopy("语言", "Language")).Changed() {
 				if lang == "English" {
 					*d.Fields.Locale = "en"
 				} else {
 					*d.Fields.Locale = "zh"
+				}
+				if d.OnSetLocale != nil {
+					accepted, err := d.OnSetLocale(*d.Fields.Locale)
+					*d.Fields.Locale = accepted
+					if err != nil {
+						c.AddToast(ui.Toast{ID: "settings-locale", Title: err.Error(), Type: "error"})
+					}
 				}
 			}
 		})
@@ -109,7 +114,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	bodyHostPreference(c, d.Host, "ui-chat", "performanceUsage", providerCopy("性能与用量", "Performance and usage"), providerCopy("选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"), fg, muted)
 	bodyHostPreference(c, d.Host, "session-log-deepseek", "enabled", providerCopy("在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API"), providerCopy("帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"), fg, muted)
-	if d.Version != "" {
+	if d.Version != "" && settingsItemBefore(c, "general-version") {
 		// CurrentVersionRow is one full-width line, not a Setting-Cell's
 		// fixed-width selector column: long build versions must remain readable.
 		ui.Text(c.Key("general-version"), providerCopy("Harness 版本：", "Harness version: ")+d.Version).FillWidth().MinWidth(0).Padding(16, 0).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).Tooltip(d.Version).TextColor(fg)
@@ -193,9 +198,7 @@ func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice
 			}
 		}
 	}
-	if *failure != "" {
-		ui.Text(c, *failure).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-	}
+	settingsNotice(c, "desktop:206", "error", *failure != "", func() string { return *failure })
 }
 
 func desktopRow(c *ui.Context, label string, body func(), fg, muted ui.Color) {

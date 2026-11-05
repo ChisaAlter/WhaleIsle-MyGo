@@ -150,6 +150,9 @@ func projectModals(c *ui.Context, m Model) {
 				return
 			}
 			if route.close != nil {
+				if materialRoute {
+					c.CloseToast("project-material-error")
+				}
 				route.close()
 			}
 			if origin := memory.ChildOrigin; origin != nil && origin.route == route.key {
@@ -267,6 +270,7 @@ func materialTransitionDialog(c *ui.Context, m Model, state *projectPresentation
 		return
 	}
 	finish := func() {
+		c.CloseToast("project-material-error")
 		path := state.PendingMaterial
 		state.PendingMaterial = ""
 		state.PendingClose = false

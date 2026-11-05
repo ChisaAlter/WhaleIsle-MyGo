@@ -3,8 +3,8 @@ package usage
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -18,126 +18,62 @@ import (
 // name, share, tokens and cost — but reads as a ranked row with a bar instead
 // of one sentence per line.
 func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	models := st.Overview.AllTime.ByModel
-	scope := i18n.T(i18n.KeySurfacesUsageAllTime)
-	if st.Range.Active() {
-		models = st.Selection().Models
-		scope = fmt.Sprintf("%s → %s", st.Range.Start, st.Range.End)
-	}
-	usageCard(c, "usage-model-ranking", i18n.T(i18n.KeySurfacesUsageModelRank), fg, func() {
-		ui.Text(c, scope).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		limit := min(len(models), m.Store.ModelRankLimit())
-		if limit == 0 {
-			ui.Text(c, i18n.T(i18n.KeySurfacesUsageEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			return
-		}
-		maximum := 1.0
-		for _, row := range models[:limit] {
-			maximum = max(maximum, row.Total)
-		}
-		ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
-			for index, row := range models[:limit] {
-				entry := row
-				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, fmt.Sprint(index+1)).Width(18).Shrink(0).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).TextAlign(ui.End)
-						ui.Text(c, entry.Model).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(entry.Provider + " · " + entry.Model)
-						ui.Text(c, formatCompactTokens(entry.Total)).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
-					})
-					providerUsageBar(c, entry.Total, maximum, accent, c.Theme().SurfaceHover)
-				})
-			}
-		})
-		if limit < len(models) {
-			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesUsageShowMore), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-				m.Store.ShowMoreModels()
-			}
-		}
-	})
-	if st.Range.Active() {
-		return
-	}
-	rank := m.Store.SessionRanking()
+	seat := ui.Column(c.Key("usage-session-ranking-state/" + m.Store.StatisticsOwner()))
+	open := ui.Local(seat, "more", func() bool { return false })
+	sortBy := ui.Local(seat, "sort", func() string { return "tokens" })
+	rows := append([]usagestore.SessionUsage(nil), st.Overview.TopSessions...)
 	billing := m.Store.Billing()
+	if *sortBy == "cost" {
+		sort.SliceStable(rows, func(i, j int) bool {
+			a, _ := usagestore.SessionEstimate(rows[i], billing)
+			b, _ := usagestore.SessionEstimate(rows[j], billing)
+			return a > b
+		})
+	}
 	usageCard(c, "usage-session-ranking", i18n.T(i18n.KeySurfacesUsageRanking), fg, func() {
-		ui.Row(c).Gap(4).Children(func() {
-			for _, sort := range []string{"tokens", "cost"} {
-				key := sort
-				label := usageText("按 Token", "By tokens")
-				if key == "cost" {
-					label = usageText("按费用", "By cost")
-				}
-				usageScopeChip(c, m, label, rank.Sort == key, st.Loading || rank.Loading, func() {
-					m.Store.ResetSessionRanking(context.Background(), key)
-				})
-			}
-			if rank.Sort == "cost" && !rank.Started && !rank.Loading && rank.Err == "" && !st.Loading {
-				m.Store.LoadMoreSessions(context.Background())
-			}
-		})
-		if rank.Loading {
-			ui.Text(c, i18n.T(i18n.KeySurfacesUsageLoading)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			return
-		}
-		rows := st.Overview.TopSessions
-		if rank.Started || rank.Sort == "cost" {
-			rows = rank.Rows
-		}
-		if len(rows) == 0 {
-			ui.Text(c, i18n.T(i18n.KeySurfacesUsageEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		}
-		maximum := 1.0
-		for _, row := range rows {
-			maximum = max(maximum, row.Totals.Total)
-		}
-		ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
-			for index, row := range rows {
-				entry := row
-				name := entry.Title
-				if name == "" {
-					name = entry.ID
-				}
-				cost := usageText("费用未完整计价", "Cost not fully priced")
-				if cents, ok := usagestore.SessionEstimate(entry, billing); ok {
-					cost = fmt.Sprintf("≈ ¥%.2f", cents/100)
-				}
-				meta := usageText("主会话", "Main session")
-				if entry.Depth > 0 {
-					meta = usageText("子代理会话", "Subagent session")
-				}
-				if entry.LastActive > 0 {
-					meta += " · " + time.UnixMilli(entry.LastActive).UTC().Format("2006-01-02 15:04 UTC")
-				}
-				ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, fmt.Sprint(index+1)).Width(18).Shrink(0).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).TextAlign(ui.End)
-						ui.Text(c, name).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).SingleLine().Ellipsis("…").Tooltip(name)
-						ui.Text(c, formatCompactTokens(entry.Totals.Total)).FontSize(fonttheme.InterfaceSize(11)).FontFeatures("tnum").TextColor(muted)
-						if m.OnOpenSession != nil && widgets.Button(c, colors, usageText("打开", "Open"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnOpenSession(entry.ID)
-						}
-					})
-					ui.Text(c, meta+" · "+cost).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).SingleLine().Ellipsis("…")
-					providerUsageBar(c, entry.Totals.Total, maximum, accent, c.Theme().SurfaceHover)
-				})
-			}
-		})
-		if rank.Err != "" {
-			ui.Text(c, usageText("加载排行失败：", "Could not load ranking: ")+rank.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-			return
-		}
-		if rank.Started && !rank.HasMore {
-			return
-		}
-		label := usageText("显示更多会话", "Show more sessions")
-		if rank.Err != "" {
-			label = usageText("重试加载排行", "Retry ranking")
-		}
-		if !st.Loading && ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-			m.Store.LoadMoreSessions(context.Background())
+		rankingSort(c, sortBy, st.Loading, func() {})
+		sessionRankRows(c, rows, billing, fg, muted)
+		if len(rows) > 0 && ui.Button(c, usageText("更多", "More")).AlignSelf(ui.Start).BorderWidth(0).Background(ui.Transparent).Clicked() {
+			*open = true
+			m.Store.ResetSessionRanking(context.Background(), "tokens")
 		}
 	})
+	rank := m.Store.SessionRanking()
+	rankDialog(c, open, i18n.T(i18n.KeySurfacesUsageRanking), func() {
+		value := rank.Sort
+		rankingSort(c, &value, rank.Loading, func() { m.Store.ResetSessionRanking(context.Background(), value) })
+		sessionRankRows(c, rank.Rows, billing, fg, muted)
+		rankMore(c, rank.Loading, rank.Started, rank.HasMore, rank.Err, func() { m.Store.LoadMoreSessions(context.Background()) }, muted)
+	})
+}
+func sessionRankRows(c *ui.Context, rows []usagestore.SessionUsage, billing usagestore.BillingView, fg, muted ui.Color) {
+	rankTableHeader(c, true, muted)
+	for i, entry := range rows {
+		name := entry.Title
+		if name == "" {
+			name = usageText("未命名会话", "Untitled session")
+		}
+		price := "—"
+		if cents, ok := usagestore.SessionEstimate(entry, billing); ok {
+			price = fmt.Sprintf("¥%.2f", cents/100)
+		}
+		kind := usageText("主会话", "Main")
+		if entry.Depth > 0 {
+			kind = usageText("子代理", "Subagent")
+		}
+		date := time.UnixMilli(entry.LastActive).UTC().Format("2006-01-02")
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(6, 0).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, fmt.Sprint(i+1)).Width(22).TextColor(muted)
+			ui.Text(c, name).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(entry.ID).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			ui.Text(c, kind).Width(52).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, date).Width(78).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, price).Width(62).TextAlign(ui.End).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, formatCompactTokens(entry.Totals.Total)).Width(62).TextAlign(ui.End).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		})
+	}
+	if len(rows) == 0 {
+		ui.Text(c, usageText("暂无会话用量。", "No session usage.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	}
 }
 
 // usageScopeChip paints one of the mutually exclusive scope choices as a chip

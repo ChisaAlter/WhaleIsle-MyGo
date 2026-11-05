@@ -7,9 +7,10 @@ import (
 )
 
 type desktopTrayActions struct {
-	open, launcher, settings, market, restart, quit func()
-	pet                                             func(bool)
-	canRestart, canTogglePet, petEnabled            bool
+	open, launcher, settings, market, restart, quit, update func()
+	updateLabel                                             string
+	pet                                                     func(bool)
+	canRestart, canTogglePet, petEnabled                    bool
 }
 
 // Actions are real application routes supplied by desktopTrayMenu. Keeping the
@@ -30,11 +31,15 @@ func buildDesktopTrayMenu(a desktopTrayActions) *mygo.Menu {
 				a.pet(item.Checked)
 			}
 		}}
-	return mygo.NewMenu([]*mygo.MenuItem{
+	items := []*mygo.MenuItem{
 		row("open", i18n.T(i18n.KeyCmdShowWindow), a.open),
 		row("launcher", i18n.T(i18n.KeyCmdOpenLauncher), a.launcher),
 		row("settings", i18n.T(i18n.KeyCmdSettings), a.settings),
 		row("market", i18n.T(i18n.KeyCmdPluginMarketplace), a.market), restart, pet, mygo.Separator(),
-		row("quit", i18n.T(i18n.KeyCmdQuit), a.quit),
-	})
+	}
+	if a.update != nil {
+		items = append(items, row("update", a.updateLabel, a.update), mygo.Separator())
+	}
+	items = append(items, row("quit", i18n.T(i18n.KeyCmdQuit), a.quit))
+	return mygo.NewMenu(items)
 }

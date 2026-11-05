@@ -45,25 +45,27 @@ type ViewState struct {
 
 // Store fetches pluginManager/listPlugins when available.
 type Store struct {
-	mu         sync.Mutex
-	client     *dsh.Client
-	generation uint64
-	refreshID  uint64
-	discovery  discoveryState
-	updates    updateState
-	management managementState
-	personal   personalState
-	notify     func()
+	mu               sync.Mutex
+	client           *dsh.Client
+	generation       uint64
+	refreshID        uint64
+	discovery        discoveryState
+	updates          updateState
+	updateProfileDir string
+	management       managementState
+	personal         personalState
+	notify           func()
 
-	loading        bool
-	err            error
-	hasListRPC     bool
-	listMethod     string
-	methods        []string
-	rows           []Entry
-	rawListPreview string
-	registriesNote string
-	exemptionsNote string
+	loading         bool
+	inventoryLoaded bool
+	err             error
+	hasListRPC      bool
+	listMethod      string
+	methods         []string
+	rows            []Entry
+	rawListPreview  string
+	registriesNote  string
+	exemptionsNote  string
 }
 
 // New returns an empty market store.
@@ -85,6 +87,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.refreshID++
 	s.clearConfirmationLocked()
 	s.rows = nil
+	s.inventoryLoaded = false
 	s.loading = false
 	s.client = client
 	s.notify = notify
@@ -102,6 +105,7 @@ func (s *Store) Detach() {
 	s.refreshID++
 	s.clearConfirmationLocked()
 	s.client = nil
+	s.inventoryLoaded = false
 	s.loading = false
 	s.hasListRPC = false
 	s.listMethod = ""
@@ -275,6 +279,7 @@ func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, 
 	}
 	s.loading = false
 	s.err = err
+	s.inventoryLoaded = err == nil
 	if err == nil {
 		s.rows = rows
 		s.rawListPreview = preview
@@ -283,6 +288,9 @@ func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, 
 	}
 	s.mu.Unlock()
 	s.fire()
+	if err == nil {
+		s.checkUpdatesWhenReady()
+	}
 }
 
 func parsePluginList(raw json.RawMessage) ([]Entry, string) {

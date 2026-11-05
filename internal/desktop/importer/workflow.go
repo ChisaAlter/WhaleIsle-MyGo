@@ -24,6 +24,7 @@ func (s ApplySelection) Count() int {
 // Snapshot isolates the worker from mutable checkbox state.
 func (c Catalog) Snapshot() Catalog {
 	c.SkillRoots = append([]string(nil), c.SkillRoots...)
+	c.ExtraSkillRoots = append([]string(nil), c.ExtraSkillRoots...)
 	c.Sessions = append([]CatalogItem(nil), c.Sessions...)
 	c.Skills = append([]CatalogItem(nil), c.Skills...)
 	c.Plugins = append([]CatalogItem(nil), c.Plugins...)

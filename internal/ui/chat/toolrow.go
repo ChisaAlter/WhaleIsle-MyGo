@@ -245,6 +245,13 @@ func padLine(n, total int) string {
 // the family was handled (the caller otherwise falls back to the argument and
 // result disclosures) and whether that body already owns the copy action.
 func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string, opts ToolImageGalleryOptions) (handled, ownsCopy bool) {
+	renderImages := func(native func()) {
+		if opts.RenderSlot != nil && opts.Call != nil && !opts.TextOnly {
+			opts.RenderSlot(c, "tool.call.images", opts.Call, native)
+		} else {
+			native()
+		}
+	}
 	if info.ask != nil && !opts.TextOnly {
 		askQuestionCardView(c, *info.ask, st, key)
 		return true, true
@@ -275,7 +282,7 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 	}
 	if info.imageFamily && !opts.TextOnly {
 		if info.image != nil {
-			toolImageCard(c, info.image, st, key, opts.OnOpen)
+			toolImageCard(c, info.image, st, key, opts.OnOpen, renderImages)
 		} else {
 			info.Arguments = ""
 			toolIORows(c, info, st, key+":image-output")
@@ -283,7 +290,7 @@ func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st Tool
 		return true, true
 	}
 	if info.image != nil && !opts.TextOnly {
-		toolImageCard(c, info.image, st, key, opts.OnOpen)
+		toolImageCard(c, info.image, st, key, opts.OnOpen, renderImages)
 		return true, true
 	}
 	if info.searchFamily && !opts.TextOnly {

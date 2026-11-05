@@ -50,10 +50,7 @@ func resolvedPageCommands(overrides map[string]string) []resolvedPageCommand {
 		if !valid {
 			continue
 		}
-		region := ""
-		if command.ID == "terminal.toggle" {
-			region = "terminal"
-		}
+		region := shortcuts.NativeCommandScope(command.ID)
 		entries = append(entries, resolvedPageCommand{
 			id:         command.ID,
 			identity:   command.ID + acceptedStr,

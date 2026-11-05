@@ -3,22 +3,23 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Schema is a decoded zod schema expression from a generated descriptor file.
 type Schema struct {
-	Kind     string // string number boolean any nulllit litstr litbool litnum enum
+	Kind string // string number boolean any nulllit litstr litbool litnum enum
 	//           union intersection array object record lazy unsupported
-	Str      string  // litstr value / lazy target constant name
-	Bool     bool    // litbool value
-	Num      float64 // litnum value
-	Members  []*Schema
-	Elem     *Schema // array element / record value
-	Key      *Schema // record key
-	Fields   []SchemaField
-	Optional bool
-	Nullable bool
-	Readonly bool
+	Str         string  // litstr value / lazy target constant name
+	Bool        bool    // litbool value
+	Num         float64 // litnum value
+	Members     []*Schema
+	Elem        *Schema // array element / record value
+	Key         *Schema // record key
+	Fields      []SchemaField
+	Optional    bool
+	Nullable    bool
+	Readonly    bool
 	Unsupported bool
 }
 
@@ -106,6 +107,37 @@ func parseTypertFile(src string) (*parsedFile, error) {
 		return nil, errors.New("TYPERT_REMOTE object literal not found")
 	}
 	pf.file = &typertFile{Package: nodeString(root, "package")}
+	if methods := root.get("methods"); methods != nil && methods.kind == 'o' {
+		// createTypertRemoteInfo derives these descriptor fields from the
+		// method-map key. Read the generated facts without executing JavaScript.
+		for i, name := range methods.keys {
+			d := methods.vals[i]
+			if d == nil || d.kind != 'o' {
+				return nil, fmt.Errorf("methods[%q]: not an object", name)
+			}
+			ns, method, ok := strings.Cut(name, "/")
+			if !ok || ns == "" || method == "" || strings.Contains(method, "/") {
+				return nil, fmt.Errorf("methods[%q]: expected namespace/method", name)
+			}
+			normalized := &jsNode{
+				kind: 'o',
+				keys: []string{"id", "namespace", "method"},
+				vals: []*jsNode{
+					{kind: 's', str: pf.file.Package + "#" + name},
+					{kind: 's', str: ns},
+					{kind: 's', str: method},
+				},
+			}
+			normalized.keys = append(normalized.keys, d.keys...)
+			normalized.vals = append(normalized.vals, d.vals...)
+			e, err := walkEndpoint(normalized)
+			if err != nil {
+				return nil, fmt.Errorf("methods[%q]: %w", name, err)
+			}
+			pf.file.Descriptors = append(pf.file.Descriptors, e)
+		}
+		return pf, nil
+	}
 	descs := root.get("descriptors")
 	if descs == nil || descs.kind != 'a' {
 		return nil, errors.New("TYPERT_REMOTE.descriptors not found")
@@ -136,9 +168,30 @@ func schemaRefOf(codec *jsNode) string {
 }
 
 // skipOrParseConstValue handles non-schema const initializers: TYPERT_REMOTE
-// object literals, and arrow-function helpers (binary result codecs) that
-// current harness builds emit alongside the schema factories.
+// object literals or lazy Remote metadata, and arrow-function helpers (binary
+// result codecs) emitted alongside the schema factories.
 func (p *jsParser) skipOrParseConstValue(name string, root **jsNode) error {
+	if name == "TYPERT_REMOTE" && p.peek().kind == tkIdent && p.peek().val == "createTypertRemoteInfo" {
+		p.pos++
+		if t := p.next(); t.kind != tkPunct || t.val != "(" {
+			return fmt.Errorf("line %d: expected ( after createTypertRemoteInfo", t.line)
+		}
+		v, err := p.parseValue()
+		if err != nil {
+			return err
+		}
+		if t := p.next(); t.kind != tkPunct || t.val != "," {
+			return fmt.Errorf("line %d: expected , before Remote Zod argument", t.line)
+		}
+		if t := p.next(); t.kind != tkIdent || t.val != "z" {
+			return fmt.Errorf("line %d: expected Remote Zod argument z", t.line)
+		}
+		if t := p.next(); t.kind != tkPunct || t.val != ")" {
+			return fmt.Errorf("line %d: expected ) after Remote Zod argument", t.line)
+		}
+		*root = v
+		return nil
+	}
 	// Arrow helpers: (args...) => { ... }
 	if p.peek().kind == tkPunct && p.peek().val == "(" {
 		line := p.peek().line

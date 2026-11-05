@@ -32,6 +32,15 @@ type floatingDocumentWindow struct {
 // a Host cookie, or release its lease when only this borrowed view closes.
 func floatingDocumentOptions(t *Tab) (desktop.HostOptions, error) {
 	opts := desktop.HostOptions{TopInset: floatingDocumentChromeHeight, Untrusted: true}
+	if t != nil && t.source != nil && t.source.DeclaredDelivery {
+		result := t.source.DeclaredDeliveryResult()
+		if result.Err != nil {
+			return opts, result.Err
+		}
+		opts = *result.Viewer
+		opts.TopInset = floatingDocumentChromeHeight
+		return opts, nil
+	}
 	count := 0
 	if t != nil {
 		if t.Document != nil {
@@ -135,6 +144,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 		}
 	})
 	opts.Parent = w
+	opts.OnFailure = b.pageFailure(t)
 	// Host failure closes only its borrowed child, never the source document.
 	opts.OnClosed = func() {
 		if !f.closed {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -84,6 +85,16 @@ func (s *mainState) desktopTrayMenu() *mygo.Menu {
 	canRestart := s.sup != nil && !s.quitting && !s.launcherImportBusy && !s.taskRestartPending
 	p := s.desktopPet
 	canToggle := p != nil && !s.quitting
+	updateLabel := lifecycleText("检查更新…", "Check for updates…")
+	updateReady := s.nativeReleases.stagedTag != ""
+	if updateReady {
+		title := s.nativeReleases.stagedTitle
+		if title == "" {
+			title = s.nativeReleases.stagedTag
+		}
+		updateLabel = fmt.Sprintf(lifecycleText("更新已就绪：%s…", "Update ready: %s…"), title)
+	}
+	updateWindow := s.win
 	s.mu.Unlock()
 	enabled := false
 	if p != nil && p.Store != nil {
@@ -105,7 +116,14 @@ func (s *mainState) desktopTrayMenu() *mygo.Menu {
 			s.openDesktopTrayPage(deeplink.ActionLauncher)
 			go s.restartUnlessImport(sup)
 		},
-		quit:       s.quitDesktopTray,
+		quit:        s.quitDesktopTray,
+		updateLabel: updateLabel,
+		update: func() {
+			s.openNativeUpdateCenter(updateWindow)
+			if !updateReady {
+				s.refreshNativeReleases(updateWindow)
+			}
+		},
 		pet:        s.setDesktopTrayPet,
 		canRestart: canRestart, canTogglePet: canToggle, petEnabled: enabled,
 	})
@@ -161,13 +179,11 @@ func (s *mainState) hideToDesktopTray(win *mygo.Window, sup *harness.Supervisor)
 		// Closing was requested as Hide, so never silently reinterpret failure as
 		// permission to stop background work. Explicit Quit still uses task checks.
 		s.showMainWindow()
-		result, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning,
-			Title:   i18n.T(i18n.KeyCmdTrayUnavailable),
-			Message: i18n.T(i18n.KeyCmdTheSystemTrayCouldNotBeCreatedTheWin),
-			Buttons: []string{i18n.T(i18n.KeyCmdKeepWindow), i18n.T(i18n.KeyCmdQuitApplication)}, DefaultButton: 0, CancelButton: 0})
-		if err == nil && result.Button == 1 {
-			s.requestQuitProtected(win, sup)
-		}
+		s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdTrayUnavailable),
+			Body:        i18n.T(i18n.KeyCmdTheSystemTrayCouldNotBeCreatedTheWin),
+			CancelLabel: i18n.T(i18n.KeyCmdKeepWindow), ConfirmLabel: i18n.T(i18n.KeyCmdQuitApplication),
+			Run: func() { s.requestQuitProtected(win, sup) },
+		})
 		return
 	}
 	err := s.trayHideNotice.close(win.Hide, func() error {

@@ -13,7 +13,6 @@ import (
 
 	"whaleisle/internal/config"
 	desktopcomponents "whaleisle/internal/desktop/components"
-	"whaleisle/internal/desktop/importer"
 	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
@@ -298,6 +297,7 @@ func (s *mainState) closeLauncherWindow() {
 		return
 	}
 	win := lw.win
+	s.cancelImportCatalogScanOwner(win)
 	lw.win = nil
 	if win != nil && !win.IsDestroyed() {
 		win.Destroy()
@@ -305,6 +305,7 @@ func (s *mainState) closeLauncherWindow() {
 }
 
 func (s *mainState) launcherWindowClosed(lw *launcherWindow) {
+	s.cancelImportCatalogScanOwner(lw.win)
 	s.mu.Lock()
 	if s.launcherWin == lw {
 		s.launcherWin = nil
@@ -335,6 +336,11 @@ func (s *mainState) launcherWindowCloseRequested(e *mygo.CloseEvent) {
 // mainView. The window is transparent, so the panel's own 20 radius shell is
 // the silhouette.
 func (s *mainState) launcherWindowBody(c *ui.Context, lw *launcherWindow) {
+	defer s.processApplicationMenuFor(c, lw.win)
+	defer s.syncConfirmAskFor(c, lw.win)
+	defer s.syncNativeUpdateModal(c, lw.win)
+	s.registerApplicationCommands(c)
+	s.syncApplicationMenu(c)
 	ui.Column(c).Fill().Children(func() {
 		s.launcherPanel(c, lw.win, s.launcherPanelHostSnapshot())
 	})
@@ -382,6 +388,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 	launcherImport := s.launcherImport
 	launcherImportJournal := append([]string(nil), s.launcherImportJournal...)
 	launcherImportBusy := s.launcherImportBusy
+	launcherImportScanBusy := s.launcherImportScan.busy
 	launcherUpdate := s.launcherUpdate
 	launcherUpdateAvailable := s.launcherUpdateAvailable
 	launcherNote := s.launcherNote
@@ -455,14 +462,19 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 		LauncherPackage: isLauncherPackage(),
 		DesktopRunning:  deskRunning,
 		// Keep the running chrome even while harness is still Starting.
-		StartBusy:            launcherStartBusy,
-		RuntimeBusy:          launcherRuntimeBusy,
-		StartFailed:          launcherStartFailed,
-		StartError:           launcherStartErr,
-		BootLogs:             host.Logs,
-		PluginLoad:           host.Status.PluginLoad,
-		ActiveTab:            launcherTab,
-		ImportSummary:        launcherImport,
+		StartBusy:      launcherStartBusy,
+		RuntimeBusy:    launcherRuntimeBusy,
+		StartFailed:    launcherStartFailed,
+		StartError:     launcherStartErr,
+		BootLogs:       host.Logs,
+		PluginLoad:     host.Status.PluginLoad,
+		ActiveTab:      launcherTab,
+		ImportSummary:  launcherImport,
+		ImportScanBusy: launcherImportScanBusy,
+		OnCancelImportScan: func() {
+			state.cancelImportCatalogScan()
+			state.launcherSurfaceInvalidator(win)()
+		},
 		ImportJournal:        launcherImportJournal,
 		UpdateStatus:         launcherUpdate,
 		UpdateAvailable:      launcherUpdateAvailable,
@@ -689,7 +701,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 			}()
 		},
 		OnScanImport: func() {
-			state.applyImportCatalog(win, "")
+			state.rescanImportCatalog(win, "")
 		},
 		OnPickImportSource: func() {
 			picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
@@ -700,7 +712,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 			if err != nil || len(picked) == 0 {
 				return
 			}
-			state.applyImportCatalog(win, picked[0])
+			state.rescanImportCatalog(win, picked[0])
 		},
 		OnAddSkillImportDir: func() {
 			picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
@@ -711,35 +723,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 			if err != nil || len(picked) == 0 {
 				return
 			}
-			state.mu.Lock()
-			cat := state.launcherImportCatalog
-			state.mu.Unlock()
-			if cat == nil {
-				state.applyImportCatalog(win, "")
-				state.mu.Lock()
-				cat = state.launcherImportCatalog
-				state.mu.Unlock()
-			}
-			if cat == nil {
-				return
-			}
-			n := importer.AppendSkillDirectory(cat, picked[0])
-			state.mu.Lock()
-			state.launcherImportCatalog = cat
-			state.launcherImport = fmt.Sprintf(i18n.T(i18n.KeyLauncherImportSummarySkillDir),
-				cat.SourceHome, cat.DestHome,
-				len(cat.Sessions), len(cat.Skills), len(cat.Plugins),
-				len(cat.MCP), len(cat.Settings), len(cat.Presets),
-				picked[0], n)
-			counts := cat.CategoryCounts()
-			state.launcherImportCategories = map[string]bool{}
-			for id, pair := range counts {
-				state.launcherImportCategories[id] = pair[1] > 0
-			}
-			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
+			state.requestImportCatalog(win, "", picked[0])
 		},
 		OnCopyImportJournal: func(lines []string) {
 			if len(lines) == 0 {

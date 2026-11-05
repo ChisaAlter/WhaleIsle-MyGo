@@ -187,12 +187,35 @@ func (s *Store) SelectAgentPresetForSession(ctx context.Context, label string) {
 
 // SelectAgentPresetIDForSession binds the gesture to a real roster ID and session.
 func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, presetID string) {
+	s.selectAgentPresetIDForSession(ctx, targetID, presetID, nil)
+}
+
+// CaptureBlankAgentPresetDefaultTarget captures the actual blank session at the
+// default-setting gesture. A later completion cannot select a replacement
+// session, even after navigating away and back to the same directory or ID.
+func (s *Store) CaptureBlankAgentPresetDefaultTarget() func(context.Context, string) {
+	s.mu.Lock()
+	client, id, generation, cwd := s.client, s.selectedID, s.followGeneration, filepathClean(s.cwd)
+	eligible := client != nil && id != "" && s.blankPresetTargetLocked(id)
+	s.mu.Unlock()
+	if !eligible {
+		return nil
+	}
+	current := func() bool {
+		return s.client == client && s.selectedID == id && s.followGeneration == generation && filepathClean(s.cwd) == cwd && s.blankPresetTargetLocked(id)
+	}
+	return func(ctx context.Context, presetID string) {
+		s.selectAgentPresetIDForSession(ctx, id, presetID, current)
+	}
+}
+
+func (s *Store) selectAgentPresetIDForSession(ctx context.Context, targetID, presetID string, capturedCurrent func() bool) {
 	s.mu.Lock()
 	opt, ok := agentPresetOptionByID(presetID, s.agentPresetOptions)
 	client, sessionID, generation := s.client, s.selectedID, s.followGeneration
 	cwd := s.cwd
 	p := s.presetStateLocked()
-	if !ok || client == nil || sessionID != targetID || ctx.Err() != nil {
+	if !ok || client == nil || sessionID != targetID || ctx.Err() != nil || (capturedCurrent != nil && !capturedCurrent()) {
 		s.mu.Unlock()
 		return
 	}
@@ -226,7 +249,7 @@ func (s *Store) SelectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		s.mu.Lock()
-		current := s.client == client && s.selectedID == sessionID && s.followGeneration == generation && s.blankPresetTargetLocked(sessionID)
+		current := s.client == client && s.selectedID == sessionID && s.followGeneration == generation && s.blankPresetTargetLocked(sessionID) && (capturedCurrent == nil || capturedCurrent())
 		if !current {
 			if s.client == client && s.presetDraft.session == sessionID && s.presetDraft.generation == generation {
 				s.presetDraft.busy = false

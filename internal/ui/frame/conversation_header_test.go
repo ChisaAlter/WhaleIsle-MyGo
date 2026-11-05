@@ -111,6 +111,7 @@ func TestConversationHeaderShortTitleDoesNotStretchTo280AndShowsSubagentCatalog(
 		t.Fatalf("clicking Subagents dispatched %d times, want 1", agentsClicked)
 	}
 	_ = subBtn
+	saveConversationEvidence(t, tt, "conversation-header-900")
 }
 
 func TestRightDrawerExpandButtonRendersWhenRightPaneClosed(t *testing.T) {

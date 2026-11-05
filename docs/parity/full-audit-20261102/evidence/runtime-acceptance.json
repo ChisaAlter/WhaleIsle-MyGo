@@ -1,0 +1,363 @@
+{
+    "date":  "2026-11-02",
+    "overall":  "FAIL",
+    "scope":  "non-desktop local runtime acceptance; no mouse, keyboard, UIA, window-message injection or current visible-window acceptance",
+    "candidate":  {
+                      "executable":  "C:\\AI\\WhaleIsle-MyGo\\dist\\0.2.1-rc.3\\whaleisle\\whaleisle-trajectory-diagnostic.exe",
+                      "version":  "0.2.1-rc.3+trajectory.1",
+                      "sourceHead":  "b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb",
+                      "sourceState":  "existing trajectory dirty state recorded in build receipt; no product edits during acceptance",
+                      "bytes":  99364352,
+                      "hostVersion":  "0.2.1-rc.2",
+                      "stage":  "C:\\AI\\WhaleIsle-MyGo\\dist\\0.2.1-rc.3\\whaleisle\\runtime",
+                      "rebuilt":  false,
+                      "legacyInstallerAppSource":  "5549e6278824dbdea7f9fddc7b5f94b07b0873b6"
+                  },
+    "failures":  [
+                     {
+                         "id":  "WS-002",
+                         "level":  "current production Go Store + actual delivered Host + compiled production sidebar filter",
+                         "result":  {
+                                        "case":  "WS-002-global-create",
+                                        "status":  "FAIL",
+                                        "entry":  "Store.CreateSession (same controller used by global rail, caption and Ctrl+N)",
+                                        "sessionId":  "session-cfeb39b5-50ea-4dcf-8d1b-f678e1e17851",
+                                        "wire":  {
+                                                     "method":  "session/create",
+                                                     "request":  {
+                                                                     "cwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace"
+                                                                 }
+                                                 },
+                                        "workspaceIdPresent":  false,
+                                        "expectedWorkspaceId":  "a10b2ab9-6fe8-4360-b057-1c91230f71c1",
+                                        "hostWorkspaceMember":  false,
+                                        "hostMemberOf":  [
+
+                                                         ],
+                                        "hostBaseline":  {
+                                                             "type":  "baseline",
+                                                             "value":  {
+                                                                           "scratchCwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\user-data\\dsh-home\\no-workspace",
+                                                                           "items":  [
+                                                                                         {
+                                                                                             "workspaceId":  "a10b2ab9-6fe8-4360-b057-1c91230f71c1",
+                                                                                             "path":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                                                                             "sessionIds":  [
+
+                                                                                                            ]
+                                                                                         }
+                                                                                     ]
+                                                                       }
+                                                         },
+                                        "storeWorkspaceMember":  false,
+                                        "storeSelectedId":  "session-cfeb39b5-50ea-4dcf-8d1b-f678e1e17851",
+                                        "storeSelectedCwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                        "item":  {
+                                                     "Presentation":  null,
+                                                     "SubagentIdentity":  null,
+                                                     "CompletionUnread":  false,
+                                                     "AgentMetrics":  {
+                                                                          "Tokens":  0,
+                                                                          "Timing":  {
+                                                                                         "SettledMs":  0,
+                                                                                         "Since":  null,
+                                                                                         "Through":  null
+                                                                                     },
+                                                                          "Completed":  false,
+                                                                          "Ready":  true,
+                                                                          "TokenSeq":  2,
+                                                                          "TimingSeq":  2
+                                                                      },
+                                                     "BilledUsage":  {
+                                                                         "models":  [
+
+                                                                                    ]
+                                                                     },
+                                                     "BilledUsageSeq":  2,
+                                                     "BilledUsageKind":  "sequenced",
+                                                     "SessionID":  "session-cfeb39b5-50ea-4dcf-8d1b-f678e1e17851",
+                                                     "ParentID":  "",
+                                                     "Title":  "",
+                                                     "Cwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                                     "Running":  false,
+                                                     "ContactError":  "",
+                                                     "Blank":  true,
+                                                     "UpdatedAt":  1793618741924,
+                                                     "Pinned":  false,
+                                                     "Origin":  "",
+                                                     "AgentAvailable":  true
+                                                 },
+                                        "isScratch":  false,
+                                        "sidebarVisible":  false,
+                                        "sidebarIds":  [
+
+                                                       ],
+                                        "detail":  "Expected explicit workspaceId, real Host membership, selected result, and actual sidebar inclusion. A detected defect remains FAIL."
+                                    },
+                         "evidence":  "tmp/acceptance-runtime-20261102/workspace/report.json"
+                     },
+                     {
+                         "id":  "SET-002",
+                         "level":  "actual delivered Host bundle method; not full Host service or browser sign-in",
+                         "result":  {
+                                        "id":  "SET-002",
+                                        "status":  "FAIL",
+                                        "execution":  "delivered Host bundle component, not full Host or GUI",
+                                        "module":  "C:\\AI\\WhaleIsle-MyGo\\dist\\0.2.1-rc.3\\whaleisle\\runtime\\vendor\\deepseek-harness\\packages\\credentials\\deepseek-account-platform\\lib\\index.js",
+                                        "method":  "PlatformAccount.prototype.startSignIn",
+                                        "constructorInvoked":  false,
+                                        "receiver":  "guarded prototype receiver; only removing may be read",
+                                        "input":  {
+                                                      "client":  {
+                                                                     "version":  "whaleisle",
+                                                                     "locale":  "zh-CN",
+                                                                     "timezoneOffsetSeconds":  28800
+                                                                 },
+                                                      "callbackOrigin":  "whaleisle://auth",
+                                                      "loginSource":  "desktop"
+                                                  },
+                                        "expected":  "ordinary sign-in creates a browser callback authorization attempt",
+                                        "actual":  {
+                                                       "name":  "PlatformAuthError",
+                                                       "code":  "protocol",
+                                                       "message":  "account: protocol"
+                                                   },
+                                        "accountStateReads":  [
+                                                                  "removing"
+                                                              ],
+                                        "fetchCalls":  0,
+                                        "pureValidatorControl":  "http://127.0.0.1:43210",
+                                        "externalActions":  "none; no account service, authorization, credentials, browser, listener, or login network request"
+                                    },
+                         "evidence":  "tmp/acceptance-runtime-20261102/contracts/account-result.json"
+                     },
+                     {
+                         "id":  "FLOW-007",
+                         "level":  "current production Go component; not full executable UI",
+                         "result":  {
+                                        "expected":  "Project bridge supports check-directory/baseline/changes/revert",
+                                        "externalActions":  "none; no directory or runner configured; unsupported dispatch returns before Node call",
+                                        "method":  "projectbridge.Bridge.Dispatch",
+                                        "results":  {
+                                                        "baseline":  {
+                                                                         "available":  false,
+                                                                         "error":  "unsupported Project operation",
+                                                                         "ok":  false
+                                                                     },
+                                                        "changes":  {
+                                                                        "available":  false,
+                                                                        "error":  "unsupported Project operation",
+                                                                        "ok":  false
+                                                                    },
+                                                        "check-directory":  {
+                                                                                "available":  false,
+                                                                                "error":  "unsupported Project operation",
+                                                                                "ok":  false
+                                                                            },
+                                                        "revert":  {
+                                                                       "available":  false,
+                                                                       "error":  "unsupported Project operation",
+                                                                       "ok":  false
+                                                                   }
+                                                    },
+                                        "status":  "FAIL"
+                                    },
+                         "evidence":  "tmp/acceptance-runtime-20261102/contracts/go-result.json"
+                     },
+                     {
+                         "id":  "PLUG-023",
+                         "level":  "current production Go component; not visible window",
+                         "result":  {
+                                        "actual":  {
+                                                       "busy":  false,
+                                                       "draft":  "",
+                                                       "editingID":  "",
+                                                       "error":  "",
+                                                       "form":  null,
+                                                       "stateUnchanged":  true
+                                                   },
+                                        "alternateOpenForm":  {
+                                                                  "enabled":  true,
+                                                                  "formOpened":  true,
+                                                                  "transport":  "stdio"
+                                                              },
+                                        "cancel":  {
+                                                       "draft":  "",
+                                                       "editingID":  "",
+                                                       "form":  null
+                                                   },
+                                        "expected":  "top-level add opens a new editable server form",
+                                        "externalActions":  "none; local controller only; no Host caller, save, MCP install or MCP process",
+                                        "method":  "mcpconfig.Controller.Edit(\"\")",
+                                        "status":  "FAIL"
+                                    },
+                         "evidence":  "tmp/acceptance-runtime-20261102/contracts/go-result.json"
+                     }
+                 ],
+    "scopedPasses":  [
+                         {
+                             "id":  "EXE-STARTUP",
+                             "level":  "actual existing executable, hidden isolated mode, pre-registered QA workspace",
+                             "result":  {
+                                            "started":  "2026-11-02T11:28:01.8536658Z",
+                                            "executable":  "C:\\AI\\WhaleIsle-MyGo\\dist\\0.2.1-rc.3\\whaleisle\\whaleisle-trajectory-diagnostic.exe",
+                                            "profile":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\user-data",
+                                            "workspace":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                            "source":  "existing 0.2.1-rc.3+trajectory.1 binary; no rebuild",
+                                            "windowInput":  false,
+                                            "scenario":  "existing registered QA workspace startup, not first-use Documents initialization",
+                                            "status":  "PASS-SCOPED",
+                                            "checks":  [
+                                                           {
+                                                               "expected":  "actual existing binary reaches config/native app/Host startup",
+                                                               "status":  "PASS",
+                                                               "id":  "EXE-01",
+                                                               "observedStages":  [
+                                                                                      "process.start",
+                                                                                      "app.when_ready",
+                                                                                      "config.loaded",
+                                                                                      "window.created",
+                                                                                      "host.ready"
+                                                                                  ]
+                                                           },
+                                                           {
+                                                               "expected":  "actual Host authenticated handshake and loopback listener",
+                                                               "status":  "PASS",
+                                                               "observed":  "host.ready after Redeem, TCP connect succeeded",
+                                                               "id":  "EXE-02"
+                                                           },
+                                                           {
+                                                               "expected":  "QA profile isolated from installed and user preview",
+                                                               "status":  "PASS",
+                                                               "observed":  {
+                                                                                "isolated":  "true",
+                                                                                "profileMatches":  true
+                                                                            },
+                                                               "id":  "EXE-03"
+                                                           }
+                                                       ],
+                                            "processStopped":  true,
+                                            "listenerClosed":  true,
+                                            "shutdownMethod":  "terminate only the owned QA process after observations; not graceful UI shutdown acceptance",
+                                            "processId":  10528,
+                                            "hostPort":  60590,
+                                            "readyMS":  5171.838,
+                                            "ownedDescendantCount":  2,
+                                            "completed":  "2026-11-02T11:28:10.0366530Z"
+                                        },
+                             "evidence":  "tmp/acceptance-runtime-20261102/desktop/result.json"
+                         },
+                         {
+                             "id":  "WS-002-CONTROL",
+                             "level":  "current production Go Store + actual delivered Host + compiled production sidebar filter",
+                             "result":  {
+                                            "case":  "WS-002-workspace-target-contrast",
+                                            "status":  "PASS",
+                                            "entry":  "CaptureWorkspaceSessionTarget -\u003e target.Create -\u003e target.Select (production Store controller, not native click)",
+                                            "sessionId":  "session-6f3ab50b-820a-4848-8425-8fe6650a9841",
+                                            "wire":  {
+                                                         "method":  "session/create",
+                                                         "request":  {
+                                                                         "workspaceId":  "a10b2ab9-6fe8-4360-b057-1c91230f71c1"
+                                                                     }
+                                                     },
+                                            "workspaceIdPresent":  true,
+                                            "expectedWorkspaceId":  "a10b2ab9-6fe8-4360-b057-1c91230f71c1",
+                                            "hostWorkspaceMember":  true,
+                                            "hostMemberOf":  [
+                                                                 "a10b2ab9-6fe8-4360-b057-1c91230f71c1"
+                                                             ],
+                                            "hostBaseline":  {
+                                                                 "type":  "baseline",
+                                                                 "value":  {
+                                                                               "scratchCwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\user-data\\dsh-home\\no-workspace",
+                                                                               "items":  [
+                                                                                             {
+                                                                                                 "workspaceId":  "a10b2ab9-6fe8-4360-b057-1c91230f71c1",
+                                                                                                 "path":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                                                                                 "sessionIds":  [
+                                                                                                                    "session-6f3ab50b-820a-4848-8425-8fe6650a9841"
+                                                                                                                ]
+                                                                                             }
+                                                                                         ]
+                                                                           }
+                                                             },
+                                            "storeWorkspaceMember":  true,
+                                            "storeSelectedId":  "session-6f3ab50b-820a-4848-8425-8fe6650a9841",
+                                            "storeSelectedCwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                            "item":  {
+                                                         "Presentation":  null,
+                                                         "SubagentIdentity":  null,
+                                                         "CompletionUnread":  false,
+                                                         "AgentMetrics":  {
+                                                                              "Tokens":  0,
+                                                                              "Timing":  {
+                                                                                             "SettledMs":  0,
+                                                                                             "Since":  null,
+                                                                                             "Through":  null
+                                                                                         },
+                                                                              "Completed":  false,
+                                                                              "Ready":  true,
+                                                                              "TokenSeq":  2,
+                                                                              "TimingSeq":  2
+                                                                          },
+                                                         "BilledUsage":  {
+                                                                             "models":  [
+
+                                                                                        ]
+                                                                         },
+                                                         "BilledUsageSeq":  2,
+                                                         "BilledUsageKind":  "sequenced",
+                                                         "SessionID":  "session-6f3ab50b-820a-4848-8425-8fe6650a9841",
+                                                         "ParentID":  "",
+                                                         "Title":  "",
+                                                         "Cwd":  "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102\\workspace\\qa-root\\registered-workspace",
+                                                         "Running":  false,
+                                                         "ContactError":  "",
+                                                         "Blank":  true,
+                                                         "UpdatedAt":  1793618742031,
+                                                         "Pinned":  false,
+                                                         "Origin":  "",
+                                                         "AgentAvailable":  true
+                                                     },
+                                            "isScratch":  false,
+                                            "sidebarVisible":  true,
+                                            "sidebarIds":  [
+                                                               "session-6f3ab50b-820a-4848-8425-8fe6650a9841"
+                                                           ],
+                                            "detail":  "Expected explicit workspaceId, real Host membership, selected result, and actual sidebar inclusion. A detected defect remains FAIL."
+                                        },
+                             "evidence":  "tmp/acceptance-runtime-20261102/workspace/report.json"
+                         }
+                     ],
+    "reusedEvidence":  [
+                           {
+                               "path":  "tmp/stabilize-20261102/packaged-headless/report.json",
+                               "scope":  "eight prior real staged Host/Go Store core checks; loopback synthetic model; not rerun, not current exe UI acceptance"
+                           },
+                           {
+                               "path":  "tmp/stabilize-20261102/install-result.json",
+                               "scope":  "prior independent GUID isolated installer transactions; not same-product-ID takeover; not rerun"
+                           }
+                       ],
+    "notExecuted":  [
+                        "current visible-window clicks, tab underline pixels and layout",
+                        "user-specific WS-001 and original rc.3 trajectory-click root cause",
+                        "real account sign-in, credentials and paid/external model requests",
+                        "MCP server install/OAuth/process, arbitrary plugins, IM, real remote/device/audio",
+                        "WS-003 destructive delete-cancel experiment",
+                        "full 367-item runtime acceptance or every domain path"
+                    ],
+    "cleanup":  {
+                    "workspaceHostStopped":  true,
+                    "workspaceHostListenerClosed":  true,
+                    "workspaceInstallListenerClosed":  true,
+                    "exeStopped":  true,
+                    "exeHostListenerClosed":  true,
+                    "contractHelpersExited":  true,
+                    "originalAndUserPreviewUntouched":  true
+                },
+    "productChanges":  false,
+    "installerRebuilt":  false,
+    "ciTriggered":  false
+}

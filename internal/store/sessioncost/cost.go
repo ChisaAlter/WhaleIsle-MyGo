@@ -79,8 +79,10 @@ type Source struct {
 }
 type Row struct {
 	Route
-	Cents  float64
-	Priced bool
+	Cents       float64
+	Priced      bool
+	Price       usage.ModelPrice
+	PriceSource string
 }
 type Result struct {
 	Rows                       []Row
@@ -137,19 +139,15 @@ func Calculate(id string, sources []Source, settings usage.BillingSettings) Resu
 	for i := range result.Rows {
 		r := &result.Rows[i]
 		result.Total = add(result.Total, add(*r.Peak, *r.OffPeak))
-		p, ok := settings.Prices[r.Provider+"/"+r.Model]
-		if !ok {
-			p, ok = settings.Prices[r.Model]
-		}
+		p, ok := usage.ResolveModelPrice(r.Provider, r.Model, settings.Prices)
 		if !ok || !validRates(p.PriceRates) {
 			result.Unpriced++
 			continue
 		}
 		idle := p.PriceRates
 		if !p.Flat {
-			if p.Idle == nil && (r.OffPeak.Miss+r.OffPeak.Hit+r.OffPeak.Output) > 0 {
-				result.Unpriced++
-				continue
+			if p.Idle == nil {
+				idle = usage.PriceRates{InputCacheMiss: p.InputCacheMiss / 2, InputCacheHit: p.InputCacheHit / 2, Output: p.Output / 2}
 			}
 			if p.Idle != nil {
 				idle = *p.Idle
@@ -161,6 +159,14 @@ func Calculate(id string, sources []Source, settings usage.BillingSettings) Resu
 		if !validRates(idle) {
 			result.Unpriced++
 			continue
+		}
+		r.Price = p
+		r.Price.Idle = &idle
+		r.PriceSource = "official"
+		if _, custom := settings.Prices[r.Provider+"/"+r.Model]; custom {
+			r.PriceSource = "custom"
+		} else if _, custom := settings.Prices[r.Model]; custom {
+			r.PriceSource = "custom"
 		}
 		n := cost(*r.Peak, p.PriceRates) + cost(*r.OffPeak, idle)
 		if math.IsNaN(n) || math.IsInf(n, 0) || n < 0 || n > 9007199254740991 {

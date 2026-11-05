@@ -41,17 +41,7 @@ var backgroundState struct {
 	hasBox  bool
 	dark    bool
 	version uint64
-	// transparent is whether the transparent theme was effective on the last
-	// configure, so the sharp-wallpaper lift runs once per transition; liftedBlur
-	// is what it raised the blur to while it stays effective.
-	transparent bool
-	liftedBlur  float64
 }
-
-// transparentMinBlur is TRANSPARENT_MIN_BLUR (ui-theme/src/wallpaper.ts): the
-// blur the harness lifts the wallpaper to when the transparent theme becomes
-// effective, so text is not left on a sharp image with 0% surfaces.
-const transparentMinBlur = 20
 
 // clampWallpaperEffect matches the harness clampWallpaperEffect(): non-finite
 // input becomes 0, everything else is rounded and clamped to the 0–100 slider.
@@ -86,23 +76,11 @@ func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 		clearGradientBackdrop()
 		ambientGradientFrames.reset()
 	}
-	// The harness raises a too-sharp wallpaper once, when the transparent theme
-	// becomes effective, and the raise holds while it stays effective: the saved
-	// preferences keep the user's own blur, so this only changes what the window
-	// paints, and turning the theme off restores it.
+	// The preference writer performs the one-shot readability nudge when the
+	// transparent theme becomes effective. Rendering must honor later explicit
+	// blur edits, including values below that initial nudge.
 	p.Blur = clampWallpaperEffect(p.Blur)
 	p.Pixelate = clampWallpaperEffect(p.Pixelate)
-	transparent := p.Transparent && path != ""
-	if transparent && !backgroundState.transparent && p.Blur < transparentMinBlur {
-		backgroundState.liftedBlur = transparentMinBlur
-	}
-	if !transparent {
-		backgroundState.liftedBlur = 0
-	}
-	if transparent && backgroundState.liftedBlur > p.Blur {
-		p.Blur = backgroundState.liftedBlur
-	}
-	backgroundState.transparent = transparent
 	backgroundState.prefs = p
 	backgroundState.wallpaper = path
 	backgroundState.active = path != "" || p.Effect == "gradient"
@@ -173,9 +151,7 @@ func BackdropTerminal(c ui.Color) ui.Color {
 // glass.go), so the mask is part of what they sample.
 func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
 	ConfigureBackdrop(path, p)
-	// ConfigureBackdrop owns the effective preferences: the transparent theme
-	// may have lifted the blur (transparentMinBlur), and the bitmap has to be
-	// built with that value.
+	// ConfigureBackdrop owns the effective clamped wallpaper preferences.
 	p = backgroundState.prefs
 	reduced := len(reducedMotion) > 0 && reducedMotion[0]
 	if path != "" {

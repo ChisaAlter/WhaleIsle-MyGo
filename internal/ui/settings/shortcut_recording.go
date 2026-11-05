@@ -75,6 +75,10 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 		if ev.Repeat {
 			return true
 		}
+		if ev.Key == ui.KeyEscape && ev.Mods == 0 {
+			reset()
+			return false // Let the dialog dismiss the armed editor first.
+		}
 		if ev.Code == "" {
 			reset()
 			e.Err = providerCopy("此按键没有可用的物理键码", "Physical key code unavailable")

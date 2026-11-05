@@ -65,11 +65,11 @@ func pass4bPresetsView(c *ui.Context) {
 // cards neither overlap nor leave a gap wide enough for a third column.
 func TestPass4bPresetCardsUseTwoColumns(t *testing.T) {
 	tt := ui.NewTester(pass4bPresetsView, 1000, 800)
-	first, ok := tt.Find("选择默认 · 标准模式")
+	first, ok := tt.Find("设为新任务默认 · 标准模式")
 	if !ok {
 		t.Fatalf("first card missing: %v", tt.Texts())
 	}
-	second, ok := tt.Find("选择默认 · PTC 模式")
+	second, ok := tt.Find("设为新任务默认 · PTC 模式")
 	if !ok {
 		t.Fatal("second card missing")
 	}
@@ -78,16 +78,18 @@ func TestPass4bPresetCardsUseTwoColumns(t *testing.T) {
 	}
 	// Two columns: the second card starts exactly one gap after the first and
 	// both cards are the same width, so no third column can fit.
-	// The grid gap is 12; each card's face is inset 1 DIP by its stroke, so the
+	// The grid gap is 12; each card's face is inset by its stroke, so the
 	// measured span between faces is 14 and each face is 2 DIP narrower than
 	// the column: (1000 - 12) / 2 = 494.
-	if diff := (second.X - first.X) - first.W; diff != 14 {
-		t.Fatalf("column span = %v, want 14 (cards %+v %+v)", diff, first, second)
+	// The 0.3.13 stroke is 0.667, so the span between faces is 12 + 2*0.667.
+	const stroke = float32(.667)
+	if diff := (second.X - first.X) - first.W; diff < 12+2*stroke-.01 || diff > 12+2*stroke+.01 {
+		t.Fatalf("column span = %v, want %v (cards %+v %+v)", diff, 12+2*stroke, first, second)
 	}
-	if first.W+2 != 494 {
-		t.Fatalf("column width = %v, want 494", first.W+2)
+	if width := first.W + 2*stroke; width < 493.99 || width > 494.01 {
+		t.Fatalf("column width = %v, want 494", width)
 	}
-	if first.W != second.W || first.Y != second.Y {
+	if d := first.W - second.W; d < -.01 || d > .01 || first.Y != second.Y {
 		t.Fatalf("cards are not a uniform 2-up grid: %+v %+v", first, second)
 	}
 	if !tt.HasText(i18n.T(KeyPass4TaskDefault)) || !tt.HasText(i18n.T(KeyPass4BadgeBuiltIn)) {

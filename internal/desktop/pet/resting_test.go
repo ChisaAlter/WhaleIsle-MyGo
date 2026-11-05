@@ -16,8 +16,9 @@ func TestRestingPageHasNoPermanentChrome(t *testing.T) {
 	}
 	html := string(page)
 	for _, want := range []string{
-		"#pet-status-toggle{position:fixed;left:calc(var(--pet-x) + var(--pet-width) - 80px)",
-		"#pet-status-toggle:focus-visible,#pet-status-toggle[aria-expanded=\"true\"]",
+		"#pet-status-toggle{position:fixed;left:calc(var(--pet-x) + var(--pet-width)",
+		"opacity:0;pointer-events:none",
+		"#pet-status-toggle:focus-visible,#pet-status-toggle[aria-expanded=true]",
 		"#render-notice:empty{display:none}",
 	} {
 		if !strings.Contains(html, want) {

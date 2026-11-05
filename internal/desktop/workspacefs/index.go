@@ -26,13 +26,26 @@ func SearchRelPaths(ctx context.Context, root, query string, remote RemoteDirect
 }
 
 func walkRelPaths(ctx context.Context, root, needle string, remote RemoteDirectoryLister, includeDirs bool) ([]string, error) {
+	return walkRelPathsWithSource(ctx, root, needle, remote, includeDirs, false)
+}
+
+func walkRelPathsWithSource(ctx context.Context, root, needle string, remote RemoteDirectoryLister, includeDirs, hostOnly bool) ([]string, error) {
 	var out []string
 	pending := []string{""}
 	// Choose the local or Host source once at the root. A failed nested local
 	// read must not accidentally jump into a different Host workspace.
-	local := true
-	first, err := ListWorkspaceDir(ctx, root, "")
-	if err != nil && ctx.Err() == nil && remote != nil {
+	local := !hostOnly
+	var first []Entry
+	var err error
+	if hostOnly {
+		if remote == nil {
+			return nil, fmt.Errorf("workspace Host directory reader is unavailable")
+		}
+		first, err = remote(ctx, "")
+	} else {
+		first, err = ListWorkspaceDir(ctx, root, "")
+	}
+	if local && err != nil && ctx.Err() == nil && remote != nil {
 		first, err = remote(ctx, "")
 		local = false
 	}
@@ -66,6 +79,9 @@ func walkRelPaths(ctx context.Context, root, needle string, remote RemoteDirecto
 			return nil, err
 		}
 		for _, entry := range entries {
+			if entry.Other {
+				continue
+			}
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -120,6 +136,9 @@ func walkLocalLevels(ctx context.Context, root, needle string, first []Entry, in
 				return nil, err
 			}
 			for _, entry := range entries {
+				if entry.Other {
+					continue
+				}
 				path := entry.Name
 				if rel != "" {
 					path = rel + "/" + entry.Name

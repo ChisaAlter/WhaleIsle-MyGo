@@ -61,8 +61,8 @@ func (w *Workbench) requestRemote(root, mode string) {
 	}
 }
 func paintPRReview(c *ui.Context, p git.PullRequestPlan, fg, muted ui.Color) {
-	ui.Text(c, word("PR 收件仓库：", "PR recipient: ")+p.Repository).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	ui.Text(c, p.Push.Target+" → "+p.Base).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, word("PR 收件仓库：", "PR recipient: ")+p.Host+"/"+p.Repository).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+	ui.Text(c, p.Head+" → "+p.Base).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, p.Title).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.Text(c, p.Body).FontSize(fonttheme.InterfaceSize(10)).TextColor(fg)
 	ui.Text(c, pullRequestModeLabel(p.Draft)+word("；如已有匹配的开放 PR 则打开已有项，不改变其状态。", "; an existing matching open PR is reused without changing its state.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
@@ -220,7 +220,7 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	case "open_pr":
 		if widgets.Button(c, colors, word("查看 PR", "View PR"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-			if !git.ValidPullRequestURL(r.PR.URL, r.PR.Repository) {
+			if !git.ValidPullRequestURLForHost(r.PR.URL, r.PR.Host, r.PR.Repository) {
 				w.Status = "Unexpected PR URL"
 			} else if e := webview.OpenExternal(r.PR.URL); e != nil {
 				w.Status = e.Error()

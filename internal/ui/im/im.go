@@ -76,9 +76,6 @@ func View(c *ui.Context, m Model) {
 						m.OnEnablePlugin()
 					}
 				}
-				if snap.Loading {
-					ui.Text(c, i18n.T(i18n.KeyIMLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				}
 				if m.OnOpenPluginWeb != nil && ui.Button(c, i18n.T(i18n.KeyIMOpenWeb)).Clicked() {
 					m.OnOpenPluginWeb()
 				}
@@ -289,9 +286,10 @@ func View(c *ui.Context, m Model) {
 						}
 						if send.Clicked() && m.OnSend != nil {
 							m.OnSend(snap.SelectedID, strings.TrimSpace(*m.Draft))
-							*m.Draft = ""
 							if m.Store != nil {
-								m.Store.SetDraft(snap.SelectedID, "")
+								*m.Draft = m.Store.Snapshot().Draft
+							} else {
+								*m.Draft = ""
 							}
 						}
 						if snap.LastSend != "" {

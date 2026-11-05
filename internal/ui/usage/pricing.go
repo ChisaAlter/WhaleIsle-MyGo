@@ -2,9 +2,8 @@ package usage
 
 import (
 	"context"
-	"fmt"
 	"github.com/egoist/mygo/ui"
-	"sort"
+	"strconv"
 	"strings"
 	usagestore "whaleisle/internal/store/usage"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -13,138 +12,188 @@ import (
 
 func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	trigger := ui.Button(c.Key("usage-pricing"), usageText("价格详情与设置", "Price details and settings"))
+	trigger := widgets.Button(c.Key("usage-pricing/"+m.Store.StatisticsOwner()), colors, usageText("设置", "Settings"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall})
 	open := ui.Local(trigger, "open", func() bool { return false })
-	if trigger.Clicked() {
+	submitted := ui.Local(trigger, "submitted", func() bool { return false })
+	requested := m.Store.TakeBillingEditorRequest()
+	if trigger.Clicked() || requested {
+		m.Store.DiscardPrices()
+		m.Store.LoadBilling(context.Background())
 		*open = true
+		*submitted = false
 	}
-	pricingDialog(c, open, colors, func() { pricingContent(c, m, fg, muted, accent) })
-}
-
-func pricingDialog(c *ui.Context, open *bool, colors fonttheme.Colors, content func()) {
-	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		widgets.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
-		w, h := c.Size()
-		panel.Width(max(0, min(960, w-32))).Height(max(0, min(800, h-32))).Radius(20).Clip().
-			Background(c.Theme().Background).Padding(20).Children(func() {
-			if widgets.Button(c, colors, usageText("关闭价格详情", "Close price details"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-				*open = false
+	v := m.Store.Billing()
+	wasOpen := *open
+	if *submitted && !v.Busy && v.Err == "" && !v.Dirty {
+		*submitted = false
+		*open = false
+	}
+	var actions func()
+	pricingDialogFooter(c, open, colors, func() {
+		pricingEditor(c, m, fg, muted, accent, func(close bool) {
+			m.Store.SaveBilling(context.Background())
+			if close {
+				*submitted = true
 			}
-			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() { ui.Column(c).Gap(8).Children(content) })
+		}, func(footer func()) { actions = footer })
+	}, func() {
+		if widgets.Button(c, colors, usageText("关闭", "Close"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(v.Busy).Clicked() {
+			*open = false
+		}
+		if actions != nil {
+			actions()
+		}
+	}, v.Busy)
+	if wasOpen && !*open {
+		m.Store.DiscardPrices()
+	}
+}
+func pricingDialog(c *ui.Context, open *bool, colors fonttheme.Colors, content func(), saving ...bool) {
+	pricingDialogFooter(c, open, colors, content, nil, len(saving) > 0 && saving[0])
+}
+func pricingDialogFooter(c *ui.Context, open *bool, colors fonttheme.Colors, content, footer func(), busy bool) {
+	ui.DialogBaseWithOptions(c, open, ui.DialogOptions{DismissDisabled: busy}, func(back, panel ui.Element) {
+		widgets.RevealOverlay(c, back, panel, ui.RGBA(0, 0, 0, .4))
+		w, h := c.Size()
+		panel.Width(max(0, min(620, w-48))).MaxHeight(max(0, h-48)).Radius(16).Background(c.Theme().Background).Padding(24).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Gap(12).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, usageText("计费设置", "Billing settings")).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600)
+					if widgets.Button(c, colors, "×", widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Label(usageText("关闭", "Close")).Disabled(busy).Clicked() {
+						*open = false
+					}
+				})
+				bodyHeight := max(0, h-160)
+				if footer != nil {
+					bodyHeight = max(0, bodyHeight-52)
+				}
+				ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(bodyHeight).Shrink(1).Children(func() { ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(content) })
+				if footer != nil {
+					ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Gap(8).Wrap().Justify(ui.End).Children(footer)
+				}
+			})
 		})
 	})
 }
-
 func pricingContent(c *ui.Context, m Model, fg, muted, accent ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	pricingEditor(c, m, fg, muted, accent, func(bool) { m.Store.SaveBilling(context.Background()) })
+}
+func pricingEditor(c *ui.Context, m Model, fg, muted, accent ui.Color, save func(bool), footers ...func(func())) {
 	v := m.Store.Billing()
-	ui.Text(c, usageText("价格配置与费用估算", "Price settings and cost estimates")).Bold().TextColor(fg)
-	ui.Text(c, usageText("计价货币 CNY，单位为每百万 tokens。已保存自定义价格优先，否则使用原版固定官方价格表（2026-08-17）；估算不是账单或实时报价。", "CNY per million tokens. Saved custom prices override the original panel’s official table (2026-08-17). Estimates are not bills or live quotes.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if v.Err != "" {
-		ui.Text(c, v.Err).TextColor(accent)
-	} else if v.Notice != "" {
-		ui.Text(c, v.Notice).TextColor(accent)
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	ui.Text(c, usageText("每百万 Token 单价（人民币）", "Price per million tokens (CNY)")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
+	seen := ui.Local(c.Root(), "billing-editor-feedback", func() string { return "" })
+	feedback := v.Err
+	if feedback == "" {
+		feedback = v.Notice
 	}
-	if v.Busy {
-		ui.Text(c, usageText("正在读写价格…", "Loading/saving prices…")).TextColor(muted)
-		return
+	if feedback != "" && feedback != *seen {
+		c.AddToast(ui.Toast{ID: "billing-editor-feedback", Description: feedback})
 	}
-	ui.Row(c).Gap(6).Children(func() {
-		if !v.Dirty && widgets.Button(c, colors, usageText("读取价格", "Load prices"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+	*seen = feedback
+	if !v.Loaded {
+		label := usageText("读取价格", "Load prices")
+		if v.Busy {
+			label = usageText("正在读取…", "Loading…")
+		}
+		if ui.Button(c, label).Disabled(v.Busy).Clicked() {
 			m.Store.LoadBilling(context.Background())
 		}
-		if v.Loaded && v.Dirty {
-			if widgets.Button(c, colors, usageText("保存价格", "Save prices"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
-				m.Store.SaveBilling(context.Background())
-			}
-			if widgets.Button(c, colors, usageText("放弃草稿", "Discard draft"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-				m.Store.DiscardPrices()
-			}
-		}
-	})
-	if !v.Loaded {
-		ui.Text(c, usageText("先读取已有价格后才能编辑和估算；无自定义且官方表未知的模型不估算。", "Load saved prices before editing and estimating. Models absent from both saved prices and the official table stay unpriced.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		return
 	}
 	billingModelsView(c, m, fg, muted, accent)
-	if v.Dirty {
-		ui.Text(c, usageText("有未保存草稿；估算仍使用已保存价格。保存失败可重试。", "Unsaved draft; estimates still use saved prices. Failed saves can be retried.")).TextColor(accent)
+	key := m.Store.Billing().NewKey
+	editor := ui.Column(c.Key("price-current-editor")).FillWidth().MinWidth(0).Gap(12)
+	selected := ui.Local(editor, "selected-key", func() string { return "" })
+	draft := ui.Local(editor, "draft", func() usagestore.PriceDraft { return usagestore.PriceDraft{Flat: true} })
+	if *selected != key {
+		*selected = key
+		*draft = usagestore.PriceDraft{Flat: true}
+		provider, model, _ := strings.Cut(key, "/")
+		if price, ok := usagestore.ResolveModelPrice(provider, model, v.Settings.Prices); ok {
+			draft.Flat = price.Flat
+			draft.Peak = priceRateStrings(price.PriceRates)
+			if price.Flat {
+				draft.Idle, draft.Peak = draft.Peak, [3]string{}
+			} else if price.Idle != nil {
+				draft.Idle = priceRateStrings(*price.Idle)
+			} else {
+				draft.Idle = priceRateStrings(usagestore.PriceRates{InputCacheHit: price.InputCacheHit / 2, InputCacheMiss: price.InputCacheMiss / 2, Output: price.Output / 2})
+			}
+		}
 	}
-	ui.Text(c, usageText("峰值顺序：缓存命中、未命中（含缓存写入）、输出。谷值三项留空时沿原面板按峰值一半估算，此为配置约定。", "Rate order: cache hit, miss (including cache writes), output. Three blank off-peak fields use half of peak, following the original panel convention.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	keys := make([]string, 0, len(v.Drafts))
-	for k := range v.Drafts {
-		keys = append(keys, k)
+	commit := func(close bool) {
+		*seen = ""
+		if key != "" {
+			staged := *draft
+			if staged.Flat {
+				staged.Peak = staged.Idle
+			}
+			if !m.Store.EditModelPrice(key, staged) {
+				return
+			}
+		}
+		save(close)
 	}
-	sort.Strings(keys)
-	ui.Scroll(c).Height(220).Children(func() {
-		ui.Column(c).Gap(8).Children(func() {
-			for _, key := range keys {
-				key := key
-				d := v.Drafts[key]
-				ui.Row(c).Gap(6).Children(func() {
-					title := key
-					if v.NewKey == key {
-						title = "● " + title
-					}
-					ui.Text(c, title).TextColor(fg).Grow(1)
-					if widgets.Button(c, colors, usageText("删除价格", "Remove price"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
-						m.Store.RemovePrice(key)
-					}
-				})
-				ui.Row(c).Gap(6).Children(func() {
-					ui.Text(c, usageText("峰值", "Peak")).TextColor(muted)
-					for i := range d.Peak {
-						i := i
-						ui.TextInput(c, &d.Peak[i]).Grow(1).OnChange(func() { m.Store.EditPrice(key, d) })
-					}
-				})
-				ui.Checkbox(c, &d.Flat, usageText("平价（峰谷使用同价）", "Flat (same price for both periods)")).OnChange(func() { m.Store.EditPrice(key, d) })
-				if !d.Flat {
-					ui.Row(c).Gap(6).Children(func() {
-						ui.Text(c, usageText("谷值", "Off-peak")).TextColor(muted)
-						for i := range d.Idle {
-							i := i
-							ui.TextInput(c, &d.Idle[i]).Grow(1).Placeholder(usageText("留空=峰值一半", "Blank = half peak")).OnChange(func() { m.Store.EditPrice(key, d) })
-						}
+	editor.Children(func() {
+		if key == "" {
+			ui.Text(c, usageText("选择模型后设置价格。", "Choose a model to set its price.")).TextColor(muted)
+			return
+		}
+		periodPrices := func(title string, values *[3]string) {
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+			ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.End).Children(func() {
+				for i, label := range []string{usageText("输入（缓存命中）", "Input (cache hit)"), usageText("输入（缓存未命中）", "Input (cache miss)"), usageText("输出", "Output")} {
+					i, label := i, label
+					ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+						ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						ui.TextInput(c, &values[i]).Label(title+" · "+label).FillWidth().Height(36).Radius(8).Border(.5, c.Theme().Border.Alpha(.45)).Disabled(v.Busy)
 					})
 				}
+			})
+		}
+		peakValley := !draft.Flat
+		if v.Settings.PeakValleyEnabled && ui.Switch(c, &peakValley).Label(usageText("此模型使用峰谷价格", "Use peak/off-peak prices for this model")).Disabled(v.Busy).Changed() {
+			draft.Flat = !peakValley
+			if peakValley {
+				for i, value := range draft.Peak {
+					if value == "" {
+						if number, err := strconv.ParseFloat(draft.Idle[i], 64); err == nil {
+							draft.Peak[i] = formatPrice(number * 2)
+						}
+					}
+				}
+			}
+		}
+		title := usageText("谷时价格", "Off-peak prices")
+		if draft.Flat {
+			title = usageText("单价", "Prices")
+		}
+		periodPrices(title, &draft.Idle)
+		if !draft.Flat {
+			periodPrices(usageText("峰时价格", "Peak prices"), &draft.Peak)
+		}
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Justify(ui.End).Children(func() {
+			if widgets.Button(c, colors, usageText("添加 / 更新", "Add / update"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(v.Busy).Clicked() {
+				commit(false)
 			}
 		})
 	})
-	key := v.NewKey
-	ui.Row(c).Gap(6).Children(func() {
-		ui.TextInput(c, &key).Grow(1).Placeholder("provider/model").OnChange(func() { m.Store.SetPriceKey(key) })
-		if widgets.Button(c, colors, usageText("添加价格", "Add price"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-			key = strings.TrimSpace(key)
-			if _, exists := v.Drafts[key]; !exists {
-				m.Store.EditPrice(key, usagestore.PriceDraft{})
-			}
+	actions := func() {
+		label := usageText("保存", "Save")
+		if v.Busy {
+			label = usageText("保存中…", "Saving…")
 		}
-	})
-	st := m.Store.Stats()
-	if st.Overview == nil {
-		return
-	}
-	ui.Text(c, usageText("全部历史费用估算（不随日期选区变化）", "All-time cost estimates (independent of date selection)")).Bold().TextColor(fg)
-	total := 0.0
-	priced, unpriced := 0, 0
-	for _, row := range st.Overview.AllTime.ByModel {
-		cents, ok := usagestore.EstimateModel(row, v.Settings)
-		label := usageText("未计价（缺价格或分时数据）", "Unpriced (missing price or period data)")
-		if ok {
-			total += cents
-			priced++
-			label = fmt.Sprintf("≈ CNY %.2f", cents/100)
-		} else {
-			unpriced++
+		if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(v.Busy).Clicked() {
+			commit(true)
 		}
-		ui.Text(c, fmt.Sprintf("%s · %s · %s", row.Provider, row.Model, label)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if priced > 0 {
-		ui.Text(c, usageText("全部历史已计价部分估算", "All-time priced portion estimate")+fmt.Sprintf(": ≈ CNY %.2f · %d priced · %d unpriced", total/100, priced, unpriced)).TextColor(fg)
+	if len(footers) > 0 {
+		footers[0](actions)
+	} else {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Justify(ui.End).Children(actions)
 	}
-	cv := st.Overview.Coverage
-	if unpriced > 0 || cv.SessionsFailed > 0 || cv.SessionsPending > 0 || st.Overview.Stale || st.Err != "" {
-		ui.Text(c, usageText("价格或用量覆盖不完整，或数据可能过期，不代表完整费用。", "Price/usage coverage is incomplete or data may be stale; this is not a complete cost.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-	}
+}
+func priceRateStrings(r usagestore.PriceRates) [3]string {
+	return [3]string{formatPrice(r.InputCacheHit), formatPrice(r.InputCacheMiss), formatPrice(r.Output)}
 }

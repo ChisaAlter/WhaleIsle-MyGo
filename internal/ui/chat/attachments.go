@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"encoding/json"
 	"fmt"
 	"path"
 	"strings"
@@ -13,12 +12,12 @@ import (
 )
 
 // Original MessageItem.module.css: the file attachment row renders a 240×64
-// card with a 28 DIP kind glyph, the name on 13/20 and an "EXT · size" line.
+// card with a 28 DIP kind glyph, the name on 14/22 and an "EXT · size" line.
 const (
 	attachmentCardWidth  = float32(240)
 	attachmentCardHeight = float32(64)
 	attachmentGlyphSize  = float32(28)
-	attachmentGlyphSeat  = float32(16)
+	attachmentGlyphSeat  = float32(28)
 )
 
 // userFileAttachment is one durable file part of a user message.
@@ -34,55 +33,16 @@ type userFileAttachment struct {
 // place a transcript can learn a file's name, kind and size; bodies that were
 // written before this projection carry text only, so no card is invented.
 func userFileAttachments(msg session.Message) []userFileAttachment {
-	if len(msg.Raw) == 0 {
-		return nil
-	}
-	var ev struct {
-		Data struct {
-			Content []attachmentContentPart `json:"content"`
-			Message struct {
-				Content []attachmentContentPart `json:"content"`
-			} `json:"message"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(msg.Raw, &ev) != nil {
-		return nil
-	}
-	parts := ev.Data.Content
-	if len(parts) == 0 {
-		// assistant/message and some Host builds nest the content one level down.
-		parts = ev.Data.Message.Content
-	}
 	var out []userFileAttachment
-	seen := map[string]bool{}
-	for _, part := range parts {
-		if part.Attachment == nil {
+	for _, a := range session.UserMessageContent(msg).Attachments {
+		if a.Type != "file" {
 			continue
 		}
-		kind := strings.ToLower(strings.TrimSpace(part.Type))
-		media := strings.ToLower(strings.TrimSpace(part.Attachment.MediaType))
-		if kind == "image" || strings.HasPrefix(media, "image/") {
-			// Images already render from their placeholders and lightbox.
-			continue
-		}
-		if kind != "file" && kind != "attachment" && media == "" {
-			continue
-		}
-		name := strings.TrimSpace(part.Attachment.Name)
-		id := strings.TrimSpace(part.Attachment.AttachmentID)
+		name := a.Name
 		if name == "" {
-			name = id
+			name = a.AttachmentID
 		}
-		if name == "" || seen[name] {
-			continue
-		}
-		seen[name] = true
-		out = append(out, userFileAttachment{
-			AttachmentID: id,
-			Name:         name,
-			MediaType:    media,
-			Bytes:        part.Attachment.Bytes,
-		})
+		out = append(out, userFileAttachment{AttachmentID: a.AttachmentID, Name: name, MediaType: a.MediaType, Bytes: a.Bytes})
 	}
 	return out
 }
@@ -193,15 +153,15 @@ func attachmentCardView(c *ui.Context, file userFileAttachment, fg, muted, borde
 	}
 	meta := attachmentMeta(name, file.MediaType, file.Bytes)
 	icon := attachmentKindIcon(name, file.MediaType)
-	ui.Row(c).Label("Attachment "+name).Width(attachmentCardWidth).Height(attachmentCardHeight).
+	ui.Row(c).Label("Attachment "+name).Width(attachmentCardWidth).MinHeight(attachmentCardHeight).
 		Radius(20).Border(0.5, border).Padding(0, 12, 0, 12).Gap(10).AlignItems(ui.Center).Children(func() {
-		ui.Box(c).Size(attachmentGlyphSize, attachmentGlyphSize).Radius(8).Background(field).Center().Children(func() {
+		ui.Box(c).Size(attachmentGlyphSize, attachmentGlyphSize).Center().Children(func() {
 			ui.Icon(c, icon).Width(attachmentGlyphSeat).Height(attachmentGlyphSeat).TextColor(muted)
 		})
 		ui.Column(c).MinWidth(0).Grow(1).Gap(1).Children(func() {
-			ui.Text(c, name).FontSize(13).FixedLineHeight(20).TextColor(fg).SingleLine()
+			ui.Text(c, name).FontSize(14).FixedLineHeight(22).FontWeight(500).TextColor(fg).SingleLine()
 			if meta != "" {
-				ui.Text(c, meta).FontSize(11).FixedLineHeight(16).TextColor(muted).SingleLine()
+				ui.Text(c, meta).FontSize(12).FixedLineHeight(15).TextColor(muted).SingleLine()
 			}
 		})
 	})

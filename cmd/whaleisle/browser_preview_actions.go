@@ -20,6 +20,7 @@ func (s *mainState) newBrowserController(win *mygo.Window) *browserpreviewui.Con
 	})
 	browser.SetActionTarget(s.browserActionTarget)
 	browser.SetWorkspaceOwner(s.browserWorkspaceOwner)
+	browser.SetPageFailureHandler(s.onEmbeddedPageFailure)
 	browser.SetDocumentLoader(s.workspaceDocumentReady, s.readWorkspaceDocument)
 	return browser
 }

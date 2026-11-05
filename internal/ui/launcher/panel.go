@@ -85,6 +85,8 @@ type Model struct {
 	PluginLoad                  harness.PluginProgress
 	ActiveTab                   string
 	ImportSummary               string
+	ImportScanBusy              bool
+	OnCancelImportScan          func()
 	// ImportJournal is the per-item apply log (Electron runImport journal).
 	ImportJournal                                                         []string
 	UpdateStatus                                                          string
@@ -104,6 +106,10 @@ type Model struct {
 	OnCheckUpdate                                                         func()
 	Releases                                                              []update.NativeRelease
 	ReleaseBusy                                                           bool
+	ReleasePaused, ReleaseAutoDownload                                    bool
+	ReleasePhase                                                          string
+	OnPauseRelease, OnResumeRelease                                       func()
+	OnSetAutoDownload                                                     func(bool)
 	ReleaseStatus, ReleaseError, ReleaseSelectedPackage, ReleaseStagedTag string
 	ReleaseReceived, ReleaseTotal                                         int64
 	OnRefreshReleases                                                     func()
@@ -122,6 +128,7 @@ type Model struct {
 	AutoStartDesktop                                                      *bool
 	AskOnUpdate                                                           *bool
 	DownloadRoute                                                         *string // "", "github", "cnb"
+	RouteUnavailable                                                      map[string]string
 	OnSaveLauncherPrefs                                                   func()
 	LauncherPrefsError                                                    string
 	Components                                                            []components.Row
@@ -562,7 +569,7 @@ func homeInstall(c *ui.Context, m Model) {
 						if cur == id {
 							bg = colNavActive
 						}
-						opt := ui.Button(c, label).Height(36).Radius(10).Padding(0, 14, 0, 14).
+						opt := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(36).Radius(10).Padding(0, 14, 0, 14).
 							Background(bg).Border(1, colBorderL2).TextColor(colPrimary).FontSize(theme.InterfaceSize(13))
 						routeID := id
 						if opt.Clicked() {
@@ -573,6 +580,9 @@ func homeInstall(c *ui.Context, m Model) {
 						}
 					}
 				})
+				if reason := m.RouteUnavailable["cnb"]; reason != "" {
+					ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+				}
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
@@ -666,18 +676,13 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
 						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-						ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
-							ui.Text(c, statusText).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-						})
+						componentStatusBadge(c, row, statusText)
 					})
 					if row.Description != "" {
 						ui.Text(c, row.Description).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 					}
 				})
 			})
-			if row.Message != "" {
-				ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-			}
 			// launcher-components.js renderHomeRows keeps stop and settings
 			// reachable from the home card while an installed component runs.
 			if row.State == "running" {
@@ -761,14 +766,9 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 				if row.UpdateAvailable {
 					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				}
-				if row.Message != "" {
-					ui.Text(c, row.Message).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-				}
 			})
 			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
-				ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
-					ui.Text(c, statusText).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
-				})
+				componentStatusBadge(c, row, statusText)
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Justify(ui.End).Gap(8).AlignItems(ui.Center).Children(func() {
 					if row.State == "unsupported" {
 						return
@@ -834,7 +834,7 @@ func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) 
 		*open = !*open
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, panel.MinWidth(220).Background(colBase).Border(1, colBorderL2).Radius(10).Padding(6).
+		panel = chrome.PopoverReveal(c, panel.MinWidth(168).Background(colField).Border(1, colBorderL2).Radius(12).Padding(8).Gap(4).
 			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0))
 		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
 			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
@@ -965,79 +965,7 @@ func diag(c *ui.Context, m Model) {
 	})
 }
 
-func versionsPanel(c *ui.Context, m Model) {
-	ui.Column(c).FillWidth().Gap(12).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyLauncherLocalVersion)+": "+nonempty(m.Version, "dev")).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
-		if !m.VendorReady {
-			ui.Text(c, releaseText("尚未安装 Host 运行时；请选择包含运行时的 MyGo 发布。", "Host runtime is missing; choose a MyGo release that includes it.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-			if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
-				m.OnInstallRuntime()
-			}
-		}
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherVerAllList)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).Grow(1)
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil {
-				m.OnRefreshReleases()
-			}
-		})
-		ui.Text(c, releaseText("按版本、完整包/差量和运行时选择原生安装包；下载校验后再确认安装。", "Choose a version, full/delta package and runtime variant; confirm installation after verification.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-		for _, release := range m.Releases {
-			r := release
-			unavailable := r.UnavailableReason
-			if unavailable == "" && !m.VendorReady && !r.RuntimeIncluded {
-				unavailable = releaseText("此发布不包含 Host 运行时。", "This release does not contain the Host runtime.")
-			}
-			bg := colSidebar
-			if m.ReleaseSelectedPackage == r.PackageKey() && unavailable == "" {
-				bg = colNavActive
-			}
-			ui.Column(c).FillWidth().Background(bg).Border(1, colBorderL2).Radius(10).Padding(12).Gap(6).Children(func() {
-				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, r.Tag).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).Grow(1)
-					ui.Text(c, r.Platform+"/"+r.Arch).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-					if r.Version == m.Version || "v"+r.Version == m.Version {
-						ui.Text(c, i18n.T(i18n.KeyLauncherVerCurrent)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
-					}
-					if r.Prerelease {
-						ui.Text(c, releaseText("预发布", "Prerelease")).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
-					}
-					if ghostSmall(c, releaseText("选择", "Select")).Disabled(m.ReleaseBusy || unavailable != "").Clicked() && m.OnSelectRelease != nil {
-						m.OnSelectRelease(r.PackageKey())
-					}
-				})
-				label := releaseText("仅桌面端", "Desktop only")
-				if r.RuntimeIncluded {
-					label = releaseText("包含 Host 与 Node 运行时", "Includes Host and Node runtime")
-				}
-				if r.IsDelta() && r.Delta != nil {
-					label = releaseText("差量更新", "Delta update") + " · " + label
-					ui.Text(c, fmt.Sprintf(releaseText("基于 %s · 需下载约 %.1f MiB · 重建 %.1f MiB", "From %s · approximately %.1f MiB to download · %.1f MiB reconstructed"), r.Delta.BaseVersion, float64(r.DownloadBytes())/(1<<20), float64(r.Size)/(1<<20))).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-				} else {
-					label = releaseText("完整安装包", "Full installer") + " · " + label
-				}
-				ui.Text(c, fmt.Sprintf("%s · %.1f MiB", label, float64(r.Size)/(1<<20))).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-				if r.DownloadRoute != "" {
-					ui.Text(c, releaseText("下载源：", "Download source: ")+r.DownloadRoute).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-				}
-				if r.Notes != "" {
-					ui.Text(c, r.Notes).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-				}
-				if unavailable != "" {
-					ui.Text(c, unavailable).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-				}
-				if m.ReleaseSelectedPackage == r.PackageKey() && unavailable == "" {
-					if primaryBtn(c, releaseText("下载所选发布", "Download selected release")).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRelease != nil {
-						m.OnInstallRelease(r.PackageKey())
-					}
-				}
-			})
-		}
-		if len(m.Releases) == 0 && !m.ReleaseBusy {
-			ui.Text(c, releaseText("暂无兼容发布目录。不会改用 Electron 安装包。", "No compatible release catalog is available.")).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-		}
-		nativeReleaseOperation(c, m)
-	})
-}
+func versionsPanel(c *ui.Context, m Model) { UpdateCenter(c, m) }
 
 func importPanel(c *ui.Context, m Model) {
 	if m.ImportBusy {
@@ -1048,9 +976,13 @@ func importPanel(c *ui.Context, m Model) {
 			if ghostSmall(c, "取消后续导入").Clicked() && m.OnCancelImport != nil {
 				m.OnCancelImport()
 			}
-			for _, line := range m.ImportJournal {
-				ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-			}
+			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(200).Children(func() {
+				ui.Column(c).FillWidth().Gap(4).Children(func() {
+					for _, line := range m.ImportJournal {
+						ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
+					}
+				})
+			})
 		})
 		return
 	}
@@ -1074,19 +1006,25 @@ func importPanel(c *ui.Context, m Model) {
 					m.OnScanImport()
 				}
 			}
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportAddSkillDir)).Clicked() {
+			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportAddSkillDir)).Disabled(m.ImportScanBusy).Clicked() {
 				if m.OnAddSkillImportDir != nil {
 					m.OnAddSkillImportDir()
 				} else if m.OnScanImport != nil {
 					m.OnScanImport()
 				}
 			}
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportRescan)).Clicked() && m.OnScanImport != nil {
+			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportRescan)).Disabled(m.ImportScanBusy).Clicked() && m.OnScanImport != nil {
 				m.OnScanImport()
+			}
+			if m.ImportScanBusy && ghostSmall(c, releaseText("取消扫描", "Cancel scan")).Clicked() && m.OnCancelImportScan != nil {
+				m.OnCancelImportScan()
 			}
 		})
 
-		ui.Text(c, pathLine).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+		if m.ImportScanBusy {
+			pathLine = releaseText("正在扫描，保留当前选择…", "Scanning; current selections are retained…")
+		}
+		ui.Text(c, pathLine).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(pathLine).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 
 		// Category chips: n/d from live catalog (fallback to probe CategoryFound).
 		cats := []struct{ id, name string }{
@@ -1101,7 +1039,7 @@ func importPanel(c *ui.Context, m Model) {
 		if m.ImportCatalog != nil {
 			counts = m.ImportCatalog.CategoryCounts()
 		}
-		ui.Row(c).Gap(6).Role(ui.RoleTabList).FocusGroup(ui.Horizontal).Children(func() {
+		ui.Row(c).FillWidth().Gap(6).Role(ui.RoleTabList).FocusGroup(ui.Horizontal).Children(func() {
 			for _, cat := range cats {
 				n, d := 0, 0
 				if pair, ok := counts[cat.id]; ok {
@@ -1118,8 +1056,8 @@ func importPanel(c *ui.Context, m Model) {
 					bg = colNavActive
 				}
 				id := cat.id
-				btn := ui.Button(c, label).Role(ui.RoleTab).Checked(importCatActive == id).Background(bg).Border(1, colBorderL2).
-					Padding(4, 10, 4, 10).Radius(8).TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
+				btn := ui.Button(c, label).Grow(1).MinWidth(0).Height(32).Role(ui.RoleTab).Checked(importCatActive == id).Background(bg).Border(1, colBorderL2).
+					Padding(6, 4).Radius(8).TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
 				if btn.Clicked() {
 					importCatActive = id
 					c.Invalidate()
@@ -1150,67 +1088,62 @@ func importPanel(c *ui.Context, m Model) {
 					c.Invalidate()
 				}
 			})
-			itemsPtr := (*[]importer.CatalogItem)(nil)
-			if m.ImportCatalog != nil {
-				itemsPtr = m.ImportCatalog.ItemsFor(importCatActive)
-			}
-			if importCatActive == "plugins" {
-				ui.Text(c, i18n.T(i18n.KeyLauncherImportPluginsNote)).
-					FontSize(12).TextColor(colAccent)
-			}
-			if itemsPtr == nil || len(*itemsPtr) == 0 {
-				empty := i18n.T(i18n.KeyLauncherImportEmptyItems)
-				switch importCatActive {
-				case "sessions":
-					empty = i18n.T(i18n.KeyLauncherImportEmptySessions)
-				case "skills":
-					empty = i18n.T(i18n.KeyLauncherImportEmptySkills)
-				case "plugins":
-					empty = i18n.T(i18n.KeyLauncherImportEmptyPlugins)
-				case "mcp":
-					empty = i18n.T(i18n.KeyLauncherImportEmptyMCP)
-				case "settings":
-					empty = i18n.T(i18n.KeyLauncherImportEmptySettings)
-				case "presets":
-					empty = i18n.T(i18n.KeyLauncherImportEmptyPresets)
-				}
-				ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
-			} else if importCatActive == "sessions" {
-				importSessionGroups(c, *itemsPtr)
-			} else {
-				for i := range *itemsPtr {
-					idx := i
-					it := &(*itemsPtr)[idx]
-					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						mark := "□"
-						if it.Selected {
-							mark = "✓"
+			_, viewportHeight := c.Size()
+			ui.Scroll(c).FillWidth().MinHeight(80).MaxHeight(max(120, min(360, viewportHeight-340))).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+					itemsPtr := (*[]importer.CatalogItem)(nil)
+					if m.ImportCatalog != nil {
+						itemsPtr = m.ImportCatalog.ItemsFor(importCatActive)
+					}
+					if importCatActive == "plugins" {
+						ui.Text(c, i18n.T(i18n.KeyLauncherImportPluginsNote)).
+							FontSize(12).TextColor(colAccent)
+					}
+					if itemsPtr == nil || len(*itemsPtr) == 0 {
+						empty := i18n.T(i18n.KeyLauncherImportEmptyItems)
+						switch importCatActive {
+						case "sessions":
+							empty = i18n.T(i18n.KeyLauncherImportEmptySessions)
+						case "skills":
+							empty = i18n.T(i18n.KeyLauncherImportEmptySkills)
+						case "plugins":
+							empty = i18n.T(i18n.KeyLauncherImportEmptyPlugins)
+						case "mcp":
+							empty = i18n.T(i18n.KeyLauncherImportEmptyMCP)
+						case "settings":
+							empty = i18n.T(i18n.KeyLauncherImportEmptySettings)
+						case "presets":
+							empty = i18n.T(i18n.KeyLauncherImportEmptyPresets)
 						}
-						ink := colPrimary
-						if it.Unsupported {
-							ink = colTertiary
+						ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
+					} else if importCatActive == "sessions" {
+						importSessionGroups(c, *itemsPtr)
+					} else {
+						for i := range *itemsPtr {
+							idx := i
+							it := &(*itemsPtr)[idx]
+							ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+								label := it.Label
+								if it.Group != "" && importCatActive == "sessions" {
+									label = it.Group + " / " + it.Label
+								} else if it.Group != "" {
+									label = it.Label + " / " + it.Group
+								}
+								if it.Conflict {
+									label += i18n.T(i18n.KeyLauncherImportConflict)
+								}
+								if it.Unsupported {
+									label += i18n.T(i18n.KeyLauncherImportUnsupported)
+								}
+								if ui.Checkbox(c, &it.Selected, label).FontSize(theme.InterfaceSize(12)).FillWidth().MinWidth(0).Disabled(it.Unsupported).Changed() {
+									c.Invalidate()
+								}
+
+							})
 						}
-						label := it.Label
-						if it.Group != "" && importCatActive == "sessions" {
-							label = it.Group + " / " + it.Label
-						} else if it.Group != "" {
-							label = it.Label + " / " + it.Group
-						}
-						if it.Conflict {
-							label += i18n.T(i18n.KeyLauncherImportConflict)
-						}
-						if it.Unsupported {
-							label += i18n.T(i18n.KeyLauncherImportUnsupported)
-						}
-						if ui.Button(c, mark+"  "+label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).
-							Background(ui.Transparent).TextColor(ink).FillWidth().
-							Disabled(it.Unsupported).Clicked() {
-							it.Selected = !it.Selected
-							c.Invalidate()
-						}
-					})
-				}
-			}
+					}
+				})
+			})
 		})
 
 		overwrite := m.ImportOverwrite
@@ -1221,7 +1154,7 @@ func importPanel(c *ui.Context, m Model) {
 		if attachments == nil {
 			attachments = &importAttachmentsFB
 		}
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
+		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Wrap().Children(func() {
 			ui.Column(c).Gap(8).Grow(1).Children(func() {
 				switchCheck(c, i18n.T(i18n.KeyLauncherImportOverwrite), i18n.T(i18n.KeyLauncherImportOverwriteDesc), overwrite, nil)
 				switchCheck(c, i18n.T(i18n.KeyLauncherImportAttachments), i18n.T(i18n.KeyLauncherImportAttachmentsDesc), attachments, nil)
@@ -1248,7 +1181,7 @@ func importPanel(c *ui.Context, m Model) {
 			}
 			selLine = strings.TrimSuffix(selLine, " ·")
 			ui.Text(c, selLine).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-			if primaryBtn(c, i18n.T(i18n.KeyLauncherImportStart)).Clicked() {
+			if primaryBtn(c, i18n.T(i18n.KeyLauncherImportStart)).Disabled(m.ImportScanBusy).Clicked() {
 				if m.OnStartImport != nil {
 					m.OnStartImport()
 				} else if m.OnScanImport != nil {
@@ -1273,7 +1206,7 @@ func importPanel(c *ui.Context, m Model) {
 		ui.Text(c, scope).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		if len(m.ImportJournal) > 0 {
 			ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).
-				Radius(12).Padding(10, 12, 10, 12).Gap(4).MaxHeight(200).Children(func() {
+				Radius(12).Padding(10, 12, 10, 12).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary).Grow(1)
 					if m.OnCopyImportJournal != nil {
@@ -1282,9 +1215,13 @@ func importPanel(c *ui.Context, m Model) {
 						}
 					}
 				})
-				for _, line := range m.ImportJournal {
-					ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-				}
+				ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(148).Children(func() {
+					ui.Column(c).FillWidth().Gap(4).Children(func() {
+						for _, line := range m.ImportJournal {
+							ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
+						}
+					})
+				})
 			})
 		}
 	})
@@ -1371,7 +1308,7 @@ func settingsPanel(c *ui.Context, m Model) {
 						bg = colSegActive
 						fg = colPrimary
 					}
-					b := ui.Button(c, label).Height(26).Padding(0, 14, 0, 14).Radius(12).
+					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(12).
 						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id
@@ -1384,6 +1321,9 @@ func settingsPanel(c *ui.Context, m Model) {
 				seg("cnb", i18n.T(i18n.KeyLauncherRouteCNB))
 			})
 		})
+		if reason := m.RouteUnavailable["cnb"]; reason != "" {
+			ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(0, 0, 12, 0)
+		}
 
 		if m.QuitAfterStart != nil {
 			switchCheck(c, i18n.T(i18n.KeyLauncherOptQuitTitle), i18n.T(i18n.KeyLauncherOptQuitDesc), m.QuitAfterStart, m.OnSaveLauncherPrefs)
@@ -1494,4 +1434,18 @@ func joinPlugins(names []string) string {
 		out += ", " + names[i]
 	}
 	return out
+}
+
+// Installed launcher-components.js stateBadge uses a status toast when a
+// message exists; the status remains a plain pill otherwise.
+func componentStatusBadge(c *ui.Context, row components.Row, label string) {
+	if row.Message == "" {
+		ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
+			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+		})
+		return
+	}
+	if ui.Button(c, label).Background(colNavActive).BorderWidth(0).Padding(1, 8).Radius(999).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Label(row.Name + releaseText("状态，查看详情", " status; show details")).Tooltip(releaseText("查看状态详情", "Show status details")).Clicked() {
+		c.AddToast(ui.Toast{ID: "component-status-" + row.ID, Title: row.Name + releaseText("状态", " status"), Description: row.Message})
+	}
 }

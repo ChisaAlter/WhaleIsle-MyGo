@@ -11,9 +11,11 @@ import (
 
 func replaceActionFixture(t *testing.T) (Model, store.ViewState, *store.Namespace) {
 	t.Helper()
-	snap := store.ViewState{Writable: true, SelectedNS: "general", Dirty: true}
-	snap.Namespaces = []store.Namespace{{NS: "general"}}
-	return Model{Store: store.New()}, snap, &snap.Namespaces[0]
+	s := featureModelStore(t)
+	s.Select("llm-deepseek")
+	s.SetDraft("models", `[{"id":"changed"}]`)
+	snap := s.Snapshot()
+	return Model{Store: s}, snap, &snap.Namespaces[1]
 }
 
 // TestReplaceAsksInTheApp keeps the destructive replace behind the application's

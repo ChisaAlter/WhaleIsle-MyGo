@@ -14,6 +14,7 @@ import (
 )
 
 type ReadOnlyResourceOptions struct {
+	TurnUsage   map[float64]session.TurnUsage
 	Scope       string
 	OnReadTable func(string, workspacefs.XLSXPageRequest)
 	OnOpenFile  func(string)
@@ -117,9 +118,6 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 	for _, ref := range refs {
 		read := opts.Reads[ref]
 		ui.Text(c, ref).FontSize(11).TextColor(st.Muted).Selectable()
-		if read.Busy {
-			ui.Text(c, i18n.T(i18n.KeyChatResourceReading)).FontSize(10).TextColor(st.Muted)
-		}
 		if read.Error != "" {
 			ui.Text(c, read.Error).FontSize(11).TextColor(st.Muted)
 			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatImageRetry)+": "+ref, buttonGhost, false).Clicked() {

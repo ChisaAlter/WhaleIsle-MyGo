@@ -3,174 +3,263 @@ package remote
 import (
 	"fmt"
 	"strings"
-	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
+
+	remotestore "whaleisle/internal/store/remote"
+	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
-func viewMachineTools(c *ui.Context, m Model) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	s, e := m.Machines.Snapshot(), m.MachineEditor
-	v := s.Tools
-	if !v.Loaded && !s.Busy && v.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
-		m.Machines.LoadTools()
-	}
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		ui.Text(c, label("SSH 设置与端口转发", "SSH settings and port forwards")).Bold().Grow(1).MinWidth(0)
-		if widgets.Button(c, colors, label("刷新 SSH 设置", "Refresh SSH settings"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(s.Busy || !m.HarnessReady).Clicked() {
-			m.Machines.LoadTools()
+// toolsCard is one bordered section card of the workspace page, matching the
+// installed plugin's dshr-card blocks.
+func toolsCard(c *ui.Context, key string, border ui.Color, body func()) {
+	ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(10).Padding(12, 14).Radius(10).Border(.5, border).Children(body)
+}
+
+func cardTitle(c *ui.Context, title string, right func()) {
+	ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).Grow(1).MinWidth(0)
+		if right != nil {
+			right()
 		}
 	})
-	if v.Error != "" {
-		ui.Text(c, v.Error)
+}
+
+func ensureToolsLoaded(c *ui.Context, m Model) {
+	s := m.Machines.Snapshot()
+	if !s.Tools.Loaded && !s.Busy && s.Tools.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
+		m.Machines.LoadTools()
 	}
-	if v.Notice != "" {
-		ui.Text(c, v.Notice)
-	}
-	if s.Status.Workspace != "" {
-		ui.Text(c, label("远程工作区：", "Remote workspace: ")+s.Status.Workspace)
-	}
-	if s.Status.LocalMirror != "" {
-		ui.Text(c, label("本地镜像：", "Local mirror: ")+s.Status.LocalMirror)
-	}
-	if s.CurrentID != "" {
-		key := label("主机密钥尚未登记", "Host key is not recorded")
-		if s.Status.HostKeyKnown {
-			key = label("主机密钥已登记", "Host key is recorded")
+}
+
+// viewActiveCard is the installed settings.active card: a status dot, the
+// current machine's identity and connection facts, then 取消当前/忘记指纹.
+func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	s := m.Machines.Snapshot()
+	muted := c.Theme().TextMuted
+	var current *struct{ name, host string }
+	for _, machine := range s.Machines {
+		if machine.ID == s.CurrentID {
+			name := machine.Name
+			if name == "" {
+				name = machine.Host
+			}
+			current = &struct{ name, host string }{name, machine.Host}
+			break
 		}
-		ui.Row(c).Gap(8).Wrap().Children(func() {
-			ui.Text(c, key).Grow(1).MinWidth(0)
-			if widgets.Button(c, colors, label("忘记主机密钥", "Forget host key"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-				e.PendingForget = s.CurrentID
+	}
+	toolsCard(c, "remote-active-card", border, func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+			dot := machineOffline
+			if s.Status.Connected {
+				dot = machineOnline
+			}
+			ui.Box(c).Size(8, 8).Shrink(0).Radius(4).Background(dot)
+			ui.Text(c, label("当前机器", "Active machine")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
+			caption := label("未选择机器", "No machine selected")
+			if current != nil {
+				caption = current.name
+			}
+			ui.Text(c, caption).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+		})
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+			state := label("未连接", "Disconnected")
+			if s.Status.Connected {
+				state = label("已连接", "Connected")
+			}
+			ui.Text(c, state).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			if s.Status.Host != "" {
+				address := s.Status.Username + "@" + s.Status.Host
+				if s.Status.Port > 0 {
+					address += fmt.Sprintf(":%d", s.Status.Port)
+				}
+				ui.Text(c, address).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			}
+			if s.Status.Connected {
+				key := label("主机指纹未记录", "Host key not recorded")
+				if s.Status.HostKeyKnown {
+					key = label("主机指纹已信任", "Host key trusted")
+				}
+				ui.Text(c, key).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			}
 		})
-		if e.PendingForget == s.CurrentID {
-			ui.Text(c, label("忘记后需要重新核对服务器指纹。确认清除此机器的记录？", "Verify the server fingerprint again after forgetting its key. Clear this machine's key record?"))
-			ui.Row(c).Gap(8).Wrap().Children(func() {
-				if widgets.Button(c, colors, label("确认忘记", "Confirm forget"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-					m.Machines.ForgetHostKey()
-					e.PendingForget = ""
-				}
-				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-					e.PendingForget = ""
+		if s.Status.Workspace != "" {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+					ui.Text(c, label("远程目录", "Remote path")+":").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					ui.Text(c, s.Status.Workspace).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+				})
+				if s.Status.LocalMirror != "" {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+						ui.Text(c, label("本地镜像", "Local mirror")+":").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						ui.Text(c, s.Status.LocalMirror).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+					})
 				}
 			})
 		}
-	}
-	ui.Text(c, label("从 SSH 配置导入", "Import from SSH config")).Bold()
-	if e.ForwardError != "" {
-		ui.Text(c, e.ForwardError)
-	}
-	if v.Loaded && len(v.SSHEntries) == 0 {
-		ui.Text(c, label("没有可导入的主机配置。", "No importable SSH host entries."))
-	}
-	for _, entry := range v.SSHEntries {
-		entry := entry
-		ui.Row(c).Gap(8).Wrap().Children(func() {
-			ui.Text(c, entry.Host+" · "+entry.User+"@"+entry.HostName).Grow(1).MinWidth(0)
-			if widgets.Button(c, colors, label("导入表单", "Import to form"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-				d, err := entry.Draft()
-				if err != nil {
-					e.ForwardError = err.Error()
-				} else {
-					e.Open, e.Draft, e.Error = true, d, ""
-					e.ForwardError = ""
+		if s.CurrentID != "" {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				if widgets.Button(c, colors, label("取消当前", "Clear active"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+					m.Machines.Select("")
 				}
-			}
-		})
+				if widgets.Button(c, colors, label("忘记指纹", "Forget key"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+					m.Machines.ForgetHostKey()
+				}
+			})
+		}
+	})
+}
+
+// viewSSHConfigCard lists importable ~/.ssh/config aliases; hidden when empty,
+// as the installed card only mounts with entries.
+func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	s := m.Machines.Snapshot()
+	if !s.Tools.Loaded || len(s.Tools.SSHEntries) == 0 {
+		return
 	}
-	ui.Text(c, label("端口转发", "Port forwards")).Bold()
-	if s.CurrentID == "" {
-		ui.Text(c, label("先选择远程机器。", "Select a remote machine first."))
-	} else {
+	muted := c.Theme().TextMuted
+	toolsCard(c, "remote-sshconfig-card", border, func() {
+		cardTitle(c, label("从 ~/.ssh/config 导入", "Import from ~/.ssh/config"), nil)
+		ui.Text(c, label(fmt.Sprintf("识别到 %d 个主机别名，点击导入填入表单。", len(s.Tools.SSHEntries)),
+			fmt.Sprintf("%d host aliases found; click import to fill the form.", len(s.Tools.SSHEntries)))).
+			FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		for _, entry := range s.Tools.SSHEntries {
+			entry := entry
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+				caption := entry.Host
+				if entry.User != "" {
+					host := entry.HostName
+					if host == "" {
+						host = entry.Host
+					}
+					caption += fmt.Sprintf(" (%s@%s", entry.User, host)
+					if entry.Port > 0 && entry.Port != 22 {
+						caption += fmt.Sprintf(":%d", entry.Port)
+					}
+					caption += ")"
+				}
+				ui.Text(c, caption).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+				if widgets.Button(c, colors, label("导入", "Import"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+					d, err := entry.Draft()
+					if err != nil {
+						e.ForwardError = err.Error()
+					} else {
+						e.Open, e.Draft, e.Error = true, d, ""
+						e.ForwardError = ""
+					}
+				}
+			})
+		}
+	})
+}
+
+// viewForwardsCard is the installed forwards card: a needsMachine gate, one row
+// per rule with a state tag and start/stop/remove, then the inline add row.
+func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	s := m.Machines.Snapshot()
+	muted := c.Theme().TextMuted
+	toolsCard(c, "remote-forwards-card", border, func() {
+		cardTitle(c, label("端口转发", "Port forwards"), nil)
+		if e.ForwardError != "" {
+			ui.Text(c, e.ForwardError).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Danger)
+		}
+		if s.CurrentID == "" {
+			ui.Text(c, label("先设为当前机器再管理转发", "Set a machine active to manage forwards")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			return
+		}
 		count := 0
-		for _, f := range v.Forwards {
+		for _, f := range s.Tools.Forwards {
 			if f.MachineID != "" && f.MachineID != s.CurrentID {
 				continue
 			}
 			count++
 			f := f
-			ui.Row(c).Gap(8).Wrap().Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Wrap().Children(func() {
+				dir := "L"
+				if f.Direction == "reverse" {
+					dir = "R"
+				}
+				ui.Text(c, fmt.Sprintf("%s :%d → %s:%d", dir, f.ListenPort, f.TargetHost, f.TargetPort)).Font("monospace").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
 				state := label("已停止", "Stopped")
 				action, actionLabel := "start", label("启动", "Start")
 				if f.Active {
 					state, action, actionLabel = label("运行中", "Running"), "stop", label("停止", "Stop")
 				}
-				ui.Text(c, fmt.Sprintf("%s :%d → %s:%d · %s", f.Direction, f.ListenPort, f.TargetHost, f.TargetPort, state)).Grow(1).MinWidth(0)
-				if ui.Button(c, actionLabel).Disabled(s.Busy).Clicked() {
+				ui.Text(c, state).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				if widgets.Button(c, colors, actionLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 					m.Machines.ForwardAction(f.ID, action)
 				}
-				if widgets.Button(c, colors, label("移除转发", "Remove forward"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				if widgets.Button(c, colors, label("移除", "Remove"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 					m.Machines.ForwardAction(f.ID, "remove")
 				}
 			})
 		}
 		if count == 0 {
-			ui.Text(c, label("此机器暂无转发。", "No forwards for this machine."))
+			ui.Text(c, label("当前机器没有转发规则", "No forwards on the active machine")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
-		ui.Row(c).Gap(6).Children(func() {
-			for _, choice := range []struct{ id, title string }{{"local", label("本地转发", "Local")}, {"reverse", label("反向转发", "Reverse")}} {
-				title := choice.title
-				current := e.Forward.Direction
-				if current == "" {
-					current = "local"
+		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
+			labels := []string{label("本地 → 远程", "Local → remote"), label("远程 → 本地", "Remote → local")}
+			active := 0
+			if e.Forward.Direction == "reverse" {
+				active = 1
+			}
+			if picked := remoteGatewaySegmented(c, "forward-direction", labels, active, s.Busy); picked >= 0 {
+				e.Forward.Direction = []string{"local", "reverse"}[picked]
+			}
+			ui.TextInput(c, &e.Forward.ListenPort).Width(90).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("监听端口", "Listen port")).Disabled(s.Busy)
+			ui.TextInput(c, &e.Forward.TargetHost).Width(130).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("目标主机", "Target host")).Disabled(s.Busy)
+			ui.TextInput(c, &e.Forward.TargetPort).Width(90).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("目标端口", "Target port")).Disabled(s.Busy)
+			ui.Checkbox(c, &e.Forward.AutoStart, label("自动启动", "Auto start")).Disabled(s.Busy || e.Forward.Direction == "reverse")
+			if widgets.Button(c, colors, label("添加转发", "Add forward"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || strings.TrimSpace(e.Forward.ListenPort) == "").Clicked() {
+				d := e.Forward
+				if d.Direction == "reverse" {
+					d.AutoStart = false
 				}
-				if current == choice.id {
-					title = "✓ " + title
-				}
-				if ui.Button(c, title).Disabled(s.Busy).Clicked() {
-					e.Forward.Direction = choice.id
+				if err := m.Machines.DefineForward(d); err != nil {
+					e.ForwardError = err.Error()
+				} else {
+					e.ForwardError = ""
+					e.Forward = remotestore.ForwardDraft{}
 				}
 			}
 		})
-		ui.Text(c, label("反向转发会将本地目标端口提供给远端访问。", "Reverse forwarding makes the local target port accessible from the remote machine."))
-		for _, f := range []struct {
-			title string
-			value *string
-		}{
-			{label("监听端口", "Listen port"), &e.Forward.ListenPort},
-			{label("目标主机（默认 127.0.0.1）", "Target host (default 127.0.0.1)"), &e.Forward.TargetHost},
-			{label("目标端口（默认同监听）", "Target port (default same as listen)"), &e.Forward.TargetPort},
-		} {
-			ui.Row(c).Gap(8).Wrap().Children(func() { ui.Text(c, f.title).Width(230); ui.TextInput(c, f.value).FillWidth().Disabled(s.Busy) })
-		}
-		ui.Checkbox(c, &e.Forward.AutoStart, label("连接后自动启动本地转发", "Start local forward automatically on connection")).Disabled(s.Busy || e.Forward.Direction == "reverse")
-		if e.ForwardError != "" {
-			ui.Text(c, e.ForwardError)
-		}
-		if widgets.Button(c, colors, label("添加转发定义", "Add forward definition"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
-			d := e.Forward
-			if d.Direction == "reverse" {
-				d.AutoStart = false
-			}
-			if err := m.Machines.DefineForward(d); err != nil {
-				e.ForwardError = err.Error()
-			} else {
-				e.ForwardError = ""
-			}
-		}
-	}
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		ui.Text(c, label("远程审计日志", "Remote audit log")).Bold().Grow(1).MinWidth(0)
-		title := label("显示最近 100 行", "Show last 100 lines")
-		if e.ShowAudit {
-			title = label("隐藏日志", "Hide log")
-		}
-		if ui.Button(c, title).Disabled(s.Busy).Clicked() {
-			e.ShowAudit = !e.ShowAudit
+	})
+}
+
+// viewAuditCard is the installed audit card: a title, a show/hide toggle and
+// the log tail (or its empty/disabled states).
+func viewAuditCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
+	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	s := m.Machines.Snapshot()
+	muted := c.Theme().TextMuted
+	toolsCard(c, "remote-audit-card", border, func() {
+		cardTitle(c, label("操作审计", "Audit log"), func() {
+			caption := label("查看审计日志", "Show audit log")
 			if e.ShowAudit {
-				m.Machines.LoadAudit()
+				caption = label("收起审计日志", "Hide audit log")
+			}
+			if widgets.Button(c, colors, caption, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
+				e.ShowAudit = !e.ShowAudit
+				if e.ShowAudit {
+					m.Machines.LoadAudit()
+				}
+			}
+		})
+		if e.ShowAudit && s.Tools.AuditLoaded {
+			switch {
+			case !s.Tools.AuditEnabled:
+				ui.Text(c, label("审计日志未开启", "Audit log is disabled")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			case len(s.Tools.AuditLines) == 0:
+				ui.Text(c, label("暂无审计记录", "No audit entries yet")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			default:
+				ui.Scroll(c).Height(180).FillWidth().Children(func() {
+					ui.Text(c, strings.Join(s.Tools.AuditLines, "\n")).Font("monospace").FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				})
 			}
 		}
 	})
-	if e.ShowAudit && v.AuditLoaded {
-		if !v.AuditEnabled {
-			ui.Text(c, label("远程审计日志未启用。", "Remote audit logging is disabled."))
-		} else if len(v.AuditLines) == 0 {
-			ui.Text(c, label("暂无审计记录。", "No audit entries."))
-		} else {
-			ui.Scroll(c).Height(180).Children(func() { ui.Text(c, strings.Join(v.AuditLines, "\n")).FontSize(fonttheme.InterfaceSize(11)) })
-		}
-	}
 }

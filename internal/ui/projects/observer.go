@@ -1,28 +1,35 @@
 package projects
 
 import (
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
-	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
-// ObserverState is retained by the coordinator's resource pane, including while
-// its floating presentation is a strip. Data and commands belong to this observer’s independent project controller.
-// Host is intentionally runtime-only: restoring layout cannot revive authority.
+// Requirements retain one reading state while moving between the header and Sidebar.
 type ObserverState struct {
-	ProjectID            string                 `json:"projectId"`
-	CoordinatorSessionID string                 `json:"coordinatorSessionId"`
-	Host                 string                 `json:"-"`
-	Section              string                 `json:"section"`
-	PendingSection       string                 `json:"-"`
-	Initialized          bool                   `json:"-"`
-	RequestModes         map[string]RequestMode `json:"requestModes,omitempty"`
+	ProjectID            string                             `json:"projectId"`
+	CoordinatorSessionID string                             `json:"coordinatorSessionId"`
+	Host                 string                             `json:"-"`
+	Section              string                             `json:"section"`
+	PendingSection       string                             `json:"-"`
+	Initialized          bool                               `json:"-"`
+	RequestModes         map[string]RequestMode             `json:"requestModes,omitempty"`
+	FloatingOpen, Pinned bool                               `json:"-"`
+	HistoryKind          string                             `json:"historyKind,omitempty"`
+	Scroll               ui.ScrollState                     `json:"-"`
+	Pages                map[string]projectflow.RequestPage `json:"-"`
+	Cursors              map[string][]string                `json:"-"`
+	CatalogLoaded        map[string]bool                    `json:"-"`
+	CatalogErrors        map[string]string                  `json:"-"`
+	ReadingOrder         []string                           `json:"readingOrder,omitempty"`
+	OnLoadCatalog        func(string, int)                  `json:"-"`
+	OnPin, OnReturn      func()                             `json:"-"`
 	requests             map[string]projectflow.RequestCard
 	requested            map[string]string
 	reading              string
 }
-
 type RequestMode struct {
 	Mode      string `json:"mode"`
 	Completed bool   `json:"completed"`
@@ -40,69 +47,46 @@ func (o *ObserverState) Project(m Model) (projectflow.Project, bool) {
 	}
 	return projectflow.Project{}, false
 }
-
 func (o *ObserverState) navigate(m Model, section string) bool {
 	if m.Busy {
 		return false
 	}
-	if o.Section == "materials" && section != "materials" && m.Material != nil && m.Material.ProjectID == o.ProjectID && m.Material.Dirty() {
-		o.PendingSection = section
-		return false
-	}
-	o.Section, o.PendingSection = section, ""
+	o.Section = section
 	if m.OnObserverSection != nil {
 		m.OnObserverSection(o.ProjectID, section)
 	}
-	switch section {
-	case "tasks":
-		if m.RequestProjectID != o.ProjectID && m.OnRequests != nil {
-			m.OnRequests(o.ProjectID)
-		}
-	case "team":
-		if m.TeamID != o.ProjectID && m.OnTeam != nil {
-			m.OnTeam(o.ProjectID)
-		}
-	case "materials":
-		if (m.MaterialCollection == nil || m.MaterialCollection.ProjectID != o.ProjectID) && m.OnMaterialCollection != nil {
-			m.OnMaterialCollection(o.ProjectID)
-		}
+	if m.RequestProjectID != o.ProjectID && m.OnRequests != nil {
+		m.OnRequests(o.ProjectID)
 	}
 	return true
 }
+func (o *ObserverState) RefreshCatalog() {
+	o.CatalogLoaded = map[string]bool{}
+	o.CatalogErrors = map[string]string{}
+}
 
-// ObserverView renders task strips/cards in the retained resource pane. Host
-// data and commands still belong to its independent project controller.
 func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 	p, ok := o.Project(m)
 	if !ok {
-		ui.Text(c, tr("此项目概览当前不可用。请从原项目会话重新打开。", "Project overview is unavailable. Reopen it from its Project conversation."))
+		ui.Text(c, tr("此需求观察器当前不可用，请从原项目会话重新打开。", "Requirements are unavailable. Reopen from the source Project conversation."))
 		return
 	}
-	if o.Section == "" {
-		o.Section = "tasks"
+	o.Section = "tasks"
+	if o.Pages == nil {
+		o.Pages = map[string]projectflow.RequestPage{}
 	}
-	if !o.Initialized && !m.Busy {
-		o.Initialized = o.navigate(m, o.Section)
+	if o.Cursors == nil {
+		o.Cursors = map[string][]string{}
 	}
-	// A report can open its original member process; retain the same Project route.
-	originalReportWork := m.OnReportWork
-	if originalReportWork != nil {
-		m.OnReportWork = func() {
-			o.Section = "team"
-			if m.OnObserverSection != nil {
-				m.OnObserverSection(o.ProjectID, "team")
-			}
-			originalReportWork()
-		}
+	if o.CatalogLoaded == nil {
+		o.CatalogLoaded = map[string]bool{}
 	}
-	root := ui.Column(c).Fill().MinWidth(0).MinHeight(0).Gap(5)
-	m.presentation = ui.Local(root, "observer-presentation", newProjectPresentation)
-	overlay := m
-	hasChild := m.Historical != nil || m.AssetDiff != nil || m.Detail != nil || m.Documents != nil || m.Deliveries != nil || m.Reports != nil || m.Material != nil || m.Activity != nil || m.RequestCard != nil
-	inline := m
-	inline.Detail = nil
-	inline.AssetDiff = nil
-	inline.RequestCard = nil
+	if o.CatalogErrors == nil {
+		o.CatalogErrors = map[string]string{}
+	}
+	if m.RequestProjectID == p.ID && m.RequestLoaded && m.RequestKind != "" {
+		o.Pages[m.RequestKind] = m.RequestPage
+	}
 	if m.RequestCard != nil && m.RequestCard.ProjectID == p.ID {
 		if o.requests == nil {
 			o.requests = map[string]projectflow.RequestCard{}
@@ -115,111 +99,83 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 	if !m.Busy && m.Error != "" {
 		o.reading = ""
 	}
-	// Full task cards stay in the observer. Their process/report/file subviews
-	// continue to use the existing independent modal routes.
+	root := ui.Column(c).Fill().MinWidth(0).MinHeight(0)
+	m.presentation = ui.Local(root, "requirements-presentation", newProjectPresentation)
+	overlay := m
 	if m.RequestCard != nil {
 		if _, exists := o.RequestModes[m.RequestCard.ID]; exists {
 			overlay.RequestCard = nil
-			hasChild = m.Historical != nil || m.AssetDiff != nil || m.Detail != nil || m.Documents != nil || m.Deliveries != nil || m.Reports != nil || m.Material != nil || m.Activity != nil
 		}
 	}
 	root.Children(func() {
 		colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-		ui.Column(c).FillWidth().MinWidth(0).Shrink(0).Gap(2).Padding(0, 4).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-				projectIcon(c, "folder", 14, chrome.Color(colors.Muted), false)
-				ui.Text(c, p.Title).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).SingleLine()
-				if status := projectStateLabel(p); status != "" {
-					ui.Text(c, status).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
-				}
-			})
-			if p.CanonicalWorkingDirectory != "" {
-				ui.Text(c, p.CanonicalWorkingDirectory).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(p.CanonicalWorkingDirectory).
-					Font("monospace").FontSize(fonttheme.InterfaceSize(10)).TextColor(chrome.Color(colors.Muted))
+		ui.Row(c).FillWidth().MinWidth(0).Padding(10, 12).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, p.Title).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(p.CanonicalWorkingDirectory).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
+			if ui.Button(c, tr("任务材料", "Materials")).Height(28).Disabled(m.Busy).Clicked() && m.OnMaterialCollection != nil {
+				m.OnMaterialCollection(p.ID)
 			}
-			ui.Row(c).FillWidth().Wrap().Gap(4).Children(func() {
-				for _, section := range []struct{ id, zh, en string }{{"tasks", "任务与要求", "Tasks / requests"}, {"team", "成员", "Team"}, {"materials", "材料", "Materials"}} {
-					label := tr(section.zh, section.en)
-					active := o.Section == section.id
-					button := ui.Button(c.Key("observer-section-"+section.id), label).Role(ui.RoleTab).Height(26).Radius(6).Padding(0, 8).FontSize(fonttheme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).Selected(active).Disabled(m.Busy)
-					if active {
-						button.Background(c.Theme().SurfaceHover)
+			label := tr("固定观察", "Keep observing")
+			action := o.OnPin
+			if o.Pinned {
+				label = tr("返回浮层", "Return to popover")
+				action = o.OnReturn
+			}
+			if ui.Button(c, label).Height(28).Disabled(action == nil || m.Busy).Clicked() {
+				action()
+			}
+			if ui.Button(c, "↻").Label(tr("刷新需求", "Refresh requirements")).Height(28).Disabled(m.Busy).Clicked() {
+				o.RefreshCatalog()
+			}
+			ui.Button(c, "…").Label(tr("更多需求", "More requirements")).Height(28).Menu(func(menu *ui.Menu) {
+				for _, kind := range []string{"cancelled", "archived"} {
+					kind := kind
+					name := tr("已取消", "Cancelled")
+					if kind == "archived" {
+						name = tr("已归档", "Archived")
 					}
-					if button.Clicked() {
-						o.navigate(m, section.id)
+					if menu.Item(fmt.Sprintf("%s · %d", name, o.Pages[kind].Total)).Chosen() {
+						if o.HistoryKind == kind {
+							o.HistoryKind = ""
+						} else {
+							o.HistoryKind = kind
+						}
 					}
 				}
 			})
+		})
+		track := ui.Local(root, "requirements-scroll", func() teamSurfaceScroll { return teamSurfaceScroll{} })
+		if track.track.Y != track.applied {
+			o.Scroll.Y = track.track.Y
+		}
+		track.track.Y, track.applied = o.Scroll.Y, o.Scroll.Y
+		ui.Scroll(c.Key("requirements-reading")).FillWidth().MinWidth(0).Grow(1).MinHeight(0).TrackScroll(&track.track).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(0, 12, 12, 12).Children(func() { observerRequests(c, m, o, p) })
 		})
 		if m.Error != "" {
-			ui.Text(c, m.Error).Selectable()
+			noticeKey := "project-requirements-error:" + o.ProjectID
+			notice := ui.Local(root, "error", func() string { return "" })
+			if *notice != m.Error {
+				*notice = m.Error
+				c.AddToast(ui.Toast{ID: noticeKey, Description: m.Error, Type: "error", Timeout: -1, Action: tr("重试", "Retry"), OnAction: func() { o.RefreshCatalog() }})
+			}
 		}
-		if m.Busy {
-			ui.Text(c, tr("正在读取项目…", "Loading Project…"))
-		}
-		if o.PendingSection != "" {
-			ui.Text(c, tr("请先保存或放弃材料草稿，再切换。", "Save or discard the material draft before switching."))
-			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-				if ui.Button(c, tr("继续编辑", "Keep editing")).Clicked() {
-					o.PendingSection = ""
-				}
-				if ui.Button(c, tr("保存", "Save")).Disabled(m.Busy).Clicked() && m.OnSaveMaterial != nil {
-					m.OnSaveMaterial()
-				}
-				if ui.Button(c, tr("放弃并切换", "Discard and switch")).Disabled(m.Busy).Clicked() && m.OnDiscardMaterial != nil {
-					m.OnDiscardMaterial()
-					o.navigate(m, o.PendingSection)
-				}
-				if ui.Button(c, tr("继续切换", "Continue switching")).Disabled(m.Busy || m.Material != nil && m.Material.Dirty()).Clicked() {
-					o.navigate(m, o.PendingSection)
-				}
-			})
-		}
-		ui.Scroll(c).FillWidth().MinHeight(0).Grow(1).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(0, 4, 4, 4).Children(func() {
-				if m.RequestProjectID == p.ID {
-					observerRequests(c, m, o, p)
-				}
-				switch o.Section {
-				case "team":
-					if m.TeamID == p.ID && (m.Team == nil || m.Team.Project.ID == p.ID) && (m.Detail == nil || m.Detail.Workstream.ProjectID == p.ID) {
-						teamView(c, inline)
-					} else {
-						observerLoad(c, m, func() {
-							if m.OnTeam != nil {
-								m.OnTeam(p.ID)
-							}
-						})
-					}
-				case "materials":
-					switch {
-					case m.MaterialCollection != nil && m.MaterialCollection.ProjectID == p.ID:
-						materialCollectionView(c, m)
-					default:
-						observerLoad(c, m, func() {
-							if m.OnMaterialCollection != nil {
-								m.OnMaterialCollection(p.ID)
-							}
-						})
-					}
-				default:
-					if m.RequestProjectID != p.ID {
-						observerLoad(c, m, func() {
-							if m.OnRequests != nil {
-								m.OnRequests(p.ID)
-							}
-						})
-					}
-				}
-			})
-		})
+		_ = colors
 	})
+	hasChild := overlay.Historical != nil || overlay.AssetDiff != nil || overlay.Detail != nil || overlay.Documents != nil || overlay.Deliveries != nil || overlay.Reports != nil || overlay.Material != nil || overlay.Activity != nil || overlay.RequestCard != nil
 	if !hasChild {
 		overlay.TeamID = ""
 		overlay.RequestProjectID = ""
 		overlay.MaterialCollection = nil
 	}
 	projectModals(c, overlay)
+	if !m.Busy && o.OnLoadCatalog != nil && o.reading == "" {
+		for _, kind := range []string{"current", "completed", "cancelled", "archived"} {
+			if !o.CatalogLoaded[kind] && o.CatalogErrors[kind] == "" {
+				o.OnLoadCatalog(kind, 0)
+				break
+			}
+		}
+	}
 }
 func observerLoad(c *ui.Context, m Model, load func()) {
 	if ui.Button(c, tr("读取此项目内容", "Load this Project")).Disabled(m.Busy).Clicked() {

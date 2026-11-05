@@ -24,12 +24,19 @@ type Search struct {
 	paths            []string
 	visible          int
 	busy             bool
+	hostOnly         bool
 	problem          string
 }
 
 func (s *Search) Ensure(binding, root, query string, remote RemoteDirectoryLister, notify func()) {
+	s.EnsureHostOnly(binding, root, query, remote, notify, false)
+}
+
+// EnsureHostOnly keeps a remote workspace search on its captured Host even if
+// a matching path happens to exist on the desktop. Ensure remains local-first.
+func (s *Search) EnsureHostOnly(binding, root, query string, remote RemoteDirectoryLister, notify func(), hostOnly bool) {
 	s.mu.Lock()
-	if s.key == binding && s.root == root && s.query == query {
+	if s.key == binding && s.root == root && s.query == query && s.hostOnly == hostOnly {
 		s.mu.Unlock()
 		return
 	}
@@ -39,6 +46,7 @@ func (s *Search) Ensure(binding, root, query string, remote RemoteDirectoryListe
 	}
 	s.generation++
 	s.key, s.root, s.query = binding, root, query
+	s.hostOnly = hostOnly
 	s.paths = nil
 	s.visible = SearchPageSize
 	s.problem = ""
@@ -53,7 +61,7 @@ func (s *Search) Ensure(binding, root, query string, remote RemoteDirectoryListe
 	s.mu.Unlock()
 	go func() {
 		defer cancel()
-		paths, err := SearchRelPaths(ctx, root, query, remote)
+		paths, err := walkRelPathsWithSource(ctx, root, normalizeFileSearch(query), remote, false, hostOnly)
 		s.mu.Lock()
 		if s.generation != generation || ctx.Err() != nil {
 			s.mu.Unlock()

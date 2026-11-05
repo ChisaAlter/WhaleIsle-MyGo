@@ -7,16 +7,17 @@ import (
 )
 
 type Editor struct {
-	Draft       Preferences
-	Saved       Preferences
-	Selected    string
-	Status      string
-	Preview     bool
-	OnSave      func(Preferences) error
-	OnImport    func() (string, error)
-	Pending     func() bool
-	FlushWrites func()
-	pendingSave *Preferences
+	Draft             Preferences
+	Saved             Preferences
+	Selected          string
+	Status            string
+	Preview           bool
+	OnSave            func(Preferences) error
+	OnImport          func() (string, error)
+	Pending           func() bool
+	FlushWrites       func()
+	pendingSave       *Preferences
+	pendingFamilySave string
 	// Only General's explicitly edited family inputs enter this pending set.
 	generalFontEdits     map[string]string
 	generalFontRevision  uint64
@@ -82,6 +83,31 @@ func (e *Editor) AcceptHost(p Preferences, ownerChanged bool, failure string) {
 	if ownerChanged || clean || failure == "" && submitted {
 		e.Draft = p.Clone()
 		e.Preview = false
+	} else if e.Selected != "" {
+		// Imports and unrelated saves rebase the library, never the selected
+		// family's independent editor. Failed imports cannot hitchhike on Save.
+		var family *Family
+		for _, f := range e.Draft.Custom {
+			if f.ID == e.Selected {
+				copy := f
+				family = &copy
+				break
+			}
+		}
+		e.Draft.Custom = p.Clone().Custom
+		if family != nil {
+			found := false
+			for i := range e.Draft.Custom {
+				if e.Draft.Custom[i].ID == family.ID {
+					e.Draft.Custom[i] = *family
+					found = true
+					break
+				}
+			}
+			if !found {
+				e.Draft.Custom = append(e.Draft.Custom, *family)
+			}
+		}
 	}
 	if failure != "" {
 		e.Status = failure
@@ -89,9 +115,14 @@ func (e *Editor) AcceptHost(p Preferences, ownerChanged bool, failure string) {
 		e.Status = i18n.T(i18n.KeyThemeEditorSaved)
 	}
 	if ownerChanged {
+		e.Selected = ""
+		e.pendingFamilySave = ""
 		e.generalFontEdits = nil
 		e.generalFontRevision, e.generalFontAttempted = 0, 0
 	} else if failure == "" && e.pendingSave != nil {
+		if submitted && e.pendingFamilySave == e.Selected {
+			e.Selected = ""
+		}
 		for role, value := range e.generalFontEdits {
 			accepted := ""
 			switch role {
@@ -108,6 +139,7 @@ func (e *Editor) AcceptHost(p Preferences, ownerChanged bool, failure string) {
 		}
 	}
 	e.pendingSave = nil
+	e.pendingFamilySave = ""
 }
 
 func (e *Editor) writeBaseline() Preferences {

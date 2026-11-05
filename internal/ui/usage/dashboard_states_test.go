@@ -62,7 +62,7 @@ func TestRangeChipsSwitchTheWindow(t *testing.T) {
 		t.Fatalf("chip did not switch the window: %d", got)
 	}
 	tt.Frame()
-	if !tt.HasText(i18n.T(i18n.KeySurfacesUsageUpdated)) {
+	if !tt.HasText("Updated at 09:26 · UTC") {
 		t.Fatalf("toolbar lost its update stamp: %v", tt.Texts())
 	}
 }
@@ -86,9 +86,7 @@ func TestDiagnosticsStayFolded(t *testing.T) {
 	}
 }
 
-// TestRangeSwitchKeepsEverySectionConsistent checks that one range control moves
-// the whole dashboard: the KPI grid, the calendar, the model share and the
-// rankings all stay on screen for the chosen window.
+// Recent-window controls keep independent all-time and ranking sections visible.
 func TestRangeSwitchKeepsEverySectionConsistent(t *testing.T) {
 	old := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
@@ -103,7 +101,8 @@ func TestRangeSwitchKeepsEverySectionConsistent(t *testing.T) {
 		i18n.T(i18n.KeySurfacesUsageTotal),
 		"Usage calendar",
 		"Model share",
-		i18n.T(i18n.KeySurfacesUsageModelRank),
+		"Daily model breakdown (recent)",
+		"Project ranking (session working directories)",
 		i18n.T(i18n.KeySurfacesUsageRanking),
 	}
 	for _, window := range []int{14, 30, 7} {

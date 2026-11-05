@@ -82,7 +82,8 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 	if m.FilePaneWidth != nil {
 		details = *m.FilePaneWidth
 	}
-	row := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).AlignItems(ui.Stretch)
+	row := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).
+		Padding(0, maxf(0, m.RightOverlayReserve), 0, 0)
 	drag := ui.Local(row, "right-drag", func() paneDrag { return paneDrag{} })
 	row.Children(func() {
 		parentDragging := m.Sizes.dragging
@@ -235,9 +236,13 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		if !drag.active && !m.Sizes.dragging {
 			drawer.Transition(shellTrackTransition)
 		}
-		if open {
-			drawer.Children(terminal)
-		}
+		drawer.Children(func() {
+			renderGlobalShellSlot(c, m, "shell.terminalDrawer", func() {
+				if open && terminal != nil {
+					terminal()
+				}
+			})
+		})
 		if !open {
 			drag.active = false
 			return

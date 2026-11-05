@@ -91,11 +91,9 @@ func TestTransparentThemeKeepsTheWells(t *testing.T) {
 	}
 }
 
-// TestTransparentThemeLiftsASharpWallpaper covers TRANSPARENT_MIN_BLUR: with 0%
-// surfaces a sharp image would sit right under the text, so the harness raises
-// the blur to 20 when the theme becomes effective, and keeps it while it stays
-// on.
-func TestTransparentThemeLiftsASharpWallpaper(t *testing.T) {
+// The installed theme writer nudges blur once when transparency becomes
+// effective, not during every paint. An accepted later slider edit may be zero.
+func TestTransparentThemeRenderPreservesAcceptedBlur(t *testing.T) {
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
 	url := pngDataURL(t, color.RGBA{R: 0, G: 0, B: 0, A: 255}, 16, 16)
 	prefs := wallpapers.Defaults()
@@ -106,14 +104,13 @@ func TestTransparentThemeLiftsASharpWallpaper(t *testing.T) {
 		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
 	}, 40, 40)
 	tt.Frame()
-	if got := backgroundState.prefs.Blur; got < transparentMinBlur {
-		t.Fatalf("transparent theme kept a sharp wallpaper: blur %v", got)
+	if got := backgroundState.prefs.Blur; got != 0 {
+		t.Fatalf("transparent paint changed the accepted blur: %v", got)
 	}
-	// A second configure with the saved (sharp) preference keeps the lift for as
-	// long as the theme is effective.
+	// Repeated rendering cannot undo the user's later low-blur choice.
 	ConfigureBackdrop(url, prefs)
-	if got := backgroundState.prefs.Blur; got != transparentMinBlur {
-		t.Fatalf("lift did not hold: blur %v", got)
+	if got := backgroundState.prefs.Blur; got != 0 {
+		t.Fatalf("reconfigure changed the accepted blur: %v", got)
 	}
 	// Turning it off restores the user's own blur.
 	prefs.Transparent = false

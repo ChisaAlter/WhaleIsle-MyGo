@@ -98,7 +98,7 @@ func configurationOptionField(c *ui.Context, m Model, s store.ViewState, scope s
 		if m.DraftPtr != nil {
 			text := m.DraftPtr("configuration/"+scope+"/"+field.Key, value)
 			input := ui.TextInput(c, text).FillWidth().Disabled(disabled)
-			if SecretLikeKey(field.Key) && (m.RevealSecrets == nil || !*m.RevealSecrets) {
+			if secretField(field) && (m.RevealSecrets == nil || !*m.RevealSecrets) {
 				input = input.Password()
 			}
 			if input.Changed() {

@@ -3,13 +3,14 @@
 window.__ModuleLoader__.load({
   id: 'whaleisle-native-plugin-ui',
   factory() {
-    const slots = ['plugins.item', 'plugins.bundle.config', 'plugins.row.config', 'plugins.detail.actions', 'plugins.detail.badge', 'plugins.detail.section', 'plugins.add.actions', 'plugins.bundle.activation'];
+    const slots = ['plugins.tab','plugins.item', 'plugins.bundle.config', 'plugins.row.config', 'plugins.detail.actions', 'plugins.detail.badge', 'plugins.detail.section', 'plugins.add.actions', 'plugins.bundle.activation'];
     function apply(ctx) {
       whaleBindSessionUI(ctx);
+      whaleBindNativeNavigation(ctx);
       if (new URLSearchParams(location.search).get('desktopNativePlugins') !== '1') return;
       ctx.effect(() => {
         let stopped = false, revision = 0, last = '', requested = {kind:'list'}, surface = '', current = null, handles = new Map(), serial = 0, pending = false, selectionPending = true, activationPending = '';
-        const ids = new WeakMap(), cleanup = [];
+        const ids = new WeakMap(), cleanup = []; let nativeActions = new Map();
         const endpoint = new URL('/__whale_plugin_ui/events', location.href);
         endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
         const socket = new WebSocket(endpoint.href, 'whaleisle.plugin-ui.v1');
@@ -21,6 +22,7 @@ window.__ModuleLoader__.load({
         const label = entry => { try { return text(typeof entry.options.label === 'function' ? entry.options.label() : entry.options.label); } catch { return ''; } };
         const exact = (selector, attribute, value, root = document) => [...root.querySelectorAll(selector)].find(node => node.getAttribute(attribute) === value);
         const activeSubject = () => {
+          const selected=document.querySelector('[data-plugin-panel] [role=tab][aria-selected="true"]');const selectedEntry=entries('plugins.tab').find(entry=>selected?.id?.endsWith('-'+entry.options.id));if(selectedEntry)return {kind:'pluginTab',name:selectedEntry.options.id};
           let node = document.querySelector('[data-plugin-row-detail]');
           if (node) { const key = node.getAttribute('data-plugin-row-detail'), at = key.indexOf('#'); return at > 0 ? {kind:'row',name:key.slice(0,at),rowId:key.slice(at+1)} : null; }
           node = document.querySelector('[data-plugin-item-detail]');
@@ -42,6 +44,7 @@ window.__ModuleLoader__.load({
               const d = detail();
               if (d) d.querySelector('button')?.click();
             }
+            if(requested.kind==='list'||requested.kind==='pluginTab'){const id=requested.kind==='pluginTab'?requested.name:'installed';const tabs=[...document.querySelectorAll('[data-plugin-panel] [role=tab]')].filter(node=>node.id?.endsWith('-'+id));if(tabs.length!==1)return;tabs[0].click()}
             selectionPending = false;
           }
           if (activationPending && requested.kind === 'list' && !detail()) {
@@ -67,8 +70,8 @@ window.__ModuleLoader__.load({
           }
         }
         function select(value) {
-          if (!value || !['list','bundle','row','item'].includes(value.kind)) return;
-          requested = value;
+          if (!value || !['list','pluginTab','bundle','row','item'].includes(value.kind)) return;
+          whaleRichSurface.clear();requested = value;
           selectionPending = true;
           surface = '';
           activationPending = '';
@@ -107,18 +110,33 @@ window.__ModuleLoader__.load({
           if (activation && (activation.textContent.trim() || activation.querySelector('button,input,img,svg'))) surface='plugins.bundle.activation';
           const next = target();
           if (next !== current) { current?.removeAttribute('data-whale-plugin-surface'); current = next; current?.setAttribute('data-whale-plugin-surface',''); }
-          const snapshot = {locale:ctx.locale.getSnapshot().active,entries:rows,subject:matched ? subject : null,actions,badges:badge ? [text(badge.textContent)].filter(Boolean) : [],section:!!section && (!!text(section.textContent) || !!section.querySelector('button,input,img,svg')),configuration:config,surface:surface && current ? surface : '',height:current ? Math.min(1000,Math.max(40,current.scrollHeight)) : 0};
+          nativeActions = new Map();
+          const documents = [], nativeBudget={left:512};
+          if(matched && typeof whaleNativeDocument==='function') {
+            for(const slot of [configSlot,'plugins.detail.section','plugins.detail.actions']) {
+              const source=root?.querySelector('[data-slot="'+slot+'"]');
+              if(source) documents.push({slot,nodes:whaleNativeDocument(source,node=>{let id=ids.get(node);if(!id){id=String(++serial);ids.set(node,id)}return id},nativeActions,{root:source,portalRoot:source.closest('[data-plugin-panel]')},nativeBudget)});
+            }
+          }
+          if(requested.kind==='pluginTab'&&matched){const source=document.querySelector('[data-plugin-panel] [role=tabpanel] [data-slot="plugins.tab"]');if(source)documents.push({slot:'plugins.tab',nodes:whaleNativeDocument(source,node=>{let id=ids.get(node);if(!id){id=String(++serial);ids.set(node,id)}return id},nativeActions,{root:source,portalRoot:source.closest('[data-plugin-panel]')},nativeBudget)})}
+          if(requested.kind==='list' && current && ['plugins.add.actions','plugins.bundle.activation'].includes(surface))documents.push({slot:surface,nodes:whaleNativeDocument(current,node=>{let id=ids.get(node);if(!id){id=String(++serial);ids.set(node,id)}return id},nativeActions,{root:current},nativeBudget)});
+          const navigation = (requested.kind === 'pluginTab'||requested.kind === 'list'&&surface === 'plugins.bundle.activation') && subject?.kind === 'bundle' ? subject : null;
+          const snapshot = {locale:ctx.locale.getSnapshot().active,entries:rows,subject:matched ? subject : requested.kind==='list'?{kind:'list'}:null,navigation,documents,actions,badges:badge ? [text(badge.textContent)].filter(Boolean) : [],section:!!section && (!!text(section.textContent) || !!section.querySelector('button,input,img,svg')),configuration:config,surface:surface && current ? surface : '',height:current ? Math.min(1000,Math.max(40,current.scrollHeight)) : 0};
           const encoded = JSON.stringify(snapshot);
           if (encoded === last || socket.readyState !== WebSocket.OPEN) return;
           last = encoded; revision++;
           socket.send(JSON.stringify({type:'state',revision,...snapshot}));
         }
+        const richDispose=whaleRichSurface.bind(()=>({revision,subject:requested,actions:nativeActions,valid:record=>same(activeSubject(),requested)||requested.kind==='list'}));
         function schedule() { if (stopped || pending) return; pending = true; queueMicrotask(() => { pending = false; publish(); }); }
         socket.addEventListener('open', schedule);
         socket.addEventListener('message', event => {
           let message; try { message = JSON.parse(event.data); } catch { return; }
           if (stopped) return;
-          if (message.type === 'select') select(message.subject);
+          if(message.type==='richRelease'){whaleRichSurface.release(message);return;}
+if(message.type==='richLayout'){whaleRichSurface.ack(message,reply=>socket.readyState===WebSocket.OPEN&&socket.send(JSON.stringify(reply)));return;}
+          if(message.type==='nativeInput'&&message.revision===revision&&same(message.subject,requested)&&(requested.kind==='list'||same(activeSubject(),requested))){const target=nativeActions.get(message.handle);if(whaleNativeContains(target?.owner,target?.node)&&whaleNativeInteraction(message,target))schedule();}
+          else if (message.type === 'select') select(message.subject);
           else if (message.type === 'enableActivation' && message.revision === revision && requested.kind === 'list' && entries('plugins.bundle.activation').some(entry => entry.options.key === message.name)) { activationPending=message.name; schedule(); }
           else if (message.type === 'surface' && ['',...slots].includes(message.slot)) { surface = message.slot; schedule(); }
           else if (message.type === 'click' && message.revision === revision && same(activeSubject(),requested)) {
@@ -130,11 +148,12 @@ window.__ModuleLoader__.load({
           }
         });
         const observer = new MutationObserver(schedule);
-        observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['disabled','aria-disabled','aria-expanded']});
+        observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['hidden','aria-hidden','disabled','aria-disabled','aria-expanded']});
         cleanup.push(() => observer.disconnect());
         cleanup.push(ctx.on('slots/changed',schedule));
         cleanup.push(ctx.locale.subscribe(schedule));
         cleanup.push(ctx.layout.panelInfo.subscribe(schedule));
+        document.addEventListener('whale-rich-portals',schedule);cleanup.push(()=>{richDispose();document.removeEventListener('whale-rich-portals',schedule)});
         const dispose = () => {
           if (stopped) return; stopped = true; handles.clear(); current?.removeAttribute('data-whale-plugin-surface');
           cleanup.reverse().forEach(off => off()); style.remove(); window.removeEventListener('pagehide',dispose); socket.close();

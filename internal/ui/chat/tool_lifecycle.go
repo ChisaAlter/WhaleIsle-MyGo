@@ -81,7 +81,15 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 				childGallery := gallery
 				// The same call in another owner/scope has its own disclosure.
 				childGallery.ID = gallery.ID + "|tool:" + call.CallID
-				toolLifecycleCard(c, call, st, childGallery)
+				if gallery.TodoBaselines != nil {
+					childGallery.Todo = gallery.TodoBaselines[call.CallID]
+				}
+				native := func() { toolLifecycleCard(c, call, st, childGallery) }
+				if gallery.RenderSlot != nil {
+					gallery.RenderSlot(c, "toolview/body", call, native)
+				} else {
+					native()
+				}
 				if hasChildren {
 					children = ui.Column(c.Key("subcalls")).MinWidth(0).Shrink(0).Gap(4).
 						Margin(4, 0, bottom, 22).Padding(0, 0, 0, 8).
@@ -262,6 +270,7 @@ func cachedToolLifecycleCardInfo(call *session.ToolCallView, gallery ToolImageGa
 }
 
 func toolLifecycleCard(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, gallery ToolImageGalleryOptions) {
+	gallery.Call = call
 	info := cachedToolLifecycleCardInfo(call, gallery)
 	if !gallery.TextOnly {
 		if call.CallID != "" && gallery.OnInspectCall != nil {

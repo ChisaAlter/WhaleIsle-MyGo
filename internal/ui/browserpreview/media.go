@@ -6,7 +6,6 @@ import (
 	"whaleisle/internal/desktop/mediapreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
-	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenMedia owns one already-authorized immutable snapshot, not a Host client
@@ -20,7 +19,7 @@ func (b *Controller) OpenMedia(doc *mediapreview.Document, floating bool) error 
 	t := &Tab{ID: b.next, Media: doc, Draft: doc.Name}
 	b.Tabs = append(b.Tabs, t)
 	b.Active = len(b.Tabs) - 1
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnClosed: doc.Close})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFailure: b.pageFailure(t), OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
 		t.Error = browserChromeLabel("音视频预览不可用：", "Media preview unavailable: ") + err.Error()
@@ -65,9 +64,5 @@ func (b *Controller) PruneMediaDocuments() {
 	}
 }
 func (b *Controller) mediaControls(c *ui.Context, t *Tab) {
-	ui.Text(c, t.Media.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
-	if ui.Button(c, browserChromeLabel("浮动预览", "Floating preview")).Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
-		b.openFloatingDocument(t)
-	}
-	ui.Text(c, browserChromeLabel("≤32 MiB · 30 分钟 · 播放支持取决于 WebView2", "≤32 MiB · 30 minutes · Playback support depends on WebView2")).FontSize(fonttheme.InterfaceSize(10))
+	b.documentHeader(c, t, t.Media.Name, nil, false)
 }

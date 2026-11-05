@@ -31,10 +31,11 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { createHash } = require('node:crypto');
 let decodedBytes = 0;
-function usageTokens(usage) {
+function usageTokens(usage, includeCache = false) {
   if (!usage || typeof usage !== 'object') throw new Error('invalid usage');
   let n = 0;
-  for (const k of ['inputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'outputTokens']) {
+  // Food is fresh work only. Cached context is already metered separately.
+  for (const k of includeCache ? ['inputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'outputTokens'] : ['inputTokens', 'outputTokens']) {
     const v = usage[k] ?? 0;
     if (!Number.isSafeInteger(v) || v < 0 || !Number.isSafeInteger(n + v)) throw new Error('invalid usage count');
     n += v;
@@ -70,7 +71,18 @@ function usageSampleOf(event) {
 // Fold one decoded log body into `lastWins`: last sample wins per
 // (turn,step) — a retried attempt's later settlement replaces the earlier
 // one, and a streamed usage chunk never outranks the final settlement.
-function foldLogInto(text, lastWins) {
+function inheritedCut(text) {
+  const lines=text.split('\n');let header;
+  for(const line of lines){if(!line||line.charCodeAt(0)!==123)continue;try{header=JSON.parse(line);}catch{}break;}
+  if(header?.type!=='session'||header.isSeeded!==true)return 0;
+  let cut=Number.isSafeInteger(header.seedLength)&&header.seedLength>0?header.seedLength:0;
+  for(const line of lines){if(!line.includes('session/end-seed'))continue;let event;try{event=JSON.parse(line);}catch{continue;}
+    if(event?.type==='session/end-seed'&&event.data?.inherited===true&&Number.isSafeInteger(event.seq))cut=Math.max(cut,event.seq);
+  }
+  return cut;
+}
+function logGeneration(name) {const m=/^session(?:\.v([1-9][0-9]*))?\.jsonl\.zstd$/.exec(name);return m?(m[1]===undefined?0:Number(m[1])):-1;}
+function foldLogInto(text, lastWins, cut=inheritedCut(text), cacheInclusive) {
   for (const line of text.split('\n')) {
     if (!line || line.charCodeAt(0) !== 123) {
       continue;
@@ -81,12 +93,20 @@ function foldLogInto(text, lastWins) {
     } catch {
       throw new Error('incomplete log event');
     }
+    if(cut>0&&Number.isSafeInteger(event.seq)&&event.seq<cut)continue;
     const sample = usageSampleOf(event);
     if (sample === undefined) {
       continue;
     }
     if (!Number.isSafeInteger(sample.turn) || !Number.isSafeInteger(sample.step)) throw new Error('invalid settlement identity');
-    lastWins.set(`${sample.turn}:${sample.step}`, usageTokens(sample.usage));
+    const key = `${sample.turn}:${sample.step}`;
+    lastWins.set(key, usageTokens(sample.usage));
+    // Old MyGo scans counted these cache fields as food. Keep a separate,
+    // non-crediting amount only to identify a proven old settlement watermark.
+    if (cacheInclusive) {
+      cacheInclusive.delete(key);
+      try { cacheInclusive.set(key, usageTokens(sample.usage, true)); } catch {}
+    }
   }
 }
 
@@ -190,7 +210,7 @@ function scan(root) {
       const file = path.join(dir,ent.name);
       if (ent.isSymbolicLink()) continue;
       if (ent.isDirectory()) { stack.push(file); continue; }
-      if (!ent.isFile() || !/^session(?:\.v\d+)?\.jsonl\.zstd$/.test(ent.name)) continue;
+      if (!ent.isFile() || logGeneration(ent.name)<0) continue;
       if (++files > 20000) throw new Error('scan file limit');
       const st = fs.lstatSync(file), real = fs.realpathSync(file);
       const rel = path.relative(realRoot, real);
@@ -198,10 +218,12 @@ function scan(root) {
       logs.push({ file, st });
     }
     if (logs.length === 0) continue;
+    logs.sort((a,b)=>logGeneration(path.basename(b.file))-logGeneration(path.basename(a.file)));
+    logs.splice(1); // exactly one authoritative canonical generation per session
     const sig = JSON.stringify(logs.map(({ file, st }) => [path.basename(file), st.size, st.mtimeMs, String(st.ino)]));
     if (prior[dr] === sig) { out.push({ r: dr, s: sig, d: null }); continue; }
     if (!complete) continue;
-    const lastWins = new Map();
+    const lastWins = new Map(), cacheInclusive = new Map();
     try {
       for (const { file, st } of logs) {
         const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
@@ -210,19 +232,20 @@ function scan(root) {
           if (!actual.isFile() || actual.size > 128*1024*1024 || actual.ino !== st.ino || actual.dev !== st.dev) throw new Error('session file changed');
           const body = fs.readFileSync(fd);
           if (body.length > 128*1024*1024) throw new Error('scan file limit');
-          foldLogInto(zstdDecompressAll(body).toString('utf8'), lastWins);
+          foldLogInto(zstdDecompressAll(body).toString('utf8'), lastWins, undefined, cacheInclusive);
         } finally { fs.closeSync(fd); }
       }
     } catch (err) {
       if (err && err.decodeLimit) { complete = false; continue; }
       throw err;
     }
-    const samples = {};
+    const samples = {}, cached = {};
     for (const [key,n] of lastWins) {
       const id = createHash('sha256').update(JSON.stringify([path.basename(dir),key])).digest('hex');
       samples[id] = n;
+      if (cacheInclusive.get(key) > n) cached[id] = cacheInclusive.get(key);
     }
-    out.push({ r: dr, s: sig, d: samples });
+    out.push({ r: dr, s: sig, d: samples, c: cached });
   }
   return { dirs: out, complete };
 }

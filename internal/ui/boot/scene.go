@@ -36,37 +36,31 @@ func startupScene(c *ui.Context, m Model) {
 			}
 			ui.Row(c).Gap(8).Children(func() {
 				cancelRecoveryAction(c, m)
-				if (m.Status.State == harness.Failed || m.Status.RecoveryCancelled) && m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Clicked() {
+				if bootActionsVisible(m.Status) && m.OnRetry != nil && ui.Button(c, i18n.T(KeyRetry)).Disabled(m.Status.RecoveryActive && !m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled).Clicked() {
 					m.OnRetry()
 				}
-				if m.Status.State == harness.Failed && m.OnConfigure != nil && ui.Button(c, bootText("打开启动器", "Open launcher")).Clicked() {
+				if m.Status.State == harness.Failed && !m.Status.RecoveryActive && m.OnConfigure != nil && ui.Button(c, bootText("打开启动器", "Open launcher")).Clicked() {
 					m.OnConfigure()
 				}
-				if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
+				if bootActionsVisible(m.Status) && m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
 					m.OnExport()
 				}
-				if ui.Button(c, bootText("全部启动日志", "All startup logs")).Clicked() {
-					*drawer = true
-				}
+
 			})
-			if len(m.Logs) > 0 {
-				ui.Text(c, m.Logs[len(m.Logs)-1]).Selectable()
-			} else {
-				ui.Text(c, i18n.T(KeyWaiting))
-			}
+			bootTicker(c, m.Logs, c.Theme().TextMuted, func() { *drawer = true })
 			ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
 				chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 				w, h := c.Size()
 				panel.Width(max(0, min(900, w-32))).Height(max(0, min(600, h-32))).Background(c.Theme().Background).Radius(20).Clip().Padding(20).Children(func() {
-					ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold()
-					if ui.Button(c, bootText("关闭日志", "Close logs")).Clicked() {
-						*drawer = false
-					}
+					ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
+						ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(m.Logs))).Bold().Grow(1)
+						if ui.Button(c, "×").Size(28, 28).Label(bootText("关闭日志", "Close logs")).AutoFocus().Clicked() {
+							*drawer = false
+						}
+					})
 					ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 						ui.Column(c).Gap(4).Children(func() {
-							for _, line := range m.Logs {
-								ui.Text(c, line).Selectable()
-							}
+							paintBootLogLines(c, m.Logs, c.Theme().TextMuted, ui.RGBA(220, 38, 38, 1))
 							if len(m.Logs) == 0 {
 								ui.Text(c, i18n.T(KeyWaiting))
 							}

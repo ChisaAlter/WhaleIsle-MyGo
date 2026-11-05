@@ -5,58 +5,50 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
-	"whaleisle/internal/ui/i18n"
 )
 
 // Keep the current draft on failure and never steal focus from newer navigation.
 func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, draft *composer.DraftState, sourceID string) {
-	if win == nil || sessions == nil || draft.Sending || draft.Preparing > 0 {
+	if win == nil || sessions == nil || draft == nil || draft.Sending || draft.Preparing > 0 {
 		return
 	}
+	s.revealMainConversation()
 	carry := sourceID == ""
 	snap := sessions.Snapshot()
+	if snap.SelectedID != sourceID {
+		return
+	}
 	for _, it := range snap.Items {
 		if it.SessionID == sourceID {
-			carry = it.Blank && len(snap.Messages) == 0 && draft.EditSeq == 0
+			carry = it.Blank && !snap.HasConversationContent() && draft.EditSeq == 0
 			break
 		}
 	}
 	s.mu.Lock()
-	var excluded []string
-	for id, d := range s.composerDrafts {
-		if d.Text != "" || len(d.Attachments) > 0 || d.Sending || d.Preparing > 0 || d.EditSeq > 0 {
-			excluded = append(excluded, id)
-		}
-	}
+	owned := s.composerDrafts[sourceID] == draft
 	s.mu.Unlock()
-	draft.Sending = true
+	if !owned {
+		return
+	}
 	draft.Error = ""
+	op, err := s.captureWorkspaceSessionOpen(win, sessions, snap.WorkspaceLayout.HostGeneration, "::scratch")
+	if err != nil || op == nil {
+		return
+	}
+	op.carryDraft = carry
 	go func() {
-		id, err := sessions.CreateNoDirectorySession(context.Background(), excluded...)
+		id, err := op.target.Create(context.Background())
+		if win.IsDestroyed() {
+			return
+		}
 		win.Update(func() {
-			draft.Sending = false
-			if err != nil {
+			if err != nil && op.current() {
 				draft.Error = err.Error()
-				// Only a failure leaves a status, in the shell's locale: the old
-				// success path painted "no workspace folder ready" over the hero.
-				sessions.SetLastAction(i18n.T(i18n.KeyComposerDirNoWorkspace) + ": " + err.Error())
-				return
 			}
-			if sessions.SelectedSessionID() != sourceID {
-				return
+			if op.finish(id, err) {
+				// No status on success: the conversation is the feedback.
+				sessions.SetLastAction("")
 			}
-			if carry && id != sourceID {
-				s.mu.Lock()
-				target := s.composerDrafts[id]
-				if target == nil || (target.Text == "" && len(target.Attachments) == 0 && !target.Sending && target.Preparing == 0 && target.EditSeq == 0) {
-					s.composerDrafts[id] = draft
-					delete(s.composerDrafts, sourceID)
-				}
-				s.mu.Unlock()
-			}
-			sessions.Select(id)
-			// No status on success: the conversation itself is the feedback.
-			sessions.SetLastAction("")
 		})
 	}()
 }

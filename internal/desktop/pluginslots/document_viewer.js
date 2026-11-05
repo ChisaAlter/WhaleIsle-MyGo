@@ -12,6 +12,8 @@ function whaleBindDocumentViewer(ctx) {
         body > * { visibility:hidden; }
         [data-whale-document-seat] { visibility:visible!important; position:fixed!important; inset:0!important; width:100vw!important; height:100vh!important; transform:none!important; z-index:9999!important; }
         [data-whale-document-seat] * { visibility:visible; }
+        [data-whale-document-overlay], [data-whale-document-overlay] * { visibility:visible!important; }
+        [data-whale-document-overlay] { z-index:10001!important; }
         [data-whale-document-seat] [data-dockkit-strip] { display:none!important; }
         [role="menu"], [role="menu"] *, [role="tooltip"], [data-whale-document-status] { visibility:visible!important; }
         [data-whale-document-status] { position:fixed; inset:12px; z-index:10000; font:13px system-ui; background:var(--bg,#fff); color:var(--text,#222); }
@@ -31,6 +33,7 @@ function whaleBindDocumentViewer(ctx) {
         const candidates = ready.documentPreviews.candidates(path);
         const value = {session,path,
           extension:candidates.some(definition => definition.priority !== "builtin"),
+          office:adopted && candidates.some(definition => definition.priority === "builtin" && definition.id === "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office"),
           spreadsheet:adopted && candidates.some(definition => definition.priority === "builtin" && definition.id === "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel")};
         const serialized = JSON.stringify(value);
         if (serialized === lastRecommendation) return;
@@ -44,6 +47,7 @@ function whaleBindDocumentViewer(ctx) {
         if (stopped || opening) return;
         const mounted = ready.sidebarRight.mounted.getSnapshot();
         for (const seat of document.querySelectorAll('[data-whale-document-seat]')) seat.removeAttribute('data-whale-document-seat');
+        for (const overlay of document.querySelectorAll('[data-whale-document-overlay]')) overlay.removeAttribute('data-whale-document-overlay');
         if (mounted !== session) {
           adopted = false; recommend();
           status.hidden = false;
@@ -66,11 +70,17 @@ function whaleBindDocumentViewer(ctx) {
           try { ready.sidebarRight.focus(tab.id); } finally { opening = false; }
         }
         seat.setAttribute('data-whale-document-seat', '');
+        // FontNotice intentionally portals outside the document seat. Only a
+        // dialog controlled by this exact seat's font warning may cross it.
+        for (const anchor of seat.querySelectorAll('[data-office-font-warning] [aria-controls]')) {
+          const overlay = document.getElementById(anchor.getAttribute('aria-controls'));
+          if (overlay?.getAttribute('role') === 'dialog' && overlay.style.visibility !== 'hidden') overlay.setAttribute('data-whale-document-overlay', '');
+        }
         status.hidden = true;
         adopted = true; recommend();
       };
       const observer = new MutationObserver(sync);
-      observer.observe(document.body, {childList:true,subtree:true});
+      observer.observe(document.body, {childList:true,subtree:true,attributes:true,attributeFilter:['style','aria-controls']});
       const offMounted = ready.sidebarRight.mounted.subscribe(sync);
       const offTabs = ready.sidebarRight.openTabs.subscribe(sync);
       // Service disposal hides this exact child. Re-provisioning creates a fresh
@@ -79,9 +89,10 @@ function whaleBindDocumentViewer(ctx) {
       sync();
       return () => {
         stopped = true; observer.disconnect(); offMounted(); offTabs(); offRegistry();
-        window.__whaleDocumentRecommendation = {session,path,extension:false,spreadsheet:false};
+        window.__whaleDocumentRecommendation = {session,path,extension:false,spreadsheet:false,office:false};
         window.dispatchEvent(new Event("whale-document-registry")); status.hidden = false; status.textContent = "资源预览器不可用 / Resource viewer unavailable";
         for (const seat of document.querySelectorAll('[data-whale-document-seat]')) seat.removeAttribute('data-whale-document-seat');
+        for (const overlay of document.querySelectorAll('[data-whale-document-overlay]')) overlay.removeAttribute('data-whale-document-overlay');
       };
     });
   });

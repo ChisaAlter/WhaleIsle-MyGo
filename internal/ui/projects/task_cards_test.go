@@ -20,7 +20,7 @@ func observerTaskFixture(t *testing.T) (Model, *ObserverState) {
 	m.RequestMutable = true
 	m.RequestPageNumber = 1
 	var active, waiting, delivered projectflow.RequestCard
-	projectJSON(t, `{"id":"active","projectId":"project-fixture","revision":2,"title":"Review the harbor evidence","status":"running","goal":"Complete original goal, conditions and retained evidence.","queue":{"state":"active"},"work":[{"workstreamId":"survey","delegationRef":"saved-1","title":"Survey sources","memberName":"Researcher","status":"completed","summary":"Saved source summary"},{"workstreamId":"review","delegationRef":"saved-2","title":"Review dependencies","memberName":"Reviewer","status":"blocked","blockedReason":"Waiting for source approval"},{"workstreamId":"write","delegationRef":"saved-3","title":"Write findings","memberName":"Writer","status":"queued"}],"versions":[{"revision":1,"title":"Original goal","goal":"Retained original version"}]}`, &active)
+	projectJSON(t, `{"id":"active","projectId":"project-fixture","revision":2,"title":"Review the harbor evidence","status":"running","goal":"Complete original goal, conditions and retained evidence.","queue":{"state":"active"},"work":[{"workstreamId":"survey","delegationRef":"saved-1","title":"Survey sources","memberName":"Researcher","status":"completed","summary":"Saved source summary"},{"workstreamId":"review","delegationRef":"saved-2","title":"Review dependencies","memberName":"Reviewer","status":"blocked","blockedReason":"Waiting for source approval"},{"workstreamId":"write","delegationRef":"saved-3","title":"Write findings","memberName":"Writer","status":"queued"}],"versions":[{"revision":1,"title":"Original goal","goal":"Retained original version"},{"revision":2,"title":"Current goal","goal":"Complete original goal, conditions and retained evidence."}]}`, &active)
 	projectJSON(t, `{"id":"waiting","projectId":"project-fixture","revision":1,"title":"Prepare the follow-up survey","status":"pending","queue":{"state":"queued","position":1}}`, &waiting)
 	projectJSON(t, `{"id":"delivered","projectId":"project-fixture","revision":3,"title":"Publish the saved survey","status":"completed","queue":{"state":"active","released":true},"goal":"Preserve delivered goal","delivery":{"outcome":"completed","applicable":true,"summary":"Survey result retained with original source evidence.","summaryPreview":"Survey result retained with original source evidence.","artifacts":[{"title":"Survey report","path":"reports/survey.md","workstreamId":"old-work","delegationRef":"old-assignment"}]}}`, &delivered)
 	m.RequestPage = projectflow.RequestPage{Items: []projectflow.RequestCard{active, waiting, delivered}, Total: 3}
@@ -63,7 +63,7 @@ func TestObserverTaskCardsRetainModesAndRouteActions(t *testing.T) {
 	if o.RequestModes["active"].Mode != "card" || o.RequestModes["waiting"].Mode != "strip" || o.RequestModes["delivered"].Mode != "strip" {
 		t.Fatalf("source initial modes lost: %+v", o.RequestModes)
 	}
-	if reads["active"] != 1 || !tt.HasText("Task progress") || !tt.HasText("Waiting for source approval") {
+	if reads["active"] != 1 || !tt.HasText("1 / 3") || !tt.HasText("Waiting for source approval") {
 		t.Fatalf("active card missing source data: reads=%v text=%q", reads, tt.Texts())
 	}
 	strip, ok := tt.Find("Task card: waiting")
@@ -91,23 +91,26 @@ func TestObserverTaskCardsRetainModesAndRouteActions(t *testing.T) {
 	if archiveID != "delivered" {
 		t.Fatal("archive action changed request identity")
 	}
-	if err := tt.Click("Task details"); err != nil {
-		t.Fatal(err)
+	// Expanded cards directly expose the installed four sections, with no fifth Activity tab.
+	for _, label := range []string{"Overview", "Plan", "Work", "Results"} {
+		if !tt.HasText(label) {
+			t.Fatal("missing request section", label)
+		}
 	}
-	if o.RequestModes["active"].Mode != "full" || !tt.HasText("Complete original goal") {
-		t.Fatalf("full body not embedded: %q", tt.Texts())
+	if tt.HasText("Task details") || tt.HasText("Activity") {
+		t.Fatal("legacy intermediate detail shell survived")
 	}
-	if _, modal := tt.Find("Requests and deliveries · Harbor research"); modal {
-		t.Fatal("observer full mode opened a replacement modal")
-	}
-	if err := tt.Click("Activity"); err != nil {
+	if err := tt.Click("Requirement version 1"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("Retained original version") {
-		t.Fatal("full activity lost version body")
+		t.Fatal("Overview lost the recorded requirement")
 	}
-	if err := tt.Click("Compact card"); err != nil {
+	if err := tt.Click("Work"); err != nil {
 		t.Fatal(err)
+	}
+	if !tt.HasText("Researcher · Work completed") || !tt.HasText("Review dependencies") {
+		t.Fatal("work section lost source data", tt.Texts())
 	}
 	if err := tt.Click("Collapse task: Review the harbor evidence"); err != nil {
 		t.Fatal(err)
@@ -118,12 +121,13 @@ func TestObserverTaskCardsRetainModesAndRouteActions(t *testing.T) {
 	if err := tt.Click("Expand task: Review the harbor evidence"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("Task details"); err != nil {
-		t.Fatal(err)
+	if o.RequestModes["active"].Tab != "work" || !tt.HasText("Review dependencies") {
+		t.Fatal("card collapse lost active section")
 	}
-	if o.RequestModes["active"].Tab != "activity" || !tt.HasText("Retained original version") {
-		t.Fatal("card collapse lost active detail tab")
+	if _, modal := tt.Find("Requests and deliveries · Harbor research"); modal {
+		t.Fatal("expanded card opened a replacement modal")
 	}
+
 	m.RequestPage.Items[0].Status = "completed"
 	m.RequestCard = nil
 	tt.Frame()
@@ -163,7 +167,7 @@ func TestObserverTaskCardWideNarrowStateMatrix(t *testing.T) {
 				m.OnRequestQueue = func(string, string) {}
 				o.RequestModes = map[string]RequestMode{"active": {Mode: mode, Tab: "overview"}}
 				if mode == "full" {
-					m.RequestPage.Items[0].Goal = strings.Repeat("Retained full request body. ", 80)
+					m.RequestPage.Items[0].Goal = strings.Repeat("Retained full request body. ", 300)
 				}
 				tt := ui.NewTester(func(c *ui.Context) { ObserverView(c, m, o) }, size.w, size.h)
 				if size.dark {
@@ -177,25 +181,39 @@ func TestObserverTaskCardWideNarrowStateMatrix(t *testing.T) {
 				if mode == "strip" && card.H != 44 {
 					t.Fatalf("strip=%+v", card)
 				}
-				if mode == "card" && (!tt.HasText("1 / 3 work items") || !tt.HasText("Researcher")) {
+				if mode == "card" && (!tt.HasText("1 / 3") || !tt.HasText("Work") || !tt.HasText("Overview")) {
 					t.Fatalf("card data missing: %q", tt.Texts())
 				}
 				if mode == "full" {
-					body, ok := tt.Find("Task detail body: active")
-					if !ok || body.H > float32(min(420, size.h-240))+.1 || body.H <= 0 {
-						t.Fatalf("full scroll unbounded: %+v", body)
+					// Old retained full mode now shares the observer's one reading scroll.
+					header, ok := tt.Find("Harbor research")
+					if !ok {
+						t.Fatal("observer header missing")
 					}
-					footer, _ := tt.Find("Compact card")
-					tt.Scroll(body.X+20, body.Y+20, 0, 1500)
-					after, _ := tt.Find("Compact card")
-					if after != footer {
-						t.Fatal("full-detail scrolling moved card footer")
+					tt.Scroll(float32(size.w-10), float32(size.h/2), 0, 1500)
+					tt.Frame()
+					after, ok := tt.Find("Task card: active")
+					headerAfter, _ := tt.Find("Harbor research")
+					if !ok || headerAfter != header || o.Scroll.Y <= 0 {
+						t.Fatal("reading scroll did not retain its fixed header", card, after, header, headerAfter, o.Scroll.Y)
 					}
-					tt.Scroll(body.X+20, body.Y+20, 0, -1500)
+					tt.Scroll(float32(size.w-10), float32(size.h/2), 0, -1500)
 				}
+
 				saveProjectSnapshot(t, tt, fmt.Sprintf("projects-observer-%s-%s.png", mode, size.name))
 			})
 		}
+	}
+}
+
+func TestObserverTaskCountsPreferHostProjectionToPartialWork(t *testing.T) {
+	m, o := observerTaskFixture(t)
+	m.RequestPage.Items[0].Counts = &projectflow.RequestWorkCounts{Completed: 4, Total: 8}
+	m.RequestCard = &m.RequestPage.Items[0]
+	m.OnRequestGet = nil
+	tt := ui.NewTester(func(c *ui.Context) { ObserverView(c, m, o) }, 900, 800)
+	if !tt.HasText("4 / 8") || tt.HasText("1 / 3") {
+		t.Fatal("partial work list replaced the Host's complete counts", tt.Texts())
 	}
 }
 
@@ -238,6 +256,7 @@ func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	m, _ := observerTaskFixture(t)
 	active, delivered := m.RequestPage.Items[0], m.RequestPage.Items[2]
+	active.Work[0].WorkerSessionID, active.Work[0].MemberRole = "worker-survey", "development"
 	admitted := map[string]bool{}
 	var opened, inspected, diffs []string
 	m.OnResolvedFile = func(string) {}
@@ -247,9 +266,12 @@ func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 	m.RequestCardActions = func(id string, revision int) RequestCardActions {
 		known := admitted[id] && (id == active.ID && revision == active.Revision || id == delivered.ID && revision == delivered.Revision)
 		return RequestCardActions{Known: known,
-			OpenFile:   func(file projectflow.Artifact, _ func(string)) { opened = append(opened, id+"/"+file.DelegationRef) },
-			WorkDetail: func(work string) { inspected = append(inspected, id+"/"+work) },
-			WorkDiff:   func(work string) { diffs = append(diffs, id+"/"+work) },
+			OpenFile: func(file projectflow.Artifact, _ func(string)) { opened = append(opened, id+"/"+file.DelegationRef) },
+			OpenCurrent: func(work projectflow.RequestWork) error {
+				inspected = append(inspected, id+"/"+work.WorkstreamID+"/"+work.DelegationRef)
+				return nil
+			},
+			WorkDiff: func(work string) { diffs = append(diffs, id+"/"+work) },
 		}
 	}
 	m.RequestCard = &active
@@ -272,10 +294,10 @@ func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 	}
 	m.RequestCard = &delivered
 	tt = ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { taskCardDetail(c, m, active, "team") }) }, 700, 900)
-	if err := tt.Click("View work details"); err != nil {
+	if err := tt.Click("Survey sources · View process"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("View current workspace diff"); err != nil {
+	if err := tt.Click("View changes"); err != nil {
 		t.Fatal(err)
 	}
 	if len(inspected) != 0 || len(diffs) != 0 {
@@ -283,13 +305,13 @@ func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 	}
 	admitted[active.ID] = true
 	tt.Frame()
-	if err := tt.Click("View work details"); err != nil {
+	if err := tt.Click("Survey sources · View process"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("View current workspace diff"); err != nil {
+	if err := tt.Click("View changes"); err != nil {
 		t.Fatal(err)
 	}
-	if len(inspected) != 1 || inspected[0] != "active/survey" || len(diffs) != 1 || diffs[0] != "active/survey" {
+	if len(inspected) != 1 || inspected[0] != "active/survey/saved-1" || len(diffs) != 1 || diffs[0] != "active/survey" {
 		t.Fatalf("last-read delivered card displaced active work: inspector=%v diff=%v", inspected, diffs)
 	}
 }

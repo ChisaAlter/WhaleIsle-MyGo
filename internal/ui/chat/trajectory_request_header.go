@@ -9,9 +9,10 @@ import (
 
 func trajectoryRequestPayloads(snapshot session.ViewState, rowID string) (schema, header string) {
 	var source *session.Message
-	for i := range snapshot.Messages {
-		if messageToTrajRow(snapshot.Messages[i]).ID == rowID {
-			source = &snapshot.Messages[i]
+	messages := trajectoryHistoryMessages(snapshot)
+	for i := range messages {
+		if messageToTrajRow(messages[i]).ID == rowID {
+			source = &messages[i]
 			break
 		}
 	}
@@ -28,7 +29,7 @@ func trajectoryRequestPayloads(snapshot session.ViewState, rowID string) (schema
 		callID = selectedCalls[0].Tool.CallID
 	}
 	if callID != "" {
-		for _, root := range session.ProjectToolMessages(snapshot.Messages) {
+		for _, root := range session.ProjectToolMessages(messages) {
 			stack := []*session.ToolCallView{root.Tool}
 			seen := map[*session.ToolCallView]bool{}
 			for len(stack) > 0 {

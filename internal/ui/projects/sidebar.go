@@ -16,13 +16,8 @@ func View(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	visible := filteredProjects(m.Listing.Projects, m.SearchQuery, m.History)
-	// The reference only grows a Project section once a project exists (or the
-	// reader is explicitly browsing project history/search). An empty section
-	// with an add hint is native-only chrome.
-	if len(m.Listing.Projects) == 0 && !m.History && strings.TrimSpace(m.SearchQuery) == "" && !m.Expanded {
-		projectModals(c, m)
-		return
-	}
+	// Keep the first-load and first-create entry reachable before any Project
+	// exists. Host availability is established independently of expanding it.
 	section := ui.Column(c).FillWidth().MinWidth(0).Padding(8, 0).Gap(4)
 	m.presentation = ui.Local(section, "project-presentation", newProjectPresentation)
 	section.Children(func() {
@@ -72,9 +67,6 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Error != "" {
 			ui.Text(c, m.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-		}
-		if m.Busy && !m.Loaded {
-			ui.Text(c, tr("正在加载项目…", "Loading Projects…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if m.RefreshNote != "" {
 			ui.Text(c, m.RefreshNote).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -259,6 +251,18 @@ func projectIcon(c *ui.Context, kind string, size float32, ink ui.Color, expande
 		path := &ui.Path{}
 		x, y, s := r.X, r.Y, r.W/16
 		switch kind {
+		case "user":
+			path.Circle(x+8*s, y+5*s, 2.5*s)
+			path.MoveTo(x+3*s, y+14*s)
+			path.CubeTo(x+3*s, y+8*s, x+13*s, y+8*s, x+13*s, y+14*s)
+		case "checklist":
+			for _, at := range []float32{4, 8, 12} {
+				path.MoveTo(x+2*s, y+at*s)
+				path.LineTo(x+3*s, y+(at+1)*s)
+				path.LineTo(x+5*s, y+(at-1)*s)
+				path.MoveTo(x+8*s, y+at*s)
+				path.LineTo(x+14*s, y+at*s)
+			}
 		case "add":
 			path.MoveTo(x+8*s, y+3*s)
 			path.LineTo(x+8*s, y+13*s)

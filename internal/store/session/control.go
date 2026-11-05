@@ -12,35 +12,41 @@ import (
 // WatchControl opens session/control and records the latest control frame type.
 func (s *Store) WatchControl(ctx context.Context) {
 	s.mu.Lock()
+	run, changed := s.beginControlWatchLocked(ctx)
+	s.mu.Unlock()
+	if changed {
+		s.fire()
+	}
+	if run != nil {
+		go run()
+	}
+}
+
+// beginControlWatchLocked shares the existing single reader with every
+// selected-session entry point. Admission stays under the selection/Host lock;
+// callers launch only the captured reader after publishing their state.
+func (s *Store) beginControlWatchLocked(ctx context.Context) (func(), bool) {
 	mux := s.mux
 	client := s.client
 	sessionID := s.selectedID
+	if mux != nil && sessionID != "" && ctx.Err() == nil &&
+		s.controlWatchStreamCtx != nil && s.controlWatchStreamCtx.Err() == nil &&
+		s.controlWatchClient == client && s.controlWatchMux == mux &&
+		s.controlWatchHost == s.eventsGeneration && s.controlWatchParentCtx == ctx {
+		return nil, false
+	}
 	changed := s.controlNote != ""
 	s.controlNote = ""
 	if changed {
 		s.invalidateViewLocked()
 	}
-	notify := s.notify
 	if mux == nil || sessionID == "" || ctx.Err() != nil {
 		if s.controlCancel != nil {
 			s.controlCancel()
 			s.controlCancel = nil
 		}
 		s.controlWatchStreamCtx = nil
-		s.mu.Unlock()
-		if changed && notify != nil {
-			notify()
-		}
-		return
-	}
-	if s.controlWatchStreamCtx != nil && s.controlWatchStreamCtx.Err() == nil &&
-		s.controlWatchClient == client && s.controlWatchMux == mux &&
-		s.controlWatchHost == s.eventsGeneration && s.controlWatchParentCtx == ctx {
-		s.mu.Unlock()
-		if changed && notify != nil {
-			notify()
-		}
-		return
+		return nil, changed
 	}
 	if s.controlCancel != nil {
 		s.controlCancel()
@@ -53,11 +59,7 @@ func (s *Store) WatchControl(ctx context.Context) {
 	s.controlWatchClient = client
 	s.controlWatchMux = mux
 	s.controlWatchHost = s.eventsGeneration
-	s.mu.Unlock()
-	if changed && notify != nil {
-		notify()
-	}
-	go s.runControlWatch(fctx, client, mux, "")
+	return func() { s.runControlWatch(fctx, client, mux, "") }, changed
 }
 
 func (s *Store) controlWatchCurrentLocked(ctx context.Context, client *dsh.Client, mux *dsh.Mux, sessionID string) bool {

@@ -95,11 +95,21 @@ func (s *Store) refreshProjectionsForOwner(ctx context.Context, owner *workspace
 		if err != nil {
 			return
 		}
-		title := titleFromProjections(json.RawMessage(out.Values))
-
 		s.mu.Lock()
 		if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || (owner != nil && !owner.currentLocked(s)) {
 			s.mu.Unlock()
+			return
+		}
+		if !out.Sequenced() {
+			if out.Kind == "migration-required" {
+				// The published union carries cached display hints, not a live
+				// baseline. Existing cached/live merge rules protect newer owners.
+				s.applySessionPresentationValuesLocked(sessionID, "cached", 0, out.Values)
+				s.applySessionSubagentIdentityValuesLocked(sessionID, "cached", 0, out.Values)
+				s.applyProjectionTitleHintLocked(sessionID, out.Values)
+			}
+			s.mu.Unlock()
+			s.fire()
 			return
 		}
 		s.applyCostBaselineLocked(sessionID, out.AsOfSeq, out.Values)
@@ -114,15 +124,21 @@ func (s *Store) refreshProjectionsForOwner(ctx context.Context, owner *workspace
 		s.applyPlanModeValuesLocked(out.Values, out.AsOfSeq)
 		s.applyImageLimitValuesLocked(out.Values, out.AsOfSeq)
 		s.applyHistoryOutlineValuesLocked(out.Values, out.AsOfSeq)
-		for i := range s.items {
-			if s.items[i].SessionID == sessionID {
-				if title != "" && (strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID) {
-					s.items[i].Title = title
-				}
-				break
-			}
-		}
+		s.applyProjectionTitleHintLocked(sessionID, out.Values)
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+func (s *Store) applyProjectionTitleHintLocked(sessionID string, values json.RawMessage) {
+	title := titleFromProjections(values)
+	for i := range s.items {
+		if s.items[i].SessionID == sessionID {
+			if title != "" && (strings.TrimSpace(s.items[i].Title) == "" || s.items[i].Title == sessionID) {
+				s.items[i].Title = title
+				s.invalidateViewLocked()
+			}
+			break
+		}
+	}
 }

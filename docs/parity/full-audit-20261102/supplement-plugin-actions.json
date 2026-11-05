@@ -1,0 +1,1751 @@
+{
+  "domain": "generic-plugin-market-skills-mcp-action-supplement",
+  "date": "2026-11-02",
+  "scope": {
+    "denominator": "实际安装 Whale Isle 0.3.13 的 vendor client lib 与本轮 app.asar 已提取 main 源码；不以当前原项目工作树代替安装版。",
+    "outputOwner": "gap_plugin_actions",
+    "readOnly": true,
+    "productChanges": false,
+    "excludedOwners": [
+      "dsh-pad 全部动作",
+      "设置具体字段、模型与 ui-secret-mask",
+      "Project/Whale/IM 业务",
+      "聊天/工作面及会话 slot 的逐动作验收",
+      "Whale UI 已审 73 组件、50 Genui 与 14 资产"
+    ],
+    "principle": "动作是用户意图/事务，不把一个 PLUG-013 根因按 slot 同义扩写为独立缺陷；shared rootCause 只计一次。"
+  },
+  "statusLegend": {
+    "wired-unverified": "限定动作存在主程序入口与真实 consumer/恢复链；未执行此动作。",
+    "partial": "只覆盖明确子集或条件替代路径；给出原 owner 条件及真实缺链。",
+    "confirmed-defect": "安装原版有动作；当前生产入口或 consumer 可由代码确定缺失/阻断。"
+  },
+  "inventory": [
+    {
+      "id": "GPLUG-001",
+      "feature": "重读可管理插件包与失败重试",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-001",
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "当前 Host 提供 managed profile；加载失败时仍可重试。",
+      "original": {
+        "entry": "侧栏插件 → 刷新/读取失败后的重试",
+        "action": "重读 inventory、bundles、rows；刷新失败保留可用旧清单。",
+        "expected": "不是只刷新卡片文字，也不把不支持管理的 Host 当成可安装。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1326-1413,4030-4054"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/controller.go:116-195",
+          "internal/ui/pluginmanager/view.go:109-120,157-180",
+          "cmd/whaleisle/native_plugin_manager.go:29-83"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-002",
+      "feature": "查找并展开预设/全局插件实例",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-001"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "Host 清单已读；预设列表可有默认、损坏和同名全局条目。",
+      "original": {
+        "entry": "设置 → 内置插件",
+        "action": "搜索名称/模块/ID/描述，选择 Agent 预设，折叠/展开会话与全局分区，展开实例事实。",
+        "expected": "保留真实来源、loader、条件、加载阶段与错误；预设提供不等于全局启用。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-plugin-inventory/lib/client.js:151-171,284-439,483-666"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/plugin_inventory.go:79-154,213-278",
+          "internal/desktop/plugininventory/view.go:109-143",
+          "cmd/whaleisle/settings_plugin_inventory.go:59-80"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-003",
+      "feature": "查看并重试本页面客户端模块同步",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-001"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版当前页面 ctx.modules.entries 已连接且有同步失败。",
+      "original": {
+        "entry": "设置 → 内置插件 → 同步失败提示/重试本页面同步",
+        "action": "查看失败模块并调用当前页面 entries.retry()；不改 Host 启停状态。",
+        "expected": "重试属于该客户端页面，不是重新读取 Host inventory。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-plugin-inventory/lib/client.js:284-304,440-469,780-783"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/plugins.go:55-63",
+          "internal/ui/settings/plugin_inventory.go:282-305",
+          "cmd/whaleisle/settings_plugin_inventory.go:45-70",
+          "internal/desktop/pluginslots/client.js:15-61"
+        ],
+        "missingConsumer": "原生设置本身不拥有原版页面 modules.entries；只有已存在且同 Host 的 webviewHost 才有同步状态/重试 consumer。默认纯 native 打开设置并不会创建这个页面。",
+        "conditionalAlternative": "先从设置的插件包管理打开此 Host 的某个插件视图，再打开设置，原页面可被隐藏保留；只验这个页面，不代表 native 会话插件已加载。"
+      },
+      "status": "partial",
+      "rootCause": "page-local-client-module-owner",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-004",
+      "feature": "输入 npm/Git/本地路径安装插件",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-002"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "Host 有可管理 profile；输入实际受 Host 接受的 spec。",
+      "original": {
+        "entry": "插件 → 添加插件主按钮/安装已有插件",
+        "action": "填写 npm 包（含版本）、Git 或本地路径，再检查和安装。",
+        "expected": "保留原版通用 Host 安装入口，不要求所有类型都变成精选市场目录项。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2111-2210,3198-3366"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/artwork.go:99-138",
+          "internal/ui/pluginmanager/dialogs.go:94-163",
+          "internal/pluginmanager/client.go:58-75",
+          "internal/pluginmanager/install.go:195-327"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-005",
+      "feature": "切换并记住安装 registry",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-002"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "安装对话框处于可编辑阶段；Host 提供 registry/probe。",
+      "original": {
+        "entry": "安装对话框 → 安装源",
+        "action": "选择官方/Host 提供源/自定义 URL；首次可探测速率；记住手动选择；Discover 的临时源不覆盖偏好。",
+        "expected": "registry=null 的含义不改为硬编码官方 URL；晚到探测不覆盖手动选择。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1047-1059,1090-1107,1225-1291,3379-3558"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/install_registry.go:149-262",
+          "internal/pluginmanager/registry.go:95-184,248-295",
+          "cmd/whaleisle/native_plugin_manager.go:38-57"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-006",
+      "feature": "审阅安装对象与拒绝原因",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-002"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "输入合法；检查 RPC 返回 accepted/rejected/unknown。",
+      "original": {
+        "entry": "安装对话框 → 检查/安装",
+        "action": "查看解析后的包名、版本、来源、目标和风险；失败返回 spec 继续修改。",
+        "expected": "不把未知检查结果当成功，不把未经检查的文本当已确认包。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1424-1490,3149-3162,3198-3376"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/install.go:195-327",
+          "internal/ui/pluginmanager/dialogs.go:94-264"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-007",
+      "feature": "阅读安装命令、分次尝试和完整日志",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-003"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "已开始一个由 requestId 标识的 Host 安装任务。",
+      "original": {
+        "entry": "插件安装任务 → 详情",
+        "action": "展开/收起各 pnpm 命令、cwd、输出、退出码和 registry 尝试；离开弹窗后可再查看当前任务。",
+        "expected": "晚到日志仍属于原安装，不能泄入新任务。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1293-1319,3001-3074,3609-3781,4054-4067"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/install_terminal.go:13-90",
+          "internal/ui/pluginmanager/dialogs.go:218-250",
+          "internal/pluginmanager/install.go:597-680",
+          "cmd/whaleisle/native_plugin_manager.go:100-123"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-008",
+      "feature": "批准构建脚本后重试同一安装",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-003"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "失败结果明确列出 pendingBuilds。",
+      "original": {
+        "entry": "安装失败页 → 允许构建并重试",
+        "action": "审阅列出的包；只为这次目标批准并重试；取消保留失败状态。",
+        "expected": "不是隐式批准全部脚本，也不是因网络失败就展示构建批准。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1701-1714,3660-3705"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/install.go:340-353",
+          "internal/ui/pluginmanager/dialogs.go:177-215",
+          "internal/pluginmanager/client.go:68-75"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-009",
+      "feature": "取消安装与找回未确认结果",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-003"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "检查中可立即取消；Host-owned 安装可能已接收、太迟取消或 RPC 丢失。",
+      "original": {
+        "entry": "安装任务 → 取消/检查结果/重试",
+        "action": "按 Host cancelInstall 回执区分已取消/继续应用；waitForInstall 找回同一 requestId 的结果。",
+        "expected": "关弹窗、断线不等于 pnpm 已停止；不盲目重复安装。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1063-1072,1720-1783,3732-3775"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/install.go:145-169,417-550",
+          "internal/pluginmanager/client.go:101-124",
+          "internal/ui/pluginmanager/dialogs.go:94-264"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-010",
+      "feature": "安装后保持停用或立即启用并定位包",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-003",
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "安装已完成；取得实际 installed bundle。",
+      "original": {
+        "entry": "安装完成页 → 立即启用/关闭",
+        "action": "普通新安装默认停用；立即启用真实 bundle 后回到列表并高亮它。",
+        "expected": "安装完成与加载启用是两个不同状态。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1796-1823,3790-3819,3881-3892"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/install.go:295-327,355-391",
+          "internal/ui/pluginmanager/dialogs.go:94-126",
+          "internal/ui/pluginmanager/view.go:365-406"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-011",
+      "feature": "浏览包详情、真实版本和来源事实",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "包存在于管理清单，含可选内置包或安装文件缺失包。",
+      "original": {
+        "entry": "插件卡片标题/更多 → 详情 → 返回",
+        "action": "查看版本、beta/problem/missing、元数据错误、readOnlyReason、source spec、catalog target version。",
+        "expected": "包名、目标 spec、已安装版本不能混为同一字段。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2482-2499,2840-2999"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:412-459,504-608,672-695",
+          "internal/pluginmanager/types.go:394-419"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-012",
+      "feature": "打开更多实验性插件并恢复缺失的可安装包",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版 official optional bundle 有 installTarget；availability=missing 可需重装。",
+      "original": {
+        "entry": "插件 → 更多/实验性插件 → 缺失包启用或更新",
+        "action": "从更多列表回退；启用缺失包时用确定 catalog target 进入安装并保留启用意图。",
+        "expected": "缺失文件不只切一个启用布尔值。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1149-1183,1433-1482,3965-3986"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:125-133,232-330",
+          "internal/pluginmanager/install.go:18-56,98-142",
+          "internal/pluginmanager/controller.go:293-310"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-013",
+      "feature": "启停插件包并处理只读/待重启回执",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "包可写且没有并行操作；被 Host 保护的包禁用开关并说明。",
+      "original": {
+        "entry": "插件卡片开关/更多菜单/包详情开关",
+        "action": "调用 setBundleEnabled，重读实际状态，呈现应用失败或 restart-required。",
+        "expected": "启用不绕过 Host 锁定，保存不等于本进程已加载。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1149-1162,2500-2514,2879-2896"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:365-429,520-530",
+          "internal/pluginmanager/controller.go:324-379,412-489"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-014",
+      "feature": "筛选并启停单个子插件、进入其配置",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004",
+          "PLUG-011"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "包已启用；子条目有 live entryId；配置仅对注册过 row.config 的行提供。",
+      "original": {
+        "entry": "包详情 → 包中插件 → 搜索/行开关/行标题",
+        "action": "按名称、描述、rowId/module 过滤，调用 setPluginEnabled(entryId)，使用 bundle#rowId 配置键。",
+        "expected": "同名模块不替代条目身份，关闭的包不提供误导性的行开关。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2361-2481,2774-2835,3919-3933"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:609-670",
+          "internal/pluginmanager/controller.go:276-289,327-328",
+          "cmd/whaleisle/plugin_contributions.go:107-149"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-015",
+      "feature": "按 Host installTarget 更新可选/已装包",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "Host 提供 installTarget；非 installation availability。",
+      "original": {
+        "entry": "包详情 → 更新",
+        "action": "重装确定目标，保留包启用意图；更新前后重读实际包。",
+        "expected": "这条手工 installTarget 路径不等于精选市场自动发现 GitHub 新提交。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1164-1183,2628-2633,2870-2878"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/install.go:18-56,98-142",
+          "internal/ui/pluginmanager/view.go:520-523",
+          "internal/pluginmanager/types.go:454-459"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-016",
+      "feature": "确认卸载可移除包",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-004"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "包 removable；不允许卸载 Host 只读来源。",
+      "original": {
+        "entry": "包详情/卡片更多 → 卸载 → 确认或取消",
+        "action": "先审阅包名，确认后 removeBundle；取消不执行；完成重读。",
+        "expected": "不通过行名猜测包、不把停用当卸载。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1185-1204,1418-1423,3825-3843"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:424-429,524-525",
+          "internal/pluginmanager/controller.go:330-379,381-488"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-017",
+      "feature": "让 Agent 创建插件",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-010"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版 Creator 贡献添加菜单；MyGo 需当前 Host 有 cordis 能力预设。",
+      "original": {
+        "entry": "插件 → 添加方式 → 让 Agent 创建插件",
+        "action": "创建专门任务并进入正确会话；创建结果不明时保持原任务身份，不自动再建。",
+        "expected": "这是通用插件制作入口，具体模型/会话发送由对应领域验收。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2111-2210,4422-4425"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/artwork.go:152-153",
+          "cmd/whaleisle/plugin_creator_task.go:65-126,139-160"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "没有创建任务或请求模型；只审阅生产入口与 task/owner 交接。"
+    },
+    {
+      "id": "GPLUG-018",
+      "feature": "在原 owner 下使用插件 item/bundle/row 配置表单",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-011"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "插件注册 plugins.item、plugins.bundle.config 或 plugins.row.config；item/row 表单由 configForms 提供 revision。",
+      "original": {
+        "entry": "插件基础配置卡片/包详情/子插件详情",
+        "action": "进入 summary/page；修改后由原 form.mutate(ops,revision) 写 Host；返回不丢 owner。",
+        "expected": "不是拿 slot 名称静态生成一个空壳表单。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:27-74,2724-2835,2976-2995,3847-3854"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/native_plugin_manager.go:154-186",
+          "cmd/whaleisle/plugin_contributions.go:107-176",
+          "internal/desktop/pluginui/client.js:78-110"
+        ],
+        "missingConsumer": "成熟内置编辑器有原生 consumer；其余配置仅在显式打开的 browser seat 中由原 DOM 表单执行，没有任意配置控件的 native 实现。",
+        "conditionalAlternative": "在匹配的 item/bundle/row 详情点击“打开插件内容”；保持原 Host 页面、subject、configForms 与 revision，seat 高度上限 560 DIP。"
+      },
+      "status": "partial",
+      "rootCause": "dynamic-config-browser-seat",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-019",
+      "feature": "启用后的激活提示：稍后或打开包详情",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-011"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "包贡献 plugins.bundle.activation；列表从停用切启用且 Host 成功启用。随包语音仅在 selected provider 为 host-local、preparation.phase=unprepared 时弹出准备提示。",
+      "original": {
+        "entry": "插件列表 → 启用 → 插件激活引导",
+        "action": "启用包后，由原 PluginManagerPage 挂载激活提示；点“稍后”仅 dismiss，点“打开详情”转到该包详情，准备资源前不自动下载。",
+        "expected": "启用回执不等于完成 onboarding。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:3873-3876,3918-3952,4434-4437",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4215-4228",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1802-1819,2848-2866,2931-2936"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/native_plugin_manager.go:187-208,254-260",
+          "internal/desktop/pluginui/client.js:78-80,106-110,121-129",
+          "cmd/whaleisle/native_plugin_manager.go:174-180,214-260",
+          "internal/desktop/pluginui/client.js:23-54,78-110",
+          "internal/desktop/pluginui/owner.go:228-254,483-500"
+        ],
+        "missingConsumer": "激活 seat 可承载原提示，“稍后”由原 onDismiss 消费；“打开详情”只改变 browser 内部 setView(package)。桥仅发布与 requested 相同的 subject，native 装配仅 owner.Select(native View) 单向同步，没有把这个 browser 导航送回 nativePluginController.OpenPackage 的 consumer。激活槽随原 onOpenDetails 消失后，native 仍停在列表，seat target 仍只查 activation 槽，不自动换成 bundle.config。",
+        "conditionalAlternative": "用户可手工再点原生列表中的该包详情，然后“打开插件内容”进入匹配 bundle.config；或使用完整 Host 插件视图。该手工路径不等于激活提示的“打开详情”已完成 native 导航。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "activation-open-details-native-handback",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-020",
+      "feature": "使用插件详情的附加操作/徽章/章节",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-011"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "当前 item/bundle/row subject 匹配且插件贡献相应详情槽。",
+      "original": {
+        "entry": "插件详情 → 附加按钮/章节",
+        "action": "显示对应 subject 的 badge；点原详情 action 并展示其产生的内容；展开附加 section。",
+        "expected": "操作不能串到上一包；富控件不能仅以文字标签称作完整移植。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2738-2740,2750-2765,2796-2798,2832-2835,2866-2869,2934,2995"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/native_plugin_manager.go:214-240",
+          "internal/desktop/pluginui/client.js:85-129",
+          "cmd/whaleisle/plugin_contributions.go:153-176"
+        ],
+        "missingConsumer": "native 按钮仅投影原 DOM 可辨识 button/role=button/a 的标签与禁用状态；完整 action/section 控件仍依赖显式 browser seat。",
+        "conditionalAlternative": "匹配 subject 后点击原生投影动作或“打开插件内容”；原 DOM 保留 owner，非匹配详情不执行旧 handle。"
+      },
+      "status": "partial",
+      "rootCause": "dynamic-config-browser-seat",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-021",
+      "feature": "执行第三方贡献的添加插件菜单动作",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-011",
+          "PLUG-013"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "插件注册 plugins.add.actions。",
+      "original": {
+        "entry": "插件 → 添加方式菜单 → 插件提供的操作",
+        "action": "在原添加菜单 owner 中执行第三方菜单项。",
+        "expected": "菜单入口并非只包含硬编码安装和 Creator。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2111-2210,4422-4425"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/native_plugin_manager.go:241-260",
+          "internal/desktop/pluginui/client.js:81,127-129",
+          "internal/ui/pluginmanager/artwork.go:99-153"
+        ],
+        "missingConsumer": "存在“插件提供的操作”原生入口，但菜单项本体和自定义交互只在 browser seat；不是任意添加动作的 native 控件 consumer。",
+        "conditionalAlternative": "展开原生添加菜单，选择插件提供的操作后使用原 DOM 菜单。"
+      },
+      "status": "partial",
+      "rootCause": "dynamic-config-browser-seat",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-022",
+      "feature": "浏览通用 Discover：搜索、分类/标签、排序、刷新和更多",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-005"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "安装 ui-plugin-market 并在 plugins.tab 注册 discover。",
+      "original": {
+        "entry": "插件 → Discover",
+        "action": "选择索引，输入查询，按索引声明分类/标签和排序键浏览；分页/刷新/失败重试。",
+        "expected": "使用 pluginMarket 查询合同，不是固定精选目录或外开官网。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js:702-1021,1327-1353,1627-1633",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4070-4105"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:79-88,105-107,698-900",
+          "internal/pluginmanager/controller.go:238-253",
+          "internal/desktop/pluginui/client.js:6",
+          "internal/ui/pluginmanager/artwork.go:139-150"
+        ],
+        "missingConsumer": "native 只画 installed 标签；SelectTab(discover) 没有主程序用户触发入口；八槽桥不含 plugins.tab。",
+        "conditionalAlternative": "已启用 ui-plugin-market 时，可从插件包管理打开该插件 Host 视图，在原页面手工切 Discover；这是完整 Host 页面替代，不是原生入口修复。固定精选市场/官网不消费同一自定义索引。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "native-plugin-tab-disconnected",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-023",
+      "feature": "查看 Discover 精确版本/来源并安装指定版本",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-005"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "索引条目有 versions，且该版本兼容或豁免、非 provided/当前版本。",
+      "original": {
+        "entry": "通用 Discover → 条目详情 → 版本安装/打开已安装包",
+        "action": "审阅作者、主页、repository/目录、npm registry 或完整 commit、版本兼容性与日期；确认指定版本安装。",
+        "expected": "保留索引指定的 spec/registry，不能拿 npm latest 或精选目录安装替代。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js:81-107,326-506,604-672,729-747"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/pluginmanager/view.go:941-1008",
+          "internal/pluginmanager/discover.go:521-570",
+          "internal/ui/pluginmanager/view.go:79-88"
+        ],
+        "missingConsumer": "版本详情/确认/安装实现位于不可达 native Discover 分支；缺用户入口，不是缺少协议。",
+        "conditionalAlternative": "同 GPLUG-022 的完整 Host 页面可保留该原版 owner 的 install/openPackage props；外开官网不能直接消费当前 Host 安装回执。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "native-plugin-tab-disconnected",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-024",
+      "feature": "添加/移除/切换通用市场索引源",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-005"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "Host 暴露 pluginMarket.listIndexes/setIndexes。",
+      "original": {
+        "entry": "通用 Discover → 来源管理",
+        "action": "审阅当前 URL/读取错误，添加自定义 URL、移除来源、切换来源；保存后重读。",
+        "expected": "区别安装 registry 与目录 index；新增索引不覆盖 installer 的个人 registry。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js:507-603,1330-1339,1354-1416"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/pluginmanager/discover.go:439-519",
+          "internal/ui/pluginmanager/view.go:1011-1041",
+          "internal/ui/pluginmanager/view.go:79-88"
+        ],
+        "missingConsumer": "来源编辑仅在不可达 native Discover 下；Host 方法存在不构成用户可用。",
+        "conditionalAlternative": "同 GPLUG-022：从 ui-plugin-market 的 Host 视图使用原 Discover 来源管理；native 精选目录固定，不是自定义 index consumer。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "native-plugin-tab-disconnected",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-025",
+      "feature": "浏览独立精选市场及详情媒体",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-006"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版桌面 preload 具备 curated market API；普通 dsh web 不注册此设置。",
+      "original": {
+        "entry": "设置 → 插件市场 → Discover/详情",
+        "action": "搜索、分类、排序/时间过滤、显示更多；审阅 README、截图、主页和安装元数据；失败重试。",
+        "expected": "这是与通用 Discover 不同的数据源与条件入口。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:134-330,646-684,802-813,1015-1304,1666-1709"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/market/market.go:278-337",
+          "internal/store/market/catalog_filters.go:10-64",
+          "internal/desktop/market/details.go:35-115",
+          "internal/ui/market/readme.go:13-38",
+          "cmd/whaleisle/main.go:5173-5199"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "无网络读取/桌面媒体实测；native Markdown 媒体 consumer 的存在不证明所有远程 README 媒体可显示。"
+    },
+    {
+      "id": "GPLUG-026",
+      "feature": "从精选目录安装并完成批准/激活恢复",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-007"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "目录给出非废弃且可解析 installSpec；当前 Host 或离线安装依赖可用。",
+      "original": {
+        "entry": "精选市场 → 安装 → 确认/构建批准/进度",
+        "action": "审阅确定目录目标，安装、跟踪结果；构建批准只限列出的包；保存成功但 Host 未恢复时保留待激活状态。",
+        "expected": "不把安装写入、重启开始或 log 行当已加载。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:685-758,985-1014",
+          "tmp/full-audit-20261102/installed-source/src/main/marketplace-install.js:1-80",
+          "tmp/full-audit-20261102/installed-source/src/main/ipc.js:366-386"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/market_catalog.go:375-427",
+          "internal/store/market/catalog.go:258-289",
+          "cmd/whaleisle/market_activation.go:8-43",
+          "cmd/whaleisle/market_install_ready.go:9-28"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-027",
+      "feature": "检查并更新有明确 npm 来源的稳定版本",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-007"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "已安装包能与唯一目录项及 npm provenance 匹配；current/latest 是稳定完整 semver。",
+      "original": {
+        "entry": "精选市场 → Installed → 检查更新/更新",
+        "action": "从可信 registry 读取 latest，比较后确认 exact name@version，再更新并显示结果。",
+        "expected": "不用 README 文字或同名私有 Git 包冒充 npm 更新。",
+        "evidence": [
+          "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:90-123,150-162,195-219,231-238",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:628-645,1306-1345"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/market/updates.go:15-40,54-76",
+          "internal/store/market/updates.go:83-155",
+          "cmd/whaleisle/market_batch.go:11-54"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-028",
+      "feature": "检查并更新 GitHub 插件的新提交",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-007"
+        ],
+        "omitted": true
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "目录 spec 可识别 GitHub repo（含 monorepo 子目录）；当前提交可由唯一 lock/pinned ref 确认。",
+      "original": {
+        "entry": "精选市场 → Installed → GitHub 当前提交→最新提交 → 更新/批量更新",
+        "action": "核对 current commit 与 HEAD，显示短 SHA，更新到确定最新提交；歧义 lock 不冒充可更新。",
+        "expected": "这是实际原安装能力，不是当前原项目 dirty 新功能。",
+        "evidence": [
+          "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:67-102,125-130,163-187,231-245",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:453-455,1333-1337"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/market/updates.go:54-76",
+          "internal/store/market/updates.go:87-110,129-150",
+          "internal/desktop/market/spec.go:79-99"
+        ],
+        "missingConsumer": "GitHubIdentity 可识别已装来源，但自动更新 consumer 只给 npm LatestVersion；无 current-commit→HEAD 更新状态/精确目标，更新列表与批量队列因此不会提供这类原版动作。",
+        "conditionalAlternative": "管理器的 Host installTarget 更新（仅 Host 提供不同目标时）或手填已知 github:repo#commit 可以重装；两者不提供原版更新发现、SHA 对比和批量目标。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "curated-market-update-source-coverage",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-029",
+      "feature": "更新有效 semver prerelease 包",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-007"
+        ],
+        "omitted": true
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "current 或 latest 含有效 prerelease/build 元数据，原版 semver 可决定严格新旧。",
+      "original": {
+        "entry": "精选市场 → Installed → 检查更新/更新",
+        "action": "按 semver precedence 比较 alpha/beta/rc 与稳定版；只在 latest 严格更新时提供更新。",
+        "expected": "未决版本可留未知，但不能把原版能判断的 prerelease 一概当无更新。",
+        "evidence": [
+          "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:11-52,150-160"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/market/updates.go:15-22,69-75",
+          "internal/store/market/updates.go:97-110"
+        ],
+        "missingConsumer": "CompareStableVersions/LatestVersion 明确拒绝 prerelease 和 build 版本；原版带 prerelease comparator 的更新 consumer 未移植。",
+        "conditionalAlternative": "已知精确版本可经通用管理器手动安装；它不替代自动发现、版本比较或批量更新。"
+      },
+      "status": "confirmed-defect",
+      "rootCause": "curated-market-update-version-coverage",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-030",
+      "feature": "筛选已安装市场条目与批量更新/停止剩余队列",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-007"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版更新状态含 updateAvailable；可有失败记录与未收录包。",
+      "original": {
+        "entry": "精选市场 → Installed → 全部/可更新/失败 → 更新全部",
+        "action": "按目录与安装 spec 对应包，确认批量目标；MyGo 可停止尚未开始的队列并保留已经开始的任务结果。",
+        "expected": "批处理只能覆盖实际发现出的可更新目标；不能掩盖 GitHub/prerelease 遗漏。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:1306-1360",
+          "tmp/full-audit-20261102/installed-source/src/main/ipc.js:388-411"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/market_batch.go:11-54",
+          "internal/store/market/management.go:12-79",
+          "internal/ui/market/management.go:14-168"
+        ],
+        "missingConsumer": "原生稳定 npm 的批处理链存在，但 GPLUG-028/029 的目标不会进入它；不是完整原版更新集合。",
+        "conditionalAlternative": "稳定 npm 子集走原生批量更新；GitHub/prerelease 需逐个取得明确目标后手动重装，不能报告“全部更新完成”。"
+      },
+      "status": "partial",
+      "rootCause": "curated-market-update-source-coverage",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-031",
+      "feature": "收藏/取消收藏并只看收藏",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-008"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "精选市场个人状态可读写。",
+      "original": {
+        "entry": "精选市场 → 收藏星标/Favorites",
+        "action": "持久化条目 ID 收藏，切换收藏列表并沿用目录过滤；保存失败显示错误。",
+        "expected": "收藏不是 Host 插件启用状态。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:553-559,592-606,802-813,966-976,1169-1184"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/store/market/personal.go:38-119",
+          "internal/ui/market/market.go:193-200,427-437"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-032",
+      "feature": "逐条阅读并导出持久化市场操作日志",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-008"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "存在市场 operation records；部分任务可因重启被标记 interrupted。",
+      "original": {
+        "entry": "精选市场 → History → 展开记录/导出日志",
+        "action": "逐条展开操作的时间、状态、错误和脱敏安装日志；导出每条日志；重启后仍能查看保留的历史，不重放任务。",
+        "expected": "原版最多 30 条、每条最多 16,000 字符脱敏日志。复制当前日志和导出持久化历史是不同动作。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:334-401",
+          "tmp/full-audit-20261102/installed-source/src/main/marketplace-state.js:8-9,16-23,82-103"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/store/market/personal.go:38-119",
+          "internal/store/market/history_export.go:9-25",
+          "internal/ui/market/market.go:100-107",
+          "cmd/whaleisle/main.go:5242-5258",
+          "internal/store/market/personal.go:12-21",
+          "internal/ui/market/market.go:104-121,186-200,225-241"
+        ],
+        "missingConsumer": "保留历史回执、时间/状态/通用错误及 OS 导出链，但 InstallHistory 没有 log 字段且明确不持久化 build output；marketHistoryRow 也没有日志展开 consumer，ExportHistory 仅写回执字段。原版按条、跨重启的历史日志查看与导出缺失。当前 m.InstallLog 可展开/复制，不能覆盖这条持久化用户动作。",
+        "conditionalAlternative": "任务仍在当前进程且 m.InstallLog 尚保留时，可展开并复制当前日志；重启后只能导出保留的回执。若补齐原版能力，应沿有界脱敏日志路径，不把原始含凭据输出直接持久化。"
+      },
+      "status": "partial",
+      "rootCause": "curated-history-log-consumer-missing",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-033",
+      "feature": "导入旧资料中的可重装插件并审阅跳过项",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-009"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "选择明确旧资料目录；原版仅从 web profile manifest 的支持来源恢复，已安装项默认跳过。",
+      "original": {
+        "entry": "Launcher → 资料导入 → 插件勾选/冲突覆盖",
+        "action": "选择 GitHub/registry semver 包、处理 installed 冲突、逐项安装和构建批准；保留失败与跳过原因。",
+        "expected": "local file/link/workspace、无来源 legacy 目录、dropped/template 排除在原安装版同样存在，不把它们制造成迁移 parity 缺口。",
+        "evidence": [
+          "tmp/full-audit-20261102/installed-source/src/main/data-import.js:434-481,1794-1852"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/importer/plugins.go:33-65,116-164",
+          "cmd/whaleisle/import_plugins.go:17-86"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "本地自写插件需另行选择真实本地 spec，经 GPLUG-004 的管理器安装；这不是原版 importer 的自动恢复承诺。full/skip 启动及卸载后的 Host 恢复仍由 launcher/runtime owner 验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "未扫描用户资料；未读取 manifest/profile、安装或覆盖。仅审阅两版 importer 实现。"
+    },
+    {
+      "id": "GPLUG-034",
+      "feature": "搜索技能、筛来源、展开分组并打开真实目录",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-020"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "技能清单来自当前 session/cwd；只有 skill.directory 存在时才提供打开目录；只读技能仍可打开目录。",
+      "original": {
+        "entry": "设置 → 技能 → 搜索/来源/分组/文件夹",
+        "action": "按名称、描述、groups、whenToUse 查找；筛 user/project/bundled/other；展开/折叠分组；OS 打开该技能目录。",
+        "expected": "项目技能必须属于真实 cwd；UI 有字段不等于目录已打开。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:240-248,352-377,411-420,452-461,548-631,1751-1754"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/skills.go:213-318,473-503",
+          "internal/ui/settings/skill_filter.go:5-60",
+          "internal/store/session/skill_directory.go:200-250",
+          "cmd/whaleisle/main.go:4642-4651"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-035",
+      "feature": "给技能多选分组、建标签、清空分组与组级模型开关",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-020",
+          "PLUG-021"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "只写 writable 技能；同一技能可属于多个标签。",
+      "original": {
+        "entry": "技能编辑/新建 → 分组；分组标题模型调用开关",
+        "action": "选已知标签、添加自由标签、逐个移除或清空；组开关批量 setInvocation 并逐项呈现失败。",
+        "expected": "不能把分组当互斥单选，不能为只读项写调用状态。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:378-409,589-631,1231-1340"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/skills.go:158-187,289-308,423-471",
+          "internal/ui/settings/skill_create.go:53-79",
+          "internal/store/session/skill_groups.go:177-260,304-312"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-036",
+      "feature": "创建用户/项目技能并配置调用方式",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-021"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "project root 仅在有 cwd 时可选；名称、描述、正文合法。",
+      "original": {
+        "entry": "技能 → 添加技能 → 用户/项目范围 → 创建",
+        "action": "填写 name/description/whenToUse/groups/content/modelInvocable/userInvocable，创建后重读。",
+        "expected": "scope/root 不是只在表单显示，必须传给真实 skillInventory/create。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:633-672,984-1228,1705-1735"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/skill_create.go:11-122",
+          "cmd/whaleisle/settings_skill_create.go:47-146",
+          "internal/store/session/skill_target.go:36-50"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-037",
+      "feature": "查看并编辑可写技能，保存/取消和调用开关",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-021"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "与原版一致，技能行主按钮只对 writable 启用；只读条目不是可编辑入口。",
+      "original": {
+        "entry": "技能行标题 → 编辑 → 保存/取消；行模型调用开关",
+        "action": "读取 detail，修改 description/body/whenToUse/groups 和 model/user 调用方式；取消不写，保存写真实技能文件。",
+        "expected": "不把“查看全部只读技能正文”当作原版本页已有动作；防旧文件/旧目标覆盖。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:421-480,633-703,1186-1224"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/skills.go:138-199,473-503",
+          "cmd/whaleisle/settings_skill_editor.go:35-146",
+          "internal/store/session/skill_editor.go:43-84,107-214"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-038",
+      "feature": "确认永久删除技能的整个目录",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-021"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "writable 技能且审阅目标仍是相同 scope/文件。",
+      "original": {
+        "entry": "技能行垃圾桶 → 删除确认 → 取消/永久删除",
+        "action": "明确删除 SKILL.md 及同目录附属文件；确认后真实 delete，再更新清单；取消不删。",
+        "expected": "不是只从列表隐藏，不能把删除整个目录缩成只删正文。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:772-820,1675-1678,1724-1728"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/skills.go:202-211,501-502",
+          "internal/store/session/skill_directory.go:45-150",
+          "cmd/whaleisle/main.go:4625-4640,4730-4733"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-039",
+      "feature": "技能 Hub 搜索、来源审阅与用户/项目安装",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-022"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "查询非空；明确 root/cwd；结果不是冲突或已装。",
+      "original": {
+        "entry": "技能 → 浏览 Hub → 搜索 → 安装确认",
+        "action": "搜索结果保留 repo/path/skillName，审阅来源和目标 root；确认安装，失败可回到结果，不自动执行技能。",
+        "expected": "installed/already-installed 才算成功；仅插入 /name 的会话行为由 chat owner 验收。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:705-769,824-983,1735-1750"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "cmd/whaleisle/settings_skill_hub.go:138-251",
+          "internal/ui/settings/skill_hub.go:36-106",
+          "internal/store/session/skill_target.go:53-72"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-040",
+      "feature": "发现已有 MCP：搜索、筛启用、查看受管/组合来源",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-024",
+          "PLUG-025"
+        ],
+        "omitted": true
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "mcpServers/list 返回 managed/composition；后者只读。",
+      "original": {
+        "entry": "设置 → MCP → 搜索/全部-启用-禁用/清除筛选",
+        "action": "按 name/id/command/URL 查找，看到 origin/状态/说明；composition 允许查看/测试但不能编辑启停删除。",
+        "expected": "本页“发现”是已配置 server catalog；原安装 ui-settings-mcp 没有公共远程 MCP 市场/自动外部发现按钮。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:186-198,258-261,420-521,627-740,1437-1446"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/mcpconfig/catalog.go:19-92",
+          "internal/ui/settings/mcp_catalog.go:25-65",
+          "internal/ui/settings/mcp.go:85-98,245-301",
+          "cmd/whaleisle/settings_mcp.go:81-89,126-132"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-041",
+      "feature": "编辑已有 MCP、保存/取消及 JSON 导入预览",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-024"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "已有 server writable；原版表单能保留 advanced JSON；新增主按钮故障仍为旧 PLUG-023。",
+      "original": {
+        "entry": "MCP 受管行 → 编辑；导入与高级编辑",
+        "action": "修改 stdio/streamable-http 配置、保留高级字段，保存/取消；粘贴 JSON 可预览并选择 staging 目标后另行保存。",
+        "expected": "JSON staging 不是已保存；新增按钮虽坏，不把已有行编辑也判成缺失。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:756-1168,1202-1427,1725-1741"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/mcpconfig/controller.go:78-101,181-206,230-297",
+          "internal/desktop/mcpconfig/form.go:17-100",
+          "internal/desktop/mcpconfig/import.go:16-90",
+          "cmd/whaleisle/settings_mcp.go:100-124,133-144"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "已有行点编辑打开 JSON draft；结构化表单可从“导入与高级编辑”打开。顶部添加空 ID 故障仍需单独修复 PLUG-023。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-042",
+      "feature": "启停、移除 MCP 与确认取消",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-024"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "managed writable 行；组合来源不提供 mutation。",
+      "original": {
+        "entry": "MCP 行开关/删除 → 确认或取消",
+        "action": "setEnabled/upsert 保存状态；删除时说明移除配置和对应 mcp-client，取消不发 delete；成功后重读与 reload-failed 分开。",
+        "expected": "开关不是仅改 UI；保存失败/刷新失败不能合并报成功。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:262-308,547-587,701-740,1737-1745"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/mcpconfig/controller.go:181-206,303-329",
+          "internal/ui/settings/mcp.go:101-114,279-295",
+          "cmd/whaleisle/settings_mcp.go:146-160"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-043",
+      "feature": "根据 HTTP 认证失败登录 MCP 并显示授权结果",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-025"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "writable、enabled、streamable-http，lastError 命中 401/403/unauthorized/invalid_token 等认证错误。",
+      "original": {
+        "entry": "MCP HTTP 行 → 登录",
+        "action": "只在此条件显示 Sign in；调用 mcpServers.authorize，等待 OAuth，成功重读；失败保留错误并允许再试。",
+        "expected": "没有独立凭据库、退出登录或通用“已登录”状态管理按钮；不把工具数量当认证身份。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:310-333,592-597,715-724,1750-1752"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/mcp.go:228-243,287-288",
+          "cmd/whaleisle/settings_mcp.go:28-34,91-99,151-153",
+          "internal/desktop/mcpconfig/controller.go:331-367"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "未触发 OAuth/登录、外网或任何 MCP 进程；当前账号授权与实际 callback 结果未知。"
+    },
+    {
+      "id": "GPLUG-044",
+      "feature": "测试 MCP 并查看快照/测试工具明细",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-025"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "存在 server；只读 composition 也可 test；connection.tools 可能为空。",
+      "original": {
+        "entry": "MCP 行 → 测试；N 个工具/查看工具明细",
+        "action": "test 返回 toolCount/names/耗时；查看 last-refresh connection.tools 与显式 test 返回名单，弹窗可关闭。",
+        "expected": "只点工具明细不连接；快照工具不等于当前 test 成功，更不等于模型真的调用过工具。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:335-365,598-625,635-699,1743-1745"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/mcp.go:301-346",
+          "internal/ui/settings/mcp_catalog.go:69-116",
+          "internal/desktop/mcpconfig/catalog.go:107-145",
+          "internal/desktop/mcpconfig/controller.go:337-367"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-045",
+      "feature": "刷新 MCP 健康、重试失败受管项并保留错误",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-025"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "本页处于 ready；managed connection.health=failed 时手动刷新会 retry；自动 polling 不触发重连。",
+      "original": {
+        "entry": "MCP → 刷新/失败行重试；保持本页查看状态",
+        "action": "显式重连失败项再重读；自动健康更新；读取失败保留旧快照，离页停止刷新。",
+        "expected": "polling 不是偷偷启动所有 server；无关 composition 不被改写。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:199-257,1729-1748"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/mcpconfig/manual_refresh.go:10-46",
+          "internal/desktop/mcpconfig/health_refresh.go:8-65",
+          "cmd/whaleisle/settings_mcp_health.go:5-42",
+          "internal/ui/settings/mcp.go:67-83,349-351"
+        ],
+        "missingConsumer": "未发现此限定动作的静态缺链；不据此判定实际可用。",
+        "conditionalAlternative": "MyGo 主程序已有对应原生入口；以下运行边界尚未验收。"
+      },
+      "status": "wired-unverified",
+      "rootCause": null,
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-046",
+      "feature": "打开插件自有 main/sidebar/settings 视图并使用原导航",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-013",
+          "PLUG-014"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "插件已启用，并贡献可独立 main、sidebar.page/settings.section/settings.remote.tab 或既有 owner 的后代。",
+      "original": {
+        "entry": "原版侧栏/主视图/设置标签；MyGo 设置 → 插件包管理 → 打开 Host 视图",
+        "action": "发现目标视图，在原 owner 下导航；插件停用/卸载后撤销；没有独立视图时说明需对应会话。",
+        "expected": "不能把 slot 名单或反射注册当成 native 主程序真实入口。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-plugins/lib/client.js:37-131,168-212",
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4409-4479"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/ui/settings/plugins.go:117-125",
+          "cmd/whaleisle/plugin_slot_views.go:8-60",
+          "internal/desktop/pluginslots/client.js:77-129,175-216"
+        ],
+        "missingConsumer": "native shell/settings/sidebar 未动态生成任意第三方的同位置入口；四类可独立视图及递归 settings/main 后代有完整 Host 页面替代。plugins.tab 的固定 native 断路另见 GPLUG-022-024。",
+        "conditionalAlternative": "用户先从已启用包点“打开 Host 视图”，选择可独立视图；adapter 沿原 owner 子槽图、原导航和 props，不独立 mount 未具备 owner props 的组件。"
+      },
+      "status": "partial",
+      "rootCause": "generic-dynamic-navigation-native-gap",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    },
+    {
+      "id": "GPLUG-047",
+      "feature": "使用依赖桌面 preload 的插件能力",
+      "oldMapping": {
+        "oldIds": [
+          "PLUG-019"
+        ],
+        "omitted": false
+      },
+      "baseline": "installed-0.3.13",
+      "condition": "原版插件检查 dshDesktop/desktopShell 等桌面 API，而不是普通 Host RPC。",
+      "original": {
+        "entry": "插件的桌面动作，例如安装版 settings.market 注册条件",
+        "action": "桌面能力只有原 preload 暴露时才注册；普通 web 不凭空具备 Electron IPC。",
+        "expected": "MyGo 不能通过开放 native bindings 给所有第三方页面来假装迁移完成。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:1666-1709",
+          "tmp/full-audit-20261102/installed-source/src/main/ipc.js:329-422"
+        ]
+      },
+      "mygo": {
+        "evidence": [
+          "internal/desktop/webview/host.go:46-51,211-222,264",
+          "internal/desktop/pluginslots/gateway.go:20-22,48-94",
+          "internal/desktop/pluginslots/shortcut_provider.js:1-44",
+          "cmd/whaleisle/main.go:4589-4592,5261-5269"
+        ],
+        "missingConsumer": "未提供通用 Electron desktop preload/IPC 兼容 consumer；窄快捷键 capability 不等于任意 dshDesktop。",
+        "conditionalAlternative": "已知 curated market 使用 MyGo 原生市场替代；其他依赖具体桌面 API 的第三方动作需各自受限 native consumer，单纯打开 Host 页面不解决 API 缺失。"
+      },
+      "status": "partial",
+      "rootCause": "electron-plugin-capability-native-gap",
+      "evidenceLevel": "code",
+      "runtimeBoundary": "仅只读追踪当前主程序生产装配与安装版源码；未点击、启动进程、修改资料或执行此动作。"
+    }
+  ],
+  "statusCorrections": [
+    {
+      "oldId": "PLUG-007",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "旧结论只验证了原生稳定 npm 更新子集，却把精选市场完整安装/更新/批处理合并为 wired。实际安装版有 GitHub current commit→HEAD 更新和 prerelease semver 比较；MyGo 无相应更新发现/目标 consumer。安装、稳定 npm、启停卸载与激活的既有静态接线结论保留。",
+      "actionIds": [
+        "GPLUG-027",
+        "GPLUG-028",
+        "GPLUG-029",
+        "GPLUG-030"
+      ],
+      "evidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:15-52,163-187,231-245",
+        "internal/desktop/market/updates.go:15-22,54-76",
+        "internal/store/market/updates.go:87-110,129-150"
+      ]
+    },
+    {
+      "oldId": "PLUG-008",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "收藏和历史回执/OS 导出链存在，但旧 wired 聚合遗漏原安装版按条保存、展开及导出脱敏操作日志；MyGo 仅保留安全回执字段与当前临时日志。",
+      "actionIds": [
+        "GPLUG-031",
+        "GPLUG-032"
+      ],
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:334-401",
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-state.js:8-9,82-103",
+        "internal/store/market/personal.go:12-21",
+        "internal/store/market/history_export.go:9-25",
+        "internal/ui/market/market.go:186-200,225-241"
+      ]
+    },
+    {
+      "oldId": "PLUG-011",
+      "fromStatus": "partial",
+      "toStatus": "confirmed-defect",
+      "reason": "随包语音的激活提示提供“稍后/打开详情”；原生 activation seat 的后者没有 browser→native 包详情导航 consumer。固定内置配置草稿取消问题由设置线 GSET-139/GSET-151 登记，本项仅补激活导航缺链。",
+      "actionIds": [
+        "GPLUG-019"
+      ],
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:3873-3876,3918-3952,4434-4437",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4215-4228",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1802-1819,2848-2866,2931-2936",
+        "cmd/whaleisle/native_plugin_manager.go:187-208,254-260",
+        "internal/desktop/pluginui/client.js:78-80,106-110,121-129",
+        "cmd/whaleisle/native_plugin_manager.go:174-180,214-260",
+        "internal/desktop/pluginui/client.js:23-54,78-110",
+        "internal/desktop/pluginui/owner.go:228-254,483-500"
+      ]
+    }
+  ],
+  "oldClaimClarifications": [
+    {
+      "oldId": "PLUG-001",
+      "actionIds": [
+        "GPLUG-002",
+        "GPLUG-003"
+      ],
+      "reason": "Host 只读实例清单保留 wired；“本页面客户端模块重试”必须收窄到已存在且匹配 Host 的 webviewHost，纯 native 设置没有其 page-local modules owner。旧聚合 wired 不能被当作所有 native 页面模块同步已接线。"
+    },
+    {
+      "oldId": "PLUG-009",
+      "actionIds": [
+        "GPLUG-033"
+      ],
+      "reason": "旧项是 existing-MyGo-contract 且混合 importer/full-skip 恢复，不整体改状态。补齐实际原版 data-import 分母：local-spec/unsupported/dropped/template 同样排除，不能仅凭这些条件判迁移 parity 缺失；实际 full/skip 与卸载后启动由 runtime owner 闭环。"
+    },
+    {
+      "oldId": "PLUG-013",
+      "actionIds": [
+        "GPLUG-018",
+        "GPLUG-019",
+        "GPLUG-020",
+        "GPLUG-021",
+        "GPLUG-046",
+        "GPLUG-047"
+      ],
+      "reason": "保留 partial，按原 owner 配置表单、激活引导、附加动作、独立视图、桌面能力给出具体消费边界；没有新造几十个相同“缺任意 slot”缺陷。"
+    }
+  ],
+  "negativeInventoryFindings": [
+    {
+      "feature": "公共 MCP 市场/服务自动发现、通用认证身份/退出登录",
+      "result": "本次安装 ui-settings-mcp 的可见动作是现有配置 catalog、管理、test、条件 Sign in 和健康刷新；没有发现公共远程 MCP marketplace 或独立 logout/account 管理入口。不要把这些想象能力列作 MyGo 遗漏。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:107-365,592-752,1725-1760"
+      ]
+    },
+    {
+      "feature": "只读技能正文编辑",
+      "result": "原安装技能行同样 disabled=!skill.writable；MyGo 的相同限制不是新缺陷。只读目录打开另行保留。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:421-461",
+        "internal/ui/settings/skills.go:476-495"
+      ]
+    }
+  ],
+  "sourceOnlyDirtyUnpublished": {
+    "source": "C:/AI/Deepseek-Harness-Desktop",
+    "method": "git status --short --untracked-files=no，仅工作树元数据",
+    "observed": "工作树非 clean；包括 dsh-whale 客户端/Host/persona/tools、dsh-im 和 dsh-task-control 及文档/测试改动。",
+    "treatment": "这些 dirty 项未作为安装版分母或已发布用户动作证据；各业务由既有 owner 对照。通用 client lib 与 marketplace-updates 的证据来自实际安装/提取文件。",
+    "notReviewed": "未读取其用户资料/credentials，未重新审这些业务实现。"
+  },
+  "runtimeBoundary": {
+    "executed": [
+      "读取原安装 vendor lib",
+      "读取本轮已提取安装版 main 源码",
+      "读取 MyGo 主程序入口及 consumer/恢复源链",
+      "读取旧 plugins.json 33 项",
+      "生成并校验补充 JSON 结构与直接路径行范围"
+    ],
+    "notExecuted": [
+      "桌面/UI 自动化",
+      "安装/更新/启停/卸载任何插件",
+      "扫描或读取用户 profile/credentials",
+      "联网、登录/OAuth、模型请求或 MCP 进程",
+      "产品构建、CI、新测试平台"
+    ],
+    "acceptance": "所有 wired 项仅为静态 source-chain；当前生成物/安装包、真实 Host 状态、第三方实际运行和用户可点击性均未验收。"
+  },
+  "counts": {
+    "wired-unverified": 33,
+    "partial": 8,
+    "confirmed-defect": 6
+  },
+  "summary": "补齐 47 个通用用户动作/事务，未重新审 Whale UI renderer。旧 PLUG-007 应降为 partial（GitHub 提交与 prerelease 更新缺链），PLUG-008 应降为 partial（跨重启逐条历史日志缺链）；PLUG-011 的激活提示“打开详情”另有确定的 browser→native 导航缺链。通用 Discover 查询、版本、来源共用同一既知 native 导航断路，不按三个新根因计数。其余 browser seat/原 owner 条件替代路径逐项保留。",
+  "rootCauseCounting": {
+    "confirmedActionRows": 6,
+    "confirmedDistinctRootCauses": 4,
+    "knownDiscoverRootActions": [
+      "GPLUG-022",
+      "GPLUG-023",
+      "GPLUG-024"
+    ],
+    "newConcreteGaps": [
+      "GPLUG-019",
+      "GPLUG-028",
+      "GPLUG-029",
+      "GPLUG-032"
+    ],
+    "note": "行状态计动作而非独立 bug；GPLUG-032 是已有回执能力的明确子集缺链，整体 partial。"
+  }
+}

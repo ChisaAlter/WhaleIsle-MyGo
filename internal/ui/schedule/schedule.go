@@ -15,23 +15,25 @@ import (
 
 // Model wires the schedule panel.
 type Model struct {
-	DetailID        string
-	DetailSessionID string
-	Store           *schedstore.Store
-	SessionID       string
-	SessionLinks    map[string]string
-	OnNewTask       func()
-	OnOpenSession   func(row schedstore.Entry)
-	ThemeID         string
-	SystemDark      bool
-	OnClose         func()
-	OnInvalidate    func()
-	OnRefresh       func()
-	OnDelete        func(id string)
-	OnHistory       func(id string)
-	OnSaveTitle     func(id, title string)
-	OnSavePrompt    func(id, prompt string)
-	OnCopyHistory   func(text string)
+	DetailID         string
+	DetailSessionID  string
+	ViewerSessionID  string
+	Store            *schedstore.Store
+	SessionID        string
+	SessionLinks     map[string]string
+	SessionLinkState func(string) string
+	OnNewTask        func()
+	OnOpenSession    func(row schedstore.Entry)
+	ThemeID          string
+	SystemDark       bool
+	OnClose          func()
+	OnInvalidate     func()
+	OnRefresh        func()
+	OnDelete         func(id string)
+	OnHistory        func(id string)
+	OnSaveTitle      func(id, title string)
+	OnSavePrompt     func(id, prompt string)
+	OnCopyHistory    func(text string)
 	// HistoryText is the last schedule/history JSON preview for the selected id.
 	HistoryText string
 	// EditID / EditTitle / EditPrompt drafts for schedule/update fields.
@@ -58,9 +60,6 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
 		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
-			if snap.Loading {
-				ui.Text(c, i18n.T(i18n.KeyScheduleLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			}
 			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 				if m.OnRefresh != nil {
 					m.OnRefresh()

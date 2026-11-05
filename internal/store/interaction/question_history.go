@@ -28,6 +28,9 @@ func (s *Store) setQuestionHidden(id string, hidden bool) {
 	s.mu.Lock()
 	p, ds := s.findPending(id), s.questionDrafts[id]
 	if p != nil && p.Event == EventUserQuestions && !p.Sending && ds != nil && planReviewOf(ds.req.Questions) == nil {
+		if ds.hidden && !hidden {
+			s.raisePendingLocked(id)
+		}
 		ds.hidden = hidden
 	}
 	s.mu.Unlock()
@@ -39,6 +42,9 @@ func (s *Store) ReviewQuestionHistory(agentID, callID string) {
 	for _, p := range s.pending {
 		if p.AgentID == agentID && p.CallID == callID && p.Event == EventUserQuestions {
 			if ds := s.questionDrafts[p.EventID]; ds != nil {
+				if ds.hidden {
+					s.raisePendingLocked(p.EventID)
+				}
 				ds.hidden = false
 			}
 			s.mu.Unlock()

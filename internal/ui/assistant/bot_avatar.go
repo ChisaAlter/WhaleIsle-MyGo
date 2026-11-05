@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/avatarimage"
@@ -39,9 +40,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "bot_avatar:43", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

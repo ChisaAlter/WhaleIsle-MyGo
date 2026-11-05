@@ -1,8 +1,7 @@
 // Package hostterminal owns retained Host terminals. It never launches a local
-// process. Output arrives on one terminal/follow stream per attachment; input
-// and resize are one-shot terminal/write and terminal/resize calls bound to that
-// attachment identity, so an uncertain outcome fails the attachment instead of
-// replaying queued input across a reconnect or session change.
+// process. One terminal/attach stream owns output, input and resize for each
+// physical attachment. Commands wait for provider acknowledgements; an uncertain
+// outcome fails that attachment instead of replaying input after a reconnect.
 package hostterminal
 
 import (
@@ -22,16 +21,15 @@ type Shell struct {
 	Name string   `json:"name"`
 }
 type Info struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Shell        Shell  `json:"shell"`
-	Cwd          string `json:"cwd"`
-	Cols         int    `json:"cols"`
-	Rows         int    `json:"rows"`
-	State        string `json:"state"`
-	ExitCode     *int   `json:"exitCode"`
-	Error        string `json:"error,omitempty"`
-	ControllerID string `json:"controllerId,omitempty"`
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Shell    Shell  `json:"shell"`
+	Cwd      string `json:"cwd"`
+	Cols     int    `json:"cols"`
+	Rows     int    `json:"rows"`
+	State    string `json:"state"`
+	ExitCode *int   `json:"exitCode"`
+	Error    string `json:"error,omitempty"`
 }
 type Environment struct {
 	Cwd              string `json:"cwd"`
@@ -43,6 +41,7 @@ type Environment struct {
 }
 type Stream interface {
 	Recv(context.Context) (json.RawMessage, error)
+	SendItem(context.Context, any) error
 	Cancel()
 }
 type Remote interface {
@@ -567,7 +566,7 @@ func (s *Store) startFollowLocked(e *entry) {
 	}
 	s.stopFollowLocked(e)
 	ctx, cancel := context.WithCancel(s.ctx)
-	a := &Attachment{ID: identity(), store: s, entry: e, remote: s.remote, epoch: s.epoch, ctx: ctx, cancel: cancel, ack: make(chan uint64, 1)}
+	a := &Attachment{ID: identity(), store: s, entry: e, remote: s.remote, epoch: s.epoch, ctx: ctx, cancel: cancel, ack: make(chan uint64, 1), inputAck: make(chan inputAcknowledgement, 1)}
 	e.attachment = a
 	e.phase = "connecting"
 	e.error = ""
@@ -576,11 +575,12 @@ func (s *Store) startFollowLocked(e *entry) {
 func (s *Store) currentLocked(a *Attachment) bool {
 	return s.epoch == a.epoch && a.ctx.Err() == nil && a.entry.attachment == a && !a.entry.closing
 }
+
 // writableLocked reports the Host's own input capability for this attachment:
-// the displayed terminal is running and still names this attachment as its
-// controller. Another attachment taking control revokes it on its next frame.
+// the displayed terminal is running and its own stream grants input control.
+// Another attachment taking control revokes it on this stream's next state frame.
 func (s *Store) writableLocked(a *Attachment) bool {
-	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running" && a.entry.info.ControllerID == a.ID
+	return s.currentLocked(a) && s.ready && a.parsed && !a.failed && a.writable && a.entry.held && s.visible == a.entry.key.session && a.entry.info.State == "running"
 }
 
 // Acknowledge is called after native Ghostty has parsed the entire frame. No
@@ -678,6 +678,11 @@ type Attachment struct {
 	ack            chan uint64
 	sequence       int64
 	stream         Stream // Store.mu; scoped to this physical follow attachment
+	writable       bool   // Store.mu; authoritative per-attachment Host state
+	inputWindow    *inputWindow
+	inputSequence  int64
+	pendingInput   int64
+	inputAck       chan inputAcknowledgement
 }
 
 func (a *Attachment) Read(p []byte) (int, error) { <-a.ctx.Done(); return 0, io.EOF }
@@ -695,10 +700,9 @@ func (a *Attachment) fail(err error) {
 	s.fire()
 }
 func (a *Attachment) follow() {
-	stream, err := a.remote.Open(a.ctx, "terminal/follow", map[string]any{
-		"agentId":      a.entry.key.session,
-		"id":           a.entry.key.id,
-		"attachmentId": a.ID,
+	stream, err := a.remote.Open(a.ctx, "terminal/attach", map[string]any{
+		"agentId": a.entry.key.session,
+		"id":      a.entry.key.id,
 	})
 	if err != nil {
 		a.fail(err)
@@ -743,7 +747,23 @@ func (a *Attachment) follow() {
 			s.mu.Unlock()
 			return
 		}
-		if f.Type != "output" {
+		if f.Type == "ack" {
+			if a.pendingInput == 0 || *f.Sequence != a.pendingInput {
+				s.mu.Unlock()
+				a.fail(errors.New("Host terminal input acknowledgement is out of sequence"))
+				return
+			}
+			a.pendingInput = 0
+			if f.Refusal != "" {
+				a.writable = false
+			}
+			ack := inputAcknowledgement{Sequence: *f.Sequence, Refusal: f.Refusal}
+			s.mu.Unlock()
+			a.inputAck <- ack
+			s.fire()
+			continue
+		}
+		if f.Type == "snapshot" || f.Type == "state" {
 			env := s.sessionLocked(a.entry.key.session).environment
 			if f.Info.Cols > env.MaxCols || f.Info.Rows > env.MaxRows {
 				s.mu.Unlock()
@@ -751,6 +771,10 @@ func (a *Attachment) follow() {
 				return
 			}
 			a.entry.info = *f.Info
+			a.writable = *f.Writable
+			if f.Type == "snapshot" {
+				a.inputWindow = f.InputWindow
+			}
 			a.entry.metadataRevision++
 			a.entry.phase = "connected"
 		}
@@ -778,11 +802,24 @@ func (a *Attachment) follow() {
 }
 
 type wireFrame struct {
-	Type     string `json:"type"`
-	Sequence *int64 `json:"sequence"`
-	Screen   string `json:"screen"`
-	Data     string `json:"data"`
-	Info     *Info  `json:"info"`
+	Type        string       `json:"type"`
+	Sequence    *int64       `json:"sequence"`
+	Screen      string       `json:"screen"`
+	Data        string       `json:"data"`
+	Info        *Info        `json:"info"`
+	Writable    *bool        `json:"writable"`
+	InputWindow *inputWindow `json:"inputWindow"`
+	Refusal     string       `json:"refusal"`
+}
+
+type inputWindow struct {
+	MaxBytes           int64 `json:"maxBytes"`
+	FrameOverheadBytes int64 `json:"frameOverheadBytes"`
+}
+
+type inputAcknowledgement struct {
+	Sequence int64
+	Refusal  string
 }
 
 // validateFrame enforces the Host wire contract: the stream begins with one
@@ -797,10 +834,14 @@ func validateFrame(f wireFrame, first bool, sequence int64, id string) error {
 	}
 	switch f.Type {
 	case "snapshot", "state":
-		if f.Info == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed") {
+		if f.Info == nil || f.Writable == nil || f.Info.ID != id || f.Info.Cols < 2 || f.Info.Rows < 1 || (f.Info.State != "running" && f.Info.State != "exited" && f.Info.State != "failed") {
 			return errors.New("invalid Host terminal identity or state")
 		}
 	case "output":
+	case "ack":
+		if f.Sequence == nil || *f.Sequence < 1 || *f.Sequence > 9007199254740991 || (f.Refusal != "" && f.Refusal != "read-only" && f.Refusal != "not-running") {
+			return errors.New("invalid Host terminal input acknowledgement")
+		}
 	default:
 		return errors.New("invalid Host terminal frame")
 	}
@@ -809,6 +850,9 @@ func validateFrame(f wireFrame, first bool, sequence int64, id string) error {
 	}
 	if f.Type == "output" && *f.Sequence != sequence+1 {
 		return errors.New("Host terminal output sequence gap")
+	}
+	if w := f.InputWindow; w != nil && (w.MaxBytes <= 0 || w.FrameOverheadBytes < 0 || w.FrameOverheadBytes >= w.MaxBytes) {
+		return errors.New("invalid Host terminal input window")
 	}
 	return nil
 }

@@ -13,6 +13,12 @@ import (
 // CommandCardView keeps the complete Host output available even when the
 // compact summary is collapsed. It never interprets output as a tool/action.
 func CommandCardView(c *ui.Context, msg session.Message, m Model, st ToolCardStyle) {
+	if m.RenderSlot != nil && msg.Command != nil && msg.Command.Compaction == nil {
+		native := m
+		native.RenderSlot = nil
+		m.RenderSlot(c, m.Snapshot, msg, "conversation.chat.commandview", func() { CommandCardView(c, msg, native, st) })
+		return
+	}
 	command := msg.Command
 	if command == nil {
 		return

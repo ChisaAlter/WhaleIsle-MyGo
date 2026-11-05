@@ -73,7 +73,7 @@ func TestContinuedWaterfallTimeoutRestoresDraftWithoutDoubleAnswer(t *testing.T)
 	s.SetQuestionSingleSelect(id, "q", "B")
 	done := make(chan dsh.EventResultOutcome, 1)
 	go func() {
-		out, _ := s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"callId":"call-1","questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}`)})
+		out, _ := s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"wait":{"callId":"call-1"},"questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}`)})
 		done <- *out
 	}()
 	awaitQuestionFixture(t, func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].EventID == "live" })
@@ -97,7 +97,7 @@ func TestHostQueuedWaterfallAnswerIsNotReplayedAsLateAnswer(t *testing.T) {
 	s := New()
 	done := make(chan struct{})
 	go func() {
-		_, _ = s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"callId":"call-1","questions":[{"id":"q","options":[{"label":"A"}]}]}`)})
+		_, _ = s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"wait":{"callId":"call-1"},"questions":[{"id":"q","options":[{"label":"A"}]}]}`)})
 		close(done)
 	}()
 	awaitQuestionFixture(t, func() bool { return len(s.SnapshotForAgent("A").Pending) == 1 })

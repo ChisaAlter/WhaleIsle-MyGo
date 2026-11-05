@@ -63,6 +63,8 @@ type Status struct {
 	Recovery bool
 	// RecoveryActive includes queued retries and their startup attempt.
 	RecoveryActive bool
+	// RecoveryScheduled distinguishes a queued retry from its running attempt.
+	RecoveryScheduled bool
 	// RecoveryCancelled suppresses automatic retries until the next manual start.
 	RecoveryCancelled bool
 }
@@ -317,6 +319,7 @@ func (s *Supervisor) setLocked(st Status) {
 		s.recoveryActive, s.recoveryQueued = false, false
 	}
 	st.RecoveryActive = s.recoveryActive
+	st.RecoveryScheduled = s.recoveryQueued
 	st.RecoveryCancelled = s.recoveryCancelled
 	s.status = st
 	if s.statusChanged != nil {
@@ -392,6 +395,9 @@ func (s *Supervisor) run(gen int) {
 	s.launchCancel = launchCancel
 	defer launchCancel()
 	s.attemptRecovery = launch.SkipUserPlugins
+	if s.recoveryActive {
+		s.setLocked(s.status)
+	}
 	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
 	if install := s.opts.Install; install != nil {
 		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
@@ -407,7 +413,7 @@ func (s *Supervisor) run(gen int) {
 	// staging, and stops as soon as the Host reports its ready URL. Read-only.
 	warm := warmRuntimeTree(launch.VendorDir)
 	defer warm.Stop()
-	port, err := FreePort(launch.Host, launch.Port)
+	port, err := freePort(launch.Host, launch.Port, launch.ReservedPorts)
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
 		return

@@ -101,7 +101,7 @@ func (s *mainState) switchWorkspaceSessionLocked(scope, workspace, session strin
 		}
 	}
 	if entry == nil {
-		entry = &workspaceSessionLayout{Panes: &frame.WorkspacePanes{}, Tab: "files", Right: s.layout.Right, Tree: s.layout.RightTree}
+		entry = &workspaceSessionLayout{Panes: &frame.WorkspacePanes{}, Tab: "guide", Right: s.layout.Right, Tree: s.layout.RightTree}
 		layouts.BySession[key] = entry
 	}
 	layouts.active = key

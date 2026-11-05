@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -32,18 +31,23 @@ func toolHasDetailsView(name string) bool {
 }
 
 func toolImageLoaderAvailable() bool {
-	attachmentFetcher.mu.Lock()
-	defer attachmentFetcher.mu.Unlock()
-	return attachmentFetcher.fn != nil
+	return attachmentImageRead().Fetch != nil
 }
 
-func toolImageCard(c *ui.Context, model *toolImageModel, st ToolCardStyle, key string, onOpen func(string)) {
+func toolImageCard(c *ui.Context, model *toolImageModel, st ToolCardStyle, key string, onOpen func(string), renderers ...func(func())) {
 	ui.Column(c.Key("tool-image:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).Children(func() {
-		ui.Row(c.Key("gallery")).Wrap().Gap(10).MaxWidthPercent(100).AlignSelf(ui.Start).Children(func() {
-			for index, image := range model.Images {
-				toolImageFrame(c.Key(strconv.Itoa(index)+":"+image.AttachmentID), image, len(model.Images) > 1, st, onOpen)
-			}
-		})
+		gallery := func() {
+			ui.Row(c.Key("gallery")).Wrap().Gap(10).MaxWidthPercent(100).AlignSelf(ui.Start).Children(func() {
+				for index, image := range model.Images {
+					toolImageFrame(c.Key(strconv.Itoa(index)+":"+image.AttachmentID), image, len(model.Images) > 1, st, onOpen)
+				}
+			})
+		}
+		if len(renderers) > 0 && renderers[0] != nil {
+			renderers[0](gallery)
+		} else {
+			gallery()
+		}
 		font := theme.RenderPreferences().Code.Family
 		ui.Column(c.Key("metadata")).FillWidth().MinWidth(0).Margin(4, 0, 0, 0).Children(func() {
 			if model.HasPath {
@@ -100,10 +104,9 @@ func toolImageFit(width, height float64, tile bool) (float32, float32) {
 // Cached and loaded bytes use the same session-authorized attachment loader as
 // chat images. The recorded source path is never read as an image or retried.
 func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st ToolCardStyle, onOpen func(string)) {
-	attachmentFetcher.mu.Lock()
-	fetch := attachmentFetcher.fn
-	attachmentFetcher.mu.Unlock()
-	path := session.CachedAttachmentPath(image.AttachmentID)
+	read := attachmentImageRead()
+	fetch := read.Fetch
+	path := read.Cached(image.AttachmentID)
 	var bitmap *ui.Bitmap
 	if path != "" {
 		bitmap = loadChatBitmap(path)
@@ -111,9 +114,9 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 	state := attachmentLoad{}
 	if bitmap == nil && fetch != nil {
 		svc := c.Services()
-		state = attachmentLoads.ensure(image.AttachmentID, func(ctx context.Context, id string) (string, error) {
-			local, err := fetch(ctx, id)
-			if err == nil && loadChatBitmap(local) == nil {
+		state = attachmentLoads.ensure(read.Identity(image.AttachmentID), func(ctx context.Context, _ string) (string, error) {
+			local, err := fetch(ctx, image.AttachmentID)
+			if err == nil && loadFetchedChatBitmap(local) == nil {
 				return "", fmt.Errorf("invalid or unreadable image")
 			}
 			return local, err
@@ -178,6 +181,7 @@ func toolImageCrop(bitmap *ui.Bitmap, box ui.Rect, natural float64, tile bool) u
 }
 
 func toolImageRetry(c *ui.Context, id string, tile bool, border float32, borderInk ui.Color, st ToolCardStyle) {
+	read := attachmentImageRead()
 	// --dsw-alias-interactive-bg-hover-danger: mix of the error ink and transparent.
 	failure := ui.Hex("#ec13130d")
 	if darkSurface(st.FG) {
@@ -189,8 +193,8 @@ func toolImageRetry(c *ui.Context, id string, tile bool, border float32, borderI
 		button.Size(64, 64).MinWidth(64).MinHeight(64).Padding(4).Radius(20).Clip()
 	}
 	if button.Clicked() {
-		session.ForgetCachedAttachment(id)
-		attachmentLoads.retry(id)
+		read.Forget(id)
+		attachmentLoads.retry(read.Identity(id))
 		c.Invalidate()
 	}
 	focused := button.FocusVisible()

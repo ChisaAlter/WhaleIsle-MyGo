@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"sort"
+	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -135,6 +136,7 @@ func (w *WorkspacePanes) RedockWorkspaceTab(id, destination string) bool {
 func workspaceFloating(c *ui.Context, m Model) {
 	w := m.Sizes.Workspace
 	viewportWidth, viewportHeight := viewportDIP(c)
+	viewportWidth = max(float32(0), viewportWidth-m.RightOverlayReserve)
 	var floats []*WorkspacePane
 	w.Root.eachResource(func(n *WorkspacePane) {
 		if n.Float != nil && (n.Kind != "project-observer" || projectObserverVisible(m, n)) {
@@ -173,32 +175,41 @@ func workspaceFloating(c *ui.Context, m Model) {
 		f := n.Float
 		ui.Overlay(c, func() {
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
-			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Background(c.Theme().Background).Border(1, c.Theme().Border).Clip()
+			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Background(c.Theme().Background).Border(1, c.Theme().Border).Clip().FocusBind(&w.focusedResource, n.ID)
 			panel.Children(func() {
 				ui.Row(c).FillWidth().Height(38).Gap(4).Padding(4).Children(func() {
+					terminal, sid, title, editing := workspaceTerminalTitle(m, n)
 					grip := ui.Box(c).Key("float-move").Grow(1).Height(28).Focusable().Label(paneLabel("移动浮动面板", "Move floating pane"))
-					grip.Children(func() { ui.Text(c, dockTabTitle(n)).FontSize(theme.InterfaceSize(11)) })
-					dx, dy, held := grip.Dragged()
-					if held {
-						w.MoveWorkspaceFloat(n.ID, visible.X+dx, visible.Y+dy)
-					}
-					if grip.Clicked() {
-						w.raiseFloat(n)
-					}
-					for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown} {
-						if grip.Shortcut(0, key) {
-							x, y := f.X, f.Y
-							switch key {
-							case ui.KeyLeft:
-								x -= 10
-							case ui.KeyRight:
-								x += 10
-							case ui.KeyUp:
-								y -= 10
-							case ui.KeyDown:
-								y += 10
+					grip.Children(func() {
+						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
+							ui.Text(c, title).FontSize(theme.InterfaceSize(11))
+						}
+					})
+					if !editing {
+						dx, dy, held := grip.Dragged()
+						if held {
+							w.MoveWorkspaceFloat(n.ID, visible.X+dx, visible.Y+dy)
+						}
+						if grip.DoubleClicked() && n.Kind == "host-terminal" {
+							beginWorkspaceTerminalRename(m, n)
+						} else if grip.Clicked() {
+							w.raiseFloat(n)
+						}
+						for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown} {
+							if grip.Shortcut(0, key) {
+								x, y := f.X, f.Y
+								switch key {
+								case ui.KeyLeft:
+									x -= 10
+								case ui.KeyRight:
+									x += 10
+								case ui.KeyUp:
+									y -= 10
+								case ui.KeyDown:
+									y += 10
+								}
+								w.MoveWorkspaceFloat(n.ID, x, y)
 							}
-							w.MoveWorkspaceFloat(n.ID, x, y)
 						}
 					}
 					ui.Button(c, "⠿").Key("float-dock-drag").Label(paneLabel("拖到停靠落点", "Drag to dock target")).Drag(workspaceTabDrag{ID: n.ID})

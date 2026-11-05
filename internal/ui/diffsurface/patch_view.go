@@ -74,6 +74,7 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 						m.Workbench.Status = err.Error()
 					}
 				}
+				paintPatchFileActions(c, m, f.Path)
 				fold := i18n.T(i18n.KeySurfacesDiffExpandAll)
 				if open {
 					fold = i18n.T(i18n.KeySurfacesDiffCollapseAll)
@@ -116,6 +117,34 @@ func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 				render()
 			}
 		})
+	}
+}
+
+// Staging belongs to the file being reviewed, not a context-only action on a
+// separate commit checklist. The commit dialog keeps its own explicit selection.
+func paintPatchFileActions(c *ui.Context, m Model, path string) {
+	w := m.Workbench
+	if w == nil || w.BaseRef != "" || !safePatchPath(path) {
+		return
+	}
+	for _, change := range w.Changes {
+		if change.Path != path {
+			continue
+		}
+		if change.Unstaged() && ui.Button(c, word("暂存", "Stage")).Height(24).Shrink(0).Padding(0, 6).FontSize(fonttheme.InterfaceSize(12)).Disabled(w.Operation != nil).Clicked() {
+			stageCommitFile(m, change)
+		}
+		if change.Staged() && ui.Button(c, word("取消暂存", "Unstage")).Height(24).Shrink(0).Padding(0, 6).FontSize(fonttheme.InterfaceSize(12)).Disabled(w.Operation != nil).Clicked() {
+			unstageCommitFile(m, change)
+		}
+		if change.Unstaged() {
+			ui.MenuButton(c, word("更多", "More"), func(menu *ui.Menu) {
+				if menu.Item(word("丢弃此文件…", "Discard file…")).Disabled(w.Operation != nil).Chosen() {
+					reviewDiscard(m, path)
+				}
+			}).Height(24).Shrink(0).FontSize(fonttheme.InterfaceSize(12))
+		}
+		return
 	}
 }
 

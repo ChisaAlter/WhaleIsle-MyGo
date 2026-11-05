@@ -8,6 +8,7 @@ import {emitRuntimeInclude} from './session-runtime-nsis.mjs';
 
 test('physical NSIS include preserves closed cyclic graph without expanding aliases',()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'runtime-nsis-'));
+ const realRoot=fs.realpathSync(root);
  try {
   const stage=path.join(root,'stage'),vendor=path.join(stage,'runtime/vendor');
   for(const name of ['one','two']){fs.mkdirSync(path.join(vendor,name,'node_modules'),{recursive:true});fs.writeFileSync(path.join(vendor,name,'index.js'),'// '+name);}
@@ -19,10 +20,18 @@ test('physical NSIS include preserves closed cyclic graph without expanding alia
   const include=path.join(root,'physical.nsh');const result=emitRuntimeInclude(stage,include);
   assert.equal(result.files,3);assert.equal(result.links,2);
   const text=fs.readFileSync(include,'utf8');assert.equal(text.split('\n').filter(line=>line.startsWith('File ')).length,3);
+  for(const line of text.split('\n').filter(line=>line.startsWith('File '))) {
+   assert.ok(line.startsWith(`File "${path.toNamespacedPath(stage)}`),'physical sources must use Windows extended paths, including at MAX_PATH');
+  }
    assert.match(text,/!insertmacro WI_SetPayloadOutPath "\$INSTDIR\\runtime\\vendor\\one"/);
    assert.doesNotMatch(text,/^SetOutPath /m);
   assert.doesNotMatch(text,/File \/r/);
   const copy=path.join(root,'copy');cloneGraph(vendor,copy);assert.equal(fs.realpathSync(path.join(copy,'one/node_modules/two')),path.join(copy,'two'));
   fs.writeFileSync(path.join(copy,'extra.js'),'// untracked');assert.throws(()=>verifyGraph(copy,manifest,{exclude:['runtime-graph.json']}),/Untracked/);
- } finally {fs.rmSync(root,{recursive:true,force:true});}
+ } finally {
+  assert.equal(path.dirname(path.resolve(root)),path.resolve(os.tmpdir()));
+  assert.equal(fs.lstatSync(root).isSymbolicLink(),false);
+  assert.equal(fs.realpathSync(root),realRoot);
+  fs.rmSync(root,{recursive:true,force:true});
+ }
 });

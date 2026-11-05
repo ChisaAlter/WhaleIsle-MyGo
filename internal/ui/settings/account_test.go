@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -53,11 +52,11 @@ func TestAccountSignInRequiresHostAndUsesExistingCallback(t *testing.T) {
 		start := time.Unix(1000, 0)
 		tt.SetTime(start)
 		tt.SetTime(start.Add(time.Second))
-		if !tt.HasText("Sign in to " + product.Name) {
+		if !tt.HasText("You are not signed in to DeepSeek") {
 			t.Fatal("account navigation did not show the signed-out page")
 		}
-		if !ready && !tt.HasText("Connect to a Host to sign in.") {
-			t.Fatal("disconnected account page did not explain why sign-in is unavailable")
+		if !tt.HasText("Sign in to DeepSeek to get your dedicated API Key") {
+			t.Fatal("signed-out account description missing")
 		}
 		if ready {
 			saveBodySnapshot(t, tt, "account-ready.png")

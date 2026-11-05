@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/ui/i18n"
@@ -34,8 +35,8 @@ const (
 
 // Crash report sources. host is the local Harness service, main is this
 // process's own startup, web-boot is a hosted web document that never came up.
-// MyGo has no renderer process and no renderer console bridge, so renderer is
-// accepted only for compatibility: nothing in this shell produces it.
+// Embedded-page load/process failures use renderer. Native Content has no
+// renderer process or console bridge; a blocked native loop cannot report itself.
 var crashReportSources = map[string]bool{
 	"host":     true,
 	"web-boot": true,
@@ -297,4 +298,39 @@ func (s *mainState) publishCrashReport(win *mygo.Window, path string) {
 	if win != nil {
 		win.Update(func() {})
 	}
+}
+
+// Every page owner passes this through HostOptions.OnFailure. Reporting never
+// records the page URL or session cookie, and recovery is fenced to that page.
+func (s *mainState) onEmbeddedPageFailure(f desktopwebview.PageFailure) {
+	s.onEmbeddedPageFailureFor(nil, f)
+}
+func (s *mainState) onEmbeddedPageFailureFor(owner *mygo.Window, f desktopwebview.PageFailure) {
+	path := recordShellCrash("renderer", f.Kind+": "+f.Message, "")
+	mygo.RunOnMain(func() {
+		win := s.lifecycleDialogOwner(owner)
+		s.publishCrashReport(win, path)
+		s.mu.Lock()
+		quitting := s.quitting
+		s.mu.Unlock()
+		current := func() bool { return win != nil && !win.IsDestroyed() && f.Current != nil && f.Current() }
+		if quitting || !current() {
+			return
+		}
+		message := lifecycleText("页面发生错误。可以重新加载页面，或保留窗口稍后重试。", "The page failed. Reload it, or keep the window and retry later.")
+		if path != "" {
+			message += "\n\n" + fmt.Sprintf(i18n.T(i18n.KeyCrashReportWritten), path)
+		}
+		s.askConfirm(confirmAskRequest{Owner: win, Title: lifecycleText("页面恢复", "Page recovery"), Body: message,
+			ConfirmLabel: lifecycleText("重新加载", "Reload"), CancelLabel: lifecycleText("保留窗口", "Keep window"), OtherLabel: lifecycleText("退出应用", "Quit app"),
+			Run: func() {
+				if current() && f.Reload != nil {
+					f.Reload()
+				}
+			}, Other: func() {
+				if current() {
+					s.quitDesktopTray()
+				}
+			}})
+	})
 }

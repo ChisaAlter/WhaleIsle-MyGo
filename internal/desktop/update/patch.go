@@ -17,6 +17,7 @@ import (
 
 // PatchOptions configures ApplyBlockPatch.
 type PatchOptions struct {
+	Resume bool
 	// Zero retains the legacy 512 MiB bound. Native catalog downloads pass their
 	// existing 8 GiB installer limit through reconstruction and full fallback.
 	MaxBytes          int64
@@ -77,14 +78,39 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 	}
 	client := opt.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute}
+		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
+	}
+	var partial *os.File
+	var partialSize int64
+	if opt.Resume {
+		dir := opt.DestDir
+		if dir == "" {
+			dir = filepath.Join(os.TempDir(), "whaleisle-updates")
+		}
+		partial, _ = os.Open(stageFileName(dir, releaseURL) + ".part")
+		if partial != nil {
+			defer partial.Close()
+			if st, err := partial.Stat(); err == nil {
+				partialSize = st.Size()
+			}
+		}
 	}
 
 	need := make([]int, 0, len(opt.BlockMap.Blocks))
 	for i, b := range opt.BlockMap.Blocks {
+		if ctx.Err() != nil {
+			return ApplyResult{}, ctx.Err()
+		}
+		if partial != nil && blockReusable(partial, partialSize, b) {
+			continue
+		}
 		if !blockReusable(old, oldSize, b) {
 			need = append(need, i)
 		}
+	}
+	if partial != nil {
+		partial.Close()
+		partial = nil
 	}
 
 	if len(need) > 0 {
@@ -106,7 +132,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	info := opt.BlockMap
 	client := opt.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute}
+		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
 	}
 	releaseURL := strings.TrimSpace(opt.Feed.URL)
 
@@ -119,7 +145,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	}
 	dest := stageFileName(destDir, releaseURL)
 	part := dest
-	if sameFilePath(opt.OldPath, dest) {
+	if opt.Resume || sameFilePath(opt.OldPath, dest) {
 		part = dest + ".part"
 	}
 
@@ -139,18 +165,22 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		return ApplyResult{}, fmt.Errorf("reconstructed size %d exceeds limit", outSize)
 	}
 
-	f, err := os.Create(part)
+	var f *os.File
+	var err error
+	if opt.Resume {
+		f, err = os.OpenFile(part, os.O_CREATE|os.O_RDWR, 0600)
+	} else {
+		f, err = os.Create(part)
+	}
 	if err != nil {
 		return ApplyResult{}, err
 	}
 	cleanup := true
+	retainPartial := opt.Resume
 	defer func() {
 		_ = f.Close()
-		if cleanup {
+		if cleanup && !retainPartial {
 			_ = os.Remove(part)
-			if part != dest {
-				_ = os.Remove(dest)
-			}
 		}
 	}()
 	if err := f.Truncate(outSize); err != nil {
@@ -172,6 +202,11 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	for i, b := range info.Blocks {
 		if ctx.Err() != nil {
 			return ApplyResult{}, ctx.Err()
+		}
+		if opt.Resume && blockReusable(f, outSize, b) {
+			copied++
+			progress(b.Size)
+			continue
 		}
 		if _, err := f.Seek(b.Offset, io.SeekStart); err != nil {
 			return ApplyResult{}, fmt.Errorf("block %d: seek dest: %w", i, err)
@@ -210,39 +245,43 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 		return ApplyResult{}, err
 	}
 
-	if part != dest {
-		if err := os.Rename(part, dest); err != nil {
-			return ApplyResult{}, err
-		}
-	}
-
 	reportStagePhase(ctx, opt.OnPhase, StageVerifying)
-	sum, n, err := hashFileBounded(dest, maxBytes)
+	sum, n, err := hashFileBounded(part, maxBytes)
 	if err != nil {
 		return ApplyResult{}, err
 	}
 	if opt.Feed.Size > 0 && n != opt.Feed.Size {
+		retainPartial = false
 		return ApplyResult{}, fmt.Errorf("size mismatch: got %d want %d", n, opt.Feed.Size)
 	}
 	expect := strings.ToLower(strings.TrimSpace(opt.Feed.SHA256))
 	if expect != "" && expect != sum {
+		retainPartial = false
 		return ApplyResult{}, fmt.Errorf("sha256 mismatch")
 	}
-	if err := VerifyBlockMap(dest, info); err != nil {
+	if err := VerifyBlockMap(part, info); err != nil {
+		retainPartial = false
 		return ApplyResult{}, fmt.Errorf("blockmap verify failed: %w", err)
 	}
 
-	sig, err := CheckSignature(ctx, dest, VerifyOptions{
+	sig, err := CheckSignature(ctx, part, VerifyOptions{
 		RequireSignature:  opt.RequireSignature,
 		ExpectedPublisher: opt.ExpectedPublisher,
 	})
 	if err != nil {
+		retainPartial = opt.Resume && ctx.Err() != nil
 		return ApplyResult{}, err
 	}
 
 	if err := ctx.Err(); err != nil {
 		return ApplyResult{}, err
 	}
+	if part != dest {
+		if err := os.Rename(part, dest); err != nil {
+			return ApplyResult{}, err
+		}
+	}
+	_ = os.Remove(part + ".json")
 	cleanup = false
 	out := ApplyResult{
 		Path:          dest,
@@ -280,6 +319,7 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 
 func downloadFullAndVerify(ctx context.Context, opt PatchOptions) (ApplyResult, error) {
 	res, err := DownloadAndStageOpts(ctx, StageOptions{
+		Resume:            opt.Resume,
 		ReleaseURL:        opt.Feed.URL,
 		DestDir:           opt.DestDir,
 		Start:             false,

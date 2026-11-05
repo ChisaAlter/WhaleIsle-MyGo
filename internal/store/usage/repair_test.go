@@ -17,19 +17,22 @@ func TestRepairNativeFlow(t *testing.T) {
 	started := make(chan struct{}, 3)
 	release := make(chan struct{}, 3)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			RPCID   string         `json:"rpcId"`
+			Payload map[string]any `json:"payload"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Error(err)
+		}
 		if r.URL.Path == "/usage-stats/overview" {
-			writeRPC(w, "", json.RawMessage(statsFixture))
+			writeRPC(w, req.RPCID, json.RawMessage(statsFixture))
 			return
 		}
 		n := calls.Add(1)
 		if r.URL.Path != "/usage-stats/repair.session" || r.Header.Get("Cookie") != "fixture=yes" {
 			t.Error("wrong repair endpoint/auth")
 		}
-		var req struct {
-			RPCID   string            `json:"rpcId"`
-			Payload map[string]string `json:"payload"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Payload) != 1 || req.Payload["sessionId"] != "bad" {
+		if len(req.Payload) != 1 || req.Payload["sessionId"] != "bad" {
 			t.Error("wrong payload")
 		}
 		started <- struct{}{}

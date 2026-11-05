@@ -1,13 +1,11 @@
 package browserpreview
 
 import (
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmldocument"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
-	fonttheme "whaleisle/internal/ui/theme"
 )
 
 // OpenHTML owns only the selected file's immutable snapshot. It does not prepare
@@ -23,7 +21,7 @@ func (b *Controller) OpenHTML(doc *htmldocument.Document) error {
 
 func (b *Controller) openHTMLTab(t *Tab, doc *htmldocument.Document) error {
 	t.HTML, t.Draft = doc, doc.Name
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalHTMLURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnClosed: doc.Close})
+	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalHTMLURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFailure: b.pageFailure(t), OnFocus: b.focus, OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
 		if t.source != nil {
@@ -61,28 +59,5 @@ func (b *Controller) PruneHTMLDocuments() {
 	}
 }
 func (b *Controller) htmlControls(c *ui.Context, t *Tab, dark bool) {
-	ui.Text(c, t.HTML.Name).FontSize(fonttheme.InterfaceSize(12)).Grow(1)
-	if ui.Button(c, browserChromeLabel("浮动预览", "Floating preview")).Disabled(t.Host == nil || !t.Host.Alive()).Clicked() {
-		b.openFloatingDocument(t)
-	}
-	if t.HTML.CanRunScripts() {
-		b.interactiveHTMLControls(c, t, dark)
-	}
-	if ui.Button(c, browserChromeLabel("系统打开", "Open externally")).Clicked() {
-		path, err := t.HTML.ExternalPath()
-		if err == nil {
-			err = mygo.Shell.OpenPath(path)
-		}
-		if err != nil {
-			t.Error = err.Error()
-		}
-	}
-	if ui.Button(c, browserChromeLabel("复制文件路径", "Copy file path")).Clicked() {
-		path, err := t.HTML.ExternalPath()
-		if err != nil {
-			t.Error = err.Error()
-		} else {
-			mygo.Clipboard.WriteText(path)
-		}
-	}
+	b.documentHeader(c, t, t.HTML.Name, t.HTML.ExternalPath, dark)
 }

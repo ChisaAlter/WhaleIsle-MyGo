@@ -5,7 +5,6 @@ package accountlogout
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
 )
@@ -31,9 +30,11 @@ type State struct {
 	Impact                         Impact
 	AccountID, Error               string
 	ReviewID                       uint64
+	accountKey                     string
 }
 
-// Flow binds reviews to a single pointer-backed RPC client and safe account ID.
+// Flow binds reviews to a single pointer-backed RPC client and local account
+// state. Online profile availability is not a condition for local sign-out.
 // Bind must be called when the Host changes; no endpoint/token is retained here.
 type Flow struct {
 	mu       sync.Mutex
@@ -105,7 +106,7 @@ func (f *Flow) begin(ctx context.Context, kind string, reviewID uint64) (operati
 		}
 		f.sequence++
 		f.state = State{Open: true, Impact: ImpactUnknown, ReviewID: f.sequence}
-	} else if !f.state.Open || f.state.ReviewID != reviewID || f.state.AccountID == "" || (kind == "confirm" && f.state.Unknown) || (kind == "check" && !f.state.Unknown) {
+	} else if !f.state.Open || f.state.ReviewID != reviewID || f.state.accountKey == "" || (kind == "confirm" && f.state.Unknown) || (kind == "check" && !f.state.Unknown) {
 		return operation{}, false
 	}
 	review := f.state
@@ -166,19 +167,11 @@ func identity(o operation, meta any) (string, bool, error) {
 			return "", false, errors.New("account sign-in is active")
 		}
 	}
-	var profile struct {
-		Status string `json:"status"`
-		Value  struct {
-			ID *string `json:"id"`
-		} `json:"value"`
+	key := view.Status
+	if view.Attempt != nil {
+		key += ":" + view.Attempt.ID
 	}
-	if err := call(o, "account/getProfile", map[string]any{"client": meta}, &profile); err != nil {
-		return "", false, err
-	}
-	if profile.Status != "ready" || profile.Value.ID == nil || strings.TrimSpace(*profile.Value.ID) == "" {
-		return "", false, errors.New("safe account identity unavailable")
-	}
-	return *profile.Value.ID, false, nil
+	return key, false, nil
 }
 func impact(o operation) Impact {
 	var running bool
@@ -209,7 +202,7 @@ func (f *Flow) Request(ctx context.Context, meta any) {
 		return
 	}
 	i := impact(o)
-	f.finish(o, State{Open: true, AccountID: id, Impact: i})
+	f.finish(o, State{Open: true, accountKey: id, Impact: i})
 }
 
 // Confirm is exclusively the user's current confirmation button. Re-read safe
@@ -229,7 +222,7 @@ func (f *Flow) Confirm(ctx context.Context, meta any, reviewID uint64) {
 		f.finish(o, State{Completed: true})
 		return
 	}
-	if id != o.review.AccountID {
+	if id != o.review.accountKey {
 		f.finish(o, State{Error: ErrorAccountChanged})
 		return
 	}
@@ -281,7 +274,7 @@ func (f *Flow) reconcile(o operation, meta any) {
 		f.finish(o, State{Completed: true})
 		return
 	}
-	if id != o.review.AccountID {
+	if id != o.review.accountKey {
 		f.finish(o, State{Error: ErrorAccountChanged})
 		return
 	}

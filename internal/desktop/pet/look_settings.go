@@ -16,7 +16,7 @@ func (p *Companion) SaveLookRoute(provider, model string, catalog petlook.Catalo
 		p.Error = storelocale.T(storelocale.KeyDesktopPetPetConfigurationUnavailable)
 		return false
 	}
-	if (provider != "" || model != "") && !petlook.Resolve(provider, model, catalog) {
+	if (provider != "" || model != "") && !petlook.Legacy(provider, model) && !petlook.Resolve(provider, model, catalog) {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetRefreshTheImageCatalogOrTurnLookO)
 		return false
 	}

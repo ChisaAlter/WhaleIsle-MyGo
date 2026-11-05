@@ -23,6 +23,7 @@ type PluginRow struct {
 // PluginsAccess is the dedicated Plugins settings page (pluginManager/listPlugins).
 type PluginsAccess struct {
 	Inventory        *PluginInventoryAccess
+	Tabs             []PluginSettingsTab
 	Rows             []PluginRow
 	HasListRPC       bool
 	Err              string
@@ -36,6 +37,8 @@ type PluginsAccess struct {
 	OnRestart        func()
 	OnRefresh        func()
 	OnOpenMarket     func()
+	// OnOpenManager opens the Host plugin manager, not the curated marketplace.
+	OnOpenManager func()
 	// OnSetDisabled changes the Host bundle and surfaces its ChangeResult.
 	OnSetDisabled func(name string, disabled bool)
 	OnInspect     func(name string)
@@ -49,11 +52,17 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	a := m.Plugins
 	ui.Text(c, i18n.T(i18n.KeySettingsSectionPlugins)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
-	pluginInventoryPane(c, a.Inventory, fg, muted)
-	// The deployed plugin packages and their enable/disable controls are not on the
-	// installed page (the plugin manager owns them); they stay reachable here.
-	bodyDisclosure(c, "plugin-packages", pluginsText("插件包管理", "Plugin package management"), func() {
-		pluginPackages(c, a, fg, muted)
+	pluginSettingsTabs(c, a, fg, muted)
+	if a.Inventory != nil {
+		clientModulesPane(c, a.Inventory, fg, muted)
+	}
+	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+		if ui.Button(c, pluginsText("管理插件包", "Manage plugin packages")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenManager == nil).Clicked() && a.OnOpenManager != nil {
+			a.OnOpenManager()
+		}
+		if ui.Button(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenMarket == nil).Clicked() && a.OnOpenMarket != nil {
+			a.OnOpenMarket()
+		}
 	})
 }
 
@@ -66,12 +75,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	if a.Loading || a.Busy {
-		ui.Text(c, i18n.T(i18n.KeyMarketLoading)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
-	if a.OperationMessage != "" {
-		ui.Text(c, a.OperationMessage).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
+	settingsNotice(c, "plugins:79", "", a.OperationMessage != "", func() string { return a.OperationMessage })
 	if a.Activation.Pending {
 		message := pluginsText("插件变更已保存，等待重启生效。", "Plugin changes are saved and await a runtime restart.")
 		if a.Activation.Failed {
@@ -90,12 +94,8 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.HasListRPC {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsNoRPC)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	if a.Err != "" {
-		ui.Text(c, a.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
-	if a.LastAction != "" {
-		ui.Text(c, settingsActionText(a.LastAction)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	}
+	settingsNotice(c, "plugins:100", "error", a.Err != "", func() string { return a.Err })
+	settingsNotice(c, "plugins:103", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if len(a.Rows) == 0 && !a.Loading {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {

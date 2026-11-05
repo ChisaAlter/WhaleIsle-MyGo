@@ -118,6 +118,7 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 			n := &s.agentNavigation
 			n.view.Process = reducer.process
 			n.view.Messages = messages
+			childQueueFrame(&n.view, raw)
 			n.view.Body = body
 			n.view.Busy = false
 			if baseline != nil {
@@ -125,6 +126,7 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 				// Original follow carries the authoritative same-cut projection baseline.
 				// Use it without blocking stream draining on another RPC or activating anything.
 				if baseline.Projections != nil {
+					seedChildQueue(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq)
 					seedChildImageLimits(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq)
 					if baseline.Projections.AsOfSeq != nil {
 						s.applyQuestionValuesForSessionLocked(address.ChildSessionID, baseline.Projections.Values, *baseline.Projections.AsOfSeq)

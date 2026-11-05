@@ -44,7 +44,7 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 	s.mu.Lock()
 	client, generation := s.client, s.generation
 	ns := s.findNamespaceLocked(namespace)
-	if client == nil || s.describedClient != client || s.loading || s.saving || !s.writable || ns == nil || (owner != nil && (client != owner || generation != ownerGeneration)) {
+	if client == nil || s.describedClient != client || s.loading || !s.writable || ns == nil || (owner != nil && (client != owner || generation != ownerGeneration)) {
 		s.mu.Unlock()
 		return
 	}
@@ -81,6 +81,7 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 		}
 		ops = append(ops, fieldOperation("set", []string{key}, raw))
 	}
+	s.enqueuePreferenceLocked(ctx, namespace, values, ops, client, generation)
 	s.mu.Unlock()
-	s.saveMutateOwned(ctx, namespace, ops, client, generation)
+	s.fire()
 }

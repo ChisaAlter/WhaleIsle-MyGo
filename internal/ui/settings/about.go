@@ -50,17 +50,17 @@ func aboutUpdatePhaseSummary(a *AboutAccess) string {
 	case "checking":
 		return providerCopy("正在检测更新…", "Checking for updates…")
 	case "current":
-		return providerCopy("当前已是最新版本", "You are on the latest version")
+		if latest := strings.TrimSpace(a.UpdateVersion); latest != "" {
+			return providerCopy("已是最新版本 "+latest, "You are on the latest version "+latest)
+		}
+		return providerCopy("已是最新版本", "You are on the latest version")
 	case "available":
-		if strings.TrimSpace(a.UpdateVersion) != "" {
-			return providerCopy("发现新版本 ", "Update available: ") + strings.TrimSpace(a.UpdateVersion)
+		if latest := strings.TrimSpace(a.UpdateVersion); latest != "" {
+			return providerCopy("发现新版本 "+latest, "New version "+latest+" is available")
 		}
-		return providerCopy("发现新版本", "Update available")
+		return providerCopy("发现新版本", "New version available")
 	case "downloading":
-		if a.UpdatePercent > 0 {
-			return fmt.Sprintf("%s %.0f%%", providerCopy("正在下载更新…", "Downloading update…"), a.UpdatePercent)
-		}
-		return providerCopy("正在下载更新…", "Downloading update…")
+		return fmt.Sprintf(providerCopy("正在下载 %.0f%%", "Downloading %.0f%%"), a.UpdatePercent)
 	case "paused":
 		if a.UpdatePercent > 0 {
 			return fmt.Sprintf("%s %.0f%%", providerCopy("下载已暂停", "Download paused"), a.UpdatePercent)
@@ -71,9 +71,9 @@ func aboutUpdatePhaseSummary(a *AboutAccess) string {
 	case "ready":
 		return providerCopy("更新已就绪，重启后完成安装", "Update ready to install")
 	case "installing":
-		return providerCopy("正在安装更新…", "Installing update…")
+		return providerCopy("已启动安装程序，请按向导完成安装。", "Installer launched. Follow the wizard to finish.")
 	case "error":
-		return providerCopy("更新检查或下载失败", "Update failed")
+		return providerCopy("检测或安装失败", "Update failed")
 	default:
 		return ""
 	}
@@ -110,22 +110,17 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	}
 	anchor.Children(func() {
-		// 0.3.13 About: heading, intro, one entry (name, four meta lines, the
-		// open-folder action, the release link) and the Harness link. The update
-		// controls and the local details sit behind the disclosure at the end.
+		// Keep the primary update status and next action directly under the
+		// desktop version. Only local diagnostics belong in the disclosure.
 		ui.Text(c, i18n.T(KeyPass4AboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
-		if a.Loading {
-			ui.Text(c, providerCopy("正在读取应用信息…", "Loading application information…")).FillWidth().TextColor(muted)
-		}
-		if a.Err != "" {
-			ui.Text(c, a.Err).FillWidth().TextColor(fg)
-		}
+		settingsNotice(c, "about:118", "error", a.Err != "", func() string { return a.Err })
 		links := aboutLinks()
 		ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 				ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
 				meta(providerCopy("桌面版本 ", "Desktop version ") + emptyDash(a.Version))
+				aboutUpdateRow(c, a, fg, muted)
 				meta("Based on DeepSeek Harness")
 				meta(providerCopy("凭据存储：", "Credential storage: ") + credentialStorageSummary(*storage))
 				if a.HomePath != "" {
@@ -153,14 +148,9 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 			link(links[1])
 		})
-		if *linkError != "" {
-			ui.Text(c, *linkError).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		}
-		if a.Status != "" {
-			ui.Text(c, a.Status).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		}
+		settingsNotice(c, "about:154", "error", *linkError != "", func() string { return *linkError })
+		settingsNotice(c, "about:157", "", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
-			aboutUpdateRow(c, a, fg, muted)
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			for _, row := range []struct{ label, value string }{{i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
 				if row.value != "" {
@@ -199,9 +189,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 }
 
-// aboutUpdateRow is the native update surface the installed build does not
-// have on About: the installed version, the online installer badge and the
-// check/download/install actions. It stays reachable inside the diagnostics.
+// aboutUpdateRow is the primary version/update surface immediately below the version.
 func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 	ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).AlignItems(ui.Center).Children(func() {
 		// The version is data, not a choice: it paints as read-only text
@@ -218,14 +206,14 @@ func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 			badgeInk = ui.RGBA(255, 255, 255, .62)
 		}
 		install := ui.Button(c, "").Label(installLabel).Height(28).Padding(0, 12).Radius(8).
-			Background(pass4InstallBadgeFill).AlignSelf(ui.Start)
+			Background(pass4InstallBadgeFill).AlignSelf(ui.Start).Disabled(!enabled)
 		if !enabled {
 			install = install.Tooltip(i18n.T(KeyPass4InstallUnavailable))
 		}
 		install.Children(func() {
 			ui.Text(c, installLabel).FontSize(fonttheme.InterfaceSize(12)).TextColor(badgeInk)
 		})
-		if install.Clicked() && a.OnInstallUpdate != nil {
+		if install.Clicked() && enabled {
 			a.OnInstallUpdate()
 		}
 		if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.UpdateBusy).Clicked() {
@@ -244,9 +232,6 @@ func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 			a.OnOpenUpdateCenter()
 		}
 	})
-	if a.UpdateBusy {
-		ui.Text(c, providerCopy("正在检测更新…", "Checking for updates…")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	}
 	if summary := aboutUpdatePhaseSummary(a); summary != "" && summary != a.UpdateStatus && !(a.UpdateBusy && a.UpdatePhase == "checking") {
 		ui.Text(c, summary).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}

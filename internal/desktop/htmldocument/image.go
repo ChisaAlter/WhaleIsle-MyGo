@@ -57,7 +57,7 @@ func OpenImageWorkspace(root, raw string, valid func() bool) (*Document, error) 
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Size() < 1 || info.Size() > imagepreview.MaxBytes {
-		return nil, errors.New("image must be a regular file within the 16 MiB byte budget")
+		return nil, errors.New("image must be a regular file within the 32 MiB byte budget")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, imagepreview.MaxBytes+1))
 	if err != nil {

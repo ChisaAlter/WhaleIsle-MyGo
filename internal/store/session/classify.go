@@ -189,14 +189,18 @@ func classifyPersistenceEventRaw(raw json.RawMessage) (Message, bool) {
 		}, true
 	case "user/message", "user/prompt", "assistant/message":
 		if body == "" {
-			return Message{}, false
+			content := UserMessageContent(Message{Raw: raw})
+			if ev.Type != "user/message" || !content.Structured || len(content.Attachments)+len(content.ExtraBlocks) == 0 {
+				return Message{}, false
+			}
 		}
 		msg := Message{
-			Kind: MessageKindText,
-			Role: role,
-			Seq:  ev.Seq,
-			Body: body,
-			Raw:  append(json.RawMessage(nil), raw...),
+			Kind:      MessageKindText,
+			Role:      role,
+			Seq:       ev.Seq,
+			EventType: ev.Type,
+			Body:      body,
+			Raw:       append(json.RawMessage(nil), raw...),
 		}
 		if ev.Type == "assistant/message" {
 			var d struct {

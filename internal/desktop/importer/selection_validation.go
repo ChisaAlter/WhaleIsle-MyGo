@@ -1,6 +1,5 @@
 package importer
 
-
 import (
 	"errors"
 	"fmt"

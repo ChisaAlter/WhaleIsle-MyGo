@@ -60,7 +60,7 @@ func (s *Store) SaveNamespace(ctx context.Context, namespace string) error {
 	described := len(s.namespaces) > 0
 	known := s.findNamespaceLocked(namespace) != nil
 	connected := s.client != nil
-	busy := s.saving || s.loading
+	busy := s.saving || s.loading || s.themeWriteInFlightLocked(namespace)
 	writable := s.writable
 	s.mu.Unlock()
 	switch {

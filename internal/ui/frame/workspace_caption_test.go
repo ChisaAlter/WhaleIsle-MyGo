@@ -1,9 +1,11 @@
 package frame
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -80,36 +82,111 @@ func TestSharedCaptionIsOneRowAcrossEveryRoute(t *testing.T) {
 	}
 }
 
-// TestConversationViewTabsStayInsideTheBand pins the rc.2 layout: the 对话/轨迹
-// switcher shares the 48px title row instead of adding a second one.
-func TestConversationViewTabsStayInsideTheBand(t *testing.T) {
-	sizes := DefaultLayout()
-	sizes.Center, sizes.Right = 900, 0
-	tab := "chat"
-	store := session.New()
-	var band float32
-	tt := ui.NewTester(func(c *ui.Context) {
-		m := Model{Store: store, Sizes: &sizes, ChatPaneTab: &tab}
-		band = workspaceSharedCaption(c, m, session.ViewState{SelectedID: "s1", Items: []session.Item{{SessionID: "s1", Title: "Current"}}}, theme.Resolve("deepseek.light").Light, false)
-	}, 1200, 800)
-	if band != 48 {
-		t.Fatalf("band=%v, want the single 48px caption", band)
+// Views are a separate, non-draggable row below the native caption, including
+// narrow windows where the title actions compact.
+func TestConversationViewTabsHaveSeparateRowAndKeyboardNavigation(t *testing.T) {
+	for _, width := range []float32{1200, 400} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			sizes := DefaultLayout()
+			sizes.Center, sizes.Right = width, 0
+			tab := "chat"
+			store := session.New()
+			var band float32
+			tt := ui.NewTester(func(c *ui.Context) {
+				m := Model{Store: store, Sizes: &sizes, ChatPaneTab: &tab}
+				ui.Column(c).Fill().Children(func() {
+					band = workspaceSharedCaption(c, m, session.ViewState{SelectedID: "s1", Items: []session.Item{{SessionID: "s1", Title: "Current"}}}, theme.Resolve("deepseek.light").Light, false)
+					conversationViewTabs(c, m, theme.Resolve("deepseek.light").Light, width < 720)
+				})
+			}, int(width), 800)
+			if band != 48 {
+				t.Fatalf("band=%v, want the single 48px caption", band)
+			}
+			for _, label := range []string{i18n.T(i18n.KeyChatPaneTabChat), i18n.T(i18n.KeyChatPaneTabTrajectory)} {
+				r, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("missing view tab %q; texts=%q", label, tt.Texts())
+				}
+				if r.Y < 48 || r.Y+r.H > 76 || r.X < 0 || r.X+r.W > width {
+					t.Fatalf("view tab %q left the separate 48..76 row: %+v", label, r)
+				}
+			}
+			if err := tt.Click(i18n.T(i18n.KeyChatPaneTabTrajectory)); err != nil {
+				t.Fatal(err)
+			}
+			if tab != "trajectory" {
+				t.Fatalf("tab=%q after click", tab)
+			}
+			tt.Key(0, ui.KeyHome)
+			if tab != "chat" || !tt.Focused(i18n.T(i18n.KeyChatPaneTabChat)) {
+				t.Fatalf("Home did not choose/focus chat: %q", tab)
+			}
+			tt.Key(0, ui.KeyEnd)
+			if tab != "trajectory" {
+				t.Fatalf("End tab=%q", tab)
+			}
+			saveConversationEvidence(t, tt, fmt.Sprintf("conversation-tabs-%v", width))
+		})
 	}
-	for _, label := range []string{i18n.T(i18n.KeyChatPaneTabChat), i18n.T(i18n.KeyChatPaneTabTrajectory)} {
-		r, ok := tt.Find(label)
-		if !ok {
-			t.Fatalf("missing view tab %q; texts=%q", label, tt.Texts())
-		}
-		if r.Y < 12 || r.Y+r.H > 44 {
-			t.Fatalf("view tab %q left the 12..44 content row: %+v", label, r)
-		}
+}
+
+func TestConversationViewsUseActualHandleAndKeepBuiltins(t *testing.T) {
+	tab, opened, cleared := "chat", "", 0
+	m := Model{ChatPaneTab: &tab, ConversationViews: []pluginui.ConversationView{
+		{Handle: "ignored", ID: "trajectory", Label: "Duplicate"},
+		{Handle: "owner:revision:custom", ID: "report", Label: "Report"},
+	}, OnSelectConversationView: func(handle string) { opened = handle }, OnClearConversationView: func() { cleared++ }}
+	tt := ui.NewTester(func(c *ui.Context) { conversationViewTabs(c, m, theme.Resolve("deepseek.light").Light, false) }, 400, 100)
+	if tt.HasText("Duplicate") {
+		t.Fatal("duplicated built-in view")
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatPaneTabTrajectory)); err != nil {
+	if err := tt.Click("Report"); err != nil {
 		t.Fatal(err)
 	}
-	if tab != "trajectory" {
-		t.Fatalf("tab=%q after click", tab)
+	if tab != "plugin:owner:revision:custom" || opened != "owner:revision:custom" {
+		t.Fatalf("wrong native handle %q %q", tab, opened)
 	}
+	tt.Key(0, ui.KeyHome)
+	if tab != "chat" || cleared != 1 {
+		t.Fatalf("builtin did not retire custom: %q %d", tab, cleared)
+	}
+}
+
+func TestPadReservesBodyWithoutMovingCaptionOrChangingSidebarBreakpoint(t *testing.T) {
+	sizes := DefaultLayout()
+	sizes.Bottom = 0
+	reserve := float32(320)
+	var center, details, trailing ui.Rect
+	right := float32(0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		cols := sizes.resolveColumnsWithReserve(1200, reserve, true)
+		right = cols.Details
+		m := Model{Store: session.New(), Sizes: &sizes, RightPaneOpen: true, FilePaneWidth: &right, RightOverlayReserve: reserve}
+		m.WorkspaceTrailing = func(c *ui.Context, _ string) {
+			ui.Box(c).Size(120, 32).Draw(func(_ *ui.Painter, r ui.Rect) { trailing = r })
+		}
+		sidebarColumns(c, &sizes, func() { ui.Box(c).Fill() }, func() {
+			centerRightColumns(c, m,
+				func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { center = r }) },
+				func() { ui.Box(c).Fill().Draw(func(_ *ui.Painter, r ui.Rect) { details = r }) },
+				func() {
+					workspaceSharedCaption(c, m, session.ViewState{}, theme.Resolve("deepseek.light").Light, false)
+				})
+		})
+	}, 1200, 800)
+	if sizes.Responsive.narrow {
+		t.Fatal("Pad changed full window breakpoint")
+	}
+	if trailing.X+trailing.W != 1200-112 || center.Y != 48 {
+		t.Fatalf("caption shifted: trailing=%+v center=%+v", trailing, center)
+	}
+	if center.X+center.W > 1200-reserve || (right > 0 && details.X+details.W > 1200-reserve) {
+		t.Fatalf("body overlaps Pad center=%+v details=%+v", center, details)
+	}
+	if center.W != sizes.Center {
+		t.Fatalf("resolved center=%v actual=%v", sizes.Center, center.W)
+	}
+	saveConversationEvidence(t, tt, "pad-body-reserve")
 }
 
 func TestCaptionReflowsAfterAsyncToolArrivalAndRemoval(t *testing.T) {

@@ -133,6 +133,7 @@ type SessionListValueItemsItemProjections struct {
 
 type SessionListValueItemsItem struct {
 	AgentAvailable  bool                                  `json:"agentAvailable"`
+	FormatStatus    *string                               `json:"formatStatus,omitempty"`
 	SessionId       string                                `json:"sessionId"`
 	UpdatedAt       float64                               `json:"updatedAt"`
 	Running         bool                                  `json:"running"`
@@ -169,6 +170,8 @@ type ModelCatalogGroupsItemModelsItem struct {
 	Id              string                                     `json:"id"`
 	Name            string                                     `json:"name"`
 	Description     *string                                    `json:"description,omitempty"`
+	ContextWindow   *float64                                   `json:"contextWindow,omitempty"`
+	MaxTokens       *float64                                   `json:"maxTokens,omitempty"`
 	Reasoning       *ModelCatalogGroupsItemModelsItemReasoning `json:"reasoning,omitempty"`
 	InputModalities []string                                   `json:"inputModalities,omitempty"`
 }
@@ -237,6 +240,7 @@ type SessionPage struct {
 
 // SessionProjectionsValue is the wire type of result of session/projections (@deepseek-ai/dsh-api-session-controller/types#SessionProjectionsValue).
 type SessionProjectionsValue struct {
+	Kind    string          `json:"kind,omitempty"`
 	AsOfSeq float64         `json:"asOfSeq"`
 	Values  json.RawMessage `json:"values"` // intersection kept as raw JSON
 }

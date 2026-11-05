@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
@@ -42,9 +43,7 @@ func botMemoryReviewBlock(c *ui.Context, m BotMemoryReviewModel, blocked bool, f
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
+		widgets.Notice(c, "bot_memory_review:46", "", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

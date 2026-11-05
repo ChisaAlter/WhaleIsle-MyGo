@@ -161,7 +161,14 @@ func TestNativeProjectDocumentFixtures(t *testing.T) {
 func TestNativeProjectDocumentMissingBodyFixture(t *testing.T) {
 	for _, wire := range []string{`{"path":"docs/empty.txt"}`, `{"path":"docs/empty.txt","text":null}`, `{"path":"docs/empty.txt","text":""}`} {
 		c := Client{Origin: "http://127.0.0.1", HTTP: &http.Client{Transport: documentFixtureTransport(func(r *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"result":{"ok":true,"value":` + wire + `}}`)), Header: make(http.Header)}, nil
+			var req struct {
+				RPCID string `json:"rpcId"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				return nil, err
+			}
+			envelope, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": json.RawMessage(wire)}})
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(envelope))), Header: make(http.Header)}, nil
 		})}}
 		value, err := c.ReadDocument(context.Background(), "project-a", DocumentEntry{Path: "docs/empty.txt"})
 		if strings.Contains(wire, `"text":""`) {

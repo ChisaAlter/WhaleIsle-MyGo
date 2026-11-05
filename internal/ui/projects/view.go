@@ -3,10 +3,26 @@ package projects
 
 import (
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
 type Model struct {
+	ProjectTeam                                                          func(string) ProjectTeamModel
+	PlanBoard                                                            session.PlanBoard
+	PlanSessionID                                                        string
+	OnStopProject                                                        func(string)
+	OnOpenModelSettings                                                  func()
+	OnCreateFromDraft                                                    func()
+	HeroWorkspace, HeroDirectoryReason, HeroError                        string
+	HeroExisting                                                         bool
+	OnOpenAuthorizedFile                                                 func(projectflow.FileTarget)
+	OnArtifactTarget                                                     func(projectflow.Artifact, func(projectflow.FileTarget))
+	OnReportFileTarget                                                   func(string, func(projectflow.FileTarget))
+	OnDeliveryFile                                                       func(projectflow.Artifact, func(projectflow.FileTarget))
+	OnDeliveryTerminal                                                   func(projectflow.DeliveryTerminalRef)
+	TeamHistory                                                          bool
+	OnTeamHistory                                                        func(bool)
 	RequestCardActions                                                   func(string, int) RequestCardActions
 	RequestRevert                                                        func(string, int) RequestRevertState
 	VisualPage                                                           func(string, projectflow.DeliveryPageReference, int) VisualPagePreview

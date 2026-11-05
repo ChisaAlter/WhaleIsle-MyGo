@@ -17,6 +17,7 @@ type ConfirmOptions struct {
 	Detail       string
 	ConfirmLabel string
 	CancelLabel  string
+	OtherLabel   string
 	// TechnicalDetails is the optional evidence block (port of the shell update
 	// dialog's technicalDetails). It stays collapsed so it never widens the
 	// question, but the exact version, route and checksum stay one click away.
@@ -28,11 +29,13 @@ type ConfirmOptions struct {
 	TechnicalOpen *bool
 	// Danger paints the confirm action as the destructive action.
 	Danger bool
-	// Colors is the active palette; a zero value falls back to the light one so
-	// a caller that forgets it still paints readable chrome.
+	// Width is 380 for an ordinary confirmation; update readers may request 640.
+	Width float32
+	// Colors is the active palette; a zero value follows the current color scheme.
 	Colors    theme.Colors
 	OnConfirm func()
 	OnCancel  func()
+	OnOther   func()
 }
 
 // ConfirmDialog paints one confirmation modal and reports the answer. It paints
@@ -41,6 +44,10 @@ type ConfirmOptions struct {
 func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 	if opts.Title == "" {
 		return
+	}
+	colors := opts.Colors
+	if colors.FG == "" {
+		colors = theme.Resolve(theme.IDSystem).Active(c.Theme().Dark)
 	}
 	open := true
 	settled := false
@@ -59,28 +66,38 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 		cancelLabel = "取消"
 	}
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 20).Gap(12).Children(func() {
-			ui.Text(c, opts.Title).FillWidth().FontSize(16).FixedLineHeight(24).FontWeight(600).TextColor(c.Theme().Text)
-			if opts.Body != "" {
-				ui.Text(c, opts.Body).FillWidth().FontSize(13).FixedLineHeight(20).TextColor(c.Theme().TextMuted)
-			}
-			if opts.Detail != "" {
-				ui.Text(c, opts.Detail).FillWidth().FontSize(12).FixedLineHeight(18).TextColor(c.Theme().TextMuted)
-			}
-			if opts.TechnicalDetails != "" && opts.TechnicalLabel != "" && opts.TechnicalOpen != nil {
-				ui.Collapsible(c, opts.TechnicalLabel, opts.TechnicalOpen, func() {
-					ui.Text(c, opts.TechnicalDetails).FillWidth().FontSize(11).FixedLineHeight(16).TextColor(c.Theme().TextMuted)
+		w, h := c.Size()
+		width := opts.Width
+		if width <= 0 {
+			width = 380
+		}
+		maxHeight := max(0, h-48)
+		chrome.DialogSurface(c, backdrop, panel, colors, max(0, min(width, w-48)), 20).
+			MaxHeight(maxHeight).Gap(12).Children(func() {
+			ui.Text(c, opts.Title).FillWidth().Shrink(0).FontSize(16).FixedLineHeight(24).FontWeight(600).TextColor(chrome.Color(colors.FG))
+			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(0, maxHeight-124)).Shrink(1).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
+					if opts.Body != "" {
+						ui.Text(c, opts.Body).FillWidth().FontSize(14).FixedLineHeight(20).TextColor(chrome.Color(colors.Muted))
+					}
+					if opts.Detail != "" {
+						ui.Text(c, opts.Detail).FillWidth().FontSize(12).FixedLineHeight(18).TextColor(c.Theme().TextMuted)
+					}
+					if opts.TechnicalDetails != "" && opts.TechnicalLabel != "" && opts.TechnicalOpen != nil {
+						ui.Collapsible(c, opts.TechnicalLabel, opts.TechnicalOpen, func() {
+							ui.Text(c, opts.TechnicalDetails).FillWidth().FontSize(11).FixedLineHeight(16).TextColor(c.Theme().TextMuted)
+						})
+					}
 				})
-			}
-			colors := opts.Colors
-			if colors.FG == "" {
-				colors = theme.Resolve(theme.IDDeepseekLight).Light
-			}
+			})
 			// A dialog footer is the medium size: cancel is the quiet action and
 			// the answer carries the weight (danger when the question is destructive).
-			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Padding(8, 0, 0, 0).Children(func() {
-				if widgets.Button(c, colors, cancelLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
+			ui.Row(c).FillWidth().Shrink(0).Wrap().Gap(8).Justify(ui.End).Padding(8, 0, 0, 0).Children(func() {
+				if widgets.Button(c, colors, cancelLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).AutoFocus().Clicked() {
 					finish(opts.OnCancel)
+				}
+				if opts.OtherLabel != "" && widgets.Button(c, colors, opts.OtherLabel, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}).Clicked() {
+					finish(opts.OnOther)
 				}
 				variant := widgets.ButtonPrimary
 				if opts.Danger {

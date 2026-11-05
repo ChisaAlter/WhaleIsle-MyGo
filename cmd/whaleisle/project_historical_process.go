@@ -64,7 +64,7 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 		activityToken = activity.browser.View()
 	}
 	s.mu.Unlock()
-	m.OnHistoricalSource = func(source string) {
+	openSource := func(source string, terminal *projectflow.DeliveryTerminalRef) {
 		s.dshMu.Lock()
 		client := s.dshClient
 		s.dshMu.Unlock()
@@ -87,17 +87,34 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 			valid = func(f *projectFlowState) bool {
 				return f.reports == reports && reports.Selected != nil && reports.Selected.DelegationRef == target.DelegationRef && reports.Selected.CallID == target.ReportID
 			}
-		case "delivery":
+		case "delivery", "delivery-terminal":
 			if delivery == nil || f.deliveries != delivery || delivery.browser.NavigationToken() != deliveryToken {
 				s.mu.Unlock()
 				return
 			}
 			d := delivery.browser.Snapshot()
-			if d.Selected == nil || d.Report == nil || d.ReportRef == nil {
+			if d.Selected == nil || source == "delivery" && (d.Report == nil || d.ReportRef == nil) {
 				s.mu.Unlock()
 				return
 			}
-			target = projectflow.HistoricalTarget{ProjectID: d.Scope.ProjectID, WorkstreamID: d.ReportRef.WorkstreamID, DelegationRef: d.ReportRef.DelegationRef, ReportID: d.Report.CallID, Report: *d.Report}
+			if source == "delivery-terminal" {
+				found := false
+				if terminal != nil {
+					for _, ref := range d.Selected.TerminalRefs {
+						if ref == *terminal {
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					s.mu.Unlock()
+					return
+				}
+				target = projectflow.HistoricalTarget{ProjectID: d.Scope.ProjectID, WorkstreamID: terminal.WorkstreamID, DelegationRef: terminal.DelegationRef, RunID: terminal.RunID, Terminal: true, RequestID: d.Selected.RequestID, RequestRevision: d.Selected.RequestRevision}
+			} else {
+				target = projectflow.HistoricalTarget{ProjectID: d.Scope.ProjectID, WorkstreamID: d.ReportRef.WorkstreamID, DelegationRef: d.ReportRef.DelegationRef, ReportID: d.Report.CallID, Report: *d.Report}
+			}
 			for _, ref := range d.Selected.TerminalRefs {
 				if ref.WorkstreamID == target.WorkstreamID && ref.DelegationRef == target.DelegationRef {
 					if target.RunID != "" && target.RunID != ref.RunID {
@@ -152,6 +169,8 @@ func (s *projectController) bindProjectHistorical(win *mygo.Window, m *projects.
 		s.mu.Unlock()
 		s.runProjectHistorical(win, h, 0, "record")
 	}
+	m.OnHistoricalSource = func(source string) { openSource(source, nil) }
+	m.OnDeliveryTerminal = func(ref projectflow.DeliveryTerminalRef) { openSource("delivery-terminal", &ref) }
 	m.OnHistoricalAction = func(action string) { s.runProjectHistorical(win, h, view, action) }
 }
 func (s *projectController) runProjectHistorical(win *mygo.Window, h *projectHistoricalState, view uint64, action string) {

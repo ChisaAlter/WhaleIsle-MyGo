@@ -49,6 +49,9 @@ func startWorkspacePaneCloseSave(n *WorkspacePane, m files.Model) (pending bool,
 }
 
 func workspaceCloseFilesModel(m Model) files.Model {
+	if m.workspacePane != nil && m.workspacePane.Files != nil && m.workspacePane.Files.ProjectTarget != nil {
+		return m.workspacePane.Files.projectFileModel()
+	}
 	if m.workspacePane.Files != nil {
 		m = m.workspacePane.Files.model(m)
 	}

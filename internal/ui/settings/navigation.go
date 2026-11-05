@@ -24,6 +24,31 @@ type navigationGroup struct {
 	entries []navigationEntry
 }
 
+// ContributedSection is a real plugin-owned native settings destination. The
+// application retains its owner handle and supplies the existing SectionContent
+// when selected; the rail never mounts a separate plugin navigation instance.
+type ContributedSection struct {
+	ID            SectionID
+	Label         string
+	OnSelect      func()
+	SearchEntries []ContributedSearchEntry
+}
+
+// ContributedSearchEntry uses the same target/reveal IDs as the actual body.
+type ContributedSearchEntry struct {
+	Title, Description, Target string
+	Reveal                     []string
+}
+
+func navigationLabel(m Model, id SectionID) string {
+	for _, contribution := range m.ContributedSections {
+		if contribution.ID == id && contribution.Label != "" {
+			return contribution.Label
+		}
+	}
+	return sectionLabel(id)
+}
+
 func activeSection(m Model, snap store.ViewState) (active SectionID) {
 	defer func() {
 		entries := primaryNavigation(m, snap)
@@ -61,6 +86,16 @@ func activeSection(m Model, snap store.ViewState) (active SectionID) {
 		return SectionPet
 	}
 	return SectionGeneral
+}
+
+// ActiveSectionID reports the same effective destination the settings body
+// paints, including contributed and namespace-backed sections.
+func ActiveSectionID(m Model) SectionID {
+	var snapshot store.ViewState
+	if m.Store != nil {
+		snapshot = m.Store.Snapshot()
+	}
+	return activeSection(m, snapshot)
 }
 
 // primaryNavigation is the feature rail flattened in reading order.
@@ -113,6 +148,20 @@ func navigationGroups(m Model, snap store.ViewState) []navigationGroup {
 	add(&features, SectionFeatures, "PersonalizationOutline", m.Features != nil, m.OnSelectFeatures)
 	add(&features, SectionPet, "SettingsOutline", m.Pet != nil, selectNamespace("pet"))
 	add(&features, SectionRemote, "DeviceOutline", m.OnOpenRemote != nil, m.OnOpenRemote)
+	add(&features, SectionRemoteWorkspace, "ServerOutline", m.OnOpenRemoteWorkspace != nil, m.OnOpenRemoteWorkspace)
+	seen := map[SectionID]bool{}
+	for _, list := range [][]navigationEntry{account, general, agents, features} {
+		for _, entry := range list {
+			seen[entry.id] = true
+		}
+	}
+	for _, contribution := range m.ContributedSections {
+		if contribution.ID == "" || contribution.ID == SectionAbout || seen[contribution.ID] || contribution.Label == "" || contribution.OnSelect == nil {
+			continue
+		}
+		seen[contribution.ID] = true
+		add(&features, contribution.ID, "SettingsOutline", true, contribution.OnSelect)
+	}
 	add(&other, SectionAbout, "InfoOutline", m.About != nil, m.OnSelectAbout)
 	var groups []navigationGroup
 	for _, group := range []navigationGroup{
@@ -134,10 +183,14 @@ func navigationGroups(m Model, snap store.ViewState) []navigationGroup {
 // page as a button strip plus a namespace dropdown, which read as an internal
 // tool rather than as settings.
 func generalNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
-	if m.Account != nil && m.Account.Status != "credential-stored" && m.OnSelectAccount != nil {
+	if m.Account != nil && m.Account.Status != "credential-stored" && (m.OnSignIn != nil || m.OnSelectAccount != nil) {
 		bodyPreferenceRow(c, "general-account", i18n.T(i18n.KeySettingsSectionAccount), "", fg, muted, func() {
 			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Clicked() {
-				m.OnSelectAccount()
+				if m.OnSignIn != nil {
+					m.OnSignIn()
+				} else {
+					m.OnSelectAccount()
+				}
 			}
 		})
 	}

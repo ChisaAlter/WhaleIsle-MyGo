@@ -14,10 +14,21 @@ import (
 // modelNamespaceBody retains the rich model/provider editors and scopes every
 // draft callback to the namespace and Host that supplied the displayed schema.
 func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
+	return modelNamespaceEditor(c, m, namespace, nil)
+}
+
+func modelNamespaceEditor(c *ui.Context, m Model, namespace string, onCancel func()) bool {
 	if m.Store == nil || m.Models == nil {
 		return false
 	}
-	binding := m.Store.BindNamespace(namespace)
+	container := ui.Column(c.Key("model-namespace/" + m.Store.ProviderPageOwner() + "/" + namespace + "/" + m.Models.configurationProvider)).FillWidth().MinWidth(0).Gap(16)
+	ownedBinding := ui.Local(container, "provider-draft", func() *store.NamespaceBinding {
+		return m.Store.BindProviderEditor(namespace, m.Models.configurationProvider, m.Models.configurationPath)
+	})
+	binding := *ownedBinding
+	if m.Models.configurationBinding != nil {
+		binding = m.Models.configurationBinding
+	}
 	if binding == nil {
 		return false
 	}
@@ -28,11 +39,100 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 	ns := snap.Namespaces[0]
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	container := ui.Column(c.Key("model-namespace/" + binding.Owner())).FillWidth().MinWidth(0).Gap(16)
 	inputs := ui.Local(container, "inputs", func() map[string]*string { return map[string]*string{} })
+	probe := ui.Local(container, "model-probe", func() modelProbeState { return modelProbeState{} })
+	if m.Models.configurationProbe != nil {
+		probe = m.Models.configurationProbe
+	}
+	submitted := ui.Local(container, "submitted", func() bool { return false })
+	createKey := ui.Local(container, "create-api-key", func() string { return "" })
+	if m.Models.configurationCreateKey != nil {
+		createKey = m.Models.configurationCreateKey
+	}
+	creating := ui.Local(container, "creating-provider", func() bool { return false })
+	if m.Models.configurationCreating != nil {
+		creating = m.Models.configurationCreating
+	}
+	createUsesKey := ui.Local(container, "create-uses-key", func() bool { return false })
+	keyPending, keyBusy, keyError := false, false, ""
+	if credentials := m.ReferencedCredentials; credentials != nil {
+		if m.Models.configurationCreateOnly && *createUsesKey {
+			keyError = credentials.Snapshot.Err
+		}
+		for _, row := range credentials.Snapshot.Rows {
+			if row.ID == credentials.Snapshot.SelectedID && row.Namespace == namespace && row.Provider == m.Models.configurationProvider {
+				keyPending = credentials.Snapshot.Draft != "" || credentials.Snapshot.ClearPending
+				keyBusy, keyError = credentials.Snapshot.Busy, credentials.Snapshot.Err
+				break
+			}
+		}
+	}
+	if *submitted && !snap.Saving && !snap.Dirty && snap.Err == "" && !keyPending && !keyBusy && keyError == "" {
+		*submitted = false
+		if m.Models.configurationCreateOnly {
+			binding.SetForm("@provider-create", "{}")
+			binding.SetForm("@provider-create-committed", "")
+		}
+		m.Store.RefreshProviderDirectory(context.Background())
+		if onCancel != nil {
+			onCancel()
+		}
+	}
 	models := *m.Models
 	models.configurationBinding = binding
+	models.configurationCreateKey = createKey
+	models.configurationProbe = probe
+	discardKey := func() {
+		credentials := m.ReferencedCredentials
+		if credentials == nil || credentials.OnEdit == nil || credentials.Snapshot.Busy {
+			return
+		}
+		for _, row := range credentials.Snapshot.Rows {
+			if row.ID == credentials.Snapshot.SelectedID && row.Namespace == namespace && (row.Provider == m.Models.configurationProvider || m.Models.configurationCreateOnly && row.Provider == snap.Drafts["@provider-create-committed"]) {
+				credentials.OnEdit(credentials.Snapshot.Ticket, "")
+				return
+			}
+		}
+	}
+	models.configurationOnCancel = func() {
+		*submitted = false
+		*createKey = ""
+		*createUsesKey = false
+		binding.Discard()
+		probe.cancel()
+		discardKey()
+		if onCancel != nil {
+			onCancel()
+		}
+	}
+	models.configurationResetCreate = func() {
+		*createKey, *createUsesKey, *submitted = "", false, false
+		discardKey()
+		probe.cancel()
+	}
+	if credentials := m.ReferencedCredentials; credentials != nil && credentials.OnCreateProvider != nil {
+		models.configurationOnCreate = func(provider, key string) {
+			*creating = true
+			*createUsesKey = true
+			credentials.OnCreateProvider(binding, provider, key, func(accepted, saved bool) {
+				*creating = false
+				if accepted {
+					*createKey = ""
+				}
+				*submitted = saved
+			})
+		}
+	}
+	models.configurationOnSubmit = func() {
+		*submitted = true
+		if credentials := m.ReferencedCredentials; keyPending && credentials != nil && credentials.OnSaveProvider != nil {
+			credentials.OnSaveProvider(credentials.Snapshot.Ticket, binding)
+		} else {
+			binding.Save(context.Background())
+		}
+	}
 	m.Models = &models
+	snap.Saving = snap.Saving || *creating || keyBusy || probe.busy
 	m.OnDraft = binding.SetDraft
 	m.DraftPtr = func(key, seed string) *string {
 		p := (*inputs)[key]
@@ -45,7 +145,23 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 	}
 	// The card leads with the credential field; everything else lives behind
 	// the reference's "自定义设置" disclosure.
-	primary, advanced := splitModelFields(ns.Fields)
+	fields := []store.Field{}
+	for _, field := range ns.Fields {
+		if m.Models.configurationProvider != "" && field.Key != "models" && field.Key != "modelOverrides" && field.Key != "providers" && field.Key != "baseURL" {
+			continue
+		}
+		if m.Models.configurationProvider != "" && (field.Role == "credential-ref" || field.Key == "apiKeyEnv") {
+			continue
+		}
+		if m.Models.configurationCreateOnly && field.Key != "providers" {
+			continue
+		}
+		fields = append(fields, field)
+	}
+	primary, advanced := splitModelFields(fields)
+	if m.Models.configurationProvider != "" {
+		primary, advanced = nil, fields
+	}
 	render := func(field store.Field) {
 		if configurationField(c, m, snap, ns, field, fg, muted) {
 			return
@@ -53,43 +169,76 @@ func modelNamespaceBody(c *ui.Context, m Model, namespace string) bool {
 		modelBoundScalar(c, binding, snap, field, fg, muted)
 	}
 	container.Children(func() {
-		if snap.Err != "" {
-			ui.Text(c, snap.Err).TextColor(fg)
+		if m.Models.configurationCreateOnly && keyError != "" {
+			ui.Text(c, keyError).FillWidth().TextColor(c.Theme().Danger)
+			if *createKey == "" && m.ReferencedCredentials != nil && m.ReferencedCredentials.OnRefresh != nil && ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Disabled(snap.Saving).Clicked() {
+				m.ReferencedCredentials.OnRefresh()
+			}
 		}
+		fieldOwnsHint := false
+		if namespace != "llm-deepseek-account" && !m.Models.configurationCreateOnly {
+			credentials := m.ReferencedCredentials
+			if credentials != nil && m.Models.configurationProvider != "" {
+				filtered := *credentials
+				filtered.formOwned, filtered.locked = credentials.OnSaveProvider != nil, snap.Saving
+				filtered.envNames, filtered.envPresent = providerEnvNames(m.Models, namespace)
+				filtered.envHint, fieldOwnsHint = providerEnvHint(m.Models, namespace, binding, primary), true
+				filtered.Snapshot.Rows = nil
+				for _, row := range credentials.Snapshot.Rows {
+					if row.Namespace == namespace && row.Provider == m.Models.configurationProvider {
+						filtered.Snapshot.Rows = append(filtered.Snapshot.Rows, row)
+					}
+				}
+				credentials = &filtered
+			}
+			referencedCredentialsPane(c, credentials, namespace, fg, muted)
+		}
+		settingsNotice(c, "model_body:184", "error", snap.Err != "", func() string { return snap.Err })
 		if !snap.Writable {
-			ui.Text(c, providerCopy("此供应商设置为只读。", "Provider settings are read-only.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			modelHint(c, providerCopy("此供应商设置为只读。", "Provider settings are read-only."), "")
 		}
 		envNames, envPresent := providerEnvNames(m.Models, namespace)
 		for _, field := range primary {
-			if SecretLikeKey(field.Key) || SecretLikeKey(field.Label) {
+			if (field.Role != "credential-ref" && field.Key != "apiKeyEnv") && (SecretLikeKey(field.Key) || SecretLikeKey(field.Label)) {
 				modelAPIKeyField(c, binding, snap, field, envNames, envPresent, fg, muted)
 				continue
 			}
 			render(field)
 		}
-		if hint := providerEnvHint(m.Models, namespace, binding, primary); hint != "" {
-			ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(providerEnvWarnInk)
+		if hint := providerEnvHint(m.Models, namespace, binding, primary); hint != "" && !keyPending && !fieldOwnsHint {
+			modelHint(c, hint, "warn")
 		}
 		if len(advanced) > 0 {
-			bodyDisclosure(c, "model-advanced/"+binding.Owner(), i18n.T(i18n.KeySettingsModelsCustomize), func() {
+			modelDisclosure(c, "model-advanced/"+binding.Owner(), i18n.T(i18n.KeySettingsModelsCustomize), func() {
 				for _, field := range advanced {
 					render(field)
 				}
 			})
 		}
+		if m.Models.configurationCreateOnly {
+			return
+		}
 		ui.Row(c).FillWidth().Gap(8).Wrap().Justify(ui.End).Children(func() {
-			if modelPill(c, i18n.T(i18n.KeySettingsWhaleCancel), false, false, snap.Saving || !snap.Writable).Clicked() {
-				binding.Discard()
+			if modelPill(c, i18n.T(i18n.KeySettingsWhaleCancel), false, false, snap.Saving || m.ReferencedCredentials != nil && m.ReferencedCredentials.Snapshot.Busy).Clicked() {
+				models.configurationOnCancel()
 			}
-			if modelPill(c, i18n.T(i18n.KeySettingsSave), true, false, !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading || !snap.Dirty || configurationInvalid(snap)).Clicked() {
-				binding.Save(context.Background())
+			// Like the reference, Save is only blocked while the card cannot
+			// write (no Host, read-only, busy) or a row is invalid. With nothing
+			// edited it simply closes the card.
+			if modelPill(c, i18n.T(i18n.KeySettingsSave), true, false, !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading || keyBusy || configurationInvalid(snap, m.Models.configurationPath)).Clicked() {
+				m.Models.configurationOnSubmit()
 			}
 		})
 	})
 	return true
 }
 func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store.ViewState, f store.Field, fg, muted ui.Color) {
+	f.Label = configurationLabel(f.Label)
 	disabled := !snap.ClientReady || !snap.Writable || snap.Saving || snap.Loading
+	if f.Key == "baseURL" {
+		modelBaseURLField(c, binding, snap, f, disabled)
+		return
+	}
 	ui.Column(c.Key("model-scalar/" + f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, f.Label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).TextColor(theme.Color(modelColors(c).Secondary)).Grow(1).MinWidth(0)
@@ -101,6 +250,16 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 			ui.Text(c, f.Description).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		value := snap.Drafts[f.Key]
+		placeholder := ""
+		if f.Key == "baseURL" {
+			display, inherited := binding.ProviderInput([]string{f.Key}, value)
+			if inherited || snap.Resets[f.Key] {
+				placeholder = value
+				value = ""
+			} else if display != nil {
+				value = fmt.Sprint(display)
+			}
+		}
 		switch f.Kind {
 		case store.FieldBool:
 			checked := value == "true"
@@ -121,12 +280,16 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 					binding.SetDraft(f.Key, value)
 				}
 			} else {
-				input := ui.TextInput(c, &value).Label(f.Label).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled)
-				if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
+				input := ui.TextInput(c, &value).Label(f.Label).Placeholder(placeholder).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled)
+				if f.Role != "credential-ref" && f.Key != "apiKeyEnv" && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label)) {
 					input.Password()
 				}
 				if input.Changed() {
-					binding.SetDraft(f.Key, value)
+					if f.Key == "baseURL" && value == "" {
+						binding.Reset(f.Key)
+					} else {
+						binding.SetDraft(f.Key, value)
+					}
 				}
 			}
 		}
@@ -141,7 +304,7 @@ var providerEnvWarnInk = ui.RGB(217, 119, 6)
 // rest behind the optional-settings disclosure.
 func splitModelFields(fields []store.Field) (primary, advanced []store.Field) {
 	for i, field := range fields {
-		if len(primary) == 0 && (SecretLikeKey(field.Key) || SecretLikeKey(field.Label)) {
+		if len(primary) == 0 && ((field.Role != "credential-ref" && field.Key != "apiKeyEnv") && (SecretLikeKey(field.Key) || SecretLikeKey(field.Label))) {
 			primary = append(primary, fields[i])
 			continue
 		}
@@ -171,7 +334,7 @@ func providerEnvHint(models *ModelsAccess, namespace string, binding *store.Name
 			return ""
 		}
 	}
-	return fmt.Sprintf(i18n.T(i18n.KeySettingsModelsEnvHint), strings.Join(names, " / "))
+	return fmt.Sprintf(i18n.T(i18n.KeySettingsModelsEnvHint), names[0])
 }
 
 // providerEnvNames reports the environment variables this provider reads its
@@ -190,11 +353,11 @@ func modelAPIKeyField(c *ui.Context, binding *store.NamespaceBinding, snap store
 	value := snap.Drafts[field.Key]
 	ui.Column(c.Key("model-secret/" + field.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		modelFieldLabel(c, i18n.T(i18n.KeySettingsModelsAPIKey))
-		input := ui.TextInput(c, &value).Label(i18n.T(i18n.KeySettingsModelsAPIKey)).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled).Password()
+		placeholder := ""
 		if len(envNames) > 0 && !envPresent {
-			input.Placeholder(fmt.Sprintf(i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder), strings.Join(envNames, " / ")))
+			placeholder = fmt.Sprintf(i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder), envNames[0])
 		}
-		if input.Changed() {
+		if apiKeyInput(c, field.Key, &value, placeholder, disabled) {
 			binding.SetDraft(field.Key, value)
 		}
 	})

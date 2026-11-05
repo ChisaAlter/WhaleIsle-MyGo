@@ -38,6 +38,9 @@ func (q *QuickChat) sendDirect() {
 				case errors.Is(err, petdirect.ErrEndpoint):
 					q.status = storelocale.T(storelocale.KeyDesktopPetApiEndpointIsInvalidOrInsecure)
 				case errors.Is(err, petdirect.ErrChanged):
+					q.direct.Reset()
+					q.state.History = nil
+					q.options.Direct.ResetBinding()
 					q.status = storelocale.T(storelocale.KeyDesktopPetSettingsChangedCloseAndReopen)
 				default:
 					q.status = storelocale.T(storelocale.KeyDesktopPetApiResultUnconfirmedAvoidDuplicateS)

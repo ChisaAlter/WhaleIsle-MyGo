@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"whaleisle/internal/ui/widgets"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/hostterminal"
 )
@@ -39,7 +40,5 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 			}
 		}
 	})
-	if h.selectionNotice != "" {
-		ui.Text(c, h.selectionNotice).FontSize(10)
-	}
+	widgets.Notice(c, "host_selection_view:43", "", h.selectionNotice != "", func() string { return h.selectionNotice })
 }

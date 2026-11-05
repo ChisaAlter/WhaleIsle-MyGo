@@ -66,7 +66,7 @@ func TestPlanReviewContractFixture(t *testing.T) {
 
 	live := New()
 	live.questionDrafts["live"] = newDraftSession(request)
-	live.pending = []Pending{{EventID: "live", Event: EventUserQuestions, AgentID: "A", CallID: "review-call"}}
+	live.pending = []Pending{{EventID: "live", Event: EventUserQuestions, AgentID: "A", CallID: "review-call", questionProjected: true}}
 	live.waiters["live"] = make(chan dsh.EventResultOutcome, 2)
 	if live.QuestionsCanSubmit("live") {
 		t.Fatal("plan approval was selected by default")

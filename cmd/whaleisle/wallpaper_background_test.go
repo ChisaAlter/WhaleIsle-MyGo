@@ -57,13 +57,19 @@ func TestWallpaperPainterUsesAcceptedHostBackground(t *testing.T) {
 			}
 			prefs := wallpapers.Defaults()
 			prefs.Effect, prefs.EffectExplicit = "gradient", true
-			s := &mainState{cfgStore: cfg, hostAppearanceAccepted: true, wallpaperControls: &settings.WallpaperEditor{Prefs: prefs}}
+			s := &mainState{cfgStore: cfg, hostAppearanceAccepted: true, wallpaperControls: &settings.WallpaperEditor{Prefs: prefs, Saved: prefs}}
 			for _, effect := range []string{"gradient", "none", "gradient"} {
-				s.wallpaperControls.Prefs.Effect = effect
+				s.wallpaperControls.Saved.Effect = effect
 				s.wallpaperPainter("", true, true)
 				if got, want := chrome.BackdropActive(), effect == "gradient"; got != want {
 					t.Fatalf("accepted Host %s painted backdrop active=%v", effect, got)
 				}
+			}
+			// A settings draft is previewed only in its sandbox until Save.
+			s.wallpaperControls.Prefs.Effect = "none"
+			s.wallpaperPainter("", true, true)
+			if !chrome.BackdropActive() {
+				t.Fatal("unfinished effect draft changed the global renderer")
 			}
 			if cfg.HasWallpaperBackground() != localNone {
 				t.Fatal("rendering changed local appearance storage")

@@ -40,12 +40,11 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 	container.Children(func() {
 		// Keep the opening controls mounted so every close route can return
 		// focus to the exact action, rather than to a removed modal child.
-		ui.Row(c).Gap(8).Wrap().Children(func() {
+		ui.Row(c).Gap(4).Wrap().Children(func() {
 			if presetTextAction(c, i18n.T(KeyPass4ModeExplanation), row.ID, &state.DetailsTrigger, muted, fg) {
 				state.Page, state.Trigger = "explanation", "explanation"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
-			ui.Text(c, "·").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	if presetTextAction(c, i18n.T(KeyPass4HowToUse), row.ID, &state.UsageTrigger, muted, fg) {
 				state.Page, state.Trigger = "usage", "usage"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
@@ -150,7 +149,7 @@ var presetGuidesZH = map[string]presetModeGuide{
 // border or fill, and the primary text colour on hover.
 func presetTextAction(c *ui.Context, label, id string, trigger *ui.Handle, muted, fg ui.Color) bool {
 	ink := muted
-	button := ui.Button(c, "").Label(label + " · " + id).Height(22).Padding(0, 2).Radius(4).
+	button := ui.Button(c, "").Label(label + " · " + id).Height(36).Padding(0, 6).Radius(12).
 		BorderWidth(0).Background(ui.Transparent).TextColor(ink)
 	if button.Hovered() {
 		ink = fg

@@ -110,7 +110,9 @@ func (h *startupReceiptHost) baseline() {
 	h.s.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"items":[{"workspaceId":"default","path":"/fresh","sessionIds":[]}],"scratchCwd":"/scratch","pinnedSessionIds":[],"archivedSessionIds":[]}}`))
 }
 func (h *startupReceiptHost) initialized(t *testing.T) {
+	h.s.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"items":[],"scratchCwd":"/scratch","pinnedSessionIds":[],"archivedSessionIds":[]}}`))
 	h.s.InitializeDefaultWorkspace(context.Background())
+	h.baseline()
 	h.wait(t, func() bool {
 		h.s.mu.Lock()
 		defer h.s.mu.Unlock()
@@ -156,7 +158,6 @@ func TestInitialWorkspaceSessionRejectsFailureExistingRowsAndNavigation(t *testi
 	for _, change := range []string{"failed-list", "registry-not-ready", "registry-error", "missing-default", "different-path", "existing-row", "existing-member", "selected", "navigation", "selection-away-back"} {
 		t.Run(change, func(t *testing.T) {
 			h := newStartupReceiptHost(t)
-			h.baseline()
 			if change == "failed-list" {
 				h.listError = true
 			}
@@ -164,6 +165,7 @@ func TestInitialWorkspaceSessionRejectsFailureExistingRowsAndNavigation(t *testi
 				h.rows = []map[string]any{{"sessionId": "old", "cwd": "/fresh", "blank": true}}
 			}
 			h.s.InitializeDefaultWorkspace(context.Background())
+			h.baseline()
 			h.wait(t, func() bool {
 				h.s.mu.Lock()
 				defer h.s.mu.Unlock()
@@ -249,7 +251,7 @@ func TestInitialWorkspaceSessionStaleInitAndReconnectDoNotRearm(t *testing.T) {
 	}
 }
 
-func TestInitialWorkspaceSessionHonorsHostDeclinedDefault(t *testing.T) {
+func TestInitialWorkspaceSessionSkipsDefaultForRegisteredHost(t *testing.T) {
 	h := newStartupReceiptHost(t)
 	h.initDeclined = true
 	h.s.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"items":[{"workspaceId":"registered","path":"/fresh","sessionIds":[]}],"scratchCwd":"/scratch","pinnedSessionIds":[],"archivedSessionIds":[]}}`))
@@ -263,15 +265,15 @@ func TestInitialWorkspaceSessionHonorsHostDeclinedDefault(t *testing.T) {
 	accepted := h.s.initialWorkspaceSession.accepted
 	h.s.mu.Unlock()
 	if accepted || h.s.InitialWorkspaceSession().Ready || h.s.WorkspaceID() != "registered" || h.s.SelectedSessionID() != "" {
-		t.Fatal("Host-declined initialization was treated as an accepted default")
+		t.Fatal("registered Host was treated as a new default workspace")
 	}
 	h.s.BeginEvents(context.Background(), h.client)
 	h.s.InitializeDefaultWorkspace(context.Background())
 	h.mu.Lock()
 	calls := h.calls["workspace/initializeDefault"]
 	h.mu.Unlock()
-	if calls != 1 {
-		t.Fatalf("Host decline rearmed on reconnect: %d calls", calls)
+	if calls != 0 {
+		t.Fatalf("registered Host triggered initialization: %d calls", calls)
 	}
 }
 

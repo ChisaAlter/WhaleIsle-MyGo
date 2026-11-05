@@ -19,6 +19,14 @@ func (s *Store) AgentChatTarget(token uint64, address AgentSessionAddress) (stri
 			return s.selectedID, row.Label, true
 		}
 	}
+	for _, parent := range s.agentNavigation.parents {
+		s.refreshAgentNavigationRowsLocked(&parent)
+		for _, row := range parent.Rows {
+			if row.CanOpen() && row.Address == address {
+				return s.selectedID, row.Label, true
+			}
+		}
+	}
 	// Only an explicitly expanded, currently valid chain may expose a nested
 	// routing address. This does not grant prompt/interrupt capability.
 	for _, node := range s.agentCatalogTreeLocked() {

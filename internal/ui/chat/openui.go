@@ -148,9 +148,6 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 			}
 			b.mu.Unlock()
 		}
-		if loading {
-			ui.Text(c, i18n.T(i18n.KeyChatIsolatedStart)).FontSize(11)
-		}
 		if errText != "" {
 			ui.Text(c, errText).Selectable().FontSize(11)
 		}

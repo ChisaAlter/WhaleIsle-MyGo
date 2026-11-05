@@ -114,7 +114,7 @@ func (s *mainState) assistantRoomRuntimeModel(ep harness.Endpoint, id string) as
 					// An explicit open may observe/resume an existing root session only. The
 					// group member is not a personal Bot canonical session or subagent address.
 					var listing api.SessionListValue
-					if err = client.Call(ctx, "session/list", map[string]any{"request": map[string]any{}}, &listing); err != nil {
+					if err = client.Call(ctx, "session/list", map[string]any{"_request": api.SessionListRequest{}}, &listing); err != nil {
 						return err
 					}
 					if !live() {

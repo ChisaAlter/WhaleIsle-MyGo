@@ -26,18 +26,24 @@ type Day struct {
 	Day  string `json:"day"`
 	Used int64  `json:"used"`
 }
+
+const AccountingVersion = 2
+
 type Food struct {
+	Source    string           `json:"source,omitempty"`
+	InputOnly bool             `json:"inputOnly,omitempty"`
 	Version   int              `json:"version"`
 	Available int64            `json:"available"`
 	Seen      map[string]int64 `json:"seen"`
 }
 type State struct {
-	Points     int64  `json:"points"`
-	TokensFed  int64  `json:"tokensFed"`
-	TokensSeen int64  `json:"tokensSeen"`
-	Baseline   *int64 `json:"baseline"`
-	Today      *Day   `json:"today"`
-	Food       *Food  `json:"food,omitempty"`
+	AccountingVersion int    `json:"accountingVersion,omitempty"`
+	Points            int64  `json:"points"`
+	TokensFed         int64  `json:"tokensFed"`
+	TokensSeen        int64  `json:"tokensSeen"`
+	Baseline          *int64 `json:"baseline"`
+	Today             *Day   `json:"today"`
+	Food              *Food  `json:"food,omitempty"`
 }
 type Snapshot struct {
 	Points, TokensFed, TokensSeen, Available, NextFeed, TodayUsed int64
@@ -104,6 +110,9 @@ func Parse(raw []byte) (State, error) {
 	if err := json.Unmarshal(raw, &src); err != nil || src == nil {
 		return g, errors.New("invalid pet growth state")
 	}
+	if string(src["accountingVersion"]) == "2" {
+		g.AccountingVersion = AccountingVersion
+	}
 	for k, dst := range map[string]*int64{"points": &g.Points, "tokensFed": &g.TokensFed, "tokensSeen": &g.TokensSeen} {
 		v, _, err := count(src[k])
 		if err != nil {
@@ -146,7 +155,14 @@ func Parse(raw []byte) (State, error) {
 		if json.Unmarshal(obj["seen"], &seen) != nil || seen == nil {
 			return g, errors.New("invalid pet food settlements")
 		}
-		g.Food = &Food{1, n, make(map[string]int64, len(seen))}
+		var source string
+		_ = json.Unmarshal(obj["source"], &source)
+		if source == "" {
+			source = "sessions"
+		}
+		var inputOnly bool
+		_ = json.Unmarshal(obj["inputOnly"], &inputOnly)
+		g.Food = &Food{Version: 1, Available: n, Seen: make(map[string]int64, len(seen)), Source: source, InputOnly: inputOnly}
 		for k, raw := range seen {
 			n, valid, err := count(raw)
 			if !isHashKey(k) || !valid || err != nil {
@@ -215,30 +231,83 @@ func View(g State, now time.Time) Snapshot {
 // Refresh keeps Electron's settlement keys and high-water marks. Missing or
 // reduced samples never revoke food; returning samples never earn twice.
 func Refresh(g State, samples map[string]int64, now time.Time) (State, error) {
-	total, err := ValidateSamples(samples)
+	return refreshUsage(g, Usage{Samples: samples, Source: "sessions"}, now, false)
+}
+
+// RefreshUsage adopts the original accounting-v2 boundary without re-crediting
+// historical requests. Switching between gateway and sessions establishes a new
+// watermark while retaining already earned food.
+func RefreshUsage(g State, usage Usage, now time.Time) (State, error) {
+	return refreshUsage(g, usage, now, true)
+}
+func refreshUsage(g State, u Usage, now time.Time, migrate bool) (State, error) {
+	total, err := ValidateSamples(u.Samples)
 	if err != nil {
 		return g, err
 	}
-	first := g.Baseline == nil
+	if u.Total != nil {
+		if *u.Total < 0 || *u.Total > MaxCount {
+			return g, errors.New("invalid total usage")
+		}
+		total = *u.Total
+	}
+	if u.Source != "magpie" {
+		u.Source = "sessions"
+	}
+	day := now.Format("2006-01-02")
+	today := int64(0)
+	if u.TodayUsed != nil {
+		today = *u.TodayUsed
+		if today < 0 || today > MaxCount {
+			return g, errors.New("invalid daily usage")
+		}
+	}
+	legacy := migrate && g.AccountingVersion != AccountingVersion && (g.Points > 0 || g.TokensFed > 0 || g.TokensSeen > 0 || g.Food != nil)
+	// Earlier MyGo v2 session scans included cache tokens. Like the original
+	// v1→v2 migration, retain earned growth but plant a fresh food watermark;
+	// the old cache-inclusive ledger cannot be reused with smaller samples.
+	correctSessions := false
+	if migrate && u.Source == "sessions" && g.Food != nil && g.Food.Source == "sessions" && !g.Food.InputOnly {
+		// Original accounting-v2 imports also have no MyGo correction marker.
+		// Rebase only when the same decoded settlement proves the exact old
+		// cache-inclusive amount. A reduced/corrected settlement alone, missing
+		// logs or a source switch must not erase an imported food balance.
+		for key, count := range u.Samples {
+			if previous, ok := g.Food.Seen[key]; ok && count < previous && u.CacheInclusive[key] == previous {
+				correctSessions = true
+				break
+			}
+		}
+	}
+	legacy = legacy || correctSessions
+	first := g.Baseline == nil || legacy
 	baseline := max(int64(0), total-g.TokensFed)
 	if !first {
 		baseline = min(*g.Baseline, total)
 	}
-	delta := max(int64(0), total-g.TokensSeen)
-	food := &Food{Version: 1, Seen: map[string]int64{}}
-	if g.Food == nil {
-		food.Available = max(int64(0), total-baseline-g.TokensFed)
-		for k, n := range samples {
+	inputOnly := u.Source == "sessions" && len(u.Samples) > 0
+	if g.Food != nil && g.Food.InputOnly {
+		inputOnly = true
+	}
+	food := &Food{Version: 1, Source: u.Source, InputOnly: inputOnly, Seen: map[string]int64{}}
+	delta := int64(0)
+	if first || g.Food == nil || (g.Food.Source != "" && g.Food.Source != u.Source) {
+		if !first {
+			food.Available = Available(g)
+		}
+		for k, n := range u.Samples {
 			food.Seen[k] = n
+		}
+		if !first && g.Food == nil {
+			delta = max(int64(0), total-g.TokensSeen)
+			food.Available = max(int64(0), total-baseline-g.TokensFed)
 		}
 	} else {
 		food.Available = g.Food.Available
 		for k, n := range g.Food.Seen {
 			food.Seen[k] = n
 		}
-		delta = 0
-		for k, n := range samples {
-			var err error
+		for k, n := range u.Samples {
 			delta, err = add(delta, max(int64(0), n-food.Seen[k]))
 			if err != nil {
 				return g, err
@@ -250,21 +319,25 @@ func Refresh(g State, samples map[string]int64, now time.Time) (State, error) {
 			return g, err
 		}
 	}
-	day := now.Format("2006-01-02")
-	used := int64(0)
-	if !first {
+	if legacy {
+		g.TokensFed = 0
+		baseline = total
+		food.Available = 0
+	}
+	if u.TodayUsed == nil && !first {
 		if g.Today != nil && g.Today.Day == day {
-			used = g.Today.Used
+			today = g.Today.Used
 		}
-		used, err = add(used, delta)
+		today, err = add(today, delta)
 		if err != nil {
 			return g, err
 		}
 	}
+	g.AccountingVersion = AccountingVersion
 	g.Baseline = &baseline
 	g.TokensSeen = total
 	g.Food = food
-	g.Today = &Day{day, used}
+	g.Today = &Day{day, today}
 	return g, nil
 }
 func Feed(g State, now time.Time) (State, int64, error) {

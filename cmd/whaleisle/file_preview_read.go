@@ -9,10 +9,10 @@ import (
 	"whaleisle/internal/dsh"
 )
 
-// The caller captures the client from the same frame as FileBindingID. Never
-// look up a newly selected Host when a queued text-preview read finally runs.
-func workspacePreviewStat(ctx context.Context, client *dsh.Client, rel string) string {
-	st, err := workspacefs.StatRemote(ctx, client, rel)
+// The caller captures the client and session from the same frame as
+// FileBindingID. Never resolve a newly selected Host or Session on a worker.
+func workspacePreviewStat(ctx context.Context, client *dsh.Client, sessionID, rel string) string {
+	st, err := workspacefs.StatRemoteScoped(ctx, client, sessionID, rel)
 	if err != nil {
 		return ""
 	}

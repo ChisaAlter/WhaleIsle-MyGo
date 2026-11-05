@@ -14,7 +14,8 @@ func TestOpenQuickChatUsesNativeCardCreationAndCleansUpFailure(t *testing.T) {
 	attempts := 0
 	openQuickChatWindow = func(opts mygo.WindowOptions) *mygo.Window {
 		attempts++
-		if opts.Width != 248 || opts.Height != 360 || opts.MinWidth != 248 || opts.MinHeight != 220 {
+		// Installed #pet-chat has content height, not a fixed 360px history wall.
+		if opts.Width != 248 || opts.Height != 166 || opts.MinWidth != 248 || opts.MinHeight != 100 {
 			t.Fatalf("actual creation geometry = %dx%d min %dx%d", opts.Width, opts.Height, opts.MinWidth, opts.MinHeight)
 		}
 		if opts.Parent != p.win || !opts.Frameless || !opts.AlwaysOnTop || !opts.SkipTaskbar || !opts.DisableMinimize || !opts.DisableMaximize || !opts.DisableFullScreen || opts.Content == nil || opts.StateKey != "" {
@@ -56,13 +57,13 @@ func TestQuickChatEnterAndPlacement(t *testing.T) {
 		want motionPoint
 	}{
 		// Roomy: centred on her head, 8px above the sprite.
-		{"above head", mygo.Rectangle{X: -1800, Y: 500, Width: 220, Height: 438}, motionPoint{x: -1814, y: 132}},
+		{"above head", mygo.Rectangle{X: -1800, Y: 500, Width: 220, Height: 438}, motionPoint{x: -1814, y: 500 - quickChatHeight - 8}},
 		// No room above: flipped below the sprite.
 		{"flipped below", mygo.Rectangle{X: -1800, Y: 80, Width: 220, Height: 438}, motionPoint{x: -1814, y: 526}},
 		// Right edge clamp keeps the card 4px inside the work area.
-		{"right clamp", mygo.Rectangle{X: -100, Y: 500, Width: 220, Height: 438}, motionPoint{x: -252, y: 132}},
+		{"right clamp", mygo.Rectangle{X: -100, Y: 500, Width: 220, Height: 438}, motionPoint{x: -252, y: 500 - quickChatHeight - 8}},
 		// Left edge clamp.
-		{"left clamp", mygo.Rectangle{X: -1920, Y: 500, Width: 220, Height: 438}, motionPoint{x: -1916, y: 132}},
+		{"left clamp", mygo.Rectangle{X: -1920, Y: 500, Width: 220, Height: 438}, motionPoint{x: -1916, y: 500 - quickChatHeight - 8}},
 	} {
 		got := quickChatPosition(tc.pet, card, area)
 		if got != tc.want {

@@ -16,6 +16,7 @@ import (
 // WorkspacePanes retains native content occurrences and their split geometry.
 // Files, browsers and terminals own independent state in every leaf.
 type WorkspacePanes struct {
+	focusedResource    string
 	conversation       *mainChildConversation
 	Root               *WorkspacePane `json:"root"`
 	Active             string         `json:"active"`
@@ -33,6 +34,13 @@ type WorkspacePanes struct {
 }
 
 type WorkspacePane struct {
+	refreshResource                    func()
+	ProjectTeam                        *WorkspaceProjectTeamState  `json:"projectTeam,omitempty"`
+	OrdinaryTeam                       *WorkspaceOrdinaryTeamState `json:"ordinaryTeam,omitempty"`
+	PluginRightPaneHandle              string                      `json:"pluginRightPaneHandle,omitempty"`
+	PluginRightPaneLabel               string                      `json:"pluginRightPaneLabel,omitempty"`
+	pluginClose                        func()
+	pluginCloseRequested               bool
 	terminalFresh                      bool
 	terminalFreshBound                 bool
 	terminalFreshGeneration            uint64
@@ -124,10 +132,16 @@ func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) *WorkspacePan
 	tabs := group.dockTabs()
 	for _, tab := range tabs {
 		if tab.Kind == kind {
+			if kind == "files" && tab.Files != nil && (tab.Files.ProjectTarget != nil || tab.Files.ResourcePath != "") {
+				continue
+			}
 			if kind == "changes-review" {
 				transferDockResource(tab, n, kind)
 			}
 			w.activateDockTab(tab.ID)
+			if n.Kind == "guide" && tab != n {
+				w.disposeWorkspaceResource(n.ID)
+			}
 			return tab
 		}
 	}
@@ -140,19 +154,36 @@ func (w *WorkspacePanes) selectKind(n *WorkspacePane, kind string) *WorkspacePan
 		})
 		if existing != nil {
 			w.activateDockTab(existing.ID)
+			if n.Kind == "guide" && existing != n {
+				w.disposeWorkspaceResource(n.ID)
+			}
 			return existing
 		}
 	}
 	added := w.leaf(kind)
 	transferDockResource(added, n, kind)
-	tabs = append(tabs, added)
-	setDockTabs(group, tabs)
+	if n.Kind == "guide" {
+		for i, tab := range tabs {
+			if tab == n {
+				tabs[i] = added
+			}
+		}
+		n.DockTabs, n.DockIndex = nil, 0
+		setDockTabs(added, tabs)
+		w.Root = replaceWorkspaceLeaf(w.Root, n, added)
+		if w.Fullscreen == n.ID {
+			w.Fullscreen = added.ID
+		}
+	} else {
+		tabs = append(tabs, added)
+		setDockTabs(group, tabs)
+	}
 	w.activateDockTab(added.ID)
 	return added
 }
 func (w *WorkspacePanes) syncRoute(kind string) {
 	if kind == "" {
-		kind = "files"
+		kind = "guide"
 	}
 	if w.Root == nil {
 		w.Root = w.leaf(kind)
@@ -210,6 +241,15 @@ func (w *WorkspacePanes) remove(n *WorkspacePane, id string) *WorkspacePane {
 	return n
 }
 func (w *WorkspacePanes) close(id string) bool {
+	if !w.canCloseResource(w.Root.find(id)) {
+		return false
+	}
+	if n := w.Root.find(id); n != nil && n.PluginRightPaneHandle != "" && n.pluginClose != nil {
+		n.pluginCloseRequested = true
+		n.pluginClose()
+		w.message = paneLabel("已请求关闭插件面板；等待原面板确认。", "Plugin close requested; waiting for its owner to confirm.")
+		return false
+	}
 	if n := w.Root.find(id); n != nil && n.Kind == "host-terminal" && n.terminalClose != nil {
 		if n.terminalCloseRequest == nil {
 			n.terminalCloseRequest = n.terminalClose()
@@ -276,7 +316,7 @@ func (w *WorkspacePanes) disposeWorkspaceResource(id string) {
 	}
 	w.closing = ""
 	if w.Root == nil {
-		w.Root = w.leaf("files")
+		w.Root = w.leaf("guide")
 	}
 	if w.Root.find(w.Active) == nil {
 		w.Active = w.Root.firstLeaf().ID
@@ -359,7 +399,7 @@ func workspaceVisible(m Model, kind string) bool {
 	}
 	current := derefString(m.RightPaneTab)
 	if current == "" {
-		current = "files"
+		current = "guide"
 	}
 	return current == kind
 }
@@ -414,7 +454,7 @@ func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 	defer workspaceMiniPlayers(c, m)
 	w.conversationBounds = mygo.Rectangle{}
 	render := func() {
-		dock := ui.Box(c).Key("workspace-dock-drop-surface").Fill().MinWidth(0).MinHeight(0)
+		dock := ui.Box(c).Key("workspace-dock-drop-surface").Label("Workspace resource dock").Fill().MinWidth(0).MinHeight(0)
 		workspaceDockDropBarrier(dock)
 		dock.Children(func() { workspaceDockNode(c, m, w.Root) })
 	}
@@ -427,7 +467,7 @@ func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 			if len(header) > 0 && header[0] != nil {
 				workspaceHeaderBand(c, header[0])
 			}
-			ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Clip().Children(render)
+			ui.Box(c).Grow(1).MinWidth(0).MinHeight(0).Padding(0, max(float32(0), m.RightOverlayReserve), 0, 0).Clip().Children(render)
 		})
 		return
 	}
@@ -438,6 +478,9 @@ func workspaceColumns(c *ui.Context, m Model, center func(), header ...func()) {
 }
 func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
+	if n.Float == nil && n.First == nil {
+		box.FocusBind(&m.Sizes.Workspace.focusedResource, n.ID)
+	}
 	box.Children(func() {
 		if n.First != nil {
 			if n.Ratio == 0 {
@@ -457,6 +500,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 			m.Sizes.Workspace.route = n.Kind
 		}
 		tab := n.Kind
+		n.refreshResource = nil
 		local := workspaceContentModel(m, n)
 		local.RightPaneTab = &tab
 		local.workspacePane = n
@@ -465,7 +509,9 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 		local.FilePaneWidth = &width
 		local.OnHideBrowser = nil // Visibility belongs to the whole layout, not each seat.
 		local.OnOpenBrowserPreview = func() { tab = "browser" }
-		rightPane(c, local)
+		if !paintAuthorizedProjectFile(c, local, n) {
+			rightPane(c, local)
+		}
 		if n.Float == nil {
 			workspaceDockDropTargets(c, local, box)
 		}
@@ -501,9 +547,12 @@ func workspacePaneControls(c *ui.Context, m Model) {
 func workspacePaneClose(m Model, n *WorkspacePane) {
 	w := m.Sizes.Workspace
 	w.pending = func() {
-		last := w.Root.First == nil && len(w.Root.DockTabs) == 0
-		closed := w.close(n.ID)
-		if closed && last && m.OnToggleTools != nil {
+		if !w.close(n.ID) {
+			return
+		}
+		onlyGuide := true
+		w.Root.eachResource(func(tab *WorkspacePane) { onlyGuide = onlyGuide && tab.Kind == "guide" })
+		if onlyGuide && m.RightPaneOpen && m.OnToggleTools != nil {
 			m.OnToggleTools()
 		}
 	}
@@ -533,8 +582,10 @@ func workspacePaneMaximize(m Model, n *WorkspacePane) {
 func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 	w := m.Sizes.Workspace
 	return func(menu *ui.Menu) {
-		workspaceResourceMenu(menu, m)
-		menu.Separator()
+		if n.Kind == "host-terminal" {
+			workspaceTerminalResourceMenu(menu, m, n)
+			menu.Separator()
+		}
 		if menu.Item(paneLabel("选中面板", "Focus pane")).Chosen() {
 			w.pending = func() { w.activateDockTab(n.ID) }
 		}
@@ -548,7 +599,7 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 		if menu.Item(label).Chosen() {
 			workspacePaneMaximize(m, n)
 		}
-		if menu.Item(paneLabel("关闭标签", "Close tab")).Disabled(n.Kind == "project-observer").Chosen() {
+		if menu.Item(paneLabel("关闭标签", "Close tab")).Disabled(!w.canCloseResource(n)).Chosen() {
 			workspacePaneClose(m, n)
 		}
 		menu.Separator()
@@ -563,7 +614,7 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 					local := m
 					tab := n.Kind
 					local.RightPaneTab = &tab
-					SplitWorkspacePane(local, vertical)
+					splitWorkspaceDock(local, vertical)
 				}
 			}
 		}
@@ -572,12 +623,37 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 		}
 	}
 }
+
+func (w *WorkspacePanes) canCloseResource(n *WorkspacePane) bool {
+	if n == nil || n.Kind == "project-observer" {
+		return false
+	}
+	if n.Kind != "guide" || n.Float != nil {
+		return true
+	}
+	docked := 0
+	w.Root.eachResource(func(tab *WorkspacePane) {
+		if tab.Float == nil {
+			docked++
+		}
+	})
+	return docked > 1
+}
 func independentPaneKind(kind string) bool {
 	return kind == "session-inspector-log" || kind == "changes-review" || kind == "subagentchat" || kind == "plan" || kind == "files" || kind == "browser" || kind == "host-terminal" || kind == "schedule-task" || kind == "diff" || kind == "agents"
 }
 
-// SplitWorkspacePane is shared by the pane chrome and editable command registry.
+// SplitWorkspacePane preserves the standalone API's independent-copy contract.
+// Native DockKit controls use splitWorkspaceDock, which creates a Start seat.
 func SplitWorkspacePane(m Model, vertical bool) {
+	splitWorkspacePane(m, vertical, false)
+}
+
+func splitWorkspaceDock(m Model, vertical bool) {
+	splitWorkspacePane(m, vertical, true)
+}
+
+func splitWorkspacePane(m Model, vertical, guide bool) {
 	if vertical || !m.RightPaneOpen || m.Sizes == nil {
 		return
 	}
@@ -586,46 +662,32 @@ func SplitWorkspacePane(m Model, vertical bool) {
 	if !w.canSplit(w.Root.find(w.Active)) {
 		return
 	}
-	kinds := []string{"files", "diff", "agents"}
-	if m.HostTerminalStore != nil {
-		kinds = append(kinds, "host-terminal")
+	// DockKit seeds the new seat with Start. Splitting a pane does not clone
+	// its resource, reader, terminal or draft into a second occurrence.
+	n := w.Root.dockGroup(w.Active)
+	old := *n
+	kind := "guide"
+	if !guide && independentPaneKind(old.Kind) {
+		kind = old.Kind
 	}
-	if m.BrowserContent != nil {
-		kinds = append(kinds, "browser")
-	}
-	duplicate := independentPaneKind(w.Root.find(w.Active).Kind)
-	if duplicate {
-		kinds = []string{w.Root.find(w.Active).Kind}
-	}
-	for _, kind := range kinds {
-		if w.Root.kind(kind) != nil && !duplicate {
-			continue
-		}
-		n := w.Root.find(w.Active)
-		old := *n
-		added := w.leaf(kind)
+	added := w.leaf(kind)
+	if !guide {
 		copySchedulePaneTarget(added, &old)
 		copyDiffPane(added, &old)
 		copyPlanPane(added, &old)
 		copyChangesReviewPane(added, &old)
 		copySessionInspectorPane(added, &old)
 		copySubagentChatPane(added, &old)
-		if kind == "host-terminal" && old.Kind == "host-terminal" {
-			added.TerminalSource = old.ID
-			added.terminalFresh = false
+		if kind == "host-terminal" && old.Kind == kind {
+			added.TerminalSource, added.terminalFresh = old.ID, false
 		}
-		axis := "horizontal"
-		if vertical {
-			axis = "vertical"
-		}
-		*n = WorkspacePane{ID: w.leaf("").ID, Axis: axis, Ratio: 0.5, First: &old, Second: added}
-		w.Active = added.ID
-		w.Fullscreen = ""
-		w.route = kind
-		if m.RightPaneTab != nil {
-			*m.RightPaneTab = kind
-		}
-		return
+	}
+	*n = WorkspacePane{ID: w.leaf("").ID, Axis: "horizontal", Ratio: 0.5, First: &old, Second: added}
+	w.Active = added.ID
+	w.Fullscreen = ""
+	w.route = added.Kind
+	if m.RightPaneTab != nil {
+		*m.RightPaneTab = added.Kind
 	}
 }
 func ToggleWorkspacePaneFullscreen(m Model) {

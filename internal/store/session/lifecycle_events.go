@@ -119,7 +119,19 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 		s.mu.Unlock()
 		return
 	}
-	if mutation.kind == "api-session/deleted" || mutation.kind == "api-session/removed" {
+	// A released continuable child disposes its resident Session after each
+	// turn. Its durable conversation and addressed reader remain available;
+	// only deletion (or removal of a non-child owner) revokes the lease.
+	transientChildRemoval := false
+	if mutation.kind == "api-session/removed" {
+		for _, item := range s.items {
+			if item.SessionID == mutation.sessionID && item.Origin == "subagent" && item.ParentID != "" {
+				transientChildRemoval = true
+				break
+			}
+		}
+	}
+	if mutation.kind == "api-session/deleted" || mutation.kind == "api-session/removed" && !transientChildRemoval {
 		s.cancelRetainedAgentReadsLocked(mutation.sessionID)
 	}
 	if s.listLoading && mutation.kind != "api-session/error" {
@@ -136,9 +148,16 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 	}
 	sessionID, generation := s.selectedID, s.followGeneration
 	changed := s.applyLifecycleMutationLocked(mutation, true)
+	var refreshSkills func()
+	if mutation.kind == "api-session/added" && mutation.item.AgentAvailable {
+		refreshSkills = s.skillAgentAvailableRefreshLocked(owner, mutation.sessionID)
+	}
 	s.mu.Unlock()
 	if changed {
 		s.fire()
+	}
+	if refreshSkills != nil {
+		refreshSkills()
 	}
 	if refreshGoal {
 		go s.runRefreshGoal(owner.ctx, owner.client, sessionID, generation)

@@ -57,6 +57,10 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 		s.mu.Unlock()
 	}
 	if emit.Event == "llm/adapters-updated" {
+		s.mu.Lock()
+		s.providerDirectoryLoaded = false
+		s.providerDirectoryErr = ""
+		s.mu.Unlock()
 		s.InvalidateModelConfigurationCatalog(ctx)
 	}
 	if emit.Event == "credentials/reference-updated" || emit.Event == "credentials/record-updated" {

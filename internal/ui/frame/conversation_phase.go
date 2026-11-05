@@ -58,7 +58,7 @@ const (
 // still unknown settles: the skeleton stands in for Hero until the page lands,
 // so opening a session cannot flash an empty transcript.
 func conversationPhase(snap session.ViewState, interactions bool) conversationLayoutPhase {
-	if len(snap.Messages) > 0 || interactions || snap.PromptBusy || snap.PromptAttempted {
+	if conversationHasTurnContent(snap) || interactions || snap.PromptBusy || snap.PromptAttempted {
 		return conversationActive
 	}
 	for _, item := range snap.Items {
@@ -81,6 +81,13 @@ func conversationPhase(snap session.ViewState, interactions bool) conversationLa
 		return conversationSettling
 	}
 	return conversationHero
+}
+
+// Command audit records are not the first conversational turn. Configuration
+// commands still belong to History/Trajectory, but cannot move a fresh draft
+// out of its welcome surface merely because their run/done events arrived.
+func conversationHasTurnContent(snap session.ViewState) bool {
+	return snap.HasConversationContent()
 }
 
 func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, muted ui.Color) {

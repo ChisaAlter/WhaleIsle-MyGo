@@ -1,8 +1,6 @@
 package projects
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/egoist/mygo/ui"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -45,6 +43,11 @@ func detailView(c *ui.Context, m Model) {
 	if d.Workstream.SummaryFailure != nil {
 		ui.Text(c, tr("成果已保存，Lead 汇总未完成。点击后复核原记录并向原 Lead 发送重新汇总请求。", "Results are saved. This action verifies the records and sends a summary request to the original Lead.")).FontSize(fonttheme.InterfaceSize(12))
 		ui.Text(c, d.Workstream.SummaryFailure.Error.Message).FontSize(fonttheme.InterfaceSize(12))
+		if d.Workstream.SummaryFailure.Error.Code == "MISSING_CREDENTIAL" && m.OnOpenModelSettings != nil {
+			if ui.Button(c, tr("模型设置", "Model settings")).Clicked() {
+				m.OnOpenModelSettings()
+			}
+		}
 		disabled := m.Busy || !m.Listing.Available || m.Team == nil || m.Team.Project.Lifecycle != "ready" || m.Team.Project.Archiving
 		if ui.Button(c, tr("发送重新汇总请求", "Send summary recovery request")).Disabled(disabled).Clicked() && m.OnSummaryRetryDraft != nil {
 			m.OnSummaryRetryDraft()
@@ -79,22 +82,7 @@ func detailView(c *ui.Context, m Model) {
 				if m.Process.Truncated {
 					ui.Text(c, tr("只保留最近400条记录；更早内容可通过历史分页读取。", "Showing the latest 400 records; use earlier history for older content.")).FontSize(fonttheme.InterfaceSize(12))
 				}
-				for _, record := range m.Process.Records {
-					if record.Type != "event" {
-						ui.Text(c, record.Type).FontSize(fonttheme.InterfaceSize(12))
-						continue
-					}
-					ui.Text(c, fmt.Sprintf("%g · %s", record.Event.Seq, record.Event.Type)).FontSize(fonttheme.InterfaceSize(12))
-					var content any
-					var body string
-					if json.Unmarshal(record.Event.Data, &content) == nil {
-						pretty, _ := json.MarshalIndent(content, "", "  ")
-						body = string(pretty)
-					} else {
-						body = string(record.Event.Data)
-					}
-					ui.Text(c, body).FontSize(fonttheme.InterfaceSize(12))
-				}
+				projectProcessRecords(c, m, "live/"+d.Workstream.ID+"/"+d.Workstream.CurrentDelegationRef, m.Process.Records)
 				if m.Process.HasMore && ui.Button(c, tr("查看更早记录（停止实时跟进）", "Earlier history (stop live follow)")).Disabled(m.Busy).Clicked() && m.OnProcess != nil {
 					m.OnProcess(true)
 				}

@@ -43,7 +43,7 @@ type Model struct {
 	OnCopyUsageURL func(url string)
 	OnCopyTopUpURL func(url string)
 	OnCopyBalance  func(text string)
-	// Preferences paints the Host-owned rows behind the embedded page's 设置 button.
+	// Preferences paints the original settingsRows below the toolbar and above statistics.
 	Preferences func(c *ui.Context, fg, muted ui.Color)
 }
 
@@ -71,18 +71,20 @@ func View(c *ui.Context, m Model) {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, usageChartIcon).Size(16, 16).TextColor(fg)
 				ui.Text(c, i18n.T(settingsPass4UsageTitle)).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(fg).Grow(1)
-				if snap.Loading {
-					ui.Text(c, i18n.T(i18n.KeyUsageLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				}
 				// The reference keeps export and refresh next to the title. Export
 				// is a real action once the Host supplies it; the range dialog the
 				// reference's gear opens does not exist in this build, so no second
 				// dead button is drawn.
 				if m.OnExportStats != nil {
-					if widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-						m.OnExportStats("json")
-					}
+					widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Menu(func(menu *ui.Menu) {
+						for _, format := range []struct{ id, zh, en string }{{"json", "导出 JSON", "Export JSON"}, {"days", "导出每日 CSV", "Export daily CSV"}, {"models", "导出模型 CSV", "Export model CSV"}} {
+							if menu.Item(usageText(format.zh, format.en)).Chosen() {
+								m.OnExportStats(format.id)
+							}
+						}
+					})
 				}
+				pricingView(c, m, fg, muted, accent)
 				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.Store.RefreshStats(context.Background(), true)
 					if m.OnRefresh != nil {
@@ -97,6 +99,10 @@ func View(c *ui.Context, m Model) {
 			})
 			if at := m.Store.Stats().UpdatedAt; at > 0 {
 				ui.Text(c, usageUpdatedLabel(at)).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			}
+			if overview := m.Store.Stats().Overview; overview != nil {
+				label, source := usageSourceLabel(overview)
+				ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted).Tooltip(source)
 			}
 		})
 		ui.Box(c).Fill().Height(1).Background(border)

@@ -155,6 +155,9 @@ func mathAtoms(spans []ui.Span, st Style, targets map[int]string, offset int, im
 				continue
 			}
 			label := "Rendering equation offline…"
+			if _, exists := images[formula]; !exists && len(images) >= 64 {
+				label = "Equation kept as TeX: per-view rendering budget reached"
+			}
 			if image.err != nil {
 				label = "Equation kept as TeX: " + image.err.Error()
 			}

@@ -15,9 +15,17 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 	ui.Column(c.Key("inspector-details-panel")).Height(available * p.inspectorDetailsPercent() / 100).Shrink(0).MinHeight(0).FillWidth().FontSize(11).TextColor(ink).Children(func() {
 		inspectorDetailsDivider(c, p, available)
 		ui.Row(c.Key("inspector-details-toolbar")).FillWidth().Gap(8).Padding(6, 8).AlignItems(ui.Center).BorderWidth(0, 0, .5, 0).BorderColor(border).Children(func() {
-			inspectorText(c, paneLabel("原始数据", "Raw data")).Grow(1)
+			title := paneLabel("原始数据", "Raw data")
+			if p.Mode == "chat-node" {
+				title = object.Label + " · " + object.Identity
+			}
+			inspectorText(c, title).Grow(1)
 			// Retain the native copy command as a small secondary action.
-			copy := inspectorButton(c, paneLabel("复制原始 JSON", "Copy raw JSON")).Tooltip(paneLabel("复制原始 JSON", "Copy raw JSON")).Size(16, 16).Disabled(object.Missing)
+			copyHint := paneLabel("复制原始 JSON", "Copy raw JSON")
+			if object.JSONError != "" {
+				copyHint = paneLabel("无法导出 JSON：", "JSON export unavailable: ") + object.JSONError
+			}
+			copy := inspectorButton(c, paneLabel("复制原始 JSON", "Copy raw JSON")).Tooltip(copyHint).Size(16, 16).Disabled(object.Missing || object.JSONError != "")
 			copy.Children(func() { ui.Icon(c, inspectorCopyIcon).Size(13, 13).TextColor(ink) })
 			if copy.Clicked() {
 				mygo.Clipboard.WriteText(string(object.Raw))
@@ -42,7 +50,7 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 						}
 						label := path
 						if next, ok := objects[path]; ok {
-							label = next.Label
+							label = next.Label + " · " + next.Identity
 						}
 						current := i == len(p.breadcrumb)-1
 						button := inspectorButton(c, label).Tooltip(label).MaxWidth(180).Disabled(current)
@@ -56,16 +64,8 @@ func inspectorDetails(c *ui.Context, p *SessionInspectorPaneState, object inspec
 						}
 					}
 				})
-				for _, link := range object.Links {
-					if next, ok := objects[link]; ok {
-						label := "↗ " + next.Label
-						button := inspectorButton(c, label).Margin(0, 0, 4, 0)
-						button.Children(func() { inspectorText(c, label).TextColor(chrome.Color(colors.Accent)) })
-						if button.Clicked() {
-							p.followInspectorReference(link, rows)
-						}
-					}
-				}
+				inspectorTypedTree(c, &p.objectTree, object, objects, func(key string) { p.followInspectorReference(key, rows) }, colors)
+				return
 			}
 			inspectorJSONTree(c, &p.tree, object.Raw, colors)
 		})

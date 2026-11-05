@@ -104,6 +104,7 @@ func (p *SessionInspectorPaneState) cancelInspectorNavigation() {
 	p.navigation.CancelReveal()
 	p.navigation.Notice = ""
 	p.pendingPick, p.pendingPickBinding = nil, ""
+	p.objects = nil
 }
 
 func (p *SessionInspectorPaneState) toggleInspectorPicking() {
@@ -122,6 +123,7 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 		p.pendingPick, p.pendingPickBinding = pending, owner
 	}
 	p.binding = binding
+	p.objects, p.dismissedHistoryError = nil, ""
 	p.filterOpen, p.detailsDragging = false, false
 	p.filterActive = -1
 	p.filterList = ui.ListState{}
@@ -137,6 +139,7 @@ func (p *SessionInspectorPaneState) selectInspectorRow(row session.InspectorReco
 	p.selected = row.Key
 	p.breadcrumb = []string{row.Key}
 	p.tree = inspectorJSONTreeState{}
+	p.objectTree = inspectorObjectTreeState{}
 	p.locateInspectorChat(row)
 }
 
@@ -148,7 +151,7 @@ func (p *SessionInspectorPaneState) locateInspectorChat(row session.InspectorRec
 	if target.AnchorSeq == nil && row.Seq > 0 {
 		target.Seq = row.Seq
 	}
-	if strings.HasPrefix(row.Key, "chat:") {
+	if strings.HasPrefix(row.Key, "chat:") && target.ID == "" && target.GroupKey == "" {
 		target.ID = strings.TrimPrefix(row.Key, "chat:")
 	}
 	p.navigation.Target = &target
@@ -230,6 +233,7 @@ func (p *SessionInspectorPaneState) consumeInspectorPick(rows []session.Inspecto
 	p.revealInspectorRow(key, rows)
 	p.breadcrumb = []string{key}
 	p.tree = inspectorJSONTreeState{}
+	p.objectTree = inspectorObjectTreeState{}
 	p.navigation.CancelPicking()
 	p.navigation.Target = nil
 }
@@ -246,7 +250,24 @@ func (p *SessionInspectorPaneState) backInspectorReference(index int, rows []ses
 
 func (p *SessionInspectorPaneState) revealInspectorReference(key string, rows []session.InspectorRecord) {
 	p.tree = inspectorJSONTreeState{}
+	p.objectTree = inspectorObjectTreeState{}
 	p.navigation.Target = nil
+	if object, ok := p.objects[key]; ok {
+		rowKey := object.RowKey
+		if !inspectorContainsRow(rows, rowKey) {
+			if p.Mode == "chat-node" {
+				rowKey = inspectorPickChatRecord(rows, object.Target)
+			} else {
+				rowKey = inspectorPickLogRecord(rows, object.Target)
+			}
+		}
+		if rowKey != "" {
+			p.revealInspectorRow(rowKey, rows)
+		}
+		target := object.Target
+		p.navigation.Target = &target
+		return
+	}
 	if !p.revealInspectorRow(key, rows) {
 		return
 	}
@@ -262,6 +283,7 @@ func (p *SessionInspectorPaneState) closeInspectorDetails() {
 	p.selected = ""
 	p.breadcrumb = nil
 	p.tree = inspectorJSONTreeState{}
+	p.objectTree = inspectorObjectTreeState{}
 	p.detailsPercent = 0
 	p.detailsDragging = false
 }

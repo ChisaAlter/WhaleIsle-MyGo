@@ -7,37 +7,72 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 )
 
-var stableVersion = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var semanticVersion = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$`)
 
-// CompareStableVersions deliberately leaves prereleases, tags, and incomplete
-// versions unknown rather than guessing that a different version is newer.
+// CompareStableVersions retains its public entry point and now compares complete
+// semver, including prereleases. Build metadata does not affect precedence.
 func CompareStableVersions(current, latest string) (int, bool) {
-	if !stableVersion.MatchString(current) || !stableVersion.MatchString(latest) {
+	a, b := semanticVersion.FindStringSubmatch(current), semanticVersion.FindStringSubmatch(latest)
+	if a == nil || b == nil || !validPrerelease(a[4]) || !validPrerelease(b[4]) {
 		return 0, false
 	}
-	a, b := strings.Split(current, "."), strings.Split(latest, ".")
-	result := 0
-	for i := range a {
-		x, e := strconv.ParseUint(a[i], 10, 64)
-		y, f := strconv.ParseUint(b[i], 10, 64)
-		if e != nil || f != nil {
-			return 0, false
+	numeric := func(x, y string) int {
+		x, y = strings.TrimLeft(x, "0"), strings.TrimLeft(y, "0")
+		if len(x) < len(y) {
+			return -1
 		}
-		if result == 0 {
-			if x < y {
-				result = -1
-			}
-			if x > y {
-				result = 1
-			}
+		if len(x) > len(y) {
+			return 1
+		}
+		return strings.Compare(x, y)
+	}
+	for i := 1; i <= 3; i++ {
+		if n := numeric(a[i], b[i]); n != 0 {
+			return n, true
 		}
 	}
-	return result, true
+	if a[4] == "" || b[4] == "" {
+		if a[4] == b[4] {
+			return 0, true
+		}
+		if a[4] == "" {
+			return 1, true
+		}
+		return -1, true
+	}
+	x, y := strings.Split(a[4], "."), strings.Split(b[4], ".")
+	for i := 0; i < max(len(x), len(y)); i++ {
+		if i >= len(x) {
+			return -1, true
+		}
+		if i >= len(y) {
+			return 1, true
+		}
+		if x[i] == "" || y[i] == "" {
+			return 0, false
+		}
+		xn, yn := strings.Trim(x[i], "0123456789") == "", strings.Trim(y[i], "0123456789") == ""
+		var n int
+		if xn && yn {
+			n = numeric(x[i], y[i])
+		} else if xn != yn {
+			if xn {
+				n = -1
+			} else {
+				n = 1
+			}
+		} else {
+			n = strings.Compare(x[i], y[i])
+		}
+		if n != 0 {
+			return n, true
+		}
+	}
+	return 0, true
 }
 
 // Match the reviewed catalog value by content, including copied screenshots.
@@ -71,7 +106,19 @@ func (s *Service) LatestVersion(ctx context.Context, item CatalogItem) (string, 
 		return "", errors.New("Invalid package version metadata")
 	}
 	if _, ok := CompareStableVersions(metadata.Version, metadata.Version); !ok {
-		return "", errors.New("No comparable stable version")
+		return "", errors.New("No comparable semantic version")
 	}
 	return metadata.Version, nil
+}
+
+func validPrerelease(value string) bool {
+	if value == "" {
+		return true
+	}
+	for _, part := range strings.Split(value, ".") {
+		if part == "" || len(part) > 1 && part[0] == '0' && strings.Trim(part, "0123456789") == "" {
+			return false
+		}
+	}
+	return true
 }

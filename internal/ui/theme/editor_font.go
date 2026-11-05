@@ -86,6 +86,7 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 	switch role {
 	case "text":
 		next.Chat.Size, draft.Chat.Size = size, size
+		next.Composer.Size, draft.Composer.Size = size, size
 	case "code":
 		next.Code.Size, draft.Code.Size = size, size
 	case "terminal":
@@ -93,6 +94,34 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 	default:
 		return false
 	}
+	if !e.saveFontField(next, draft) {
+		return false
+	}
+	if e.FlushWrites != nil {
+		e.FlushWrites()
+	}
+	return true
+}
+
+// AdjustFontSizes is the installed font shortcut: text, code and terminal move
+// together within their own ranges, in one write. Interface scale is separate.
+func (e *Editor) AdjustFontSizes(delta int) bool {
+	next, draft := e.writeBaseline(), e.Draft.Clone()
+	changed := false
+	for _, role := range []struct {
+		accepted, edit *FontPreference
+		max            float32
+	}{{&next.Chat, &draft.Chat, 22}, {&next.Code, &draft.Code, 20}, {&next.Terminal, &draft.Terminal, 20}} {
+		size := min(role.max, max(float32(10), role.accepted.Size+float32(delta)))
+		if size != role.accepted.Size {
+			role.accepted.Size, role.edit.Size = size, size
+			changed = true
+		}
+	}
+	if !changed {
+		return true
+	}
+	next.Composer.Size, draft.Composer.Size = next.Chat.Size, next.Chat.Size
 	if !e.saveFontField(next, draft) {
 		return false
 	}

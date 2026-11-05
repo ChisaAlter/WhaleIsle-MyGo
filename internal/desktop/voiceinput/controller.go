@@ -4,6 +4,8 @@ package voiceinput
 
 import (
 	"context"
+	"errors"
+	"math"
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/voicecapture"
@@ -11,6 +13,11 @@ import (
 )
 
 type Transcribe func(context.Context, []byte) (string, error)
+
+// ErrNoSpeech distinguishes an empty recognition result from a provider failure.
+// The controller translates this known outcome without exposing remote errors.
+var ErrNoSpeech = errors.New("no speech recognized")
+
 type Options struct {
 	Prepare  func(context.Context) (voicecapture.Limits, Transcribe, error)
 	Capture  func(context.Context, voicecapture.Limits) (voicecapture.Capture, error)
@@ -19,7 +26,10 @@ type Options struct {
 	Insert   func(string) bool
 	Changed  func()
 }
-type Status struct{ Phase, Message, Pending string }
+type Status struct {
+	Phase, Message, Pending string
+	Level                   float64
+}
 
 func (s Status) Busy() bool {
 	return s.Phase == "requesting" || s.Phase == "recording" || s.Phase == "transcribing"
@@ -37,8 +47,19 @@ type Controller struct {
 	ctx        context.Context
 }
 
-func New(o Options) *Controller        { return &Controller{opts: o} }
-func (c *Controller) Snapshot() Status { c.mu.Lock(); defer c.mu.Unlock(); return c.status }
+func New(o Options) *Controller { return &Controller{opts: o} }
+func (c *Controller) Snapshot() Status {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	s := c.status
+	if live, ok := c.capture.(voicecapture.LiveCapture); ok && s.Phase == "recording" {
+		rms := live.Level()
+		if rms > 0 {
+			s.Level = max(0, min(1, (20*math.Log10(rms)+60)/60))
+		}
+	}
+	return s
+}
 func (c *Controller) notify() {
 	if c.opts.Changed != nil {
 		c.opts.Changed()
@@ -71,7 +92,7 @@ func (c *Controller) Start() {
 		}
 		capture, err := c.opts.Capture(ctx, limits)
 		if err != nil {
-			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputMicrophoneUnavailable))
+			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputMicrophoneUnavailable)+": "+err.Error())
 			return
 		}
 		c.mu.Lock()
@@ -86,6 +107,9 @@ func (c *Controller) Start() {
 		c.timer = time.AfterFunc(limits.MaxDuration, func() { c.stop(serial) })
 		c.mu.Unlock()
 		c.notify()
+		if live, ok := capture.(voicecapture.LiveCapture); ok {
+			go func() { <-live.Done(); c.stop(serial) }()
+		}
 	}()
 }
 func (c *Controller) Stop() { c.mu.Lock(); serial := c.serial; c.mu.Unlock(); c.stop(serial) }
@@ -108,7 +132,7 @@ func (c *Controller) stop(serial uint64) {
 		defer capture.Cancel()
 		raw, err := capture.Stop()
 		if err != nil {
-			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputRecordingFailed))
+			c.complete(serial, "", storelocale.T(storelocale.KeyDesktopVoiceinputRecordingFailed)+": "+err.Error())
 			return
 		}
 		defer clear(raw)
@@ -118,7 +142,15 @@ func (c *Controller) stop(serial uint64) {
 		}
 		text, err := transcribe(ctx, raw)
 		if err != nil {
-			c.complete(serial, "", storelocale.T(storelocale.KeyStoreSessionTranscriptionFailed))
+			message := storelocale.T(storelocale.KeyStoreSessionTranscriptionFailed)
+			if errors.Is(err, ErrNoSpeech) {
+				message = storelocale.T(storelocale.KeyStoreSessionNoSpeechRecognized)
+			}
+			c.complete(serial, "", message)
+			return
+		}
+		if text == "" {
+			c.complete(serial, "", storelocale.T(storelocale.KeyStoreSessionNoSpeechRecognized))
 			return
 		}
 		c.complete(serial, text, "")

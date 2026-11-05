@@ -132,8 +132,11 @@ export async function buildCatalog(config) {
       if (app.version !== version) throw Error('macOS application version does not match catalog');
       runtime = {runtimeIncluded: app.runtimeIncluded, ...(app.runtimeIncluded ? {hostSourceCommit: app.hostSourceCommit, hostReadinessGuard: app.hostReadinessGuard} : {})};
     } else runtime = await inspectWindows(stage, installer, arch);
+    const publishedAt = spec.publishedAt ? String(spec.publishedAt) : new Date().toISOString();
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(publishedAt) || !Number.isFinite(Date.parse(publishedAt))) throw Error('publishedAt must be an ISO release timestamp');
     const release = {version, tag, ...downloadURLs(spec, installer, tag), sha256: await hash(installer), size: stat.size,
-      notes: String(spec.notes || ''), platform, arch, format, prerelease: spec.prerelease === true, ...runtime, packageKind: 'full'};
+      publishedAt, notes: String(spec.notes || ''), notesZH: String(spec.notesZH || ''), notesEN: String(spec.notesEN || ''),
+      platform, arch, format, prerelease: spec.prerelease === true, ...runtime, packageKind: 'full'};
     release.packageID = fullID(release);
     emitted.push(release);
     for (const input of spec.deltaBases || []) {

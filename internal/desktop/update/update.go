@@ -135,7 +135,7 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 	}
 	client := opt.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 12 * time.Second}
+		client = &http.Client{Timeout: 12 * time.Second, Transport: updateTransport()}
 	} else {
 		clone := *client
 		client = &clone

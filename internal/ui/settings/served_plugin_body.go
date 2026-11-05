@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/egoist/mygo/ui"
 	"strings"
+	desktopwebview "whaleisle/internal/desktop/webview"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -86,15 +87,40 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 				if f.Key == key {
 					f.Label = providerCopy(zh, en)
 					f.Description = hint
-					servedScalar(c, b, state, f, fg, muted)
+					render := func() { servedScalar(c, b, state, f, fg, muted) }
+					if namespace == "subagent" && (key == "maxDepth" || key == "maxActiveSubagents") {
+						label := providerCopy("最大递归深度说明", "About maximum recursion depth")
+						if key == "maxActiveSubagents" {
+							label = providerCopy("子智能体并行数量上限说明", "About the Subagent parallelism limit")
+						}
+						withRowHelp(rowHelp{key: "subagent-help-" + key, label: label, body: func() {
+							paragraph := func(zh, en string) {
+								ui.Text(c, providerCopy(zh, en)).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(fg)
+							}
+							if key == "maxDepth" {
+								paragraph("限制 Agent 创建子智能体的递归层级。", "Limits how many levels of Subagents an Agent can create.")
+								for _, row := range [][3]string{{"0", "禁用子智能体", "Disable Subagents"}, {"1", "仅允许主 Agent 创建子智能体", "Only the main Agent can create Subagents"}} {
+									ui.Row(c).FillWidth().Gap(12).Padding(6, 0).Children(func() {
+										ui.Text(c, row[0]).Width(20).Bold()
+										ui.Text(c, providerCopy(row[1], row[2])).Grow(1).MinWidth(0)
+									})
+								}
+								paragraph("如果某个工具单独设置了最大递归深度，以该工具的设置为准。", "If a tool defines its own maximum recursion depth, that setting takes precedence.")
+							} else {
+								paragraph("同一主 Agent 下，所有递归层级同时存活的子智能体总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。", "Total live Subagents under the same main Agent, across all recursion levels. The main Agent is excluded. New start requests are rejected when the limit is reached.")
+							}
+						}}, render)
+					} else {
+						render()
+					}
 					return
 				}
 			}
 		}
 		switch key {
 		case "subagent":
-			field("subagent", "maxDepth", "最大嵌套深度", "Maximum nesting depth", providerCopy("0 禁止委派；留空继承默认值。", "0 disables delegation; blank inherits the default."))
-			field("subagent", "maxActiveSubagents", "最多活动子代理", "Maximum active subagents", providerCopy("至少为 1；留空继承默认值。", "At least 1; blank inherits the default."))
+			field("subagent", "maxDepth", "最大递归深度", "Maximum recursion depth", providerCopy("0 禁止委派；留空继承默认值。", "0 disables delegation; blank inherits the default."))
+			field("subagent", "maxActiveSubagents", "子智能体并行数量上限", "Subagent parallelism limit", providerCopy("至少为 1；留空继承默认值。", "At least 1; blank inherits the default."))
 			if state, ok := states["subagent-model-selection-settings"]; ok {
 				b := m.Store.BindNamespace(state.SelectedNS)
 				field(state.SelectedNS, "enabled", "允许代理选择模型", "Let agents choose models", providerCopy("关闭时子代理继承父代理模型。", "When disabled, subagents inherit the parent's model."))
@@ -126,6 +152,12 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 						}
 					}
 				})
+				if ui.Button(c, providerCopy("搜索与抓取接口指南", "Search & Fetch guide")).Clicked() {
+					target := providerCopy("https://api-docs.deepseek.com/zh-cn/guides/search", "https://api-docs.deepseek.com/guides/search")
+					if err := desktopwebview.OpenExternal(target); err != nil {
+						c.AddToast(ui.Toast{ID: "web-search-guide", Title: err.Error(), Type: "error"})
+					}
+				}
 			}
 			ns := "web-search-deepseek"
 			if useAPI {

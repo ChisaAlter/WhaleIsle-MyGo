@@ -160,6 +160,20 @@ func (c *Cache) Ensure(rawURL string, done func()) {
 	}()
 }
 
+// Retry is an explicit user refresh, not a repaint retry loop. Ready images and
+// an in-flight download stay shared; only a failed entry is released.
+func (c *Cache) Retry(rawURL string, done func()) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	if e := c.entries[rawURL]; e != nil && e.status == StatusError {
+		delete(c.entries, rawURL)
+	}
+	c.mu.Unlock()
+	c.Ensure(rawURL, done)
+}
+
 // Fetch downloads rawURL into the cache directory and returns the local path.
 func (c *Cache) Fetch(ctx context.Context, rawURL string) (string, error) {
 	rawURL = strings.TrimSpace(rawURL)

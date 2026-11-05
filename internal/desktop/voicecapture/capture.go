@@ -8,7 +8,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,6 +48,29 @@ type Capture interface {
 	Stop() ([]byte, error)
 	Cancel()
 }
+
+// LiveCapture exposes actual input amplitude and native completion without
+// changing the existing Stop/Cancel acquisition contract.
+type LiveCapture interface {
+	Capture
+	Level() float64
+	Done() <-chan struct{}
+}
+
+func pcmLevel(pcm []byte) float64 {
+	var sum float64
+	n := len(pcm) / 2
+	for i := 0; i < n; i++ {
+		x := float64(int16(binary.LittleEndian.Uint16(pcm[i*2:]))) / 32768
+		sum += x * x
+	}
+	if n == 0 {
+		return 0
+	}
+	return math.Sqrt(sum / float64(n))
+}
+func (c *recording) Level() float64        { return math.Float64frombits(c.level.Load()) }
+func (c *recording) Done() <-chan struct{} { return c.done }
 
 func boundedLimits(limits Limits) (int, time.Duration, error) {
 	if limits.MaxBytes < wavHeaderBytes+blockAlign || limits.MaxDuration <= 0 {
@@ -93,6 +118,7 @@ func encodeWAV(pcm []byte) ([]byte, error) {
 }
 
 type recording struct {
+	level      atomic.Uint64
 	ctx        context.Context
 	stop       chan struct{}
 	cancel     chan struct{}
@@ -169,6 +195,7 @@ func (c *recording) finish(pcm []byte, err error) {
 		c.pcm = pcm
 	}
 	c.err = err
+	c.level.Store(0)
 	c.mu.Unlock()
 	close(c.done)
 }

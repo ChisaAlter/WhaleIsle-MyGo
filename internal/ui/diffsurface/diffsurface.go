@@ -106,15 +106,21 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
 		ui.Row(c).MinHeight(36).Padding(8, 12, 8, 12).Gap(8).FillWidth().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
-			if m.Text != nil && strings.TrimSpace(*m.Text) != "" {
+			if strings.TrimSpace(m.WorkspaceRoot) != "" && m.Text != nil && strings.TrimSpace(*m.Text) != "" {
 				if widgets.Button(c, colors, i18n.T(i18n.KeyChatCopy), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					mygo.Clipboard.WriteText(*m.Text)
 				}
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeyDiffRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyDiffRefresh), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(strings.TrimSpace(m.WorkspaceRoot) == "").Clicked() {
 				refreshWorkbench(m)
 			}
 		})
+		// An unselected workspace is not the process working directory. Do not
+		// probe Git or expose repository mutations before this guard.
+		if strings.TrimSpace(m.WorkspaceRoot) == "" {
+			ui.Text(c, i18n.T(i18n.KeyDiffNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
+			return
+		}
 		paintWorkbench(c, m, fg, muted)
 		paintDiffControls(c, m)
 		scope := ""
@@ -126,13 +132,6 @@ func View(c *ui.Context, m Model) {
 		}
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
 
-		root := strings.TrimSpace(m.WorkspaceRoot)
-		if root == "" {
-			ui.Text(c, i18n.T(i18n.KeyDiffNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
-				Padding(12, 12, 12, 12)
-			return
-		}
-
 		errMsg := ""
 		if m.ErrMsg != nil {
 			errMsg = *m.ErrMsg
@@ -141,7 +140,7 @@ func View(c *ui.Context, m Model) {
 		if m.Text != nil {
 			text = *m.Text
 		}
-		if m.Workbench != nil && m.Workbench.Commit != nil && m.Workbench.Commit.Plan != nil {
+		if m.Workbench != nil && m.Workbench.CommitOpen && m.Workbench.Commit != nil && m.Workbench.Commit.Plan != nil {
 			text = m.Workbench.Commit.Plan.Patch
 			errMsg = ""
 		}

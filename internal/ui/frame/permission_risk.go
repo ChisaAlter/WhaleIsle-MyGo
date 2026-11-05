@@ -20,9 +20,9 @@ func permissionRiskConfirmation(c *ui.Context, m Model) {
 	description := archiveText("启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。", "Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.")
 	action := archiveText("启用完全权限", "Enable Full access")
 	if request.Value == session.PermissionAutoReview {
-		title = archiveText("确认启用 Auto review（实验）？", "Enable Auto review (experimental)?")
-		description = archiveText("Auto review 不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前 agent 相同的模型进行审查；审查拒绝的调用由你批准或拒绝。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。", "Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it; you approve or reject each call it denies. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.")
-		action = archiveText("启用 Auto review", "Enable Auto review")
+		title = archiveText("确认启用自动审查（实验）？", "Enable Auto review (experimental)?")
+		description = archiveText("自动审查不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前智能体相同的模型进行审查；审查拒绝的调用由你批准或拒绝。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。", "Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it; you approve or reject each call it denies. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.")
+		action = archiveText("启用自动审查", "Enable Auto review")
 	}
 	permissionRiskDialog(c, colors, request.Token, title, description, request.SessionID, action, request.Acknowledged,
 		func(acknowledged bool) { m.Store.AcknowledgePermissionRisk(request.Token, acknowledged) },
@@ -44,7 +44,6 @@ func permissionRiskDialog(c *ui.Context, colors theme.Colors, token uint64, titl
 			})
 			ui.Column(c).Gap(14).Children(func() {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, sessionID).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
 				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).LineHeight(1.5)
 				ui.Checkbox(c, ack, archiveText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue"))
 				if *ack != acknowledged {

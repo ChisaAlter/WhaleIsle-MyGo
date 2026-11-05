@@ -113,13 +113,16 @@ func (c *Client) Call(ctx context.Context, prefix, method string, payload any, o
 	if err := json.Unmarshal(raw, &sr); err != nil {
 		return fmt.Errorf("pluginrpc: decode response: %w", err)
 	}
+	if sr.Type != "server-response" || sr.RPCID != rpcID {
+		return fmt.Errorf("pluginrpc: response identity does not match the request")
+	}
 	var re resultEnvelope
 	if err := json.Unmarshal(sr.Result, &re); err != nil {
 		return fmt.Errorf("pluginrpc: decode result: %w", err)
 	}
 	if !re.OK {
 		if re.Error != nil {
-			return fmt.Errorf("pluginrpc: %s: %s", re.Error.Code, re.Error.Message)
+			return &RPCError{Code: re.Error.Code, Message: re.Error.Message}
 		}
 		return fmt.Errorf("pluginrpc: call failed")
 	}

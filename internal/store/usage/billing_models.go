@@ -47,9 +47,14 @@ func (s *Store) SelectBillingModel(provider, model string) {
 	}
 	s.billing.NewKey = key
 	if _, exists := s.billing.Drafts[key]; !exists {
-		// The directory supplies identifiers, never prices. New rates remain
-		// blank until entered; zero and vendor defaults are not fabricated.
-		s.billing.Drafts[key] = PriceDraft{}
+		draft := PriceDraft{}
+		if price, ok := resolveModelPrice(provider, model, s.billing.Settings.Prices); ok {
+			draft.Peak, draft.Flat = draftRates(price.PriceRates), price.Flat
+			if price.Idle != nil {
+				draft.Idle = draftRates(*price.Idle)
+			}
+		}
+		s.billing.Drafts[key] = draft
 		s.billing.Dirty = true
 	}
 	s.billing.Err = ""

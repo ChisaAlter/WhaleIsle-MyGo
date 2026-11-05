@@ -67,13 +67,21 @@ func TestPetLookSelectionContract(t *testing.T) {
 			t.Fatal("unavailable selection committed")
 		}
 	}
-	for _, route := range []petlook.Route{{Model: "image"}, {Provider: "chosen"}, {Provider: "missing", Model: "image"}, {Provider: "chosen", Model: "text"}} {
+	for _, route := range []petlook.Route{{Provider: "chosen"}, {Provider: "missing", Model: "image"}, {Provider: "chosen", Model: "text"}} {
 		if petlook.Resolve(route.Provider, route.Model, cat) || p.SaveLookRoute(route.Provider, route.Model, cat) {
 			t.Fatalf("invalid route admitted: %+v", route)
 		}
 	}
 	if p.Behavior.LookProvider != "chosen" || s.DesktopPet().Behavior.LookProvider != "chosen" {
 		t.Fatal("failure lost saved route")
+	}
+	// Installed desktop-live2d lookAvailable depends on model, not provider.
+	// A model-only route is explicit legacy routing, never a catalog fallback.
+	if petlook.Resolve("", "image", cat) || !p.SaveLookRoute("", "image", petlook.Catalog{}) || s.DesktopPet().Behavior.LookProvider != "" || s.DesktopPet().Behavior.LookModel != "image" {
+		t.Fatal("explicit legacy model-only route lost")
+	}
+	if !p.SaveLookRoute("chosen", "image", cat) {
+		t.Fatal(p.Error)
 	}
 	// A route edit invalidates a pending capture. Even if a late frame reaches
 	// the sender, it cannot use the former context or silently choose the new one.

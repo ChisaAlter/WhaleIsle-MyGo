@@ -112,10 +112,16 @@ func deliveryRecordView(c *ui.Context, m Model, d projectflow.HistoricalDelivery
 				}
 			}
 			for _, ref := range d.TerminalRefs {
-				ui.Text(c, tr("原结算身份：", "Recorded settlement: ")+ref.WorkstreamID+" · "+ref.DelegationRef+" · "+ref.RunID).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+				ref := ref
+				if ui.Button(c, tr("定位原执行：", "Locate recorded execution: ")+ref.WorkstreamID+" · "+ref.DelegationRef+" · "+ref.RunID).FillWidth().Disabled(m.Busy || m.OnDeliveryTerminal == nil).Clicked() {
+					m.OnDeliveryTerminal(ref)
+				}
 			}
 			for _, file := range d.Artifacts {
-				ui.Text(c, tr("引用文件：", "Referenced file: ")+file.Path+"\n"+file.WorkstreamID+" · "+file.DelegationRef).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+				file := file
+				if ui.Button(c, tr("打开引用文件：", "Open referenced file: ")+file.Path).FillWidth().Disabled(m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
+					m.OnDeliveryFile(file, m.OnOpenAuthorizedFile)
+				}
 			}
 			renderVisualPages(c, m, "delivery:"+d.ID, d.Pages)
 			if len(d.Error) > 0 && string(d.Error) != "null" {
@@ -164,7 +170,10 @@ func deliveryEvidenceView(c *ui.Context, m Model) {
 				}
 			}
 			for _, file := range r.Artifacts {
-				ui.Text(c, tr("原报告文件：", "Recorded artifact: ")+file.Path).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+				file := file
+				if ui.Button(c, tr("打开原报告文件：", "Open recorded artifact: ")+file.Path).FillWidth().Disabled(m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
+					m.OnDeliveryFile(file, m.OnOpenAuthorizedFile)
+				}
 			}
 		})
 	})

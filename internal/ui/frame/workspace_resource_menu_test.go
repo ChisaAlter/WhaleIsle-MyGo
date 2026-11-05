@@ -25,6 +25,7 @@ func TestWorkspaceResourceMenuRetainsRoutesAndBrowserCallback(t *testing.T) {
 		})
 	}, 400, 100)
 	for _, item := range []struct{ kind, label string }{
+		{"team", "Team"},
 		{"diff", i18n.T(i18n.KeyRightPaneDiff)}, {"agents", i18n.T(i18n.KeyRightPaneAgents)}, {"files", i18n.T(i18n.KeyRightPaneFiles)},
 	} {
 		if err := tt.Click("Resources"); err != nil {

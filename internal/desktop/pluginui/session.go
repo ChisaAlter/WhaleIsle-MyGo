@@ -3,6 +3,7 @@ package pluginui
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/coder/websocket/wsjson"
@@ -13,21 +14,27 @@ var errSessionUnavailable = errors.New("plugin UI: Session outlet is no longer a
 // SessionOutlet identifies one original renderer outlet inside the current
 // retained Session. Multiple tool calls are distinct occurrences of one slot.
 type SessionOutlet struct {
-	Handle     string `json:"handle"`
-	Slot       string `json:"slot"`
-	Label      string `json:"label"`
-	CallID     string `json:"callId,omitempty"`
-	EntryID    string `json:"entryId,omitempty"`
-	Registrant string `json:"registrant,omitempty"`
-	Turn       int    `json:"turn,omitempty"`
+	Handle          string `json:"handle"`
+	Slot            string `json:"slot"`
+	Label           string `json:"label"`
+	CallID          string `json:"callId,omitempty"`
+	AgentID         string `json:"agentId,omitempty"`
+	SourceRequestID string `json:"sourceRequestId,omitempty"`
+	PendingKey      string `json:"pendingKey,omitempty"`
+	EntryID         string `json:"entryId,omitempty"`
+	Registrant      string `json:"registrant,omitempty"`
+	Turn            int    `json:"turn,omitempty"`
 	// HasTurn distinguishes a legitimate turn zero from absent metadata. Older
 	// snapshots with a positive Turn are still unambiguous without this flag.
 	HasTurn bool `json:"hasTurn,omitempty"`
 	// TurnTailSeq is the canonical turn/end seq read from the original Turn's
 	// turn-tail data, not the closing Assistant seq passed as owner.seq.
-	TurnTailSeq uint64 `json:"turnTailSeq,omitempty"`
-	HasTurnTail bool   `json:"hasTurnTail,omitempty"`
-	Available   bool   `json:"available"`
+	TurnTailSeq uint64       `json:"turnTailSeq,omitempty"`
+	HasTurnTail bool         `json:"hasTurnTail,omitempty"`
+	Available   bool         `json:"available"`
+	Native      []NativeNode `json:"native,omitempty"`
+	Seq         float64      `json:"seq,omitempty"`
+	HasSeq      bool         `json:"hasSeq,omitempty"`
 }
 
 var sessionSlotNames = map[string]bool{
@@ -40,6 +47,11 @@ var sessionSlotNames = map[string]bool{
 	"conversation.session.body":             true,
 	"conversation.view":                     true,
 	"conversation.composer":                 true,
+	"conversation.composer.bar":             true,
+	"conversation.chat.reasoning.body":      true,
+	"conversation.chat.user.content":        true,
+	"tool.call.body":                        true,
+	"sidebar.right.pane.tab":                true,
 	"conversation.composer.dock":            true,
 	"conversation.input.dock":               true,
 	"conversation.input.overlay":            true,
@@ -58,6 +70,7 @@ var sessionSlotNames = map[string]bool{
 	"conversation.chat.user-editor":         true,
 	"conversation.chat.commandview":         true,
 	"conversation.approval.detail":          true,
+	"conversation.approval.actions":         true,
 	"conversation.plan-review.actions":      true,
 	"tool.call.toolview":                    true,
 	"tool.call.images":                      true,
@@ -69,7 +82,13 @@ func validSessionOutlets(rows []SessionOutlet) bool {
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if row.Handle == "" || len(row.Handle) > 64 || seen[row.Handle] || !sessionSlotNames[row.Slot] || len(row.Label) > 8192 || len(row.CallID) > 512 || len(row.EntryID) > 8192 || len(row.Registrant) > 8192 || row.Turn < 0 {
+		if row.HasSeq && (row.Seq < 0 || row.Seq > 1<<53-1 || math.Trunc(row.Seq) != row.Seq) || !row.HasSeq && row.Seq != 0 {
+			return false
+		}
+		if !validNativeNodes(row.Native) {
+			return false
+		}
+		if row.Handle == "" || len(row.Handle) > 64 || seen[row.Handle] || !sessionSlotNames[row.Slot] || len(row.Label) > 8192 || len(row.CallID) > 512 || len(row.AgentID) > 8192 || len(row.SourceRequestID) > 256<<10 || len(row.PendingKey) > 8192 || len(row.EntryID) > 8192 || len(row.Registrant) > 8192 || row.Turn < 0 {
 			return false
 		}
 		if row.TurnTailSeq > 1<<53-1 || row.HasTurnTail && (row.Slot != "conversation.chat.turnTail" || !row.HasTurn) || !row.HasTurnTail && row.TurnTailSeq != 0 {
@@ -133,4 +152,106 @@ func (o *Owner) showSessionOutlet(page, revision uint64, subject Subject, handle
 		return errSessionUnavailable
 	}
 	return nil
+}
+
+type ConversationView struct {
+	Handle string `json:"handle"`
+	ID     string `json:"id"`
+	Label  string `json:"label"`
+	Target string `json:"target,omitempty"`
+}
+
+func validConversationViews(views []ConversationView) bool {
+	if len(views) > 512 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, v := range views {
+		if v.Handle == "" || len(v.Handle) > 8192 || v.ID == "" || len(v.ID) > 8192 || len(v.Label) > 8192 || len(v.Target) > 8192 || seen[v.Handle] {
+			return false
+		}
+		seen[v.Handle] = true
+	}
+	return true
+}
+
+func (o *Owner) SelectConversationView(snapshot Snapshot, handle string) error {
+	o.mu.Lock()
+	page := o.page
+	valid := !o.closed && !o.incompatible && snapshot.Subject != nil && snapshot.Subject.Kind == "session" && o.selected.equal(*snapshot.Subject) && o.state.Page == snapshot.Page && o.state.Revision == snapshot.Revision
+	o.mu.Unlock()
+	if !valid {
+		return errSessionUnavailable
+	}
+	for _, view := range snapshot.ConversationViews {
+		if view.Handle == handle {
+			return o.sendToPage(page, map[string]any{"type": "conversationView", "revision": snapshot.Revision, "subject": snapshot.Subject, "handle": handle})
+		}
+	}
+	return errSessionUnavailable
+}
+
+type RightPaneTab struct {
+	Handle string `json:"handle"`
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Label  string `json:"label"`
+}
+
+func validRightPaneTabs(rows []RightPaneTab, outlets []SessionOutlet) bool {
+	if len(rows) > 512 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, row := range rows {
+		if row.ID == "" || len(row.ID) > 8192 || len(row.Label) > 8192 || len(row.Kind) > 8192 || seen[row.Handle] {
+			return false
+		}
+		found := false
+		for _, outlet := range outlets {
+			if outlet.Handle == row.Handle && outlet.Slot == "sidebar.right.pane.tab" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+		seen[row.Handle] = true
+	}
+	return true
+}
+func (o *Owner) SelectRightPaneTab(snapshot Snapshot, handle string) error {
+	o.mu.Lock()
+	page := o.page
+	valid := !o.closed && !o.incompatible && snapshot.Subject != nil && snapshot.Subject.Kind == "session" && o.selected.equal(*snapshot.Subject) && o.state.Page == snapshot.Page && o.state.Revision == snapshot.Revision
+	o.mu.Unlock()
+	if !valid {
+		return errSessionUnavailable
+	}
+	for _, tab := range snapshot.RightPaneTabs {
+		if tab.Handle == handle {
+			return o.sendToPage(page, map[string]any{"type": "rightPaneTab", "revision": snapshot.Revision, "subject": snapshot.Subject, "handle": handle})
+		}
+	}
+	return errSessionUnavailable
+}
+
+// NativeRightPaneTab keeps the public shell integration name stable.
+type NativeRightPaneTab = RightPaneTab
+
+func (o *Owner) CloseRightPaneTab(snapshot Snapshot, handle string) error {
+	o.mu.Lock()
+	page := o.page
+	valid := !o.closed && !o.incompatible && snapshot.Subject != nil && snapshot.Subject.Kind == "session" && o.selected.equal(*snapshot.Subject) && o.state.Page == snapshot.Page && o.state.Revision == snapshot.Revision
+	o.mu.Unlock()
+	if !valid {
+		return errSessionUnavailable
+	}
+	for _, tab := range snapshot.RightPaneTabs {
+		if tab.Handle == handle {
+			return o.sendToPage(page, map[string]any{"type": "closeRightPaneTab", "revision": snapshot.Revision, "subject": snapshot.Subject, "handle": handle})
+		}
+	}
+	return errSessionUnavailable
 }

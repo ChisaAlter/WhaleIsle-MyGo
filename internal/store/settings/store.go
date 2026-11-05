@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 	"unsafe"
 
@@ -30,9 +31,12 @@ type Namespace struct {
 // ViewState is a UI-safe snapshot of the store.
 type ViewState struct {
 	ClientReady        bool
+	HasDocument        bool
 	Described          bool // This client has a fully accepted settings description.
 	Loading            bool
 	Saving             bool
+	PreferencePending  map[string]bool // namespace.field; independent immediate preference writes
+	PreferenceErrors   map[string]string
 	Writable           bool
 	Err                string
 	LastAction         string
@@ -52,11 +56,12 @@ type Store struct {
 	notify                 func()
 	visualReplyEnableCheck func(context.Context, string) error
 
-	loading    bool
-	saving     bool
-	writable   bool
-	err        error
-	lastAction string
+	loading     bool
+	saving      bool
+	hasDocument bool
+	writable    bool
+	err         error
+	lastAction  string
 
 	namespaces                []Namespace
 	selectedNS                string
@@ -71,6 +76,12 @@ type Store struct {
 	draftRevisions            map[string]float64
 	draftSeeds                map[string]*draftSeed
 	hostDraftRevisions        map[string]map[string]float64
+	providerDirectory         api.ListConfigurableProvidersResult
+	providerRegistered        api.ListProvidersResult
+	providerDirectoryErr      string
+	providerDirectoryLoaded   bool
+	providerDirectoryLoading  bool
+	modelCatalog              api.ModelCatalog
 	modelRoutes               []VisionRoute
 	modelCatalogErr           string
 	modelCatalogLoading       bool
@@ -83,6 +94,8 @@ type Store struct {
 	webSearchKey              *WebSearchCredential
 	themeBinding              *ThemeBinding
 	instructionsWrite         *instructionsWrite
+	preferenceWrites          map[string]*preferenceWriteQueue
+	preferenceErrors          map[string]string
 	onboardingCredentialEpoch uint64
 	uploadNoticeSequence      uint64
 	uploadNotice              string
@@ -130,10 +143,19 @@ func New() *Store {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
+	s.preferenceWrites = nil
+	s.preferenceErrors = nil
+	s.snapCache.valid = false
 	s.uploadNotice = ""
 	s.generation++
+	s.hasDocument = false
 	s.permissionDefaults = PermissionDefaults{}
 	s.modelRoutes = nil
+	s.modelCatalog = api.ModelCatalog{}
+	s.providerDirectory = nil
+	s.providerRegistered = nil
+	s.providerDirectoryErr = ""
+	s.providerDirectoryLoaded, s.providerDirectoryLoading = false, false
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
 	s.modelCatalogLoaded = false
@@ -187,9 +209,18 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 // Detach clears the client when harness stops.
 func (s *Store) Detach() {
 	s.mu.Lock()
+	s.preferenceWrites = nil
+	s.preferenceErrors = nil
+	s.snapCache.valid = false
 	s.generation++
+	s.hasDocument = false
 	s.permissionDefaults = PermissionDefaults{}
 	s.modelRoutes = nil
+	s.modelCatalog = api.ModelCatalog{}
+	s.providerDirectory = nil
+	s.providerRegistered = nil
+	s.providerDirectoryErr = ""
+	s.providerDirectoryLoaded, s.providerDirectoryLoading = false, false
 	s.modelCatalogErr = ""
 	s.modelCatalogLoading = false
 	s.modelCatalogLoaded = false
@@ -265,9 +296,10 @@ func (s *Store) snapCacheHitLocked(errStr string, clientReady, described, dirty 
 	}
 	st := &c.state
 	if st.ClientReady != clientReady ||
+		st.HasDocument != s.hasDocument ||
 		st.Described != described ||
 		st.Loading != s.loading ||
-		st.Saving != s.saving ||
+		st.Saving != (s.saving || s.themeWriteInFlightLocked(s.selectedNS)) ||
 		st.Writable != s.writable ||
 		st.LastAction != s.lastAction ||
 		st.SelectedNS != s.selectedNS ||
@@ -326,11 +358,14 @@ func (s *Store) snapshotLocked() ViewState {
 		return s.snapCache.state
 	}
 	st := ViewState{
+		PreferencePending:  s.preferencePendingLocked(),
+		PreferenceErrors:   maps.Clone(s.preferenceErrors),
 		PermissionDefaults: s.permissionDefaults.clone(),
 		ClientReady:        clientReady,
+		HasDocument:        s.hasDocument,
 		Described:          described,
 		Loading:            s.loading,
-		Saving:             s.saving,
+		Saving:             s.saving || s.themeWriteInFlightLocked(s.selectedNS),
 		Writable:           s.writable,
 		Err:                errStr,
 		LastAction:         s.lastAction,
@@ -447,6 +482,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 			s.fire()
 			return
 		}
+		s.hasDocument = out.HasDocument
 		s.writable = out.Writable
 		s.permissionDefaults = defaults
 		nsList := make([]Namespace, 0, len(out.Namespaces))
@@ -494,11 +530,20 @@ func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMess
 	s.saveReplace(ctx, name, section)
 }
 func (s *Store) saveReplace(ctx context.Context, name string, section map[string]json.RawMessage) {
+	s.saveReplacePrepared(ctx, name, section, nil)
+}
+func (s *Store) saveReplacePrepared(ctx context.Context, name string, section map[string]json.RawMessage, receipt *replaceDraftReceipt) {
 	s.mu.Lock()
+	if err := s.replaceReceiptErrorLocked(name, receipt); err != nil {
+		s.err, s.lastAction = err, err.Error()
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
 	client := s.client
 	generation := s.generation
 	ns := s.findNamespaceLocked(name)
-	if s.saving || client == nil || ns == nil {
+	if s.saving || s.themeWriteInFlightLocked(name) || client == nil || ns == nil {
 		s.mu.Unlock()
 		return
 	}
@@ -590,7 +635,7 @@ func (s *Store) saveReplace(ctx context.Context, name string, section map[string
 func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 	s.mu.Lock()
 	ns := s.findNamespaceLocked(s.selectedNS)
-	if s.client == nil || ns == nil || s.saving || s.loading {
+	if s.client == nil || ns == nil || s.saving || s.themeWriteInFlightLocked(s.selectedNS) || s.loading {
 		s.mu.Unlock()
 		return
 	}
@@ -632,7 +677,7 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 	client := s.client
 	generation := s.generation
 	ns := s.findNamespaceLocked(name)
-	if s.saving || client == nil || ns == nil || len(ops) == 0 || (owner != nil && (client != owner || generation != ownerGeneration)) {
+	if s.saving || s.themeWriteInFlightLocked(name) || client == nil || ns == nil || len(ops) == 0 || (owner != nil && (client != owner || generation != ownerGeneration)) {
 		s.mu.Unlock()
 		return
 	}
@@ -715,7 +760,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 	client := s.client
 	generation := s.generation
 	ns := s.findNamespaceLocked(s.selectedNS)
-	if s.saving || s.loading || client == nil || ns == nil {
+	if s.saving || s.themeWriteInFlightLocked(s.selectedNS) || s.loading || client == nil || ns == nil {
 		s.mu.Unlock()
 		return
 	}

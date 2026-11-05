@@ -11,7 +11,10 @@ import (
 
 type objectiveTransport func(*http.Request) (*http.Response, error)
 
-func (f objectiveTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f objectiveTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func objectiveStatusFixture() DshbotObjectiveStatus {
 	return DshbotObjectiveStatus{Bot: DshbotObjectiveBot{DshbotCatalogItem: DshbotCatalogItem{ID: "b", SessionID: "s"}, Objective: "Fixture objective", ObjectiveMaxRounds: 16}, Revision: 3, GoalKnown: true}
 }

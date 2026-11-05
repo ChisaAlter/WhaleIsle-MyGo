@@ -277,7 +277,7 @@ func TestShortcutInlineEditorLabelIsNotATabStop(t *testing.T) {
 		tt.Frame()
 	}
 	reachedActions := false
-	for range 6 {
+	for range len(shortcuts.Commands()) + 2 {
 		tt.Key(0, ui.KeyTab)
 		for range 2 {
 			tt.Frame()
@@ -287,6 +287,7 @@ func TestShortcutInlineEditorLabelIsNotATabStop(t *testing.T) {
 		}
 		if tt.Focused("default-settings.open") {
 			reachedActions = true
+			break
 		}
 	}
 	if !reachedActions {

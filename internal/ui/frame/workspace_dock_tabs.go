@@ -2,6 +2,8 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
+	"path"
+	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -169,12 +171,29 @@ func (n *WorkspacePane) eachResource(visit func(*WorkspacePane)) {
 
 func dockTabTitle(n *WorkspacePane) string {
 	switch n.Kind {
+	case "guide":
+		return paneLabel("开始", "Start")
+	case "plugin-native":
+		if n.PluginRightPaneLabel != "" {
+			return n.PluginRightPaneLabel
+		}
+		return paneLabel("插件面板", "Plugin panel")
 	case "custom-panels":
 		return paneLabel("自定义面板", "Custom Panels")
 	case "project-observer":
 		return paneLabel("项目概览", "Project overview")
 	case "files":
+		if n.Files != nil && n.Files.ResourcePath != "" {
+			return path.Base(n.Files.ResourcePath)
+		}
+		if n.Files != nil && n.Files.ProjectTarget != nil {
+			return paneLabel("项目文件", "Project file")
+		}
 		return paneLabel("文件", "Files")
+	case "team":
+		return paneLabel("团队", "Team")
+	case "project-team":
+		return paneLabel("智能体团队", "Agent Team")
 	case "diff":
 		return paneLabel("变更", "Changes")
 	case "agents":
@@ -184,6 +203,9 @@ func dockTabTitle(n *WorkspacePane) string {
 	case "host-terminal":
 		return paneLabel("终端", "Terminal")
 	case "plan":
+		if n.Files != nil && n.Files.ResourceTitle != "" {
+			return n.Files.ResourceTitle
+		}
 		return paneLabel("计划", "Plan")
 	case "schedule-task":
 		return paneLabel("任务详情", "Task details")
@@ -220,27 +242,53 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						continue
 					}
 					index, tab := index, tab
-					chip := ui.Button(c.Key("resource-tab:"+tab.ID), "").Label(dockTabTitle(tab)).Tooltip(dockTabTitle(tab)).
-						Height(28).MinWidth(80).MaxWidth(170).Padding(0, 10).Radius(6).BorderWidth(0).
-						Background(ui.Transparent).Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
+					terminal, sid, title, editing := workspaceTerminalTitle(m, tab)
+					var chip ui.Element
+					if editing {
+						chip = ui.Row(c.Key("resource-tab:" + tab.ID)).AlignItems(ui.Center)
+					} else {
+						chip = ui.Button(c.Key("resource-tab:"+tab.ID), "").Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
+					}
+					chip.Label(title).Tooltip(title).Height(28).MinWidth(80).MaxWidth(170).Padding(0, 10).Radius(6).BorderWidth(0).Background(ui.Transparent)
+					if tab.Files != nil && tab.Files.ResourcePath != "" {
+						chip.Tooltip(tab.Files.ResourcePath)
+					}
 					if tab == n {
 						chip.Background(c.Theme().Surface)
 					}
 					chip.Children(func() {
-						ui.Text(c, dockTabTitle(tab)).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(13))
+						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
+							ui.Text(c, title).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(13))
+						}
 					})
+					if editing {
+						continue
+					}
 					if _, over := ui.DragOver[workspaceTabDrag](chip); over {
 						chip.Border(2, c.Theme().Accent)
 					}
 					if dropped, ok := ui.Drop[workspaceTabDrag](chip); ok {
 						w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, index) }
 					}
-					if chip.Clicked() {
+					if chip.DoubleClicked() && tab.Kind == "host-terminal" {
+						beginWorkspaceTerminalRename(m, tab)
+					} else if chip.Clicked() {
 						w.pending = func() { w.activateDockTab(tab.ID) }
 					}
 					if chip.Dragging() {
 						n.tabDragging = true
 						chip.Opacity(0.5)
+					}
+				}
+				guide := false
+				for _, tab := range tabs {
+					guide = guide || tab.Kind == "guide" && tab.Float == nil
+				}
+				if !guide {
+					add := ui.Button(c.Key("workspace-add-tab"), "").Label(paneLabel("新标签页", "New tab")).Tooltip(paneLabel("新标签页", "New tab")).Size(28, 28).Shrink(0).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent)
+					add.Children(func() { ui.Icon(c, workspacePaneAddIcon).Size(16, 16).TextColor(c.Theme().TextMuted) })
+					if add.Clicked() {
+						w.pending = func() { w.openGuide(n.ID) }
 					}
 				}
 				end := ui.Box(c.Key("resource-tab-end")).Width(10).Height(28)
@@ -258,6 +306,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 			button.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(c.Theme().TextMuted) })
 			return button
 		}
+		control("workspace-resource-menu", workspacePaneResourcesIcon, paneLabel("资源菜单", "Resources")).Menu(func(menu *ui.Menu) { workspaceResourceMenu(menu, m) })
 		control("workspace-pane-menu", conversationHeaderIcons["EllipsisOutline"], paneLabel("面板操作", "Pane actions")).Menu(workspacePaneMenu(m, n))
 		label := paneLabel("面板全屏", "Maximize pane")
 		icon := workspacePaneFullscreenIcon
@@ -268,8 +317,11 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 		if control("workspace-pane-maximize", icon, label).Clicked() {
 			workspacePaneMaximize(m, n)
 		}
-		if n.Kind != "project-observer" && control("workspace-pane-close", workspacePaneCloseIcon, paneLabel("关闭标签", "Close tab")).Clicked() {
+		if w.canCloseResource(n) && control("workspace-pane-close", workspacePaneCloseIcon, paneLabel("关闭标签", "Close tab")).Clicked() {
 			workspacePaneClose(m, n)
+		}
+		if m.OnToggleTools != nil && control("workspace-pane-collapse", conversationHeaderIcons["PanelLeftOutline"], paneLabel("收起右侧边栏", "Collapse right sidebar")).Clicked() {
+			m.OnToggleTools()
 		}
 	})
 }

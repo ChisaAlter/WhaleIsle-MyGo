@@ -26,10 +26,11 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 	// Installed ThemeLibrary / AppearanceSection.module.css: the library is
 	// one 12px-spaced group. A pane's row spacing must not also enter the grid.
 	library := ui.Column(c.Key("theme-library")).FillWidth().MinWidth(0).Gap(12)
+	settingsSearchTarget(c, "theme-library", providerCopy("主题", "Theme"), library)
 	library.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, providerCopy("主题", "Themes")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
-			ui.Row(c).Wrap().Gap(8).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, providerCopy("主题", "Themes")).Shrink(0).SingleLine().FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			ui.Row(c).Shrink(0).Wrap().Gap(8).Children(func() {
 				if widgets.Button(c, colors, providerCopy("创建主题", "Create theme"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: e.OnSave == nil}).Clicked() {
 					e.StartFamily(e.Saved.DuplicateFamily(e.Saved.Family(e.Saved.Dark)))
 				}
@@ -43,13 +44,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 					if err != nil {
 						e.Status = err.Error()
 					} else if raw != "" {
-						if family, err := e.Saved.ImportFamily(raw); err != nil {
-							e.Status = err.Error()
-						} else {
-							e.Draft = e.Saved.Clone()
-							e.Draft.Custom = append(e.Draft.Custom, family)
-							e.Save()
-						}
+						e.ImportLibraryFamily(raw)
 					}
 				}
 			})
@@ -63,7 +58,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 		})
 		columns := max(1, int((width+14)/214)) // repeat(auto-fill, minmax(200px, 1fr))
 		grid.Columns(columns).Children(func() {
-			for _, f := range e.Draft.Families() {
+			for _, f := range e.Saved.Families() {
 				family := f
 				currentLight := e.Draft.Light == family.ID
 				currentDark := e.Draft.Dark == family.ID
@@ -116,23 +111,9 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 			}
 		})
 	})
-	bodyDisclosure(c, "theme-names", providerCopy("按名称选择主题", "Pick themes by name"), func() {
-		ids := []string{}
-		for _, f := range e.Draft.Families() {
-			ids = append(ids, f.ID)
-		}
-		for _, half := range []struct {
-			label string
-			value *string
-		}{{providerCopy("浅色主题", "Light theme"), &e.Draft.Light}, {providerCopy("深色主题", "Dark theme"), &e.Draft.Dark}} {
-			bodyPreferenceRow(c, "theme-half-"+half.label, half.label, "", fg, muted, func() {
-				if ui.Select(c, half.value, ids).FillWidth().Label(half.label).Disabled(e.OnSave == nil).Changed() {
-					e.SelectThemeHalf(half.value == &e.Draft.Dark, *half.value)
-				}
-			})
-		}
-	})
+
 	themeCustomEditor(c, e, fg, muted)
+	themeEditorFeedback(c, e)
 }
 
 func themeFamilyTitle(name string) string {
@@ -269,51 +250,16 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 // themeCustomEditor is the advanced editor for custom theme families, kept out of
 // the visual theme grid.
 func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
+	if e.Selected == "" {
+		return
+	}
 	ui.Column(c.Key("custom-theme-editor")).FillWidth().Gap(8).Children(func() {
-		customIDs := []string{""}
-		labels := []string{providerCopy("选择自定义主题", "Select custom theme")}
-		for _, f := range e.Draft.Custom {
-			customIDs = append(customIDs, f.ID)
-			name := strings.TrimSpace(f.Name)
-			if name == "" {
-				name = f.ID
-			}
-			labels = append(labels, name)
-		}
-		selected := 0
-		for index, id := range customIDs {
-			if id == e.Selected {
-				selected = index
-			}
-		}
-		selectedLabel := labels[selected]
-		if ui.Select(c, &selectedLabel, labels).FillWidth().Label(providerCopy("选择自定义主题", "Select custom theme")).Changed() {
-			for index, label := range labels {
-				if label == selectedLabel {
-					e.Selected = customIDs[index]
-					break
-				}
-			}
-			if e.Selected != "" {
-				e.StartFamily(e.Draft.Family(e.Selected))
-			}
-		}
-		ui.Row(c).Wrap().Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("复制浅色主题", "Duplicate light theme")).Clicked() {
-				f := e.Draft.DuplicateFamily(e.Draft.Family(e.Draft.Light))
-				e.StartFamily(f)
-			}
-			if ui.Button(c, providerCopy("删除自定义主题", "Delete custom theme")).Disabled(e.Selected == "").Clicked() {
-				e.DeleteSelected()
-				e.Save()
-			}
-		})
 		for i := range e.Draft.Custom {
 			f := &e.Draft.Custom[i]
 			if f.ID != e.Selected {
 				continue
 			}
-			ui.TextInput(c, &f.Name).FillWidth().Label(providerCopy("主题名称", "Theme name"))
+			ui.TextInput(c, &f.Name).FillWidth().Label(providerCopy("主题名称", "Theme name")).Disabled(e.FamilySavePending())
 			if ui.Button(c, providerCopy("导出主题 JSON", "Export theme JSON")).Clicked() {
 				c.WriteClipboard(theme.SerializeFamily(*f))
 			}
@@ -321,23 +267,29 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				label string
 				seed  *theme.Seed
 			}{{providerCopy("浅色", "Light"), &f.Light}, {providerCopy("深色", "Dark"), &f.Dark}} {
-				bodyHeading(c, variant.label, "", fg, muted)
+				hint := providerCopy("当前显示此模式的预览。", "This half is currently visible in the preview.")
+				if (variant.seed == &f.Dark) != c.Theme().Dark {
+					hint = providerCopy("切换颜色模式可查看此模式的预览。", "Switch color mode to preview this half.")
+				}
+				bodyHeading(c, variant.label, hint, fg, muted)
 				for _, color := range []struct {
 					label string
 					value *string
 				}{{providerCopy("背景", "Background"), &variant.seed.Background}, {providerCopy("前景", "Foreground"), &variant.seed.Foreground}, {providerCopy("强调色", "Accent"), &variant.seed.Accent}} {
-					bodyPreferenceRow(c, "color-"+variant.label+color.label, color.label, "#RRGGBB", fg, muted, func() { ui.TextInput(c, color.value).FillWidth().Label(variant.label + " " + color.label) })
+					bodyPreferenceRow(c, "color-"+variant.label+color.label, color.label, "#RRGGBB", fg, muted, func() {
+						appearanceColorWell(c, color.value, variant.label+" "+color.label, e.OnSave == nil || e.FamilySavePending(), false)
+					})
 				}
 				contrast := variant.seed.ContrastValue()
 				bodyPreferenceRow(c, "contrast-"+variant.label, providerCopy("对比度", "Contrast"), "", fg, muted, func() {
-					if ui.StepSlider(c, &contrast, 0, 100, 1).FillWidth().Changed() {
+					if ui.StepSlider(c, &contrast, 0, 100, 1).FillWidth().Disabled(e.FamilySavePending()).Changed() {
 						variant.seed.Contrast = &contrast
 					}
 				})
 				bodyDisclosure(c, "overrides-"+variant.label, providerCopy("高级颜色覆盖", "Advanced token overrides"), func() {
 					for _, key := range []string{"--dsw-alias-bg-base", "--dsw-alias-bg-layer-1", "--dsw-alias-bg-layer-2", "--dsw-alias-bg-overlay", "--dsw-alias-label-primary", "--dsw-alias-label-secondary", "--dsw-alias-brand-primary", "--dsw-alias-state-business-primary", "--dsw-alias-button-info-fill", "--dsw-alias-border-l1", "--dsw-alias-border-l2", "--dsw-specific-sidebar-fill", "--dsw-specific-bubble"} {
 						value := variant.seed.Overrides[key]
-						if ui.TextInput(c, &value).FillWidth().Label(key).Placeholder("Auto").Changed() {
+						if ui.TextInput(c, &value).FillWidth().Label(key).Placeholder("Auto").Disabled(e.FamilySavePending()).Changed() {
 							if variant.seed.Overrides == nil {
 								variant.seed.Overrides = map[string]string{}
 							}
@@ -354,11 +306,15 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		if e.Selected != "" {
 			e.PreviewSelectedFamily()
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Clicked() {
+				if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(e.FamilySavePending()).Clicked() {
 					e.Cancel()
 					e.Selected = ""
 				}
-				if ui.PrimaryButton(c, providerCopy("保存主题", "Save theme")).Disabled(e.OnSave == nil).Clicked() {
+				saveLabel := providerCopy("保存主题", "Save theme")
+				if e.FamilySavePending() {
+					saveLabel = providerCopy("正在保存…", "Saving…")
+				}
+				if ui.PrimaryButton(c, saveLabel).Disabled(e.OnSave == nil || e.FamilySavePending()).Clicked() {
 					e.SaveSelectedFamily()
 				}
 			})
@@ -369,25 +325,48 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 	if e == nil {
 		return
 	}
+	if !settingsItemBefore(c, "general-font-settings") {
+		return
+	}
 	group := ui.Column(c.Key("general-font-settings")).FillWidth().MinWidth(0).Gap(0)
 	open := ui.Local(group, "expanded", func() bool { return false })
+	if settingsSearchReveal(c, "general-font-settings") {
+		*open = true
+	}
 	group.Children(func() {
 		generalFontSizeRow(c, e, "text", providerCopy("字号大小", "Font size"), providerCopy("仅影响会话内容的字号", "Only affects conversation content"), e.Draft.Chat.Size, 10, 22, open, fg, muted)
+		generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Draft.Code.Size, 10, 20, nil, fg, muted)
+		generalFontSizeRow(c, e, "terminal", providerCopy("终端字号", "Terminal font size"), providerCopy("用于侧栏终端", "Used for the sidebar terminal"), e.Draft.Terminal.Size, 10, 20, nil, fg, muted)
 		if *open {
 			generalFontFamilyRow(c, e, "text", providerCopy("文本字体", "Text font"), providerCopy("用于界面与会话正文。多个字体用逗号分隔，留空使用默认", "Used for the interface and conversation text. Separate fonts with commas; leave empty for the default"), e.Saved.Interface.Family, fg, muted)
 			generalFontFamilyRow(c, e, "code", providerCopy("代码字体", "Code font"), providerCopy("用于代码块、行内代码与工具输出。多个字体用逗号分隔，留空使用默认", "Used for code blocks, inline code, and tool output. Separate fonts with commas; leave empty for the default"), e.Saved.Code.Family, fg, muted)
-			generalFontSizeRow(c, e, "code", providerCopy("代码字号", "Code size"), providerCopy("用于代码块、行内代码与工具输出", "Used for code blocks, inline code, and tool output"), e.Draft.Code.Size, 10, 20, nil, fg, muted)
 			generalFontFamilyRow(c, e, "terminal", providerCopy("终端字体", "Terminal font"), providerCopy("用于侧栏终端。多个字体用逗号分隔，留空使用默认", "Used for the sidebar terminal. Separate fonts with commas; leave empty for the default"), e.Saved.Terminal.Family, fg, muted)
-			generalFontSizeRow(c, e, "terminal", providerCopy("终端字号", "Terminal font size"), providerCopy("用于侧栏终端", "Used for the sidebar terminal"), e.Draft.Terminal.Size, 10, 20, nil, fg, muted)
 		}
-		if e.Status != "" {
-			ui.Text(c, e.Status).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
-		}
+
 	})
+	themeEditorFeedback(c, e)
+}
+
+func themeEditorFeedback(c *ui.Context, e *theme.Editor) {
+	previous := ui.Local(c.Root(), "theme-preference-notice", func() string { return "" })
+	if *previous == e.Status {
+		return
+	}
+	*previous = e.Status
+	switch e.Status {
+	case "", "已保存 / Saved", "正在保存… / Saving…", i18n.T(i18n.KeyThemeEditorSaved), i18n.T(i18n.KeyThemeEditorSaving), i18n.T(i18n.KeyThemeEditorPreview), i18n.T(i18n.KeyThemeEditorRestored):
+		return
+	}
+	c.AddToast(ui.Toast{ID: "theme-preference-error", Title: e.Status, Type: "error"})
 }
 
 func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) {
-	ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0).Children(func() {
+	if !settingsItemBefore(c, key) {
+		return
+	}
+	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	settingsSearchTarget(c, key, title, row)
+	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Padding(16, 0).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Padding(0, 48, 0, 0).Gap(4).Children(func() {
 				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
@@ -490,56 +469,72 @@ func generalFontFamilyRow(c *ui.Context, e *theme.Editor, role, title, hint, sav
 		})
 	})
 }
+
+// typographyField is one AppearanceSection .field: a muted 14 DIP label, the
+// control, then an optional hint, stacked across the block's width.
+func typographyField(c *ui.Context, key, label, hint string, muted ui.Color, control func()) {
+	field := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(6)
+	settingsSearchTarget(c, key, label, field)
+	field.Children(func() {
+		ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted)
+		control()
+		if hint != "" {
+			ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+		}
+	})
+}
+
+func typographyFontField(c *ui.Context, e *theme.Editor, key, label, hint, role string, f *theme.FontPreference, muted ui.Color) {
+	typographyField(c, key, label, hint, muted, func() {
+		if ui.TextInput(c, &f.Family).FillWidth().Label(label).Placeholder(providerCopy("系统默认", "System default")).Disabled(e.OnSave == nil).Changed() {
+			e.SaveAppearanceFont(role, *f)
+		}
+	})
+}
+
+func typographySizeField(c *ui.Context, e *theme.Editor, key, label, role string, f *theme.FontPreference, lo, hi float64, muted ui.Color) {
+	typographyField(c, key, label, "", muted, func() {
+		value := float64(f.Size)
+		if ui.StepSlider(c, &value, lo, hi, 1).FillWidth().Label(label).Disabled(e.OnSave == nil).Changed() {
+			f.Size = float32(value)
+			e.SaveAppearanceFont(role, *f)
+		}
+		ui.Text(c, fmt.Sprintf("%.0fpx", f.Size)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontFeatures("tnum").TextColor(muted)
+	})
+}
+
+// themeTypographyPane is the AppearanceSection §type block: heading + ghost
+// reset, interface/code family fields with hints, the two px size sliders,
+// then a ghost 高级 toggle for the composer and terminal families.
 func themeTypographyPane(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 	if e == nil {
 		return
 	}
-	bodyHeading(c, providerCopy("字体", "Typography"), providerCopy("字体名称可逗号分隔；留空使用系统字体。", "Use comma-separated fallback families; leave blank for the system font."), fg, muted)
-	render := func(role, label string, f *theme.FontPreference, family func(string) string, lo, hi float64, size bool) {
-		bodyPreferenceRow(c, "font-"+label, label, "", fg, muted, func() {
-			if ui.TextInput(c, &f.Family).FillWidth().Label(label + providerCopy("字体", " font")).Placeholder(providerCopy("系统字体", "System font")).Disabled(e.OnSave == nil).Changed() {
-				e.SaveAppearanceFont(role, *f)
+	block := ui.Column(c.Key("appearance-typography")).FillWidth().MinWidth(0).Gap(12)
+	settingsSearchTarget(c, "appearance-typography", providerCopy("字体", "Typography"), block)
+	advanced := ui.Local(block, "advanced", func() bool { return false })
+	if settingsSearchReveal(c, "typography-advanced") {
+		*advanced = true
+	}
+	block.Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, providerCopy("字体", "Typography")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
+			if appearanceGhostButton(c, providerCopy("重置", "Reset"), e.OnSave == nil).Clicked() {
+				e.ResetAppearanceFonts()
 			}
 		})
-		value := float64(f.Size)
-		if size {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-				if ui.StepSlider(c, &value, lo, hi, 1).Grow(1).MinWidth(0).Label(label + providerCopy("字号", " size")).Disabled(e.OnSave == nil).Changed() {
-					f.Size = float32(value)
-					e.SaveAppearanceFont(role, *f)
-				}
-				ui.Text(c, fmt.Sprintf("%.0f px", f.Size)).Width(44).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		typographyFontField(c, e, "font-interface", providerCopy("界面字体", "Interface font"), providerCopy("填写本机已安装的字体名（例如 Microsoft YaHei）。留空则用系统默认。用于代码块和终端以外的文字。", "Type a font name installed on this computer (for example Segoe UI). Leave empty for the system default. Used for text outside code blocks and the terminal."), "interface", &e.Draft.Interface, muted)
+		typographySizeField(c, e, "font-size-interface", providerCopy("字号", "Size"), "interface", &e.Draft.Interface, 12, 22, muted)
+		typographyFontField(c, e, "font-code", providerCopy("等宽字体", "Monospace font"), providerCopy("填写本机已安装的等宽字体名。留空则用系统默认。用于代码块、diff 和文件预览。", "Type a monospace font name installed on this computer. Leave empty for the system default. Used for code blocks, diffs, and file previews."), "code", &e.Draft.Code, muted)
+		typographySizeField(c, e, "font-size-code", providerCopy("代码字号", "Code size"), "code", &e.Draft.Code, 10, 20, muted)
+		if appearanceGhostButton(c, providerCopy("高级", "Advanced"), false).Clicked() {
+			*advanced = !*advanced
+		}
+		if *advanced {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(12).Padding(4, 0, 0, 0).Children(func() {
+				typographyFontField(c, e, "font-composer", providerCopy("输入框字体", "Composer font"), providerCopy("填写本机已安装的字体名。留空则跟随界面字体。", "Type a font name installed on this computer. Leave empty to follow the interface font."), "composer", &e.Draft.Composer, muted)
+				typographyFontField(c, e, "font-terminal", providerCopy("终端字体", "Terminal font"), providerCopy("填写本机已安装的等宽字体名。留空则跟随等宽字体。", "Type a monospace font name installed on this computer. Leave empty to follow the monospace font."), "terminal", &e.Draft.Terminal, muted)
 			})
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, providerCopy("预览", "Preview")).FontSize(11).TextColor(muted)
-			ui.Text(c, providerCopy("字体 Aa 0123", "Aa 0123 — the quick brown fox")).Font(family(f.Family)).FontSize(f.Size).TextColor(fg)
-		})
-	}
-	render("interface", providerCopy("界面", "Interface"), &e.Draft.Interface, theme.TextFamily, 12, 22, true)
-	render("code", providerCopy("代码", "Code"), &e.Draft.Code, theme.CodeFamily, 10, 20, true)
-	bodyDisclosure(c, "typography-advanced", providerCopy("高级字体设置", "Advanced typography"), func() {
-		render("composer", providerCopy("输入框", "Composer"), &e.Draft.Composer, theme.TextFamily, 10, 22, true)
-		render("terminal", providerCopy("终端", "Terminal"), &e.Draft.Terminal, func(f string) string { return f }, 10, 20, true)
 	})
-	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-		if ui.Button(c, providerCopy("恢复默认字体", "Reset fonts")).Disabled(e.OnSave == nil).Clicked() {
-			e.ResetAppearanceFonts()
-		}
-		if ui.Button(c, providerCopy("预览", "Preview")).Clicked() {
-			e.ApplyPreview()
-			c.Invalidate()
-		}
-		if ui.Button(c, providerCopy("取消预览", "Cancel preview")).Disabled(!e.Preview).Clicked() {
-			e.Cancel()
-			c.Invalidate()
-		}
-		if ui.Button(c, providerCopy("保存主题与字体", "Save themes and fonts")).Disabled(e.OnSave == nil).Clicked() {
-			e.Save()
-			c.Invalidate()
-		}
-	})
-	if e.Status != "" {
-		ui.Text(c, e.Status).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	}
 }

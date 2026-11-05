@@ -26,6 +26,7 @@ const NativeHostE9SourceCommit = "e9f584be6d3b491ce777bb6823f30bc2bbc6f195"
 const NativeHostReadinessGuard = "mygo-visual-readiness-v1"
 const NativeHostRC2SourceCommit = "687f282e8625c6b8d11ff58211a90524be2e4317"
 const NativeHostRC2ReadinessGuard = "mygo-session-runtime-readiness-v1"
+const NativeCNBRepository = "ayasealter/WhaleIsleMyGo"
 const NativeCatalogAsset = "WhaleIsle-MyGo-releases.json"
 const NativeMaxInstallerBytes int64 = 8 << 30
 
@@ -59,6 +60,9 @@ type NativeRelease struct {
 	Delta              *NativeDelta      `json:"delta,omitempty"`
 	DownloadRoute      string            `json:"-"`
 	BasePath           string            `json:"-"`
+	PublishedAt        string            `json:"publishedAt,omitempty"`
+	NotesZH            string            `json:"notesZH,omitempty"`
+	NotesEN            string            `json:"notesEN,omitempty"`
 	Tag                string            `json:"tag"`
 	Platform           string            `json:"platform"`
 	Arch               string            `json:"arch"`
@@ -154,7 +158,7 @@ func NativeCatalogURL(route string) (string, error) {
 				return value, nil
 			}
 		}
-		return "", fmt.Errorf("MyGo CNB release catalog is not configured; choose GitHub or set WHALEISLE_RELEASE_CATALOG_CNB")
+		return "", fmt.Errorf("MyGo CNB release catalog for ayasealter/WhaleIsleMyGo is not yet published/configured; choose GitHub or set WHALEISLE_RELEASE_CATALOG_CNB")
 	default:
 		return "", fmt.Errorf("unsupported native release route")
 	}
@@ -307,6 +311,13 @@ func DecodeNativeCatalog(body []byte, goos, arch string) ([]NativeRelease, error
 	return rows, nil
 }
 
+// CatalogHTTPError preserves the response class for background retry policy.
+type CatalogHTTPError struct{ StatusCode int }
+
+func (e *CatalogHTTPError) Error() string {
+	return fmt.Sprintf("MyGo release catalog HTTP %d; a compatible published native installer is required", e.StatusCode)
+}
+
 // ListNativeReleases fetches once and returns immutable pinned entries. Selection
 // installs that exact entry; a subsequent moving "latest" cannot change it.
 func ListNativeReleases(ctx context.Context, route string) ([]NativeRelease, error) {
@@ -329,7 +340,7 @@ func ListNativeReleases(ctx context.Context, route string) ([]NativeRelease, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("MyGo release catalog HTTP %d; a compatible published native installer is required", resp.StatusCode)
+		return nil, &CatalogHTTPError{StatusCode: resp.StatusCode}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
 	if err != nil {
@@ -362,7 +373,7 @@ func ListNativeReleases(ctx context.Context, route string) ([]NativeRelease, err
 }
 
 func nativeHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	return &http.Client{Timeout: timeout, Transport: updateTransport(), CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
 			return fmt.Errorf("too many native release redirects")
 		}
@@ -374,6 +385,7 @@ func nativeHTTPClient(timeout time.Duration) *http.Client {
 // NativeStageOptions supplies the persisted base cache and running version.
 // A missing/mismatched base never creates a delta-ready state.
 type NativeStageOptions struct {
+	Resume         bool
 	CurrentVersion string
 	CacheDir       string
 	RequireRuntime bool
@@ -406,10 +418,10 @@ func StageNativeReleaseWithOptions(ctx context.Context, release NativeRelease, o
 		if baseErr != nil {
 			return ApplyResult{}, fmt.Errorf("native delta unavailable: %w; select the full package", baseErr)
 		}
-		result, err = ApplyBlockPatchOpts(ctx, PatchOptions{OldPath: base, Feed: release.Feed, BlockMap: release.Delta.BlockMap, DestDir: opt.DestDir,
+		result, err = ApplyBlockPatchOpts(ctx, PatchOptions{Resume: opt.Resume, OldPath: base, Feed: release.Feed, BlockMap: release.Delta.BlockMap, DestDir: opt.DestDir,
 			HTTPClient: client, RequireSignature: requireSignature, ExpectedPublisher: publisher, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress, OnPhase: opt.OnPhase})
 	} else {
-		result, err = DownloadAndStageOpts(ctx, StageOptions{ReleaseURL: release.URL, DestDir: opt.DestDir, HTTPClient: client,
+		result, err = DownloadAndStageOpts(ctx, StageOptions{Resume: opt.Resume, ReleaseURL: release.URL, DestDir: opt.DestDir, HTTPClient: client,
 			ExpectSHA256: release.SHA256, ExpectSize: release.Size, MaxBytes: NativeMaxInstallerBytes, OnProgress: opt.OnProgress, OnPhase: opt.OnPhase, RequireSignature: requireSignature, ExpectedPublisher: publisher})
 	}
 	if err != nil {

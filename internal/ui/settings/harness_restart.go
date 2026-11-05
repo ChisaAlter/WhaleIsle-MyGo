@@ -47,26 +47,40 @@ type restartOption struct{ label, value string }
 
 // harnessAutoRecoveryRow is the 0.3.13 "Harness 自动恢复" row: copy on the left,
 // the enable switch above two labelled 88 DIP pickers on the right. Every
-// change goes through the same validated desktop save as the verbose form.
+// change writes its own committed field; the verbose diagnostic form keeps its
+// separate explicit Save operation.
 func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 	f := d.Fields
 	if f.HarnessAutoRestart == nil || f.HarnessRestartMaxAttempts == nil || f.HarnessRestartBaseDelayMs == nil {
 		return
 	}
-	disabled := d.RestartPolicy == nil || d.OnSave == nil
-	save := func() {
-		if d.OnSave != nil {
-			d.OnSave()
+	if !settingsItemBefore(c, "harness-auto-recovery") { return }
+	disabled := d.RestartPolicy == nil || d.OnSetRestartPreference == nil
+	anchor := ui.Column(c.Key("harness-auto-recovery")).FillWidth().MinWidth(0).Gap(0)
+	settingsSearchTarget(c, "harness-auto-recovery", providerCopy("Harness 自动恢复", "Harness auto-recovery"), anchor)
+	failure := ui.Local(anchor, "save-error", func() string { return "" })
+	save := func(key, value string) {
+		accepted, err := d.OnSetRestartPreference(key, value)
+		*f.HarnessAutoRestart = accepted.AutoRestart
+		*f.HarnessRestartMaxAttempts = strconv.Itoa(accepted.MaxAttempts)
+		*f.HarnessRestartBaseDelayMs = strconv.Itoa(accepted.BaseDelayMs)
+		if d.RestartPolicy != nil {
+			*d.RestartPolicy = accepted
+		}
+		*failure = ""
+		if err != nil {
+			*failure = err.Error()
+			c.AddToast(ui.Toast{ID: "harness-recovery-save", Title: *failure, Type: "error"})
 		}
 	}
 	seconds := providerCopy(" 秒", " s")
-	attempts := make([]restartOption, 0, 10)
-	for n := 1; n <= 10; n++ {
+	attempts := make([]restartOption, 0, 3)
+	for _, n := range []int{1, 3, 5} {
 		attempts = append(attempts, restartOption{strconv.Itoa(n), strconv.Itoa(n)})
 	}
-	delays := []restartOption{{"0.5" + seconds, "500"}, {"1" + seconds, "1000"}, {"2" + seconds, "2000"}, {"5" + seconds, "5000"}, {"10" + seconds, "10000"}, {"30" + seconds, "30000"}}
+	delays := []restartOption{{"1" + seconds, "1000"}, {"2" + seconds, "2000"}, {"5" + seconds, "5000"}}
 	title := providerCopy("Harness 自动恢复", "Harness auto-recovery")
-	ui.Column(c.Key("harness-auto-recovery")).FillWidth().MinWidth(0).Gap(0).Children(func() {
+	anchor.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Padding(16, 0).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Padding(0, 48, 0, 0).Children(func() {
 				ui.Text(c, title).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg)
@@ -74,11 +88,11 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 			})
 			ui.Column(c).Shrink(0).Gap(12).AlignItems(ui.End).Children(func() {
 				if settingsPreferenceSwitch(c.Key("harness-auto-recovery-switch"), f.HarnessAutoRestart, settingsSwitchInput).Label(providerCopy("启用自动恢复", "Enable auto-recovery")).Disabled(disabled).Changed() {
-					save()
+					save("harnessAutoRestart", strconv.FormatBool(*f.HarnessAutoRestart))
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					restartPicker(c, "harness-restart-attempts-picker", providerCopy("最大重启次数", "Max restarts"), f.HarnessRestartMaxAttempts, attempts, disabled, save, muted)
-					restartPicker(c, "harness-restart-delay-picker", providerCopy("基础重启延迟", "Base delay"), f.HarnessRestartBaseDelayMs, delays, disabled, save, muted)
+					restartPicker(c, "harness-restart-attempts-picker", providerCopy("最大重启次数", "Max restarts"), f.HarnessRestartMaxAttempts, attempts, disabled, func() { save("harnessRestartMaxAttempts", *f.HarnessRestartMaxAttempts) }, muted)
+					restartPicker(c, "harness-restart-delay-picker", providerCopy("基础重启延迟", "Base delay"), f.HarnessRestartBaseDelayMs, delays, disabled, func() { save("harnessRestartBaseDelayMs", *f.HarnessRestartBaseDelayMs) }, muted)
 				})
 			})
 		})
@@ -98,7 +112,9 @@ func restartPicker(c *ui.Context, key, label string, value *string, options []re
 		display = *value
 		labels = append([]string{display}, labels...)
 	}
-	ui.Column(c.Key(key)).Gap(4).AlignItems(ui.End).Children(func() {
+	row := ui.Column(c.Key(key)).Gap(4).AlignItems(ui.End)
+	settingsSearchTarget(c, key, label, row)
+	row.Children(func() {
 		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		if settingsPreferenceSelect(c, &display, labels).Label(label).Width(88).Disabled(disabled).Changed() {
 			for _, option := range options {

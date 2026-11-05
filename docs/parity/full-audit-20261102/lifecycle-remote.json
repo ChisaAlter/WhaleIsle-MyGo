@@ -1,0 +1,1178 @@
+{
+  "domain": "lifecycle-remote",
+  "baselineNotes": [
+    "已按主代理更新后的合同使用当前安装0.3.13；旧tmp/electron-parity-fixture-20261027/installed-source仅曾作线索，最终主证据为tmp/full-audit-20261102/installed-source。",
+    "审查对象是MyGo b8b93ed8加当前轨迹工作树；正式rc.3 app来源5549e627，不能等同于诊断版或当前源码。",
+    "只读审查；未启动/停止进程、服务或桌面，未构建/安装/联网模型/操作远程机器，未读取真实用户profile、SSH密钥或凭据。",
+    "modulesReviewed按模块列出已完成能力枚举和生产入口核对；verified-scoped只指所列历史证据的范围，其他代码完整链均不升级为实际可用。"
+  ],
+  "modulesReviewed": [
+    "internal/ui/boot",
+    "internal/ui/launcher",
+    "internal/ui/remote",
+    "internal/ui/chrome/closing.go",
+    "internal/ui/chrome/updateprogress.go",
+    "internal/store/remote",
+    "internal/harness (launch/prepare/overlay/link/supervisor/readiness/recovery/restart/installctrl/auth/task-protection/logexport/current-host/session-runtime/office/project/generic helper inventory)",
+    "internal/dsh (bootstrap/RPC/mux/reconnect/events/multipart/next-prompt/stop-sequence/native contributions and generated API transport contracts)",
+    "internal/paths",
+    "internal/product",
+    "internal/processutil",
+    "internal/recovery",
+    "internal/startuprec",
+    "internal/startuptrace",
+    "internal/desktop/appuninstall",
+    "internal/desktop/components",
+    "internal/desktop/deeplink",
+    "internal/desktop/importer",
+    "internal/desktop/localservers",
+    "internal/desktop/notifications",
+    "internal/desktop/phoneremote",
+    "internal/desktop/sshremote",
+    "internal/desktop/workspaceauth (connection validation)",
+    "internal/desktop/update",
+    "cmd/whaleisle-launcher/main.go",
+    "cmd/whaleisle-integration/main_windows.go",
+    "cmd/whaleisle/main.go (startup/boot/close/remote assembly)",
+    "cmd/whaleisle/product.go",
+    "cmd/whaleisle/isolated_desktop.go",
+    "cmd/whaleisle/portable_desktop.go",
+    "cmd/whaleisle/welcome_window.go",
+    "cmd/whaleisle/desktop_tray.go",
+    "cmd/whaleisle/desktop_tray_menu.go",
+    "cmd/whaleisle/desktop_tray_notice.go",
+    "cmd/whaleisle/quit_lifecycle.go",
+    "cmd/whaleisle/task_protection.go",
+    "cmd/whaleisle/crash_report.go",
+    "cmd/whaleisle/recovery.go",
+    "cmd/whaleisle/startup_recovery.go",
+    "cmd/whaleisle/startup_diagnostics.go",
+    "cmd/whaleisle/launcher_window.go",
+    "cmd/whaleisle/import_flow.go",
+    "cmd/whaleisle/import_recovery.go",
+    "cmd/whaleisle/import_plugins.go",
+    "cmd/whaleisle/application_uninstall.go",
+    "cmd/whaleisle/system_notifications.go",
+    "cmd/whaleisle/system_notifications_activation.go",
+    "cmd/whaleisle/native_releases.go",
+    "cmd/whaleisle/launcher_update_check.go",
+    "cmd/whaleisle/update_check_lifecycle.go",
+    "cmd/whaleisle/update_attention.go",
+    "cmd/whaleisle/update_progress.go",
+    "cmd/whaleisle/update_journal.go",
+    "cmd/whaleisle/settings_body_wiring.go (update/remote interfaces only)",
+    "cmd/whaleisle/generic_components.go",
+    "cmd/whaleisle/component_changes.go",
+    "cmd/whaleisle/host_bundle.go",
+    "cmd/whaleisle/phone_gateway.go",
+    "cmd/whaleisle/phone_devices.go",
+    "cmd/whaleisle/phone_git.go",
+    "cmd/whaleisle/phone_git_workspaces.go",
+    "cmd/whaleisle/phone_pr_review.go",
+    "cmd/whaleisle/phone_diag.go",
+    "cmd/whaleisle/remote_runtime_config.go",
+    "cmd/whaleisle/remote_host_actions.go",
+    "cmd/whaleisle/remote_files.go",
+    "cmd/whaleisle/ssh_connect_operation.go",
+    "scripts/package.ps1",
+    "scripts/package-launcher.ps1",
+    "scripts/nsis/whaleisle.nsi",
+    "scripts/nsis/payload-transaction.nsh",
+    "scripts/nsis/runtime-links.nsh",
+    "scripts/nsis/notification-integration.nsh",
+    "scripts/session-runtime.mjs",
+    "scripts/session-runtime-readiness.mjs",
+    "scripts/session-runtime-nsis.mjs",
+    "scripts/session-runtime-samples.mjs",
+    "scripts/mobile-runtime.mjs",
+    "scripts/native-release-catalog.mjs",
+    "scripts/package-macos.mjs (platform inventory; actual macOS behavior remains external-blocked)",
+    "internal/ui/browserpreview/local_servers.go (localservers直接消费者接线)"
+  ],
+  "originalAreasReviewed": [
+    "tmp/full-audit-20261102/installed-source/package.json or installed-source-manifest.json: current installed archive0.3.13 identity",
+    "tmp/full-audit-20261102/installed-source/src/main/index.js",
+    "tmp/full-audit-20261102/installed-source/src/main/window.js",
+    "tmp/full-audit-20261102/installed-source/src/main/config.js",
+    "tmp/full-audit-20261102/installed-source/src/main/dsh.js",
+    "tmp/full-audit-20261102/installed-source/src/main/launcher-gate.js",
+    "tmp/full-audit-20261102/installed-source/src/main/welcome-window.js",
+    "tmp/full-audit-20261102/installed-source/src/main/data-import.js",
+    "tmp/full-audit-20261102/installed-source/src/main/import-transaction.js",
+    "tmp/full-audit-20261102/installed-source/src/main/import-guard.js",
+    "tmp/full-audit-20261102/installed-source/src/main/tray.js",
+    "tmp/full-audit-20261102/installed-source/src/main/system-notifications.js",
+    "tmp/full-audit-20261102/installed-source/src/main/legacy-notification-shortcut.js",
+    "tmp/full-audit-20261102/installed-source/src/main/crash-report.js",
+    "tmp/full-audit-20261102/installed-source/src/main/update.js",
+    "tmp/full-audit-20261102/installed-source/src/main/update-center/service.js",
+    "tmp/full-audit-20261102/installed-source/src/main/update-center/ipc.js",
+    "tmp/full-audit-20261102/installed-source/src/main/ipc-launcher.js",
+    "tmp/full-audit-20261102/installed-source/src/main/ipc-components.js",
+    "tmp/full-audit-20261102/installed-source/src/main/remote.js",
+    "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js",
+    "tmp/full-audit-20261102/installed-source/src/main/remote-shell.js",
+    "tmp/full-audit-20261102/installed-source/src/main/ipc.js",
+    "tmp/full-audit-20261102/installed-source/src/main/dsh-remote-desktop.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/components/registry.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/components/lifecycle.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/whalebridge.js",
+    "tmp/full-audit-20261102/installed-source/src/launcher/release-source.js",
+    "tmp/full-audit-20261102/installed-source/src/shared/product-identity.js",
+    "tmp/full-audit-20261102/installed-source/src/shared/dsh-home.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/pool.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-remote/lib/client.js",
+    "C:/AI/Deepseek-Harness-Desktop/src/main (readonly current source inventory and comparison with current archive)",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-task-control/lib/index.js and inspection.js (current uncommitted delta only)",
+    "tmp/full-audit-20261102/installed-source/src/main/system-proxy.js",
+    "tmp/full-audit-20261102/installed-source/src/main/preview.js"
+  ],
+  "features": [
+    {
+      "id": "LIFE-001",
+      "feature": "首次使用与普通冷启动",
+      "baseline": "installed-0.3.13",
+      "expected": "新用户能进入可配置、可启动的桌面；老用户复用已有配置、数据目录和启动偏好。",
+      "entry": "cmd/whaleisle/main.go:2400-2729 → beginLauncherBoot → startHarness",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:488-568,1490-1507: 原版由冷启动 gate 启动桌面；账号后台绑定本地 Host",
+        "tmp/full-audit-20261102/installed-source/src/main/welcome-window.js:58-105: 欢迎页的受控操作与失败清理"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2400-2446,2467-2479,2706-2729: 读取配置/凭据、启动窗口及恢复状态",
+        "cmd/whaleisle/welcome_window.go:60-65: 按既有用户选择禁用自动欢迎窗；不是未接线偶然遗漏",
+        "cmd/whaleisle/main.go:2898-2920: 先显示启动器，完成导入恢复检查后决定自动启动"
+      ],
+      "finding": "普通启动链存在；自动欢迎窗有明确禁用决定，不能作为本次功能缺失擅自恢复。已交付独立预览走 isolated 分支，不覆盖正常安装的启动器、开机启动、系统集成分支。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留禁用自动欢迎窗决定；对无配置、新配置、老配置分别验收启动器到可操作主窗口，并在既有设置入口完成账号/模型配置。",
+      "acceptanceGap": "无本轮普通安装首次使用及老 profile 的真实窗口验收；用户新建工作区/新会话失败由工作区领域记录，不能被 Host ready 取代。"
+    },
+    {
+      "id": "LIFE-002",
+      "feature": "启动器启动/停止/重启、自动启动与主窗交接",
+      "baseline": "installed-0.3.13",
+      "expected": "启动器可选择目录、启动桌面、显示真实失败并重试；启动成功后按偏好留存或关闭启动器。",
+      "entry": "internal/ui/launcher/panel.go:405-579 → cmd/whaleisle/launcher_window.go/main.go",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:488-568: 受导入事务和维护门约束的桌面启动",
+        "tmp/full-audit-20261102/installed-source/src/main/window.js:958-1038: 独立启动器窗口生命周期",
+        "tmp/full-audit-20261102/installed-source/src/main/launcher-gate.js:101-131: 自动启动与关闭启动器条件"
+      ],
+      "mygoEvidence": [
+        "internal/ui/launcher/panel.go:62-143,405-579: Start/Stop/Retry 与运行状态入口",
+        "cmd/whaleisle/main.go:1740-1830,2743-2891,2898-2920: 状态回调、创建 Supervisor、按 Ready/Recovery/持久化决定窗口交接",
+        "cmd/whaleisle/launcher_window.go:window creation and launcher-model assembly",
+        "cmd/whaleisle/task_protection.go:198-242: 显式 Stop 使用任务保护"
+      ],
+      "finding": "Start/Stop/Restart 的产品回调不是空壳；有 busy、取消、错误状态与主窗交接。静默 Host 核心证据只覆盖服务层，不证明这些按钮可命中或窗口交接正常。",
+      "evidenceLevel": "code",
+      "requiredAction": "真实验收启动器点击 Start/Stop/Retry、取消启动与主窗交接；沿用户失败入口优先排除公共输入/遮挡问题。",
+      "acceptanceGap": "普通/后台/开机启动、窄窗和失败后重试均缺当前真实桌面证据。"
+    },
+    {
+      "id": "LIFE-003",
+      "feature": "Host 启动、readiness、插件错误恢复与取消恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "Host 未就绪、插件加载失败和自动重试可辨别；能取消自动恢复、离线禁用/移除问题插件并手动重试，不误标完整健康。",
+      "entry": "boot.View/RecoveryControl、启动器插件恢复卡片 → Supervisor",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh.js:645-1189: DshManager 的子进程/readiness/停止/恢复",
+        "tmp/full-audit-20261102/installed-source/src/main/launcher-gate.js:101-131: 失败启动与恢复模式的留窗规则",
+        "tmp/full-audit-20261102/installed-source/src/main/window.js:605-678: 插件启动监测与失败反馈"
+      ],
+      "mygoEvidence": [
+        "internal/harness/supervisor.go:366-549,598-664: 进程启动、ready watchdog、代际与插件 skip/retry",
+        "internal/harness/recovery.go:7-36: 插件树错误分类",
+        "internal/startuprec/recovery.go:52-95,135-138: 持久失败记录与 gate",
+        "internal/startuprec/offline_plugins.go:78-205; internal/startuprec/forensics.go:100-221: 离线库存、可疑插件与维修动作",
+        "cmd/whaleisle/startup_recovery.go:67-104; cmd/whaleisle/startup_diagnostics.go:offline inventory and protected repairs",
+        "internal/ui/boot/boot.go:18-26,124-165,220-235; cmd/whaleisle/main.go:6413-6437,7552-7580: 取消/导出/重试生产接线"
+      ],
+      "finding": "有真实错误状态机与持久恢复，不是单纯 loading 文案；Ready+Recovery 不记为完整健康。用户点击无效场景尚未与这些原生入口一起验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "对正常 ready、缺 runtime、插件树失败、手动取消恢复和修复后重试做真实窗口验收；不以现有纯逻辑测试代签。",
+      "acceptanceGap": "本轮仅代码审查；不触发破坏性故障或运行插件。"
+    },
+    {
+      "id": "LIFE-004",
+      "feature": "发布程序、诊断程序与 Host 版本绑定",
+      "baseline": "existing-MyGo-contract",
+      "expected": "交付、测试和用户正在运行的程序要能明确区分；桌面版本不伪造 Host 来源。",
+      "entry": "dist/0.2.1-rc.3 的正式 stage 与诊断 exe",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [],
+      "mygoEvidence": [
+        "tmp/stabilize-20261102/package-result.json: version/appSourceCommit/installerSourceCommit: 正式 app 为 5549e627、安装器为 4863a0de",
+        "runtime/vendor/harness-upstream.json:1-6: Host 0.2.1-rc.2 / 687f282e 来源",
+        "docs/parity/full-audit-20261102/AUDIT-CONTRACT.md: 固定当前源码+轨迹工作树及 trajectory.1 诊断程序边界",
+        "docs/release-stabilization-20261102.md: 当前候选及验收边界"
+      ],
+      "finding": "原正式 installer 未包含本轮轨迹 phase 与诊断日志改动；源码工作树、正式 rc.3 与当前诊断程序不是同一候选。包内 Host 仍为 rc.2，不应由桌面 rc.3 推断 Host 升级。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "主报告对每条发现标明源码/正式包/诊断包适用范围；修复完成后仅对实际候选重新取得受影响证据。",
+      "acceptanceGap": "本项仅验证来源记录；不认证任一候选的真实点击可用性。"
+    },
+    {
+      "id": "LIFE-005",
+      "feature": "Host 连接丢失、重连与代际退役",
+      "baseline": "installed-0.3.13",
+      "expected": "短断线能重连，旧连接的事件/回调不能污染新会话或新 Host；长期未 ready 有反馈。",
+      "entry": "cmd/whaleisle/main.go 的 MaintainMuxFromBootstrap 与连接 owner",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh.js:933-1189: Host generation 与 readiness/lost handling"
+      ],
+      "mygoEvidence": [
+        "internal/dsh/bootstrap.go; internal/dsh/reconnect.go:114-177,184-400,488-520: generation、网络状态、readiness timeout/warn",
+        "internal/dsh/event_delivery.go; internal/dsh/stop_sequence.go; internal/dsh/next_prompt.go: 事件及终止交付",
+        "cmd/whaleisle/main.go:2110-2247: connection owner、follow/watch 重建与丢失反馈"
+      ],
+      "finding": "重连不是 UI 状态硬改；存在代际绑定及重新订阅链。既有 8 项真实 Host 报告覆盖受控重启历史恢复，不覆盖网络波动和所有窗口路由。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收服务断线/恢复后的输入、会话 follow、交互事件及旧事件隔离，避免用一次 ready 代替恢复成功。",
+      "acceptanceGap": "当前真实用户界面未做断线后下一轮操作。"
+    },
+    {
+      "id": "LIFE-006",
+      "feature": "原生界面/嵌入页面异常后的诊断与恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "界面加载失败、崩溃或无响应能提供诊断及重载/退出选择，恢复后保留数据。",
+      "entry": "cmd/whaleisle/crash_report.go；原版 attachRendererRecovery",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/window.js:102-166: 当前原版监听 render-process-gone、did-fail-load、unresponsive 并提供 Reload/Quit",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1065-1088: 子进程/GPU 故障接线"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/crash_report.go:35-43,250-291: 来源支持 host/web-boot/main；注释明确没有 renderer console bridge",
+        "cmd/whaleisle/main.go:1790-1810,2733-2739: Host失败及 App.Run 返回错误写报告",
+        "internal/desktop/webview/browser_window.go:15-34: 仅创建窗口 panic 恢复"
+      ],
+      "finding": "Host/web-boot/main 已有诊断文件；已审生产链没有原版对已载入页面进程退出/无响应的等价集中恢复入口。原生主界面无独立 Electron renderer，不应照抄其事件名；但代码中的历史 RendererConsole helper 本身不能证明恢复可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "按原生主循环与实际嵌入后端设计等价恢复；先区分本次死按钮是命中/状态还是主循环无响应，再确定所需动作。",
+      "acceptanceGap": "无当前界面故障注入/恢复证据；本项不认定它是用户点击失败根因。"
+    },
+    {
+      "id": "LIFE-007",
+      "feature": "单实例、跨原版共享 profile 的互斥保护",
+      "baseline": "installed-0.3.13",
+      "expected": "同一可写 profile 不得被两个不兼容桌面/Host 同时改写；重复启动应路由到已有窗口或明确拒绝。",
+      "entry": "main RequestSingleInstanceLock；paths 默认原版目录",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/shared/product-identity.js:6-19: 原版保持 Deepseek-Harness-Desktop userData 和其锁",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1052-1062: Electron 单实例锁与 second-instance"
+      ],
+      "mygoEvidence": [
+        "internal/paths/paths.go:21-51,113-115: 默认共享原版 config/dsh-home/profiles/web",
+        "cmd/whaleisle/main.go:2309-2337,679-686: MyGo 单实例但独立 Go Host 端口",
+        "third_party/mygo/single_instance.go:184-204: MyGo 使用 name/package identifier 派生自己的 socket，与 Electron 锁不互通",
+        "internal/harness/prepare.go:16-53: 启动会准备共享 web profile",
+        "internal/config/config.go:426-430: 只对合作 writer 加锁；明确 Electron 不是合作 writer",
+        "docs/status.md:537: 已记录两个版本不能同时运行"
+      ],
+      "finding": "同 MyGo 二次启动有保护；跨 Electron/MyGo 默认同数据目录但锁协议不同，已审启动链未发现拒绝原版正在占用该 profile 的产品 guard。配置有外部修改检测，仍不能把它扩大为 Host/profile/session 全域互斥或无竞争写保证。",
+      "evidenceLevel": "code",
+      "requiredAction": "在默认共享 profile 的产品启动入口落实占用检测/互斥或明确拒绝；保留独立 profile 同时运行能力。",
+      "acceptanceGap": "未操作真实 profile、未运行双桌面冲突实验；实际损坏未观察，风险不能写成已发生数据丢失。"
+    },
+    {
+      "id": "LIFE-008",
+      "feature": "关闭到托盘、恢复窗口、托盘菜单与开机启动",
+      "baseline": "installed-0.3.13",
+      "expected": "点关闭按设置收起且后台任务继续，托盘可恢复、打开设置/启动器/插件、重启和退出；无托盘时不隐藏失联。",
+      "entry": "OnClose → hideToDesktopTray；setupDesktopTray",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:344-368,1181,1343-1385: close-to-tray、开机设置和托盘装配",
+        "tmp/full-audit-20261102/installed-source/src/main/tray.js: buildTemplate/createTray: 真实托盘动作",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1343-1352"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2467-2477,2653-2674,2714-2720: 系统分支和关闭策略",
+        "cmd/whaleisle/desktop_tray.go:17-54,82-139,155-186: 托盘创建/左击/菜单/失败退路",
+        "cmd/whaleisle/desktop_tray_menu.go:17-38: 窗口、启动器、设置、市场、重启、桌宠、退出",
+        "cmd/whaleisle/desktop_tray_notice.go:18-55: 一次性提示与 marker",
+        "cmd/whaleisle/desktop_tray_menu.go:9-40"
+      ],
+      "finding": "托盘恢复、关闭策略与开机启动链存在，isolated 诊断跳过系统集成；基础托盘/窗口动作接线在，但原安装updateCenter的检查/ready安装入口未加入MyGo托盘actions与菜单。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：基础托盘/窗口动作接线在，但原安装updateCenter的检查/ready安装入口未加入MyGo托盘actions与菜单。 对照 GLIFE-006 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前候选无这些真实 OS/桌面操作证据；历史测试不能覆盖当前版本。 补审新增动作 GLIFE-006 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "生产托盘/开机/关闭链完整；isolated 诊断明确跳过托盘与系统集成，用户关闭诊断窗口不能为正常托盘行为提供证据。",
+        "previousRequiredAction": "验收真实安装后的关闭隐藏、左击恢复、右击菜单、无托盘退路及开机后台启动。",
+        "sources": [
+          "supplement-lifecycle-actions.json"
+        ],
+        "actionIds": [
+          "GLIFE-006"
+        ],
+        "reasons": [
+          "基础托盘/窗口动作接线在，但原安装updateCenter的检查/ready安装入口未加入MyGo托盘actions与菜单。"
+        ]
+      },
+      "supplementActionIds": [
+        "GLIFE-006"
+      ]
+    },
+    {
+      "id": "LIFE-009",
+      "feature": "受保护退出/停止/重启与未保存编辑保护",
+      "baseline": "installed-0.3.13",
+      "expected": "存在运行任务、未保存草稿/文件、导入事务时先提示；取消不停止任务或丢数据，确认后释放自有资源。",
+      "entry": "task_protection.go → taskcontrol.ProtectTaskAction → finalizeQuit",
+      "status": "partial",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:796-879,903-998,1549-1661: 退出/重启检查及清理",
+        "tmp/full-audit-20261102/installed-source/src/main/import-guard.js: maintenance slot: 导入与生命周期互斥",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:710-726,796-826"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/task_protection.go:91-195,252-297: 保存恢复状态、任务 admission/drain、确认后提交",
+        "internal/harness/task_protection.go:12-89: 用私有 token/代际调用实际 Host 控制",
+        "cmd/whaleisle/quit_lifecycle.go:62-108,209-217: phone/webview/DSH/terminal/组件清理及关闭层",
+        "internal/store/remote/file_close.go:15-118: 远程草稿关闭保存等待 ack、错误保留草稿",
+        "cmd/whaleisle/recovery.go:225-245: 保存失败不静默覆盖原文件",
+        "cmd/whaleisle/task_protection.go:31-87",
+        "internal/desktop/taskcontrol/control.go:21-34"
+      ],
+      "finding": "任务 admission/drain、取消与退出资源释放链存在，P0 表示数据后果级别；任务准入、取消、drain链存在；原版确认按kind/ID/title识别将中断工作，MyGo只消费数量，丢对象级决策信息。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：任务准入、取消、drain链存在；原版确认按kind/ID/title识别将中断工作，MyGo只消费数量，丢对象级决策信息。 对照 GLIFE-007 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前原生提示、取消恢复、文件草稿保存和退出前持久化尚未真实窗口验收。 补审新增动作 GLIFE-007 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "退出保护有真实生产链，不是一个本地 running bool。P0 是待验收数据后果级别，不是确认故障；此前核心 stop/restart 证据没有经过真实 Quit 确认和未保存编辑提示。",
+        "previousRequiredAction": "在可控 profile 验收有任务/无任务、取消/确认、保存失败/成功、导入进行中及 shutdown 资源释放。",
+        "sources": [
+          "supplement-lifecycle-actions.json"
+        ],
+        "actionIds": [
+          "GLIFE-007"
+        ],
+        "reasons": [
+          "任务准入、取消、drain链存在；原版确认按kind/ID/title识别将中断工作，MyGo只消费数量，丢对象级决策信息。"
+        ]
+      },
+      "supplementActionIds": [
+        "GLIFE-007"
+      ]
+    },
+    {
+      "id": "LIFE-010",
+      "feature": "系统通知、通知点击与冷启动激活",
+      "baseline": "installed-0.3.13",
+      "expected": "提醒显示产品身份；在运行/托盘/进程已退出时点击通知路由到正确窗口或对象，不执行任意命令。",
+      "entry": "setupSystemNotifications；Shortcut/AUMID/COM activator",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/system-notifications.js:10-19: 平台/开发环境通知 gate",
+        "tmp/full-audit-20261102/installed-source/src/main/legacy-notification-shortcut.js:70-133: 旧快捷方式迁移",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:1098-1116: 通知集成和 Bridge 提醒"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/notifications/notifications.go:19-61: shared AUMID 与自有快捷方式",
+        "internal/desktop/notifications/activation_windows.go:15-53: 自有 CLSID、注册所有权检查",
+        "cmd/whaleisle/system_notifications_activation.go:42-136,143-183: activator→有界payload→单实例→通知事件",
+        "cmd/whaleisle/system_notifications.go:29-49: development/platform gate",
+        "cmd/whaleisle-integration/main_windows.go:16-28: 只移除自己持有的集成"
+      ],
+      "finding": "通知展示和 COM 冷激活接线存在，代码区分应用 ID 与自有激活 CLSID；isolated 预览不安装这条链，不能从启动成功或静默卸载判定通知可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "真实安装身份下检查发送、点击、托盘唤回、冷启动激活、升级后 target 及卸载清理。",
+      "acceptanceGap": "无当前 Windows 通知/COM 实际激活证据。"
+    },
+    {
+      "id": "LIFE-011",
+      "feature": "深链、第二次启动和账号回调路由",
+      "baseline": "existing-MyGo-contract",
+      "expected": "合法路由进入启动器/设置/会话等目标；启动未 ready 时保留路由；非法路由不变成 shell 命令。",
+      "entry": "whaleisle:// → deeplink.Parse → mainState.applyDeeplink",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [],
+      "mygoEvidence": [
+        "internal/desktop/deeplink/parse.go:9-175: open/settings/session/launcher/usage/market/schedule/agents/auth 路由",
+        "cmd/whaleisle/main.go:993-1186: 保存 pending、处理 session/settings/auth 及面板互斥",
+        "cmd/whaleisle/main.go:2316-2337: URL scheme 注册与 second-instance",
+        "cmd/whaleisle/isolated_desktop.go:19-56: isolated 不触碰安装版协议"
+      ],
+      "finding": "这是 MyGo 明确扩展契约，不能仅凭同名按钮推定与原版注册完全相同。解析与路由有生产入口；实际 Windows scheme 接管、cold/second-instance 的用户路径未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "沿真实注册目标验收冷启动与已启动 session/settings/auth 链；账号回调参数/状态契约由账号领域共同检查。",
+      "acceptanceGap": "当前只是 source wiring，未触碰注册或发登录请求。"
+    },
+    {
+      "id": "LIFE-012",
+      "feature": "配置/凭据与原版数据目录兼容",
+      "baseline": "installed-0.3.13",
+      "expected": "升级不丢未知配置、会话、令牌和密钥；读取失败保留原文件，凭据不落入公共 config。",
+      "entry": "config.Open、credentials.Load、paths.UserDataDir/DshHome",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/shared/product-identity.js:6-19: legacy userData identity",
+        "tmp/full-audit-20261102/installed-source/src/main/config.js:419-479,549-624: safeStorage、不可读凭据保护与公共/密钥分层"
+      ],
+      "mygoEvidence": [
+        "internal/config/config.go:35-40,276-338,378-455: 原路径、unknown RawMessage 保留、baseline 检测、atomic publish",
+        "internal/credentials/credentials.go:103-123,196-239,244-309: plaintext/safeStorage/native envelope 兼容、DPAPI key 读取、保存加密",
+        "internal/credentials/dpapi_windows.go; internal/credentials/legacy_mac*.go; internal/credentials/keychain*.go: 各平台加密边界",
+        "cmd/whaleisle/main.go:2400-2446: 配置失败留原文件并退出；凭据失败记录日志",
+        "internal/paths/paths.go:25-57: 原目录"
+      ],
+      "finding": "代码提供真实兼容和原文件保留，不等于已对用户既有安装接管。Windows safeStorage/DPAPI 读取依赖同用户 Local State；macOS Keychain/legacy CBC 是另一条平台路径，当前 Windows 证据不能认证。",
+      "evidenceLevel": "code",
+      "requiredAction": "在备份可恢复、用户许可的安装迁移场景检查未知字段、safeStorage/Local State、会话读写和回滚；不可用独立空 profile 替代。",
+      "acceptanceGap": "禁止读取当前真实 profile；当前未作用户数据迁移/回退验收。"
+    },
+    {
+      "id": "LIFE-013",
+      "feature": "本地恢复快照与重启后的会话/草稿",
+      "baseline": "existing-MyGo-contract",
+      "expected": "重启保留选中会话、工作区、布局和未发送草稿；损坏/版本不支持时提示并保留原快照。",
+      "entry": "go-resume.json → openResume/restoreResumeSelection/saveResume",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [],
+      "mygoEvidence": [
+        "internal/recovery/store.go:40-58,80-95,117-139: version=1、有界读写、原文件保护",
+        "cmd/whaleisle/recovery.go:25-94,102-135,180-219: 布局/选择/草稿恢复与当前 owner 捕获",
+        "cmd/whaleisle/main.go:2706-2712: resume 错误显式警告",
+        "tmp/stabilize-20261102/packaged-headless/report.json: history-after-real-host-restart: 真实 Host 的持久消息恢复"
+      ],
+      "finding": "Go 恢复文件不是 Electron 窗口状态或 Host 会话文件的替代；8 项报告证明会话内容在 Host 重启恢复，不证明 go-resume 草稿/布局完整，也不证明当前死按钮已解决。",
+      "evidenceLevel": "code",
+      "requiredAction": "对当前候选验收正常退出/异常退出后选中对象、每会话草稿、布局及损坏快照错误提示。",
+      "acceptanceGap": "当前窗口恢复/未发送草稿仍缺真实用户路径证据。"
+    },
+    {
+      "id": "LIFE-014",
+      "feature": "导入页识别压缩会话标题、工作区和最新名称",
+      "baseline": "installed-0.3.13",
+      "expected": "压缩会话也显示可辨认标题/工作目录；修改标题后按最新 session/title 显示，导入身份仍为相对路径。",
+      "entry": "启动器导入 → BuildCatalog → readPlainSessionMeta → importSessionGroups",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:168-206,286-329,338-378: fold 最新 title，逐帧读取 zstd 元数据"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/catalog.go:235-258,263-305: 只读 plain JSONL，64 KiB 且 title/cwd 找到即停止",
+        "internal/ui/launcher/import_groups.go:13-39,81-96: 分组标题来自 CatalogItem.Group"
+      ],
+      "finding": "压缩日志被库存发现后元数据读取仍跳过 zstd，标题退为 ID、工作区退为空；plain 日志也取首个 title 而不是后续最新 title。源日志不会因此改写，但用户难以辨认要导入哪个会话。",
+      "evidenceLevel": "code",
+      "requiredAction": "补齐与当前原版同格式的 zstd metadata 读取和 latest-title fold，保持 Rel 作为导入身份；修复后验证压缩/混合帧/改名会话。",
+      "acceptanceGap": "这是可静态定位的 catalog 缺陷；未读取用户会话或构造新夹具。"
+    },
+    {
+      "id": "LIFE-015",
+      "feature": "导入库存的 SQLite-only/混合编码拒绝与解释",
+      "baseline": "installed-0.3.13",
+      "expected": "不支持的会话显式列出并解释；同一目录 plain+zstd 混合格式不能被当普通可导入会话。",
+      "entry": "BuildCatalog.walkSessionRels/sessionUnsupported → 选择/Apply",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:94-117: SQLite-only 仍加入 unsupported rows，并记录 mixedEncoding",
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:1699-1701: unsupported 或 mixedEncoding 拒绝导入"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/catalog.go:342-360,367-396: 只有 hasSessionLog 的目录才入库存，故 .db-only 到不了 Unsupported；无 mixedEncoding 字段判定",
+        "internal/desktop/importer/apply.go:365-370: 只过滤 Unsupported 的 selected rows"
+      ],
+      "finding": "MyGo UI 虽有“不支持”标签，但 SQLite-only 实际扫描时被遗漏；同目录 plain+zstd 的混合格式不被识别。库存完整性和导入拒绝语义不对齐原版，不能用文档写着 unsupported 来判功能已有。",
+      "evidenceLevel": "code",
+      "requiredAction": "让不可导入会话进入明确禁用库存并实现混合编码判定；Apply 端复核，不只依赖 UI。",
+      "acceptanceGap": "未执行导入或写目标数据；实际混合目录被 Host 读取的后果未验证，不能宣称已损坏。"
+    },
+    {
+      "id": "LIFE-016",
+      "feature": "会话/技能/MCP/模型配置/预设/附件的选择导入",
+      "baseline": "installed-0.3.13",
+      "expected": "按用户选择复制到目标 home；冲突默认跳过、可明确覆盖，源保持只读，保留未选字段和秘密引用语义。",
+      "entry": "launcher ImportCatalog → startImport → ApplyCatalogWithPlugins",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:42-51,694-739,915-1097,1936-2042: 分类、白名单、技能、凭据 ref 与 presets"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/catalog.go:61-123,399-529: inventory 分类",
+        "internal/desktop/importer/sections.go:14,60-155,244-335: raw block/MCP id 选择合并",
+        "internal/desktop/importer/credential_refs.go:246-328: 选中模型引用的 flat refs 合并及不支持/冲突结果",
+        "internal/desktop/importer/apply.go:57-364: 分项复制、结果日志",
+        "cmd/whaleisle/import_flow.go:15-155; internal/ui/launcher/import_groups.go:15-103: 确认/执行/选择反馈",
+        "cmd/whaleisle/launcher_window.go:691-728",
+        "cmd/whaleisle/main.go:3195-3219",
+        "internal/desktop/importer/catalog.go:127-179"
+      ],
+      "finding": "分类选择、冲突处理和 credential refs 导入存在，复杂格式限制及 LIFE-015 库存问题仍保留；逐项导入基本链存在，但重扫丢source/额外根/选择，多个额外根同名技能静默丢备选来源。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：逐项导入基本链存在，但重扫丢source/额外根/选择，多个额外根同名技能静默丢备选来源。 对照 GLIFE-001、GLIFE-002 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮不导入或读取真实 .dsh/凭据；现有模拟目录结果不能认证真实用户安装。 补审新增动作 GLIFE-001、GLIFE-002 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "导入不只是浅层复制；分类选择、冲突和 credential refs 有实现。doc.go:19“Referenced credentials ... not migrated”已落后于 credential_refs.go，审查以生产代码为准。跨节 YAML anchors/复杂 OAuth 值等仍明确不支持，不可笼统宣称所有官方配置兼容。",
+        "previousRequiredAction": "对每个支持分类和冲突/取消/失败结果验收；校正文档中已失效的凭据迁移描述，保留真实格式限制。",
+        "sources": [
+          "supplement-lifecycle-actions.json"
+        ],
+        "actionIds": [
+          "GLIFE-001",
+          "GLIFE-002"
+        ],
+        "reasons": [
+          "逐项导入基本链存在，但重扫丢source/额外根/选择，多个额外根同名技能静默丢备选来源。"
+        ]
+      },
+      "supplementActionIds": [
+        "GLIFE-001",
+        "GLIFE-002"
+      ]
+    },
+    {
+      "id": "LIFE-017",
+      "feature": "插件导入、原始来源重装与 build approval",
+      "baseline": "installed-0.3.13",
+      "expected": "插件按支持的 GitHub/npm 来源重新安装，不拷贝不可信 node_modules；需要构建脚本时有明确同意，取消保留状态。",
+      "entry": "import plugins selection → importPluginInstaller → installctrl",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/data-import.js:445-480,plugin import pipeline: 支持来源归一化和重装"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/plugins.go:35-65,116-177: 支持/跳过来源及清单",
+        "cmd/whaleisle/import_plugins.go:17-84: readiness/busy gate、needsAllowBuilds、批准/拒绝",
+        "internal/harness/installctrl/install.go; internal/harness/installctrl/allowbuilds.go: 真实安装控制"
+      ],
+      "finding": "有真实 CLI 安装和 allow-builds 接线；不能从仅扫描出插件名称推断重装后其客户端/Host 功能已可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "对支持来源的选中项、需要批准/拒绝、取消及安装失败重试做受控验收；安装后交给插件领域验证真实挂载。",
+      "acceptanceGap": "未安装任何插件、未执行外部脚本或付费请求。"
+    },
+    {
+      "id": "LIFE-018",
+      "feature": "导入事务、取消和崩溃后恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "取消/中断时不丢源和目标；启动及再次导入前恢复未完成交换；不能恢复时停在可修复状态。",
+      "entry": "import_flow/RecoverInterrupted → per-directory journal swap",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/import-transaction.js: replaceDirJournaled/recoverImportTransactions: 事务交换与恢复",
+        "tmp/full-audit-20261102/installed-source/src/main/import-guard.js: maintained state and blocked journals"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/transaction.go:35-84,289-367,377-480: 进程锁、fingerprint、journal、swap/recover",
+        "internal/desktop/importer/sections.go:189-240: 共享 YAML/AGENTS 的 atomic publish",
+        "internal/desktop/importer/legacy_recovery.go; internal/desktop/importer/maintenance.go: 原版 unfinished journal 保留/阻止",
+        "cmd/whaleisle/import_flow.go:77-155; cmd/whaleisle/import_recovery.go:13-31; cmd/whaleisle/main.go:2768,2908: 启动/重启前恢复 gate"
+      ],
+      "finding": "目录 payload 有事务；多份共享文本仍是逐文件提交，不是整个导入的单一原子事务。代码明确原版未完成 journal 不由 Go 擅自完成，需要原版恢复或人工处理。",
+      "evidenceLevel": "code",
+      "requiredAction": "在独占可恢复目录验证取消前/交换中/清理中断恢复，以及逐项失败日志；既有用户 journal 需用户授权后走原版恢复。",
+      "acceptanceGap": "真实数据迁移和跨原版 journal 恢复未验收；不能把每文件 atomic 扩大成整个批次 all-or-nothing。"
+    },
+    {
+      "id": "LIFE-019",
+      "feature": "启动日志、诊断导出和故障文件",
+      "baseline": "installed-0.3.13",
+      "expected": "用户能选位置保存启动失败证据、取消不写文件，诊断不暴露 endpoint token。",
+      "entry": "boot Export/launcher startup diagnostics → Save dialog → ExportLogs",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/boot-log-dump.js: diagnostic formatting/export route",
+        "tmp/full-audit-20261102/installed-source/src/main/crash-report.js: bounded reports/retention"
+      ],
+      "mygoEvidence": [
+        "internal/harness/logexport.go:18-55,58-119: 导出对话框、取消处理和无认证 endpoint 诊断",
+        "internal/startuprec/recovery.go:155-183: 关键恢复日志清理",
+        "internal/startuptrace/startuptrace.go:70-91,120-168: opt-in trace",
+        "cmd/whaleisle/crash_report.go:194-248: 写文件和10份保留",
+        "cmd/whaleisle/main.go:6423-6427,7575-7580: 导出动作生产接线"
+      ],
+      "finding": "有导出与固定日志契约；trace 只在显式环境变量启用。尚未检查所有第三方日志可能含秘密的端到端内容，不能泛称所有诊断均脱敏。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收 Save/Cancel、不可写路径、导出内容和错误回显；对真实日志做必要脱敏审阅后再分享。",
+      "acceptanceGap": "本轮未导出用户日志、未读取用户 profile。"
+    },
+    {
+      "id": "LIFE-020",
+      "feature": "完整载荷安装/同版本升级/卸载事务",
+      "baseline": "existing-MyGo-contract",
+      "expected": "完整 runtime 被正确安装，升级可恢复且卸载只移除自身拥有文件，不损用户数据。",
+      "entry": "scripts/package.ps1 → NSIS ownership transaction",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/runtime-install.js: 原版运行时安装/卸载的产品契约"
+      ],
+      "mygoEvidence": [
+        "scripts/nsis/whaleisle.nsi:76-190,193-205: payload stage/promote/registry/shortcuts/uninstall",
+        "scripts/nsis/payload-transaction.nsh:46-60,ownership/rollback/uninstall helpers: 所有权与长路径修复",
+        "scripts/nsis/runtime-links.nsh; scripts/session-runtime-links: runtime junction 事务",
+        "tmp/stabilize-20261102/install-result.json: install/upgrade/uninstall=true、uniqueProductIdentity=true、desktopInteraction=false",
+        "tmp/stabilize-20261102/packaged-headless/report.json: 真实 packaged Host 核心8项"
+      ],
+      "finding": "已有完整 payload 在独立 GUID/Temp 中的静默事务证据可复用。它只证明安装事务和资源，不证明真实产品 ID 接管、快捷方式点击、窗口交互或原版用户数据迁移。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "保留现有 scoped pass；发布前完成真实产品身份的可恢复升级与启动验收，不机械重跑已通过独立事务。",
+      "acceptanceGap": "同产品 ID 和原安装接管、锁定文件/进行中任务/点击安装完成启动均未验收。"
+    },
+    {
+      "id": "LIFE-021",
+      "feature": "覆盖原安装、回滚与卸载所有权",
+      "baseline": "existing-MyGo-contract",
+      "expected": "接管已有安装要保留旧载荷/数据与恢复路径；卸载不能移除原版或其他安装的注册项/通知。",
+      "entry": "NSIS 默认 APP_ID/InstallDirRegKey → wiPromote/wiCommitInstallation",
+      "status": "external-blocked",
+      "priority": "P0",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/shared/product-identity.js: 原版数据身份不随改名变化"
+      ],
+      "mygoEvidence": [
+        "scripts/nsis/whaleisle.nsi:9-33,174-181,193-205: 默认同原版 APP_ID ai.deepseek.harness.gui",
+        "scripts/nsis/payload-transaction.nsh:639-717,770-785,959-997: 旧卸载器保护、所有权管理和失败保留",
+        "internal/desktop/appuninstall/native.go:22-74: 当前 native 身份/路径验证；不接受未知卸载器",
+        "cmd/whaleisle/application_uninstall.go:54-83: 确认、saveResume、任务保护和只报告已启动"
+      ],
+      "finding": "原安装接管是代码和默认安装器的重要语义，尚无可消费的当前真实接管证据。此前独立 GUID 无法认证覆盖原版路径、同 APP_ID 注册项与回退。",
+      "evidenceLevel": "external-blocked",
+      "requiredAction": "在明确的备份/恢复方案和授权下执行实际接管验收；在此之前阻止把该安装器推荐为已验证的无风险原地替换。",
+      "acceptanceGap": "禁止本次审查操作真实原安装、注册表或用户 profile；此缺口不改写成 confirmed install failure。"
+    },
+    {
+      "id": "LIFE-022",
+      "feature": "安装器与应用品牌身份一致",
+      "baseline": "installed-0.3.13",
+      "expected": "安装器、系统应用列表、快捷方式和应用标题能明确识别鲸屿go及来源。",
+      "entry": "NSIS PRODUCT_NAME/Publisher/finish link",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/shared/product-identity.js:6-10: Whale Isle/Launcher 当前产品名"
+      ],
+      "mygoEvidence": [
+        "internal/product/product.go:4-7: 应用显示名 鲸屿go、旧名用于路径",
+        "scripts/nsis/whaleisle.nsi:16-20,30,57-58,164-168,184-188: 默认 DeepSeekHarness Go、Publisher DeepSeek、结束链接仍原 Electron 仓库",
+        "scripts/package.ps1:230-237: 默认调用未传 PRODUCT_NAME 覆盖"
+      ],
+      "finding": "正式打包默认沿用不匹配的 NSIS 品牌/Publisher/项目链接，系统用户看到的安装身份与窗口“鲸屿go”不一致。APP_ID 的共享是有意覆盖升级契约，不能为修文案擅自改 ID。",
+      "evidenceLevel": "code",
+      "requiredAction": "统一显示品牌、可信 Publisher 与正确项目入口；保留既定升级 ID 和数据路径。",
+      "acceptanceGap": "本项从实际打包脚本定位；未打开安装器 GUI 检查最终排版。"
+    },
+    {
+      "id": "LIFE-023",
+      "feature": "检查更新入口与发布目录使用同一事实来源",
+      "baseline": "installed-0.3.13",
+      "expected": "设置和启动器对同一渠道应给出一致的版本状态，普通安装无需用户配置环境变量。",
+      "entry": "Settings/About OnCheckUpdates → showUpdateCheck；Launcher → withNativeReleases",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/update-center/service.js:3-5: 所有更新界面共享 snapshot/command",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:276-284,1403: 统一更新中心与 service.start"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:4176-4177,4404-4405: 设置检查仍调用 showUpdateCheck",
+        "cmd/whaleisle/update_check_lifecycle.go:83-97: 调旧 Feed 检查",
+        "internal/desktop/update/update.go:100-131: 只取环境变量，无配置必 not_configured",
+        "cmd/whaleisle/native_releases.go:39-61: 启动器检查则调 native catalog",
+        "internal/desktop/update/native_releases.go:137-157: native catalog 有默认 GitHub 源"
+      ],
+      "finding": "设置检查与启动器存在两个互不等价的更新源。在不设 WHALEISLE_UPDATE_FEED 的普通分发中，设置按钮返回未配置，即使 native catalog 分支可用；这是确定接线差异，不是网络失败猜测。",
+      "evidenceLevel": "code",
+      "requiredAction": "让设置、启动器和启动提示复用同一个 native update owner/状态来源；明确淘汰或仅保留显式旧 Feed 用法，避免破坏已有外部配置。",
+      "acceptanceGap": "未联网检查源是否已发布；该缺陷结论不依赖公网可达性。"
+    },
+    {
+      "id": "LIFE-024",
+      "feature": "更新中心、持久暂停/恢复、自动下载及跨重启进度",
+      "baseline": "installed-0.3.13",
+      "expected": "打开同一个更新中心看到任务与故障，暂停/续传、自动下载偏好和已验证安装包状态跨界面/重启保留。",
+      "entry": "About“打开更新中心” → launcher.TabVersions",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/update-center/service.js:12-19,96-119,148-178,269-332,462-516: durable update-center.json、partial/resume、paused与autoDownload",
+        "tmp/full-audit-20261102/installed-source/src/main/index.js:276-284: 真正打开更新中心 overlay"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_body_wiring.go:137-153: Resume 与 Download 同调 downloadNativeRelease；打开中心只是版本页路由",
+        "cmd/whaleisle/native_releases.go:20-36,174-319: 更新任务保存在 mainState 内存",
+        "internal/desktop/update/apply.go:151-170: 新建目标文件，取消/错误删除；没有 partial resume 写入",
+        "internal/desktop/update/native_cache.go:17-91: 完整安装包 base cache，不能等同下载断点续传",
+        "internal/ui/launcher/native_releases.go:19-58: 当前任务/取消/安装反馈"
+      ],
+      "finding": "已有手动下载、取消、完整包 cache 和安装交接，但没有原版的统一 durable 更新中心及暂停/断点续传。OnResumeUpdate 与新下载同一入口，按钮命名不能构成续传实现。",
+      "evidenceLevel": "code",
+      "requiredAction": "实现同一持久更新任务状态、真实 pause/resume 和自动下载偏好，或在产品明确标注所支持的较小能力；不要把版本列表称为已完成原版中心。",
+      "acceptanceGap": "当前 native catalog 的真实下载/取消/恢复/安装和跨重启场景未验收。"
+    },
+    {
+      "id": "LIFE-025",
+      "feature": "更新渠道、镜像与可分发 release metadata",
+      "baseline": "installed-0.3.13",
+      "expected": "用户选择可用渠道后能发现对应原生包；元数据绑定版本、架构、完整 runtime 和真实来源，不错装 Electron 包。",
+      "entry": "NativeCatalogURL/Validate → ListNativeReleases → StageNativeRelease",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/release-source.js:12-28,34-62,190-244: GitHub/CNB 固定产品源和国内默认策略"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/update/native_releases.go:134-159: GitHub 默认源，CNB 没配置返回错误",
+        "internal/desktop/update/native_releases.go:174-243: tag/platform/format/hash/size/Host provenance 校验",
+        "scripts/native-release-catalog.mjs: 描述已构建/签名原生包、source/runtime 验证；不发布",
+        "docs/release-stabilization-20261102.md: 候选为本地未签名、未发布"
+      ],
+      "finding": "原生专用 catalog 正确避免错装原版，但 MyGo CNB 分发源仍要额外环境配置；本轮正式包只在本地，没有发布/默认 feed 可用证据。不能把“支持渠道字段”当成用户可直接更新。",
+      "evidenceLevel": "code",
+      "requiredAction": "明确可交付渠道并提供真实 native catalog/完整包；若国内渠道尚未部署，UI 应说明不可用而不是沿用可选择但必失败路径。",
+      "acceptanceGap": "未访问远端发布服务；不声称当前 GitHub URL 404或可用；未发布不等于源实现缺失。"
+    },
+    {
+      "id": "LIFE-026",
+      "feature": "下载/增量重建/校验/安装交接与签名策略",
+      "baseline": "installed-0.3.13",
+      "expected": "只启动对应版本和架构的已验证包；取消不执行安装，任务保护后再退出，完整包/增量有一致终态。",
+      "entry": "StageNativeReleaseWithOptions → verified staging → installStagedUpdateWithConsent",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/update.js:275-324: 原版下载与校验",
+        "tmp/full-audit-20261102/installed-source/src/main/update-center/service.js:302-347: 续传并验证后再安装"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/update/native_releases.go:376-431; internal/desktop/update/patch.go; internal/desktop/update/blockmap.go: 原生完整包/增量及最终校验",
+        "internal/desktop/update/apply.go:106-228: 有界下载、size/hash、签名检查和取消清理",
+        "internal/desktop/update/signature_windows.go; internal/desktop/update/start_staged.go: Windows 签名/启动前复核",
+        "cmd/whaleisle/task_protection.go:252-297: 用户许可、saveResume、Host task drain、启动安装器再清理",
+        "cmd/whaleisle/update_check_lifecycle.go:125-127: 旧 Feed 路径严格签名依赖环境变量"
+      ],
+      "finding": "完整性和正确包路由有实现，签名与独立 hash 是不同事实；当前包未签名，不能声称是签名商用发布。安装器进程创建也不是安装完成。",
+      "evidenceLevel": "code",
+      "requiredAction": "同候选验收真实网络错误/取消、增量fallback、最终校验失败、用户拒绝/确认和安装完成后启动；发布层决定签名/publisher并使用户可理解。",
+      "acceptanceGap": "本轮未下载远端包、未安装更新、未运行签名验证；现有隔离静默事务不覆盖应用内交接。"
+    },
+    {
+      "id": "LIFE-027",
+      "feature": "通用组件清单、启停、升级回滚和卸载",
+      "baseline": "installed-0.3.13",
+      "expected": "显示真实组件和孤立记录，操作真实 payload，失败停在可恢复状态，回滚留旧版本，卸载默认留数据。",
+      "entry": "launcher component rows → generic worker / separate WhaleBridge lifecycle",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/components/registry.js: scanCatalog/readManifest: 真实 samples 目录、合法 entry",
+        "tmp/full-audit-20261102/installed-source/src/launcher/components/lifecycle.js: install/start/stop/update/rollback/uninstall",
+        "main/ipc-components.js:31-113: 生产组件路由"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/components/generic_catalog.go:72-164: 真磁盘 samples/registry 及 orphan rows",
+        "internal/desktop/components/generic.go:77-180,217-306: lazy Node worker、实际动作/进度",
+        "internal/desktop/components/generic-source/README.md:1-19: 固定来源与无制造 catalog 约束",
+        "cmd/whaleisle/generic_components.go:33-113; cmd/whaleisle/component_changes.go:21-155: claim/busy、保护动作与反馈",
+        "internal/ui/launcher/panel.go:619-790: 真实动作和错误展示"
+      ],
+      "finding": "组件不是假列表；真实 samples 不存在时不制造可安装项。这个行为不能由 fixture payload 测试替代真实附带组件的完整启动和停止验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "以最终包内真实样本和实际已安装组件验收 install/start/stop/update/rollback/uninstall、失败停止和应用退出后资源释放。",
+      "acceptanceGap": "未启动组件或改任何组件记录；当前真实组件工作流缺桌面/进程级验收。"
+    },
+    {
+      "id": "LIFE-028",
+      "feature": "WhaleBridge 独立组件及管理窗口/提醒",
+      "baseline": "installed-0.3.13",
+      "expected": "安装、更新、回滚、启动/停止/卸载、管理页与账号提醒使用同一真实状态；不丢既有数据/模型配置。",
+      "entry": "组件页 WhaleBridge actions → protected bridge plan/service",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/whalebridge.js: original service lifecycle",
+        "tmp/full-audit-20261102/installed-source/src/main/whalebridge-window.js; main/whalebridge-notifications.js: 管理窗和提醒消费者"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/components/whalebridge.go:119-170,247-384,504-663: catalog/安装/更新/回滚/卸载真实实现",
+        "internal/desktop/components/change.go:162-218; uninstall.go:118-219: 失败还原和数据移除独立许可",
+        "internal/desktop/components/readiness.go:43-143: 真实管理HTTP ready与维护",
+        "cmd/whaleisle/component_changes.go:159-220: 确认变更与数据删除分离",
+        "internal/ui/launcher/bridge_alerts.go; internal/desktop/components/alerts.go: 提醒及通知失败保留"
+      ],
+      "finding": "Bridge 是独立实际组件链；元数据、进程所有权、HTTP ready 及回滚均有实现。未对用户实际 Bridge 服务做操作，不能宣称当前电脑上的 Bridge 已纳入验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "在独占组件实例上验收升级失败/回滚、运行中保护、管理页登录及通知，避免接管用户在用 Bridge。",
+      "acceptanceGap": "当前服务、账号、网络和 native管理窗口未验收。"
+    },
+    {
+      "id": "LIFE-029",
+      "feature": "独立启动器与 macOS Host 离线组件",
+      "baseline": "installed-0.3.13",
+      "expected": "独立启动器只管理 native安装，不启动内嵌Host；离线Host组件绑定匹配Node/vendor，不替换运行中Host。",
+      "entry": "cmd/whaleisle-launcher / externallauncher；HostBundleSupported",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/launcher/launcher-service.js; launcher/runtime-install.js: 原版独立启动器管理安装/进程",
+        "main-launcher/index.js: 独立启动器窗口"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle-launcher/main.go:40-84,94-127: Windows-only/单实例/状态刷新与busy禁止关闭",
+        "scripts/package-launcher.ps1:1-16: 独立产物，与完整桌面分发不同",
+        "internal/desktop/components/host_bundle.go:55-114,144-190,212-284: macOS-only离线完整Hostbundle验证与选择",
+        "internal/paths/host_runtime.go:42-53: 仅macOS消费选中的Host/Node",
+        "cmd/whaleisle/host_bundle.go:21-99,115-175: 受保护切换"
+      ],
+      "finding": "两个能力的实现边界明确：当前Windows完整包不含自动等价的独立launcher；macOS离线组件也不是Windows缺Runtime时的下载器。不能因代码能编译就宣称跨平台可交付。",
+      "evidenceLevel": "code",
+      "requiredAction": "对相应平台的实际独立产物验收安装探测、进程状态、升级/回滚；macOS需真实设备。",
+      "acceptanceGap": "当前仅Windows桌面包存在已完成 scoped证据；macOS与独立launcher尚无当前平台验收。"
+    },
+    {
+      "id": "LIFE-030",
+      "feature": "手机临时配对、二维码、局域网/Relay及失效处理",
+      "baseline": "installed-0.3.13",
+      "expected": "开启后显示真实可用 offer/二维码；绑定网卡/端口/TLS/relay设置生效，过期/断线不留可用假链接。",
+      "entry": "Remote settings → refreshPhoneRemote → phoneremote.Runtime → actual bundled manager",
+      "status": "external-blocked",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js:418-474,594-722: daemon、offer v2、pairing状态与刷新",
+        "main dshd manager is consumed with current Host/mobile web resources"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:793-860,5495-5549,5664-5688: Runtime装配、配置与刷新",
+        "cmd/whaleisle/phone_gateway.go:34-115: expected/current配置提交",
+        "internal/ui/remote/phone.go:139-205; settings_body.go:172-294,505-543: 实际offer gate、QR/复制和网卡失效提示",
+        "internal/desktop/phoneremote/runtime.go:83-175,230-252,330-381: 资源验证/代际/过期处理",
+        "internal/desktop/phoneremote/bridge.cjs:20-33,97-120: manager真实snapshot与有效offer",
+        "docs/release-stabilization-20261102.md: TestPackagedMobileBuiltFixture 消费最终stage通过；未做真机"
+      ],
+      "finding": "最终包资源消费者已有通过证据；真正手机扫码、第二设备网络、relay、TLS信任和往返消息都未验收。UI与控制链有实现，不可记“手机远程已可用”。",
+      "evidenceLevel": "external-blocked",
+      "requiredAction": "有用户许可和第二设备时验收真实配对/重连/过期/断网、局域网网卡切换及relay，不读取或传播offer/token。",
+      "acceptanceGap": "当前禁止启动网关或操作设备；外部平台/网络/第二设备条件未具备。"
+    },
+    {
+      "id": "LIFE-031",
+      "feature": "手机长期配对链接和单独撤销",
+      "baseline": "installed-0.3.13",
+      "expected": "可复制长期重复配对链接，并单独撤销它而不踢掉已配对设备；与更新短期令牌是不同动作。",
+      "entry": "原版RemoteSection长期链接复制/撤销 → revokePairingLink；MyGo只有临时URL",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-remote/lib/client.js:1785,1966-1971,2141-2145,2363: 长期链接copy、独立撤销及明确已配对设备不受影响",
+        "tmp/full-audit-20261102/installed-source/src/main/ipc.js:540-547: revoke-remote-pairing-link → revokePairingLink",
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js:635-637,667-685: pairingLinkUrl与独立link-store撤销"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/phoneremote/bridge.cjs:118-120: snapshot只传短期url/qr/devices，不传pairingLinkUrl",
+        "internal/desktop/phoneremote/runtime.go:257-275: 事件结构没有长期链接字段",
+        "internal/desktop/phoneremote/device_actions.go:33-35; device-actions.cjs:21-39: 仅rename/unbind/rotate",
+        "internal/ui/remote/phone.go:182-199: 复制临时offer URL；phone_devices.go:115-126: 仅更新配对token"
+      ],
+      "finding": "当前原安装0.3.13已提供长期链接与独立撤销，MyGo整条桥接/状态/UI缺失。不能用临时二维码/更新token按钮声称等价；若旧长期链接在同一remote home存在，用户也没有对应管理入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "贯通长期链接最小必要状态、复制和独立revoke动作，保留与临时token/已配对device管理的区别。",
+      "acceptanceGap": "未读取任何真实offer、链接或设备凭据；实际旧长期链接存在与否未知。"
+    },
+    {
+      "id": "LIFE-032",
+      "feature": "已配对设备重命名/解绑和配对令牌更新",
+      "baseline": "installed-0.3.13",
+      "expected": "设备清单来自真实 manager；重命名/解绑/轮换有确认、busy、持久化结果，失败不把旧offer假装可用。",
+      "entry": "phone_devices → phoneDeviceAction → Runtime.DeviceAction → manager",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-remote.js: paired device snapshots and device management",
+        "tmp/full-audit-20261102/installed-source/src/main/ipc.js:530-537,550 onward: rotate/unbind/rename routes"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/phone_devices.go:19-126: 清单、confirm/cancel/busy/notice",
+        "cmd/whaleisle/phone_devices.go:10-38: RemoteEnabled/quitting guard",
+        "internal/desktop/phoneremote/device_actions.go:33-166; device-actions.cjs:21-77: request id/generation、rename/unbind/rotate和真实manager更新",
+        "internal/desktop/phoneremote/runtime.go:230-252,297-307: 设备动作期间隐藏offer并接受结果"
+      ],
+      "finding": "设备操作具备不同于配置保存的异步确认和结果链。没有当前真机设备持久化与原已配对连接持续/失效证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收操作成功/失败、取消、旧device撤权、重启后名称，以及rotate临时token是否保留预期已配对会话。",
+      "acceptanceGap": "未操作真实设备或token；纯fixture不能认证第三方manager+真实手机。"
+    },
+    {
+      "id": "LIFE-033",
+      "feature": "手机远程Shell/Git/目录与桌面设置动作",
+      "baseline": "installed-0.3.13",
+      "expected": "手机可在明确授权工作区内查看目录、Git状态/diff、commit/push/pull/branch/PR，并打开桌面设置；撤权即时阻止旧请求。",
+      "entry": "mobile /__remote__/shell/* → shell_routes/authorization → git桥/Go host actions",
+      "status": "external-blocked",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/remote-shell.js:1-104: 完整shell动作集及结果语义",
+        "tmp/full-audit-20261102/installed-source/src/main/dshd-git-dispatch.js; main/dshd-git-tunnel.js: 请求授权与转发"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/phoneremote/shell_routes.cjs:1-61,97-103,route handlers: root/permission校验与15项shell动作",
+        "internal/desktop/phoneremote/git_bridge.go; git_generation.go; git_review.go: 活跃child/request验证、生成与review控制",
+        "cmd/whaleisle/phone_git.go:19-91; phone_git_workspaces.go:22-169: 注册根、当前session与授权撤销",
+        "cmd/whaleisle/remote_host_actions.go:22-106,109 onward: 允许配置白名单与真实Go回调",
+        "internal/desktop/phoneremote/host_actions.go:23 onward: 活跃child有界请求"
+      ],
+      "finding": "有实际Git/目录桥和必要授权，不是把浏览器的shell方法静态占位。受影响手机页面和第二设备端到端仍未验收；不能由本地HTTP/fixture代证远程可用。",
+      "evidenceLevel": "external-blocked",
+      "requiredAction": "用独占Git仓库验收第二设备读写、分支/PR真实反馈、撤权/换会话和迟到请求拒绝；外部push/PR需另外明确授权。",
+      "acceptanceGap": "本次未连手机、未做Git写入或外部发布。"
+    },
+    {
+      "id": "LIFE-034",
+      "feature": "SSH远程机器清单、连接、目录镜像/工作区绑定",
+      "baseline": "installed-0.3.13",
+      "expected": "保存/选择机器后连接真实Host插件；选择远程目录并绑定正确会话，失败有反馈且删除不误删远程目录。",
+      "entry": "remote machines/directory → remotestore → /api/dsh-remote",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js: forms/machines/current/list/mirror actions",
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js:2080-2378: machines/current/connect/ls/mirror routes"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/machines.go:44-318; directory.go: directory picker, file_workspace.go: session-bound affordances",
+        "internal/store/remote/store.go:91-139,150-220,237-331: 真HTTP、错误结果、代际与machine CRUD",
+        "internal/store/remote/directory.go:86-135; directory_actions.go:71-106: mirror/home/mkdir/ls",
+        "internal/store/remote/removal.go: delete feedback preserving list",
+        "cmd/whaleisle/main.go:5495-5500; remote_files.go: session-bound file adapter assembly",
+        "internal/desktop/workspaceauth/workspaceauth.go:28-62: 根目录/高风险/.git连接授权边界",
+        "internal/ui/remote/machines.go:190-217",
+        "internal/ui/remote/directory.go:25-82",
+        "internal/store/remote/directory.go:71-132",
+        "cmd/whaleisle/directory_picker.go:150-170"
+      ],
+      "finding": "机器 CRUD、连接与既有远程会话文件路径有实现，但不证明首次目录采用可达；机器CRUD/既有会话文件解析有实现，但没有清除current UI；新远程目录→mirror→工作区采用无生产触发。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：机器CRUD/既有会话文件解析有实现，但没有清除current UI；新远程目录→mirror→工作区采用无生产触发。 对照 GLIFE-003、GLIFE-004、GLIFE-005 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本次不读取SSH密钥、不连远程主机；默认Host插件是否在用户profile可用由动态插件领域共同验收。 补审新增动作 GLIFE-003、GLIFE-004、GLIFE-005 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "UI/store使用实际dsh-remote route而非静态假机器；machine身份、远程cwd、镜像local路径与session绑定分开。尚无真实SSH服务和当前原生点击路径证据。",
+        "previousRequiredAction": "验收新建/编辑/选择/连接/删除、错误端口/凭据、目录选择/取消/镜像、断线及绑定会话切换。",
+        "sources": [
+          "supplement-lifecycle-actions.json"
+        ],
+        "actionIds": [
+          "GLIFE-003",
+          "GLIFE-004",
+          "GLIFE-005"
+        ],
+        "reasons": [
+          "机器CRUD/既有会话文件解析有实现，但没有清除current UI；新远程目录→mirror→工作区采用无生产触发。"
+        ]
+      },
+      "supplementActionIds": [
+        "GLIFE-003",
+        "GLIFE-004",
+        "GLIFE-005"
+      ]
+    },
+    {
+      "id": "LIFE-035",
+      "feature": "SSH高级选项、配置导入、host key、转发、审计",
+      "baseline": "installed-0.3.13",
+      "expected": "私钥/密码/agent/keyboard-interactive、shell/proxy、host-key策略及端口转发按选中机器生效；可导入SSH alias并查看真实结果。",
+      "entry": "remote tools/form → store.tools/connection_options → dsh-remote actual APIs",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/client.js:565-714,815-841: 机器高级字段与SSH config入口",
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js:2206-2378: test-connect/forget-key/forwards/audit/ssh-config"
+      ],
+      "mygoEvidence": [
+        "internal/ui/remote/connection_options.go:8-82; tools.go:12-165: 高级设置、HostKey确认、SSH导入、转发与审计",
+        "internal/store/remote/connection_options.go:connection option payload,105-158: SSH entry到结构化proxy，拒绝多hop",
+        "internal/store/remote/tools.go:145-192: load/audit/test-connect/forwards/forget-key真实请求",
+        "internal/desktop/sshremote/sshconfig.go:55-112: 本地解析子集；与Host /ssh-config不是同一数据源",
+        "internal/store/remote/store.go:276-331: 不将隐藏密钥误回写成空值"
+      ],
+      "finding": "核心高级动作都有callback/API；显式只支持单跳proxy不是意外静默导入。Host插件的known-hosts与原生Tunnel的OpenSSH known_hosts是不同存储，不能合并为一次已验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "分别验收Host机器编辑及原生Tunnel的安全策略；配置导入错误须让用户看到不支持的代理/alias，而不是假成功。",
+      "acceptanceGap": "真实SSH auth/agent/host key变化/端口绑定/审计不可在本次只读审查验收。"
+    },
+    {
+      "id": "LIFE-036",
+      "feature": "远程文件预览、编辑保存、冲突和草稿保留",
+      "baseline": "installed-0.3.13",
+      "expected": "文件始终属于原会话/机器，保存须ack且检测mtime冲突；切换/关闭/断线不能丢编辑或写错机器。",
+      "entry": "remote file workspace → Files adapter → session-bound dsh-remote read/write/fs",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-remote/lib/index.js: remote read/write/fs session routes"
+      ],
+      "mygoEvidence": [
+        "internal/store/remote/file_workspace.go:77-88,213 onward: session resourceURI/resolve-mirror",
+        "internal/store/remote/files.go:274-304: status+sessionId+read/write/expectedMtime/download",
+        "internal/store/remote/file_actions.go:121-151: 写动作前重读绑定状态与list",
+        "internal/store/remote/file_draft.go; file_draft_test.go: 多文件草稿生产模型与相关既有测试",
+        "internal/store/remote/file_close.go:15-118: acknowledged sequential close save",
+        "internal/ui/remote/files.go; file_draft.go; file_actions.go: 编辑/冲突/关闭反馈；cmd/whaleisle/remote_files.go: 生产adapter"
+      ],
+      "finding": "存在实际session-bound写入与草稿关闭保护；纯httptest和本地目录功能通过不能证明真实SSH远程保存或GUI切换正确。P0标数据后果，不宣称已发现写错机器。",
+      "evidenceLevel": "code",
+      "requiredAction": "在独占远程测试目录验收read/edit/save、并发mtime变化、断线重试、换session/机器、关闭全部和取消保存。",
+      "acceptanceGap": "不连接远端或写文件；真实网络和点击路径当前未验收。"
+    },
+    {
+      "id": "LIFE-037",
+      "feature": "原生SSH Tunnel连接、TOFU选择、持久化和错误反馈",
+      "baseline": "existing-MyGo-contract",
+      "expected": "用户能选择是否信任未知指纹、拒绝变更指纹、保存简单连接并看到隧道/转发的真实失败。",
+      "entry": "legacy native tunnel row → sshConnectOperation → TunnelSession",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [],
+      "mygoEvidence": [
+        "cmd/whaleisle/ssh_connect_operation.go:33-47,62-80,98-136: 新attempt取消旧prompt、可信key持久化和连接成功文案",
+        "internal/desktop/sshremote/known_hosts.go:226 onward: accept-new/verify/off与change拒绝",
+        "internal/desktop/sshremote/tunnel.go:323-345: SSH成功即标Connected，转发另起goroutine",
+        "internal/desktop/sshremote/tunnel.go:390-407: 转发格式/监听失败只写t.err，不触发UI通知",
+        "cmd/whaleisle/main.go:5481-5487: 仅sshTunnelMsg为空时采用errLine；成功msg已非空，后续错误被遮住",
+        "cmd/whaleisle/main.go:5690-5761: 真实保存/连接/断开UI接线"
+      ],
+      "finding": "TOFU/变更指纹和取消有明确实现；确定的反馈缺陷是SSH已连后转发失败，t.err被成功sshTunnelMsg遮蔽，并且后台失败不主动通知界面。用户可能看到“已连接”但转发不工作。",
+      "evidenceLevel": "code",
+      "requiredAction": "把SSH连接与转发状态分开，并将当前generation的后台失败推送给UI；保留旧prompt不能信任新host的现有保护。",
+      "acceptanceGap": "未连SSH服务或绑定转发；本结论来自确定生产条件链，不扩展为全部SSH功能无效。"
+    },
+    {
+      "id": "LIFE-038",
+      "feature": "本地开发服务发现与快捷打开",
+      "baseline": "installed-0.3.13",
+      "expected": "只发现已在运行的本机服务，空/部分/失败结果可区分，不为了显示列表启动服务。",
+      "entry": "internal/ui/browserpreview/local_servers.go:39-74 → localservers.DiscoverStatus",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/preview.js:47-50: 原版同一固定开发端口表和200ms发现超时"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/localservers/discover.go:23-44,57-86: 固定端口TCP probe、200ms、partial/error、Winsock错误分类",
+        "internal/ui/browserpreview/local_servers.go:25-36,39-74: 真实Controller异步消费，隐藏/工作区变化退役请求并展示error"
+      ],
+      "finding": "发现模块本身只做短TCP探测，不启动服务。具体浏览器打开、不可达错误与用户交互由文件/浏览器领域接续，不以端口能连接推定HTTP页面可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "由文件/浏览器领域核对真实picker到目标URL与失败展示；本领域保留discovery只读行为。",
+      "acceptanceGap": "本轮不探测在用服务；消费链详细验收归跨领域依赖，不重复测试。"
+    },
+    {
+      "id": "LIFE-039",
+      "feature": "原项目当前dirty增量：鲸鱼任务纳入桌面退出准入/inspection",
+      "baseline": "current-original-0.3.13",
+      "expected": "若采用原项目当前新鲸鱼后台任务，退出/维护锁必须阻止新任务并把运行鲸鱼任务列入保护检查。",
+      "entry": "current-original dsh-task-control.desktopTaskAdmission + whaleTasks provider",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-task-control/lib/index.js:28-42: dirty新增desktopTaskAdmission.begin/check",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-task-control/lib/inspection.js:156-160: dirty新增whaleTasks.inspect及coverage"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-task-control/lib/index.js:28-31: 固定rc.2控制组件无desktopTaskAdmission provider",
+        "runtime/vendor/dsh-task-control/lib/inspection.js:collectInspection: 固定组件无whaleTasks coverage",
+        "internal/harness/task_protection.go:12-89: native只消费当前Host inspection，不能自动补上新任务kind"
+      ],
+      "finding": "这是原项目当前未提交的新能力，不能报成当前安装0.3.13已具备。MyGo沿用固定Host控制插件，若后续移植Whale任务但不更新准入/inspection，会漏掉该任务族的退出保护；当前用户未使用此新增任务的事实未知。",
+      "evidenceLevel": "code",
+      "requiredAction": "将该delta与Whale任务功能一起迁移和验收，确保Host inspection与native确认展示支持新kind；不要单独升级控制插件伪称整项完成。",
+      "acceptanceGap": "原项目dirty能力本身尚未发布/验收；当前安装原版不纳入此项对等失败。"
+    },
+    {
+      "id": "LIFE-040",
+      "feature": "更新请求遵循Windows系统代理/PAC",
+      "baseline": "installed-0.3.13",
+      "expected": "依赖系统代理或PAC访问GitHub/CNB的用户不必另设环境代理，元数据/校验/下载使用一致的网络策略。",
+      "entry": "nativeHTTPClient → ListNativeReleases/StageNativeReleaseWithOptions；旧Feed Check",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/system-proxy.js:62-69,142-149: Chromium session.resolveProxy/net.fetch采用系统代理",
+        "tmp/full-audit-20261102/installed-source/src/main/update.js:9,219,341,550: checksum/下载使用systemFetch/agentFor",
+        "tmp/full-audit-20261102/installed-source/src/main/update-center/index.js:25: blockmap请求使用systemFetch；launcher/release-source.js:8,78:发布元数据使用systemFetch"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/update/native_releases.go:320,364-371: 创建http.Client未设Transport，使用Go默认Transport",
+        "internal/desktop/update/native_releases.go:391-415: 完整/增量下载共用nativeHTTPClient",
+        "internal/desktop/update/update.go:136-145:旧Feed同样为普通Go http.Client",
+        "internal/networkstatus: 仅连接状态事件，不提供系统代理/PAC解析和HTTP transport接线"
+      ],
+      "finding": "更新HTTP消费链未接原版系统代理/PAC；Go默认HTTP transport的环境代理不能等同Windows用户系统代理/PAC。这是迁移差异，不是已观察到本机下载失败，也不意味着要添加原版不存在的手动代理页。",
+      "evidenceLevel": "code",
+      "requiredAction": "让更新catalog/checksum/blockmap/下载消费同一系统代理策略，保留明确环境代理的既有用法；在依赖系统代理/PAC的环境验证。",
+      "acceptanceGap": "未读取或更改当前代理配置，未进行网络请求；当前用户是否依赖PAC/系统代理未知。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "workspace/files: 用户新建工作区/新对话无响应是首要实际失败；本领域Hostready/目录控制器通过不反证其UI失败。localservers consumer、remote file adapter在文件页/浏览器生命周期的整合请对应owner接续。",
+    "settings/account: 首次欢迎窗为既定禁用；当前设置账号/模型入口、登录回调和凭据错误提示需账号owner结论。更新检查两源接线与About更新中心差异由本领域记录LIFE-023/024。",
+    "plugins/embedded surfaces: Host失败/插件skip/恢复在本领域；动态客户端实际挂载、已加载嵌入页面进程故障和WebView响应由插件/浏览器owner共同核对。",
+    "assistant/tasks: current-original dirty Whale任务需要desktopTaskAdmission+whaleTasks inspection同步迁移，见LIFE-039；不将该未发布delta当已安装原版差距。",
+    "root delivery: 当前正式installer/诊断exe/工作树三种来源分开；原安装接管、系统通知和托盘、真实SSH/手机、macOS当前无可签字验收。"
+  ],
+  "uncovered": [
+    "真实桌面输入、托盘/通知/开机/URL注册、安装器GUI与真实原产品ID接管不在本次允许执行范围，均保留为相应条目的验收缺口。",
+    "手机端页面各控件、第二设备/relay/TLS与真实SSH服务未运行；本领域完成桌面配置/桥接/服务契约枚举，不能判实际可用。",
+    "localservers对应具体picker/浏览器打开后的页面行为由文件/浏览器领域拥有，本领域未重复该页面级审查。",
+    "macOS硬件和Linux真实桌面行为、签名/公证/系统包管理只完成平台分支/发布入口盘点，不能由Windows源码与历史编译认证。",
+    "current-original dirty dsh-whale/dsh-im任务完整实现归assistant领域；本领域只完成其退出/维护准入接口delta核对。"
+  ],
+  "checksRun": [
+    {
+      "command": "只读 Get-Content/rg：合同、所属模块生产入口、回调、状态、Host/OS动作及持久化链；不新测试不构建",
+      "result": "完成40项能力记录；确定差距和未验收项分列",
+      "scope": "当前工作树源码/当前原安装提取/原项目当前dirty增量"
+    },
+    {
+      "command": "只读读取当前 app.asar package.json；消费主代理已提取 tmp/full-audit-20261102/installed-source 和 manifest",
+      "result": "当前已安装0.3.13；旧0.3.10提取未当现包",
+      "scope": "原版版本/来源识别；没有执行原版或重提取"
+    },
+    {
+      "command": "只读读取 tmp/stabilize-20261102/packaged-headless/report.json、install-result.json、package-result.json、docs/release-stabilization-20261102.md",
+      "result": "复用真实packaged Host8项、独立GUID完整安装/升级/卸载范围证据；未重跑",
+      "scope": "已存在scoped/historical证据；不认证桌面、真实模型或原安装接管"
+    }
+  ],
+  "summary": "生命周期/远程完成40项能力审查。确定代码差距包括设置检查更新仍走未配置旧Feed、缺原版durable更新中心、导入压缩/最新标题和unsupported/mixed库存语义、缺长期手机配对链接撤销、原生SSH转发失败被成功文案遮住、安装器品牌不一致、更新HTTP未接系统代理/PAC；共享profile跨Electron/MyGo互斥和界面故障恢复为部分保护。已有8项Host/独立GUID安装通过仅在其范围有效。P0数据后果路径（退出草稿/共享数据迁移/远程写入）和所有真实系统/手机/SSH验收仍未完成。原项目dirty Whale任务准入delta单列，不算当前安装差距。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-lifecycle-actions.json"
+  ]
+}

@@ -13,7 +13,10 @@ import (
 
 type roomRuntimeTransport func(*http.Request) (*http.Response, error)
 
-func (f roomRuntimeTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f roomRuntimeTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func roomRuntimeFixtureCatalog() DshbotRoomCatalog {
 	return DshbotRoomCatalog{Revision: 9, Items: []DshbotRoomItem{{DshbotCatalogItem: DshbotCatalogItem{ID: "room", Kind: "room", Name: "Group", SessionID: "room-session", MemberBotIDs: []string{"a", "b"}}}, {DshbotCatalogItem: DshbotCatalogItem{ID: "a", Kind: "bot", Name: "Alpha", SessionID: "personal-a"}}, {DshbotCatalogItem: DshbotCatalogItem{ID: "b", Kind: "bot", Name: "Beta", SessionID: "personal-b"}}}}
 }

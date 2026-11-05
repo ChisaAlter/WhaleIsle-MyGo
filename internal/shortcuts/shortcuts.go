@@ -20,7 +20,10 @@ var commands = []Command{
 	{"workspace.open", "浏览工作区", "Browse workspace", "Mod+O"},
 	{"settings.open", "打开设置", "Open settings", "Mod+,"},
 	{"tools.toggle", "切换右侧面板", "Toggle tools pane", "Mod+\\"},
-	{"tools.toggle.alternate", "切换右侧面板（备用）", "Toggle tools pane (alternate)", "Mod+Alt+B"},
+	{"tools.toggle.alternate", "切换右侧面板（备用）", "Toggle tools pane (alternate)", ""},
+	{"sidebar.right.toggle", "展开右侧栏", "Toggle right sidebar", "Mod+Alt+B"},
+	{"page.close", "关闭当前页", "Close current page", "Mod+W"},
+	{"page.refresh", "刷新当前页", "Refresh current page", "Mod+R"},
 	{"terminal.toggle", "切换终端", "Toggle terminal", "Mod+`"},
 	{"session.search", "搜索对话", "Search conversations", "Mod+Shift+K"},
 	{"session.rename", "重命名当前对话", "Rename conversation", "Mod+Shift+R"},
@@ -30,9 +33,10 @@ var commands = []Command{
 	{"session.next", "下一个对话", "Next conversation", "Mod+Alt+]"},
 	{"workspace.add", "添加工作区", "Add workspace", "Mod+Shift+O"},
 	{"workspace.openLocal", "在本地打开", "Open locally", "Mod+Alt+O"},
-	{"workspace.files", "打开工作区文件", "Open workspace files", "Mod+Shift+B"},
-	{"browser.open", "打开浏览器面板", "Open browser pane", "Mod+Shift+U"},
+	{"workspace.files", "打开工作区文件", "Open workspace files", "Mod+P"},
+	{"browser.open", "打开浏览器面板", "Open browser pane", "Mod+T"},
 	{"terminal.host", "打开 Host 终端面板", "Open Host terminal pane", "Mod+Alt+T"},
+	{"terminal.new", "新建 Host 终端", "New Host terminal", ""},
 	{"sessions.refresh", "刷新对话列表", "Refresh conversations", "Mod+Alt+R"},
 	{"market.open", "打开市场", "Open marketplace", "Mod+Shift+M"},
 	{"schedule.open", "打开日程", "Open schedules", "Mod+Shift+D"},
@@ -44,8 +48,8 @@ var commands = []Command{
 	{"settings.skills", "打开技能设置", "Open skills settings", ""},
 	{"settings.about", "打开关于", "Open about", ""},
 	{"shortcuts.open", "打开快捷键设置", "Open shortcut settings", "Mod+/"},
-	{"window.zoomIn", "放大应用界面", "Zoom in", "Mod+="},
-	{"window.zoomOut", "缩小应用界面", "Zoom out", "Mod+-"},
+	{"window.zoomIn", "放大应用界面", "Zoom in", ""},
+	{"window.zoomOut", "缩小应用界面", "Zoom out", ""},
 	{"window.actualSize", "应用界面实际大小", "Actual size", "Mod+0"},
 	{"window.fullscreen", "切换应用全屏", "Toggle fullscreen", "Mod+Shift+I"},
 	{"pane.split", "向右拆分当前面板", "Split pane right", "Mod+Shift+\\"},
@@ -262,6 +266,7 @@ func resolve(values map[string]string) map[string]Chord {
 // Editor keeps uncommitted pointers stable across native UI frames. Only a
 // successful persistence call replaces active bindings. It is UI-thread owned.
 type Editor struct {
+	ReferenceOpen          bool
 	Query                  string
 	Err, Status, ReadError string
 	ResetPending           bool
@@ -481,7 +486,6 @@ func (e *Editor) ConfirmReset() bool {
 	if !e.ResetPending {
 		return false
 	}
-	e.ResetPending = false
 	if e.shared && e.reset != nil {
 		if err := e.reset(); err != nil {
 			e.Err = err.Error()
@@ -491,6 +495,8 @@ func (e *Editor) ConfirmReset() bool {
 			*p = e.active[id]
 		}
 		clear(e.resetDrafts)
+		e.ResetPending = false
+		e.Err = ""
 		e.Status = "已恢复已知命令默认值；未知条目保留 / Known command defaults restored; unknown entries retained"
 		return true
 	}

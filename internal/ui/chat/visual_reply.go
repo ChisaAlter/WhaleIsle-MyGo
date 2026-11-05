@@ -55,14 +55,8 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		if !active {
 			return
 		}
-		if state.Loading {
-			ui.Text(c, i18n.T(i18n.KeyChatVisualReading)).TextColor(muted)
-		}
 		if state.Error != "" {
 			ui.Text(c, state.Error).TextColor(muted)
-		}
-		if state.InteractiveLoading {
-			ui.Text(c, i18n.T(i18n.KeyChatVisualPreparing)).TextColor(muted)
 		}
 		if state.InteractiveActive {
 			if state.Surface != nil {
@@ -95,9 +89,6 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		}
 		if state.InteractiveError != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPage)+": "+state.InteractiveError).TextColor(muted)
-		}
-		if state.PreviewLoading {
-			ui.Text(c, i18n.T(i18n.KeyChatVisualChecking)).TextColor(muted)
 		}
 		if state.PreviewError != "" {
 			ui.Text(c, i18n.T(i18n.KeyChatVisualNoPreview)+": "+state.PreviewError).TextColor(muted)

@@ -95,6 +95,7 @@ func beginTextRead(m Model) {
 	remote, stat := m.ReadRemoteContext, m.StatRemoteContext
 	remotePage := m.ReadTextPageContext
 	remoteTable := m.ReadTableContext
+	hostOnly := m.HostOnly
 	// Capture immutable values and context-capable, frame-bound Host readers.
 	// Legacy callbacks may resolve a different Host at invocation time and must
 	// never run on this worker.
@@ -103,6 +104,31 @@ func beginTextRead(m Model) {
 		defer cancel()
 		out := textReadResult{}
 		if ctx.Err() != nil {
+			return out
+		}
+		if hostOnly && localSource == nil {
+			if isTablePreviewPath(path) {
+				if remoteTable == nil {
+					out.err = errors.New("Host workbook reader is unavailable")
+				} else {
+					out.table, out.err = remoteTable(ctx, path, tableRequest)
+					out.remote = true
+					if out.table != nil {
+						out.text = out.table.Text
+					}
+				}
+			} else if remotePage != nil {
+				page, e := remotePage(ctx, path, 0)
+				out.text, out.err, out.remote, out.truncated, out.page = page.Text, e, true, !page.EOF, &page
+			} else if remote != nil {
+				out.text, out.err = remote(ctx, path)
+				out.remote = true
+			} else {
+				out.err = errors.New("Host resource reader is unavailable")
+			}
+			if ctx.Err() != nil {
+				out.err = ctx.Err()
+			}
 			return out
 		}
 		full, err := resolve()

@@ -52,11 +52,11 @@ func TestBodyPreferenceWritesCrossNamespaceWithoutAcknowledgingDrafts(t *testing
 	st.SetDraft("draft", "unsaved")
 	st.PatchDescribedField(context.Background(), "ui-chat", "transcriptView", "detailed")
 	deadline := time.Now().Add(3 * time.Second)
-	for st.Snapshot().Saving && time.Now().Before(deadline) {
+	for len(st.Snapshot().PreferencePending) > 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
 	snap := st.Snapshot()
-	if calls.Load() != 1 || snap.Err != "" || snap.Saving || snap.SelectedNS != "general" || !snap.Dirty || snap.Drafts["draft"] != "unsaved" || snap.Namespaces[1].Revision != 5 {
+	if calls.Load() != 1 || snap.Err != "" || snap.Saving || len(snap.PreferencePending) != 0 || snap.SelectedNS != "general" || !snap.Dirty || snap.Drafts["draft"] != "unsaved" || snap.Namespaces[1].Revision != 5 {
 		t.Fatalf("cross-namespace save changed editor ownership: %+v calls=%d", snap, calls.Load())
 	}
 }
@@ -128,10 +128,10 @@ func TestBodyPreferenceCoupledEffectsAreOneValidatedMutation(t *testing.T) {
 	}
 	st.PatchDescribedFields(context.Background(), "ui-conversation", map[string]string{"composerBeamStyle": `{"period":3}`, "composerBeamPresets": `{"Work":{"period":3}}`})
 	deadline := time.Now().Add(3 * time.Second)
-	for st.Snapshot().Saving && time.Now().Before(deadline) {
+	for len(st.Snapshot().PreferencePending) > 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if snap := st.Snapshot(); calls.Load() != 1 || snap.Err != "" || snap.Saving || snap.Namespaces[0].Revision != 8 {
+	if snap := st.Snapshot(); calls.Load() != 1 || snap.Err != "" || snap.Saving || len(snap.PreferencePending) != 0 || snap.Namespaces[0].Revision != 8 {
 		t.Fatalf("atomic preference write failed: %+v", snap)
 	}
 }

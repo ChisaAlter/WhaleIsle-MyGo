@@ -5,7 +5,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"math"
 	"strings"
-	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -86,94 +85,61 @@ func catalogKeyboard(buttons []ui.Element, open func(int), back func()) {
 }
 
 func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, muted ui.Color) {
-	focusFirst := false
-	count := agentText("目录状态未知", "Catalog state unknown")
-	if v.RootCountsKnown {
-		count = fmt.Sprintf(agentText("根目录 %d 个 · 已知运行 %d 个", "Root: %d children · %d known running"), v.RootChildren, v.RootRunning)
-		if v.RootActivityUnknown > 0 {
-			count += fmt.Sprintf(agentText(" · %d 个状态未知", " · %d activity unknown"), v.RootActivityUnknown)
-		}
-	}
-	border := c.Theme().Border
-	entry := ui.Button(c, count).FillWidth().Radius(10).Border(0.5, border).Padding(8, 12).FontSize(theme.InterfaceSize(11)).Tooltip(agentText("进入当前层目录；方向键导航，右方向键进入，左方向键返回", "Focus current directory; arrows navigate, Right enters, Left returns"))
-	focusFirst = entry.Clicked() || entry.Shortcut(0, ui.KeyDown)
-	if entry.Shortcut(0, ui.KeyLeft) && v.Depth > 0 {
-		m.Store.BackAgentNavigation(v.Token)
-	}
-	ui.Text(c, agentText("当前会话的子代理", "Children of this session")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	if len(v.Rows) == 0 && !v.Busy {
-		ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(muted)
 	}
 	var buttons []ui.Element
-	var paths [][]session.AgentSessionAddress
-	now := float64(time.Now().UnixMilli())
-	tree := m.Store.AgentCatalogTree(v.Token)
-	for index, node := range tree {
-		row := node.Row
-		if row.ActivityKnown && row.Running && row.Metrics.Timing != nil && row.Metrics.Timing.Since != nil {
-			c.After(time.Second)
+	var addresses []session.AgentSessionAddress
+	open := func(address session.AgentSessionAddress) {
+		if m.OnOpenConversation != nil {
+			m.OnOpenConversation(v.Token, address)
+		} else {
+			m.Store.OpenAgentNavigation(v.Token, address)
 		}
-		ui.Column(c.Key(fmt.Sprintf("catalog:%s:%d:%d", v.SessionID, v.Token, index))).FillWidth().Gap(4).Padding(10, 12, 10, 12+float32(node.Depth*14)).Radius(10).Border(0.5, border).Background(c.Theme().Surface).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-				toggle := "▸"
-				if node.Expanded {
-					toggle = "▾"
-				}
-				if row.CanOpen() && ui.Button(c, toggle).Label(agentText("展开/收起 ", "Expand/collapse ")+row.Label).Size(22, 22).Padding(0).Radius(6).Border(0.5, border).Disabled(v.Busy).Clicked() {
-					m.Store.ToggleAgentCatalogBranch(v.Token, node.Path)
-				}
-				title := row.Label + " · " + row.Address.Mode
-				if row.CanOpen() && row.Running {
-					title = "● " + title
-				}
-				_, tooltip := agentMetricLabel(row, now)
-				button := ui.Button(c, title).Grow(1).Radius(6).FontSize(theme.InterfaceSize(12)).Tooltip(tooltip).Disabled(v.Busy || !row.CanOpen())
-				if row.CanOpen() && !v.Busy {
-					if len(buttons) == 0 {
-						button.AutoFocus()
+	}
+	for _, row := range v.Rows {
+		row := row
+		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).FillWidth().MinWidth(0).Padding(8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(v.Busy || !row.CanOpen())
+		if button.Hovered() {
+			button.Background(c.Theme().SurfaceHover)
+		}
+		button.Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+				if row.Address.Mode != "external" {
+					ink := muted
+					if row.Running {
+						ink = c.Theme().Accent
 					}
-					buttons = append(buttons, button)
-					paths = append(paths, node.Path)
+					ui.Box(c).Size(6, 6).Radius(3).Background(ink).Shrink(0)
 				}
-				if button.Clicked() {
-					m.Store.OpenAgentCatalogPath(v.Token, node.Path)
+				ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(13))
+				meta := agentText("未活动", "Inactive")
+				if !row.ActivityKnown {
+					meta = agentText("状态未知", "Activity unknown")
 				}
-				if m.OnOpenConversation != nil && ui.Button(c, agentText("在主对话打开", "Open in conversation")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
-					m.OnOpenConversation(v.Token, row.Address)
+				if row.Running {
+					meta = agentText("运行中", "Running")
 				}
-				if m.OnOpenChat != nil && ui.Button(c, agentText("在聊天面板打开", "Open chat aside")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !row.CanOpen()).Clicked() {
-					m.OnOpenChat(v.Token, row.Address)
+				switch row.Address.Mode {
+				case "external":
+					meta = agentText("外部会话", "External")
+				case "one-shot":
+					meta += " · " + agentText("单次", "One-shot")
+				case "continuable":
+					meta += " · " + agentText("可继续", "Continuable")
 				}
-				if node.Depth == 0 && row.CanOpen() && row.Running && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy).Clicked() {
-					m.Store.InterruptAgentNavigation(v.Token, []session.AgentSessionAddress{row.Address})
-				}
+				ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).TextColor(muted).Shrink(0)
 			})
-			if node.Busy {
-				ui.Text(c, agentText("正在读取子目录…", "Loading children…")).FontSize(10).TextColor(muted)
-			}
-			if node.Error != "" {
-				ui.Text(c, node.Error).FontSize(10).TextColor(muted)
-			}
-			if label, tooltip := agentMetricLabel(row, now); label != "" {
-				pillBg := ui.RGBA(muted.R, muted.G, muted.B, 0.12)
-				pillText := muted
-				if row.ActivityKnown && row.Running {
-					pillBg = c.Theme().Accent.Alpha(0.14)
-					pillText = c.Theme().Accent
-				}
-				ui.Row(c).Radius(999).Padding(2, 8).Background(pillBg).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(pillText).Tooltip(tooltip)
-				})
-			}
 		})
+		if row.CanOpen() {
+			buttons = append(buttons, button)
+			addresses = append(addresses, row.Address)
+		}
+		if button.Clicked() {
+			open(row.Address)
+		}
 	}
-	if len(buttons) == 0 {
-		entry.AutoFocus()
-	}
-	if focusFirst && len(buttons) > 0 {
-		buttons[0].Focus()
-	}
-	catalogKeyboard(buttons, func(i int) { m.Store.OpenAgentCatalogPath(v.Token, paths[i]) }, func() {
+	catalogKeyboard(buttons, func(index int) { open(addresses[index]) }, func() {
 		if v.Depth > 0 {
 			m.Store.BackAgentNavigation(v.Token)
 		}

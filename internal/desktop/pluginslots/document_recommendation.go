@@ -6,6 +6,7 @@ type DocumentRecommendation struct {
 	Session     string `json:"session"`
 	Path        string `json:"path"`
 	Spreadsheet bool   `json:"spreadsheet"`
+	Office      bool   `json:"office"`
 	Extension   bool   `json:"extension"`
 }
 

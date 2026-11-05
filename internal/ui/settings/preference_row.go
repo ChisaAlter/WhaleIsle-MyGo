@@ -16,6 +16,8 @@ import (
 // layout, so the same row keeps working inside the modal and in a narrow pane.
 func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, reset func(), controls func()) ui.Element {
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	help := takeRowHelp()
+	settingsSearchTarget(c, key, title, row)
 	width := row.Bounds().W
 	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
 	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
@@ -34,7 +36,7 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 			text.FillWidth()
 		}
 		text.Children(func() {
-			ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+			preferenceRowTitle(c, title, fg, help)
 			if hint != "" {
 				ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 			}
@@ -73,6 +75,7 @@ func settingsFieldRow(c *ui.Context, key, title, hint string, fg, muted ui.Color
 // it, and the block keeps the same hairline rhythm as settingsFieldRow.
 func settingsFieldBlock(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) ui.Element {
 	block := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8).Padding(14, 0)
+	settingsSearchTarget(c, key, title, block)
 	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
 	block.Draw(func(p *ui.Painter, bounds ui.Rect) {
 		if leadingRule {

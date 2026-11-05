@@ -82,10 +82,10 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		removeData := false
 		if err == nil && (plan != nil || removal != nil) {
 			var approved bool
-			approved, err = s.confirmBridgeManagement(action, plan, removal)
+			approved, err = s.confirmBridgeManagement(action, plan, removal, win)
 			cancelled = err == nil && !approved
 			if err == nil && approved && removal != nil {
-				removeData, err = s.confirmBridgeDataRemoval(removal)
+				removeData, err = s.confirmBridgeDataRemoval(removal, win)
 			}
 		}
 		if err == nil && !cancelled && !scopeValid() {
@@ -156,11 +156,8 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 	}()
 }
 
-func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponents.BridgeChange, removal *desktopcomponents.BridgeUninstall) (bool, error) {
-	s.mu.Lock()
-	hasWindow := s.win != nil
-	s.mu.Unlock()
-	if !hasWindow {
+func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponents.BridgeChange, removal *desktopcomponents.BridgeUninstall, owners ...*mygo.Window) (bool, error) {
+	if s.lifecycleDialogOwner(firstConfirmOwner(owners)) == nil {
 		return false, fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentConfirmationUnavailable))
 	}
 	title, button, message := "", "", ""
@@ -181,6 +178,7 @@ func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponen
 		return false, desktopcomponents.ErrUnknownAction
 	}
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Owner:        firstConfirmOwner(owners),
 		Title:        title,
 		Body:         message,
 		ConfirmLabel: button,
@@ -192,8 +190,9 @@ func (s *mainState) confirmBridgeManagement(action string, plan *desktopcomponen
 
 // The original launcher asks about configuration separately after approving
 // uninstall. Closing this choice or selecting the default keeps all data.
-func (s *mainState) confirmBridgeDataRemoval(removal *desktopcomponents.BridgeUninstall) (bool, error) {
+func (s *mainState) confirmBridgeDataRemoval(removal *desktopcomponents.BridgeUninstall, owners ...*mygo.Window) (bool, error) {
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Owner:        firstConfirmOwner(owners),
 		Title:        i18n.T(i18n.KeyCmdAlsoDeleteWhalebridgeConfiguration),
 		Body:         fmt.Sprintf(i18n.T(i18n.KeyCmdTargetNNdeletionPermanentlyRemovesWhal), removal.DataDirectory()),
 		ConfirmLabel: i18n.T(i18n.KeyCmdDeleteConfiguration),

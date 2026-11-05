@@ -34,12 +34,22 @@ func paintQueueAttachments(c *ui.Context, m PlanBoardModel, item session.PlanQue
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			if a.Kind == "image" && m.LoadQueueImage != nil {
 				key := m.Board.QueueActions.Scope + "\x00" + a.AttachmentID
-				state := queueImageLoads.ensure(key, func(ctx context.Context, _ string) (string, error) { return m.LoadQueueImage(ctx, a.AttachmentID) }, c.Services().Invalidate)
+				read := attachmentImageRead()
+				state := queueImageLoads.ensure(key, func(ctx context.Context, _ string) (string, error) {
+					path, err := m.LoadQueueImage(ctx, a.AttachmentID)
+					if err == nil && loadFetchedChatBitmap(path) == nil {
+						return "", fmt.Errorf("invalid or unreadable image")
+					}
+					return path, err
+				}, c.Services().Invalidate)
 				if state.path != "" && loadChatBitmap(state.path) != nil {
 					ui.Image(c, loadChatBitmap(state.path)).Width(64).Height(48).Fit(ui.Contain)
 				} else {
 					ui.Text(c, "[image]").Width(64).FontSize(11).TextColor(muted)
 					if state.err != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(10).Clicked() {
+						if read.Key != "" {
+							read.Forget(a.AttachmentID)
+						}
 						queueImageLoads.retry(key)
 						c.Services().Invalidate()
 					}

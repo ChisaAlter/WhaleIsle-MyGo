@@ -22,9 +22,6 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 	}
 	ui.Column(c.Key("avatar-image-crop")).Border(1, accent).Radius(8).Padding(10).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantLocalImageCrop)).Bold().TextColor(fg)
-		if p.Busy {
-			ui.Text(c, i18n.T(i18n.KeyW4AssistantWaitingForASelectionOrReadingAndDecod)).TextColor(muted)
-		}
 		if p.Ready {
 			ui.Text(c, fmt.Sprintf("%s · %s · %d bytes · %d×%d", p.Name, p.Format, p.Bytes, p.Width, p.Height)).TextColor(fg).Selectable()
 			value := pluginrpc.DshbotAvatarValues{Kind: "image", DataURL: p.Preview, Crop: p.Crop.Shape}

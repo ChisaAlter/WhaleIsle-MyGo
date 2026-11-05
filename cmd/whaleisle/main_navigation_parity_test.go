@@ -80,10 +80,17 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 		if err := tt.Click(label); err != nil {
 			t.Fatal(err)
 		}
-		if s.marketOpen != (index == 0) || s.scheduleOpen != (index == 1) || s.assistantOpen != (index == 2) {
+		// Whale's source sidebar action opens its canonical conversation, not
+		// the separate native management panel. Without a ready Host it stays
+		// on the conversation and reports that readiness is required.
+		if s.marketOpen != (index == 0) || s.scheduleOpen != (index == 1) || s.assistantOpen {
 			t.Fatal("real route callback did not select its panel")
 		}
-		check(index)
+		if index == 2 {
+			check(-1)
+		} else {
+			check(index)
+		}
 	}
 	if runtime.GOOS != "darwin" {
 		if err := tt.Click(product.Name); err != nil {

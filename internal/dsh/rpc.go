@@ -70,8 +70,20 @@ func (c *Client) Call(ctx context.Context, method string, args any, out any) err
 	return c.callPayload(ctx, method, map[string]any{"args": args}, out)
 }
 
+// CallWithProgress reports bytes consumed from the authenticated request body.
+// Reaching total means transmission completed, not that the Host accepted it.
+func (c *Client) CallWithProgress(ctx context.Context, method string, args any, out any, progress func(sent, total int64)) error {
+	if err := checkMethod(method); err != nil {
+		return err
+	}
+	if args == nil {
+		args = map[string]any{}
+	}
+	return c.callPayload(ctx, method, map[string]any{"args": args}, out, progress)
+}
+
 // callPayload shares the authenticated Connection envelope across RPC dialects.
-func (c *Client) callPayload(ctx context.Context, method string, payload any, out any) error {
+func (c *Client) callPayload(ctx context.Context, method string, payload any, out any, progress ...func(int64, int64)) error {
 	rpcID := newID()
 	body, err := json.Marshal(map[string]any{
 		"type":    "client-request",
@@ -89,6 +101,10 @@ func (c *Client) callPayload(ctx context.Context, method string, payload any, ou
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return err
+	}
+	if len(progress) > 0 && progress[0] != nil {
+		progress[0](0, int64(len(body)))
+		req.Body = &requestProgressBody{ReadCloser: req.Body, total: int64(len(body)), changed: progress[0]}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.Endpoint.Cookie != "" {

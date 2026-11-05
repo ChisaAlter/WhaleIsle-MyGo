@@ -1,10 +1,14 @@
-# package.ps1 - Stage Whale Isle desktop artifacts for NSIS / MyGo packager (M11).
+﻿# package.ps1 - Stage Whale Isle desktop artifacts for NSIS / MyGo packager (M11).
 #
 # Produces dist/whaleisle/ (exe + resources/) and dist/README.md with next-step notes.
 # Does NOT download NSIS or build an installer when tools are missing.
 #
 # Usage (from repo root):  . .\scripts\env.ps1; .\scripts\package.ps1
-param([string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT)
+param(
+    [string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT,
+    [switch]$StageOnly,
+    [string]$GoExecutable = 'go'
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -31,22 +35,22 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 Write-Host "Building whaleisle.exe (buildVersion=$Version) -> $ExeOut"
 $ldflags = "-s -w -X main.buildVersion=$Version"
-if ((& go env GOOS).Trim() -eq 'windows') { $ldflags += ' -H windowsgui' }
-& go build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
+if ((& $GoExecutable env GOOS).Trim() -eq 'windows') { $ldflags += ' -H windowsgui' }
+& $GoExecutable build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
 if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
 
 # Package the separate helper, but never run it during build/staging.
 # Its presence does not enable scripts: the product requires an explicit
 # per-document gesture followed by the runtime AppContainer/job gate.
-$PreviewOS = (& go env GOOS).Trim()
-$PreviewArch = (& go env GOARCH).Trim()
+$PreviewOS = (& $GoExecutable env GOOS).Trim()
+$PreviewArch = (& $GoExecutable env GOARCH).Trim()
 if ($PreviewOS -eq 'windows') {
     if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
     $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
-    & go build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
+    & $GoExecutable build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
     if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
     $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
-    & go build -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
+    & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
     if ($LASTEXITCODE -ne 0) { throw "Integration cleanup helper build failed (exit $LASTEXITCODE)" }
 }
 
@@ -70,9 +74,9 @@ foreach ($Name in @('Inter-OFL.txt', 'SourceSerif4-OFL.txt', 'sources.json')) {
 # The native terminal uses MyGo's pinned DLL, not the Host's Ghostty WASM.
 # Require verified local input before marking a package ready. This never fetches
 # or executes the library; WHALEISLE_TERMINAL_LIBRARY can name the official asset.
-$TerminalOS = (& go env GOOS).Trim()
-$TerminalArch = (& go env GOARCH).Trim()
-& go run ./tools/stage-terminal -target "$TerminalOS-$TerminalArch" -out $Stage
+$TerminalOS = (& $GoExecutable env GOOS).Trim()
+$TerminalArch = (& $GoExecutable env GOARCH).Trim()
+& $GoExecutable run ./tools/stage-terminal -target "$TerminalOS-$TerminalArch" -out $Stage
 if ($LASTEXITCODE -ne 0) { throw 'Native terminal runtime staging failed; set WHALEISLE_TERMINAL_LIBRARY to the pinned official library.' }
 
 # Every package includes the fixed THA4 assets, even shell-only development packages.
@@ -112,7 +116,7 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') release (Split-Path -Parent $VendorSrc) (Join-Path $Stage 'runtime')
         if ($LASTEXITCODE -ne 0) { throw 'Complete rc.2 runtime staging or actual mobile native ABI validation failed.' }
         $LinksHelper = Join-Path $Stage 'runtime\runtime-links.exe'
-        & go build -ldflags '-s -w -H windowsgui' -o $LinksHelper ./scripts/session-runtime-links
+        & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $LinksHelper ./scripts/session-runtime-links
         if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency transaction helper build failed.' }
     } elseif (Test-Path $VendorSrc) {
         $VendorDst = Join-Path $Stage 'runtime\vendor'
@@ -183,7 +187,7 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
 
 $Readme = Join-Path $DistRoot 'README.md'
 $readmeText = @'
-# DeepSeekHarness Go - staged packaging output (M11)
+# 鲸屿go - staged packaging output (M11)
 
 This folder holds **staging artifacts** only. `scripts/package.ps1` does not download NSIS or emit an installer when packager tools are absent.
 
@@ -210,12 +214,17 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 | Field | Release value |
 | --- | --- |
 | App ID / identifier | `ai.deepseek.harness.gui` |
-| Product name | DeepSeekHarness Go |
+| Product name | 鲸屿go |
 
 '@
 [System.IO.File]::WriteAllText($Readme, $readmeText)
 
 Write-Host "Wrote $Readme"
+
+if ($StageOnly) {
+    Write-Host "package.ps1: stage ready; installer not requested -> $Stage"
+    return
+}
 
 $Nsi = Join-Path $PSScriptRoot 'nsis\whaleisle.nsi'
 $MakensisPath = $null

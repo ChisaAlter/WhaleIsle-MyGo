@@ -9,6 +9,7 @@ import (
 
 type State struct {
 	Busy       bool
+	Visible    bool
 	URL, Error string
 }
 type Flow struct {
@@ -33,11 +34,27 @@ func (f *Flow) Begin() bool {
 	if f.state.Busy || f.attempt != "" {
 		return false
 	}
-	f.state = State{Busy: true}
+	f.state = State{Busy: true, Visible: true}
 	f.attempt = ""
 	return true
 }
 func (f *Flow) Finish() { f.mu.Lock(); f.attempt = ""; f.state = State{}; f.mu.Unlock() }
+
+func (f *Flow) BeginCancel() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.state.Busy {
+		return false
+	}
+	f.state.Busy = true
+	return true
+}
+func (f *Flow) CancelFailed(message string) {
+	f.mu.Lock()
+	f.state.Busy = false
+	f.state.Error = message
+	f.mu.Unlock()
+}
 
 func (f *Flow) Snapshot() State { f.mu.Lock(); defer f.mu.Unlock(); return f.state }
 func (f *Flow) Started(v api.AccountView, err error, open func(string) error) {
@@ -71,6 +88,11 @@ func (f *Flow) Observe(v api.AccountView, open func(string) error) {
 		f.state.URL = strings.TrimSpace(*v.Attempt.AuthorizeUrl)
 	}
 	if !Active(v.Attempt.Phase) {
+		code := ""
+		if v.Attempt.ErrorCode != nil {
+			code = *v.Attempt.ErrorCode
+		}
+		f.state.Error = FailureMessage(v.Attempt.Phase, code)
 		f.state.URL = ""
 		f.attempt = ""
 		f.mu.Unlock()

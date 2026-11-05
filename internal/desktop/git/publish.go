@@ -129,3 +129,45 @@ func PublishRepository(root string, input PublishInput) (string, error) {
 	}
 	return result, nil
 }
+
+// RepositoryWebURL converts an exact HTTPS/SSH Git remote to its repository
+// landing page. Credentials, query/fragment and non-repository paths are refused.
+func RepositoryWebURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if scpRemote.MatchString(raw) {
+		parts := strings.SplitN(raw, "@", 2)
+		raw = "ssh://" + parts[0] + "@" + strings.Replace(parts[1], ":", "/", 1)
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "ssh") || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" || u.RawPath != "" {
+		return "", errors.New("invalid repository URL")
+	}
+	if u.User != nil && (u.Scheme != "ssh" || u.User.String() != "git") {
+		return "", errors.New("credential-bearing repository URL is not supported")
+	}
+	repo := strings.TrimSuffix(strings.Trim(u.Path, "/"), ".git")
+	if !githubRepositoryPattern.MatchString(repo) || strings.Contains(repo, "..") {
+		return "", errors.New("invalid repository path")
+	}
+	return "https://" + strings.ToLower(u.Host) + "/" + repo, nil
+}
+
+type PublishResult struct{ Output, URL string }
+
+// PublishRepositoryWithResult preserves the existing publication contract and
+// provides a validated browser target only after success. It never opens it.
+func PublishRepositoryWithResult(root string, input PublishInput) (PublishResult, error) {
+	out, err := PublishRepository(root, input)
+	result := PublishResult{Output: out}
+	if err != nil {
+		return result, err
+	}
+	remote, e := OriginURL(root)
+	if e == nil {
+		result.URL, _ = RepositoryWebURL(remote)
+	}
+	if result.URL == "" {
+		result.URL, _ = RepositoryWebURL(firstHTTPURL(out))
+	}
+	return result, nil
+}

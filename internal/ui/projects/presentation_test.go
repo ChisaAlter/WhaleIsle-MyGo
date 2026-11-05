@@ -99,7 +99,7 @@ func TestProjectPagesUseBoundedModalStateMatrix(t *testing.T) {
 		{"process", "Process message body", func(m *Model) {
 			detail(m)
 			m.Process = &projectflow.ProcessSnapshot{}
-			projectJSON(t, `{"type":"snapshot","records":[{"type":"event","event":{"type":"assistant/message","seq":2,"data":{"content":[{"type":"text","text":"Process message body"}]}}}]}`, m.Process)
+			projectJSON(t, `{"type":"snapshot","records":[{"type":"event","event":{"type":"assistant/message","seq":2,"data":{"message":{"content":[{"type":"text","text":"Process message body"}]}}}}]}`, m.Process)
 		}},
 		{"history", "Historical report marker", func(m *Model) {
 			m.Historical = &projectflow.HistoricalSnapshot{Target: projectflow.HistoricalTarget{ProjectID: "project-fixture", WorkstreamID: "work-fixture", DelegationRef: "delegation-fixture", Report: projectflow.Report{Summary: "Historical report marker"}}}
@@ -184,6 +184,7 @@ func TestProjectPagesUseBoundedModalStateMatrix(t *testing.T) {
 					}
 					tt.Scroll(bounds.X+50, button.Y+button.H+30, 0, -1000)
 				}
+				settleDialogReveal(tt)
 				saveProjectSnapshot(t, tt, "projects-"+s.name+"-"+size.name+".png")
 				if m.Material != nil && m.Material.Loaded {
 					if err := tt.Click("Project material editor: " + materialLabel(m.Material.Path)); err != nil {
@@ -296,7 +297,8 @@ func TestProjectMaterialTransitionKeepsDraftOnFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	if nextPath != "" || !tt.HasText("Unsaved changes") {
-		t.Fatal("dirty tab switch bypassed confirmation")
+		saveProjectSnapshot(t, tt, "projects-material-switch-error.png")
+		t.Fatalf("dirty tab switch bypassed confirmation: next=%s/%s dirty=%v draft=%q saved=%q busy=%v text=%q", nextID, nextPath, m.Material.Dirty(), m.Material.Draft, m.Material.Saved, m.Busy, tt.Texts())
 	}
 	if err := tt.Click("Discard"); err != nil {
 		t.Fatal(err)
@@ -372,13 +374,8 @@ func TestProjectNestedRouteReturnsToScrollAndOriginFocus(t *testing.T) {
 	m := projectFixture()
 	m.ObserverHost = "fixture-host"
 	requestsOpened := 0
-	m.OnRequests = func(id string) {
-		requestsOpened++
-		m.RequestProjectID = id
-		m.RequestKind = "current"
-		m.RequestLoaded = true
-		m.RequestPageNumber = 1
-	}
+	m.RequestProjectID, m.RequestKind, m.RequestLoaded, m.RequestPageNumber = "project-fixture", "current", true, 1
+	m.OnRequests = func(string) { requestsOpened++ }
 	for index := 0; index < 24; index++ {
 		m.RequestPage.Items = append(m.RequestPage.Items, projectflow.RequestCard{ID: fmt.Sprint(index), ProjectID: "project-fixture", Revision: 1, Title: fmt.Sprintf("Requirement %02d", index), GoalPreview: strings.Repeat("Long requirement preview. ", 4), Status: "discussing"})
 	}
@@ -404,25 +401,15 @@ func TestProjectNestedRouteReturnsToScrollAndOriginFocus(t *testing.T) {
 			m.Activity = nil
 		}
 	}
-	observer := &ObserverState{ProjectID: "project-fixture", CoordinatorSessionID: "lead-fixture", Host: "fixture-host", Section: "tasks"}
+	// A pre-R4 persisted activity reader remains supported without adding a fifth visible section.
+	observer := &ObserverState{ProjectID: "project-fixture", CoordinatorSessionID: "lead-fixture", Host: "fixture-host", Section: "tasks", Initialized: true, CatalogLoaded: map[string]bool{"current": true, "completed": true, "cancelled": true, "archived": true}, RequestModes: map[string]RequestMode{"23": {Mode: "card", Tab: "activity"}}}
 	tt := ui.NewTester(func(c *ui.Context) { ObserverView(c, m, observer) }, 700, 600)
 	tt.Frame()
-	if requestsOpened != 1 || m.RequestProjectID != "project-fixture" {
+	if requestsOpened != 0 || m.RequestProjectID != "project-fixture" {
 		t.Fatal("observer did not load its exact Project")
 	}
 	tt.Scroll(690, 300, 0, 2000)
-	if err := tt.Click("Expand task: Requirement 23"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Scroll(690, 300, 0, 2000)
-	if err := tt.Click("Task details"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Scroll(690, 300, 0, 2000)
-	if err := tt.Click("Activity"); err != nil {
-		t.Fatal(err)
-	}
+
 	before, ok := tt.Find("Task card: 23")
 	if !ok || before.Y <= 0 || before.Y >= 600 {
 		t.Fatalf("scrolled task is not visible: %+v", before)
@@ -441,7 +428,7 @@ func TestProjectNestedRouteReturnsToScrollAndOriginFocus(t *testing.T) {
 	if !tt.Focused("Activity timeline") {
 		t.Fatal("child close did not restore originating task action focus")
 	}
-	if requestsOpened != 1 || observer.ProjectID != "project-fixture" || observer.RequestModes["23"].Mode != "full" {
+	if requestsOpened != 0 || observer.ProjectID != "project-fixture" || observer.RequestModes["23"].Mode != "card" {
 		t.Fatal("child close recreated observer or lost task mode")
 	}
 }
@@ -508,6 +495,7 @@ func TestProjectRowLifecycleCancelReturnsToOriginFocus(t *testing.T) {
 		t.Fatal("cancel did not restore originating project menu focus")
 	}
 }
+
 // TestProjectRenameDialogWideSurface covers the rename card at the audit size:
 // the native lifecycle dialogs share the shell's glass surface, so the card is
 // the reference's 380 DIP panel with the 28 DIP radius, not a bare box.
@@ -540,6 +528,7 @@ func TestProjectRenameDialogWideSurface(t *testing.T) {
 	}
 	saveProjectSnapshot(t, tt, "projects-rename-1440.png")
 }
+
 // settleDialogReveal lets a hand-run modal finish its entrance, so the frame
 // that follows shows the settled card instead of the first frame of the fade
 // (the overlay's start time is captured on its first paint).

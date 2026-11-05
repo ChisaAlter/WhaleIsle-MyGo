@@ -63,6 +63,16 @@ func slashMenuItems(m Model, query string) []suggestItem {
 	}
 	commands := filterNativeSlashCommands(catalog, query)
 	out := make([]suggestItem, 0, len(commands)+len(m.Skills))
+	// Section captions belong to the + launcher menu only; a typed "/" token
+	// lists the same commands flat.
+	launcher := false
+	if state := suggestionState(m, m.TextInput); state != nil && state.launcher != nil {
+		launcher = true
+	}
+	sectionAdd, sectionCommands := "", ""
+	if launcher {
+		sectionAdd, sectionCommands = composerText("添加", "Add"), composerText("指令", "Commands")
+	}
 	seen := map[string]bool{}
 	leading := true
 	if m.Draft != nil {
@@ -88,7 +98,12 @@ func slashMenuItems(m Model, query string) []suggestItem {
 			}
 		}
 		seen[strings.ToLower(strings.TrimPrefix(cmd.Line, "/"))] = true
-		out = append(out, suggestItem{label: slashCommandCaption(cmd), sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash, command: true})
+		section := sectionCommands
+		switch cmd.Line {
+		case "/file", "/goal", "/plan", "/feedback":
+			section = sectionAdd
+		}
+		out = append(out, suggestItem{label: slashCommandCaption(cmd), sub: cmd.Description, insert: cmd.Line + " ", kind: SuggestSlash, command: true, section: section})
 	}
 	child := false
 	for _, item := range m.Snapshot.Items {
@@ -109,11 +124,16 @@ func slashMenuItems(m Model, query string) []suggestItem {
 				}
 				sub = i18n.T(i18n.KeyComposerSkillUserOnly) + sub
 			}
-			out = append(out, suggestItem{label: "/" + sk.Name, sub: sub, insert: SkillInsert(sk.Name), kind: SuggestSlash})
+			out = append(out, suggestItem{label: "/" + sk.Name, sub: sub, insert: SkillInsert(sk.Name), kind: SuggestSlash, section: sectionCommands})
 		}
 	}
-	if state := suggestionState(m, m.TextInput); state != nil && state.launcher != nil {
+	if launcher {
 		out = append(out, composerToolItems(m, query)...)
+		// Vendor groups every Add row before the Commands section; tool items
+		// appended above would otherwise split the captions into 添加/指令/添加/指令.
+		sort.SliceStable(out, func(i, j int) bool {
+			return out[i].section == sectionAdd && out[j].section != sectionAdd
+		})
 	}
 	return out
 }

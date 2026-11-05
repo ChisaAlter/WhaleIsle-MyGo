@@ -67,7 +67,9 @@ type Companion struct {
 	OnOpenChat                func()
 	OnQuickChat               func()
 	QuickChat                 *QuickChat
+	quickChatMemory           *quickChatMemory
 	quickChatOpen             bool
+	quickChatBounds           mygo.Rectangle
 	OnOpenSession             func(string)
 	OnEnabledChanged          func()
 }
@@ -131,7 +133,7 @@ func (p *Companion) Save() {
 	p.sync()
 	p.applyBehavior()
 	p.CheckQuickChat()
-	if p.OnPersonality != nil {
+	if previous.Behavior.Personality != p.Behavior.Personality && p.OnPersonality != nil {
 		p.OnPersonality(p.Behavior.Personality)
 	}
 }
@@ -181,7 +183,9 @@ func (p *Companion) sync() {
 	}
 	var neuralAssets map[string][]byte
 	notice := ""
-	if cfg.Neural {
+	// A deliberate skin selection owns the renderer. THA4 remains the saved
+	// default for the bundled character when that skin is cleared.
+	if cfg.Neural && len(sheet) == 0 {
 		var err error
 		neuralAssets, err = loadRenderAssets(petRenderRoot())
 		if err != nil {
@@ -191,7 +195,7 @@ func (p *Companion) sync() {
 	}
 	p.assetMu.Lock()
 	p.renderAssets = neuralAssets
-	p.neuralActive = cfg.Neural && neuralAssets != nil
+	p.neuralActive = cfg.Neural && len(sheet) == 0 && neuralAssets != nil
 	p.renderNotice = notice
 	p.sheet = sheet
 	p.assetMu.Unlock()
@@ -410,6 +414,7 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = []byte(strings.NewReplacer("{{RIG}}", fmt.Sprint(len(p.sheet) == 0), "{{NEURAL}}", fmt.Sprint(p.neuralActive), "{{RENDER_NOTICE}}", html.EscapeString(p.renderNotice), "{{CHAT_STATUS}}", html.EscapeString(p.chat.status.Message)).Replace(string(body)))
 		p.assetMu.RUnlock()
 		body = renderBehaviorPage(body, p.savedBehavior())
+		body = renderPresentationPage(body, p.presentation())
 		body = renderCarePage(body, p.careStatus())
 		body = renderGrowthPage(body, p.growthStatus())
 		body = renderRestPage(body, p.restStatus())
@@ -419,25 +424,29 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		growth := p.growthStatus()
 		rest := p.restStatus()
 		behavior := p.savedBehavior()
+		presentation := p.presentation()
 		p.assetMu.RLock()
 		body, _ = json.Marshal(struct {
 			TaskStatus
-			QuickChatOpen bool
-			Behavior      config.PetBehavior
-			Chat          ChatStatus
-			Look          LookStatus
-			Care          CareStatus
-			Growth        GrowthStatus
-			Rest          RestStatus
-			HitEpoch      uint64
-			Layout        petLayout
-		}{p.activityTaskLocked(), p.quickChatOpen, behavior, p.chat.status, p.look.status, care, growth, rest, p.interaction.view.Epoch, p.layout})
+			NotificationState string
+			QuickChatOpen     bool
+			QuickChatBounds   mygo.Rectangle
+			Behavior          config.PetBehavior
+			Presentation      petPresentation
+			Chat              ChatStatus
+			Look              LookStatus
+			Care              CareStatus
+			Growth            GrowthStatus
+			Rest              RestStatus
+			HitEpoch          uint64
+			Layout            petLayout
+		}{p.activityTaskLocked(), notificationStateMode(p.notifications.snapshot), p.quickChatOpen, p.quickChatBounds, behavior, presentation, p.chat.status, p.look.status, care, growth, rest, p.interaction.view.Epoch, p.layout})
 		p.assetMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 	case "/pet-dialogue.json":
 		body, _ = assets.ReadFile("assets/pet-dialogue.json")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	case "/tha4.js", "/anime4k.js", "/pet-super-resolution.js", "/pet-runtime.js", "/pet-body.js", "/pet-sleep.js", "/pet-layout.js", "/pet-interaction.js", "/pet-behavior.js":
+	case "/tha4.js", "/anime4k.js", "/pet-super-resolution.js", "/pet-runtime.js", "/pet-sprite.js", "/pet-body.js", "/pet-sleep.js", "/pet-layout.js", "/pet-interaction.js", "/pet-behavior.js":
 		body, _ = assets.ReadFile("assets" + r.URL.Path)
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":

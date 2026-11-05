@@ -1,5 +1,23 @@
 package files
 
+// ReloadSelectedFile is the page command's explicit refresh, sharing all draft,
+// save, delivery-source and document checks with the visible toolbar action.
+func ReloadSelectedFile(m Model) { reloadSelectedFile(m) }
+
+// RefreshExplorer reuses the Files tree toolbar without activating an editor.
+func RefreshExplorer(m Model) {
+	if m.Tabs == nil {
+		return
+	}
+	if m.Tabs.Tree != nil {
+		m.Tabs.Tree.Refresh()
+	}
+	if m.Tabs.Search != nil {
+		m.Tabs.Search.Cancel()
+	}
+	m.Tabs.explorerError = ""
+}
+
 // reloadSelectedFile follows the original Files activation/Refresh contract:
 // reread clean tabs while preserving both the draft and its original save base
 // when an unsaved tab encounters new, missing, binary or truncated disk bytes.

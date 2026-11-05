@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -64,7 +65,16 @@ type waveHeader struct {
 }
 
 type nativeRecording struct {
-	handle   uintptr
+	handle    uintptr
+	header    *waveHeader
+	buffer    []byte
+	pins      runtime.Pinner
+	prepared  bool
+	extra     *waveChunk
+	nextExtra bool
+}
+
+type waveChunk struct {
 	header   *waveHeader
 	buffer   []byte
 	pins     runtime.Pinner
@@ -86,13 +96,33 @@ func StartDevice(ctx context.Context, limits Limits, device Device) (Capture, er
 		return nil, err
 	}
 	deadline := time.Now().Add(duration)
-	n, err := openNativeInput(ctx, pcmBytes, device)
+	n, err := openNativeInput(ctx, min(pcmBytes, bytesPerSecond/10), device)
 	if err != nil {
 		return nil, err
 	}
+	// Keep a second buffer queued while the returned chunk is copied/metered.
+	// A single periodically requeued buffer would drop speech between chunks.
+	if err := n.queueSecondChunk(); err != nil {
+		_, cleanup := n.release(false)
+		return nil, errors.Join(err, cleanup)
+	}
 	c := newRecording(ctx)
-	go n.run(c, deadline)
+	go n.run(c, deadline, pcmBytes)
 	return c, nil
+}
+
+func (n *nativeRecording) queueSecondChunk() error {
+	chunk := &waveChunk{buffer: make([]byte, len(n.buffer)), header: &waveHeader{}}
+	n.extra = chunk
+	chunk.pins.Pin(&chunk.buffer[0])
+	chunk.pins.Pin(chunk.header)
+	chunk.header.Data = uintptr(unsafe.Pointer(&chunk.buffer[0]))
+	chunk.header.BufferLength = uint32(len(chunk.buffer))
+	if err := n.chunkCall(wavePrepare, chunk.header); err != nil {
+		return err
+	}
+	chunk.prepared = true
+	return n.chunkCall(waveAddBuffer, chunk.header)
 }
 
 func openNativeInput(ctx context.Context, pcmBytes int, device Device) (*nativeRecording, error) {
@@ -131,7 +161,7 @@ func openNativeInput(ctx context.Context, pcmBytes int, device Device) (*nativeR
 	format := waveFormat{FormatTag: 1, Channels: 1, SamplesPerSec: sampleRate,
 		AvgBytesPerSec: bytesPerSecond, BlockAlign: blockAlign, BitsPerSample: 16}
 	// CALLBACK_NULL: bounded recording needs no cross-runtime native callback.
-	// A single full-capacity buffer avoids requeue gaps and ordering hazards.
+	// Returned 100ms chunks supply the live meter and are requeued in order.
 	code, _, _ := waveOpen.Call(uintptr(unsafe.Pointer(&n.handle)), deviceID, uintptr(unsafe.Pointer(&format)), 0, 0, 0)
 	if code != 0 {
 		_, cleanupErr := n.release(false)
@@ -157,27 +187,74 @@ func openNativeInput(ctx context.Context, pcmBytes int, device Device) (*nativeR
 	return n, nil
 }
 
-func (n *nativeRecording) run(c *recording, deadline time.Time) {
+func (n *nativeRecording) run(c *recording, deadline time.Time, capacity int) {
 	timer := time.NewTimer(max(time.Until(deadline), 0))
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer timer.Stop()
 	defer ticker.Stop()
+	pcm := make([]byte, 0, capacity)
+	finish := func(runErr error) {
+		tail, err := n.release(c.ctx.Err() == nil)
+		if len(pcm) < capacity {
+			pcm = append(pcm, tail[:min(len(tail), capacity-len(pcm))]...)
+		}
+		clear(tail)
+		c.finish(pcm, errors.Join(runErr, err))
+	}
 	for {
 		select {
 		case <-c.ctx.Done():
+			finish(nil)
+			return
 		case <-c.cancel:
+			finish(nil)
+			return
 		case <-c.stop:
+			finish(nil)
+			return
 		case <-timer.C:
+			finish(nil)
+			return
 		case <-ticker.C:
-			// Polling WHDR_DONE is a documented WinMM completion mechanism.
-			// Native data is read only after reset and unprepare below.
-			if atomic.LoadUint32(&n.header.Flags)&whdrDone == 0 {
+			header, buffer, prepared := n.header, n.buffer, &n.prepared
+			if n.nextExtra {
+				header, buffer, prepared = n.extra.header, n.extra.buffer, &n.extra.prepared
+			}
+			if atomic.LoadUint32(&header.Flags)&whdrDone == 0 {
 				continue
 			}
+			if err := n.chunkCall(waveUnprepare, header); err != nil {
+				finish(err)
+				return
+			}
+			*prepared = false
+			count := int(atomic.LoadUint32(&header.BytesRecorded))
+			if count > len(buffer) {
+				finish(errors.New("invalid microphone byte count"))
+				return
+			}
+			count -= count % blockAlign
+			c.level.Store(math.Float64bits(pcmLevel(buffer[:count])))
+			pcm = append(pcm, buffer[:min(count, capacity-len(pcm))]...)
+			// Already-consumed bytes must not be included again by release.
+			header.BytesRecorded = 0
+			clear(buffer)
+			n.nextExtra = !n.nextExtra
+			if len(pcm) >= capacity {
+				finish(nil)
+				return
+			}
+			header.Flags = 0
+			if err := n.chunkCall(wavePrepare, header); err != nil {
+				finish(err)
+				return
+			}
+			*prepared = true
+			if err := n.chunkCall(waveAddBuffer, header); err != nil {
+				finish(err)
+				return
+			}
 		}
-		pcm, err := n.release(c.ctx.Err() == nil)
-		c.finish(pcm, err)
-		return
 	}
 }
 
@@ -189,18 +266,32 @@ func (n *nativeRecording) release(keep bool) ([]byte, error) {
 	var dataErr error
 	if cleanupErr == nil {
 		if keep {
-			count := atomic.LoadUint32(&n.header.BytesRecorded)
-			if count > uint32(len(n.buffer)) {
-				dataErr = errors.New("Windows microphone returned an invalid audio byte count")
-			} else {
+			appendChunk := func(header *waveHeader, buffer []byte) {
+				count := atomic.LoadUint32(&header.BytesRecorded)
+				if count > uint32(len(buffer)) {
+					dataErr = errors.New("Windows microphone returned an invalid audio byte count")
+					return
+				}
 				count -= count % blockAlign
-				pcm = append([]byte(nil), n.buffer[:int(count)]...)
+				pcm = append(pcm, buffer[:int(count)]...)
+			}
+			if n.nextExtra && n.extra != nil {
+				appendChunk(n.extra.header, n.extra.buffer)
+			}
+			appendChunk(n.header, n.buffer)
+			if !n.nextExtra && n.extra != nil {
+				appendChunk(n.extra.header, n.extra.buffer)
 			}
 		}
 		clear(n.buffer)
 		n.pins.Unpin()
 		n.buffer = nil
 		n.header = nil
+		if n.extra != nil {
+			clear(n.extra.buffer)
+			n.extra.pins.Unpin()
+			n.extra = nil
+		}
 	}
 	nativeMu.Lock()
 	if cleanupErr != nil {
@@ -233,7 +324,14 @@ func (n *nativeRecording) shutdown() error {
 				n.prepared = false
 			}
 		}
-		if !n.prepared {
+		if n.extra != nil && n.extra.prepared {
+			extraErr := n.chunkCall(waveUnprepare, n.extra.header)
+			if extraErr == nil {
+				n.extra.prepared = false
+			}
+			unprepareErr = errors.Join(unprepareErr, extraErr)
+		}
+		if !n.prepared && (n.extra == nil || !n.extra.prepared) {
 			closeErr = n.deviceCall(waveClose)
 			if closeErr == nil {
 				n.handle = 0
@@ -248,7 +346,10 @@ func (n *nativeRecording) shutdown() error {
 }
 
 func (n *nativeRecording) headerCall(proc *windows.LazyProc) error {
-	code, _, _ := proc.Call(n.handle, uintptr(unsafe.Pointer(n.header)), unsafe.Sizeof(*n.header))
+	return n.chunkCall(proc, n.header)
+}
+func (n *nativeRecording) chunkCall(proc *windows.LazyProc, header *waveHeader) error {
+	code, _, _ := proc.Call(n.handle, uintptr(unsafe.Pointer(header)), unsafe.Sizeof(*header))
 	runtime.KeepAlive(n)
 	return mmError(proc.Name, code)
 }

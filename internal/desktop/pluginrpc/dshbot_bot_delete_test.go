@@ -12,7 +12,10 @@ import (
 
 type botDeleteTransport func(*http.Request) (*http.Response, error)
 
-func (f botDeleteTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f botDeleteTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 func botDeleteFixtureView(revision int) map[string]any {
 	item := func(id, kind string, members, senders []string, inbox []any) map[string]any {
 		return map[string]any{"id": id, "sessionId": "session-" + id, "name": "name-" + id, "title": "title-" + id, "kind": kind, "memberBotIds": members, "allowedSenderIds": senders, "inbox": inbox, "hidden": false}

@@ -14,3 +14,13 @@ func ScanPetUsage(ctx context.Context, node, home string) (map[string]int64, err
 	}
 	return petgrowth.Scan(ctx, bin, home)
 }
+
+// ScanPetUsageSources is the source-aware desktop entry point. Legacy callers
+// retain ScanPetUsage's sessions-only contract.
+func ScanPetUsageSources(ctx context.Context, node, home, usageFile string) (petgrowth.Usage, error) {
+	bin, err := resolveNode(node)
+	if err != nil {
+		return petgrowth.Usage{}, err
+	}
+	return petgrowth.ScanUsage(ctx, bin, home, usageFile)
+}

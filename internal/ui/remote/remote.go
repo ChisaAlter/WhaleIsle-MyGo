@@ -43,6 +43,8 @@ type Model struct {
 	SystemDark      bool
 
 	RemoteWorkspaceEnabled    bool
+	WorkspaceToggleBusy       bool
+	WorkspaceToggleError      string
 	RemoteEnabled             bool
 	PhoneGitEnabled           bool
 	OnTogglePhoneGit          func(bool)
@@ -79,6 +81,7 @@ type Model struct {
 	SSHTunnelMsg   string
 
 	OnUseWorkspaceMirror func(localMirror string)
+	OnUseWorkspaceChoice func(remotestore.DirectoryChoice)
 	OnClose              func()
 	OnProbeSSH           func()
 	OnSaveTunnel         func()
@@ -120,20 +123,33 @@ func View(c *ui.Context, m Model) {
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
+				if m.MachineEditor != nil {
+					ensureToolsLoaded(c, m)
+					viewActiveCard(c, m, border)
+				}
 				viewMachines(c, m)
+				if m.MachineEditor != nil {
+					viewSSHConfigCard(c, m, m.MachineEditor, border)
+					viewForwardsCard(c, m, m.MachineEditor, border)
+					viewAuditCard(c, m, m.MachineEditor, border)
+				}
 				viewDirectory(c, m)
 				viewSessionFiles(c, m)
 
 				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
 					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceToggle)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)
-						ui.Text(c, onOff(m.RemoteWorkspaceEnabled)).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1)
+						workspaceStatus, workspaceColor := onOff(m.RemoteWorkspaceEnabled), fg
+						if m.WorkspaceToggleError != "" {
+							workspaceStatus, workspaceColor = m.WorkspaceToggleError, accent
+						}
+						ui.Text(c, workspaceStatus).FontSize(theme.InterfaceSize(12)).TextColor(workspaceColor).Grow(1)
 						if m.OnToggleWorkspace != nil {
 							label := i18n.T(i18n.KeyRemoteToggleOn)
 							if m.RemoteWorkspaceEnabled {
 								label = i18n.T(i18n.KeyRemoteToggleOff)
 							}
-							if ui.Button(c, label).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if ui.Button(c, label).FontSize(theme.InterfaceSize(11)).Disabled(m.WorkspaceToggleBusy).Clicked() && !m.WorkspaceToggleBusy {
 								m.OnToggleWorkspace(!m.RemoteWorkspaceEnabled)
 							}
 						}
@@ -187,7 +203,6 @@ func View(c *ui.Context, m Model) {
 				}
 
 				viewGatewayEditor(c, m, fg, muted)
-				viewPhoneSection(c, m, fg, muted, field, border, accent)
 
 				sshSnap := sshremote.Snapshot{
 					Active:                 sshremote.ModeUsesSSH(m.RemoteMode),

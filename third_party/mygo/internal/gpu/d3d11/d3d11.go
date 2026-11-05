@@ -266,11 +266,11 @@ type Renderer struct {
 	resizing   bool
 	resizedAt  time.Time
 
-	vs, ps, layout      uintptr
-	blend, raster, samp uintptr
-	cbuf                uintptr
-	instBuf             uintptr
-	instCap             int
+	vs, ps, layout                 uintptr
+	blend, maskBlend, raster, samp uintptr
+	cbuf                           uintptr
+	instBuf                        uintptr
+	instCap                        int
 
 	mask, color texture
 	images      map[uint64]*texture
@@ -377,6 +377,11 @@ func (r *Renderer) init() error {
 	bd.RenderTarget[0] = rtBlend{BlendEnable: 1, SrcBlend: 2, DestBlend: 17, BlendOp: 1, SrcBlendAlpha: 2, DestBlendAlpha: 19, BlendOpAlpha: 1, WriteMask: 0xf}
 	if failed(call(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&bd)), uintptr(unsafe.Pointer(&r.blend)))) {
 		return errors.New("d3d11: cannot create the blend state")
+	}
+	mbd := blendDesc{}
+	mbd.RenderTarget[0] = rtBlend{BlendEnable: 1, SrcBlend: 1, DestBlend: 6, BlendOp: 1, SrcBlendAlpha: 1, DestBlendAlpha: 6, BlendOpAlpha: 1, WriteMask: 0xf}
+	if failed(call(r.device, devCreateBlendState, uintptr(unsafe.Pointer(&mbd)), uintptr(unsafe.Pointer(&r.maskBlend)))) {
+		return errors.New("d3d11: cannot create the mask blend state")
 	}
 	rd := rasterizerDesc{FillMode: 3, CullMode: 1, DepthClip: 1, Scissor: 1}
 	if failed(call(r.device, devCreateRasterizerState, uintptr(unsafe.Pointer(&rd)), uintptr(unsafe.Pointer(&r.raster)))) {
@@ -596,7 +601,7 @@ func (r *Renderer) Release() {
 	}
 	// The target goes first: a window has one at most, which another
 	// renderer of it then makes.
-	for _, p := range []*uintptr{&r.visual, &r.target, &r.dcomp, &r.rtv, &r.swapChain2, &r.swapChain, &r.instBuf, &r.cbuf, &r.passCB, &r.samp, &r.raster, &r.blend, &r.layout,
+	for _, p := range []*uintptr{&r.visual, &r.target, &r.dcomp, &r.rtv, &r.swapChain2, &r.swapChain, &r.instBuf, &r.cbuf, &r.passCB, &r.samp, &r.raster, &r.maskBlend, &r.blend, &r.layout,
 		&r.blurPS, &r.downPS, &r.passVS, &r.ps, &r.vs, &r.factory, &r.ctx, &r.device} {
 		free(p)
 	}
@@ -712,6 +717,21 @@ func (r *Renderer) draw(s *scene.Scene) error {
 	if err := r.fitBackdrop(); err != nil {
 		return err
 	}
+	maskIdx := -1
+	if r.rounded != nil {
+		if radius := r.rounded.maskRadius(r, s); radius > 0 {
+			w, h := float32(s.Width), float32(s.Height)
+			maskIdx = len(r.b.Instances)
+			r.b.Instances = append(r.b.Instances, gpu.Instance{
+				Rect:   [4]float32{0, 0, w, h},
+				Inner:  [4]float32{radius, radius, radius, radius},
+				Color:  [4]float32{1, 1, 1, 1},
+				UV:     [4]float32{0, 0, w, h},
+				Clip:   [4]float32{-1e6, -1e6, 2e6, 2e6},
+				Params: [4]float32{1, 0, 0, 1},
+			})
+		}
+	}
 
 	// Upload the instances, growing the buffer as needed.
 	if n := len(r.b.Instances); n > 0 {
@@ -771,6 +791,15 @@ func (r *Renderer) draw(s *scene.Scene) error {
 		sc := b.Scissor // a D3D11_RECT
 		call(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&sc)))
 		call(ctx, ctxDrawInstanced, 4, uintptr(b.Count), 0, uintptr(b.Start))
+	}
+	if maskIdx >= 0 && r.maskBlend != 0 {
+		if ps != r.ps {
+			call(ctx, ctxPSSetShader, r.ps, 0, 0)
+		}
+		sc := gpu.Scissor{Left: 0, Top: 0, Right: int32(s.Width), Bottom: int32(s.Height)}
+		call(ctx, ctxRSSetScissorRects, 1, uintptr(unsafe.Pointer(&sc)))
+		call(ctx, ctxOMSetBlendState, r.maskBlend, 0, 0xffffffff)
+		call(ctx, ctxDrawInstanced, 4, 1, 0, uintptr(maskIdx))
 	}
 	return nil
 }

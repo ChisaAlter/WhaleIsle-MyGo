@@ -95,3 +95,40 @@ func TestDiscoverySortAndListingPeriod(t *testing.T) {
 		}
 	})
 }
+
+func TestShowMoreAppendsAndFiltersResetWithoutChangingSetPage(t *testing.T) {
+	s := NewWithPersonalPath("")
+	for i := 0; i < 135; i++ {
+		id := fmt.Sprintf("owner/%03d", i)
+		s.discovery.catalog.Items = append(s.discovery.catalog.Items, desktopmarket.CatalogItem{ID: id, Category: "tools"})
+		s.personal.data.Favorites[id] = true
+	}
+	for _, tab := range []string{"discover", "favorites"} {
+		s.SetTab(tab)
+		if d := s.Discovery(); len(d.Rows) != 60 || d.Rows[0].ID != "owner/000" {
+			t.Fatal("initial batch", d)
+		}
+		s.ShowMore()
+		if d := s.Discovery(); len(d.Rows) != 120 || d.Rows[0].ID != "owner/000" || d.Rows[119].ID != "owner/119" {
+			t.Fatal("second batch replaced prior cards", d)
+		}
+		s.ShowMore()
+		if d := s.Discovery(); len(d.Rows) != 135 || d.Rows[0].ID != "owner/000" {
+			t.Fatal("last batch lost prior cards", d)
+		}
+		s.SetCategory("tools")
+		if d := s.Discovery(); len(d.Rows) != 60 || d.Page != 0 {
+			t.Fatal("filter did not reset batch", d)
+		}
+		s.ShowMore()
+		s.SetQuery("owner/0")
+		if d := s.Discovery(); len(d.Rows) != 60 || d.Total != 100 || d.Page != 0 {
+			t.Fatal("query did not reset batch", d)
+		}
+		s.SetQuery("")
+		s.SetPage(1)
+		if d := s.Discovery(); len(d.Rows) != 60 || d.Rows[0].ID != "owner/060" || d.Page != 1 {
+			t.Fatal("explicit pagination contract changed", d)
+		}
+	}
+}

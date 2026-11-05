@@ -3,6 +3,7 @@ package interaction
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -127,6 +128,9 @@ func TestQuestionContentLongUnbrokenOptionFitsNarrowCard(t *testing.T) {
 	if !ok || r.X+r.W > 340.5 || r.H <= 20 {
 		t.Fatalf("unbroken option overflows the answer area: %+v found=%v", r, ok)
 	}
+	if os.Getenv("CHAT_GALLERY_DIR") != "" {
+		writeInteractionGallery(t, interactionGalleryDir(t), "question-narrow-340.png", tt)
+	}
 }
 
 func TestQuestionContentLongBodyScrollKeepsFooterReachable(t *testing.T) {
@@ -146,6 +150,9 @@ func TestQuestionContentLongBodyScrollKeepsFooterReachable(t *testing.T) {
 	last, ok := tt.Find("Option 20")
 	if !ok || last.Y < 0 || last.Y+last.H > footer.Y {
 		t.Fatalf("last option cannot be reached by scrolling: %+v found=%v", last, ok)
+	}
+	if os.Getenv("CHAT_GALLERY_DIR") != "" {
+		writeInteractionGallery(t, interactionGalleryDir(t), "question-body-scroll-600.png", tt)
 	}
 	if err := tt.Click(i18n.T(i18n.KeyChatQuestionMinimize)); err != nil {
 		t.Fatal(err)

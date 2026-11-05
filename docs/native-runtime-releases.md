@@ -5,6 +5,10 @@ checks the final SHA-256/size and configured signature requirements, and retains
 the installer until the user confirms the existing task/session-safe handoff.
 Downloading does not change the installation.
 
+For the current parity work, use the [LIFE-025 publication handoff](#life-025-publication-handoff-2026-11-03).
+The dated local artifacts below are historical evidence, not the current parity
+candidate or proof that either public update source is deployed.
+
 ## Package identity and runtime
 
 Catalog schemaVersion=2, application=whaleisle-mygo, releases=[] adds:
@@ -213,6 +217,86 @@ point to a native catalog. CNB requires an explicitly configured catalog URL;
 that URL may host a copy of the common catalog containing the publisher's actual
 CNB downloadURLs. No official CNB repository/address is inferred or invented.
 All metadata, installer URLs and redirects keep the existing HTTPS restrictions.
+
+## LIFE-025 publication handoff (2026-11-03)
+
+The local catalog producer and the client download-source contract are present.
+The remaining delivery is a real published native installer/catalog and the
+actual CNB target. Neither target's current availability was queried in this
+pass. An unset CNB route is unavailable in the UI; this does not complete the
+domestic-update feature.
+
+### Inputs the release owner must supply
+
+| Input | Required value |
+| --- | --- |
+| Accepted candidate | The newly accepted parity stage, its exact embedded desktop version, and the final installer built from that stage. The old rc.3/trajectory diagnostic and dated packages below are not substitutes. |
+| Version/tag | The accepted version and one matching tag: the version itself, `v<version>`, or `mygo-v<version>`. Do not change the bundled Host version/source/readiness record to match a desktop version. |
+| GitHub target | The client's existing default is `ChisaAlter/WhaleIsle-MyGo`; publish the catalog as `WhaleIsle-MyGo-releases.json` in the release selected by `/releases/latest/download/`. This is the configured target, not an availability check. |
+| CNB target | The release owner's approved native repository and its actual anonymous HTTPS attachment-directory URL for this tag, plus the actual anonymous catalog URL. No native CNB address is recorded in this project. |
+| Authority | Separate permission to publish/upload and, if required, create the matching tag. Use the approved GitHub/CNB credential mechanism for that target; never put credentials in metadata or URLs. Signing keys remain in the existing signing process. |
+
+The final installer basename and exact size/SHA-256 become the package identity
+on both routes. Build the catalog **after signing** from those final bytes and
+the actual stage using `scripts/native-release-catalog.mjs`. The existing
+producer verifies the selected native Host/mobile graph and Node target for a
+runtime-inclusive package. A shell-only package cannot supply a missing Host.
+
+For the already documented producer config, set:
+
+- `version`, `tag`, `stage` and `installer` from that accepted candidate.
+- `baseURL` to `https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/<tag>/`.
+- `mirrorBaseURLs.cnb` only to the approved, real CNB attachment directory,
+  ending in `/`. The producer appends the same encoded installer basename.
+- `output` to a new `WhaleIsle-MyGo-releases.json` path. The producer refuses
+  an existing output; retain old metadata rather than overwriting it.
+- `previous`/`deltaBases` only when retaining a real previous native catalog
+  and its exact installer. Full-package publication does not require a delta.
+
+Run the existing producer only when these real inputs exist:
+
+```text
+node scripts/native-release-catalog.mjs release-config.json
+```
+
+Upload the final installer and catalog to the approved native GitHub release
+and CNB release. Any retained historical entries or delta bases in the common
+catalog must keep their recorded assets available. Native range deltas use the
+same final installer; there is no separate patch binary to upload.
+
+A prerelease must use an explicit catalog override while it remains a
+prerelease: the default GitHub `/releases/latest/download/` is a stable-release
+discovery path. Do not promote an unaccepted candidate merely to satisfy that
+URL. The actual anonymous CNB catalog URL is consumed through
+`WHALEISLE_RELEASE_CATALOG_CNB`; a deployment intended to work without launch
+environment setup also needs that approved address wired as the product's
+default in a separately built candidate. An operator-only environment override
+does not provide an out-of-box CNB source.
+
+### Do not publish native artifacts through the Electron mirror unchanged
+
+The original installed product uses `ayasealter/WhaleIsle` on CNB. That is not
+an established MyGo-native target. Its `scripts/sync-cnb.mjs` validates stable
+Electron/WhaleBridge releases, `Whale-Isle-Setup-<version>.exe`, Electron update
+metadata and `SHA512SUMS.txt`; it rejects prereleases. Copying that workflow or
+renaming a native catalog cannot satisfy its contract. Keep the repositories
+and package identities distinct. Reuse that release system's credential and
+upload process only after its owner approves the native target and adapts its
+asset validation to this native catalog.
+
+### Evidence that closes LIFE-025
+
+After publication is authorized, the release owner must fetch the catalog and
+selected installer anonymously from **each promised route**, verify the final
+installer size/SHA-256 against the catalog, and exercise the native client's
+catalog selection and download/staging for the current platform/runtime.
+Confirm that route changes use that route's mapped installer and Range URL,
+not a silent download from the other source. Installation/upgrade and its
+task-safe handoff remain LIFE-026 acceptance.
+
+Until those results and any promised default-CNB wiring are present,
+LIFE-025 remains incomplete. No release upload, signing, network check,
+workflow activation or installer generation was performed for this handoff.
 
 ## Execution and publication boundary
 

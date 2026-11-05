@@ -12,7 +12,10 @@ import (
 
 type calendarTransport func(*http.Request) (*http.Response, error)
 
-func (f calendarTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f calendarTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 
 func TestBotRoutineCalendarHostRejectionBoundary(t *testing.T) {
 	for _, s := range []string{

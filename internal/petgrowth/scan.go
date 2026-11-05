@@ -20,8 +20,9 @@ var scanScript string
 // scanDir is one session directory's settlements and the log signature they
 // were decoded from.
 type scanDir struct {
-	sig     string
-	samples map[string]int64
+	sig            string
+	samples        map[string]int64
+	cacheInclusive map[string]int64
 }
 
 // scanResultDir is one directory as the scanner reports it; D is nil when the
@@ -30,6 +31,7 @@ type scanResultDir struct {
 	R string           `json:"r"`
 	S string           `json:"s"`
 	D map[string]int64 `json:"d"`
+	C map[string]int64 `json:"c"`
 }
 
 // scanCache keeps the last scan per directory. The minute refresh used to
@@ -47,8 +49,13 @@ var scanCache struct {
 // supplies existing native config, never URL/page parameters. Node executes our
 // embedded scanner, not a package from disk. No IPC/Host token is passed.
 func Scan(ctx context.Context, node, home string) (map[string]int64, error) {
+	usage, err := scanSessionUsage(ctx, node, home)
+	return usage.Samples, err
+}
+
+func scanSessionUsage(ctx context.Context, node, home string) (Usage, error) {
 	if node == "" || home == "" || !filepath.IsAbs(home) {
-		return nil, errors.New("pet scanner runtime unavailable")
+		return Usage{}, errors.New("pet scanner runtime unavailable")
 	}
 	root := filepath.Join(home, "sessions")
 	prior := map[string]string{}
@@ -61,7 +68,7 @@ func Scan(ctx context.Context, node, home string) (map[string]int64, error) {
 	scanCache.Unlock()
 	priorJSON, err := json.Marshal(prior)
 	if err != nil {
-		return nil, err
+		return Usage{}, err
 	}
 	script := strings.Replace(scanScript, "'use strict';", "'use strict';\nconst PET_SCAN_PRIOR = "+string(priorJSON)+";", 1)
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
@@ -81,22 +88,27 @@ func Scan(ctx context.Context, node, home string) (map[string]int64, error) {
 	cmd.Stdout = &out
 	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Run(); err != nil {
-		return nil, errors.New("pet usage scan unavailable or incomplete")
+		return Usage{}, errors.New("pet usage scan unavailable or incomplete")
 	}
 	var result struct {
 		Dirs     []scanResultDir `json:"dirs"`
 		Complete bool            `json:"complete"`
 	}
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
-		return nil, errors.New("invalid pet usage scan result")
+		return Usage{}, errors.New("invalid pet usage scan result")
 	}
-	return mergeScan(root, result.Dirs, result.Complete)
+	return mergeScanUsage(root, result.Dirs, result.Complete)
 }
 
 // mergeScan folds directory results in scan order, as the scanner once did in
 // one pass: a later directory's settlement replaces an earlier equal id. A
 // directory reported unchanged (nil samples) is served from the cache.
 func mergeScan(root string, dirs []scanResultDir, complete bool) (map[string]int64, error) {
+	usage, err := mergeScanUsage(root, dirs, complete)
+	return usage.Samples, err
+}
+
+func mergeScanUsage(root string, dirs []scanResultDir, complete bool) (Usage, error) {
 	scanCache.Lock()
 	defer scanCache.Unlock()
 	if scanCache.root != root {
@@ -104,32 +116,37 @@ func mergeScan(root string, dirs []scanResultDir, complete bool) (map[string]int
 	}
 	next := make(map[string]scanDir, len(dirs))
 	samples := map[string]int64{}
+	cacheInclusive := map[string]int64{}
 	for _, d := range dirs {
-		entry := scanDir{sig: d.S, samples: d.D}
+		entry := scanDir{sig: d.S, samples: d.D, cacheInclusive: d.C}
 		if d.D == nil {
 			cached, ok := scanCache.dirs[d.R]
 			if !ok || cached.sig != d.S {
 				scanCache.dirs = map[string]scanDir{}
-				return nil, errors.New("pet usage scan cache out of step")
+				return Usage{}, errors.New("pet usage scan cache out of step")
 			}
 			entry = cached
 		}
 		next[d.R] = entry
 		for id, n := range entry.samples {
 			samples[id] = n
+			delete(cacheInclusive, id)
+			if old := entry.cacheInclusive[id]; old > n && old <= MaxCount {
+				cacheInclusive[id] = old
+			}
 		}
 	}
 	scanCache.dirs = next
 	if !complete {
-		return nil, errors.New("pet usage scan unavailable or incomplete")
+		return Usage{}, errors.New("pet usage scan unavailable or incomplete")
 	}
 	if len(samples) > 200000 {
-		return nil, errors.New("pet usage scan settlement limit")
+		return Usage{}, errors.New("pet usage scan settlement limit")
 	}
 	if _, err := ValidateSamples(samples); err != nil {
-		return nil, err
+		return Usage{}, err
 	}
-	return samples, nil
+	return Usage{Samples: samples, Source: "sessions", CacheInclusive: cacheInclusive}, nil
 }
 
 type cappedOutput struct{ bytes.Buffer }

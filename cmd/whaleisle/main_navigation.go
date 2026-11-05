@@ -26,6 +26,7 @@ func connectionUnavailableMessage(bootstrapError string, offline, lost bool) str
 // Main panel selection changes visibility only. The marketplace, scheduler,
 // assistant and per-session composer stores remain alive with their drafts.
 func (s *mainState) selectMainPanel(panel string) {
+	s.closePluginNativeView()
 	s.mu.Lock()
 	s.marketOpen = panel == "market" || panel == "plugins"
 	s.marketManager = panel == "plugins"
@@ -44,9 +45,17 @@ func (s *mainState) selectMainPanel(panel string) {
 	}
 }
 
+// Package management is a distinct destination from the featured marketplace.
+// Reuse the normal exclusive-page transition while retaining page drafts.
+func (s *mainState) openNativePluginManager() {
+	s.revealMainConversation()
+	s.selectMainPanel("plugins")
+}
+
 // Global session actions reveal the conversation even from exclusive pages.
 // Only route flags change: drafts and each page's live stores remain resident.
 func (s *mainState) revealMainConversation() {
+	s.closePluginNativeView()
 	s.mu.Lock()
 	s.launcherOpen = false
 	s.settingsOpen = false
@@ -84,6 +93,7 @@ func (s *mainState) gateAssistantNavigation(m *frame.Model) {
 // withMainNavigation is the stable parent of both chat and the three native
 // global panels. Settings overlay this stable shell; guest/PDF views bypass it.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
+	m.RightOverlayReserve = s.padReservedWidth(c)
 	m.PageShortcutBindings = s.pageShortcutBindings()
 	m.SessionSearchFocus = &s.commandSearchFocus
 	m.OnOpenWorkspaceFiles = func() {
@@ -125,6 +135,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		m.Store = s.sessions
 	}
 	s.mu.Unlock()
+	s.bindShellParity(c, &m, win)
 	sessions := m.Store
 	m.ScheduleStore = s.schedule
 	m.OnOpenScheduleTask = s.openScheduleTask
@@ -135,6 +146,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		}
 	}
 	s.bindProjectModel(win, &m)
+	s.bindProjectNativeConsumers(win, &m.Projects)
 	projectOpen := m.Projects.OnOpen
 	m.Projects.OnOpen = func(id string) {
 		s.selectMainPanel("")
@@ -144,13 +156,14 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	m.OnOpenDeliverable = func(path string) { s.queueNavigationFile(sessions, path) }
 	m.OnSelectSession = func(id string) { s.selectMainPanel(""); sessions.Select(id) }
-	m.OnCreateSession = func() { s.selectMainPanel(""); sessions.CreateSession(context.Background()) }
+	m.OnCreateSession = func() { s.openGlobalWorkspaceSession(win, sessions) }
+	m.DirectoryActions = s.workspaceDirectoryActions(win)
 	m.OnCreateWorkspaceSession = func(generation uint64, id string) {
 		s.openWorkspaceSession(win, sessions, generation, id)
 	}
 	m.OnOpenMarket = func() { s.selectMainPanel("plugins") }
 	m.OnOpenSchedule = func() { s.selectMainPanel("schedule") }
-	m.OnOpenAssistant = func() { s.selectMainPanel("assistant") }
+	m.OnOpenAssistant = func() { s.openWhaleFromSidebar(win) }
 	s.gateAssistantNavigation(&m)
 	m.OnOpenLauncher = func() {
 		s.selectMainPanel("")
@@ -225,6 +238,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		sessions.UpdateSessionSearch(context.Background(), *m.SessionSearch)
 	}()
 	s.bindPluginSessionNavigation(&m)
+	s.bindPluginNativeNavigation(&m)
 	frame.NavigationShell(c, s.navigationFileDropModel(m), content)
 }
 

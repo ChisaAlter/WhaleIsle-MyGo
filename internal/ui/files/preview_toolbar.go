@@ -1,9 +1,11 @@
 package files
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -153,6 +155,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			*jump = true
 		}
 	})
+	paintPreviewFeedback(c, m, path, row)
 	row.Children(func() {
 		if desktop {
 			paintDesktopFileCrumbs(c, m, path, muted)
@@ -172,7 +175,11 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 				if isMarkdown(path) {
 					paintPreviewMarkdownToggle(c, m)
 				}
-				if previewTextTool(c, label("自动换行", "Word wrap")).Tooltip(label("切换自动换行", "Toggle word wrap")).Clicked() {
+				icon := previewWrapIcon
+				if previewPreferences(m).WordWrap {
+					icon = previewNowrapIcon
+				}
+				if previewTool(c, "preview-wrap", label("切换自动换行", "Toggle word wrap"), icon, muted).Clicked() {
 					togglePreviewWrap(m)
 				}
 			}
@@ -194,13 +201,20 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 		if desktop {
 			paintPreviewSelectionActions(c, m, path)
 			if previewEditable(m, path) || previewDirty(m) {
-				if previewTextTool(c, i18n.T(i18n.KeyFilesSave)).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
-					Disabled(explicitSaveDisabled(m)).Clicked() {
+				caption, busy := previewSaveCaption(m)
+				if previewTextTool(c, caption).Width(86).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
+					Disabled(busy || explicitSaveDisabled(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileStatus(m, err.Error())
 					}
 				}
 			}
+			previewTool(c, "preview-options", label("文件选项", "File options"), previewMoreIcon, muted).Menu(func(menu *ui.Menu) {
+				treeFileMenu(m, path)(menu)
+				if previewSupportsLineNavigation(m, path) && menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
+					*jump = true
+				}
+			})
 		} else {
 			if previewTool(c, "preview-reload", label("重新加载", "Reload"), previewReloadIcon, muted).Clicked() {
 				reloadSelectedFile(m)
@@ -211,6 +225,45 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 	if *jump && previewSupportsLineNavigation(m, path) {
 		paintPreviewLineNavigation(c, m, jump)
 	}
+}
+
+func previewSaveCaption(m Model) (string, bool) {
+	if tab := selectedTab(m); tab != nil && tab.save != nil {
+		state := tab.save.Snapshot()
+		if state.Running || state.Pending {
+			return label("保存中…", "Saving…"), true
+		}
+		if state.Revision > 0 && state.Error == "" && !previewDirty(m) {
+			return "✓ " + i18n.T(i18n.KeyFilesSaved), false
+		}
+	}
+	return i18n.T(i18n.KeyFilesSave), false
+}
+
+// Feedback belongs to the fixed toolbar or overlay, never an inserted editor
+// row. The resource owner keys the receipt so another file cannot consume it.
+func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element) {
+	last := ui.Local(owner, "preview-feedback", func() string { return "" })
+	status, kind := "", "info"
+	if m.EditStatus != nil {
+		status = *m.EditStatus
+	}
+	if tab := selectedTab(m); tab != nil && tab.save != nil {
+		state := tab.save.Snapshot()
+		if state.Error != "" {
+			status, kind = state.Error, "error"
+		}
+		if state.Running || state.Pending {
+			status = ""
+		}
+	}
+	if status == i18n.T(i18n.KeyFilesSaved) || status == label("正在保存…", "Saving…") {
+		status = ""
+	}
+	if status != "" && status != *last {
+		c.AddToast(ui.Toast{ID: fmt.Sprintf("file-feedback-%s", path), Title: status, Type: kind, Timeout: 5 * time.Second})
+	}
+	*last = status
 }
 
 func paintDesktopFileCrumbs(c *ui.Context, m Model, path string, muted ui.Color) {
@@ -281,7 +334,7 @@ func previewOpenLine(m Model, path string) int {
 	return 0
 }
 
-func previewOpenMenu(menu *ui.Menu, m Model, path string) {
+func previewEditorMenu(menu *ui.Menu, m Model, path string) {
 	if previewHasEditorApps(m) {
 		for _, app := range m.EditorApps {
 			caption := strings.TrimSpace(app.Name)
@@ -294,6 +347,21 @@ func previewOpenMenu(menu *ui.Menu, m Model, path string) {
 				withToolbarPath(m, path, textPreviewPath(m, path), func(full string) { m.OnOpenWithEditor(full, editorID, line) })
 			}
 		}
+	}
+}
+
+func previewOpenMenu(menu *ui.Menu, m Model, path string) {
+	previewEditorMenu(menu, m, path)
+	if state := m.OpenWithState; state != nil {
+		if state.Loading {
+			menu.Item(label("正在查找应用…", "Finding applications…")).Disabled(true)
+		}
+		if state.Error != "" {
+			menu.Item(state.Error).Disabled(true)
+		}
+	}
+	if m.OnRefreshOpenWith != nil && menu.Item(label("刷新应用列表", "Refresh applications")).Chosen() {
+		m.OnRefreshOpenWith()
 	}
 	if m.OnOpenWith != nil {
 		for _, app := range m.OpenWithApps {

@@ -21,7 +21,7 @@ import (
 //go:embed runner.js source
 var bundled embed.FS
 
-const SourceCommit = "90465b67ec16765631d54c195af19d9ff3c3a770"
+const SourceCommit = "installed-0.3.13-20261102"
 
 type Options struct {
 	NodeBin, Home, Workspace string
@@ -61,7 +61,7 @@ func (b *Bridge) PrepareOverlay(ctx context.Context, sourceDir, profileDir, harn
 func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[string]any {
 	action, _ := payload["action"].(string)
 	switch action {
-	case "select-directory", "canonicalize", "repository", "prepare-workspace", "check-workspace", "snapshot", "cleanup-workspace", "resolve-path", "pull-request", "open-path":
+	case "select-directory", "canonicalize", "repository", "prepare-workspace", "check-workspace", "snapshot", "cleanup-workspace", "check-directory", "baseline", "changes", "revert", "resolve-path", "pull-request", "open-path":
 	default:
 		return failure("unsupported Project operation")
 	}

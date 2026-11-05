@@ -9,7 +9,7 @@ import (
 // blank phase. A presentation owns its header even when its composer is not
 // managed; running and attempted prompts are independent of the hero layout.
 func conversationHeaderHidden(snap session.ViewState, activeTarget bool) bool {
-	if snap.SelectedID == "" || !snap.SelectedSummaryBlank || activeTarget || snap.PromptBusy || snap.PromptAttempted || len(snap.Messages) != 0 {
+	if snap.SelectedID == "" || !snap.SelectedSummaryBlank || activeTarget || snap.PromptBusy || snap.PromptAttempted || conversationHasTurnContent(snap) {
 		return false
 	}
 	for _, item := range snap.Items {

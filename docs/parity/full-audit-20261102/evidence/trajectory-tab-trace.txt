@@ -1,0 +1,43 @@
+﻿15:27:56.195755 [conversation-tab] writeback before=unset after=chat
+15:27:56.199558 [conversation-tab] layout node=caption x=57.0 y=0.0 w=1383.0 h=48.0 tab=chat
+15:27:56.199558 [conversation-tab] layout node=trailing x=1260.0 y=12.0 w=68.0 h=32.0 tab=chat
+15:28:02.780452 [conversation-tab] layout node=caption x=281.0 y=0.0 w=1159.0 h=48.0 tab=chat
+15:28:02.780452 [conversation-tab] layout node=trailing x=1260.0 y=12.0 w=68.0 h=32.0 tab=chat
+15:28:03.840601 [conversation-tab] layout node=chat x=377.0 y=15.0 w=30.0 h=27.0 tab=chat
+15:28:03.840601 [conversation-tab] layout node=trajectory x=425.0 y=15.0 w=30.0 h=27.0 tab=chat
+15:28:03.897479 [conversation-tab] layout node=trailing x=1158.5 y=12.0 w=169.5 h=32.0 tab=chat
+15:35:16.296588 [conversation-tab] input node=trajectory kind=down x=442.0 y=27.3 tab=chat
+15:35:16.386071 [conversation-tab] input node=trajectory kind=up x=441.3 y=27.3 tab=chat
+15:35:16.387109 [conversation-tab] selection requested=trajectory before=chat after=trajectory
+15:35:16.387675 [conversation-tab] writeback before=chat after=trajectory
+15:35:16.388751 [conversation-tab] layout node=caption x=281.0 y=0.0 w=1159.0 h=48.0 tab=trajectory
+15:35:16.388751 [conversation-tab] layout node=chat x=377.0 y=15.0 w=30.0 h=27.0 tab=trajectory
+15:35:16.388751 [conversation-tab] layout node=trajectory x=425.0 y=15.0 w=30.0 h=27.0 tab=trajectory
+15:35:16.388751 [conversation-tab] layout node=trailing x=1158.5 y=12.0 w=169.5 h=32.0 tab=trajectory
+15:35:16.945560 [conversation-tab] input node=caption kind=down x=670.0 y=30.0 tab=trajectory
+15:35:18.882201 [conversation-tab] input node=caption kind=down x=355.0 y=24.0 tab=trajectory
+15:35:19.249766 [conversation-tab] input node=chat kind=down x=377.0 y=28.0 tab=trajectory
+15:35:19.330630 [conversation-tab] input node=chat kind=up x=377.0 y=28.0 tab=trajectory
+15:35:19.332194 [conversation-tab] selection requested=chat before=trajectory after=chat
+15:35:19.332194 [conversation-tab] writeback before=trajectory after=chat
+15:35:19.333255 [conversation-tab] layout node=caption x=281.0 y=0.0 w=1159.0 h=48.0 tab=chat
+15:35:19.333255 [conversation-tab] layout node=chat x=377.0 y=15.0 w=30.0 h=27.0 tab=chat
+15:35:19.333255 [conversation-tab] layout node=trajectory x=425.0 y=15.0 w=30.0 h=27.0 tab=chat
+15:35:19.333255 [conversation-tab] layout node=trailing x=1158.5 y=12.0 w=169.5 h=32.0 tab=chat
+15:36:02.502989 [conversation-tab] input node=caption kind=down x=738.0 y=14.0 tab=chat
+15:36:03.399787 [conversation-tab] input node=caption kind=down x=690.0 y=25.0 tab=chat
+15:36:10.213280 [conversation-tab] input node=caption kind=down x=1087.0 y=26.0 tab=chat
+15:36:12.173688 [conversation-tab] input node=trailing kind=down x=1209.0 y=32.0 tab=chat
+15:36:13.089966 [conversation-tab] layout node=trailing x=1140.0 y=12.0 w=188.0 h=32.0 tab=chat
+15:36:14.279752 [conversation-tab] input node=caption kind=down x=946.0 y=20.0 tab=chat
+15:36:16.746357 [conversation-tab] input node=caption kind=down x=845.0 y=42.0 tab=chat
+15:36:17.632845 [conversation-tab] layout node=trailing x=1260.0 y=12.0 w=68.0 h=32.0 tab=chat
+15:36:17.673616 [conversation-tab] layout node=trailing x=1158.5 y=12.0 w=169.5 h=32.0 tab=chat
+15:36:23.906678 [conversation-tab] layout node=trailing x=1260.0 y=12.0 w=68.0 h=32.0 tab=chat
+15:36:32.308733 [conversation-tab] input node=caption kind=down x=546.0 y=29.0 tab=chat
+15:36:46.124168 [conversation-tab] layout node=trailing x=1140.0 y=12.0 w=188.0 h=32.0 tab=chat
+15:38:22.504970 [conversation-tab] input node=trailing kind=down x=1310.0 y=27.0 tab=chat
+15:38:22.578854 [conversation-tab] layout node=trailing x=1148.0 y=12.0 w=180.0 h=32.0 tab=chat
+15:38:24.789165 [conversation-tab] layout node=trailing x=1140.0 y=12.0 w=188.0 h=32.0 tab=chat
+15:38:25.755934 [conversation-tab] input node=trailing kind=down x=1275.0 y=28.0 tab=chat
+15:38:27.029187 [conversation-tab] input node=trailing kind=down x=1279.0 y=23.0 tab=chat

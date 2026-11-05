@@ -1,11 +1,8 @@
 package usage
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"time"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
@@ -26,6 +23,10 @@ func usageText(zh, en string) string {
 // diagnostics and export controls that used to lead the page as raw text.
 func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	st := m.Store.Stats()
+	// Management actions remain available when every log failed or no model has
+	// recorded usage yet; neither requires a non-empty chart.
+
+	defer repairView(c, m, fg, muted, accent)
 	switch {
 	case st.Loading && st.Overview == nil:
 		ui.Text(c, i18n.T(i18n.KeySurfacesUsageLoading)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -45,13 +46,10 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	if st.Err != "" {
 		ui.Text(c, st.Err).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
-	usageRangeToolbar(c, m, st, fg, muted, accent)
+
 	statisticsDimensionsView(c, m, st, fg, muted, accent, field)
-	rankingView(c, m, st, fg, muted, accent)
-	projectRankingView(c, m, st, fg, muted, accent)
+
 	usageDiagnostics(c, m, st, fg, muted, accent)
-	pricingView(c, m, fg, muted, accent)
-	repairView(c, m, fg, muted, accent)
 }
 
 // formatCompactTokens renders a token count the way a status line does: 12.4K,
@@ -77,35 +75,12 @@ func formatCompactTokens(value float64) string {
 // usageRangeToolbar is the dashboard's tool row: the recent-day choices, a
 // rescan action and the date-range editor.
 func usageRangeToolbar(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Row(c).FillWidth().Wrap().Gap(4).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(4).Children(func() {
 		for _, days := range []int{7, 14, 30} {
-			window := days
-			label := fmt.Sprintf(i18n.T(i18n.KeySurfacesUsageDays), window)
-			usageScopeChip(c, m, label, !st.Range.Active() && st.Days == window, st.Loading, func() {
-				m.Store.SelectStatsRecentDays(window)
-			})
-		}
-		ui.Box(c).Width(1).Height(16).Shrink(0).Background(c.Theme().Border)
-		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesUsageScan), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(st.Loading).Clicked() {
-			m.Store.RefreshStats(context.Background(), true)
-		}
-		ui.Box(c).Grow(1)
-		// A range change keeps the old numbers on screen while the new window
-		// loads, so the toolbar says the dashboard is catching up.
-		if st.Loading && st.Overview != nil && st.Overview.UpdatedAt > 0 {
-			ui.Text(c, i18n.T(i18n.KeySurfacesUsageRefreshing)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-		if st.Overview.UpdatedAt > 0 {
-			stamp := time.UnixMilli(st.Overview.UpdatedAt).UTC().Format("2006-01-02 15:04 UTC")
-			ui.Text(c, i18n.T(i18n.KeySurfacesUsageUpdated)+" "+stamp).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			days := days
+			usageScopeChip(c, m, fmt.Sprintf(i18n.T(i18n.KeySurfacesUsageDays), days), st.Days == days, st.Loading, func() { m.Store.SetStatsDays(days) })
 		}
 	})
-	if st.Cached || st.Overview.Stale {
-		ui.Text(c, i18n.T(i18n.KeySurfacesUsageStale)).FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
-	}
-	timeRangeView(c, m, fg, muted, accent)
-	usageExportRow(c, m, st)
 }
 
 // usageExportRow keeps the export actions next to the range they respect: the

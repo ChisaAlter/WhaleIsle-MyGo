@@ -130,15 +130,24 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 	out := make([]session.Message, 0, len(msgs))
 	controls := map[string]transcriptControl{}
 	scope := m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID
+	lastInput := float64(0)
+	for _, msg := range msgs {
+		if msg.Role == "user" && msg.Kind == session.MessageKindText {
+			lastInput = max(lastInput, msg.Seq)
+		}
+	}
+	settled := func(t *transcriptTurn) bool {
+		return t != nil && t.end != nil && (m.Preferences.CollapseTiming != "next-input" || lastInput > t.end.Seq)
+	}
 	wholeOpen := map[float64]bool{}
 	for turn, t := range turns {
-		eligible := mode != "verbose" && t.end != nil && t.done && !t.middleInput && t.firstProcess >= 0
+		eligible := mode != "verbose" && settled(t) && t.done && !t.middleInput && t.firstProcess >= 0
 		wholeOpen[turn] = !eligible || workflowExpanded(m.ThinkingExpanded, fmt.Sprintf("transcript-turn:%s:%.0f", scope, turn), false)
 	}
 	for i := 0; i < len(msgs); {
 		msg := msgs[i]
 		t := turns[keys[i]]
-		if known[i] && t.firstProcess == i && mode != "verbose" && t.end != nil && t.done && !t.middleInput {
+		if known[i] && t.firstProcess == i && mode != "verbose" && settled(t) && t.done && !t.middleInput {
 			key := fmt.Sprintf("transcript-turn:%s:%.0f", scope, keys[i])
 			control := transcriptControl{key: key, label: formatTurnStatus(t.end.Body), open: wholeOpen[keys[i]], members: t.members}
 			controls[key] = control
@@ -149,7 +158,7 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 			continue
 		}
 		groupable := msg.Kind == session.MessageKindThinking || msg.Kind == session.MessageKindTool
-		if !groupable || mode == "verbose" || mode == "detailed" && (!known[i] || t.end == nil) {
+		if !groupable || mode == "verbose" || mode == "detailed" && (!known[i] || !settled(t)) {
 			out = append(out, msg)
 			i++
 			continue
@@ -160,7 +169,8 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 		}
 		group := msgs[i:j]
 		key := fmt.Sprintf("transcript-group:%s:%s:%.0f", scope, group[len(group)-1].ID, group[len(group)-1].Seq)
-		open := workflowExpanded(m.ThinkingExpanded, key, false)
+		deferred := known[i] && t.end != nil && !settled(t)
+		open := workflowExpanded(m.ThinkingExpanded, key, deferred)
 		running := !known[i] || t.end == nil
 		label := processGroupLabel(group, running, mode == "standard")
 		controls[key] = transcriptControl{key: key, label: label, open: open, running: running, members: inspectorMessageIDs(group)}

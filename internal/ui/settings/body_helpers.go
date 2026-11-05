@@ -22,18 +22,50 @@ func bodyRosterRow(c *ui.Context, title string, content func(), fg, muted ui.Col
 
 // bodyDialog follows feature-owned settings editors and keeps the caller's draft
 // alive until its explicit cancel/save callback acknowledges the operation.
-func bodyDialog(c *ui.Context, open *bool, title string, content func()) {
-	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
+func bodyDialog(c *ui.Context, open *bool, title string, content func(), options ...ui.DialogOptions) {
+	bodyDialogFooter(c, open, title, content, nil, options...)
+}
+
+// bodyDialogFooter keeps the editor's actions outside its bounded scroll body.
+// Short forms size to their content instead of reserving a 720 DIP blank panel.
+func bodyDialogFooter(c *ui.Context, open *bool, title string, content, footer func(), options ...ui.DialogOptions) {
+	bodyDialogFooterWidth(c, open, title, 380, content, footer, options...)
+}
+
+// bodyDialogFooterWidth lets a feature keep its original confirmation/editor
+// width while sharing the same bounded body and resident action row.
+func bodyDialogFooterWidth(c *ui.Context, open *bool, title string, width float32, content, footer func(), options ...ui.DialogOptions) {
+	var dismissal ui.DialogOptions
+	if len(options) > 0 {
+		dismissal = options[0]
+	}
+	ui.DialogBaseWithOptions(c, open, dismissal, func(backdrop, panel ui.Element) {
 		w, h := c.Size()
-		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(720, w-32)), 20).
-			Height(max(0, min(720, h-32))).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(600).Grow(1).MinWidth(0)
-				if ui.Button(c, providerCopy("关闭", "Close")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
-					*open = false
+		maxHeight := max(0, h-48)
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(width, w-48)), 0).
+			MaxHeight(maxHeight).Gap(20).Padding(0, 0, 24, 0).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(500).Grow(1).MinWidth(0)
+				close := ui.Button(c, "").Label(providerCopy("关闭", "Close")).Disabled(dismissal.DismissDisabled).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
+				close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(16, 16) })
+				if close.Clicked() {
+					if dismissal.OnDismiss != nil {
+						dismissal.OnDismiss()
+					} else {
+						*open = false
+					}
 				}
 			})
-			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() { ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(content) })
+			bodyHeight := maxHeight - 110
+			if footer != nil {
+				bodyHeight -= 52
+			}
+			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(0, bodyHeight)).Shrink(1).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Padding(0, 24).Children(content)
+			})
+			if footer != nil {
+				ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(0, 24).Wrap().Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(footer)
+			}
 		})
 	})
 }

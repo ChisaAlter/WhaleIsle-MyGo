@@ -2,23 +2,17 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/accountlogout"
-	"whaleisle/internal/dsh/api"
-	"whaleisle/internal/ui/i18n"
 )
 
 // Only account-page clicks call this flow. It has no application shutdown,
 // Host-stop, task-cancellation, settings-save, or credential-file side effects.
 func (s *mainState) runAccountSignOut(win *mygo.Window, action func(context.Context, any)) {
-	_, offset := time.Now().Zone()
-	locale := "zh-CN"
-	if i18n.Locale() == i18n.LocaleEN {
-		locale = "en-US"
-	}
-	metadata := api.AccountClientMetadata{Version: "whaleisle", Locale: locale, TimezoneOffsetSeconds: float64(offset)}
+	accountlogin.SetClientVersion(buildVersion)
+	metadata := accountlogin.ClientMetadata()
 	go func() {
 		action(context.Background(), metadata)
 		if s.accountSignOut.Snapshot().Completed {

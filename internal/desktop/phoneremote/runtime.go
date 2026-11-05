@@ -28,6 +28,7 @@ type RuntimeState struct {
 	Status                    string
 	Listening, RelayConnected bool
 	PairingURL                string
+	PairingLinkURL            string // sensitive, memory-only, independent of the QR expiry
 	PairingImage              image.Image
 	ExpiresAt                 time.Time
 	Message                   string
@@ -82,6 +83,7 @@ func NewRuntime() *Runtime {
 // built vendor tree. We neither download assets nor guess a system executable.
 func ResolveResources(userData, vendor string) (Resources, error) {
 	root := filepath.Join(vendor, "dshd-remote")
+	selectedComponent := false
 	component := filepath.Join(userData, "components", "dshd-remote")
 	if b, e := os.ReadFile(filepath.Join(component, "installed.json")); e == nil {
 		var installed struct {
@@ -91,12 +93,13 @@ func ResolveResources(userData, vendor string) (Resources, error) {
 			return Resources{}, errors.New("invalid dshd-remote installed version")
 		}
 		root = filepath.Join(component, "versions", installed.Version)
+		selectedComponent = true
 	}
 	root, absErr := filepath.Abs(root)
 	if absErr != nil {
 		return Resources{}, errors.New("invalid runtime root")
 	}
-	required := []string{"src/main/dshd-remote.js", "src/main/dshd-daemon-runner.mjs", "src/main/dshd-daemon-hooks.mjs", "src/main/mobile-web-server.js", "src/main/mobile-web.js", "mobile/web/index.html", "src/main/dshd-git-tunnel.js", "src/main/dshd-git-dispatch.js", "src/shared/official-deepseek-env.js", "src/shared/lan.js", "src/shared/offer.js", "src/shared/dshd-host-tunnel.js", "src/shared/dshd-mux-sse.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/exports.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/pairing-offer.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/relay-device-credential-store.js"}
+	required := requiredPhoneResources(!selectedComponent)
 	for _, relative := range required {
 		if st, e := os.Stat(filepath.Join(root, filepath.FromSlash(relative))); e != nil || st.IsDir() {
 			return Resources{}, errors.New("missing runtime resource: " + relative)
@@ -123,6 +126,16 @@ func ResolveResources(userData, vendor string) (Resources, error) {
 	mygoRemoteHome := filepath.Join(userData, "dsh-home", "mygo-remote")
 	_ = os.MkdirAll(mygoRemoteHome, 0o755)
 	return Resources{Node: node, Module: filepath.Join(root, "src", "main", "dshd-remote.js"), Home: mygoRemoteHome}, nil
+}
+
+func requiredPhoneResources(persistent bool) []string {
+	required := []string{"src/main/dshd-remote.js", "src/main/dshd-daemon-runner.mjs", "src/main/dshd-daemon-hooks.mjs", "src/main/mobile-web-server.js", "src/main/mobile-web.js", "mobile/web/index.html", "src/main/dshd-git-tunnel.js", "src/main/dshd-git-dispatch.js", "src/shared/official-deepseek-env.js", "src/shared/lan.js", "src/shared/offer.js", "src/shared/dshd-host-tunnel.js", "src/shared/dshd-mux-sse.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/exports.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/pairing-offer.js", "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/relay-device-credential-store.js"}
+	// The newly shipped runtime must be complete. A user-selected older component
+	// retains its original QR/device contract; it simply has no reusable-link UI.
+	if persistent {
+		required = append(required, "vendor/chisacode-remote/node_modules/@chisacode/server/dist/server/server/relay-pairing-link-store.js")
+	}
+	return required
 }
 
 func (r *Runtime) Start(userData, vendor string, config map[string]any) {
@@ -241,6 +254,9 @@ func (r *Runtime) Snapshot() RuntimeState {
 		s.PairingURL = ""
 		s.PairingImage = nil
 	}
+	if !s.Listening || (!s.RelayConnected && relayRequired(lanOnly)) {
+		s.PairingLinkURL = ""
+	}
 	r.state = s
 	s.Devices = append([]Device(nil), s.Devices...)
 	if s.BindAddresses != nil {
@@ -249,6 +265,7 @@ func (r *Runtime) Snapshot() RuntimeState {
 	s.DeviceAction = r.deviceAction
 	if s.DeviceAction.Busy && s.DeviceAction.Operation != "rename" {
 		s.PairingURL = ""
+		s.PairingLinkURL = ""
 		s.PairingImage = nil
 		s.Status = "updating"
 	}
@@ -263,6 +280,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 		Listening      bool           `json:"listening"`
 		RelayConnected bool           `json:"relayConnected"`
 		URL            string         `json:"url"`
+		PairingLinkURL string         `json:"pairingLinkUrl"`
 		QRPNG          string         `json:"qrPNG"`
 		Code           string         `json:"code"`
 		Operation      string         `json:"operation"`
@@ -340,6 +358,9 @@ func (r *Runtime) consume(child Child, b []byte) {
 		s.ExpiresAt = expires
 	}
 	if s.Listening && (lanOnly || s.RelayConnected) {
+		if expiry, valid := offerExpiry(event.PairingLinkURL); valid && time.Now().Before(expiry) {
+			s.PairingLinkURL = event.PairingLinkURL
+		}
 		s.Status = "pairing-unavailable"
 		if ok {
 			if time.Now().Before(expires) {

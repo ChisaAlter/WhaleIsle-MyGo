@@ -3,6 +3,7 @@ package webview
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"runtime"
 	"strconv"
@@ -42,6 +43,9 @@ type HostOptions struct {
 	LocalMediaURL string
 	// OnClosed releases the local document lease, including creation failures.
 	OnClosed func()
+	// OnFailure owns product recovery UI. This is an actual engine failure,
+	// not a claim that a blocked native main loop can report its own hang.
+	OnFailure func(PageFailure)
 
 	// SessionOrigin/SessionCookie reuse one exact loopback Host session through a
 	// temporary transport. This always disables all native bindings.
@@ -104,6 +108,8 @@ type Host struct {
 	err             string
 	title           string
 	changed         func()
+	failure         func(PageFailure)
+	failureEpoch    uint64
 }
 
 // NewHost creates a hidden frameless child WebView2 window. Call
@@ -235,9 +241,10 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 
 	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	h.browserProfile = opts.BrowserProfile
+	h.failure = opts.OnFailure
 	h.onShortcutCloseWindow = opts.OnShortcutCloseWindow
 	initialURL := pageURL
-	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil {
+	if localPreview || opts.TransientProfile || opts.BrowserProfile || gateway != nil || opts.OnFailure != nil {
 		// Register lifecycle and failure handlers before asynchronous load.
 		initialURL = ""
 	}
@@ -317,6 +324,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		stopped := h.stopped
 		h.mu.Unlock()
 		if !stopped {
+			h.reportFailure("load", fmt.Sprintf("Page load failed (engine code %d)", err.Code))
 			if localPreview {
 				if opts.LocalHTMLURL != "" {
 					h.setError("HTML preview failed; use system open")
@@ -342,8 +350,11 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		}
 	})
 	pg.OnRenderProcessGone(func(reason string) {
-		gateway.DisconnectClientModules()
+		if gateway != nil {
+			gateway.DisconnectClientModules()
+		}
 		h.setError("Page process exited: " + reason)
+		h.reportFailure("process", "Page process exited: "+reason)
 		if localPreview || opts.TransientProfile {
 			_ = h.Close()
 		}
@@ -396,7 +407,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		child.OnClosed(func() { _ = h.Close() })
 	}
 	h.SyncBounds()
-	if localPreview || opts.BrowserProfile || gateway != nil || opts.TransientProfile {
+	if initialURL == "" {
 		if initialHTML != "" {
 			pg.LoadHTML(initialHTML, pageURL)
 		} else if err := pg.LoadURL(pageURL); err != nil {
@@ -708,7 +719,7 @@ func (h *Host) pageAction(fn func(*mygo.Page)) {
 func (h *Host) Back()    { h.pageAction(func(p *mygo.Page) { p.GoBack() }) }
 func (h *Host) Forward() { h.pageAction(func(p *mygo.Page) { p.GoForward() }) }
 func (h *Host) Reload() {
-	h.setError("")
+	h.beginLoad()
 	h.pageAction(func(p *mygo.Page) {
 		if h.initialHTML != "" {
 			p.LoadHTML(h.initialHTML, h.initialBaseURL)

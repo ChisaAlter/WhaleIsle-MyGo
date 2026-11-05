@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type RoomRuntimeModel struct {
@@ -43,9 +44,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 		if s.Error != "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRuntimeFailure)+s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		if s.Notice != "" {
-			ui.Text(c, s.Notice).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
-		}
+		widgets.Notice(c, "room_runtime:47", "", s.Notice != "", func() string { return s.Notice })
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantCurrentRuntimeUnverifiedAnyPrevious)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}

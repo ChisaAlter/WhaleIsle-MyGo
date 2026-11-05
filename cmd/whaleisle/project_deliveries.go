@@ -40,6 +40,74 @@ func (s *projectController) bindProjectDeliveries(win *mygo.Window, m *projects.
 	m.OnDeliveries = func(id string) { s.openProjectDeliveries(win, id, expected, generation, navigation) }
 	m.OnDeliveryAction = func(action, arg string) { s.runProjectDeliveries(win, d, action, arg, projectflow.DeliveryReportRef{}) }
 	m.OnDeliveryReport = func(id string, ref projectflow.DeliveryReportRef) { s.runProjectDeliveries(win, d, "report", id, ref) }
+	m.OnDeliveryFile = func(file projectflow.Artifact, open func(projectflow.FileTarget)) {
+		s.openProjectDeliveryFile(win, d, file, open)
+	}
+}
+
+func (s *projectController) openProjectDeliveryFile(win *mygo.Window, d *projectDeliveryState, file projectflow.Artifact, open func(projectflow.FileTarget)) {
+	s.mu.Lock()
+	f := s.projectFlow
+	client := s.dshClient
+	if win == nil || open == nil || d == nil || f.deliveries != d || client == nil || f.client != client || f.busy || !f.visible() {
+		s.mu.Unlock()
+		return
+	}
+	snap := d.browser.Snapshot()
+	if snap.Selected == nil {
+		s.mu.Unlock()
+		return
+	}
+	found := false
+	for _, candidate := range snap.Selected.Artifacts {
+		if candidate == file {
+			found = true
+			break
+		}
+	}
+	if !found && snap.Report != nil && snap.ReportRef != nil {
+		for _, candidate := range snap.Report.Artifacts {
+			if candidate == file {
+				found = true
+				file.WorkstreamID = snap.ReportRef.WorkstreamID
+				file.DelegationRef = snap.ReportRef.DelegationRef
+				break
+			}
+		}
+	}
+	if !found {
+		s.mu.Unlock()
+		return
+	}
+	token, generation, navigation := d.browser.NavigationToken(), f.generation, f.navigation
+	f.busy = true
+	s.mu.Unlock()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		rpc := projectflow.Client{Origin: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTP: client.HTTP}
+		resolved, err := rpc.ResolveArtifact(ctx, snap.Scope.ProjectID, file)
+		win.Update(func() {
+			s.mu.Lock()
+			f := s.projectFlow
+			if f.deliveries != d || s.dshClient != client || f.client != client || f.generation != generation || f.navigation != navigation || d.browser.NavigationToken() != token {
+				s.mu.Unlock()
+				return
+			}
+			f.busy = false
+			if err != nil {
+				f.err = err.Error()
+				s.mu.Unlock()
+				return
+			}
+			if !f.visible() {
+				s.mu.Unlock()
+				return
+			}
+			s.mu.Unlock()
+			open(s.projectFileTarget(snap.Scope.ProjectID, resolved, client))
+		})
+	}()
 }
 func (s *projectController) openProjectDeliveries(win *mygo.Window, id string, expected *dsh.Client, generation, navigation uint64) {
 	s.dshMu.Lock()

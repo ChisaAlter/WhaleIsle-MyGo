@@ -49,6 +49,7 @@ func TestSendGlanceUsesOnlyWhaleRoute(t *testing.T) {
 			t.Error("wrong route or auth")
 		}
 		var request struct {
+			RPCID   string `json:"rpcId"`
 			Method  string
 			Payload map[string]string
 		}
@@ -58,7 +59,7 @@ func TestSendGlanceUsesOnlyWhaleRoute(t *testing.T) {
 		if request.Method != "pet/look" || request.Payload["provider"] != "vision-provider" || request.Payload["model"] != "image-model" || request.Payload["image"] == "" {
 			t.Error("wrong payload")
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "result": map[string]any{"ok": true, "value": map[string]any{"ok": true, "reply": "fixture reply"}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": request.RPCID, "result": map[string]any{"ok": true, "value": map[string]any{"ok": true, "reply": "fixture reply"}}})
 	}))
 	defer host.Close()
 	reply, err := SendGlance(context.Background(), host.URL, "auth=fixture", "vision-provider", "image-model", imageBytes.Bytes())

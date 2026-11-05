@@ -93,6 +93,35 @@ func nativeSlashCatalog(m Model) ([]SlashCommand, error) {
 	return rows, nil
 }
 
+// builtinSlashFace mirrors the vendor ui-commands client face: first-party
+// commands carry a localized label and description while every other row
+// keeps its catalog text. Identity follows the descriptor's definitionId —
+// a scoped override that reuses a built-in name keeps its own copy. The
+// native file/model ports append their own labels in nativeSlashCatalog.
+func builtinSlashFace(definitionID string) (label, description string, ok bool) {
+	switch definitionID {
+	case "@deepseek-ai/dsh-command-goal":
+		return composerText("目标", "Goal"),
+			composerText("设置或查看长期任务目标", "Set or view the goal for a long-running task"), true
+	case "@deepseek-ai/dsh-plan-mode":
+		return composerText("计划", "Plan"),
+			composerText("进入或退出计划模式", "Enter or leave plan mode"), true
+	case "@deepseek-ai/dsh-command-feedback":
+		return composerText("反馈", "Feedback"),
+			composerText("发送关于当前会话的反馈", "Record feedback about this session"), true
+	case "@deepseek-ai/dsh-command-compact":
+		return composerText("压缩", "Compact"),
+			composerText("压缩以上对话内容", "Compact older conversation history"), true
+	case "@deepseek-ai/dsh-permission-presets":
+		return composerText("权限", "Permission"),
+			composerText("切换权限预设（沙箱模式与审批策略）", "Switch the permission preset (sandbox mode + approval policy)"), true
+	case "@deepseek-ai/dsh-session-log-export":
+		return composerText("下载日志", "Export"),
+			composerText("将当前会话内容导出为 ZIP", "Download this Session log as a ZIP archive"), true
+	}
+	return "", "", false
+}
+
 // A menu segment owns a revision and exact span. Bare Enter follows the source's
 // token equality CAS. Neither path restores text after a failed or retired pick.
 type nativeCommandSegment struct {

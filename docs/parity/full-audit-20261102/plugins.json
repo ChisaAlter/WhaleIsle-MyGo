@@ -1,0 +1,1496 @@
+{
+  "domain": "plugins-market-skills-mcp-dynamic-extension",
+  "modulesReviewed": [
+    "internal/pluginmanager/{types,client,controller,install,registry,discover}.go",
+    "internal/ui/pluginmanager/{view,dialogs,artwork,search_artwork,install_registry,install_terminal,install_ansi,install_footer}.go",
+    "cmd/whaleisle/{native_plugin_manager,settings_plugins,settings_plugin_inventory,plugin_contributions,plugin_slot_views,plugin_creator_task}.go",
+    "cmd/whaleisle/{plugin_session_host,plugin_session_frame,plugin_session_navigation,plugin_session_turns}.go",
+    "internal/desktop/plugininventory/{controller,view}.go",
+    "internal/desktop/pluginrpc/{doc,client}.go; typed dshbot and whale clients inventoried, business acceptance delegated to their domain owners",
+    "internal/desktop/pluginslots/{package,gateway,client_modules,keyboard,shortcut_preferences,shortcut_import,document_recommendation}.go and their browser adapters",
+    "internal/desktop/pluginui/{package,owner,session,session_controls,renderer_observation,onboarding_response}.go; client.js; session.js",
+    "internal/desktop/pluginui/mirror*.go; mirror_guard.js; mirror_portal_guard.js; mirror_text_guard.js",
+    "internal/ui/chat/{plugin_inline,plugin_portal}.go",
+    "internal/desktop/webview/{host,media_viewport,client_modules,plugin_mirror}.go",
+    "internal/harness/extra_overlay.go",
+    "internal/desktop/market/{catalog,details,spec,install,remove,space,updates}.go",
+    "internal/store/market/{store,catalog,catalog_filters,controls,management,personal,updates,attempts,activation,history_export}.go",
+    "internal/ui/market/{market,management,gallery,presentation,plugin_artwork,readme,readme_images,readme_media,readme_svg}.go",
+    "cmd/whaleisle/{market_catalog,market_activation,market_batch,market_install_ready,import_plugins}.go",
+    "internal/desktop/importer/plugins.go",
+    "internal/ui/settings/{plugins,plugin_inventory,plugin_body,served_plugin_body,served_subagent_models}.go; internal/store/settings/plugin_body.go",
+    "internal/ui/settings/{skills,skill_create,skill_filter,skill_hub}.go",
+    "cmd/whaleisle/settings_skill_{hub,create,editor,directory}.go",
+    "internal/store/session/{skills,skill_inventory,skill_groups,skill_target,skill_editor,skill_directory,skill_options_scope}.go",
+    "internal/ui/settings/{mcp,mcp_catalog,mcp_form,mcp_import}.go",
+    "internal/desktop/mcpconfig/{controller,operation,catalog,form,import,manual_refresh,health_refresh}.go",
+    "cmd/whaleisle/{settings_mcp,settings_mcp_health}.go",
+    "internal/ui/settings/{agent_presets,agent_preset_reader,agent_preset_guide,agent_preset_copy}.go",
+    "cmd/whaleisle/settings_agent_preset_reader.go; internal/store/session/{agent_preset_manager,agent_preset_reader}.go",
+    "internal/ui/custompanel/panel.go; internal/store/custompanel/store.go; cmd/whaleisle/custom_panels.go",
+    "internal/desktop/openui/{runtime,whale_runtime,shell,whale_shell,protocol,state,actions,media,download,api,api_cache,api_images,api_public_image,api_map,api_html_script}.go",
+    "internal/desktop/openui/viewer/v2/{provenance.json,native-adapter.js}; viewer/library-guide.txt",
+    "internal/desktop/previewprocess/openui_{bridge,api,actions,media,update}.go",
+    "internal/ui/chat/openui.go; cmd/whaleisle/main.go production assembly for settings, manager, market and panel hooks",
+    "internal/ui/chat/{whale_ui_tool,whale_ui_panel,openui_native_actions,openui_media}.go; internal/store/session/openui_owner.go",
+    "internal/harness/{launch,supervisor,extra_overlay,overlay}.go and cmd/whaleisle/main.go managed-host env assembly (Whale UI registration only)",
+    "internal/desktop/openui/viewer/v2/{viewer.html,host.cjs,assets/*.js,native-adapter.js}: full public component/DSL/Genui/action/state static comparison"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-{plugins,plugin-inventory,skills,mcp,market}/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-{renderer,agent-preset,conversation}/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/mcp/mcp-servers-file/lib/index.js",
+    "tmp/full-audit-20261102/installed-source/src/main/{plugins,plugin-recovery-actions,plugin-forensics,plugin-runtime-files,dsh-market-desktop,marketplace-catalog,marketplace-details,marketplace-install,marketplace-spec,marketplace-updates,marketplace-state,marketplace-jump,openui}.js",
+    "C:/AI/Deepseek-Harness-Desktop/src/main plugin/market source and src/whale-ui source inventory, read-only supplemental comparison",
+    "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/{viewer.html,build.json,assets/*.js,api/*.cjs,host.css,THIRD_PARTY_NOTICES.txt}; unpacked src/renderer/whale-ui/host.cjs, read in memory only",
+    "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/{components,functions,language/parser,runtime,viewer,genui/client}: readable inventory mapped to the installed bundle; source-only supplemental baseline",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/index.js; actual desktop main/{dsh,whale-ui-host}.js: render_ui producer registration"
+  ],
+  "rendererStaticInventory": {
+    "baseline": "直接只读实际安装0.3.13 app.asar中的renderer条目及其unpacked host.cjs，对照MyGo内嵌v2产物；原项目当前TS仅用于把已证实的共同代码定位为可读组件/语法库存，未把其dirty状态当安装版。",
+    "evidenceLevel": "code",
+    "coverage": "公共renderer组件、Genui discriminant、DSL/函数、动作、状态协议和全部14个已安装whale-ui renderer文件均有去向；未运行renderer。",
+    "counts": {
+      "publicComponents": 73,
+      "baseComponents": 57,
+      "genuiAdapters": 16,
+      "genuiDiscriminants": 50,
+      "libraryFunctions": 59,
+      "builtinFunctions": 14,
+      "nativeOverriddenComponents": 6,
+      "packagedRenderingEngines": 6
+    },
+    "artifactComparison": {
+      "method": "用Node fs只读ASAR header/entry和unpacked文件，逐字节比较普通文件并检视全部差异；未执行安装版模块、未计算文件hash。两份viewer各有一个script；只替换下述四段已定位说明/HtmlView模板文本后，完整script字符串相等。",
+      "viewerBytes": {
+        "installed": 5212972,
+        "embedded": 5212832
+      },
+      "hostBytes": {
+        "installed": 3008634,
+        "embedded": 3008413
+      },
+      "scriptDifferences": [
+        "Card说明由Theme-aligned panel改为明确outline透明/soft着色的分组面板说明。",
+        "Card说明由不要为每个数字建卡片，改为不要包整页或为每个metric建卡片。",
+        "HtmlView生成文档的基础样式由body背景var(--whale-bg)改为html/body透明背景。",
+        "HtmlView说明新增默认透明无边框、仅有意义分组才用surface。"
+      ],
+      "stylesheetDifferences": "viewer.html:1的Card默认背景由var(--whale-panel)改透明；HtmlView边框/背景由主题surface改无边框/透明。其余公共组件registry/签名不变。",
+      "result": "未发现0.3.13新增而MyGo的0.3.10原始viewer缺失的组件、DSL语法、函数、Genui schema或状态/动作协议；差异是上述样式/文案及MyGo额外native适配。这个结果收回此前仅因版本不同而保留的逐组件源码缺口。",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/viewer.html:1,1103,1364,1552-1555: CSS、Card/HtmlView说明、Genui适配、state/renderer装配；C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/host.cjs:1094,1355:对应说明和HtmlView文档模板；C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/build.json:1-19:公开构建产物"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/openui/viewer/v2/viewer.html:1,1103,1364,1552-1555:相同registry/DSL/Genui/state及旧样式文案",
+        "internal/desktop/openui/whale_runtime.go:12-24,56-70:内嵌及生产适配入口，不使用安装版运行时代替内嵌产物"
+      ]
+    },
+    "componentGroups": [
+      {
+        "family": "布局",
+        "names": [
+          "Col",
+          "Row",
+          "Box",
+          "Grid",
+          "Card",
+          "Carousel",
+          "Popover",
+          "Details",
+          "Divider",
+          "Spacer"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/layout.tsx:7-68",
+        "disposition": "公共签名与实现保留在内嵌viewer；静态同源不等于当前GUI验收。"
+      },
+      {
+        "family": "文本与进度",
+        "names": [
+          "Title",
+          "Text",
+          "Caption",
+          "Label",
+          "Badge",
+          "Link",
+          "ListItem",
+          "List",
+          "Markdown",
+          "Quote",
+          "Code",
+          "Math",
+          "Progress"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/text.tsx:61-83",
+        "disposition": "公共签名与实现保留在内嵌viewer；静态同源不等于当前GUI验收。"
+      },
+      {
+        "family": "交互控件与表单",
+        "names": [
+          "Button",
+          "IconButton",
+          "Pressable",
+          "Input",
+          "TextArea",
+          "Select",
+          "SegmentedControl",
+          "Slider",
+          "Checkbox",
+          "RadioGroup",
+          "DatePicker",
+          "Timer",
+          "Form"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/controls.tsx:11-83",
+        "disposition": "公共签名与实现保留在内嵌viewer；静态同源不等于当前GUI验收。"
+      },
+      {
+        "family": "图片、表格、视频与游戏反馈",
+        "names": [
+          "SearchImage",
+          "Image",
+          "Icon",
+          "Table",
+          "YouTube",
+          "Flashcard",
+          "Celebration"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/media.tsx:10-60",
+        "disposition": "公共签名在两版原始viewer中相同；其中Image/SearchImage/Map/MapMarker/YouTube/HtmlView的MyGo生产实现由下列nativeOverrides替换，其余实现沿用。"
+      },
+      {
+        "family": "图表",
+        "names": [
+          "Chart"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/chart.tsx:1-96",
+        "disposition": "公共签名与实现保留在内嵌viewer；静态同源不等于当前GUI验收。"
+      },
+      {
+        "family": "地图",
+        "names": [
+          "MapMarker",
+          "Map"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/map.tsx:9-85",
+        "disposition": "公共签名在两版原始viewer中相同；其中Image/SearchImage/Map/MapMarker/YouTube/HtmlView的MyGo生产实现由下列nativeOverrides替换，其余实现沿用。"
+      },
+      {
+        "family": "SVG与HTML",
+        "names": [
+          "Svg",
+          "G",
+          "Circle",
+          "Ellipse",
+          "Rect",
+          "Line",
+          "Path",
+          "Polyline",
+          "Polygon",
+          "SvgText",
+          "HtmlView"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/drawing.tsx:7-50",
+        "disposition": "公共签名在两版原始viewer中相同；其中Image/SearchImage/Map/MapMarker/YouTube/HtmlView的MyGo生产实现由下列nativeOverrides替换，其余实现沿用。"
+      },
+      {
+        "family": "统一Genui与专用可视化",
+        "names": [
+          "Genui",
+          "Plot",
+          "Mermaid",
+          "Scene3D",
+          "EChart",
+          "Diagram",
+          "Blocks",
+          "Quiz",
+          "FileTree",
+          "Timeline",
+          "Steps",
+          "KeyValue",
+          "Diff",
+          "Json",
+          "Tabs",
+          "Accordion"
+        ],
+        "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/runtime/genui-definitions.ts:2-11; runtime/genui-adapter.tsx:33-75",
+        "disposition": "16个公共组件均保留；同一Genui组件内还接受下列50种JSON discriminant，并非另建50个DSL组件。"
+      }
+    ],
+    "genui": {
+      "types": [
+        "arrow",
+        "accordion",
+        "audio",
+        "avatar",
+        "badge",
+        "breadcrumb",
+        "button",
+        "callout",
+        "card",
+        "chart",
+        "checkbox",
+        "code",
+        "col",
+        "copy",
+        "diagram",
+        "diff",
+        "divider",
+        "echart",
+        "file-tree",
+        "grid",
+        "blocks",
+        "icon",
+        "image",
+        "input",
+        "json",
+        "keyvalue",
+        "link",
+        "list",
+        "mermaid",
+        "svg",
+        "plot",
+        "progress",
+        "quiz",
+        "radio",
+        "row",
+        "scene3d",
+        "select",
+        "slider",
+        "spacer",
+        "hero",
+        "stat",
+        "steps",
+        "submit",
+        "switch",
+        "table",
+        "tabs",
+        "text",
+        "textarea",
+        "timeline",
+        "video"
+      ],
+      "source": "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/genui/client/genui-runtime/schema.ts:275-384; genui/client/blocks/render-node.tsx:202-536",
+      "disposition": "50种schema与render-node分派均存在于两份共同script。纯本地渲染/交互保留；image的HTTP(S)源及audio/video不是下述顶层Image/YouTube native替换的消费者，限制单列在PLUG-030。文件link在共享viewer未绑定GenuiFileLinkContext时同为纯文本，不能据此声称任意文件打开。"
+    },
+    "dsl": {
+      "languages": [
+        "whale-ui",
+        "dsh-ui",
+        "openui",
+        "openui-lang"
+      ],
+      "syntax": "一行一条identifier=expression；root入口、位置参数、前后引用、$变量双向绑定；字符串/数值/布尔/null、数组/对象、成员/索引、算术/比较/逻辑/三元表达式；@函数与Action动作序列。dsh-ui以及以{开头的whale-ui历史JSON经compileDocument转Genui；流式未完整时保留诊断。",
+      "builtinFunctions": [
+        "Count",
+        "First",
+        "Last",
+        "Sum",
+        "Avg",
+        "Min",
+        "Max",
+        "Sort",
+        "Filter",
+        "Round",
+        "Abs",
+        "Floor",
+        "Ceil",
+        "Each"
+      ],
+      "libraryFunctions": [
+        "Append",
+        "Prepend",
+        "Concat",
+        "Remove",
+        "RemoveAt",
+        "Update",
+        "Toggle",
+        "Includes",
+        "Find",
+        "IndexOf",
+        "Take",
+        "Slice",
+        "Unique",
+        "Reverse",
+        "Range",
+        "Pick",
+        "Shuffle",
+        "Flatten",
+        "Chunk",
+        "Pow",
+        "Sqrt",
+        "Random",
+        "Clamp",
+        "Percent",
+        "Lerp",
+        "Allocate",
+        "Payment",
+        "Convert",
+        "Format",
+        "Join",
+        "Plural",
+        "Pad",
+        "Upper",
+        "Lower",
+        "Trim",
+        "Capitalize",
+        "Split",
+        "Replace",
+        "Duration",
+        "Default",
+        "MixColor",
+        "Now",
+        "Today",
+        "FormatDate",
+        "AddDays",
+        "AddMonths",
+        "DaysBetween",
+        "MonthsBetween",
+        "StartOf",
+        "GroupBy",
+        "Pivot",
+        "Top",
+        "Between",
+        "Bucket",
+        "Cumulative",
+        "MovingAvg",
+        "Change",
+        "Histogram",
+        "Stats"
+      ],
+      "source": [
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/library.ts:7-31",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/language/parser/builtins.ts:46-211,217-223,275-348,369-373",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/functions/index.ts:9-76",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/runtime/genui-adapter.tsx:60-75"
+      ],
+      "unsupportedInBoth": "Query/Mutation是parser保留语法，但这个Whale UI viewer没有business-tool provider，最终文档给unsupported-business-provider；@Run不能凭语法存在变成任意Host业务执行。viewer也不是任意React/JS模块加载器。",
+      "evidence": [
+        "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/viewer.html:1555:unsupported-business-provider/onAction分派",
+        "internal/desktop/openui/viewer/v2/viewer.html:1555:相同最终文档诊断"
+      ]
+    },
+    "nativeOverrides": [
+      {
+        "components": [
+          "Map",
+          "MapMarker"
+        ],
+        "disposition": "替换MapLibre网络/worker为固定Host raster tile与street-route请求；保留marker选择绑定、fit、拖动、滚轮/多指缩放、键盘缩放/平移及失败重试。地图底图/矢量实现和样式不等同；不把有Map名字视为同一渲染引擎。",
+        "evidence": [
+          "internal/desktop/openui/viewer/v2/native-adapter.js:1:va/Qu、onPointerDown/onPointerMove、wheel、onKeyDown与Xu",
+          "internal/desktop/openui/api_map.go:1-61; api.go:34-75,102-121:固定map-tile/street-route服务"
+        ]
+      },
+      {
+        "components": [
+          "Image",
+          "SearchImage"
+        ],
+        "disposition": "顶层Image由父服务取公开HTTP(S)图并转受限data位图/受验证SVG；失败按alt检索，保留wiki fallback；SearchImage使用固定检索与source metadata、选择/重试。它们不改写Genui内部image节点。",
+        "evidence": [
+          "internal/desktop/openui/viewer/v2/native-adapter.js:1:is/os、rs/ns、Sr与原图source校验",
+          "internal/desktop/openui/api_images.go:1-103; api_public_image.go:1-180:图片资源适配"
+        ]
+      },
+      {
+        "components": [
+          "YouTube"
+        ],
+        "disposition": "从viewer直接iframe改为显式点击激活、与当前revision/可见裁剪绑定的专用private native seat；创建成功只回native-view-created，非视频播放成功。该协议不能承载任意audio/video URL。",
+        "evidence": [
+          "internal/desktop/openui/viewer/v2/native-adapter.js:1:Ja/mr",
+          "internal/desktop/openui/media.go:29-65:固定YouTube ID与youtube-组件身份",
+          "internal/ui/chat/openui_media.go:187-272,293-342:激活、退役与创建回执"
+        ]
+      },
+      {
+        "components": [
+          "HtmlView"
+        ],
+        "disposition": "保留html/height/title公共签名，换为独立capability gate的本地嵌套HTML；高度1-2000px，非原版自动上限12000px；等待流完再执行。静态classic脚本可由固定父服务准备；不支持module、直接fetch/import、外部CSS、media/native动作。MyGo新嵌套文档未沿用原版theme-token消息更新和透明/无边框样式，不能把HTML组件名相同当完整同等。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/drawing.tsx:23-49:原版CSP/主题同步、自动高度及HtmlView签名",
+          "internal/desktop/openui/viewer/v2/native-adapter.js:1-40:Ca/wi、Cu=2000、Pi/ki、capability gate",
+          "internal/desktop/openui/api_html_script.go:23-68,105-133:静态classic准备"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "action": "@Set/@Reset/Action及绑定控件",
+        "disposition": "使用共同DSL evaluator/store执行本地顺序状态变更；不需要Host业务工具。输入/按钮流式禁用、pending/失败反馈仍在共同实现。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/language/parser/builtins.ts:217-223,275-348",
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/controls.tsx:11-22",
+          "internal/desktop/openui/viewer/v2/viewer.html:1103-1364:共同状态/控件实现"
+        ]
+      },
+      {
+        "action": "@ToAssistant、无显式action的Button、Genui action/form submit",
+        "disposition": "viewer统一assistant request；MyGo捕获原会话ComposerTarget，携带formState/context，队列提交并回复成功/失败。不是任意renderer提供sessionId。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/index.tsx:167-174",
+          "internal/ui/chat/openui.go:492-520; internal/store/session/openui_owner.go:12-41,115-128"
+        ]
+      },
+      {
+        "action": "@CopyToClipboard、Code/copy控件",
+        "disposition": "共同clipboard browser adapter转Host action；MyGo的单次owned request到原生剪贴板并返回错误。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/bridge.ts:83-101",
+          "internal/desktop/openui/whale_shell.go:85-93; internal/ui/chat/openui_native_actions.go:48-68"
+        ]
+      },
+      {
+        "action": "@OpenUrl、Link/Markdown/Genui外链",
+        "disposition": "共同anchor/window.open adapter；MyGo仅绝对HTTP(S)、无credentials且需真实用户激活；原生shell消费者返回成功/失败。文件链接不是这个动作。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/bridge.ts:59-63,84-96",
+          "internal/desktop/openui/whale_shell.go:85-94; actions.go:33-46; internal/ui/chat/openui_native_actions.go:61-63"
+        ]
+      },
+      {
+        "action": "Genui HTML/JSON导出、表格等下载",
+        "disposition": "共同download handler将文本/数据URL内容交parent；MyGo分片收集、24MiB上限、原生保存框、取消/已存在文件不覆盖，保存失败返错误。standalone-runtime bundle有实际去向。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/index.tsx:93-94",
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/genui/client/artifact/download.ts:13-31",
+          "internal/desktop/openui/whale_shell.go:94-98; download.go:13-53; internal/ui/chat/whale_ui_tool.go:84-156"
+        ]
+      },
+      {
+        "action": "Genui panel/append、折叠/展开、清空及持久化",
+        "disposition": "共同compileDocument与viewer向parent发布panel；MyGo按真实source/order折叠snapshot、tab append、本地原子文件与replay barrier，再以同一viewer显示；与六widget自定义panel库分开。",
+        "evidence": [
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/runtime/genui-adapter.tsx:60-71",
+          "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/index.tsx:159-165",
+          "internal/ui/chat/openui.go:421-432; whale_ui_panel.go:46-88,112-160,195-271,288-350"
+        ]
+      }
+    ],
+    "stateProtocol": {
+      "disposition": "共同whale-ui v2/instanceId协议与whale-ui-state v1包络、旧flat状态迁移、dirty bindings/组件状态保留。MyGo外层转换为whale-openui v1 bounded helper；program 256KiB、state 48KiB、单event 64KiB、height最高2000px不是原版无限能力；本地文件按Host origin/session/message/block隔离。",
+      "evidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/viewer/protocol.ts:1-53",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/runtime/state.ts:15-94",
+        "internal/desktop/openui/protocol.go:16-18,68-109; whale_shell.go:47-82; state.go:29-78; internal/ui/chat/openui.go:269-322,489-490"
+      ]
+    },
+    "packagedAssets": [
+      {
+        "files": [
+          "viewer.html",
+          "host.cjs"
+        ],
+        "disposition": "完整renderer与Node validator库存已比较；viewer由Go embed实际消费，host.cjs仅作为源文件存放，默认Host注册链缺口见PLUG-033。"
+      },
+      {
+        "files": [
+          "assets/mermaid.js",
+          "assets/three.js",
+          "assets/echarts-core.js",
+          "assets/echarts-full.js",
+          "assets/icons.js",
+          "assets/standalone-runtime.js"
+        ],
+        "bytes": [
+          3471556,
+          706443,
+          637321,
+          1154280,
+          969100,
+          2257455
+        ],
+        "disposition": "6项实际安装条目与MyGo内嵌资产逐字节相同。viewer仅可按这六个名字取bundle；对应Mermaid/Scene3D/EChart/Icon/standalone导出路径，不据此认证GPU/WebGL/保存或播放。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/build.json:7-12",
+          "tmp/full-audit-20261102/installed-source/src/main/openui.js:36-44; internal/desktop/openui/whale_runtime.go:18-19,41-48; whale_shell.go:32-39,84"
+        ]
+      },
+      {
+        "files": [
+          "api/wiki.cjs",
+          "api/image-search.cjs",
+          "api/street-route.cjs"
+        ],
+        "disposition": "安装版固定三种资源路由；MyGo对应Go ResourceAPI，加native专用image/map-tile/html-script三种受限适配，不复制Node API bundle。 两边固定来源仍是Wikipedia/Commons/OSRM，但图片筛选/检索回退并非逐字同算法：原版按全部查询词匹配并一次Commons最多8项，MyGo仅取长度>3的词匹配并尝试原词/前三/前两词、Commons最多6项；不得声称搜索结果/排序完全一致。",
+        "evidence": [
+          "tmp/full-audit-20261102/installed-source/src/main/openui.js:4-8,21-33",
+          "internal/desktop/openui/api.go:34-75,102-121",
+          "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/api/wiki.cjs:46-134:三个共享固定handler、校验/缓存与GET；image-search.cjs、street-route.cjs:132-135:同handler按operation选择",
+          "internal/desktop/openui/api.go:243-358:MyGo图片词筛选/分段回退及结果限制"
+        ]
+      },
+      {
+        "files": [
+          "build.json",
+          "THIRD_PARTY_NOTICES.txt",
+          "host.css"
+        ],
+        "disposition": "build清单和第三方notice有出处；MyGo v2有provenance/notice/license。host.css是安装的Node bundle CSS旁产物，不在openuiBundle公开入口；viewer.html自行内联style，MyGo使用其内联CSS，不把缺单独host.css列成缺组件。",
+        "evidence": [
+          "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/build.json:1-19; C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/viewer.html:1; C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/host.css:1",
+          "internal/desktop/openui/whale_runtime.go:24-30; viewer/v2/provenance.json:1-58"
+        ]
+      }
+    ],
+    "sourceUnreviewed": [],
+    "acceptanceGap": "未执行实际GUI、流式/重启恢复、地图/图片/第三方网络、WebGL/图表、媒体播放、HTML、导出对话框与原会话动作；任意第三方插件包仍无实装验收。静态同源库存只关闭源码比较缺口。"
+  },
+  "features": [
+    {
+      "id": "PLUG-001",
+      "feature": "插件清单、全局与预设来源、加载失败和客户端模块重试",
+      "baseline": "installed-0.3.13",
+      "expected": "分开显示 Host 插件、预设提供的同名插件、客户端加载状态，并重试当前客户端页面的失败。",
+      "entry": "设置 → 插件；main.go:4547-4567 → pluginInventoryAccess。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-plugin-inventory/lib/client.js:772-783: 原版分别调用pluginInventory/list和当前页面ctx.modules.entries.state/retry",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4353-4362: 清单与管理能力分别来自 pluginInventory 和 pluginManager"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/plugininventory/controller.go:115-146,159-178: Host 清单读取、代次隔离与预设来源",
+        "internal/desktop/plugininventory/view.go:109-143: 不折叠全局和预设同名来源",
+        "cmd/whaleisle/settings_plugin_inventory.go:45-80: 客户端状态仅来自现有 webviewHost，并绑定页面重试",
+        "internal/desktop/pluginslots/client.js:15-61: 页面模块 owner 状态与 retry 桥接"
+      ],
+      "finding": "Host 清单生产接线完整；客户端清单不是原生进程所有扩展的总清单，只反映当前保留的一个 Host 浏览器页。未打开该页时没有客户端加载证明。 Host 只读实例清单保留 wired；“本页面客户端模块重试”必须收窄到已存在且匹配 Host 的 webviewHost，纯 native 设置没有其 page-local modules owner。旧聚合 wired 不能被当作所有 native 页面模块同步已接线。",
+      "evidenceLevel": "code",
+      "requiredAction": "在实际发行入口验证全局/预设来源、一个加载失败、当前页面重试和 Host 更换后的旧响应隔离。",
+      "acceptanceGap": "未运行当前诊断程序的插件清单或第三方客户端重试；typed 元数据不证明客户端可运行。",
+      "scopeClarifications": [
+        {
+          "source": "supplement-plugin-actions.json",
+          "actionIds": [
+            "GPLUG-002",
+            "GPLUG-003"
+          ],
+          "reason": "Host 只读实例清单保留 wired；“本页面客户端模块重试”必须收窄到已存在且匹配 Host 的 webviewHost，纯 native 设置没有其 page-local modules owner。旧聚合 wired 不能被当作所有 native 页面模块同步已接线。"
+        }
+      ],
+      "supplementActionIds": [
+        "GPLUG-002",
+        "GPLUG-003"
+      ]
+    },
+    {
+      "id": "PLUG-002",
+      "feature": "安装 npm/Git/本地插件、包检查和注册表选择",
+      "baseline": "installed-0.3.13",
+      "expected": "输入安装来源，检查包与兼容性，选择 registry，安装完成后明确启用状态和失败原因。",
+      "entry": "插件 → 添加插件 → 安装已有插件。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1547-1562,1605-1621: 原版 inspect 和 installBundle 生命周期"
+      ],
+      "mygoEvidence": [
+        "internal/ui/pluginmanager/artwork.go:99-138: 安装入口允许 npm/Git/本地路径",
+        "internal/pluginmanager/client.go:48-75: registries/fastest/inspect/installBundle 的真实 Host 方法",
+        "internal/pluginmanager/install.go:208-293,295-327: registry 完成后检查与提交，默认禁用安装",
+        "cmd/whaleisle/native_plugin_manager.go:29-57,62-83: 当前 Host 绑定和注册表偏好持久化"
+      ],
+      "finding": "可追到原版 Host 管理协议，不是本地假列表；实际网络安装、local link 和 registry 失败均未在当前候选执行。",
+      "evidenceLevel": "code",
+      "requiredAction": "用授权测试包分别验 npm、Git、本地路径、拒绝包与自定义 registry，并验证完成后的实际运行能力。",
+      "acceptanceGap": "未安装任何依赖或更改用户 profile；安装成功与插件界面成功必须分开。"
+    },
+    {
+      "id": "PLUG-003",
+      "feature": "安装日志、构建脚本批准、取消和丢失结果恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "显示真实安装子进程输出，明确批准 build，取消区分已取消/太晚，并恢复未知安装结果而不盲目重装。",
+      "entry": "插件安装卡片和安装任务。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1621-1628: 丢失回复通过 Host 的同一安装结果恢复"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/native_plugin_manager.go:100-123: 捕获 owner 的 install-log/install-state 事件",
+        "internal/pluginmanager/install.go:340-353,417-503,504-550,597-680: build 批准、取消分类、waitForInstall 和事件归属",
+        "internal/pluginmanager/client.go:101-124: cancel/wait/version exemption 真实协议",
+        "internal/ui/pluginmanager/install_terminal.go:1-91: 原生命令、输出与状态呈现"
+      ],
+      "finding": "恢复和失败状态有实现，不能因存在 RequestID 或日志组件就认定实际安装取消可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "验一个需 build 的包、一次安装中取消及一次回复丢失恢复；核对磁盘与 Host inventory 最终一致。",
+      "acceptanceGap": "当前发行程序未执行这三条真实安装路径。"
+    },
+    {
+      "id": "PLUG-004",
+      "feature": "插件包/子插件启停、更新、卸载和兼容性豁免",
+      "baseline": "installed-0.3.13",
+      "expected": "按 package 与 Loader entry 的真实身份修改配置；只读内置项不可删除；更新卸载给出真实生效结果。",
+      "entry": "插件卡片更多菜单、详情、子插件列表。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:1159-1210: setBundleEnabled/removeBundle/setPluginEnabled 分开",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:3919-3921: 子插件以 entryId 操作"
+      ],
+      "mygoEvidence": [
+        "internal/pluginmanager/controller.go:324-379,393-488: 真实目标校验、删除确认、修改及重读",
+        "internal/pluginmanager/install.go:18-56,355-380: 更新和安装后启用",
+        "internal/ui/pluginmanager/view.go:412-429,520-529,637-642: 菜单及详情入口",
+        "internal/pluginmanager/types.go:454-459: Host installTarget 决定可更新性"
+      ],
+      "finding": "原生动作区分了 patch rowId 和 Loader entryId；未发现把 metadata 名称直接当子插件身份写入的断路。更新先 Remove 再走 installTarget，和原版生命周期一致，不能当原子回滚更新。",
+      "evidenceLevel": "code",
+      "requiredAction": "用第三方测试包验证禁用→启用→逐行禁用→更新→卸载及拒绝生效结果；保留失败后的真实 inventory。",
+      "acceptanceGap": "当前候选没有实际第三方包 lifecycle 验收。"
+    },
+    {
+      "id": "PLUG-005",
+      "feature": "通用插件市场 Discover、版本详情与自定义索引源入口",
+      "baseline": "installed-0.3.13",
+      "expected": "原版插件页通过 plugins.tab 的 Discover 浏览 Host pluginMarket 索引，搜索/分页/选择版本，增删索引源。",
+      "entry": "原版插件页 Discover；MyGo 插件页只画 Installed 标签。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js:1398-1568: listIndexes/search/setIndexes",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-market/lib/client.js:1627-1633: Discover 注入 plugins.tab",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4291-4317,4426-4428: 插件页消费动态 tabs"
+      ],
+      "mygoEvidence": [
+        "internal/ui/pluginmanager/view.go:79-88,105-107: 只有 installed 可选，但 discoverView 分支仍存在",
+        "internal/pluginmanager/controller.go:238-253: 只有 SelectTab(discover) 才 EnsureDiscover",
+        "internal/desktop/pluginui/client.js:6: 八个被桥接槽不包含 plugins.tab",
+        "internal/ui/pluginmanager/artwork.go:139-150: 市场菜单改为外开官方网页",
+        "internal/pluginmanager/discover.go:439-519,521-570: 源编辑与版本安装逻辑仅在不可达发现页下"
+      ],
+      "finding": "这不是 Host 接口未实现，而是原生生产导航断路。Discover、任意索引源及其版本/兼容性详情代码存在却没有原生用户入口。外开官方站点与另一个 curated 市场不能替代用户配置的 Host 索引。",
+      "evidenceLevel": "code",
+      "requiredAction": "恢复动态 plugins.tab/Discover 入口或提供完整等价原生入口，并从真实菜单验搜索、分页、源增删和指定版本安装。",
+      "acceptanceGap": "完整 Host 浏览器页可能提供替代路径，但不能证明原生插件页相同入口可用。"
+    },
+    {
+      "id": "PLUG-006",
+      "feature": "独立精选市场的目录、分类、搜索排序、详情与 README 媒体",
+      "baseline": "installed-0.3.13",
+      "expected": "桌面精选市场读取公开目录，分类和搜索一致，展示来源、README/图片，网络失败说明缓存来源。",
+      "entry": "设置 → 插件市场，main.go:5173-5199。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh-market-desktop.js:37-57: 桌面市场 overlay",
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-catalog.js:1-80: 独立精选目录服务"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/market/catalog.go:20-24,118-182,270-298: 固定公开目录、校验、缓存",
+        "internal/store/market/catalog.go:66-120,167-258: 目录、查询、页码、详情请求生命周期",
+        "internal/store/market/catalog_filters.go:10-64: 排序/时间过滤先于分页",
+        "internal/ui/market/market.go:278-337: 搜索/排序/分页入口",
+        "internal/desktop/market/details.go:35-115: README/npm 元数据及 Partial 标记",
+        "internal/ui/market/readme.go; readme_images.go; readme_media.go; readme_svg.go: native markdown/image/media consumers"
+      ],
+      "finding": "独立精选市场有真实生产装配，来源校验与缓存不是通用 Host 索引替代。README 和媒体存在专门 native consumer；真实网络、窄窗媒体和链接尚未本轮操作。",
+      "evidenceLevel": "code",
+      "requiredAction": "在发行入口验目录成功/离线缓存/损坏目录、搜索分页、一个带图片SVG的README和外链。",
+      "acceptanceGap": "没有本轮网络请求或界面操作证据，缓存 snapshot 不是在线目录通过。"
+    },
+    {
+      "id": "PLUG-007",
+      "feature": "精选市场安装、更新批处理、启停卸载和待重启激活",
+      "baseline": "installed-0.3.13",
+      "expected": "审核过的目录身份映射到真实 Host 包；更新/删除及重启后最终状态可见。",
+      "entry": "市场安装按钮、Installed/Updates、批量更新、重启应用变更。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-install.js:1-80: 桌面安装服务",
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:1-75: 更新源/版本检查",
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-updates.js:15-52,163-187,231-245"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:5226-5241: 真实回调装配",
+        "cmd/whaleisle/market_catalog.go:371-424,437-484,509-523: install/wait/change/cancel RPC",
+        "internal/store/market/catalog.go:258-289: 目录目标捕获和失效",
+        "internal/desktop/market/updates.go:15-40,54-76: 仅稳定semver且可核对npm来源的自动更新",
+        "internal/store/market/updates.go:83-114,129-150: 目标来源/版本与 inventory 绑定",
+        "cmd/whaleisle/market_batch.go:11-54; market_activation.go:10-54: 队列与重启生效状态",
+        "internal/desktop/market/updates.go:15-22,54-76",
+        "internal/store/market/updates.go:87-110,129-150"
+      ],
+      "finding": "npm stable 更新链存在；旧结论只验证了原生稳定 npm 更新子集，却把精选市场完整安装/更新/批处理合并为 wired。实际安装版有 GitHub current commit→HEAD 更新和 prerelease semver 比较；MyGo 无相应更新发现/目标 consumer。安装、稳定 npm、启停卸载与激活的既有静态接线结论保留。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：旧结论只验证了原生稳定 npm 更新子集，却把精选市场完整安装/更新/批处理合并为 wired。实际安装版有 GitHub current commit→HEAD 更新和 prerelease semver 比较；MyGo 无相应更新发现/目标 consumer。安装、稳定 npm、启停卸载与激活的既有静态接线结论保留。 对照 GPLUG-027、GPLUG-028、GPLUG-029、GPLUG-030 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未执行上述包修改；源码中激活回执不等于当前用户插件运行通过。 补审新增动作 GPLUG-027、GPLUG-028、GPLUG-029、GPLUG-030 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "生产链不是只改文字，具备真实 Host 动作和重启激活状态。自动更新有明确范围：不推断 Git、prerelease、tag 和未知来源；手工安装/原版 installTarget 路径仍需另验。",
+        "previousRequiredAction": "验目录安装→实际加载→稳定版更新→停止剩余队列→卸载；验证待重启/重启失败不误报已激活。",
+        "sources": [
+          "supplement-plugin-actions.json"
+        ],
+        "actionIds": [
+          "GPLUG-027",
+          "GPLUG-028",
+          "GPLUG-029",
+          "GPLUG-030"
+        ],
+        "reasons": [
+          "旧结论只验证了原生稳定 npm 更新子集，却把精选市场完整安装/更新/批处理合并为 wired。实际安装版有 GitHub current commit→HEAD 更新和 prerelease semver 比较；MyGo 无相应更新发现/目标 consumer。安装、稳定 npm、启停卸载与激活的既有静态接线结论保留。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPLUG-027",
+        "GPLUG-028",
+        "GPLUG-029",
+        "GPLUG-030"
+      ]
+    },
+    {
+      "id": "PLUG-008",
+      "feature": "市场收藏、安装历史和导出",
+      "baseline": "installed-0.3.13",
+      "expected": "收藏与有界结果持久化，重启能辨识中断任务，用户可复制/导出日志。",
+      "entry": "市场收藏、History、复制日志、导出历史。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-state.js:1-100: 桌面市场本地状态",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-market/lib/client.js:334-401",
+        "tmp/full-audit-20261102/installed-source/src/main/marketplace-state.js:8-9,82-103"
+      ],
+      "mygoEvidence": [
+        "internal/store/market/personal.go:38-68,80-119: 加载错误不覆盖，queued/running恢复成未开始/中断，原子保存",
+        "internal/ui/market/market.go:100-107,193-200,427-437: 导出/复制/收藏入口",
+        "cmd/whaleisle/main.go:5242-5258: 原生保存对话框与真实文件写入",
+        "internal/store/market/personal.go:12-21",
+        "internal/store/market/history_export.go:9-25",
+        "internal/ui/market/market.go:186-200,225-241"
+      ],
+      "finding": "构建回执和当前会话临时日志存在；收藏和历史回执/OS 导出链存在，但旧 wired 聚合遗漏原安装版按条保存、展开及导出脱敏操作日志；MyGo 仅保留安全回执字段与当前临时日志。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：收藏和历史回执/OS 导出链存在，但旧 wired 聚合遗漏原安装版按条保存、展开及导出脱敏操作日志；MyGo 仅保留安全回执字段与当前临时日志。 对照 GPLUG-031、GPLUG-032 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前 profile 未读写，导出与重启恢复未在本轮执行。 补审新增动作 GPLUG-031、GPLUG-032 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "有独立持久化而非临时UI状态；导出文件写失败反馈存在。安全历史只保留标识和结果，与当前完整安装日志不是同一数据集。",
+        "previousRequiredAction": "验收藏跨重启、真实失败/中断历史、导出取消和文件写失败。",
+        "sources": [
+          "supplement-plugin-actions.json"
+        ],
+        "actionIds": [
+          "GPLUG-031",
+          "GPLUG-032"
+        ],
+        "reasons": [
+          "收藏和历史回执/OS 导出链存在，但旧 wired 聚合遗漏原安装版按条保存、展开及导出脱敏操作日志；MyGo 仅保留安全回执字段与当前临时日志。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPLUG-031",
+        "GPLUG-032"
+      ]
+    },
+    {
+      "id": "PLUG-009",
+      "feature": "导入与恢复既有用户插件",
+      "baseline": "existing-MyGo-contract",
+      "expected": "从明确旧资料目录审阅可重装来源，保留冲突和不支持项，不能把扫描或包名存在称为恢复完成。",
+      "entry": "Launcher 资料导入的插件清单；恢复启动控制由 launcher/runtime 领域负责。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/plugin-recovery-actions.js:3-27: 原版 retryFullPlugins 和卸载后恢复启动合同"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/importer/plugins.go:33-65,116-164: 只恢复GitHub/固定npm来源，local-spec/legacy目录/列出的替代内置项明确排除",
+        "cmd/whaleisle/import_plugins.go:17-44,50-86: Host停止时才写确认目标，build逐项批准",
+        "internal/ui/launcher/panel.go:1326-1337: 跳过插件后的恢复入口"
+      ],
+      "finding": "不是任意旧插件目录迁移。file:/link:/workspace: 和仅有插件目录无可重装来源者不会恢复；指定 dropped 列表也跳过。对这些用户自写插件不能宣传“用户插件全部恢复”。 旧项是 existing-MyGo-contract 且混合 importer/full-skip 恢复，不整体改状态。补齐实际原版 data-import 分母：local-spec/unsupported/dropped/template 同样排除，不能仅凭这些条件判迁移 parity 缺失；实际 full/skip 与卸载后启动由 runtime owner 闭环。",
+      "evidenceLevel": "code",
+      "requiredAction": "列出导入后需手工处理的本地插件与替代内置项；验可恢复包及冲突、build拒绝，并由runtime领域验full/skip恢复。",
+      "acceptanceGap": "没有扫描真实用户资料；旧安装插件资产是否全可恢复未知。",
+      "scopeClarifications": [
+        {
+          "source": "supplement-plugin-actions.json",
+          "actionIds": [
+            "GPLUG-033"
+          ],
+          "reason": "旧项是 existing-MyGo-contract 且混合 importer/full-skip 恢复，不整体改状态。补齐实际原版 data-import 分母：local-spec/unsupported/dropped/template 同样排除，不能仅凭这些条件判迁移 parity 缺失；实际 full/skip 与卸载后启动由 runtime owner 闭环。"
+        }
+      ],
+      "supplementActionIds": [
+        "GPLUG-033"
+      ]
+    },
+    {
+      "id": "PLUG-010",
+      "feature": "Agent 创建插件任务入口",
+      "baseline": "installed-0.3.13",
+      "expected": "创建独立 cordis Creator 会话并进入其真实任务，不偷偷改默认预设或覆盖当前草稿。",
+      "entry": "插件 → 添加方式 → 让 Agent 创建插件。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:1045-1066,2426-2440: 原版添加插件菜单进入独立Creator任务，不发送消息"
+      ],
+      "mygoEvidence": [
+        "internal/ui/pluginmanager/artwork.go:152-153: Creator菜单入口",
+        "cmd/whaleisle/plugin_creator_task.go:65-126,139-160: cordis预设能力、独立任务、失败身份恢复与导航围栏"
+      ],
+      "finding": "能追到真实会话任务服务；此入口创建任务并不等于生成插件已构建、安装和可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "验真实cordis预设可用/不可用、创建回执丢失定位、离页不重复创建及最终安装消费者。",
+      "acceptanceGap": "本轮禁止模型请求，未执行Creator任务与产物安装。"
+    },
+    {
+      "id": "PLUG-011",
+      "feature": "插件配置页、详情动作、附加区与激活引导",
+      "baseline": "installed-0.3.13",
+      "expected": "由原版main插件 owner提供forms/revision/props；bundle、row、item配置及动态动作跟随当前目标。",
+      "entry": "原生插件卡片/详情；动态内容“打开插件内容”。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4415-4455: 原版父owner声明插件配置/动作/徽章/section槽",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/apps/web/dist/assets/index-C8f5gES6.js:134",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:3873-3876,3918-3952,4434-4437",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4215-4228",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1802-1819,2848-2866,2931-2936"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/native_plugin_manager.go:154-180,183-267: 内置原生编辑器与动态贡献生产合并",
+        "cmd/whaleisle/plugin_contributions.go:107-176: 三类config映射与最高560DIP browser seat",
+        "internal/desktop/pluginui/client.js:6,78-110,118-129: 八槽、原DOM动作与匹配目标",
+        "internal/ui/settings/served_plugin_body.go:22-39,52-70: 原生只针对subagent/web-search/agent-loop/shell等成熟配置",
+        "internal/ui/settings/served_plugin_body.go:180-187",
+        "cmd/whaleisle/main.go:5074-5103",
+        "internal/store/settings/plugin_body.go:45-79,149-162",
+        "cmd/whaleisle/native_plugin_manager.go:187-208,254-260",
+        "internal/desktop/pluginui/client.js:78-80,106-110,121-129",
+        "cmd/whaleisle/native_plugin_manager.go:174-180,214-260",
+        "internal/desktop/pluginui/client.js:23-54,78-110",
+        "internal/desktop/pluginui/owner.go:228-254,483-500"
+      ],
+      "finding": "复杂第三方内容仍走原 Host 浏览器座位，不是任意 React 原生等价；固定内置配置卡并非只有任意第三方映射的partial问题：关闭设置/离开card没有原版SettingsForm卸载丢草稿，web临时literal会保留；只读key-only保存差异已被原版共享model反证排除。 随包语音的激活提示提供“稍后/打开详情”；原生 activation seat 的后者没有 browser→native 包详情导航 consumer。固定内置配置草稿取消问题由设置线 GSET-139/GSET-151 登记，本项仅补激活导航缺链。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：固定内置配置卡并非只有任意第三方映射的partial问题：关闭设置/离开card没有原版SettingsForm卸载丢草稿，web临时literal会保留；只读key-only保存差异已被原版共享model反证排除。 随包语音的激活提示提供“稍后/打开详情”；原生 activation seat 的后者没有 browser→native 包详情导航 consumer。固定内置配置草稿取消问题由设置线 GSET-139/GSET-151 登记，本项仅补激活导航缺链。 对照 GSET-139、GSET-151、GPLUG-019 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "历史夹具仅覆盖指定第三方fixture和内置agent-loop，不能证明任意插件配置可用。 补审新增动作 GSET-139、GSET-151、GPLUG-019 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "partial",
+        "previousFinding": "不是任意插件React内容转原生。原生仅投影标签/摘要/文字badge/有标签按钮；复杂配置和section走同一原Host浏览器座位。富badge交互/图形不做native同位映射。",
+        "previousRequiredAction": "验第三方config的写入/继承/版本冲突、动态动作/激活引导、原生弹层遮挡及插件卸载后的旧句柄拒绝。",
+        "sources": [
+          "supplement-settings-actions.json",
+          "supplement-plugin-actions.json"
+        ],
+        "actionIds": [
+          "GSET-139",
+          "GSET-151",
+          "GPLUG-019"
+        ],
+        "reasons": [
+          "固定内置配置卡并非只有任意第三方映射的partial问题：关闭设置/离开card没有原版SettingsForm卸载丢草稿，web临时literal会保留；只读key-only保存差异已被原版共享model反证排除。",
+          "随包语音的激活提示提供“稍后/打开详情”；原生 activation seat 的后者没有 browser→native 包详情导航 consumer。固定内置配置草稿取消问题由设置线 GSET-139/GSET-151 登记，本项仅补激活导航缺链。"
+        ]
+      },
+      "supplementActionIds": [
+        "GSET-139",
+        "GSET-151",
+        "GPLUG-019"
+      ]
+    },
+    {
+      "id": "PLUG-012",
+      "feature": "会话插件的自动显示与激活生命周期",
+      "baseline": "installed-0.3.13",
+      "expected": "原版会话渲染器自动消费当前会话的已启用槽；用户不需另开隐藏插件owner才看到功能。",
+      "entry": "会话标题更多 → Session plugins；默认原生会话没有owner。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1300-1308: 原版应用slot渲染与实例生命周期",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:1090-1140: 会话header与session scope右栏直接注入"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/plugin_session_host.go:42-81,84-135: 显式操作才创建browserowner，隐藏/最小化/换目标清除",
+        "cmd/whaleisle/plugin_session_frame.go:21-29: 无owner时没有动态原生header控件",
+        "internal/desktop/pluginui/owner.go:163: 父窗口hide/minimize直接Close"
+      ],
+      "finding": "包在Host已启用也不会自动为原生会话装配其客户端功能。显式启用后可以有部分内容；最小化/隐藏后owner销毁，恢复不等于自动恢复插件界面。",
+      "evidenceLevel": "code",
+      "requiredAction": "先决定并实现已启用插件在正常会话的自动激活/恢复合同；不能把“Session plugins”手动替代入口列为完全对等。",
+      "acceptanceGap": "当前默认路径、最小化恢复和跨会话实际效果未操作；Team业务根因由orchestration领域登记。"
+    },
+    {
+      "id": "PLUG-013",
+      "feature": "完整动态槽位家族和任意第三方客户端的原生集成",
+      "baseline": "installed-0.3.13",
+      "expected": "动态root/shell/sidebar/settings/main/session注册能够在对应用户表面自动消费，不能只存在注册表。",
+      "entry": "第三方插件可贡献的各种原版插槽。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4399-4455: shell.overlay、main、plugins.tab等不同owner",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:1131-1140: sidebar.right.pane.tab是独立slot",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1313-1344: 通用SlotCore/实例/作用域"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/client.js:6: native插件页仅八槽",
+        "internal/desktop/pluginui/session.js:21: 会话桥固定30槽，无sidebar.right.pane.tab",
+        "cmd/whaleisle/plugin_session_frame.go:51-115: 原生注入只负责轮尾与header控件",
+        "internal/desktop/pluginslots/client.js:77-129: sidebar/main/settings另走完整Host页面视图选择"
+      ],
+      "finding": "没有一个遍历并消费原版全部slot家族的原生渲染器。未原生接入的类型包括动态root/shell overlay、sidebar导航/右栏pane tab、任意settings.section、任意main、plugins.tab以及会话复杂body/composer替换等；完整Host浏览器页是另一条使用路径。旧116-slot概念不能当116种原生用户能力已覆盖，本轮未把声明数当验收数。 保留 partial，按原 owner 配置表单、激活引导、附加动作、独立视图、桌面能力给出具体消费边界；没有新造几十个相同“缺任意 slot”缺陷。",
+      "evidenceLevel": "code",
+      "requiredAction": "以原版slot声明/用户动作建立逐家族consumer映射，并补缺失原生入口或明确可用替代路径；Team共享任务板交orchestration处理。",
+      "acceptanceGap": "未逐一装入116个slot样例；所有动态包可用性没有认证。",
+      "scopeClarifications": [
+        {
+          "source": "supplement-plugin-actions.json",
+          "actionIds": [
+            "GPLUG-018",
+            "GPLUG-019",
+            "GPLUG-020",
+            "GPLUG-021",
+            "GPLUG-046",
+            "GPLUG-047"
+          ],
+          "reason": "保留 partial，按原 owner 配置表单、激活引导、附加动作、独立视图、桌面能力给出具体消费边界；没有新造几十个相同“缺任意 slot”缺陷。"
+        }
+      ],
+      "supplementActionIds": [
+        "GPLUG-018",
+        "GPLUG-019",
+        "GPLUG-020",
+        "GPLUG-021",
+        "GPLUG-046",
+        "GPLUG-047"
+      ]
+    },
+    {
+      "id": "PLUG-014",
+      "feature": "第三方 main/sidebar/settings 视图浏览器替代入口与导航",
+      "baseline": "installed-0.3.13",
+      "expected": "用户能打开已启用插件的独立界面，保留原始owner/上下文，不执行裸组件或猜Host RPC。",
+      "entry": "设置 → 插件包管理 → 打开Host视图。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4415-4421: 插件页面父owner提供face和children"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/plugins.go:117-125; cmd/whaleisle/main.go:4571: 真实打开入口",
+        "cmd/whaleisle/plugin_slot_views.go:8-21,42-60: 进入浏览器页与Host重启重建",
+        "internal/desktop/pluginslots/client.js:77-129,175-216: 独立视图枚举、原导航、撤销及空态"
+      ],
+      "finding": "有真实浏览器替代路径，但只为可独立打开的main/settings/sidebar等声明自动定位。sidebar/remote tab通过原页面可访问控件标签查找，找不到或不唯一时会显式报错；不能据此宣称所有第三方视图直接可达。",
+      "evidenceLevel": "code",
+      "requiredAction": "实际验证不同slot插件的打开、多个视图切换、返回不抢导航、卸载/重启恢复和导航控件匹配失败。",
+      "acceptanceGap": "无当前发行入口真实插件视图操作；客户端特定DOM变化尚未认证。"
+    },
+    {
+      "id": "PLUG-015",
+      "feature": "会话扩展的renderer版本、owner和观察标记兼容",
+      "baseline": "installed-0.3.13",
+      "expected": "扩展使用真实会话/工具/turn owner；新renderer或未选中/未挂载内容不产生伪入口。",
+      "entry": "Session plugins header/内容选择器。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1300-1308: 原版统一作用域与生命周期"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/renderer_observation.go:49-72,75-88: 仅匹配已知guarded-entry源形状；未知返回原字节",
+        "internal/desktop/pluginui/session.js:53-91,128-133: owner/Session/entry匹配和version-incompatible状态",
+        "internal/desktop/pluginui/owner.go:516-553: 仅承认所列slot及匹配的subject"
+      ],
+      "finding": "实现依赖当前rc.2已知renderer及Models onboarding源响应形状；换renderer/CSP或另一实现不会自动兼容。未观察到真实entry时不提供native控件，可能只剩完整原会话替代页。",
+      "evidenceLevel": "code",
+      "requiredAction": "固定支持的Host/client版本并验原会话、chain选中/拒绝、null/error、虚拟化未挂载、版本不兼容反馈。",
+      "acceptanceGap": "当前来源与第三方替换renderer组合未运行；已声明slot不证明有可选outlet。"
+    },
+    {
+      "id": "PLUG-016",
+      "feature": "轮尾插件原位位图与长内容",
+      "baseline": "installed-0.3.13",
+      "expected": "插件原会话React owner不重复挂载，原轮次内容在对应位置可读可点，长内容不压缩为小图。",
+      "entry": "显式启用Session plugins后完成轮的插件区域。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1300-1308: 原renderer管理当前store实例与原始组件owner"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/session.js:35-38: inline镜像owner仅conversation.chat.turnTail",
+        "cmd/whaleisle/plugin_session_frame.go:51-86: 与canonical turn/end匹配后绘制或给原内容入口",
+        "internal/ui/chat/plugin_inline.go:12-55: 同一原位图裁片、输入及滚动锚",
+        "internal/desktop/pluginui/mirror.go:108-127: 源viewport限320–2048×240–1536且节流350ms",
+        "tmp/plugin-inline-production-p2/text-81de49b8421947ad892cbc36dce249f3/EVIDENCE.md:3-13: 历史受控fixture证明两tail、3200px长行和原node保持"
+      ],
+      "finding": "已存在真实原owner位图实现，不能误报“完全没有扩展渲染”。但原位只覆盖canonical完成轮尾，不是任意slot原生渲染；缺失原始边界/未挂载/选择代次失效就无原位内容。历史fixture使用专用native投影视口，非完整主聊天List物理操作。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "在当前完整主窗口正常会话验证实际第三方长行、滚动、多轮、选择切换与异常尾部，不重用夹具通过代替用户路径。",
+      "acceptanceGap": "当前主List、真实插件和本次二进制尚无该路径实测。"
+    },
+    {
+      "id": "PLUG-017",
+      "feature": "任意插件 portal、富控件、键盘、IME与可访问性",
+      "baseline": "installed-0.3.13",
+      "expected": "原版DOM的浮层、编辑器、选择控件与辅助技术可按正常浏览器控件工作。",
+      "entry": "原位插件控件、弹出菜单、输入框。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:4031-4037: 原版直接DOM portal控件",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1270-1308: React renderer拥有组件树"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/mirror_portal_guard.js:100-125: 只有显式registerPortal(ownerNode,portalNode)才能进入投影，最多64",
+        "internal/desktop/pluginui/mirror_text_guard.js:10,35-42: editable类型和65536字符边界",
+        "internal/desktop/pluginui/mirror_text.go:226-256: native位置查询只给当前caret，任意文本range不支持",
+        "internal/desktop/pluginui/mirror_key.go:9-35: 明确的named/letter/digit键映射",
+        "tmp/plugin-inline-production-p2/text-81de49b8421947ad892cbc36dce249f3/EVIDENCE.md:18-30: 历史Unicode/预编辑证据与未认证项分开"
+      ],
+      "finding": "普通文本和显式归属portal有受控历史证据。普通第三方React portal不会自动调用MyGo私有registerPortal；file/number/date输入、iframe/Shadow DOM编辑器、复杂富文本、系统IME候选窗和完整DOM可访问性没有通用等价保证。位图单个Focusable节点不等于原DOM辅助树。",
+      "evidenceLevel": "code",
+      "requiredAction": "补通用portal/富控件/辅助语义方案，或按插件明确改用完整browser表面；对真实OS输入和具体控件做验收。",
+      "acceptanceGap": "任意未注册portal、复杂编辑器、物理IME/屏幕阅读器、跨平台输入未认证。"
+    },
+    {
+      "id": "PLUG-018",
+      "feature": "插件composer替换、草稿、附件与提交的一致性",
+      "baseline": "installed-0.3.13",
+      "expected": "原会话只有其选中的composer owner；插件替换应与同一草稿、编辑和提交上下文一致。",
+      "entry": "Session plugins中的composer/input内容；正常native输入区。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-renderer/lib/client.js:1300-1308: 同一session scope实例与owner合同"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginui/session.js:104-108: elected composer将原完整composer当可选seat",
+        "cmd/whaleisle/plugin_session_frame.go:51-115: 只插入轮尾和header，不替换native composer",
+        "docs/features/native-plugin-slots.md:36: 现有实现明确browser draft与native draft/attachments/edits/submission不镜像"
+      ],
+      "finding": "替换composer插件不是正常native输入区的直接替换；它在另一个原browser owner中运行，两份草稿/附件/编辑/提交状态不合并。这是交互合同差异，不是仅少一个控件。",
+      "evidenceLevel": "code",
+      "requiredAction": "建立明确单composer拥有者和状态交接，验证有草稿/附件/编辑/发送中进入及退出插件composer不会错发或丢稿。",
+      "acceptanceGap": "未在用户会话操作两种composer；数据风险具体是否发生未知。"
+    },
+    {
+      "id": "PLUG-019",
+      "feature": "依赖Electron桌面能力的第三方插件客户端",
+      "baseline": "installed-0.3.13",
+      "expected": "原版插件可能使用桌面shell能力；替代客户端必须明确实际支持范围。",
+      "entry": "Host浏览器插件页面和native贡献seat。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh-market-desktop.js:37-57: 原版桌面market overlay",
+        "tmp/full-audit-20261102/installed-source/src/main/openui.js:10-44: 桌面持有viewer/API/bundle能力"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/webview/host.go:46-51,211-222,264: Host页面所有native bindings禁用",
+        "internal/desktop/pluginslots/gateway.go:20-22,48-58,71-94: 仅当前loopback Host代理、限制重定向",
+        "cmd/whaleisle/main.go:4589-4592: Host市场因Electron IPC不可在untrusted WebView注册，转native市场",
+        "internal/desktop/pluginslots/shortcut_provider.js:1-2,16-44: 仅窄产品快捷键capability，不制造dshDesktop"
+      ],
+      "finding": "纯web/Host RPC插件可能通过browser路径运行；需要dshDesktop/Electron IPC、任意本机绑定或外部导航的客户端没有通用兼容桥。安全隔离应保留，但必须将这些类型列为不支持/需native专门适配，不能宣称安装了就通用可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "为市场包建立真实客户端能力声明/拒绝或专门适配，先验安装后的用户入口，不通过放开任意native权限掩盖差异。",
+      "acceptanceGap": "未安装任意Electron依赖第三方包，本项是确定支持范围差异，不声称所有包均失败。"
+    },
+    {
+      "id": "PLUG-020",
+      "feature": "技能发现、来源、搜索、分组与目录打开",
+      "baseline": "installed-0.3.13",
+      "expected": "用户/项目/捆绑技能区分来源与实际路径，按当前workspace/session发现并能打开正确目录。",
+      "entry": "设置 → 技能。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:1693-1717,1751-1754: scope inventory与workspaces.openPath"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:4604-4651,4691-4703: 真实技能目录/来源和打开回调",
+        "internal/store/session/skills.go:77-151: session技能与inventory读取",
+        "internal/ui/settings/skills.go:213-318: 搜索/来源/分组/空态",
+        "internal/store/session/skill_target.go:36-50: project技能必须有真实cwd",
+        "internal/store/session/skill_directory.go:200-250: 当前目录ticket与目标复查"
+      ],
+      "finding": "scope、路径和只读来源有实现，未把Bot分组当项目技能目录。工作区语义若上游选择错误，会直接影响技能scope，本线不替上游选择正确性背书。",
+      "evidenceLevel": "code",
+      "requiredAction": "在真实目录工作区验三类技能、切换cwd、同名不同来源、目录打开和Host重绑。",
+      "acceptanceGap": "workspace创建/选择用户报告故障由workspace领域调查；技能目前无真实该路径验收。"
+    },
+    {
+      "id": "PLUG-021",
+      "feature": "技能新建、查看编辑、删除与模型/用户调用开关",
+      "baseline": "installed-0.3.13",
+      "expected": "修改实际Skill文件，保留whenToUse/groups/内容/调用标志；只读项禁写，删除可确认取消。",
+      "entry": "技能添加、编辑、分组开关、技能行与永久删除审阅。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:1718-1736: 原版create/update/delete/setInvocation协议"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_skill_create.go:95-146: 实际字段创建",
+        "cmd/whaleisle/main.go:4625-4640,4663-4689,4730-4733: 新建/删除/编辑和开关装配",
+        "internal/store/session/skill_editor.go:107-133,191-214: 重读版本再update",
+        "internal/store/session/skill_directory.go:45-150: get核对后delete及重载",
+        "internal/ui/settings/skills.go:138-211,305-308,497-499: 保存/取消/删除和开关入口"
+      ],
+      "finding": "完整字段与真实Host写入接线存在；旧单元测试只是数据层范围，不能保证用户点击到生产表单正常。",
+      "evidenceLevel": "code",
+      "requiredAction": "验创建→重启发现→修改全部字段→组/单开关→只读拒绝→确认/取消删除，含外部文件变化后的冲突。",
+      "acceptanceGap": "未写测试或真实用户Skill；当前发行入口未实际完成这些动作。"
+    },
+    {
+      "id": "PLUG-022",
+      "feature": "技能Hub搜索、来源审阅、用户/项目安装与会话调用",
+      "baseline": "installed-0.3.13",
+      "expected": "从真实Hub结果选择repo/path/name，确认安装范围，拒绝同名冲突；调用技能仍走正常会话发送。",
+      "entry": "技能 → 浏览Hub；技能插入/调用。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-skills/lib/client.js:1738-1749: searchHub/installHub来源和scope"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_skill_hub.go:138-193,197-251: scope绑定搜索、确切结果确认与真实安装RPC",
+        "internal/ui/settings/skill_hub.go:36-56,62-106: 公开来源和安装目标review、冲突禁用",
+        "internal/store/session/skill_target.go:53-72: 只有明确installed/already-installed可报成功",
+        "cmd/whaleisle/main.go:4707-4728: 插入/name到当前native草稿，不自动发送"
+      ],
+      "finding": "搜索/安装与模型执行是两阶段；插入/name仅准备草稿，未证明Host收到后展开的实际技能内容/工具执行。",
+      "evidenceLevel": "code",
+      "requiredAction": "验公开技能搜索→用户/项目安装→重启发现→实际会话调用，并检查安装冲突/失败/取消和cwd切换。",
+      "acceptanceGap": "本轮未联网安装、未发送模型请求；实际执行由conversation/Host领域协同验收。"
+    },
+    {
+      "id": "PLUG-023",
+      "feature": "MCP添加服务器主入口",
+      "baseline": "installed-0.3.13",
+      "expected": "点击MCP页顶部添加按钮打开一个可编辑的新服务器表单。",
+      "entry": "设置 → MCP → 顶部＋添加服务器。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:393-404: 原版＋点击setEditor creating=true/draft=emptyDraft",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:1733-1736: 新spec的upsert"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/mcp.go:63-65: 添加按钮调用a.OnEdit(空字符串)",
+        "cmd/whaleisle/settings_mcp.go:138: 生产OnEdit直接controller.Edit(id)",
+        "internal/desktop/mcpconfig/controller.go:70-82: 空ID不在Rows、writable=false，Edit立即返回",
+        "internal/ui/settings/mcp.go:117-128; mcp_form.go:21-24: 替代字段入口藏于导入与高级编辑disclosure"
+      ],
+      "finding": "确定无效点击链：顶部＋→Edit(空ID)→非writable直接返回，无表单、无错误提示。不是Host断开或缺MCP依赖所致；可绕到高级编辑不抵消主入口损坏。",
+      "evidenceLevel": "code",
+      "requiredAction": "将创建动作与现有ID编辑分开，接入真实新建form；在生产cmd装配验＋点击后表单出现及取消/保存。",
+      "acceptanceGap": "本轮只审不修，未进行桌面操作；代码链已足够证明当前按钮必不打开新建。",
+      "runtimeAcceptance": {
+        "date": "2026-11-02",
+        "result": "FAIL",
+        "level": "current production Go controller, not visible window",
+        "report": "RUNTIME-ACCEPTANCE.md",
+        "receipt": "evidence/runtime-acceptance.json"
+      }
+    },
+    {
+      "id": "PLUG-024",
+      "feature": "MCP编辑、保存、启停、移除和JSON导入",
+      "baseline": "installed-0.3.13",
+      "expected": "stdio/streamable-http配置的command/args/cwd/env/headers/timeout和高级字段保留，managed可写、composition只读，导入先review再写。",
+      "entry": "MCP服务器编辑、导入与高级编辑；主添加故障另列PLUG-023。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:1323,1733-1747: mcpServers兼容导入及upsert/delete/setEnabled"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_mcp.go:100-160: form/import/保存删除的production回调",
+        "internal/desktop/mcpconfig/form.go:17-22,61-100: 保留原JSON和版本绑定保存",
+        "internal/desktop/mcpconfig/controller.go:181-206,230-297,303-329: 真实upsert/delete与成功后reload失败分开",
+        "internal/desktop/mcpconfig/import.go:16-30,56-90: 仅preview、候选选择和staging",
+        "internal/ui/settings/mcp_form.go:49-90: 两种transport、掩码保留和advanced字段说明"
+      ],
+      "finding": "绕过坏掉的添加入口后，有完整配置操作与错误反馈接线。高级字段不是全部原生表单化，而是在base JSON保留；导入预览不是批量自动写入。",
+      "evidenceLevel": "code",
+      "requiredAction": "验已有managed编辑与只读拒绝、masked secret保留、两种transport、高级字段往返、JSON多候选review、取消和写后重读失败。",
+      "acceptanceGap": "当前候选未执行真实MCP进程/连接或配置写入。"
+    },
+    {
+      "id": "PLUG-025",
+      "feature": "MCP连接、OAuth登录、工具探测和健康刷新",
+      "baseline": "installed-0.3.13",
+      "expected": "真实Host连接服务器，OAuth跳浏览器完成回调，显式test给出工具数/工具名；后台刷新不偷偷重连。",
+      "entry": "MCP行更多：retry/authorize/test；刷新；工具明细。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-settings-mcp/lib/client.js:1746-1752: retry/test/authorize",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/mcp/mcp-servers-file/lib/index.js:348-375,803-808: Host OAuth与浏览器授权"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/settings_mcp.go:32-34,91-99,151-153: OAuth3分钟45秒deadline和行操作",
+        "internal/desktop/mcpconfig/controller.go:331-367: 真实mcpServers方法、test结果",
+        "internal/desktop/mcpconfig/manual_refresh.go:10-46: 仅显式刷新retry失败managed项",
+        "internal/desktop/mcpconfig/health_refresh.go:8-28,39-65: 2秒健康读取与离页取消",
+        "internal/ui/settings/mcp_catalog.go:69-114: 明确区分上次快照工具和显式test结果"
+      ],
+      "finding": "连接/登录/探测有真实Host协议，不是仅保存JSON；能列出工具名不等于模型实际调用工具成功。OAuth需外部用户授权，本轮未发起。",
+      "evidenceLevel": "code",
+      "requiredAction": "验本地stdio与HTTP服务器、授权成功/取消/超时、工具探测失败和实际会话工具调用；验证离页不继续健康轮询。",
+      "acceptanceGap": "MCP进程、OAuth账号和模型工具调用均未实际验收。"
+    },
+    {
+      "id": "PLUG-026",
+      "feature": "智能体预设的默认配置、完整声明查看与Creator入口",
+      "baseline": "installed-0.3.13",
+      "expected": "设置未来会话默认预设，保留当前会话选择语义，查看原声明且不裁掉内容；Creator独立。",
+      "entry": "设置 → 智能体预设。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:1083-1118: 默认未来会话的settings.update与roster",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:2190-2225: 查看完整声明、取消和设默认",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:2491-2501: 原版配置section装配"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:4737-4745: manager/Creator/Reader真实装配",
+        "internal/ui/settings/agent_presets.go:13-20,135-186,195-205: 默认选择与Creator动作",
+        "internal/store/session/agent_preset_manager.go:70-90,143-170: agentPresets/list+settings/describe与revision-aware selectedDefault写入",
+        "internal/ui/settings/agent_preset_reader.go:69-100,119-128; cmd/whaleisle/settings_agent_preset_reader.go:54-75: 声明分页、复制、原文读取"
+      ],
+      "finding": "配置界面不是顶部“智能体团队”的等价实现。默认设置与当前session select分开，完整声明有分页/复制；当前预设实际是否生效需conversation领域实测。",
+      "evidenceLevel": "code",
+      "requiredAction": "验默认保存/重启、新建会话采用默认、只读和broken项、完整声明与失败重试；预设运行交orchestration/conversation。",
+      "acceptanceGap": "未创建模型任务；本项只覆盖配置界面和持久化合同。"
+    },
+    {
+      "id": "PLUG-027",
+      "feature": "原生自定义面板库、每Bot独立副本与持久化",
+      "baseline": "existing-MyGo-contract",
+      "expected": "在canonical Bot会话编辑/预览/保存面板、复用模板，独立修改副本及尺寸顺序，重启恢复。",
+      "entry": "右侧Panels资源；main.go:6632 → customPanelContent。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/openui.js:10-44: 原版生成式界面使用独立viewer/API/bundle；这不能证明MyGo六widget schema就是原版面板schema"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/custom_panels.go:34-52,64-127,141-237: canonical Bot/Host绑定、生成草稿、导入和实际store回调",
+        "internal/ui/custompanel/panel.go:65-97,99-163: 生成/导入/预览、复制/尺寸/顺序/删除入口",
+        "internal/store/custompanel/store.go:111-136,144-203,205-290: 原子本地文件、模板独立副本和作用域"
+      ],
+      "finding": "能定位到真实本地panels.json写入；仅canonical且启用dshbot的Bot适用，普通项目对话/room不可用。Create with Bot只准备草稿，需用户发送后导入最后一个完成文本，不是自动完成面板生成。",
+      "evidenceLevel": "code",
+      "requiredAction": "验canonical Bot→生成草稿→真实回复→导入→预览→保存→重启，再验另一Bot副本、模板更新和普通会话不可用提示。",
+      "acceptanceGap": "没有当前GUI/真实Bot生成和重启恢复证据；不把普通OpenUI面板等同此有限JSON库。"
+    },
+    {
+      "id": "PLUG-028",
+      "feature": "自定义面板的widget/动作支持范围",
+      "baseline": "existing-MyGo-contract",
+      "expected": "清楚区分六种声明式native widget与可运行HTML/脚本/任意Host动作的扩展。",
+      "entry": "Panels JSON编辑器和动作按钮。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/openui.js:10-44: 原版Whale UI有viewer及受控资源，不等于native六widget定义"
+      ],
+      "mygoEvidence": [
+        "internal/store/custompanel/store.go:58-108: unknown字段拒绝、widget只认text/input/checkbox/progress/select/action，1–64个、1–4列",
+        "internal/ui/custompanel/panel.go:197-218: 六widget渲染，action只OnPrompt",
+        "cmd/whaleisle/custom_panels.go:113-127: action只准备空闲native草稿"
+      ],
+      "finding": "不支持任意HTML/CSS/JS、脚本事件、文件/Host RPC、数据绑定或任意React组件；action不会自动执行/发送。该限制不能用“自定义面板支持”一句覆盖。原版生成式Whale UI另有路径，本项不误报原版一定采用此schema。",
+      "evidenceLevel": "code",
+      "requiredAction": "明确本入口的有限schema与独立Whale UI路径；如需求是原版生成式面板，不应拿此库作为其等价实现。",
+      "acceptanceGap": "原版生成式面板/当前native资源的跨路径互用与真实用户产物未验。"
+    },
+    {
+      "id": "PLUG-029",
+      "feature": "Whale UI/OpenUI动态运行时、流式更新与状态恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "识别生成式UI代码，真实viewer渲染、流式更新、保留实例状态，并保持原会话身份。",
+      "entry": "assistant的whale-ui/dsh-ui/openui/openui-lang代码块与面板。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/openui.js:10-11,36-44: 原安装viewer和六类渲染bundle",
+        "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/viewer.html:1,1103,1364,1552-1555; C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/host.cjs:1094,1355:完整script差异仅四段说明/HtmlView样式模板，组件/DSL/Genui/state相同",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/index.ts:9-17; runtime/genui-adapter.tsx:33-75; genui/client/genui-runtime/schema.ts:275-384:73公共组件与50 JSON discriminant的可读库存，逐字映射到安装产物"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/openui/runtime.go:21-43; whale_runtime.go:12-22,33-52: 默认内嵌Whale UI，四种语言，固定支持bundle",
+        "internal/desktop/openui/viewer/v2/provenance.json:1-11: viewer来源记录为0.3.10，不是本轮安装0.3.13的等价证明",
+        "internal/ui/chat/openui.go:269-322,373-378,489-490: 正常chat消费者、helper、更新、状态读写",
+        "internal/desktop/openui/whale_shell.go:56-63,79-82: 流式更新与state/panel消息",
+        "internal/desktop/openui/viewer/v2/viewer.html:1103,1364,1552-1555:73组件/50 Genui类型、共同DSL evaluator与state协议；六engine bundle与安装版逐字节同源",
+        "internal/ui/chat/whale_ui_tool.go:19-27; whale_ui_panel.go:195-271,288-350; internal/store/session/openui_owner.go:53-112:render_ui成功metadata消费、会话面板与归属"
+      ],
+      "finding": "实际embedded viewer/隔离helper及fence、render_ui成功metadata、会话panel消费者存在。补完实际安装0.3.13与内嵌0.3.10对照后，73公共组件、50 Genui discriminant、14 builtin/59库函数及DSL/state/action代码均有同源依据；未发现由版本差导致新增/缺失组件。原始viewer的差异仅Card/HtmlView样式与说明；生产native适配替换6组件且限制另见PLUG-030/rendererStaticInventory。默认自管Host没有指南/render_ui注册的生产链另见PLUG-033。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留完整静态库存作为基线；在当前发行入口验真实生成代码、绑定控件、流式更新、Genui panel/append、同一会话动作、导出、重启及旧实例隔离。先补PLUG-033的默认生产者装配，不能只验证预制fence消费者。",
+      "acceptanceGap": "组件/DSL/协议源码比较已闭合；当前GUI渲染、真实模型产物与流式/重启/原会话往返未执行。静态同源未认证native资源、媒体及HTML替换的实际表现。"
+    },
+    {
+      "id": "PLUG-030",
+      "feature": "Whale UI资源、原生动作、HTML脚本和媒体能力",
+      "baseline": "installed-0.3.13",
+      "expected": "生成UI的复制/链接/导出/对话动作有真实消费者，资源API与HTML/媒体限制能正确反馈。",
+      "entry": "动态viewer按钮、图片/地图/HTML/YouTube等组件。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/openui.js:4-8,21-44: 原版固定wiki/image-search/street-route和bundle桥",
+        "C:/软件/Whale Isle/resources/app.asar::src/renderer/whale-ui/viewer.html:1,1367,1373:允许HTTP(S) img/media的原版CSP，Genui audio/video直接src与image节点；同一代码存在内嵌viewer",
+        "C:/AI/Deepseek-Harness-Desktop/src/whale-ui/components/drawing.tsx:23-49:原版HtmlView approved CDN、theme同步、自动高度最高12000px；作为安装script的可读定位"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/openui/api.go:34-75: 只支持列明API路径和参数，非任意网络代理",
+        "internal/desktop/openui/whale_shell.go:26-31,73-98: 无通用network/worker/native，真实动作需userGesture，copy/open-url/download/assistant分类",
+        "internal/desktop/openui/api_html_script.go:23-68,105-133: 受约束静态classic脚本与可选integrity",
+        "internal/desktop/openui/viewer/v2/native-adapter.js:40: HtmlView明确拒module/credentialed/动态依赖等；仅静态classic准备",
+        "internal/desktop/previewprocess/openui_bridge.go:45-53,73-99; openui_actions.go:30-53: owned viewer和单次动作claim",
+        "internal/desktop/openui/viewer/v2/native-adapter.js:1,40:只替换Map/MapMarker、YouTube、Image/SearchImage、HtmlView六种顶层公共组件；未替换Genui内部image/audio/video",
+        "internal/desktop/openui/viewer/v2/viewer.html:1367,1373:Genui image/audio/video仍直写src；whale_shell.go:29-31将父/子media-src设none、img-src只允data/blob",
+        "internal/desktop/openui/media.go:29-65:专用YouTube媒体协议没有任意音视频URL；native-adapter.js:40:HtmlView新文档不沿用原版theme-token同步，最高2000px"
+      ],
+      "finding": "完整库存见rendererStaticInventory。复制/外链/下载/assistant/panel均有实际native消费者，六个渲染engine资产与0.3.13相同；但native不等价原版宽资源策略：顶层Map改raster，Image/SearchImage走受限父服务，YouTube走显式激活private seat。Genui的audio/video仍直接DOM media，而MyGo父/子CSP均media-src none且无对应native媒体适配，故该路径受代码确定阻断；Genui HTTP(S) image也仍直写src，img-src data/blob将远程图阻断，顶层Image桥不覆盖它。HtmlView静态classic可准备，但module/直接网络/外部CSS/media/native不可用；主题同步、透明无边框及自动高度范围亦未完整继承。不能把这些明确不支持项留成仅待网络实测。",
+      "evidenceLevel": "code",
+      "requiredAction": "为Genui远程image及audio/video选择有边界的真实消费者或明确标成不支持并从能力声明剔除；不可为追求等价直接开放整个helper。补HtmlView主题/高度/表面差异或明确限定。随后验复制/下载/链接/assistant、地图/图片、HTML准备/拒绝及YouTube真实播放，原生seat创建不算播放通过。",
+      "acceptanceGap": "源码库存与明确阻断已定位；实际OS保存/取消、公开网络资源、当前生成物、媒体播放、HTML脚本与真实GUI未验。PLUG-029不再保留逐组件source-unreviewed缺口。"
+    },
+    {
+      "id": "PLUG-031",
+      "feature": "插件HTTP控制面响应身份校验",
+      "baseline": "existing-MyGo-contract",
+      "expected": "typert-style插件HTTP调用只接受对应rpcId的server-response，再消费结果。",
+      "entry": "pluginrpc.Client.Call，用于dshbot/dsh-whale typed动作；不是所有插件的通用native SDK。",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "internal/desktop/pluginrpc/doc.go:1-6: 本地声明使用client-request/server-response控制面合同"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pluginrpc/client.go:18-30: request/response都有type和rpcId",
+        "internal/desktop/pluginrpc/client.go:74-80: 生成请求rpcId",
+        "internal/desktop/pluginrpc/client.go:112-129: 解码后直接消费result，未校验sr.Type及sr.RPCID"
+      ],
+      "finding": "代码确定接受任何可解码且result.ok的响应，即使type/rpcId不匹配。它不证明现有Host已返回错包，但未落实自身响应身份合同；迟到/异常控制面响应不能被此层识别。",
+      "evidenceLevel": "code",
+      "requiredAction": "在pluginrpc边界校验server-response和当前rpcId；错误时返回协议错误，不消费mutation成功回执。",
+      "acceptanceGap": "当前真实Host有无错配响应未知；typed dshbot/whale业务路径由各领域分别审，不因这个transport存在宣称任意扩展可用。"
+    },
+    {
+      "id": "PLUG-032",
+      "feature": "设置默认预设后同步当前空白会话",
+      "baseline": "installed-0.3.13",
+      "expected": "在设置修改默认后，将动作捕获的当前mainView空白会话同步到新预设；已有内容或其他会话不被修改。",
+      "entry": "空白会话 → 设置 → 智能体预设 → 选择默认 → 返回发首条消息。",
+      "status": "confirmed-defect",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:2470-2492: 捕获blank mainView并传给makeDefault",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agent-preset/lib/client.js:2246-2261: 默认写入成功后sync当前捕获blank Session"
+      ],
+      "mygoEvidence": [
+        "internal/ui/settings/agent_presets.go:179-186: 默认点击只调用Manager.SaveDefault",
+        "internal/store/session/agent_preset_manager.go:143-187: 仅settings/update selectedDefault、更新DefaultID，不调用当前session选择",
+        "internal/store/session/agent_presets.go:189-241: 当前session预设选择是另一独立方法，未被SaveDefault消费"
+      ],
+      "finding": "当前空白会话不会像原版那样随设置默认动作同步。界面可显示新默认，但此已创建空会话还用旧预设；Go提示也仅说未来新任务采用默认。",
+      "evidenceLevel": "code",
+      "requiredAction": "按原版捕获并复查当前blank Session，再同步该会话，保留已用会话不变；验首条消息采用的新预设身份。",
+      "acceptanceGap": "本轮未发送真实首条消息；Host默认仅影响未来创建会话的合同已有原版代码，当前真实用户是否遭遇该路径未知。"
+    },
+    {
+      "id": "PLUG-033",
+      "feature": "默认自管Host的Whale UI指南与render_ui工具注册",
+      "baseline": "installed-0.3.13",
+      "expected": "原生桌面默认启动自管Host时向模型提供已支持的Whale UI指南和Node validator/render_ui工具；成功结果的meta.whaleUi进入同一会话viewer。",
+      "entry": "MyGo默认启动 → harness.Supervisor → childEnv → ui-chat Host apply → systemPrompt/tools注册；不是手工粘贴fence。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh.js:878-879:实际原版在Host环境显式设置DSHD_WHALE_UI_ENABLED=1和DSHD_WHALE_UI_HOST",
+        "tmp/full-audit-20261102/installed-source/src/main/whale-ui-host.js:6-9:指向安装unpacked的Node host.cjs",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-chat/lib/types/index.js:21-32:只有flag=1才注入指南并require指定validator注册renderUiTool"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2796-2809:默认Launch未设置Whale UI ExtraEnv",
+        "internal/harness/supervisor.go:395-402:仅补install、task/platform token与可选dshbot环境",
+        "internal/harness/launch.go:306-326:继承父环境并设置Home/Root/npm及传入ExtraEnv，没有Whale UI flag/validator装配",
+        "internal/desktop/openui/whale_runtime.go:12-24:只embed viewer、engines、adapter、notices；目录中host.cjs没有被此处发给Host",
+        "internal/ui/chat/whale_ui_tool.go:19-27; internal/store/session/openui_owner.go:53-112:成功metadata消费者存在，但不负责注册模型工具"
+      ],
+      "finding": "当父环境未人工预置原版Whale UI变量时，默认MyGo自管Host不会进入ui-chat的Whale UI注册分支：模型缺该指南/render_ui工具，磁盘上存在host.cjs和工具结果消费者不能补上生产者。外接已启用Host或人工继承这两个变量可以不同，不能据此宣称所有Host都缺失；本项确认默认生产装配缺口。",
+      "evidenceLevel": "code",
+      "requiredAction": "在原生默认自管Host生产装配中提供匹配的持久Node validator路径及Whale UI opt-in，保留普通headless/web和外接Host原合同；随后核对实际工具清单、指南、一次真实render_ui成功metadata和同会话UI。",
+      "acceptanceGap": "未启动/重启Host或发模型请求；当前真实用户进程是否人为继承这些变量未知。这里不把静态装配缺口当该用户已发生的runtime错误。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "workspace/conversation: 技能project scope必须消费真实目录工作区；用户的新建工作区/新建会话失败不能被本线数据层接线证明覆盖。",
+    "orchestration: Team header.actions虽列在Session桥，但需显式激活且sidebar.right.pane.tab不在消费列表；Team共享任务板根因/业务项由orchestration登记。",
+    "shell SH-004: 动态额外conversation.view的导航/渲染断路由Shell项登记，本线不另列同一根因；完整browser替代边界见PLUG-013/014/015。",
+    "conversation: 技能/name的真实展开执行、插件composer与native草稿交接、Whale UI assistant回调都需同一会话发送路径验收。",
+    "runtime/launcher: full/skip-user-plugins、损坏依赖恢复、Host重启及旧user-plugin迁移由其owner闭环；本线给出可恢复来源范围。",
+    "assistant/pet/IM: pluginrpc只审通用HTTP合同和typed模块清单，dshbot/whale具体业务回执由实际消费者领域审查。",
+    "visual/generated-content: PLUG-029及rendererStaticInventory已闭合当前安装0.3.13/内嵌0.3.10的公开renderer源码库存；实际native替换、Genui远程图片/音视频和HTML差异见PLUG-030，真实渲染/导出仍待验收。",
+    "chrome/input: native控件点击命中和popup层级是共享依赖；无该用户环境的实际完整UI操作不能认证本线controls可点。",
+    "runtime/launcher: PLUG-033登记默认自管Host缺Whale UI指南/render_ui producer装配，避免只验预制fence；外接Host与人工父环境按实际工具状态另验。"
+  ],
+  "uncovered": [
+    "[acceptanceGap] 未逐一装载/执行原版116slot概念中的全部槽位和任意市场第三方包；已列出native固定consumer家族、browser替代入口与明确未消费家族，未把数量当通过。",
+    "[acceptanceGap] 未在当前诊断程序执行插件安装/更新/禁用/卸载、Skill文件写入、MCP进程/OAuth、Creator或真实模型请求；未操作桌面或读取用户profile。",
+    "[cross-domain acceptance] pluginrpc的dshbot/whale业务模块仅按typed边界及调用面归类；数十种Bot/任务/宠物/IM具体业务回执由对应领域负责，不在本线重复认证。",
+    "[historical boundary] 历史fixture证据只限其原始指定Host/合成插件/专用native投影视口，不覆盖当前用户完整主List、物理IME、任意portal、辅助技术或跨平台行为。",
+    "[source coverage closed] 本次指定的自带Whale UI/OpenUI renderer公开组件、DSL、动作、状态、native覆盖及14个安装renderer文件已静态审完；没有遗留逐组件源码缺口。任意未安装第三方包的未知实现不在这份自带能力库存内，其实装仍为验收缺口。",
+    "[acceptanceGap] 未运行73公共组件/50 Genui类型、流式/重启恢复、HTML、真实网络/地图、GPU/3D、媒体及OS保存；Genui远程image/audio/video阻断与默认render_ui注册缺口已作为代码结论登记，不能混成未知。"
+  ],
+  "checksRun": [
+    {
+      "command": "只读 Get-Content/Select-String/rg：审查合同、生产cmd装配、原安装vendor rc.2及本轮app.asar提取桌面源文件",
+      "result": "完成领域能力/入口/Host协议/持久化/错误反馈静态追踪；确认Discover入口断路、MCP添加按钮空ID断路、默认预设缺当前空会话同步、pluginrpc响应身份缺校验。",
+      "scope": "代码证据；未运行产品、安装、浏览器或模型。"
+    },
+    {
+      "command": "只读 docs/features/native-plugin-slots.md 及 tmp/plugin-inline-production-p2/text-81de49b8421947ad892cbc36dce249f3/EVIDENCE.md",
+      "result": "采用其中原始fixture与失败/未认证边界，未把历史通过重标为本轮通过。",
+      "scope": "历史两轮tail、长行、显式portal及单独文本输入收据。"
+    },
+    {
+      "command": "测试执行",
+      "result": "未运行：确定结论均可由实际生产装配静态链决定；不新建或机械重跑测试。",
+      "scope": "本轮只审查。"
+    },
+    {
+      "command": "只读Node fs解析实际app.asar renderer条目/unpacked host.cjs，比较完整viewer script/host差异和六engine文件；从共同源码提取73组件、50 Genui类型、14 builtin及59库函数库存",
+      "result": "两份viewer各一个script，四段已登记文本/HtmlView模板替换后完整script相等；六engine逐字节相同；确认6组件native覆盖、Genui远程image/audio/video受限与默认Host render_ui注册断路。14个安装renderer文件均有去向。",
+      "scope": "静态源/资产内容证据；不执行安装模块、产品、第三方包、网络或GUI，不做文件hash。"
+    },
+    {
+      "command": "Node JSON.parse及必填feature字段、枚举状态、唯一ID和renderer库存基数校验",
+      "result": "plugins.json为有效UTF-8 JSON；33条feature/33个唯一ID；73公共组件、50 Genui discriminant、59库函数与库存一致；无本次renderer sourceUnreviewed遗留。",
+      "scope": "仅报告结构和静态库存完整性，不运行产品或新增测试。"
+    }
+  ],
+  "summary": "本领域不能判定功能齐全或整体可用。确认四处代码缺陷：通用Discover/索引源被原生导航断路（P1）；MCP顶部添加必然Edit空ID后直接返回（P1）；默认预设缺当前空会话同步（P2）；pluginrpc漏校验响应身份（P2）。更大的交互缺口是动态插件仅特定slot/native文字投影与显式开启的browser/轮尾位图路径，未自动等价原版完整slot树、composer、右栏、任意portal和富控件。安装/市场/技能/MCP/预设存在大量真实Host接线，但在当前用户发行路径仍是wired-unverified，不能用源码、元数据或旧fixture验收代替。 补充renderer收尾：73公共组件、50 Genui类型、14 builtin与59库函数已与实际0.3.13产物做静态对照，版本本身未造成组件/DSL缺项；6个engine同源，差异主要为Card/HtmlView外观和6个native替换。明确Genui远程image/audio/video缺消费者且受CSP阻断；新增确认默认自管Host未启用Whale UI指南/render_ui注册（PLUG-033，P1）。源码库存已闭合，真实GUI/网络/模型/媒体/保存验收仍未执行。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-chat-actions.json",
+    "supplement-settings-actions.json",
+    "supplement-plugin-actions.json"
+  ]
+}

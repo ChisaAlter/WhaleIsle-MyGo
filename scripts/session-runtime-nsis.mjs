@@ -16,7 +16,9 @@ export function emitRuntimeInclude(stage, output) {
   for(const relative of files) {
     const parent=path.posix.dirname(relative);
     if(parent!==current) {lines.push(`!insertmacro WI_SetPayloadOutPath "$INSTDIR\\runtime${parent==='.'?'':'\\'+escape(parent.replaceAll('/','\\'))}"`);current=parent;}
-    const source=path.join(runtime,...relative.split('/'));
+    // NSIS's compiler also needs extended source paths; a valid runtime file
+    // at MAX_PATH otherwise fails before the install-time path helpers run.
+    const source=path.toNamespacedPath(path.join(runtime,...relative.split('/')));
     lines.push(`File "${escape(source)}"`,'!insertmacro WI_CheckExtract');
   }
   // Alias parents can be otherwise empty and must exist before restoration.

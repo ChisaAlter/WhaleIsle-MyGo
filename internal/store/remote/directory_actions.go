@@ -23,7 +23,7 @@ func (s *Store) ShowDirectoryCreate(open bool) {
 	if !s.view.Busy {
 		s.view.Directory.MkdirOpen = open
 		s.view.Directory.NewName = ""
-		s.view.Directory.Error = ""
+		s.view.Directory.CreateError = ""
 	}
 	n := s.notify
 	s.mu.Unlock()
@@ -56,7 +56,11 @@ func (s *Store) directoryAction(operation, name string) error {
 	}
 	c, n, g, machineID := s.client, s.notify, s.generation, s.view.CurrentID
 	s.view.Busy = true
-	s.view.Directory.Error = ""
+	if operation == "mkdir" {
+		s.view.Directory.CreateError = ""
+	} else {
+		s.view.Directory.Error = ""
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	s.cancel = cancel
 	s.mu.Unlock()
@@ -111,7 +115,11 @@ func (s *Store) directoryAction(operation, name string) error {
 		s.cancel = nil
 		s.view.Busy = false
 		if err != nil {
-			s.view.Directory.Error = err.Error()
+			if operation == "mkdir" && !applied {
+				s.view.Directory.CreateError = err.Error()
+			} else {
+				s.view.Directory.Error = err.Error()
+			}
 			if applied {
 				s.view.Directory.Error += "; folder was created, but refreshing failed"
 				s.view.Directory.MkdirOpen = false
@@ -132,6 +140,16 @@ func (s *Store) directoryAction(operation, name string) error {
 func (s *Store) SetDirectoryError(message string) {
 	s.mu.Lock()
 	s.view.Directory.Error = message
+	n := s.notify
+	s.mu.Unlock()
+	if n != nil {
+		n()
+	}
+}
+
+func (s *Store) SetDirectoryCreateError(message string) {
+	s.mu.Lock()
+	s.view.Directory.CreateError = message
 	n := s.notify
 	s.mu.Unlock()
 	if n != nil {

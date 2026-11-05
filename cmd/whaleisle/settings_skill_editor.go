@@ -23,7 +23,7 @@ func (s *mainState) cancelSettingsSkillEdit() {
 	s.settingsSkillEditDesc = ""
 	s.settingsSkillEditWhen = ""
 	s.settingsSkillEditContent = ""
-	s.settingsSkillEditGroups = ""
+	s.settingsSkillEditGroups = nil
 	s.settingsSkillsDetail = ""
 	win := s.win
 	s.mu.Unlock()
@@ -43,6 +43,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 	ticket := s.settingsSkillInspectVersion
 	s.settingsSkillEditName = strings.TrimSpace(name)
 	s.settingsSkillsDetail = i18n.T(i18n.KeyCmdSkillLoading)
+	s.settingsSkillsLastAction = ""
 	s.settingsSkillEditWritable = false
 	s.mu.Unlock()
 	if source == nil {
@@ -79,7 +80,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 			s.settingsSkillEditDesc = fields.Description
 			s.settingsSkillEditWhen = fields.WhenToUse
 			s.settingsSkillEditContent = fields.Content
-			s.settingsSkillEditGroups = strings.Join(fields.Groups, ", ")
+			s.settingsSkillEditGroups = append([]string(nil), fields.Groups...)
 			s.settingsSkillEditModel = fields.ModelInvocable
 			s.settingsSkillEditUser = fields.UserInvocable
 			s.settingsSkillEditWritable = loaded.Writable()
@@ -99,6 +100,46 @@ func (s *mainState) inspectSettingsSkill(name string) {
 	}()
 }
 
+func (s *mainState) reloadSettingsSkillEdit() {
+	s.mu.Lock()
+	if s.settingsSkillEditorSaving || !s.settingsSkillEditWritable || s.sessions == nil {
+		s.mu.Unlock()
+		return
+	}
+	source, target, win := s.sessions, s.settingsSkillEditTarget, s.win
+	s.settingsSkillInspectVersion++
+	ticket := s.settingsSkillInspectVersion
+	s.settingsSkillEditorSaving = true
+	s.settingsSkillsLastAction = ""
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		loaded, err := source.ReloadCatalogSkillEdit(ctx, target)
+		s.mu.Lock()
+		if s.settingsSkillInspectVersion != ticket || s.sessions != source {
+			s.mu.Unlock()
+			return
+		}
+		s.settingsSkillEditorSaving = false
+		if err != nil {
+			s.settingsSkillsLastAction = err.Error()
+		} else {
+			s.settingsSkillEditTarget = loaded
+			fields := loaded.Fields()
+			s.settingsSkillsDetail = loaded.Label() + "\n\n" + pluginCopy("已重新核对当前文件，下面保留你的草稿。再次保存将写入这份草稿。当前文件：", "The current file was rechecked. Your draft is retained below; Save writes that draft. Current file:") +
+				fmt.Sprintf("\n%s: %s\n%s: %s\n%s: %s\n%s: %t · %s: %t\n\n%s", pluginCopy("描述", "Description"), fields.Description, pluginCopy("使用时机", "When to use"), fields.WhenToUse, pluginCopy("分组", "Groups"), strings.Join(fields.Groups, ", "), pluginCopy("模型可调用", "Model invocable"), fields.ModelInvocable, pluginCopy("用户可调用", "User invocable"), fields.UserInvocable, fields.Content)
+		}
+		s.mu.Unlock()
+		if win != nil {
+			win.Update(func() {})
+		}
+	}()
+}
+
 func (s *mainState) saveSettingsSkillEdit() {
 	s.mu.Lock()
 	if s.settingsSkillEditorSaving || !s.settingsSkillEditWritable {
@@ -108,7 +149,7 @@ func (s *mainState) saveSettingsSkillEdit() {
 	source, win := s.sessions, s.win
 	target := s.settingsSkillEditTarget
 	ticket := s.settingsSkillInspectVersion
-	fields := session.SkillEditorFields{Description: s.settingsSkillEditDesc, WhenToUse: s.settingsSkillEditWhen, Content: s.settingsSkillEditContent, Groups: strings.Split(s.settingsSkillEditGroups, ","), ModelInvocable: s.settingsSkillEditModel, UserInvocable: s.settingsSkillEditUser}
+	fields := session.SkillEditorFields{Description: s.settingsSkillEditDesc, WhenToUse: s.settingsSkillEditWhen, Content: s.settingsSkillEditContent, Groups: append([]string(nil), s.settingsSkillEditGroups...), ModelInvocable: s.settingsSkillEditModel, UserInvocable: s.settingsSkillEditUser}
 	if source == nil {
 		s.mu.Unlock()
 		return

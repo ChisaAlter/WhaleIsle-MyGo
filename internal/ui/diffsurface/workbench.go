@@ -34,6 +34,7 @@ type Workbench struct {
 	Branches                                  []git.Branch
 	branchesRequest                           *branchListRequest
 	BranchesOpen                              bool
+	RepositoryToolsOpen                       bool
 	BranchQuery, BranchName, BranchStatus     string
 	Repository                                bool
 	RepositoryStatus                          *git.RepositoryStatus
@@ -132,41 +133,88 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		operation := w.Operation
 		*w = Workbench{Operation: operation, invalidate: c.Services().Invalidate, AgainstHEAD: true}
 		w.reload(m.WorkspaceRoot)
+		refresh(m)
 	}
 	w.finishRepositoryStatus()
 	finishComparison(m)
-	ui.Column(c).Gap(4).Padding(4, 12, 8, 12).Children(func() {
-		if paintRepositoryActions(c, m, fg, muted) {
-			return
-		}
-		if !w.CommitOpen && paintCommitPreparation(c, m, fg, muted) {
-			return
-		}
-		paintComparison(c, m, fg, muted)
-		paintBranches(c, m, fg, muted)
-		ui.Row(c).Gap(6).Children(func() {
-			if widgets.Button(c, colors, word("全部修改（对比 HEAD）", "All changes vs HEAD"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-				if m.PathFilter != nil {
-					*m.PathFilter = ""
+	finishCommitPreparation(m)
+	finishGitOperation(m)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 12, 4, 12).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
+			paintDiffScope(c, m)
+			if widgets.Button(c, colors, word("比较分支…", "Compare branch…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!w.Repository || w.Operation != nil).Clicked() {
+				w.CompareOpen = !w.CompareOpen
+				if w.CompareOpen {
+					branches, err := git.Branches(w.Root)
+					w.CompareBranches, w.CompareError = branches, ""
+					if err != nil {
+						w.CompareError = err.Error()
+					}
 				}
-				w.CancelComparison()
-				w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
-				refresh(m)
 			}
-			if widgets.Button(c, colors, word("全部未暂存", "All unstaged"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-				scopeDiff(m, "", false)
+			if widgets.Button(c, colors, word("提交…", "Commit…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!w.Repository || len(w.Changes) == 0 || w.Operation != nil).Clicked() {
+				w.CommitOpen = true
 			}
-			if widgets.Button(c, colors, word("全部已暂存", "All staged"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
-				scopeDiff(m, "", true)
+			if widgets.Button(c, colors, word("仓库操作", "Repository actions"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
+				w.RepositoryToolsOpen = !w.RepositoryToolsOpen
 			}
 		})
-		ui.Scroll(c).Height(150).FillWidth().Padding(4).Radius(8).Border(0.5, c.Theme().Border).Children(func() {
-			ui.Column(c).Gap(2).Children(func() {
-				paintCommitChangeRows(c, m, fg, muted)
+		if w.CompareOpen || w.comparison != nil {
+			paintComparison(c, m, fg, muted)
+		}
+		if w.RepositoryToolsOpen || w.PublishOpen || w.Remote != nil {
+			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(260).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+					if !paintRepositoryActions(c, m, fg, muted) {
+						paintBranches(c, m, fg, muted)
+					}
+				})
 			})
-		})
+		} else {
+			DrawGitProgress(c, w.Progress, fg, muted, func() { w.Progress = nil })
+			if !w.Repository {
+				ui.Text(c, i18n.T(i18n.KeyDiffNotRepo)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			} else if w.Status != "" {
+				ui.Text(c, w.Status).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).SingleLine().Ellipsis("…").TextColor(muted).Tooltip(w.Status)
+			}
+		}
 		paintDiscard(c, m, fg, muted)
-		commitLauncher(c, m, fg, muted)
 		commitDialog(c, m, fg, muted)
 	})
+}
+
+func paintDiffScope(c *ui.Context, m Model) {
+	w := m.Workbench
+	caption := word("工作区修改", "Worktree changes")
+	if w.BaseRef != "" {
+		caption = w.BaseRef + "…HEAD"
+	} else if w.Staged {
+		caption = word("已暂存修改", "Staged changes")
+	} else if !w.AgainstHEAD {
+		caption = word("未暂存修改", "Unstaged changes")
+	}
+	ui.MenuButton(c, caption, func(menu *ui.Menu) {
+		if menu.Item(word("工作区全部修改", "All worktree changes")).Checked(w.AgainstHEAD && w.BaseRef == "").Chosen() {
+			if m.PathFilter != nil {
+				*m.PathFilter = ""
+			}
+			w.CancelComparison()
+			w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
+			refresh(m)
+		}
+		if menu.Item(word("未暂存修改", "Unstaged changes")).Checked(!w.AgainstHEAD && !w.Staged && w.BaseRef == "").Chosen() {
+			scopeDiff(m, "", false)
+		}
+		if menu.Item(word("已暂存修改", "Staged changes")).Checked(!w.AgainstHEAD && w.Staged && w.BaseRef == "").Chosen() {
+			scopeDiff(m, "", true)
+		}
+		if len(w.Changes) > 0 {
+			menu.Separator()
+			for _, change := range w.Changes {
+				if menu.Item(change.Path).Checked(m.PathFilter != nil && *m.PathFilter == change.Path).Chosen() {
+					scopeDiff(m, change.Path, !change.Unstaged())
+				}
+			}
+		}
+	}).Key(m.WorkspaceRoot).Height(28).Disabled(!w.Repository || w.Operation != nil)
 }

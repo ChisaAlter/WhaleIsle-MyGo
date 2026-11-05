@@ -25,6 +25,11 @@ func (s *projectController) bindProjectHistory(win *mygo.Window, m *projects.Mod
 			s.runProjectHistory(win, m.Reports.ProjectID, "file", path, open)
 		}
 	}
+	m.OnReportFileTarget = func(path string, open func(projectflow.FileTarget)) {
+		if m.Reports != nil {
+			s.runProjectHistory(win, m.Reports.ProjectID, "file", path, nil, open)
+		}
+	}
 	m.OnCloseReports = func() {
 		s.mu.Lock()
 		if !s.projectFlow.busy {
@@ -38,7 +43,7 @@ func (s *projectController) bindProjectHistory(win *mygo.Window, m *projects.Mod
 		}
 	}
 }
-func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg string, open func(string)) {
+func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg string, open func(string), targets ...func(projectflow.FileTarget)) {
 	s.mu.Lock()
 	f := s.projectFlow
 	client := s.dshClient
@@ -128,7 +133,7 @@ func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg 
 			return
 		}
 	case "file":
-		if next.Selected == nil || open == nil {
+		if next.Selected == nil || open == nil && (len(targets) == 0 || targets[0] == nil) {
 			s.mu.Unlock()
 			return
 		}
@@ -233,7 +238,11 @@ func (s *projectController) runProjectHistory(win *mygo.Window, id, action, arg 
 				}
 				f.reports = &next
 				s.mu.Unlock()
-				open(resolved.CanonicalPath)
+				if len(targets) > 0 && targets[0] != nil {
+					targets[0](s.projectFileTarget(id, resolved, client))
+				} else if open != nil {
+					open(resolved.CanonicalPath)
+				}
 				return
 			}
 			f.reports = &next

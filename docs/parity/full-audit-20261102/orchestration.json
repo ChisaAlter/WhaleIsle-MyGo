@@ -1,0 +1,1772 @@
+{
+  "domain": "orchestration",
+  "auditComplete": true,
+  "modulesReviewed": [
+    "cmd/whaleisle/assistant_bot_avatar.go",
+    "cmd/whaleisle/assistant_bot_avatar_image.go",
+    "cmd/whaleisle/assistant_bot_capabilities.go",
+    "cmd/whaleisle/assistant_bot_create.go",
+    "cmd/whaleisle/assistant_bot_delete.go",
+    "cmd/whaleisle/assistant_bot_duplicate.go",
+    "cmd/whaleisle/assistant_bot_memory.go",
+    "cmd/whaleisle/assistant_bot_memory_review.go",
+    "cmd/whaleisle/assistant_bot_notifications.go",
+    "cmd/whaleisle/assistant_bot_objective.go",
+    "cmd/whaleisle/assistant_bot_objective_config.go",
+    "cmd/whaleisle/assistant_bot_read.go",
+    "cmd/whaleisle/assistant_bot_route.go",
+    "cmd/whaleisle/assistant_bot_sender_policy.go",
+    "cmd/whaleisle/assistant_bot_text_profile.go",
+    "cmd/whaleisle/assistant_bot_visibility.go",
+    "cmd/whaleisle/assistant_contacts.go",
+    "cmd/whaleisle/assistant_conversation.go",
+    "cmd/whaleisle/assistant_group_runtime.go",
+    "cmd/whaleisle/assistant_room_create.go",
+    "cmd/whaleisle/assistant_room_edit.go",
+    "cmd/whaleisle/assistant_room_runtime.go",
+    "cmd/whaleisle/assistant_routine_create.go",
+    "cmd/whaleisle/assistant_routine_trigger.go",
+    "cmd/whaleisle/assistant_routines.go",
+    "cmd/whaleisle/assistant_tasks.go",
+    "cmd/whaleisle/assistant_whale_preferences.go",
+    "cmd/whaleisle/assistant_whale_settings.go",
+    "cmd/whaleisle/bridge_alerts.go",
+    "cmd/whaleisle/main.go",
+    "cmd/whaleisle/pet_look.go",
+    "cmd/whaleisle/project_assets.go",
+    "cmd/whaleisle/project_directory.go",
+    "cmd/whaleisle/project_documents.go",
+    "cmd/whaleisle/project_flow.go",
+    "cmd/whaleisle/project_history.go",
+    "cmd/whaleisle/project_lifecycle.go",
+    "cmd/whaleisle/project_live_refresh.go",
+    "cmd/whaleisle/project_materials.go",
+    "cmd/whaleisle/project_observer_controller.go",
+    "cmd/whaleisle/project_preference.go",
+    "cmd/whaleisle/project_process_live.go",
+    "cmd/whaleisle/project_recovery.go",
+    "cmd/whaleisle/project_requests.go",
+    "cmd/whaleisle/schedule_navigation.go",
+    "cmd/whaleisle/schedule_task_context.go",
+    "cmd/whaleisle/task_protection.go",
+    "internal/desktop/botnotify",
+    "internal/desktop/botnotify/read_marks.go",
+    "internal/desktop/botnotify/tracker.go",
+    "internal/desktop/bridgealerts",
+    "internal/desktop/bridgealerts/monitor.go",
+    "internal/desktop/pluginrpc/dshbot_avatar.go",
+    "internal/desktop/projectbridge",
+    "internal/desktop/projectbridge/bridge.go",
+    "internal/desktop/projectbridge/runner.js",
+    "internal/desktop/projectbridge/source/main/project-environment.js",
+    "internal/desktop/projectpreference",
+    "internal/desktop/projectpreference/controller.go",
+    "internal/desktop/screenglance",
+    "internal/desktop/screenglance/capture_windows.go",
+    "internal/desktop/screenglance/image.go",
+    "internal/desktop/taskcontrol",
+    "internal/desktop/taskcontrol/control.go",
+    "internal/desktop/taskguard",
+    "internal/desktop/taskguard/decision.go",
+    "internal/desktop/whale",
+    "internal/desktop/whale/client.go",
+    "internal/dsh/api/im.go",
+    "internal/harness/overlay.go",
+    "internal/harness/task_protection.go",
+    "internal/jobflow",
+    "internal/jobflow/controller.go",
+    "internal/jobflow/model.go",
+    "internal/projectflow",
+    "internal/projectflow/activity.go",
+    "internal/projectflow/assets.go",
+    "internal/projectflow/client.go",
+    "internal/projectflow/deliveries.go",
+    "internal/projectflow/detail.go",
+    "internal/projectflow/historical_process.go",
+    "internal/projectflow/requests.go",
+    "internal/store/assistant",
+    "internal/store/assistant/store.go",
+    "internal/store/assistant/whale_preferences.go",
+    "internal/store/assistant/whale_settings.go",
+    "internal/store/dshbot",
+    "internal/store/dshbot/avatar_image_controls.go",
+    "internal/store/dshbot/bot_create.go",
+    "internal/store/dshbot/bot_delete.go",
+    "internal/store/dshbot/capability_controls.go",
+    "internal/store/dshbot/memory_controls.go",
+    "internal/store/dshbot/memory_review_controls.go",
+    "internal/store/dshbot/objective_config_controls.go",
+    "internal/store/dshbot/objective_controls.go",
+    "internal/store/dshbot/room_runtime.go",
+    "internal/store/dshbot/roster.go",
+    "internal/store/dshbot/route_controls.go",
+    "internal/store/dshbot/routine_advanced.go",
+    "internal/store/dshbot/routine_controls.go",
+    "internal/store/dshbot/routine_create_calendar.go",
+    "internal/store/dshbot/routine_create_schedule.go",
+    "internal/store/dshbot/routine_trigger.go",
+    "internal/store/dshbot/sender_policy_controls.go",
+    "internal/store/dshbot/task_controls.go",
+    "internal/store/dshbot/text_profile_controls.go",
+    "internal/store/im",
+    "internal/store/im/connections.go",
+    "internal/store/im/cordis.go",
+    "internal/store/im/cordis_inventory.go",
+    "internal/store/im/cordis_resolve.go",
+    "internal/store/im/store.go",
+    "internal/store/imonboard",
+    "internal/store/imonboard/bindings.go",
+    "internal/store/imonboard/reconnect.go",
+    "internal/store/imonboard/store.go",
+    "internal/store/office",
+    "internal/store/office/model.go",
+    "internal/store/office/store.go",
+    "internal/store/schedule",
+    "internal/store/schedule/catalog_controls.go",
+    "internal/store/schedule/edit.go",
+    "internal/store/schedule/history.go",
+    "internal/store/schedule/store.go",
+    "internal/store/session/archive_confirmation.go",
+    "internal/store/session/jobs.go",
+    "internal/store/session/lifecycle_admission.go",
+    "internal/store/session/rename.go",
+    "internal/store/session/store.go",
+    "internal/ui/agents",
+    "internal/ui/agents/child_interactions.go",
+    "internal/ui/agents/child_readonly.go",
+    "internal/ui/agents/manager.go",
+    "internal/ui/agents/navigation.go",
+    "internal/ui/agents/resources.go",
+    "internal/ui/assistant",
+    "internal/ui/assistant/contacts.go",
+    "internal/ui/assistant/list_filters.go",
+    "internal/ui/assistant/room_runtime.go",
+    "internal/ui/assistant/routine_trigger.go",
+    "internal/ui/assistant/routines.go",
+    "internal/ui/assistant/tasks.go",
+    "internal/ui/assistant/whale_settings_section.go",
+    "internal/ui/chat/chat.go",
+    "internal/ui/chat/workflow.go",
+    "internal/ui/frame/frame.go",
+    "internal/ui/frame/jobs.go",
+    "internal/ui/frame/workspace_subagent_conversation.go",
+    "internal/ui/im",
+    "internal/ui/im/channel_bindings.go",
+    "internal/ui/im/im.go",
+    "internal/ui/im/office.go",
+    "internal/ui/im/onboarding.go",
+    "internal/ui/im/settings.go",
+    "internal/ui/projects",
+    "internal/ui/projects/modal.go",
+    "internal/ui/projects/sidebar.go",
+    "internal/ui/projects/task_cards.go",
+    "internal/ui/projects/view.go",
+    "internal/ui/schedule",
+    "internal/ui/schedule/panel.go",
+    "internal/ui/schedule/task_cron.go",
+    "internal/ui/schedule/time_zones.go",
+    "internal/ui/schedule/timing_picker.go",
+    "internal/ui/sidebar/sidebar.go",
+    "internal/workflowrun",
+    "internal/workflowrun/model.go",
+    "runtime/vendor/dsh-im/lib/index.js",
+    "runtime/vendor/dsh-project/lib/index.js",
+    "runtime/vendor/dsh-project/lib/presets.js",
+    "runtime/vendor/dsh-project/lib/readonly.js",
+    "runtime/vendor/dsh-project/lib/requirements.js",
+    "runtime/vendor/dsh-project/lib/service.js",
+    "runtime/vendor/dsh-whale/lib/index.js",
+    "runtime/vendor/dshbot/lib/control-plane.js",
+    "runtime/vendor/dshbot/lib/profile-ops.js"
+  ],
+  "originalAreasReviewed": [
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/plugin-src/host/channels/feishu/production.mjs",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/plugin-src/host/channels/feishu/whale-tasks.mjs",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/conversation-state-store.mjs",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/session-binding.mjs",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/workspace-session.mjs",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/client/client.js",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/index.js",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/task-service.js",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/task-store.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-project/lib",
+    "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/presets.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/requirements.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-task-control/lib/inspection.js",
+    "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js",
+    "tmp/full-audit-20261102/installed-source/src/main/config.js",
+    "tmp/full-audit-20261102/installed-source/src/main/dsh-project-desktop.js",
+    "tmp/full-audit-20261102/installed-source/src/main/project-environment.js",
+    "tmp/full-audit-20261102/installed-source/src/main/whalebridge-notifications.js"
+  ],
+  "features": [
+    {
+      "id": "FLOW-001",
+      "feature": "Project初始发现、首建入口及已有项目初载",
+      "baseline": "installed-0.3.13",
+      "expected": "未创建项目时可从目录动作或Hero新建；已有项目启动后可发现与打开。",
+      "entry": "sidebar → projects.View；projectModel.OnToggle/OnCreate",
+      "status": "confirmed-defect",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1637-1648: registerDirectoryAction提供Add Project",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1738-1739: Hero选项与Project行徽标"
+      ],
+      "mygoEvidence": [
+        "internal/ui/projects/sidebar.go:15-25: 未加载空列表且未展开时整个入口提前返回",
+        "cmd/whaleisle/project_flow.go:61-85: expanded和loaded默认false，Host切换保留expanded但重置列表",
+        "cmd/whaleisle/project_flow.go:121-141: 仅OnToggle首次触发list",
+        "cmd/whaleisle/project_live_refresh.go:60-72: 定时刷新拒绝!loaded"
+      ],
+      "finding": "Project区在首次list前被隐藏，而首次list只依赖该区OnToggle；原版目录动作与Hero首建挂点没有对应native consumer。首次添加和已有Project发现均存在闭环不可达。",
+      "evidenceLevel": "code",
+      "requiredAction": "将初载绑定到Host就绪及功能可用性，接通目录添加和新会话Hero入口。",
+      "acceptanceGap": "未操作桌面；需在全新profile及已有Project profile验证首次加载、添加、取消和重启发现。"
+    },
+    {
+      "id": "FLOW-002",
+      "feature": "普通Team面板与共享任务板",
+      "baseline": "installed-0.3.13",
+      "expected": "Lead可从Team按钮查看agentTeam成员和共享任务板；普通subagent目录是另一能力。",
+      "entry": "conversation header Team → OnOpenAgents → agents",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:1035-1068: Lead agentTeam projection及agentTeamScopes",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:1090-1140: TeamAction及sidebar.right.pane.tab TeamSidebar挂点"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:6960-6968: Team回调固定rightPaneTab=agents",
+        "internal/ui/agents/navigation.go:21-25: 面板是只读历史导航",
+        "internal/ui/agents/navigation.go:37-60: 操作为子代理中断而非共享任务板"
+      ],
+      "finding": "当前Team头部动作只打开普通子代理导航；Project Team overview也不等同于普通agentTeam共享任务板。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留普通子代理导航独立入口，为Team按钮接入agentTeam状态、成员与共享任务板。",
+      "acceptanceGap": "未操作桌面；普通Team共享任务板目前缺native consumer，不能用子代理导航或Project Team overview验收替代。"
+    },
+    {
+      "id": "FLOW-003",
+      "feature": "Project专有归档/恢复命令及副作用后的反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "归档活动Project先确认并停止工作；恢复保留原会话，不自动重放任务。",
+      "entry": "Project区菜单 → runProjectLifecycle → project archive/restore",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1683-1694: 按活动状态确认并注册Project专属session actions"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/project_flow.go:314-321: native归档恢复绑定",
+        "cmd/whaleisle/project_lifecycle.go:28-85: 校验生命周期，活动工作请求确认，再发archive/restore",
+        "cmd/whaleisle/project_lifecycle.go:87-135: mutation后读权威列表，读失败保留成功receipt并报告；清除陈旧Team/请求快照"
+      ],
+      "finding": "Project专有菜单的归档/恢复链路存在，保留已接受mutation并区分刷新失败。该证据不能覆盖普通会话快捷动作是否正确分派到Project owner。",
+      "evidenceLevel": "code",
+      "requiredAction": "对可达入口验收确认取消、停止收敛、归档后恢复与刷新失败。",
+      "acceptanceGap": "受FLOW-001入口缺陷影响；未观察Host运行态、目录释放及重启持久化。"
+    },
+    {
+      "id": "FLOW-004",
+      "feature": "Project目录授权、桥接动作与本地选择取消",
+      "baseline": "installed-0.3.13",
+      "expected": "只有用户明确选择且注册的目录才进入Project；worktree准备/清理与文件解析按授权边界执行。",
+      "entry": "desktop project RPC → projectbridge.Dispatch → official project-environment worker",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/project-environment.js:377-418: 原版环境动作分发，包括worktree、目录检查和快照"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/projectbridge/bridge.go:61-116: 限制动作，选择串行化，取消独立receipt，先解析后native open",
+        "cmd/whaleisle/project_directory.go:16-61: 忽略传入path，native选择；Host身份复核，workspace注册后才保存配置",
+        "internal/desktop/projectbridge/runner.js:23-43: 使用嵌入白名单模块和已注册workspace authority，不运行调用方脚本"
+      ],
+      "finding": "目录选择、prepare/check/snapshot/cleanup-workspace桥接路径存在；只允许本地Host和native选择登记后的目录。环境快照/撤销的新动作另见FLOW-007。",
+      "evidenceLevel": "code",
+      "requiredAction": "继续核实Node helper实际使用的环境实现及Host状态契约，再做隔离目录实测。",
+      "acceptanceGap": "未运行Git、未创建worktree、未读取用户profile；环境操作与回收实际结果未验证。"
+    },
+    {
+      "id": "FLOW-005",
+      "feature": "Project会话快捷重命名、分叉与归档的owner分派",
+      "baseline": "installed-0.3.13",
+      "expected": "Project Lead的标题/归档交给Project owner；不可用普通Session分叉破坏持续Project身份。",
+      "entry": "普通会话菜单/快捷操作 → session.Store lifecycle",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1689-1702: Project注册rename/archive/restore以及navigation owner",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1304-1305: Project归档收敛及presentation.owner=project"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/rename.go:48-73: 无presentation owner判定，直接session/rename",
+        "internal/store/session/rename.go:110-121: 后续setPresentation固定Owner=whaleisle",
+        "internal/store/session/lifecycle_admission.go:77-108: fork直接调用session/fork",
+        "internal/store/session/archive_confirmation.go:119-125: 普通workspace/archiveSession而非Project archive"
+      ],
+      "finding": "通用快捷动作未分派到Project owner。rename不仅改Session名，还把presentation owner覆盖为whaleisle；fork/archive亦未采用Project生命周期入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "依据presentation.owner分派Project动作并禁用不支持的fork，保留普通Session原契约。",
+      "acceptanceGap": "未触发真实mutation；需验证菜单/快捷键/窄窗标题入口一致且Project身份和目录不变。"
+    },
+    {
+      "id": "FLOW-006",
+      "feature": "Project成员只读/归档恢复专属输入区及停止surface",
+      "baseline": "installed-0.3.13",
+      "expected": "Lead停止整个Project及成员工作；成员记录只读并能返回Lead；归档输入区给出恢复入口。",
+      "entry": "Project conversation.composer、input.right、approval.actions",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:945-1006: 成员只读/停止、归档恢复及ProjectStop",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1743-1759: 专属composer/header/approval/input挂点"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/project_flow.go:98-119: Project Model仅观察/管理数据",
+        "cmd/whaleisle/project_observer_controller.go:20-44: 挂载Project observer model，未接composer takeover",
+        "internal/store/session/store.go:1707-1747: 普通停止只对session/cancel",
+        "internal/ui/agents/navigation.go:21-60: 普通子代理历史/中断能力，不是Project成员surface",
+        "runtime/vendor/dsh-project/lib/index.js:74-75; runtime/vendor/dsh-project/lib/service.js:1013: 普通Lead cancel/stop可进入Project级stop"
+      ],
+      "finding": "原版成员只读记录、返回Lead和归档恢复composer缺native对应。普通停止并非仅停Lead：随包Host已通过session/before-cancel和workspace/session-stop触发service.sessionStop，进而stop(project.id)。因此不能把通用cancel入口本身判为漏停全部成员；显式ProjectStop/审批停止的surface与活动状态仍缺。",
+      "evidenceLevel": "code",
+      "requiredAction": "接通成员只读/归档恢复composer与Project显式停止状态反馈；复用已存在Host级cancel hook并验收收敛。",
+      "acceptanceGap": "没有桌面或模型实测；原版现有会话mode chip不可点不是本项缺陷。"
+    },
+    {
+      "id": "FLOW-007",
+      "feature": "需求改动起点、差异与撤销的桌面桥接契约",
+      "baseline": "installed-0.3.13",
+      "expected": "需求交付前后记录真实目录起点/终点，查看该需求差异并只撤销其变化；目录预检使用同一authority。",
+      "entry": "task cards changes/revert → dsh-project service → desktop actions",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/project-environment.js:341-374: changes/revert实现",
+        "tmp/full-audit-20261102/installed-source/src/main/project-environment.js:389-414: check-directory/baseline/changes/revert分发",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1289-1297: 原版需求差异/撤销接口"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-project/lib/service.js:409-447: captureRequestChanges调用baseline/changes，失败记录起点不可用",
+        "runtime/vendor/dsh-project/lib/service.js:486-532: requestChanges/revertRequest调用changes/revert",
+        "internal/desktop/projectbridge/bridge.go:61-66: 动作白名单未包括check-directory/baseline/changes/revert",
+        "internal/desktop/projectbridge/source/main/project-environment.js:238-264: 嵌入旧实现同样无这些动作",
+        "cmd/whaleisle/project_preference.go:79-86: production直达该bridge.Dispatch"
+      ],
+      "finding": "Host与native bridge版本不匹配：UI/Host已有需求撤销路径，但桌面桥接明确拒绝所需动作。新需求无法记录baseline，并会留存changes.error；查看/撤销不能靠已有UI完成。",
+      "evidenceLevel": "code",
+      "requiredAction": "同步原版环境动作与白名单，保持授权和多目录逐项receipt，再验收创建起点、交付diff、冲突、部分撤销与重试。",
+      "acceptanceGap": "未进行任何Git修改；按代码可判定unsupported，真实用户路径未执行。",
+      "runtimeAcceptance": {
+        "date": "2026-11-02",
+        "result": "FAIL",
+        "level": "current production Go dispatch, not packaged EXE UI",
+        "report": "RUNTIME-ACCEPTANCE.md",
+        "receipt": "evidence/runtime-acceptance.json"
+      }
+    },
+    {
+      "id": "FLOW-008",
+      "feature": "Project Lead的计划工具与进度展示",
+      "baseline": "installed-0.3.13",
+      "expected": "Lead可用todo_write在需求阶段维护计划，用户在composer上方看到真实进度。",
+      "entry": "Project coordinator tool guard → plan projection",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/presets.js:17-38: Lead必须使用todo_write记录和更新阶段",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:926: guard允许todo_write"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-project/lib/service.js:903: coordinator允许列表缺todo_write",
+        "runtime/vendor/dsh-project/lib/presets.js:17-38: 旧Lead指令未要求同等todo进度契约"
+      ],
+      "finding": "MyGo随包Project runtime的coordinator guard拒绝todo_write，缺少安装版Lead计划能力。普通聊天计划渲染存在不能补齐被Host拒绝的调用。",
+      "evidenceLevel": "code",
+      "requiredAction": "更新随包Project协调器计划工具契约与可见进度挂载。",
+      "acceptanceGap": "未发模型请求；工具注册和实际计划卡更新需运行态验收。"
+    },
+    {
+      "id": "FLOW-009",
+      "feature": "Project取消需求后的Team任务收敛与后台job状态",
+      "baseline": "installed-0.3.13",
+      "expected": "取消后未完成Team任务退出任务板，晚到结果不能恢复写作；worker后台job计入实际活动。",
+      "entry": "Project queue取消 → Team任务投影及worker活动",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:109-174: cancelled requirement任务移出及恢复限制",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:93: activity.runningJobSessionIds",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/requirements.js:388: work.runningJob字段"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-project/lib/service.js:80-93: activity未输出runningJobSessionIds",
+        "runtime/vendor/dsh-project/lib/service.js:903-918: 已有cancelled requirement执行拒绝，但缺新版取消任务板清理段",
+        "runtime/vendor/dsh-project/lib/requirements.js:388: 旧投影未附加runningJob",
+        "internal/projectflow/client.go:22-28: Activity也未接runningJobSessionIds"
+      ],
+      "finding": "取消的执行禁令仍存在，但随包runtime落后于安装版的任务板清理与后台job投影。不能把取消后遗留Team卡当仍授权，也不能以模型run结束推断后台工作结束。",
+      "evidenceLevel": "code",
+      "requiredAction": "对齐取消任务板收敛及job活动字段的Host/模型/UI契约。",
+      "acceptanceGap": "任务取消、晚到settlement及worker job退出均未真实运行。"
+    },
+    {
+      "id": "FLOW-010",
+      "feature": "Project请求队列、任务卡、历史与归档恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "按current/completed/archived/cancelled分页查看需求、调整队列并保留revision和原授权。",
+      "entry": "Project observer任务卡 → project_requests/queue",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:816-925: 四类请求、队列与归档操作",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1293-1298: requests list/get/queue/archive/restore",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:721-729: 每版 at/goal/constraints/conditions，缺字段提示"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/project_flow.go:242-271: 请求、队列、分页和归档回调",
+        "cmd/whaleisle/project_requests.go:12-97: 捕获owner/generation，归档Project拒绝写",
+        "cmd/whaleisle/project_requests.go:109-155: mutation后权威读，失败保留实际提交并标记刷新失败",
+        "internal/projectflow/requests.go:93-174: 请求身份与RPC契约",
+        "internal/ui/projects/task_cards.go:1-100: native任务卡模型与动作",
+        "internal/projectflow/requests.go:41-45: Versions 仅 Revision/Title/Goal",
+        "internal/ui/projects/task_cards.go:610-615: 版本 UI 仅输出 revision/title/goal"
+      ],
+      "finding": "请求、队列、分页与归档事务存在，操作成功后刷新失败不当作未提交；FLOW-001/007 仍限制首建与撤销；当前要求/队列/归档已接，但历史版本的约束、完成条件、记录时间在 typed decode 与 UI 丢失。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：当前要求/队列/归档已接，但历史版本的约束、完成条件、记录时间在 typed decode 与 UI 丢失。 对照 GFLOW-006 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "无模型任务和桌面验收；卡片富交互细部未逐个点击。 补审新增动作 GFLOW-006 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "生产路径中已实现请求/队列/分页/归档，不会把操作成功后的读失败当未提交。初始可达性受FLOW-001影响，改动撤销受FLOW-007影响。",
+        "previousRequiredAction": "先修入口与桥接，再验收队列取消/恢复/重排冲突和历史分页。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-006"
+        ],
+        "reasons": [
+          "当前要求/队列/归档已接，但历史版本的约束、完成条件、记录时间在 typed decode 与 UI 丢失。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-006"
+      ]
+    },
+    {
+      "id": "FLOW-011",
+      "feature": "Project工作详情、当前/历史成员过程与恢复请求",
+      "baseline": "installed-0.3.13",
+      "expected": "按原parent/child/delegationRef定位当前与历史工作过程，重试汇总/交接先重验原证据且不覆盖已有草稿。",
+      "entry": "Team/任务卡 → detail/process/history/recovery",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1234-1280: 历史成员记录定位",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1299-1303: 工作列表/详情与控制",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:424-430: MISSING_CREDENTIAL 专用 hint 与 openModelSettings 按钮",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1082-1085: terminalRefs 逐项 showProcess 原 workstream/delegation/run 记录",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:331-382: projectTaskIds/currentTasks/memberCandidates/history 筛选",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-agent-team/lib/client.js:138-142: 读取成员 next.model 与运行状态"
+      ],
+      "mygoEvidence": [
+        "internal/projectflow/detail.go:36-106: 原Project/成员地址及较早过程",
+        "internal/projectflow/historical_process.go:67-126: 历史delegation身份解析",
+        "internal/projectflow/historical_process.go:162-327: 历史窗口定位和分页",
+        "cmd/whaleisle/project_flow.go:218-241: 详情/过程/恢复装配",
+        "cmd/whaleisle/project_recovery.go:13-163: 重验summary/handover/revert，原Lead草稿非空拒绝覆盖，走正常submitComposer",
+        "cmd/whaleisle/project_process_live.go:1-100: live过程生命周期",
+        "internal/ui/projects/detail.go:44-52: native 汇总失败只有 error.Message 和重试",
+        "internal/ui/projects/view.go:1-109: Project model 全部回调无模型设置 opener",
+        "internal/ui/projects/deliveries.go:114-116: terminalRefs 只 Text，无点击",
+        "internal/ui/projects/deliveries.go:139-145: historicalSourceButton 仅进入 ReportRef view 后出现",
+        "internal/ui/projects/team.go:59-150: 所有 Members/Team.Tasks/本页 Workstreams 统一输出",
+        "internal/ui/projects/team_search.go:61-73: 仅 query 搜索，没有 current/history scope",
+        "internal/ui/projects/team.go:80-115: native 成员显示 name/state/description/error，无 model",
+        "internal/projectflow/team.go:9-16: TeamMember typed 模型无 model selection"
+      ],
+      "finding": "当前/历史 delegation、成员观察和原 Lead 恢复链存在，恢复必须显式触发且不覆盖已有草稿；具体过程与恢复请求不能覆盖缺凭据设置捷径、terminal-only 历史过程、Current/History Team 范围和成员模型显示。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：具体过程与恢复请求不能覆盖缺凭据设置捷径、terminal-only 历史过程、Current/History Team 范围和成员模型显示。 对照 GFLOW-016、GFLOW-026、GFLOW-027、GFLOW-028 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "没有运行真实成员；历史assignment终止边界和工具渲染未实测。 补审新增动作 GFLOW-016、GFLOW-026、GFLOW-027、GFLOW-028 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "模型和native观察器区分当前工作、历史delegation和原Lead。恢复是用户明确按钮后发送到原Lead，不自动重放未知任务。",
+        "previousRequiredAction": "验收过程断线/重连/切换与历史定位，以及失败恢复的发送回执。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-016",
+          "GFLOW-026",
+          "GFLOW-027",
+          "GFLOW-028"
+        ],
+        "reasons": [
+          "具体过程与恢复请求不能覆盖缺凭据设置捷径、terminal-only 历史过程、Current/History Team 范围和成员模型显示。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-016",
+        "GFLOW-026",
+        "GFLOW-027",
+        "GFLOW-028"
+      ]
+    },
+    {
+      "id": "FLOW-012",
+      "feature": "Project材料编辑、文档清单与历史报告/交付/活动",
+      "baseline": "installed-0.3.13",
+      "expected": "编辑charter/notes/preferences并保存；只读查项目文档、报告、交付和需求活动，分页保持精确引用。",
+      "entry": "Project菜单/observer → documents/materials/history/deliveries/activity",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1097-1228: 材料保存及脏编辑切换",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1306-1309: store list/results/read/write接口",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1171-1173: 四类示例 line/toggleRule",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1063-1076: DeliveryEntry 文件按钮→open(workstream/delegation/path)",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1082-1085: terminalRefs 逐项 showProcess 原 workstream/delegation/run 记录"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/project_flow.go:322-330: 全部浏览器绑定",
+        "cmd/whaleisle/project_materials.go:46-115: 固定材料路径、归档只读、reload拒绝脏草稿、错误反馈",
+        "cmd/whaleisle/project_documents.go:44-155: Host/navigation及清单entry绑定的文档读取",
+        "internal/projectflow/deliveries.go:60-144: delivery/report身份校验",
+        "internal/projectflow/activity.go:78-180: 活动及报告引用",
+        "internal/ui/projects/modal.go:1-80: native modal生命周期",
+        "internal/ui/projects/materials.go:42-65: charter 文案、TextArea 和 bytes，无示例规则 consumer",
+        "cmd/whaleisle/project_materials.go:46-120: 只收完整 text 的保存链",
+        "internal/ui/projects/deliveries.go:115-119: d.Artifacts 只画可选 Text",
+        "internal/ui/projects/deliveries.go:165-168: 原 report Artifacts 同样仅 Text",
+        "internal/ui/projects/deliveries.go:114-116: terminalRefs 只 Text，无点击",
+        "internal/ui/projects/deliveries.go:139-145: historicalSourceButton 仅进入 ReportRef view 后出现"
+      ],
+      "finding": "材料编辑与只读浏览仍分开建模并保留 Host/Project/文档引用，FLOW-013 的跨 root 缺口另列；材料文本编辑/通用报告可用链不能覆盖规则示例动作、历史交付文件点击及无报告执行定位。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：材料文本编辑/通用报告可用链不能覆盖规则示例动作、历史交付文件点击及无报告执行定位。 对照 GFLOW-019、GFLOW-025、GFLOW-026 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未操作桌面；各modal的窄窗可达性与历史页面完整呈现未证。 补审新增动作 GFLOW-019、GFLOW-025、GFLOW-026 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "材料和只读浏览能力有分开的状态机，Host/项目/请求与文档引用不是任意路径。报告文件内嵌的跨root缺口另见FLOW-013。",
+        "previousRequiredAction": "在可达入口验收脏编辑的保留/放弃/切换、保存失败、归档只读、空清单、分页和断线。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-019",
+          "GFLOW-025",
+          "GFLOW-026"
+        ],
+        "reasons": [
+          "材料文本编辑/通用报告可用链不能覆盖规则示例动作、历史交付文件点击及无报告执行定位。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-019",
+        "GFLOW-025",
+        "GFLOW-026"
+      ]
+    },
+    {
+      "id": "FLOW-013",
+      "feature": "Project报告/素材文件跨工作目录内嵌打开",
+      "baseline": "installed-0.3.13",
+      "expected": "Host授权文件后将canonicalPath和root一起交给workspace开文件，可查看成员worktree成果。",
+      "entry": "Project报告/交付artifact → ResolveArtifact → presented-file",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/client/client.js:1595-1603: canonicalPath与root一起传ctx.workspaces.openPath，并绑定Lead"
+      ],
+      "mygoEvidence": [
+        "internal/projectflow/assets.go:15-17: ResolvedArtifact包含CanonicalPath及Root",
+        "cmd/whaleisle/project_assets.go:153-165: callback仅传CanonicalPath，丢Root",
+        "cmd/whaleisle/project_history.go:224-236: report文件也仅传CanonicalPath",
+        "internal/ui/projects/view.go:51-65: OnReportFile/OnArtifact/OnResolvedFile只承载string",
+        "internal/ui/frame/frame.go:614,1458-1459: Project已解析文件最终接通用OnOpenDeliverable",
+        "cmd/whaleisle/main.go:7342-7356: 通用delivered入口仍采用会话文件navigation scope"
+      ],
+      "finding": "丢弃root后通用files入口只能采用当前会话工作目录，无法表达已授权的Project/worker跨root内嵌文档。不能据此改成任意OS opener绕过dirty guard。",
+      "evidenceLevel": "code",
+      "requiredAction": "保留resolved root/Lead/文件作用域的类型化开文件契约，接入现有dirty-editor guard。",
+      "acceptanceGap": "需用Project根及独立worktree两类报告文件验收；未打开真实成果。"
+    },
+    {
+      "id": "FLOW-014",
+      "feature": "Project功能开关、保护重启、持久化与回滚",
+      "baseline": "installed-0.3.13",
+      "expected": "开启后overlay加载；关闭先离开Lead，保护运行任务；重启失败恢复原配置。",
+      "entry": "设置Features Project → projectpreference.Controller",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/dsh-project-desktop.js:1-120: 桌面overlay安装与启停策略"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/project_preference.go:26-88: ProjectEnabled/env、disabled插件和skipUserPlugins共同决定挂载",
+        "internal/desktop/projectpreference/controller.go:53-119: busy、leaveLead、保护重启、失败回滚",
+        "cmd/whaleisle/project_observer_controller.go:20-27: 同一gate控制native入口"
+      ],
+      "finding": "功能开关有production读取和保护重启路径；不以模块能加载认定Project实际可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收开关保存、取消保护确认、重启失败回滚及数据重启恢复。",
+      "acceptanceGap": "未重启用户服务或读取profile；默认开关实际值不在本轮确认。"
+    },
+    {
+      "id": "FLOW-015",
+      "feature": "Workflow运行卡、阶段成员、终止与成员记录",
+      "baseline": "installed-0.3.13",
+      "expected": "durable事件折叠成一张Workflow卡，分组成员及异常终止正确，one-shot成员按parent目录授权打开。",
+      "entry": "chat render → workflowrun.Fold/WorkflowRunView",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/client.js:530-627: durable事件投影与终止边界",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workflow-run/lib/client.js:648-662: chat renderer装配"
+      ],
+      "mygoEvidence": [
+        "internal/workflowrun/model.go:84-99: 事件去重排序",
+        "internal/workflowrun/model.go:209-245: 缺run-end按turn/step边界判中断，one-shot地址需parent catalog",
+        "internal/ui/chat/workflow.go:39-90: 分组卡与状态驱动展开",
+        "internal/ui/chat/chat.go:258-259: 真实chat consumer"
+      ],
+      "finding": "有完整折叠与native卡片consumer，区分one-shot与continuable，不会裸child ID打开。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收实时阶段变化、完成收起/失败展开、分页和成员过程断线。",
+      "acceptanceGap": "未运行Workflow模型任务；事件折叠代码不等于真实模型/界面已通过。"
+    },
+    {
+      "id": "FLOW-016",
+      "feature": "后台Jobs列表、流式输出、停止与清理已结束显示",
+      "baseline": "installed-0.3.13",
+      "expected": "按选定Session观察job/list和job/observe，二次确认停止；清理仅影响已结束显示，不杀任务。",
+      "entry": "session header jobs action → NativeJobs/controller",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/client.js:337-466: jobs选择/observe/确认kill/clearSettled",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-jobs/lib/client.js:642-666: consumer与jobs服务装配"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/jobs.go:19-56: 精确Host/mux/Session绑定，卸载流释放",
+        "internal/ui/frame/jobs.go:21-38: native consumer Mount",
+        "internal/jobflow/controller.go:185-254: list stream及有限重连",
+        "internal/jobflow/controller.go:399-451: ClearSettled是本地显示隐藏",
+        "internal/jobflow/controller.go:490-534: owner校验、kill receipt与失败反馈",
+        "internal/jobflow/model.go:54-100: 输出offset帧校验"
+      ],
+      "finding": "Jobs生产UI和状态机存在，停止不是通过清理显示实现。恢复仅针对已接受stream且transport判定retryable。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收真实job输出/截断/重连/二次停止/已结束清理与切Session。",
+      "acceptanceGap": "未运行命令job；OS进程退出和用户可见输出未观察。"
+    },
+    {
+      "id": "FLOW-017",
+      "feature": "定时任务跨会话目录、筛选与关联会话入口",
+      "baseline": "installed-0.3.13",
+      "expected": "查看all-session任务catalog，活动/结束及搜索筛选；从任务返回原会话，但不暗中恢复归档会话。",
+      "entry": "sidebar schedule → catalog panel / header task context",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:7419-7477: 全catalog及任务详情/Session链接",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:7532-7560: Session header和row任务入口",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:3634-3651: 原 sessionLinkState 同时检查 workspace error/pending、archive 与 Host-list membership"
+      ],
+      "mygoEvidence": [
+        "internal/store/schedule/store.go:156-241: 优先catalog，已有完整catalog失败保留，不拿局部list覆盖",
+        "internal/store/schedule/catalog_controls.go:23-87: events owner与筛选",
+        "cmd/whaleisle/schedule_navigation.go:11-54: 归档与不可用Session拒绝跳转",
+        "cmd/whaleisle/schedule_task_context.go:9-80: 已知receipt/catalog绑定打开task tab",
+        "cmd/whaleisle/main.go:5358-5366: 新建任务走普通新会话并提示由agent创建，不伪造本地create RPC",
+        "internal/ui/schedule/presentation.go:298-307: 全局 rule 才有 exact Entry open",
+        "cmd/whaleisle/schedule_navigation.go:11-55: 目录/Workspace scope/不自动恢复归档的生产导航"
+      ],
+      "finding": "全局目录、筛选和会话 receipt 入口已区分，不以当前会话活动列表充作全量；目录/提醒/收据已接；关联会话导航遗漏原版 workspace pending/error gate，旧 archive roster 不应视为当前权威。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：目录/提醒/收据已接；关联会话导航遗漏原版 workspace pending/error gate，旧 archive roster 不应视为当前权威。 对照 GFLOW-099 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未触发真实schedule；窄窗catalog/detail与header入口未操作。 补审新增动作 GFLOW-099 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "全局目录与会话receipt入口已区分，不以选中会话的活动list伪装全量。",
+        "previousRequiredAction": "验收空catalog、catalog失败后的局部提示、事件更新及归档关联会话不可跳转。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-099"
+        ],
+        "reasons": [
+          "目录/提醒/收据已接；关联会话导航遗漏原版 workspace pending/error gate，旧 archive roster 不应视为当前权威。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-099"
+      ]
+    },
+    {
+      "id": "FLOW-018",
+      "feature": "定时规则编辑、CAS冲突、删除及投递历史",
+      "baseline": "installed-0.3.13",
+      "expected": "编辑任务名称/指令与绝对/日历/间隔/cron规则，保留时区和下一次时间；冲突不覆盖；查看留存记录并确认删除。",
+      "entry": "schedule detail → update/delete/history",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:6313-6319: 原Session schedule服务",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:7460-7475: update/history装配",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-schedule/lib/client.js:7246-7258: 历史分页错误和留存规则"
+      ],
+      "mygoEvidence": [
+        "internal/ui/schedule/panel.go:109-159: 四类规则change生成",
+        "internal/store/schedule/edit.go:70-150: expected规则CAS、receipt与catalog元数据保留、冲突刷新",
+        "internal/store/schedule/edit.go:157-221: 确认Deleted/已不存在并发布删除notice",
+        "internal/store/schedule/history.go:33-96: 历史page/cursor/Host身份",
+        "internal/ui/schedule/timing_picker.go:1-80: 时刻/时区控件",
+        "internal/ui/schedule/time_zones.go:1-80: zone目录",
+        "internal/ui/schedule/task_cron.go:1-80: cron规则解析"
+      ],
+      "finding": "编辑/删除/投递历史均有native→Host链路，连接epoch防陈旧写回；完整目录状态和规则元数据分别保留。无需把未运行当缺陷。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收DST/系统时区、无效cron、CAS冲突、任务结束/删除中事件、历史游标更新与留存提示。",
+      "acceptanceGap": "未运行时间触发、未发送模型请求；文案和下一次真实触发时间未实测。"
+    },
+    {
+      "id": "FLOW-019",
+      "feature": "Project委派权限、目录互斥、worktree及持久恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "协调器只组织/委派，readonly不写仓库，docs限定声明路径，development按目录互斥或独立worktree；持续同一成员与run身份，停止后不自动重放。",
+      "entry": "dsh-project tools → service/domain/readonly → native environment",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:541-762: scope/continuation/目录准备与启动",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:962-1040: stop/drain/job变化",
+        "C:/软件/Whale Isle/resources/vendor/dsh-project/lib/service.js:1219-1283: 持久恢复/孤立活动收敛"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-project/lib/service.js:541-646: scope、writePaths、延续与目录互斥",
+        "runtime/vendor/dsh-project/lib/service.js:659-813: 原生subagent run/settlement身份与目录持有",
+        "runtime/vendor/dsh-project/lib/readonly.js:7-39: 只读及声明文档工具边界",
+        "runtime/vendor/dsh-project/lib/service.js:962-1035: stop/drain和jobs仍活动时的目录持有",
+        "runtime/vendor/dsh-project/lib/service.js:1196-1259: recover持久化与旧活动停止",
+        "internal/desktop/projectbridge/source/main/project-environment.js:118-158: existing/worktree及durable binding",
+        "internal/desktop/projectbridge/source/main/project-environment.js:187-195: 只清理Project拥有且干净的worktree"
+      ],
+      "finding": "核心权限/目录/continuation/settlement机制保留，但本轮没有真正创建或停止成员。FLOW-007和FLOW-009已单列与当前安装版的确定差异，不能将此项写为完全等价。",
+      "evidenceLevel": "code",
+      "requiredAction": "在隔离仓库验收readonly/docs越界拒绝、dirty原目录保留、并发互斥、worktree归属、停止drain、崩溃/重启恢复。",
+      "acceptanceGap": "未执行Git与真实模型成员；恢复时实际磁盘及Host状态未观察。"
+    },
+    {
+      "id": "FLOW-020",
+      "feature": "Whale常驻会话、助理入口与消息交接",
+      "baseline": "installed-0.3.13",
+      "expected": "从Whale入口打开唯一常驻会话，正常composer负责发送/流/工具/审批；已有草稿不得被快捷请求覆盖。",
+      "entry": "sidebar assistant/Whale → assistant/ensure → canonical session",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:262-285: ensure并打开原Session",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:738-742: uiWorkspace.openSession",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:847-854: pet jump也ensure同一会话",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:265-285: WhaleRedirect mount 即 ensure/open/handoff",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:310-344: owner 判定及 settingsNavigation.open(pet)"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_conversation.go:15-31: 页/Host/模式generation身份",
+        "cmd/whaleisle/assistant_conversation.go:33-124: ensure、空sid错误、草稿冲突拒绝、转普通submitComposer",
+        "cmd/whaleisle/main.go:6055-6065: Whale ensure/catalog/chat实际回调",
+        "internal/store/assistant/store.go:128-163: 模式/状态/当前sid管理",
+        "cmd/whaleisle/main_navigation.go:118-119: assistant main panel",
+        "internal/ui/assistant/panel.go:86-126: native assistant 页面先画模式/设置/compose/状态",
+        "internal/ui/frame/conversation_header.go:66-101: native stock action row，无 owner-specific Whale gear",
+        "cmd/whaleisle/plugin_session_frame.go:15-29: 需显式开启 session plugin owner"
+      ],
+      "finding": "canonical 常驻会话和普通 composer 的发送/失败交接链存在，不自动重试不确定消息；常驻会话打开与设置确有生产路径，但侧栏直达和默认 Whale header 设置快捷入口未等效接入。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：常驻会话打开与设置确有生产路径，但侧栏直达和默认 Whale header 设置快捷入口未等效接入。 对照 GFLOW-052、GFLOW-053 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未发模型请求，常驻Session持久化和真实输出未观察。 补审新增动作 GFLOW-052、GFLOW-053 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "助理作为canonical会话入口而非另造发送通道，失败/不确定发送留在普通composer且不自动重试。",
+        "previousRequiredAction": "验收首次ensure、已有会话恢复、模式切换、Host替换、草稿保留及发送失败交接。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-052",
+          "GFLOW-053"
+        ],
+        "reasons": [
+          "常驻会话打开与设置确有生产路径，但侧栏直达和默认 Whale header 设置快捷入口未等效接入。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-052",
+        "GFLOW-053"
+      ]
+    },
+    {
+      "id": "FLOW-021",
+      "feature": "Whale身份、称呼、人格与记忆修改/清空",
+      "baseline": "installed-0.3.13",
+      "expected": "身份字段提交、人格编辑、记忆替换或确认清空，通过dsh-whale持久化；失败保留可编辑草稿且不冒充成功。",
+      "entry": "settings.pet.item / assistant Whale settings",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:374-403: dirty身份字段跨reload保留",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:466-493: 单字段blur/Enter提交",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:517-540: 记忆替换与清空",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:622-700: 人格/记忆Modal"
+      ],
+      "mygoEvidence": [
+        "internal/ui/assistant/whale_settings_section.go:58-122: settings.pet.item native入口及身份提交",
+        "cmd/whaleisle/assistant_whale_settings.go:15-34: Host身份及页面gate",
+        "cmd/whaleisle/assistant_whale_settings.go:55-127: preflight/一次mutation/后读receipt，accepted与读失败分开",
+        "internal/store/assistant/whale_settings.go:135-185: 脏字段与读取合并",
+        "internal/store/assistant/whale_settings.go:202-328: 精确命令、失败及已接受状态",
+        "internal/desktop/whale/client.go:141-216: catalog/update/memory RPC"
+      ],
+      "finding": "native设置覆盖身份、称呼、persona和记忆独立动作，写前校验与Host owner ticket防跨主机回写。当前安装版Whale没有头像编辑入口；头像consumer属于legacy dshbot，见FLOW-035。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收Enter/blur同样提交、Unicode限制、记忆清空取消/确认、写成功后读失败以及重启读回。",
+      "acceptanceGap": "未触发任何设置mutation；实际Host持久化未验收。"
+    },
+    {
+      "id": "FLOW-022",
+      "feature": "Whale模型/推理强度、默认IM与技能启停",
+      "baseline": "installed-0.3.13",
+      "expected": "从Host模型目录选择provider/model/effort，IM默认共用常驻会话，技能按目录逐项启停并读回。",
+      "entry": "Whale settings preferences → settings/update / skills/toggle",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:405-439: model catalog与effort选项",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:495-515: 原子model字段与skill toggle",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:630-645: memory/skills设置入口",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:705-717: 技能清单及切换"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_whale_preferences.go:14-83: Host identity、一次写后读和model catalog错误",
+        "cmd/whaleisle/assistant_whale_preferences.go:90-108: model/im/skill真实回调",
+        "internal/ui/assistant/whale_settings_section.go:134-197: 模型/effort/default IM控件",
+        "internal/store/assistant/whale_preferences.go:36-116: Host ticket与偏好读回"
+      ],
+      "finding": "模型、默认IM和技能都有生产consumer；技能启用不代表模型已真正使用该技能。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收模型目录失败、不可用旧模型、默认重置、skill切换失败读回及IM路由实际共用记录。",
+      "acceptanceGap": "未发送真实IM或模型请求；IM共用会话链路见FLOW-026的验收边界。"
+    },
+    {
+      "id": "FLOW-023",
+      "feature": "Whale后台只读资料任务、停止恢复、授权与投递状态",
+      "baseline": "current-original-0.3.13",
+      "expected": "当前原项目dirty扩展可开始只读资料任务，区分执行和session/IM投递effects，重启后等待用户继续，桌面授予/撤销Feishu actor权限。",
+      "entry": "current-original WhaleTaskSettings → tasks/* RPC",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/client/client.js:394-433: task list/start/stop/resume/owner/revoke-owner UI",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/index.js:622-657: tasks路由",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/task-service.js:76-85: 重启running→interrupted，sending effect→unknown，不自动重发",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-whale/lib/task-store.js:21-32: execution/result/effects与owner持久聚合",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/plugin-src/host/channels/feishu/production.mjs:180-185: 实际Feishu runtime附加task binding",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/plugin-src/host/channels/feishu/whale-tasks.mjs:77-125: actor/route授权，仅当前或本人引用附件，接纳不冒充完成",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/plugin-src/host/channels/feishu/whale-tasks.mjs:129-155: status/stop/resume绑定原actor/route/incarnation"
+      ],
+      "mygoEvidence": [
+        "internal/ui/assistant/whale_settings_section.go:58-197: Whale设置consumer仅身份/偏好",
+        "internal/desktop/whale/client.go:141-239: 当前Whale控制面无tasks/*",
+        "runtime/vendor/dsh-whale/lib/index.js:1-18: 随包Whale未引入task-service"
+      ],
+      "finding": "这是current-original未安装dirty新增能力，不属于installed-0.3.13已发布差距。MyGo当前Whale无对应后台资料任务，不可用legacy dshbot routine替代。",
+      "evidenceLevel": "code",
+      "requiredAction": "若目标包含原项目dirty快照，将任务聚合、权限、停止恢复和effects UI/Host一起迁移；只要求已安装版时不作为发布阻断。",
+      "acceptanceGap": "current-original任务分支本身未在本轮运行；Feishu附件入站及投递授权未实测。"
+    },
+    {
+      "id": "FLOW-024",
+      "feature": "IM九平台接入、QR/凭据、风控验证与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "配置微信、飞书、钉钉、企微、QQ、Slack、Telegram、Discord、WhatsApp；按平台QR/凭据和验证流程，取消/切Host不继续旧attempt。",
+      "entry": "设置Channels或standalone IM → native Onboarding",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:11769-11790: settings.remote.tab Channels入口",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1230-1239: credentials/provision/reconnect/workspace端点",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:8465-8474: 风控verify与attempt流程",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1344-1349: 钉钉 provisioning.error"
+      ],
+      "mygoEvidence": [
+        "internal/ui/im/settings.go:11-57: Channels及Office consumer",
+        "internal/store/imonboard/store.go:21-30: 九个平台清单",
+        "internal/store/imonboard/store.go:128-223: Bind/Show/Hide撤销旧attempt并更新scope",
+        "internal/store/imonboard/store.go:254-322: 按平台构造凭据和verify/cancel动作",
+        "internal/store/imonboard/store.go:327-475: scope校验，一次动作后读status，失效attempt取消",
+        "internal/ui/im/onboarding.go:22-110: native状态、review与Slack manifest入口",
+        "cmd/whaleisle/main.go:5390-5428: 实际IM/embedded mount",
+        "internal/store/imonboard/store.go:87-104: Provision 没有 Error 字段",
+        "internal/store/imonboard/store.go:613-636: terminal 只显示 SetupStopped+status，清除 QR/URL"
+      ],
+      "finding": "九平台成功接入使用 Host 端点，平台授权仍由原平台完成，没有真实平台连通性结论；各平台成功接入入口不足以覆盖 provisioning failed/error code/message 的 native 消费缺失。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：各平台成功接入入口不足以覆盖 provisioning failed/error code/message 的 native 消费缺失。 对照 GFLOW-070 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮没有真实平台凭据、QR扫码或发送；九个平台连通性都未证明。 补审新增动作 GFLOW-070 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "平台接入使用现有Host端点，不靠本地假连接状态；凭据不在该表单落盘，平台授权由原平台完成。代码链只能记wired-unverified。",
+        "previousRequiredAction": "在授权测试账号完成所需平台扫码/管理员批准/验证、取消/切页/切Host以及重启恢复。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-070"
+        ],
+        "reasons": [
+          "各平台成功接入入口不足以覆盖 provisioning failed/error code/message 的 native 消费缺失。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-070"
+      ]
+    },
+    {
+      "id": "FLOW-025",
+      "feature": "IM机器人重连/测试、删除与访问/群响应权限",
+      "baseline": "installed-0.3.13",
+      "expected": "重连和重连+固定测试消息分开；删除显式确认；按平台修改allowlist、groupResponseMode、飞书callback/group permission。",
+      "entry": "Onboarding Bot卡 → Review/Confirm → bot.*",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:3730-3740: Feishu修复/群权限/response-mode",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:7416-7422: Telegram access policy",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1237-1238: reconnect/delete",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:4896-4935: startProvisioning(operation,bot) 保留 target"
+      ],
+      "mygoEvidence": [
+        "internal/store/imonboard/store.go:254-322: reconnect sendTest=false/true、delete confirm、群/allowlist payload",
+        "internal/store/imonboard/reconnect.go:14-50: 固定testMessage结果解析，不把重连当消息送达",
+        "internal/ui/im/onboarding.go:98-110: 删除与测试的review说明",
+        "internal/store/imonboard/store.go:380-470: 动作结果和刷新失败分开，status scope保护",
+        "internal/ui/im/onboarding.go:122-145: 生成/更换固定 Review(provision.begin)",
+        "internal/store/imonboard/store.go:87-96: Provision 有 Operation/BotID 但不驱动 refresh"
+      ],
+      "finding": "重连和发送测试消息仍分开，删除有确认，初始定向权限流程有入口；初始定向权限 begin 存在，但换码/重试实际改发 provision.begin，未保留 operation/botId；父级混合项降 partial。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：初始定向权限 begin 存在，但换码/重试实际改发 provision.begin，未保留 operation/botId；父级混合项降 partial。 对照 GFLOW-073 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "未对真实机器人或权限做任何动作；实际消息送达未证。 补审新增动作 GFLOW-073 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "重连不会默认发消息；测试发送有独立receipt。平台健康/最后消息错误在原Bot状态里，动作已提交但刷新失败会说明未知而不自动重放。",
+        "previousRequiredAction": "验收测试target不存在/已发送/不确定，权限冲突、删除取消和后续status恢复。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-073"
+        ],
+        "reasons": [
+          "初始定向权限 begin 存在，但换码/重试实际改发 provision.begin，未保留 operation/botId；父级混合项降 partial。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-073"
+      ]
+    },
+    {
+      "id": "FLOW-026",
+      "feature": "IM工作目录/Agent Preset绑定与Whale共享会话",
+      "baseline": "installed-0.3.13",
+      "expected": "工作目录按 Host 目录选择及绝对路径校验；变更时明确清除此 Bot 旧聊天映射但保留旧 Session 内容。Agent Preset 影响新会话，旧聊天需 /new；默认 Whale 与桌面共用原常驻记录。",
+      "entry": "Channels Bot卡或standalone connections → bot.workspace.set/bot.preset.set",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1098-1106: preset端点/目录契约",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1237-1239: workspace/preset更改",
+        "C:/软件/Whale Isle/resources/vendor/dsh-whale/client/client.js:41-42: IM默认共用常驻会话语义",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1622-1705: 目录列举/原生 picker 回退",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1809-1825: 确认说明清除此 Bot 旧 session mapping"
+      ],
+      "mygoEvidence": [
+        "internal/ui/im/channel_bindings.go:15-54: 每Bot scope、absolute workspace、preset不可用反馈及/new提示",
+        "internal/store/imonboard/bindings.go:19-79: 绑定校验与捕获scope",
+        "internal/store/im/connections.go:116-199: target catalog校验，Host epoch，mutation后权威status",
+        "cmd/whaleisle/assistant_whale_preferences.go:47-50: Whale default IM配置",
+        "internal/ui/im/channel_bindings.go:15-30: 只有 TextInput 与保存",
+        "internal/store/imonboard/bindings.go:36-66: 只有绝对路径 SaveWorkspace/校验",
+        "internal/ui/im/channel_bindings.go:18-30: workspace 保存控件",
+        "internal/ui/im/channel_bindings.go:54-54: 复用 preset 新 Session /new 文案"
+      ],
+      "finding": "BotID、工作目录、Agent Preset 和常驻会话身份仍分别保留；保存绝对路径/Agent Preset 不等于原 Workspace 目录浏览、确认取消与工作目录映射变更反馈。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：保存绝对路径/Agent Preset 不等于原 Workspace 目录浏览、确认取消与工作目录映射变更反馈。 对照 GFLOW-077、GFLOW-078 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "current-original另有未发布session-binding/路由改动；本项按已安装原版，未把dirty扩展当已发布。 补审新增动作 GFLOW-077、GFLOW-078 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "BotID、workspace路径、agentPreset及常驻Session各自保留，不把目录与会话身份混用。原Host绑定及共享会话实际读写未运行。",
+        "previousRequiredAction": "用明确测试Bot验收新旧会话切换、/new、default/指定preset和桌面共享记录。",
+        "sources": [
+          "supplement-orchestration-actions.json"
+        ],
+        "actionIds": [
+          "GFLOW-077",
+          "GFLOW-078"
+        ],
+        "reasons": [
+          "保存绝对路径/Agent Preset 不等于原 Workspace 目录浏览、确认取消与工作目录映射变更反馈。"
+        ]
+      },
+      "supplementActionIds": [
+        "GFLOW-077",
+        "GFLOW-078"
+      ],
+      "claimReassessment": [
+        {
+          "date": "2026-11-02",
+          "source": "supplement-orchestration-actions.json",
+          "field": "expected",
+          "previous": "工作目录绝对路径与Host preset目录绑定；仅影响新会话，原聊天需/new；默认Whale与桌面共用原常驻记录。",
+          "reason": "工作目录变更清旧 Bot 聊天映射与 preset 只影响新会话是不同合同；GFLOW-077/078 拆开。"
+        }
+      ]
+    },
+    {
+      "id": "FLOW-027",
+      "feature": "IM刷新与Host切换/断开后的状态归属",
+      "baseline": "installed-0.3.13",
+      "expected": "断线或更换Host后旧refresh不可覆盖新Host机器人、历史、诊断或写本地缓存。",
+      "entry": "IM Refresh → captured client/plugin → finishRefresh",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1387-1391: 原平台snapshot必须是当前连接返回的有效bots目录"
+      ],
+      "mygoEvidence": [
+        "internal/store/im/store.go:172-224: Attach/Detach变更connectionEpoch",
+        "internal/store/im/store.go:404-422: Refresh捕获client/plugin但不捕获generation/epoch",
+        "internal/store/im/store.go:434-527: 异步probe后无owner身份检查直达finishRefresh",
+        "internal/store/im/store.go:546-579: finishRefresh直接写rows/history及磁盘缓存",
+        "internal/store/im/cordis_inventory.go:13-53: 追加诊断同样缺Host epoch检查"
+      ],
+      "finding": "旧Host慢请求在Detach/Attach之后仍可回写IM rows/history/diagnostic并落盘；Onboarding和Office的scope保护不能覆盖总览store。",
+      "evidenceLevel": "code",
+      "requiredAction": "为overview refresh及其inventory读回捕获并验证client/plugin+epoch/generation，Detach失效旧结果；保留用户草稿但不混Host事实。",
+      "acceptanceGap": "未连接用户Host；代码因缺任何owner检查可判缺陷，实际慢响应复现未执行。"
+    },
+    {
+      "id": "FLOW-028",
+      "feature": "IM权威空列表清除已删除机器人",
+      "baseline": "installed-0.3.13",
+      "expected": "Host成功返回bots=[]后清除旧机器人列表/选择，不把旧连接当仍存在。",
+      "entry": "Refresh → probe list/Cordis connection.status → finishRefresh",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1230-1238: connection.status是机器人目录权威来源"
+      ],
+      "mygoEvidence": [
+        "internal/store/im/store.go:456-460: RPC成功空rows时replaceRows=false",
+        "internal/store/im/store.go:481-485: Cordis成功空bots同样replaceRows=false",
+        "internal/store/im/store.go:559-571: 仅非空rows才替换，空时可能保留旧Bot或生成defaultChannels",
+        "internal/store/im/connections.go:186-193: 相邻mutation后status已支持空列表清除，说明总览分歧"
+      ],
+      "finding": "删除最后一个Bot或切到无Bot的Host，overview刷新不会清空旧列表；成功空目录被误当未返回目录。",
+      "evidenceLevel": "code",
+      "requiredAction": "分开权威目录成功/失败与目录长度；成功空集清旧选择，离线本地缓存须明确标记。",
+      "acceptanceGap": "未执行真实删除；空response分支源码已闭合。"
+    },
+    {
+      "id": "FLOW-029",
+      "feature": "AI Office配置、重连、测试、删除及健康状态",
+      "baseline": "installed-0.3.13",
+      "expected": "配置出站connector、device token、workspace/preset映射、并发与heartbeat；明确保存与连接/测试/真实任务的区别。",
+      "entry": "Settings Channels AI Office / IM AI Office → office connector.*",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:6823-6838: status/configure/reconnect/test/remove及hook paths",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:202: 原版Office connector服务（bundle同一行）"
+      ],
+      "mygoEvidence": [
+        "internal/ui/im/office.go:12-90: nativeconsumer、离线/旧快照反馈和公开健康字段",
+        "internal/store/office/model.go:134-174: base/id/token、并发1-4、心跳10-300及映射校验",
+        "internal/store/office/store.go:199-258: scope/op/client状态owner",
+        "internal/store/office/store.go:261-376: fresh preflight、至多一次mutation、receipt验证、清空token草稿及不确定反馈"
+      ],
+      "finding": "Office控制面完整接Host且不把connection test当真实Office作业验收。Host无CAS，preflight只能缩小竞争窗口，不能发现纯secret轮换，代码已明确这一契约。",
+      "evidenceLevel": "code",
+      "requiredAction": "在测试Office服务验收配置保存、secret轮换、出站流/heartbeat、失联重连、测试与任务分别成功、移除后重启。",
+      "acceptanceGap": "未连接或配置Office服务；不宣称真实Office作业完成。"
+    },
+    {
+      "id": "FLOW-030",
+      "feature": "IM本地草稿/历史与无send RPC时的离线语义",
+      "baseline": "existing-MyGo-contract",
+      "expected": "本地草稿和发送历史可恢复；没有注册im/send时只保存本地，不声称送到外部平台。",
+      "entry": "standalone IM composer → SetDraft/Persist/SendDraft",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1230-1239: 原平台通过connection/bot控制面管理，不提供任意聊天发送",
+        "internal/dsh/api/im.go:242-260: 现有MyGo send端点只能来自实际registry"
+      ],
+      "mygoEvidence": [
+        "internal/store/im/store.go:318-359: 区分local/pending，Cordis仅固定test ping，不冒充任意发送",
+        "internal/store/im/store.go:363-379: RPC成功/失败消息状态",
+        "internal/store/im/store.go:344-349: 先清draft再忽略history/draft落盘错误",
+        "cmd/whaleisle/main.go:5404-5410: 离开保存Persist错误被忽略",
+        "internal/ui/im/im.go:244-300: 本地history/composer consumer"
+      ],
+      "finding": "本地消息没有被标成真实IM送达，这是正确边界；但本地保存错误被忽略，仍清空草稿/给出saved locally，磁盘写失败时不能兑现恢复契约。",
+      "evidenceLevel": "code",
+      "requiredAction": "保持本地与平台发送分开，传播持久化错误且失败保留草稿；若要提供外部任意发送需新增真实平台契约而非假send。",
+      "acceptanceGap": "未写用户数据或模拟磁盘失败；当前installed registry未注册send，真实外部聊天发送不在已证能力内。"
+    },
+    {
+      "id": "FLOW-031",
+      "feature": "Legacy dshbot目录、联系人分组、排序、已读与隐藏",
+      "baseline": "existing-MyGo-contract",
+      "expected": "保留MyGo既有Bot/room目录、搜索筛选、联系人分组与顺序、隐藏/恢复及活动已读游标，不把隐藏等同删除。",
+      "entry": "assistant dshbot tab → roster/contacts/visibility",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:637-681: describe/catalog/activity/mark-read及section变更契约",
+        "tmp/full-audit-20261102/installed-source/src/main/config.js:541-542,609-610: 原安装版清除旧dshbot设置"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:5841-5878: legacy模块仍挂载且区分VendorPresent/Enabled",
+        "cmd/whaleisle/assistant_contacts.go:14-165: describe目录、read mark和分组操作后更新roster",
+        "cmd/whaleisle/assistant_bot_visibility.go:15-120: visibility模型及receipt",
+        "internal/store/dshbot/roster.go:1-110: roster持久目录与Host归属",
+        "internal/ui/assistant/contacts.go:1-100: 联系人可见入口",
+        "internal/ui/assistant/list_filters.go:1-49: native筛选"
+      ],
+      "finding": "这是MyGo保留的legacy能力，不是当前安装原版能力：原安装目录无dshbot包且config去掉旧开关。按既有MyGo契约记录，不当作installed parity补齐分数。",
+      "evidenceLevel": "code",
+      "requiredAction": "需要保留legacy时用兼容插件测试联系人重排/分组冲突/隐藏恢复和已读；若产品退役则明确迁移，不静默消除用户配置。",
+      "acceptanceGap": "未读取真实roster/profile；目录呈现、持久化和跨Host恢复未实测。"
+    },
+    {
+      "id": "FLOW-032",
+      "feature": "Legacy Bot创建、复制、删除与不确定结果恢复",
+      "baseline": "existing-MyGo-contract",
+      "expected": "创建/复制有独立身份与可选模型，删除先列依赖和确认；收到不确定结果只读回/采用已创建目标，不重复写。",
+      "entry": "assistant botCreate/botDuplicate/botDelete",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:670-675: bot/open/create/update/duplicate/delete-preview/delete",
+        "runtime/vendor/dshbot/lib/profile-ops.js:329-377: 删除依赖与cascade语义"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_create.go:163-211: catalog preflight、一次create、receipt后更新roster",
+        "internal/store/dshbot/bot_create.go:333-428: sent fence、rejected/uncertain分开、readback adopt",
+        "cmd/whaleisle/assistant_bot_duplicate.go:128-198: clone命令与结果后更新目录",
+        "internal/store/dshbot/bot_delete.go:152-288: 删除review/身份确认与发送ticket",
+        "cmd/whaleisle/assistant_bot_delete.go:53-156: delete-preview与删除receipt"
+      ],
+      "finding": "创建、复制、删除不是普通Session CRUD，均由legacy插件catalog控制；不确定outcome保留原attempt并避免自动重写。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收新建/复制命名冲突、删除关联room/routine依赖、拒绝写/超时后readback与打开失败。",
+      "acceptanceGap": "当前安装原版无legacy包；本轮没有创建或删除真实Bot。"
+    },
+    {
+      "id": "FLOW-033",
+      "feature": "Legacy Room创建、成员/协议编辑与运行成员记录",
+      "baseline": "existing-MyGo-contract",
+      "expected": "创建room并配置成员及轮数；编辑前重验同一room；打开成员历史不触发新成员或伪连续。",
+      "entry": "assistant RoomCreate/RoomEdit/RoomRuntime → group/runtime",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:643-650: room与成员runtime只读投影",
+        "runtime/vendor/dshbot/lib/profile-ops.js:59-128: room profile及成员/协议字段"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_room_create.go:56-191: catalog、review、创建及已接受结果",
+        "cmd/whaleisle/assistant_room_edit.go:50-130: room身份重验和bot/update receipt",
+        "cmd/whaleisle/assistant_room_runtime.go:50-160: 原成员Session复核后打开",
+        "internal/store/dshbot/room_runtime.go:25-117: scope ticket及只读runtime、不自动member activation",
+        "internal/ui/assistant/room_runtime.go:1-99: 原成员过程入口",
+        "cmd/whaleisle/assistant_group_runtime.go:1-110: room runtime与会话绑定"
+      ],
+      "finding": "room配置/成员运行记录有独立生产链，现有成员Session不可用会报错而非创建替代。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收成员增删/重复、协议限制、编辑冲突、晚到成员结果及原成员历史。",
+      "acceptanceGap": "未运行多人room/模型；各协议轮数和群聊工具实际结果未证。"
+    },
+    {
+      "id": "FLOW-034",
+      "feature": "Legacy Bot名称/人格、模型路由与消息来源策略",
+      "baseline": "existing-MyGo-contract",
+      "expected": "独立编辑文本profile、provider/model/effort和允许sender策略，不串改room或另一个Bot；review变化后不得提交旧命令。",
+      "entry": "Routines面板下TextProfile/Route/SenderPolicy controls",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/profile-ops.js:36-42: model成对及effort约束",
+        "runtime/vendor/dshbot/lib/profile-ops.js:59-128: profile/sender/capability配置"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_text_profile.go:14-134: 文本字段load/review/preflight/save",
+        "cmd/whaleisle/assistant_bot_route.go:16-165: model route单独命令与当前Host身份",
+        "cmd/whaleisle/assistant_bot_sender_policy.go:14-138: sender策略load/save receipt",
+        "internal/store/dshbot/text_profile_controls.go:209-329: review/ticket、uncertain处理",
+        "internal/store/dshbot/route_controls.go:208-320: route review与回执",
+        "internal/store/dshbot/sender_policy_controls.go:210-334: sender选择绑定revision"
+      ],
+      "finding": "各独立字段有明确模型和production回调；读配置不会启动Bot，写前重验可写性与canonical Bot。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收Unicode文本、缺失模型、sender目录变化、只读catalog及保存成功后断线。",
+      "acceptanceGap": "未保存真实profile；legacy Host CAS及字段sanitize完整分支未逐个运行。"
+    },
+    {
+      "id": "FLOW-035",
+      "feature": "Legacy Bot头像形状/颜色及本地图片裁剪保存",
+      "baseline": "existing-MyGo-contract",
+      "expected": "为legacy Bot选择头像或明确挑选JPEG/PNG并裁剪；头像保存经DshbotSaveAvatar，不混入Whale设置。",
+      "entry": "BotAvatar → native picker/crop → DshbotSaveAvatar",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/profile-ops.js:1,115: normalizeAvatar及profile.avatar",
+        "tmp/full-audit-20261102/installed-source/src/main/config.js:541-542: 已安装版旧dshbot开关移除"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_avatar_image.go:11-56: 精确picker、导入ticket、crop/取消动作",
+        "internal/store/dshbot/avatar_image_controls.go:41-137: 导入/裁剪状态不跨scope复用",
+        "cmd/whaleisle/assistant_bot_avatar.go:104-134: preflight后调用rpc.DshbotSaveAvatar",
+        "internal/desktop/pluginrpc/dshbot_avatar.go:135-141: DshbotSaveAvatar校验后调用saveDshbotProfileField avatar",
+        "internal/desktop/whale/client.go:63-114: Whale Patch无avatar字段"
+      ],
+      "finding": "头像图片实际consumer是legacy assistant_bot_avatar。当前安装版Whale设置不存在头像编辑入口；不能写成whale.BotUpdates已连接头像，这也是对PET-032对应事实的更正。",
+      "evidenceLevel": "code",
+      "requiredAction": "按legacy实际契约验收picker取消/格式限制/crop与一次保存；不要凭空要求Whale头像能力。",
+      "acceptanceGap": "未操作本地图片选择或保存；不把头像模块存在当真实头像已更新。"
+    },
+    {
+      "id": "FLOW-036",
+      "feature": "Legacy记忆双轨替换、记忆复盘与能力授权",
+      "baseline": "existing-MyGo-contract",
+      "expected": "分别处理记忆track内容、memory review开关，以及tools/skills/MCP全部/选定策略；只用Host实际catalog内能力。",
+      "entry": "Routines → Memory/MemoryReview/Capabilities",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:682-683: memory/get及memory/replace",
+        "runtime/vendor/dshbot/lib/profile-ops.js:314-325: 能力目录有效性检查"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_memory.go:19-135: identity、track读取、preflight和replace",
+        "cmd/whaleisle/assistant_bot_memory_review.go:14-106: review启停独立保存",
+        "cmd/whaleisle/assistant_bot_capabilities.go:14-106: actual capability catalog及保存",
+        "internal/store/dshbot/memory_controls.go:1-120: memory scope/track/draft模型",
+        "internal/store/dshbot/memory_review_controls.go:147-215: review命令与receipt",
+        "internal/store/dshbot/capability_controls.go:167-236: 能力review/一次提交"
+      ],
+      "finding": "记忆内容、后台复盘和工具授权是不同能力；native各有入口和Host命令，不把任意工具名直接视为已授权。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收两轨限制、过期revision、selected能力失效与保存后的可见读回。",
+      "acceptanceGap": "未读取或修改用户记忆；模型实际遵循能力限制未实测。"
+    },
+    {
+      "id": "FLOW-037",
+      "feature": "Legacy长期目标配置、启动/暂停/清空",
+      "baseline": "existing-MyGo-contract",
+      "expected": "目标内容与配置保存独立于执行控制；start/pause/clear显式确认，并反映当前goal，不自动开新任务。",
+      "entry": "Routines ObjectiveConfig/Objective → bot/objective/*",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:432-463: goal内容校验与启动/暂停/清空语义",
+        "runtime/vendor/dshbot/lib/control-plane.js:684-685: objective endpoint装配"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_objective.go:55-86: fresh preflight、最终dispatch fence且不声称Host有CAS",
+        "cmd/whaleisle/assistant_bot_objective_config.go:14-110: 配置review与receipt",
+        "internal/store/dshbot/objective_controls.go:1-120: goal状态和action模型",
+        "internal/store/dshbot/objective_config_controls.go:149-222: 精确确认和保存"
+      ],
+      "finding": "目标设置与开始执行分开；preflight窗口非原子CAS的边界明确，不能把按钮存在当长期目标真的完成。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收目标改变后的拒绝、start/pause/clear和模型终止/工具活动收敛。",
+      "acceptanceGap": "未启动任何长期目标或清空真实目标。"
+    },
+    {
+      "id": "FLOW-038",
+      "feature": "Legacy任务暂停/恢复/取消/重试与参与者语义",
+      "baseline": "existing-MyGo-contract",
+      "expected": "从Bot任务目录选择原任务，执行pause/resume/cancel/retry；保留from/to和requester，重试不伪造任务完成。",
+      "entry": "assistant Tasks → DshbotTasks/DshbotControlTask",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:227-283: 任务状态与原requester/target校验",
+        "runtime/vendor/dshbot/lib/control-plane.js:687-688: task动作端点"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_tasks.go:53-134: scope、只读load、review、一次command，无bot/open/prompt自动重试",
+        "internal/store/dshbot/task_controls.go:1-160: task目录/选定/确认模型",
+        "internal/ui/assistant/tasks.go:1-160: 任务与参与者consumer"
+      ],
+      "finding": "有实际任务目录和控制RPC；这些是legacy dshbot inbox任务，不是Project需求，也不是新Whale资料任务。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收双方参与者展示、过期任务、cancel后晚到结果、retry原失败任务。",
+      "acceptanceGap": "未运行或控制真实inbox任务；状态持久化由legacy Host负责，未验收。"
+    },
+    {
+      "id": "FLOW-039",
+      "feature": "Legacy Routine新建/编辑/启停/运行/删除、日历与进阶规则",
+      "baseline": "existing-MyGo-contract",
+      "expected": "routine支持一次/日历/间隔规则、时区、maxRuns、contextFrom、silent、URL/command watch；区分run结果和错过的运行。",
+      "entry": "assistant Routines/RoutineCreate → routine/save/toggle/run/delete/missed",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:346-426: schedule、contextFrom/watch校验及routine持久化",
+        "runtime/vendor/dshbot/lib/control-plane.js:471-624: watch、queue、failure、重启interrupted及output记录",
+        "runtime/vendor/dshbot/lib/control-plane.js:689-695: missed及routine动作"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_routines.go:14-137: Bot绑定、missed目录、review及control",
+        "cmd/whaleisle/assistant_routine_create.go:13-111: create command/receipt",
+        "internal/store/dshbot/routine_controls.go:71-114: Host/Bot绑定同时撤销所有子controls",
+        "internal/store/dshbot/routine_create_schedule.go:1-54: schedule生成",
+        "internal/store/dshbot/routine_create_calendar.go:1-63: calendar规则",
+        "internal/store/dshbot/routine_advanced.go:1-160: context/silent/watch确认",
+        "internal/ui/assistant/routines.go:1-120: routine表面及控制"
+      ],
+      "finding": "routine较广的进阶能力已挂载，watch命令需用户确认，不应将routine与通用schedule catalog混为同一任务模型。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收schedule时区/错过任务范围、watch授权、maxRuns、失败禁用、重启interrupted及输出历史。",
+      "acceptanceGap": "没有运行watch URL/命令、定时模型任务或生成任何真实投递。"
+    },
+    {
+      "id": "FLOW-040",
+      "feature": "Legacy Routine外部触发凭据与复制",
+      "baseline": "existing-MyGo-contract",
+      "expected": "用户确认后获取/创建trigger token，仅当前可见routine显示/复制；切Bot/Host/关闭清除，不自动触发。",
+      "entry": "Routine trigger review → bot/trigger-token → copy URL/header",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/control-plane.js:651-658: trigger-token契约",
+        "runtime/vendor/dshbot/lib/control-plane.js:799-815: 原本地触发端点"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_routine_trigger.go:15-75: URL核验、显式获取、当前ticket",
+        "internal/store/dshbot/routine_trigger.go:21-35: token不进入snapshot/日志/持久化，clear覆盖缓冲",
+        "internal/store/dshbot/routine_trigger.go:67-129: 确认、scope/binding校验和不确定结果无自动重试",
+        "internal/ui/assistant/routine_trigger.go:1-73: 可见触发凭据consumer"
+      ],
+      "finding": "已有可用设计链，但本轮不创建凭据。token复制属于明确用户动作，不能由审查触发。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy测试profile验收确认取消、token错误、切scope清理和最小可信触发。",
+      "acceptanceGap": "未获取任何token、未写剪贴板、未发送触发请求。"
+    },
+    {
+      "id": "FLOW-041",
+      "feature": "Legacy Bot通知、去重、点击与已读持久游标",
+      "baseline": "existing-MyGo-contract",
+      "expected": "后台activity/goal/routine完成变化产生通知；前台不补发旧事件，点击只打开当前有效Bot，会话可见时提交原activity read cursor。",
+      "entry": "Bot页生命周期 → botnotify Poll/Tracker → native notifications",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "runtime/vendor/dshbot/lib/profile-ops.js:241-272: attention/goal/routine activity投影",
+        "runtime/vendor/dshbot/lib/control-plane.js:668-669: activity/mark-read端点"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_notifications.go:33-109: Bot页/Host/账号身份，串行poll",
+        "internal/desktop/botnotify/tracker.go:76-199: 原snapshot baseline、事件去重、scope ticket、前台不补发",
+        "cmd/whaleisle/assistant_bot_read.go:27-64: 初始read cursor与Host持久mark-read",
+        "cmd/whaleisle/assistant_bot_read.go:73-103: 打开Bot后重新核验sid/activity再mark-read",
+        "internal/desktop/botnotify/read_marks.go:1-14: 只有有效activity建立baseline"
+      ],
+      "finding": "legacy通知只在该Bot页生命周期观察；不是全局Whale任务通知，也不能拿它覆盖新Whale tasks effects。OS隐藏/最小化保留observer，离开页/Host撤销ticket。",
+      "evidenceLevel": "code",
+      "requiredAction": "用兼容legacy插件验收attention/blocked/routine、重复snapshot、不支持系统通知与点击过期ticket。",
+      "acceptanceGap": "未创建系统通知或操作Bot页；用户实际通知权限和投递不可证。"
+    },
+    {
+      "id": "FLOW-042",
+      "feature": "运行任务保护、确认退出/重启/更新/组件变更",
+      "baseline": "installed-0.3.13",
+      "expected": "生命周期干预前检查agents/jobs/schedule/bots及本地PTY；获取admission lock、drain后复查/续租，取消不commit，coverage未知如实提示。",
+      "entry": "quit/stop/restart/update/component → taskcontrol.Coordinate",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-task-control/lib/inspection.js:30-117: agents/jobs/schedule覆盖与intentional-disabled",
+        "C:/软件/Whale Isle/resources/vendor/dsh-task-control/lib/inspection.js:146-167: 统一inspection聚合"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/taskcontrol/control.go:114-212: inspect→acquire/drain→inspect→renew→commit，失败阻断",
+        "cmd/whaleisle/task_protection.go:32-88: coverage未知与本地运行明确确认",
+        "cmd/whaleisle/task_protection.go:104-150: 计入PTY及保护后清理资源",
+        "internal/harness/task_protection.go:12-52: 绑定确切supervised Host",
+        "internal/desktop/taskguard/decision.go:5-15: close-to-tray和运行确认纯决策",
+        "cmd/whaleisle/main.go:2668-2678: 实际close gate"
+      ],
+      "finding": "保护链与native确认已接通；初次inspection不可用只在明确未知确认后允许干预，acquire/drain/二次检查失败不会当安全。",
+      "evidenceLevel": "code",
+      "requiredAction": "与lifecycle-remote领域联合验收取消、Host替换、运行PTY、持锁失败与真正drain/恢复。",
+      "acceptanceGap": "未停止、重启或更新用户服务；真实OS资源收敛未运行。"
+    },
+    {
+      "id": "FLOW-043",
+      "feature": "WhaleBridge提醒领取、去重、未知投递与管理跳转",
+      "baseline": "installed-0.3.13",
+      "expected": "从确切本地WhaleBridge实例领取提醒，避免重复通知；领取结果不确定时暂停消费，由用户明确继续后只接收未来批次。",
+      "entry": "WhaleBridge alert monitor → local source claim → native notification/launcher fallback",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/whalebridge-notifications.js:29-50: 原实例pid/sequence去重、通知及点击管理"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/bridgealerts/monitor.go:106-161: current ticket、未知批次不重放、显式Continue",
+        "internal/desktop/bridgealerts/monitor.go:190-269: 实例重验、claim未知暂停、sequence去重及保留上限",
+        "cmd/whaleisle/bridge_alerts.go:100-170: 一次show尝试，失败/不支持flash fallback，过期通知关闭",
+        "cmd/whaleisle/bridge_alerts.go:173-188: 点击时再次验证实例"
+      ],
+      "finding": "有production消费者和更严格的unknown处理；提醒领取不是普通GET不能自动重放，系统通知失败保留launcher fallback。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收提醒receipt、实例更换、show失败和未知领取后显式继续。",
+      "acceptanceGap": "本轮未claim提醒、未创建系统通知、未操作本地WhaleBridge。"
+    },
+    {
+      "id": "FLOW-044",
+      "feature": "屏幕一瞥采集与Whale视觉请求的授权边界",
+      "baseline": "existing-MyGo-contract",
+      "expected": "只在用户明确同意后采集pet所在屏幕，按已选视觉模型请求；取消/窗口/Host改变不继续，失败可见。",
+      "entry": "pet look action → approval → screenglance.Capture → WhalePetLook",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "internal/desktop/screenglance/image.go:1-14: 既有MyGo采集规格",
+        "cmd/whaleisle/pet_look.go:17-70: 既有pet专用route和授权步骤"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/screenglance/capture_windows.go:51-83: 只采既有pet窗口所在monitor，不fallback其他显示器",
+        "internal/desktop/screenglance/capture_windows.go:113-140: context检查、内存编码后清理",
+        "internal/desktop/screenglance/image.go:13-44: 最大768x480 JPEG70",
+        "cmd/whaleisle/pet_look.go:67-109: 明确授权与请求结果反馈",
+        "cmd/whaleisle/main.go:6073-6109: 助理panel另有用户选图pet/look路径"
+      ],
+      "finding": "屏幕采集consumer属于pet，助理选图是另一条明确picker路径。此项按既有MyGo契约，不暗指安装版Whale设置有截图或头像入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "与pet-voice领域共同验收同意/取消、双屏/缩放/窗口消失、视觉模型错误及最终可见回答。",
+      "acceptanceGap": "未采集屏幕/读取所选图片/发送视觉模型请求；非Windows provider只做索引，未评估平台可用性。"
+    },
+    {
+      "id": "FLOW-045",
+      "feature": "普通子代理目录、历史/继续、审批与资源只读面板",
+      "baseline": "installed-0.3.13",
+      "expected": "独立于Team共享任务板，查看one-shot/continuable子代理，按parent/child地址看实时/历史、审批/提问及资源，明确可继续与只读限制。",
+      "entry": "right pane agents / subagentchat / subagent main conversation",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/client.js:33-135: 当前Session子代理目录及mode",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-agents-panel/lib/client.js:238-263: right pane与surfaces.agents挂点"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:1502-1508: actual agents consumer及preset manager",
+        "internal/ui/agents/navigation.go:21-129: addressed历史/实时、祖先和中断入口",
+        "internal/ui/agents/child_interactions.go:10-35: child scope approval/question卡",
+        "internal/ui/agents/child_readonly.go:5-20: 明确read-only原因",
+        "internal/ui/agents/resources.go:15-51: 按retained地址只读文件/工作簿",
+        "internal/ui/agents/manager.go:10-67: preset manager入口",
+        "internal/ui/frame/workspace_subagent_conversation.go:150-162: 主conversation consumer"
+      ],
+      "finding": "普通子代理能力有实际nativeconsumer；不能因这项存在认为FLOW-002 Team共享任务板已实现。子代理继续、资源与审批受准确owner绑定。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收one-shot只读、continuable显式发送/中断、祖先跳转、分页、附件与过期审批。",
+      "acceptanceGap": "未启动真实子代理；跨Host/Session实际流和资源读取未运行。"
+    },
+    {
+      "id": "FLOW-046",
+      "feature": "未发布IM聊天绑定来源与旧Whale绑定审查",
+      "baseline": "current-original-0.3.13",
+      "expected": "current-original新增区分manual/auto/whale-auto绑定，preset/IM默认改变时不静默重用不明来源Whale会话，保留历史并要求/new或/session明确选择。",
+      "entry": "current-original shared workspace-session → session-binding selectConversationSession",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/session-binding.mjs:1-46: binding origin、manual保留、whale-auto和旧绑定review",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/conversation-state-store.mjs:20-57: durable bindings归一化/写入",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/dsh-im/src/channels/shared/workspace-session.mjs:55-68: 真实路由consumer"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-im/lib/index.js:1-222: 只读bundle检查不含whale-auto/whale-binding-review分支；安装版同样不含",
+        "cmd/whaleisle/assistant_whale_preferences.go:47-50: MyGo可改IM default但未携带新增binding-origin机制"
+      ],
+      "finding": "该差异仅对原项目dirty扩展成立，installed-0.3.13与MyGo均没有新增binding-origin机制；不把它报成已安装版回归。",
+      "evidenceLevel": "code",
+      "requiredAction": "目标若包含current-original dirty能力，应整体同步binding持久化与各channel consumer；不能只替换错误文案。",
+      "acceptanceGap": "当前原项目更多/各channel shared routing改动的逐平台分支未完整审查；真实IM路由未运行。"
+    },
+    {
+      "id": "FLOW-047",
+      "feature": "IM入站消息、绑定会话控制、审批与提问转交",
+      "baseline": "installed-0.3.13",
+      "expected": "按渠道权限把真实入站文本交给绑定Host会话，支持已提供的控制命令及交互请求；停止/补充指令不伪造新用户授权。",
+      "entry": "dsh-im production channel bridge → Host workspace session coordinator",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:123-126: approval/requested与question/requested解析、模型/压缩及绑定会话桥接",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:186-194: 各channel bridge及/new处理",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:319-324: Feishu status/compact/stop控制路径"
+      ],
+      "mygoEvidence": [
+        "internal/harness/overlay.go:82-90: dsh-im是production必需overlay",
+        "runtime/vendor/dsh-im/lib/index.js:123-126: Host交互和绑定会话控制实现",
+        "runtime/vendor/dsh-im/lib/index.js:186-194: 入站桥接与消息控制",
+        "runtime/vendor/dsh-im/lib/index.js:319-324: Feishu控制命令consumer",
+        "internal/store/imonboard/store.go:254-322: native只做连接/权限动作，不伪造模型会话"
+      ],
+      "finding": "IM执行由随包dsh-im Host bridge消费，native Channels是控制面而非另一套模型传输。源码存在不等于九平台的文本、审批卡或控制命令均已实际可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "在授权测试账号完成对应平台的真实消息/控制/回执验收；本轮不发送。",
+      "acceptanceGap": "未向任何渠道收发消息；各平台交互卡/权限/排队和停止的完整回程未实测，逐平台bridge内部失败分支未逐行完全审查。"
+    },
+    {
+      "id": "FLOW-048",
+      "feature": "IM图片/文件入站与成果文件/图片返回",
+      "baseline": "installed-0.3.13",
+      "expected": "按实际用户附件建立Host工作目录内相对引用，成果发送使用真实artifact/delivery identity，区分已发送、明确拒绝和未知。",
+      "entry": "channel media parser → inbound staging / artifact registry → platform delivery",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:115-117: inbound与artifact失败类别及不确定消息投递",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:184-190: artifactId/deliveryKey与managed-temp登记、bridge及持久状态",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:355: Telegram访问与媒体投递runtime"
+      ],
+      "mygoEvidence": [
+        "runtime/vendor/dsh-im/lib/index.js:115-117: 对应附件输入和平台拒绝/未知错误",
+        "runtime/vendor/dsh-im/lib/index.js:184-190: Host artifact registry、delivery identity及seenMessageIds",
+        "internal/harness/overlay.go:82-90: 该runtime进入实际Host"
+      ],
+      "finding": "已装配带附件/成果发送的原runtime，不是native SendDraft本地历史。不能将连接测试通过当文件送达，也不能将发送未知当可安全重试。current-original Feishu/task附件扩展另见FLOW-023。",
+      "evidenceLevel": "code",
+      "requiredAction": "在授权测试账号完成对应平台的真实消息/控制/回执验收；本轮不发送。",
+      "acceptanceGap": "未下载/上传任何真实附件，平台大小限制/权限拒绝/中断后去重及不确定发送恢复未实测；媒体协议每个分支未逐行审完。"
+    },
+    {
+      "id": "FLOW-049",
+      "feature": "IM连接健康、消息失败引用与持续状态刷新",
+      "baseline": "installed-0.3.13",
+      "expected": "显示真实 connected/health、最后检查时间及最后消息失败 code/reference；status 轮询只在当前 scope 更新，失败保留旧事实并标记不可确认。收/回消息计数不是已安装原版可见 UI 的必需合同。",
+      "entry": "Channels Bot health details → connection.status polling",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/client.js:1370-1391: connected/health/stats/lastMessageError及有效bots目录判断",
+        "C:/软件/Whale Isle/resources/vendor/dsh-im/lib/index.js:115-117: 平台投递错误分类、reference与lastMessageError"
+      ],
+      "mygoEvidence": [
+        "internal/store/imonboard/store.go:46-76: lastMessageError/health/stats模型",
+        "internal/store/imonboard/store.go:501-543: 15秒轮询，client/scope/statusGeneration复核和独立StatusError",
+        "internal/store/imonboard/bindings.go:82-139: 解析Bot目录并合并draft",
+        "internal/ui/im/onboarding.go:187-197: Bot卡实际consumer/channelHealthDetails",
+        "runtime/vendor/dsh-im/lib/index.js:115-117: 错误分类与lastMessageError来源"
+      ],
+      "finding": "Channels scoped polling已做owner保护并展示最后消息失败；FLOW-027的overview Refresh是另一条缺epoch的路径，不把两者合并判为都坏。连接绿灯不代表消息成功。 实际原安装 Bot card 显示连接/最后检查/最后消息错误；normalized stats 不能单独算可见 UI 分母。",
+      "evidenceLevel": "code",
+      "requiredAction": "在授权测试账号完成对应平台的真实消息/控制/回执验收；本轮不发送。",
+      "acceptanceGap": "未造成或消费真实平台失败；Host重启后的最后错误持久性及每平台reference显示未实测。",
+      "scopeClarifications": [
+        {
+          "source": "supplement-orchestration-actions.json",
+          "actionIds": [
+            "GFLOW-082"
+          ],
+          "reason": "实际原安装 Bot card 显示连接/最后检查/最后消息错误；normalized stats 不能单独算可见 UI 分母。"
+        }
+      ],
+      "supplementActionIds": [
+        "GFLOW-082"
+      ]
+    }
+  ],
+  "crossDomainDependencies": [
+    "workspace-sessions: FLOW-005普通会话快捷动作须按presentation.owner交给Project；目录/workspace/Session/Project分组身份不得混用。",
+    "workbench: FLOW-013 Project已授权文件须保留resolved root和Lead identity进入现有dirty-editor guard；不要改为任意OS opener绕过。",
+    "plugins: PLUG-013已区分generic turnTail与任意sidebar.right.pane.tab；Team/Project缺native consumer不能由generic宣称补齐。store/im/cordis_*管理方法没有生产UI调用者。",
+    "lifecycle-remote: FLOW-014与FLOW-042共用保护重启/退出/更新入口；当前源检查不代替真正Host drain和恢复验收。",
+    "pet-voice: FLOW-044采集与Whale视觉route实际consumer在pet；FLOW-035头像consumer是legacy DshbotSaveAvatar，PET-032不得写为whale.BotUpdates。",
+    "current-original: FLOW-023、FLOW-046来自未发布dirty能力；已安装0.3.13没有这些新增能力，单独决策是否纳入MyGo目标。"
+  ],
+  "uncovered": [
+    "本轮未操作桌面、未读取用户profile、未运行/新增测试、未构建安装、未运行Git变更操作、未创建模型/IM/Office任务或CI；各feature的实际用户路径、窄窗/键盘/菜单视觉与运行态恢复缺口保留在acceptanceGap。",
+    "dsh-im vendor各平台生产bridge的鉴权/重连/媒体/交互卡底层协议循环仅完成能力及Host消费入口索引，未逐行审完九平台全部失败分支，也未证明平台API当前兼容性。",
+    "legacy dshbot全部UI/控制模块已分配到FLOW-031至041；并未逐行证明每个重复state machine的所有失败/不确定/恢复分支。当前安装原版已无此插件，不能依据legacy源码宣称原版助手全量对齐。",
+    "Project视觉结果嵌入和差异/图表交互依赖workbench/plugins领域结论；本领域只检查Project绑定、引用、返回与文件root契约，没有运行HTML/截图/interactive rendering。",
+    "非Windows screenglance provider仅做文件索引；本机Windows采集也未执行。",
+    "current-original未发布后台任务的完整科学/模型效果和所有Feishu投递竞争场景未运行；本轮只确认额外能力及MyGo缺对应控制面，未给该dirty分支认证。"
+  ],
+  "checksRun": [
+    {
+      "command": "Get-Content docs/parity/full-audit-20261102/AUDIT-CONTRACT.md -Encoding UTF8; git status --short",
+      "result": "读取固定基线与只审查边界；当前dirty产品文件保留，未执行产品写入。",
+      "scope": "本领域初始化与恢复；没有用户profile访问。"
+    },
+    {
+      "command": "rg/line-numbered Get-Content/Python read_text over assigned Go modules, cmd assembly, installed desktop source and vendor package code",
+      "result": "沿入口、owner、回调、RPC、状态/持久化及失败路径形成能力清单；修正了普通cancel仅停Lead的旧结论。",
+      "scope": "源码证据；非运行态验收，不以旧测试名称作通过。"
+    },
+    {
+      "command": "git -C C:/AI/Deepseek-Harness-Desktop diff --name-only and targeted read-only diff for dsh-whale/dsh-im changes",
+      "result": "current-original后台任务与binding-origin增量从已安装0.3.13分离为FLOW-023、FLOW-046。",
+      "scope": "原项目只读；未构建/装依赖/执行应用。"
+    },
+    {
+      "command": "JSON parse + required feature keys/enums/unique FLOW IDs + referenced path/line-boundary validation",
+      "result": "通过：49项唯一FLOW ID、必需字段与状态/优先级/基线枚举有效，344条引用路径及首个行范围存在；JSON可解析。",
+      "scope": "只验证审查artifact结构及可定位性，不认证产品可用。"
+    }
+  ],
+  "summary": "源码审查报告完成，共49项独立或紧密能力；无产品修改。P0：Project初始list/首建入口循环不可达。P1确定缺陷：Team按钮落到普通子代理而非共享任务板，Project快捷动作越过owner，桌面Project bridge缺baseline/changes/revert/check-directory，Project报告文件丢resolved root，IM旧Host回写与空Bot目录不清除。Project原版专属composer缺失、todo/取消任务板/job活动字段不完整。已撤回普通cancel只停Lead的旧判断：随包Host存在Project级before-cancel hook。其余源码链按wired-unverified；current-original dirty与legacy MyGo单列。全部运行/视觉/外部平台以及未逐行覆盖范围明确列出。",
+  "moduleCoverage": [
+    {
+      "area": "projectflow / ui.projects / cmd.project_* / projectbridge / projectpreference / runtime.dsh-project",
+      "features": [
+        "FLOW-001",
+        "FLOW-003",
+        "FLOW-004",
+        "FLOW-005",
+        "FLOW-006",
+        "FLOW-007",
+        "FLOW-008",
+        "FLOW-009",
+        "FLOW-010",
+        "FLOW-011",
+        "FLOW-012",
+        "FLOW-013",
+        "FLOW-014",
+        "FLOW-019"
+      ],
+      "depth": "能力枚举及production入口/状态/RPC/持久化/恢复追踪；Node环境新动作契约明确错版；不认证每条视觉分支。"
+    },
+    {
+      "area": "ui.agents / workflowrun / jobflow",
+      "features": [
+        "FLOW-002",
+        "FLOW-015",
+        "FLOW-016",
+        "FLOW-045"
+      ],
+      "depth": "Team与subagent分开；durable投影、地址/流owner、停止receipt、nativeconsumer均定位。"
+    },
+    {
+      "area": "ui.schedule / store.schedule / cmd.schedule_*",
+      "features": [
+        "FLOW-017",
+        "FLOW-018"
+      ],
+      "depth": "目录、新建到会话、规则编辑、CAS、删除、receipt、时区/cron、历史与关联会话链路。"
+    },
+    {
+      "area": "ui.assistant / store.assistant / desktop.whale / cmd.assistant_*",
+      "features": [
+        "FLOW-020",
+        "FLOW-021",
+        "FLOW-022",
+        "FLOW-023"
+      ],
+      "depth": "Whale常驻会话和独立设置动作；current-original后台任务单列，不以legacy补齐。"
+    },
+    {
+      "area": "store.dshbot / legacy assistant controls / botnotify",
+      "features": [
+        "FLOW-031",
+        "FLOW-032",
+        "FLOW-033",
+        "FLOW-034",
+        "FLOW-035",
+        "FLOW-036",
+        "FLOW-037",
+        "FLOW-038",
+        "FLOW-039",
+        "FLOW-040",
+        "FLOW-041"
+      ],
+      "depth": "按独立用户能力检查入口与RPC/状态模型，代表性sent/rejected/uncertain/adopt失败路径深入追踪；未对全部重复control状态机逐行证明等价。"
+    },
+    {
+      "area": "ui.im / store.im / imonboard / office / runtime.dsh-im",
+      "features": [
+        "FLOW-024",
+        "FLOW-025",
+        "FLOW-026",
+        "FLOW-027",
+        "FLOW-028",
+        "FLOW-029",
+        "FLOW-030",
+        "FLOW-046",
+        "FLOW-047",
+        "FLOW-048",
+        "FLOW-049"
+      ],
+      "depth": "九平台/Office控制面、失效owner、空目录、健康与消息执行/附件runtime入口；各平台外部协议循环只做能力/调用索引。"
+    },
+    {
+      "area": "store.im/cordis*",
+      "features": [
+        "FLOW-027"
+      ],
+      "depth": "Cordis status及诊断读回已审；Stop/Invoke/Undefine/Resolve/RunHostHalf等仅store wrapper无cmd消费者，不计为可用native UI；完整动态插件面归PLUG-013。"
+    },
+    {
+      "area": "desktop.taskcontrol / taskguard / bridgealerts / screenglance",
+      "features": [
+        "FLOW-042",
+        "FLOW-043",
+        "FLOW-044"
+      ],
+      "depth": "实际装配、授权/未知结果/生命周期ticket与native资源接口；操作系统/外部验收未执行。"
+    }
+  ],
+  "baselineMetadata": {
+    "mygoHead": "b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb plus current worktree",
+    "installedDesktop": "0.3.13",
+    "installedHostClientPackage": "0.2.1-rc.2",
+    "installedSource": "tmp/full-audit-20261102/installed-source/src",
+    "currentOriginal": "9ac095515f506ef719478f6a0d1bdb2325aeb7e8 plus dirty worktree; extra features kept separate",
+    "reportStage": "read-only source audit; runtime acceptance not performed"
+  },
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-orchestration-actions.json"
+  ]
+}

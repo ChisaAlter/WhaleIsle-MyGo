@@ -240,7 +240,7 @@ func TestScheduleDraftRetainedAndEndedRuleReadable(t *testing.T) {
 	if err := tt.Click("Open task: Evening check"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("Every day 21:00:00") || !tt.HasText("Review the evening items") {
+	if !tt.HasText("Daily at 21:00 (UTC+00:00)") || !tt.HasText("Review the evening items") {
 		t.Fatalf("ended rule hidden: %v", tt.Texts())
 	}
 	saveScheduleSnapshot(t, tt, "inactive-detail")
@@ -468,6 +468,9 @@ func TestScheduleEmptyLoadingFailureAndTaskTabChrome(t *testing.T) {
 }
 
 func TestScheduleCalendarFitsNarrowDetail(t *testing.T) {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
 	d := newTaskDraft(schedstore.Entry{Raw: json.RawMessage(`{"kind":"at","scheduledAt":"2026-12-01T01:00:00Z"}`)})
 	d.picker.calendarOpen = true
 	d.picker.month = time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
@@ -513,6 +516,7 @@ func surfaceGalleryDir(fallback string) string {
 	}
 	return fallback
 }
+
 // saveSurfaceSnapshot writes the rendered surface for the evidence gallery when
 // SURFACES_GALLERY_DIR is set.
 func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
@@ -536,6 +540,7 @@ func saveSurfaceSnapshot(t *testing.T, tt *ui.Tester, name string) {
 		t.Fatal(err)
 	}
 }
+
 // TestScheduleSurfaceSnapshot renders the task manager for
 // evidence/after/surface-schedule.png.
 func TestScheduleSurfaceSnapshot(t *testing.T) {

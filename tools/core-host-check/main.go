@@ -39,18 +39,19 @@ type check struct {
 	Detail        string `json:"detail,omitempty"`
 }
 type report struct {
-	Started             string   `json:"started"`
-	Checks              []check  `json:"checks"`
-	StartupLogKinds     []string `json:"startupLogKinds,omitempty"`
-	OwnedHostStopped    bool     `json:"ownedHostStopped"`
-	OwnedListenerClosed bool     `json:"ownedListenerClosed"`
-	ModelRequests       int      `json:"modelRequests"`
-	DurationMS          int64    `json:"durationMS"`
-	OwnedRunRoot        string   `json:"ownedRunRoot,omitempty"`
-	SimulatedModel      bool     `json:"simulatedModel,omitempty"`
-	OwnedModelStopped   bool     `json:"ownedModelStopped,omitempty"`
-	ModelListenerClosed bool     `json:"modelListenerClosed,omitempty"`
-	Failure             string   `json:"failure,omitempty"`
+	Started             string           `json:"started"`
+	Checks              []check          `json:"checks"`
+	StartupLogKinds     []string         `json:"startupLogKinds,omitempty"`
+	OwnedHostStopped    bool             `json:"ownedHostStopped"`
+	OwnedListenerClosed bool             `json:"ownedListenerClosed"`
+	ModelRequests       int              `json:"modelRequests"`
+	DurationMS          int64            `json:"durationMS"`
+	OwnedRunRoot        string           `json:"ownedRunRoot,omitempty"`
+	SimulatedModel      bool             `json:"simulatedModel,omitempty"`
+	OwnedModelStopped   bool             `json:"ownedModelStopped,omitempty"`
+	ModelListenerClosed bool             `json:"modelListenerClosed,omitempty"`
+	Failure             string           `json:"failure,omitempty"`
+	RealModel           *realModelReport `json:"realModel,omitempty"`
 }
 
 func digest(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
@@ -76,6 +77,10 @@ func main() {
 	resumeRun := flag.String("resume-run", "", "owned isolated run to continue after fixture-only repair")
 	contributionsOnly := flag.Bool("native-contributions-only", false, "read only the actual fixed native contribution graph in a fresh owned Host")
 	promptFlow := flag.Bool("prompt-flow", false, "exercise real Host/Go Store with an owned deterministic loopback model; no external model API")
+	realFlow := flag.Bool("real-model-flow", false, "two guarded official deepseek-flash synthetic turns; requires an explicit secret file and cumulative ledger")
+	realPreflight := flag.Bool("real-model-preflight", false, "capture and validate the real Host's final payload, then refuse it before credentials, reservation or network")
+	realSecret := flag.String("real-model-secret-file", "", "explicit T3-provided secret file; never uses an existing environment key")
+	realLedger := flag.String("real-model-ledger", "", "persistent cumulative microCNY ledger; never reset or automatically recovered")
 	flag.Parse()
 	if *stage == "" || *base == "" || *out == "" {
 		fmt.Fprintln(os.Stderr, "-stage, -root and -out are required")
@@ -84,7 +89,13 @@ func main() {
 	started := time.Now()
 	r := report{Started: started.UTC().Format(time.RFC3339)}
 	var err error
-	if *promptFlow {
+	if *realFlow || *realPreflight || *realSecret != "" || *realLedger != "" {
+		if *promptFlow || *contributionsOnly || *resumeRun != "" {
+			err = errors.New("real model modes require their own fresh isolated run")
+		} else {
+			err = runRealModelFlow(*stage, *base, *realSecret, *realLedger, *realFlow, *realPreflight, &r)
+		}
+	} else if *promptFlow {
 		if *resumeRun != "" || *contributionsOnly {
 			err = errors.New("prompt-flow requires its own fresh isolated run")
 		} else {
@@ -94,7 +105,10 @@ func main() {
 		err = run(*stage, *base, *resumeRun, *contributionsOnly, &r)
 	}
 	if err != nil {
-		if *promptFlow {
+		if *realFlow || *realPreflight || *realSecret != "" || *realLedger != "" {
+			r.Failure = "controlled real-model check stopped; see bounded check and guard audit codes"
+			r.Checks = append(r.Checks, check{Name: "run", FailureClass: "controlled-real-model", Detail: safeRealFailure(err)})
+		} else if *promptFlow {
 			r.Failure = err.Error()
 			r.Checks = append(r.Checks, check{Name: "run", FailureClass: "owned-prompt-flow"})
 		} else {
@@ -139,6 +153,30 @@ func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error
 	workspace := filepath.Join(root, "workspace")
 	if err = os.MkdirAll(workspace, 0700); err != nil {
 		return err
+	}
+	r.OwnedRunRoot = root
+	if resumeRun == "" {
+		// Fresh checks usually live below the developer checkout. Keep the
+		// Host's repository discovery inside the synthetic workspace.
+		ownedWorkspace, err := filepath.Abs(workspace)
+		if err != nil {
+			return err
+		}
+		gitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		init := exec.CommandContext(gitCtx, "git", "init", "--quiet", "--template=", ownedWorkspace)
+		if output, err := init.CombinedOutput(); err != nil {
+			return fmt.Errorf("initialize owned workspace repository: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		verify := exec.CommandContext(gitCtx, "git", "-C", ownedWorkspace, "rev-parse", "--show-toplevel")
+		output, err := verify.Output()
+		if err != nil {
+			return fmt.Errorf("verify owned workspace repository: %w", err)
+		}
+		if rel, err := filepath.Rel(ownedWorkspace, strings.TrimSpace(string(output))); err != nil || rel != "." {
+			return errors.New("owned workspace repository resolved outside its exact workspace")
+		}
+		r.Checks = append(r.Checks, check{Name: "owned-workspace-repository", Pass: true})
 	}
 	if err = os.Setenv(paths.EnvUserData, userData); err != nil {
 		return err

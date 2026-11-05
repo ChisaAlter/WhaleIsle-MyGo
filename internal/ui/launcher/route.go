@@ -41,6 +41,9 @@ func routePopup(c *ui.Context, m Model, trigger ui.Element, open *bool, upward b
 		current = 1
 	}
 	pick := func(index int) {
+		if m.RouteUnavailable[[]string{"github", "cnb"}[index]] != "" {
+			return
+		}
 		if m.DownloadRoute != nil {
 			*m.DownloadRoute = []string{"github", "cnb"}[index]
 			if m.OnSaveLauncherPrefs != nil {
@@ -86,7 +89,11 @@ func routePopup(c *ui.Context, m Model, trigger ui.Element, open *bool, upward b
 			{i18n.T(i18n.KeyLauncherRouteCNB), i18n.T(i18n.KeyLauncherRouteCNBDetail)},
 		}
 		for index, route := range routes {
-			opt := ui.Button(c, "").FillWidth().Radius(8).AlignItems(ui.Start).Justify(ui.Start).
+			reason := m.RouteUnavailable[[]string{"github", "cnb"}[index]]
+			if reason != "" {
+				route.detail = reason
+			}
+			opt := ui.Button(c, "").Disabled(reason != "").FillWidth().Radius(8).AlignItems(ui.Start).Justify(ui.Start).
 				BorderWidth(0).TextColor(ink).Padding(9, 10).Gap(10)
 			opt.Children(func() {
 				check := ""

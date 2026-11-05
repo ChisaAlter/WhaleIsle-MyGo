@@ -24,10 +24,10 @@ func TestWorkspaceResourceMenuOpensRetainedInspectorThroughFrame(t *testing.T) {
 		View(c, Model{Store: store, Sizes: &sizes, RightPaneOpen: open, RightPaneTab: &selected, FilePaneWidth: &right,
 			OnToggleTools: func() { open = !open }})
 	}, 1600, 900)
-	if err := tt.Click("Pane actions"); err != nil {
+	if err := tt.Click("Resources"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Session Log · Inspect this session's raw events"); err != nil {
+	if err := tt.ChooseMenuItem("Session Log"); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {

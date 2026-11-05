@@ -16,7 +16,8 @@ import (
 
 // TrajectoryModel drives the ConversationRoot「轨迹」tab (Electron ui-trajectory).
 type TrajectoryModel struct {
-	Snapshot session.ViewState
+	OnOpenImage func(string)
+	Snapshot    session.ViewState
 	// PaneWidth is the host layout width before the first frame. Standalone
 	// callers may omit it when the view fills Context.Size.
 	PaneWidth     float32
@@ -53,6 +54,10 @@ var (
 
 // TrajectoryView paints toolbar + timeline + ledger + event details.
 func TrajectoryView(c *ui.Context, m TrajectoryModel) {
+	renderAttachmentSnapshot(m.Snapshot, func() { trajectoryView(c, m) })
+}
+
+func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
@@ -90,17 +95,23 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		detailTab = m.DetailTab
 	}
 
-	rows := buildTrajectoryRows(trajectoryMessages(m.Snapshot), *search, *turnsFold, *callsFold)
-
-	root := ui.Column(c.Key("trajectory:" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
+	root := ui.Column(c.Key("trajectory:" + m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
+	folds := ui.Local(root, "folds", func() trajectoryFoldState { return trajectoryFoldState{} })
+	allRows := trajectoryAllRows(trajectoryMessages(m.Snapshot), "")
+	rows := folds.rows(allRows, *search, *turnsFold, *callsFold)
+	resize := ui.Local(root, "detail-width", func() trajectoryResize { return trajectoryResize{} })
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
 	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
 	actualTime := m.ActualTime != nil && *m.ActualTime
 	timeRange.setProjection(!*actualDur && !actualTime, *actualDur && !actualTime, !*actualDur && actualTime)
-	rangeMatches := timeRange.matches(rows)
+	rangeMatches := timeRange.matches(allRows)
 	if timeRange.active && *selected != *revealed && !rangeMatches[*selected] {
 		timeRange.clear()
 		rangeMatches = nil
+	}
+	if *selected != "" && *revealed != *selected {
+		folds.reveal(allRows, *selected)
+		rows = folds.rows(allRows, *search, *turnsFold, *callsFold)
 	}
 	if m.List != nil && *selected != "" && *revealed != *selected {
 		for index, row := range rows {
@@ -135,8 +146,8 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 		// TrajectoryTimeline — overview strip from row kinds.
 		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(rows)), selected, accent, muted, border, timeRange.sequence, timeRange)
-			paintTrajectoryRange(c, rows, timeRange, m.List, accent, muted, border)
+			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(allRows)), selected, accent, muted, border, timeRange.sequence, timeRange)
+			paintTrajectoryRange(c, allRows, timeRange, m.List, accent, muted, border, rows)
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 
@@ -183,7 +194,18 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 					btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
 						Padding(0).Radius(0)
 					btn.Children(func() {
-						paintTrajectoryRecord(lr.Context, row, fg, muted, accent)
+						ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
+							if row.FoldKey != "" {
+								glyph := "▾"
+								if row.Folded {
+									glyph = "▸"
+								}
+								if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(24).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Clicked() {
+									folds.toggle(row)
+								}
+							}
+							ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, fg, muted, accent) })
+						})
 					})
 					if btn.Clicked() {
 						if timeRange.active && !rangeMatches[row.ID] {
@@ -197,15 +219,25 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 			// The original local inspector exists only for a selected record.
 			detail := findTrajectoryRow(rows, *selected)
 			if detail == nil {
+				detail = findTrajectoryRow(allRows, *selected)
+			}
+			if detail == nil {
 				return
 			}
-			ui.Box(c).Width(1).FillHeight().Background(border)
 			paneWidth := m.PaneWidth
 			if paneWidth <= 0 {
 				paneWidth, _ = c.Size()
 			}
-			inspector := ui.Column(c).Key("trajectory-inspector").Label("Trajectory event inspector").Width(trajectoryInspectorWidth(paneWidth)).FillHeight().MinWidth(0).Background(chrome.Color(colors.BG)).Padding(8, 10, 8, 10).Gap(6)
+			width := trajectoryInspectorWidth(paneWidth)
+			if resize.width > 0 {
+				low, high := trajectoryResizeBounds(paneWidth)
+				width = min(max(low, resize.width), high)
+			}
 			viewportWidth, _ := c.Size()
+			if viewportWidth > 760 {
+				paintTrajectorySplitter(c, resize, paneWidth, width, border)
+			}
+			inspector := ui.Column(c).Key("trajectory-inspector").Label("Trajectory event inspector").Width(width).FillHeight().MinWidth(0).Background(chrome.Color(colors.BG)).Padding(8, 10, 8, 10).Gap(6)
 			if viewportWidth <= 760 {
 				inspector.Absolute().Right(0).Top(0).Bottom(0).Width(min(paneWidth*.92, 420))
 			}
@@ -220,6 +252,11 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				detail = &fullDetail
 				schemaPayload, headerPayload := trajectoryRequestPayloads(m.Snapshot, detail.ID)
 				requestPayload, requestEvents := trajectoryRequestBodies(m.Snapshot, detail.ID)
+				programAvailable := trajectoryProgramAvailable(detail.Source)
+				historyAvailable := detail.Source.Kind == session.MessageKindSystemPrompt || headerPayload != ""
+				if *detailTab == "program" && !programAvailable || *detailTab == "usage" && requestPayload == "" || *detailTab == "history-diff" && !historyAvailable || *detailTab == "schema" && schemaPayload == "" || *detailTab == "request-header" && headerPayload == "" || (*detailTab == "request" || *detailTab == "request-events") && requestPayload == "" {
+					*detailTab = "overview"
+				}
 				ui.ScrollHorizontal(c).FillWidth().Height(28).Children(func() {
 					ui.Row(c).Gap(6).Children(func() {
 						for _, tab := range []struct{ id, label string }{
@@ -227,7 +264,19 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 							{"args", i18n.T(i18n.KeyTrajTabArgs)},
 							{"result", i18n.T(i18n.KeyTrajTabResult)},
 							{"timing", i18n.T(i18n.KeyTrajTabTiming)},
+							{"raw", trajectoryText("原文", "Raw")}, {"source", trajectoryText("来源", "Source")}, {"program", trajectoryText("程序", "Program")}, {"history-diff", trajectoryText("历史差异", "History diff")}, {"usage", trajectoryText("用量", "Usage")},
 						} {
+							if tab.id == "program" {
+								if !programAvailable {
+									continue
+								}
+							}
+							if tab.id == "usage" && requestPayload == "" {
+								continue
+							}
+							if tab.id == "history-diff" && !historyAvailable {
+								continue
+							}
 							t := tab
 							ink := muted
 							weight := 400
@@ -255,6 +304,10 @@ func TrajectoryView(c *ui.Context, m TrajectoryModel) {
 				ui.Box(c).FillWidth().Height(1).Background(border)
 				copyBody := ""
 				ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
+					if handled, body := trajectoryNativeDetail(c, m, *detail, allRows, *detailTab, selected, fg, muted, field, accent); handled {
+						copyBody = body
+						return
+					}
 					switch *detailTab {
 					case "request", "request-events":
 						copyBody = requestPayload
@@ -367,6 +420,10 @@ type trajectoryContent struct {
 }
 
 type trajRow struct {
+	Source    session.Message
+	TurnKey   string
+	FoldKey   string
+	Folded    bool
 	Full      trajectoryContent
 	Timing    *session.TrajectoryTiming
 	EventTime float64
@@ -382,22 +439,19 @@ type trajRow struct {
 	RawHint   string
 }
 
-func buildTrajectoryRows(msgs []session.Message, query string, turnsFold, callsFold bool) []trajRow {
+func trajectoryAllRows(msgs []session.Message, query string) []trajRow {
 	q := strings.ToLower(strings.TrimSpace(query))
 	out := make([]trajRow, 0, len(msgs))
-	turn := 0
-	for _, msg := range msgs {
-		if turnsFold && msg.Role == "assistant" && msg.Kind != session.MessageKindText {
-			continue
-		}
-		if callsFold && msg.Kind == session.MessageKindTool {
-			continue
-		}
+	groups, numbers := trajectoryTurnGroups(msgs)
+	seenTurns := map[string]bool{}
+	for index, msg := range msgs {
 		row := messageToTrajRow(msg)
-		// Electron ledger groups USER turns; annotate turn index on user rows.
-		if strings.EqualFold(msg.Role, "user") && msg.Kind == session.MessageKindText {
-			turn++
-			row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), turn)
+		row.TurnKey = groups[index]
+		if msg.Role == "user" && msg.Kind == session.MessageKindText && !seenTurns[row.TurnKey] {
+			seenTurns[row.TurnKey] = true
+			if number, ok := numbers[row.TurnKey]; ok {
+				row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), int(number))
+			}
 		}
 		if q != "" {
 			hay := strings.ToLower(row.Full.Input + " " + row.Full.Output + " " + row.Full.Think + " " + row.Full.Tools + " " + row.Model + " " + row.RawHint + " " + row.Full.Raw)
@@ -417,6 +471,7 @@ func messageToTrajRow(msg session.Message) trajRow {
 	}
 	body := msg.Body
 	row := trajRow{
+		Source:    msg,
 		ID:        id,
 		Kind:      msg.Kind,
 		Role:      msg.Role,
@@ -465,6 +520,16 @@ func messageToTrajRow(msg session.Message) trajRow {
 		switch strings.ToLower(msg.Role) {
 		case "user":
 			row.Input = body
+			if content := session.UserMessageContent(msg); content.Structured {
+				parts := []string{content.Text}
+				for _, attachment := range content.Attachments {
+					parts = append(parts, attachment.Type+": "+attachment.Name+" ("+attachment.AttachmentID+")")
+				}
+				for _, block := range content.ExtraBlocks {
+					parts = append(parts, string(block))
+				}
+				row.Input = strings.Join(parts, "\n")
+			}
 			row.Tools = i18n.T(i18n.KeyTrajRoleUser)
 		case "assistant":
 			row.Output = body
@@ -505,14 +570,7 @@ func trajectoryDetailRow(row trajRow) trajRow {
 }
 
 func formatEventTime(ms float64) string {
-	// Harness event time is unix milliseconds.
-	sec := int64(ms / 1000)
-	if sec <= 0 {
-		return ""
-	}
-	// The reference stamps messages with HH:MM; seconds and milliseconds are
-	// inspection-only detail.
-	return time.UnixMilli(int64(ms)).Local().Format("15:04")
+	return time.UnixMilli(int64(ms)).Local().Format("2006-01-02 15:04:05.000 MST")
 }
 
 func findTrajectoryRow(rows []trajRow, id string) *trajRow {

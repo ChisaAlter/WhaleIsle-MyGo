@@ -27,6 +27,7 @@ func TestPluginSessionIdentityIncludesHostAndSelectionGeneration(t *testing.T) {
 }
 
 func TestPluginSessionSwitchClearsStaleState(t *testing.T) {
+	t.Setenv("WHALEISLE_NATIVE_PLUGIN_HOST", "1")
 	sessions := session.New()
 	sessions.Select("session-a")
 	status := harness.Status{State: harness.Ready}
@@ -53,6 +54,7 @@ func TestPluginSessionSwitchClearsStaleState(t *testing.T) {
 }
 
 func TestPluginSessionNoOwnerDoesNotReadFullSnapshotOrHideExplicitMenu(t *testing.T) {
+	t.Setenv("WHALEISLE_NATIVE_PLUGIN_HOST", "1")
 	sessions := session.New()
 	sessions.Select("session-a")
 	s := &mainState{sessions: sessions, bootStatus: harness.Status{State: harness.Ready}}
@@ -145,6 +147,7 @@ func TestPluginSessionCapturedOwnerRetiresOnHostAndSameIDNavigation(t *testing.T
 }
 
 func TestPluginSessionGlobalMainContentClosesAndReturnDoesNotRemount(t *testing.T) {
+	t.Setenv("WHALEISLE_NATIVE_PLUGIN_HOST", "1")
 	sessions := session.New()
 	sessions.Select("a")
 	status := harness.Status{State: harness.Ready, Generation: 1}

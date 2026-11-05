@@ -60,9 +60,8 @@ func (k *questionEditorKeys) handle(ev ui.InputEvent, composing bool, advance fu
 }
 
 func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.QuestionRowView, rowIndex int, store CardStore, flow *questionEditorFlow, fg, muted ui.Color) bool {
-	_, height := c.Size()
-	area := ui.Scroll(c.Key("question-answer:" + p.AgentID + ":" + p.EventID + ":" + strconv.Itoa(rowIndex))).
-		Label("Question content").FillWidth().MinWidth(0).MaxHeight(min(520, height/2)).Disabled(p.Sending)
+	area := ui.Scroll(c.Key("question-answer:"+p.AgentID+":"+p.EventID+":"+strconv.Itoa(rowIndex))).
+		Label("Question content").FillWidth().MinWidth(0).Shrink(1).MinHeight(0).Padding(4, 12).Gap(1).Disabled(p.Sending)
 	area.Children(func() {
 		label := row.Question
 		if label == "" {
@@ -110,7 +109,7 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 		// Frame-local binding prevents pre-Sending events from mutating the draft.
 		custom := row.Custom
 		input := ui.TextArea(c.Key("question-custom"), &custom).FillWidth().Lines(2, 5).Label("Question answer: " + label).
-		Placeholder(i18n.T(i18n.KeyChatQuestionCustomPlaceholder))
+			Placeholder(i18n.T(i18n.KeyChatQuestionCustomPlaceholder))
 		keys := ui.Local(input, "question-enter", func() questionEditorKeys { return questionEditorKeys{} })
 		input.OnChange(func() { store.SetQuestionCustom(p.EventID, row.ID, custom); flow.feedback = "" })
 		composing := input.Composing()

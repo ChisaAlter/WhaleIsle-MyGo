@@ -3,13 +3,14 @@ package chat
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
-func TestSystemPromptOpensOverTranscriptWithoutMovingTheNextRow(t *testing.T) {
+func TestSystemPromptExpandsInlineWithBoundedCodeBody(t *testing.T) {
 	old := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(old)
@@ -30,10 +31,20 @@ func TestSystemPromptOpensOverTranscriptWithoutMovingTheNextRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	after, _ := tt.Find("NEXT ROW")
-	if after.Y != before.Y {
-		t.Fatalf("expanding the prompt moved the transcript: before=%v after=%v", before, after)
+	// Installed SystemPromptRow uses the shared 141px OpaqueBody inline.
+	// Four DIP body margin and four DIP flow padding surround that scrollport.
+	if after.Y-before.Y != 149 {
+		t.Fatalf("inline prompt did not reserve its bounded body: before=%v after=%v", before, after)
 	}
 	if !tt.HasText("system instructions") {
 		t.Fatal("prompt body did not open")
+	}
+	if err := tt.Click(i18n.T(i18n.KeyChatSystemPrompt)); err != nil {
+		t.Fatal(err)
+	}
+	tt.SetTime(time.Now().Add(time.Second))
+	after, _ = tt.Find("NEXT ROW")
+	if after.Y != before.Y || tt.HasText("system instructions") {
+		t.Fatalf("closing prompt did not restore inline flow: before=%v after=%v", before, after)
 	}
 }

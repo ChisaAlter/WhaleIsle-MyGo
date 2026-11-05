@@ -63,3 +63,56 @@ func modelPill(c *ui.Context, label string, primary, small, disabled bool) ui.El
 	}
 	return button
 }
+
+// modelAddPill is the page's full-width "add" row: the outlined 36 DIP pill with a
+// 16 DIP plus before its label.
+func modelAddPill(c *ui.Context, label string, disabled bool) ui.Element {
+	colors := modelColors(c)
+	button := ui.Button(c, "").Label(label).FillWidth().Height(36).Shrink(0).Padding(0, 14).Gap(8).Radius(18).
+		Border(.667, theme.Color(colors.BorderL3)).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Disabled(disabled)
+	if button.Hovered() && !disabled {
+		button.Background(c.Theme().SurfaceHover)
+	}
+	button.Children(func() {
+		ui.Icon(c, bodyIcon("plus")).Size(16, 16).Shrink(0).TextColor(c.Theme().Text).PassThrough()
+		ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(c.Theme().Text)
+	})
+	return button
+}
+
+// modelDisclosure is the editor's "custom settings" fold: a hairline, 12 DIP of
+// air, a 28 DIP summary (12/500 secondary ink, 16 DIP chevron) and the body 12
+// DIP below it.
+func modelDisclosure(c *ui.Context, key, title string, body func()) {
+	colors := modelColors(c)
+	anchor := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	open := ui.Local(anchor, "open", func() bool { return false })
+	if settingsSearchReveal(c, key) {
+		*open = true
+	}
+	settingsSearchTarget(c, key, title, anchor)
+	secondary := theme.Color(colors.Secondary)
+	anchor.Children(func() {
+		ui.Box(c).FillWidth().Height(.667).Background(theme.Color(colors.Border))
+		ui.Box(c).FillWidth().Height(12)
+		toggle := ui.Button(c, "").Label(title).AlignSelf(ui.Start).Height(28).Padding(0, 8, 0, 0).Gap(8).Radius(8).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
+		toggle.Children(func() {
+			icon := "right"
+			if *open {
+				icon = "down"
+			}
+			ui.Icon(c, bodyIcon(icon)).Size(16, 16).Shrink(0).TextColor(secondary).PassThrough()
+			ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).TextColor(secondary).SingleLine()
+		})
+		if toggle.Hovered() {
+			toggle.Background(c.Theme().SurfaceHover)
+		}
+		if toggle.Clicked() {
+			*open = !*open
+		}
+		if *open {
+			ui.Box(c).FillWidth().Height(12)
+			ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(body)
+		}
+	})
+}

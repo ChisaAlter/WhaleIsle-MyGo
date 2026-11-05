@@ -17,8 +17,8 @@ import (
 type parityRepairTransport func(*http.Request) (*http.Response, error)
 
 func (f parityRepairTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
-func parityRPCResponse(value any) *http.Response {
-	b, _ := json.Marshal(map[string]any{"result": map[string]any{"ok": true, "value": value}})
+func parityRPCResponse(rpcID string, value any) *http.Response {
+	b, _ := json.Marshal(map[string]any{"type": "server-response", "rpcId": rpcID, "result": map[string]any{"ok": true, "value": value}})
 	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(string(b)))}
 }
 func parityRepairOverview(ids ...string) json.RawMessage {
@@ -55,6 +55,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 			var once sync.Once
 			transport := parityRepairTransport(func(r *http.Request) (*http.Response, error) {
 				var req struct {
+					RPCID   string `json:"rpcId"`
 					Payload struct {
 						ID    string `json:"sessionId"`
 						Force bool   `json:"force"`
@@ -84,7 +85,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 					if scenario == "partial-failure" && req.Payload.ID == "bad2" {
 						return nil, fmt.Errorf("synthetic ambiguous disconnect")
 					}
-					return parityRPCResponse(RepairResult{Repaired: 8, Backup: "fake/" + req.Payload.ID + ".bak-1", BytesBefore: 100, BytesAfter: 90}), nil
+					return parityRPCResponse(req.RPCID, RepairResult{Repaired: 8, Backup: "fake/" + req.Payload.ID + ".bak-1", BytesBefore: 100, BytesAfter: 90}), nil
 				case "overview":
 					if !req.Payload.Force {
 						t.Error("post-repair overview must force rescan")
@@ -98,7 +99,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 						return nil, fmt.Errorf("synthetic rescan failure")
 					}
 					if scenario == "partial-failure" || scenario == "stop-queue" {
-						return parityRPCResponse(parityRepairOverview("bad2", "bad3")), nil
+						return parityRPCResponse(req.RPCID, parityRepairOverview("bad2", "bad3")), nil
 					}
 					raw := parityRepairOverview()
 					if scenario == "stale-scan" {
@@ -107,7 +108,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 					if scenario == "incomplete-coverage" {
 						raw = json.RawMessage(`{"days":[],"allTime":{"byModel":[]},"topSessions":[],"updatedAt":1,"coverage":{"timezone":"UTC"}}`)
 					}
-					return parityRPCResponse(raw), nil
+					return parityRPCResponse(req.RPCID, raw), nil
 				default:
 					t.Error("unexpected RPC", method)
 					return nil, fmt.Errorf("unexpected RPC")
@@ -226,10 +227,14 @@ func TestUsageParityRepairFixture(t *testing.T) {
 		writes := 0
 		s := New()
 		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}, HTTP: &http.Client{Transport: parityRepairTransport(func(r *http.Request) (*http.Response, error) {
+			var req struct {
+				RPCID string `json:"rpcId"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			if strings.HasSuffix(r.URL.Path, "repair.session") {
 				writes++
 			}
-			return parityRPCResponse(parityRepairOverview("new")), nil
+			return parityRPCResponse(req.RPCID, parityRepairOverview("new")), nil
 		})}}, nil)
 		s.stats.Raw = parityRepairOverview("old")
 		s.PrepareRepairAll()

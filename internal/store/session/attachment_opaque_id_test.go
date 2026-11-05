@@ -37,14 +37,15 @@ func TestFetchAttachmentPreservesOpaqueWhitespaceIDs(t *testing.T) {
 	st := New()
 	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	st.Select("opaque-id-session")
+	read := st.CaptureAttachmentRead(st.PlanHistoryBinding(), "opaque-id-session")
 	paths := map[string]string{}
 	for _, id := range []string{"opaque", " opaque ", " "} {
-		ForgetCachedAttachment(id)
+		read.Forget(id)
 		local, err := st.FetchAttachment(context.Background(), id)
 		if err != nil || local == "" {
 			t.Fatalf("id%q local%q err%v", id, local, err)
 		}
-		if CachedAttachmentPath(id) != local {
+		if read.Cached(id) != local {
 			t.Fatalf("cache lost exact id %q", id)
 		}
 		paths[id] = local
@@ -52,13 +53,13 @@ func TestFetchAttachmentPreservesOpaqueWhitespaceIDs(t *testing.T) {
 	if len(requested) != 3 || requested[0] != "opaque" || requested[1] != " opaque " || requested[2] != " " || paths["opaque"] == paths[" opaque "] {
 		t.Fatalf("IDs merged or rewritten: %q %v", requested, paths)
 	}
-	ForgetCachedAttachment(" opaque ")
-	if CachedAttachmentPath(" opaque ") != "" || CachedAttachmentPath("opaque") != paths["opaque"] {
+	read.Forget(" opaque ")
+	if read.Cached(" opaque ") != "" || read.Cached("opaque") != paths["opaque"] {
 		t.Fatal("retry cleared a different opaque identity")
 	}
 	t.Cleanup(func() {
 		for id := range paths {
-			ForgetCachedAttachment(id)
+			read.Forget(id)
 		}
 	})
 }

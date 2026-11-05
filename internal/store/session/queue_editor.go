@@ -65,6 +65,9 @@ func (s *Store) BeginQueueEditForSession(ctx context.Context, sessionID, itemID 
 func (s *Store) runLoadQueueEdit(ctx context.Context, client *dsh.Client, sid string, token uint64, itemID string) {
 	var out api.SessionProjectionsValue
 	err := client.Call(ctx, "session/projections", map[string]any{"request": map[string]any{"sessionId": sid}}, &out)
+	if err == nil {
+		err = out.RequireSequenced()
+	}
 	var text string
 	if err == nil {
 		text, err = queueEditableText(out.Values, itemID)

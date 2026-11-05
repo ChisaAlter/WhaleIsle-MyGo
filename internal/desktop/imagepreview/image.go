@@ -17,10 +17,10 @@ import (
 	"strings"
 )
 
-const MaxBytes int64 = 16 << 20
+const MaxBytes int64 = 32 << 20
 const MaxPixels int64 = 32_000_000
 const MaxFrames = 256
-const MaxSVGBytes = 1 << 20
+const MaxSVGBytes = 32 << 20
 
 func Supports(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
@@ -59,7 +59,7 @@ func Build(path string, data []byte) (string, error) {
 // Both paths keep exactly the same byte, dimension and container validation.
 func imageDataURL(path string, data []byte) (string, error) {
 	if len(data) == 0 || int64(len(data)) > MaxBytes {
-		return "", errors.New("image snapshot exceeds the 16 MiB byte budget")
+		return "", errors.New("image snapshot exceeds the 32 MiB byte budget")
 	}
 	var mime string
 	var err error

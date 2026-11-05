@@ -195,6 +195,7 @@ func deliveryReadModel(m Model, tab *FileTab) (Model, error) {
 		return m, nil
 	}
 	m.ReadRemote, m.ReadRemoteContext, m.ReadTextPageContext = nil, nil, nil
+	m.ReadImageContext = nil
 	m.ReadTableContext, m.StatRemote, m.StatRemoteContext = nil, nil, nil
 	m.OpenDocumentViewer = nil
 	m.WatchRemoteContext = nil

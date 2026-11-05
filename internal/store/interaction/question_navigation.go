@@ -71,8 +71,7 @@ func (s *Store) submitQuestionBatch(agentID, eventID string, submit func(string)
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
-	p := s.findPending(eventID)
-	if ds == nil || len(ds.req.Questions) == 0 || p.Error != "" {
+	if ds == nil || len(ds.req.Questions) == 0 {
 		s.mu.Unlock()
 		return "", ""
 	}
@@ -96,8 +95,7 @@ func (s *Store) skipQuestionAndContinue(agentID, eventID, questionID string, sub
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
-	p := s.findPending(eventID)
-	if ds == nil || p.Error != "" || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID || ds.answers[questionID] == nil {
+	if ds == nil || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID || ds.answers[questionID] == nil {
 		s.mu.Unlock()
 		return "", ""
 	}

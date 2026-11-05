@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"time"
+	"whaleisle/internal/desktop/providerdiscovery"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -20,6 +21,21 @@ func (s *mainState) refreshProviderDiscovery() {
 func (s *mainState) providerDiscoveryAccess() *settings.ProviderDiscoveryAccess {
 	return &settings.ProviderDiscoveryAccess{
 		Snapshot: s.settingsProviderDiscovery.Snapshot(), OnRefresh: s.refreshProviderDiscovery,
+		OnProbeEditor: func(target providerdiscovery.EditorProbe, complete func([]providerdiscovery.Candidate, error)) func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+			go func() {
+				defer cancel()
+				candidates, err := s.settingsProviderDiscovery.ProbeEditor(ctx, target)
+				s.mu.Lock()
+				win := s.win
+				s.mu.Unlock()
+				if win != nil {
+					win.Update(func() { complete(candidates, err) })
+				}
+				s.updateProviderProfilesUI()
+			}()
+			return cancel
+		},
 		OnSelect: func(ticket uint64, id string) {
 			s.settingsProviderDiscovery.Select(ticket, id)
 			s.updateProviderProfilesUI()

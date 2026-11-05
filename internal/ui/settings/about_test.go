@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"testing"
+	"time"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/ui/i18n"
 )
@@ -52,6 +53,9 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 		t.Fatal("render repeated mount-only I/O")
 	}
 	a.Loading, a.UpdateBusy, a.HomeBusy = false, false, false
+	tt.Frame()
+	// Receipts arrive as toasts; let the first ones time out so they do not cover the controls.
+	tt.SetTime(time.Now().Add(time.Minute))
 	tt.Frame()
 	if err := tt.Click(i18n.T(i18n.KeySettingsDesktopCheckUpdates)); err != nil {
 		t.Fatal(err)
@@ -105,7 +109,7 @@ func TestAboutUpdateCenterContextualPhasesAndActions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !tt.HasText("Update available: 0.4.0") {
+	if !tt.HasText("New version 0.4.0 is available") {
 		t.Fatalf("missing available summary: %v", tt.Texts())
 	}
 	if err := tt.Click("Download update"); err != nil {
@@ -118,9 +122,15 @@ func TestAboutUpdateCenterContextualPhasesAndActions(t *testing.T) {
 	a.UpdatePhase = "downloading"
 	a.UpdatePercent = 42
 	tt.Frame()
-	if !tt.HasText("Downloading update… 42%") {
+	if !tt.HasText("Downloading 42%") {
 		t.Fatalf("missing downloading summary: %v", tt.Texts())
 	}
+	a.UpdateBusy = true
+	tt.Frame()
+	if tt.HasText("Checking for updates…") || !tt.HasText("Downloading 42%") {
+		t.Fatal("active download was mislabeled as an update check")
+	}
+	a.UpdateBusy = false
 
 	a.UpdatePhase = "paused"
 	a.UpdatePercent = 42
@@ -152,5 +162,17 @@ func TestAboutUpdateCenterContextualPhasesAndActions(t *testing.T) {
 	}
 	if centerOpens != 1 {
 		t.Fatalf("centerOpens = %d, want 1", centerOpens)
+	}
+	a.UpdatePhase = "error"
+	a.UpdateStatus = "synthetic persisted update failure"
+	tt.Frame()
+	if !tt.HasText(a.UpdateStatus) {
+		t.Fatal("update error receipt was hidden")
+	}
+	if err := tt.Click("Resume download"); err != nil {
+		t.Fatal(err)
+	}
+	if resumes != 2 {
+		t.Fatal("error state lost its recovery action")
 	}
 }

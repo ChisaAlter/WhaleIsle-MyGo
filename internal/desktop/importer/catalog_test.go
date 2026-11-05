@@ -96,7 +96,7 @@ func TestApplyCatalogCopiesSelected(t *testing.T) {
 func TestReadPlainSessionMeta(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "session.v3.jsonl"),
-		`{"type":"session","title":"Hello World","cwd":"C:\\proj"}\n{"type":"message"}\n`)
+		`{"type":"session","title":"Hello World","cwd":"C:\\proj"}`+"\n"+`{"type":"message"}`+"\n")
 	title, cwd := readPlainSessionMeta(dir)
 	if title != "Hello World" || cwd != `C:\proj` {
 		t.Fatalf("title=%q cwd=%q", title, cwd)

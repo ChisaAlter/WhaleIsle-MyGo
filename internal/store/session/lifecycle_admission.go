@@ -39,6 +39,13 @@ func (s *Store) runCreateNoDirectorySession(ctx context.Context, client *dsh.Cli
 }
 
 func (s *Store) runCreateSession(ctx context.Context, client *dsh.Client, hostGeneration uint64, cwd, stagedPreset string) {
+	s.mu.Lock()
+	navigation, follow, selected := s.workspaceNavigationToken, s.followGeneration, s.selectedID
+	s.mu.Unlock()
+	s.runCreateSessionOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selected)
+}
+
+func (s *Store) runCreateSessionOwned(ctx context.Context, client *dsh.Client, hostGeneration uint64, cwd, stagedPreset string, navigation, follow uint64, selected string) {
 	req := api.SessionCreateRequest{}
 	if cwd != "" {
 		req.Cwd = &cwd
@@ -49,7 +56,7 @@ func (s *Store) runCreateSession(ctx context.Context, client *dsh.Client, hostGe
 	var out api.SessionCreateValue
 	err := client.Call(ctx, "session/create", map[string]any{"request": req}, &out)
 	s.mu.Lock()
-	if s.client != client || s.eventsGeneration != hostGeneration {
+	if s.client != client || s.eventsGeneration != hostGeneration || s.workspaceNavigationToken != navigation || s.followGeneration != follow || s.selectedID != selected {
 		s.mu.Unlock()
 		return
 	}
@@ -75,13 +82,20 @@ func (s *Store) runCreateSession(ctx context.Context, client *dsh.Client, hostGe
 }
 
 func (s *Store) runForkSession(ctx context.Context, client *dsh.Client, hostGeneration uint64, sessionID string) {
+	s.mu.Lock()
+	navigation, follow, selected := s.workspaceNavigationToken, s.followGeneration, s.selectedID
+	s.mu.Unlock()
+	s.runForkSessionOwned(ctx, client, hostGeneration, sessionID, navigation, follow, selected)
+}
+
+func (s *Store) runForkSessionOwned(ctx context.Context, client *dsh.Client, hostGeneration uint64, sessionID string, navigation, follow uint64, selected string) {
 	req := api.SessionForkRequest{SessionId: sessionID}
 	var out struct {
 		SessionId string `json:"sessionId"`
 	}
 	err := client.Call(ctx, "session/fork", map[string]any{"request": req}, &out)
 	s.mu.Lock()
-	if s.client != client || s.eventsGeneration != hostGeneration {
+	if s.client != client || s.eventsGeneration != hostGeneration || s.workspaceNavigationToken != navigation || s.followGeneration != follow || s.selectedID != selected {
 		s.mu.Unlock()
 		return
 	}

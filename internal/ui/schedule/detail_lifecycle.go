@@ -3,6 +3,7 @@ package schedule
 import (
 	"context"
 
+	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 )
 
@@ -38,13 +39,39 @@ func (p *Panel) closeDetail() {
 	p.deleteAck = nil
 	p.committed = nil
 	p.status, p.statusOwner = "", ""
+	p.statusDismissed, p.statusLocal, p.statusDraft = false, false, ""
 	p.historyRequest++
 	p.historyKey, p.historyLoading = "", false
 	p.historyLatest = ""
+	p.historyRetentionOpen = false
 	p.historyState = deliveryHistoryState{}
 	p.mu.Unlock()
 	p.selected, p.detailTab = "", "rule"
 	p.drafts, p.deleting, p.deliveryExpanded = nil, nil, nil
+	p.focusDetail, p.focusDelete = false, false
+}
+
+func (p *Panel) focusCatalog(c *ui.Context, snap schedstore.ViewState) {
+	for _, row := range schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter) {
+		if taskKey(row) == p.returnRow {
+			if handle := p.rowFocus[p.returnRow]; handle != nil {
+				handle.RequestFocus(c)
+				return
+			}
+		}
+	}
+	p.headingFocus.RequestFocus(c)
+}
+
+func (p *Panel) dismissDetails(c *ui.Context, m Model, snap schedstore.ViewState) {
+	p.closeDetail()
+	if m.DetailID != "" {
+		if m.OnClose != nil {
+			m.OnClose()
+		}
+		return
+	}
+	p.focusCatalog(c, snap)
 }
 
 func (p *Panel) actionCurrentLocked(owner, request, epoch uint64) bool {
@@ -124,6 +151,7 @@ func (p *Panel) selectDetailTab(tab string) {
 		p.historyRequest++
 		p.historyKey, p.historyLoading = "", false
 		p.historyLatest = ""
+		p.historyRetentionOpen = false
 		p.historyState = deliveryHistoryState{}
 		p.mu.Unlock()
 	}

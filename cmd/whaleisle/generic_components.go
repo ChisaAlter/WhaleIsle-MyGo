@@ -113,8 +113,7 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 				button = i18n.T(i18n.KeyCmdRollBack)
 				message = fmt.Sprintf(i18n.T(i18n.KeyCmdRollBackToVItsRunningProcessWillBeS), row.Name, row.PreviousVersion)
 			}
-			answer, err := mygo.Dialog.Message(mygo.MessageOptions{Parent: win, Type: mygo.MessageWarning, Title: title, Message: message, Buttons: []string{i18n.T(i18n.KeyCmdCancel), button}, DefaultButton: 0, CancelButton: 0})
-			if err != nil || answer.Button != 1 {
+			if !s.askConfirmBlocking(confirmAskRequest{Owner: win, Title: title, Body: message, ConfirmLabel: button, CancelLabel: i18n.T(i18n.KeyCmdCancel), Danger: action == "uninstall"}) {
 				return
 			}
 		}

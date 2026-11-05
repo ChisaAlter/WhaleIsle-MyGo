@@ -1,0 +1,4713 @@
+{
+  "domain": "supplement-workbench-actions",
+  "date": "2026-11-02",
+  "purpose": "把原版已生效入口拆成用户动作，补足44项工作面大项掩盖的链路与动作分母；只做差异审计，不修产品。",
+  "baseline": {
+    "original": "installed Whale Isle 0.3.13；C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/*/lib 与 tmp/full-audit-20261102/installed-source/src",
+    "mygo": "b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb + 当前工作树；仅按生产调用链核对",
+    "auxiliaryCheckout": "未使用 C:/AI/Deepseek-Harness-Desktop 当前源码作能力证明，其 dirty 不混入安装基线。",
+    "effectiveRegistration": [
+      {
+        "case": "桌面Files",
+        "result": "ui-files extension覆盖builtin files；普通session相对文件由desktop-file claim；Office/绝对资源留文档fallback。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              210,
+              313
+            ],
+            "note": "type优先/claim条件"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2663,
+              2703
+            ],
+            "note": "实际注册"
+          }
+        ]
+      },
+      {
+        "case": "桌面Browser",
+        "result": "ui-preview有previewOpen时extension生效，未声明multiple；不能拿builtin browser.multiple:true推断安装桌面每次新建。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2733,
+              2771
+            ],
+            "note": "实际注册条件"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-right/lib/client.js",
+            "lines": [
+              4535,
+              4581
+            ],
+            "note": "优先定义整项遮蔽"
+          }
+        ]
+      },
+      {
+        "case": "Host终端",
+        "result": "ui-sidebar-terminal multiple:true；ui-user-terminal只绑定本地drawer/legacy surface，未覆盖Host terminal type。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              390,
+              456
+            ],
+            "note": "Host实际type"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              4199,
+              4236
+            ],
+            "note": "本地slots"
+          }
+        ]
+      }
+    ]
+  },
+  "statusMeaning": {
+    "mapped": "源码已追到生产入口/处理/Host或desktop及反馈，未发现该动作额外缺段；不表示本轮实机通过，也不提升关联旧partial/defect。",
+    "partial": "替代路径或底层能力存在，但原动作入口、默认手势或反馈契约未完整保留。",
+    "confirmed-gap": "安装原版明确存在的动作，在当前MyGo生产入口/路径的指定条件下存在可定位缺链；源码结论，非UI运行复现。"
+  },
+  "counting": {
+    "rule": "actionIds是非加法覆盖映射，不把每个旧大项拆行当新增功能；newUniqueGapGroups仅列可独立复现的缺链。",
+    "oldWorkbenchItemCount": 44,
+    "newUniqueGapGroups": [
+      {
+        "id": "delivery-mini",
+        "actionIds": [
+          "GWB-001"
+        ]
+      },
+      {
+        "id": "changes-hover-preview",
+        "actionIds": [
+          "GWB-002"
+        ]
+      },
+      {
+        "id": "delivery-default-primary",
+        "actionIds": [
+          "GWB-003"
+        ]
+      },
+      {
+        "id": "unselected-tree-editor",
+        "actionIds": [
+          "GWB-004"
+        ]
+      },
+      {
+        "id": "git-error-copy",
+        "actionIds": [
+          "GWB-005"
+        ]
+      },
+      {
+        "id": "git-error-details",
+        "actionIds": [
+          "GWB-006"
+        ]
+      },
+      {
+        "id": "publish-open-repository",
+        "actionIds": [
+          "GWB-007"
+        ]
+      },
+      {
+        "id": "host-terminal-new-occurrence",
+        "actionIds": [
+          "GWB-008"
+        ]
+      }
+    ],
+    "excludedFromNewGapCount": [
+      "GWB-010及Browser命令行的纯默认快捷键差异交shell统一计数",
+      "原生文件关联刷新反馈差异有原Host owner替代路径，只标partial",
+      "旧WB-019/020/027/029、WB-034等已有缺陷不重计",
+      "文件树新建/重命名/删除两端均无直接入口，不列为移植缺失",
+      "只有预加载/Host方法而无用户入口（如previewCopyArtifactToClipboard）不列为原版用户动作"
+    ]
+  },
+  "actions": [
+    {
+      "id": "GWB-001",
+      "action": "交付文件卡点击后在聊天区悬浮预览，而不展开右栏",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "confirmed-gap",
+      "original": {
+        "condition": "当前主会话的声明交付文件；路径可由该会话打开。HTML/PDF 走 Browser mini，其余文件走资源 floating。",
+        "entryAndGesture": "轮尾交付卡主体点击 → openFile(file.path, {presentation:\"mini\"}) → ui-surfaces.openWorkspaceSurface",
+        "expectedResult": "保留聊天上下文，在聊天区出现可恢复到右栏的文件/Browser 悬浮预览；mini 不强制展开右栏。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1481,
+              1495
+            ],
+            "note": "卡片明确传 mini"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js",
+            "lines": [
+              513,
+              537
+            ],
+            "note": "mini 分成 Browser 与普通资源浮窗两条路"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "TurnDeliveryView → presentedFileCard 的 preview 回调",
+        "handling": "OnPreviewDeliverable → PreviewDeliveryPath；普通文件选 Files，PDF/HTML/media 打开 document route。",
+        "hostOrDesktop": "main.openLocalDeliverableDocument / Files 本地只读 reader 均可生产读取，但本回调未调用 FloatWorkspaceTab、mini-player 或 floating 参数。",
+        "feedbackAndRecovery": "预览失败显示卡片错误；成功把 filesPaneOpen 设 true，rightPaneTab 设 files/browser。",
+        "evidence": [
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              440,
+              465
+            ],
+            "note": "卡片回调与错误"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7342,
+              7376
+            ],
+            "note": "成功路径仅展开 dock"
+          },
+          {
+            "path": "internal/ui/files/delivery_preview.go",
+            "lines": [
+              96,
+              148
+            ],
+            "note": "document/Files 分支，无 mini presentation"
+          }
+        ]
+      },
+      "missingLink": "卡片的 mini presentation 在生产回调处丢失；有 Browser mini 或独立文件窗口模块不代表这次点击接到了它。",
+      "acceptanceGap": "源码已证实路由未接；修复后仍需当前候选验收 txt/图片/HTML/PDF 卡片点击、右栏关闭状态与恢复按钮。",
+      "distinctness": "不是 WB-017 的独立原生文件窗口，也不是 WB-041 中工具条手动 mini；缺的是交付卡→聊天浮窗的既定跨面板动作。"
+    },
+    {
+      "id": "GWB-002",
+      "action": "悬停本轮变更文件，延迟展示记录快照 diff 预览",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "confirmed-gap",
+      "original": {
+        "condition": "Host 已提供本轮 changes summary；单文件标题或多文件行可见。",
+        "entryAndGesture": "ChangedFiles 单文件标题/文件行悬停 500ms → HoverCard → ChangedFilePreview",
+        "expectedResult": "不用点击、不改变当前右栏资源，就能看到同一 seq/index 的记录快照差异及读取/重试状态。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1079,
+              1085
+            ],
+            "note": "动作说明"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1152,
+              1165
+            ],
+            "note": "500ms 悬停入口"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1237,
+              1276
+            ],
+            "note": "悬停预览独立读取记录 diff"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "TurnDeliveryView → changed rowWrap / rowBtn",
+        "handling": "Hover 只改变背景；只有点击 header/row 才 run summary/diff 并打开 ChangesReview。",
+        "hostOrDesktop": "Host changes.diff reader 存在，但未接 HoverCard/延迟悬停 trigger。",
+        "feedbackAndRecovery": "点击读取有 Busy/Error/inline comparison；无悬停预览反馈。",
+        "evidence": [
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              275,
+              348
+            ],
+            "note": "Hover 仅背景；读取在 Clicked 分支"
+          },
+          {
+            "path": "internal/ui/frame/changes_review.go",
+            "lines": [
+              123,
+              156
+            ],
+            "note": "点击后记录 diff reader/重试"
+          }
+        ]
+      },
+      "missingLink": "Hover→延时→只读 diff 预览链缺失。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "不是重复计算“可打开本轮审阅”；审阅面板存在，本行是原版独立的无导航悬停动作。"
+    },
+    {
+      "id": "GWB-003",
+      "action": "交付卡打开控件的默认主按钮：一击默认应用，无关联应用时一击 reveal",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "Host desktop available，文件 apps 查询完成；默认 app 优先，否则第一项，完全无 app 则 reveal。",
+        "entryAndGesture": "交付卡文件动作 split button 的左半主按钮点击；右半仅展开菜单。",
+        "expectedResult": "主按钮直接执行默认动作；右半列出应用、最后 reveal；两者共享 busy/error，防重复。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              261,
+              298
+            ],
+            "note": "preferred/revealDefault 主动作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              330,
+              368
+            ],
+            "note": "左右是独立按钮"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              639,
+              660
+            ],
+            "note": "FileRouteAction 适配授权文件 URL"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "presentedFileCard/changed row → deliverableActionPill",
+        "handling": "外观为 24+17 的 split，但整个 42DIP 控件只有一个 Menu 按钮；实际 open/reveal/application 都需先打开菜单。",
+        "hostOrDesktop": "RunTurnFileAction 仍可执行默认 open/reveal 和指定应用，不是底层打开能力全失。",
+        "feedbackAndRecovery": "busy 禁用；apps 可手动刷新；默认无 apps 时菜单仍先提供 open，不把 reveal 变为直接主动作。",
+        "evidence": [
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              478,
+              531
+            ],
+            "note": "一个 Menu 按钮承载两半外观与全部动作"
+          },
+          {
+            "path": "internal/store/session/turn_deliverables.go",
+            "lines": [
+              525,
+              567
+            ],
+            "note": "POST 保留实际 Host 动作"
+          }
+        ]
+      },
+      "missingLink": "独立默认主按钮及无关联应用的 reveal 主动作没有实现；菜单替代路径存在。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "只计一次交付卡共享控件契约；不按每张交付卡和每个 changed row 重复计缺口。"
+    },
+    {
+      "id": "GWB-004",
+      "action": "未选中的文件树行，直接右键选择指定外部编辑器",
+      "oldCoverage": {
+        "ids": [
+          "WB-018"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "confirmed-gap",
+      "original": {
+        "condition": "Files 已完成可用编辑器探测；目标可以不是当前预览的文件。",
+        "entryAndGesture": "任一 file row 右键 → editor.<id> → openInEditor(cwd,relativePath)",
+        "expectedResult": "无需先左键打开目标，就把右键那一行交给指定编辑器；相邻当前文件不受影响。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              896,
+              923
+            ],
+            "note": "编辑器项按 entry.kind 产生，不检查当前预览"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1589,
+              1599
+            ],
+            "note": "按右键行 cwd/relativePath 调用"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "rowFile/paintFiltered → treeFileMenu → previewContextActions",
+        "handling": "treeFileMenu 提供复制/reveal/系统外部打开，然后 previewContextActions 在 SelectedFile != path 时立即 return。指定 EditorApps 只在 previewOpenMenu。",
+        "hostOrDesktop": "openInEditor 及 editors.Open 实现已有；缺的是对未选中行的菜单入口。",
+        "feedbackAndRecovery": "用户须先左键选中该文件，才能从当前预览菜单选择编辑器；原版无此前置。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              81,
+              91
+            ],
+            "note": "file row 菜单把编辑器留给 previewContextActions"
+          },
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              284,
+              295
+            ],
+            "note": "指定编辑器仅此处"
+          },
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              384,
+              394
+            ],
+            "note": "非 selected 路径直接返回"
+          },
+          {
+            "path": "cmd/whaleisle/open_editor.go",
+            "lines": [
+              46,
+              61
+            ],
+            "note": "真实执行器存在"
+          }
+        ]
+      },
+      "missingLink": "右键行→指定编辑器的入口被“必须先选为预览文件”条件切断。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "不同于旧 WB-020 的 Host apps 请求身份和离线静默；这是本机已探测编辑器在未选中文件行的入口缺失。"
+    },
+    {
+      "id": "GWB-005",
+      "action": "Git 失败通知里复制完整错误/钩子输出",
+      "oldCoverage": {
+        "ids": [
+          "WB-026"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "confirmed-gap",
+      "original": {
+        "condition": "任一标题栏 Git 动作失败，通知包含 details 或 description。",
+        "entryAndGesture": "GitProgressToast → 复制错误",
+        "expectedResult": "把完整 details（无则 description）写入系统剪贴板，便于提交错误材料。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1253,
+              1258
+            ],
+            "note": "copyText 选择完整 details"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1295,
+              1301
+            ],
+            "note": "复制错误真实入口"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "标题栏/面板 → DrawGitProgress",
+        "handling": "只渲染 phase、root 和末五条 Lines；唯一按钮为 done 后关闭进度。",
+        "hostOrDesktop": "git.Progress 保留日志且操作结果写入 Workbench.Status；无错误复制回调或剪贴板入口。",
+        "feedbackAndRecovery": "可读到有限通知；需要手工整理输出，无法执行原版复制错误动作。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/git_progress.go",
+            "lines": [
+              11,
+              33
+            ],
+            "note": "完整通知动作集"
+          },
+          {
+            "path": "internal/ui/diffsurface/repository_actions.go",
+            "lines": [
+              58,
+              96
+            ],
+            "note": "完成结果只存 Status"
+          }
+        ]
+      },
+      "missingLink": "失败通知→完整错误字符串→Clipboard 的用户动作缺失。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "不是 WB-019 的系统命令安全，也不是 WB-027/029 的 PR URL；是 Git 失败材料的恢复/交接动作。"
+    },
+    {
+      "id": "GWB-006",
+      "action": "Git 失败通知里展开/收起完整错误详情",
+      "oldCoverage": {
+        "ids": [
+          "WB-026"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "Git details 与通知 headline 不同，当前 Git 面板可能未打开。",
+        "entryAndGesture": "GitProgressToast → 显示详情/隐藏详情",
+        "expectedResult": "就在发起动作的通知中查看完整 Git/hook dump，不丢失主界面上下文。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1225,
+              1234
+            ],
+            "note": "避免详情与 headline 重复"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1282,
+              1285
+            ],
+            "note": "展开完整 pre"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1303,
+              1310
+            ],
+            "note": "显式展开/收起动作"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "CaptionActivity → DrawGitProgress",
+        "handling": "通知只末五条日志，无展开；完整最终 text/err 放到 Workbench.Status。现有提交dialog可显示Status，而通用面板launcher仅单行省略。",
+        "hostOrDesktop": "操作结果并非完全丢失；通知没有 details 折叠状态或完整 dump 入口。",
+        "feedbackAndRecovery": "通知提示 review details，但本通知只有关闭；Status并非在所有反馈座都完整展开。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/caption_actions.go",
+            "lines": [
+              225,
+              240
+            ],
+            "note": "标题栏进度座"
+          },
+          {
+            "path": "internal/ui/diffsurface/git_progress.go",
+            "lines": [
+              15,
+              33
+            ],
+            "note": "尾5条且无展开"
+          },
+          {
+            "path": "internal/ui/diffsurface/repository_actions.go",
+            "lines": [
+              84,
+              96
+            ],
+            "note": "完整最终结果保存为 Status"
+          },
+          {
+            "path": "internal/ui/diffsurface/commit_dialog.go",
+            "lines": [
+              64,
+              65
+            ],
+            "note": "提交dialog内Status"
+          },
+          {
+            "path": "internal/ui/diffsurface/commit_dialog.go",
+            "lines": [
+              203,
+              213
+            ],
+            "note": "面板launcher单行省略"
+          }
+        ]
+      },
+      "missingLink": "原通知内的展开/收起动作缺失；完整结果虽存储且某些dialog可显示，但没有统一反馈入口，因此partial。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "与上一行复制动作独立：一个改变通知展示，一个导出错误到剪贴板。"
+    },
+    {
+      "id": "GWB-007",
+      "action": "仓库发布成功后，直接从成功通知打开远程仓库",
+      "oldCoverage": {
+        "ids": [
+          "WB-030"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "confirmed-gap",
+      "original": {
+        "condition": "发布仓库成功且 Host 返回 result.url。",
+        "entryAndGesture": "PublishDialog → gitPublishRepository → success toast → 打开仓库",
+        "expectedResult": "成功反馈保留仓库 URL，点击后用系统浏览器打开实际发布结果。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              2274,
+              2296
+            ],
+            "note": "publish 成功取 URL 并提供 Open repository"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintPublish → beginGitOperation → git.PublishRepository",
+        "handling": "生产结果只回 text/err，没有 repository URL 或成功 action；finishGitOperation 只写 Status。",
+        "hostOrDesktop": "发布/设置远端/推送能力存在；paintGitFollowups 仅处理 LastStack 的 push/PR，不处理已发布仓库 URL。",
+        "feedbackAndRecovery": "完成反馈可读输出；没有“打开仓库”动作。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/repository_actions.go",
+            "lines": [
+              15,
+              20
+            ],
+            "note": "operation result 无 repository URL"
+          },
+          {
+            "path": "internal/ui/diffsurface/repository_actions.go",
+            "lines": [
+              203,
+              212
+            ],
+            "note": "publish 仅返回 out/err"
+          },
+          {
+            "path": "internal/ui/diffsurface/remote_workflow.go",
+            "lines": [
+              199,
+              239
+            ],
+            "note": "followup 仅 Stack/PR"
+          }
+        ]
+      },
+      "missingLink": "publish result.url→成功 CTA→OpenExternal 链未接。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "与已知 WB-029 顶部 View PR 是不同目标、不同结果来源；本行仅发布仓库结果。"
+    },
+    {
+      "id": "GWB-008",
+      "action": "从 Host 终端新建命令/资源入口连续新建独立 occurrence",
+      "oldCoverage": {
+        "ids": [
+          "WB-035"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "连接 Host 的会话；原 Host terminal kind multiple:true；并非本地 PTY 抽屉。",
+        "entryAndGesture": "terminal.new（Windows Ctrl+Shift+`）/右栏 guide 新建 → openTabFromTarget(\"terminal\")",
+        "expectedResult": "重复动作创建新 page occurrence；每个 occurrence 持有对应 Host 终端身份和生命周期。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              390,
+              444
+            ],
+            "note": "新建命令、目标和 multiple:true"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-right/lib/client.js",
+            "lines": [
+              2232,
+              2240
+            ],
+            "note": "multiple 类型分配新 page UUID"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              4199,
+              4236
+            ],
+            "note": "本地终端插件只注册 slots，未覆盖 Host type"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "terminal.host（Mod+Alt+T）/workspaceResourceMenu host-terminal → OnOpenHostTerminal",
+        "handling": "命令只切 host-terminal route；selectKind 会复用同 dock 同 kind。初次新 leaf 可 StartFresh，但重复命令不创建新 occurrence。",
+        "hostOrDesktop": "HostView 的“新建 Host 终端”能创建新进程；在一个 occurrence 内切换列表。拆分还可建第二 occurrence，但不是原命令语义。",
+        "feedbackAndRecovery": "真实 create/connect/close 都有状态与恢复；缺连续“新建”命令和相同默认快捷入口。",
+        "evidence": [
+          {
+            "path": "internal/shortcuts/shortcuts.go",
+            "lines": [
+              32,
+              35
+            ],
+            "note": "现有仅 terminal.host"
+          },
+          {
+            "path": "internal/ui/frame/business_commands.go",
+            "lines": [
+              15,
+              17
+            ],
+            "note": "命令绑定 opener"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7146,
+              7153
+            ],
+            "note": "生产 opener 仅 route"
+          },
+          {
+            "path": "internal/ui/frame/workspace_panes.go",
+            "lines": [
+              118,
+              154
+            ],
+            "note": "同 kind 复用"
+          },
+          {
+            "path": "internal/ui/terminal/host.go",
+            "lines": [
+              56,
+              65
+            ],
+            "note": "首次 StartFresh"
+          },
+          {
+            "path": "internal/ui/terminal/host.go",
+            "lines": [
+              108,
+              118
+            ],
+            "note": "独立进程新建替代入口"
+          }
+        ]
+      },
+      "missingLink": "原 terminal.new→新 occurrence 的命令链未保留；现有 Host process Create 不等于新 occurrence。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "既不重计 WB-031 本地终端，也不否认 WB-035 已接通的 create/retain/follow；仅收窄“用户新建入口齐全”的结论。"
+    },
+    {
+      "id": "GWB-009",
+      "action": "工作区目录用上次应用打开，并在应用菜单选择后记住选择",
+      "oldCoverage": {
+        "ids": [],
+        "relation": "omitted"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "主会话有 workingDirectory/cwd，Host 返回至少一个受支持本地应用。",
+        "entryAndGesture": "会话顶部 Open in app 主按钮/应用菜单；workspace.openLocal 默认 Ctrl+Alt+O",
+        "expectedResult": "主按钮用默认/上次选择；选择新 app 在 launch 成功后持久化；busy 防重与失败 toast。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              380,
+              418
+            ],
+            "note": "目录控件适配"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              816,
+              871
+            ],
+            "note": "workspace.openLocal 条件及默认快捷"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              894,
+              916
+            ],
+            "note": "会话 header 与 Files action slot 注册"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "conversationHeader → conversationOpenInApp；workspace.openLocal → OpenCurrent",
+        "handling": "ObserveHost 获取目录应用；launch 捕获 session/path/app，成功后记 choice；与普通文件 open-with 不同。",
+        "hostOrDesktop": "OpenInAppSource 请求 Host /open-in-app 路径；按真实 Host 启动目录应用。",
+        "feedbackAndRecovery": "并发 busy、防过期与失败 toast；选择保存失败独立反馈。",
+        "evidence": [
+          {
+            "path": "internal/ui/frame/conversation_open_in_app.go",
+            "lines": [
+              182,
+              263
+            ],
+            "note": "OpenCurrent/launch 生命周期"
+          },
+          {
+            "path": "internal/ui/frame/conversation_open_in_app.go",
+            "lines": [
+              266,
+              377
+            ],
+            "note": "真实主按钮与应用菜单"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7450,
+              7452
+            ],
+            "note": "生产 command 装配"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "旧 workbench 的 WB-018 是文件打开；目录 split-button/记住选择未单列。这里补分母，不新增缺口。"
+    },
+    {
+      "id": "GWB-010",
+      "action": "原生 Files 入口与工作区文件快捷命令",
+      "oldCoverage": {
+        "ids": [
+          "WB-001"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "已打开会话；原版 commandTarget 以实际聚焦/活动资源 pane 取会话，不借后台 retain。",
+        "entryAndGesture": "workspace.files（Windows Ctrl+P）→ openTabFromTarget(\"files\")",
+        "expectedResult": "从页面/编辑区/终端快捷打开目标会话 Files。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-files/lib/client.js",
+            "lines": [
+              963,
+              1008
+            ],
+            "note": "Ctrl+P、terminal/editable region 与 target"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-right/lib/client.js",
+            "lines": [
+              2330,
+              2368
+            ],
+            "note": "实际可见 pane 的命令目标"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "workspace.files → OnOpenWorkspaceFiles",
+        "handling": "已提供生产 Files callback，但默认改成 Mod+Shift+B，callback 只设 selected 主会话 route；不接原 commandTarget/原默认键。",
+        "hostOrDesktop": "File tree/read reader 链仍存在。",
+        "feedbackAndRecovery": "无原 Ctrl+P 入口；聚焦资源/子会话情况下仍需实际验收目标。",
+        "evidence": [
+          {
+            "path": "internal/shortcuts/shortcuts.go",
+            "lines": [
+              32,
+              35
+            ],
+            "note": "默认 Mod+Shift+B"
+          },
+          {
+            "path": "internal/ui/frame/business_commands.go",
+            "lines": [
+              15,
+              22
+            ],
+            "note": "实际 command actions"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              6638,
+              6641
+            ],
+            "note": "只设置 files route"
+          }
+        ]
+      },
+      "missingLink": "原默认快捷键未保留；目标路由与原 commandTarget 是否等价仍未实测，不能用 tree 存在证明完整入口。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "与 Files 树内容实现不同；快捷键全局冲突/重映射总表由 shell/shortcuts 领域统一统计。"
+    },
+    {
+      "id": "GWB-011",
+      "action": "文件夹展开/折叠，并手动刷新文件树",
+      "oldCoverage": {
+        "ids": [
+          "WB-001"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "会话工作区目录可读。",
+        "entryAndGesture": "Files → directory row 点击；刷新按钮",
+        "expectedResult": "按真实 root 枚举，展开/折叠子目录；刷新重新读取，显示加载/失败/空目录。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1252,
+              1269
+            ],
+            "note": "实际桌面 FilesPanel"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1487,
+              1492
+            ],
+            "note": "刷新 generation"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1561,
+              1568
+            ],
+            "note": "树打开"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "files.View → rowDir/DirectoryTree",
+        "handling": "Tree.Ensure/Observe 与 rowDir toggle；Refresh 真正清缓存并发读取。",
+        "hostOrDesktop": "main ListRemoteContext/WatchRemoteContext → workspacefs 与 Host 文件服务。",
+        "feedbackAndRecovery": "空 root、empty、Busy、Error/WatchError 可见；刷新清搜索。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              178,
+              213
+            ],
+            "note": "树状态与刷新"
+          },
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              299,
+              349
+            ],
+            "note": "目录枚举与toggle"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7078,
+              7095
+            ],
+            "note": "生产 Host list/watch"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-012",
+      "action": "递归文件路径搜索、选择结果和 Esc 清空",
+      "oldCoverage": {
+        "ids": [
+          "WB-002"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "有非空工作区 root。",
+        "entryAndGesture": "Files 搜索输入 → 全目录 walk → 结果点击；Escape 清查询",
+        "expectedResult": "搜索未展开目录中的文件；取消/换 root 不串结果。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1359,
+              1413
+            ],
+            "note": "递归 search"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1472,
+              1475
+            ],
+            "note": "Esc"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1545,
+              1560
+            ],
+            "note": "结果点击"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "files.View filter → Search.Ensure → paintFiltered",
+        "handling": "异步目录索引、generation 取消及继续加载。",
+        "hostOrDesktop": "workspacefs.Search 对接 local/Host list。",
+        "feedbackAndRecovery": "busy/error/no results；Esc 清 query，Show more 分页。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              217,
+              243
+            ],
+            "note": "搜索输入与异步 ensure"
+          },
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              262,
+              295
+            ],
+            "note": "结果点击与状态"
+          },
+          {
+            "path": "internal/desktop/workspacefs/search.go",
+            "lines": [
+              30,
+              97
+            ],
+            "note": "异步搜索/取消/更多"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "原桌面 Input 本身仅专门处理 Escape，未据旧 WB-002 的笼统 expected 声称存在额外 Enter 快捷选择功能。"
+    },
+    {
+      "id": "GWB-013",
+      "action": "复制文件/目录的引用 Markdown",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "目标树行存在；复制绝对路径是词法 Host 路径，不要求本机挂载。",
+        "entryAndGesture": "Files 树行右键 → copy.reference",
+        "expectedResult": "按右键那一行复制，保留相对/绝对/引用各自语义。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              899,
+              910
+            ],
+            "note": "三种独立菜单项"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1573,
+              1585
+            ],
+            "note": "三种生产回调"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "treeDirectoryMenu（文件复用）",
+        "handling": "从 workspaceReference/treePathCopies 序列化后 Clipboard.WriteText。",
+        "hostOrDesktop": "系统剪贴板；未发网络/文件写。",
+        "feedbackAndRecovery": "原生复制动作有调用；系统剪贴板实际结果未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              29,
+              37
+            ],
+            "note": "词法路径"
+          },
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              58,
+              76
+            ],
+            "note": "复制三种菜单"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-014",
+      "action": "复制文件/目录的相对路径",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "目标树行存在；复制绝对路径是词法 Host 路径，不要求本机挂载。",
+        "entryAndGesture": "Files 树行右键 → copy.relative",
+        "expectedResult": "按右键那一行复制，保留相对/绝对/引用各自语义。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              899,
+              910
+            ],
+            "note": "三种独立菜单项"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1573,
+              1585
+            ],
+            "note": "三种生产回调"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "treeDirectoryMenu（文件复用）",
+        "handling": "从 workspaceReference/treePathCopies 序列化后 Clipboard.WriteText。",
+        "hostOrDesktop": "系统剪贴板；未发网络/文件写。",
+        "feedbackAndRecovery": "原生复制动作有调用；系统剪贴板实际结果未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              29,
+              37
+            ],
+            "note": "词法路径"
+          },
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              58,
+              76
+            ],
+            "note": "复制三种菜单"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-015",
+      "action": "复制文件/目录的绝对路径",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "目标树行存在；复制绝对路径是词法 Host 路径，不要求本机挂载。",
+        "entryAndGesture": "Files 树行右键 → copy.absolute",
+        "expectedResult": "按右键那一行复制，保留相对/绝对/引用各自语义。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              899,
+              910
+            ],
+            "note": "三种独立菜单项"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1573,
+              1585
+            ],
+            "note": "三种生产回调"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "treeDirectoryMenu（文件复用）",
+        "handling": "从 workspaceReference/treePathCopies 序列化后 Clipboard.WriteText。",
+        "hostOrDesktop": "系统剪贴板；未发网络/文件写。",
+        "feedbackAndRecovery": "原生复制动作有调用；系统剪贴板实际结果未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              29,
+              37
+            ],
+            "note": "词法路径"
+          },
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              58,
+              76
+            ],
+            "note": "复制三种菜单"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-016",
+      "action": "文件 @ 按钮将引用加入当前会话草稿",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "目标会话草稿可写。",
+        "entryAndGesture": "文件行 hover/focus 的 @ 按钮",
+        "expectedResult": "插入引用，不上传文件、不自动发送。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1570,
+              1583
+            ],
+            "note": "mention 回调"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2625,
+              2630
+            ],
+            "note": "按所属 session 写草稿"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintTreeReferenceButton → OnReferenceFile",
+        "handling": "捕获 Host/session/root 的 filelink.Reference，当前 draft append。",
+        "hostOrDesktop": "frame 与 main 真实草稿回调。",
+        "feedbackAndRecovery": "发送中禁用；成功/失败状态；晚到 owner 校验。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              110,
+              126
+            ],
+            "note": "实际 @ 控件"
+          },
+          {
+            "path": "internal/ui/filelink/reference.go",
+            "lines": [
+              14,
+              77
+            ],
+            "note": "引用身份/序列化"
+          },
+          {
+            "path": "internal/ui/frame/frame.go",
+            "lines": [
+              1595,
+              1599
+            ],
+            "note": "生产 callback"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-017",
+      "action": "拖拽文件树行进入 composer，作为文件引用",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "仅文件行；目标 composer 接受引用。",
+        "entryAndGesture": "FileTree draggable row → composer drop",
+        "expectedResult": "拖文件引用而非执行上传，drag 后不误触打开。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              771,
+              792
+            ],
+            "note": "树 drag 载荷控制器"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              933,
+              942
+            ],
+            "note": "draggable 与阻止拖后 click"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "rowFile / paintFiltered Drag(workspaceReference) → composer drop",
+        "handling": "按 Reference 类型处理，保留 owner；非上传载荷。",
+        "hostOrDesktop": "filelink/原生 drag 与 composer。",
+        "feedbackAndRecovery": "过期 owner 拒绝；当前物理拖拽未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              276,
+              286
+            ],
+            "note": "结果行 drag"
+          },
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              353,
+              369
+            ],
+            "note": "树 file drag"
+          },
+          {
+            "path": "internal/ui/filelink/reference.go",
+            "lines": [
+              14,
+              77
+            ],
+            "note": "带 owner 引用"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-018",
+      "action": "树行在文件管理器显示/用系统默认应用打开",
+      "oldCoverage": {
+        "ids": [
+          "WB-018"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "文件/目录有授权路径；系统默认打开只对文件。",
+        "entryAndGesture": "FileTree 右键 Show in folder / Open with system default",
+        "expectedResult": "作用于右键行；不必先选当前预览。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              911,
+              923
+            ],
+            "note": "实际菜单项"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1586,
+              1601
+            ],
+            "note": "实际 shell callbacks"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "treeFileMenu/treeDirectoryMenu → OnReveal/OnOpenDoc",
+        "handling": "词法 Host 路径或 JoinRoot；真实 Host openWorkspacePath；离线外部打开沿旧路由。",
+        "hostOrDesktop": "main OnOpenDoc/OnReveal 的 Host/desktop 分支。",
+        "feedbackAndRecovery": "已有 WB-019/020 分支缺陷保持原 ID，本行不重复计为新发现。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tree_actions.go",
+            "lines": [
+              40,
+              91
+            ],
+            "note": "reveal 与系统打开"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7408,
+              7432
+            ],
+            "note": "生产 Host callbacks"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "只映射两个已盘点动作；旧 WB-019/020 的 confirmed-defect 不以本行 mapped 覆盖。"
+    },
+    {
+      "id": "GWB-019",
+      "action": "点击文件/带行号链接读取代码并定位行",
+      "oldCoverage": {
+        "ids": [
+          "WB-004",
+          "WB-008"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "路径在当前授权 root 内；不把路径文本当授权。",
+        "entryAndGesture": "File row / workspaces.openPath(options.line) → resource navigation",
+        "expectedResult": "打开正确文本及源行；超页逐页读取；二进制/失败明确。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js",
+            "lines": [
+              513,
+              537
+            ],
+            "note": "资源与line路由"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              687,
+              700
+            ],
+            "note": "按需加载定位行"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "selectFile / OpenPresentedPath → beginTextRead / RequestLine",
+        "handling": "local/Host reader 及 pending line 队列；切 Markdown 到 Source；旧链接旁路仍按 WB-008/034。",
+        "hostOrDesktop": "workspacefs local byte paging / Host line paging。",
+        "feedbackAndRecovery": "read loading/error/retry；版本变化阻止旧 line 消费。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              526,
+              595
+            ],
+            "note": "实际选择与读取"
+          },
+          {
+            "path": "internal/ui/files/source_actions.go",
+            "lines": [
+              40,
+              104
+            ],
+            "note": "行定位/分页"
+          },
+          {
+            "path": "internal/ui/files/text_read.go",
+            "lines": [
+              48,
+              149
+            ],
+            "note": "reader"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "映射源行能力；不覆盖 WB-008/034 已标出的终端Ctrl+click旁路。"
+    },
+    {
+      "id": "GWB-020",
+      "action": "代码/文本自动换行开关",
+      "oldCoverage": {
+        "ids": [
+          "WB-004"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "文本可显示，非图片/媒体。",
+        "entryAndGesture": "FilePreview toolbar Word wrap；document fallback wrap icon",
+        "expectedResult": "改变换行而不改文件文本。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2172,
+              2184
+            ],
+            "note": "桌面wrap"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              927,
+              941
+            ],
+            "note": "fallback wrap"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintPreviewToolbar / context → togglePreviewWrap",
+        "handling": "持久 PreviewPreferences.WordWrap；source area width 随之变化。",
+        "hostOrDesktop": "仅渲染状态，不写源文件。",
+        "feedbackAndRecovery": "toolbar/menu checked 状态；当前行滚动/宽窗窄窗待验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              170,
+              186
+            ],
+            "note": "真实wrap控件"
+          },
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              105,
+              110
+            ],
+            "note": "状态修改"
+          },
+          {
+            "path": "internal/ui/files/preview_preferences.go",
+            "lines": [
+              3,
+              19
+            ],
+            "note": "持久/宽度契约"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-021",
+      "action": "Markdown 源码/渲染视图切换",
+      "oldCoverage": {
+        "ids": [
+          "WB-007"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Markdown 可编辑或有脏草稿。",
+        "entryAndGesture": "FilePreview Source/Rendered 按钮",
+        "expectedResult": "切换展示并保留草稿；行定位返回源码。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2157,
+              2170
+            ],
+            "note": "真实Source/Rendered动作"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintPreviewMarkdownToggle / context menu",
+        "handling": "按 tab 保留 RenderedMarkdown，清临时 selection；实际渲染由 Markdown widget。",
+        "hostOrDesktop": "native markdown renderer；图片/复杂内容限制仍归 WB-007。",
+        "feedbackAndRecovery": "不以纯文本存在证明复杂 Markdown 等价。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              314,
+              326
+            ],
+            "note": "真实toggle"
+          },
+          {
+            "path": "internal/ui/files/source_actions.go",
+            "lines": [
+              40,
+              57
+            ],
+            "note": "line返回源码"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "动作可达 mapped；WB-007 对默认内嵌图片的 partial 不变。"
+    },
+    {
+      "id": "GWB-022",
+      "action": "编辑器选中多行后加入对话",
+      "oldCoverage": {
+        "ids": [
+          "WB-003"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "源码选区非空，原会话草稿可写。",
+        "entryAndGesture": "FilePreview 选区 → Add to chat",
+        "expectedResult": "完整选中行、相对路径、1-based行范围与代码围栏进入草稿。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2124,
+              2135
+            ],
+            "note": "真实选区/格式化"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2191,
+              2203
+            ],
+            "note": "toolbar按钮"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintPreviewSelectionActions / context → OnAddToChat",
+        "handling": "source native rune selection → FormatSelectedLines；发送/IME中拒绝不稳定选区。",
+        "hostOrDesktop": "main appendSelectionToComposer。",
+        "feedbackAndRecovery": "明确成功/失败，不自动发送。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              337,
+              346
+            ],
+            "note": "实际动作"
+          },
+          {
+            "path": "internal/ui/files/source_actions.go",
+            "lines": [
+              115,
+              149
+            ],
+            "note": "native selection"
+          },
+          {
+            "path": "internal/ui/files/source_actions.go",
+            "lines": [
+              218,
+              244
+            ],
+            "note": "行范围格式"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-023",
+      "action": "自动保存与显式保存/Ctrl+S",
+      "oldCoverage": {
+        "ids": [
+          "WB-005"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "完整可写本地文本；remote/分页/交付只读不保存。",
+        "entryAndGesture": "FilePreview input → autosave；Save/Ctrl+S",
+        "expectedResult": "实际写回当前文件，串行保存且失败保草稿。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              1734,
+              1740
+            ],
+            "note": "原编辑/保存契约"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2206,
+              2215
+            ],
+            "note": "显式Save"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "files.View / source editor → requestSaveDraft → SaveQueue",
+        "handling": "原生提交文本捕获；版本核对、排队、原子临时写回。",
+        "hostOrDesktop": "frame OnSaveEdit → workspacefs.SaveTextChecked。",
+        "feedbackAndRecovery": "未保存/保存中/失败状态；冲突停止保存。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/files.go",
+            "lines": [
+              162,
+              169
+            ],
+            "note": "Ctrl+S与自动保存"
+          },
+          {
+            "path": "internal/ui/files/autosave.go",
+            "lines": [
+              54,
+              143
+            ],
+            "note": "保存排队/反馈"
+          },
+          {
+            "path": "internal/desktop/workspacefs/save_queue.go",
+            "lines": [
+              190,
+              244
+            ],
+            "note": "实际写/冲突"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-024",
+      "action": "脏文件关闭：取消、保留/丢弃草稿或保存后继续",
+      "oldCoverage": {
+        "ids": [
+          "WB-006"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "文件有未保存内容；用户关闭文件或整个 Files资源。",
+        "entryAndGesture": "Sidebar close handler → FileClosePrompt",
+        "expectedResult": "不丢草稿；保存失败/保存后又修改则阻止原关闭。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2644,
+              2662
+            ],
+            "note": "实际close handler与prompt"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2487,
+              2508
+            ],
+            "note": "discard/save队列"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "file tab close / workspace pane close → PreflightDirtyForClose",
+        "handling": "遍历脏 tab，保留 native buffer，保存失败不关；重启恢复不自动写盘。",
+        "hostOrDesktop": "Tabs/close_save 与 workspace close owner。",
+        "feedbackAndRecovery": "保存/保留/取消/丢弃决策明确；当前 IME/退出恢复未实机验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/tabs.go",
+            "lines": [
+              240,
+              292
+            ],
+            "note": "close guard"
+          },
+          {
+            "path": "internal/ui/files/close_save.go",
+            "lines": [
+              10,
+              99
+            ],
+            "note": "整pane预检"
+          },
+          {
+            "path": "internal/ui/frame/workspace_close_save.go",
+            "lines": [
+              1,
+              105
+            ],
+            "note": "pane关闭接入"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-025",
+      "action": "外部修改后保留草稿、手动重新读取和自动刷新开关",
+      "oldCoverage": {
+        "ids": [
+          "WB-005"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "文件 watch 提示内容或版本已变；dirty不覆盖。",
+        "entryAndGesture": "Document reload/auto refresh；桌面重新激活读取",
+        "expectedResult": "保留当前内容/脏草稿，明确重新读取与失败。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              725,
+              770
+            ],
+            "note": "变化观察与reload"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              949,
+              978
+            ],
+            "note": "auto refresh/reload入口"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "observeFileResource → paintResourceRefreshControls；context auto-refresh此文件",
+        "handling": "单 tab 订阅/有界read；dirty暂停save，自动刷新禁用时仅提示。",
+        "hostOrDesktop": "Host watch invalidation/local read，不把事件当已变字节。",
+        "feedbackAndRecovery": "显示source changed、Refresh source file；重读失败保留内容。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/resource_observer.go",
+            "lines": [
+              204,
+              254
+            ],
+            "note": "变化与保留/显式刷新"
+          },
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              452,
+              457
+            ],
+            "note": "auto refresh toggle"
+          },
+          {
+            "path": "internal/ui/files/reload.go",
+            "lines": [
+              21,
+              59
+            ],
+            "note": "save运行时阻止reload"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-026",
+      "action": "独立文件窗口只读显示已保存内容并关闭释放",
+      "oldCoverage": {
+        "ids": [
+          "WB-017"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "用户主动点 FloatingPreviewButton；不是交付卡 mini。",
+        "entryAndGesture": "文件 toolbar 独立预览按钮 → shell.openFilePreview",
+        "expectedResult": "独立置顶窗口使用保存版本；关闭释放窗口/授权。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              2186,
+              2190
+            ],
+            "note": "文件按钮"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js",
+            "lines": [
+              43,
+              59
+            ],
+            "note": "真实单例窗口owner"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "preview-floating → activateFloatingPreview / openFloatingPreview",
+        "handling": "文本通过 captured saved reader；PDF/HTML/media 用 immutable capability 浮窗。",
+        "hostOrDesktop": "mygo.NewWindow/实际文档 WebView。",
+        "feedbackAndRecovery": "失败状态/重新加载/关闭；不会把未保存草稿冒充磁盘内容。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              113,
+              125
+            ],
+            "note": "实际分派"
+          },
+          {
+            "path": "internal/ui/files/floating.go",
+            "lines": [
+              29,
+              84
+            ],
+            "note": "保存字节reader/窗口"
+          },
+          {
+            "path": "internal/ui/browserpreview/floating_document.go",
+            "lines": [
+              73,
+              104
+            ],
+            "note": "文档浮窗/关闭"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-027",
+      "action": "图片缩放、Fit width、滚动/拖拽平移",
+      "oldCoverage": {
+        "ids": [
+          "WB-010"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "图片格式与预算允许；文档 fallback 也有 zoom viewport。",
+        "entryAndGesture": "图片 zoom +/-、百分比菜单、Fit width、Ctrl+wheel",
+        "expectedResult": "按 tab 保留zoom，锚点缩放与可滚动大图。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              4690,
+              4783
+            ],
+            "note": "缩放控件"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              4968,
+              4984
+            ],
+            "note": "Ctrl wheel/pinch"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintImageView → imageViewState",
+        "handling": "缩放25-400%、fit width、双轴scroll、drag平移。",
+        "hostOrDesktop": "native/wasm解码与实际bitmap/SVG，不改原图。",
+        "feedbackAndRecovery": "预算/格式错误仍按 WB-010 partial；当前触控板和HiDPI未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/image_view.go",
+            "lines": [
+              34,
+              62
+            ],
+            "note": "锚点/wheel"
+          },
+          {
+            "path": "internal/ui/files/image_view.go",
+            "lines": [
+              81,
+              129
+            ],
+            "note": "真实控件/scroll/drag"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "只映射手势与控件；原版32MiB对MyGo16MiB的预算差异仍只归WB-010，不新增重计。"
+    },
+    {
+      "id": "GWB-028",
+      "action": "选择注册文档预览器/原生预览/自动选择",
+      "oldCoverage": {
+        "ids": [
+          "WB-009"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前资源存在有效 Host 文档 owner，非只读本地交付source。",
+        "entryAndGesture": "TextPreview viewer candidates 菜单",
+        "expectedResult": "按资源实际匹配 renderer，切换时不把文件名当能力证明。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              595,
+              618
+            ],
+            "note": "按registry匹配renderer"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              901,
+              918
+            ],
+            "note": "viewer菜单动作"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "preview context 选择预览器 → prepareDocumentViewer",
+        "handling": "真实 Host document URL 和 registry capabilities；外部renderer或workbook可自动建议。",
+        "hostOrDesktop": "openDocumentViewer 按相同client/session/origin cookie开启隔离WebView。",
+        "feedbackAndRecovery": "surface死后可见错误、重新选择；built-in owner里的控件仍可用。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              459,
+              492
+            ],
+            "note": "真实chooser三种选择"
+          },
+          {
+            "path": "internal/ui/files/document_surface.go",
+            "lines": [
+              82,
+              143
+            ],
+            "note": "prepare/chooser"
+          },
+          {
+            "path": "cmd/whaleisle/document_viewer.go",
+            "lines": [
+              12,
+              37
+            ],
+            "note": "Host实际页面"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-029",
+      "action": "文件默认应用/open-with/reveal及关联查询失败后的刷新",
+      "oldCoverage": {
+        "ids": [
+          "WB-018"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "原文档 fallback（Office/绝对资源）由 ui-open-in-app 提供；普通 desktop-file不显示此Host按钮。",
+        "entryAndGesture": "document.actions/unpreviewable 的 OpenTargetButton；重开菜单触发 applications.refresh",
+        "expectedResult": "默认打开、显式应用和reveal；失败与无关联应用不同，菜单重开可重查。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              273,
+              298
+            ],
+            "note": "default/reveal策略"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              310,
+              367
+            ],
+            "note": "失败行及menu reopen刷新"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              906,
+              916
+            ],
+            "note": "document slots"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "Files“文档预览器”保留原 Host owner；默认原生 toolbar 使用 previewOpenMenu",
+        "handling": "原owner路径可完整消费Host按钮；原生菜单把 apps 简化为 ID/Name，main 查询err被吞、同路径不重查且无刷新动作。",
+        "hostOrDesktop": "原owner走Host authenticated document页面；native OnOpenWith走session.openWorkspacePath。",
+        "feedbackAndRecovery": "原owner可重查；native空列表不区分无app/读取失败。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/document_surface.go",
+            "lines": [
+              93,
+              143
+            ],
+            "note": "可显式选原owner"
+          },
+          {
+            "path": "cmd/whaleisle/document_viewer.go",
+            "lines": [
+              12,
+              37
+            ],
+            "note": "真实原owner页面"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              3564,
+              3595
+            ],
+            "note": "native单路径缓存/吞err"
+          },
+          {
+            "path": "internal/ui/files/preview_toolbar.go",
+            "lines": [
+              284,
+              311
+            ],
+            "note": "native菜单无refresh/error"
+          }
+        ]
+      },
+      "missingLink": "默认原生替代菜单未保留原查询失败/手动刷新；完整能力仍可经文档预览器访问，因此仅partial，不报全局缺失。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "不同于WB-020已有晚到owner/离线缺陷；本行只标native菜单的刷新/反馈差异，不新增confirmed-gap。"
+    },
+    {
+      "id": "GWB-030",
+      "action": "XLS/XLSX完整工作簿、工作表/范围与CSV源码查看",
+      "oldCoverage": {
+        "ids": [
+          "WB-012"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Host registry报告Spreadsheet，或native workbook读取可用。",
+        "entryAndGesture": "文档fallback Spreadsheet renderer；CSV默认desktop-source",
+        "expectedResult": "选择完整viewer及表格工作表；文本型表格仍可编辑源文。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+            "lines": [
+              217,
+              240
+            ],
+            "note": "Office decline/CSV source"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              6216,
+              6234
+            ],
+            "note": "lazy完整workbook renderer"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "Files table pane /完整表格预览 → document owner",
+        "handling": "CSV默认源文本；XLS/XLSX按真实workbook capability可选原owner或native分页表。",
+        "hostOrDesktop": "workspacefs ReadTableContext 与 Host document页面。",
+        "feedbackAndRecovery": "分页/错误/变化保持选中页；完整Host viewer不以文件名假定成功。",
+        "evidence": [
+          {
+            "path": "internal/ui/files/document_surface.go",
+            "lines": [
+              82,
+              111
+            ],
+            "note": "default CSV/完整workbook按钮"
+          },
+          {
+            "path": "internal/ui/files/table_preview.go",
+            "lines": [
+              1,
+              24
+            ],
+            "note": "实际table reader"
+          },
+          {
+            "path": "internal/ui/files/document_surface.go",
+            "lines": [
+              175,
+              190
+            ],
+            "note": "真实capability门槛"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-031",
+      "action": "PDF页码、翻页、缩放、选择与阅读位置恢复",
+      "oldCoverage": {
+        "ids": [
+          "WB-013"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "PDF授权字节完整，PDF viewer可启动。",
+        "entryAndGesture": "PDF文档reader工具/滚动",
+        "expectedResult": "显示实际PDF页，保留同资源reading position。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              5397,
+              5450
+            ],
+            "note": "实际PDF renderer"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js",
+            "lines": [
+              16,
+              23
+            ],
+            "note": "PDF file route"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "PDF文件/Browser document → pdfpreview reader",
+        "handling": "真实PDF.js reader、1-based page、selection事件、workspace restore reading state。",
+        "hostOrDesktop": "workspaceDocument授权字节→WebView LocalPDFViewerURL。",
+        "feedbackAndRecovery": "错误/过期可见，reopen重新授权。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/pdf.go",
+            "lines": [
+              23,
+              60
+            ],
+            "note": "真实WebView/撤销"
+          },
+          {
+            "path": "internal/desktop/pdfpreview/reader.js",
+            "lines": [
+              139,
+              151
+            ],
+            "note": "页码/selection"
+          },
+          {
+            "path": "internal/ui/browserpreview/workspace_resume.go",
+            "lines": [
+              21,
+              65
+            ],
+            "note": "reading恢复"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-032",
+      "action": "Office转换PDF，查看缺失字体列表/重试",
+      "oldCoverage": {
+        "ids": [
+          "WB-014"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Host Office→PDF服务可用；支持的Office扩展。",
+        "entryAndGesture": "Office document renderer → render；FontNotice警告按钮打开详情",
+        "expectedResult": "渲染PDF并说明缺字体，失败可重试。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              5865,
+              5966
+            ],
+            "note": "缺字体详情真实按钮"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-documentpreview/lib/client.js",
+            "lines": [
+              6068,
+              6125
+            ],
+            "note": "Office注册/实际PDF呈现"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "native转PDF菜单或选择文档预览器",
+        "handling": "native渲染结果列完整fonts；真实Host文档owner还保留FontNotice弹层。",
+        "hostOrDesktop": "RenderOfficePDFBytesForSession / remote owner原服务。",
+        "feedbackAndRecovery": "按session/path保存转换状态；invalid/timeout/busy/source-changed分型。",
+        "evidence": [
+          {
+            "path": "cmd/whaleisle/office_document.go",
+            "lines": [
+              44,
+              94
+            ],
+            "note": "完整fonts与错误"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7442,
+              7446
+            ],
+            "note": "实际转换callback"
+          },
+          {
+            "path": "internal/ui/files/document_surface.go",
+            "lines": [
+              93,
+              143
+            ],
+            "note": "原owner替代入口"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "未把native文字列表与原FontNotice样式不同误报成缺失字体数据；原owner路径保留详细动作。"
+    },
+    {
+      "id": "GWB-033",
+      "action": "媒体文件播放/暂停、进度拖动和独立浮窗",
+      "oldCoverage": {
+        "ids": [
+          "WB-015"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "原安装单文件窗口识别音视频格式，文件可由workspacePreview提供。",
+        "entryAndGesture": "文件独立预览 → audio/video player",
+        "expectedResult": "播放实际文件，可暂停/seek；独立窗不把媒体当普通文本。",
+        "evidence": [
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js",
+            "lines": [
+              11,
+              23
+            ],
+            "note": "实际media分类"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview-file-window.js",
+            "lines": [
+              43,
+              59
+            ],
+            "note": "真实window owner"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "Files音视频预览/文档浮窗 → mediapreview",
+        "handling": "MIME/预算校验→Range服务和只读player。",
+        "hostOrDesktop": "mediapreview能力+真实WebView。",
+        "feedbackAndRecovery": "过期/错误/关闭撤销；codec和实际声音/seek未验收。",
+        "evidence": [
+          {
+            "path": "internal/desktop/mediapreview/document.go",
+            "lines": [
+              18,
+              52
+            ],
+            "note": "真实媒体服务"
+          },
+          {
+            "path": "internal/ui/browserpreview/media.go",
+            "lines": [
+              14,
+              65
+            ],
+            "note": "实际路由"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7388,
+              7389
+            ],
+            "note": "生产入口"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-034",
+      "action": "HTML/PDF文件从文件链接打开到Browser文档",
+      "oldCoverage": {
+        "ids": [
+          "WB-016",
+          "WB-013"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "主会话的html/htm/xhtml/pdf资源，桌面previewWorkspaceFile可用。",
+        "entryAndGesture": "workspaces.openPath → browserDocumentUrl → openPreviewSurface",
+        "expectedResult": "Files资源保持可达，同时用授权loopback URL打开实际文档。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js",
+            "lines": [
+              477,
+              499
+            ],
+            "note": "文件授权URL"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-surfaces/lib/client.js",
+            "lines": [
+              536,
+              537
+            ],
+            "note": "打开后预览"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "openDelivered → OpenPresentedPath → openLocalHTML/openLocalPDF",
+        "handling": "先校验当前session/binding，选中文档后打开产品文档能力。",
+        "hostOrDesktop": "local/Host document read → HTML/PDF preview lease。",
+        "feedbackAndRecovery": "若不可local preview有实际失败；HTML静态默认差异仍归WB-016。",
+        "evidence": [
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              6537,
+              6566
+            ],
+            "note": "captured owner"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              6573,
+              6606
+            ],
+            "note": "Files→Browser文档路由"
+          },
+          {
+            "path": "cmd/whaleisle/workspace_document_preview.go",
+            "lines": [
+              181,
+              193
+            ],
+            "note": "PDF read"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "映射文档导航动作；不把默认HTML脚本交互差异从WB-016中清掉。"
+    },
+    {
+      "id": "GWB-035",
+      "action": "查看Git状态及刷新ahead/behind",
+      "oldCoverage": {
+        "ids": [
+          "WB-021"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "有效Git root。",
+        "entryAndGesture": "工作区Git/变更入口→刷新",
+        "expectedResult": "真实状态、分支和ahead/behind，不是静态徽标。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              562,
+              574
+            ],
+            "note": "diff刷新"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              2031,
+              2070
+            ],
+            "note": "标题栏实际Git动作"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "diffsurface.View/Workbench.reload/CaptionBranches",
+        "handling": "repository status异步读取与窗口owner绑定。",
+        "hostOrDesktop": "internal/desktop/git的真实本地read。",
+        "feedbackAndRecovery": "not repo/状态错误/操作busy明确。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/diffsurface.go",
+            "lines": [
+              96,
+              118
+            ],
+            "note": "刷新入口"
+          },
+          {
+            "path": "internal/ui/diffsurface/workbench.go",
+            "lines": [
+              55,
+              88
+            ],
+            "note": "真实repo/status/changes"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-036",
+      "action": "选择工作区/分支比较范围并搜索分支",
+      "oldCoverage": {
+        "ids": [
+          "WB-022"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Git repository，分支列表可读取。",
+        "entryAndGesture": "Diff scope menu→搜索分支→选择ref",
+        "expectedResult": "读取正确baseRef比较，不混同branch switch。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              425,
+              450
+            ],
+            "note": "branch query/read"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              460,
+              512
+            ],
+            "note": "实际scope选择"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintComparison → beginComparison",
+        "handling": "单独比较request，切scope取消旧read。",
+        "hostOrDesktop": "git.Diff/Branch read。",
+        "feedbackAndRecovery": "read/branch错误不覆盖新scope。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/comparison.go",
+            "lines": [
+              25,
+              103
+            ],
+            "note": "比较request生命周期"
+          },
+          {
+            "path": "internal/ui/diffsurface/comparison.go",
+            "lines": [
+              88,
+              150
+            ],
+            "note": "生产scope控件"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-037",
+      "action": "Diff统一/分栏、换行、全部展开/折叠及打开完整文件",
+      "oldCoverage": {
+        "ids": [
+          "WB-022"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "diff有记录文件。",
+        "entryAndGesture": "Diff工具条及文件标题点击",
+        "expectedResult": "展示同一patch；title打开文件，折叠不改Git状态。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              407,
+              423
+            ],
+            "note": "title与fold动作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              515,
+              558
+            ],
+            "note": "split/wrap/expand/collapse"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintDiffControls / paintPatchFiles",
+        "handling": "view state更新；OnOpenFile按safePatchPath路由Files。",
+        "hostOrDesktop": "native patch renderer，main实际文件navigation。",
+        "feedbackAndRecovery": "open失败写Workbench.Status。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/patch_view.go",
+            "lines": [
+              30,
+              47
+            ],
+            "note": "工具条"
+          },
+          {
+            "path": "internal/ui/diffsurface/patch_view.go",
+            "lines": [
+              59,
+              117
+            ],
+            "note": "title/fold及split"
+          },
+          {
+            "path": "internal/ui/frame/frame.go",
+            "lines": [
+              1630,
+              1643
+            ],
+            "note": "文件callback"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-038",
+      "action": "逐文件暂存/取消暂存并确认丢弃未暂存修改",
+      "oldCoverage": {
+        "ids": [
+          "WB-023"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "worktree scope；selected file有对应changes。",
+        "entryAndGesture": "staged row Unstage；unstaged row Stage/Discard→确认",
+        "expectedResult": "仅目标文件变化，丢弃有不可恢复提示。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              597,
+              635
+            ],
+            "note": "实际三个动作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-diff/lib/client.js",
+            "lines": [
+              644,
+              663
+            ],
+            "note": "discard确认"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintCommitChangeRows/paintDiscard",
+        "handling": "PrepareDiscard绑定变更快照；确认后执行。",
+        "hostOrDesktop": "git.Stage/Unstage/Discard真实本地文件操作。",
+        "feedbackAndRecovery": "busy/error与快照失配恢复；本轮未执行写。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/commit_selection.go",
+            "lines": [
+              90,
+              149
+            ],
+            "note": "文件选择/动作"
+          },
+          {
+            "path": "internal/ui/diffsurface/discard.go",
+            "lines": [
+              10,
+              56
+            ],
+            "note": "discard真实确认/失败"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-039",
+      "action": "筛选/创建并切换分支",
+      "oldCoverage": {
+        "ids": [
+          "WB-024"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Git root，可安全传给git的branch name。",
+        "entryAndGesture": "标题栏branch picker→filter/create",
+        "expectedResult": "当前HEAD创建新分支并切换；dirty保护由git失败/明确review保留。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              836,
+              891
+            ],
+            "note": "branch picker操作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              3451,
+              3468
+            ],
+            "note": "明确创建/切换范围与失败"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "CaptionBranches / paintBranches",
+        "handling": "共享Workbench branch request，owner变更取消；create/switch生产回调。",
+        "hostOrDesktop": "git.SwitchBranchContext/CreateBranchContext。",
+        "feedbackAndRecovery": "当前/unsupported禁用，失败进度；不自动丢dirty。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/caption_actions.go",
+            "lines": [
+              121,
+              220
+            ],
+            "note": "真实筛选/创建/切换"
+          },
+          {
+            "path": "internal/ui/diffsurface/branches.go",
+            "lines": [
+              1,
+              108
+            ],
+            "note": "面板同实现"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-040",
+      "action": "提交文件勾选、排除、空说明生成、100MB警告与新分支提交",
+      "oldCoverage": {
+        "ids": [
+          "WB-025"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Git有可提交变更；生成说明需用户触发既有生成链。",
+        "entryAndGesture": "Commit dialog→Edit selection→prepare/confirm；Commit on new branch",
+        "expectedResult": "仅选中文件提交；保留未选index/dirty，默认分支和大文件需核对。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              999,
+              1020
+            ],
+            "note": "提交/新分支入口"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1100,
+              1145
+            ],
+            "note": "selection edit"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              3470,
+              3471
+            ],
+            "note": "100MB警告"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "commitDialog/commitSelectionState",
+        "handling": "PrepareSelectedCommit/Stack，选择变化作废review，生成和mutate分离。",
+        "hostOrDesktop": "git真实提交器及既有模型生成器，未在本轮调用。",
+        "feedbackAndRecovery": "large files ack、生成取消/失败保draft；mutation后部分失败续接。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/commit_selection.go",
+            "lines": [
+              13,
+              44
+            ],
+            "note": "state/review"
+          },
+          {
+            "path": "internal/ui/diffsurface/commit_dialog.go",
+            "lines": [
+              1,
+              160
+            ],
+            "note": "真实dialog"
+          },
+          {
+            "path": "internal/ui/diffsurface/commit_selection.go",
+            "lines": [
+              90,
+              149
+            ],
+            "note": "选择/大文件"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-041",
+      "action": "Pull/Fetch、Push、Commit&Push与默认分支后续确认",
+      "oldCoverage": {
+        "ids": [
+          "WB-026"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Git远端/凭据实际可用；操作明确确认。",
+        "entryAndGesture": "Git菜单或快捷主按钮→确认→真实git链",
+        "expectedResult": "默认分支继续或新feature branch；部分完成后不重复提交。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              3427,
+              3450
+            ],
+            "note": "实际动作文案"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              3494,
+              3507
+            ],
+            "note": "default-ref确认"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "caption action/repository action → reviewed stack",
+        "handling": "PreparePush/PrepareStack并确认；失败LastStack保留已完成step。",
+        "hostOrDesktop": "git真实网络命令；本轮无fetch/pull/push。",
+        "feedbackAndRecovery": "followups仅push/PR继续；错误复制/通知内详情缺口另见GWB-005/006。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/remote_workflow.go",
+            "lines": [
+              69,
+              110
+            ],
+            "note": "prepare"
+          },
+          {
+            "path": "internal/ui/diffsurface/remote_workflow.go",
+            "lines": [
+              171,
+              192
+            ],
+            "note": "confirm"
+          },
+          {
+            "path": "internal/ui/diffsurface/remote_workflow.go",
+            "lines": [
+              199,
+              240
+            ],
+            "note": "部分结果续接"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "映射实际远端事务，不冲销同一旧大项里GWB-005/006的错误恢复动作缺口。"
+    },
+    {
+      "id": "GWB-042",
+      "action": "PR创建/草稿生成与发布仓库基础事务",
+      "oldCoverage": {
+        "ids": [
+          "WB-027",
+          "WB-028",
+          "WB-029",
+          "WB-030"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Host provider/gh登录满足既有路径。",
+        "entryAndGesture": "PR/Publish dialog→核对→确认",
+        "expectedResult": "有实际创建/查询/发布执行器；精确provider/base/fork差异保持旧判定。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              1362,
+              1418
+            ],
+            "note": "publish dialog"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              2262,
+              2303
+            ],
+            "note": "实际publish提交"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+            "lines": [
+              3436,
+              3440
+            ],
+            "note": "PR actions"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "paintRemoteWorkflow / paintPublish",
+        "handling": "PR标题/正文/draft，PrepareStack；repository publish核对目标。",
+        "hostOrDesktop": "git.PullRequest/PublishRepository。",
+        "feedbackAndRecovery": "PR未知结果只读check；已有WB-027/028/029不重计，发布后Open repo见GWB-007。",
+        "evidence": [
+          {
+            "path": "internal/ui/diffsurface/remote_workflow.go",
+            "lines": [
+              143,
+              192
+            ],
+            "note": "PR核对/确认"
+          },
+          {
+            "path": "internal/ui/diffsurface/repository_actions.go",
+            "lines": [
+              152,
+              220
+            ],
+            "note": "publish生产控制"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "仅映射基础事务；已知WB-027/028/029和新增GWB-007保持独立，mapped不代表整项等价。"
+    },
+    {
+      "id": "GWB-043",
+      "action": "本地终端抽屉打开/隐藏，真实输入输出与resize",
+      "oldCoverage": {
+        "ids": [
+          "WB-031"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前本机目录存在且为目录，native PTY runtime可用。",
+        "entryAndGesture": "shell.terminalDrawer→TerminalWorkspace→ptyCreate",
+        "expectedResult": "实际shell输入输出；隐藏不杀进程；resize向PTY传递。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              3650,
+              3702
+            ],
+            "note": "cwd授权/真实create"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/pty.js",
+            "lines": [
+              267,
+              307
+            ],
+            "note": "真实PTY spawn"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "ensureTerminal/toggleTerminal → terminal.Panel",
+        "handling": "Open→myterm.New，native ConPTY/Ghostty连接；隐藏保留Panel。",
+        "hostOrDesktop": "terminalruntime生产DLL/runtime。",
+        "feedbackAndRecovery": "runtime/create错误明确，关闭/退出清理。",
+        "evidence": [
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              1449,
+              1517
+            ],
+            "note": "生产开关/生命周期"
+          },
+          {
+            "path": "internal/ui/terminal/panel.go",
+            "lines": [
+              40,
+              69
+            ],
+            "note": "真实native终端"
+          },
+          {
+            "path": "third_party/mygo/plugins/terminal/view.go",
+            "lines": [
+              18,
+              33
+            ],
+            "note": "实际输入surface"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-044",
+      "action": "本地终端新建组、左右/上下分栏、最大化/还原和关闭",
+      "oldCoverage": {
+        "ids": [
+          "WB-032"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "本地PTY已打开；每组最多四个pane。",
+        "entryAndGesture": "TerminalWorkspace ActionBar new/split/maximize/close",
+        "expectedResult": "每split真实PTY，组切换不混输，关闭只影响目标。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              3558,
+              3637
+            ],
+            "note": "真实action bar"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              3662,
+              3689
+            ],
+            "note": "4-pane与真实create"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "terminalActionBar→Panel.createPane/requestClosePane",
+        "handling": "new独立组，split给当前组，每组4个；Maximized独立layout state。",
+        "hostOrDesktop": "native PTY per pane。",
+        "feedbackAndRecovery": "运行中关闭确认；每panetitle及focus owner。",
+        "evidence": [
+          {
+            "path": "internal/ui/terminal/workspace_chrome.go",
+            "lines": [
+              26,
+              67
+            ],
+            "note": "真实toolbar"
+          },
+          {
+            "path": "internal/ui/terminal/workspace.go",
+            "lines": [
+              84,
+              110
+            ],
+            "note": "PTY/group创建"
+          },
+          {
+            "path": "internal/ui/terminal/pane_close.go",
+            "lines": [
+              14,
+              82
+            ],
+            "note": "关闭确认"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-045",
+      "action": "本地终端选区复制/加入草稿；选中路径/URL通过产品路由打开",
+      "oldCoverage": {
+        "ids": [
+          "WB-033",
+          "WB-034"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "真实选区非空；添加到草稿需可写session。",
+        "entryAndGesture": "TerminalPane selection action bar Copy/Add/Open target",
+        "expectedResult": "复制真实选区，引用进入发起会话；URL/文件走区分路由。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              3495,
+              3548
+            ],
+            "note": "selection action bar"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-user-terminal/lib/client.js",
+            "lines": [
+              3391,
+              3397
+            ],
+            "note": "copy/link callbacks"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "terminal.View overlay→FormatSelection/paintSelectionTarget",
+        "handling": "真实native selection；capture target session/binding，打开目标。",
+        "hostOrDesktop": "main OnOpenTerminalTarget及draft回调。",
+        "feedbackAndRecovery": "owner失配拒绝、错误notice；Ctrl+click旁路仍归WB-034。",
+        "evidence": [
+          {
+            "path": "internal/ui/terminal/panel.go",
+            "lines": [
+              288,
+              313
+            ],
+            "note": "真实selection按钮"
+          },
+          {
+            "path": "internal/ui/terminal/selection_target_view.go",
+            "lines": [
+              1,
+              54
+            ],
+            "note": "产品目标动作"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7155,
+              7158
+            ],
+            "note": "真实draft append"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "只映射显式选区toolbar；不把它当旧WB-034 Ctrl+click旁路已修复。"
+    },
+    {
+      "id": "GWB-046",
+      "action": "Host终端选择shell、创建、连接已有、刷新列表",
+      "oldCoverage": {
+        "ids": [
+          "WB-035"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "已连接Host session，环境查询就绪。",
+        "entryAndGesture": "Host terminal guide/entry/shell menu",
+        "expectedResult": "指定Host shell启动，或attach已有进程；不是启动本机PTY。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              73,
+              150
+            ],
+            "note": "shell loading/retry/menu"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              377,
+              385
+            ],
+            "note": "occurrence shellPath/terminalId"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "HostView / hostShellView → hostterminal.Store",
+        "handling": "DiscoverShells/SelectShell/Create/Connect/Refresh，shell选择仅用户点击New后启动。",
+        "hostOrDesktop": "Host environment/create/attach/retain/follow RPC。",
+        "feedbackAndRecovery": "shell/load/create/attach错误与重试；偏好错误独立显示。",
+        "evidence": [
+          {
+            "path": "internal/ui/terminal/host.go",
+            "lines": [
+              108,
+              143
+            ],
+            "note": "真实refresh/create/connect"
+          },
+          {
+            "path": "internal/ui/terminal/host_shells.go",
+            "lines": [
+              8,
+              39
+            ],
+            "note": "真实shell选择/刷新"
+          },
+          {
+            "path": "internal/store/hostterminal/controller.go",
+            "lines": [
+              326,
+              386
+            ],
+            "note": "create/attach协议"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-047",
+      "action": "Host终端重连接管、改名、关闭进程与恢复身份",
+      "oldCoverage": {
+        "ids": [
+          "WB-035"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前Host终端身份有效；恢复不自动新建。",
+        "entryAndGesture": "title/menu rename/close；Host pane controls",
+        "expectedResult": "retained process跨隐藏保留；显式重连/接管输入、改名和关闭准确目标。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              215,
+              273
+            ],
+            "note": "title rename/菜单"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+            "lines": [
+              365,
+              385
+            ],
+            "note": "retain/occurrence"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "HostView→hostRenameView/Connect/Close，workspace occurrence close",
+        "handling": "绑定Owner/session/activeId/attachment；恢复只保ID，不替换未知进程。",
+        "hostOrDesktop": "Host retained terminal duplex/rename/close。",
+        "feedbackAndRecovery": "Close确认、phase/writable/error、恢复失效提示。",
+        "evidence": [
+          {
+            "path": "internal/ui/terminal/host.go",
+            "lines": [
+              145,
+              205
+            ],
+            "note": "真实控制/close"
+          },
+          {
+            "path": "internal/ui/terminal/host_rename.go",
+            "lines": [
+              1,
+              43
+            ],
+            "note": "rename"
+          },
+          {
+            "path": "internal/store/hostterminal/recovery.go",
+            "lines": [
+              37,
+              72
+            ],
+            "note": "恢复身份"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-048",
+      "action": "浏览器命令/guide入口打开桌面Browser",
+      "oldCoverage": {
+        "ids": [
+          "WB-036"
+        ],
+        "relation": "masked-by-broad-item"
+      },
+      "status": "partial",
+      "original": {
+        "condition": "安装桌面有window.shell.previewOpen；extension覆盖builtin browser。",
+        "entryAndGesture": "browser.new（Windows Ctrl+T）/guide→openTabFromTarget(\"browser\")",
+        "expectedResult": "打开实际当前会话Browser；安装extension未声明multiple，不能推断每次新建UUID。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js",
+            "lines": [
+              1570,
+              1613
+            ],
+            "note": "Ctrl+T command"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2733,
+              2771
+            ],
+            "note": "桌面extension优先且无multiple"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-right/lib/client.js",
+            "lines": [
+              4535,
+              4581
+            ],
+            "note": "整定义遮蔽，而非合并multiple"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "browser.open（Mod+Shift+U）→OnOpenBrowserPreview；Browser +New tab另可用",
+        "handling": "主命令切browser route，真实Controller.NewTab由browser toolbar提供。",
+        "hostOrDesktop": "WebView.NewHost实现真实Browser。",
+        "feedbackAndRecovery": "原Ctrl+T默认不保留；新建标签能力并未整体缺失。",
+        "evidence": [
+          {
+            "path": "internal/shortcuts/shortcuts.go",
+            "lines": [
+              32,
+              35
+            ],
+            "note": "现有default"
+          },
+          {
+            "path": "cmd/whaleisle/main.go",
+            "lines": [
+              7160,
+              7179
+            ],
+            "note": "生产Browser route"
+          },
+          {
+            "path": "internal/ui/browserpreview/controller.go",
+            "lines": [
+              288,
+              292
+            ],
+            "note": "真实NewTab/CloseTab"
+          }
+        ]
+      },
+      "missingLink": "默认快捷入口与commandTarget未原样保留；不计“原桌面一定多occurrence”的假缺口。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "快捷键差异交shell统一统计；本行明确撤回从builtin multiple:true推导安装桌面多tab的错误路径。"
+    },
+    {
+      "id": "GWB-049",
+      "action": "Browser地址提交、前后退、刷新/停止与加载错误重试",
+      "oldCoverage": {
+        "ids": [
+          "WB-036"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "HTTP(S)地址有效，当前tab有native guest。",
+        "entryAndGesture": "Browser地址栏Enter/Go；back/forward/reload-stop",
+        "expectedResult": "实际页面导航、loading停止、历史更新、错误后可恢复。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2146,
+              2173
+            ],
+            "note": "导航动作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2180,
+              2205
+            ],
+            "note": "地址表单"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "Controller.View→Navigate/Host.Back/Forward/Reload/Stop",
+        "handling": "URL规范化，真实state回传历史；同URL重新提交reload。",
+        "hostOrDesktop": "desktop.NewHost+native navigation。",
+        "feedbackAndRecovery": "invalid URL/load error与恢复状态可见。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/controller.go",
+            "lines": [
+              90,
+              138
+            ],
+            "note": "生产Navigate"
+          },
+          {
+            "path": "internal/ui/browserpreview/controller.go",
+            "lines": [
+              312,
+              337
+            ],
+            "note": "真实按钮/Enter"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-050",
+      "action": "Browser在系统浏览器打开与新窗口链接的产品路由",
+      "oldCoverage": {
+        "ids": [
+          "WB-036"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "地址允许外部打开；网页也可能发起window.open/target=_blank。",
+        "entryAndGesture": "external按钮/guest window-open事件",
+        "expectedResult": "显式external交给系统浏览器；页面弹窗不创建有本地特权的新子窗口，合法URL留在同一guest。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2206,
+              2212
+            ],
+            "note": "external点击"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview.js",
+            "lines": [
+              154,
+              170
+            ],
+            "note": "实际guest与window-open处理"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "externalOpenButton；WebView SetWindowOpenHandler",
+        "handling": "external校验；Untrusted普通页面的popup调用h.Navigate而非创建特权子窗口。",
+        "hostOrDesktop": "mygo.Shell.OpenExternal / native WebView导航。",
+        "feedbackAndRecovery": "外部失败/非法导航错误；本轮未发起打开动作。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/controller.go",
+            "lines": [
+              339,
+              362
+            ],
+            "note": "外部与复制URL"
+          },
+          {
+            "path": "internal/desktop/webview/host.go",
+            "lines": [
+              352,
+              364
+            ],
+            "note": "popup同guest导航"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "不把仅有Host下载handler当作额外原版用户菜单；页面下载策略沿旧WB-036保留，不在本行扩充原版分母。"
+    },
+    {
+      "id": "GWB-051",
+      "action": "Browser强制刷新与DevTools打开",
+      "oldCoverage": {
+        "ids": [
+          "WB-038"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "native browser tools实际可用，非document host。",
+        "entryAndGesture": "More→hardReload/DevTools",
+        "expectedResult": "对当前页面真正强制刷新/打开开发工具。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              1921,
+              1929
+            ],
+            "note": "菜单入口"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2031,
+              2038
+            ],
+            "note": "实际调用"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "toolControls→HardReloadBrowser/openBrowserDevTools",
+        "handling": "当前host/epoch条件；能力不可用禁用。",
+        "hostOrDesktop": "webview native APIs。",
+        "feedbackAndRecovery": "错误t.Error；DevTools平台gate。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              218,
+              255
+            ],
+            "note": "真实控件/gate"
+          },
+          {
+            "path": "internal/ui/browserpreview/devtools.go",
+            "lines": [
+              9,
+              29
+            ],
+            "note": "实际dispatch"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-052",
+      "action": "Browser网页缩放与外观system/light/dark",
+      "oldCoverage": {
+        "ids": [
+          "WB-038"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前页面支持native zoom/color scheme。",
+        "entryAndGesture": "More→zoom +/- reset / appearance选择",
+        "expectedResult": "更新真实网页zoom与prefers-color-scheme，而非只改工具条字样。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              1957,
+              1999
+            ],
+            "note": "appearance/zoom菜单"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2108,
+              2124
+            ],
+            "note": "真实调用"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "toolControls/changeBrowserZoom/startBrowserTool scheme",
+        "handling": "每tab settings；当前host/page校验，取消等待不回滚已提交native操作。",
+        "hostOrDesktop": "Host.SetBrowserZoom/SetBrowserColorScheme。",
+        "feedbackAndRecovery": "成功与失败message；最小/最大gate。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              132,
+              164
+            ],
+            "note": "真实尺寸/zoom"
+          },
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              203,
+              238
+            ],
+            "note": "真实zoom/appearance controls"
+          },
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              80,
+              130
+            ],
+            "note": "native scheme及结果"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-053",
+      "action": "Browser设备工具栏、preset、自定义尺寸、旋转/比例锁与边缘拖拽",
+      "oldCoverage": {
+        "ids": [
+          "WB-038"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Browser有效且native viewport supported。",
+        "entryAndGesture": "More device toolbar→尺寸/preset/rotate/lock→viewport rails",
+        "expectedResult": "以正确尺寸渲染guest，缩放/比例变化保持页面owner。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              584,
+              612
+            ],
+            "note": "preset"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              809,
+              906
+            ],
+            "note": "尺寸/旋转"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2052,
+              2063
+            ],
+            "note": "toolbar toggle"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "browserDeviceControls / resize rails → updateBrowserDevice",
+        "handling": "validated尺寸/preset/lock，实际guest viewport derive。",
+        "hostOrDesktop": "Host.SetBrowserViewport/native WebView边界。",
+        "feedbackAndRecovery": "无效尺寸错误与拖拽取消；当前实际设备像素尚未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/tool_state.go",
+            "lines": [
+              17,
+              102
+            ],
+            "note": "尺寸/preset/scale state"
+          },
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              132,
+              183
+            ],
+            "note": "真实viewport derive"
+          },
+          {
+            "path": "internal/ui/browserpreview/resize_rails.go",
+            "lines": [
+              77,
+              132
+            ],
+            "note": "真实rails交互"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-054",
+      "action": "Browser发现本机开发服务并点击打开",
+      "oldCoverage": {
+        "ids": [
+          "WB-038"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "固定开发端口有TCP listener；不保证一定HTTP。",
+        "entryAndGesture": "discovered servers列表→click URL",
+        "expectedResult": "实际发现并导航该地址，非静态示例。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              1661,
+              1675
+            ],
+            "note": "实际discover"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2270,
+              2290
+            ],
+            "note": "发现结果点击"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "localServerControls/resumeLocalDiscovery",
+        "handling": "localservers.Discover绑定当前页面，点击Controller.Navigate。",
+        "hostOrDesktop": "本机TCP metadata探测；本轮未扫描。",
+        "feedbackAndRecovery": "失败/空结果与停止发现；非HTTP端口展示导航错误。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/local_servers.go",
+            "lines": [
+              39,
+              53
+            ],
+            "note": "实际discover"
+          },
+          {
+            "path": "internal/ui/browserpreview/local_servers.go",
+            "lines": [
+              90,
+              110
+            ],
+            "note": "点击导航"
+          },
+          {
+            "path": "internal/desktop/localservers/discover.go",
+            "lines": [
+              23,
+              39
+            ],
+            "note": "固定端口探测"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-055",
+      "action": "清Browser Cookie/HTTP缓存并保持工作区分区隔离",
+      "oldCoverage": {
+        "ids": [
+          "WB-037"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "原版preview sessionCache；MyGo当前tab的Browser profile。",
+        "entryAndGesture": "More→clearCookies/clearCache",
+        "expectedResult": "清预期Browser分区数据，不误清Host凭据。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2006,
+              2025
+            ],
+            "note": "原菜单动作"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js",
+            "lines": [
+              1428,
+              1446
+            ],
+            "note": "partition身份"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "toolControls确认→startBrowserTool cookies/cache",
+        "handling": "清理操作捕获host/epoch；明确当前分区作用面。",
+        "hostOrDesktop": "native Browser cookie/cache APIs。",
+        "feedbackAndRecovery": "confirmation、部分生效不自动retry、success/error。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              230,
+              290
+            ],
+            "note": "真实确认控件"
+          },
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              80,
+              130
+            ],
+            "note": "实际clear/results"
+          },
+          {
+            "path": "cmd/whaleisle/browser_workspace.go",
+            "lines": [
+              10,
+              29
+            ],
+            "note": "生产partition身份"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-056",
+      "action": "Browser截图保存并在文件管理器定位",
+      "oldCoverage": {
+        "ids": [
+          "WB-039"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前Browser guest可capturePage。",
+        "entryAndGesture": "More→screenshot",
+        "expectedResult": "截真实可见页面，落实际PNG并reveal；失败可再试。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2095,
+              2105
+            ],
+            "note": "screenshot→reveal"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview.js",
+            "lines": [
+              760,
+              788
+            ],
+            "note": "实际capture/save"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "actionControls截图→startAction screenshot",
+        "handling": "真实CaptureBrowserScreenshot；owned filename保存，再ShowItemInFolder。",
+        "hostOrDesktop": "webview capture和系统文件管理器。",
+        "feedbackAndRecovery": "ArtifactPath/status/error；可再次显示，文件移除明确。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/actions.go",
+            "lines": [
+              101,
+              181
+            ],
+            "note": "真实capture/save/reveal"
+          },
+          {
+            "path": "internal/ui/browserpreview/actions.go",
+            "lines": [
+              210,
+              224
+            ],
+            "note": "真实按钮/显示"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-057",
+      "action": "Browser选择元素/可视批注并加入发起会话草稿",
+      "oldCoverage": {
+        "ids": [
+          "WB-039"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Browser页有效；发起会话草稿仍可写。",
+        "entryAndGesture": "More→pick；annotation overlay→提交/取消",
+        "expectedResult": "真实DOM/截图批注进入正确草稿，Esc取消、不自动发送。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2065,
+              2079
+            ],
+            "note": "pick→annotation markdown→draft"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "startAction pick/startAnnotation→appendAnnotation",
+        "handling": "捕获Host/session/page/draft owner；DOM pick及annotation overlay。",
+        "hostOrDesktop": "webview PickElement/annotation实际页面脚本。",
+        "feedbackAndRecovery": "取消、owner过期、发送中拒绝；成功返回草稿。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/actions.go",
+            "lines": [
+              101,
+              176
+            ],
+            "note": "真实pick/draft"
+          },
+          {
+            "path": "internal/ui/browserpreview/annotation.go",
+            "lines": [
+              11,
+              89
+            ],
+            "note": "批注prepare/显式加入"
+          },
+          {
+            "path": "cmd/whaleisle/browser_preview_actions.go",
+            "lines": [
+              27,
+              91
+            ],
+            "note": "生产owner与draft"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-058",
+      "action": "Browser录像开始/停止自动保存、失败后导出及reveal",
+      "oldCoverage": {
+        "ids": [
+          "WB-040"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Browser page可capture，系统编码器支持格式；无音频。",
+        "entryAndGesture": "More record→stop；artifact保存",
+        "expectedResult": "真实帧编码文件，stop后保存；失败保留可导出artifact。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2082,
+              2092
+            ],
+            "note": "record动作"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview.js",
+            "lines": [
+              1003,
+              1037
+            ],
+            "note": "真实录像artifact保存"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "recordingControls→start/stopBrowserRecording→export",
+        "handling": "取帧/编码器/保存真实链；cancel切tab/导航不假成功。",
+        "hostOrDesktop": "browserrecording artifact/系统编码器/Save dialog。",
+        "feedbackAndRecovery": "RecordingPath显示；保存失败导出/丢弃；文件移除错误。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/recording.go",
+            "lines": [
+              68,
+              159
+            ],
+            "note": "实际record/save"
+          },
+          {
+            "path": "internal/ui/browserpreview/recording.go",
+            "lines": [
+              163,
+              255
+            ],
+            "note": "stop/export/controls"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-059",
+      "action": "Browser工具条交互mini：浮在聊天区、拖拽/resize、恢复/关闭",
+      "oldCoverage": {
+        "ids": [
+          "WB-041"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前Browser native guest；用户主动点mini工具。",
+        "entryAndGesture": "miniOpen→DshdMiniPlayer；restore/close",
+        "expectedResult": "复用同一交互guest，在聊天区浮窗；可恢复右栏。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2214,
+              2222
+            ],
+            "note": "真实mini入口"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2421,
+              2714
+            ],
+            "note": "mini几何/resize/restore"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "toolControls→openMiniPlayer/restoreMiniPlayer",
+        "handling": "复用同一Host，frame mini geometry与focus所有权。",
+        "hostOrDesktop": "真实native WebView不重导航。",
+        "feedbackAndRecovery": "close/owner变更清理；不等于交付卡已接（GWB-001）。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/tools.go",
+            "lines": [
+              253,
+              272
+            ],
+            "note": "真实mini按钮"
+          },
+          {
+            "path": "internal/ui/browserpreview/mini_player.go",
+            "lines": [
+              51,
+              98
+            ],
+            "note": "open/restore"
+          },
+          {
+            "path": "internal/ui/browserpreview/mini_player.go",
+            "lines": [
+              106,
+              191
+            ],
+            "note": "拖拽resize"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-060",
+      "action": "Browser独立只读PiP画面及关闭",
+      "oldCoverage": {
+        "ids": [
+          "WB-041"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "当前Browser page；PiP只读帧窗口，不承诺音频/输入。",
+        "entryAndGesture": "More PiP→separate always-on-top window",
+        "expectedResult": "同来源网页帧显示；关闭恢复普通画面生命周期。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-preview/lib/client.js",
+            "lines": [
+              2041,
+              2049
+            ],
+            "note": "真实PiP动作"
+          },
+          {
+            "path": "tmp/full-audit-20261102/installed-source/src/main/preview.js",
+            "lines": [
+              924,
+              989
+            ],
+            "note": "真实帧capture，不是交互guest移入"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "toolControls→openPictureInPicture/stopPictureInPicture",
+        "handling": "保留tab/host/page epoch，最多4fps真实frame，过期关窗。",
+        "hostOrDesktop": "native capture + mygo window bitmap。",
+        "feedbackAndRecovery": "失败status/Close；不创建第二Browser权限。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/picture_in_picture.go",
+            "lines": [
+              29,
+              80
+            ],
+            "note": "实际只读PiP"
+          },
+          {
+            "path": "internal/ui/browserpreview/picture_in_picture.go",
+            "lines": [
+              111,
+              163
+            ],
+            "note": "frame loop"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-061",
+      "action": "Browser恢复上次地址/文档并重新读取授权",
+      "oldCoverage": {
+        "ids": [
+          "WB-041"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "工作区恢复记录；恢复地址不是现成Host权限。",
+        "entryAndGesture": "restore page/保存布局后重启恢复",
+        "expectedResult": "保留地址与reading position，显式Restore后导航；文档重新读取/授权。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js",
+            "lines": [
+              319,
+              352
+            ],
+            "note": "restore入口"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-browser/lib/client.js",
+            "lines": [
+              1428,
+              1446
+            ],
+            "note": "恢复partition"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "RestoreWorkspace→WorkspaceSnapshot/DocumentSource",
+        "handling": "恢复descriptor，不保留cookie/capability；retry读按当前Host/session。",
+        "hostOrDesktop": "native Browser/文档能力重新建立。",
+        "feedbackAndRecovery": "restore/go、expired/source错误明确；真实冷重启未验收。",
+        "evidence": [
+          {
+            "path": "internal/ui/browserpreview/workspace_resume.go",
+            "lines": [
+              21,
+              108
+            ],
+            "note": "恢复/restore"
+          },
+          {
+            "path": "internal/ui/frame/workspace_content.go",
+            "lines": [
+              399,
+              505
+            ],
+            "note": "生产workspace restore"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "对旧大项拆成可操作动作，不新增相同功能缺口。"
+    },
+    {
+      "id": "GWB-062",
+      "action": "交付卡完整文件预览/展开全部交付文件",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "关闭turn之前的deliverables/presented声明。",
+        "entryAndGesture": "交付卡body点击；多于4项Show all/collapse",
+        "expectedResult": "点击声明文件而非模型任意路径；超过4项可展开。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1318,
+              1334
+            ],
+            "note": "卡片真实preview"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1435,
+              1506
+            ],
+            "note": "4项折叠/展开"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "TurnDeliveryView→presentedFileCard / show all",
+        "handling": "按seq/index坐标TurnFilePreviewPath验证声明，文件预览只读。",
+        "hostOrDesktop": "PreviewDeliveryPath真实saved file reader；mini差异另列。",
+        "feedbackAndRecovery": "error retained；折叠只展示状态，不改变交付记录。",
+        "evidence": [
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              393,
+              407
+            ],
+            "note": "show all"
+          },
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              410,
+              465
+            ],
+            "note": "真实card preview"
+          },
+          {
+            "path": "internal/ui/files/delivery_preview.go",
+            "lines": [
+              25,
+              85
+            ],
+            "note": "真实文件gate/read"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "workbench未单列的交付文件动作，但CHAT-056已有大项；不重复新增基础文件预览能力。"
+    },
+    {
+      "id": "GWB-063",
+      "action": "本轮变更审阅选择文件、统一/分栏、换行及打开完整文件",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Host提供记录changes summary/diff；不是当前Git worktree差异。",
+        "entryAndGesture": "changed卡/行点击→ChangesReview pane→file selector/tools",
+        "expectedResult": "按turn seq/index读取before/after快照，可查看二进制/过大/新建/删除/coarse。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1643,
+              1755
+            ],
+            "note": "ReviewTab实际控件"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              703,
+              728
+            ],
+            "note": "binary/oversized/coarse notes"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "OnOpenChangesReview→WorkspacePanes.OpenChangesReview→changesReviewPane",
+        "handling": "同Host/session/seq scope，真实summary/diff；state按pane恢复。",
+        "hostOrDesktop": "RunTurnFileAction→/api/changes.summary/diff。",
+        "feedbackAndRecovery": "loading/error/retry、owner变化提示、完整文件打开回调。",
+        "evidence": [
+          {
+            "path": "internal/ui/frame/changes_review.go",
+            "lines": [
+              28,
+              89
+            ],
+            "note": "scope/生产open"
+          },
+          {
+            "path": "internal/ui/frame/changes_review.go",
+            "lines": [
+              161,
+              232
+            ],
+            "note": "所有工具与状态"
+          },
+          {
+            "path": "internal/store/session/turn_deliverables.go",
+            "lines": [
+              595,
+              638
+            ],
+            "note": "真实响应校验"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "区别于WB-022当前worktree/branch diff；旧workbench遗漏而CHAT-056只粗列，补足独立记录审阅分母。"
+    },
+    {
+      "id": "GWB-064",
+      "action": "声明文件/本轮变更的Host默认打开、指定应用、reveal和刷新列表",
+      "oldCoverage": {
+        "ids": [
+          "CHAT-056"
+        ],
+        "relation": "mapped"
+      },
+      "status": "mapped",
+      "original": {
+        "condition": "Host native available；真实声明/记录的sessionId/seq/index。",
+        "entryAndGesture": "card/review file actions→open/reveal/application/refresh",
+        "expectedResult": "使用授权Host route，不用客户端裸路径越权；刷新应用可重试。",
+        "evidence": [
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-open-in-app/lib/client.js",
+            "lines": [
+              639,
+              660
+            ],
+            "note": "授权FileRouteAction"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1095,
+              1103
+            ],
+            "note": "changed file actions"
+          },
+          {
+            "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+            "lines": [
+              1748,
+              1755
+            ],
+            "note": "review native actions"
+          }
+        ]
+      },
+      "mygo": {
+        "productionEntry": "deliverableActionPill / TurnFileNativeActions→RunTurnFileAction",
+        "handling": "state key共用native busy；GET apps/POST open/reveal，保留opaque application ID。",
+        "hostOrDesktop": "/api/present.open /changes.open authenticated Host HTTP；禁止redirect转发cookie。",
+        "feedbackAndRecovery": "Host缺失/error可重试；action busy/error；默认主按钮差异见GWB-003。",
+        "evidence": [
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              509,
+              531
+            ],
+            "note": "真实actions/refresh"
+          },
+          {
+            "path": "internal/ui/chat/turn_deliverables.go",
+            "lines": [
+              743,
+              796
+            ],
+            "note": "review native actions"
+          },
+          {
+            "path": "internal/store/session/turn_deliverables.go",
+            "lines": [
+              438,
+              509
+            ],
+            "note": "action路由"
+          },
+          {
+            "path": "internal/store/session/turn_deliverables.go",
+            "lines": [
+              525,
+              567
+            ],
+            "note": "真实HTTP与错误"
+          }
+        ]
+      },
+      "missingLink": "未发现此动作的生产链路缺段；mapped 仅表示源码已映射。",
+      "acceptanceGap": "本轮只读源码核对，未操作当前原生窗口；实际入口可达性、输入/焦点与可见反馈仍未验收。",
+      "distinctness": "声明文件route与普通Files openWorkspacePath不同；只作原动作映射，卡片默认主按钮缺口另计一次。"
+    }
+  ],
+  "statusCorrections": [
+    {
+      "oldId": "WB-018",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "指定外部编辑器只能在目标先成为selected preview后出现；原版任一未选中树行直接提供。原生关联错误/刷新有原owner替代路径，不报全局缺失。",
+      "actionIds": [
+        "GWB-004"
+      ],
+      "evidence": [
+        {
+          "path": "internal/ui/files/preview_toolbar.go",
+          "lines": [
+            384,
+            394
+          ],
+          "note": "非selected直接return"
+        },
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-files/lib/client.js",
+          "lines": [
+            915,
+            923
+          ],
+          "note": "原无selected前置"
+        }
+      ]
+    },
+    {
+      "oldId": "WB-026",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "真实Git事务及续接存在，但失败通知完整错误复制缺失，详情展开没有统一反馈入口；不应整项wired掩盖。",
+      "actionIds": [
+        "GWB-005",
+        "GWB-006"
+      ],
+      "evidence": [
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+          "lines": [
+            1295,
+            1310
+          ],
+          "note": "原复制/展开"
+        },
+        {
+          "path": "internal/ui/diffsurface/git_progress.go",
+          "lines": [
+            11,
+            33
+          ],
+          "note": "仅关闭+末5条"
+        }
+      ]
+    },
+    {
+      "oldId": "WB-030",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "发布成功后未保留仓库URL/打开仓库CTA；基础发布事务存在。",
+      "actionIds": [
+        "GWB-007"
+      ],
+      "evidence": [
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-git/lib/client.js",
+          "lines": [
+            2290,
+            2295
+          ],
+          "note": "成功Open repo"
+        },
+        {
+          "path": "internal/ui/diffsurface/repository_actions.go",
+          "lines": [
+            203,
+            212
+          ],
+          "note": "结果仅text/err"
+        }
+      ]
+    },
+    {
+      "oldId": "WB-035",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "Host process协议已接通，但原terminal.new连续新occurrence命令被仅切route的terminal.host取代。",
+      "actionIds": [
+        "GWB-008"
+      ],
+      "evidence": [
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar-terminal/lib/client.js",
+          "lines": [
+            390,
+            444
+          ],
+          "note": "新建命令/type"
+        },
+        {
+          "path": "cmd/whaleisle/main.go",
+          "lines": [
+            7146,
+            7153
+          ],
+          "note": "仅切route"
+        }
+      ]
+    },
+    {
+      "oldId": "CHAT-056",
+      "fromStatus": "wired-unverified",
+      "toStatus": "partial",
+      "reason": "基础交付/记录审阅/Host动作存在；卡片mini、悬停记录diff与默认主按钮契约未完整保留。该跨领域ID由conversation owner更新。",
+      "actionIds": [
+        "GWB-001",
+        "GWB-002",
+        "GWB-003"
+      ],
+      "evidence": [
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+          "lines": [
+            1487,
+            1489
+          ],
+          "note": "mini"
+        },
+        {
+          "path": "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-deliverables/lib/client.js",
+          "lines": [
+            1152,
+            1165
+          ],
+          "note": "hover"
+        },
+        {
+          "path": "cmd/whaleisle/main.go",
+          "lines": [
+            7343,
+            7376
+          ],
+          "note": "仅dock"
+        },
+        {
+          "path": "internal/ui/chat/turn_deliverables.go",
+          "lines": [
+            493,
+            531
+          ],
+          "note": "只有menu按钮"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "scope": "本轮仅阅读安装client/提取安装desktop源码和MyGo生产代码；未UIA/鼠标键盘、未启动产品、未构建/测试/CI、未调用真实文件改写/删除或Git网络动作、未读取用户profile/credentials。",
+    "artifactValidation": "JSON结构、64个唯一GWB ID、全部证据路径/行范围校验通过；这只是审计文件校验。",
+    "liveAcceptance": "未运行；全部mapped与confirmed-gap均为源码证据，实际原生窗口状态不由本审计替代。"
+  },
+  "summary": {
+    "actionCount": 64,
+    "byStatus": {
+      "mapped": 53,
+      "partial": 6,
+      "confirmed-gap": 5
+    },
+    "newGapGroupCount": 8,
+    "takeaway": "新增8组动作级缺链/不完整交互；其中非选中树行编辑器、Git错误复制、发布后打开仓库等不能由同名模块或基本事务wired覆盖。交付卡mini/hover/default主动作需同步收窄CHAT-056。"
+  }
+}

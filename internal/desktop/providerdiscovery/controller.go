@@ -258,6 +258,49 @@ func (c *Controller) Discover(parent context.Context, ticket uint64) {
 		c.state.LastAction = fmt.Sprintf("%s: %d candidates. Select models, add them to the draft, then review and save.", row.Name, len(c.state.Candidates))
 	}
 }
+
+// ProbeEditor reuses the Host adapter probe for the current native form. Its
+// result belongs to that form; the standalone discovery Models/Dirty/Review
+// state and its Save entry point remain untouched.
+func (c *Controller) ProbeEditor(parent context.Context, target EditorProbe) ([]Candidate, error) {
+	c.mu.Lock()
+	if c.call == nil || c.state.Busy {
+		c.mu.Unlock()
+		return nil, errors.New("Model discovery is unavailable while another operation is running.")
+	}
+	c.state.Ticket++
+	ticket, call := c.state.Ticket, c.call
+	ctx, done := c.workContext(parent)
+	c.probeCancel, c.state.Busy = done, true
+	c.mu.Unlock()
+	defer done()
+	candidates, err := discover(c.request(ctx, ticket, call), Row{Namespace: target.Namespace, Provider: target.Provider}, target.Endpoint, target.Protocol, target.Key)
+	if err == nil {
+		candidates = enrichDiscoveredCandidates(ctx, candidates)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Ticket != ticket || ctx.Err() != nil {
+		if c.state.Ticket == ticket {
+			c.probeCancel, c.state.Busy = nil, false
+		}
+		return nil, context.Canceled
+	}
+	c.probeCancel, c.state.Busy = nil, false
+	if err != nil {
+		return nil, err
+	}
+	filtered := candidates[:0]
+	key := strings.TrimSpace(target.Key)
+	for _, candidate := range candidates {
+		if key != "" && (strings.Contains(candidate.ID, key) || strings.Contains(candidate.Name, key)) {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	return filtered, nil
+}
+
 func (c *Controller) Pick(ticket uint64, id string, picked bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

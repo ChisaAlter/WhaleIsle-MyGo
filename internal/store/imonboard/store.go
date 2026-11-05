@@ -77,6 +77,12 @@ type Bot struct {
 	} `json:"accessPolicy"`
 }
 type Provision struct {
+	Submitted bool   `json:"submitted"`
+	Message   string `json:"message"`
+	Error     struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
 	AttemptID            string          `json:"attemptId"`
 	ProvisioningID       string          `json:"provisioningId"`
 	Status               string          `json:"status"`
@@ -91,11 +97,23 @@ type Provision struct {
 	PollIntervalMS       int             `json:"pollIntervalMs"`
 	VerificationRequired bool            `json:"verificationRequired"`
 	Deadline             time.Time       `json:"-"`
+	StartedAt            time.Time       `json:"-"`
 }
+
+// A submitted Feishu app update is already being applied by the platform.
+// The QR deadline and cancel/replacement actions no longer govern that phase.
+func (p Provision) Applying() bool {
+	return p.Operation != "" && (p.Submitted || p.Status == "connecting" || p.Status == "scanned") && p.Status != "failed" && p.Status != "cancelled" && p.Status != "expired" && p.Status != "connected"
+}
+
+func (p Provision) Cancelable() bool {
+	return !((p.Operation == "callback_repair" || p.Operation == "group_message_permission") && p.Applying())
+}
+
 type View struct {
 	TestNotice                      string
 	StatusError                     string
-	Open, Available, Busy           bool
+	Open, Available, Busy, Loaded   bool
 	Scope                           uint64
 	Channel, Notice, Error, Host    string
 	Draft                           Draft
@@ -249,20 +267,69 @@ func (s *Store) EditPolicy(scope uint64, id, text string) {
 		s.view.PolicyDrafts[id] = text
 	}
 }
-func (s *Store) Dismiss() { s.mu.Lock(); s.view.Review = ""; s.mu.Unlock(); s.fire() }
-func (s *Store) Refresh() { s.run("connection.status", map[string]any{}, false) }
+func (s *Store) Dismiss() {
+	s.mu.Lock()
+	if !s.view.Busy {
+		s.view.Review = ""
+	}
+	s.mu.Unlock()
+	s.fire()
+}
+func (s *Store) Refresh() {
+	s.mu.Lock()
+	provision := s.view.Provision
+	if s.client != nil && s.view.Open && !s.view.Busy && provision.AttemptID != "" && provision.Status != "failed" && provision.Status != "cancelled" && provision.Status != "expired" {
+		if s.cancel != nil {
+			s.cancel()
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		s.cancel = cancel
+		client, scope, channel := s.client, s.view.Scope, s.view.Channel
+		s.view.Error = ""
+		s.mu.Unlock()
+		s.fire()
+		// Observation resumes the same attempt; it never replays a mutation.
+		go s.poll(ctx, client, scope, channel, provision)
+		return
+	}
+	s.mu.Unlock()
+	s.run("connection.status", map[string]any{}, false)
+}
 func (s *Store) Confirm() {
 	s.mu.Lock()
 	v := s.view
-	s.view.Review = ""
+	if v.Channel == "feishu" && v.Provision.Applying() && (v.Review == "provision.begin" || v.Review == "provision.cancel" && !v.Provision.Cancelable()) {
+		s.view.Review = ""
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	if v.Review != "bot.delete" {
+		s.view.Review = ""
+	}
 	s.mu.Unlock()
 	payload := map[string]any{}
 	method := v.Review
 	pairing := false
 	switch method {
 	case "provision.begin":
+		// Refresh an existing targeted authorization as that same operation/Bot,
+		// not as a new application registration.
+		if v.Channel == "feishu" && v.Provision.BotID != "" {
+			switch v.Provision.Operation {
+			case "callback_repair":
+				method = "bot.callback-repair.begin"
+			case "group_message_permission":
+				method = "bot.group-message-permission.begin"
+			}
+			if method != "provision.begin" {
+				payload["botId"] = v.Provision.BotID
+			}
+		}
 		if v.Channel != "whatsapp" {
-			payload["locale"] = "zh-CN"
+			if method == "provision.begin" {
+				payload["locale"] = "zh-CN"
+			}
 		}
 		pairing = true
 	case "bot.callback-repair.begin", "bot.group-message-permission.begin":
@@ -284,6 +351,15 @@ func (s *Store) Confirm() {
 			return
 		}
 	case "provision.verify":
+		if !ValidVerificationCode(v.Draft.VerifyCode) {
+			s.mu.Lock()
+			if s.view.Scope == v.Scope {
+				s.view.Error = "请输入手机微信显示的 4–8 位数字配对码。"
+			}
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
 		payload = map[string]any{"attemptId": v.Provision.AttemptID, "verifyCode": strings.TrimSpace(v.Draft.VerifyCode)}
 		pairing = true
 	case "provision.cancel":
@@ -304,12 +380,15 @@ func (s *Store) Confirm() {
 		payload = map[string]any{"botId": v.Target, "groupResponseMode": v.Mode}
 	case "bot.access-policy.set":
 		payload = map[string]any{"botId": v.Target, "accessMode": v.Mode}
-		values := strings.FieldsFunc(v.Allowlist, func(r rune) bool { return r == '\n' || r == '\r' || r == ',' })
-		for i := range values {
-			values[i] = strings.TrimSpace(values[i])
-		}
-		if values == nil {
-			values = []string{}
+		values, message := normalizeAccessEntries(v.Channel, v.Allowlist)
+		if message != "" {
+			s.mu.Lock()
+			if s.view.Scope == v.Scope {
+				s.view.Error = message
+			}
+			s.mu.Unlock()
+			s.fire()
+			return
 		}
 		if v.Channel == "telegram" {
 			payload["allowedUsers"] = values
@@ -355,9 +434,6 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 	if method == "bot.reconnect" {
 		s.view.TestNotice = ""
 	}
-	if method == "bot.bind-credentials" || method == "provision.verify" {
-		s.view.Draft = Draft{}
-	}
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -374,9 +450,24 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			}
 		}
 		if err := call(method, payload, &raw); err != nil {
-			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardHostOperationFailedCheckThePlatformCon), nil)
+			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardHostOperationFailedCheckThePlatformCon)+": "+publicOperationError(err, payload), nil)
 			return
 		}
+		// A definite accepted mutation clears sensitive input. A rejected or
+		// failed call keeps the in-memory form intact for correction in place.
+		s.mu.Lock()
+		if s.view.Scope == scope {
+			if method == "bot.bind-credentials" {
+				s.view.Draft = Draft{}
+			}
+			if method == "provision.verify" {
+				s.view.Draft.VerifyCode = ""
+			}
+			if method == "bot.delete" {
+				s.view.Review = ""
+			}
+		}
+		s.mu.Unlock()
 		testNotice, testError := "", ""
 		if method == "bot.reconnect" && payload["sendTest"] == true {
 			testNotice, testError = reconnectTestResult(raw, reconnectBotID(payload))
@@ -401,6 +492,16 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 				base = previous
 			}
 			provision := decodeProvision(raw, base)
+			if method == "bot.callback-repair.begin" || method == "bot.group-message-permission.begin" {
+				expected := "callback_repair"
+				if method == "bot.group-message-permission.begin" {
+					expected = "group_message_permission"
+				}
+				if provision.Operation != expected || provision.BotID != payload["botId"] {
+					s.finish(scope, "Host returned an authorization for a different operation or Bot", nil)
+					return
+				}
+			}
 			if provision.AttemptID == "" {
 				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardTheHostReturnedNoValidSetupTask), nil)
 				return
@@ -423,6 +524,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			s.mu.Lock()
 			if scope == s.view.Scope {
 				s.view.Provision = Provision{}
+				s.view.Draft.VerifyCode = ""
 			}
 			s.mu.Unlock()
 		}
@@ -487,6 +589,7 @@ func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
 			s.view.Error = storelocale.T(storelocale.KeyStoreImonboardHostStatusFormatIsUnusable)
 		} else {
 			s.applyConnectionStatusLocked(bots, presets)
+			s.view.Loaded = true
 			s.statusReady = true
 			s.view.StatusError = ""
 			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardHostConnectionStatusRefreshed)
@@ -547,6 +650,7 @@ func decodeProvision(raw json.RawMessage, previous Provision) Provision {
 		Provisioning json.RawMessage `json:"provisioning"`
 		Status       string          `json:"status"`
 		State        string          `json:"state"`
+		Message      string          `json:"message"`
 	}
 	_ = json.Unmarshal(raw, &wrap)
 	value := raw
@@ -555,6 +659,10 @@ func decodeProvision(raw json.RawMessage, previous Provision) Provision {
 	}
 	p := previous
 	_ = json.Unmarshal(value, &p)
+	if wrap.Message != "" {
+		p.Message = wrap.Message
+		p.Error.Message = wrap.Message
+	}
 	if p.AttemptID == "" {
 		p.AttemptID = p.ProvisioningID
 	}
@@ -565,6 +673,9 @@ func decodeProvision(raw json.RawMessage, previous Provision) Provision {
 	}
 	if p.Status == "" {
 		p.Status = "pending"
+	}
+	if p.StartedAt.IsZero() {
+		p.StartedAt = time.Now()
 	}
 	if len(p.ExpiresAt) > 0 {
 		var ms float64
@@ -600,7 +711,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 		}
 		if provision.Status == "connected" {
 			s.mu.Lock()
-			if scope != s.view.Scope {
+			if scope != s.view.Scope || ctx.Err() != nil {
 				s.mu.Unlock()
 				return
 			}
@@ -613,9 +724,9 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 			return
 		}
 		terminal := provision.Status == "failed" || provision.Status == "cancelled" || provision.Status == "expired"
-		if terminal || time.Now().After(provision.Deadline) {
+		if terminal || !provision.Applying() && time.Now().After(provision.Deadline) {
 			s.mu.Lock()
-			if scope == s.view.Scope {
+			if scope == s.view.Scope && ctx.Err() == nil {
 				if !terminal {
 					provision.Status = "expired"
 				}
@@ -643,12 +754,12 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 			return
 		}
 		if err != nil {
-			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardCouldNotReadSetupStatusCancelAndScan), nil)
+			s.finish(scope, "暂时无法读取接入状态。刷新会继续核对此接入任务，不会重新提交授权。", nil)
 			return
 		}
 		provision = decodeProvision(raw, provision)
 		s.mu.Lock()
-		if scope != s.view.Scope {
+		if scope != s.view.Scope || ctx.Err() != nil {
 			s.mu.Unlock()
 			return
 		}

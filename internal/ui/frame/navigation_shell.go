@@ -18,7 +18,8 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	viewport, height := viewportDIP(c)
 	m.ViewportW, m.ViewportH = viewport, height
 	m.Sizes.observeSidebarGeometry(viewport, height)
-	m.Sizes.ResolveColumns(viewport, m.RightPaneOpen)
+	m.Sizes.ObserveSidebarSessionSelection(renderSnapshot(m))
+	m.Sizes.resolveColumnsWithReserve(viewport, m.RightOverlayReserve, m.RightPaneOpen)
 	registerPageCommands(c, m)
 	// The production frame lives inside this shell with ExternalNavigation.
 	// A phone rightbar covers the viewport rather than the rail's clipped main
@@ -26,7 +27,10 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	canvas := chrome.BackdropCanvas(chrome.Color(colors.BG))
 	if !m.WorkspacePage && workspaceAutoFullscreen(m) {
-		ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinWidth(0).MinHeight(0).Background(canvas).Children(content)
+		ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinWidth(0).MinHeight(0).Background(canvas).Children(func() {
+			content()
+			renderGlobalShellSlot(c, m, "shell.bottom", nil)
+		})
 		return
 	}
 	ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinHeight(0).Background(canvas).Children(func() {
@@ -38,15 +42,19 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			ui.Column(c.Key("global-workspace-rows")).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 				workspaceHeaderBand(c, func() { workspaceSharedCaption(c, m, renderSnapshot(m), colors, true) })
-				centerTerminalColumn(c, m, content, func() {
-					termui.View(c, termui.Model{
-						Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
-						ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
-						OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
-						TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget,
+				ui.Box(c.Key("global-workspace-body")).Grow(1).MinWidth(0).MinHeight(0).
+					Padding(0, maxf(0, m.RightOverlayReserve), 0, 0).Children(func() {
+					centerTerminalColumn(c, m, content, func() {
+						termui.View(c, termui.Model{
+							Panel: m.Terminal, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
+							ShellsNote: m.TerminalShellsNote, OnRestart: m.OnRestartTerminal, OnClose: m.OnCloseTerminal,
+							OnAddToChat: m.OnAddSelectionToChat, CanAddToChat: m.CanAddSelectionToChat,
+							TargetBinding: m.FileBindingID, OnOpenTarget: m.OnOpenTerminalTarget,
+						})
 					})
 				})
 			})
 		})
+		renderGlobalShellSlot(c, m, "shell.bottom", nil)
 	})
 }

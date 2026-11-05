@@ -104,7 +104,9 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 		return false
 	}
 	switch frame.Type {
-	case "baseline":
+	case "baseline", "replace":
+		// The published Host sends a complete replacement when access changes;
+		// it is a fresh admitted registry, not a Workspace deletion event.
 		if frame.Value == nil || frame.Value.PinnedSessionIDs == nil || frame.Value.ArchivedSessionIDs == nil {
 			return false
 		}
@@ -130,6 +132,16 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 		s.pinnedSessionIDs = append([]string(nil), frame.Value.PinnedSessionIDs...)
 		s.archivedSessionIDs = append([]string(nil), frame.Value.ArchivedSessionIDs...)
 		s.applyPinnedFlagsLocked()
+		// Recover configured directory identity without requiring a selected
+		// conversation, and without adopting the Host's unrelated default.
+		if s.selectedID == "" {
+			for _, row := range s.workspaceRowsLocked() {
+				if hostPathKey(row.Path) == hostPathKey(s.cwd) {
+					s.workspaceID = row.WorkspaceID
+					break
+				}
+			}
+		}
 	case "upsert":
 		if frame.Workspace.WorkspaceID == "" {
 			return false
@@ -173,6 +185,7 @@ func itemFromListRow(it api.SessionListValueItemsItem) Item {
 		ParentID:       derefString(it.ParentSessionId),
 		Origin:         derefString(it.Origin),
 		AgentAvailable: it.AgentAvailable,
+		FormatStatus:   derefString(it.FormatStatus),
 		Title:          titleForItem(it),
 		Running:        it.Running,
 		Blank:          it.Blank,

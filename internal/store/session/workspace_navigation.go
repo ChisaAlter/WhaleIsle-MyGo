@@ -107,7 +107,7 @@ func (s *Store) openWorkspaceNavigationLocked(mode, id string) {
 			op.view.TargetTitle = ws.Path
 		}
 		if mode == "rename" {
-			op.view.Draft = ws.Title
+			op.view.Draft = op.view.TargetTitle
 		}
 	}
 	s.workspaceNavigation = op

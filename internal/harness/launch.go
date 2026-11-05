@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,9 @@ type LaunchOptions struct {
 	// Host and Port are where dsh web listens; Port is the first one tried.
 	Host string
 	Port int
+	// ReservedPorts belong to companion services that may start later.
+	// Nil preserves the ordinary first-free-port contract.
+	ReservedPorts []int
 	// Home is the DSH_HOME the desktop keeps apart from the CLI's ~/.dsh.
 	Home string
 	// HarnessRoot is the vendored deepseek-harness tree. Empty skips vendor
@@ -49,6 +53,11 @@ type LaunchOptions struct {
 	AllowNpx bool
 	// ExtraEnv is appended to the child environment (install control URL/token, etc.).
 	ExtraEnv []string
+	// DesktopDefaults is set only by the managed desktop composition. Configured
+	// external launchers keep their original environment contract.
+	DesktopDefaults     bool
+	ProfileDefaultPatch string
+	WhaleUIHost         string
 }
 
 // Plan is one resolved command line.
@@ -307,6 +316,9 @@ func childEnv(o LaunchOptions) []string {
 	env := make([]string, 0, len(os.Environ())+4)
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
+		if o.DesktopDefaults && (strings.EqualFold(key, "DSHD_PROFILE_DEFAULT_PATCH") || strings.EqualFold(key, "DSHD_WHALE_UI_ENABLED") || strings.EqualFold(key, "DSHD_WHALE_UI_HOST")) {
+			continue
+		}
 		switch strings.ToUpper(key) {
 		case "DSH_HOME", "DSH_HARNESS_ROOT", "ELECTRON_RUN_AS_NODE", "ELECTRON_NO_ASAR",
 			"DSH_DESKTOP_INSTALL_URL", "DSH_DESKTOP_INSTALL_TOKEN",
@@ -322,13 +334,28 @@ func childEnv(o LaunchOptions) []string {
 		env = append(env, "DSH_HARNESS_ROOT="+root)
 	}
 	env = append(env, "npm_config_yes=true", "npm_config_update_notifier=false")
+	if o.DesktopDefaults {
+		if o.ProfileDefaultPatch != "" {
+			env = append(env, "DSHD_PROFILE_DEFAULT_PATCH="+o.ProfileDefaultPatch)
+		}
+		if o.WhaleUIHost != "" {
+			env = append(env, "DSHD_WHALE_UI_ENABLED=1", "DSHD_WHALE_UI_HOST="+o.WhaleUIHost)
+		}
+	}
 	env = append(env, o.ExtraEnv...)
 	return env
 }
 
 // FreePort returns the first port from start on host that accepts a listener.
 func FreePort(host string, start int) (int, error) {
+	return freePort(host, start, nil)
+}
+
+func freePort(host string, start int, reserved []int) (int, error) {
 	for port := start; port < start+portScanRange && port <= 65535; port++ {
+		if slices.Contains(reserved, port) {
+			continue
+		}
 		l, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 		if err == nil {
 			l.Close()

@@ -266,17 +266,24 @@ func effectJSONEqual(left, right string) bool {
 }
 
 func acknowledgeEffect(a *BodySettingsAccess, draft *effectDraft) bool {
-	if len(draft.Pending) == 0 || a.Snapshot.Saving {
+	if len(draft.Pending) == 0 {
 		return false
 	}
-	if a.Snapshot.Err != "" {
-		draft.Err = a.Snapshot.Err
-		draft.Pending = nil
-		return false
+	for key := range draft.Pending {
+		if a.Snapshot.PreferencePending["ui-conversation."+key] {
+			return false
+		}
+		if failure := a.Snapshot.PreferenceErrors["ui-conversation."+key]; failure != "" {
+			draft.Err = failure
+			draft.Pending = nil
+			return false
+		}
 	}
 	for key, submitted := range draft.Pending {
 		_, value, found := bodyHostValue(a, "ui-conversation", key)
 		if !found || !effectJSONEqual(value, submitted) {
+			draft.Err = providerCopy("设置已被其他操作改变，草稿已保留。请重新保存。", "Settings changed elsewhere. Your draft is retained; save again.")
+			draft.Pending = nil
 			return false
 		}
 	}
@@ -291,10 +298,14 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		enabledKey, styleKey, presetsKey = "typingFx", "typingFxStyle", "typingFxPresets"
 		title = providerCopy("输入特效", "Typing effects")
 	}
+	if !settingsItemBefore(c, "effect-row-"+enabledKey) {
+		return
+	}
 	_, enabled, found := bodyHostValue(a, "ui-conversation", enabledKey)
 	if !found {
 		return
 	}
+	clearToggleFailure := bodyPreferenceFieldError(c, a, "ui-conversation", enabledKey, title)
 	_, styleValue, styleFound := bodyHostValue(a, "ui-conversation", styleKey)
 	_, presetsValue, presetsFound := bodyHostValue(a, "ui-conversation", presetsKey)
 	anchor := ui.Column(c.Key(fmt.Sprintf("effect-settings-%d-%s", a.Owner, enabledKey))).FillWidth().MinWidth(0)
@@ -321,6 +332,9 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		}
 		*open = true
 	}
+	if settingsSearchReveal(c, enabledKey+"-settings") {
+		openSettings()
+	}
 	anchor.Children(func() {
 		gearLabel := providerCopy("思考炫光设置", "Thinking glow settings")
 		if typing {
@@ -341,7 +355,8 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, hint, fg, muted, func() {
 				ui.Row(c).Wrap().Gap(8).Justify(ui.End).Children(func() {
 					checked := enabled == "true"
-					if settingsPreferenceSwitch(c, &checked, settingsSwitchInput).Label(title).Disabled(bodyHostDisabled(a)).Changed() {
+					if settingsPreferenceSwitch(c, &checked, settingsSwitchInput).Label(title).Disabled(bodyHostFieldDisabled(a, "ui-conversation", enabledKey)).Changed() {
+						clearToggleFailure()
 						a.OnChange("ui-conversation", enabledKey, fmt.Sprint(checked))
 					}
 				})
@@ -355,7 +370,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		*open = false
 		return
 	}
-	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
+	ui.DialogBaseWithOptions(c, open, ui.DialogOptions{DismissDisabled: len(draft.Pending) > 0}, func(backdrop, panel ui.Element) {
 		vw, vh := c.Size()
 		// The effect editor is a feature dialog on the shared modal surface, like
 		// the reference settings dialogs: the same fade, glass, 28 DIP radius and
@@ -365,7 +380,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
 				ui.Row(c).FillWidth().Padding(16, 20).Wrap().Gap(8).Children(func() {
 					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
-					if ui.Button(c, providerCopy("关闭", "Close")).Clicked() {
+					if ui.Button(c, providerCopy("关闭", "Close")).Disabled(len(draft.Pending) > 0).Clicked() {
 						*open = false
 					}
 				})
@@ -441,17 +456,12 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 							draft.Err = ""
 						}
 					})
+				}) // Feedback stays in a reserved footer slot; saving never moves the controls.
+				ui.Box(c).FillWidth().Height(24).Padding(0, 24).Children(func() {
+					if draft.Err != "" {
+						ui.Text(c, draft.Err).FillWidth().TextColor(fg)
+					}
 				})
-				if draft.Err != "" || len(draft.Pending) > 0 {
-					ui.Column(c).FillWidth().Padding(8, 24).Children(func() {
-						if draft.Err != "" {
-							ui.Text(c, draft.Err).FillWidth().TextColor(fg)
-						}
-						if len(draft.Pending) > 0 {
-							ui.Text(c, providerCopy("正在保存，确认后应用。", "Saving; waiting for confirmation.")).FillWidth().TextColor(muted)
-						}
-					})
-				}
 				ui.Row(c).FillWidth().Padding(12, 24).Wrap().Gap(8).Children(func() {
 					if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(len(draft.Pending) > 0).Clicked() {
 						*open = false
@@ -533,7 +543,26 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 			value = choice.choices[0]
 		}
 		bodyPreferenceRow(c, "effect-choice-"+choice.path, providerCopy(choice.zh, choice.en), "", fg, muted, func() {
-			if ui.Select(c, &value, choice.choices).FillWidth().Label("effect-" + choice.path).Disabled(blocked).Changed() {
+			options := make([][2]string, 0, len(choice.choices))
+			for _, id := range choice.choices {
+				options = append(options, [2]string{id, effectOptionLabel(id)})
+			}
+			changed := false
+			if choice.path == "palette.id" || choice.path == "colors.id" {
+				changed = appearanceChoiceCards(c, "effect-cards-"+choice.path, &value, options, func(id string) []string {
+					if typing {
+						colors := composer.TypingColorScheme(id)
+						return colors[:]
+					}
+					sample := copyEffect(d.Style)
+					effectSet(sample, "palette", map[string]any{"kind": "preset", "id": id})
+					raw, _ := json.Marshal(sample)
+					return composer.BeamPaletteColors(raw)
+				}, blocked)
+			} else {
+				changed = wallpaperChoiceSelect(c, &value, "effect-"+choice.path, options, blocked)
+			}
+			if changed {
 				var palette []string
 				if choice.path == "palette.kind" && value == "custom" {
 					raw, _ := json.Marshal(d.Style)
@@ -605,7 +634,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		for _, color := range []struct{ key, zh, en string }{{"echo", "回声颜色", "Echo color"}, {"caret", "光标颜色", "Caret color"}, {"text", "文字颜色", "Text color"}} {
 			value, _ := effectValue(d.Style, "colors."+color.key).(string)
 			bodyPreferenceRow(c, "typing-color-"+color.key, providerCopy(color.zh, color.en), "#RRGGBB", fg, muted, func() {
-				if ui.TextInput(c, &value).FillWidth().Label("effect-color-" + color.key).Disabled(blocked).Changed() {
+				if appearanceColorWell(c, &value, "effect-color-"+color.key, blocked, false) {
 					effectSet(d.Style, "colors."+color.key, value)
 					for i, key := range []string{"echo", "caret", "text"} {
 						if key == color.key {
@@ -622,7 +651,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		for index, color := range colors {
 			value, _ := color.(string)
 			bodyPreferenceRow(c, fmt.Sprintf("beam-color-%d", index), fmt.Sprintf(providerCopy("颜色 %d", "Color %d"), index+1), "#RRGGBB", fg, muted, func() {
-				if ui.TextInput(c, &value).FillWidth().Label(fmt.Sprintf("effect-color-%d", index)).Disabled(blocked).Changed() {
+				if appearanceColorWell(c, &value, fmt.Sprintf("effect-color-%d", index), blocked, false) {
 					colors[index] = value
 					effectSet(d.Style, "palette.colors", colors)
 					d.Style["mode"] = "custom"

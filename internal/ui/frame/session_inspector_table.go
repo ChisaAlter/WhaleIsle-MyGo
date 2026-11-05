@@ -127,6 +127,7 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 	p.navigation = chat.InspectorNavigation{SessionID: sessionID}
 	p.pendingPick, p.pendingPickBinding = nil, ""
 	p.breadcrumb, p.tree = nil, inspectorJSONTreeState{}
+	p.objectTree, p.objects = inspectorObjectTreeState{}, nil
 	p.Filter, p.draft, p.selected = "", "", ""
 	p.collapsed = map[string]inspectorDisclosure{}
 	p.list = ui.ListState{FollowEnd: true}
@@ -273,7 +274,7 @@ func inspectorCell(c *ui.Context, width float32) ui.Element {
 
 func inspectorTableHeader(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, width float32, colors theme.Colors) {
 	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(700).Background(chrome.Color(colors.Field)).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
-		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, paneLabel("序号", "Index")) })
+		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "ID") })
 		inspectorCell(c, 190).Role(ui.RoleColumnHeader).Gap(6).Children(func() { inspectorText(c, paneLabel("类型", "Type")); inspectorTypeFilter(c, p, rows) })
 		inspectorCell(c, 65).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "T/S") })
 		if p.Mode != "chat-node" {

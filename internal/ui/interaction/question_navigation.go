@@ -15,13 +15,13 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 	if len(card.Rows) == 0 {
 		return false
 	}
-	frame := ui.Column(c.Key("question-wizard:" + p.AgentID + ":" + p.EventID)).FillWidth().Gap(6)
+	frame := ui.Column(c.Key("question-wizard:" + p.AgentID + ":" + p.EventID)).FillWidth().MinHeight(0).Shrink(1).Gap(6)
 	flow := ui.Local(frame, "question-editor-flow", func() questionEditorFlow { return questionEditorFlow{} })
 	index := min(max(card.Index, 0), len(card.Rows)-1)
 	row := card.Rows[index]
 	focused := false
 	frame.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Wrap().Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Gap(8).Wrap().Children(func() {
 			// The pager below owns the progress readout; the header keeps only the
 			// minimize/review affordances.
 			ui.Box(c).Grow(1).MinWidth(0)
@@ -37,7 +37,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			}
 		})
 		if flow.summary {
-			questionDraftSummary(c, p, card, store, colors, flow, muted)
+			ui.Scroll(c).FillWidth().MinHeight(0).Shrink(1).Children(func() { questionDraftSummary(c, p, card, store, colors, flow, muted) })
 		}
 		if flow.minimized {
 			return
@@ -46,12 +46,12 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 		if flow.feedback != "" {
 			ui.Text(c, questionFeedback(flow.feedback)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
-		ui.Row(c).FillWidth().Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 			if prev := questionPagerButton(c, questionPagerPrev, i18n.T(i18n.KeyChatQuestionPrev), !p.Sending && index > 0); prev.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index-1)
 				flow.feedback = ""
 			}
-			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(muted)
 			if next := questionPagerButton(c, questionPagerNext, i18n.T(i18n.KeyChatQuestionNext), !p.Sending && index+1 < len(card.Rows)); next.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index+1)
 				flow.feedback = ""
@@ -64,7 +64,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 				}
 			}
 			ui.Box(c).Grow(1).MinWidth(0)
-			if skip := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionSkip), p.Sending || p.Error != ""); skip.Clicked() {
+			if skip := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionSkip), p.Sending); skip.Clicked() {
 				flow.focusID, flow.feedback = store.SkipQuestionAndContinue(p.AgentID, p.EventID, row.ID)
 			}
 			label := i18n.T(i18n.KeyChatQuestionStep)
@@ -75,7 +75,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 				}
 			}
 			answered := len(row.Selected) > 0 || strings.TrimSpace(row.Custom) != ""
-			submit := interactionPrimaryButton(c, colors, label, p.Sending || p.Error != "" || !answered)
+			submit := interactionPrimaryButton(c, colors, label, p.Sending || !answered)
 			if submit.Clicked() {
 				flow.focusID, flow.feedback = store.ContinueQuestion(p.AgentID, p.EventID, row.ID)
 			}

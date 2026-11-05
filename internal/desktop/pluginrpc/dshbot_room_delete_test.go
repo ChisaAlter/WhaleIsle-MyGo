@@ -12,7 +12,10 @@ import (
 
 type roomDeleteTransport func(*http.Request) (*http.Response, error)
 
-func (f roomDeleteTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f roomDeleteTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := f(r)
+	return fixtureResponseIdentity(r, response, err)
+}
 
 func roomDeleteFixturePlan(t *testing.T) DshbotBotDeletePlan {
 	item := func(id, kind string, members []string, inbox []any) DshbotBotItem {

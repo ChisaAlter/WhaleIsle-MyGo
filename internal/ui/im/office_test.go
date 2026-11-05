@@ -90,7 +90,7 @@ func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Store: s, ThemeID: "deepseek", HarnessReady: true, OnOpenPluginWeb: func() { fallback = true }})
 	}, 1100, 2200)
-	for _, text := range []string{"AI Office Connector", "配置已保存，Office 尚未连接", "Office Base URL", "Device ID", "Device Token（只写入 Host 凭据存储）", "保存并连接…", "打开原版插件页面"} {
+	for _, text := range []string{"AI Office Connector", "配置已保存，Office 尚未连接", "Office Base URL", "Device ID", "Device Token", "Token 只写入 Host 凭据存储，不读取或回显。更换 Office 或 Device ID 时需重新输入。", "保存并连接…"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q", text)
 		}
@@ -110,7 +110,10 @@ func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	if f.calls.Load() != 1 || s.Office.Snapshot().ReviewAction != "" {
 		t.Fatal("cancel mutated")
 	}
-	if e := tt.Click("打开原版插件页面"); e != nil {
+	if e := tt.Click("Office 页面选项"); e != nil {
+		t.Fatal(e)
+	}
+	if e := tt.ChooseMenuItem("打开原版插件页面"); e != nil {
 		t.Fatal(e)
 	}
 	if !fallback || s.Office.Snapshot().Open {

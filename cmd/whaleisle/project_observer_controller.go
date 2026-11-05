@@ -27,6 +27,7 @@ func (s *mainState) bindProjectModel(win *mygo.Window, parent *frame.Model) {
 	}
 	controller := s.primaryProjectController()
 	m := controller.projectModel(win)
+	s.bindProjectTeamModel(win, &m)
 	m.ThemeID, m.SystemDark = parent.ThemeID, parent.SystemDark
 	controller.bindProjectVisualResults(win, &m)
 	// Opening an observer does not make the sidebar own its controller lifetime.
@@ -37,6 +38,7 @@ func (s *mainState) bindProjectModel(win *mygo.Window, parent *frame.Model) {
 		controller := s.observerControllerLocked(o)
 		s.mu.Unlock()
 		observer := controller.projectModel(win)
+		controller.bindRequirementCatalog(win, &observer, o)
 		observer.ThemeID, observer.SystemDark = m.ThemeID, m.SystemDark
 		controller.bindProjectVisualResults(win, &observer)
 		return observer

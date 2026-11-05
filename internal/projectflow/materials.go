@@ -9,10 +9,13 @@ import (
 const NotesMarker = "<!-- whale-project:user-notes -->"
 
 type Material struct {
-	Path          string  `json:"path"`
-	Text          string  `json:"text"`
-	GeneratedText string  `json:"generatedText"`
-	UserText      *string `json:"userText"`
+	Path           string  `json:"path"`
+	Text           string  `json:"text"`
+	GeneratedText  string  `json:"generatedText"`
+	UserText       *string `json:"userText"`
+	Decisions      string  `json:"-"`
+	DecisionError  string  `json:"-"`
+	DecisionLoaded bool    `json:"-"`
 }
 
 func (m Material) Editable() string {
@@ -25,7 +28,23 @@ func materialPath(path string) bool {
 	return path == "notes.md" || path == "preferences.md" || path == "charter.md"
 }
 func (c Client) ReadMaterial(ctx context.Context, id, path string) (Material, error) {
-	return c.material(ctx, "store/read", id, path, nil)
+	out, err := c.material(ctx, "store/read", id, path, nil)
+	if err == nil && path == "notes.md" {
+		var log struct {
+			Path string `json:"path"`
+			Text string `json:"text"`
+		}
+		logErr := c.call(ctx, "store/read", map[string]any{"projectId": id, "path": "decisions.md"}, &log)
+		out.DecisionLoaded = true
+		if logErr != nil {
+			out.DecisionError = logErr.Error()
+		} else if log.Path != "decisions.md" {
+			out.DecisionError = "Host did not return the requested decision log"
+		} else {
+			out.Decisions = log.Text
+		}
+	}
+	return out, err
 }
 func (c Client) WriteMaterial(ctx context.Context, id, path, text string) (Material, error) {
 	if path == "charter.md" && len(text) > 16000 {
@@ -55,6 +74,8 @@ func (c Client) material(ctx context.Context, method, id, path string, text *str
 type MaterialDraft struct {
 	ProjectID, Path, Draft, Saved, Generated, Error, Notice string
 	Loaded                                                  bool
+	Decisions, DecisionError                                string
+	DecisionLoaded                                          bool
 }
 
 func (d *MaterialDraft) Dirty() bool { return d.Loaded && d.Draft != d.Saved }
@@ -67,6 +88,13 @@ func (d *MaterialDraft) Apply(m Material, err error) {
 	d.Draft = m.Editable()
 	d.Saved = d.Draft
 	d.Generated = m.GeneratedText
+	if m.DecisionLoaded {
+		d.DecisionLoaded = true
+		d.DecisionError = m.DecisionError
+		if m.DecisionError == "" {
+			d.Decisions = m.Decisions
+		}
+	}
 	d.Loaded = true
 	d.Error = ""
 }

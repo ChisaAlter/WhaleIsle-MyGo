@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html"
+	"strings"
 )
 
 // The new child protocol is adapted into the existing bounded helper transport.
@@ -27,9 +28,9 @@ func whaleShell(viewer string, r Render, width int, appearance string) (string, 
 	// srcdoc inherits the outer policy as an additional restriction. Keep its
 	// offline data resources allowed at both levels; the historical parentPolicy
 	// otherwise blocks even validated bitmaps and packaged engine/font bytes.
-	whaleParentPolicy := "default-src 'none'; script-src 'unsafe-inline' data: blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; frame-src 'self' about: data: blob:; connect-src 'none'; worker-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'"
+	whaleParentPolicy := "default-src 'none'; script-src 'unsafe-inline' data: blob: https://cdn.jsdelivr.net https://unpkg.com https://esm.sh https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; frame-src 'self' about: data: blob:; connect-src 'none'; worker-src 'none'; object-src 'none'; media-src data: blob:; base-uri 'none'; form-action 'none'"
 	childPolicy := whaleParentPolicy
-	child, _ := json.Marshal(`<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childPolicy) + `">` + isolatedWhaleViewer(viewer))
+	child, _ := json.Marshal(`<meta http-equiv="Content-Security-Policy" content="` + html.EscapeString(childPolicy) + `">` + strings.Replace(isolatedWhaleViewer(viewer), "script-src 'unsafe-inline' data: blob:", "script-src 'unsafe-inline' data: blob: https://cdn.jsdelivr.net https://unpkg.com https://esm.sh https://cdnjs.cloudflare.com", 1))
 	id, _ := json.Marshal(r.InstanceID)
 	bundles := map[string]string{}
 	for name := range bundleNames {
@@ -72,7 +73,7 @@ addEventListener('message',e=>{
  if(d.type==='ready'){ready=true;window.__previewState.ready=true;post('render',render);return;}
  if(d.type==='native-adapter'){
   if(typeof d.requestId!=='string'||nativePending.has(d.requestId))return;
-  if(d.nativeType==='api-request'){const allowed={'/api/map-tile':['z','x','y','style'],'/api/street-route':['coords'],'/api/image':['src'],'/api/wiki':['title'],'/api/image-search':['q'],'/api/html-script':['src','integrity']};if(!Object.hasOwn(allowed,d.path)||!record(d.query)||Object.entries(d.query).some(([k,v])=>!allowed[d.path].includes(k)||typeof v!=='string'))return;nativePending.add(d.requestId);const key='resource-'+(++seq);pending.set(key,{kind:'native-resource',original:d.requestId});enqueue(event('api-request',{requestId:key,path:d.path,query:d.query}));return;}
+  if(d.nativeType==='api-request'){const allowed={'/api/map-tile':['z','x','y','style'],'/api/street-route':['coords'],'/api/image':['src'],'/api/media':['src'],'/api/wiki':['title'],'/api/image-search':['q'],'/api/html-script':['src','integrity']};if(!Object.hasOwn(allowed,d.path)||!record(d.query)||Object.entries(d.query).some(([k,v])=>!allowed[d.path].includes(k)||typeof v!=='string'))return;nativePending.add(d.requestId);const key='resource-'+(++seq);pending.set(key,{kind:'native-resource',original:d.requestId});enqueue(event('api-request',{requestId:key,path:d.path,query:d.query}));return;}
   if(d.nativeType==='media'&&render.media===true&&record(d.media)&&d.media.revision===render.revision&&typeof d.sequence==='number'&&d.requestId==='media-'+d.sequence){nativePending.add(d.requestId);pending.set(d.requestId,{kind:'media',original:d.requestId});enqueue(event('media',{requestId:d.requestId,sequence:d.sequence,userGesture:d.userGesture===true,media:d.media}));}return;
  }
  if(d.type==='height'){if(Number.isFinite(d.height))window.__previewState.height=Math.max(80,Math.min(2000,Math.ceil(d.height)));return;}

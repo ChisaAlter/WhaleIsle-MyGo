@@ -1,0 +1,1092 @@
+{
+  "domain": "pet-voice",
+  "modulesReviewed": [
+    "internal/petcare/",
+    "internal/petdirect/",
+    "internal/petgrowth/",
+    "internal/petlook/",
+    "internal/petwatch/",
+    "internal/desktop/pet/ (Companion lifecycle, protocol/resource dispatch, rendering, rig, geometry, motion, hit regions, interactions, care, growth, notifications, quick-chat, look, recovery and bundled renderer scripts)",
+    "internal/desktop/wallpapers/",
+    "internal/desktop/voicecapture/",
+    "internal/desktop/voiceinput/",
+    "internal/desktop/clipboardimage/",
+    "internal/desktop/avatarimage/",
+    "internal/desktop/screenglance/",
+    "internal/ui/svgimage/",
+    "internal/ui/webview/ (no pet runtime consumer found; pet uses a dedicated MyGo Page)",
+    "internal/ui/chrome/background.go",
+    "internal/ui/chrome/wallpaper.go",
+    "internal/ui/chrome/wallpaper_screen.go",
+    "internal/ui/chrome/gradient_source.go",
+    "internal/ui/chrome/ambient_gradient.go",
+    "internal/ui/chrome/cursor.go",
+    "cmd/whaleisle/pet*.go",
+    "cmd/whaleisle/composer_voice.go",
+    "cmd/whaleisle/voice_devices.go",
+    "cmd/whaleisle/composer_clipboard.go",
+    "cmd/whaleisle/wallpaper_background.go",
+    "cmd/whaleisle/pointer_effects.go",
+    "cmd/whaleisle/svg_images.go",
+    "cmd/whaleisle/assistant_bot_avatar_image.go",
+    "cmd/whaleisle/main.go (production bindings only)",
+    "internal/config/desktop_pet.go",
+    "internal/config/pet_behavior.go",
+    "internal/config/pet_care.go",
+    "internal/config/pet_growth.go",
+    "internal/store/session/speech_recording.go",
+    "internal/store/session/speech.go",
+    "internal/store/session/speech_settings.go",
+    "internal/ui/composer/tool_actions.go (voice and paste consumers)",
+    "internal/ui/market/plugin_artwork.go",
+    "internal/ui/market/readme_images.go",
+    "internal/ui/pluginmanager/artwork.go",
+    "native/macos-preview/ (platform boundary only)"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/app.asar::src/main/{desktop-pet,desktop-pets,desktop-live2d,pet-chat,pet-settings,pet-stats,pet-growth,pet-dsh-watch,wallpaper-catalog}.js (actual installed 0.3.13)",
+    "C:/软件/Whale Isle/resources/app.asar::src/renderer/{pet-live2d.js,pet-live2d.html,pet.js,pet-physics.js,pet-wander.js}",
+    "tmp/full-audit-20261102/installed-source/src/main/ (fresh read-only extraction, main source citations below)",
+    "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js (text compared with installed app.asar and identical for this audit)",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js (actual img artwork/preview consumer)",
+    "C:/AI/Deepseek-Harness-Desktop/src/main/ (current-original comparison; 13 selected pet/wallpaper source files had identical text to actual installed asar, so no additional current-original delta is asserted for them)"
+  ],
+  "features": [
+    {
+      "id": "PET-001",
+      "feature": "桌宠显示、隐藏、应用退出与重启恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "明确开启后创建透明置顶桌宠；隐藏持久保存；退出释放窗口；下次普通安装启动按保存值恢复。",
+      "entry": "设置/托盘开关 → Companion.SetEnabled/Save → sync；main.go 创建并绑定桌宠。设置控件由 SET 线审查。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:781-879: 原版透明置顶窗口、渲染就绪及窗口生命周期",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:1082-1086: 隐藏入口"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2526-2546: 真实桌宠构造、回调及主窗生命周期绑定",
+        "internal/desktop/pet/tray_toggle.go:5-23: 只保存显示偏好再同步窗口",
+        "internal/desktop/pet/companion.go:95-174: 保存、关闭、取消工作及显示条件",
+        "internal/desktop/pet/actions.go:5-25: 隐藏先保存，失败保留可恢复窗口"
+      ],
+      "finding": "生产链已接上，不是纯设置假开关。普通安装模式与便携/隔离模式不同；当前诊断预览属于后者，不能据它认定安装版桌宠通过或失败。",
+      "evidenceLevel": "code",
+      "requiredAction": "在最终普通安装候选上验收开启→隐藏→重开→退出→重启，含保存失败反馈；不需要先改这条代码。",
+      "acceptanceGap": "当前候选真实透明窗口、托盘回显、关闭释放与重启恢复未验收。"
+    },
+    {
+      "id": "PET-002",
+      "feature": "THA4 神经渲染与 GPU/兼容降级",
+      "baseline": "installed-0.3.13",
+      "expected": "原版称为 Live2D 的形象实际使用 THA4/ONNX；载入成功有实时姿态，失败有可识别降级并释放推理资源。",
+      "entry": "Companion.sync → 相邻 pet-render-assets → pet-runtime.startNeural → WhaleTHA4.open。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:4844-4992: 模型/兼容姿态载入及首帧渲染；已与安装 asar 相同文本确认"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/companion.go:182-197: 神经资源及降级信息",
+        "internal/desktop/pet/neural.go:23-57,66-95: 固定相邻资源校验及路由",
+        "internal/desktop/pet/assets/pet-runtime.js:254-345,371-385: 首帧、串行推理、缓存呈现和失败切换",
+        "docs/parity/feature-matrix-20261026.md:117: 历史自有 WebGPU/Anime4K 4.226 秒、66 张不同 RGBA 的限定记录",
+        "tmp/pet-cadence-gui/result.json:1: 历史测试专用 exe 的 provider=webgpu、renderer=neural、pass=true"
+      ],
+      "finding": "渲染链和 rc.3 stage 的模型/ORT 文件均存在。历史报告证明当时专用测试窗口短时神经渲染，不证明 rc.3 安装入口、所有显卡、长时资源或完整桌宠操作。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "对最终安装候选完成首帧、显卡降级、失败提示、隐藏/退出释放及持续运行验收。",
+      "acceptanceGap": "当前候选 GPU/驱动与功耗/内存稳定性、模型失效路径未实际验收。"
+    },
+    {
+      "id": "PET-003",
+      "feature": "兼容 rig 的眨眼、闭眼、开心、愤怒等表情",
+      "baseline": "installed-0.3.13",
+      "expected": "兼容 rig 沿用已安装原版的表情状态与降级行为；实际原版 manifest 的所有表情均指向 shell.png。",
+      "entry": "pet-runtime 候选降级 → startRig → WhalePetRig.create。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/app.asar::src/renderer/pet-live2d/rig/manifest.json: shells 的各表情均映射为 shell.png；直接只读 archive 验证，证据见 tmp/parity-implementation-20261102/pet-rig-baseline-evidence.json",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:688-692,786-817,1123-1145: 兼容 rig 的表情与睡眠状态"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/assets/rig/manifest.json:33-130: neutral、eyes-closed、happy、angry、mouth-open、wink 等全部指向同一 shell.png",
+        "internal/desktop/pet/assets/pet-rig.js:6-14: 按文件名复用同一图片",
+        "internal/desktop/pet/assets/pet-rig.js:295-320: 表情切换实际取这些相同图片",
+        "internal/desktop/pet/rig.go:20-23: 仅提供 shell.png 与 tail.png"
+      ],
+      "finding": "撤回“原版独立九表情资源缺失”的差异结论：实际安装版与 MyGo 的 manifest 均将表情指向 shell.png。现有状态/资源消费链保留，实际后备 rig 视觉仍未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "按已安装原版的真实后备行为验收闭眼/眨眼/睡眠等状态；不虚构原版独有资源或以生成新表情图冒充迁移。",
+      "acceptanceGap": "神经失败/关闭后的真实 rig 画面未验收。",
+      "auditErratum": {
+        "reason": "Original resource inference refuted by direct immutable app.asar read",
+        "evidence": "tmp/parity-implementation-20261102/pet-rig-baseline-evidence.json",
+        "previousStatus": "partial",
+        "previousClaim": "原版各表情对应独立 shell 图片"
+      }
+    },
+    {
+      "id": "PET-004",
+      "feature": "选择并显示社区 Codex v1/v2 皮肤",
+      "baseline": "installed-0.3.13",
+      "expected": "有效的 1536×1872 或 1536×2288 皮肤图集可被选择并显示，按图集行呈现状态/方向。",
+      "entry": "本地皮肤选择保存 → Discover/readSkin → /sprite.webp → pet-runtime.startSprite。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-pets.js:7-11,134-163: 原版支持 v1/v2 图集",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet.js:1-180: 原版 atlas 状态/方向消费；与安装 asar 相同文本确认"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/catalog.go:88-117: 只接受完整 1872/2288 高图集并保存原始 Sheet",
+        "internal/desktop/pet/companion.go:175-180,443-451: 已选皮肤原字节从 sprite.webp 返回",
+        "internal/desktop/pet/assets/pet-runtime.js:347-369: 却仅接受高度208；否则清空sheet并加载fallback；画图也仅取y=0"
+      ],
+      "finding": "入口和资源生产者接受完整 v1/v2 图集，最终消费者却要求一行高208，二者不相交。正常社区皮肤即使选中也永远被丢弃；目前状态/方向行也未消费。",
+      "evidenceLevel": "code",
+      "requiredAction": "统一图集尺寸合同，真正消费 v1/v2 行与方向；默认 THA4 开启时还需明确皮肤与渲染器选择关系。",
+      "acceptanceGap": "选皮肤→保存→实际形象改变→动作方向→重启仍保持未验收；已有 catalog 单测不覆盖最终画图。"
+    },
+    {
+      "id": "PET-005",
+      "feature": "多屏、混合 DPI、透明穿透与显示/休眠恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "角色在当前显示器正确缩放，空白区域透传，角色/动作卡可点击；跨屏、拔屏、唤醒后仍可找回。",
+      "entry": "geometry/platformPetDisplays → 固定单屏 overlay → hit_regions → recovery 的显示器和电源事件。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:408-479,649-769: 命中区域、固定中心选屏与显示器布局",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:1046-1080: 拖动时跨屏迁移"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/geometry.go:56-85,110-173: 固定名义中心、单屏 overlay、CSS/物理坐标换算",
+        "internal/desktop/pet/geometry_windows.go:73-118: 物理放置、DPI及旧位置迁移",
+        "internal/desktop/pet/hit_regions.go:59-118: 可见区域命中及鼠标穿透",
+        "internal/desktop/pet/recovery.go:9-44: 渲染器退出/显示器变化/恢复/解锁重建",
+        "docs/parity/acceptance-round-20261026.md:9-13: 历史150%和100%双屏、8次边界加4次回程限定结果"
+      ],
+      "finding": "有针对混合 DPI 的真实历史窗口证据，但只对应当时构建和两屏配置；它没有验收当前完整卡片命中、所有分辨率、拔屏和睡眠恢复。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "最终安装候选验收两屏拖拽/动作卡点击/透明区域穿透，再验收拔屏、锁屏与恢复。",
+      "acceptanceGap": "当前候选及外部多屏硬件未验收；不能用旧双屏结果签整个桌宠可用。"
+    },
+    {
+      "id": "PET-006",
+      "feature": "拾起、拖动、Shift/锁定约束与抛掷落地",
+      "baseline": "installed-0.3.13",
+      "expected": "角色跟随真实光标，释放后按速度抛掷或落地，保存落点；锁定与Shift拖动遵守选择。",
+      "entry": "pet-interaction.js 的固定 gesture intent → native cursor sampling → interaction physics → saveMotionAnchor。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:4494-4686: 拾取、释放速度、抛掷、触碰及照料；与安装 asar 相同文本确认",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-physics.js:1-240: 原版物理"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/interaction.go:72-185: 原生光标、拾取/抛掷状态、落地保存及照料",
+        "internal/desktop/pet/assets/pet-interaction.js:31-44,170-230,338-392: 页面手势与姿态消费",
+        "internal/desktop/pet/interaction_physics.go:8-59: 物理单位适配",
+        "internal/desktop/pet/motion.go:278-297: 锚点持久化"
+      ],
+      "finding": "完整路径已装配；旧神经拾取/边界报告仅是局部姿态证据，不等于真实输入、锁定/Shift和跨屏抛掷均已通过。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收实际按住/移动/释放、锁定及Shift，观察落点与重启恢复。",
+      "acceptanceGap": "当前候选真实指针输入与多屏抛掷未运行。"
+    },
+    {
+      "id": "PET-007",
+      "feature": "手动睡眠、叫醒与闲置打盹",
+      "baseline": "installed-0.3.13",
+      "expected": "225秒开始打盹、240秒无交互睡眠；明确叫醒按原版扣7心情；触碰/照料唤醒、窗口重建状态及渲染暂停正确。",
+      "entry": "状态卡睡觉/叫醒 → restPet；idle_rest clock → restState → renderer sleep consumer。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:2037-2041,3268-3284,3496-3514: 手动及闲置睡眠",
+        "tmp/full-audit-20261102/installed-source/src/main/pet-stats.js:39-48,105-132: 叫醒/照料规则"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/rest_state.go:5-46: 闲置时间、临时状态及显式wake事务",
+        "internal/desktop/pet/idle_rest.go:42-60: 操作/聊天/工作期间抑制自动睡眠",
+        "internal/desktop/pet/assets/pet-runtime.js:111-126,187-193: 睡眠消费与接触唤醒",
+        "tmp/pet-boundary-gui-round2/result.json:1: 历史DPR1.5专用窗口边界/唤醒结果"
+      ],
+      "finding": "规则及神经睡眠消费已接线，历史边界结果有效范围仅为该专用测试exe。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "实际等待闲置并覆盖手动睡眠、接触唤醒、叫醒扣值及窗口重建。",
+      "acceptanceGap": "当前普通安装入口的完整睡眠时间与真实动作未验收。"
+    },
+    {
+      "id": "PET-008",
+      "feature": "摸头、轻点、抛掷及关怀数值持久化",
+      "baseline": "installed-0.3.13",
+      "expected": "原版饱食/心情/亲密及同类互动10分钟衰减保持含义；保存失败不先发奖励。",
+      "entry": "状态卡pat-pet / 原生gesture → config.applyPetCare → petcare → care action动画与状态反馈。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-stats.js:15-48,55-92,105-132: 关怀数值、衰减及冷却",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:502-518: 真实写入与状态推送"
+      ],
+      "mygoEvidence": [
+        "internal/petcare/stats.go:20-105: 衰减、喂食、摸头及叫醒",
+        "internal/petcare/interaction.go:8-20: poke/throw效果",
+        "internal/desktop/pet/pat.go:11-26: 保存成功后动画及唤醒",
+        "internal/desktop/pet/interaction.go:232-252: 点击/抛掷保存及失败反馈",
+        "internal/config/pet_care.go:35-110: shared live2dPet.stats事务"
+      ],
+      "finding": "实际消费和持久化链存在；不是凭动画推断奖励。基础整数及冷却公式已静态对照，未操作用户关怀数据。",
+      "evidenceLevel": "code",
+      "requiredAction": "在独立可恢复配置上验收动作前后数值、冷却、离线衰减、写盘失败和重启。",
+      "acceptanceGap": "当前候选真实点击与显示数值一致性未验收；PET-003限制后备表情。"
+    },
+    {
+      "id": "PET-009",
+      "feature": "拖入文件及选文件喂食",
+      "baseline": "installed-0.3.13",
+      "expected": "拖入文件只产生metadata/关怀动作，不读取、移动、删除或上传文件内容；原版当前活跃drop路径每次授予一次fileEat。",
+      "entry": "pet-drop.js → /feed-drop → FeedPetFile；附加原生选文件入口 → feedFile。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:4700-4724: 实际drop只care('fileEat')并显示第一个文件名",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:561-585: 另一个fileEat(names)有元数据历史/日限额，但不是上述renderer活跃drop调用，未据它误报缺失"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/assets/pet-drop.js:10-21: drop只取第一个name、不读内容",
+        "internal/desktop/pet/feed_drop.go:24-60: 名称验证、关怀事务和动画",
+        "internal/desktop/pet/feed.go:46-93: 选文件、取消、失败与失效窗口保护"
+      ],
+      "finding": "原版真实drop语义已接线，原生选文件为MyGo附加入口。不能把原版未调用的每日5文件逻辑当作已运行基线。",
+      "evidenceLevel": "code",
+      "requiredAction": "真实拖放与取消选择验收，观察不动源文件且只授予一次关怀。",
+      "acceptanceGap": "WebView2文件拖放与透明命中联动未运行。"
+    },
+    {
+      "id": "PET-010",
+      "feature": "粮碗扫描排除继承历史并选择权威日志代次",
+      "baseline": "installed-0.3.13",
+      "expected": "分支/复制会话的继承历史不再计为新增用量；同一会话只扫描最高 canonical generation。",
+      "entry": "刷新粮碗/自动分钟刷新/喂Token前扫描 → harness.ScanPetUsage → petgrowth.Scan → scan.cjs。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-growth.js:111-171,246-270: inheritedCut和最高代次合同",
+        "tmp/full-audit-20261102/installed-source/src/main/pet-growth.js:296-316: 实际只选一个最高代次"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pet_growth.go:10-46: production扫描到配置提交",
+        "internal/petgrowth/scan.cjs:73-95: 未识别seedLength/end-seed，直接折叠所有usage",
+        "internal/petgrowth/scan.cjs:188-214: 所有匹配代次进入同一个lastWins，并未选最高代次",
+        "internal/petgrowth/growth.go:217-267: 扫描差额直接记入本地粮和今日计量"
+      ],
+      "finding": "MyGo保留的是较旧扫描语义：继承段照算，旧代次还能贡献或覆盖权威代次中不存在/已变化的slot。可把非新增使用记成本地粮；不是API余额扣费问题。",
+      "evidenceLevel": "code",
+      "requiredAction": "按当前原版继承边界和canonical最高代次规则修正扫描，再验收分支、升级留旧日志与重新扫描不重复增长。",
+      "acceptanceGap": "当前候选没有覆盖这些输入的有效回归；本审查未新造日志或新写测试。"
+    },
+    {
+      "id": "PET-011",
+      "feature": "Magpie真实用量、粮碗计量版本和来源切换",
+      "baseline": "installed-0.3.13",
+      "expected": "有Magpie用量时优先按请求身份及当天真实用量计粮，来源变化只重基线、不把另一来源整段历史当新粮；旧计量版本迁移保留成长。",
+      "entry": "原版growth tracker scanUsage；MyGo当前只扫描DSH sessions。",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-growth.js:388-487: Magpie请求去重与优先选择",
+        "tmp/full-audit-20261102/installed-source/src/main/pet-growth.js:685-759: accountingVersion迁移、food.source切换与absoluteToday"
+      ],
+      "mygoEvidence": [
+        "internal/petgrowth/scan.go:46-66: 输入只有当前DSH home/sessions",
+        "internal/petgrowth/growth.go:25-40,98-158: State/Food没有accountingVersion或source",
+        "internal/petgrowth/growth.go:217-267: 仅按样本高水位增量刷新",
+        "internal/config/pet_growth.go:104-134: 直接提交该模型"
+      ],
+      "finding": "Magpie用量生产源及来源感知迁移未移植。DSH日志扫描能工作不能证明原版当前粮碗口径一致；继承旧live2dPet.growth时也不应用原版迁移规则。",
+      "evidenceLevel": "code",
+      "requiredAction": "补齐明确的用量源选择和版本迁移，或在产品中明确限缩粮碗能力并经用户决定；不能沿用“同原版”的交付声明。",
+      "acceptanceGap": "Magpie来源出现/消失、旧计量升级、当日计量和重复扫描未验收。"
+    },
+    {
+      "id": "PET-012",
+      "feature": "工作完成、错误、whale_notify和贴纸的自动可见提醒",
+      "baseline": "installed-0.3.13",
+      "expected": "角色常态下主动显示事件/助理通知或贴纸；固定通知等用户关闭，不要求先打开状态菜单。",
+      "entry": "Owned Host watcher → Companion.UpdateNotifications → notifications.json → pet-notifications.js。",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:180-220: 真实watcher→pet事件推送",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:5031-5087: 自助理outbox文字/贴纸及pinned通知直接pushBubble/say"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pet_notifications.go:31-45,104-119: 当前Owned Host装配",
+        "internal/desktop/pet/assets/pet-notifications.js:5-11,24-39: 通知挂到.task内部，只取消子panel.hidden",
+        "internal/desktop/pet/assets/pet.html:13: .task即默认hidden的pet-status-card",
+        "internal/desktop/pet/assets/pet-status.js:16-35,51-58: 只有用户开关/右键才打开父卡"
+      ],
+      "finding": "事件生产/接收存在，但通知被塞进默认关闭的状态卡。正常桌宠静置时父卡仍hidden，自动提醒与贴纸不可见；visible receipt因此也不会确认。这是最终可见消费断链。",
+      "evidenceLevel": "code",
+      "requiredAction": "把主动提醒接回始终可呈现的独立气泡/通知surface，保留pinned和可见后确认语义；验收状态卡关闭时的工作/错误/助理提醒。",
+      "acceptanceGap": "当前安装候选常态自动显示及置顶/离屏情况下的通知未验收。"
+    },
+    {
+      "id": "PET-013",
+      "feature": "跨会话活动、休息/里程碑和每日问候的事件来源",
+      "baseline": "installed-0.3.13",
+      "expected": "Owned Host的全部本地会话工作状态和用量提醒；每日首次活动问候，久别问候，45分钟连续工作休息提醒。",
+      "entry": "petwatch worker读取授权结构事件与outbox，持久化mygo-pet-events.json并逐条确认。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-dsh-watch.js:408-437: 连续活动、每日greet及久别问候",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:180-187: sessions/outbox及usageFile装配"
+      ],
+      "mygoEvidence": [
+        "internal/petwatch/watch.cjs:115-133: working/done/error和token里程碑",
+        "internal/petwatch/watch.cjs:193-217: 活动/休息/久别，仅无普通每日greet",
+        "internal/petwatch/watch.go:34-116: 自有worker及持久确认传输",
+        "cmd/whaleisle/pet_notifications.go:95-130: 代次隔离和失败30秒重试"
+      ],
+      "finding": "工作/错误/outbox/里程碑/休息源已接，但没有原版每日普通greet；也没有原版usageFile覆盖的用量提醒来源。尚未把preload里未实际装配的审批响应API误列为原版可用功能。",
+      "evidenceLevel": "code",
+      "requiredAction": "补每日问候及明确用量源范围；先修PET-012可见消费，再验收提醒、重启水位和Host切换不串线。",
+      "acceptanceGap": "事件真实Host链未运行；读取生产日志和副作用在本轮禁用。"
+    },
+    {
+      "id": "PET-014",
+      "feature": "从桌宠回当前任务或打开专属持久会话",
+      "baseline": "installed-0.3.13",
+      "expected": "任务入口打开显示的准确会话；宠物主会话另行ensure，不误跳当前任务、不自动发送。",
+      "entry": "状态卡open/chat → mainState.openPetSession/openPetChat → activatePetConversation。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:1199-1213: 宠物卡↗跳专属助理会话"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/task.go:28-42,64-105: 状态和准确id动作",
+        "cmd/whaleisle/pet.go:39-83: 校验显示id后选中并显示主窗",
+        "cmd/whaleisle/pet.go:87-134: authenticated assistant/ensure及代次/导航验证"
+      ],
+      "finding": "两类入口已区分，生产回调存在。当前核心Host收发验收没有覆盖这两个桌宠入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收准确身份跳转、禁用助理、断线、删除会话及响应期间切换任务的反馈。",
+      "acceptanceGap": "真实宠物入口到主窗口导航及专属会话恢复未验收。"
+    },
+    {
+      "id": "PET-015",
+      "feature": "快捷聊天共享主会话历史并发送回复",
+      "baseline": "installed-0.3.13",
+      "expected": "紧凑卡使用同一持久宠物会话，真实发送并同步历史，不挪用普通主composer草稿；Enter/IME可用。",
+      "entry": "quick-chat → openPetQuickChat → OpenQuickChat → pet/state、pet/chat → 每3秒历史刷新。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-chat.js:115-143: pet/chat使用持久助理session",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:2500-2516,2548-2585: 历史水位、轮询、卡片与文本输入"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pet_quickchat.go:15-65: 当前Host、助理及草稿分离",
+        "internal/desktop/pet/quickchat.go:60-136,215-257,294-332: 创建、历史刷新及发送结果",
+        "internal/desktop/pet/quickchat_protocol.go:146-183: 真实plugin请求及session校验",
+        "internal/desktop/pet/quickchat_view.go:94-117: IME/Enter和发送控件",
+        "cmd/whaleisle/pet_quickchat.go:15-65: 生产路由",
+        "internal/desktop/pet/quickchat.go:60-136,294-332: 卡片/轮询/发送",
+        "internal/desktop/pet/quickchat_view.go:31-40,94-117: 主会话及 IME 输入",
+        "internal/desktop/pet/quickchat.go:65-80: 正常重开初始 draft 为空",
+        "internal/desktop/pet/quickchat.go:139-151: 关闭清除 owner 并销毁窗",
+        "internal/desktop/pet/quickchat_view.go:34-35,138-140: ×和 Esc 均关闭",
+        "internal/desktop/pet/notifications.go:29-34,137-157: 通知快照与图片 URL",
+        "internal/desktop/pet/quickchat_protocol.go:41-55: 仅文本行",
+        "internal/desktop/pet/quickchat_view.go:63-88: 历史仅文本绘制"
+      ],
+      "finding": "共享持久宠物会话、历史和发送链存在，不能以主窗口收发证据代替快捷卡；共享发送/文本历史确已装配，但正常关卡再开丢未发草稿、开卡贴纸没有线程消费者。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：共享发送/文本历史确已装配，但正常关卡再开丢未发草稿、开卡贴纸没有线程消费者。 对照 GPET-008、GPET-009、GPET-010 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "真实模型/Host快捷卡会话一致性、可输入性和同步反馈未验收。 补审新增动作 GPET-008、GPET-009、GPET-010 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "代码链完整但没有本轮真实快捷卡收发证据；不能将普通主窗口收发通过迁移给此入口。",
+        "previousRequiredAction": "最终候选打开卡→发送→主会话查看同消息→关卡重开→重启恢复，并验收输入法和窄高度。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-008",
+          "GPET-009",
+          "GPET-010"
+        ],
+        "reasons": [
+          "共享发送/文本历史确已装配，但正常关卡再开丢未发草稿、开卡贴纸没有线程消费者。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-008",
+        "GPET-009",
+        "GPET-010"
+      ]
+    },
+    {
+      "id": "PET-016",
+      "feature": "快捷聊天选择provider/model及推理强度",
+      "baseline": "installed-0.3.13",
+      "expected": "选择真实目录中的模型/推理强度后，主宠物会话与卡片使用同一已确认值和账号路由。",
+      "entry": "native modelPicker → choose → pet/state(catalog) → pet/select-model → 回读共享历史。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:2523-2545: 真实模型与effort选择",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:1178-1197: model选择handler"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/quickchat_view.go:143-192: provider分组、模型和effort菜单",
+        "internal/desktop/pet/quickchat.go:348-379: mutation后回读",
+        "internal/desktop/pet/quickchat_protocol.go:185-209: 请求前校验当前目录/会话及确认selected返回"
+      ],
+      "finding": "选择链已接。卡片不直接持有账号密钥，依赖当前Host插件的provider/账号解析；这不是独立验证过的账号切换。",
+      "evidenceLevel": "code",
+      "requiredAction": "用已配置账号验收选择后实际请求路由及主会话回显，失败保留旧已确认值。",
+      "acceptanceGap": "当前候选不同provider/推理强度和账号路由未运行。"
+    },
+    {
+      "id": "PET-017",
+      "feature": "快捷聊天取消等待、停止当前轮次及关闭",
+      "baseline": "existing-MyGo-contract",
+      "expected": "取消本地等待不声称撤回；停止调用准确宠物会话session/cancel；关闭取消本地请求且不自动重放。",
+      "entry": "快捷卡Cancel wait/Stop turn/×/Escape → request lifetime与session/cancel。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:2548-2575: 原版关闭卡片与轮询；MyGo另增加明确停止控件"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/quickchat.go:139-188,335-346,381-405: 关闭、取消及停止反馈",
+        "internal/desktop/pet/quickchat_protocol.go:212-225: 只取消该session当前轮，不伪称消息级撤销",
+        "internal/desktop/pet/quickchat_view.go:119-139: 实际按钮、提示及Escape"
+      ],
+      "finding": "语义分离清楚，尚无当前候选真实忙碌轮次下的行为证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收等待中取消、停止、关闭后主会话状态与下一轮，保留未确认请求不自动重发。",
+      "acceptanceGap": "真实轮次退出和卡片取消之间的时序未运行。"
+    },
+    {
+      "id": "PET-018",
+      "feature": "Host不可用时独立API快捷聊天与短期上下文",
+      "baseline": "installed-0.3.13",
+      "expected": "原版独立API聊天复用当前配置的DeepSeek凭据与人格，短期上下文在管理器生命周期内保留，关卡再开仍可续聊。",
+      "entry": "openPetQuickChat预先决定Direct → newPetDirectChat.Load → petdirect.Client.Send。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-chat.js:66-70,149-159,233-237: history属于manager client，成功后保留有限轮次",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:2548-2575: 仅关闭DOM卡，未reset client"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pet_quickchat.go:24-55: 明确Direct路由而非失败后静默回退",
+        "cmd/whaleisle/pet_directchat.go:14-38: 仅显式发送才读已批准凭据resolver及persona",
+        "internal/petdirect/chat.go:95-175: 真实API请求、固定模型及错误界限",
+        "internal/desktop/pet/quickchat.go:172-185: 关闭即Reset并清空Direct历史与草稿"
+      ],
+      "finding": "独立API发送链存在且显示临时模式，但本地history绑定卡片；关闭后重新打开丢失上下文，弱于原版同进程关卡续聊。",
+      "evidenceLevel": "code",
+      "requiredAction": "决定并实现与原版一致的短期上下文归属；验收凭据/人格变化、错误和取消，不读取凭据做静态审查。",
+      "acceptanceGap": "实际API发送、凭据resolver和关卡续聊未运行。"
+    },
+    {
+      "id": "PET-019",
+      "feature": "看看屏幕：确认、截图、视觉路由和失败取消",
+      "baseline": "installed-0.3.13",
+      "expected": "手动触发一次截图并送到明确视觉模型；原版也支持旧配置只填model、直接使用桌面baseURL凭据。",
+      "entry": "pet-look → mainState.lookFromPet → 每次确认 → screenglance.Capture → pet/look。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-chat.js:165-218: provider路径和仅model的legacy direct路径",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:1246-1290: 手动截图、冷却、视觉请求"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pet_look.go:26-115: 路由/Host验证、逐次确认、截屏和迟到结果清理",
+        "internal/petlook/route.go:30-41: 必须存在精确catalog provider/model pair",
+        "internal/desktop/pet/assets/pet-runtime.js:21-25: 缺provider或model隐藏入口",
+        "internal/desktop/screenglance/capture_windows.go:51-85: 只捕获桌宠窗口所在显示器"
+      ],
+      "finding": "当前catalog视觉路由与隐私确认链完整；原版旧的model-only direct视觉路径被明确拒绝，旧配置保留但不能直接使用。截图/视觉模型结果仍无实际验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "对旧model-only配置给可执行迁移/显式重新选择路线；验收已选pair成功、取消不截图、失败和Host变更。",
+      "acceptanceGap": "本轮未截图、未调用视觉模型；多屏截图内容与实际结果未验证。"
+    },
+    {
+      "id": "PET-020",
+      "feature": "自主漫游、靠近光标和省电抑制",
+      "baseline": "installed-0.3.13",
+      "expected": "按活跃频率自主移动，交互/聊天/睡眠时停止，不抢用户拖拽；省电减少活动和帧率。",
+      "entry": "savedBehavior → motion clock / nativeWanderTarget → overlay layout；renderer powerSaving消费。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:1961-1966,3636-3696: 漫游/省电抑制及自主行为",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-wander.js:1-76: 原版漫游实现"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/motion.go:168-240: 状态抑制、目标、速度及DPI",
+        "internal/desktop/pet/motion_state.go:90-117: 活跃频率和省电条件",
+        "internal/desktop/pet/assets/pet-runtime.js:317-318,364-365: 神经50/110ms及sprite120/240ms节流"
+      ],
+      "finding": "行为消费者已装配；代码和短时GPU报告不能证明长时自主运动、耗电和不干扰用户。",
+      "evidenceLevel": "code",
+      "requiredAction": "实际等待三种活跃频率并验收聊天/拖拽/睡眠抑制、省电恢复。",
+      "acceptanceGap": "当前候选长时自主运行和功耗未验收。"
+    },
+    {
+      "id": "PET-021",
+      "feature": "自言自语、性格台词及助理人格同步",
+      "baseline": "installed-0.3.13",
+      "expected": "自言自语使用对应性格和时间/关怀台词；明确保存的人格同步到同一Host助理，断线/切Host不串写。",
+      "entry": "pet-behavior dialogue scheduler；保存personality → queuePetPersonality/syncPetPersonality。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/pet-settings.js:8-42: 性格及活跃频率合同",
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:546-557: 保存性格后mirror",
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:3652-3696: 自言自语与时间/困倦台词"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/assets/pet-behavior.js:104-245: 行为、关怀/睡眠抑制及台词调度",
+        "cmd/whaleisle/pet_personality.go:77-170: 绑定准确Host的性格同步",
+        "internal/config/desktop_pet.go:71-90: 区分明确保存人格与默认值",
+        "internal/petdirect/persona.go:21-40: 独立聊天使用同一人格"
+      ],
+      "finding": "台词、关怀读取及Host人格镜像都有真实消费者；没有当前候选实际同步和台词触发证据。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收四性格、关闭自言自语、时段/关怀台词及Host重连/切换后的准确镜像。",
+      "acceptanceGap": "台词时序与真实助理人格共享未运行。"
+    },
+    {
+      "id": "PET-022",
+      "feature": "桌宠点击音效",
+      "baseline": "installed-0.3.13",
+      "expected": "开启点击音效后真实触碰发短音，关闭和退出后不发声并释放音频上下文。",
+      "entry": "pet-runtime.playClickSound → AudioContext oscillator；pagehide关闭。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/src/renderer/pet-live2d.js:1968-1985: 原版短音"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/pet/assets/pet-runtime.js:43-61,106,127-140: 点击音频、悬挂context恢复、手势回调与清理"
+      ],
+      "finding": "真实音频消费者存在，没有运行扬声器或系统音量；不把无报错当可听见。",
+      "evidenceLevel": "code",
+      "requiredAction": "最终候选用真实播放设备验收开/关、首次用户手势及退出释放。",
+      "acceptanceGap": "音频输出设备和WebView2声音策略未验收。"
+    },
+    {
+      "id": "PET-023",
+      "feature": "应用壁纸导入、裁剪、持久副本与实时背景绘制",
+      "baseline": "installed-0.3.13",
+      "expected": "选择/下载壁纸后实际应用到应用背景，裁剪/模糊/像素化有对应效果，源图移走后仍能恢复；不是更改操作系统壁纸。",
+      "entry": "SET线编辑器提交 → wallpapers.Import/SaveCrop → config或Host appearance → main.wallpaperPainter。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/client.js:1267-1285,1560-1610,5478-5485: 裁剪、图像和模糊/像素效果"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/wallpapers/images.go:26-75: 解码、私有PNG副本及裁剪",
+        "cmd/whaleisle/wallpaper_background.go:20-55,170-239: 保存到实际外观owner、背景绘制和materialize",
+        "internal/ui/chrome/background.go:174-198: 实际背景位图绘制",
+        "internal/ui/chrome/wallpaper_screen.go:23-50,123-160: cover及屏幕空间模糊/像素化",
+        "cmd/whaleisle/main.go:3767: 根surface装配绘制器",
+        "internal/ui/settings/appearance.go:18-27,32-92: 声明了回调但完整 pane 不消费",
+        "cmd/whaleisle/main.go:4429-4454: 唯一生产文件回调",
+        "internal/ui/settings/wallpaper_background.go:174-179: 仅被上述回调调用的导入",
+        "internal/ui/settings/desktop.go:53-114,117-171: 页面无壁纸选择替代入口",
+        "internal/ui/settings/appearance.go:32-92: 无清除控件",
+        "internal/ui/settings/wallpaper_background.go:566-580: reset 保留 Original",
+        "internal/ui/settings/host_theme.go:151-178: 空字符串下游可写",
+        "cmd/whaleisle/wallpaper_background.go:90-96: 空 Host 图仍回落本地 path",
+        "internal/ui/settings/settings.go:494-504: 高级通用字段表单不是清除本地+Host的专用动作",
+        "internal/ui/settings/wallpaper_background.go:473-501: 静态预览及四滑杆",
+        "internal/desktop/wallpapers/images.go:24: DefaultCrop 固定16:9",
+        "internal/desktop/wallpapers/images.go:53-74: 真正裁剪函数",
+        "internal/ui/settings/wallpaper_background.go:209-217: 先替换 Prefs.Original/Crop",
+        "internal/ui/settings/wallpaper_background.go:480-500: Slider 直接改 Prefs，取消只关",
+        "internal/ui/settings/wallpaper_background.go:582-583: 全量差异自动 commit",
+        "cmd/whaleisle/wallpaper_background.go:34-42: 本地持久化整个 Prefs",
+        "internal/ui/settings/wallpaper_background.go:473-475: 唯一重裁入口依赖 Original",
+        "internal/ui/theme/host_preferences.go:79-84: Host 背景无 Original",
+        "cmd/whaleisle/theme_font_preferences.go:112-120: Host 同步替换 Saved/Prefs",
+        "internal/ui/settings/host_theme.go:78-80: wallpaperImage 与 Background 分离",
+        "internal/ui/settings/wallpaper_background.go:180-217: Background 下载与 generation 回调",
+        "cmd/whaleisle/wallpaper_background.go:78-82: 离开仅回滚 Prefs",
+        "cmd/whaleisle/theme_font_preferences.go:112-120: RetireOwner 只在 ownerChanged",
+        "internal/ui/settings/wallpaper_background.go:43-50: 正确失效操作存在但未接普通关闭",
+        "internal/desktop/wallpapers/images.go:3-14,26-50,75-85: 格式/私有PNG/裁剪副本",
+        "internal/ui/settings/wallpaper_background.go:180-258: 可达图库处理",
+        "cmd/whaleisle/wallpaper_background.go:34-55,170-203: 当前消费者与绘制"
+      ],
+      "finding": "图片解码、裁剪计算和根窗背景绘制存在；下游图片处理/绘制存在，但本地选择、清除和 Host 当前图重裁入口缺失，裁剪取消/离页结果另有状态断链。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：下游图片处理/绘制存在，但本地选择、清除和 Host 当前图重裁入口缺失，裁剪取消/离页结果另有状态断链。 对照 GPET-016、GPET-017、GPET-018、GPET-019、GPET-020、GPET-025、GPET-032 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前候选全窗视觉、不同宽高比和Host/本地切换未验收。 补审新增动作 GPET-016、GPET-017、GPET-018、GPET-019、GPET-020、GPET-025、GPET-032 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "壁纸不是只有设置字段：已走到根窗绘制。Host已接管appearance时和本地路径不同；输入导入/裁剪与运行效果仍需同一候选联验。",
+        "previousRequiredAction": "验收本地导入/裁剪→背景变更→移走源图→重启；同时验收Host外观接管、清除壁纸和解码失败。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-016",
+          "GPET-017",
+          "GPET-018",
+          "GPET-019",
+          "GPET-020",
+          "GPET-025",
+          "GPET-032"
+        ],
+        "reasons": [
+          "下游图片处理/绘制存在，但本地选择、清除和 Host 当前图重裁入口缺失，裁剪取消/离页结果另有状态断链。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-016",
+        "GPET-017",
+        "GPET-018",
+        "GPET-019",
+        "GPET-020",
+        "GPET-025",
+        "GPET-032"
+      ]
+    },
+    {
+      "id": "PET-024",
+      "feature": "Bing/历年、Wallhaven及自定义目录壁纸运行请求",
+      "baseline": "installed-0.3.13",
+      "expected": "目录按来源、搜索、年份/分类及页码返回可选图片，下载得到可显示文件，失败和取消可反馈。",
+      "entry": "SET编辑器请求 → wallpapers.List/Fetch → 导入应用背景；收藏/源管理控件由SET负责。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/wallpaper-catalog.js:24-62,545-605: Bing近期/历年、Wallhaven、目录调用"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/wallpapers/catalog.go:151-176: 相应来源/年份/搜索/分页参数",
+        "internal/desktop/wallpapers/catalog.go:180-270: 解析、去重、NextPage和warning",
+        "internal/desktop/wallpapers/catalog.go:89-134: URL、重定向、类型、字节/超时限制",
+        "internal/ui/settings/wallpaper_background.go:53-54: 默认空 Items",
+        "internal/ui/settings/wallpaper_background.go:316-344: 切源清空，Year/Category 无 load",
+        "internal/ui/settings/wallpaper_background.go:516: 仅 disclosure 绘制",
+        "internal/ui/settings/wallpaper_background.go:331-333: 唯一查找按钮 load",
+        "internal/ui/settings/wallpaper_background.go:293-328: labels 与 id 的首匹配映射/内置名覆盖",
+        "internal/ui/settings/wallpaper_background.go:393-410: Name 编辑和保存",
+        "internal/ui/theme/host_wallpaper_sources.go:35-88: 合法来源按 id/url 而非显示名去重",
+        "internal/ui/settings/wallpaper_background.go:392-471: 来源 CRUD/恢复",
+        "internal/ui/settings/wallpaper_background.go:112-134: 配置 Source 进入请求",
+        "internal/ui/theme/host_wallpaper_sources.go:35-88: Host 规范化",
+        "internal/ui/settings/wallpaper_background.go:72-111: 收藏持久化与筛选",
+        "internal/ui/settings/wallpaper_background.go:346-390: 收藏按钮及分页",
+        "internal/desktop/wallpapers/catalog.go:180-270: 下一页/解析/提示",
+        "internal/ui/settings/wallpaper_background.go:180-217: Background 下载与 generation 回调",
+        "cmd/whaleisle/wallpaper_background.go:78-82: 离开仅回滚 Prefs",
+        "cmd/whaleisle/theme_font_preferences.go:112-120: RetireOwner 只在 ownerChanged",
+        "internal/ui/settings/wallpaper_background.go:43-50: 正确失效操作存在但未接普通关闭"
+      ],
+      "finding": "各图源请求、分页与下载实现存在，未据此认定外部站点当前可用；请求器已实现不等于图库动作齐全：首次/切源自动加载缺失，同名来源无法可靠选中，离页下载结果未失效。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：请求器已实现不等于图库动作齐全：首次/切源自动加载缺失，同名来源无法可靠选中，离页下载结果未失效。 对照 GPET-021、GPET-022、GPET-023、GPET-024、GPET-025 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "实际公共服务可用性、失败反馈和取消下载未运行。 补审新增动作 GPET-021、GPET-022、GPET-023、GPET-024、GPET-025 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "主要生产源已实现，不能仅以解析代码断定当下外部站点可访问或图片可用。本轮没有发网络请求。",
+        "previousRequiredAction": "待允许外部请求时验收各源、分页、空结果、错误、下载后真正应用。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-021",
+          "GPET-022",
+          "GPET-023",
+          "GPET-024",
+          "GPET-025"
+        ],
+        "reasons": [
+          "请求器已实现不等于图库动作齐全：首次/切源自动加载缺失，同名来源无法可靠选中，离页下载结果未失效。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-021",
+        "GPET-022",
+        "GPET-023",
+        "GPET-024",
+        "GPET-025"
+      ]
+    },
+    {
+      "id": "PET-025",
+      "feature": "动态背景与玻璃/侧栏/终端透明材质的运行消费",
+      "baseline": "installed-0.3.13",
+      "expected": "已保存的gradient变体/颜色/速度/数量、透明主题/侧栏遮罩/终端透明度实际影响背景和材质；减弱动效时停止动画。",
+      "entry": "Preferences → wallpaperPainter/ConfigureBackdrop → gradient frame pipeline与Backdrop材质。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/client.js:1531-1610,3938-3976: 真实主题字段和背景消费"
+      ],
+      "mygoEvidence": [
+        "internal/desktop/wallpapers/preferences.go:5-35,41-49: 运行偏好与显式effect门禁",
+        "internal/ui/chrome/gradient_source.go:24-59,106-203: 四变体、颜色/速度/数量",
+        "internal/ui/chrome/background.go:82-119,129-217: 模糊提升、材质及减弱动效",
+        "cmd/whaleisle/wallpaper_background.go:162-203: 主窗背景与glass组合",
+        "internal/ui/settings/appearance.go:32-92: 无清除控件",
+        "internal/ui/settings/wallpaper_background.go:566-580: reset 保留 Original",
+        "internal/ui/settings/host_theme.go:151-178: 空字符串下游可写",
+        "cmd/whaleisle/wallpaper_background.go:90-96: 空 Host 图仍回落本地 path",
+        "internal/ui/settings/settings.go:494-504: 高级通用字段表单不是清除本地+Host的专用动作",
+        "internal/ui/settings/wallpaper_background.go:509,566-583: before/自动保存/撤销",
+        "internal/ui/settings/wallpaper_background.go:56-70: 成功即更新 Saved",
+        "internal/ui/settings/pointer_effects.go:17-44: 参数直接写 Prefs"
+      ],
+      "finding": "背景和透明材质实际绘制路径存在；实际绘制路径保留，但原版效果试调取消合同被自动提交破坏，且清除壁纸恢复特效缺用户动作。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：实际绘制路径保留，但原版效果试调取消合同被自动提交破坏，且清除壁纸恢复特效缺用户动作。 对照 GPET-017、GPET-034 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前全窗颜色、遮罩、帧时长及终端材质效果未观察。 补审新增动作 GPET-017、GPET-034 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "实际绘制/材质路径存在，旧文档数值与像素对照不作为当前全窗验收。终端属于跨域consumer，不能在本线签其文本可读性。",
+        "previousRequiredAction": "最终候选联验背景变体/透明参数的实际呈现及减弱动效；终端由terminal owner完成消费验收。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-017",
+          "GPET-034"
+        ],
+        "reasons": [
+          "实际绘制路径保留，但原版效果试调取消合同被自动提交破坏，且清除壁纸恢复特效缺用户动作。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-017",
+        "GPET-034"
+      ]
+    },
+    {
+      "id": "PET-026",
+      "feature": "指针trail/splash和金属按钮光泽",
+      "baseline": "installed-0.3.13",
+      "expected": "启用后真实指针产生所选效果，颜色/速度/尺寸生效；减弱动效关闭pointer动画。",
+      "entry": "main pointer_effects → chrome.ApplyCursorEffects → ui.SetDecorativeEffects。",
+      "status": "partial",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-theme/lib/client.js:3849-3857: 指针实际应用及减弱动效门禁"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/pointer_effects.go:11-21: 当前外观装配",
+        "internal/ui/chrome/cursor.go:29-70: trail/splash、数值与颜色及metallic renderer配置",
+        "internal/ui/settings/pointer_effects.go:9-44: 完整设置只有字段/保存",
+        "cmd/whaleisle/pointer_effects.go:11-21: 只装配全局效果",
+        "internal/ui/chrome/cursor.go:29-70: 全局真实 renderer",
+        "internal/ui/settings/wallpaper_background.go:509,566-583: before/自动保存/撤销",
+        "internal/ui/settings/wallpaper_background.go:56-70: 成功即更新 Saved",
+        "internal/ui/settings/pointer_effects.go:17-44: 参数直接写 Prefs"
+      ],
+      "finding": "全局 trail/splash 与按钮光泽配置已有渲染器消费；全局特效有消费者；原版局部草稿预览与取消不保存未移植。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：全局特效有消费者；原版局部草稿预览与取消不保存未移植。 对照 GPET-033、GPET-034 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "当前候选实际pointer/按钮光泽未验收，渲染器最终表现由shell线联验。 补审新增动作 GPET-033、GPET-034 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "配置已交给真实渲染器，不是仅保存字段；本轮未移动指针或观察最终视觉。",
+        "previousRequiredAction": "验收两种效果、配置切换、覆盖浮层、减弱动效和禁用后的清理。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-033",
+          "GPET-034"
+        ],
+        "reasons": [
+          "全局特效有消费者；原版局部草稿预览与取消不保存未移植。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-033",
+        "GPET-034"
+      ]
+    },
+    {
+      "id": "PET-027",
+      "feature": "选定麦克风录音及停止/设备释放",
+      "baseline": "installed-0.3.13",
+      "expected": "明确录音才开启麦克风；使用选定设备；停止生成受限内存WAV，取消/关闭/断线释放设备，失败可重试。",
+      "entry": "composer麦克风 → startComposerVoice → PrepareSpeechRecording → voicecapture.StartDevice。设备设置入口由SET负责。",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1532-1557,1624-1658,1667-1689: getUserMedia、选设备、重采样及清理"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/composer_voice.go:76-121: 生产启动、设备选择及录音plan",
+        "internal/desktop/voicecapture/capture_windows.go:83-155,160-247: Windows waveIn录音与释放",
+        "internal/desktop/voicecapture/capture.go:39-65: 界限及Stop/Cancel合同",
+        "cmd/whaleisle/main.go:2547-2554,7033-7037: blur/hide/close及composer绑定",
+        "internal/ui/composer/tool_actions.go:71-78: 入口前 return",
+        "internal/ui/composer/tool_actions.go:96-113: 被前门禁挡住的向导入口",
+        "internal/ui/composer/voice_setup.go:11-41: 实际向导存在",
+        "cmd/whaleisle/voice_devices.go:109-148: 插件详情导航",
+        "cmd/whaleisle/voice_devices.go:24-103: 配置、可见页和释放",
+        "internal/ui/settings/voice_input.go:35-88: 设备/缺失/刷新/电平",
+        "internal/desktop/voiceinput/microphone.go:82-115,147-205: 保存、枚举和真实 Preview",
+        "cmd/whaleisle/composer_voice.go:23-64,76-137: owner、失焦与启动/停止",
+        "internal/desktop/voiceinput/controller.go:47-132,176-201: 自动时限、Stop/Cancel",
+        "internal/ui/composer/voice_actions.go:5-19: Esc",
+        "cmd/whaleisle/main.go:2547-2549,7033-7037: 窗口和 composer 绑定",
+        "internal/desktop/voicecapture/capture.go:39-48,162-174: 接口和 finish/done",
+        "internal/desktop/voicecapture/capture_windows.go:160-180: 原生提前结束只 finish",
+        "internal/desktop/voiceinput/controller.go:80-88,92-127: 状态只有 timer/Stop 路径推进"
+      ],
+      "finding": "Windows 录音和释放链存在，16kHz mono PCM16 设备格式兼容差异仍保留，未操作真实设备；真实录音主路径保留；未准备麦克风入口隐藏，已检测的捕获提前结束/错误没有即时状态反馈。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复补审明确缺链，并保留原项已有行为：真实录音主路径保留；未准备麦克风入口隐藏，已检测的捕获提前结束/错误没有即时状态反馈。 对照 GPET-026、GPET-027、GPET-029、GPET-030 的原版条件/入口完成实现与验收；原项原有运行验收要求继续有效。",
+      "acceptanceGap": "本轮禁止设备操作；当前设备兼容性、可听录音及资源释放尚无实机证据。 补审新增动作 GPET-026、GPET-027、GPET-029、GPET-030 尚无实际用户路径通过证据；见对应 supplement 文件。",
+      "actionReassessment": {
+        "date": "2026-11-02",
+        "previousStatus": "wired-unverified",
+        "previousFinding": "Windows真实设备API与主界面链已接。MyGo直接要求设备支持16kHz mono PCM16，原版可用浏览器录音后重采样；不支持此原生格式的设备会报错，未证实用户设备是否受影响。",
+        "previousRequiredAction": "在真实默认/选定设备上验收录音、停止、取消、权限拒绝、设备拔出及再次录音；若设备格式受限则补转换路线。",
+        "sources": [
+          "supplement-pet-actions.json"
+        ],
+        "actionIds": [
+          "GPET-026",
+          "GPET-027",
+          "GPET-029",
+          "GPET-030"
+        ],
+        "reasons": [
+          "真实录音主路径保留；未准备麦克风入口隐藏，已检测的捕获提前结束/错误没有即时状态反馈。"
+        ]
+      },
+      "supplementActionIds": [
+        "GPET-026",
+        "GPET-027",
+        "GPET-029",
+        "GPET-030"
+      ]
+    },
+    {
+      "id": "PET-028",
+      "feature": "录音转写、草稿插入、冲突保留与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "按当前显式speech provider/language转写；结果插入准确草稿，编辑冲突保留待插入文本；取消/换Host/换会话不串写，不自动发送模型prompt。",
+      "entry": "voiceinput.Controller.Stop → SpeechRecordingPlan.Transcribe → CaptureSpeechInsertion；Pending可显式插入或丢弃。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1847-1875,1901-1926,2020-2053: 取消、转写与插入冲突"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/speech_recording.go:29-80,82-114: 明确provider/语言、WAV验证、Host/会话owner",
+        "internal/desktop/voiceinput/controller.go:92-174,176-201: 转写、插入或Pending、取消序号",
+        "cmd/whaleisle/composer_voice.go:23-64,108-111,131-137: 主窗口/草稿/会话及Host代次约束"
+      ],
+      "finding": "录音转写与发送聊天不同：这里只插入草稿，不自动发prompt。生产owner及冲突保存存在，但真实识别服务与麦克风未联验。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收真实转写、编辑冲突后插入/丢弃、Host/会话切换和错误后重试；speech准备/模型来源配置由SET线联验。",
+      "acceptanceGap": "实际中文识别、服务准备状态及跨会话取消未运行。"
+    },
+    {
+      "id": "PET-029",
+      "feature": "录音中的真实音量/波形反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "录音时波形反映实际输入，使用户能区别有声、静音和无输入；不能仅显示随时间变化的装饰。",
+      "entry": "原版VoiceInput Waveform；MyGo paintVoiceClock。",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1555-1557,1603-1611,1758-1780,2024-2026: analyser幅度驱动录音波形"
+      ],
+      "mygoEvidence": [
+        "internal/ui/composer/tool_actions.go:152-185: 注释明确不是level meter，五条柱的level由elapsed的sin生成",
+        "internal/desktop/voicecapture/capture.go:45-48: Capture只有Stop/Cancel，不发布幅度",
+        "internal/desktop/voiceinput/microphone.go:147-205: 设置页预览另有真实设备Preview，不能混为录音波形已实现"
+      ],
+      "finding": "真实录音波形缺失。当前活动柱只表示状态，即使无音频输入也按时间跳动；设置页的真实输入预览不能补齐录音期间反馈。",
+      "evidenceLevel": "code",
+      "requiredAction": "将当前capture的真实能量发布给composer，静音时显示静音能量，不用合成sin冒充录音波形。",
+      "acceptanceGap": "有声/静音/设备无输入的对照尚未验收。"
+    },
+    {
+      "id": "PET-030",
+      "feature": "语音文件转写附加入口",
+      "baseline": "existing-MyGo-contract",
+      "expected": "明确选音频文件后转写并追加到发起草稿，取消选择不执行；服务不可用/文件失败可见。",
+      "entry": "composer工具菜单转写语音文件 → OnPickComposerSpeech → TranscribeAudioFile。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/experimental/client-ui-voice-input/lib/client.js:1901-1926: 原版为录音转写；未据此声称有同样文件选取入口"
+      ],
+      "mygoEvidence": [
+        "internal/ui/composer/tool_actions.go:46-47: 用户菜单入口",
+        "cmd/whaleisle/main.go:7038-7066: 选文件、错误、转写及追加文本",
+        "internal/store/session/speech.go:17-67: 读取、catalog选择、大小限制及speech/transcribe"
+      ],
+      "finding": "是额外实现，不应计为“移植原版已验收”。其异步文件路线未复用录音的可取消owner及插入冲突面板，需要单独验证返回期间切换会话/编辑草稿的合同。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收文件成功/取消/格式错误/过大和返回期间导航或编辑；按确证结果决定是否需要复用录音owner。",
+      "acceptanceGap": "当前候选音频文件转写、并发与草稿归属未运行；未凭静态差异断言串写。"
+    },
+    {
+      "id": "PET-031",
+      "feature": "从系统剪贴板粘贴图片为附件",
+      "baseline": "installed-0.3.13",
+      "expected": "用户粘贴时读取图像，得到当前草稿真实图片附件；空剪贴板/损坏图像/切换草稿安全反馈，不后台监听。",
+      "entry": "composer paste或Paste image → main.pasteComposerImage → clipboardimage.StorePNG → addComposerFiles。",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:23243-23264: 原版clipboard image file处理"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:6738: 生产composer回调",
+        "cmd/whaleisle/composer_clipboard.go:14-51: OS ReadImage、草稿/Host/选择序号校验和失效临时文件清理",
+        "internal/desktop/clipboardimage/image.go:13-45: 完整PNG校验、16MiB/24MP限制及临时写入",
+        "internal/ui/composer/draft_input.go:287-288: 用户粘贴调用"
+      ],
+      "finding": "OS图像→私有附件文件→现有附件流程已接线；本线只签到附件准备交接，不替conversation线声称模型看到了图片。",
+      "evidenceLevel": "code",
+      "requiredAction": "真实剪贴板PNG/DIB粘贴、空图像、损坏/过大图像、切换草稿及附件删除验收；由conversation owner验收后续上传发送。",
+      "acceptanceGap": "当前Windows剪贴板格式、实际缩略图与发送未验收。"
+    },
+    {
+      "id": "PET-032",
+      "feature": "本地图像头像裁剪与实际Bot消费",
+      "baseline": "existing-MyGo-contract",
+      "expected": "选本地JPEG/PNG、按方向裁剪成192px头像，确认后交给准确Bot作用域，取消不修改；不是给桌宠替换THA4角色模型。",
+      "entry": "Bot头像界面 → bindBotAvatarImageActions → avatarimage.Select/Bake → controls.ApplyImageCrop。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/config.js:541-542,609-610: 当前安装版移除legacy dshbot配置，不把头像裁剪伪称为当前Whale内建能力",
+        "runtime/vendor/dshbot/client/client.js:1539-1648,1755-1860,5538-5541: 随包legacy dshbot的选图/Canvas裁剪/AvatarPicker上传及表单入口，作为既有MyGo扩展合同来源"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/assistant_bot_avatar_image.go:11-58: 实际选择、crop更新、应用及取消作用域",
+        "internal/desktop/avatarimage/image.go:47-100,103-171: JPEG/PNG限制、EXIF映射、192pxJPEG及大小确认",
+        "internal/desktop/avatarimage/orientation.go:5-16: JPEG方向适配",
+        "cmd/whaleisle/assistant_bot_avatar.go:104-128: 最终确认调用DshbotSaveAvatar而非Whale头像更新"
+      ],
+      "finding": "模块实际消费于legacy dshbot头像配置，确认后走DshbotSaveAvatar，不是当前原安装版Whale的内建头像入口，也不是桌宠皮肤/THA4模型替换。按existing-MyGo-contract保留审查。",
+      "evidenceLevel": "code",
+      "requiredAction": "由Bot owner联验选择→EXIF/裁剪→应用→Host回读与取消；本线保留图像处理边界。",
+      "acceptanceGap": "当前真实legacy Bot头像交互和Host持久化未验收。"
+    },
+    {
+      "id": "PET-033",
+      "feature": "非文件预览的SVG图像：插件图标、预览和README",
+      "baseline": "installed-0.3.13",
+      "expected": "原版普通img可显示的SVG/含动画预览在MyGo对应surface可见，滚动/浮层裁剪正确；关闭或换Host/会话后不留旧surface。",
+      "entry": "market/pluginmanager/attachment consumer → svgimage.Seat → isolated preview helper → pointer-inert image surface。",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2294-2322: 原版PackageArtwork/PackagePreview真实img消费者及错误反馈",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-plugin-manager/lib/client.js:2851-2852,2968-2969: bundle预览确实在包详情页装配"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/svg_images.go:23-74: 窗口/Host/session owner及暂停释放",
+        "internal/ui/svgimage/seat.go:60-182,214-275: 只按可见Paint续租和裁剪，失败状态",
+        "internal/ui/svgimage/surface.go:30-55,125-153: isolated inert image真实helper和呈现",
+        "internal/ui/market/plugin_artwork.go:80-120: 图标/预览使用svg seat",
+        "internal/ui/pluginmanager/artwork.go:48-78: voice/badge预览有真实retry消费者",
+        "internal/ui/market/readme_images.go:68-99: README图像消费",
+        "cmd/whaleisle/main.go:3667,5185,6631: main真实owner传递"
+      ],
+      "finding": "非文件SVG有真实生产装配，未发现pet依赖该包；桌宠另用固定协议独立Page。实现链不能替代当前版本的可见SVG动画/裁剪验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "插件owner联验实际图标/voice预览/README SVG、滚动遮挡、helper失败重试及退出释放；附件由conversation域联验。",
+      "acceptanceGap": "本轮未开helper或操作桌面；实际跨surface和动画显示未验收。"
+    },
+    {
+      "id": "PET-034",
+      "feature": "便携/隔离和macOS/Linux跨平台边界",
+      "baseline": "existing-MyGo-contract",
+      "expected": "平台可用性与发布方式准确区分，不把Windows代码/旧专用GUI记录当跨平台可用；便携/隔离禁用桌宠须可理解。",
+      "entry": "isolatedDesktopRun门禁、voicecapture各平台实现、screenglance和独立macOS preview helper。",
+      "status": "external-blocked",
+      "priority": "P1",
+      "originalEvidence": [
+        "tmp/full-audit-20261102/installed-source/src/main/desktop-live2d.js:781-879: Electron跨平台窗口入口；本轮未在其他平台运行"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/isolated_desktop.go:18-29: portable或WHALEISLE_ISOLATED均属于隔离",
+        "cmd/whaleisle/main.go:2540-2546: 隔离/便携下SetReady(false)不创建宠物窗口",
+        "internal/desktop/pet/geometry_other.go:10-24: 非Windows固定scale1及不同位置空间",
+        "internal/desktop/voicecapture/capture_darwin.go:19-55: macOS原生音频入口",
+        "internal/desktop/voicecapture/devices_other.go:7-14: 非Windows/macOS录音返回ErrUnsupported",
+        "native/macos-preview/main.m:1-3,89-90: 独立Sandbox WebView兼容helper，不是桌宠窗口或麦克风实现"
+      ],
+      "finding": "Windows普通安装、Windows便携/隔离、macOS、Linux是不同能力边界。当前预览刻意不启桌宠；Linux录音明确未实现；macOS有源码但没有实机证据。",
+      "evidenceLevel": "external-blocked",
+      "requiredAction": "发布声明分别列平台/安装模式；macOS和Linux验收由具备对应设备的执行环境负责，不能在本Windows审查签通过。",
+      "acceptanceGap": "外部平台运行、权限、缩放、录音、GPU及helper签名/沙箱验收均缺。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "settings: SET负责全部pet/voice/vision/wallpaper/pointer的设置入口与提交；本文件负责保存值的运行消费。PET-003/004/012/029不能用设置存在覆盖。",
+    "conversation: composer语音/粘贴只交接草稿及附件；后续模型发送、上传、历史恢复由conversation owner验收。PET快捷卡是独立入口，不能复用普通主composer绿测当通过。",
+    "assistant/IM: avatarimage是Bot头像消费者；持久Bot字段、账号、技能、人格及消息由对应域提供原版基线。",
+    "plugins: 非文件SVG图标/voice预览/README的入口由插件域审查；本线已审svgimage实际helper生命周期和main owner装配。",
+    "shell/platform: 当前隔离诊断预览不启桌宠；完整安装版运行、WebView2、托盘、pointer最终渲染以及macOS/Linux发布边界需在主报告中区分。",
+    "terminal: BackdropTerminal提供材质参数，不代表终端文本可读性/原生surface透明已经实机验收。"
+  ],
+  "uncovered": [
+    "未逐行审第三方ORT/ONNX/WASM实现和全部模型权重；只审固定资源选择、实际生产载入/消费、降级和释放。",
+    "Bot头像基线已与assistant/IM领域合并：该项属于legacy dshbot扩展，不是当前原安装版Whale内建功能；运行验收仍缺。",
+    "没有执行真实桌面、录音/播放、剪贴板、屏幕截图、多屏设备、外部模型/壁纸服务请求；均明确留在相应acceptanceGap。",
+    "未改产品、未新写测试/夹具、未读取用户profile；旧0.3.10/0.3.3材料未作当前原版基线。"
+  ],
+  "checksRun": [
+    {
+      "command": "只读实际安装app.asar头/目录和选定源码，后续采用tmp/full-audit-20261102/installed-source/src/main",
+      "result": "采用主审确认的实际installed-0.3.13，Host/client rc.2；未执行原版应用",
+      "scope": "原版生产源码基线"
+    },
+    {
+      "command": "Node对13个原版pet/live2d/chat/watch/growth/settings/stats/wallpaper及renderer源文件做内存文本比较（CRLF归一化，无hash）",
+      "result": "所选13文件均与C:/AI/Deepseek-Harness-Desktop当前源码相同；这些文件没有另列current-original delta",
+      "scope": "这13个具体源文件；不外推整个原项目dirty tree"
+    },
+    {
+      "command": "静态枚举scope模块、追踪main生产回调及renderer消费，读取既有pet-cadence/pet-boundary/pet-gui结果JSON与历史双屏记录",
+      "result": "确认sprite尺寸合同不相交、后备表情共用图片、主动通知隐藏父卡、粮碗缺继承/代次规则、录音真实幅度缺失等；历史GUI证据仅记录当时范围",
+      "scope": "read-only code/historical evidence，不是当前GUI或设备通过"
+    },
+    {
+      "command": "只列dist/0.2.1-rc.3/whaleisle/pet-render-assets文件名和大小",
+      "result": "相邻stage包含模型、character和ORT所需文件；没有加载/执行资源",
+      "scope": "资源存在，不代表校验、GPU首帧或安装运行通过"
+    }
+  ],
+  "summary": "实施前审查34个可独立验收的动作/紧密能力。最高风险为PET-004社区皮肤到最终画图尺寸合同断裂、PET-012主动通知藏在默认关闭的状态卡、PET-010粮碗使用旧继承/日志代次语义。另有Magpie计量迁移、每日问候、独立聊天关卡上下文、旧视觉路线及真实录音波形缺口。PET-003的原版独立表情资源假设已由实际安装manifest反证撤回。实现与新定向证据见IMPLEMENTATION.md；其余生产装配存在但实际用户路径仍须验收，历史WebGPU和双屏证据不能签当前完整可用。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-pet-actions.json"
+  ]
+}

@@ -4,6 +4,7 @@ package windows
 
 import (
 	"log"
+	"math"
 	"unsafe"
 
 	"github.com/egoist/mygo/internal/gpu/d3d11/roundclip"
@@ -140,6 +141,61 @@ func (s *surface) roundedSurfaceMessage(m uint32, wp, lp uintptr) (uintptr, bool
 // clipped. Caption buttons already sit inside the silhouette's safe insets.
 type frameClip struct{ clip roundclip.Clip }
 
+func (c *compositor) maskFrameCorners(px []uint32, width, height int32) {
+	s := c.b.surfaces[c.hwnd]
+	if s == nil || s.w.frameRadius() <= 0 || s.w.IsMaximized() || s.w.fullScreen || width <= 0 || height <= 0 {
+		return
+	}
+	r := min(float64(s.w.frameRadius())*float64(dpiOf(s.w.hwnd))/96, min(float64(width), float64(height))/2)
+	if r <= 0 {
+		return
+	}
+	span := min(int32(math.Ceil(r))+1, min(width, height))
+	fw, fh := float64(width), float64(height)
+	feather := func(x, y int32) {
+		fx, fy := float64(x)+0.5, float64(y)+0.5
+		dx := max(r-fx, fx-(fw-r), 0)
+		dy := max(r-fy, fy-(fh-r), 0)
+		if dx <= 0 || dy <= 0 {
+			return
+		}
+		cov := min(max(0.5-(math.Hypot(dx, dy)-r), 0), 1)
+		if cov >= 1 {
+			return
+		}
+		idx := int(y*width + x)
+		if cov <= 0 {
+			px[idx] = 0
+			return
+		}
+		v := px[idx]
+		if v == 0 {
+			return
+		}
+		b := uint32(float64(v&0xff)*cov + 0.5)
+		g := uint32(float64((v>>8)&0xff)*cov + 0.5)
+		rc := uint32(float64((v>>16)&0xff)*cov + 0.5)
+		a := uint32(float64((v>>24)&0xff)*cov + 0.5)
+		px[idx] = b | g<<8 | rc<<16 | a<<24
+	}
+	for y := int32(0); y < span; y++ {
+		for x := int32(0); x < span; x++ {
+			feather(x, y)
+			if rx := width - 1 - x; rx >= span {
+				feather(rx, y)
+			}
+		}
+		if by := height - 1 - y; by >= span {
+			for x := int32(0); x < span; x++ {
+				feather(x, by)
+				if rx := width - 1 - x; rx >= span {
+					feather(rx, by)
+				}
+			}
+		}
+	}
+}
+
 func (c *compositor) applyFrameClip(dev *composition, width, height int32) error {
 	s := c.b.surfaces[c.hwnd]
 	if s == nil || s.w.frameRadius() <= 0 {
@@ -148,11 +204,7 @@ func (c *compositor) applyFrameClip(dev *composition, width, height int32) error
 	if c.frame == nil {
 		c.frame = &frameClip{}
 	}
-	radius := float32(s.w.frameRadius()) * float32(dpiOf(s.w.hwnd)) / 96
-	if s.w.IsMaximized() || s.w.fullScreen {
-		radius = 0
-	}
-	_, err := c.frame.clip.Apply(dev.dcomp, c.visual, float32(width), float32(height), radius)
+	_, err := c.frame.clip.Apply(dev.dcomp, c.visual, float32(width), float32(height), 0)
 	return err
 }
 

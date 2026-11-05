@@ -7,10 +7,15 @@ import (
 )
 
 type inspectorObject struct {
-	Key, Label string
-	Raw        json.RawMessage
-	Links      []string
-	Missing    bool
+	Key, Label             string
+	Raw                    json.RawMessage
+	Links                  []string
+	Missing                bool
+	Kind, Identity, RowKey string
+	Target                 session.InspectorChatTarget
+	Value                  any
+	Fields                 []inspectorValueField
+	JSONError              string
 }
 
 // The graph contains actual native Message objects and loaded event Data.

@@ -1,10 +1,20 @@
 # Native release inputs (B33 / B34)
 
+To build an isolated acceptance candidate without producing an installer, use a fresh output directory:
+
+```powershell
+.\scripts\package.ps1 -OutputRoot .\dist\acceptance-candidate -StageOnly
+```
+
+`-StageOnly` retains the full executable/resource/runtime checks and stops before locating or running NSIS. It does not launch the application or replace an installation. Omit it to retain the existing installer-building behavior when NSIS is available.
+
+If an offline machine already has the required Go toolchain outside `PATH`, pass its existing binary with `-GoExecutable C:\build-tools\go\bin\go.exe`. All Go build, target-query and staging commands use that same selection; the default remains `go`.
+
 `package.ps1` now requires a desktop Host `node.exe` whenever runtime inclusion is enabled. `WHALEISLE_NODE_DIR` selects the local Node distribution directory; an explicit missing selection fails instead of falling back. Without it, the existing known local distribution locations are tried only when they contain `node.exe`. The copied executable must exist, be nonempty and have the same SHA256 as the selected input before `.runtime-staged` is written. The existing current-Host provenance verifier and separate mobile-runtime verifier remain unchanged. This is an input/copy contract, not a claim of Node ABI/native execution validation.
 
 `WHALEISLE_PACKAGE_SKIP_RUNTIME=1` remains an explicit shell-only development mode. It passes `SHELL_ONLY=1` to NSIS. Direct NSIS compilation otherwise requires both `.runtime-staged` and `runtime/node/node.exe`; missing runtime inputs cannot silently produce a normal installer.
 
-Every package, including shell-only packages, stages THA4 using the existing `pet-render-assets.mjs` verifier. Set `WHALEISLE_PET_RENDER_ASSETS` to a local resource directory laid out as `avatar/`, `ort/` and `LICENSE`; the default is `runtime/pet-render-assets`. Keep it outside `dist/whaleisle`, which is cleared by Windows packaging. After that cleanup, the stager verifies and writes all nine manifest-selected files, their provenance and the marker. Missing or changed resources stop packaging. NSIS requires the marker and includes all selected files plus `provenance.json`.
+Every package, including shell-only packages, stages THA4 using the existing `pet-render-assets.mjs` verifier. Set `WHALEISLE_PET_RENDER_ASSETS` to a local resource directory laid out as `avatar/`, `ort/` and `LICENSE`; the default is `runtime/pet-render-assets`. Keep it outside the selected stage. Windows packaging requires a fresh output directory and preserves existing stages. The stager verifies and writes all nine manifest-selected files, their provenance and the marker. Missing or changed resources stop packaging. NSIS requires the marker and includes all selected files plus `provenance.json`.
 
 macOS `stage` accepts `petRenderAssets` in its config, with the same environment/default fallback, and invokes the same stager beside `Contents/MacOS/whaleisle` before app inspection. Its existing recursive app archive therefore contains the resources too.
 

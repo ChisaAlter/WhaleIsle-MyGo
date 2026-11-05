@@ -1,0 +1,1049 @@
+{
+  "capturedAt": "2026-11-02T07:54:53.457Z",
+  "assignment": "Full capability and production wiring audit; no product changes or desktop automation",
+  "mygo": {
+    "root": "C:/AI/WhaleIsle-MyGo",
+    "head": "b8b93ed8d64a4d1e79b80a423dd22f7fcb289eeb",
+    "branch": "main",
+    "dirtyAtAuditStart": [
+      "M cmd/whaleisle/main.go",
+      " M docs/status.md",
+      " M internal/ui/frame/frame.go",
+      " M internal/ui/frame/workspace_caption.go",
+      "?? cmd/whaleisle/trajectory_frame_test.go",
+      "?? docs/trajectory-click-diagnosis-20261102.md",
+      "?? internal/ui/frame/trajectory_diagnostics.go",
+      "?? internal/ui/frame/trajectory_phase_test.go"
+    ],
+    "deliveredAppSource": "5549e6278824dbdea7f9fddc7b5f94b07b0873b6",
+    "diagnosticVersion": "0.2.1-rc.3+trajectory.1"
+  },
+  "installedOriginal": {
+    "version": "0.3.13",
+    "archive": "C:/软件/Whale Isle/resources/app.asar",
+    "sourceEvidence": "tmp/full-audit-20261102/installed-source",
+    "sourceFiles": 224,
+    "sourceBytes": 2634930,
+    "hostClientVersion": "0.2.1-rc.2"
+  },
+  "currentOriginal": {
+    "root": "C:/AI/Deepseek-Harness-Desktop",
+    "head": "9ac095515f506ef719478f6a0d1bdb2325aeb7e8",
+    "branch": "fix/project-file-links-open-in-panel",
+    "version": "0.3.13",
+    "dirtyPaths": [
+      "M docs/features/whale-assistant.md",
+      " M docs/handbook/modules/whale-assistant.md",
+      " M src/main/dsh-whale-client.test.js",
+      " M src/main/dsh-whale-host-route.test.js",
+      " M src/main/task-control-plugin.test.js",
+      " M vendor/dsh-im/DESKTOP-FORK.md",
+      " M vendor/dsh-im/lib/client.js",
+      " M vendor/dsh-im/lib/index.js",
+      " M vendor/dsh-im/plugin-src/host/channels/feishu/production.mjs",
+      " M vendor/dsh-im/plugin-src/host/harness-session-coordinator.mjs",
+      " M vendor/dsh-im/src/channels/dingtalk/state-store.mjs",
+      " M vendor/dsh-im/src/channels/feishu/bridge.mjs",
+      " M vendor/dsh-im/src/channels/feishu/feishu-runtime.mjs",
+      " M vendor/dsh-im/src/channels/feishu/message-utils.mjs",
+      " M vendor/dsh-im/src/channels/feishu/state-store.mjs",
+      " M vendor/dsh-im/src/channels/qq/state-store.mjs",
+      " M vendor/dsh-im/src/channels/shared/conversation-state-store.mjs",
+      " M vendor/dsh-im/src/channels/shared/harness-client.mjs",
+      " M vendor/dsh-im/src/channels/shared/model-command.mjs",
+      " M vendor/dsh-im/src/channels/shared/whale-session.mjs",
+      " M vendor/dsh-im/src/channels/shared/workspace-session.mjs",
+      " M vendor/dsh-im/src/channels/wecom/state-store.mjs",
+      " M vendor/dsh-im/src/channels/weixin/state-store.mjs",
+      " M vendor/dsh-task-control/README.md",
+      " M vendor/dsh-task-control/lib/index.js",
+      " M vendor/dsh-task-control/lib/inspection.js",
+      " M vendor/dsh-whale/client/client.js",
+      " M vendor/dsh-whale/lib/index.js",
+      " M vendor/dsh-whale/lib/persona.js",
+      " M vendor/dsh-whale/lib/tools.js",
+      " M vendor/dsh-whale/package.json",
+      "?? .tmp-tools/",
+      "?? src/main/dsh-whale-task-composition.test.js",
+      "?? src/main/dsh-whale-tasks.test.js",
+      "?? vendor/dsh-im/feishu-whale-tasks.test.mjs",
+      "?? vendor/dsh-im/plugin-src/host/channels/feishu/whale-tasks.mjs",
+      "?? vendor/dsh-im/src/channels/shared/session-binding.mjs",
+      "?? vendor/dsh-im/whale-routing-policy.test.mjs",
+      "?? vendor/dsh-whale/README.md",
+      "?? vendor/dsh-whale/lib/task-inputs.js",
+      "?? vendor/dsh-whale/lib/task-service.js",
+      "?? vendor/dsh-whale/lib/task-store.js",
+      "?? vendor/dsh-whale/lib/task-tools.js",
+      "?? vendor/dsh-whale/lib/task-worker.js"
+    ]
+  },
+  "obsoleteReference": {
+    "path": "reference/electron",
+    "version": "0.3.3",
+    "snapshotDate": "2026-10-09"
+  },
+  "modules": [
+    {
+      "module": "internal/accountcontact",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/accountdetails",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/accountlogin",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/accountlogout",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/config",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/credentials",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/directorypicker",
+      "owners": [
+        "workspace-sessions"
+      ]
+    },
+    {
+      "module": "internal/dsh",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/harness",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/jobflow",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/markdownsyntax",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/mathrender",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/paths",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/petcare",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/petdirect",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/petgrowth",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/petlook",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/petwatch",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/pluginmanager",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/processutil",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/product",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/projectflow",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/recovery",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/shortcutprefs",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/shortcuts",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/startuprec",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/startuptrace",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/workflowrun",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/agents",
+      "owners": [
+        "conversation",
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/assistant",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/boot",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/ui/browserpreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/ui/chat",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/ui/chrome",
+      "owners": [
+        "shell"
+      ]
+    },
+    {
+      "module": "internal/ui/composer",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/ui/custompanel",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/ui/diffsurface",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/ui/dirpick",
+      "owners": [
+        "workspace-sessions"
+      ]
+    },
+    {
+      "module": "internal/ui/filelink",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/ui/files",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/ui/frame",
+      "owners": [
+        "shell"
+      ]
+    },
+    {
+      "module": "internal/ui/i18n",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/ui/im",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/interaction",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/ui/launcher",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/ui/market",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/ui/planpreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/ui/pluginmanager",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/ui/projects",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/remote",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/ui/schedule",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/ui/sessioncost",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/ui/settings",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/ui/sidebar",
+      "owners": [
+        "workspace-sessions"
+      ]
+    },
+    {
+      "module": "internal/ui/svgimage",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/ui/terminal",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/ui/theme",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/ui/usage",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/ui/webview",
+      "owners": [
+        "plugins",
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/ui/welcome",
+      "owners": [
+        "settings-accounts",
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/ui/widgets",
+      "owners": [
+        "shell"
+      ]
+    },
+    {
+      "module": "internal/ui/workspacepicker",
+      "owners": [
+        "workspace-sessions"
+      ]
+    },
+    {
+      "module": "internal/store/assistant",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/custompanel",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/store/dshbot",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/hostterminal",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/store/im",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/imonboard",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/interaction",
+      "owners": [
+        "conversation"
+      ]
+    },
+    {
+      "module": "internal/store/market",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/store/office",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/remote",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/store/schedule",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/store/session",
+      "owners": [
+        "conversation",
+        "workspace-sessions"
+      ]
+    },
+    {
+      "module": "internal/store/sessioncost",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/store/settings",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/store/storelocale",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/store/usage",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/appuninstall",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/avatarimage",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/botnotify",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/bridgealerts",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/browserrecording",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/clipboardimage",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/components",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/credentialrefs",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/deeplink",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/editors",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/externallauncher",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/git",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/htmldocument",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/htmlpreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/imagepreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/imgcache",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/importer",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/localservers",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/market",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/mcpconfig",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/mediapreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/networkstatus",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/notifications",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/openui",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/pdfpreview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/pet",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/phoneremote",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/platformview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/plugininventory",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginrpc",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginslots",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/pluginui",
+      "owners": [
+        "plugins"
+      ]
+    },
+    {
+      "module": "internal/desktop/previewprocess",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/projectbridge",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/projectpreference",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/providerdiscovery",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/providerprofiles",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/screenglance",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/sshremote",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/svgrender",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/taskcontrol",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/taskguard",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/terminalruntime",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/update",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "internal/desktop/voicecapture",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/voiceinput",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/wallpapers",
+      "owners": [
+        "pet-voice"
+      ]
+    },
+    {
+      "module": "internal/desktop/webview",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "internal/desktop/whale",
+      "owners": [
+        "orchestration"
+      ]
+    },
+    {
+      "module": "internal/desktop/workspaceauth",
+      "owners": [
+        "settings-accounts"
+      ]
+    },
+    {
+      "module": "internal/desktop/workspacefs",
+      "owners": [
+        "workbench"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-integration",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-launcher",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "cmd/whaleisle-preview",
+      "owners": [
+        "lifecycle-remote"
+      ]
+    },
+    {
+      "module": "native/macos-preview",
+      "owners": [
+        "pet-voice",
+        "lifecycle-remote"
+      ]
+    }
+  ],
+  "unassignedModules": [],
+  "originalFeatureNotes": [
+    "account-browser-sign-in.md",
+    "account-settings-entry.md",
+    "background-gradient.md",
+    "boot-page.md",
+    "chat-cold-rows.md",
+    "close-behavior.md",
+    "composer-beam.md",
+    "composer-dock-stability.md",
+    "composer-draft-transition.md",
+    "composer-family-width.md",
+    "composer-stats-peak-valley.md",
+    "composer-typing-fx.md",
+    "core-regression-gates.md",
+    "cursor-effects.md",
+    "custom-instructions.md",
+    "data-import.md",
+    "desktop-branding.md",
+    "desktop-build-runtime.md",
+    "desktop-launcher.md",
+    "desktop-live2d-pet.md",
+    "desktop-pet.md",
+    "desktop-welcome.md",
+    "directory-picker-drives.md",
+    "dsh-home.md",
+    "dsh-tools.md",
+    "dsh-with-chatgpt.md",
+    "dshbot.md",
+    "git-titlebar.md",
+    "harness-upstream-sync.md",
+    "keyboard-shortcuts.md",
+    "launcher-components.md",
+    "launcher-distribution.md",
+    "marketplace-settings.md",
+    "message-edit.md",
+    "metallic-paint.md",
+    "mobile-remote.md",
+    "no-directory-sessions.md",
+    "office-runtime.md",
+    "openui.md",
+    "pinned-section.md",
+    "plugin-session-navigation.md",
+    "projects-steward-acceptance.md",
+    "projects.md",
+    "release-process.md",
+    "remote-settings.md",
+    "remote-workspace.md",
+    "running-spinner-cost.md",
+    "session-archive.md",
+    "session-cost-display.md",
+    "session-idle-release.md",
+    "settings-select.md",
+    "sidebar-mask.md",
+    "skills-groups.md",
+    "surfaces-work-loops.md",
+    "task-protection.md",
+    "terminal-drawer.md",
+    "tool-result-images.md",
+    "transparent-theme.md",
+    "update-center.md",
+    "usage-stats.md",
+    "vision-fallback.md",
+    "wallpaper-gallery.md",
+    "whale-assistant.md",
+    "window-motion.md",
+    "windows-installer.md",
+    "_kill-http-remote.md"
+  ],
+  "clientPackages": [
+    "connection",
+    "file-upload",
+    "hmr",
+    "locale",
+    "modules",
+    "product-analytics",
+    "resources",
+    "shortcuts",
+    "ui-agent-preset",
+    "ui-agents-panel",
+    "ui-approval",
+    "ui-attachment",
+    "ui-brand-official",
+    "ui-chat",
+    "ui-codex-sidebar",
+    "ui-commands",
+    "ui-conversation",
+    "ui-deepseek-model-label-1017",
+    "ui-deliverables",
+    "ui-diff",
+    "ui-directory-picker-browse",
+    "ui-directory-picker-native",
+    "ui-files",
+    "ui-git",
+    "ui-goal",
+    "ui-input-trigger",
+    "ui-jobs",
+    "ui-layout",
+    "ui-message-edit",
+    "ui-message-feedback",
+    "ui-model-selection",
+    "ui-open-in-app",
+    "ui-permission-presets",
+    "ui-plan",
+    "ui-plugin-manager",
+    "ui-plugin-market",
+    "ui-preview",
+    "ui-reference",
+    "ui-renderer",
+    "ui-schedule",
+    "ui-secret-mask",
+    "ui-session",
+    "ui-settings",
+    "ui-settings-account",
+    "ui-settings-agent-loop",
+    "ui-settings-general",
+    "ui-settings-market",
+    "ui-settings-mcp",
+    "ui-settings-models",
+    "ui-settings-plugin-inventory",
+    "ui-settings-plugins",
+    "ui-settings-remote",
+    "ui-settings-session-log",
+    "ui-settings-shell",
+    "ui-settings-skills",
+    "ui-settings-subagent",
+    "ui-settings-web-search",
+    "ui-shortcuts",
+    "ui-sidebar",
+    "ui-sidebar-browser",
+    "ui-sidebar-documentpreview",
+    "ui-sidebar-files",
+    "ui-sidebar-right",
+    "ui-sidebar-terminal",
+    "ui-skill",
+    "ui-subagent",
+    "ui-surfaces",
+    "ui-theme",
+    "ui-titlebar",
+    "ui-tool",
+    "ui-trajectory",
+    "ui-user-questions",
+    "ui-user-terminal",
+    "ui-visual-replies",
+    "ui-workflow-run",
+    "ui-workspace"
+  ],
+  "experimentalClientPackages": [
+    "client-ui-agent-team",
+    "client-ui-cot-translation",
+    "client-ui-voice-input"
+  ]
+}

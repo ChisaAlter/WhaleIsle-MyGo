@@ -14,14 +14,25 @@
   const layoutController = window.WhalePetLayout?.create({body}) || {update(){}};
   function updateLayout(next) {
     if(!next || !['X','Y','Width','Height'].every(key=>Number.isFinite(next[key])) || !(next.Width>0) || !(next.Height>0))return;
-    latestLayout=next;layoutController.update(next);neuralSleep?.reproject();neuralSleep?.reprojectPickup?.();
+    latestLayout=next;layoutController.update(next,currentTask.QuickChatBounds);neuralSleep?.reproject();neuralSleep?.reprojectPickup?.();
   }
   window.addEventListener('whale-pet-layout', event => updateLayout(event.detail));
   try { settings = JSON.parse(document.body.dataset.behavior || '{}'); } catch {}
+  let presentation={};
+  function applyPresentation(next){
+    if(next&&typeof next==='object')presentation=next;
+    const dark=presentation.Scheme==='dark'||(presentation.Scheme==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    const colors=dark?presentation.Dark:presentation.Light;
+    if(colors)for(const [name,key] of Object.entries({bg:'BG',fg:'FG',muted:'Muted',border:'Border',hover:'Hover',accent:'Accent',danger:'Danger'}))document.body.style.setProperty('--pet-'+name,colors[key]);
+    if(presentation.Font)document.body.style.setProperty('--pet-font',JSON.stringify(presentation.Font)+',system-ui');
+    document.documentElement.style.colorScheme=dark?'dark':'light';
+  }
+  try{applyPresentation(JSON.parse(document.body.dataset.presentation||'{}'));}catch{}
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>applyPresentation());
   function applySettings(next) {
     if (next && typeof next === 'object') settings = next;
     const look = document.getElementById('pet-look');
-    look.hidden = !(settings.lookProvider && settings.lookModel);
+    look.hidden = !settings.lookModel;
     if (look.hidden) look.removeAttribute('href');
     const scale = Math.max(.6, Math.min(1.6, Number(settings.scale) || 1));
     const opacity = Math.max(.3, Math.min(1, Number(settings.opacity) || 1));
@@ -69,13 +80,13 @@
   let hitReportFrame = 0;
   function reportHitRegions() {
     if (stopped || document.hidden || !currentTask.HitEpoch) return;
-    const regions = hitElements
+    const regions = [...hitElements, document.getElementById('pet-notifications'), document.getElementById('pet-look-bubble')]
       .flatMap(element => {
-        if (!element || element.hidden || getComputedStyle(element).display === 'none') return [];
+        if (!element || element.hidden || getComputedStyle(element).display === 'none' || getComputedStyle(element).visibility === 'hidden') return [];
         const r = body?.targets.includes(element) ? body.hitRect(element) : element.getBoundingClientRect();
         return r && r.width > 0 && r.height > 0 ? [{X:r.x, Y:r.y, Width:r.width, Height:r.height}] : [];
       });
-    const data = JSON.stringify({Width:innerWidth, Height:innerHeight, Regions:regions, Epoch:currentTask.HitEpoch});
+    const data = JSON.stringify({Width:innerWidth, Height:innerHeight, Regions:regions, Epoch:currentTask.HitEpoch, MenuOpen:!document.getElementById('pet-status-card').hidden, StageBusy:window.whalePetStageBusy===true});
     location.href = 'whale-pet://localhost/interactive-regions?data=' + encodeURIComponent(data);
   }
   function scheduleHitRegions() {
@@ -86,7 +97,8 @@
   const hitResizeObserver = new ResizeObserver(scheduleHitRegions);
   for (const element of hitElements) if (element) hitResizeObserver.observe(element);
   const hitVisibilityObserver = new MutationObserver(scheduleHitRegions);
-  hitVisibilityObserver.observe(document.body, {subtree:true, attributes:true, attributeFilter:['hidden']});
+  hitVisibilityObserver.observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:['hidden']});
+  window.addEventListener('whale-pet-surfaces', () => {layoutController.refresh?.();scheduleHitRegions();});
   const hitRegionTimer = setInterval(reportHitRegions, 250);
   document.addEventListener('visibilitychange', scheduleHitRegions);
   scheduleHitRegions();
@@ -102,6 +114,18 @@
     if (document.querySelector((body?.hoverSelector || '#sprite:hover,#fallback:hover') + ',.task:hover,#pet-bubble:hover')) motionContact();
   }, 1000);
   let sleeping = document.body.dataset.sleeping === 'true', resumeRenderer = null, paintSleeping = null;
+  const lookBubble=document.createElement('section'),lookText=document.createElement('span'),lookClose=document.createElement('button');
+  lookBubble.className='pet-surface';lookBubble.id='pet-look-bubble';lookBubble.hidden=true;lookBubble.setAttribute('aria-live','polite');
+  Object.assign(lookBubble.style,{position:'fixed',maxWidth:'240px',padding:'9px',zIndex:'12',overflowY:'auto','--app-region':'no-drag'});
+  lookClose.type='button';lookClose.textContent='×';lookClose.setAttribute('aria-label','关闭看看结果 / Dismiss look result');
+  lookBubble.append(lookText,lookClose);document.body.append(lookBubble);
+  let dismissedLook=0;
+  lookClose.addEventListener('click',()=>{dismissedLook=currentTask.Look?.ID||0;lookBubble.hidden=true;window.whalePetLookPinned=false;window.dispatchEvent(new Event('whale-pet-surfaces'));});
+  function updateLookBubble(status){
+    const visible=!!status?.Message&&(status.Busy||status.Pinned||status.Expires>Date.now())&&status.ID!==dismissedLook;
+    window.whalePetLookPinned=visible;lookBubble.hidden=!visible;lookText.textContent=visible?status.Message:'';lookClose.hidden=!!status?.Busy;
+    window.dispatchEvent(new Event('whale-pet-surfaces'));
+  }
   const careController = window.WhalePetCareAnimation.create({characters, body});
   const interactionController = window.WhalePetInteraction.create({characters, body, getSettings: () => settings, isSleeping: () => sleeping, onTap: playClickSound});
   behaviorController = window.WhalePetBehavior?.create({
@@ -154,6 +178,7 @@
       updateLayout(task.Layout);
       careController.update(task);
       applySettings(task.Behavior);
+      applyPresentation(task.Presentation);
       document.getElementById('task-status').textContent = ({running:'运行中 / Running',idle:'未运行 / Idle',offline:'离线 / Offline'})[task.State] || '状态未知 / Unknown';
       document.getElementById('task-title').textContent = task.Title || '';
       document.getElementById('care-label').textContent = task.Care?.Label || '';
@@ -180,10 +205,11 @@
       if (task.Chat?.Busy || settings.chatEnabled === false) chat.removeAttribute('href'); else chat.setAttribute('href', 'chat');
       document.getElementById('pet-chat-status').textContent = task.Chat?.Message || '';
       const look = document.getElementById('pet-look');
-      const lookDisabled = !!task.Look?.Busy || !(settings.lookProvider && settings.lookModel);
+      const lookDisabled = !!task.Look?.Busy || !settings.lookModel;
       look.setAttribute('aria-disabled', String(lookDisabled));
       if (lookDisabled) look.removeAttribute('href'); else look.setAttribute('href', 'look-screen');
       document.getElementById('pet-look-status').textContent = task.Look?.Message || '';
+      updateLookBubble(task.Look);
       setSleeping(task.Rest?.Sleeping === true);
       behaviorController?.applySettings(settings);
       const rest = document.getElementById('rest-pet');
@@ -192,6 +218,7 @@
       if (task.Care?.Busy) rest.removeAttribute('href');
       else rest.setAttribute('href', sleeping ? 'wake-pet' : 'sleep-pet');
       document.getElementById('rest-message').textContent = task.Rest?.Message || '';
+      window.WhalePetStatus?.update(task);
       const open = document.getElementById('task-open'); open.replaceChildren();
       if (task.SessionID) {
         const link = document.createElement('a'); link.textContent = '回到会话 / Open chat';
@@ -214,13 +241,11 @@
   }); }
   function stateInput(pose) {
     const pickup=neuralRest?.pickup?.phase;
-    interactionController.pose(pose);if(!pickup)careController.pose(pose,!!neuralRest);
+    interactionController.pose(pose);
     const input=interactionController.renderState?.() || {};
-    const action=currentTask.Care?.Action;
-    const age=action?Date.now()-action.ID:Infinity;
-    if(sleeping) input.state='sleep';
-    else if(!pickup && age>=0 && age<2800) input.state=action.Kind==='pat'?'react-head':'eat';
-    else if(!pickup && age>=2800 && age<5000 && action?.Level>0) input.state='celebrate';
+    const stage=careController.frame(performance.now(),{...input,sleeping,pickup:!!pickup,powerSaving:behaviorController?.powerSaving(performance.now())},currentTask);
+    if(sleeping)input.state='sleep';else if(!pickup&&stage)Object.assign(input,stage);
+    if(!pickup)careController.pose(pose,!!neuralRest);
     input.pose=pose;input.sleepy=currentTask.Rest?.Dozing?0.7:0;
     return input;
   }
@@ -304,6 +329,7 @@
       raf=requestAnimationFrame(tick);
       if(document.hidden)return;
       try {
+        careController.present(now);
         sleep?.tick(now);const restFrame=sleep?.snapshot({});
         if(restFrame?.rest)neuralRest?.frame(restFrame.rest);
         sleep?.prepareNeuralBody?.(neuralRest?.pickup);
@@ -346,17 +372,24 @@
   }
   async function startSprite() {
     let sheet=null;
-    try{sheet=await image('sprite.webp');if(sheet.naturalWidth!==1536||sheet.naturalHeight!==208)sheet=null;}catch{}
+    try{sheet=await image('sprite.webp');if(sheet.naturalWidth!==1536||![1872,2288].includes(sheet.naturalHeight))sheet=null;}catch{}
     if(stopped)return;
     const head=sheet?null:await image('fallback.png');if(stopped)return;
     canvas.width=192;canvas.height=208;let frame=0;
+    let spritePointer=null;
+    const trackSprite=event=>{const rect=canvas.getBoundingClientRect();spritePointer={x:event.clientX-rect.left-rect.width/2,y:event.clientY-rect.top-rect.height/2};};
+    for(const target of body?.targets||characters){target?.addEventListener('pointermove',trackSprite);target?.addEventListener('pointerleave',()=>{spritePointer=null;});}
     const pose=new Float32Array(45);
     function paint(now) {
       const input=stateInput(pose), breath=Math.sin(now/1000*2*Math.PI/3.6);
       ctx.clearRect(0,0,192,208);ctx.save();
       ctx.translate(96,204);ctx.rotate(pose[41]*.035+pose[39]*.02);
       ctx.scale(1-.01*breath,1+.016*breath);ctx.translate(-96,-204-pose[42]*5);
-      if(sheet)ctx.drawImage(sheet,frame*192,0,192,208,0,0,192,208);
+      if(sheet){
+        const state=input.state==='running'?(input.facing===-1?'run-left':'run-right'):input.state;
+        const {row,col}=window.WhalePetSprite.cell(sheet.naturalHeight/208,frame,state,currentTask,spritePointer);
+        ctx.drawImage(sheet,col*192,row*208,192,208,0,0,192,208);
+      }
       else ctx.drawImage(head,36,40+pose[38]*2.5,120,120);
       ctx.restore();canvas.hidden=false;fallback.hidden=true;if(neuralSleep)reportHitRegions();
     }

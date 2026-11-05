@@ -77,15 +77,25 @@ func TestApprovalCallsAreSessionScopedStartRecords(t *testing.T) {
 	}
 	s.SyncApprovalCalls("A", events)
 	pending := s.Snapshot().Pending
-	if !strings.Contains(pending[0].Args, "root original") || !strings.Contains(pending[1].Args, "nested original") {
+	byID := make(map[string]Pending, len(pending))
+	for _, p := range pending {
+		byID[p.EventID] = p
+	}
+	if len(byID) != 5 || !strings.Contains(byID["root"].Args, "root original") || !strings.Contains(byID["nested"].Args, "nested original") {
 		t.Fatalf("missing originals: %+v", pending)
 	}
-	if pending[2].Args != "" || pending[3].Args != "child original" || pending[4].Args != "" {
+	if byID["other"].Args != "" || byID["delegated"].Args != "child original" || byID["request-only"].Args != "" {
 		t.Fatalf("cross-session/requester/requestId leak: %+v", pending)
 	}
 	s.SyncApprovalCalls("A", []json.RawMessage{json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"late replacement"}}}`)})
-	if got := s.Snapshot().Pending[0].Args; !strings.Contains(got, "root original") {
-		t.Fatalf("frozen original changed: %q", got)
+	var frozen string
+	for _, p := range s.Snapshot().Pending {
+		if p.EventID == "root" {
+			frozen = p.Args
+		}
+	}
+	if !strings.Contains(frozen, "root original") {
+		t.Fatalf("frozen original missing or changed: %q", frozen)
 	}
 	if s.Snapshot().AutoAllow || len(s.responses) != 0 {
 		t.Fatal("presentation changed approval policy or decisions")

@@ -199,6 +199,7 @@ func (h *windowHost) present(s *scene.Scene) {
 	h.armIdle(frameIdle)
 	h.useWide(s, now)
 	defer h.ready()
+	defer h.presentedToasts()
 	if h.render(s) {
 		h.path = "drawn on the GPU"
 		if h.degraded {
@@ -214,6 +215,29 @@ func (h *windowHost) present(s *scene.Scene) {
 	} else {
 		h.conn.Surface.PresentPixels(m.Pix, m.Stride, m.W, m.H)
 	}
+}
+
+func (h *windowHost) toastWindowVisible() bool {
+	owner, ok := h.conn.Window.(interface {
+		IsVisible() bool
+		IsMinimized() bool
+	})
+	return ok && owner.IsVisible() && !owner.IsMinimized() && !h.occluded()
+}
+
+func (h *windowHost) presentedToasts() {
+	if h.conn.Post == nil || h.rt.closed || !h.toastWindowVisible() {
+		return
+	}
+	presented := h.rt.presentedToasts()
+	if len(presented) == 0 {
+		return
+	}
+	h.conn.Post(func() {
+		if !h.rt.closed && h.toastWindowVisible() {
+			h.rt.notifyToastPresentation(presented)
+		}
+	})
 }
 
 // ready tells the window, after the first frame, that it is ready to show:

@@ -143,15 +143,21 @@ func TestHistoryLifecycleFollowRetryRetainsBaseline(t *testing.T) {
 			return
 		}
 		defer c.CloseNow()
-		var open dsh.ClientFrame
-		if wsjson.Read(r.Context(), c, &open) != nil {
-			return
+		for {
+			var open dsh.ClientFrame
+			if wsjson.Read(r.Context(), c, &open) != nil {
+				return
+			}
+			// FollowSelected also opens independent catalog/control streams.
+			// Fail this exact journal, not whichever logical open wins the race,
+			// and keep the carrier alive for the remaining stream owners.
+			if open.Type != dsh.FrameOpen || open.Endpoint != "session/follow" {
+				continue
+			}
+			close(opened)
+			<-release
+			_ = wsjson.Write(r.Context(), c, dsh.ServerFrame{Type: dsh.FrameError, StreamID: open.StreamID, Error: &dsh.StreamFailure{Message: "retry unavailable"}})
 		}
-		close(opened)
-		<-release
-		_ = wsjson.Write(r.Context(), c, dsh.ServerFrame{Type: dsh.FrameError, StreamID: open.StreamID, Error: &dsh.StreamFailure{Message: "retry unavailable"}})
-		var frame dsh.ClientFrame
-		_ = wsjson.Read(r.Context(), c, &frame)
 	}))
 	defer srv.Close()
 	defer releaseOnce.Do(func() { close(release) })

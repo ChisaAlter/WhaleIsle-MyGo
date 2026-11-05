@@ -31,7 +31,7 @@ func bodyFixtureHost() *BodySettingsAccess {
 	enum := func(key string, options ...string) store.Field {
 		return store.Field{Key: key, Kind: store.FieldEnum, EnumOptions: options}
 	}
-	h := &BodySettingsAccess{Owner: 1, Snapshot: store.ViewState{ClientReady: true, Writable: true}, OnChange: func(string, string, string) {}, OnPatch: func(string, map[string]string) {}}
+	h := &BodySettingsAccess{Owner: 1, Snapshot: store.ViewState{ClientReady: true, Described: true, Writable: true}, OnChange: func(string, string, string) {}, OnPatch: func(string, map[string]string) {}}
 	h.Snapshot.Namespaces = []store.Namespace{
 		ns("permission", map[string]any{"defaultPreset": "standard"}, enum("defaultPreset", "standard", "danger-full-access")),
 		ns("ui-chat", map[string]any{"transcriptView": "detailed", "collapseTiming": "completion", "linkOpening": "sidebar", "performanceUsage": "compact"}, enum("transcriptView", "compact", "standard", "detailed", "verbose"), enum("collapseTiming", "completion", "next-input"), enum("linkOpening", "sidebar", "new-tab"), enum("performanceUsage", "compact", "detailed")),
@@ -94,11 +94,12 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 				locale, scheme, wallpaperPath := "en", "system", ""
 				enabled := true
 				prefs := theme.NewEditor(theme.Defaults(), func(theme.Preferences) error { return nil })
+				prefs.OnImport = func() (string, error) { return "", nil }
 				background := NewWallpaperEditor(wallpapers.Defaults(), "", func(wallpapers.Preferences) error { return nil }, nil, nil)
 				companion := &pet.Companion{Enabled: true, Behavior: config.DefaultPetBehavior()}
-				desktop := &DesktopAccess{Host: h, Preferences: prefs, Version: "0.0.0-fixture", Fields: DesktopFields{Locale: &locale, CloseToTray: &enabled}, OnSave: func() {}}
-				inter := &InterfaceAccess{Host: h, ShowArchivedList: &enabled, OnSave: func() {}}
-				appearance := &AppearanceAccess{Host: h, Preferences: prefs, Background: background, Theme: &scheme, WallpaperPath: &wallpaperPath, OnSave: func() {}}
+				desktop := &DesktopAccess{Host: h, Preferences: prefs, Version: "0.0.0-fixture", Fields: DesktopFields{Locale: &locale, CloseToTray: &enabled}, OnSave: func() {}, OnSetLocale: func(v string) (string, error) { return v, nil }, OnSetCloseToTray: func(v bool) (bool, error) { return v, nil }}
+				inter := &InterfaceAccess{Host: h, ShowArchivedList: &enabled, OnSetShowArchivedList: func(v bool) (bool, error) { return v, nil }}
+				appearance := &AppearanceAccess{Host: h, Preferences: prefs, Background: background, Theme: &scheme, WallpaperPath: &wallpaperPath, OnSave: func() {}, OnSetTheme: func(v string) error { scheme = v; return nil }}
 				pa := &PetSettingsAccess{OnSave: func() {}}
 				about := &AboutAccess{AppName: "WhaleIsle", Version: "0.0.0-fixture", HomePath: strings.Repeat("long-directory/", 12), OnRevealHome: func() error { return nil }, OnCheckUpdates: func() {}, ReadCredentialStorage: func() credentials.StorageStatus { return credentials.StorageStatus{Mode: "dpapi"} }}
 				switch state {
@@ -123,9 +124,12 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 					about.OnRevealHome = nil
 				case "read-only":
 					h.Snapshot.Writable = false
+					desktop.OnSetLocale, desktop.OnSetCloseToTray = nil, nil
 					desktop.OnSave = nil
-					inter.OnSave = nil
+					inter.OnSetShowArchivedList = nil
 					appearance.OnSave = nil
+					appearance.OnSetTheme = nil
+					prefs.OnSave, prefs.OnImport = nil, nil
 					pa.OnSave = nil
 					about.OnRevealHome = nil
 				}
@@ -273,7 +277,10 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 					t.Fatal(ns)
 				}
 				patches = append(patches, values)
-				h.Snapshot.Saving = true
+				h.Snapshot.PreferencePending = map[string]bool{}
+				for field := range values {
+					h.Snapshot.PreferencePending[ns+"."+field] = true
+				}
 			}
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Padding(24).Children(func() { bodyEffectPreference(c, h, typing, c.Theme().Text, c.Theme().TextMuted) })
@@ -298,14 +305,14 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 			if !tt.HasText("Save and apply") {
 				t.Fatal("dialog closed before Host acknowledgement")
 			}
-			h.Snapshot.Saving = false
-			h.Snapshot.Err = "Synthetic effect save failure"
+			h.Snapshot.PreferencePending = nil
+			h.Snapshot.PreferenceErrors = map[string]string{"ui-conversation." + key + "Style": "Synthetic effect save failure"}
 			tt.Frame()
-			if !tt.HasText(h.Snapshot.Err) || !tt.HasText("Save and apply") {
+			if !tt.HasText("Synthetic effect save failure") || !tt.HasText("Save and apply") {
 				t.Fatal("failed save discarded the editor draft")
 			}
 			saveBodySnapshot(t, tt, "settings-effect-"+key+"-failed-save.png")
-			h.Snapshot.Err = ""
+			h.Snapshot.PreferenceErrors = nil
 			if err := tt.Click("save-" + key + "-configuration"); err != nil {
 				t.Fatal(err)
 			}
@@ -314,7 +321,7 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 				_ = json.Unmarshal([]byte(raw), &value)
 				setBodyFixtureValue(h, "ui-conversation", field, value)
 			}
-			h.Snapshot.Saving = false
+			h.Snapshot.PreferencePending = nil
 			tt.Frame()
 			if tt.HasText("Save and apply") {
 				t.Fatal("successful save did not acknowledge and close")

@@ -118,6 +118,24 @@ func TestWorkspaceSessionOpenReportsOnlyOwnedErrors(t *testing.T) {
 	}
 }
 
+func TestWorkspaceAdoptionCarriesBlankDraftOnlyAfterSelection(t *testing.T) {
+	op, target, draft := workspaceSessionOpenFixture()
+	draft.Attachments = []session.ComposerAttachment{{Path: "attachment.png"}}
+	op.sourceSnapshot = append(json.RawMessage(nil), draft.SaveDraft()...)
+	op.carryDraft = true
+	if !op.finish("created", nil) || target.selected != "created" {
+		t.Fatal("owned adoption was not selected")
+	}
+	if op.state.composerDrafts["created"] != draft || op.state.composerDrafts["source"] != nil || draft.Text != "original draft" || len(draft.Attachments) != 1 || draft.TargetID != "created" {
+		t.Fatal("blank draft or attachment was not carried to the selected identity")
+	}
+	op, _, draft = workspaceSessionOpenFixture()
+	op.carryDraft = true
+	if op.finish("", errors.New("creation failed")) || op.state.composerDrafts["source"] != draft || draft.Text != "original draft" {
+		t.Fatal("failure moved the source draft")
+	}
+}
+
 func TestWorkspaceSessionDraftExclusion(t *testing.T) {
 	if workspaceSessionDraftOccupied(nil) || workspaceSessionDraftOccupied(composer.NewDraftState("")) {
 		t.Fatal("empty draft excluded")

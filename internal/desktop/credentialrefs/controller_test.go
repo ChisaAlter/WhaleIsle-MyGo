@@ -20,6 +20,27 @@ type fakeHost struct {
 	hook       func(string)
 }
 
+func TestDeliveredDeepSeekAPIKeyNamespaceUsesWriteOnlyCredentialConsumer(t *testing.T) {
+	host := fixtureHost()
+	namespaces := host.settings["namespaces"].([]any)
+	namespaces = append(namespaces, map[string]any{"ns": "llm-deepseek-api-key", "revision": 1, "schema": map[string]any{"type": "object", "dict": map[string]any{"apiKeyEnv": map[string]any{"type": "string", "meta": map[string]any{"role": "credential-ref"}}}}, "value": map[string]any{}})
+	host.settings["namespaces"] = namespaces
+	host.providers = append(host.providers, map[string]any{"provider": "deepseek-official", "displayName": "DeepSeek", "settingsNs": "llm-deepseek-api-key", "settingsPath": []string{}})
+	rows, err := load(func(method string, args, out any) error { return host.Call(context.Background(), method, args, out) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.Namespace == "llm-deepseek-api-key" {
+			if row.Ref != "DEEPSEEK_API_KEY" || !row.Writable || row.BindReference {
+				t.Fatalf("incorrect delivered adapter ref: %+v", row)
+			}
+			return
+		}
+	}
+	t.Fatal("delivered API-key namespace missing from credential controls")
+}
+
 func fixtureHost() *fakeHost {
 	profile := map[string]any{"type": "object", "dict": map[string]any{"apiKeyEnv": map[string]any{"type": "string"}}}
 	return &fakeHost{

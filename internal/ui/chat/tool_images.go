@@ -8,11 +8,13 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
 // ToolImageGalleryOptions keeps disclosure state in the owning chat model.
 type ToolImageGalleryOptions struct {
+	Call          *session.ToolCallView
 	OnInspectCall func(string)
 	// Inspector records main Chat call boxes without changing disclosure or data.
 	Inspector *InspectorNavigation
@@ -29,7 +31,9 @@ type ToolImageGalleryOptions struct {
 	OnOpenFile func(string)
 	// Todo is the recorded todo list preceding this call, when the surface keeps
 	// the session event window; nil renders the first-write (initial) card.
-	Todo *todoBaseline
+	Todo          *todoBaseline
+	TodoBaselines map[string]*todoBaseline
+	RenderSlot    func(*ui.Context, string, *session.ToolCallView, func())
 }
 
 func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolImageGalleryOptions) {

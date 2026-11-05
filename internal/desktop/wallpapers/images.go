@@ -3,14 +3,16 @@ package wallpapers
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 	"image"
 	"image/draw"
 	_ "image/gif"
-	_ "image/jpeg"
-	"image/png"
+	"image/jpeg"
+	_ "image/png"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -28,29 +30,79 @@ func Decode(data []byte) (image.Image, error) {
 	return img, err
 }
 
-// Import retains a private copy, so moving the selected external file cannot break the backdrop.
-func Import(dir string, data []byte) (string, error) {
+const MaxImportBytes = 12 * 1024 * 1024
+const MaxDataURLChars = 1800000
+
+func ReadImportFile(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, MaxImportBytes+1))
+	if err == nil && len(data) > MaxImportBytes {
+		err = fmt.Errorf("wallpaper must be at most 12 MiB")
+	}
+	return data, err
+}
+
+// PrepareImport is the shared Host/local boundary. The crop editor retains a
+// bounded private source, never the full decoded camera image.
+func PrepareImport(data []byte) (image.Image, []byte, error) {
+	if len(data) > MaxImportBytes {
+		return nil, nil, fmt.Errorf("wallpaper must be at most 12 MiB")
+	}
 	img, err := Decode(data)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
+	img = boundedImage(img)
+	encoded, err := EncodeJPEG(img)
+	return img, encoded, err
+}
+func boundedImage(img image.Image) image.Image {
 	b := img.Bounds()
 	scale := min(1.0, 1920.0/float64(max(b.Dx(), b.Dy())))
 	dst := image.NewRGBA(image.Rect(0, 0, max(1, int(float64(b.Dx())*scale)), max(1, int(float64(b.Dy())*scale))))
 	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, b, draw.Src, nil)
-	return writeImage(dir, dst)
+	return dst
 }
-func writeImage(dir string, img image.Image) (string, error) {
+func EncodeJPEG(img image.Image) ([]byte, error) {
 	var out bytes.Buffer
-	if err := png.Encode(&out, img); err != nil {
+	if err := jpeg.Encode(&out, boundedImage(img), &jpeg.Options{Quality: 82}); err != nil {
+		return nil, err
+	}
+	if len("data:image/jpeg;base64,")+base64.StdEncoding.EncodedLen(out.Len()) > MaxDataURLChars {
+		return nil, fmt.Errorf("wallpaper exceeds the 1,800,000 character image limit")
+	}
+	return out.Bytes(), nil
+}
+func ImageDataURL(data []byte) string {
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data)
+}
+
+// Import retains a private copy; both persistence paths use the same codec.
+func Import(dir string, data []byte) (string, error) {
+	_, encoded, err := PrepareImport(data)
+	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(out.Bytes())
-	path := filepath.Join(dir, fmt.Sprintf("%x.png", sum[:16]))
+	return writeEncodedImage(dir, encoded)
+}
+func writeImage(dir string, img image.Image) (string, error) {
+	encoded, err := EncodeJPEG(img)
+	if err != nil {
+		return "", err
+	}
+	return writeEncodedImage(dir, encoded)
+}
+func writeEncodedImage(dir string, encoded []byte) (string, error) {
+	sum := sha256.Sum256(encoded)
+	path := filepath.Join(dir, fmt.Sprintf("%x.jpg", sum[:16]))
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, out.Bytes(), 0600); err != nil {
+	if err := os.WriteFile(path, encoded, 0600); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -73,7 +125,7 @@ func Cropped(img image.Image, c Crop) image.Image {
 	return dst
 }
 func SaveCrop(dir, original string, c Crop) (string, error) {
-	data, err := os.ReadFile(original)
+	data, err := ReadImportFile(original)
 	if err != nil {
 		return "", err
 	}

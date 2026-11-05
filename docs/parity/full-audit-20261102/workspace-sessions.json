@@ -1,0 +1,990 @@
+{
+  "domain": "workspace-sessions",
+  "modulesReviewed": [
+    "internal/ui/sidebar: sidebar.go, workspace_heading.go, workspace_groups.go, workspace_hover.go, workspace_drag.go, workspace_drop_state.go, workspace_view_options.go, workspace_empty.go, workspace_watermark.go, group_presence.go, session_menu.go, session_rename.go, session_search.go, session_drag.go, session_hover.go, session_metadata.go, status.go, filter.go, archive_filter.go, archive_section.go, batch.go, batch_dialog.go, batch_result.go, rail.go",
+    "internal/ui/workspacepicker/picker.go",
+    "internal/ui/dirpick/panel.go",
+    "internal/ui/dirpick/state.go",
+    "internal/directorypicker/select.go",
+    "internal/directorypicker/path.go",
+    "internal/ui/projects/sidebar.go",
+    "internal/ui/projects/filter.go",
+    "internal/ui/projects/view.go (navigation fields only)",
+    "internal/ui/frame: frame.go navigationView, navigation_shell.go, shortcuts.go, business_commands.go",
+    "internal/ui/composer/composer.go (workspace chip anchor/carry boundary)",
+    "internal/store/session: store.go list/create/select; lifecycle_admission.go; lifecycle_events.go select; workspace_navigation.go; workspace_rpc.go; workspace_session_creation.go; session_startup.go; workspace_follow.go; workspace_groups.go; workspace_group_collapsed.go; workspace_preferences.go; workspace_archive_preferences.go; workspace_local_order.go; workspace_order_parity.go; no_directory.go; dirpick.go; search.go; search_query.go; archive.go; archive_confirmation.go; archive_undo.go; rename.go; pin.go; batch.go; sort.go",
+    "cmd/whaleisle: main.go production navigation/create/directory selection/writeback/connection startup; main_navigation.go; workspace_navigation.go; workspace_session_open.go; workspace_sessions.go; workspace_preferences.go; no_directory.go; directory_picker.go; workspace_caption.go; recovery.go",
+    "third_party/mygo/dialog.go and internal/windows/dialog.go (read-only cancellation evidence)",
+    "Existing tests read: internal/store/session/workspace_session_creation_test.go, workspace_selected_owner_audit_test.go; cmd/whaleisle/workspace_session_open_test.go, directory_picker_test.go, session_recovery_acceptance_windows_test.go; no tests executed",
+    "cmd/whaleisle/view_tabs_settings.go and main.go seedDesktopDraft/saveDesktopConfig/interface OnSave (WS-041 cross-domain trace)"
+  ],
+  "originalAreasReviewed": [
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js",
+    "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar/lib/client.js (entry identification only; full shell delegated)",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/navigation.ts",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/WorkspacePicker.tsx",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/shortcuts.ts",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx",
+    "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+    "tmp/full-audit-20261102/installed-source/src/main/workspace-rpc.js",
+    "tmp/full-audit-20261102/installed-source/src/main/index.js (pickWorkspace)",
+    "tmp/full-audit-20261102/installed-source/src/main/ipc.js (shell:pick-workspace-directory)",
+    "tmp/full-audit-20261102/installed-source/src/preload/index.js",
+    "Actual installed baseline updated from historical 0.3.10 to app.asar 0.3.13 by root; no old reference used as current evidence"
+  ],
+  "features": [
+    {
+      "id": "WS-001",
+      "feature": "新建工作区后的新建会话实际可用性",
+      "baseline": "installed-0.3.13",
+      "expected": "在指定目录型工作区点击新会话后显示可输入的会话，蓝色/选中反馈与实际身份一致。",
+      "entry": "用户报告的新建会话入口；全局按钮与工作区行内加号均已追踪",
+      "status": "confirmed-defect",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:4318-4323: 工作区行先展开，再 startSession(group.workspaceId)"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_hover.go:263-288: 加号按渲染的Host generation和工作区ID调用回调",
+        "cmd/whaleisle/main_navigation.go:147-150: 全局rail的生产装配",
+        "cmd/whaleisle/workspace_session_open.go:137-155: 捕获本地草稿/导航owner，异步创建，win.Update中选择",
+        "internal/store/session/workspace_session_creation.go:299-332: 真实Host session/create传workspaceId"
+      ],
+      "finding": "用户明确报告新建工作区后点击新建对话无反应，属当前失败证据；本条消息没有将全局按钮和行内加号的具体触发点固定下来。全局入口有WS-002的独立代码缺陷；行内加号代码确有带workspaceId创建链，但尚无此次用户点击对应的命中/owner拒绝/RPC/选择日志。该次失败的精确根因 unknown，既有store测试和控制器报告均不能推翻。",
+      "evidenceLevel": "user-report",
+      "requiredAction": "对该次真实入口取得点击命中、回调、owner拒绝或Host错误的最小证据；修复后验收全局与行内两种新会话以及新/旧目录。",
+      "acceptanceGap": "尚未证明用户窗口中的加号实际触发、结果选中、输入框可用与下次重启恢复。"
+    },
+    {
+      "id": "WS-002",
+      "feature": "全局新会话保持工作区归属及导航身份",
+      "baseline": "installed-0.3.13",
+      "expected": "全局新会话/折叠栏新会话/Ctrl+N应在当前所属工作区或最近工作区创建，Host成员关系真实成立。",
+      "entry": "sidebar.NewSession / captionNewSession / session.new → Store.CreateSession",
+      "status": "confirmed-defect",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1692-1719: 按当前会话成员关系或最近工作区选择target，再openWorkspace",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1580-1607: 创建传workspaceId，不靠cwd猜归属"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main_navigation.go:146-150: 全局新会话走generic CreateSession，行内加号走不同控制器",
+        "cmd/whaleisle/main.go:3794-3799: caption入口也走generic CreateSession",
+        "internal/ui/frame/shortcuts.go:105-110: session.new复用generic入口",
+        "internal/store/session/lifecycle_admission.go:41-74: 请求只有cwd/preset；回包仅检查Host，不检查期间的导航",
+        "runtime/vendor/deepseek-harness/packages/api/session-controller/lib/index.js:914-936: 只有workspaceId请求才attachSession；cwd不会附加",
+        "internal/ui/sidebar/filter.go:50-60: 既非成员又非scratch的会话被隐藏"
+      ],
+      "finding": "全局入口新建时省略workspaceId；Host明确不自动按cwd挂工作区，侧栏随后隐藏该孤立会话。这与原版成员身份语义不符。已存在blank时generic路径又可直接复用同一会话而无可见变化；该函数不同于用户反馈的行内加号，不能互作根因。异步fresh创建回包还可越过期间的新导航直接select。",
+      "evidenceLevel": "code",
+      "requiredAction": "全局入口复用统一的工作区身份解析与受导航owner约束的创建路径，保持无目录会话单独语义。",
+      "acceptanceGap": "尚未做真实UI新建→Host成员回执→侧栏出现→切换回来→重启恢复；本项为可定位代码缺陷。",
+      "runtimeAcceptance": {
+        "date": "2026-11-02",
+        "result": "FAIL",
+        "level": "production Go Store + actual delivered Host + compiled production sidebar filter",
+        "report": "RUNTIME-ACCEPTANCE.md",
+        "receipt": "evidence/runtime-acceptance.json"
+      }
+    },
+    {
+      "id": "WS-003",
+      "feature": "中文删除确认的取消/关闭安全性",
+      "baseline": "installed-0.3.13",
+      "expected": "取消、Esc、关闭确认框及对话框失败均不删除会话。",
+      "entry": "归档会话菜单删除 → frame OnDelete → mygo.Dialog.Message → session/delete",
+      "status": "confirmed-defect",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5087-5111: 删除有独立目标/确认/错误状态，关闭只清除目标",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5435-5458: 取消与确认显式分离"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:717-728: Buttons=[删除,取消]，未设CancelButton，忽略Message error；Button0即执行删除",
+        "internal/ui/i18n/i18n.go:1064: 中文取消文案为取消",
+        "third_party/mygo/dialog.go:194-210: 缺省取消索引0，仅自动识别英文cancel/no",
+        "third_party/mygo/internal/windows/dialog.go:263-299: TaskDialog允许取消；Esc/关闭/TaskDialog失败回落CancelID"
+      ],
+      "finding": "中文界面未显式设置CancelButton=1，导致取消索引仍为0。TaskDialog的Esc/×或调用失败返回0，生产回调把它当“删除”执行。Message错误也被忽略。这是代码可证的数据风险，不需要真实销毁用户会话来证实。",
+      "evidenceLevel": "code",
+      "requiredAction": "删除确认显式设安全默认/取消索引并处理错误；审核同一调用模式，取消必须fail-closed。",
+      "acceptanceGap": "未运行原生对话框/实际删除；当前静态链已足以阻断发布。"
+    },
+    {
+      "id": "WS-004",
+      "feature": "从目录浏览器添加真实工作区注册",
+      "baseline": "installed-0.3.13",
+      "expected": "选择真实Host目录后获得Host workspaceId/path；配置保存成功才提交选择，取消不改变当前会话或磁盘。",
+      "entry": "工作区标题添加按钮 → directoryPickerView → applyWorkspacePath → RegisterWorkspace",
+      "status": "wired-unverified",
+      "priority": "P0",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3562-3618: WorkspacePickFlow只采纳真实目录并处理createWorkspace",
+        "tmp/full-audit-20261102/installed-source/src/main/workspace-rpc.js:61-63: 桌面目录注册调用workspace/create"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_heading.go:110-120: 添加入口调用OnBrowseWorkspace",
+        "cmd/whaleisle/directory_picker.go:535-545: 有效路径选择后回调",
+        "cmd/whaleisle/main.go:949-958: 注册路径而非创建虚构分组",
+        "internal/store/session/workspace_navigation.go:189-204,250-305: workspace/create后校验Host行，保存配置，再commit"
+      ],
+      "finding": "生产代码把用户选中目录注册为Host工作区；不是仅创建一个UI分组。用户截图中ChisaBot对应的真实Host path未读取，因此具体注册是否正确仍未确认。既有真实Host报告覆盖底层注册/保存失败重试，不覆盖此次窗口操作。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收用户同类目录选择→注册成功反馈→侧栏标题/路径→新建会话；保留保存失败不切换的事务语义。",
+      "acceptanceGap": "不能从代码存在或截图中的组名确认当前用户已完成目录注册。"
+    },
+    {
+      "id": "WS-005",
+      "feature": "活动会话中添加工作区失败后的错误与重试",
+      "baseline": "installed-0.3.13",
+      "expected": "目录采纳失败时应看到错误和可重试操作，不静默返回原画面。",
+      "entry": "侧栏添加目录 → 目录对话框Open → RegisterWorkspace失败",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3609-3618: 采纳失败打开独立folder-error对话框",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3687-3721: 错误对话框含取消/重新选择"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/directory_picker.go:539-545: 先关闭目录对话框再调用onPick",
+        "cmd/whaleisle/main.go:953-958: 重新打开pick状态并异步注册",
+        "internal/store/session/workspace_navigation.go:295-299: 注册失败仅保留navigation.Error",
+        "internal/ui/workspacepicker/picker.go:35-50: pick仅在有效anchor时绘制；无anchor直接return",
+        "cmd/whaleisle/workspace_navigation.go:35-37: 唯一anchor来源",
+        "internal/ui/composer/composer.go:268-295: 工作区anchor只在Hero下绑定"
+      ],
+      "finding": "从已有聊天的侧栏添加目录时，Hero工作区芯片不在树中；目录框已关闭，注册错误只存入需该芯片锚点的pick菜单，没有独立错误/重试表面。新目录操作因此存在可证的静默失败分支。",
+      "evidenceLevel": "code",
+      "requiredAction": "让侧栏添加目录拥有独立的采纳中/失败/重试表面，不依赖仅Hero存在的锚点。",
+      "acceptanceGap": "未向真实Host注入失败；源码入口条件及错误归宿已完成追踪。"
+    },
+    {
+      "id": "WS-006",
+      "feature": "选择工作区后创建/绑定会话并携带空白草稿",
+      "baseline": "installed-0.3.13",
+      "expected": "Hero选择现有/新工作区时打开其空白会话，并按原版规则携带尚未发送的空白草稿和附件。",
+      "entry": "Hero工作区芯片 → workspacepicker OnChoose/OnRegister",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-conversation/lib/client.js:25394-25402: selectWorkspace通过openWorkspace并openCarryingDraft",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1654-1667: 创建/复用工作区会话后replaceMain"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/workspace_navigation.go:44-50: 仅ChooseRegisteredWorkspace/RegisterWorkspace",
+        "internal/store/session/workspace_navigation.go:198-203: 只改cwd/workspaceID并清空selectedID",
+        "cmd/whaleisle/workspace_navigation.go:22-28: 仅重置home.TargetID，没有创建会话或迁移源草稿"
+      ],
+      "finding": "目录注册和cwd选择具备实现，但Hero采纳没有走原版openWorkspace会话绑定，也未调用与无目录流程类似的草稿/附件携带。选中旧blank中的草稿留在原session，而当前变为selectedID空。",
+      "evidenceLevel": "code",
+      "requiredAction": "统一Hero工作区采纳与受owner约束的会话打开/草稿携带；保留非空历史会话草稿原身份。",
+      "acceptanceGap": "首次选目录后直接发送、空blank已有附件时改目录、失败/取消后的草稿可见性未实测。"
+    },
+    {
+      "id": "WS-007",
+      "feature": "非默认工作区在无当前会话时的重启恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "已选择的目录不应在下次Host启动时无条件被默认工作区覆盖。",
+      "entry": "连接就绪 → InitializeDefaultWorkspace；配置与resume恢复",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1894-1916: 先恢复saved/current/recent，只有工作区和会话均为空才initializeDefault"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:2011-2016: 先从配置恢复workspace cwd",
+        "cmd/whaleisle/main.go:2170-2173: 每次首次就绪调用InitializeDefaultWorkspace",
+        "internal/store/session/workspace_rpc.go:14-23,29-60: 未按已有工作区/会话全量空判断；成功把cwd设Host默认目录",
+        "cmd/whaleisle/recovery.go:102-111: 保存selectedSession为空时不恢复选择"
+      ],
+      "finding": "当上次只选了一个非默认工作区、尚无selectedSession，启动恢复配置cwd后仍会initializeDefault并覆盖Store.cwd。原版只在两个列表全空时初始化。恢复回调不能补回空selectedSession场景。",
+      "evidenceLevel": "code",
+      "requiredAction": "把首次默认初始化限定为真正空Host，恢复已选择workspace身份；不让默认握手重写已有选择。",
+      "acceptanceGap": "尚未执行非默认目录→不建会话→退出/重启这一真实场景；本项为明确启动代码分支。"
+    },
+    {
+      "id": "WS-008",
+      "feature": "空Host首次默认工作区初始化",
+      "baseline": "installed-0.3.13",
+      "expected": "全新Host可建立真实默认工作区并在Host工作区流出现。",
+      "entry": "InitializeDefaultWorkspace → workspace/initializeDefault + workspace/follow",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1909-1923: 空目录/会话时初始化默认目录并反馈失败"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/workspace_rpc.go:10-67: 真实initializeDefault RPC及错误",
+        "internal/store/session/session_startup.go:29-43: 等待两个真实基线后才允许初始会话",
+        "tmp/stabilize-20261102/workspace-functional.json:16-23: 历史隔离Host默认目录初始化PASS；无模型"
+      ],
+      "finding": "已有隔离真实Host证据支持默认目录创建和流投影，不支持当前用户首次界面的点击与后续会话可用性；也不覆盖WS-007的已有目录恢复条件。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "保留真实Host初始化链；修复WS-007后验收首次默认会话可输入。",
+      "acceptanceGap": "历史报告SourceRevision=d78024d，并非当前诊断exe全链路证据。"
+    },
+    {
+      "id": "WS-009",
+      "feature": "目录浏览的卷/父子列/面包屑/Home导航",
+      "baseline": "installed-0.3.13",
+      "expected": "浏览Host文件夹，选中父列项目后显示子列，Open提交当前目标，虚拟卷根不可当目录。",
+      "entry": "dirpick.View → directoryPicker/list",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:260-308: 目录行与DirectoryBrowser",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:870-1001: Home、面包屑及Miller列/截断反馈"
+      ],
+      "mygoEvidence": [
+        "internal/ui/dirpick/panel.go:51-118,123-158,209-244: Home、面包屑及两列展示",
+        "cmd/whaleisle/directory_picker.go:174-307: 扫描/选择的Host+request所有权",
+        "internal/directorypicker/path.go:8-11: 排除dsh-computer虚拟卷根",
+        "tmp/stabilize-20261102/workspace-functional.json:24-30: 历史真实Host+headless Miller导航PASS"
+      ],
+      "finding": "目录浏览是真实Host RPC，不读取桌面猜目录；已有历史隔离证据覆盖列导航和Open，不覆盖当前用户画面。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "无需先重写浏览器；在目录/会话主路径修复后验收实际入口、路径及取消。",
+      "acceptanceGap": "无当前UI点击验收；超大目录、UNC/权限失败没有本轮实测。"
+    },
+    {
+      "id": "WS-010",
+      "feature": "手输目录、隐藏目录、加载失败重试与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "可输入路径定位、显示隐藏项，失败重试保留落点，Esc/取消不采纳错误路径。",
+      "entry": "dirpick路径编辑/显示隐藏/Toast重试/取消",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:324-344,937-943,1018-1049: 路径编辑、隐藏项开关、取消及IME处理"
+      ],
+      "mygoEvidence": [
+        "internal/ui/dirpick/panel.go:44-76,162-200: 输入、IME、隐藏项和失败Toast",
+        "internal/ui/dirpick/state.go:37-72,159-180: UI合并及隐藏项筛选",
+        "cmd/whaleisle/directory_picker.go:309-382,464-565: 路径预览、取消及失败重试"
+      ],
+      "finding": "控制链和状态合并存在，异步扫描以Host/request fence避免旧响应覆盖；不能把既有路径编辑测试当当前窗口操作成功。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收输入有效/无效/含空格目录、隐藏项、Esc返回、权限失败和重试的实际反馈。",
+      "acceptanceGap": "本轮只读现有源码/测试，没有运行原生路径编辑。"
+    },
+    {
+      "id": "WS-011",
+      "feature": "在选中目录中新建文件夹",
+      "baseline": "installed-0.3.13",
+      "expected": "新建真实磁盘子目录，保留原始名称；失败可重试，取消不建目录。",
+      "entry": "dirpick新建文件夹 → createDirectoryPicker → directoryPicker/createDirectory",
+      "status": "verified-scoped",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:630-640,1074-1118: 真实创建与独立创建对话框"
+      ],
+      "mygoEvidence": [
+        "internal/ui/dirpick/panel.go:163-167,268-305: 新建弹窗、IME、取消及错误重试",
+        "cmd/whaleisle/directory_picker.go:384-459: 生产创建保留原始name并重新列出父子目录",
+        "tmp/stabilize-20261102/workspace-functional.json:24-30: 历史隔离真实FS嵌套创建/非法名称/重试PASS"
+      ],
+      "finding": "生产创建路径直接发原始name，不经过store兼容方法中的TrimSpace；创建是磁盘操作而不是虚拟组。历史证据范围成立。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "无需产品重写；补实际目录选择入口的可见操作验收。",
+      "acceptanceGap": "未在用户磁盘创建；本轮不作任何真实外部副作用。"
+    },
+    {
+      "id": "WS-012",
+      "feature": "目录选择器切换Windows系统选择器",
+      "baseline": "installed-0.3.13",
+      "expected": "Windows桌面目录浏览可切换系统文件夹选择器，取消不采纳。",
+      "entry": "原版目录弹窗底部Windows系统选择器开关",
+      "status": "missing",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:1032-1039,1192-1196,1342-1346: win32 shell.pickWorkspaceDirectory能力决定并绑定开关",
+        "tmp/full-audit-20261102/installed-source/src/preload/index.js:88: 实际安装桌面暴露pickWorkspaceDirectory"
+      ],
+      "mygoEvidence": [
+        "internal/ui/dirpick/panel.go:161-183: MyGo底部只有新建、隐藏、取消、打开",
+        "cmd/whaleisle/directory_picker.go:488-553: Model没有native-picker流程",
+        "internal/store/session/dirpick.go:32-42: 虽有PickDirectory RPC，不在上述生产弹窗装配"
+      ],
+      "finding": "Host/native API的存在不等于原版系统选择器入口；当前工作区目录弹窗未装配该切换。",
+      "evidenceLevel": "code",
+      "requiredAction": "恢复Windows系统选择器入口或明确产品决定；保留浏览式选择与取消语义。",
+      "acceptanceGap": "系统选择器没有当前可达入口，不能以Project/启动目录另一个picker抵充。"
+    },
+    {
+      "id": "WS-013",
+      "feature": "目录选择中的远程工作区扩展页",
+      "baseline": "installed-0.3.13",
+      "expected": "安装了远程目录flow时，本地/远程页在同一目录采纳流程中可切换并保留机器/SSH草稿。",
+      "entry": "原版TabbedDirectoryFlow remote child hole",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-directory-picker-browse/lib/client.js:1175-1207: 远程flow驻留、active fence及onPicked/onCancel/onError"
+      ],
+      "mygoEvidence": [
+        "internal/ui/dirpick/panel.go:18-27,32-44: Model只有本地Host目录控制",
+        "cmd/whaleisle/directory_picker.go:488-553: 没有远程tab或flow渲染装配"
+      ],
+      "finding": "原版可按插件占位形成远程选择页；MyGo该工作区选择入口没有同等扩展位置。远程设置页另有能力不等于此用户路径。",
+      "evidenceLevel": "code",
+      "requiredAction": "由remote/plugins领域统一决定和补齐该入口的远程目录采纳契约。",
+      "acceptanceGap": "远程连接/同步能力本体由remote领域审查；本项只确认本地picker缺少该可见入口。"
+    },
+    {
+      "id": "WS-014",
+      "feature": "目录/工作区/会话/分组身份与目录图标",
+      "baseline": "installed-0.3.13",
+      "expected": "Host workspaceId和path是工作区身份；侧栏组名/折叠箭头不应被当成磁盘目录本体。",
+      "entry": "workspace/follow → WorkspaceRow → workspaceRowsView",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1208-1217,2289-2310,2430-2455: 组使用workspaceId/cwd；hover动作和路径预览",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:305-320: 当前原版也是文件夹与hover展开箭头交换"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/workspace_navigation.go:13-22: workspaceId/path/title/sessionIds独立",
+        "internal/store/session/workspace_groups.go:223-241: 按真实Host成员分组，不靠cwd",
+        "internal/ui/sidebar/workspace_groups.go:99-174: 组title优先标题，平时文件夹图标，hover变箭头；点击折叠",
+        "internal/ui/sidebar/workspace_hover.go:155-172: hover预览显示并复制真实path"
+      ],
+      "finding": "用户截图中的ChisaBot行按代码属于目录型工作区注册展示；hover箭头是原版也有的行为，不能仅凭截图判为虚构实体。但该用户实际选中path未核实，不能反过来宣称目录注册正确。",
+      "evidenceLevel": "code",
+      "requiredAction": "修复WS-001/002等路径后，用可见目录名+路径+Host身份对齐验收，而非仅比较组名。",
+      "acceptanceGap": "当前真实profile禁止读取；具体ChisaBot所指path及用户视觉判断仍待实际验收。"
+    },
+    {
+      "id": "WS-015",
+      "feature": "工作区重命名、重复名、失败重试及取消",
+      "baseline": "installed-0.3.13",
+      "expected": "重命名显示名称不改磁盘path或成员；失败保留编辑器，取消不发变更。",
+      "entry": "工作区…菜单重命名 → workspacepicker管理弹窗 → workspace/rename",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:2430-2455,5010-5048,5356-5405: 工作区菜单和重命名确认/错误"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_hover.go:247-258: 按点击工作区ID路由菜单",
+        "internal/ui/workspacepicker/picker.go:213-301: 管理/重命名表面",
+        "internal/store/session/workspace_navigation.go:309-379: 检查title/重复、Host回执、失败留draft"
+      ],
+      "finding": "入口和Host持久化链完整；历史真实Host报告覆盖重命名/取消，当前原生弹窗未实测。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收菜单命中、原名/重名/空名、Host拒绝及重新提交；不改磁盘目录。",
+      "acceptanceGap": "完整当前UI交互未验证。"
+    },
+    {
+      "id": "WS-016",
+      "feature": "移除工作区注册且保留磁盘文件",
+      "baseline": "installed-0.3.13",
+      "expected": "确认后只移除注册，取消不操作；所属当前会话仅在Host移除回执和流投影后关闭。",
+      "entry": "工作区…菜单删除工作区 → 移除注册确认",
+      "status": "verified-scoped",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1820-1825,5049-5076,5407-5434: 删除工作区与当前会话关闭，确认和错误"
+      ],
+      "mygoEvidence": [
+        "internal/ui/workspacepicker/picker.go:262-265,297-301: 明确说明磁盘文件保留，单独确认",
+        "internal/store/session/workspace_navigation.go:381-463: workspace/delete及等待receipt+follow",
+        "tmp/stabilize-20261102/workspace-functional.json:38-44: 历史隔离真实Host移除注册/取消/保留文件PASS"
+      ],
+      "finding": "已有历史真实Host和磁盘证据支持注册移除安全语义；该管理弹窗不是WS-003的原生session-delete确认。",
+      "evidenceLevel": "historical-evidence",
+      "requiredAction": "保留注册与文件的明确区分，验收实际菜单和断线/超时反馈。",
+      "acceptanceGap": "没有当前用户窗口点击证据；不触碰用户目录。"
+    },
+    {
+      "id": "WS-017",
+      "feature": "工作区拖动排序和嵌套树边界",
+      "baseline": "installed-0.3.13",
+      "expected": "工作区只在同级注册间排序，Host持久化；拖动取消/越界不误提交。",
+      "entry": "工作区标题拖动 → WorkspaceDropAnchor → workspace/insertBefore",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:4240-4317: 原版工作区同级拖动与insertBefore"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_drag.go:42-137: 按可见整段和父级计算drop",
+        "internal/ui/sidebar/workspace_drop_state.go:38-58,105-130: Host/视图scope fence",
+        "internal/store/session/workspace_groups.go:92-141: 真实Host排序回执"
+      ],
+      "finding": "拖动边界和真实持久化路由存在，尚无当前窗口拖动/滚动/取消验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收展开子树、折叠、越界、Esc、Host换代及重启后的顺序。",
+      "acceptanceGap": "只读代码，未操作桌面拖动。"
+    },
+    {
+      "id": "WS-018",
+      "feature": "工作区/工作区树/单列表视图切换",
+      "baseline": "installed-0.3.13",
+      "expected": "可切换分组模式，目录树关系与会话成员身份分开，不改Host成员。",
+      "entry": "侧栏视图选项",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3901-3947,5314-5318: 三种分组和tree开关"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_view_options.go:23-55,66-90: 对应分组/排序/筛选项",
+        "internal/store/session/workspace_groups.go:48-55,172-189,219-296: 模式校验和目录祖先树构造"
+      ],
+      "finding": "三种模式有生产入口，树按注册path父子展示但成员仍按Host。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收同basename/嵌套路径/UNC/大小写目录及模式重启持久化。",
+      "acceptanceGap": "本轮未做图形布局和长列表操作。"
+    },
+    {
+      "id": "WS-019",
+      "feature": "工作区折叠/展开与Host隔离偏好恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "折叠状态按真实Host和工作区身份持久化；选择/搜索可揭示目标；保存失败可重试。",
+      "entry": "工作区标题/箭头 → ToggleWorkspaceGroup → workspace preferences",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1382-1423,4310-4323: 原版view store和展开切换"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_groups.go:148-174: 行/标题/箭头复用展开回调",
+        "internal/store/session/workspace_groups.go:69-77: 逻辑展开状态",
+        "cmd/whaleisle/workspace_preferences.go:12-22: 绑定supervised dsh-home authority",
+        "internal/store/session/workspace_preferences.go:176-221,340-371: 持久化和失败重试",
+        "internal/store/session/workspace_group_collapsed.go:14-39,41-81: 默认展开与显式false区分"
+      ],
+      "finding": "Store直接拥有展开状态，未发现main paint局部值回写覆盖；持久化有明确错误/重试。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收重启、工作区移除重加、同path不同id/Host切换及保存失败。",
+      "acceptanceGap": "代码链完整，当前存储/窗口运行未验证。"
+    },
+    {
+      "id": "WS-020",
+      "feature": "会话手动/最近更新排序及拖动",
+      "baseline": "installed-0.3.13",
+      "expected": "仅改浏览器顺序，不误改Host成员；固定/非固定分区及隐藏槽位保持。",
+      "entry": "视图排序选项/会话拖动",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1385-1423,4780-4888: 最近/手动显示和完整账号顺序冻结",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx:699-728: 同group与pin分区拖动"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/session_drag.go:28-69,89-128: drop anchor/分区验证",
+        "internal/store/session/workspace_order_parity.go:45-107: 所有账号冻结、只改local SessionOrders",
+        "internal/store/session/workspace_preferences.go:340-371: 保存与重试"
+      ],
+      "finding": "生产路径已将显示排序与Host membership分离，逻辑不是workspace/insertSessionBefore改变归属。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收搜索/归档/折叠后拖动、pin分区、保存失败及重启顺序。",
+      "acceptanceGap": "未做当前实际拖动或偏好文件故障注入。"
+    },
+    {
+      "id": "WS-021",
+      "feature": "归档过滤同时作用于列表与搜索",
+      "baseline": "installed-0.3.13",
+      "expected": "隐藏/全部/仅归档为同一Host偏好，列表与搜索一致。",
+      "entry": "视图选项归档筛选",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3949-3973,4729-4733: 原版同一归档筛选"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_view_options.go:53-55: 三个菜单选择",
+        "internal/ui/sidebar/archive_filter.go:12-42: 单一store值优先",
+        "internal/store/session/workspace_archive_preferences.go:6-20: 保存Host视图偏好",
+        "internal/ui/sidebar/session_search.go:45-69: 搜索复用archive可见性"
+      ],
+      "finding": "共享筛选链完整；无双指针生产真值冲突。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收三种过滤与搜索、归档操作后结果及重启恢复。",
+      "acceptanceGap": "现有测试未作为当前实际通过证据。"
+    },
+    {
+      "id": "WS-022",
+      "feature": "按标题/工作区与正文搜索会话",
+      "baseline": "installed-0.3.13",
+      "expected": "即时本地匹配加debounced Host正文搜索，20条限制/更多提示；过时响应不可污染新查询，失败保留本地结果。",
+      "entry": "侧栏搜索/Ctrl+K → UpdateSessionSearch → session/search",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:4592-4661,4711-4728: 搜索合并与受限结果",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx:1011-1108: 搜索空态、加载、更多提示"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_heading.go:32-58,69-81: 搜索入口、文本、Esc",
+        "internal/store/session/search.go:11-37,100-148: 250ms延迟、真实RPC、取消及失败本地回退",
+        "internal/store/session/search_query.go:5-37: 500 UTF16边界及NUL处理",
+        "internal/ui/sidebar/session_search.go:45-119,137-145,253-255: 合并/限20/反馈"
+      ],
+      "finding": "搜索入口到Host和投影链完整。这里本地可见性受WS-002成员缺失连带影响：孤立新会话也可能搜不到。",
+      "evidenceLevel": "code",
+      "requiredAction": "先修成员身份路径，再验收标题/工作区/正文命中与新旧查询竞争、错误反馈。",
+      "acceptanceGap": "本轮未发Host请求，不能证明当前所有session类型均可被检索。"
+    },
+    {
+      "id": "WS-023",
+      "feature": "搜索结果打开、清除搜索并揭示原会话",
+      "baseline": "installed-0.3.13",
+      "expected": "点击未归档命中打开正确会话，退出搜索并展开/滚动到原行；归档只提供恢复/删除。",
+      "entry": "sessionSearchResultsView按钮",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:2650-2705,5260-5276: 原版结果行及操作",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:609-681: 归档不可直接打开，菜单分离"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/session_search.go:168-179,234-250,261-292: 归档菜单、展开原组并clear search/Select",
+        "cmd/whaleisle/main_navigation.go:145-147,215-225: 生产选择及局部search写回"
+      ],
+      "finding": "本地query指针改写并写回，Store.Select拥有选择，不存在已证实的main局部selectedID覆盖；当前用户点击无反应不能由此排除。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收折叠祖先/水位外命中/搜索中归档及草稿保留。",
+      "acceptanceGap": "无当前可见点击路径证据。"
+    },
+    {
+      "id": "WS-024",
+      "feature": "会话清单加载、断线、刷新和空态",
+      "baseline": "installed-0.3.13",
+      "expected": "加载/错误/未连接/无会话可区分，重试走真实session/list，不用空列表伪装成功。",
+      "entry": "sidebar清单状态与重试",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:4663-4728,5270-5314: 浏览器列表/工作区ready门禁"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_empty.go:14-44,74-81: 偏好错误/列表错误重试/加载/未连接/空态",
+        "internal/store/session/store.go:1377-1435: 真实session/list背景请求及generation",
+        "internal/store/session/workspace_follow.go:33-66,108-127: 工作区流错误/基线",
+        "cmd/whaleisle/main_navigation.go:101-109: 真实连接状态和重连回调"
+      ],
+      "finding": "加载和错误表面已装配；不能把无模型新Host的成功覆盖用户现有数据/连接环境。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收断线重连、workspace流与session/list单边失败、保留已知数据和重试。",
+      "acceptanceGap": "本轮无运行故障注入。"
+    },
+    {
+      "id": "WS-025",
+      "feature": "会话选择、草稿/布局隔离与重启恢复",
+      "baseline": "installed-0.3.13",
+      "expected": "切换会话保留各自草稿/附件/文件编辑器，重启恢复真实session身份而非仅显示空Hero。",
+      "entry": "会话行 → Store.Select；openResume/restoreResumeSelection",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1648-1667,1894-1916: 原版打开与恢复session身份"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/sidebar.go:577-609,649-654: 行/标题都路由同一ID",
+        "internal/store/session/store.go:1354-1373: 选择及Follow/投影刷新",
+        "internal/store/session/lifecycle_events.go:306-326: Store唯一选择状态与历史清空/加载",
+        "cmd/whaleisle/recovery.go:25-48,100-132: 草稿和selectedSession恢复",
+        "cmd/whaleisle/workspace_sessions.go:115-175: 每会话pane恢复且初始空选择不泄漏"
+      ],
+      "finding": "选择Store状态不从main局部变量回写；草稿/编辑器按会话路由。WS-002孤立新会话和WS-007空选择恢复会破坏入口层可达性，不能拿底层恢复证据签署完整路径。",
+      "evidenceLevel": "code",
+      "requiredAction": "在修复身份/启动条件后验收连续切换、草稿附件、未保存文件、关闭重启及缺失会话。",
+      "acceptanceGap": "历史packaged-headless恢复仅覆盖它创建的限定会话，不覆盖本次真实窗口/全部对象类型。"
+    },
+    {
+      "id": "WS-026",
+      "feature": "会话置顶/取消置顶及重启",
+      "baseline": "installed-0.3.13",
+      "expected": "悬停/菜单置顶写Host pinnedSessionIds，取消恢复，显示顺序不偷换会话身份。",
+      "entry": "行悬停Pin / …菜单",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1826-1836,6615-6627: pin/unpin服务和失败提示",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts:216-225,374-382: 原版菜单/行动作装配"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/session_menu.go:43-53,81-87: 两入口按行ID",
+        "internal/ui/sidebar/sidebar.go:632-639: 悬停置顶入口",
+        "internal/store/session/pin.go:33-105: 真实Host pin/unpin及回执/错误"
+      ],
+      "finding": "真实Host持久化链存在；原生菜单命中和当前数据顺序未验收。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收普通/blank/归档限制、长列表置顶、取消及重启。",
+      "acceptanceGap": "本轮不改变用户pin状态。"
+    },
+    {
+      "id": "WS-027",
+      "feature": "会话重命名、双击标题、IME及失败重试",
+      "baseline": "installed-0.3.13",
+      "expected": "按正确会话ID改名，中文IME回车不误提交，失败保留草稿，取消不改。",
+      "entry": "会话…菜单/双击标题/重命名快捷键",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5754-5774: 原版重命名菜单入口",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5775-5887: 原版rename表面状态与失败保留编辑器"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/sidebar.go:600-609: 双击标题入口",
+        "internal/ui/sidebar/session_menu.go:88-90: 菜单入口",
+        "internal/ui/sidebar/session_rename.go:15-40,45-98: IME/取消/错误/提交",
+        "internal/store/session/rename.go:48-121: 真实rename回执及setPresentation"
+      ],
+      "finding": "普通会话改名链完整；快捷键对Project owner路由问题由orchestration项处理，不把这里普通会话绿测扩展到托管会话。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收真实菜单、双击、IME、错误重试和重启显示；与托管会话owner动作保持一致。",
+      "acceptanceGap": "当前UI未验收，托管owner跨域。"
+    },
+    {
+      "id": "WS-028",
+      "feature": "会话分叉与失败反馈",
+      "baseline": "installed-0.3.13",
+      "expected": "普通会话可从支持的历史位置分叉；不能分叉时解释原因，创建结果打开正确子会话。",
+      "entry": "会话菜单/快捷键 → ForkSession → session/fork",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1684-1690: 原版fork服务",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts:261-270: forkRequiresOpen等错误分类"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/session_menu.go:91-93: 行菜单分叉",
+        "internal/ui/frame/frame.go:742-744: 生产回调",
+        "internal/store/session/lifecycle_admission.go:77-107: 真实fork及选择/刷新"
+      ],
+      "finding": "普通分叉有真实RPC与错误状态。Host结果选择只fence Host，不fence期间新导航，和global create有相同迟到选择风险；完整历史/草稿行为需chat领域验证。",
+      "evidenceLevel": "code",
+      "requiredAction": "分叉结果受当前导航约束，并验收已完成/运行中/无法分叉、断线与新导航。",
+      "acceptanceGap": "本轮未创建分叉；分支内容由chat领域审查。"
+    },
+    {
+      "id": "WS-029",
+      "feature": "归档运行中会话的确认、停止与取消",
+      "baseline": "installed-0.3.13",
+      "expected": "先让Host检查活动；只有对显示的活动明确确认才stopActivity，取消不停止。",
+      "entry": "会话行Archive → Store.beginArchive → 活动确认",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts:227-258: 原版先archive，Host拒绝活动才弹确认",
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5566-5615: 活动确认表面"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/archive_confirmation.go:62-85,89-116,119-165: 真实Host首次不stop、确认再stop、token fence",
+        "internal/ui/frame/frame.go:711-713,746: 生产触发与确认挂载"
+      ],
+      "finding": "未发现跳过Host活动确认；选中归档成功后才清空会话，较新选择不会被旧归档清除。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收普通/运行中/队列/子智能体活动，取消、失败重试和Host换代。",
+      "acceptanceGap": "本轮不归档或停止用户任务。"
+    },
+    {
+      "id": "WS-030",
+      "feature": "归档撤销与恢复会话",
+      "baseline": "installed-0.3.13",
+      "expected": "归档成功可撤销；归档菜单恢复走Host回执，不能自动发送旧输入或越Host撤销。",
+      "entry": "archive undo notice / 已归档行恢复",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts:200-207,286-290: 恢复/撤销和归档不可直接打开"
+      ],
+      "mygoEvidence": [
+        "internal/store/session/archive_undo.go:25-66: 归档撤销owner/期限/token",
+        "internal/store/session/archive.go:17-67: unarchive回执和同Host刷新",
+        "internal/ui/sidebar/session_menu.go:144-151: 归档行恢复/删除菜单",
+        "internal/ui/sidebar/archive_section.go:15-48: 归档管理展开"
+      ],
+      "finding": "真实RPC和撤销owner状态存在；恢复不自动打开旧消息或重发。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收归档→撤销、过期、已取消归档、恢复后列表/搜索/重启。",
+      "acceptanceGap": "本轮未变更真实用户归档。"
+    },
+    {
+      "id": "WS-031",
+      "feature": "归档会话永久删除与可恢复失败表面",
+      "baseline": "installed-0.3.13",
+      "expected": "独立确认永久删除，失败仍能针对同一对象重试；只有成功回执更新归档清单。",
+      "entry": "归档行/搜索结果删除",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:5077-5111,5435-5458: 保留deleteTarget、deleting/error，失败可在原确认继续"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/frame.go:717-728: MyGo系统确认后立即返回，缺少持久删除busy/error对话状态",
+        "internal/store/session/archive.go:70-114: 真实session/delete，错误进入lastAction，成功applyDeleteResult",
+        "internal/ui/sidebar/session_search.go:168-179: 搜索归档结果复用删除确认"
+      ],
+      "finding": "删除回执更新真实；但失败不保留原确认目标/忙态/就地重试，只有会话状态文字。WS-003另证实中文取消会误删，是该动作的发布阻断。",
+      "evidenceLevel": "code",
+      "requiredAction": "先修WS-003；删除操作保留明确对象、进行中、错误和重试，避免用户重复点击不知结果。",
+      "acceptanceGap": "未执行任何删除；错误表面与取消语义待修后真实验收。"
+    },
+    {
+      "id": "WS-032",
+      "feature": "批量选择、归档/删除、部分失败与重试",
+      "baseline": "installed-0.3.13",
+      "expected": "只操作当前可见选择，明确确认批量停止/删除，逐项结果可见，失败仍可重试。",
+      "entry": "多选按钮/选择所有可见/批量归档/批量删除",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:3263-3507,4890-4904: 原版批量选择scope/confirm/逐项结果",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:33-57: 行checkbox与选择身份"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/batch.go:18-69,138-198: 可见选择与工具栏",
+        "internal/ui/sidebar/batch_dialog.go:13-53: 明确确认/取消",
+        "internal/store/session/batch.go:123-220: archive-stop、先归档再删除、逐项回执和失败保留",
+        "internal/ui/sidebar/batch_result.go:62-151: 成功/失败结果、常驻失败明细与dismiss"
+      ],
+      "finding": "控制链具备范围与逐项反馈，未发现把批量删除先行强停活动；真实用户数据不得用于此次只读审查。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收搜索/折叠/归档筛选scope变化、选中当前会话、部分失败、Host切换与重试。",
+      "acceptanceGap": "本轮无批量副作用验证。"
+    },
+    {
+      "id": "WS-033",
+      "feature": "会话状态点、时间、运行/待审批与悬停摘要",
+      "baseline": "installed-0.3.13",
+      "expected": "侧栏状态来自真实session/control/interaction，时间/任务摘要不冒充任务完成。",
+      "entry": "sessionStatus / row metadata / hover card",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:473-598: 状态优先级、归档、hover元数据"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/status.go:5-17: PendingStatuses优先于roster",
+        "internal/ui/sidebar/session_metadata.go:10-46: 相对时间/状态尾部",
+        "internal/ui/sidebar/session_hover.go:367-440: 真实元数据、任务与多状态摘要",
+        "internal/ui/sidebar/sidebar.go:575-648: 生产行装配"
+      ],
+      "finding": "状态与Hover元数据有专门数据路径，不是统一静态徽章。控制流真实字段质量由chat/orchestration领域评估。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收运行/重试/待审批/已完成/归档及任务摘要更新，不能仅看label。",
+      "acceptanceGap": "本轮无当前窗口状态变化观察。"
+    },
+    {
+      "id": "WS-034",
+      "feature": "工作区路径悬停查看与复制",
+      "baseline": "installed-0.3.13",
+      "expected": "可确认工作区真实path和创建时间，点击/键盘复制有反馈，不改变目录或选择。",
+      "entry": "工作区hover卡",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:2289-2360: 原版工作区路径Hover/复制"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_hover.go:131-179: 显示path/createdAt，点击Enter/Space复制及反馈",
+        "internal/ui/sidebar/workspace_groups.go:169-170: 真实workspace CreatedAt才注册hover"
+      ],
+      "finding": "可以从该入口消除用户对组名与目录的歧义；缺CreatedAt的Host行不会挂hover，当前具体行元数据未知。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收长路径、同名目录、窄窗翻转和复制反馈。",
+      "acceptanceGap": "未读取用户workspace投影，也未操作剪贴板。"
+    },
+    {
+      "id": "WS-035",
+      "feature": "长会话列表展开更多、收起与搜索定位",
+      "baseline": "installed-0.3.13",
+      "expected": "长组可展开/收起，当前/待处理及搜索命中不会被水位隐藏。",
+      "entry": "每工作区列表水位按钮",
+      "status": "wired-unverified",
+      "priority": "P2",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx:762-783: 原版展开/收起水位"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/workspace_watermark.go:52-136: 水位、当前/attention/reveal例外",
+        "internal/ui/sidebar/workspace_groups.go:213-231: 真实more按钮更新watermark"
+      ],
+      "finding": "逻辑水位和显式展开存在；flat本身无水位限制，不能把它当虚拟化。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收超过水位的当前会话、搜索命中、折叠重开与大量行滚动。",
+      "acceptanceGap": "未测大数据性能和当前实际滚动。"
+    },
+    {
+      "id": "WS-036",
+      "feature": "折叠侧栏与窄窗中的新会话/添加/搜索入口",
+      "baseline": "installed-0.3.13",
+      "expected": "折叠/窄窗后仍可新建、展开、添加目录与搜索，不丢草稿与状态。",
+      "entry": "collapsedRail / NavigationShell响应式轨道",
+      "status": "wired-unverified",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-sidebar/lib/client.js:235-265,328-433: 实际安装SidebarRoot紧凑/展开分支及新会话入口"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/rail.go:12-84: 紧凑栏按钮、添加先展开、搜索focus",
+        "internal/ui/sidebar/sidebar.go:364-410,525-549: 同root/footer及宽度分支",
+        "internal/ui/frame/navigation_shell.go:18-35: 真实生产响应式导航壳"
+      ],
+      "finding": "入口已装配；global new仍受WS-002影响，按钮存在不能记可用。",
+      "evidenceLevel": "code",
+      "requiredAction": "修WS-002后验收窄窗/普通窗的目录→会话主路径与focus。",
+      "acceptanceGap": "禁止操作桌面导致本轮无真实窄窗几何/命中验收。"
+    },
+    {
+      "id": "WS-037",
+      "feature": "快捷键与菜单动作的对象/门禁一致性",
+      "baseline": "installed-0.3.13",
+      "expected": "Ctrl+N/K/O及rename/fork/archive与可见入口相同；托管对象交给owner，blank和modal限制一致。",
+      "entry": "registerPageCommands → addBusinessCommands",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/shortcuts.ts:81-89,109-142: 原版新会话/搜索/添加及owner/blank/modal门禁"
+      ],
+      "mygoEvidence": [
+        "internal/ui/frame/shortcuts.go:98-124: 真实PhysicalShortcut与生产actions",
+        "internal/ui/frame/business_commands.go:14-56: 直接Store rename/fork/archive，没有Presentation.Owner/blank检查",
+        "internal/ui/sidebar/session_menu.go:76-95: 指针菜单blank反而隐藏一般操作"
+      ],
+      "finding": "快捷键和指针动作的blank/owner门禁不一致。Project owner绕过问题由orchestration领域给最终影响；global session.new问题已由WS-002记录。",
+      "evidenceLevel": "code",
+      "requiredAction": "使命令路由与对象owner/可见菜单统一，继承popup/IME/modal的实际所有权。",
+      "acceptanceGap": "尚未真实按键；Project快捷动作后果交叉引用orchestration。"
+    },
+    {
+      "id": "WS-038",
+      "feature": "Project在工作区导航中的首建、打开与历史入口",
+      "baseline": "installed-0.3.13",
+      "expected": "目录型工作区与Project是两种身份；能够从空列表找到Project首建入口，打开/目录/归档等动作路由Project owner。",
+      "entry": "projects.Sidebar View + bindProjectModel",
+      "status": "partial",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1554-1571,3579-3588: 原版支持owned session navigation及目录扩展动作",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:294-297: 工作区菜单合入目录feature actions"
+      ],
+      "mygoEvidence": [
+        "internal/ui/projects/sidebar.go:15-24,50-64,114-150,185-205: 空项目时可不画整个区；存在时打开与菜单",
+        "cmd/whaleisle/main_navigation.go:137-144: 生产Project模型和全局panel回显",
+        "internal/ui/sidebar/sidebar.go:505-518: 项目导航真实装配"
+      ],
+      "finding": "已存在Project的导航入口存在；空列表默认隐藏Project区，而工作区菜单尚无原版directoryActions扩展。是否还有常驻首建入口及具体Project能力由orchestration owner继续核实。",
+      "evidenceLevel": "code",
+      "requiredAction": "orchestration领域确认零Project首建实际可达性；保留目录注册与Project身份区分。",
+      "acceptanceGap": "Project运行/历史/协调/成员生命周期不在本领域重复审查，不能把本项当该模块全部通过。"
+    },
+    {
+      "id": "WS-039",
+      "feature": "目录菜单的可组合扩展动作",
+      "baseline": "installed-0.3.13",
+      "expected": "原版已安装插件可以向工作区选择器/工作区行菜单注册目录采纳动作（例如Project），无需伪装普通工作区。",
+      "entry": "WorkspaceDirectoryAction注册 → picker/row directoryItems",
+      "status": "missing",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1523-1547,3579-3588: 原版directory/session action注册和picker合入",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/navigation.ts:102-114,308-317: 当前原版目录动作观察量与注册契约",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.tsx:294-297,331-341: 原版行菜单分派目录action"
+      ],
+      "mygoEvidence": [
+        "internal/ui/workspacepicker/picker.go:17-25,107-139: 固定Store/Browse/NoDirectory，没有扩展动作投影",
+        "internal/ui/sidebar/workspace_hover.go:247-288: 固定重命名/删除/新会话，无directoryItems"
+      ],
+      "finding": "侧栏/选择器是固定动作，缺少原版目录扩展动作装配点；Host插件已加载也不会自然长出这些原生入口。",
+      "evidenceLevel": "code",
+      "requiredAction": "由plugins/orchestration领域统一恢复已安装必要扩展到原生导航，不只确认Host插件running。",
+      "acceptanceGap": "扩展插件完整目录与动态装卸行为由plugins领域审查；此项确认消费端接口缺失。"
+    },
+    {
+      "id": "WS-040",
+      "feature": "复制会话ID",
+      "baseline": "installed-0.3.13",
+      "expected": "菜单复制点击行的真实ID，并给出完成反馈，不复制当前另一会话ID。",
+      "entry": "会话…菜单复制会话ID",
+      "status": "wired-unverified",
+      "priority": "P3",
+      "originalEvidence": [
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/index.ts:273-282,374-380: 原版会话ID复制动作装配"
+      ],
+      "mygoEvidence": [
+        "internal/ui/sidebar/session_menu.go:97-99: 捕获点击行SessionID",
+        "internal/ui/frame/frame.go:736-740: 真实Clipboard.WriteText与状态反馈"
+      ],
+      "finding": "指针入口正确绑定行ID，非全局selectedID；未操作用户剪贴板。",
+      "evidenceLevel": "code",
+      "requiredAction": "验收复制不同于当前选中的会话ID及反馈。",
+      "acceptanceGap": "Clipboard错误接口未返回结果，本轮未实际复制。"
+    },
+    {
+      "id": "WS-041",
+      "feature": "无关界面偏好保存不得覆盖新选择的工作区",
+      "baseline": "existing-MyGo-contract",
+      "expected": "切换工作区B后修改归档显示/自动允许等界面偏好，仍保持B的配置路径、Store cwd与工作区身份；除非用户明确修改启动目录。",
+      "entry": "设置→界面→showArchivedList/autoAllowTools OnSave → saveInterfacePreferences → saveDesktopConfig",
+      "status": "confirmed-defect",
+      "priority": "P1",
+      "originalEvidence": [
+        "C:/软件/Whale Isle/resources/vendor/deepseek-harness/packages/client/ui-workspace/lib/client.js:1382-1423: 原版Workspace浏览器偏好属于独立view store",
+        "C:/AI/Deepseek-Harness-Desktop/vendor/deepseek-harness/packages/client/ui-workspace/src/client/navigation.ts:504-535: 工作区/会话导航独立于界面保存"
+      ],
+      "mygoEvidence": [
+        "cmd/whaleisle/main.go:699-723: desktopDraft只首次seed，workspace来自当时cfg，seeded后早退",
+        "cmd/whaleisle/workspace_navigation.go:16-33: 普通切换/注册只保存cfg.Workspace，不同步desktopDraft.workspace",
+        "cmd/whaleisle/main.go:4473-4478: 界面归档/自动允许通过OnSave触发保存",
+        "cmd/whaleisle/view_tabs_settings.go:20-33: 界面偏好最后调用全表saveDesktopConfig",
+        "cmd/whaleisle/main.go:884-900,928-930: 从旧draft无条件写回Workspace，并重设Store cwd",
+        "cmd/whaleisle/main.go:6659-6667: 聊天内autoallow为单字段更新，不受这个全表保存分支影响"
+      ],
+      "finding": "明确序列：先打开一次设置使desktopDraft记住A→通过普通工作区流程切换B→再保存界面归档/自动允许等偏好。seedDesktopDraft不会重新加载，保存把旧A写回cfg且SetWorkspaceCwd(A)。全局grep未发现普通工作区选择同步desktopDraft.workspace，只有桌面启动目录picker会改该draft。此结论限设置界面的全表保存，不扩大到聊天内单字段autoallow。",
+      "evidenceLevel": "code",
+      "requiredAction": "界面偏好仅提交它负责的字段；桌面启动目录表单与普通工作区当前选择分开，或以真实编辑/接受的基线提交，不能整表覆盖。",
+      "acceptanceGap": "未运行真实窗口复现；需验收设置先seed→换目录→改无关开关→继续新会话/文件及重启的完整路径。"
+    }
+  ],
+  "crossDomainDependencies": [
+    "orchestration: WS-037 shortcut owner guards and WS-038 zero-Project creation reachability; Project coordinator/worktree/team/task lifecycle is not certified here.",
+    "plugins: WS-039 native consumers lack directoryActions/owned navigation composition; arbitrary client slot support reviewed in plugin domain.",
+    "remote: WS-013 remote tab in directory picker is absent; remote machine/SSH/synchronization behavior remains remote-domain responsibility.",
+    "shell/trajectory: current user dead-click evidence may share native hit-test/writeback cause. WS-001 root remains unknown until actual click chain is observed; do not merge it into WS-002 solely because both concern new sessions.",
+    "chat/composer: WS-006 workspace selection draft carry, WS-025 message/attachment restore and WS-028 fork content/history contract need their domain's source findings; no global core-test result overrides current user failures.",
+    "files/git/terminal: bindWorkspaceTrailing was read for workspace-root/owner boundary only; its full controls and actual filesystem capabilities belong to their domain.",
+    "settings/account/release: sidebar account/update footer implementation belongs to those domains, not omitted as a presumed pass.",
+    "settings: WS-041由本领域记录最终工作区覆盖链；SET只引用依赖，不重复计数。聊天内autoallow单字段提交不属于该缺陷。"
+  ],
+  "uncovered": [
+    "当前用户profile、凭据、工作区投影、会话正文全部未读；ChisaBot实际path和会话ID未知，用户失败根因不能补猜。",
+    "未操作桌面、UIA、鼠标键盘、原生对话框、剪贴板或窗口缩放；所有wired-unverified项均缺当前版本真实用户入口验收。",
+    "未发Host/model请求、未创建/删除目录或会话、未停止/重启进程；WS-003为静态可证取消路径，不宣称已实际销毁复现。",
+    "未完整审计侧栏account/image cache、品牌美术、主题动画及连接/升级控件内部；本领域只核对导航消费，分别交settings/shell/release。",
+    "未完整审计所有plugins注入的会话类型和任意动态扩展；已查消费端缺口WS-039，动态清单交plugins。",
+    "目录浏览UNC/网络盘/ACL/超大列表及系统选择器的实际行为未审；原生系统入口缺失已列WS-012。",
+    "Project/sidebar之外的modal/detail/lifecycle/team/material/requests等模块未在本领域审阅，交orchestration；不能把projects目录整体记已通过。",
+    "原项目当前dirty相对已安装版的全部差异没有逐文件比较；已用当前原版源码补充语义，并以安装client rc.2核对关键动作，没有发现本领域必须单列的current-only能力证据。"
+  ],
+  "checksRun": [
+    {
+      "command": "Read AUDIT-CONTRACT.md; inspect numbered production source and installed rc.2 client libraries; no product code execution",
+      "result": "完成41项功能入口/状态/Host/持久化/失败路径记录；发现P0中文删除取消和全局新会话归属错误，用户行内新会话失败仍有效",
+      "scope": "只读源码审查，不是运行通过"
+    },
+    {
+      "command": "Read tmp/stabilize-20261102/workspace-functional.json",
+      "result": "历史5条PASS，SourceRevision d78024d；包含初始化、目录浏览/新建、注册/持久化重试、重命名/取消/移除保留文件；ModelRequests=0",
+      "scope": "仅复用原报告明确范围，不认证当前诊断exe或用户窗口"
+    },
+    {
+      "command": "Read existing targeted workspace/directory/session tests",
+      "result": "用来检查覆盖范围与fixture形状；未重跑，不把测试名称/源码视为PASS",
+      "scope": "store/controller级不覆盖真实全局新会话、中文TaskDialog取消或当前用户点击"
+    }
+  ],
+  "summary": "本领域不能验收为可用。41项能力已逐项记录；最高风险为：WS-003中文永久删除确认的Esc/×可触发删除；WS-002全局新会话省略workspaceId导致Host不挂成员而侧栏隐藏；WS-001用户新建工作区后新会话无反应为当前有效P0失败、根因unknown。另有注册失败无可见错误、工作区采纳未接会话/草稿和默认初始化覆盖已有空选择，以及界面偏好旧draft覆盖新工作区等P1。目录底层真实Host历史验收只覆盖窄范围，不能继续宣称完整工作区→新会话用户路径已通过。",
+  "coverageMeaning": "Stable coarse capability rows, not the full original user-action denominator. See supplement records and ACTIONS.md; code wiring is not runtime acceptance.",
+  "actionSupplements": [
+    "supplement-navigation-actions.json",
+    "supplement-chat-actions.json",
+    "supplement-lifecycle-actions.json"
+  ]
+}

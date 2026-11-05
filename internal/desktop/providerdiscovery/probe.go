@@ -18,6 +18,7 @@ type Candidate struct {
 	ID, Name                 string
 	ContextWindow, MaxTokens int64
 	InputModalities          []string
+	ReasoningEfforts         any
 	Picked                   bool
 }
 
@@ -34,7 +35,10 @@ func discover(call request, row Row, endpoint, protocol, key string) ([]Candidat
 	// Identifying the route lets the Host use its installed catalog without an
 	// endpoint, or its saved headers and credential resolver for network discovery.
 	// Omitted draft fields must stay omitted so adapter defaults remain effective.
-	query := api.LlmModelDiscoveryRequest{Provider: &row.Provider}
+	query := api.LlmModelDiscoveryRequest{}
+	if row.Provider != "" {
+		query.Provider = &row.Provider
+	}
 	if endpoint = strings.TrimSpace(endpoint); endpoint != "" {
 		query.BaseURL = &endpoint
 	}
@@ -68,6 +72,18 @@ func discover(call request, row Row, endpoint, protocol, key string) ([]Candidat
 		out = append(out, candidate)
 	}
 	return out, nil
+}
+
+// EditorProbe is the target currently shown by a provider editor. For a new
+// custom route Provider is empty: the Host interrogates its unsaved endpoint.
+type EditorProbe struct {
+	Namespace, Provider, Endpoint, Protocol, Key string
+}
+
+// MergeEditorCandidates returns model rows only. It never writes settings or
+// installs another controller-owned draft beside the provider editor's draft.
+func MergeEditorCandidates(models []map[string]any, candidates []Candidate) []map[string]any {
+	return mergeCandidates(models, candidates)
 }
 
 func textOf(v any) string { s, _ := v.(string); return strings.TrimSpace(s) }

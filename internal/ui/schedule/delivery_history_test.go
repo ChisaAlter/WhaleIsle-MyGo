@@ -2,8 +2,11 @@ package schedule
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 	schedstore "whaleisle/internal/store/schedule"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestDeliveryHistoryRetryRefreshAndSavedPages(t *testing.T) {
@@ -33,7 +36,12 @@ func TestDeliveryHistoryRetryRefreshAndSavedPages(t *testing.T) {
 	}
 }
 func TestDeliveryHistoryOwnTimezone(t *testing.T) {
-	if got := deliveryTime("2026-10-16T01:00:00Z", "Asia/Shanghai"); got != "2026-10-16 09:00:00 CST" {
+	previous := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(previous) })
+	// Installed DeliveryHistory uses localized month/day/hour/minute in task zone.
+	value := fmt.Sprintf("%04d-10-16T01:00:00Z", time.Now().Year())
+	if got := deliveryTime(value, "Asia/Shanghai"); got != "10月16日 09:00" {
 		t.Fatal(got)
 	}
 	if got := deliveryTime("unknown", "UTC"); got != "unknown" {

@@ -20,9 +20,10 @@ type Progress struct {
 	changed func()
 }
 type ProgressSnapshot struct {
-	Root, Phase  string
-	Lines        []string
-	Done, Failed bool
+	Root, Phase                     string
+	Details, ActionLabel, ActionURL string
+	Lines                           []string
+	Done, Failed                    bool
 }
 type progressKey struct{}
 
@@ -78,6 +79,34 @@ func (p *Progress) Finish(phase string, failed bool) {
 	}
 	p.state.Phase = phase
 	p.state.Done, p.state.Failed = true, failed
+	p.mu.Unlock()
+	p.notify()
+}
+
+// SetDetails retains bounded command output for explicit error copying/inspection.
+// The compact live lines remain separately sanitized for the caption.
+func (p *Progress) SetDetails(details string) {
+	if p == nil {
+		return
+	}
+	if len(details) > 1<<20 {
+		details = "[earlier output truncated]\n" + details[len(details)-(1<<20):]
+	}
+	p.mu.Lock()
+	p.state.Details = progressANSI.ReplaceAllString(details, "")
+	p.mu.Unlock()
+	p.notify()
+}
+func (p *Progress) SetRepositoryAction(raw string) {
+	if p == nil {
+		return
+	}
+	if _, err := RepositoryWebURL(raw); err != nil {
+		return
+	}
+	p.mu.Lock()
+	p.state.ActionLabel = "Open repository"
+	p.state.ActionURL = raw
 	p.mu.Unlock()
 	p.notify()
 }
@@ -236,7 +265,9 @@ func (w *progressOutput) finish() []byte {
 	defer w.mu.Unlock()
 	w.progress.Line(string(w.line))
 	w.line = nil
-	return append([]byte(nil), w.tail...)
+	out := append([]byte(nil), w.tail...)
+	w.progress.SetDetails(string(out))
+	return out
 }
 func observedCombinedOutput(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 	p := progressFrom(ctx)
