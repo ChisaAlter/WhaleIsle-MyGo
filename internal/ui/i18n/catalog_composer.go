@@ -147,7 +147,7 @@ func init() {
 	Register(KeyComposerModelMenuEffort, "思考强度", "Effort")
 	Register(KeyComposerModelBack, "‹ 返回", "‹ Back")
 	Register(KeyComposerModelSearch, "搜索模型", "Search models")
-	Register(KeyComposerModelNoMatch, "没有匹配模型", "No matching models")
+	Register(KeyComposerModelNoMatch, "没有匹配的模型", "No matching models")
 	Register(KeyComposerModelEmpty, "模型", "Model")
 	Register(KeyComposerCommands, "命令列表", "Commands")
 	Register(KeyComposerVoiceInput, "语音输入", "Voice input")

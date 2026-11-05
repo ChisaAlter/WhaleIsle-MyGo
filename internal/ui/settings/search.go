@@ -97,7 +97,7 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionConversation, "工作步骤收起时机", "Collapse completed work steps", "选择何时自动收起工作步骤", "Choose when completed work steps collapse"),
 		row(SectionConversation, "网页链接默认打开方式", "Default link opening", "对话中网页链接的打开位置", "Where links in the conversation open"),
 		row(SectionConversation, "下一句提示", "Next prompt suggestions", "回复结束后建议下一句，可按 Tab 采纳，不会自动发送。", "Suggest the next message after a reply; Tab accepts it, nothing is sent automatically."),
-		row(SectionConversation, "视觉回复", "Visual replies", "允许智能体生成交互式页面并在会话内展示。", "Let the agent generate interactive pages and show them in the conversation."),
+		row(SectionConversation, "视觉回复", "Visual replies", "允许智能体生成交互式页面并在会话内展示。截图检查需要支持图片的模型，或已配置的识图模型；关闭后已生成页面仍可查看。", "Let the agent generate interactive pages and show them in the conversation."),
 		row(SectionConversation, "自定义指令", "Custom instructions", "给智能体定几条规则，后续对所有任务都生效", "Give the agent a few rules that apply to every later task"),
 		row(SectionModels, "识图模型", "Vision model", "主模型不支持图片时，先由该模型识别图片内容。", "When the main model cannot read images, this model describes them first."),
 		row(SectionFeatures, "鲸鱼娘助理", "Whale assistant", "开启她的常驻对话与侧栏入口；切换后会重启 Harness。", "Turn on her resident conversation and sidebar entry; switching restarts the Harness."),

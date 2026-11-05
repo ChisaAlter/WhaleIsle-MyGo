@@ -60,7 +60,7 @@ func (w *Workbench) finishBranchList() {
 	case result := <-request.done:
 		w.branchesRequest = nil
 		if result.err != nil {
-			w.BranchStatus = word("分支列表读取失败：", "Failed to load branches: ") + result.err.Error()
+			w.BranchStatus = word("分支列表加载失败。", "Failed to load branches: ") + result.err.Error()
 		} else {
 			w.Branches = result.branches
 		}
@@ -128,7 +128,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 				})
 			}
 			if matches == 0 && w.BranchStatus == "" && w.branchesRequest == nil {
-				ui.Text(c, word("没有匹配分支", "No matching branches")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Text(c, word("没有匹配的分支", "No matching branches")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 	})

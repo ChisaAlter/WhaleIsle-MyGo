@@ -169,7 +169,7 @@ func hostManagement(c *ui.Context, h *HostState, store *hostterminal.Store, sess
 							if widgets.Button(c, colors, terminalLabel("重连并接管输入", "Reconnect and take control"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
 								store.Connect(v.Owner, session, v.ActiveID)
 							}
-							if widgets.Button(c, colors, terminalLabel("关闭终端进程", "Close terminal process"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
+							if widgets.Button(c, colors, terminalLabel("关闭终端", "Close terminal"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(!v.Ready || v.Busy || v.Phase == "closing" || v.Phase == "closed").Clicked() {
 								h.confirmClose = true
 							}
 						})

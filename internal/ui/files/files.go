@@ -292,7 +292,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 	}
 	state := m.Tabs.Search.Snapshot()
 	if state.Busy {
-		ui.Text(c, label("正在搜索全部文件…", "Searching all files…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
+		ui.Text(c, label("正在搜索文件…", "Searching all files…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
 		return
 	}
 	if state.Error != "" {

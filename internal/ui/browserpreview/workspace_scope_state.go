@@ -35,7 +35,7 @@ func makeBrowserWorkspace(owner WorkspaceOwner) (browserWorkspace, error) {
 		return browserWorkspace{}, errors.New(browserChromeLabel("请选择 Browser 所属会话", "Select a session for this Browser"))
 	}
 	if strings.TrimSpace(owner.Authority) == "" || len(owner.Authority) > 8192 || len(owner.Cwd) > 32768 || strings.ContainsRune(owner.Authority+owner.Cwd, 0) {
-		return browserWorkspace{}, errors.New(browserChromeLabel("Browser 无法确定可信的工作区归属", "Browser cannot determine a trusted workspace owner"))
+		return browserWorkspace{}, errors.New(browserChromeLabel("Browser 无法确定文件所属会话的工作区", "Browser cannot determine a trusted workspace owner"))
 	}
 	cwd := owner.Cwd
 	if strings.TrimSpace(cwd) == "" {

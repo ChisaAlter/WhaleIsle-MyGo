@@ -41,7 +41,7 @@ func presentedMetadata(snapshot session.TurnFilesSnapshot, state session.TurnFil
 			}
 			return historyNavigationText("无法在文件管理器中显示，请重试", "Could not reveal file; try again"), true, 1, 0
 		}
-		return historyNavigationText("打开失败，点击重试", "Could not open file; try again"), true, 1, 0
+		return historyNavigationText("打开失败，请重试", "Could not open file; try again"), true, 1, 0
 	}
 	if state.Ready && !state.SettledAt.IsZero() {
 		age := now.Sub(state.SettledAt)

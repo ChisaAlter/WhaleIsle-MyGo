@@ -47,7 +47,7 @@ func TestHostSurfaceKeepsOutputSpaceAtNormalAndNarrowSizes(t *testing.T) {
 			if !ok || after != body {
 				t.Fatalf("opening management resized terminal: before=%+v after=%+v", body, after)
 			}
-			for _, label := range []string{terminalLabel("刷新列表", "Refresh list"), terminalLabel("选择或刷新 shell", "Choose or refresh the shell"), terminalLabel("重命名终端", "Rename terminal"), terminalLabel("重连并接管输入", "Reconnect and take control"), terminalLabel("关闭终端进程", "Close terminal process")} {
+			for _, label := range []string{terminalLabel("刷新列表", "Refresh list"), terminalLabel("选择或刷新 shell", "Choose or refresh the shell"), terminalLabel("重命名终端", "Rename terminal"), terminalLabel("重连并接管输入", "Reconnect and take control"), terminalLabel("关闭终端", "Close terminal")} {
 				if !tt.HasText(label) {
 					t.Fatal("management entry missing: " + label)
 				}

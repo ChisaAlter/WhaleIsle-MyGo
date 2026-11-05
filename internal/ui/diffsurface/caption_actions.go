@@ -134,7 +134,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	ui.PopoverBase(c.Key("caption-branch-picker"), anchor, open, func(panel ui.Element) {
 		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(6).Gap(2).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12))
 		panel.Children(func() {
-			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支", "Search branches"))
+			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches"))
 			if w.branchesRequest != nil {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
 			}
@@ -170,7 +170,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 					}
 				}
 				if matches == 0 && w.branchesRequest == nil && w.BranchStatus == "" {
-					ui.Text(c, word("没有匹配分支", "No matching branches")).FillWidth().Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
+					ui.Text(c, word("没有匹配的分支", "No matching branches")).FillWidth().Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
 				}
 			})
 			name := strings.TrimSpace(w.BranchQuery)

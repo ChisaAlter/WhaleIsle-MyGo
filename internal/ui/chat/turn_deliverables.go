@@ -471,7 +471,7 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
 					status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
 					if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
-						status, failed, opacity, repaint = historyNavigationText("打开失败，点击重试", "Could not preview file; try again"), true, 1, 0
+						status, failed, opacity, repaint = historyNavigationText("打开失败，请重试", "Could not preview file; try again"), true, 1, 0
 					}
 					if apps.Error != "" && !state.Busy && !state.Ready && state.Error == "" {
 						status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true

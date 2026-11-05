@@ -307,7 +307,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 		}
 		beforeLargeAcknowledged := s.LargeAcknowledged
-		ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解可能被拒绝", "Keep checked large files; I understand they may be rejected"))
+		ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected"))
 		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
 	}
 	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch

@@ -167,7 +167,7 @@ func init() {
 
 	Register(KeySurfacesFilesOpen, "打开文件", "Open a file")
 	Register(KeySurfacesFilesClose, "关闭标签", "Close tab")
-	Register(KeySurfacesFilesDirty, "有未保存的更改", "Has unsaved changes")
+	Register(KeySurfacesFilesDirty, "有未保存的修改", "Has unsaved changes")
 
 	Register(KeySurfacesGitCommitTitle, "提交更改", "Commit changes")
 	Register(KeySurfacesGitCommitSubtitle, "分支 %s · %d 个更改", "Branch %s · %d changes")
