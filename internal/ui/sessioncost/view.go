@@ -236,13 +236,14 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		*m.State = State{SessionID: m.Snapshot.SelectedID}
 	}
 	stats, show, official := preferences(m.Preferences)
-	if !stats && !show {
-		return
-	}
 	r := cachedCalculate(m.Snapshot, m.Billing.Settings)
-	// Keep the same 4 DIP bottom inset the Electron dock has; without it the
-	// status line sits flush on the window edge at every viewport height.
-	ui.Column(c).Key("composer-dock").FillWidth().Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
+	// .dock[data-composer-footer] keeps a 24 DIP floor even when every pill is
+	// hidden (the stats pills render invisible placeholders, never unmount),
+	// so the card always floats off the window edge; dropping the seat here
+	// would let it sit flush the moment both switches are off or no usage has
+	// landed yet. The 4 DIP card gap lives on the composer region's pad; the
+	// 4 DIP bottom pad below mirrors .root's inset.
+	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(24).Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
 		dockLine(c, m, r, stats, muted)
 		if !show {
 			return
