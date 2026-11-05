@@ -245,7 +245,7 @@ func View(c *ui.Context, m Model) {
 			})
 		}
 		if len(p.panes) == 0 {
-			message := terminalLabel("终端已关闭，点击新终端或重启重新打开", "Terminal closed. Choose New terminal or Restart to reopen.")
+			message := terminalLabel("终端已关闭。", "Terminal closed.")
 			if p.Err != nil {
 				message = p.Err.Error()
 			}

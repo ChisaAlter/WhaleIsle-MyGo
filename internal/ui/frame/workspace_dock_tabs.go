@@ -308,16 +308,16 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 		}
 		control("workspace-resource-menu", workspacePaneResourcesIcon, paneLabel("资源菜单", "Resources")).Menu(func(menu *ui.Menu) { workspaceResourceMenu(menu, m) })
 		control("workspace-pane-menu", conversationHeaderIcons["EllipsisOutline"], paneLabel("面板操作", "Pane actions")).Menu(workspacePaneMenu(m, n))
-		label := paneLabel("面板全屏", "Maximize pane")
+		label := paneLabel("全屏", "Fullscreen")
 		icon := workspacePaneFullscreenIcon
 		if workspaceFullscreen(m) {
-			label = paneLabel("退出全屏", "Restore pane")
+			label = paneLabel("退出全屏", "Exit fullscreen")
 			icon = workspacePaneRestoreIcon
 		}
 		if control("workspace-pane-maximize", icon, label).Clicked() {
 			workspacePaneMaximize(m, n)
 		}
-		if w.canCloseResource(n) && control("workspace-pane-close", workspacePaneCloseIcon, paneLabel("关闭标签", "Close tab")).Clicked() {
+		if w.canCloseResource(n) && control("workspace-pane-close", workspacePaneCloseIcon, paneLabel("关闭", "Close")).Clicked() {
 			workspacePaneClose(m, n)
 		}
 		if m.OnToggleTools != nil && control("workspace-pane-collapse", conversationHeaderIcons["PanelLeftOutline"], paneLabel("收起右侧边栏", "Collapse right sidebar")).Clicked() {

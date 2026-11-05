@@ -80,9 +80,9 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 				if !v.ClientReady || session == "" {
 					message = terminalLabel("请选择已连接 Host 的会话。", "Select a session on a connected Host.")
 				} else if v.Busy || v.Phase == "connecting" || v.Phase == "retaining" {
-					message = terminalLabel("正在连接终端…", "Connecting to terminal…")
+					message = terminalLabel("正在连接…", "Connecting to terminal…")
 				} else if v.Info.State == "exited" || v.Phase == "closed" {
-					message = terminalLabel("终端已结束，点击「新建」启动新的终端。", "This terminal ended. Choose New to start another.")
+					message = terminalLabel("终端已关闭。", "This terminal ended. Choose New to start another.")
 				}
 				ui.Text(c, message).FontSize(14).TextColor(fg)
 				ui.Row(c).Wrap().Gap(6).Children(func() {
@@ -125,7 +125,7 @@ func hostStatus(v hostterminal.View) string {
 	if v.Info.State == "exited" {
 		text := terminalLabel("进程已退出", "Process exited")
 		if v.Info.ExitCode != nil {
-			text += fmt.Sprintf(" (%d)", *v.Info.ExitCode)
+			text = fmt.Sprintf(terminalLabel("进程已退出（%d）", "Process exited (%d)"), *v.Info.ExitCode)
 		}
 		return text
 	}

@@ -6,8 +6,8 @@ const (
 )
 
 func init() {
-	zhCN[KeySidebarCollapse] = "收起左侧栏"
+	zhCN[KeySidebarCollapse] = "收起侧边栏"
 	en[KeySidebarCollapse] = "Collapse sidebar"
-	zhCN[KeySidebarExpand] = "展开左侧栏"
-	en[KeySidebarExpand] = "Expand sidebar"
+	zhCN[KeySidebarExpand] = "打开侧边栏"
+	en[KeySidebarExpand] = "Open sidebar"
 }

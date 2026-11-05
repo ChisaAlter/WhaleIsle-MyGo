@@ -45,7 +45,7 @@ func TestWorkspacePaneChromeHeightAndNarrowActions(t *testing.T) {
 		if body.Y != 38 {
 			t.Fatalf("width=%d body starts at %v, want 38", width, body.Y)
 		}
-		for _, label := range []string{paneLabel("面板操作", "Pane actions"), paneLabel("面板全屏", "Maximize pane"), paneLabel("关闭标签", "Close tab")} {
+		for _, label := range []string{paneLabel("面板操作", "Pane actions"), paneLabel("全屏", "Maximize pane"), paneLabel("关闭", "Close")} {
 			r, ok := tt.Find(label)
 			if !ok || r.X < 0 || r.X+r.W > float32(width) || r.H != 28 {
 				t.Fatalf("width=%d action=%q bounds=%+v", width, label, r)
@@ -94,19 +94,19 @@ func TestWorkspacePaneMenuRetainsActionsAndResourceIdentity(t *testing.T) {
 func TestWorkspacePaneChromeMaximizeAndClose(t *testing.T) {
 	tt, w, _ := paneChromeFixture(300)
 	original := w.Root
-	if err := tt.Click(paneLabel("面板全屏", "Maximize pane")); err != nil {
+	if err := tt.Click(paneLabel("全屏", "Maximize pane")); err != nil {
 		t.Fatal(err)
 	}
 	if w.Fullscreen != original.ID {
 		t.Fatal("maximize glyph did not expand dock")
 	}
-	if err := tt.Click(paneLabel("退出全屏", "Restore pane")); err != nil {
+	if err := tt.Click(paneLabel("退出全屏", "Exit fullscreen")); err != nil {
 		t.Fatal(err)
 	}
 	if w.Fullscreen != "" || w.Root != original {
 		t.Fatal("restore glyph replaced resource")
 	}
-	if err := tt.Click(paneLabel("关闭标签", "Close tab")); err != nil {
+	if err := tt.Click(paneLabel("关闭", "Close")); err != nil {
 		t.Fatal(err)
 	}
 	if w.Root.find(original.ID) != nil {

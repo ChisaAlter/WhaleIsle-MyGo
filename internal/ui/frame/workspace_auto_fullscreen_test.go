@@ -89,10 +89,10 @@ func requireAutoFrame(t *testing.T, f *autoFullscreenFrame, width int) {
 	if !f.open || !ok || header.X != 0 || header.W != float32(width) || f.body.X != 0 || f.body.W != float32(width) || f.body.H <= 0 {
 		t.Fatalf("phone dock did not cover viewport: open=%v header=%+v body=%+v texts=%q", f.open, header, f.body, f.tt.Texts())
 	}
-	if _, ok := f.tt.Find("Restore pane"); !ok {
+	if _, ok := f.tt.Find("Exit fullscreen"); !ok {
 		t.Fatal("auto fullscreen did not expose exit control")
 	}
-	if _, ok := f.tt.Find("Maximize pane"); ok {
+	if _, ok := f.tt.Find("Fullscreen"); ok {
 		t.Fatal("auto fullscreen exposed enter control")
 	}
 	if _, ok := f.tt.Find(i18n.T(i18n.KeySidebarExpand)); ok {
@@ -117,7 +117,7 @@ func TestWorkspaceAutoFullscreenOrdinaryOpenExitCloseAndReopen(t *testing.T) {
 				}
 				requireAutoFrame(t, f, 600)
 				// Exit means collapsed + push, and retains the occurrence for reopening.
-				if err := f.tt.Click("Restore pane"); err != nil {
+				if err := f.tt.Click("Exit fullscreen"); err != nil {
 					t.Fatal(err)
 				}
 				if f.open || f.closes != 1 || f.body.W != 0 || f.w.Fullscreen != "" || f.w.Root.find(id) == nil {
@@ -140,7 +140,7 @@ func TestWorkspaceAutoFullscreenOrdinaryOpenExitCloseAndReopen(t *testing.T) {
 				requireAutoFrame(t, f, 600)
 				// Closing the final resource still collapses; a later ordinary opening
 				// receives the same derived phone presentation.
-				if err := f.tt.Click("Close tab"); err != nil {
+				if err := f.tt.Click("Close"); err != nil {
 					t.Fatal(err)
 				}
 				if f.open || f.body.W != 0 {
@@ -171,7 +171,7 @@ func TestWorkspaceAutoFullscreenResizeAndManualMode(t *testing.T) {
 			if f.w.Fullscreen != "" || f.body.W <= 0 || f.body.W >= 768 {
 				t.Fatalf("auto did not release at 768: mode=%q body=%+v", f.w.Fullscreen, f.body)
 			}
-			if _, ok := f.tt.Find("Maximize pane"); !ok {
+			if _, ok := f.tt.Find("Fullscreen"); !ok {
 				t.Fatal("desktop dock kept exit glyph")
 			}
 			f.tt.SetSize(767, 400)
@@ -180,7 +180,7 @@ func TestWorkspaceAutoFullscreenResizeAndManualMode(t *testing.T) {
 			if f.w.Fullscreen != "" || f.w.Active != id || f.body.W >= 1200 {
 				t.Fatal("resizing changed saved mode or occurrence")
 			}
-			if err := f.tt.Click("Maximize pane"); err != nil {
+			if err := f.tt.Click("Fullscreen"); err != nil {
 				t.Fatal(err)
 			}
 			if f.w.Fullscreen != id {
@@ -206,7 +206,7 @@ func TestWorkspaceAutoFullscreenResizeAndManualMode(t *testing.T) {
 				t.Fatal(err)
 			}
 			f.tt.SetSize(600, 400)
-			if err := f.tt.Click("Restore pane"); err != nil {
+			if err := f.tt.Click("Exit fullscreen"); err != nil {
 				t.Fatal(err)
 			}
 			if f.open || f.w.Fullscreen != "" {

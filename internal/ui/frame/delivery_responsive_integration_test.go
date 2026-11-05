@@ -207,7 +207,7 @@ func TestDeliveryResponsiveFramePreview(t *testing.T) {
 				}
 				tt.SetSize(600, height)
 				requireResponsiveDeliveryVisible(t, tt, "Local delivery preview permission ended")
-				if err := tt.Click("Restore pane"); err != nil {
+				if err := tt.Click("Exit fullscreen"); err != nil {
 					t.Fatal(err)
 				}
 				if open || w.Fullscreen != "" || tt.HasText("Local delivery preview permission ended") || len(controller.Tabs) != 1 {

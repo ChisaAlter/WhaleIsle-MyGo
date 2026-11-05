@@ -230,7 +230,7 @@ func TestFilesPendingCloseDisplaysSaveError(t *testing.T) {
 			paintTabs(c, m, ui.RGB(24, 24, 24), ui.RGB(120, 120, 120))
 		})
 	}, 480, 180)
-	if err := tester.Click(label("保存并关闭", "Save and close")); err != nil {
+	if err := tester.Click(label("保存", "Save and close")); err != nil {
 		t.Fatal(err)
 	}
 	awaitAutosave(t, done)
