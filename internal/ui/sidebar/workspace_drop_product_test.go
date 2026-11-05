@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -64,13 +65,13 @@ func TestWorkspaceProductDropUsesVisibleTreeEndAndKeepsActions(t *testing.T) {
 		t.Fatalf("before/append %v", moves)
 	}
 	// Exact real hover actions remain independent from the draggable title.
-	if err := tt.Click(workspaceText("工作区操作 ", "Workspace actions ") + "p"); err != nil {
+	if err := tt.Click(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Parent")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(workspaceText("重命名", "Rename")); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(workspaceText("新建会话 ", "New session ") + "p"); err != nil {
+	if err := tt.Click(fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), "Parent")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("Parent session"); err != nil {

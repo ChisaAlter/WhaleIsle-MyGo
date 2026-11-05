@@ -56,7 +56,7 @@ func TestNativeMergedSessionSearchViewFixture(t *testing.T) {
 	var opened string
 	m := Model{Snapshot: snap, SearchQuery: &query, ThemeID: "light", OnSelect: func(id string) { opened = id }, OnToggleWorkspaceGroup: func(id string) { expanded = append(expanded, id); snap.WorkspaceLayout.Collapsed[id] = false }}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 480, 1200)
-	for _, label := range []string{"Needle title", "Workspace title", "first body match", "More matches exist. Refine your search."} {
+	for _, label := range []string{"Needle title", "Workspace title", "first body match", fmt.Sprintf(workspaceText("仅显示前 %d 条结果，请缩小搜索范围。", "Only the first %d results are shown. Narrow your search."), session.SessionSearchResultLimit)} {
 		if !tt.HasText(label) {
 			t.Fatalf("missing actual sidebar search content %q", label)
 		}

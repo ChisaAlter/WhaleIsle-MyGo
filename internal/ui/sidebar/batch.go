@@ -108,7 +108,7 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 			ui.Box(c).Size(16, 20)
 		} else {
 			ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				check := ui.Checkbox(c.Key("batch-checkbox-"+item.SessionID), &selected, "").Label("Select checkbox "+item.SessionID).Size(16, 16).Gap(0).Disabled(locked)
+				check := ui.Checkbox(c.Key("batch-checkbox-"+item.SessionID), &selected, "").Label(fmt.Sprintf(workspaceText("选择会话“%s”", "Select session “%s”"), title)).Size(16, 16).Gap(0).Disabled(locked)
 				changed = check.Changed()
 			})
 		}
@@ -160,9 +160,9 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if !b.Enabled {
 		return
 	}
-	ui.Text(c, fmt.Sprintf(workspaceText("已选择 %d 个会话", "%d sessions selected"), len(b.Selected))).FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	ui.Text(c, fmt.Sprintf(workspaceText("已选 %d 项", "%d sessions selected"), len(b.Selected))).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(workspaceText("会话批量操作", "Session batch actions"))
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, workspaceText("选择所有可见", "Select visible")).Disabled(locked).Clicked() {
+		if ui.Button(c, workspaceText("全选可见", "Select visible")).Disabled(locked).Clicked() {
 			m.OnBatchEdit("visible", VisibleBatchTargets(m))
 		}
 		if ui.Button(c, workspaceText("清除选择", "Clear selection")).Disabled(locked || len(b.Selected) == 0).Clicked() {

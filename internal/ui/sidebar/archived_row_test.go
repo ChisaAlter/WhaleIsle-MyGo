@@ -37,7 +37,7 @@ func TestArchivedRowRestTimeHoverCardAndExplicitMenuActions(t *testing.T) {
 			if _, found = tt.Find("Session time archived"); found {
 				t.Fatal("hover retained archived time under the menu button")
 			}
-			more, found := tt.Find(sessionActionsLabel(item.SessionID))
+			more, found := tt.Find(sessionActionsLabel(item.SessionID, item.Title))
 			if !found || more.W != 16 || more.H != 16 || more.X+more.W > float32(width-16) {
 				t.Fatalf("hover action=%+v found%v", more, found)
 			}
@@ -53,7 +53,7 @@ func TestArchivedRowRestTimeHoverCardAndExplicitMenuActions(t *testing.T) {
 			if len(restored)+len(deleted)+len(selected) != 0 {
 				t.Fatal("archived row click caused an action")
 			}
-			if err := tt.Click(sessionActionsLabel(item.SessionID)); err != nil {
+			if err := tt.Click(sessionActionsLabel(item.SessionID, item.Title)); err != nil {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(tt.Menu(), []string{i18n.T(i18n.KeySidebarUnarchive), i18n.T(i18n.KeySidebarDelete)}) {
@@ -62,7 +62,7 @@ func TestArchivedRowRestTimeHoverCardAndExplicitMenuActions(t *testing.T) {
 			if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnarchive)); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click(sessionActionsLabel(item.SessionID)); err != nil {
+			if err := tt.Click(sessionActionsLabel(item.SessionID, item.Title)); err != nil {
 				t.Fatal(err)
 			}
 			if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarDelete)); err != nil {
@@ -97,7 +97,7 @@ func TestArchivedRowMissingSummaryHasTitleOnlyPreview(t *testing.T) {
 	if _, found := tt.Find("Session preview: missing"); !found {
 		t.Fatal("missing summary lost its title preview")
 	}
-	if !reflect.DeepEqual(tt.Texts(), []string{title, sessionActionsLabel("missing"), "Session preview: missing", title, "Archived"}) {
+	if !reflect.DeepEqual(tt.Texts(), []string{title, sessionActionsLabel("missing", title), "Session preview: missing", title, "Archived"}) {
 		t.Fatalf("fallback preview fabricated metadata: %v", tt.Texts())
 	}
 }

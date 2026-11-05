@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -32,15 +33,15 @@ func TestWorkspaceDirectoryMenuUsesPathLabelAndHidesOnlyRefusedAction(t *testing
 				header.Children(func() { workspaceRowActions(c, m, header, group, c.Theme().TextMuted) })
 			}, 320, 200)
 			tt.Move(30, 18)
-			if err := tt.Click("Workspace actions row"); err != nil {
+			if err := tt.Click(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), path)); err != nil {
 				t.Fatal(err)
 			}
-			want := []string{"Inspect directory"}
+			want := []string{"Inspect directory", "Reveal workspace in Finder"}
 			if path == "/active" {
-				want = []string{"Open Project", "Inspect directory"}
+				want = []string{"Open Project", "Inspect directory", "Reveal workspace in Finder"}
 			}
 			if path == "/new" {
-				want = []string{"Create Project in this directory", "Inspect directory"}
+				want = []string{"Create Project in this directory", "Inspect directory", "Reveal workspace in Finder"}
 			}
 			if !reflect.DeepEqual(tt.Menu(), want) {
 				t.Fatalf("menu=%v want=%v", tt.Menu(), want)

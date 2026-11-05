@@ -38,7 +38,7 @@ func TestArchiveFiltersRenderInPlaceAndKeepMissingSummary(t *testing.T) {
 			if !tt.HasText("Active fixture") || !tt.HasText("Archived fixture") || tt.HasText("Orphan fixture") || tt.HasText("Subagent fixture") {
 				t.Fatal("archive section did not respect active and registered membership")
 			}
-			if _, ok := tt.Find(sessionActionsLabel("missing")); !ok {
+			if _, ok := tt.Find(sessionActionsLabel("missing", workspaceText("缺失会话", "Missing session"))); !ok {
 				t.Fatal("missing summary has no recovery action")
 			}
 			filter = "show"
@@ -46,10 +46,10 @@ func TestArchiveFiltersRenderInPlaceAndKeepMissingSummary(t *testing.T) {
 			if !tt.HasText("Active fixture") || !tt.HasText("Archived fixture") || tt.HasText("Orphan fixture") || tt.HasText("Subagent fixture") {
 				t.Fatal("show filter did not retain live and archived rows")
 			}
-			if _, ok := tt.Find(sessionActionsLabel("archived")); !ok {
+			if _, ok := tt.Find(sessionActionsLabel("archived", "Archived fixture")); !ok {
 				t.Fatal("archived row not manageable in place")
 			}
-			if err := tt.Click(sessionActionsLabel("archived")); err != nil {
+			if err := tt.Click(sessionActionsLabel("archived", "Archived fixture")); err != nil {
 				t.Fatal(err)
 			}
 			if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnarchive)); err != nil {
@@ -63,7 +63,7 @@ func TestArchiveFiltersRenderInPlaceAndKeepMissingSummary(t *testing.T) {
 			if tt.HasText("Active fixture") || !tt.HasText("Archived fixture") || tt.HasText("Orphan fixture") || tt.HasText("Subagent fixture") {
 				t.Fatal("only filter did not restrict in-place rows to registered archives")
 			}
-			if _, ok := tt.Find(sessionActionsLabel("missing")); !ok {
+			if _, ok := tt.Find(sessionActionsLabel("missing", workspaceText("缺失会话", "Missing session"))); !ok {
 				t.Fatal("missing summary lost recovery action under only filter")
 			}
 			m.HideArchivedList = true

@@ -37,7 +37,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 			return
 		}
 		if len(items) == 0 {
-			ui.Text(c.Key("archive-empty"), workspaceText("暂无归档会话", "No archived sessions")).
+			ui.Text(c.Key("archive-empty"), workspaceText("暂无已归档会话", "No archived sessions")).
 				FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8)
 		}
 		for _, item := range items {

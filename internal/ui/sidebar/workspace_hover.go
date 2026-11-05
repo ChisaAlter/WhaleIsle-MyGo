@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/components"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -253,8 +254,15 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		actions.Absolute().Right(8).Top(7).Opacity(0)
 	}
 	actions.Children(func() {
+		wsName := session.WorkspaceDisplayTitle(g.Workspace.Title, workspaceText("默认工作区", "Default workspace"))
+		if wsName == "" {
+			wsName = g.Workspace.Path
+		}
+		if wsName == "" {
+			wsName = g.Key
+		}
 		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil) || hasDirectoryActions {
-			more := ui.Button(c.Key("workspace-menu:"+g.Key), "").Label(workspaceText("工作区操作 ", "Workspace actions ")+g.Key).
+			more := ui.Button(c.Key("workspace-menu:"+g.Key), "").Label(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), wsName)).
 				Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
 			more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
 			more.Menu(func(menu *ui.Menu) {
@@ -263,6 +271,11 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 					label, visible := action.Presentation(g.Workspace.Path, false)
 					if visible && menu.Item(label).Chosen() {
 						action.Run(g.Workspace.Path)
+					}
+				}
+				if g.Kind == "workspace" && g.Workspace.Path != "" && menu.Item(workspaceText("在 Finder 中打开工作区", "Reveal workspace in Finder")).Icon(menuCopyArtwork).Chosen() {
+					if err := components.OpenInFileManager(g.Workspace.Path); err != nil {
+						c.AddToast(ui.Toast{ID: "workspace-reveal-failed:" + g.Key, Title: workspaceText("无法打开工作区文件夹，请确认目录仍存在后重试。", "Could not open the workspace folder. Check that the directory still exists and retry."), Type: "error"})
 					}
 				}
 				if g.Kind == "workspace" && m.OnBeginWorkspaceRename != nil && menu.Item(workspaceText("重命名", "Rename")).Icon(menuEditArtwork).Chosen() {
@@ -276,7 +289,7 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		var label string
 		var run func()
 		if g.Kind == "workspace" && m.OnCreateWorkspaceSession != nil {
-			label = workspaceText("新建会话 ", "New session ") + g.Key
+			label = fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), wsName)
 			run = func() { m.OnCreateWorkspaceSession(m.Snapshot.WorkspaceLayout.HostGeneration, g.Key) }
 		} else if g.Kind == "scratch" && (m.OnCreateWorkspaceSession != nil || m.OnNoDirectory != nil) {
 			label = workspaceText("无目录会话", "No directory session")

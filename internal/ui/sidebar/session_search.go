@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -141,7 +142,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("没有匹配的会话", "No matching sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, workspaceText("无匹配会话", "No matching sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	for _, result := range rows {
 		row := result
@@ -208,7 +209,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, 4).SingleLine()
 					publicSidebarSlot(c, rowModel, "sidebar.session.row.badge", row.Item.SessionID, nil)
 					if row.Archived && !batch {
-						more := ui.Button(c.Key("search-result-menu-"+row.Item.SessionID), "").Label(sessionActionsLabel(row.Item.SessionID)).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
+						more := ui.Button(c.Key("search-result-menu-"+row.Item.SessionID), "").Label(sessionActionsLabel(row.Item.SessionID, row.Item.Title)).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 						if !menuOpen {
 							more.Tooltip(workspaceText("会话操作", "Session actions"))
 						}
@@ -257,7 +258,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		}
 	}
 	if more {
-		ui.Text(c, workspaceText("还有更多匹配，请缩小搜索范围。", "More matches exist. Refine your search.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(workspaceText("仅显示前 %d 条结果，请缩小搜索范围。", "Only the first %d results are shown. Narrow your search."), session.SessionSearchResultLimit)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	return true
 }

@@ -107,7 +107,7 @@ func TestSessionRowHoverSwapsTimeForActions(t *testing.T) {
 	if _, ok := tt.Find("Session time row"); ok {
 		t.Fatal("time cell still painted under the action glyphs")
 	}
-	more, _ := tt.Find(sessionActionsLabel("row"))
+	more, _ := tt.Find(sessionActionsLabel("row", "A session title"))
 	archive, _ := tt.Find(i18n.T(i18n.KeySidebarArchive))
 	pin, _ := tt.Find(i18n.T(i18n.KeySidebarPin))
 	if more.X+more.W+15 != archive.X || archive.X+archive.W+15 != pin.X {

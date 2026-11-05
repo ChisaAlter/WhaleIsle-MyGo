@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -15,15 +16,15 @@ func TestWorkspaceRowActionsGiveRestingTitleFullWidthAndPreserveTargets(t *testi
 	rest, _ := tt.Find(m.Snapshot.Workspaces[0].Title)
 	moveWorkspaceTitle(t, tt, m.Snapshot.Workspaces[0].Title)
 	hover, _ := tt.Find(m.Snapshot.Workspaces[0].Title)
-	more, moreOK := tt.Find("Workspace actions a")
-	create, createOK := tt.Find("New session a")
+	more, moreOK := tt.Find(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Workspace A full title"))
+	create, createOK := tt.Find(fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), "Workspace A full title"))
 	if !moreOK || !createOK || more.W != 16 || more.H != 16 || create.W != 16 || create.H != 16 || more.X+more.W+15 != create.X {
 		t.Fatalf("workspace glyph geometry more=%+v create=%+v", more, create)
 	}
 	if rest.W-hover.W != 47 || rest.X != hover.X || rest.H != hover.H {
 		t.Fatalf("resting title reserved actions: rest=%+v hover=%+v", rest, hover)
 	}
-	if err := tt.Click("New session a"); err != nil {
+	if err := tt.Click(fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), "Workspace A full title")); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(created, []string{"a"}) || !reflect.DeepEqual(generations, []uint64{11}) || m.Snapshot.SelectedID != "current-a" {
@@ -31,7 +32,7 @@ func TestWorkspaceRowActionsGiveRestingTitleFullWidthAndPreserveTargets(t *testi
 	}
 	// An open row menu preserves its action group and title lane even when
 	// the pointer moves off the header.
-	if err := tt.Click("Workspace actions a"); err != nil {
+	if err := tt.Click(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Workspace A full title")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Move(730, 330)

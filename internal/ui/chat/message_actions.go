@@ -285,7 +285,7 @@ func messageActionMenu(c *ui.Context, row ui.Element, m Model, msg session.Messa
 
 func branchActionLabel() string {
 	if i18n.Locale() == i18n.LocaleEN {
-		return "Branch here"
+		return "Branch in a new conversation"
 	}
-	return "从此处分支"
+	return "在新对话中分支"
 }

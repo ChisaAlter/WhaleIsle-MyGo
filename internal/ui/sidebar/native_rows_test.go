@@ -36,7 +36,7 @@ func TestSessionRowsStayCompactAcrossSelectionAndMenu(t *testing.T) {
 			}
 		}
 		check()
-		if err := tt.Click(sessionActionsLabel("a")); err != nil {
+		if err := tt.Click(sessionActionsLabel("a", title)); err != nil {
 			t.Fatal(err)
 		}
 		check()
@@ -71,7 +71,7 @@ func TestSessionMenusKeepRowIdentityAndCallbacks(t *testing.T) {
 		})
 	}, 280, 100)
 	for _, tc := range []struct{ key, action string }{{i18n.KeySidebarPin, "pin"}, {i18n.KeySidebarRename, "rename"}, {i18n.KeySidebarFork, "fork"}, {i18n.KeySidebarArchive, "archive"}, {i18n.KeySidebarCopyID, "copy"}} {
-		if err := tt.Click(sessionActionsLabel("row")); err != nil {
+		if err := tt.Click(sessionActionsLabel("row", "Original title")); err != nil {
 			t.Fatal(err)
 		}
 		if err := tt.ChooseMenuItem(i18n.T(tc.key)); err != nil {
@@ -94,7 +94,7 @@ func TestSessionMenusKeepRowIdentityAndCallbacks(t *testing.T) {
 	}
 	pinned = true
 	tt.Frame()
-	if err := tt.Click(sessionActionsLabel("row")); err != nil {
+	if err := tt.Click(sessionActionsLabel("row", "Original title")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnpin)); err != nil {

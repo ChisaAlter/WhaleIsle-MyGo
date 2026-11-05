@@ -111,7 +111,7 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 				}
 				output := formatExactTokens(u.Output)
 				if u.Reasoning != nil {
-					output += " · " + i18n.T(i18n.KeyChatUsageReasoning) + " " + formatExactTokens(*u.Reasoning)
+					output += " · " + fmt.Sprintf(i18n.T(i18n.KeyChatUsageReasoning), formatExactTokens(*u.Reasoning))
 				}
 				usageDetailLine(c, muted, i18n.T(i18n.KeyChatUsageOutput), output)
 			})

@@ -44,7 +44,7 @@ func TestSearchArchivedFilterAndActions(t *testing.T) {
 	if opened != "" || query != "needle" {
 		t.Fatal("archived result opened or restored on row click")
 	}
-	if err := tt.Click(sessionActionsLabel("archived")); err != nil {
+	if err := tt.Click(sessionActionsLabel("archived", "needle archive")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnarchive)); err != nil {
@@ -69,7 +69,7 @@ func TestSearchArchivedFilterAndActions(t *testing.T) {
 	}
 	m.Batch.Enabled = true
 	tt.Frame()
-	if _, ok := tt.Find(sessionActionsLabel("body")); ok {
+	if _, ok := tt.Find(sessionActionsLabel("body", "old conversation")); ok {
 		t.Fatal("row actions visible in batch mode")
 	}
 	if err := tt.Click("Select session body"); err != nil {

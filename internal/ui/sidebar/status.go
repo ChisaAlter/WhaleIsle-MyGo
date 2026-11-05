@@ -49,7 +49,7 @@ func statusPrefix(status string) string {
 func statusLabel(status string) string {
 	switch status {
 	case "approval":
-		return workspaceText("等待批准", "Waiting for approval")
+		return workspaceText("等待审批", "Waiting for approval")
 	case "plan-review":
 		return workspaceText("等待计划审阅", "Waiting for plan review")
 	case "question":

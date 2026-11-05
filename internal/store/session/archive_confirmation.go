@@ -157,7 +157,7 @@ func (s *Store) runArchive(ctx context.Context, client *dsh.Client, token uint64
 	s.archivedSessionIDs = append([]string(nil), out.ArchivedSessionIds...)
 	s.lastAction = "session archived"
 	if slices.Contains(out.ArchivedSessionIds, sessionID) {
-		s.offerArchiveUndoLocked(client, sessionID, title, time.Now())
+		s.offerArchiveUndoLocked(client, sessionID, title, stopActivity, time.Now())
 	}
 	s.mu.Unlock()
 	s.fire()

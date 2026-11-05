@@ -45,7 +45,7 @@ func TestSessionRowDropHalvesMenuAndCompactPitch(t *testing.T) {
 		t.Fatalf("click selected=%v moves=%v", selected, moves)
 	}
 	tt.Move(a.X+10, a.Y+a.H/2)
-	if err := tt.Click(sessionActionsLabel("a")); err != nil {
+	if err := tt.Click(sessionActionsLabel("a", "Alpha")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(sessionPinLabel(false)); err != nil {

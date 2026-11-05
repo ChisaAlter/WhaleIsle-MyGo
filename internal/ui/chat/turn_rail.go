@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -208,7 +209,11 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 				Width(turnRailWidth).Height(turnRailSeatHeight).Padding(0, 4, 0, 4).Justify(ui.End).AlignItems(ui.Center)
 			interactive := onJump != nil
 			if interactive {
-				seat.Label(i18n.T(i18n.KeyChatTurnRailJump) + " " + itoaFast(anchor.Index)).Focusable().Role(ui.RoleButton)
+				jumpKey := i18n.KeyChatTurnRailJump
+				if !anchor.Loaded {
+					jumpKey = i18n.KeyChatTurnRailJumpLoad
+				}
+				seat.Label(fmt.Sprintf(i18n.T(jumpKey), anchor.Index)).Focusable().Role(ui.RoleButton)
 			}
 			hovered := interactive && seat.Hovered()
 			barWidth := float32(12)
@@ -254,8 +259,12 @@ func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, current int, mut
 			ui.Column(c).FillWidth().Gap(2).Padding(4).Children(func() {
 				for index, anchor := range anchors {
 					anchor := anchor
+					jumpKey := i18n.KeyChatTurnRailJump
+					if !anchor.Loaded {
+						jumpKey = i18n.KeyChatTurnRailJumpLoad
+					}
 					item := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
-						Label(i18n.T(i18n.KeyChatTurnRailJump) + " " + itoaFast(anchor.Index)).Selected(index == current).MinHeight(32)
+						Label(fmt.Sprintf(i18n.T(jumpKey), anchor.Index)).Selected(index == current).MinHeight(32)
 					if index == current {
 						item.Background(c.Theme().SurfaceHover)
 					}

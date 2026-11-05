@@ -1,14 +1,19 @@
 package sidebar
 
 import (
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-func sessionActionsLabel(id string) string {
-	return workspaceText("会话操作 ", "Session actions ") + id
+func sessionActionsLabel(id, title string) string {
+	name := title
+	if name == "" {
+		name = i18n.T(i18n.KeySidebarNewSessionFallback)
+	}
+	return fmt.Sprintf(workspaceText("会话“%s”的操作", "Actions for session “%s”"), name)
 }
 
 // rowActionGlyph is one hover action: a bare 16px glyph button
@@ -167,7 +172,7 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 			ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
 				FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
 		}
-		more := ui.Button(c.Key("archived-session-menu-"+id), "").Label(sessionActionsLabel(id)).Width(16).Height(16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
+		more := ui.Button(c.Key("archived-session-menu-"+id), "").Label(sessionActionsLabel(id, title)).Width(16).Height(16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
 		if !showActions && !more.Focused() {
 			more.Absolute().Right(8).Opacity(0)

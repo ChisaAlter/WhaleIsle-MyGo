@@ -776,10 +776,17 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		},
 		OnDelete: func(sessionID string) {
 			// Electron session delete: confirm before session/delete.
+			title := sessionID
+			for _, item := range m.Store.Snapshot().Items {
+				if item.SessionID == sessionID && item.Title != "" {
+					title = item.Title
+					break
+				}
+			}
 			choice, err := mygo.Dialog.Message(mygo.MessageOptions{
 				Type:          mygo.MessageWarning,
 				Title:         i18n.T(i18n.KeySidebarDelete),
-				Message:       i18n.T(i18n.KeySidebarDeleteConfirm),
+				Message:       fmt.Sprintf(i18n.T(i18n.KeySidebarDeleteConfirm), title),
 				Buttons:       []string{i18n.T(i18n.KeySidebarDelete), i18n.T(i18n.KeySidebarRenameCancel)},
 				DefaultButton: 1,
 				CancelButton:  1,

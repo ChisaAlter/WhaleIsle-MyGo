@@ -352,7 +352,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 					submitted = input.Submitted() && !input.Composing()
 				} else if request.Mode == "remove" {
 					ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-					ui.Text(c, text("仅从工作区列表移除注册，磁盘文件将保留。", "This removes the workspace registration from the list. Files on disk are retained.")).FontSize(theme.InterfaceSize(14)).TextColor(fg)
+					ui.Text(c, fmt.Sprintf(text("将把「%s」从工作区列表中移除。文件夹与会话记录会保留，但其会话将不再显示；重新添加该工作目录后会话会回来。", "“%s” will be removed from the workspace list. The folder and session records are kept, but its sessions will no longer be shown; re-adding the directory brings them back."), targetTitle)).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 				} else {
 					ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
 					if ui.Button(c, text("重命名工作区", "Rename workspace")).FillWidth().Clicked() {

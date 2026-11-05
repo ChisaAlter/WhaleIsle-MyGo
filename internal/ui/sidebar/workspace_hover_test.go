@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -113,10 +114,10 @@ func TestWorkspaceHoverGroupedTransferLeaveAndMenuSuppression(t *testing.T) {
 	if !tt.HasText("Workspace preview: b") || tt.HasText("Workspace preview: a") {
 		t.Fatal("warm group did not replace its card immediately")
 	}
-	if err := tt.Click("Workspace actions b"); err != nil {
+	if err := tt.Click(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Workspace B full title")); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(tt.Menu(), []string{"Rename", "Delete workspace"}) {
+	if !reflect.DeepEqual(tt.Menu(), []string{"Reveal workspace in Finder", "Rename", "Delete workspace"}) {
 		t.Fatalf("workspace menu %v", tt.Menu())
 	}
 	tt.SetTime(start.Add(2 * time.Second))

@@ -40,7 +40,7 @@ func TestWorkspaceArchivedOnlyEmptyHasWorkingReturn(t *testing.T) {
 	filter := "only"
 	m := Model{BrowseArchivedFilter: &filter, Snapshot: session.ViewState{WorkspaceReady: true, ScratchCwd: "/scratch", WorkspaceLayout: session.WorkspaceLayoutState{Collapsed: map[string]bool{"::scratch": false}}, Items: []session.Item{{SessionID: "active", Title: "Visible after return", Cwd: "/scratch"}}}}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 1000)
-	if !tt.HasText(workspaceText("暂无归档会话", "No archived sessions")) || tt.HasText("Visible after return") {
+	if !tt.HasText(workspaceText("暂无已归档会话", "No archived sessions")) || tt.HasText("Visible after return") {
 		t.Fatal("archived-only view leaked normal rows or lacked empty state")
 	}
 	if err := tt.Click(workspaceText("查看其他会话", "View other sessions")); err != nil {

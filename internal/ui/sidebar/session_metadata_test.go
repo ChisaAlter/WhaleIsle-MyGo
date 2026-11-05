@@ -60,7 +60,7 @@ func TestSessionMetadataRestHoverMenuAndBlank(t *testing.T) {
 		if width == 280 {
 			saveSessionMetadataEvidence(t, tt, "sidebar-metadata-hover")
 		}
-		if err := tt.Click(sessionActionsLabel("row")); err != nil {
+		if err := tt.Click(sessionActionsLabel("row", "A long pinned conversation title")); err != nil {
 			t.Fatal(err)
 		}
 		tt.Move(10, 100)
@@ -73,7 +73,7 @@ func TestSessionMetadataRestHoverMenuAndBlank(t *testing.T) {
 		tt.CloseMenu()
 		item.Blank = true
 		tt.Frame()
-		for _, label := range []string{"Session time row", "Session pinned row", sessionActionsLabel("row")} {
+		for _, label := range []string{"Session time row", "Session pinned row", sessionActionsLabel("row", "A long pinned conversation title")} {
 			if _, ok := tt.Find(label); ok {
 				t.Fatalf("blank provisional row has metadata/action %q", label)
 			}

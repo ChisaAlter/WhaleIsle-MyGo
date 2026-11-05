@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -43,14 +44,14 @@ func TestTurnRailTicksAndNarrowFallback(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		TurnRailView(c, Model{Snapshot: session.ViewState{Messages: messages}}, 900, func(seq float64) { jumped = seq })
 	}, 900, 400)
-	tick, ok := tt.Find(i18n.T(i18n.KeyChatTurnRailJump) + " 2")
+	tick, ok := tt.Find(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 2))
 	if !ok {
 		t.Fatalf("rail tick missing: %q", tt.Texts())
 	}
 	if tick.W != turnRailWidth {
 		t.Fatalf("tick seat width %v, want the %v DIP rail column", tick.W, turnRailWidth)
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatTurnRailJump) + " 2"); err != nil {
+	if err := tt.Click(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 2)); err != nil {
 		t.Fatal(err)
 	}
 	if jumped != 2 {
@@ -63,7 +64,7 @@ func TestTurnRailTicksAndNarrowFallback(t *testing.T) {
 	if _, ok := narrow.Find(i18n.T(i18n.KeyChatTurnRailLabel) + " 3"); !ok {
 		t.Fatalf("narrow fallback missing: %q", narrow.Texts())
 	}
-	if _, ok := narrow.Find(i18n.T(i18n.KeyChatTurnRailJump) + " 1"); ok {
+	if _, ok := narrow.Find(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 1)); ok {
 		t.Fatal("narrow width kept the floating rail")
 	}
 }
@@ -72,7 +73,7 @@ func TestTurnRailSkipsSingleTurnTranscripts(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		TurnRailView(c, Model{Snapshot: session.ViewState{Messages: []session.Message{{Role: "user", Kind: session.MessageKindText, Seq: 1, Body: "only"}}}}, 900, nil)
 	}, 900, 300)
-	if _, ok := tt.Find(i18n.T(i18n.KeyChatTurnRailJump) + " 1"); ok {
+	if _, ok := tt.Find(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 1)); ok {
 		t.Fatal("one-turn transcript mounted a rail")
 	}
 }

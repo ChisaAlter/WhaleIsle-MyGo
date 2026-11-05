@@ -662,7 +662,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 					actions.Absolute().Right(4).Opacity(0)
 				}
 				actions.Children(func() {
-					more := ui.Button(c.Key("session-menu-"+it.SessionID), "").Label(sessionActionsLabel(it.SessionID)).
+					more := ui.Button(c.Key("session-menu-"+it.SessionID), "").Label(sessionActionsLabel(it.SessionID, it.Title)).
 						Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(16).Padding(0).
 						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })

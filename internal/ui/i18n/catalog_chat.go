@@ -290,8 +290,9 @@ const (
 	KeyChatWorkflowEndedNote     = "chat.workflow.ended_note"
 
 	// Turn rail.
-	KeyChatTurnRailLabel = "chat.turn_rail.label"
-	KeyChatTurnRailJump  = "chat.turn_rail.jump"
+	KeyChatTurnRailLabel    = "chat.turn_rail.label"
+	KeyChatTurnRailJump     = "chat.turn_rail.jump"
+	KeyChatTurnRailJumpLoad = "chat.turn_rail.jump_load"
 	KeyChatTurnRailTurn  = "chat.turn_rail.turn"
 	KeyChatTurnRailEmpty = "chat.turn_rail.empty"
 
@@ -369,7 +370,7 @@ func init() {
 	Register(KeyChatProcessMore, "等", "more")
 	Register(KeyChatProcessReading, "正在读取文件", "Reading files")
 	Register(KeyChatProcessRead, "已读取文件", "Read files")
-	Register(KeyChatProcessEditing, "正在修改文件", "Editing files")
+	Register(KeyChatProcessEditing, "正在编辑文件", "Editing files")
 	Register(KeyChatProcessEdited, "修改了文件", "Edited files")
 	Register(KeyChatProcessSearching, "正在搜索代码", "Searching code")
 	Register(KeyChatProcessSearched, "已搜索代码", "Searched code")
@@ -381,8 +382,8 @@ func init() {
 	Register(KeyChatProcessPlanned, "更新了计划", "Updated plan")
 	Register(KeyChatProcessWaiting, "等待你的操作", "Waiting for input")
 	Register(KeyChatProcessAsked, "向用户提出了问题", "Asked for input")
-	Register(KeyChatProcessDelegating, "正在协调子代理", "Coordinating agents")
-	Register(KeyChatProcessDelegated, "已协调子代理", "Coordinated agents")
+	Register(KeyChatProcessDelegating, "正在协调子智能体", "Coordinating agents")
+	Register(KeyChatProcessDelegated, "已协调子智能体", "Coordinated agents")
 	Register(KeyChatProcessTools, "正在调用工具", "Using tools")
 	Register(KeyChatProcessUsedTools, "已调用工具", "Used tools")
 
@@ -391,7 +392,7 @@ func init() {
 	Register(KeyChatTurnStopped, "已停止", "Stopped")
 	Register(KeyChatTurnTruncated, "输出已截断", "Output limit reached")
 	Register(KeyChatUnknownContent, "未知内容", "Unknown content")
-	Register(KeyChatTurnMaxTokens, "输出达到本次请求的 token 上限，回答可能不完整。", "Output reached the request token limit; the answer may be incomplete.")
+	Register(KeyChatTurnMaxTokens, "已达到输出 token 上限", "Output token limit reached")
 	Register(KeyChatTurnSignedOut, "已停止，因为你已退出 DeepSeek。 [ACCOUNT_SIGNED_OUT]", "Stopped because you signed out of DeepSeek. [ACCOUNT_SIGNED_OUT]")
 
 	// Usage.
@@ -403,7 +404,7 @@ func init() {
 	Register(KeyChatUsageTotal, "总计", "Total")
 	Register(KeyChatUsageCacheRead, "缓存读取", "Cached")
 	Register(KeyChatUsageCacheWrit, "缓存写入", "Cache created")
-	Register(KeyChatUsageReasoning, "其中思考", "Reasoning subset")
+	Register(KeyChatUsageReasoning, "（其中推理 %s）", "(reasoning %s)")
 	Register(KeyChatUsageCachePct, "缓存命中 %.1f%%", "Cache %.1f%%")
 	Register(KeyChatStatusLoaded, "已加载 %d 轮 · %d 步", "%d turns · %d steps")
 	Register(KeyChatStatusSpeed, "输出 %.1f tok/s", "Output %.1f tok/s")
@@ -416,7 +417,7 @@ func init() {
 	Register(KeyChatPendingSteering, "插话", "Steering")
 
 	// Thinking.
-	Register(KeyChatThinkingFor, "思考了 %s", "Thought for %s")
+	Register(KeyChatThinkingFor, "正在思考，用时 %s ···", "Thinking for %s ···")
 	Register(KeyChatDurationSec, "%d 秒", "%ds")
 	Register(KeyChatDurationMin, "%d 分", "%dm")
 	Register(KeyChatDurationMS, "%d 分 %d 秒", "%dm %ds")
@@ -454,7 +455,7 @@ func init() {
 	Register(KeyChatReadOnlyLive, "实时临时输出", "live preview")
 
 	// Images.
-	Register(KeyChatImageFailed, "图片加载失败", "Image failed")
+	Register(KeyChatImageFailed, "图片无法预览", "Image unavailable")
 	Register(KeyChatImageInvalid, "图片无法解码", "Invalid image")
 	Register(KeyChatImageRetry, "重试", "Retry")
 	Register(KeyChatImageEnlarge, "放大", "Enlarge")
@@ -539,9 +540,9 @@ func init() {
 	Register(KeyMarkdownWrap, "自动换行", "Wrap lines")
 	Register(KeyMarkdownNoWrap, "保留列宽", "Preserve columns")
 	Register(KeyMarkdownTableWide, "宽表格，可横向滚动", "Wide table, scrolls horizontally")
-	Register(KeyChatRetryWaiting, "等待重试", "Waiting to retry")
-	Register(KeyChatRetryStarted, "重试已开始", "Retry started")
-	Register(KeyChatRetryCancelled, "重试已取消", "Retry cancelled")
+	Register(KeyChatRetryWaiting, "等待重试模型请求", "Waiting to retry")
+	Register(KeyChatRetryStarted, "已重试模型请求", "Retried model request")
+	Register(KeyChatRetryCancelled, "模型请求重试已取消", "Model request retry cancelled")
 	Register(KeyChatSystemPrompt, "系统提示词", "System prompt")
 	Register(KeyChatSystemPromptUpdate, "系统提示词更新", "System prompt update")
 	Register(KeyChatScheduleTask, "定时任务", "Scheduled task")
@@ -597,8 +598,9 @@ func init() {
 	Register(KeyChatWorkbookCopyRaw, "复制单元格原文", "Copy cell value")
 
 	// Attachment cards.
-	Register(KeyChatTurnRailLabel, "轮次", "Turns")
-	Register(KeyChatTurnRailJump, "跳到第", "Jump to")
+	Register(KeyChatTurnRailLabel, "轮次导航", "Turn navigation")
+	Register(KeyChatTurnRailJump, "跳转到第 %d 轮", "Jump to turn %d")
+	Register(KeyChatTurnRailJumpLoad, "加载并跳转到第 %d 轮", "Load and jump to turn %d")
 	Register(KeyChatTurnRailTurn, "轮次", "Turn")
 	Register(KeyChatTurnRailEmpty, "（空白回合）", "(empty turn)")
 	Register(KeyChatWorkbookCopyRawTSV, "复制本页原始 TSV", "Copy raw page TSV")

@@ -26,7 +26,7 @@ func TestSelectedRowRetainsExplicitPluginOpenAndStopWithoutSelectingAnotherRow(t
 			}
 		})
 	}, 280, 120)
-	if err := tt.Click(sessionActionsLabel("b")); err != nil {
+	if err := tt.Click(sessionActionsLabel("b", "b")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyCmdSessionPluginTitle)); err == nil {
@@ -36,7 +36,7 @@ func TestSelectedRowRetainsExplicitPluginOpenAndStopWithoutSelectingAnotherRow(t
 	if _, ok := tt.Find("Session time a"); ok {
 		t.Fatal("blank draft gained a trailing time")
 	}
-	if err := tt.Click(sessionActionsLabel("a")); err != nil {
+	if err := tt.Click(sessionActionsLabel("a", "a")); err != nil {
 		t.Fatal(err)
 	}
 	for _, label := range tt.Menu() {
@@ -51,7 +51,7 @@ func TestSelectedRowRetainsExplicitPluginOpenAndStopWithoutSelectingAnotherRow(t
 		t.Fatalf("open=%q active=%v", opened, active)
 	}
 	tt.Frame()
-	if err := tt.Click(sessionActionsLabel("a")); err != nil {
+	if err := tt.Click(sessionActionsLabel("a", "a")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySessionPluginsStop)); err != nil {

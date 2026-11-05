@@ -28,7 +28,7 @@ func TestArchivedOnlySidebarKeepsManagementReachable(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeySidebarArchivedSection)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(sessionActionsLabel("archived")); err != nil {
+	if err := tt.Click(sessionActionsLabel("archived", workspaceText("缺失会话", "Missing session"))); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarUnarchive)); err != nil {
@@ -37,7 +37,7 @@ func TestArchivedOnlySidebarKeepsManagementReachable(t *testing.T) {
 	if restored != "archived" || selected != "" {
 		t.Fatalf("restore=%q selected=%q", restored, selected)
 	}
-	if err := tt.Click(sessionActionsLabel("archived")); err != nil {
+	if err := tt.Click(sessionActionsLabel("archived", workspaceText("缺失会话", "Missing session"))); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeySidebarDelete)); err != nil {
@@ -52,7 +52,7 @@ func TestActiveRowHasArchiveButNoDelete(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Snapshot: session.ViewState{Items: []session.Item{{SessionID: "a", Title: "active"}}, SelectedID: "a", Workspaces: []session.WorkspaceRow{{WorkspaceID: "ws", SessionIDs: []string{"a"}}}}, OnArchive: func(string) {}, OnDelete: func(string) {}})
 	}, 280, 800)
-	if err := tt.Click(sessionActionsLabel("a")); err != nil {
+	if err := tt.Click(sessionActionsLabel("a", "active")); err != nil {
 		t.Fatal(err)
 	}
 	archive := false
@@ -75,7 +75,7 @@ func TestArchivedListVisibilityPreservesArchivedRows(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Snapshot: snap, HideArchivedList: hidden, OnUnarchive: func(string) {}})
 	}, 280, 800)
-	if _, ok := tt.Find(sessionActionsLabel("archived")); ok {
+	if _, ok := tt.Find(sessionActionsLabel("archived", workspaceText("缺失会话", "Missing session"))); ok {
 		t.Fatal("hidden archive section remains visible")
 	}
 	if len(snap.ArchivedSessionIDs) != 1 {
@@ -85,13 +85,13 @@ func TestArchivedListVisibilityPreservesArchivedRows(t *testing.T) {
 	tt = ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Snapshot: snap, HideArchivedList: hidden, OnUnarchive: func(string) {}})
 	}, 280, 800)
-	if _, ok := tt.Find(sessionActionsLabel("archived")); ok {
+	if _, ok := tt.Find(sessionActionsLabel("archived", workspaceText("缺失会话", "Missing session"))); ok {
 		t.Fatal("archive should start collapsed")
 	}
 	if err := tt.Click(i18n.T(i18n.KeySidebarArchivedSection)); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := tt.Find(sessionActionsLabel("archived")); !ok {
+	if _, ok := tt.Find(sessionActionsLabel("archived", workspaceText("缺失会话", "Missing session"))); !ok {
 		t.Fatal("archive section not restored")
 	}
 }

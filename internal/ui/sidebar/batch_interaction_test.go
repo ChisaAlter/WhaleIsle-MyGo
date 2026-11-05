@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -29,7 +30,7 @@ func TestBatchKnownBlankIsInertButMissingArchivedSummarySelectable(t *testing.T)
 		t.Fatal(err)
 	}
 	tt.Key(0, ui.KeyEnter)
-	if calls != 0 || navigated != 0 || tt.HasText("Select checkbox blank") || tt.HasText(sessionActionsLabel("blank")) {
+	if calls != 0 || navigated != 0 || tt.HasText("Select checkbox blank") || tt.HasText(sessionActionsLabel("blank", "do not select")) {
 		t.Fatalf("blank batch row remained interactive: calls=%d nav=%d texts=%v", calls, navigated, tt.Texts())
 	}
 }
@@ -56,11 +57,11 @@ func TestBatchRealCheckboxAndRowDispatchOnceAndArchivedBodyStaysInert(t *testing
 					}
 				})
 			}, 400, 180)
-			check, ok := tt.Find("Select checkbox id")
+			check, ok := tt.Find(fmt.Sprintf(workspaceText("选择会话“%s”", "Select session “%s”"), "Summary"))
 			if !ok || check.W != 16 || check.H != 16 {
 				t.Fatalf("real checkbox bounds=%+v present=%t", check, ok)
 			}
-			if err := tt.Click("Select checkbox id"); err != nil {
+			if err := tt.Click(fmt.Sprintf(workspaceText("选择会话“%s”", "Select session “%s”"), "Summary")); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 1 {
@@ -80,7 +81,7 @@ func TestBatchRealCheckboxAndRowDispatchOnceAndArchivedBodyStaysInert(t *testing
 			}
 			m.Batch.Busy = true
 			tt.Frame()
-			_ = tt.Click("Select checkbox id")
+			_ = tt.Click(fmt.Sprintf(workspaceText("选择会话“%s”", "Select session “%s”"), "Summary"))
 			if calls != want {
 				t.Fatal("busy row changed selection")
 			}

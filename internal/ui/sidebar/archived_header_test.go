@@ -97,7 +97,7 @@ func TestArchivedSectionToggleKeepsWorkspaceExpansion(t *testing.T) {
 				t.Fatal(err)
 			}
 			tt.Frame()
-			if err := tt.Click(workspaceText("选择所有可见", "Select visible")); err != nil {
+			if err := tt.Click(workspaceText("全选可见", "Select visible")); err != nil {
 				t.Fatal(err)
 			}
 			if len(batchSelected) != 1 || batchSelected[0].ID != "active-open" {
@@ -106,7 +106,7 @@ func TestArchivedSectionToggleKeepsWorkspaceExpansion(t *testing.T) {
 			if err := tt.Click(label); err != nil {
 				t.Fatal(err)
 			}
-			if err := tt.Click(workspaceText("选择所有可见", "Select visible")); err != nil {
+			if err := tt.Click(workspaceText("全选可见", "Select visible")); err != nil {
 				t.Fatal(err)
 			}
 			if len(batchSelected) != 2 || batchSelected[0].ID != "active-open" || batchSelected[1].ID != "archived" {

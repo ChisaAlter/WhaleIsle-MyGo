@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -32,8 +33,8 @@ func TestWorkspaceMenuDirectActionsAddressClickedRow(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { workspaceRowsView(c, m, items, ui.RGB(30, 30, 30), ui.RGB(100, 100, 100), ui.Transparent) })
 	}, 280, 260)
-	trigger := workspaceText("工作区操作 ", "Workspace actions ") + "b"
-	want := []string{workspaceText("重命名", "Rename"), workspaceText("删除工作区", "Delete workspace")}
+	trigger := fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Workspace B")
+	want := []string{workspaceText("在 Finder 中打开工作区", "Reveal workspace in Finder"), workspaceText("重命名", "Rename"), workspaceText("删除工作区", "Delete workspace")}
 	open := func() {
 		t.Helper()
 		if err := tt.Click(trigger); err != nil {
@@ -53,11 +54,11 @@ func TestWorkspaceMenuDirectActionsAddressClickedRow(t *testing.T) {
 		t.Fatalf("cancel leaked actions rename%v remove%v toggles%v", renamed, removed, toggled)
 	}
 	open()
-	if err := tt.ChooseMenuItem(want[0]); err != nil {
+	if err := tt.ChooseMenuItem(want[1]); err != nil {
 		t.Fatal(err)
 	}
 	open()
-	if err := tt.ChooseMenuItem(want[1]); err != nil {
+	if err := tt.ChooseMenuItem(want[2]); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(renamed, []string{"b"}) || !reflect.DeepEqual(removed, []string{"b"}) || len(toggled) != 0 || m.Snapshot.SelectedID != "current-a" {

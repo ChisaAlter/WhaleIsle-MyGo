@@ -25,5 +25,9 @@ func archiveUndoToast(c *ui.Context, m Model) {
 		return
 	}
 	store, token := m.Store, notice.Token
-	c.AddToast(ui.Toast{ID: id, Title: archiveText("会话已归档", "Session archived"), Description: notice.Title, Type: "success", Timeout: remaining, Action: archiveText("撤销归档", "Undo archive"), OnAction: func() { store.UndoArchive(token) }})
+	title := archiveText("会话已归档", "Session archived")
+	if notice.Stopped {
+		title = archiveText("已停止并归档", "Stopped and archived")
+	}
+	c.AddToast(ui.Toast{ID: id, Title: title, Description: notice.Title, Type: "success", Timeout: remaining, Action: archiveText("撤销归档", "Undo archive"), OnAction: func() { store.UndoArchive(token) }})
 }

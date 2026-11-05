@@ -73,7 +73,7 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 		})
 		text := workspaceText("暂无会话", "No sessions yet")
 		if filter == "only" {
-			text = workspaceText("暂无归档会话", "No archived sessions")
+			text = workspaceText("暂无已归档会话", "No archived sessions")
 		}
 		ui.Text(c, text).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(muted)
 		if filter == "only" && canSetArchiveFilter(m) && ui.Button(c, workspaceText("查看其他会话", "View other sessions")).Padding(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).Clicked() {

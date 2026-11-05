@@ -15,7 +15,7 @@ func TestArchiveUndoNoticeOwnership(t *testing.T) {
 	s := New()
 	client := &dsh.Client{}
 	s.client = client
-	s.offerArchiveUndoLocked(client, "id", "Title", time.Now())
+	s.offerArchiveUndoLocked(client, "id", "Title", false, time.Now())
 	if got := s.ArchiveUndoNotice(); got == nil || got.SessionID != "id" || !got.Announce {
 		t.Fatal("successful archive did not offer undo", got)
 	}
@@ -27,7 +27,7 @@ func TestArchiveUndoNoticeOwnership(t *testing.T) {
 		t.Fatal("notice survived Host change")
 	}
 	s.client = client
-	s.offerArchiveUndoLocked(client, "id", "Title", time.Now().Add(-9*time.Second))
+	s.offerArchiveUndoLocked(client, "id", "Title", false, time.Now().Add(-9*time.Second))
 	if s.ArchiveUndoNotice() != nil {
 		t.Fatal("expired undo remained available")
 	}
@@ -54,7 +54,7 @@ func TestArchiveUndoRestoreOnce(t *testing.T) {
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
 	s.client = client
 	s.archivedSessionIDs = []string{"id"}
-	s.offerArchiveUndoLocked(client, "id", "Title", time.Now())
+	s.offerArchiveUndoLocked(client, "id", "Title", false, time.Now())
 	notice := s.ArchiveUndoNotice()
 	s.UndoArchive(notice.Token + 1)
 	if restores.Load() != 0 {

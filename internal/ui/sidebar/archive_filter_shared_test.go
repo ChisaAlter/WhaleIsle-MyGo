@@ -155,7 +155,7 @@ func TestArchivedFilterSearchKeepsPreferenceConflictAndRetryVisible(t *testing.T
 	m.OnArchivedFilter = func(filter string) { writes++; m.Snapshot.WorkspaceLayout.ArchivedFilter = filter }
 	m.OnRetryWorkspacePreferences = func() { retries++ }
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 480, 1200)
-	if !tt.HasText(m.Snapshot.WorkspaceLayout.PreferenceError) || !tt.HasText(workspaceText("没有匹配的会话", "No matching sessions")) {
+	if !tt.HasText(m.Snapshot.WorkspaceLayout.PreferenceError) || !tt.HasText(workspaceText("无匹配会话", "No matching sessions")) {
 		t.Fatal("search hid a preference conflict or no-match feedback")
 	}
 	if err := tt.Click(workspaceText("重试视图偏好", "Retry view preferences")); err != nil {

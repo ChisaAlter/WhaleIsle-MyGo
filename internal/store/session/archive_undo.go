@@ -14,6 +14,7 @@ type ArchiveUndoNotice struct {
 	SessionID, Title string
 	Expires          time.Time
 	Announce         bool
+	Stopped          bool
 }
 type archiveUndoState struct {
 	notice     ArchiveUndoNotice
@@ -22,9 +23,9 @@ type archiveUndoState struct {
 	announced  bool
 }
 
-func (s *Store) offerArchiveUndoLocked(client *dsh.Client, id, title string, now time.Time) {
+func (s *Store) offerArchiveUndoLocked(client *dsh.Client, id, title string, stopped bool, now time.Time) {
 	s.archiveUndoToken++
-	s.archiveUndo = &archiveUndoState{notice: ArchiveUndoNotice{Token: s.archiveUndoToken, SessionID: id, Title: title, Expires: now.Add(archiveUndoLifetime)}, client: client, generation: s.eventsGeneration}
+	s.archiveUndo = &archiveUndoState{notice: ArchiveUndoNotice{Token: s.archiveUndoToken, SessionID: id, Title: title, Expires: now.Add(archiveUndoLifetime), Stopped: stopped}, client: client, generation: s.eventsGeneration}
 	s.archiveUndoActive.Store(true)
 }
 func (s *Store) archiveUndoCurrentLocked(now time.Time) bool {

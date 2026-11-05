@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -62,7 +63,7 @@ func TestWorkspaceHeaderOnlyTogglesAndNewButtonTargetsHoveredGroup(t *testing.T)
 		row, _ := tt.Find(test.title)
 		tt.Move(row.X+row.W/2, row.Y+row.H/2)
 		tt.Frame()
-		label := workspaceText("新建会话 ", "New session ") + test.id
+		label := fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), test.title)
 		if _, ok := tt.Find(label); !ok {
 			t.Fatalf("hover action missing %q: %q", label, tt.Texts())
 		}

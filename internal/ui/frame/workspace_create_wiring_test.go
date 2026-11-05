@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -44,7 +45,7 @@ func TestWorkspaceCreateCallbackReachesSharedNavigation(t *testing.T) {
 				}
 				tt.Move(r.X+r.W/2, r.Y+r.H/2)
 				tt.Frame()
-				if err := tt.Click("New session " + row.id); err != nil {
+				if err := tt.Click(fmt.Sprintf("New session in “%s”", row.title)); err != nil {
 					t.Fatal(err)
 				}
 			}
