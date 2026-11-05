@@ -79,6 +79,7 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 			ui.Text(c, providerCopy("给智能体定几条规则，后续对所有任务都生效", "Give the agent a few rules that apply to every later task")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		})
 		area := ui.TextArea(c, &draft.Value).FillWidth().Lines(6, 10).Radius(12).Border(0.667, fonttheme.Color(colors.BorderL4)).Background(well.Alpha(.8)).Padding(12, 14).FontSize(fonttheme.InterfaceSize(14)).
+			Placeholder(i18n.T(i18n.KeyCustomInstructionsPlaceholder)).
 			Label(i18n.T(i18n.KeyCustomInstructionsTitle)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading)
 		if area.Changed() && a.OnChange != nil {
 			draft.Value = store.LimitCustomInstructions(draft.Value)

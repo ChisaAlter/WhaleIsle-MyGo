@@ -54,10 +54,10 @@ func WorkspaceTrailing(c *ui.Context, m WorkspaceTrailingModel) {
 		if m.ShowTerminal || m.ShowSurfaces {
 			ui.Row(c).Height(32).Gap(4).Children(func() {
 				if m.ShowTerminal {
-					captionPanelToggle(c, "terminal", captionWord("切换终端抽屉", "Toggle terminal drawer"), captionWord("终端需要先打开工作区", "Open a workspace to use the terminal"), "Ctrl+`", m.TerminalOpen, m.TerminalAvailable && m.OnToggleTerminal != nil, m.OnToggleTerminal)
+					captionPanelToggle(c, "terminal", captionWord("切换终端抽屉", "Toggle terminal drawer"), captionWord("终端抽屉不可用", "Terminal drawer unavailable"), "Ctrl+`", m.TerminalOpen, m.TerminalAvailable && m.OnToggleTerminal != nil, m.OnToggleTerminal)
 				}
 				if m.ShowSurfaces {
-					captionPanelToggle(c, "surfaces", captionWord("切换右侧面板", "Toggle right panel"), "", "Ctrl+\\", m.SurfacesOpen, m.OnToggleSurfaces != nil, m.OnToggleSurfaces)
+					captionPanelToggle(c, "surfaces", captionWord("切换右侧栏", "Toggle right panel"), "", "Ctrl+\\", m.SurfacesOpen, m.OnToggleSurfaces != nil, m.OnToggleSurfaces)
 				}
 			})
 		}

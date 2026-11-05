@@ -407,4 +407,23 @@ MyGo 各页行序与上表逐行一致（general/conversation/interface/features
 **仍待取证 → 已全部关闭**：
 - **+ 菜单项集**：✅ 安装版 `ui-commands` 字典与 MyGo 已实现的 six 命令面（目标/计划/反馈/压缩/权限/下载日志+desc）+ 添加/指令分段逐字一致；intake 项为 composer 层功能非命令注册表项。关闭。
 - **模型/Agent 预设字段级**：✅ `ui-settings-models` 字典仅 nav/addCustomUnavailable，模型页全部字段走 Host describe 下发——两侧同源，无静态文案可漂。Agent 预设已验证项（设为新任务默认）逐字。关闭。
-- **远程工作区（SSH）页**：✅ 已按 `dsh-remote` 插件源码（`plugin-src/`）全量对齐——五卡结构（当前机器卡：状态点+连接态+user@host:port+指纹态+远程目录/本地镜像 mono+取消当前/忘记指纹；SSH 机器卡：内联按钮行 设为当前/测试连接/编辑/删除、表单内嵌、空态 gating；sshconfig 导入卡：有 entry 才渲染；端口转发卡：needsMachine 门控+L/R mono 行+状态 tag+内联新增行；审计卡：查看/收起切换）。表单改安装版平铺序：名称/主机/端口/用户名→认证方式→密码（编辑时留空保持不变）/私钥路径/私钥口令→主机指纹校验三段（TOFU/严格/不校验）→默认远程目录→useAgent/keyboardInteractive checkbox+存入系统钥匙串 switch→跳板机五字段→测试连接/取消/保存右对齐。`ConnectionStatus` 补 host/username/port 字段。
+### 22.4 块审修复（ui-conversation 面，2026-11-05）
+
+**已修文案**（安装版逐字）：
+- 附件/图片：拖入说明→`图片限制：最多 %d 张，每张 %s`；待上传→`待发送附件`；上传中→`上传中…`；图片三限→`一条消息最多添加 %d 张图片`/`单张图片不能超过 %s`/`图片总大小超过 %s，请移除部分图片`（`humanBytes` 人性化单位）
+- 会话费用：`会话累计费用`→`当前会话费用`+连接符`·`→`：`；`没有设置价格`→`没有设置当前模型价格`；`未知路由`→`未知模型`；子代理/还有 `%d`→`%d 个`；计费按钮→`在 设置 → 消耗统计 → 计费设置 中设置模型价格`
+- 峰谷：`高峰/空闲`→`高峰时段/空闲时段`；切换行→`%s · 距离切换剩余时间：%s`
+- 队列 dock：图标按钮 aria/tooltip→`编辑排队消息`/`插话发送`/`删除排队消息`；计数→`{n} 条排队消息`
+- hero 占位符全角逗号→安装版半角；自定义指令 textarea 补 placeholder `输入规则，例如：回复始终使用中文`
+
+**22.4b 块审修复（titlebar/approval/message-edit/message-feedback）**：
+- 标题栏：`切换右侧面板`→`切换右侧栏`（surfaces.toggle）；终端禁用提示→`终端抽屉不可用`（terminal.unavailable）
+- 审批卡：`等待你的确认`→`等待审批`（approval.waiting）
+- 消息编辑：`正在编辑已发送的消息`→`正在下方输入框中重新编辑`（editor.editing）
+- 反馈：👍/👎 aria+tooltip→`好的回答`/`有问题的回答`、选中态→`取消标记`（重写 FeedbackButtonLabel 为安装版语义，原 ✓ 拼接废弃）；dialog hint 逐字（以帮助/包括）；分类`资源使用与成本`→`资源使用与费用`；`反馈提交失败`→`反馈保存失败`
+
+**剩余缺口（这批四包）**：approval detail.aria/escalation 行、message-edit 的 running/unsupported/stale/busy 状态串（MyGo 编辑流无对应状态面）、feedback error.load。
+
+**功能缺口**（安装版有、MyGo 无对应面，未建）：queue 行内编辑器（InlineEditor 保存/取消）、queue.edit.unsupported 提示、会话层级/更多会话操作 header、会话已被占用 error、parentOffline/workspace placeholder 变体、beam/typingFx 完整配置面板（~80 keys）、ask.* 交互细化、sessionCost.usage 峰谷明细行/priceTitle 行、terminal.expandRest、read.window/search.matches 截断行、todo `{done}/{total}` 分数格式、hero.claudeHeadline、command.attachmentsUnsupported、nextPrompt Tab 采纳提示。
+
+**远程工作区（SSH）页**：✅ 已按 `dsh-remote` 插件源码（`plugin-src/`）全量对齐——五卡结构（当前机器卡：状态点+连接态+user@host:port+指纹态+远程目录/本地镜像 mono+取消当前/忘记指纹；SSH 机器卡：内联按钮行 设为当前/测试连接/编辑/删除、表单内嵌、空态 gating；sshconfig 导入卡：有 entry 才渲染；端口转发卡：needsMachine 门控+L/R mono 行+状态 tag+内联新增行；审计卡：查看/收起切换）。表单改安装版平铺序：名称/主机/端口/用户名→认证方式→密码（编辑时留空保持不变）/私钥路径/私钥口令→主机指纹校验三段（TOFU/严格/不校验）→默认远程目录→useAgent/keyboardInteractive checkbox+存入系统钥匙串 switch→跳板机五字段→测试连接/取消/保存右对齐。`ConnectionStatus` 补 host/username/port 字段。

@@ -268,9 +268,9 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 				fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60))).
 				FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
-		label := i18n.T(i18n.KeyComposerCostEstimate) + " · " + money(r)
+		label := i18n.T(i18n.KeyComposerCostEstimate) + "：" + money(r)
 		if !m.Billing.Loaded && r.Available {
-			label = i18n.T(i18n.KeyComposerCostEstimate) + " · " + i18n.T(i18n.KeyComposerCostPricesLoading)
+			label = i18n.T(i18n.KeyComposerCostEstimate) + "：" + i18n.T(i18n.KeyComposerCostPricesLoading)
 		}
 		trigger := ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11))
 		if trigger.Clicked() {

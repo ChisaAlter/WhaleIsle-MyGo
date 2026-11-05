@@ -622,7 +622,7 @@ func init() {
 	Register(KeyChatWorkflowEndedNote, "已结束或不可用成员保留轨迹，不会重新启动。", "Unavailable members retain their recorded status.")
 	Register(KeyChatQueueTitle, "待发送队列", "Queued prompts")
 	Register(KeyChatQueueEmptyPreview, "（无预览）", "(no preview)")
-	Register(KeyChatApprovalWaiting, "等待你的确认", "Waiting for your approval")
+	Register(KeyChatApprovalWaiting, "等待审批", "Waiting for approval")
 	Register(KeyChatQuestionWaiting, "需要你的回答", "Waiting for your answer")
 	Register(KeyChatQuestionCustomPlaceholder, "或输入自定义回答…", "Or write your own answer…")
 	Register(KeyChatQuestionTakeTime, "让我慢慢回答", "Take my time")

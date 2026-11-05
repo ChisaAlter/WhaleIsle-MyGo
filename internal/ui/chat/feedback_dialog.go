@@ -23,18 +23,18 @@ func feedbackText(key string) string {
 		"submitting":                  {"提交中…", "Submitting…"},
 		"categories":                  {"反馈分类", "Feedback category"},
 		"detail":                      {"反馈详情", "Feedback details"},
-		"hint":                        {"填写详情可以帮助我们改进体验，提交内容会包含当前对话的日志", "Add details to help us improve. Your submission will include the current conversation log."},
+		"hint":                        {"填写详情以帮助我们改进体验，提交内容会包括当前对话的日志", "Add details to help us improve. Your submission will include the current conversation log."},
 		"task-result":                 {"任务结果", "Task result"},
 		"instruction-following":       {"指令理解与遵循", "Instruction understanding and following"},
 		"product-interaction":         {"产品功能与交互", "Product features and interaction"},
 		"service-stability":           {"稳定性和速度", "Stability and speed"},
-		"resource-cost":               {"资源使用与成本", "Resource usage and cost"},
+		"resource-cost":               {"资源使用与费用", "Resource usage and cost"},
 		"security-privacy-permission": {"安全隐私与权限", "Security, privacy, and permissions"},
 		"other":                       {"其他", "Other"},
 		"recorded":                    {"感谢你的反馈", "Thanks for your feedback"},
 		"conflict":                    {"这条反馈已在别处改动，已显示最新状态", "This feedback changed elsewhere; the latest state is shown"},
 		"noteTooLarge":                {"描述太长，请缩短后再提交", "The description is too long; shorten it and submit again"},
-		"error":                       {"反馈提交失败", "Could not save feedback"},
+		"error":                       {"反馈保存失败", "Could not save feedback"},
 	}
 	if i18n.Locale() == i18n.LocaleEN {
 		return copy[key][1]

@@ -16,14 +16,13 @@ func TestFeedbackButtonLabelSelected(t *testing.T) {
 		t.Fatalf("up idle = %q", up)
 	}
 	upSel := FeedbackButtonLabel(session.MessageFeedbackUp, session.MessageFeedbackUp)
-	want := i18n.T(i18n.KeyChatFeedbackUp) + i18n.T(i18n.KeyChatFeedbackSelectedMark)
+	want := i18n.T(i18n.KeyChatFeedbackSelectedMark)
 	if upSel != want {
 		t.Fatalf("up selected = %q want %q", upSel, want)
 	}
 	downSel := FeedbackButtonLabel(session.MessageFeedbackDown, session.MessageFeedbackDown)
-	wantDown := i18n.T(i18n.KeyChatFeedbackDown) + i18n.T(i18n.KeyChatFeedbackSelectedMark)
-	if downSel != wantDown {
-		t.Fatalf("down selected = %q want %q", downSel, wantDown)
+	if downSel != want {
+		t.Fatalf("down selected = %q want %q", downSel, want)
 	}
 	if FeedbackButtonLabel(session.MessageFeedbackUp, session.MessageFeedbackDown) != i18n.T(i18n.KeyChatFeedbackUp) {
 		t.Fatal("opposite rating should not mark up")

@@ -4,6 +4,8 @@ const (
 	KeyCustomInstructionsTitle = "settings.customInstructions.title"
 	KeyCustomInstructionsScope = "settings.customInstructions.scope"
 	KeyCustomInstructionsLimit = "settings.customInstructions.limit"
+
+	KeyCustomInstructionsPlaceholder = "settings.customInstructions.placeholder"
 )
 
 func init() {
@@ -13,4 +15,6 @@ func init() {
 	en[KeyCustomInstructionsScope] = "Save to apply from the next model request to all sessions on this Host and subagents inheriting its global prompt. Blank text disables it; {{variables}} remain literal. Workspace AGENTS.md is unchanged."
 	zhCN[KeyCustomInstructionsLimit] = "超过 1500 字符上限，请缩短后保存（部分表情占两个字符）。草稿已保留。"
 	en[KeyCustomInstructionsLimit] = "Over the 1500-unit limit. Shorten before saving; some emoji count as two. Your draft is retained."
+	zhCN[KeyCustomInstructionsPlaceholder] = "输入规则，例如：回复始终使用中文"
+	en[KeyCustomInstructionsPlaceholder] = "Enter rules, e.g. always reply in Chinese"
 }

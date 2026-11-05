@@ -9,14 +9,13 @@ import (
 
 // FeedbackButtonLabel returns the vote button label, marking the active rating.
 func FeedbackButtonLabel(rating, selected string) string {
-	base := i18n.T(i18n.KeyChatFeedbackUp)
-	if rating == session.MessageFeedbackDown {
-		base = i18n.T(i18n.KeyChatFeedbackDown)
-	}
 	if selected == rating && selected != "" {
-		return base + i18n.T(i18n.KeyChatFeedbackSelectedMark)
+		return i18n.T(i18n.KeyChatFeedbackSelectedMark)
 	}
-	return base
+	if rating == session.MessageFeedbackDown {
+		return i18n.T(i18n.KeyChatFeedbackDown)
+	}
+	return i18n.T(i18n.KeyChatFeedbackUp)
 }
 
 // FeedbackControlsDisabled is true while a put is in flight for any message.

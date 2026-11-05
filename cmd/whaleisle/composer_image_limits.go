@@ -59,10 +59,10 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
 		}
 		if info.Size() > limits.MaxImageBytes {
-			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), limits.MaxImageBytes)
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), humanBytes(limits.MaxImageBytes))
 		}
 		if info.Size() > limits.MaxMessageImageBytes-total {
-			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), limits.MaxMessageImageBytes)
+			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), humanBytes(limits.MaxMessageImageBytes))
 		}
 		total += info.Size()
 		return nil
@@ -78,10 +78,10 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
 			}
 			if size > limits.MaxImageBytes {
-				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), limits.MaxImageBytes)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), humanBytes(limits.MaxImageBytes))
 			}
 			if size > limits.MaxMessageImageBytes-total {
-				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), limits.MaxMessageImageBytes)
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), humanBytes(limits.MaxMessageImageBytes))
 			}
 			total += size
 			continue
@@ -99,4 +99,17 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 		}
 	}
 	return nil
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for v := n / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
