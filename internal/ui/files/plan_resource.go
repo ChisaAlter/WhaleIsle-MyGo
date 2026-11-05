@@ -178,7 +178,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 		doc, ok := r.Current(sid)
 		if !ok {
 			target, _ := planpreview.ParseAddress(address)
-			message := label("未找到此计划。", "Plan not found.")
+			message := label("未找到这份计划", "This plan was not found")
 			switch {
 			case target.IsSubagent() && m.Tabs.planReadAddress != address:
 				message = label("打开后只读加载子代理历史。", "Opening reads subagent history (read-only).")
@@ -200,7 +200,7 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 					}
 				}
 			case target.Temporary:
-				message = label("临时审批预览已过期，请从当前审批卡重新打开。", "This temporary review preview expired; reopen it from the current review card.")
+				message = label("临时计划预览已失效，请从仍在等待审批的卡片重新打开。", "This temporary plan preview has expired. Reopen it from the pending review card.")
 			case !m.PlanSnapshot.ClientReady || !planpreview.HistoryMatchesBinding(m.PlanSnapshot.PlanHistoryBinding, m.BindingID):
 				message = label("等待当前会话历史…", "Waiting for current session history…")
 			case m.PlanSnapshot.HistoryPageErr != "":

@@ -54,7 +54,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 					}
 				})
 				ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(8).Padding(0, 0, 14).Children(func() {
-					for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已启用", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
+					for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已开启", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
 						b := ui.Button(c.Key("schedule-filter-"+option.id), scheduleText(option.zh, option.en)).Height(28).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(14))
 						if p.statusFilter == option.id || (option.id == "all" && p.statusFilter == "") {
 							b.Background(chrome.Color(colors.Hover)).TextColor(fg).FontWeight(500)
@@ -78,12 +78,12 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 					feedback = p.catalogFeedback(c, m, snap, colors, len(rows) > 0)
 				}
 				if !feedback && len(rows) == 0 {
-					label := scheduleText("没有匹配的任务", "No matching tasks")
+					label := scheduleText("没有匹配的自动化任务", "No matching tasks")
 					if len(snap.Rows) == 0 {
-						label = scheduleText("暂无任务。在会话中创建的任务会显示在这里。", "No tasks yet. Tasks created in your sessions appear here.")
+						label = scheduleText("还没有自动化任务，在会话中创建的任务会显示在这里", "No tasks yet. Tasks created in your sessions appear here.")
 					}
 					if p.statusFilter == "inactive" && strings.TrimSpace(p.query) == "" {
-						label = scheduleText("暂无已结束的自动化任务", "No inactive automation tasks")
+						label = scheduleText("没有已结束的自动化任务", "No inactive automation tasks")
 					}
 					scheduleEmpty(c, label, colors)
 					if m.OnNewTask != nil {
@@ -163,7 +163,7 @@ func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewStat
 				}
 			})
 		} else {
-			scheduleNotice(c, "schedule-catalog-failure", scheduleText("无法加载任务。", "Could not load tasks."), colors, 24, []scheduleNoticeAction{{Label: scheduleText("重试", "Retry"), Disabled: snap.Loading, Run: retry}}, func() { p.catalogDismissed = true })
+			scheduleNotice(c, "schedule-catalog-failure", scheduleText("无法加载任务", "Could not load tasks."), colors, 24, []scheduleNoticeAction{{Label: scheduleText("重试", "Retry"), Disabled: snap.Loading, Run: retry}}, func() { p.catalogDismissed = true })
 		}
 		return true
 	}
@@ -241,7 +241,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 							if d.Zone != "" {
 								ui.Text(c, d.Zone).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
 							}
-							ui.Text(c, scheduleText("已结束的任务为只读，无法修改其运行时间。", "Inactive tasks are read-only. Their timing cannot be edited.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
+							ui.Text(c, scheduleText("已结束的任务为只读，无法修改时间", "Inactive tasks are read-only. Their timing cannot be edited.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
 						} else {
 							p.timingEditor(c, d, editable)
 						}
@@ -265,7 +265,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 					*d = *newTaskDraft(d.row)
 					p.message("")
 				}
-				if widgets.Button(c, palette, scheduleText("保存更改", "Save changes"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !editable}).Clicked() {
+				if widgets.Button(c, palette, scheduleText("保存修改", "Save changes"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !editable}).Clicked() {
 					p.saveDraft(m, d)
 				}
 			})
@@ -288,7 +288,7 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).Padding(0, detailGutter(width)).Gap(12).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, .5, 0).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(36).Children(func() {
 			var tabs []ui.Element
-			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "记录", "Records"}} {
+			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "任务运行记录", "Records"}} {
 				selected := p.detailTab == option.id || p.detailTab == "" && option.id == "rule"
 				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(height).Padding(0).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13))
 				if selected {
@@ -364,7 +364,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 				ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				ui.Scroll(c.Key("schedule-delete-content")).MinHeight(0).MaxHeight(max(float32(40), height-180)).FillWidth().Children(func() {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-						ui.Text(c, scheduleText("这将停止任务触发，并删除任务及其已保存的投递记录。原会话和消息将保留；已排队的消息不会撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0)
+						ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0)
 						ui.Text(c, row.Title).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
 					})
 				})
@@ -419,7 +419,7 @@ func scheduleNextRun(row schedstore.Entry) string {
 	// The manager's next-run pair uses the reader's clock, not the rule zone.
 	// Saved delivery records use the rule zone separately in deliveryTime.
 	now := time.Now()
-	return scheduleText("下次运行：", "Next run: ") + scheduleAbsolute(at.In(time.Local)) + " (" + scheduleRelative(at, now) + ")"
+	return scheduleText("下次计划时间：", "Next run: ") + scheduleAbsolute(at.In(time.Local)) + " (" + scheduleRelative(at, now) + ")"
 }
 
 func scheduleFrequency(row schedstore.Entry) string {

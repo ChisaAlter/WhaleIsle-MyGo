@@ -29,7 +29,7 @@ func (h *deliveryHistoryState) finish(next schedstore.DeliveryPage, before strin
 	h.RefreshRequired = false
 	h.Dismissed = false
 	if err != nil {
-		h.Error = scheduleText("无法加载投递记录，请重试。", "Could not load delivery records. Try again.")
+		h.Error = scheduleText("无法加载任务运行记录", "Could not load delivery records. Try again.")
 		h.RetryBefore = before
 		var failure *schedstore.ResultError
 		if errors.As(err, &failure) {
@@ -140,7 +140,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 		if h.Error != "" && !h.Dismissed {
 			label := scheduleText("重试", "Retry")
 			if h.RefreshRequired {
-				label = scheduleText("刷新记录", "Refresh records")
+				label = scheduleText("刷新", "Refresh records")
 			}
 			scheduleNotice(c, "schedule-history-failure", h.Error, colors, 24,
 				[]scheduleNoticeAction{{Label: label, Disabled: loading, Run: func() { p.loadDeliveryHistory(m, row, h.RetryBefore, h.RetryBefore == "") }}},
@@ -162,7 +162,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 						ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
 						label := scheduleText("重试", "Retry")
 						if h.RefreshRequired {
-							label = scheduleText("刷新记录", "Refresh records")
+							label = scheduleText("刷新", "Refresh records")
 						}
 						if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(loading).Clicked() {
 							p.loadDeliveryHistory(m, row, h.RetryBefore, h.RetryBefore == "")
@@ -170,7 +170,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 					})
 				}
 				if h.Loaded && len(h.Page.Records) == 0 && !loading && h.Error == "" {
-					scheduleEmpty(c, scheduleText("暂无投递记录", "No delivery record available"), colors)
+					scheduleEmpty(c, scheduleText("暂无任务运行记录", "No delivery record available"), colors)
 				}
 				for index, record := range h.Page.Records {
 					record := record
@@ -237,14 +237,14 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, fg, muted ui.Color) 
 		if h.Loaded && len(h.Page.Records) > 0 && h.Page.NextBefore == "" && !loading && h.Error == "" && h.Page.EarlierRecordsPruned {
 			ui.Column(c).FillWidth().MinWidth(0).Padding(12, 24, 20).Gap(8).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, scheduleText("更早的投递记录已清理", "Earlier delivery records have been cleared")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
+					ui.Text(c, scheduleText("更早的运行记录已清理", "Earlier delivery records have been cleared")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
 					if ui.Button(c, "ⓘ").Label(scheduleText("保留规则", "Retention rules")).Tooltip(scheduleText("保留规则", "Retention rules")).Expanded(p.historyRetentionOpen).Size(24, 24).Padding(0).BorderWidth(0).Background(ui.Transparent).Clicked() {
 						p.historyRetentionOpen = !p.historyRetentionOpen
 					}
 				})
 				if p.historyRetentionOpen {
 					if h.Page.Retention != nil {
-						ui.Text(c, fmt.Sprintf(scheduleText("每个任务最多保留最近 %d 天内的 %d 条投递记录。", "Each task keeps up to %d days and %d delivery records."), h.Page.Retention.Days, h.Page.Retention.Records)).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
+						ui.Text(c, fmt.Sprintf(scheduleText("每个任务最多保留近 %d 天内的 %d 条运行记录。", "Each task keeps up to %d days and %d delivery records."), h.Page.Retention.Days, h.Page.Retention.Records)).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
 					}
 					ui.Text(c, scheduleText("产生新记录时，超出范围的旧记录会自动清理。清理记录不影响任务继续运行。", "When a new record is saved, older records outside these limits are cleared automatically. Clearing records does not stop the task.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
 				}

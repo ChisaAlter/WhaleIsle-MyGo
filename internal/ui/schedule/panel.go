@@ -132,23 +132,23 @@ func (d *taskDraft) change() (json.RawMessage, error) {
 	switch d.Kind {
 	case "at":
 		if _, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(d.At)); err != nil {
-			return nil, fmt.Errorf("%s", scheduleText("请输入有效的日期和时间。", "Enter a valid date and time."))
+			return nil, fmt.Errorf("%s", scheduleText("请输入有效的日期和时间，或检查时间字段", "Enter a valid date and time."))
 		}
 		change["at"] = strings.TrimSpace(d.At)
 	case "every":
 		n, err := strconv.Atoi(d.Seconds)
 		if err != nil || n < 60 {
-			return nil, fmt.Errorf("%s", scheduleText("请输入至少 60 秒的间隔。", "Enter an interval of at least 60 seconds."))
+			return nil, fmt.Errorf("%s", scheduleText("请输入至少 60 秒的间隔", "Enter an interval of at least 60 seconds."))
 		}
 		change["every_seconds"] = n
 	case "daily", "weekly", "cron":
 		if _, err := time.LoadLocation(strings.TrimSpace(d.Zone)); err != nil {
-			return nil, fmt.Errorf("%s", scheduleText("请选择有效的时区，例如 Asia/Shanghai。", "Choose a valid time zone, for example Asia/Shanghai."))
+			return nil, fmt.Errorf("%s", scheduleText("请输入有效的 IANA 时区，例如 Asia/Shanghai", "Choose a valid time zone, for example Asia/Shanghai."))
 		}
 		rule := map[string]any{"time_zone": strings.TrimSpace(d.Zone)}
 		if d.Kind == "cron" {
 			if _, err := parseTaskCron(d.Expression); err != nil {
-				return nil, fmt.Errorf("%s", scheduleText("请输入有效的五字段 Cron 表达式，例如 0 9 * * 1-5。", "Enter a five-field cron expression, for example 0 9 * * 1-5."))
+				return nil, fmt.Errorf("%s", scheduleText("请输入 5 字段的 cron 表达式，例如 0 9 * * 1-5", "Enter a five-field cron expression, for example 0 9 * * 1-5."))
 			}
 			rule["expression"] = strings.TrimSpace(d.Expression)
 		} else {
@@ -282,7 +282,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 					if !answered && snap.ClientReady && snap.Err == "" {
 						ui.Spinner(c).Size(20, 20).TextColor(chrome.Color(colors.Muted))
 					} else if !p.catalogFeedback(c, m, snap, colors, false) {
-						scheduleEmpty(c, scheduleText("任务不可用，可能已被删除。", "Task unavailable. It may have been deleted."), colors)
+						scheduleEmpty(c, scheduleText("任务已不可用，可能已被删除", "Task unavailable. It may have been deleted."), colors)
 					}
 				})
 			})
@@ -367,10 +367,10 @@ func (d *taskDraft) validatedChange() (json.RawMessage, error) {
 	title := strings.TrimSpace(d.Title)
 	// Match the installed Client's JS string length for the 120-character limit.
 	if title == "" || len(utf16.Encode([]rune(title))) > 120 {
-		return nil, fmt.Errorf("%s", scheduleText("请输入不超过 120 字的任务名称。", "Enter a task name of at most 120 characters."))
+		return nil, fmt.Errorf("%s", scheduleText("请输入不超过 120 个字符的任务名称", "Enter a task name of at most 120 characters."))
 	}
 	if strings.TrimSpace(d.Prompt) == "" {
-		return nil, fmt.Errorf("%s", scheduleText("请输入任务指令。", "Enter a task instruction."))
+		return nil, fmt.Errorf("%s", scheduleText("请输入任务内容", "Enter a task instruction."))
 	}
 	return d.change()
 }

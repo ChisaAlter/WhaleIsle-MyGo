@@ -57,11 +57,11 @@ func scheduleSessionNotice(m Model, id string) string {
 	}
 	switch m.SessionLinkState(id) {
 	case "loading":
-		return scheduleText("正在加载原会话信息。", "Loading original session information.")
+		return scheduleText("正在加载原会话信息", "Loading original session information.")
 	case "archived":
-		return scheduleText("原会话已归档。", "The original session is archived.")
+		return scheduleText("原会话已归档", "The original session is archived.")
 	case "unavailable":
-		return scheduleText("原会话已不可用。", "The original session is unavailable.")
+		return scheduleText("原会话当前不可用", "The original session is unavailable.")
 	}
 	return ""
 }
@@ -89,7 +89,7 @@ func (p *Panel) detailFeedback(c *ui.Context, m Model, d *taskDraft, colors them
 	actions := []scheduleNoticeAction{}
 	if d.dirty() && d.row.Status != "inactive" {
 		actions = []scheduleNoticeAction{
-			{Label: scheduleText("保存更改", "Save changes"), Disabled: blocked, Run: func() { p.saveDraft(m, d) }},
+			{Label: scheduleText("保存修改", "Save changes"), Disabled: blocked, Run: func() { p.saveDraft(m, d) }},
 			{Label: scheduleText("取消", "Cancel"), Disabled: pending, Run: func() { *d = *newTaskDraft(d.row); p.message("") }},
 		}
 	}

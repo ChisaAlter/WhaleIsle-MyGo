@@ -425,7 +425,7 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 	if parsed, err := parseTaskCron(d.Expression); err != nil {
 		// Keep the parser's diagnostics internal; the editor names the accepted
 		// shape and a usable example beside the field that produced it.
-		ui.Text(c, scheduleText("请输入有效的五字段 Cron 表达式，例如 0 9 * * 1-5。", "Enter a five-field cron expression, for example 0 9 * * 1-5.")).FontSize(12).TextColor(c.Theme().Danger)
+		ui.Text(c, scheduleText("请输入 5 字段的 cron 表达式，例如 0 9 * * 1-5", "Enter a five-field cron expression, for example 0 9 * * 1-5.")).FontSize(12).TextColor(c.Theme().Danger)
 		return
 	} else {
 		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+catalogCronPreview(parsed, i18n.Locale())+" · "+formatCatalogZone(d.Zone, time.Now(), i18n.Locale())).FontSize(12).TextColor(muted)
@@ -434,7 +434,7 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 			loc = loaded
 		}
 		if at, ok := parsed.nextAfter(time.Now(), loc); ok {
-			ui.Text(c, scheduleText("下次运行：", "Next run: ")+at.Format("2006-01-02 15:04 MST")).FontSize(12).TextColor(muted)
+			ui.Text(c, scheduleText("下次计划时间：", "Next run: ")+at.Format("2006-01-02 15:04 MST")).FontSize(12).TextColor(muted)
 		} else {
 			ui.Text(c, scheduleText("这个表达式在 45 天内不会再运行。", "This expression does not run again within 45 days.")).FontSize(12).TextColor(muted)
 		}
