@@ -112,3 +112,47 @@ func TestConnectionManagementFixture(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkspaceSaveRetainsDraftUntilReadBackMatches(t *testing.T) {
+	for _, reply := range []struct {
+		name   string
+		status any
+		fail   bool
+	}{
+		{"readback-failed", nil, true},
+		{"readback-different", map[string]any{"bots": []any{map[string]any{"botId": "fixture-bot", "workspace": "/fixture/old"}}}, false},
+	} {
+		t.Run(reply.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					RPCID string `json:"rpcId"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&req)
+				result := map[string]any{"ok": true, "value": map[string]any{}}
+				if r.URL.Path == "/telegram/connection.status" {
+					result["value"] = reply.status
+					if reply.fail {
+						result = map[string]any{"ok": false, "error": map[string]any{"code": "UNAVAILABLE", "message": "fixture unavailable"}}
+					}
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": result})
+			}))
+			defer srv.Close()
+			s := New()
+			s.AttachPlugin(&pluginrpc.Client{BaseURL: srv.URL})
+			s.rows = parseCordisBots(json.RawMessage(`{"bots":[{"botId":"fixture-bot","workspace":"/fixture/old"}]}`), "telegram")
+			s.selectedID = "telegram:fixture-bot"
+			s.SetWorkspaceDraft(s.selectedID, "/fixture/new")
+			if err := s.SaveWorkspace(context.Background(), s.selectedID, "/fixture/new"); err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(3 * time.Second)
+			for s.Snapshot().ConnectionBusy && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if snap := s.Snapshot(); snap.ConnectionBusy || snap.WorkspaceDraft != "/fixture/new" {
+				t.Fatalf("unverified receipt discarded the workspace draft: %+v", snap)
+			}
+		})
+	}
+}

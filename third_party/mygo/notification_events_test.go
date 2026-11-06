@@ -130,3 +130,26 @@ func TestNotificationSynchronousAndLaterFailure(t *testing.T) {
 		t.Fatalf("later failure=%v", got)
 	}
 }
+
+func TestNotificationFailedReplacementRestoresListenersBeforeCallback(t *testing.T) {
+	first := showNotification(t, NotificationOptions{ID: "replace-failed-callback"})
+	oldClicks, newClicks := 0, 0
+	first.OnClick(func() { oldClicks++ })
+	replacement := NewNotification(NotificationOptions{ID: first.id})
+	replacement.OnClick(func() { newClicks++ })
+	replacement.OnFailed(func(error) {
+		// The original notification remains in the native center after a
+		// failed replacement; reentrant events must still reach its owner.
+		fb.ClickNotification(first.id)
+	})
+	want := errors.New("replacement rejected")
+	onMain(func() { fb.NotificationError = want })
+	err := replacement.Show()
+	onMain(func() { fb.NotificationError = nil })
+	if !errors.Is(err, want) || oldClicks != 1 || newClicks != 0 {
+		t.Fatalf("Show=%v old clicks=%d replacement clicks=%d", err, oldClicks, newClicks)
+	}
+	if native := fb.Notification(first.id); native == nil || native.Title != first.opts.Title {
+		t.Fatal("failed replacement removed the delivered notification")
+	}
+}

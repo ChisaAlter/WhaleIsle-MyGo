@@ -97,9 +97,11 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 										})
 										status := stateLabel(member.Phase)
 										if member.Phase == "active" {
-											status = tr("未运行", "Inactive")
-											if member.Running {
+											status = tr("活动暂未确认", "Activity unconfirmed")
+											if m.Team.StatusKnown && member.Running {
 												status = tr("运行中", "Running")
+											} else if m.Team.StatusKnown {
+												status = tr("未运行", "Inactive")
 											}
 										}
 										if member.ModelLabel != "" {

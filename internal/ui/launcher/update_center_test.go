@@ -73,3 +73,11 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 		t.Fatal("unconfigured native channel was selectable")
 	}
 }
+
+func TestUpdateCenterInstallingDoesNotOfferDownloadCancellation(t *testing.T) {
+	m := Model{ReleaseBusy: true, ReleasePhase: "installing", OnCancelRelease: func() { t.Fatal("install exposed download cancellation") }}
+	tt := ui.NewTester(func(c *ui.Context) { UpdateCenterFooter(c, m) }, 600, 240)
+	if _, ok := tt.Find(releaseText("取消下载 / 读取", "Cancel download / lookup")); ok {
+		t.Fatal("the download cancel action cannot cancel installation admission")
+	}
+}

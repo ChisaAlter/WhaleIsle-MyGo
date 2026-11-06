@@ -66,6 +66,19 @@ func TestAuthorizedProjectFileUsesOwnRootAndCheckedSaveClose(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) { files.View(c, pane.Files.projectFileModel()) }, 600, 400)
 	waitWorkspaceClose(t, func() bool { tt.Frame(); return pane.Files.Preview == "saved Project report" })
 	pane.Files.Draft, pane.Files.Editing = "edited Project report", true
+	w.FloatWorkspaceTab(pane.ID)
+	w.MinimizeWorkspaceFloat(pane.ID, true)
+	w.activateDockTab(ordinary.ID)
+	if err := w.OpenAuthorizedProjectFile(target, "project-host/coordinator", access); err != nil {
+		t.Fatal(err)
+	}
+	if pane.Float.Minimized || !w.visible("files") || w.Active != pane.ID || pane.Files.Draft != "edited Project report" {
+		t.Fatal("reopening a minimized Project file failed to reveal its retained draft")
+	}
+	tt.Frame()
+	if pane.Files.Draft != "edited Project report" || writes.Load() != 0 {
+		t.Fatal("revealing the Project file reread or saved the draft")
+	}
 	closeModel := workspaceCloseFilesModel(Model{workspacePane: pane})
 	if pending, err := startWorkspacePaneCloseSave(pane, closeModel); err != nil {
 		t.Fatal(pending, err)

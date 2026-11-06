@@ -104,7 +104,8 @@ type Options struct {
 // logLimit is how many output lines the boot log keeps.
 const logLimit = 400
 
-// stopGrace is how long dsh gets to exit before it is killed.
+// stopGrace is how long dsh gets between SIGTERM and SIGKILL on Unix. Windows
+// force-ends the tree on the first terminate, so Stop does not wait there.
 const stopGrace = 5 * time.Second
 
 // restartStablePeriod prevents a short-lived Ready state from replenishing the

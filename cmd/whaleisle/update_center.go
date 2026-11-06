@@ -228,6 +228,10 @@ func (s *mainState) resumeNativeUpdate(win *mygo.Window) {
 func (s *mainState) cancelNativeUpdate(win *mygo.Window) {
 	s.mu.Lock()
 	r := &s.nativeReleases
+	if r.installing {
+		s.mu.Unlock()
+		return
+	}
 	if r.busy {
 		r.cancelRequested = true
 		r.pauseRequested = false
@@ -303,17 +307,19 @@ func (s *mainState) maybeAutoDownloadNative(win *mygo.Window) {
 	r := s.nativeReleases
 	requireRuntime := !s.startupRecovery.updateVendorReady
 	allowed := r.autoDownload && !r.busy && !r.paused && r.err == "" && r.catalogRoute == r.route && r.staged.Path == "" && !s.quitting && !s.launcherImportBusy && !s.launcherStartBusy && !s.taskRestartPending
-	var key string
+	available := false
 	if allowed {
 		for _, release := range r.rows {
 			if !release.Prerelease && release.UnavailableReason == "" && (!requireRuntime || release.RuntimeIncluded) && update.CompareVersions(release.Version, buildVersion) > 0 {
-				key = release.PackageKey()
+				available = true
 				break
 			}
 		}
 	}
 	s.mu.Unlock()
-	if key != "" {
-		s.downloadNativeRelease(win, key, requireRuntime)
+	if available {
+		// Automatic discovery selects the latest compatible stable package; it
+		// must not persist the explicit-version intent used for reinstalls.
+		s.downloadNativeRelease(win, "", requireRuntime)
 	}
 }

@@ -40,7 +40,7 @@ func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, mute
 		if text := strings.TrimSpace(p.Text); text != "" {
 			ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
 				Background(fg.Alpha(0.06)).Radius(20).Padding(10, 16, 10, 16).Children(func() {
-				ui.Text(c, text).FontSize(13).FixedLineHeight(22).TextColor(fg)
+				ui.Text(c, maskedUserText(text)).FontSize(13).FixedLineHeight(22).TextColor(fg)
 			})
 		}
 		status := i18n.T(i18n.KeyChatPendingSending)

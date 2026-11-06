@@ -88,8 +88,9 @@ func (s *Store) applyPetCare(kind string, effect func([]byte, time.Time) petcare
 	if err = s.commitPetLocked(pet); err != nil {
 		return err
 	}
-	s.petStatsRawCache = append(json.RawMessage(nil), pet["stats"]...)
-	s.petRawCache = append(json.RawMessage(nil), s.raw["live2dPet"]...)
+	// A workspace merge may have accepted another writer's growth since this
+	// cache was populated. Care changes must not mark that older growth fresh.
+	s.petCacheValid = false
 	return nil
 }
 
@@ -115,8 +116,11 @@ func (s *Store) commitPetLocked(pet map[string]json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	commitMu.Lock()
-	defer commitMu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err = s.checkBaseline(); err != nil {
 		return err
 	}

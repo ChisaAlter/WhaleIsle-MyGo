@@ -119,3 +119,39 @@ func TestWorkspaceDocumentFloatRestoreDoesNotGrantRevokedSource(t *testing.T) {
 		t.Fatal("restoring container revived source permission")
 	}
 }
+
+func TestSubagentDocumentReusesBrowserBehindAnotherDockTab(t *testing.T) {
+	w := &WorkspacePanes{}
+	w.syncRoute("browser")
+	browser := w.Root
+	controller := browserpreview.NewController(nil)
+	browser.browser = controller
+	controller.SetDocumentLoader(func(browserpreview.DocumentSource) bool { return false }, func(context.Context, browserpreview.DocumentSource) browserpreview.DocumentResult {
+		t.Fatal("unavailable document read")
+		return browserpreview.DocumentResult{}
+	})
+	agents := w.selectKind(browser, "agents")
+	if w.Root != agents || w.Root.kind("browser") != browser {
+		t.Fatal("retained Browser is missing from the resource inventory")
+	}
+	w.OpenDocument(browserpreview.DocumentSource{AddressKind: "subagent", SessionID: "parent", Path: "report.pdf", Kind: browserpreview.DocumentPDF}, func() *browserpreview.Controller {
+		t.Fatal("document open cloned the retained Browser")
+		return nil
+	})
+	ui.NewTester(func(c *ui.Context) {
+		if pending := w.pending; pending != nil {
+			w.pending = nil
+			pending()
+		}
+		controller.View(c, "", false, nil)
+	}, 900, 600)
+	count := 0
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Kind == "browser" {
+			count++
+		}
+	})
+	if count != 1 || w.Active != browser.ID || w.Root.find(agents.ID) != agents || len(controller.Tabs) != 1 {
+		t.Fatalf("subagent document did not reuse Browser: count=%d active=%s tabs=%d", count, w.Active, len(controller.Tabs))
+	}
+}

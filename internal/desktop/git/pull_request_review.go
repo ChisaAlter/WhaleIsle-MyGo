@@ -171,9 +171,6 @@ func preparePullRequestBranch(ctx context.Context, root string, push PushPlan, t
 		p.Head = strings.SplitN(p.HeadRepository, "/", 2)[0] + ":" + push.Target
 	}
 	p.Base, _ = selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".gh-merge-base")
-	if p.Base != "" {
-		p.Base = strings.TrimPrefix(p.Base, "origin/")
-	}
 	if p.Base == "" {
 		remote, _ := selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".remote")
 		merge, _ := selectedText(ctx, root, "", "config", "--get", "branch."+push.Branch+".merge")
@@ -231,7 +228,9 @@ func validatePullRequestBeforeCommit(ctx context.Context, root string, p PullReq
 }
 func lookupPullRequest(ctx context.Context, root string, p PullRequestPlan, run combinedRunner) (PullRequestResult, error) {
 	emitPhase(ctx, "Checking existing PR in "+p.Repository+"…")
-	out, e := run(ctx, root, "gh", "pr", "list", "--repo", githubCLIRepository(p.Host, p.Repository), "--head", p.Head, "--base", p.Base, "--state", "open", "--json", "number,title,url,state,headRefName,baseRefName,headRepository,headRepositoryOwner")
+	// gh pr list accepts only a branch name for --head; unlike pr create it
+	// does not accept owner:branch. Match the fork identity in the response.
+	out, e := run(ctx, root, "gh", "pr", "list", "--repo", githubCLIRepository(p.Host, p.Repository), "--head", p.Push.Target, "--base", p.Base, "--state", "open", "--json", "number,title,url,state,headRefName,baseRefName,headRepository,headRepositoryOwner")
 	if e != nil {
 		return PullRequestResult{}, fmt.Errorf("cannot check existing PR; creation stopped: %w: %s", e, strings.TrimSpace(string(out)))
 	}
@@ -245,6 +244,13 @@ func lookupPullRequest(ctx context.Context, root string, p PullRequestPlan, run 
 	if e != nil {
 		return PullRequestResult{}, e
 	}
+	matching := list[:0]
+	for _, info := range list {
+		if strings.EqualFold(info.HeadRepositoryOwner.Login+"/"+info.HeadRepository.Name, p.HeadRepository) {
+			matching = append(matching, info)
+		}
+	}
+	list = matching
 	if len(list) > 1 {
 		return PullRequestResult{}, errors.New("multiple open PRs match; inspect them on GitHub")
 	}

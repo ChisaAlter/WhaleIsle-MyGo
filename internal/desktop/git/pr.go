@@ -64,7 +64,9 @@ func viewPR(ctx context.Context, root string, look PathLooker, run combinedRunne
 	if err != nil {
 		return PRStatus{Err: err.Error()}
 	}
-	out, err := run(ctx, root, "gh", "pr", "view", "--repo", githubCLIRepository(host, repo.NameWithOwner), "--json", "number,title,url,state")
+	// Let gh resolve the current branch, including its fork/upstream metadata.
+	// --repo requires an explicit PR selector and disables that lookup.
+	out, err := run(ctx, root, "gh", "pr", "view", "--json", "number,title,url,state")
 	if err != nil {
 		text := strings.TrimSpace(string(out))
 		if text == "" {

@@ -140,6 +140,9 @@ func archivedSectionItems(m Model) []session.Item {
 			rows = append(rows, session.Item{SessionID: id, Title: workspaceText("缺失会话", "Missing session")})
 			continue
 		}
+		if item.Presentation != nil && item.Presentation.Owner != "" && item.Presentation.Owner != "whaleisle" {
+			continue
+		}
 		if filter != "default" || item.Origin == "subagent" || !members[id] && !m.Snapshot.IsNoDirectory(item) {
 			continue
 		}

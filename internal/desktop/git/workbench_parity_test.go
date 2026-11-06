@@ -10,7 +10,7 @@ func TestPRSelectedUpstreamForkEnterpriseAndMergeBase(t *testing.T) {
 	root, run, _ := selectionRepo(t)
 	run("switch", "-c", "feature/review")
 	run("remote", "add", "origin", "git@ghe.example.test:contributor/fork.git")
-	run("config", "branch.feature/review.gh-merge-base", "release")
+	run("config", "branch.feature/review.gh-merge-base", "origin/release")
 	push, err := PreparePush(root)
 	if err != nil {
 		t.Fatal(err)
@@ -23,13 +23,13 @@ func TestPRSelectedUpstreamForkEnterpriseAndMergeBase(t *testing.T) {
 			return []byte(`{"nameWithOwner":"upstream/project","url":"https://ghe.example.test/upstream/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
 		joined := strings.Join(args, " ")
-		if !strings.Contains(joined, "--repo ghe.example.test/upstream/project --head contributor:feature/review --base release") {
+		if !strings.Contains(joined, "--repo ghe.example.test/upstream/project --head feature/review --base origin/release") {
 			t.Fatal(args)
 		}
-		return []byte(`[{"number":3,"state":"OPEN","url":"https://ghe.example.test/upstream/project/pull/3","headRefName":"feature/review","baseRefName":"release","headRepository":{"name":"fork"},"headRepositoryOwner":{"login":"contributor"}}]`), nil
+		return []byte(`[{"number":2,"state":"OPEN","url":"https://ghe.example.test/upstream/project/pull/2","headRefName":"feature/review","baseRefName":"origin/release","headRepository":{"name":"fork"},"headRepositoryOwner":{"login":"someone-else"}},{"number":3,"state":"OPEN","url":"https://ghe.example.test/upstream/project/pull/3","headRefName":"feature/review","baseRefName":"origin/release","headRepository":{"name":"fork"},"headRepositoryOwner":{"login":"contributor"}}]`), nil
 	}
 	p, err := preparePullRequest(context.Background(), root, push, "Reviewed", "Body", fake)
-	if err != nil || p.Host != "ghe.example.test" || p.Repository != "upstream/project" || p.HeadRepository != "contributor/fork" || p.Head != "contributor:feature/review" || p.Base != "release" {
+	if err != nil || p.Host != "ghe.example.test" || p.Repository != "upstream/project" || p.HeadRepository != "contributor/fork" || p.Head != "contributor:feature/review" || p.Base != "origin/release" {
 		t.Fatal(p, err)
 	}
 	r, err := lookupPullRequest(context.Background(), root, p, fake)

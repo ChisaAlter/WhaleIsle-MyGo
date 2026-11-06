@@ -89,6 +89,9 @@ func (w *WorkspacePanes) OpenAuthorizedProjectFile(target projectflow.FileTarget
 		state.projectAccess = &access
 		w.activateDockTab(pane.ID)
 		w.focusPending = pane.ID
+		if pane.Float != nil {
+			w.MinimizeWorkspaceFloat(pane.ID, false)
+		}
 		return nil
 	}
 	copyTarget := target

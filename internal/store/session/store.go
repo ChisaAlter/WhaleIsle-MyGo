@@ -1586,6 +1586,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 	s.mu.Lock()
 	client := s.client
 	sessionID := s.selectedID
+	generation := s.followGeneration
 	mode := NormalizePromptMode(string(s.promptMode))
 	if client == nil || sessionID == "" {
 		s.mu.Unlock()
@@ -1611,7 +1612,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		err := client.Call(ctx, "session/prompt", map[string]any{"request": req}, &promptResult)
 
 		s.mu.Lock()
-		if s.selectedID != sessionID {
+		if s.client != client || s.selectedID != sessionID || s.followGeneration != generation {
 			s.mu.Unlock()
 			return
 		}

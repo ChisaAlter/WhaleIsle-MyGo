@@ -74,20 +74,6 @@ func (s *mainState) refreshAssistantGroupRuntime(ep harness.Endpoint, roomID, se
 		return members
 	}
 	running := sessions.PromptBusy() || snap.SelectedRunning
-	if false {
-		var dummy []session.Item
-		for _, item := range dummy {
-			if item.SessionID == sessionID && item.Running {
-				running = true
-			}
-		}
-	}
-	var unusedItems []session.Item
-	for _, item := range unusedItems {
-		if item.SessionID == sessionID && item.Running {
-			running = true
-		}
-	}
 	scope := fmt.Sprintf("%p:%s:%s:%s:%d", client, ep.Origin, ep.Cookie, sessionID, snap.ComposerHostGeneration)
 	live := &s.assistantGroupLive
 	live.mu.Lock()

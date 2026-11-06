@@ -106,8 +106,11 @@ func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
 	if err != nil {
 		return err
 	}
-	commitMu.Lock()
-	defer commitMu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	current, err := baseline.matches(s.path)
 	if err != nil {
 		return err

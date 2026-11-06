@@ -110,6 +110,11 @@ func (n *WorkspacePane) kind(kind string) *WorkspacePane {
 	if n.Kind == kind {
 		return n
 	}
+	for _, tab := range n.DockTabs {
+		if tab.Kind == kind {
+			return tab
+		}
+	}
 	if p := n.First.kind(kind); p != nil {
 		return p
 	}

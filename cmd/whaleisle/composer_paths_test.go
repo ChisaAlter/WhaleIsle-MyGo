@@ -28,6 +28,7 @@ func waitComposerPaths(t *testing.T, s *mainState, root string) []string {
 // arrive from the worker.
 func TestComposerPathsIndexesOffTheCallingThread(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(root))
 	for _, rel := range []string{"a.txt", "dir/b.txt"} {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -67,6 +68,7 @@ func TestComposerPathsIndexesOffTheCallingThread(t *testing.T) {
 // Files of the previous workspace must not be offered while the next one loads.
 func TestComposerPathsDropsThePreviousRootWhileLoading(t *testing.T) {
 	one, two := t.TempDir(), t.TempDir()
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(one))
 	if err := os.WriteFile(filepath.Join(one, "old.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}

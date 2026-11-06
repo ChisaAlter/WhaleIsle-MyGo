@@ -80,6 +80,9 @@ func (o *Owner) finishWorkspaceOperation(page *bridgePage, id, message string) {
 // InvokeWorkspace executes only a currently published public service action.
 // Cancellation stops waiting; a delivered adopt/owner action is never replayed.
 func (o *Owner) InvokeWorkspace(ctx context.Context, s Snapshot, op, id, path, owner string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	o.mu.Lock()
 	page := o.page
 	valid := !o.closed && !o.incompatible && o.state.Connected && s.Subject != nil && o.state.Subject != nil && o.state.Subject.equal(*s.Subject) && o.selected.equal(*s.Subject) && page != nil && page.id == s.Page && o.state.Revision == s.Revision

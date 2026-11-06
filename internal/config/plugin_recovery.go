@@ -82,16 +82,17 @@ func (s *Store) UpdatePluginRecovery(fn func(map[string]any)) error {
 	if err := json.Unmarshal(encoded, &known); err != nil {
 		return err
 	}
-	for k, v := range known {
-		merged[k] = v
-	}
+	merged = mergeKnownConfig(merged, known)
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	commitMu.Lock()
-	defer commitMu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}

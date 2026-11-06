@@ -162,6 +162,9 @@ func TestViewPR_fakeRunnerJSON(t *testing.T) {
 		if args[0] == "repo" {
 			return []byte(`{"nameWithOwner":"example/project","url":"https://github.com/example/project","defaultBranchRef":{"name":"main"}}`), nil
 		}
+		if got := strings.Join(args, " "); got != "pr view --json number,title,url,state" {
+			t.Fatalf("current-branch PR lookup must preserve gh branch resolution: %s", got)
+		}
 		return []byte(`{"number":1,"title":"Hi","url":"https://github.com/example/project/pull/1","state":"OPEN"}`), nil
 	}
 	st := viewPR(context.Background(), root, func(string) (string, error) {

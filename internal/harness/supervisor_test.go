@@ -119,7 +119,12 @@ func TestStartRedeemsCookieAndStops(t *testing.T) {
 			t.Fatalf("launch token leaked into the log: %q", line)
 		}
 	}
+	stopStart := time.Now()
 	s.Stop()
+	// Reaching stopGrace means the first terminate left the child running.
+	if took := time.Since(stopStart); took >= stopGrace {
+		t.Fatalf("Stop took %s; the first terminate did not end the child", took)
+	}
 	if st := s.Status(); st.State != Stopped {
 		t.Fatalf("after Stop: %v", st.State)
 	}

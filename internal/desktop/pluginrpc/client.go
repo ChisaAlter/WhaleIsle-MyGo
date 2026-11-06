@@ -38,6 +38,35 @@ type resultEnvelope struct {
 	} `json:"error"`
 }
 
+func (r *resultEnvelope) UnmarshalJSON(data []byte) error {
+	type fields resultEnvelope
+	var wire struct {
+		fields
+		OK    *bool `json:"ok"`
+		Error *struct {
+			Code    *string `json:"code"`
+			Message *string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	if wire.OK == nil {
+		return fmt.Errorf("missing boolean result status")
+	}
+	r.OK, r.Value, r.Error = *wire.OK, wire.Value, nil
+	if !r.OK {
+		if wire.Error == nil || wire.Error.Code == nil || wire.Error.Message == nil {
+			return fmt.Errorf("missing failure code or message")
+		}
+		r.Error = &struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{Code: *wire.Error.Code, Message: *wire.Error.Message}
+	}
+	return nil
+}
+
 // Client posts plugin control-plane RPCs to a harness origin.
 type Client struct {
 	BaseURL    string // e.g. http://127.0.0.1:8787

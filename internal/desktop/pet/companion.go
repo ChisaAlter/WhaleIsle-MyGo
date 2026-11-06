@@ -14,7 +14,7 @@ import (
 	"whaleisle/internal/store/storelocale"
 )
 
-//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/anime4k.js assets/anime4k.LICENSE assets/anime4k-provenance.json assets/pet-super-resolution.js assets/pet-runtime.js assets/pet-body.js assets/pet-sleep.js assets/pet-layout.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/anime4k.js assets/anime4k.LICENSE assets/anime4k-provenance.json assets/pet-super-resolution.js assets/pet-runtime.js assets/pet-sprite.js assets/pet-body.js assets/pet-sleep.js assets/pet-layout.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a

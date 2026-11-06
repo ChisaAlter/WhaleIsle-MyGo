@@ -137,11 +137,14 @@ func collectPRGenerationInput(ctx context.Context, root string, p PullRequestPla
 	if err != nil {
 		return
 	}
-	in.DiffSummary, err = generationGitText(ctx, root, 20000, "diff", "--no-ext-diff", "--no-textconv", "--stat", rangeSpec)
+	// PRs compare the branch with its merge base. A two-dot diff would include
+	// unrelated changes made on the target branch as apparent deletions.
+	diffRange := baseSHA + "..." + p.head
+	in.DiffSummary, err = generationGitText(ctx, root, 20000, "diff", "--no-ext-diff", "--no-textconv", "--stat", diffRange)
 	if err != nil {
 		return
 	}
-	in.DiffPatch, err = generationGitText(ctx, root, 60000, "diff", "--no-ext-diff", "--no-textconv", "--patch", "--minimal", rangeSpec)
+	in.DiffPatch, err = generationGitText(ctx, root, 60000, "diff", "--no-ext-diff", "--no-textconv", "--patch", "--minimal", diffRange)
 	if err != nil {
 		return
 	}

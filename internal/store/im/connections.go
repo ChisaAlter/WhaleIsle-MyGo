@@ -192,8 +192,13 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 			}
 			s.rows = append(kept, rows...)
 		}
-		if err == nil && method == "bot.workspace.set" && s.workspaceDrafts[id] == payload["workspace"] {
-			delete(s.workspaceDrafts, id)
+		if refreshed && method == "bot.workspace.set" && s.workspaceDrafts[id] == payload["workspace"] {
+			for _, row := range rows {
+				if row.ID == id && row.Workspace == payload["workspace"] {
+					delete(s.workspaceDrafts, id)
+					break
+				}
+			}
 		}
 		s.mu.Unlock()
 		s.fire()

@@ -47,6 +47,10 @@ func TestBodyResourceAndConsumerOrder(t *testing.T) {
 			t.Fatalf("duplicate script %s", entry[1])
 		}
 		position[entry[1]] = i
+		script := get(http.MethodGet, "whale-pet://localhost/"+entry[1])
+		if script.Code != http.StatusOK || script.Body.Len() == 0 || script.Header().Get("Content-Type") != "text/javascript; charset=utf-8" {
+			t.Fatalf("packaged page script %s unavailable: status=%d bytes=%d MIME=%q", entry[1], script.Code, script.Body.Len(), script.Header().Get("Content-Type"))
+		}
 	}
 	bodyPosition, ok := position["pet-body.js"]
 	if !ok || strings.Count(page.Body.String(), `src="pet-body.js"`) != 1 {
@@ -56,6 +60,9 @@ func TestBodyResourceAndConsumerOrder(t *testing.T) {
 		if index, exists := position[name]; !exists || index <= bodyPosition {
 			t.Fatalf("%s must execute after body: %v", name, position)
 		}
+	}
+	if position["pet-sprite.js"] >= position["pet-runtime.js"] {
+		t.Fatal("sprite cell selector must execute before the runtime consumes it")
 	}
 	t.Logf("served defer order=%v; unavailable path returns404 without changing CSP", position)
 }

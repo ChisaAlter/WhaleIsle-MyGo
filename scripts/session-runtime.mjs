@@ -227,7 +227,7 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   graph.directories.sort((a, b) => a.split(path.sep).length - b.split(path.sep).length);
   for (const relative of graph.directories) await fs.mkdir(child(vendor, relative));
   for (const relative of graph.files) {
-    if (relative === 'host-session-runtime.json') continue;
+    if (relative === 'host-session-runtime.json' || relative === 'runtime-graph.json') continue;
     await fs.copyFile(child(graph.root, relative), child(vendor, relative), constants.COPYFILE_EXCL);
   }
   for (const link of graph.links) {
@@ -240,6 +240,12 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   const result = {...metadata, harnessRoot: path.join(vendor, 'deepseek-harness'), relocatedLinks: graph.links.length};
   await fs.writeFile(path.join(vendor, 'host-session-runtime.json'), JSON.stringify(result, null, 2) + '\n', {flag: 'wx'});
   await applyWindowsBackgroundRuntime(vendor);
+  // A release's closure includes its Host manifest. Relocation rewrites that
+  // manifest, so publish the new copy's closure after those changes complete.
+  if (graph.files.includes('runtime-graph.json')) {
+    const copied = inventoryGraph(vendor, ['runtime-graph.json', 'dshd-remote/debug.log']);
+    await fs.writeFile(path.join(vendor, 'runtime-graph.json'), JSON.stringify({schemaVersion: 1, files: copied.files, links: copied.links}, null, 2) + '\n', {flag: 'wx'});
+  }
   return verifyStagedSessionRuntime(vendor);
 }
 

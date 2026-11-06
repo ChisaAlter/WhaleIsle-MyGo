@@ -45,6 +45,7 @@ func (s *Store) GoalDockAction(goalID string, revision float64) func(context.Con
 		}
 		if err == nil {
 			if action == "clear" {
+				s.planBoard.goalReadToken = nil
 				s.planBoard.Goal = nil
 			} else if out.Id != "" {
 				s.applyGoalView(&out)

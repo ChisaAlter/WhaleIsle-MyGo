@@ -62,10 +62,12 @@ func (s *Store) MergeWorkspaceNavigationPreferences(hostKey string, base, next W
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	commitMu.Lock()
-	defer commitMu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return WorkspaceNavigationPreferences{}, err
+	}
+	defer unlock()
 	var latest *Store
-	var err error
 	if ok, matchErr := s.baseline.matches(s.path); matchErr == nil && ok {
 		latest = &Store{
 			path:     s.path,

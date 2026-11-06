@@ -187,6 +187,7 @@ func (s *ScopedStore) DismissPlanReview(id string) {
 	}
 	if p.CallID != "" {
 		ds.planReviewHidden = true
+		ds.hidden = true
 		s.mu.Unlock()
 		s.fire()
 		return

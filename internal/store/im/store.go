@@ -402,6 +402,12 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		s.drafts[channelID] = text
 		s.err = err
 		s.lastSend = "Draft save failed: " + err.Error()
+		// The RPC is not dispatched when its local draft cannot be saved.
+		// Retire the persisted pending entry before returning to the composer.
+		s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
+		if saveErr := s.saveHistoryLocked(); saveErr != nil {
+			s.lastSend += " · history save failed: " + saveErr.Error()
+		}
 		s.mu.Unlock()
 		s.fire()
 		return

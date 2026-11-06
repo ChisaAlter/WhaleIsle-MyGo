@@ -9,6 +9,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {inspectSessionRuntime, stageSessionRuntime, cloneStagedSessionRuntime, verifyStagedSessionRuntime, sessionAdmissionTypes} from './session-runtime.mjs';
 import {baseSHA256, outputSHA256, replacement, bundlePath} from './session-runtime-readiness.mjs';
+import {inventoryGraph} from './session-runtime-graph.mjs';
 
 const pin = {repo: 'https://github.com/deepseek-ai/deepseek-harness.git', ref: 'dsh-v0.2.1-rc.2', sha: '687f282e8625c6b8d11ff58211a90524be2e4317', npm: '0.2.1-rc.2'};
 async function write(filename, contents) {
@@ -115,6 +116,24 @@ test('clone refuses existing, overlapping and external-link destinations without
   const fresh=path.join(f.root,'never-created');
   await assert.rejects(cloneStagedSessionRuntime(f.resources,fresh),/External or ancestor runtime link/);
   await assert.rejects(fs.lstat(fresh),{code:'ENOENT'});
+});
+
+test('clone refreshes a verified release closure after relocating its Host manifest', async t => {
+  const f = await cloneFixture(t);
+  await linkDirectory(path.join(f.harness, 'packages/core/session'), path.join(f.vendor, 'session-alias'));
+  const original = inventoryGraph(f.vendor);
+  const closure = {schemaVersion: 1, files: original.files, links: original.links};
+  await write(path.join(f.vendor, 'runtime-graph.json'), closure);
+  await cloneStagedSessionRuntime(f.resources, f.destination);
+  const vendor = path.join(f.destination, 'vendor');
+  const copied = JSON.parse(await fs.readFile(path.join(vendor, 'runtime-graph.json'), 'utf8'));
+  assert.notEqual(copied.files['host-session-runtime.json'], closure.files['host-session-runtime.json']);
+  assert.deepEqual(copied.links, closure.links);
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.vendor, 'runtime-graph.json'), 'utf8')), closure);
+  await fs.rename(f.resources, path.join(f.root, 'old-release-unavailable'));
+  assert.equal((await verifyStagedSessionRuntime(vendor)).harnessRoot, path.join(vendor, 'deepseek-harness'));
+  await fs.appendFile(path.join(vendor, 'deepseek-harness/packages/core/session/lib/index.js'), '\n// changed');
+  await assert.rejects(verifyStagedSessionRuntime(vendor), /Runtime graph file changed or missing/);
 });
 
 test('old runtime rejects the required seq20 event through its actual validator export', async t => {

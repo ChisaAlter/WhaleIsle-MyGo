@@ -151,12 +151,12 @@ type turnRailState struct {
 	placed    bool
 }
 
-// messagePreviewText flattens a body for a one-line preview: image placeholders
-// drop out, whitespace collapses and the tail is elided.
+// messagePreviewText flattens a body for a one-line preview. Mask credentials
+// before truncation so navigation cannot reveal text hidden in the transcript.
 func messagePreviewText(body string, limit int) string {
 	refs, text := userMessageParts(strings.TrimSpace(body))
 	_ = refs
-	flat := strings.Join(strings.Fields(text), " ")
+	flat := strings.Join(strings.Fields(maskedUserText(text)), " ")
 	runes := []rune(flat)
 	if len(runes) <= limit {
 		return flat
@@ -254,6 +254,9 @@ func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, current int, mut
 		FontSize(11).Padding(0, 8, 0, 8).Height(24).Radius(6).
 		Background(ui.Transparent).Border(0.5, muted.Alpha(.4)).TextColor(muted)
 	open := ui.Local(button, "turn-rail-menu", func() bool { return false })
+	if button.Clicked() {
+		*open = !*open
+	}
 	ui.Popover(c, button, open, func() {
 		ui.Scroll(c).Width(260).MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Padding(4).Children(func() {
@@ -271,7 +274,7 @@ func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, current int, mut
 					item.Tooltip(anchor.Response)
 					item.Children(func() {
 						ui.Text(c, itoaFast(anchor.Index)).Width(20).FontSize(11).TextColor(muted)
-						ui.Text(c, anchor.Preview).FontSize(12).Grow(1).MinWidth(0).SingleLine()
+						ui.Text(c, anchor.Preview).FontSize(12).TextColor(c.Theme().Text).Grow(1).MinWidth(0).SingleLine()
 					})
 					if onJump != nil && item.Clicked() {
 						onJump(anchor.Seq)

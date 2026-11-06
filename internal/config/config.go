@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -179,6 +180,33 @@ type Config struct {
 	// PreviewNoticeAck is the last 预览版说明 copy version the user acknowledged,
 	// the Go-side counterpart of the harness welcome-notice settings field.
 	PreviewNoticeAck string `json:"goPreviewNoticeAck,omitempty"`
+}
+
+var configJSONFields = func() map[string]bool {
+	fields := map[string]bool{}
+	typ := reflect.TypeFor[Config]()
+	for i := 0; i < typ.NumField(); i++ {
+		name := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
+		if name != "" && name != "-" {
+			fields[name] = true
+		}
+	}
+	return fields
+}()
+
+// mergeKnownConfig replaces all typed fields, including those omitted after an
+// explicit reset. Only keys outside Config remain opaque and carried through.
+func mergeKnownConfig(raw, known map[string]json.RawMessage) map[string]json.RawMessage {
+	merged := make(map[string]json.RawMessage, len(raw)+len(known))
+	for key, value := range raw {
+		if !configJSONFields[key] {
+			merged[key] = value
+		}
+	}
+	for key, value := range known {
+		merged[key] = value
+	}
+	return merged
 }
 
 // Defaults returns the configuration of a first run. Values mirror
@@ -384,9 +412,8 @@ func (s *Store) UpdateChecked(fn func(*Config) error) error {
 	defer s.mu.Unlock()
 
 	// Refuse to build on a stale snapshot before running the callback, so a
-	// conflicting update has no side effects. commitMu is held for every
-	// on-disk comparison and write (but never across the callback), so no two
-	// stores in this process touch config.json at the same time.
+	// conflicting update has no side effects. The final check and replacement
+	// are locked together after the callback has finished.
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}
@@ -411,13 +438,7 @@ func (s *Store) UpdateChecked(fn func(*Config) error) error {
 	if err := json.Unmarshal(encoded, &known); err != nil {
 		return err
 	}
-	merged := make(map[string]json.RawMessage, len(s.raw)+len(known))
-	for k, v := range s.raw {
-		merged[k] = v
-	}
-	for k, v := range known {
-		merged[k] = v
-	}
+	merged := mergeKnownConfig(s.raw, known)
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err
@@ -425,26 +446,9 @@ func (s *Store) UpdateChecked(fn func(*Config) error) error {
 
 	// The final compare-and-replace is serialized across all stores in this
 	// process, catching an edit made while the callback or serialization ran.
-	commitMu.Lock()
-	defer commitMu.Unlock()
-	// Hold the cross-process advisory lock for the whole commit so a
-	// cooperating writer in another process cannot slip its own write between
-	// our last baseline check and the atomic rename. The byte-level check
-	// still runs under the lock, so a writer that never takes the lock (the
-	// Electron shell editing config.json directly) is rejected, not merged.
-	unlock := func() {}
-	if lock := s.commitLock; lock != nil {
-		release, err := lock(s.path)
-		if err != nil {
-			return err
-		}
-		unlock = release
-	} else {
-		release, err := acquireCommitLock(s.path)
-		if err != nil {
-			return err
-		}
-		unlock = release
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
 	}
 	defer unlock()
 	if err := s.checkBaseline(); err != nil {
@@ -460,8 +464,8 @@ func (s *Store) UpdateChecked(fn func(*Config) error) error {
 }
 
 // checkBaseline compares the on-disk file against the recorded baseline. It
-// must be called with commitMu held so the comparison cannot race a write
-// from another store in this process.
+// final pre-write check must run under lockCommit so cooperating writers cannot
+// change the file between that comparison and replacement.
 func (s *Store) checkBaseline() error {
 	ok, err := s.baseline.matches(s.path)
 	if err != nil {

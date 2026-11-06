@@ -12,17 +12,15 @@ func detach(cmd *exec.Cmd) {
 	processutil.BackgroundTree(cmd)
 }
 
-// terminate ends the child's process tree. The background Host has no
-// interactive control channel, so both modes use taskkill /T.
-func terminate(cmd *exec.Cmd, force bool) error {
+// terminate force-ends the child's process tree; force is ignored. The Host
+// runs in a hidden console with no window to receive taskkill's close request,
+// so a plain taskkill never ends it and would only hold Stop for stopGrace.
+// Electron's killTree (reference/electron/src/main/dsh.js) also uses /T /F.
+func terminate(cmd *exec.Cmd, _ bool) error {
 	if cmd.Process == nil {
 		return nil
 	}
-	args := []string{"/PID", strconv.Itoa(cmd.Process.Pid), "/T"}
-	if force {
-		args = append(args, "/F")
-	}
-	kill := exec.Command("taskkill", args...)
+	kill := exec.Command("taskkill", "/PID", strconv.Itoa(cmd.Process.Pid), "/T", "/F")
 	processutil.Background(kill)
 	return kill.Run()
 }

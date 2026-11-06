@@ -18,7 +18,7 @@ import (
 //
 // The lock is advisory only: a writer that does not open the lockfile (for
 // example the Electron shell editing config.json directly) is not blocked,
-// which is why checkBaseline still runs under the lock to reject the commit.
+// so checkBaseline still rejects edits made before its final comparison.
 func acquireCommitLock(configPath string) (func(), error) {
 	dir := filepath.Dir(configPath)
 	// The data dir may not exist yet on a first run; writeAtomic creates it

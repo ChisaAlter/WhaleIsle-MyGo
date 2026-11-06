@@ -42,10 +42,11 @@ func (s *Store) ReviewQuestionHistory(agentID, callID string) {
 	for _, p := range s.pending {
 		if p.AgentID == agentID && p.CallID == callID && p.Event == EventUserQuestions {
 			if ds := s.questionDrafts[p.EventID]; ds != nil {
-				if ds.hidden {
+				if ds.hidden || ds.planReviewHidden {
 					s.raisePendingLocked(p.EventID)
 				}
 				ds.hidden = false
+				ds.planReviewHidden = false
 			}
 			s.mu.Unlock()
 			s.fire()

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -34,6 +35,53 @@ func TestTurnAnchorsCountDurablePrompts(t *testing.T) {
 	}
 }
 
+func TestTurnRailMasksCredentialsBeforeTruncation(t *testing.T) {
+	credential := "ghp_" + strings.Repeat("a", 36)
+	prompt := strings.Repeat("prefix ", 8) + credential
+	want := strings.Repeat("prefix ", 8) + credential[:8] + strings.Repeat("*", 8) + "…"
+	views := []session.ViewState{
+		{Messages: []session.Message{{Role: "user", Kind: session.MessageKindText, Seq: 1, Body: prompt}}},
+		{Messages: []session.Message{{Role: "user", Kind: session.MessageKindText, Seq: 2, TurnSeq: 1, Body: prompt}}},
+		{HistoryNavigation: session.HistoryNavigationView{Turns: []session.HistoryTurn{{Turn: 1, Seq: 1, Prompt: prompt, Response: credential}}}},
+	}
+	for _, view := range views {
+		anchors := turnAnchorsFromSnapshot(view)
+		if len(anchors) != 1 || anchors[0].Preview != want {
+			t.Fatalf("preview does not mask before clipping: %+v", anchors)
+		}
+		if strings.Contains(anchors[0].Response, credential) {
+			t.Fatal("response tooltip exposes the credential")
+		}
+	}
+
+	view := views[2]
+	view.HistoryNavigation.Turns = append(view.HistoryNavigation.Turns, session.HistoryTurn{Turn: 2, Seq: 3, Prompt: "Check " + credential})
+	tt := ui.NewTester(func(c *ui.Context) {
+		TurnRailView(c, Model{Snapshot: view}, 400, nil)
+	}, 400, 400)
+	if err := tt.Click(i18n.T(i18n.KeyChatTurnRailLabel) + " 2"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText(want) {
+		t.Fatalf("narrow history menu does not display the masked preview: %q", tt.Texts())
+	}
+	if os.Getenv("CHAT_GALLERY_DIR") != "" {
+		writeGallery(t, galleryDir(t), "turn-rail-masked-menu.png", tt)
+	}
+}
+
+func TestQueueDockMasksPendingCredentials(t *testing.T) {
+	credential := "ghp_" + strings.Repeat("a", 36)
+	m := PlanBoardModel{Board: session.PlanBoard{Pending: []session.PendingSubmission{{Text: "Use " + credential}}}}
+	tt := ui.NewTester(func(c *ui.Context) { QueueDockView(c, m) }, 600, 240)
+	if tt.HasText(credential) || !tt.HasText(maskedUserText(m.Board.Pending[0].Text)) {
+		t.Fatalf("pending echo exposes a credential before durable masking: %q", tt.Texts())
+	}
+	if m.Board.Pending[0].Text != "Use "+credential {
+		t.Fatal("display masking changed the queued payload")
+	}
+}
+
 func TestTurnRailTicksAndNarrowFallback(t *testing.T) {
 	messages := []session.Message{
 		{Role: "user", Kind: session.MessageKindText, Seq: 1, Body: "one"},
@@ -59,13 +107,25 @@ func TestTurnRailTicksAndNarrowFallback(t *testing.T) {
 	}
 
 	narrow := ui.NewTester(func(c *ui.Context) {
-		TurnRailView(c, Model{Snapshot: session.ViewState{Messages: messages}}, 400, nil)
+		TurnRailView(c, Model{Snapshot: session.ViewState{Messages: messages}}, 400, func(seq float64) { jumped = seq })
 	}, 400, 400)
 	if _, ok := narrow.Find(i18n.T(i18n.KeyChatTurnRailLabel) + " 3"); !ok {
 		t.Fatalf("narrow fallback missing: %q", narrow.Texts())
 	}
 	if _, ok := narrow.Find(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 1)); ok {
 		t.Fatal("narrow width kept the floating rail")
+	}
+	if err := narrow.Click(i18n.T(i18n.KeyChatTurnRailLabel) + " 3"); err != nil {
+		t.Fatal(err)
+	}
+	if err := narrow.Click(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 3)); err != nil {
+		t.Fatal(err)
+	}
+	if jumped != 3 {
+		t.Fatalf("narrow menu jump target %v, want seq 3", jumped)
+	}
+	if _, ok := narrow.Find(fmt.Sprintf(i18n.T(i18n.KeyChatTurnRailJump), 1)); ok {
+		t.Fatal("narrow menu stayed open after navigation")
 	}
 }
 

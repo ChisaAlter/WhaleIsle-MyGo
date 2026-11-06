@@ -55,8 +55,10 @@ func NewWithPersonalPath(path string) *Store {
 	// A running receipt left by a previous process is not proof of success.
 	changed := false
 	for i := range s.personal.data.History {
-		s.personal.data.History[i].Log = RedactOperationLog(s.personal.data.History[i].Log, 16000)
-		s.personal.data.History[i].Diagnostic = RedactOperationLog(s.personal.data.History[i].Diagnostic, 2000)
+		row := &s.personal.data.History[i]
+		log, diagnostic := RedactOperationLog(row.Log, 16000), RedactOperationLog(row.Diagnostic, 2000)
+		changed = changed || log != row.Log || diagnostic != row.Diagnostic
+		row.Log, row.Diagnostic = log, diagnostic
 		if s.personal.data.History[i].Result == "queued" {
 			s.personal.data.History[i].Result = "not-started"
 			changed = true

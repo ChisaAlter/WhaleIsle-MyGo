@@ -45,6 +45,46 @@ func TestMenuLiveRefreshKeepsIdentityAndRejectsRetiredChoice(t *testing.T) {
 	}
 }
 
+func TestMenuLiveSubmenuDoesNotRetargetPendingPress(t *testing.T) {
+	rows := []string{"first"}
+	chosen := ""
+	tt := menuOverlayTester(func(c *context) {
+		coreMenuButton(c, "Resources", func(m *Menu) {
+			m.Live()
+			m.Submenu("More", func(m *Menu) {
+				for _, key := range rows {
+					if m.Item(key).Key(key).Chosen() {
+						chosen = key
+					}
+				}
+			}).Key("more")
+		})
+	}, 600, 380)
+	if err := tt.Click("Resources"); err != nil {
+		t.Fatal(err)
+	}
+	more, ok := tt.Find("More ›")
+	if !ok {
+		t.Fatal("submenu owner missing")
+	}
+	tt.Move(more.X+more.W/2, more.Y+more.H/2)
+	first, ok := tt.Find("first")
+	if !ok {
+		t.Fatal("submenu item missing")
+	}
+	x, y := first.X+first.W/2, first.Y+first.H/2
+	tt.Press(x, y)
+	rows = []string{"second", "first"}
+	tt.Frame()
+	tt.Release(x, y)
+	if chosen != "" {
+		t.Fatalf("pending press activated replacement item %q", chosen)
+	}
+	if err := tt.Click("second"); err != nil || chosen != "second" {
+		t.Fatalf("current submenu item could not be chosen: %v %q", err, chosen)
+	}
+}
+
 func TestDialogOptionsBlocksBusyDismissalAndPeelsOneLayer(t *testing.T) {
 	open, busy, nested := true, true, true
 	behind, dismissed := 0, 0

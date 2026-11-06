@@ -15,6 +15,13 @@ import (
 // AttachMux binds the shared remote.mux used for job/follow and account/watch.
 func (s *Store) AttachMux(mux *dsh.Mux) {
 	s.mu.Lock()
+	if s.mux != mux {
+		if s.jobFollowCancel != nil {
+			s.jobFollowCancel()
+			s.jobFollowCancel = nil
+		}
+		s.jobFollowEpoch++
+	}
 	s.mux = mux
 	s.mu.Unlock()
 	s.WatchAccount(context.Background())
@@ -195,11 +202,13 @@ func (s *Store) FollowJob(ctx context.Context, sessionID, jobID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	jobID = strings.TrimSpace(jobID)
 	s.mu.Lock()
-	mux := s.mux
+	client, mux, epoch := s.client, s.mux, s.statsEpoch
 	if s.jobFollowCancel != nil {
 		s.jobFollowCancel()
 		s.jobFollowCancel = nil
 	}
+	s.jobFollowEpoch++
+	followEpoch := s.jobFollowEpoch
 	if mux == nil || sessionID == "" || jobID == "" {
 		s.mu.Unlock()
 		return
@@ -208,12 +217,23 @@ func (s *Store) FollowJob(ctx context.Context, sessionID, jobID string) {
 	s.jobFollowCancel = cancel
 	s.mu.Unlock()
 
-	go s.runJobFollow(fctx, mux, sessionID, jobID)
+	go s.runJobFollow(fctx, client, mux, epoch, followEpoch, sessionID, jobID)
 }
 
-func (s *Store) runJobFollow(ctx context.Context, mux *dsh.Mux, sessionID, jobID string) {
+func (s *Store) jobFollowCurrentLocked(ctx context.Context, client *dsh.Client, mux *dsh.Mux, epoch, followEpoch uint64) bool {
+	return ctx.Err() == nil && s.client == client && s.mux == mux && s.statsEpoch == epoch && s.jobFollowEpoch == followEpoch
+}
+
+func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.Mux, epoch, followEpoch uint64, sessionID, jobID string) {
 	if err := mux.Dial(ctx); err != nil {
+		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled") || ctx.Err() != nil {
+			return
+		}
 		s.mu.Lock()
+		if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
+			s.mu.Unlock()
+			return
+		}
 		s.err = err
 		s.mu.Unlock()
 		s.fire()
@@ -229,10 +249,14 @@ func (s *Store) runJobFollow(ctx context.Context, mux *dsh.Mux, sessionID, jobID
 	}
 	stream, err := mux.Open(ctx, "job/follow", payload)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled") {
+		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled") || ctx.Err() != nil {
 			return
 		}
 		s.mu.Lock()
+		if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
+			s.mu.Unlock()
+			return
+		}
 		s.err = err
 		s.mu.Unlock()
 		s.fire()
@@ -244,11 +268,17 @@ func (s *Store) runJobFollow(ctx context.Context, mux *dsh.Mux, sessionID, jobID
 	for len(previews) < 8 {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
-			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
-				strings.Contains(err.Error(), "context canceled") {
+			if errors.Is(err, dsh.ErrStreamEnd) {
 				break
 			}
+			if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled") || ctx.Err() != nil {
+				return
+			}
 			s.mu.Lock()
+			if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
+				s.mu.Unlock()
+				return
+			}
 			s.err = err
 			s.mu.Unlock()
 			s.fire()
@@ -261,6 +291,10 @@ func (s *Store) runJobFollow(ctx context.Context, mux *dsh.Mux, sessionID, jobID
 	}
 
 	s.mu.Lock()
+	if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
+		s.mu.Unlock()
+		return
+	}
 	if len(previews) > 0 {
 		detail := strings.Join(previews, "\n")
 		found := false

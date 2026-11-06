@@ -16,13 +16,29 @@ import (
 var ErrConflict = errors.New("config: configuration changed on disk since it was read")
 
 // commitMu serializes the final compare-and-replace step across every Store in
-// this process. Cross-process coordination is layered on top by the advisory
-// commitLock in commit_lock.go: a cooperating writer in another process (or a
-// second Store here) takes the same .config.lock before writing, so its commit
-// cannot interleave with this store's last baseline check and rename. A writer
-// that never opens the lockfile is not blocked, which is why the byte-level
-// baseline still runs under the lock to reject its edit as ErrConflict.
+// this process. lockCommit also takes the shared advisory .config.lock before
+// each writer's final baseline check and rename. Non-cooperating writers remain
+// outside that lock; the baseline check detects their edits made before it.
 var commitMu sync.Mutex
+
+// lockCommit protects every config.json writer, including namespace-only saves.
+// The caller holds s.mu and must retain the returned lock through replacement.
+func (s *Store) lockCommit() (func(), error) {
+	commitMu.Lock()
+	lock := s.commitLock
+	if lock == nil {
+		lock = acquireCommitLock
+	}
+	release, err := lock(s.path)
+	if err != nil {
+		commitMu.Unlock()
+		return nil, err
+	}
+	return func() {
+		release()
+		commitMu.Unlock()
+	}, nil
+}
 
 // fileBaseline is the exact on-disk state a Store last observed. It is
 // compared byte-for-byte so permissive reparsing or timestamps cannot mask an

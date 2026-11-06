@@ -42,10 +42,6 @@ func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, 
 				if cerr := client.Call(ctx, "dynamicCordisRunner/getClientCode", args, &code); cerr == nil {
 					note += " · clientCode ok"
 				}
-				var syncOut api.SyncInspectManifestResult
-				_ = client.Call(ctx, "dynamicCordisRunner/syncInspectManifest", map[string]any{
-					"providers": api.SyncInspectManifestProviders{},
-				}, &syncOut)
 			}
 		}
 		s.mu.Lock()

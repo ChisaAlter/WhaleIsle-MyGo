@@ -90,6 +90,7 @@ type Store struct {
 	notify         func()
 
 	jobFollowCancel    context.CancelFunc
+	jobFollowEpoch     uint64
 	accountWatchCancel context.CancelFunc
 	expiryWatchCancel  context.CancelFunc
 
@@ -145,6 +146,11 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.accountStreamErr = nil
 	s.bonuses = nil
 	s.mux = nil
+	if s.jobFollowCancel != nil {
+		s.jobFollowCancel()
+		s.jobFollowCancel = nil
+	}
+	s.jobFollowEpoch++
 	if s.accountWatchCancel != nil {
 		s.accountWatchCancel()
 		s.accountWatchCancel = nil
@@ -166,6 +172,10 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.resetRankingLocked()
 	s.resetBillingLocked()
 	s.resetRepairLocked()
+	s.loading = false
+	s.hasRunningTasks = false
+	s.recent = nil
+	s.dayBuckets = nil
 	s.notify = notify
 	s.err = nil
 	s.mu.Unlock()
@@ -178,6 +188,7 @@ func (s *Store) Detach() {
 		s.jobFollowCancel()
 		s.jobFollowCancel = nil
 	}
+	s.jobFollowEpoch++
 	if s.accountWatchCancel != nil {
 		s.accountWatchCancel()
 		s.accountWatchCancel = nil
@@ -438,7 +449,7 @@ func (s *Store) KillJob(ctx context.Context, sessionID, jobID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	jobID = strings.TrimSpace(jobID)
 	s.mu.Lock()
-	client := s.client
+	client, epoch := s.client, s.statsEpoch
 	s.mu.Unlock()
 	if client == nil || sessionID == "" || jobID == "" {
 		return
@@ -449,6 +460,10 @@ func (s *Store) KillJob(ctx context.Context, sessionID, jobID string) {
 			"request": api.JobKillRequest{SessionId: sessionID, JobId: jobID},
 		}, &out)
 		s.mu.Lock()
+		if ctx.Err() != nil || s.client != client || s.statsEpoch != epoch {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.err = err
 			s.mu.Unlock()

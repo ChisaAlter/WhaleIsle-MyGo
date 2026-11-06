@@ -45,6 +45,9 @@ func (s *mainState) indexComposerPaths(root string, win *mygo.Window) {
 	if s.composerPathsLoading == root {
 		s.composerPathsLoading = ""
 		if err == nil {
+			if paths == nil {
+				paths = []string{}
+			}
 			s.composerPathsRoot, s.composerPaths = root, paths
 			s.composerPathsFailedRoot = ""
 		} else {

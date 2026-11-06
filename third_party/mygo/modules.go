@@ -594,35 +594,35 @@ func (n *Notification) Show() error {
 	if err != nil {
 		return err
 	}
-	notifications.Lock()
-	if notifications.byID == nil {
-		notifications.byID = map[string]*Notification{}
-	}
-	previous := notifications.byID[n.id]
-	notifications.byID[n.id] = n
-	notifications.Unlock()
 	ch := make(chan error, 1)
 	onMain(func() {
+		notifications.Lock()
+		if notifications.byID == nil {
+			notifications.byID = map[string]*Notification{}
+		}
+		previous := notifications.byID[n.id]
+		notifications.byID[n.id] = n
+		notifications.Unlock()
 		backend().ShowNotification(payload, func(err error) {
 			if err != nil {
+				// Delivery failure leaves the previous native notification live.
+				// Restore its listeners before user callbacks can dispatch an event
+				// or show another notification with this ID.
+				notifications.Lock()
+				if notifications.byID[n.id] == n {
+					if previous != nil {
+						notifications.byID[n.id] = previous
+					} else {
+						delete(notifications.byID, n.id)
+					}
+				}
+				notifications.Unlock()
 				fire1(&n.onFailed, err)
 			}
 			deliver(ch, err)
 		})
 	})
-	err = await(ch)
-	if err != nil {
-		notifications.Lock()
-		if notifications.byID[n.id] == n {
-			if previous != nil {
-				notifications.byID[n.id] = previous
-			} else {
-				delete(notifications.byID, n.id)
-			}
-		}
-		notifications.Unlock()
-	}
-	return err
+	return await(ch)
 }
 
 // Close removes the notification.

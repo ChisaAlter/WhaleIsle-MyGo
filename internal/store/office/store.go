@@ -183,6 +183,10 @@ func (s *Store) Review(scope uint64, action string) bool {
 }
 func (s *Store) adoptLocked(next Status) {
 	revision := fingerprint(next)
+	if s.state.Dirty && s.state.Draft == draftFor(next) {
+		s.state.Dirty = false
+		s.base = revision
+	}
 	if s.state.Loaded && (s.state.Dirty || s.state.ReviewAction != "") && revision != s.base {
 		s.state.Conflict = true
 		s.state.ReviewAction = ""
@@ -348,7 +352,7 @@ func (s *Store) Confirm(ctx context.Context, scope uint64) bool {
 			s.state.Fresh = false
 			s.state.Error = officeCallError(err, storelocale.T(storelocale.KeyStoreOfficeTheOutcomeIsUnconfirmedRefreshToVerify), payloadToken(payload))
 			var rejected *pluginrpc.RPCError
-			if errors.As(err, &rejected) {
+			if errors.As(err, &rejected) && (action == "test" || rejected.Code == "bad-request") {
 				// No mutation was accepted. The successful preflight remains
 				// usable and the editable public draft is retained for correction.
 				s.adoptLocked(fresh)

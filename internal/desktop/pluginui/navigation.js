@@ -2,6 +2,7 @@
  * services. It never independently mounts a component lacking owner props. */
 /* Go omits an empty Subject name, so a subject can arrive without one. */
 function whaleNavigationSubject(subject){return {...subject,name:String(subject.name||'')}}
+function whaleSameNavigationSubject(a,b){return !!a&&!!b&&a.kind===b.kind&&String(a.name||'')===String(b.name||'')}
 /* The bundle registers its own settings.plugins.tab (the inventory "all" tab); Go renders that natively, so only a plugin's entries are hosted. */
 function whaleHostsEntry(slot,known){
  if(known.stock)return false;
@@ -94,7 +95,7 @@ function whaleBindNativeNavigation(ctx){
   socket.addEventListener('message',event=>{let command;try{command=JSON.parse(event.data)}catch{return}
    if(command.type==='publicWorkspaceContext'){publicSlots.workspace(command);return;}
    if(command.type==='publicRowContext'){publicSlots.context(command);return;}
-   if(command.type==='publicAction'&&command.revision===revision&&command.subject?.name===requested.name){if(publicSlots.invoke(command))schedule();return;}
+   if(command.type==='publicAction'&&command.revision===revision&&whaleSameNavigationSubject(command.subject,requested)){if(publicSlots.invoke(command))schedule();return;}
    if(command.type==='navigationContext'){workspace.context(command.sessionId);return;}
    if(command.type==='modelTargets'&&Array.isArray(command.providers)){window.__whaleModelTargets=command.providers.filter(id=>typeof id==='string');window.dispatchEvent(new Event('whale-model-targets'));schedule();return;}
    if(command.type==='workspaceAction'){
@@ -104,7 +105,7 @@ function whaleBindNativeNavigation(ctx){
    if(command.type==='richRelease'){whaleRichSurface.release(command);return;}
 if(command.type==='richLayout'){whaleRichSurface.ack(command,reply=>socket.readyState===WebSocket.OPEN&&socket.send(JSON.stringify(reply)));return}
    if(command.type==='select'&&['view','navigation'].includes(command.subject?.kind)){whaleRichSurface.clear();const settingsWasOpen=requested.kind==='navigation'&&(requested.name==='models'||requested.name.startsWith('settings:'))||declared.get(requested.name)?.view.slot.startsWith('settings.');requested=whaleNavigationSubject(command.subject);if(settingsWasOpen&&requested.kind==='navigation'&&!requested.name)ctx.get('settingsNavigation')?.close();activate=true;schedule();return}
-   if(command.type==='nativeInput'&&command.revision===revision&&command.subject?.name===requested.name){
+   if(command.type==='nativeInput'&&command.revision===revision&&whaleSameNavigationSubject(command.subject,requested)){
     const target=actions.get(command.handle);if((declared.has(requested.name)||target?.owner.globalEntry&&entries(target.owner.globalSlot||'shell.overlay').includes(target.owner.globalEntry))&&whaleNativeContains(target?.owner,target?.node)&&whaleNativeInteraction(command,target))schedule();
    }
   });

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"testing"
@@ -78,5 +79,38 @@ func TestCloneConfigPreservesRegistryNullDistinctions(t *testing.T) {
 	input.GoPluginInstallRegistry.Kind = "changed"
 	if got.GoPluginInstallRegistry.Kind != "system" {
 		t.Fatal("registry structure was not copied")
+	}
+}
+
+func TestResetOptionalPreferencesPersistsAcrossReopen(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, `{"goPluginInstallRegistry":{"kind":"custom","registry":"https://registry.example.test"},"goVoiceMicrophoneId":"device","goVoiceMicrophoneLabel":"Microphone","goOpenInAppChoice":"editor","goPort":3200,"goRemotePort":6800,"components":{"enabled":true},"goPreviewNoticeAck":"old","future":{"keep":true},"pluginRecovery":{"skipUserPlugins":true}}`)
+	store, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Update(func(c *Config) {
+		c.GoPluginInstallRegistry = nil
+		c.GoVoiceMicrophoneID, c.GoVoiceMicrophoneLabel = "", ""
+		c.GoOpenInAppChoice = ""
+		c.GoPort, c.GoRemotePort = 0, 0
+		c.Components = nil
+		c.PreviewNoticeAck = ""
+	}); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := reopened.Get(), store.Get(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("reset fields returned after reopen: got %+v, want %+v", got, want)
+	}
+	var future map[string]bool
+	if err := json.Unmarshal(reopened.raw["future"], &future); err != nil || !future["keep"] {
+		t.Fatal("reset removed unknown configuration")
+	}
+	if !reopened.Get().SkipUserPlugins {
+		t.Fatal("reset removed separately owned plugin recovery")
 	}
 }

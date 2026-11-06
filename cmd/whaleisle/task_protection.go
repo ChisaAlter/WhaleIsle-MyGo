@@ -29,7 +29,7 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 	}
 }
 
-func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
+func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
 	s.mu.Lock()
 	hasWindow := s.win != nil
 	s.mu.Unlock()
@@ -53,11 +53,7 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	if i.Unknown != "" {
 		lines = append(lines, i18n.T(i18n.KeyCmdHostTaskProtectionIsUnavailableBackgro), i.Unknown)
 	}
-	if i.Unknown != "" {
-		lines = append(lines, fmt.Sprintf(i18n.T(i18n.KeyCmdKnownLocalRunningWorkSessionsAndTermin), i.LocalRunning))
-	} else {
-		lines = append(lines, fmt.Sprintf(i18n.T(i18n.KeyCmdKnownLocalRunningWorkSessionsAndTermin), i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork)))
-	}
+	lines = append(lines, taskInspectionSummary(i))
 	missing := []string{}
 	for key, value := range i.Coverage {
 		if value != "ok" && value != "intentional-disabled" {
@@ -82,6 +78,7 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 	// Every caller reaches this through a background goroutine, so the in-app
 	// confirmation can be awaited here; a UI-thread caller would deadlock.
 	approved := s.askConfirmBlocking(confirmAskRequest{
+		Context:      ctx,
 		Owner:        win,
 		Title:        label,
 		Body:         strings.Join(lines, "\n\n"),
@@ -90,6 +87,16 @@ func (s *mainState) confirmHostTasks(win *mygo.Window, operation string, i taskc
 		Danger:       true,
 	})
 	return approved, nil
+}
+
+func taskInspectionSummary(i taskcontrol.Inspection) string {
+	if i.Unknown != "" {
+		return fmt.Sprintf(i18n.T(i18n.KeyCmdKnownLocalRunningWorkSessionsAndTermin), i.LocalRunning)
+	}
+	return fmt.Sprintf(lifecycleText(
+		"本地运行工作（会话和终端）：%d；Host 活动工作：%d；计划工作：%d。",
+		"Known local running work (sessions and terminals): %d; Host active work: %d; scheduled work: %d."),
+		i.LocalRunning, len(i.ActiveWork), len(i.ScheduledWork))
 }
 
 func taskWorkDescription(item taskcontrol.Work) string {
@@ -178,7 +185,7 @@ func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup
 	var did bool
 	var err error
 	if sup != nil {
-		did, err = sup.ProtectTaskAction(ctx, operation, s.localTaskRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(win, operation, i) }, commit)
+		did, err = sup.ProtectTaskAction(ctx, operation, s.localTaskRunningCount, func(i taskcontrol.Inspection) (bool, error) { return s.confirmHostTasks(ctx, win, operation, i) }, commit)
 	} else {
 		// No owned Host exists. Preserve the original local-session confirmation.
 		label := i18n.T(i18n.KeyCmdQuit)

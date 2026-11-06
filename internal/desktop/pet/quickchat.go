@@ -30,36 +30,37 @@ type QuickChatOptions struct {
 // QuickChat is UI-thread owned, including every request slot and draft. Worker
 // goroutines capture immutable clients/arguments and return via Window.Update.
 type QuickChat struct {
-	owner           *Companion
-	parent          *mygo.Window
-	win             *mygo.Window
-	options         QuickChatOptions
-	client          *quickChatClient
-	life            context.Context
-	cancel          context.CancelFunc
-	closed          bool
-	stale           bool
-	state           quickChatSnapshot
-	direct          petdirect.Memory
-	draft           string
-	status          string
-	readNote        string
-	catalogNote     string
-	catalogAt       time.Time
-	list            ui.ListState
-	history         quickChatRequest
-	catalog         quickChatRequest
-	sending         quickChatRequest
-	picking         quickChatRequest
-	stopping        quickChatRequest
-	jumping         quickChatRequest
-	offAnchor       []func()
-	positioning     bool
-	stickers        []quickChatRow
-	stickerSeen     map[string]bool
-	restoredSession string
-	height          int
-	picker          *quickChatPicker
+	owner             *Companion
+	parent            *mygo.Window
+	win               *mygo.Window
+	options           QuickChatOptions
+	client            *quickChatClient
+	life              context.Context
+	cancel            context.CancelFunc
+	closed            bool
+	stale             bool
+	state             quickChatSnapshot
+	direct            petdirect.Memory
+	draft             string
+	status            string
+	readNote          string
+	catalogNote       string
+	catalogAt         time.Time
+	list              ui.ListState
+	history           quickChatRequest
+	catalog           quickChatRequest
+	sending           quickChatRequest
+	picking           quickChatRequest
+	stopping          quickChatRequest
+	jumping           quickChatRequest
+	offAnchor         []func()
+	positioning       bool
+	stickers          []quickChatRow
+	stickerSeen       map[string]bool
+	stickerGeneration uint64
+	restoredSession   string
+	height            int
+	picker            *quickChatPicker
 }
 
 type quickChatMemory struct {
@@ -239,6 +240,9 @@ func (q *QuickChat) check() bool {
 	q.stale = true
 	q.cancel()
 	q.abortRequests()
+	q.owner.assetMu.Lock()
+	q.owner.notifications.chatImages = nil
+	q.owner.assetMu.Unlock()
 	q.status = storelocale.T(storelocale.KeyDesktopPetConnectionChangedReopenQuickChat)
 	if q.win != nil {
 		q.win.Invalidate()
@@ -276,6 +280,10 @@ func (q *QuickChat) refreshHistory() {
 			if changed && expected != "" {
 				q.stickers = nil
 				q.stickerSeen = map[string]bool{}
+				q.stickerGeneration++
+				q.owner.assetMu.Lock()
+				q.owner.notifications.chatImages = nil
+				q.owner.assetMu.Unlock()
 			}
 			q.state.History = append(q.state.History, q.stickers...)
 			if changed {

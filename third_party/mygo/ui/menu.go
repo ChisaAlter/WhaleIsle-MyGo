@@ -717,6 +717,9 @@ func (rt *engine) buildMenuOverlay(c *context) {
 							coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
 							continue
 						}
+						if p.live {
+							c.nextKey, c.keySet = "menu-live-"+menuLiveItemIdentity(p, item), true
+						}
 						row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
 							BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
 						if !item.Enabled {

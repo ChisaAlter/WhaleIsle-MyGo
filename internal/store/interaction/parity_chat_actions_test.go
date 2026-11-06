@@ -1,6 +1,10 @@
 package interaction
 
-import "testing"
+import (
+	"testing"
+
+	"whaleisle/internal/dsh"
+)
 
 func TestParityPendingRankAndDiscussOwnership(t *testing.T) {
 	s := New()
@@ -23,5 +27,24 @@ func TestParityPendingRankAndDiscussOwnership(t *testing.T) {
 	card = s.Snapshot().QuestionCards["plan"]
 	if card.Hidden || card.PlanReviewHidden {
 		t.Fatal("same review failed to reopen")
+	}
+}
+
+func TestScopedPlanDiscussionCanReopenFromHistory(t *testing.T) {
+	s := New()
+	scoped, _ := scopedFixture(s)
+	request := userQuestionsRequest{Questions: []userQuestionItem{{ID: "p", Question: "Approve?", Detail: "# Plan", Options: []userQuestionOption{{Label: "Yes"}}, Intent: &planReviewIntent{Kind: "plan-review", Approve: "Yes", CallID: "plan-call"}}}}
+	s.questionDrafts["plan"] = newDraftSession(request)
+	s.pending = []Pending{{AgentID: "A", EventID: "plan", Event: EventUserQuestions, CallID: "live-plan"}}
+	s.waiters["plan"] = make(chan dsh.EventResultOutcome, 1)
+	scoped.DismissPlanReview("plan")
+	card := s.SnapshotForAgent("A").QuestionCards["plan"]
+	if !card.Hidden || !card.PlanReviewHidden || len(s.waiters["plan"]) != 0 {
+		t.Fatal("scoped discussion did not hide the same unanswered review")
+	}
+	scoped.ReviewQuestionHistory("A", "live-plan")
+	card = s.SnapshotForAgent("A").QuestionCards["plan"]
+	if card.Hidden || card.PlanReviewHidden || len(s.waiters["plan"]) != 0 {
+		t.Fatal("history did not restore the complete review without answering it")
 	}
 }

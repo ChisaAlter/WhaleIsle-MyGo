@@ -13,13 +13,14 @@ import (
 )
 
 type fixtureTransport struct {
-	mu       sync.Mutex
-	calls    []string
-	payloads []map[string]any
-	status   string
-	response map[string]string
-	gate     <-chan struct{}
-	arrived  chan struct{}
+	mu          sync.Mutex
+	calls       []string
+	payloads    []map[string]any
+	status      string
+	response    map[string]string
+	errResponse map[string]string
+	gate        <-chan struct{}
+	arrived     chan struct{}
 }
 
 func (f *fixtureTransport) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -38,6 +39,7 @@ func (f *fixtureTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if v, ok := f.response[q.Method]; ok {
 		value = v
 	}
+	errValue := f.errResponse[q.Method]
 	gate, arrived := f.gate, f.arrived
 	f.gate = nil
 	f.arrived = nil
@@ -49,6 +51,9 @@ func (f *fixtureTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		<-gate
 	}
 	body := `{"type":"server-response","rpcId":"` + q.RPCID + `","result":{"ok":true,"value":` + value + `}}`
+	if errValue != "" {
+		body = `{"type":"server-response","rpcId":"` + q.RPCID + `","result":{"ok":false,"error":` + errValue + `}}`
+	}
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
 }
 
@@ -56,7 +61,7 @@ const configured = `{"schemaVersion":1,"configured":true,"connected":false,"stat
 
 func setup(t *testing.T) (*Store, *fixtureTransport) {
 	t.Helper()
-	f := &fixtureTransport{status: configured, response: map[string]string{}}
+	f := &fixtureTransport{status: configured, response: map[string]string{}, errResponse: map[string]string{}}
 	s := &Store{}
 	s.Bind(&pluginrpc.Client{BaseURL: "http://127.0.0.1", Cookie: "synthetic-account", HTTPClient: &http.Client{Transport: f}}, 1, nil)
 	s.Show(context.Background())
@@ -191,6 +196,41 @@ func TestOfficeWriteOnlyAndNoAutomaticRetry(t *testing.T) {
 	b, _ := json.Marshal(v)
 	if v.Draft.DeviceToken != "" || strings.Contains(string(b), "fixture-token") || len(f.calls) != 3 || v.Fresh {
 		t.Fatal("write error leaked or retried")
+	}
+}
+func TestOfficePostSaveRuntimeFailureRequiresRefreshAndReconcilesSavedDraft(t *testing.T) {
+	s, f := setup(t)
+	v := s.Snapshot()
+	d := v.Draft
+	d.HeartbeatSeconds = "31"
+	if !s.Edit(v.Scope, d) || !s.Review(v.Scope, "configure") {
+		t.Fatal("review rejected")
+	}
+	f.errResponse["connector.configure"] = `{"code":"office-operation-failed","message":"runtime restart failed after config save"}`
+	if !s.Confirm(context.Background(), v.Scope) {
+		t.Fatal("confirm rejected")
+	}
+	wait(t, s)
+	v = s.Snapshot()
+	if v.Fresh || !v.Dirty || v.Draft.HeartbeatSeconds != "31" || !strings.Contains(v.Error, "office-operation-failed") {
+		t.Fatalf("post-save failure treated as pre-write refusal: %+v", v)
+	}
+	f.mu.Lock()
+	f.status = strings.Replace(configured, `"heartbeatSeconds":30`, `"heartbeatSeconds":31`, 1)
+	f.mu.Unlock()
+	s.Refresh(context.Background())
+	wait(t, s)
+	v = s.Snapshot()
+	if !v.Fresh || v.Dirty || v.Conflict || v.Status.Config.HeartbeatSeconds != 31 {
+		t.Fatalf("refresh after post-save failure did not reconcile saved draft: %+v", v)
+	}
+	f.errResponse["connector.test"] = `{"code":"office-hook-unavailable","message":"hook offline"}`
+	if !s.Review(v.Scope, "test") || !s.Confirm(context.Background(), v.Scope) {
+		t.Fatal("test review/confirm rejected")
+	}
+	wait(t, s)
+	if v = s.Snapshot(); !v.Fresh || !strings.Contains(v.Error, "office-hook-unavailable") {
+		t.Fatalf("read-only test probe failure invalidated fresh status: %+v", v)
 	}
 }
 func TestOfficeValidationAndEndpointIdentity(t *testing.T) {

@@ -61,6 +61,12 @@ func TestPRGenerationReadsFrozenBranchRangeAndCommittedTemplate(t *testing.T) {
 	write("a.txt", "committed change\n")
 	run("add", "a.txt")
 	run("commit", "-m", "Add reviewed behavior")
+	run("switch", "main")
+	write("upstream-only.txt", "UNRELATED TARGET BRANCH CHANGE\n")
+	run("add", "upstream-only.txt")
+	run("commit", "-m", "Independent upstream change")
+	run("update-ref", "refs/remotes/origin/main", "HEAD")
+	run("switch", "feature/review")
 	write("PULL_REQUEST_TEMPLATE.md", "PRIVATE WORKTREE TEMPLATE")
 	write("b.txt", "PRIVATE UNCOMMITTED CHANGE")
 	push, _ := PreparePush(root)
@@ -74,6 +80,9 @@ func TestPRGenerationReadsFrozenBranchRangeAndCommittedTemplate(t *testing.T) {
 	in, base, e := collectPRGenerationInput(context.Background(), root, plan)
 	if e != nil || base == "" || in.Template != "## Committed base template" || !strings.Contains(in.CommitSummary, "Add reviewed behavior") || !strings.Contains(in.DiffPatch, "+committed change") || strings.Contains(in.DiffPatch, "PRIVATE") {
 		t.Fatal(in, e)
+	}
+	if strings.Contains(in.DiffPatch, "upstream-only") || strings.Contains(in.DiffSummary, "upstream-only") || strings.Contains(in.CommitSummary, "Independent upstream change") {
+		t.Fatalf("PR generation included target-only changes: %+v", in)
 	}
 	run("update-ref", "-d", "refs/remotes/origin/main")
 	if _, _, e = collectPRGenerationInput(context.Background(), root, plan); e == nil {

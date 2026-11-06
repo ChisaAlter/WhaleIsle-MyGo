@@ -80,8 +80,11 @@ func (s *Store) SavePageShortcuts(patch map[string]string) error {
 	if err != nil {
 		return err
 	}
-	commitMu.Lock()
-	defer commitMu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err = s.checkBaseline(); err != nil {
 		return err
 	}

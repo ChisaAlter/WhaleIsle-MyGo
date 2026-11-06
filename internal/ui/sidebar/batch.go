@@ -26,6 +26,9 @@ func VisibleBatchTargets(m Model) []session.SessionBatchTarget {
 		}
 	}
 	add := func(id, title string) {
+		if _, owned := m.ownerNavigation[id]; owned {
+			return
+		}
 		if id != "" && !seen[id] && !knownBlank[id] {
 			seen[id] = true
 			out = append(out, session.SessionBatchTarget{ID: id, Title: title})

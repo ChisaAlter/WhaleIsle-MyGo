@@ -28,7 +28,10 @@ func menuLiveIdentity(p *shownMenu, index int) string {
 	if index < 0 || index >= len(p.menu.Items) {
 		return ""
 	}
-	item := p.menu.Items[index]
+	return menuLiveItemIdentity(p, p.menu.Items[index])
+}
+
+func menuLiveItemIdentity(p *shownMenu, item *platform.MenuItem) string {
 	if item.ID > 0 && item.ID <= len(p.keys) && p.keys[item.ID-1] != "" {
 		return "key:" + p.keys[item.ID-1]
 	}

@@ -49,11 +49,15 @@ func (p *Companion) UpdateNotifications(owner string, snap petwatch.Snapshot, ac
 // receipt is acknowledged by the visible virtual-list image paint, not by a
 // background read or merely opening a card.
 func (q *QuickChat) presentSticker(owner string, e petwatch.Event, home, root string, ack func(string)) bool {
+	if q.options.Direct == nil && q.state.SessionID == "" {
+		return false
+	}
 	key := owner + ":" + e.ID
 	if shown, known := q.stickerSeen[key]; known {
 		return shown
 	}
 	q.stickerSeen[key] = true
+	generation := q.stickerGeneration
 	go func() {
 		data, _, err := petwatch.ReadSticker(home, root, e.MediaPath)
 		var bitmap *ui.Bitmap
@@ -62,33 +66,59 @@ func (q *QuickChat) presentSticker(owner string, e petwatch.Event, home, root st
 		}
 		clear(data)
 		q.win.Update(func() {
-			if !q.check() {
-				return
-			}
-			q.owner.assetMu.RLock()
-			current := q.owner.notifications.owner == owner
-			q.owner.assetMu.RUnlock()
-			if !current {
-				return
-			}
-			if err != nil {
-				q.stickerSeen[key] = false
-				return
-			}
-			var once sync.Once
-			row := quickChatRow{Role: "her", Text: e.Text, Image: bitmap, Receipt: key, Acknowledge: func() {
-				once.Do(func() {
-					if ack != nil {
-						ack(e.ID)
-					}
-				})
-			}}
-			q.stickers = append(q.stickers, row)
-			q.state.History = append(q.state.History, row)
-			q.list.ScrollToEnd()
+			q.finishSticker(generation, owner, e, home, root, bitmap, err, ack)
 		})
 	}()
 	return true
+}
+
+func (q *QuickChat) finishSticker(generation uint64, owner string, e petwatch.Event, home, root string, bitmap *ui.Bitmap, err error, ack func(string)) {
+	if !q.check() || q.stickerGeneration != generation {
+		return
+	}
+	key := owner + ":" + e.ID
+	q.owner.assetMu.Lock()
+	n := &q.owner.notifications
+	current := n.owner == owner && n.mediaHome == home && n.mediaRoot == root && n.containsSticker(e)
+	if current && err != nil {
+		// The pending image no longer owns this receipt. Return it to the
+		// notification bubble immediately, including when the watcher stops.
+		delete(n.chatImages, e.ID)
+	}
+	q.owner.assetMu.Unlock()
+	if !current || err != nil {
+		q.stickerSeen[key] = false
+		return
+	}
+	var once sync.Once
+	row := quickChatRow{Role: "her", Text: e.Text, Image: bitmap, Receipt: key, Acknowledge: func() {
+		if !q.check() || q.stickerGeneration != generation {
+			return
+		}
+		q.owner.assetMu.RLock()
+		n := q.owner.notifications
+		current := n.owner == owner && n.mediaHome == home && n.mediaRoot == root && n.containsSticker(e)
+		q.owner.assetMu.RUnlock()
+		if current {
+			once.Do(func() {
+				if ack != nil {
+					ack(e.ID)
+				}
+			})
+		}
+	}}
+	q.stickers = append(q.stickers, row)
+	q.state.History = append(q.state.History, row)
+	q.list.ScrollToEnd()
+}
+
+func (n notificationState) containsSticker(e petwatch.Event) bool {
+	for _, active := range n.snapshot.Events {
+		if active.ID == e.ID && active.MediaPath == e.MediaPath {
+			return true
+		}
+	}
+	return false
 }
 func (p *Companion) clearNotifications() {
 	p.assetMu.Lock()
@@ -202,9 +232,6 @@ func (p *Companion) serveNotifications(w http.ResponseWriter, r *http.Request) b
 		}
 		events := make([]eventView, 0, len(n.snapshot.Events))
 		for _, e := range n.snapshot.Events {
-			if chatOpen && n.chatImages[e.ID] {
-				continue
-			}
 			if chatOpen && n.chatImages[e.ID] {
 				continue
 			}

@@ -44,7 +44,7 @@ func nativeReleaseOperation(c *ui.Context, m Model) {
 }
 
 func nativeReleaseActions(c *ui.Context, m Model) {
-	if m.ReleaseBusy && m.OnCancelRelease != nil {
+	if m.ReleaseBusy && m.ReleasePhase != "installing" && m.OnCancelRelease != nil {
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if m.ReleasePhase == "downloading" && m.OnPauseRelease != nil && ghostSmall(c, releaseText("暂停下载", "Pause download")).Clicked() {
 				m.OnPauseRelease()

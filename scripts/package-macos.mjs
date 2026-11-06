@@ -95,6 +95,11 @@ export async function stage(config) {
   fs.copyFileSync(path.join(projectRoot, 'internal/desktop/terminalruntime/Ghostty-LICENSE'), path.join(bin, spec.name + '.LICENSE'));
   writeJSON(path.join(bin, 'terminal-runtime.json'), {...spec, Target: 'darwin-' + config.arch, Source: librarySpec.source});
   copyTree(path.join(projectRoot, 'resources'), path.join(bin, 'resources'));
+  const fontNotices = path.join(bin, 'resources/licenses/fonts');
+  fs.mkdirSync(fontNotices, {recursive: true});
+  for (const name of ['Inter-OFL.txt', 'SourceSerif4-OFL.txt', 'sources.json']) {
+    fs.copyFileSync(path.join(projectRoot, 'internal/ui/theme/fonts', name), path.join(fontNotices, name));
+  }
   const petAssets = input(config.petRenderAssets || process.env.WHALEISLE_PET_RENDER_ASSETS ||
     path.join(projectRoot, 'runtime/pet-render-assets'), 'Fixed THA4 resource directory');
   run(process.execPath, [path.join(projectRoot, 'scripts/pet-render-assets.mjs'), petAssets, bin]);

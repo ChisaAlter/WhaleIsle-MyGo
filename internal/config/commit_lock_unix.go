@@ -11,8 +11,8 @@ import (
 
 // acquireCommitLock takes an exclusive advisory lock on a lockfile that sits
 // next to config.json. See the windows variant for the full contract; the
-// byte-level baseline check still runs under the lock so a non-cooperating
-// writer is rejected rather than overwritten.
+// byte-level baseline check still rejects edits made before its final comparison,
+// including edits by non-cooperating writers.
 func acquireCommitLock(configPath string) (func(), error) {
 	dir := filepath.Dir(configPath)
 	// The data dir may not exist yet on a first run; writeAtomic creates it
