@@ -26,10 +26,12 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			// minimize/review affordances.
 			ui.Box(c).Grow(1).MinWidth(0)
 			label := i18n.T(i18n.KeyChatQuestionMinimize)
+			tooltip := questionStatusText("nav.minimize")
 			if flow.minimized {
 				label = i18n.T(i18n.KeyChatQuestionExpand)
+				tooltip = questionStatusText("nav.maximize")
 			}
-			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
+			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Tooltip(tooltip).Clicked() {
 				flow.minimized = !flow.minimized
 			}
 			if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionReview), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
@@ -84,16 +86,38 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 	return focused
 }
 
+func questionAnsweredCountText(rows []interaction.QuestionRowView) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	answered := 0
+	for _, r := range rows {
+		if len(r.Selected) > 0 || strings.TrimSpace(r.Custom) != "" {
+			answered++
+		}
+	}
+	if i18n.Locale() == i18n.LocaleZH {
+		return fmt.Sprintf("%d/%d 已回答", answered, len(rows))
+	}
+	return fmt.Sprintf("%d/%d answered", answered, len(rows))
+}
+
 // Optional draft recap is a navigation aid, never a mandatory submit gate.
 // Settled/queued history remains the separate read-only recorded-answer view.
 func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, flow *questionEditorFlow, muted ui.Color) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
+		if summary := questionAnsweredCountText(card.Rows); summary != "" {
+			ui.Text(c, summary).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
 		for index, row := range card.Rows {
 			label := row.Header
 			if label == "" {
 				label = row.Question
 			}
-			values := append([]string(nil), row.Selected...)
+			values := make([]string, 0, len(row.Selected)+1)
+			for _, sel := range row.Selected {
+				values = append(values, interaction.RecommendedQuestionLabel(sel))
+			}
 			if row.Custom != "" {
 				values = append(values, row.Custom)
 			}
@@ -116,14 +140,32 @@ func questionDraftSummary(c *ui.Context, p interaction.Pending, card interaction
 }
 
 func questionFeedback(status string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		if status == "incomplete" {
+	zh := i18n.Locale() == i18n.LocaleZH
+	switch status {
+	case "incomplete":
+		if zh {
 			return "请先完成这道问题。"
 		}
-		return "请选择一个选项或填写自定义答案。"
-	}
-	if status == "incomplete" {
 		return "Complete or skip the remaining questions before submitting."
+	case "unavailable":
+		if zh {
+			return "当前无法提交，请稍候再试。"
+		}
+		return "Cannot submit right now; try again in a moment."
+	case "resubmit":
+		if zh {
+			return "回答未送达，工作已继续，请再提交一次。"
+		}
+		return "The answer did not arrive before work continued; submit it again."
+	case "sent":
+		if zh {
+			return "回答已发送；面板未能关闭。"
+		}
+		return "Reply sent; the panel could not close."
+	default:
+		if zh {
+			return "请选择一个选项或填写自定义答案。"
+		}
+		return "Answer this question before continuing."
 	}
-	return "Answer this question before continuing."
 }

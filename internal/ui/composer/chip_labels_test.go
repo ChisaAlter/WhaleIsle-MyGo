@@ -97,3 +97,39 @@ func TestModelChipShowsNameAndEffort(t *testing.T) {
 		t.Fatal("model menu did not open on the selected model")
 	}
 }
+
+func TestPermissionPopupGeometryMatchesReference(t *testing.T) {
+	m := permissionModelFixture()
+	m.OnPermissionChange = func(string) {}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Size(880, 420).Justify(ui.End).Children(func() {
+			View(c, m)
+		})
+	}, 880, 420)
+	triggerLabel := composerText("访问模式，当前：", "Access mode, current: ") + i18n.T(i18n.KeyComposerPermissionWorkspace)
+	triggerBounds, ok := tt.Find(triggerLabel)
+	if !ok {
+		t.Fatal("missing Permission mode trigger")
+	}
+	if err := tt.Click(triggerLabel); err != nil {
+		t.Fatal(err)
+	}
+	rowBounds, ok := tt.Find(i18n.T(i18n.KeyComposerPermissionReadOnly))
+	if !ok {
+		t.Fatal("missing permission row")
+	}
+	if rowBounds.H != 34 {
+		t.Fatalf("permission row height = %v, want 34", rowBounds.H)
+	}
+	if rowBounds.W < 135 || rowBounds.W > 240 {
+		t.Fatalf("permission row width = %v, want compact content-hugging width (135..240)", rowBounds.W)
+	}
+	// Panel has 4 DIP padding + 0.5 DIP border on each side, so row X is trigger.X + 4.5.
+	if rowBounds.X < triggerBounds.X+4 || rowBounds.X > triggerBounds.X+5 {
+		t.Fatalf("permission row X = %v, want trigger.X + 4.5 (%v)", rowBounds.X, triggerBounds.X+4.5)
+	}
+	if rowBounds.Y+rowBounds.H > triggerBounds.Y {
+		t.Fatalf("permission popup did not open above trigger: row=%+v trigger=%+v", rowBounds, triggerBounds)
+	}
+}
+

@@ -93,3 +93,59 @@ func TestApprovalReasonLocaleFallbackAndVerbatimText(t *testing.T) {
 		t.Fatalf("legacy detail lost: %q", got)
 	}
 }
+
+func TestApprovalDetailAriaAndEscalationFallbackFollowLocale(t *testing.T) {
+	previous := i18n.Locale()
+	t.Cleanup(func() { i18n.SetLocale(previous) })
+	i18n.SetLocale("zh")
+	store := galleryStore(t, dsh.EventsWaterfall{
+		AgentID: "A", EventID: "approval-escalation", Event: interaction.EventApproval,
+		Request: json.RawMessage(`{"toolName":"bash","args":{"command":"rm -rf dist"}}`),
+	})
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).FillWidth().Children(func() {
+			View(c, Model{Store: store, Snapshot: store.SnapshotForAgent("A"), ScopeAgentID: "A", ThemeID: "deepseek.light"})
+		})
+	}, 600, 400)
+	if _, ok := tt.Find("审批详情"); !ok {
+		t.Fatal("missing localized detail.aria label in zh")
+	}
+	if !tt.HasText("工具 bash 请求越权执行") {
+		t.Fatalf("missing zh escalation fallback: %q", tt.Texts())
+	}
+	i18n.SetLocale("en")
+	tt.Frame()
+	if _, ok := tt.Find("Approval details"); !ok {
+		t.Fatal("missing localized detail.aria label in en")
+	}
+	if !tt.HasText("Tool bash requests privileged execution") || tt.HasText("工具 bash 请求越权执行") {
+		t.Fatalf("missing en escalation fallback: %q", tt.Texts())
+	}
+	store.ResolveDeny("approval-escalation")
+}
+
+func TestApprovalFileTargetAndCommandCopyShortcutParity(t *testing.T) {
+	for _, tc := range []struct{ raw, want string }{
+		{`{"file_path":"src/main.go"}`, "src/main.go"},
+		{`{"filePath":"internal/app.go"}`, "internal/app.go"},
+		{`{"path":"README.md"}`, "README.md"},
+		{`{"command":"go test"}`, ""},
+	} {
+		if got := approvalFilePath(tc.raw); got != tc.want {
+			t.Fatalf("approvalFilePath(%s) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+	store := galleryStore(t, dsh.EventsWaterfall{
+		AgentID: "A", EventID: "file-approval", Event: interaction.EventApproval,
+		Request: json.RawMessage(`{"toolName":"write_file","args":{"file_path":"internal/ui/interaction/card.go","content":"package interaction"}}`),
+	})
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).FillWidth().Children(func() {
+			View(c, Model{Store: store, Snapshot: store.SnapshotForAgent("A"), ScopeAgentID: "A", ThemeID: "deepseek.light"})
+		})
+	}, 600, 400)
+	if !tt.HasText("internal/ui/interaction/card.go") {
+		t.Fatalf("file approval path not rendered: %q", tt.Texts())
+	}
+	store.ResolveDeny("file-approval")
+}

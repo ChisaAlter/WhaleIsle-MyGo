@@ -33,7 +33,7 @@ func View(c *ui.Context, key, title, source string, initiallyOpen bool, style St
 				mygo.Clipboard.WriteText(source)
 			}
 		})
-		ui.Text(c, Text("只读计划文档", "Read-only plan document")).FontSize(fonttheme.InterfaceSize(11)).TextColor(style.Muted)
+		ui.Text(c, Text("只读计划文档", "Read-only plan document")+" · "+LocaleText("preview.document")).FontSize(fonttheme.InterfaceSize(11)).TextColor(style.Muted)
 		if *open {
 			ui.Scroll(c.Key(key + "-reader")).FillWidth().Height(280).Children(func() {
 				ui.Column(c).FillWidth().Padding(8).Children(func() {
@@ -41,6 +41,14 @@ func View(c *ui.Context, key, title, source string, initiallyOpen bool, style St
 				})
 			})
 		}
+	})
+}
+
+// PreviewStatusView renders a localized plan preview status/error notice.
+func PreviewStatusView(c *ui.Context, status string, style Style) {
+	ui.Column(c).FillWidth().Gap(4).Padding(10).Background(style.Field).Border(1, style.Border).Radius(8).Children(func() {
+		ui.Text(c, LocaleText("preview.title")+" · "+LocaleText("preview.document")).FontSize(fonttheme.InterfaceSize(11)).TextColor(style.Muted)
+		ui.Text(c, StatusMessage(status)).FontSize(fonttheme.InterfaceSize(13)).TextColor(style.FG)
 	})
 }
 

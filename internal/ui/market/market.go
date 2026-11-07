@@ -74,7 +74,7 @@ func View(c *ui.Context, m Model) {
 	}
 	m = withMarketConfirmations(m)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	bg, border, fg, muted, field, accent := chrome.Color(colors.BG), chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
+	border, fg, muted, field, accent := chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot()
 	d := m.Store.Discovery()
 	personal := m.Store.Personal()
@@ -82,7 +82,7 @@ func View(c *ui.Context, m Model) {
 	if m.Embedded {
 		top, side, bottom = 0, 0, 0
 	}
-	container := ui.Column(c).FillWidth().MinWidth(0).Background(bg)
+	container := ui.Column(c).FillWidth().MinWidth(0).Background(ui.Transparent)
 	m.categoriesExpanded = ui.Local(container, "market-categories-expanded", func() bool { return false })
 	if !m.Embedded {
 		container.Grow(1).MinHeight(0)

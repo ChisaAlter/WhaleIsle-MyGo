@@ -167,8 +167,16 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		} else {
 			if s.Mode == "push" {
 				ui.Text(c, pushReviewText(s.Push)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+				if s.Push.DefaultBranch {
+					ui.Text(c, GitLocale("confirm.push.title")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+					ui.Text(c, GitLocaleFormat("confirm.push.description", map[string]string{"branch": s.Push.Target})).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+				}
 			} else if s.PR != nil {
 				paintPRReview(c, *s.PR, fg, muted)
+				if s.Push.DefaultBranch {
+					ui.Text(c, GitLocale("confirm.pr.title")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+					ui.Text(c, GitLocaleFormat("confirm.pr.description", map[string]string{"branch": s.Push.Target})).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+				}
 			}
 			caption := word("确认仅推送（不重复提交）", "Confirm push only (no new commit)")
 			if s.Mode == "pr" {

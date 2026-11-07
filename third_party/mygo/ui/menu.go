@@ -120,6 +120,7 @@ func (e *node) buildMenu(button bool, build func(m *Menu)) {
 			mr.pending.live = run.live
 			mr.pending.keys = run.keys
 			mr.pending.closeOnPointerLeave = run.closeOnPointerLeave
+			mr.pending.above, mr.pending.alignEnd = run.above, run.alignEnd
 			if run.closeOnPointerLeave {
 				e.flags |= flagHover
 			}
@@ -167,6 +168,9 @@ type menuRun struct {
 	chosen              bool // an item reported the choice
 	presentation        map[int]menuItemPresentation
 	closeOnPointerLeave bool
+	// above opens the menu above its button, and alignEnd lines up its
+	// right edge with the button's (OpenAbove, AlignEnd).
+	above, alignEnd bool
 }
 
 // CloseOnPointerLeave closes this menu 200ms after the pointer leaves its
@@ -176,6 +180,23 @@ type menuRun struct {
 func (m *Menu) CloseOnPointerLeave(on bool) {
 	if m.run.collect {
 		m.run.closeOnPointerLeave = on
+	}
+}
+
+// OpenAbove opens the menu above its button, or above the point a context
+// menu opens at, rather than below; it opens on the other side where it
+// does not fit and that side has more room.
+func (m *Menu) OpenAbove(on bool) {
+	if m.run.collect {
+		m.run.above = on
+	}
+}
+
+// AlignEnd lines up the right edge of the menu with its button's rather
+// than its left edge, as for a button at the right of a toolbar.
+func (m *Menu) AlignEnd(on bool) {
+	if m.run.collect {
+		m.run.alignEnd = on
 	}
 }
 
@@ -340,6 +361,12 @@ func (it *MenuItem) Chosen() bool {
 type menuState struct {
 	asked uint64 // the element whose menu opens, at (x, y)
 	x, y  float32
+	// anchor is the box the menu asked for opens from: its button's, or no
+	// bigger than the point (x, y) for a context menu.
+	anchor Rect
+	// pointer is set when the pointer asked for the menu, which then opens
+	// with no item highlighted; the keyboard's opens on its first item.
+	pointer bool
 	// text is the text input or selectable text the menu opens on, which
 	// may be inside the element with the menu, and chosenText the one the
 	// item chosen was from.
@@ -353,13 +380,17 @@ type menuState struct {
 	pending              *shownMenu
 	overlay              *shownMenu
 	index                int
-	submenu              int
-	focused              bool
-	chosen               uint64
-	chosenHold           bool
-	choice               int
-	label                string
-	choiceKey            string
+	// hover is the item the pointer was last on, -1 for none: the
+	// highlight follows the pointer as it moves from item to item, and
+	// the arrow keys while it stays.
+	hover      int
+	submenu    int
+	focused    bool
+	chosen     uint64
+	chosenHold bool
+	choice     int
+	label      string
+	choiceKey  string
 }
 
 // shownMenu is a context menu built for the element id. commands are the
@@ -367,6 +398,7 @@ type menuState struct {
 type shownMenu struct {
 	id           uint64
 	button       bool
+	pointer      bool // the pointer opened it (menuState.pointer)
 	menu         *platform.Menu
 	labels       []string
 	keys         []string
@@ -374,6 +406,12 @@ type shownMenu struct {
 	commands     []string
 	presentation map[int]menuItemPresentation
 	x, y         float32
+	// anchor is the box the menu opens from (menuState.anchor); above and
+	// alignEnd are its Menu's OpenAbove and AlignEnd.
+	anchor          Rect
+	above, alignEnd bool
+	// openedAt is when the overlay first showed, which it rises from.
+	openedAt time.Time
 	// text is the text the menu opened on, which takes its commands.
 	text                uint64
 	closeOnPointerLeave bool
@@ -417,12 +455,20 @@ func (rt *engine) menuTarget(chain []uint64) *state {
 func (rt *engine) askMenu(s *state, x, y float32, button bool) {
 	mr := &rt.menu
 	mr.asked, mr.x, mr.y, mr.button, mr.text = s.id, x, y, button, 0
+	mr.anchor, mr.pointer = Rect{X: x, Y: y}, false
 	// The menu takes the press: the release goes to it.
 	if rt.pressed != nil {
 		rt.pressed.pressed = false
 		rt.pressed = nil
 	}
 	rt.requestFrame()
+}
+
+// askMenuBelow has the next frame build the menu of menu button s, to open
+// from the box of anchor, s itself or the button it is shown from.
+func (rt *engine) askMenuBelow(s, anchor *state) {
+	rt.askMenu(s, anchor.vx, anchor.vy+anchor.vh, true)
+	rt.menu.anchor = Rect{X: anchor.vx, Y: anchor.vy, W: anchor.vw, H: anchor.vh}
 }
 
 // menuPress handles a press of the secondary button over chain: when an
@@ -466,7 +512,7 @@ func (rt *engine) menuPress(chain []uint64, x, y float32) bool {
 		return true
 	}
 	rt.askMenu(s, x, y, false)
-	rt.menu.text = text
+	rt.menu.text, rt.menu.pointer = text, true
 	return true
 }
 
@@ -481,7 +527,7 @@ func (rt *engine) menuRelease() bool {
 	rt.menu.release, rt.menu.releaseText = 0, 0
 	if s := rt.states[id]; s != nil {
 		rt.askMenu(s, rt.pointerX, rt.pointerY, false)
-		rt.menu.text = text
+		rt.menu.text, rt.menu.pointer = text, true
 	}
 	return true
 }
@@ -511,7 +557,7 @@ func (rt *engine) menuKey() bool {
 // openMenuButton has the next frame build the menu of menu button s, to
 // show below it.
 func (rt *engine) openMenuButton(s *state) {
-	rt.askMenu(s, s.vx, s.vy+s.vh, true)
+	rt.askMenuBelow(s, s)
 }
 
 // openMenu shows the context menu built for the element id once the frame
@@ -521,7 +567,7 @@ func (rt *engine) openMenu(id uint64, button bool, pm *platform.Menu, labels, co
 		return
 	}
 	mr := &rt.menu
-	mr.pending = &shownMenu{id: id, button: button, menu: pm, labels: labels, commands: commands, x: mr.x, y: mr.y, text: mr.text}
+	mr.pending = &shownMenu{id: id, button: button, pointer: mr.pointer, menu: pm, labels: labels, commands: commands, x: mr.x, y: mr.y, anchor: mr.anchor, text: mr.text}
 }
 
 // resolveMenu opens the menu asked for that no ContextMenu built, after a
@@ -554,7 +600,20 @@ func (rt *engine) showMenu() {
 		return
 	}
 	rt.menu.overlay = p
-	rt.menu.index = 0
+	// Opened with the keyboard, the first item takes the highlight, which
+	// the arrows move; opened with the pointer, none has it until the
+	// pointer or the arrows go to one. A pointer press keeps the focus
+	// ring of a button it presses that has the focus, so it is the menu's
+	// own pointer that tells them apart.
+	rt.menu.index, rt.menu.hover = -1, -1
+	if !p.pointer {
+		for i, item := range p.menu.Items {
+			if item.Visible && item.Enabled && item.Type != platform.MenuItemSeparator {
+				rt.menu.index = i
+				break
+			}
+		}
+	}
 	rt.menu.submenu = -1
 	rt.menu.focused = false
 	// The current scene was already presented. requestFrame skips requests
@@ -587,14 +646,19 @@ func (rt *engine) buildMenuOverlay(c *context) {
 		return
 	}
 	t := c.theme
-	panelHeight := float32(8)
-	for _, item := range p.menu.Items {
-		if item.Type == platform.MenuItemSeparator {
-			panelHeight += 9
-		} else {
-			panelHeight += 34
-		}
+	st := t.menuStyle()
+	if p.openedAt.IsZero() {
+		p.openedAt = c.Now()
 	}
+	// The panel rises into place as it opens, while its opacity snaps.
+	rise, rising := menuRiseAt(c.Now().Sub(p.openedAt))
+	if rt.preferences().ReduceMotion {
+		rise, rising = 0, false
+	}
+	if rising {
+		c.AnimationFrame()
+	}
+	vw, vh, scale := c.w, c.h, c.DeviceScale()
 	coreOverlay(c, func() {
 		back := coreBox(c).Absolute().Left(0).Top(0).Right(0).Bottom(0)
 		back.flags |= flagClickable
@@ -602,33 +666,34 @@ func (rt *engine) buildMenuOverlay(c *context) {
 			rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 			rt.requestFrame()
 		}
-		left := p.x
-		if left < 8 {
-			left = 8
-		}
-		// A button menu opens above the button's box; a context menu opens at
-		// the pointer. p.y is the bottom edge for a button menu.
-		lift := float32(0)
-		if p.button {
-			lift = 34
-		}
-		top := p.y - lift - panelHeight - 4
-		if top < 8 {
-			top = p.y + 4
-		}
-		panel := coreBox(c).Role(RoleMenu).Absolute().Left(left).Top(top).Width(220).Padding(4).Gap(0).Radius(12).
-			Background(t.Background).Border(.5, t.Border)
+		// The panel takes the width of its items, and goes where placeMenu
+		// puts it once laid out.
+		panel := coreBox(c).Role(RoleMenu).Absolute().Left(0).Top(0).MinWidth(menuMinWidth).MaxWidth(menuMaxWidth)
+		styleMenuPanel(c, panel)
 		panel.flags |= flagClickable | flagHover
-		panel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
+		anchor, above, end := p.anchor, p.above, p.alignEnd
+		panel.offsetAfterLayout = func(r Rect) Point {
+			x, y := placeMenu(anchor, r.W, r.H, vw, vh, above, end)
+			x, y = round(x*scale)/scale, round(y*scale)/scale
+			return Point{X: x - r.X, Y: y + rise - r.Y}
+		}
 		move := func(delta int) {
 			n := len(p.menu.Items)
+			from := rt.menu.index
+			if from < 0 && delta < 0 {
+				from = n // up from no item goes to the last
+			}
 			for k := 1; k <= n; k++ {
-				i := ((rt.menu.index+delta*k)%n + n) % n
+				i := ((from+delta*k)%n + n) % n
 				it := p.menu.Items[i]
 				if it.Visible && it.Type != platform.MenuItemSeparator && it.Enabled {
 					rt.menu.index = i
 					break
 				}
+			}
+			// The arrows leave the submenu of the item they leave.
+			if rt.menu.submenu != rt.menu.index {
+				rt.menu.submenu = -1
 			}
 			rt.requestFrame()
 		}
@@ -654,88 +719,119 @@ func (rt *engine) buildMenuOverlay(c *context) {
 			rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 			rt.requestFrame()
 		}
-		var submenuTop float32
+		type menuRowNode struct {
+			i    int
+			row  *node
+			item *platform.MenuItem
+		}
+		var rows []menuRowNode
 		panel.Children(func() {
-			offset := float32(4)
+			prevSeparator := true // no line opens the menu or follows another
 			for i, item := range p.menu.Items {
 				if !item.Visible {
 					continue
 				}
 				if item.Type == platform.MenuItemSeparator {
-					coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
-					offset += 9
+					if !prevSeparator {
+						menuSeparator(c, st.Separator)
+					}
+					prevSeparator = true
 					continue
 				}
+				prevSeparator = false
 				if p.live {
 					c.nextKey, c.keySet = "menu-live-"+menuLiveIdentity(p, i), true
 				}
-				row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
-					BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
-				if !item.Enabled {
-					row.Disabled(true)
-				}
-				if item.Enabled && (row.Hovered() || i == rt.menu.index || i == rt.menu.submenu) {
-					row.Background(t.SurfaceHover)
-				}
-				if item.Submenu != nil {
-					row.Label(item.Label + " ›")
-					if row.Hovered() || row.Clicked() {
-						if rt.menu.submenu != i {
-							rt.menu.submenu = i
-							rt.requestFrame()
-						}
-					}
-				} else if row.Hovered() && rt.menu.submenu != -1 {
-					rt.menu.submenu = -1
-					rt.requestFrame()
-				}
-				row.Children(func() { menuItemContent(c, p, item, p.menu.Items) })
-				if item.Enabled && row.Clicked() && item.Submenu == nil {
-					rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
-					rt.menuChosen(p, item.ID)
-				}
-				if i == rt.menu.submenu {
-					submenuTop = top + offset
-				}
-				offset += 34
+				row := menuRow(c, item)
+				row.Children(func() { menuItemContent(c, p, item) })
+				rows = append(rows, menuRowNode{i, row, item})
 			}
 		})
-		var subPanel *node
-		if rt.menu.submenu >= 0 && rt.menu.submenu < len(p.menu.Items) {
-			if sub := p.menu.Items[rt.menu.submenu].Submenu; sub != nil {
-				subLeft := left + 220 - 4
-				subPanel = coreBox(c).Role(RoleMenu).Absolute().Left(subLeft).Top(submenuTop).Width(200).Padding(4).Gap(0).Radius(12).
-					Background(t.Background).Border(.5, t.Border)
-				subPanel.flags |= flagClickable | flagHover
-				subPanel.Shadow(0, 8, 24, 0, RGBA(0, 0, 0, 0.18))
-				subPanel.Children(func() {
-					for _, item := range sub.Items {
-						if !item.Visible {
-							continue
-						}
-						if item.Type == platform.MenuItemSeparator {
-							coreBox(c).FillWidth().Height(1).Margin(4, 6).Background(t.Border)
-							continue
-						}
-						if p.live {
-							c.nextKey, c.keySet = "menu-live-"+menuLiveItemIdentity(p, item), true
-						}
-						row := coreButtonBase(c).FillWidth().Height(34).Padding(6, 10).Gap(6).Radius(8).
-							BorderWidth(0).Background(Color{}).TextColor(t.Text).Role(RoleMenuItem)
-						if !item.Enabled {
-							row.Disabled(true)
-						}
-						if item.Enabled && row.Hovered() {
-							row.Background(t.SurfaceHover)
-						}
-						row.Children(func() { menuItemContent(c, p, item, sub.Items) })
-						if item.Enabled && row.Clicked() {
-							rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
-							rt.menuChosen(p, item.ID)
-						}
-					}
-				})
+		// The highlight goes with the pointer as it moves onto an item, and
+		// an item with a submenu opens it; the submenu stays open as the
+		// pointer leaves the items, toward it.
+		hover := -1
+		for _, r := range rows {
+			if r.row.Hovered() {
+				hover = r.i
 			}
+		}
+		if hover != rt.menu.hover {
+			rt.menu.hover = hover
+			if hover >= 0 {
+				it := p.menu.Items[hover]
+				rt.menu.index, rt.menu.submenu = -1, -1
+				if it.Enabled {
+					rt.menu.index = hover
+					if it.Submenu != nil {
+						rt.menu.submenu = hover
+					}
+				}
+			} else if rt.menu.submenu < 0 {
+				rt.menu.index = -1
+			}
+			rt.requestFrame()
+		}
+		var subRow *node
+		for _, r := range rows {
+			if !r.item.Enabled {
+				continue
+			}
+			if r.item.Submenu != nil && r.row.Clicked() && rt.menu.submenu != r.i {
+				rt.menu.index, rt.menu.submenu = r.i, r.i
+				rt.requestFrame()
+			}
+			if r.i == rt.menu.index || r.i == rt.menu.submenu {
+				r.row.Background(menuHoverFill(c, p.presentation[r.item.ID].danger))
+			}
+			if r.i == rt.menu.submenu {
+				subRow = r.row
+			}
+			if r.item.Submenu == nil && r.row.Clicked() {
+				rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+				rt.menuChosen(p, r.item.ID)
+			}
+		}
+		var subPanel *node
+		if subRow != nil && rt.menu.overlay == p {
+			sub := p.menu.Items[rt.menu.submenu].Submenu
+			subPanel = coreBox(c).Role(RoleMenu).Absolute().Left(0).Top(0).MinWidth(submenuMin).MaxWidth(menuMaxWidth)
+			styleMenuPanel(c, subPanel)
+			subPanel.flags |= flagClickable | flagHover
+			// The main panel and its rows are placed by now: they come first.
+			subPanel.offsetAfterLayout = func(r Rect) Point {
+				x, y := placeSubmenu(Rect{X: subRow.x, Y: subRow.y, W: subRow.w, H: subRow.h}, r.W, r.H, vw, vh)
+				x, y = round(x*scale)/scale, round(y*scale)/scale
+				return Point{X: x - r.X, Y: y - r.Y}
+			}
+			subPanel.Children(func() {
+				prevSeparator := true
+				for _, item := range sub.Items {
+					if !item.Visible {
+						continue
+					}
+					if item.Type == platform.MenuItemSeparator {
+						if !prevSeparator {
+							menuSeparator(c, st.Separator)
+						}
+						prevSeparator = true
+						continue
+					}
+					prevSeparator = false
+					if p.live {
+						c.nextKey, c.keySet = "menu-live-"+menuLiveItemIdentity(p, item), true
+					}
+					row := menuRow(c, item)
+					if item.Enabled && row.Hovered() {
+						row.Background(menuHoverFill(c, p.presentation[item.ID].danger))
+					}
+					row.Children(func() { menuItemContent(c, p, item) })
+					if item.Enabled && row.Clicked() {
+						rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
+						rt.menuChosen(p, item.ID)
+					}
+				}
+			})
 		}
 		if p.closeOnPointerLeave && rt.menu.overlay == p {
 			owner.flags |= flagHover

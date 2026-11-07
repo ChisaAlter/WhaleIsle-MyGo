@@ -87,6 +87,8 @@ func catalogKeyboard(buttons []ui.Element, open func(int), back func()) {
 func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, muted ui.Color) {
 	if len(v.Rows) == 0 && !v.Busy {
 		ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+		ui.Text(c, AgentsPanelLocale("empty.title")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, AgentsPanelLocale("empty.body")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	}
 	var buttons []ui.Element
 	var addresses []session.AgentSessionAddress
@@ -99,7 +101,7 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	}
 	for _, row := range v.Rows {
 		row := row
-		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).FillWidth().MinWidth(0).Padding(8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(v.Busy || !row.CanOpen())
+		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).Padding(8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(v.Busy || !row.CanOpen())
 		if button.Hovered() {
 			button.Background(c.Theme().SurfaceHover)
 		}

@@ -51,3 +51,19 @@ func TestInsertionPreservesDraftBoundaries(t *testing.T) {
 		t.Fatal("accepted split UTF-8")
 	}
 }
+
+func TestFileLinkReferenceLocalesParity(t *testing.T) {
+	if got := Locale("zh", "section.files"); got != "文件与文件夹" {
+		t.Fatalf("zh section.files = %q", got)
+	}
+	if got := FormatLocale("zh", "presented.expandAria", map[string]string{"count": "3"}); got != "展开全部 3 个交付文件" {
+		t.Fatalf("zh presented.expandAria = %q", got)
+	}
+
+	if got := Locale("en", "section.files"); got != "Files & folders" {
+		t.Fatalf("en section.files = %q", got)
+	}
+	if got := FormatLocale("en", "presented.expandAria", map[string]string{"count": "3"}); got != "Show all 3 delivered files" {
+		t.Fatalf("en presented.expandAria = %q", got)
+	}
+}

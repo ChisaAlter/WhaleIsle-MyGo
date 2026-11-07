@@ -58,7 +58,7 @@ func (d *DraftState) HandleNativeCommand(s session.ViewState, action func(Native
 		return true
 	}
 	if len(d.Attachments) > 0 {
-		d.Error = "/" + name + " does not accept attachments; remove them before opening the picker"
+		d.Error = CommandAttachmentsUnsupportedNotice(name)
 		return true
 	}
 	d.openNativeCommand(s, name, segment)

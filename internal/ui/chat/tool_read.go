@@ -22,8 +22,24 @@ func toolReadCard(c *ui.Context, m *toolReadModel, st ToolCardStyle, key string)
 	for i, line := range m.Lines {
 		lines[i] = markdown.ReadLine{Number: line.Number, Text: line.Text}
 	}
-	labels := markdown.ReadLabels{Window: func(shown, total int) string { return fmt.Sprintf(i18n.T(i18n.KeyToolReadWindow), shown, total) },
-		Expand: func(n int) string { return fmt.Sprintf(i18n.T(i18n.KeyToolReadExpand), n) }, ExpandAria: func(n int) string { return fmt.Sprintf(i18n.T(i18n.KeyToolReadExpandAria), n) },
-		Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: i18n.T(i18n.KeyToolReadCollapseAria)}
+	labels := markdown.ReadLabels{Window: toolReadWindowLabel,
+		Expand: toolReadExpandRestLabel, ExpandAria: toolReadExpandAriaLabel,
+		Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: toolReadCollapseAriaLabel()}
 	markdown.ToolReadBlock(c.Key("tool-read:"+key), m.Label, m.Lang, lines, m.TotalLines, 8, style, labels).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolReadCard))
+}
+
+func toolReadWindowLabel(shown, total int) string {
+	return fmt.Sprintf(referenceCopy("Showing %d of %d lines", "显示 %d / %d 行"), shown, total)
+}
+
+func toolReadExpandRestLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("… %d more lines", "… 其余 %d 行"), n)
+}
+
+func toolReadExpandAriaLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("Expand %d more lines", "展开其余 %d 行"), n)
+}
+
+func toolReadCollapseAriaLabel() string {
+	return referenceCopy("Collapse content", "收起内容")
 }

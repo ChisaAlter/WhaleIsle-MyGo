@@ -123,8 +123,11 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		return false
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, p.Title).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1)
+			if summary := questionAnsweredCountText(card.Rows); summary != "" {
+				ui.Text(c, summary).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			}
 			reopen := widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionReopen), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall})
 			if reopen.Clicked() {
 				store.ReopenQuestion(p.EventID)
@@ -157,10 +160,14 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	card.Children(func() {
 		if approval {
 			ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Background(t.Warning.Alpha(.12)).Children(func() {
-				widgets.StateDot(c, widgets.StateWarning)
+				state := widgets.StateWarning
+				if p.Sending {
+					state = widgets.StateRunning
+				}
+				widgets.StateDot(c, state)
 				ui.Text(c, i18n.T(i18n.KeyChatApprovalWaiting)).FontSize(13).FixedLineHeight(18).TextColor(t.Warning)
 			})
-			body := ui.Scroll(c.Key("approval-body:"+p.EventID)).FillWidth().Grow(1).MinHeight(0).Padding(0, 16).Gap(6)
+			body := ui.Scroll(c.Key("approval-body:"+p.EventID)).Label(approvalDetailAriaLabel()).FillWidth().Grow(1).MinHeight(0).Padding(0, 16).Gap(6)
 			if residentComposerBounds.H <= 0 {
 				body.MaxHeight(336)
 			}
@@ -175,7 +182,11 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 						// The command seat already carries the exact string, so the raw
 						// payload is not repeated as a second open block; the copy action
 						// under the command still yields it.
-						commandBlock(c, t, command, func(text string) { c.WriteClipboard(text) })
+						var copyInput func(ui.InputEvent) bool
+						if keys != nil {
+							copyInput = approvalHandler(keys, p, store, true)
+						}
+						commandBlock(c, t, command, func(text string) { c.WriteClipboard(text) }, copyInput)
 					}
 					if p.CallID != "" {
 						ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -222,12 +233,12 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 			switch p.Event {
 			case interaction.EventUserQuestions:
-				if hide := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionHide), false); hide.Clicked() {
+				if hide := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionHide), false).Tooltip(questionStatusText("nav.close")); hide.Clicked() {
 					store.HideQuestion(p.EventID)
 				}
 
 				if !p.Continued {
-					if deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false); deny.Clicked() {
+					if deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false).Tooltip(questionStatusText("nav.cancel")); deny.Clicked() {
 						store.ResolveDeny(p.EventID)
 					}
 				}
@@ -270,6 +281,116 @@ func questionStatusText(status string) string {
 			return "补充回答已提交。"
 		}
 		return "Late answer submitted."
+	case "waiting", "ask.waiting":
+		if zh {
+			return "等待回答"
+		}
+		return "waiting"
+	case "pending", "ask.pending":
+		if zh {
+			return "已继续工作，仍可回答"
+		}
+		return "continued; answer still available"
+	case "pendingDetail", "ask.pendingDetail":
+		if zh {
+			return "等待中的问题仍可在输入框中回答"
+		}
+		return "These pending questions remain answerable from the composer."
+	case "closed", "ask.closed":
+		if zh {
+			return "已结束"
+		}
+		return "closed"
+	case "closedDetail", "ask.closedDetail":
+		if zh {
+			return "该问题已结束，结果见下方对话"
+		}
+		return "This question is closed; its outcome is in the conversation below."
+	case "cancelled", "ask.cancelled":
+		if zh {
+			return "已取消"
+		}
+		return "cancelled"
+	case "cancelledDetail", "ask.cancelledDetail":
+		if zh {
+			return "本轮已取消，未提交回答"
+		}
+		return "This question set was cancelled before answers were submitted."
+	case "interrupted", "ask.interrupted":
+		if zh {
+			return "已中断"
+		}
+		return "interrupted"
+	case "interruptedDetail", "ask.interruptedDetail":
+		if zh {
+			return "本轮已中断，未提交回答"
+		}
+		return "This question set was interrupted before answers were submitted."
+	case "skipped", "ask.skipped":
+		if zh {
+			return "未回答"
+		}
+		return "Not answered"
+	case "resubmit", "error.resubmit":
+		if zh {
+			return "回答未送达，工作已继续，请再提交一次。"
+		}
+		return "The answer did not arrive before work continued; submit it again."
+	case "unavailable", "error.unavailable":
+		if zh {
+			return "当前无法提交，请稍候再试。"
+		}
+		return "Cannot submit right now; try again in a moment."
+	case "sent", "status.sent":
+		if zh {
+			return "回答已发送；面板未能关闭。"
+		}
+		return "Reply sent; the panel could not close."
+	case "review.skipped":
+		if zh {
+			return "这道问题当时被跳过。"
+		}
+		return "This question was skipped."
+	case "reply.label":
+		if zh {
+			return "回答先前等待中的问题"
+		}
+		return "Reply to earlier pending questions"
+	case "reply.open":
+		if zh {
+			return "展开问题详情"
+		}
+		return "Open question details"
+	case "reply.close":
+		if zh {
+			return "收起问题详情"
+		}
+		return "Close question details"
+	case "nav.minimize":
+		if zh {
+			return "收起问题卡片"
+		}
+		return "Collapse the question card"
+	case "nav.maximize":
+		if zh {
+			return "展开问题卡片"
+		}
+		return "Expand the question card"
+	case "nav.cancel":
+		if zh {
+			return "放弃整组问题"
+		}
+		return "Dismiss all questions"
+	case "nav.close":
+		if zh {
+			return "收起问题面板，可从工具调用重新打开"
+		}
+		return "Close the panel — reopen it from the tool call"
+	case "custom.placeholder":
+		if zh {
+			return "输入你的答案"
+		}
+		return "Type your answer"
 	default:
 		if zh {
 			return "此问题已不再接受补充回答。"

@@ -2332,8 +2332,9 @@ func main() {
 	}
 	releaseProfile, err := claimDesktopProfile()
 	if err != nil {
+		// Dialog.Message cannot run before App.Run; the failure must stay a
+		// logged early exit instead of panicking on the error path.
 		log.Println("desktop profile:", err)
-		_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageError, Title: product.Name, Message: err.Error()})
 		return
 	}
 	defer releaseProfile()

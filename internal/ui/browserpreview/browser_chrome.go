@@ -82,7 +82,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 		t.Host.SyncBounds()
 		b.showHost(t.Host)
 	}
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Height(float32(b.chromeHeight())).Shrink(0).Padding(6, 8).Gap(4).Children(func() {
 			// DockKit owns the tabs and close control in a workspace resource seat.
 			// The standalone browser keeps its own tab strip.
@@ -183,9 +183,9 @@ func (b *Controller) browserNavigation(c *ui.Context, t *Tab, state desktop.Stat
 		}
 	}
 	if b.onMiniRestore != nil {
-		label := browserChromeLabel("交互小浮窗", "Interactive mini-window")
+		label := browserPreviewText("miniOpen")
 		if b.mini != nil {
-			label = browserChromeLabel("恢复原面板", "Restore original panel")
+			label = browserPreviewText("miniRestore")
 		}
 		if browserChromeTool(c, "browser-mini", label, previewMiniIcon).Disabled(t.Host == nil).Clicked() {
 			if b.mini != nil {
@@ -241,7 +241,7 @@ func (b *Controller) documentHeader(c *ui.Context, t *Tab, name string, external
 				}
 			}
 		}
-		if t.source != nil && menu.Item(browserChromeLabel("重新读取", "Reread")).Disabled(t.sourceRead != nil).Chosen() {
+		if t.source != nil && menu.Item(documentPreviewText("reload")).Disabled(t.sourceRead != nil).Chosen() {
 			b.retryDocument(t)
 		}
 		if t.HTML != nil && t.HTML.CanRunScripts() {
@@ -317,7 +317,7 @@ func (b *Controller) browserPlaceholder(c *ui.Context, t *Tab, muted ui.Color) {
 				b.restoreBrowserAddress(t)
 			}
 		case t.source != nil:
-			message := browserChromeLabel("正在读取文档…", "Reading document…")
+			message := documentPreviewText("loading")
 			if t.Error != "" {
 				message = t.Error
 			}

@@ -31,6 +31,11 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 	}
 	seat.Children(func() {
 		ui.Row(c).FillWidth().Shrink(0).Padding(12, 16).Background(c.Theme().Warning.Alpha(.12)).Gap(8).AlignItems(ui.Center).Children(func() {
+			state := widgets.StateWarning
+			if pending.Sending {
+				state = widgets.StateRunning
+			}
+			widgets.StateDot(c, state)
 			ui.Text(c, planpreview.Text("计划审批", "Plan review")).Bold().FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).Grow(1)
 			if card.PlanReviewHidden {
 				if widgets.Button(c, colors, planpreview.Text("返回审批", "Return to review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {

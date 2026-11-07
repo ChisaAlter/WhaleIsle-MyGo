@@ -100,9 +100,11 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 			ui.PopoverBase(c, options, menuOpen, func(panel ui.Element) {
 				// The shared menu material: its own fill, the elevation hairline
 				// and shadow, faded in over the popover token.
+				bg := chrome.Color(colors.BG)
+				dark := bg.R < 128 && bg.G < 128 && bg.B < 128
 				progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
-				panel.Width(200).Padding(4).Gap(0).Radius(12).Role(ui.RoleMenu).Opacity(progress)
-				chrome.MenuSurface(panel, chrome.Color(colors.Field), chrome.Color(colors.Border), 12)
+				panel.Width(200).Padding(4).Gap(0).Radius(16).Role(ui.RoleMenu).Opacity(progress)
+				chrome.MenuSurface(panel, chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), 16)
 				panel.Children(func() {
 					workspaceViewOptionsMenu(c, m, menuOpen)
 				})

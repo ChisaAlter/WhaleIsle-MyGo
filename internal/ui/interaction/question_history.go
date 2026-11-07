@@ -1,13 +1,30 @@
 package interaction
 
 import (
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/widgets"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
+
+func questionHistoryAnsweredCountText(rows []interaction.QuestionHistoryRow) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	answered := 0
+	for _, r := range rows {
+		if len(r.Selected) > 0 || strings.TrimSpace(r.Custom) != "" {
+			answered++
+		}
+	}
+	if i18n.Locale() == i18n.LocaleZH {
+		return fmt.Sprintf("%d/%d 已回答", answered, len(rows))
+	}
+	return fmt.Sprintf("%d/%d answered", answered, len(rows))
+}
 
 func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, store CardStore, colors fonttheme.Colors, fg, muted, accent ui.Color) {
 	if len(records) == 0 {
@@ -24,7 +41,7 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			current = &records[i]
 		}
 	}
-	choice := ui.Select(c, &selected, labels)
+	choice := ui.Select(c, &selected, labels).Tooltip(questionStatusText("reply.label"))
 	if choice.Changed() {
 		id := ""
 		for i, label := range labels[1:] {
@@ -44,7 +61,12 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 		if v.Queued {
 			label = i18n.T(i18n.KeyChatQuestionQueued)
 		}
-		ui.Text(c, label).Bold().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).Bold().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Grow(1)
+			if summary := questionHistoryAnsweredCountText(v.Rows); summary != "" {
+				ui.Text(c, summary).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			}
+		})
 		for _, r := range v.Rows {
 			if r.Header != "" && r.Header != r.Question {
 				ui.Text(c, r.Header).FontSize(fonttheme.InterfaceSize(11)).Bold().TextColor(muted)
@@ -56,18 +78,28 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			}
 			for i, option := range r.OptionLabels {
 				marker := "○ "
-				for _, selected := range r.Selected {
-					if selected == option {
+				for _, sel := range r.Selected {
+					if sel == option {
 						marker = "✓ "
 						break
 					}
 				}
-				ui.Text(c, marker+option).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				display := interaction.RecommendedQuestionLabel(option)
+				recommended := (i < len(r.Recommended) && r.Recommended[i]) || display != option
+				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, marker+display).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+					if recommended {
+						ui.Text(c, i18n.T(i18n.KeyChatQuestionRecommended)).FontSize(10).FixedLineHeight(16).FontWeight(600).TextColor(accent).Padding(0, 4).Radius(4).Background(accent.Alpha(.12))
+					}
+				})
 				if i < len(r.OptionDescriptions) && r.OptionDescriptions[i] != "" {
 					ui.Text(c, r.OptionDescriptions[i]).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 			}
-			answer := append([]string(nil), r.Selected...)
+			var answer []string
+			for _, sel := range r.Selected {
+				answer = append(answer, interaction.RecommendedQuestionLabel(sel))
+			}
 			if r.Custom != "" {
 				answer = append(answer, r.Custom)
 			}
@@ -77,7 +109,7 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			}
 			ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionCloseHist), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+		if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionCloseHist), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Tooltip(questionStatusText("reply.close")).Clicked() {
 			store.ReviewQuestionHistory(v.AgentID, "")
 		}
 	})

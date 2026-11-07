@@ -244,3 +244,274 @@ func TestCaptionBranchReadFromRetiredRootCannotPublish(t *testing.T) {
 		t.Fatal("old root branch response entered the current picker")
 	}
 }
+
+func TestGitActionsDetachedBehindDirtyDisabledReasonsAndTooltips(t *testing.T) {
+	defer i18n.SetLocale(i18n.DefaultLocale)
+
+	for _, tc := range []struct {
+		locale            string
+		state             string
+		status            git.RepositoryStatus
+		changes           []git.Change
+		wantNotice        string
+		wantCommitTip     string
+		wantPushTip       string
+		wantPRTip         string
+		wantPublishTip    string
+		commitBtnLabel    string
+		pushBtnLabel      string
+		prBtnLabel        string
+		publishBtnLabel   string
+		detachedHeadLabel string
+	}{
+		{
+			locale:            "en",
+			state:             "detached-clean",
+			status:            git.RepositoryStatus{IsRepo: true, Branch: "", HasOrigin: true},
+			wantNotice:        "Detached HEAD: create and checkout a branch to enable push and pull request actions.",
+			wantCommitTip:     "Worktree is clean. Make changes before committing.",
+			wantPushTip:       "Detached HEAD: checkout a branch before pushing.",
+			wantPRTip:         "Detached HEAD: checkout a branch before creating a pull request.",
+			wantPublishTip:    "Publish repository is unavailable.",
+			commitBtnLabel:    "Commit…",
+			pushBtnLabel:      "Push…",
+			prBtnLabel:        "Review draft PR…",
+			publishBtnLabel:   "Publish repository…",
+			detachedHeadLabel: "(detached HEAD)  ↑0  ↓0",
+		},
+		{
+			locale:            "zh",
+			state:             "detached-clean",
+			status:            git.RepositoryStatus{IsRepo: true, Branch: "", HasOrigin: true},
+			wantNotice:        "处于分离 HEAD 状态：请先创建并检出分支，才能执行推送和拉取请求操作。",
+			wantCommitTip:     "工作区干净，请先修改文件后再提交。",
+			wantPushTip:       "处于分离 HEAD 状态：请先检出分支后再推送。",
+			wantPRTip:         "处于分离 HEAD 状态：请先检出分支后再创建拉取请求。",
+			wantPublishTip:    "发布仓库不可用。",
+			commitBtnLabel:    "提交…",
+			pushBtnLabel:      "推送…",
+			prBtnLabel:        "核对草稿 PR…",
+			publishBtnLabel:   "发布仓库…",
+			detachedHeadLabel: "（分离 HEAD）  ↑0  ↓0",
+		},
+		{
+			locale:          "en",
+			state:           "behind-clean",
+			status:          git.RepositoryStatus{IsRepo: true, Branch: "feature/behind", HasOrigin: true, HasUpstream: true, Behind: 2},
+			wantNotice:      "Behind upstream. Pull/rebase first.",
+			wantCommitTip:   "Worktree is clean. Make changes before committing.",
+			wantPushTip:     "Branch is behind upstream. Pull/rebase before pushing.",
+			wantPRTip:       "Branch is behind upstream. Pull/rebase before creating a pull request.",
+			wantPublishTip:  "Publish repository is unavailable.",
+			commitBtnLabel:  "Commit…",
+			pushBtnLabel:    "Push…",
+			prBtnLabel:      "Review draft PR…",
+			publishBtnLabel: "Publish repository…",
+		},
+		{
+			locale:          "zh",
+			state:           "behind-clean",
+			status:          git.RepositoryStatus{IsRepo: true, Branch: "feature/behind", HasOrigin: true, HasUpstream: true, Behind: 2},
+			wantNotice:      "落后于上游，请先拉取或变基。",
+			wantCommitTip:   "工作区干净，请先修改文件后再提交。",
+			wantPushTip:     "分支落后于上游，请先拉取或变基后再推送。",
+			wantPRTip:       "分支落后于上游，请先拉取或变基后再创建拉取请求。",
+			wantPublishTip:  "发布仓库不可用。",
+			commitBtnLabel:  "提交…",
+			pushBtnLabel:    "推送…",
+			prBtnLabel:      "核对草稿 PR…",
+			publishBtnLabel: "发布仓库…",
+		},
+		{
+			locale:          "en",
+			state:           "dirty",
+			status:          git.RepositoryStatus{IsRepo: true, Branch: "feature/dirty", Dirty: true, HasOrigin: true, HasUpstream: true, Ahead: 1, AheadOfDefault: 1},
+			changes:         []git.Change{{Path: "README.md", Worktree: 'M'}},
+			wantCommitTip:   "",
+			wantPushTip:     "Commit or stash local changes before pushing.",
+			wantPRTip:       "Commit local changes before creating a pull request.",
+			wantPublishTip:  "Publish repository is unavailable.",
+			commitBtnLabel:  "Commit…",
+			pushBtnLabel:    "Push…",
+			prBtnLabel:      "Review draft PR…",
+			publishBtnLabel: "Publish repository…",
+		},
+		{
+			locale:          "zh",
+			state:           "dirty",
+			status:          git.RepositoryStatus{IsRepo: true, Branch: "feature/dirty", Dirty: true, HasOrigin: true, HasUpstream: true, Ahead: 1, AheadOfDefault: 1},
+			changes:         []git.Change{{Path: "README.md", Worktree: 'M'}},
+			wantCommitTip:   "",
+			wantPushTip:     "推送前请先提交或暂存本地更改。",
+			wantPRTip:       "创建拉取请求前请先提交本地更改。",
+			wantPublishTip:  "发布仓库不可用。",
+			commitBtnLabel:  "提交…",
+			pushBtnLabel:    "推送…",
+			prBtnLabel:      "核对草稿 PR…",
+			publishBtnLabel: "发布仓库…",
+		},
+	} {
+		t.Run(tc.locale+"-"+tc.state, func(t *testing.T) {
+			i18n.SetLocale(tc.locale)
+			status := tc.status
+			w := &Workbench{
+				Root:                "fixture",
+				Loaded:              true,
+				Repository:          true,
+				RepositoryToolsOpen: true,
+				RepositoryStatus:    &status,
+				Changes:             tc.changes,
+				AgainstHEAD:         true,
+			}
+			if got := w.statusNotice(); got != tc.wantNotice {
+				t.Fatalf("statusNotice() = %q, want %q", got, tc.wantNotice)
+			}
+			if got := w.commitDisabledReason(); got != tc.wantCommitTip {
+				t.Fatalf("commitDisabledReason() = %q, want %q", got, tc.wantCommitTip)
+			}
+			if got := w.pushDisabledReason(); got != tc.wantPushTip {
+				t.Fatalf("pushDisabledReason() = %q, want %q", got, tc.wantPushTip)
+			}
+			if got := w.createPRDisabledReason(); got != tc.wantPRTip {
+				t.Fatalf("createPRDisabledReason() = %q, want %q", got, tc.wantPRTip)
+			}
+			if got := w.publishDisabledReason(); got != tc.wantPublishTip {
+				t.Fatalf("publishDisabledReason() = %q, want %q", got, tc.wantPublishTip)
+			}
+
+			m := Model{Workbench: w, WorkspaceRoot: "fixture"}
+			tt := ui.NewTester(func(c *ui.Context) {
+				paintWorkbench(c, m, c.Theme().Text, c.Theme().TextMuted)
+			}, 900, 600)
+			now := time.Now()
+			tt.SetTime(now)
+
+			if tc.detachedHeadLabel != "" && !tt.HasText(tc.detachedHeadLabel) {
+				t.Fatalf("missing detached head status label %q", tc.detachedHeadLabel)
+			}
+			if tc.wantNotice != "" && !tt.HasText(tc.wantNotice) {
+				t.Fatalf("missing status notice %q", tc.wantNotice)
+			}
+
+			hoverCheck := func(label, wantTip string) {
+				t.Helper()
+				btn, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("missing button %q in %v", label, tt.Texts())
+				}
+				tt.Move(btn.X+btn.W/2, btn.Y+btn.H/2)
+				now = now.Add(time.Second)
+				tt.SetTime(now)
+				if !tt.HasText(wantTip) {
+					t.Fatalf("missing tooltip %q for %q in %v", wantTip, label, tt.Texts())
+				}
+			}
+
+			hoverCheck(tc.pushBtnLabel, tc.wantPushTip)
+			hoverCheck(tc.prBtnLabel, tc.wantPRTip)
+			if tc.wantCommitTip != "" {
+				hoverCheck(tc.commitBtnLabel, tc.wantCommitTip)
+			}
+		})
+	}
+}
+
+func TestBranchMenuUnsupportedNameTooltipAndDiscardCopy(t *testing.T) {
+	defer i18n.SetLocale(i18n.DefaultLocale)
+
+	for _, tc := range []struct {
+		locale          string
+		wantUnsupported string
+		wantCreateNote  string
+		wantDiscardHead string
+		wantDiscardBody string
+	}{
+		{
+			locale:          "en",
+			wantUnsupported: "Name contains characters the desktop cannot pass to git safely.",
+			wantCreateNote:  "This version only creates and switches from the current HEAD.",
+			wantDiscardHead: "Discard working-tree changes?",
+			wantDiscardBody: "Unstaged changes will be lost and cannot be undone.",
+		},
+		{
+			locale:          "zh",
+			wantUnsupported: "名称包含桌面无法安全传给 git 的字符，无法从这里切换。",
+			wantCreateNote:  "首版只支持基于当前 HEAD 创建并切换。",
+			wantDiscardHead: "还原工作区更改？",
+			wantDiscardBody: "未暂存的更改将被丢弃，无法恢复。",
+		},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			i18n.SetLocale(tc.locale)
+			w := &Workbench{
+				Root:         "fixture",
+				BranchesOpen: true,
+			}
+			open := true
+			m := Model{Workbench: w, WorkspaceRoot: "fixture"}
+			tt := ui.NewTester(func(c *ui.Context) {
+				anchor := ui.Button(c, "BranchTrigger")
+				CaptionBranches(c, m, anchor, &open)
+				paintBranches(c, m, c.Theme().Text, c.Theme().TextMuted)
+				paintDiscard(c, m, c.Theme().Text, c.Theme().TextMuted)
+			}, 900, 700)
+			w.cancelBranchList()
+			w.BranchStatus = ""
+			w.Branches = []git.Branch{
+				{Name: "main", Current: true},
+				{Name: "bad..branch", Unsupported: true},
+			}
+			now := time.Now()
+			tt.SetTime(now)
+			tt.Frame()
+
+			if !tt.HasText(tc.wantCreateNote) {
+				t.Fatalf("missing create note %q", tc.wantCreateNote)
+			}
+			row, ok := tt.Find("bad..branch")
+			if !ok {
+				t.Fatalf("missing unsupported branch row in %v", tt.Texts())
+			}
+			tt.Move(row.X+row.W/2, row.Y+row.H/2)
+			tt.SetTime(now.Add(time.Second))
+			if !tt.HasText(tc.wantUnsupported) {
+				t.Fatalf("missing unsupported branch tooltip %q in %v", tc.wantUnsupported, tt.Texts())
+			}
+
+			open = false
+			w.Discard = &git.DiscardPlan{Path: "README.md"}
+			tt.Frame()
+			if !tt.HasText(tc.wantDiscardHead) || !tt.HasText(tc.wantDiscardBody) {
+				t.Fatalf("missing discard dialog copy (%q / %q) in %v", tc.wantDiscardHead, tc.wantDiscardBody, tt.Texts())
+			}
+		})
+	}
+}
+
+func TestGitAndDiffLocalesParity(t *testing.T) {
+	prev := i18n.Locale()
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	i18n.SetLocale("zh")
+	if got := GitLocale("commit.description"); got != "确认本次提交内容。提交信息留空将自动生成。" {
+		t.Fatalf("zh commit.description = %q", got)
+	}
+	if got := formatSelectedCount(2, 5); got != "2/5" {
+		t.Fatalf("zh formatSelectedCount = %q", got)
+	}
+	if got := DiffLocaleFormat("file.truncated", map[string]string{"count": "30"}); got != "仅显示前 30 行" {
+		t.Fatalf("zh file.truncated = %q", got)
+	}
+
+	i18n.SetLocale("en")
+	if got := GitLocale("commit.description"); got != "Review and confirm your commit. Leave the message blank to auto-generate one." {
+		t.Fatalf("en commit.description = %q", got)
+	}
+	if got := formatSelectedCount(2, 5); got != "2 of 5" {
+		t.Fatalf("en formatSelectedCount = %q", got)
+	}
+	if got := DiffLocaleFormat("file.truncated", map[string]string{"count": "30"}); got != "Showing the first 30 lines" {
+		t.Fatalf("en file.truncated = %q", got)
+	}
+}
+

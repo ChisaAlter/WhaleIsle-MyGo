@@ -40,7 +40,10 @@ type Model struct {
 	SystemDark            bool
 	WorkspaceRoot         string
 	WorkspacePickerAnchor *ui.Handle
-	Inert                 bool // no Session or no owning workspace: the card opens the workspace picker
+	Inert                 bool   // no Session or no owning workspace: the card opens the workspace picker
+	Disabled              bool   // session composer unavailable
+	ParentOffline         bool   // continuable child session whose parent session is offline
+	Placeholder           string // explicit placeholder override
 	OnRequestWorkspace    func()
 	Draft                 *string
 	State                 *DraftState
@@ -206,7 +209,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 	if !suggestOpen && m.State != nil {
 		m.State.references.cancelQuery()
 	}
-	if m.Inert {
+	inputDisabled := m.Inert || m.Disabled || composerParentOffline(m)
+	if inputDisabled {
 		suggestOpen = false
 		m.SkillsOpen = false
 	}
@@ -257,7 +261,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			})
 		}
 		markdown.LinkActions(c, markdown.Links(draft), markdown.Style{FontSize: 12, Accent: accent}, m.OnOpenURL)
-		if !m.Inert && kind == SuggestSlash && !m.Editing {
+		if !inputDisabled && kind == SuggestSlash && !m.Editing {
 			if m.Snapshot.SlashCommandsLoading {
 				ui.Text(c, i18n.T(i18n.KeyCommandCatalogLoading)).FontSize(12).TextColor(muted).Padding(4, 8)
 			} else if m.Snapshot.SlashCommandsErr != "" {
@@ -401,23 +405,23 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			}
 		})
 		card.Children(func() {
-			if !m.Inert {
+			if !inputDisabled {
 				paintResizeHandles(c, m, card, muted)
 			}
 			// The suggestion menu floats above the card rather than growing it,
 			// and is built here so it precedes the toolbar in tree order (labels
 			// shared with the toolbar resolve to the menu while it is open).
 			renderComposerSlot(c, m, "conversation.input.overlay", func() {
-				if !m.Inert && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0 || referenceQueryActive(m)) {
+				if !inputDisabled && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0 || referenceQueryActive(m)) {
 					paintSuggestPopup(c, m, card, items, kind, tok, colors)
 				}
-				if !m.Inert && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
+				if !inputDisabled && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
 					paintChipEditPopup(c, m, panel, border, muted)
 				}
 			})
 			renderComposerSlot(c, m, "conversation.input.attachments", func() {
 				if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
-					ui.Box(c).FillWidth().Disabled(m.Inert).Children(func() { paintDraftAttachments(c, m, fg, muted) })
+					ui.Box(c).FillWidth().Disabled(inputDisabled).Children(func() { paintDraftAttachments(c, m, fg, muted) })
 				}
 			})
 			if m.Editing {
@@ -458,10 +462,14 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					if m.Hero {
 						minLines, maxLines = 2, 10
 					}
-					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(placeholder).
+					taPlaceholder := placeholder
+					if nextPromptVisible(m) {
+						taPlaceholder = ""
+					}
+					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(taPlaceholder).
 						Font(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont).Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
 						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
-					ta.Disabled(m.Inert)
+					ta.Disabled(inputDisabled)
 					if m.Hero {
 						ta = ta.MinHeight(52)
 					}
@@ -477,20 +485,20 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				requestWorkspaceFocus = m.Inert && area.Focused()
 				// Toolkit AutoFocus is a first-mount request, never a per-frame
 				// keep-focused loop. Do not override an already focused control.
-				if !m.Inert && !c.Root().FocusWithin() {
+				if !inputDisabled && !c.Root().FocusWithin() {
 					area.AutoFocus()
 				}
 				if suggestOpen && len(items) > 0 {
 					wireSuggestKeys(area, m, items, kind, tok)
 				}
-				if !m.Inert && m.State != nil && m.State.EditFocus {
+				if !inputDisabled && m.State != nil && m.State.EditFocus {
 					area.Focus()
 					m.State.EditFocus = false
 				}
-				if !m.Inert && m.NextPrompt.Text != "" && !(suggestOpen && len(items) > 0) && !(m.UseTextInputClient && m.TextInput != nil) {
+				if !inputDisabled && m.NextPrompt.Text != "" && !(suggestOpen && len(items) > 0) && !(m.UseTextInputClient && m.TextInput != nil) {
 					area.OnShortcut(0, ui.KeyTab, func() { acceptNextPrompt(m) })
 				}
-				if !m.Inert {
+				if !inputDisabled {
 					wireFileDrop(area, m)
 					wireWorkspaceReferenceDrop(area, m)
 				}
@@ -528,7 +536,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 								p.Fill(ui.Rect{X: cx - 0.65, Y: cy - 5.5, W: 1.3, H: 11}, secondary, 0.65)
 								p.Fill(ui.Rect{X: cx - 5.5, Y: cy - 0.65, W: 11, H: 1.3}, secondary, 0.65)
 							})
-							if m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+							if inputDisabled || m.Editing || suggestionState(m, m.TextInput) == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 								plus = plus.Disabled(true)
 							}
 							if !plus.IsDisabled() {
@@ -574,7 +582,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 									child = true
 								}
 							}
-							primaryStops := running && !child && (composerDraftEmpty(m) || m.StopBlocked)
+							parentOffline := composerParentOffline(m)
+							primaryStops := running && (!child || parentOffline) && (composerDraftEmpty(m) || m.StopBlocked || parentOffline)
 							// The pressed state sinks the disc one DIP and darkens its fill,
 							// the way the reference's :active composes. The metallic sheen is
 							// the framework's decorativeButtons path (chrome.CursorEffectConfig
@@ -624,8 +633,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 								}
 								send = primaryFill(send)
 								send.Children(func() { ui.Icon(c, sendIcon).Size(16, 16).PassThrough() })
-								if send.Clicked() && handleModelCommand(m) {
-									// Local entry consumes no prompt or attachment.
+								if send.Clicked() && (handleModelCommand(m) || m.Draft != nil && refuseCommandAttachments(m, *m.Draft)) {
+									// Local entry or attachment refusal consumes no prompt or attachment.
 								} else if send.Clicked() && m.OnSubmitGesture != nil {
 									m.OnSubmitGesture(false)
 								} else if send.Clicked() && m.OnSubmit != nil {
@@ -633,12 +642,14 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 								} else if send.Clicked() && m.OnSend != nil && m.Draft != nil {
 									text := *m.Draft
 									if handleSlashSend(m, text) {
-										*m.Draft = ""
+										if m.State == nil || m.State.Error == "" {
+											*m.Draft = ""
+										}
 									} else {
 										*m.Draft = ""
 										m.OnSend(text)
 									}
-									if m.TextInput != nil {
+									if m.TextInput != nil && (m.State == nil || m.State.Error == "") {
 										m.TextInput.ClearHistory()
 									}
 								}
@@ -651,7 +662,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				// One transparent hit target covers disabled child controls as
 				// well as the editor. No native text/IME owner is registered.
 				trigger := ui.Box(c.Key("composer-workspace-trigger")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
-					Focusable().Role(ui.RoleButton).Description(i18n.T(i18n.KeyChatHeroChooseWorkspace)).
+					Focusable().Role(ui.RoleButton).Label(WorkspacePlaceholder()).Description(i18n.T(i18n.KeyChatHeroChooseWorkspace)).
 					OnClick(m.OnRequestWorkspace).
 					OnShortcut(0, ui.KeyEnter, m.OnRequestWorkspace).
 					OnShortcut(0, ui.KeySpace, m.OnRequestWorkspace).
@@ -660,7 +671,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					trigger.Focus()
 				}
 			}
-			if !m.Inert && (fileDrag || referenceDrag) {
+			if !inputDisabled && (fileDrag || referenceDrag) {
 				// PassThrough keeps the drop target and hover routing on the draft
 				// surface underneath, so the overlay is only a visual promise.
 				images, bytes := composerIntake(m.State)
@@ -694,7 +705,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					})
 				})
 			}
-			paintNativeCommandPopup(c, m, card, panel, border, fg, muted)
+			paintNativeCommandPopup(c, m, card, colors, panel, border, fg, muted)
 		})
 	})
 }
@@ -912,7 +923,7 @@ type chipDrag struct {
 }
 
 func paintMentionChips(c *ui.Context, m Model, mentions []DraftMention, muted, accent ui.Color, selectUTF16 bool, selectStart, selectEnd *int) {
-	ui.Row(c).Gap(4).AlignItems(ui.Center).Disabled(m.Inert).Children(func() {
+	ui.Row(c).Gap(4).AlignItems(ui.Center).Disabled(m.Inert || m.Disabled || composerParentOffline(m)).Children(func() {
 		for i, ment := range mentions {
 			i, ment := i, ment
 			label := ChipLabel(ment)
@@ -1060,10 +1071,10 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 	} else {
 		popup = popup.BottomPercent(100).Margin(0, 0, 4, 0)
 	}
-	popup = menuSurface(c, popup.MaxHeight(height).Padding(4).Gap(2), colors)
+	popup = menuSurface(c, popup.MaxHeight(height).Padding(4).Gap(0), colors)
 	popup.Children(func() {
 		paintReferenceBreadcrumbs(c, m, tok)
-		ui.Text(c, title).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
+		ui.Text(c, title).FontSize(11).FontWeight(500).FixedLineHeight(16).TextColor(chrome.Color(colors.Caption)).Padding(5, 8, 2, 8)
 		if kind == SuggestMention && referenceQueryActive(m) {
 			pending, failure := referenceQueryStatus(m)
 			if pending {
@@ -1082,20 +1093,20 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 		}
 		drilled := false
 		clicked := -1
-		ui.Scroll(c).FillWidth().MaxHeight(max(80, height-40)).Children(func() {
+		ui.Scroll(c).FillWidth().MaxHeight(max(80, height-40)).Gap(0).Children(func() {
 			// Rows are plain buttons: the list widget paints its own accent
 			// selection over the reference's single hover fill, and the arrows and
 			// Enter already belong to the editor's keymap.
-			ui.Column(c).FillWidth().Gap(2).Children(func() {
+			ui.Column(c).FillWidth().Gap(0).Children(func() {
 				section := ""
 				for i, it := range items {
 					i, it := i, it
 					if it.section != "" && it.section != section {
-						ui.Text(c, it.section).FontSize(11).FontWeight(500).TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
+						ui.Text(c, it.section).FontSize(11).FontWeight(500).FixedLineHeight(16).TextColor(chrome.Color(colors.Caption)).Padding(5, 8, 2, 8)
 					}
 					section = it.section
-					itemRow := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Radius(8).
-						AlignItems(ui.Center).BorderWidth(0).Background(ui.Transparent)
+					itemRow := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Radius(12).
+						AlignItems(ui.Center).Justify(ui.Start).Gap(6).BorderWidth(0).Background(ui.Transparent)
 					if i == sel || itemRow.Hovered() {
 						itemRow = itemRow.Background(hover)
 					}
@@ -1225,7 +1236,14 @@ func handleSlashSend(m Model, text string) bool {
 			return true
 		}
 	}
+	if refuseCommandAttachments(m, text) {
+		return true
+	}
 	if m.OnExecuteSlash != nil {
+		if m.State != nil && len(m.State.Attachments) > 0 {
+			m.State.Error = CommandAttachmentsUnsupportedNotice(line)
+			return true
+		}
 		m.OnExecuteSlash(context.Background(), line)
 		return true
 	}

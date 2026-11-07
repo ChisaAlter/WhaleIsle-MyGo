@@ -467,3 +467,26 @@ func TestMainParityElectedRootRetainsNativeCaptionAndExplicitRoutes(t *testing.T
 		})
 	}
 }
+
+func TestPadOriginalSurfaceDefaultsOriginalAndHonorsNativeFallback(t *testing.T) {
+	cfg, err := config.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &mainState{cfgStore: cfg}
+	if !s.padOriginalSurface() {
+		t.Fatal("default surface must host the shipped overlay in navigation")
+	}
+	if err := cfg.Update(func(c *config.Config) { c.PadSurface = "native" }); err != nil {
+		t.Fatal(err)
+	}
+	if s.padOriginalSurface() {
+		t.Fatal("native surface must retire the navigation overlay host")
+	}
+	if err := cfg.Update(func(c *config.Config) { c.PadSurface = "original" }); err != nil {
+		t.Fatal(err)
+	}
+	if !s.padOriginalSurface() {
+		t.Fatal("explicit original surface was not honored")
+	}
+}

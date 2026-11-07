@@ -202,6 +202,13 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 			paintEdit := func() {
 				if m.EditingSeq > 0 && msg.Seq == m.EditingSeq && m.OnCancelEdit != nil {
 					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).FontSize(11).TextColor(muted)
+					if editSeq, _ := projectedLatestEditable(m.Snapshot); editSeq != msg.Seq {
+						ui.Text(c, messageEditText("stale")).FontSize(11).TextColor(muted)
+					} else if m.Snapshot.PromptBusy {
+						ui.Text(c, messageEditText("hint.running")).FontSize(11).TextColor(muted)
+					} else if m.Snapshot.MessageEditBusy {
+						ui.Text(c, messageEditText("busy")).FontSize(11).TextColor(muted)
+					}
 					action(messageIconCloseOutline, i18n.T(i18n.KeyQuitConfirmCancel), m.OnCancelEdit)
 				} else if editSeq, editTextOnly := projectedLatestEditable(m.Snapshot); msg.Seq > 0 && msg.Seq == editSeq && m.OnEditMessage != nil {
 					tip := i18n.T(i18n.KeyChatEdit)
@@ -209,12 +216,18 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 					if !editAllowed && m.Snapshot.SelectedID == "" && !m.Snapshot.PromptBusy && !m.Snapshot.MessageEditBusy && editTextOnly {
 						editAllowed = true
 					}
-					if m.Snapshot.PromptBusy || m.Snapshot.MessageEditBusy {
+					if m.Snapshot.PromptBusy {
+						tip = messageEditText("running")
+					} else if m.Snapshot.MessageEditBusy {
+						tip = messageEditText("busy")
+					} else if !editAllowed {
+						tip = messageEditText("unsupported")
+					} else if false {
 						tip = i18n.T(i18n.KeyChatEditRunning)
 					} else if !editAllowed {
 						tip = i18n.T(i18n.KeyChatEditUnsupported)
 					}
-					button := messageAction(c, messageIconEditOutline, i18n.T(i18n.KeyChatEdit), false, muted).Tooltip(tip)
+					button := messageAction(c, messageIconEditOutline, i18n.T(i18n.KeyChatEdit), false, muted).Tooltip(tip).Description(tip)
 					if !editAllowed {
 						button.Opacity(.4)
 					}

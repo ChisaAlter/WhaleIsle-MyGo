@@ -180,6 +180,10 @@ type Config struct {
 	// PreviewNoticeAck is the last 预览版说明 copy version the user acknowledged,
 	// the Go-side counterpart of the harness welcome-notice settings field.
 	PreviewNoticeAck string `json:"goPreviewNoticeAck,omitempty"`
+	// PadSurface selects the dsh-pad front end. Default and "original" run the
+	// shipped dsh-pad overlay inside the hidden navigation Host, projected
+	// through ambient seats; "native" restores the Go dock/card front end.
+	PadSurface string `json:"goPadSurface,omitempty"`
 }
 
 var configJSONFields = func() map[string]bool {

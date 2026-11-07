@@ -77,6 +77,7 @@ func NewPluginSurface(opts HostOptions, capability *pluginslots.Gateway) (*Host,
 		// A fixed native seat has no resize frame. Keeping the default invisible
 		// thick frame would shrink the DOM viewport inside these exact bounds.
 		host.win.SetResizable(false)
+		host.SyncBounds()
 		pluginSurfaceCapabilities.Store(host, capability)
 	}
 	return host, err
@@ -134,13 +135,17 @@ func (h *Host) presentClipped(bounds, clip mygo.Rectangle, occlusions []mygo.Rec
 		screen.X += origin.X
 		screen.Y += origin.Y
 		if previous == nil || previous.bounds != screen || !slices.Equal(previous.holes, holes) {
-			// Never move/show a surface with a stale region from its last seat.
-			w.Hide()
-			w.SetBounds(screen)
+			// Apply the new clip region before moving/resizing so an already-visible
+			// surface never flashes a stale seat region or drops mouse capture.
+			if !w.IsVisible() {
+				w.Hide()
+			}
 			if err := clipMediaNativeWindow(w, bounds.Width, bounds.Height, holes); err != nil {
+				w.Hide()
 				result = err
 				return
 			}
+			w.SetBounds(screen)
 			h.mu.Lock()
 			h.mediaPlacement = &mediaPlacement{bounds: screen, holes: append([]mygo.Rectangle(nil), holes...)}
 			h.mu.Unlock()

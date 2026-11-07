@@ -23,6 +23,8 @@ type ChildEditorModel struct {
 	Chip              *ChipEdit
 	Images            []string
 	Disabled          bool
+	ParentOffline     bool
+	Placeholder       string
 	OnAddImages       func([]string)
 	OnRemoveImage     func(string)
 	OnPickImages      func()
@@ -41,7 +43,7 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	}
 	fg, muted := c.Theme().Text, c.Theme().TextMuted
 	send := func() {
-		if !v.Disabled && (strings.TrimSpace(d.Text) != "" || len(v.Images) > 0) {
+		if !v.Disabled && !v.ParentOffline && (strings.TrimSpace(d.Text) != "" || len(v.Images) > 0) {
 			if v.OnSendGesture != nil {
 				v.OnSendGesture(d.Text, false)
 			} else if v.OnSend != nil {
@@ -56,10 +58,13 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	m.Snapshot = v.Snapshot
 	m.OnStop = v.OnStop
 	m.StopBlocked = v.StopBlocked
+	m.Disabled = v.Disabled
+	m.ParentOffline = v.ParentOffline || (v.Disabled && !d.Sending && !v.StopBlocked)
+	m.Placeholder = v.Placeholder
 	m.OnQueryReferences = v.OnQueryReferences
 	m.referenceInvalidate = c.Services().Invalidate
 	m.OnSubmitGesture = func(accelerated bool) {
-		if v.Disabled {
+		if v.Disabled || v.ParentOffline {
 			return
 		}
 		if v.OnSendGesture != nil {
@@ -74,13 +79,14 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	selected := ui.Local(root, "reference-selection", func() int { return 0 })
 	m.SuggestList = ui.Local(root, "references", func() ui.ListState { return ui.ListState{Selected: selected} })
 	BindStopRegion(root, d.Client, m, false)
+	disabled := v.Disabled || v.ParentOffline
 	root.Children(func() {
 		paintChildAttachments(c, v, muted)
 		start, end := -1, -1
 		if v.Chip != nil && v.Chip.Open {
 			paintChipEditPopup(c, m, c.Theme().Background, c.Theme().Border, muted)
 		}
-		area := paintDraftTextInput(c, m, fg, muted, start, end).Disabled(v.Disabled)
+		area := paintDraftTextInput(c, m, fg, muted, start, end).Disabled(disabled)
 		kind, q, tok, quoted, open := activeSuggestion(m, d.Client)
 		if open && kind == SuggestMention {
 			items := buildSuggestItemsWithQuote(m, kind, q, quoted)
@@ -88,21 +94,23 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 		} else {
 			d.references.cancelQuery()
 		}
-		if !v.Disabled && !c.Root().FocusWithin() {
+		if !disabled && !c.Root().FocusWithin() {
 			area.AutoFocus()
 		}
-		if !v.Disabled && d.EditFocus {
+		if !disabled && d.EditFocus {
 			area.Focus()
 			d.EditFocus = false
 		}
-		if !v.Disabled {
+		if !disabled {
 			if paths := area.DroppedFiles(); len(paths) > 0 {
 				intakeTransferredFiles(m, paths)
 			}
 		}
-		paintChildToolbar(c, v, send)
+		vToolbar := v
+		vToolbar.Disabled = disabled
+		paintChildToolbar(c, vToolbar, send)
 		if d.Error != "" {
-			ui.Text(c, d.Error).FontSize(11).TextColor(muted)
+			ui.Text(c, FormatComposerError(d.Error)).FontSize(11).TextColor(muted)
 		}
 	})
 }

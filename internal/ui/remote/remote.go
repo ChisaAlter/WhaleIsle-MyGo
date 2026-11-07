@@ -105,14 +105,13 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyRemoteTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyRemoteBack)).Clicked() {

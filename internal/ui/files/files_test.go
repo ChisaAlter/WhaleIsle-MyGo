@@ -124,3 +124,42 @@ func TestEditHighlightWiresSourceLanguage(t *testing.T) {
 		t.Fatal("SourceView wiring: expected spans for draft")
 	}
 }
+
+func TestFilesSidebarDeliverablesOpenInAppLocalesParity(t *testing.T) {
+	prev := i18n.Locale()
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	i18n.SetLocale("zh")
+	if got := FilesLocale("unsaved.body"); got != "关闭前可以保存修改，或继续编辑。" {
+		t.Fatalf("zh unsaved.body = %q", got)
+	}
+	if got := SidebarFilesLocale("type.label"); got != "文件" {
+		t.Fatalf("zh type.label = %q", got)
+	}
+	if got := DeliverablesLocale("row.title"); got != "交付文件" {
+		t.Fatalf("zh row.title = %q", got)
+	}
+	if got := OpenInAppLocaleFormat("open.title", map[string]string{"app": "VS Code"}); got != "用 VS Code 打开" {
+		t.Fatalf("zh open.title = %q", got)
+	}
+	if got := DocumentPreviewLocale("office.missingFontsTitle"); got != "缺失的字体" {
+		t.Fatalf("zh office.missingFontsTitle = %q", got)
+	}
+
+	i18n.SetLocale("en")
+	if got := FilesLocale("unsaved.body"); got != "Save your changes before closing, or keep editing." {
+		t.Fatalf("en unsaved.body = %q", got)
+	}
+	if got := SidebarFilesLocale("type.label"); got != "Files" {
+		t.Fatalf("en type.label = %q", got)
+	}
+	if got := DeliverablesLocale("row.title"); got != "Present files" {
+		t.Fatalf("en row.title = %q", got)
+	}
+	if got := OpenInAppLocaleFormat("open.title", map[string]string{"app": "VS Code"}); got != "Open in VS Code" {
+		t.Fatalf("en open.title = %q", got)
+	}
+	if got := DocumentPreviewLocale("office.missingFontsTitle"); got != "Missing fonts" {
+		t.Fatalf("en office.missingFontsTitle = %q", got)
+	}
+}

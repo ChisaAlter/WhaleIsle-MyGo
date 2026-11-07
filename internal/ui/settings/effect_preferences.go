@@ -10,9 +10,68 @@ import (
 	"strings"
 	"unicode/utf16"
 	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/theme"
 )
+
+var effectTypingPalettes = map[string][3]string{
+	"ocean":  {"#7dd3fc", "#38bdf8", "#0284c7"},
+	"sunset": {"#fdba74", "#fb923c", "#ea580c"},
+	"candy":  {"#f9a8d4", "#ec4899", "#db2777"},
+	"forest": {"#86efac", "#34d399", "#059669"},
+	"violet": {"#c4b5fd", "#8b5cf6", "#7c3aed"},
+	"ember":  {"#fcd34d", "#f59e0b", "#d97706"},
+}
+
+var effectBeamPalettes = map[string][]string{
+	"legacy":  {"#ff3264", "#288cff", "#32c850", "#1eb9aa", "#6446ff", "#ff7828", "#f032b4"},
+	"warm":    {"#ff4d6d", "#ff8c42", "#ffd166", "#ef476f", "#ff4d6d"},
+	"aurora":  {"#42e8c8", "#3f8cff", "#8a5cf6", "#e45bff", "#42e8c8"},
+	"rose":    {"#ff4f81", "#ff79c6", "#c77dff", "#7b61ff", "#ff4f81"},
+	"glacier": {"#d9f7ff", "#6edff6", "#328bff", "#5b6dff", "#d9f7ff"},
+	"cyber":   {"#00f0ff", "#00ff8f", "#b6ff00", "#ffed00", "#00f0ff"},
+	"sunset":  {"#ff5f6d", "#ffc371", "#ff9a8b", "#ff6a88", "#ff5f6d"},
+	"cyan":    {"#31d7ff", "#1eb9aa", "#64a8ff", "#31d7ff"},
+}
+
+func effectTypingColorScheme(id string) [3]string {
+	return effectTypingPalettes[id]
+}
+
+func effectBeamPaletteColors(raw json.RawMessage) []string {
+	var parsed struct {
+		Palette struct {
+			Kind   string   `json:"kind"`
+			ID     string   `json:"id"`
+			Colors []string `json:"colors"`
+		} `json:"palette"`
+	}
+	_ = json.Unmarshal(raw, &parsed)
+	if parsed.Palette.Kind == "custom" && len(parsed.Palette.Colors) >= 2 && len(parsed.Palette.Colors) <= 6 {
+		return append([]string(nil), parsed.Palette.Colors...)
+	}
+	if colors, ok := effectBeamPalettes[parsed.Palette.ID]; ok {
+		return append([]string(nil), colors...)
+	}
+	return append([]string(nil), effectBeamPalettes["legacy"]...)
+}
+
+func settingsEffectPreview(c *ui.Context, style json.RawMessage, typing bool) {
+	box := ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12).Radius(16).Background(c.Theme().Surface)
+	if typing {
+		box.MinHeight(86).Children(func() {
+			ui.Text(c, providerCopy("输入特效", "Typing effects")).FontSize(14).Padding(16).TextColor(c.Theme().Text)
+		})
+		return
+	}
+	colors := effectBeamPaletteColors(style)
+	accent := c.Theme().Accent
+	if len(colors) > 0 && effectHex(colors[0]) {
+		accent = chrome.Color(colors[0])
+	}
+	box.Radius(22).MinHeight(86).Border(1.5, accent).Children(func() {
+		ui.Text(c, providerCopy("智能体正在思考", "Agent is thinking")).FontSize(14).Padding(16).TextColor(c.Theme().Text)
+	})
+}
 
 type effectChoice struct {
 	path, zh, en string
@@ -35,7 +94,7 @@ func typingCustomSeed(style map[string]any) [3]string {
 	switch effectValue(style, "colors.kind") {
 	case "preset":
 		id, _ := effectValue(style, "colors.id").(string)
-		colors = composer.TypingColorScheme(id)
+		colors = effectTypingColorScheme(id)
 	case "custom":
 		for i, key := range []string{"echo", "caret", "text"} {
 			colors[i], _ = effectValue(style, "colors."+key).(string)
@@ -45,18 +104,18 @@ func typingCustomSeed(style map[string]any) [3]string {
 }
 
 var beamChoices = []effectChoice{
-	{"mode", "视觉模式", "Visual mode", []string{"legacy", "lounge", "aurora", "reactive", "custom"}},
-	{"direction", "旋转方向", "Direction", []string{"clockwise", "counterclockwise", "pingPong"}},
+	{"mode", "模式", "Mode", []string{"legacy", "lounge", "aurora", "reactive", "custom"}},
+	{"direction", "流动方向", "Direction", []string{"clockwise", "counterclockwise", "pingPong"}},
 	{"easing", "缓动", "Easing", []string{"linear", "ease", "ease-in-out", "cubic-bezier"}},
 	{"palette.kind", "配色来源", "Color source", []string{"preset", "custom"}},
-	{"palette.id", "配色方案", "Palette", []string{"legacy", "warm", "aurora", "rose", "glacier", "cyber", "sunset", "cyan"}},
+	{"palette.id", "色板", "Palette", []string{"legacy", "warm", "aurora", "rose", "glacier", "cyber", "sunset", "cyan"}},
 }
 var beamNumbers = []effectNumber{
-	{"period", "周期（秒）", "Period (seconds)", .8, 60, .01}, {"intensity", "强度", "Intensity", 40, 140, 5}, {"bloom", "辉光", "Bloom", 0, 160, 5}, {"hue", "色相", "Hue", -180, 180, 5}, {"trackWidth", "边框宽度", "Track width", .5, 4, .1}, {"glowBlur", "辉光模糊", "Glow blur", 0, 12, .5},
-	{"breathing.amplitude", "呼吸幅度", "Breathing amplitude", 0, .8, .05}, {"breathing.period", "呼吸周期", "Breathing period", 1, 20, .5}, {"hueCycle.range", "色相循环范围", "Hue cycle range", 0, 360, 5}, {"hueCycle.period", "色相循环周期", "Hue cycle period", 1, 60, .5}, {"night.dim", "夜间亮度降低", "Night dimming", 0, 100, 5},
+	{"period", "单圈周期", "Rotation period", .8, 60, .01}, {"intensity", "整体强度", "Overall intensity", 40, 140, 5}, {"bloom", "光晕强度", "Bloom intensity", 0, 160, 5}, {"hue", "色相偏移", "Hue offset", -180, 180, 5}, {"trackWidth", "轨道宽度", "Track width", .5, 4, .1}, {"glowBlur", "光晕模糊", "Glow blur", 0, 12, .5},
+	{"breathing.amplitude", "呼吸幅度", "Breathing amplitude", 0, .8, .05}, {"breathing.period", "呼吸周期", "Breathing period", 1, 20, .5}, {"hueCycle.range", "色相范围", "Hue range", 0, 360, 5}, {"hueCycle.period", "色相周期", "Hue cycle period", 1, 60, .5}, {"night.dim", "调暗幅度", "Dim amount", 0, 100, 5},
 }
 var typingChoices = []effectChoice{
-	{"effect", "回声动画", "Echo animation", []string{"drop", "rise", "flash"}}, {"cursor", "光标样式", "Caret", []string{"native", "block", "underline"}}, {"colors.kind", "配色来源", "Color source", []string{"theme", "preset", "custom"}}, {"colors.id", "配色方案", "Color scheme", []string{"ocean", "sunset", "candy", "forest", "violet", "ember"}},
+	{"effect", "效果", "Effect", []string{"drop", "rise", "flash"}}, {"cursor", "光标", "Caret", []string{"native", "block", "underline"}}, {"colors.kind", "配色来源", "Color source", []string{"theme", "preset", "custom"}}, {"colors.id", "颜色", "Colors", []string{"ocean", "sunset", "candy", "forest", "violet", "ember"}},
 }
 
 func effectDefaults(typing bool) map[string]any {
@@ -126,7 +185,7 @@ func normalizeEffect(style map[string]any, typing bool) (map[string]any, error) 
 	bools := []string{"breathing.enabled", "hueCycle.enabled", "night.enabled"}
 	if typing {
 		choices = typingChoices
-		numbers = []effectNumber{{"speed", "速度", "Speed", 40, 240, 10}}
+		numbers = []effectNumber{{"speed", "回显速度", "Echo speed", 40, 240, 10}}
 		bools = []string{"cursorBlink"}
 	}
 	for _, choice := range choices {
@@ -348,9 +407,9 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			disabled: bodyHostDisabled(a) || !styleFound,
 			onOpen:   openSettings,
 		}, func() {
-			hint := providerCopy("智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored edge glow around the composer while the agent sends or thinks.")
+			hint := providerCopy("智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored border beam on the composer while a turn is sending or thinking.")
 			if typing {
-				hint = providerCopy("点击齿轮调整光效样式；开关控制是否启用。", "Use the cog to tune the effect; the switch only enables it.")
+				hint = providerCopy("键入字符时在输入框播放短暂回显，可替换光标样式。", "Echo typed characters in the composer, with an optional custom caret.")
 			}
 			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, hint, fg, muted, func() {
 				ui.Row(c).Wrap().Gap(8).Justify(ui.End).Children(func() {
@@ -379,7 +438,14 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			Height(min(float32(760), max(float32(0), vh*.85))).Children(func() {
 			ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
 				ui.Row(c).FillWidth().Padding(16, 20).Wrap().Gap(8).Children(func() {
-					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
+					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+						ui.Text(c, title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
+						dialogHint := providerCopy("调整运行态边光；保存后立即用于所有会话。", "Tune the running border beam; saved changes apply to every conversation.")
+						if typing {
+							dialogHint = providerCopy("调整键入回显与光标样式；保存后立即用于所有会话。", "Tune the typing echo and caret style; saving applies to every session at once.")
+						}
+						ui.Text(c, dialogHint).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					})
 					if ui.Button(c, providerCopy("关闭", "Close")).Disabled(len(draft.Pending) > 0).Clicked() {
 						*open = false
 					}
@@ -390,7 +456,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						previewStyle = effectDefaults(typing)
 					}
 					preview, _ := json.Marshal(previewStyle)
-					composer.SettingsEffectPreview(c, preview, typing)
+					settingsEffectPreview(c, preview, typing)
 					renderEffectControls(c, draft, typing, bodyHostDisabled(a) || len(draft.Pending) > 0, fg, muted)
 					bodyHeading(c, providerCopy("个人预设", "Personal presets"), providerCopy("最多 5 个预设，名称不超过 32 字符。", "Up to 5 presets, with names of at most 32 characters."), fg, muted)
 					names := []string{""}
@@ -529,7 +595,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 	choices, numbers := beamChoices, beamNumbers
 	if typing {
 		choices = typingChoices
-		numbers = []effectNumber{{"speed", "速度", "Speed", 40, 240, 10}}
+		numbers = []effectNumber{{"speed", "回显速度", "Echo speed", 40, 240, 10}}
 	}
 	for _, choice := range choices {
 		if choice.path == "palette.id" && effectValue(d.Style, "palette.kind") != "preset" {
@@ -545,19 +611,19 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		bodyPreferenceRow(c, "effect-choice-"+choice.path, providerCopy(choice.zh, choice.en), "", fg, muted, func() {
 			options := make([][2]string, 0, len(choice.choices))
 			for _, id := range choice.choices {
-				options = append(options, [2]string{id, effectOptionLabel(id)})
+				options = append(options, [2]string{id, effectChoiceOptionLabel(typing, choice.path, id)})
 			}
 			changed := false
 			if choice.path == "palette.id" || choice.path == "colors.id" {
 				changed = appearanceChoiceCards(c, "effect-cards-"+choice.path, &value, options, func(id string) []string {
 					if typing {
-						colors := composer.TypingColorScheme(id)
+						colors := effectTypingColorScheme(id)
 						return colors[:]
 					}
 					sample := copyEffect(d.Style)
 					effectSet(sample, "palette", map[string]any{"kind": "preset", "id": id})
 					raw, _ := json.Marshal(sample)
-					return composer.BeamPaletteColors(raw)
+					return effectBeamPaletteColors(raw)
 				}, blocked)
 			} else {
 				changed = wallpaperChoiceSelect(c, &value, "effect-"+choice.path, options, blocked)
@@ -566,7 +632,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 				var palette []string
 				if choice.path == "palette.kind" && value == "custom" {
 					raw, _ := json.Marshal(d.Style)
-					palette = composer.BeamPaletteColors(raw)
+					palette = effectBeamPaletteColors(raw)
 				}
 				effectSet(d.Style, choice.path, value)
 				if !typing && choice.path != "mode" {
@@ -597,7 +663,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 			}
 		})
 	}
-	for _, toggle := range []struct{ path, zh, en string }{{"cursorBlink", "光标闪烁", "Blink caret"}, {"breathing.enabled", "呼吸效果", "Breathing"}, {"hueCycle.enabled", "色相循环", "Hue cycling"}, {"night.enabled", "夜间调暗", "Night dimming"}} {
+	for _, toggle := range []struct{ path, zh, en string }{{"cursorBlink", "光标闪烁", "Caret blink"}, {"breathing.enabled", "呼吸亮度", "Brightness breathing"}, {"hueCycle.enabled", "色相循环", "Hue cycling"}, {"night.enabled", "启用夜间时段", "Enable night window"}} {
 		if typing != (toggle.path == "cursorBlink") {
 			continue
 		}
@@ -610,7 +676,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		})
 	}
 	if !typing {
-		numbers = append(append([]effectNumber(nil), numbers...), effectNumber{"night.fromMinute", "夜间开始", "Night starts", 0, 1439, 1}, effectNumber{"night.toMinute", "夜间结束", "Night ends", 0, 1439, 1})
+		numbers = append(append([]effectNumber(nil), numbers...), effectNumber{"night.fromMinute", "开始时间", "Start time", 0, 1439, 1}, effectNumber{"night.toMinute", "结束时间", "End time", 0, 1439, 1})
 	}
 	for _, number := range numbers {
 		value, _ := effectValue(d.Style, number.path).(float64)
@@ -631,7 +697,7 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 		})
 	}
 	if typing && effectValue(d.Style, "colors.kind") == "custom" {
-		for _, color := range []struct{ key, zh, en string }{{"echo", "回声颜色", "Echo color"}, {"caret", "光标颜色", "Caret color"}, {"text", "文字颜色", "Text color"}} {
+		for _, color := range []struct{ key, zh, en string }{{"echo", "回显颜色", "Echo color"}, {"caret", "光标颜色", "Caret color"}, {"text", "文本颜色", "Text color"}} {
 			value, _ := effectValue(d.Style, "colors."+color.key).(string)
 			bodyPreferenceRow(c, "typing-color-"+color.key, providerCopy(color.zh, color.en), "#RRGGBB", fg, muted, func() {
 				if appearanceColorWell(c, &value, "effect-color-"+color.key, blocked, false) {

@@ -10,6 +10,7 @@ import (
 // ConnBannerView paints a connection / mux status strip above the transcript.
 // When onReconnect is set, a retry control is shown (Electron reconnect affordance).
 func ConnBannerView(c *ui.Context, palette theme.Colors, text string, muted, field, border ui.Color, onReconnect func()) {
+	text = normalizeConversationNotice(text)
 	if text == "" {
 		return
 	}

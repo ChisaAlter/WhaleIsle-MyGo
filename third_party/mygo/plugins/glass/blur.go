@@ -26,6 +26,12 @@ type Blur struct {
 	// where the gradient is opaque, by less where it is translucent, and
 	// not at all where it is transparent. Its colors do not show.
 	Mask *ui.LinearGradient
+	// Saturation saturates what shows through by 1+Saturation, as CSS's
+	// saturate() after blur(): 0.5 is saturate(150%), 0 leaves the colors as
+	// they are and -1 makes them gray. Along a Mask, the colors saturate
+	// wholly where the blur is Radius, and less where it is less, down to
+	// none from about half of Radius.
+	Saturation float32
 }
 
 // PaintMaterial paints the blur over box, rounded by radii.
@@ -38,6 +44,9 @@ func (b Blur) String() string {
 	s := fmt.Sprintf("blur(%g)", b.Radius)
 	if m := b.Mask; m != nil {
 		s += fmt.Sprintf(" mask(%g%%→%g%% %g°)", math.Round(float64(m.From.A)/2.55), math.Round(float64(m.To.A)/2.55), m.Angle)
+	}
+	if b.Saturation != 0 {
+		s += fmt.Sprintf(" saturate(%g%%)", math.Round(float64(1+b.Saturation)*1000)/10)
 	}
 	return s
 }
@@ -101,9 +110,28 @@ func paintBlur(p *ui.Painter, box ui.Rect, radii [4]float32, b Blur) {
 	// The rectangle of the element, in pixels, as the painter snaps it.
 	px := scene.Rect{X: round(box.X * s), Y: round(box.Y * s)}
 	px.W, px.H = round((box.X+box.W)*s)-px.X, round((box.Y+box.H)*s)-px.Y
-	blurOps(px, radii == [4]float32{}, b.Radius*s, b.Mask, func(r scene.Rect, fx scene.EffectOp) {
+	effect := func(r scene.Rect, fx scene.EffectOp) {
 		p.Effect(fx.Effect, ui.Rect{X: r.X / s, Y: r.Y / s, W: r.W / s, H: r.H / s}, radii, fx.Blur, fx.Params)
+	}
+	// Each level reads the levels before it, so the last saturates what they
+	// all blurred, along the element's edges too, where it reads what is
+	// around the element: it is held until blurOps is done.
+	var last scene.EffectOp
+	var lastRect scene.Rect
+	held := false
+	blurOps(px, radii == [4]float32{}, b.Radius*s, b.Mask, func(r scene.Rect, fx scene.EffectOp) {
+		if held {
+			effect(lastRect, last)
+		}
+		last, lastRect, held = fx, r, true
 	})
+	if !held {
+		return
+	}
+	if b.Saturation != 0 {
+		last.Params[2], last.Params[3] = blurTone{saturation: b.Saturation}.params()
+	}
+	effect(lastRect, last)
 }
 
 // blurOps calls op with the rectangle and the effect of each level

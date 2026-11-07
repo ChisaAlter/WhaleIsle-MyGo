@@ -125,7 +125,13 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	if w.RepositoryStatus != nil {
 		status := *w.RepositoryStatus
-		ui.Text(c, fmt.Sprintf("%s  ↑%d  ↓%d", status.Branch, status.Ahead, status.Behind)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%s  ↑%d  ↓%d", w.statusBranchLabel(), status.Ahead, status.Behind)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		if status.IsDefault {
+			ui.Text(c, word("警告：目标为默认分支", "Warning: default branch")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+		}
+		if notice := w.statusNotice(); notice != "" {
+			ui.Text(c, notice).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+		}
 	} else if w.RepositoryStatusError != "" {
 		ui.Text(c, w.RepositoryStatusError).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
@@ -147,20 +153,37 @@ func paintRepositoryActions(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		}
 		return true
 	}
-	if widgets.Button(c, colors, word("核对草稿 PR…", "Review draft PR…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
-		w.RequestPR(m.WorkspaceRoot)
-	}
-	if widgets.Button(c, colors, word("发布仓库…", "Publish repository…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(w.RepositoryStatus == nil || w.RepositoryStatus.HasOrigin).Clicked() {
-		w.PublishOpen = !w.PublishOpen
-		w.PublishReview = false
-		if w.PublishName == "" {
-			w.PublishName = filepath.Base(m.WorkspaceRoot)
+	ui.Row(c).Gap(6).Wrap().Children(func() {
+		if actionButtonWithReason(c, colors, word("推送…", "Push…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}, w.pushDisabledReason()) {
+			w.requestRemote(m.WorkspaceRoot, "push")
 		}
-	}
+		if actionButtonWithReason(c, colors, word("核对草稿 PR…", "Review draft PR…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}, w.createPRDisabledReason()) {
+			w.RequestPR(m.WorkspaceRoot)
+		}
+		if actionButtonWithReason(c, colors, word("发布仓库…", "Publish repository…"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}, w.publishDisabledReason()) {
+			w.PublishOpen = !w.PublishOpen
+			w.PublishReview = false
+			if w.PublishName == "" {
+				w.PublishName = filepath.Base(m.WorkspaceRoot)
+			}
+		}
+	})
 	if w.PublishOpen {
 		paintPublish(c, m, fg, muted)
 	}
 	return false
+}
+
+func actionButtonWithReason(c *ui.Context, colors fonttheme.Colors, label string, spec widgets.ButtonSpec, reason string) bool {
+	clicked := false
+	disabled := reason != ""
+	spec.Disabled = disabled
+	ui.Row(c).Shrink(0).Tooltip(reason).Children(func() {
+		if widgets.Button(c, colors, label, spec).Disabled(disabled).Tooltip(reason).Clicked() {
+			clicked = true
+		}
+	})
+	return clicked
 }
 
 func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -168,6 +191,8 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 	w := m.Workbench
 	if !w.PublishReview {
 		ui.Text(c, word("填写已有 HTTPS/SSH 远端 URL，或用已登录的 gh 创建 GitHub 仓库。新仓库默认私有。", "Enter an existing HTTPS/SSH remote URL, or create a GitHub repository using your signed-in gh account. New repositories default to private.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+		ui.Text(c, GitLocale("publish.description")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+		ui.Text(c, GitLocale("publish.note")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.TextInput(c, &w.PublishRemoteURL).FillWidth().Placeholder(word("已有远端 URL（可留空）", "Existing remote URL (optional)"))
 		ui.TextInput(c, &w.PublishName).FillWidth().Placeholder(word("仓库名称或 owner/name", "Repository name or owner/name"))
 		if strings.TrimSpace(w.PublishRemoteURL) == "" {

@@ -346,7 +346,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 	}
 	if d.Error != "" {
-		ui.Text(c, d.Error).FontSize(12).TextColor(muted).Padding(0, 14)
+		ui.Text(c, FormatComposerError(d.Error)).FontSize(12).TextColor(muted).Padding(0, 14)
 	}
 }
 func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string, owners ...*svgimage.Owner) {

@@ -2,6 +2,16 @@ package agents
 
 import "whaleisle/internal/store/session"
 
+func childReadOnlyTitle(v session.AgentNavigationView) string {
+	if childReadOnlyReason(v) == "" {
+		return ""
+	}
+	if v.Address.Mode == "one-shot" {
+		return SubagentLocale("readonly.oneShot.title")
+	}
+	return SubagentLocale("readonly.title")
+}
+
 func childReadOnlyReason(v session.AgentNavigationView) string {
 	switch v.Address.Mode {
 	case "one-shot":

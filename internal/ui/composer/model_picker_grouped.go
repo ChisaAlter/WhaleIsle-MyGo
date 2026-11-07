@@ -208,8 +208,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			}
 			state.RootFocus = "model"
 		}
-		ui.Popover(c, trigger, &state.Open, func() {
-			pane := ui.Column(c.Key("model-pane:" + state.Pane)).Width(300).Gap(5)
+		ui.PopoverBase(c, trigger, &state.Open, func(panel ui.Element) {
+			panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(240).MaxWidth(420).
+				AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors)
+			pane := ui.Column(c.Key("model-pane:" + state.Pane)).MinWidth(232).MaxWidth(412).Gap(0)
 			// HandleInput is delivered only to the focused control itself. A
 			// subtree shortcut owns Escape from both menu buttons and search,
 			// before Popover's fallback dismissal can discard the return focus.
@@ -226,10 +228,11 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 				if state.Pane == "root" || state.Pane == "" {
 					modelButton := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelMenuModel) + "  " + m.Snapshot.SelectedModel + "  ›").Disabled(m.Inert)
 					modelButton.Children(func() {
-						ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyComposerModelMenuModel)).Grow(1)
+						ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyComposerModelMenuModel)).FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG)).Shrink(0)
+							ui.Box(c).Grow(1)
 							ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelMenu, true, muted, 13)
-							ui.Text(c, "›").Shrink(0)
+							ui.Text(c, "›").FontSize(13).TextColor(muted).Shrink(0)
 						})
 					})
 					if state.RootFocus != "effort" {
@@ -241,6 +244,14 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					}
 					if len(m.Snapshot.ModelEffortLabels) > 0 {
 						effortButton := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelMenuEffort) + "  " + m.Snapshot.SelectedModelEffort + "  ›").Disabled(m.Inert)
+						effortButton.Children(func() {
+							ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
+								ui.Text(c, i18n.T(i18n.KeyComposerModelMenuEffort)).FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG)).Shrink(0)
+								ui.Box(c).Grow(1)
+								ui.Text(c, formatEffortDisplay(m.Snapshot.SelectedModelEffort)).FontSize(13).FixedLineHeight(20).TextColor(muted).SingleLine()
+								ui.Text(c, "›").FontSize(13).TextColor(muted).Shrink(0)
+							})
+						})
 						buttons = append(buttons, effortButton)
 						if state.RootFocus == "effort" {
 							effortButton.AutoFocus()
@@ -255,7 +266,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 				if hasCurrentChoice {
 					back := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelBack))
 					back.Children(func() {
-						ui.Text(c, i18n.T(i18n.KeyComposerModelBack)).Grow(1).SingleLine().FontSize(13).TextColor(chrome.Color(colors.FG))
+						ui.Text(c, i18n.T(i18n.KeyComposerModelBack)).Grow(1).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG))
 					})
 					if back.Clicked() {
 						state.Pane, state.Query = "root", ""
@@ -264,16 +275,16 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 				if state.Pane == "effort" {
 					var buttons []ui.Element
 					for index, effort := range m.Snapshot.ModelEffortLabels {
-						label := effort
-						if effort == m.Snapshot.SelectedModelEffort {
-							label = "✓ " + label
-						}
+						selected := effort == m.Snapshot.SelectedModelEffort
 						button := menuRow(c, colors).Label("Choose effort " + effort).Disabled(m.Snapshot.ModelSelectionBusy)
 						button.Children(func() {
-							ui.Text(c, label).Grow(1).SingleLine().FontSize(13).TextColor(chrome.Color(colors.FG))
+							ui.Text(c, effort).Grow(1).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG))
+							if selected {
+								ui.Icon(c, checkIcon).Size(14, 14).Shrink(0).TextColor(chrome.Color(colors.FG))
+							}
 						})
 						buttons = append(buttons, button)
-						if effort == m.Snapshot.SelectedModelEffort || m.Snapshot.SelectedModelEffort == "" && index == 0 {
+						if selected || m.Snapshot.SelectedModelEffort == "" && index == 0 {
 							button.AutoFocus()
 						}
 						if button.Clicked() && m.OnModelEffortChange != nil {
@@ -318,7 +329,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					m.OnModelChange(label)
 				}
 				if len(m.Snapshot.ModelLabels) > 4 {
-					ui.TextInput(c, &state.Query).Label("Search models").Placeholder(i18n.T(i18n.KeyComposerModelSearch)).FillWidth().AutoFocus().OnChange(func() { state.Active = 0 }).HandleInput(func(ev ui.InputEvent) bool {
+					ui.TextInput(c, &state.Query).Label("Search models").Placeholder(i18n.T(i18n.KeyComposerModelSearch)).FillWidth().Margin(2, 0, 3, 0).Padding(5, 7).Radius(12).BorderWidth(0).Background(ui.Transparent).FontSize(12).AutoFocus().OnChange(func() { state.Active = 0 }).HandleInput(func(ev ui.InputEvent) bool {
 						if ev.Kind == ui.InputCompose {
 							state.Composing = ev.Text != ""
 							return false
@@ -347,11 +358,11 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					})
 				}
 				ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
-					ui.Column(c).FillWidth().Gap(4).Children(func() {
+					ui.Column(c).FillWidth().Gap(0).Children(func() {
 						index := 0
 						var buttons []ui.Element
 						for _, g := range groups {
-							ui.Text(c, g.Name).FontSize(11).Bold().TextColor(muted)
+							ui.Text(c, g.Name).FontSize(11).FontWeight(500).FixedLineHeight(16).Padding(5, 8, 2, 8).TextColor(muted)
 							for _, choice := range g.Choices {
 								selected := choice.Label == m.Snapshot.SelectedModel
 								button := menuRow(c, colors).Label("Choose model " + choice.Label).Disabled(m.Snapshot.ModelSelectionBusy)
@@ -360,10 +371,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 								}
 								button.Children(func() {
 									ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+										ModelLabel(c, m.Snapshot, choice.Label, ModelLabelOption, selected, chrome.Color(colors.FG), 13).Grow(1)
 										if selected {
-											ui.Icon(c, checkIcon).Size(14, 14).Shrink(0)
+											ui.Icon(c, checkIcon).Size(14, 14).Shrink(0).TextColor(chrome.Color(colors.FG))
 										}
-										ModelLabel(c, m.Snapshot, choice.Label, ModelLabelOption, selected, c.Theme().Text, 13).Grow(1)
 									})
 								})
 								buttons = append(buttons, button)
@@ -380,7 +391,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 							modelMenuKeyboard(buttons)
 						}
 						if len(visible) == 0 {
-							ui.Text(c, i18n.T(i18n.KeyComposerModelNoMatch)).FontSize(12)
+							ui.Text(c, i18n.T(i18n.KeyComposerModelNoMatch)).FontSize(12).Padding(8).TextColor(muted)
 						}
 					})
 				})

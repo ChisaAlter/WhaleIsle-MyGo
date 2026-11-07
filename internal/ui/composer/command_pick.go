@@ -29,7 +29,7 @@ func pickSlashCommand(m Model, item suggestItem, token TokenRange) bool {
 			return true
 		}
 		if len(m.State.Attachments) > 0 {
-			m.State.Error = line + " does not accept attachments; remove them before opening the picker"
+			m.State.Error = CommandAttachmentsUnsupportedNotice(line)
 			return true
 		}
 		segment := nativeCommandSegment{text: *m.Draft, token: token, client: m.State.Client}

@@ -2,8 +2,10 @@ package pluginui
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -102,6 +104,7 @@ type Owner struct {
 	mu                     sync.Mutex
 	gateway                *pluginslots.Gateway
 	host                   *webview.Host
+	parent                 *mygo.Window
 	page                   *bridgePage
 	nextPage               uint64
 	closed                 bool
@@ -123,6 +126,8 @@ type Owner struct {
 	modelTargetsLast       string
 	publicContexts         map[string]publicRowContext
 	publicWorkspaceContext string
+	onAsk                  func(string, bool) error
+	onOpenURL              func(string) error
 }
 
 type Options struct {
@@ -131,9 +136,14 @@ type Options struct {
 	Changed          func()
 	OnFailure        func(webview.PageFailure)
 	Composer         ComposerBridge
+	OnAsk            func(text string, insert bool) error
+	OnOpenURL        func(string) error
 	PermissionPolicy func(mygo.PermissionRequest) bool
 	Session          bool
 	Navigation       bool
+	// PadOriginal lets the navigation page host the shipped dsh-pad overlay
+	// (whalePadOriginal=1) so the native pad desktop can stay retired.
+	PadOriginal bool
 	// Inline retains the full original Session page as a single hidden source.
 	Inline bool
 }
@@ -145,7 +155,7 @@ func New(opts Options) (*Owner, error) {
 	if opts.Inline && !opts.Session {
 		return nil, errors.New("plugin UI: inline source requires a Session")
 	}
-	o := &Owner{changed: opts.Changed, composer: opts.Composer, selected: Subject{Kind: "list"}}
+	o := &Owner{changed: opts.Changed, composer: opts.Composer, onAsk: opts.OnAsk, onOpenURL: opts.OnOpenURL, selected: Subject{Kind: "list"}, parent: opts.Parent}
 	if opts.Inline {
 		o.mirror = &mirrorState{}
 	}
@@ -169,6 +179,12 @@ func New(opts Options) (*Owner, error) {
 	raw := strings.TrimRight(opts.Origin, "/") + "/?" + mode + "=1"
 	if opts.Navigation {
 		raw = strings.TrimRight(opts.Origin, "/") + "/?desktopNativeNavigation=1"
+		if opts.PadOriginal {
+			raw += "&whalePadOriginal=1"
+		}
+		if os.Getenv("WHALEISLE_PLUGINUI_DUMP") != "" {
+			raw += "&whaleDiag=1"
+		}
 		o.selected = Subject{Kind: "navigation"}
 	}
 	if opts.Inline {
@@ -183,10 +199,14 @@ func New(opts Options) (*Owner, error) {
 	if opts.Inline {
 		preload = string(mirrorTextGuardSource) + "\n" + string(mirrorPortalGuardSource) + "\n" + string(mirrorGuardSource)
 	}
+	var externalWindow func(string)
+	if opts.OnOpenURL != nil {
+		externalWindow = func(raw string) { _ = opts.OnOpenURL(raw) }
+	}
 	host, err := webview.NewPluginSurface(webview.HostOptions{
 		PreloadScript: preload,
 		Parent:        opts.Parent, URL: entry, Title: "Plugin contributions", Untrusted: true,
-		AllowNavigation: gateway.AllowsBrowserURL, OnChange: opts.Changed, OnClosed: o.Close,
+		AllowNavigation: gateway.AllowsBrowserURL, OnExternalWindow: externalWindow, OnChange: opts.Changed, OnClosed: o.Close,
 		PermissionPolicy: opts.PermissionPolicy, OnFailure: opts.OnFailure,
 	}, gateway)
 	if err != nil {
@@ -552,17 +572,33 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 			Type string `json:"type"`
 			Snapshot
 			ComposerRequest *ComposerRequest `json:"composer"`
+			Data            json.RawMessage  `json:"data"`
 			Token           uint64           `json:"token"`
 			OK              bool             `json:"ok"`
 			Request         string           `json:"request"`
 			Handle          string           `json:"handle"`
 			OpenError       string           `json:"error"`
+			Text            string           `json:"text"`
+			Insert          bool             `json:"insert"`
+			URL             string           `json:"url"`
 		}
 		if err := wsjson.Read(r.Context(), socket, &message); err != nil {
 			return true
 		}
 		if message.Type == "composer" {
 			o.handleComposer(page, message.ComposerRequest)
+			continue
+		}
+		if message.Type == "padAsk" {
+			if len(message.Text) <= 65536 && strings.TrimSpace(message.Text) != "" && o.onAsk != nil {
+				_ = o.onAsk(message.Text, message.Insert)
+			}
+			continue
+		}
+		if message.Type == "openURL" {
+			if len(message.URL) <= 8192 && (strings.HasPrefix(message.URL, "https://") || strings.HasPrefix(message.URL, "http://")) && o.onOpenURL != nil {
+				_ = o.onOpenURL(message.URL)
+			}
 			continue
 		}
 		if message.Type == "richAck" {
@@ -583,6 +619,10 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 			o.finishWorkspaceOperation(page, message.Request, message.OpenError)
 			continue
 		}
+		if message.Type == "diag" {
+			debugDumpDiag(o.selected.Kind, message.Data)
+			continue
+		}
 		if message.Type != "state" || !validSnapshot(message.Snapshot) {
 			return true
 		}
@@ -596,6 +636,7 @@ func (o *Owner) serve(w http.ResponseWriter, r *http.Request) bool {
 			continue
 		}
 		s := message.Snapshot
+		debugDumpSnapshot(o.selected.Kind, s)
 		if o.incompatible {
 			s.Subject = nil
 			s.Outlets = nil
@@ -685,7 +726,7 @@ func validSnapshot(s Snapshot) bool {
 		return false
 	}
 	for _, document := range s.GlobalDocuments {
-		if !globalSlots[document.Slot] || len(document.Handle) > 16384 || !validNativeNodes(document.Nodes) {
+		if !globalSlots[document.Slot] || len(document.Handle) > 16384 || len(document.Registrant) > 8192 || !validNativeNodes(document.Nodes) {
 			return false
 		}
 	}

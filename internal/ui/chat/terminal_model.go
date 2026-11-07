@@ -19,6 +19,7 @@ type toolTerminalModel struct {
 	Command, Description, Cwd, Output, Signal, SessionID            string
 	Running, Background, HasOutput, HasSignal, HasExit, MissingExit bool
 	ExitCode                                                        float64
+	FoldLines                                                       int
 }
 
 type terminalModelCall struct {

@@ -17,7 +17,7 @@ var (
 	permissionAutoReviewIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.59624 2.14853C7.50155 1.80917 8.49914 1.80919 9.40444 2.14859L13.9245 3.84317V7.11961C13.9245 11.6089 10.5565 13.5975 8.00035 14.5779C5.44423 13.5975 2.07544 11.6089 2.07544 7.11961V3.84317L6.59624 2.14853Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M5.75 10.15L8 4.95L10.25 10.15M6.43 8.59H9.57" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
 	sendIcon                 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8.3125 0.980183C8.66767 1.0531 8.97902 1.20418 9.2627 1.43233C9.48724 1.61297 9.73029 1.85793 9.97949 2.10714L14.707 6.83468L13.293 8.24874L9 3.95577V15.0417H7V3.95577L2.70703 8.24874L1.29297 6.83468L6.02051 2.10714C6.26971 1.85793 6.51277 1.61297 6.7373 1.43233C6.97662 1.23986 7.28445 1.04402 7.6875 0.980183C7.8973 0.947006 8.1031 0.95516 8.3125 0.980183Z" fill="currentColor"/></svg>`))
 	stopIcon                 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="3" fill="currentColor"/></svg>`))
-	checkIcon                = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.7L13 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
+	checkIcon                = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.25 8.5L5.49732 11.7473C5.90519 12.1552 6.57263 12.1344 6.95426 11.7018L13.75 4" stroke="currentColor" stroke-width="1"/></svg>`))
 	folderIcon               = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6.5A2 2 0 0 1 6 4.5h3.6c.5 0 1 .2 1.4.6l1 1c.4.4.9.6 1.4.6H18a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`))
 	plusIcon                 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`))
 )
@@ -41,22 +41,24 @@ const chipHeight = float32(28)
 // Menu surfaces share one set of metrics so the permission/model picks, the
 // context panel and the `/` `@` menus read as one family.
 const (
-	menuRowHeight = float32(36)
-	menuRadius    = float32(12)
+	menuRowHeight = float32(34)
+	menuRadius    = float32(16)
 )
 
-// menuSurface gives a popup the shared menu material: sampled glass fill, the
-// 0.5 DIP hairline and the elevation shadow every floating menu uses.
+// menuSurface gives a popup the shared menu material: backdrop blur, sampled
+// glass fill, the 0.5 DIP hairline and the elevation shadow every floating menu
+// uses.
 func menuSurface(c *ui.Context, e ui.Element, colors theme.Colors) ui.Element {
-	e = chrome.MenuSurface(e, chrome.Color(colors.BG), chrome.Color(colors.Border), menuRadius)
+	dark := isDark(colors)
+	e = chrome.MenuSurface(e, chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), menuRadius)
 	return e.Opacity(chrome.Reveal(c, e, chrome.PopoverDuration))
 }
 
 // menuRow is one selectable row inside a popover menu: no frame of its own, a
-// hover/pressed fill and the shared 36 DIP rhythm.
+// hover/pressed fill and the shared 34 DIP rhythm.
 func menuRow(c *ui.Context, colors theme.Colors) ui.Element {
-	row := ui.Button(c, "").FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Radius(8).BorderWidth(0).
-		Background(ui.Transparent).AlignItems(ui.Center)
+	row := ui.Button(c, "").FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Gap(6).Radius(12).BorderWidth(0).
+		Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
 	row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 	if row.Pressed() {
 		return row.Background(chrome.Color(colors.Pressed))

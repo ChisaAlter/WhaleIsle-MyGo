@@ -57,7 +57,8 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		// 20 DIP padding frames it.
 		minH = 52
 	}
-	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(m.Inert)
+	inputDisabled := m.Inert || m.Disabled || composerParentOffline(m)
+	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(inputDisabled)
 	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.
@@ -102,7 +103,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		if client.text() != "" {
 			p.Clip(r, 0, func() { client.paintProjectedText(p, r, textInk) })
 		}
-		if !m.Inert {
+		if !inputDisabled {
 			client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
 		}
 	})
@@ -139,9 +140,26 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	if ev.Kind != ui.InputKeyUp && (ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEscape || ev.Mods != 0 || ev.Repeat) {
 		client.stop.reset()
 	}
+	if m.Disabled || composerParentOffline(m) {
+		if ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEscape {
+			target, eligible := composerStopTarget(m)
+			if !eligible || client.marked != nil || ev.Mods != 0 || ev.Repeat {
+				client.stop.reset()
+				return false
+			}
+			if client.stop.press(target, time.Now(), time.Duration(m.Snapshot.StopSequenceMS)*time.Millisecond) {
+				m.OnStop()
+			}
+			return true
+		}
+		return false
+	}
 
 	switch ev.Kind {
 	case ui.InputPointerDown, ui.InputPointerMove, ui.InputPointerUp, ui.InputBlur:
+		if ev.Kind != ui.InputBlur && nextPromptVisible(m) {
+			return false
+		}
 		return client.pointerEvent(m, ev)
 	case ui.InputKeyDown:
 		if client.marked == nil && ev.Mods == ui.Cmd && ev.Key == ui.KeyA {
@@ -234,7 +252,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			if ev.Repeat || m.Draft == nil || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 				return true
 			}
-			if handleModelCommand(m) {
+			if handleModelCommand(m) || refuseCommandAttachments(m, *m.Draft) {
 				return true
 			}
 			if m.OnSubmitGesture != nil {
@@ -247,8 +265,10 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			}
 			text := *m.Draft
 			if handleSlashSend(m, text) {
-				*m.Draft = ""
-				client.ClearHistory()
+				if m.State == nil || m.State.Error == "" {
+					*m.Draft = ""
+					client.ClearHistory()
+				}
 				return true
 			}
 			if m.OnSend != nil {

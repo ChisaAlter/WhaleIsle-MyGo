@@ -60,7 +60,7 @@ func (w *Workbench) finishBranchList() {
 	case result := <-request.done:
 		w.branchesRequest = nil
 		if result.err != nil {
-			w.BranchStatus = word("分支列表加载失败。", "Failed to load branches: ") + result.err.Error()
+			w.BranchStatus = word("分支列表加载失败。", "Failed to load branches.") + " " + result.err.Error()
 		} else {
 			w.Branches = result.branches
 		}
@@ -95,7 +95,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, word("正在读取分支…", "Loading branches…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-	ui.TextInput(c, &w.BranchQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("筛选分支", "Filter branches"))
+	ui.TextInput(c, &w.BranchQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches…"))
 	needle := strings.ToLower(strings.TrimSpace(w.BranchQuery))
 	ui.Scroll(c).Height(120).FillWidth().Children(func() {
 		ui.Column(c).Gap(3).Children(func() {
@@ -106,7 +106,11 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 					continue
 				}
 				matches++
-				ui.Row(c).Gap(6).Children(func() {
+				hint := ""
+				if b.Unsupported {
+					hint = branchUnsupportedReason()
+				}
+				ui.Row(c).Gap(6).Tooltip(hint).Children(func() {
 					label := b.Name
 					if b.Current {
 						label += word("（当前）", " (current)")
@@ -114,17 +118,15 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 						label += word("（远程）", " (remote)")
 					}
 					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Grow(1)
-					hint := ""
-					if b.Unsupported {
-						hint = word("此分支名称包含桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
-					}
-					if widgets.Button(c, colors, word("切换", "Switch"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
-						root, name := m.WorkspaceRoot, b.Name
-						beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
-							out, err := git.SwitchBranchContext(ctx, root, name)
-							return gitOperationResult{text: out, err: err}
-						})
-					}
+					ui.Row(c).Shrink(0).Tooltip(hint).Children(func() {
+						if widgets.Button(c, colors, word("切换", "Switch"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: b.Current || b.Unsupported}).Disabled(b.Current || b.Unsupported).Tooltip(hint).Clicked() {
+							root, name := m.WorkspaceRoot, b.Name
+							beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
+								out, err := git.SwitchBranchContext(ctx, root, name)
+								return gitOperationResult{text: out, err: err}
+							})
+						}
+					})
 				})
 			}
 			if matches == 0 && w.BranchStatus == "" && w.branchesRequest == nil {
@@ -132,6 +134,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 		})
 	})
+	ui.Text(c, word("首版只支持基于当前 HEAD 创建并切换。", "This version only creates and switches from the current HEAD.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
 		ui.TextInput(c, &w.BranchName).Grow(1).Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("新分支名称", "New branch name"))
 		taken := false

@@ -437,3 +437,33 @@ MyGo 各页行序与上表逐行一致（general/conversation/interface/features
 - **结构性 gap（安装版有、MyGo 无对应面，记录不实现）**：ui-workflow-run 面板、git 菜单 detached/behind 禁用态、ui-visual-replies 卡片渲染面（MyGo 仅有设置项+OpenUI 隔离窗）。
 - **已验证逐字**：agent-preset 名称/描述、goal dock、model-selection（此前审计）、deepseek-model-label（badge）。
 - **范围外（按裁定）**：市场页（ui-plugin-market 插件自有）、手机远程（隔离）。
+
+
+## 22.6 全量细粒度缺口与结构性差距收口（2026-11-07）
+
+针对 §22.4b、§22.4 功能缺口、§22.5 结构性差距及设置搜索展开高亮（`SETV-R2-006`），通过 6 路并发补齐并完成全量单测与集成验证：
+
+- **会话流与工具回执（`internal/ui/chat`）**：
+  - ✅ `QueueDock` 行内编辑（`InlineEditor` 保存/取消、`queue.edit.unsupported` 非文本提示、`queue.steer.unavailable` 提示）
+  - ✅ 会话占用（`session/writer-held`）、父会话离线（`parentOffline`）、只读子代理（`readOnlyChild`）横幅与状态提示
+  - ✅ `dsh-client-ui-message-edit` 全套状态文案（`running`、`unsupported`、`stale`、`busy`、`hint.running`、`error`）
+  - ✅ `dsh-client-ui-message-feedback` 加载错误文案（`error.load`：「反馈状态加载失败」/ `"Could not load feedback"`）与冲突/超长错误提示
+  - ✅ `todopanel` 与 `todoBlock` 完成度 `{done}/{total} 已完成` / `{done}/{total} completed` 分数格式
+  - ✅ `terminal.expandRest`（展开/收起其余输出行）、`read.window` 与 `search.matches` 截断及展开文案
+  - ✅ `dsh-client-ui-workflow-run` 面板成员计数（单复数）、空态、未分组阶段与未命名成员文案对齐
+- **输入框与指令面板（`internal/ui/composer`）**：
+  - ✅ `nextPrompt` 建议条 `Tab` 键帽徽标与「按 Tab 采纳」/ `"Tab to accept"` 提示及子代理/父离线过滤
+  - ✅ `WorkspacePlaceholder`、`ParentOfflinePlaceholder`、`UnavailablePlaceholder`、`ManagedPlaceholder`、`SessionInUseNotice` 全量对齐；父会话离线时禁用发送并保留运行中停止（Stop）能力
+  - ✅ `command.attachmentsUnsupported`（「/{command} 不接受附件，请先移除附件」）在命令认领与裸 `/command` 发送时的双语拦截提示
+- **Git 分支菜单与远程操作（`internal/ui/diffsurface`）**：
+  - ✅ `dsh-client-ui-git` 在 `detached`、`behind`、`dirty`、无远端、无超前提交状态下的提交/推送/PR/发布按钮禁用判定与中英文悬停原因 Tooltip
+  - ✅ 分支菜单不支持字符禁用提示（`branch.unsupportedName`）、`branch.createNote` 及 `dsh-client-ui-diff` 还原工作区弹窗文案对齐
+- **会话费用与用量统计（`internal/ui/sessioncost`、`internal/ui/usage`）**：
+  - ✅ `sessionCost` 弹窗补齐 `sessionCost.title`、`costLine`、`usage.peak`/`usage.idle` 峰谷命中明细、`priceTitle.peak`/`idle`/`plain`/`none` 百万 Token 定价行、子代理折叠计数与 `subagent.more` 溢出提示、`noPriceHint` 引导行
+  - ✅ `usage` 统计面板 KPI 卡片补齐峰谷估算费用分项、无定价提示、缓存读写细分项及模型占比分时明细
+- **审批卡片与追问卡片（`internal/ui/interaction`）**：
+  - ✅ `dsh-client-ui-approval` 详情区 `detail.aria` 无障碍标签、缺省提权原因回退文案（`approvalEscalationText`）、文件目标路径头与命令复制快捷键所有权
+  - ✅ `dsh-client-ui-user-questions`（`ask.*`）多步进度摘要（`{answered}/{total} 已回答`）、`wait.continued`（「已继续工作，仍可回答」）状态提示、推荐项 `(recommended)` 剥离与徽章渲染、结算/取消/超时/不可用全状态文案
+- **设置搜索展开高亮与光效预设（`internal/ui/settings`）**：
+  - ✅ `SETV-R2-006`：搜索跳转与过滤词激活时自动展开多层折叠面板（`typography-advanced`、`general-font-settings`、`about-local-details`、`general-local-runtime`、`settings-advanced`），并对命中配置行渲染高亮指示条与自动滚动定位
+  - ✅ 思考炫光（`composerBeam`）与输入特效（`composerTypingFx`）全部预设名、方向、缓动、配色、光标样式及字段说明与安装版字典逐字对齐

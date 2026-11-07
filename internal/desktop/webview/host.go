@@ -368,6 +368,10 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 				}
 				return nil
 			}
+			if opts.OnExternalWindow != nil && !localPreview && (opts.AllowNavigation == nil || !opts.AllowNavigation(req.URL)) && (strings.HasPrefix(req.URL, "https://") || strings.HasPrefix(req.URL, "http://")) {
+				opts.OnExternalWindow(req.URL)
+				return nil
+			}
 			// Keep popups inside the same isolated page; never create a privileged child.
 			if err := h.Navigate(req.URL); err != nil {
 				h.setError(err.Error())

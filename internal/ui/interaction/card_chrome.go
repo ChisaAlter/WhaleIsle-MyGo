@@ -96,11 +96,19 @@ func approvalCommand(args string) string {
 
 // commandBlock paints the monospace command seat: the exact command, scrollable
 // when long, never reflowed into prose, with a quiet copy action beneath it.
-func commandBlock(c *ui.Context, t *ui.Theme, command string, onCopy func(string)) {
+func commandBlock(c *ui.Context, t *ui.Theme, command string, onCopy func(string), handleInput ...func(ui.InputEvent) bool) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Text(c, command).Font(theme.RenderPreferences().Code.Family).FontSize(13).FixedLineHeight(20).TextColor(t.TextMuted).Selectable().MinWidth(0)
-		if onCopy != nil && ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Height(24).BorderWidth(0).Background(ui.Transparent).Clicked() {
-			onCopy(command)
+		if onCopy != nil {
+			copyButton := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Height(24).BorderWidth(0).Background(ui.Transparent)
+			for _, h := range handleInput {
+				if h != nil {
+					copyButton.HandleInput(h)
+				}
+			}
+			if copyButton.Clicked() {
+				onCopy(command)
+			}
 		}
 	})
 }

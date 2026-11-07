@@ -66,7 +66,8 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 		}
 
 		if v.Error != "" {
-			ui.Text(c, v.Error).FillWidth().FontSize(12).MaxLines(2).Tooltip(v.Error).TextColor(chrome.Color(colors.Danger))
+			errText := formatSidebarTerminalError(v.Error)
+			ui.Text(c, errText).FillWidth().FontSize(12).MaxLines(2).Tooltip(errText).TextColor(chrome.Color(colors.Danger))
 		}
 		if h.renderError != "" && h.renderError != v.Error {
 			ui.Text(c, h.renderError).FillWidth().FontSize(12).MaxLines(2).Tooltip(h.renderError).TextColor(chrome.Color(colors.Danger))
@@ -155,8 +156,10 @@ func hostManagement(c *ui.Context, h *HostState, store *hostterminal.Store, sess
 		height = min(height, b.H)
 	}
 	maxHeight := max(float32(0), min(float32(360), height-64))
+	bg := chrome.Color(colors.BG)
+	dark := bg.R < 128 && bg.G < 128 && bg.B < 128
 	ui.PopoverBase(c.Key("host-terminal-management"), anchor, &h.manageOpen, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(max(float32(0), min(float32(360), width-16))).MaxHeight(maxHeight).Padding(12), chrome.Color(colors.Field), chrome.Color(colors.BorderL3), 10)
+		panel = chrome.MenuSurface(panel.Width(max(float32(0), min(float32(360), width-16))).MaxHeight(maxHeight).Padding(12), chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), 16)
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(float32(0), maxHeight-24)).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {

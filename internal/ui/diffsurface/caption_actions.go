@@ -4,8 +4,8 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
-	"whaleisle/internal/ui/widgets"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
@@ -127,14 +127,14 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	w.finishBranchList()
 	if w.BranchStatus != "" && *open && state.notice != w.BranchStatus {
 		state.notice = w.BranchStatus
-		w.Progress = git.NewProgress(m.WorkspaceRoot, word("分支读取失败", "Failed to load branches"), c.Services().Invalidate)
+		w.Progress = git.NewProgress(m.WorkspaceRoot, word("分支列表加载失败。", "Failed to load branches."), c.Services().Invalidate)
 		w.Progress.Finish(state.notice, true)
 	}
 	width, height := c.Size()
 	ui.PopoverBase(c.Key("caption-branch-picker"), anchor, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(6).Gap(2).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12))
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, 16))
 		panel.Children(func() {
-			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches"))
+			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches…"))
 			if w.branchesRequest != nil {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
 			}
@@ -152,22 +152,24 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 					matches++
 					hint := ""
 					if b.Unsupported {
-						hint = word("此分支名称含有桌面不支持的字符", "This branch name contains characters unsupported by the desktop")
+						hint = branchUnsupportedReason()
 					}
-					row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
-						Label(b.Name).Justify(ui.Start).Role(ui.RoleMenuItem).Checked(b.Current).
-						Disabled(w.Operation != nil || b.Current || b.Unsupported).Tooltip(hint)
-					row.Children(func() {
-						ui.Text(c, b.Name).Grow(1).SingleLine().FontSize(13).TextColor(c.Theme().Text)
-					})
-					if row.Clicked() {
-						*open = false
-						root, name := m.WorkspaceRoot, b.Name
-						beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
-							out, err := git.SwitchBranchContext(ctx, root, name)
-							return gitOperationResult{text: out, err: err}
+					ui.Row(c).FillWidth().Tooltip(hint).Children(func() {
+						row := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+							Label(b.Name).Justify(ui.Start).Role(ui.RoleMenuItem).Checked(b.Current).
+							Disabled(w.Operation != nil || b.Current || b.Unsupported).Tooltip(hint)
+						row.Children(func() {
+							ui.Text(c, b.Name).Grow(1).SingleLine().FontSize(13).TextColor(c.Theme().Text)
 						})
-					}
+						if row.Clicked() {
+							*open = false
+							root, name := m.WorkspaceRoot, b.Name
+							beginGitOperation(c, w, word("正在切换分支…", "Switching branch…"), func(ctx context.Context) gitOperationResult {
+								out, err := git.SwitchBranchContext(ctx, root, name)
+								return gitOperationResult{text: out, err: err}
+							})
+						}
+					})
 				}
 				if matches == 0 && w.branchesRequest == nil && w.BranchStatus == "" {
 					ui.Text(c, word("没有匹配的分支", "No matching branches")).FillWidth().Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
@@ -197,7 +199,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(float32(440), width-32)), 20).Gap(16).
 				Label(word("创建分支", "Create branch")).Children(func() {
 				ui.Text(c, word("创建分支", "Create branch")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
-				ui.Text(c, word("从当前 HEAD 创建并切换到新分支。", "Create a local branch from the current HEAD and switch to it.")).FillWidth().TextColor(c.Theme().TextMuted)
+				ui.Text(c, word("首版只支持基于当前 HEAD 创建并切换。", "This version only creates and switches from the current HEAD.")).FillWidth().TextColor(c.Theme().TextMuted)
 				submitted := ui.TextInput(c, &state.name).FillWidth().Label(word("分支名称", "Branch name")).Placeholder("feature/my-change").Submitted()
 				ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 					if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {

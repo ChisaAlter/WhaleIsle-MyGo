@@ -30,7 +30,8 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 	open := true
 	ui.DialogBase(c.Key("discard-file"), &open, func(backdrop, panel ui.Element) {
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 480, 20).MaxHeightPercent(88).Gap(12).Children(func() {
-			ui.Text(c, word("还原工作区更改？", "Discard workspace changes?")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
+			ui.Text(c, word("还原工作区更改？", "Discard working-tree changes?")).FontSize(fonttheme.InterfaceSize(16)).Bold().TextColor(fg)
+			ui.Text(c, word("未暂存的更改将被丢弃，无法恢复。", "Unstaged changes will be lost and cannot be undone.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			impact := word("此文件的未暂存磁盘修改将被已暂存版本覆盖，无法撤销。已暂存内容及其他文件保留。未保存的编辑器草稿不会被删除。", "Unstaged disk edits to this file will be overwritten by its staged version and cannot be undone. Staged changes and other files are preserved. Unsaved editor drafts are retained.")
 			if plan.Untracked {
 				impact = word("将永久删除此未跟踪文件，无法通过 Git 恢复。其他文件保留。未保存的编辑器草稿不会被删除。", "This untracked file will be permanently deleted and cannot be recovered through Git. Other files and unsaved editor drafts are retained.")

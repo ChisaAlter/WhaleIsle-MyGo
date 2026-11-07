@@ -42,11 +42,13 @@ func (e *node) rebuildLiveMenu(build func(*Menu)) {
 	rt := e.c.rt
 	p := rt.menu.overlay
 	focused, submenu := menuLiveIdentity(p, rt.menu.index), menuLiveIdentity(p, rt.menu.submenu)
+	hovered := menuLiveIdentity(p, rt.menu.hover)
 	run, pm := &menuRun{collect: true}, &platform.Menu{}
 	build(&Menu{run: run, menu: pm, rt: rt, text: rt.states[p.text]})
 	p.menu, p.labels, p.keys, p.commands = pm, run.labels, run.keys, run.commands
 	p.presentation, p.closeOnPointerLeave, p.live = run.presentation, run.closeOnPointerLeave, run.live
-	rt.menu.index, rt.menu.submenu = -1, -1
+	p.above, p.alignEnd = run.above, run.alignEnd
+	rt.menu.index, rt.menu.submenu, rt.menu.hover = -1, -1, -1
 	for i, item := range pm.Items {
 		identity := menuLiveIdentity(p, i)
 		if item.Enabled && identity == focused {
@@ -55,8 +57,14 @@ func (e *node) rebuildLiveMenu(build func(*Menu)) {
 		if item.Submenu != nil && identity == submenu {
 			rt.menu.submenu = i
 		}
+		if identity == hovered {
+			rt.menu.hover = i
+		}
 	}
-	if rt.menu.index == -1 {
+	// A highlighted item that went away hands the highlight to the first
+	// item, as does a menu the keyboard opened before its items came; one
+	// the pointer opened, with none, keeps none.
+	if rt.menu.index == -1 && (focused != "" || !p.pointer) {
 		for i, item := range pm.Items {
 			if item.Enabled && item.Type != platform.MenuItemSeparator {
 				rt.menu.index = i

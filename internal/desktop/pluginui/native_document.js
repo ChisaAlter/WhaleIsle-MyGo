@@ -23,6 +23,28 @@
  for(const node of portals){if([...portals].some(parent=>parent!==node&&parent.contains(node)))continue;const value=fragment(node,true);if(value)result.push(value)}
  return result;
 }
+/* Ambient shell entries keep their authored coordinates: every occupied box
+ * becomes an absolute fragment, so fixed descendants and owned portals land
+ * where the contribution placed them. Once the page is resized to the native
+ * content bounds, DOM and native coordinates agree; vw/vh carry the
+ * measure-time viewport so the first layout can edge-anchor stale readings. */
+function whaleAmbientDocument(root, identify, actions, owner) {
+ if(!root?.isConnected||whaleRichSurface.hidden(root))return [];
+ const vw=Math.max(1,window.innerWidth||0),vh=Math.max(1,window.innerHeight||0),out=[],seen=new Set(),ambientOwner={...owner,ambient:true};
+ const seat=(node,modal)=>{
+  if(out.length>=24||!node?.isConnected||seen.has(node)||whaleRichSurface.hidden(node))return;
+  seen.add(node);
+  const r=whaleRichSurface.rect(node);if(r.width<1||r.height<1)return;
+  const style=getComputedStyle(node),handle=identify(node);actions.set(handle,{node,owner:ambientOwner});
+  const dialog=node.tagName==='DIALOG'&&!!node.matches?.(':modal');
+  modal=modal||node.getAttribute?.('aria-modal')==='true'||dialog;
+  out.push({kind:'rich',richType:'fragment',handle,label:String(node.getAttribute?.('aria-label')||'').slice(0,256),height:Math.min(1200,Math.max(1,r.height)),width:Math.min(8192,Math.max(1,r.width)),popup:true,modal,fullScreen:modal||dialog||(style.position==='fixed'&&r.width>=vw-2&&r.height>=vh-2),ambient:true,x:r.left,y:r.top,vw,vh});
+ };
+ for(const child of root.children||[]){if(out.length>=24)break;const r=whaleRichSurface.rect(child);if(r.width>=1&&r.height>=1)seat(child)}
+ for(const node of root.querySelectorAll('*')){if(out.length>=24)break;if(getComputedStyle(node).position==='fixed'&&![...seen].some(parent=>parent!==node&&parent.contains?.(node)))seat(node)}
+ for(const portal of whaleRichSurface.portals(owner))seat(portal,true);
+ return out;
+}
 function whaleNativeInteraction(command, record) {
  const node=record?.node;
  if(!node?.isConnected||node.disabled||node.getAttribute('aria-disabled')==='true')return false;

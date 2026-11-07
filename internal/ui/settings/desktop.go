@@ -51,6 +51,14 @@ type DesktopAccess struct {
 	Err               string
 }
 
+func hasDesktopDiagnostics(d *DesktopAccess) bool {
+	if d == nil {
+		return false
+	}
+	f := d.Fields
+	return f.Workspace != nil || f.Port != nil || f.OpenAtLogin != nil || f.HarnessAutoRestart != nil || d.OnDetectElectron != nil || d.OnCheckUpdates != nil
+}
+
 func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if m.Desktop == nil {
 		return
@@ -150,7 +158,7 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 				return
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, d.Fields.Workspace).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
+				ui.TextInput(c, d.Fields.Workspace).Label(i18n.T(i18n.KeySettingsDesktopWorkspace)).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
 				if d.OnBrowseWorkspace != nil {
 					if ui.Button(c, i18n.T(i18n.KeySettingsDesktopBrowseWorkspace)).Height(32).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
 						d.OnBrowseWorkspace()
@@ -162,7 +170,7 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 			if d.Fields.Port == nil {
 				return
 			}
-			ui.TextInput(c, d.Fields.Port).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
+			ui.TextInput(c, d.Fields.Port).Label(i18n.T(i18n.KeySettingsDesktopPort)).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
 		}, fg, muted)
 		harnessRestartPane(c, d, fg, muted)
 	})
@@ -202,7 +210,9 @@ func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice
 }
 
 func desktopRow(c *ui.Context, label string, body func(), fg, muted ui.Color) {
-	ui.Column(c).Gap(4).Children(func() {
+	row := ui.Column(c.Key("desktop-row-" + label)).Gap(4)
+	settingsSearchTarget(c, "desktop-row-"+label, label, row)
+	row.Children(func() {
 		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		body()
 	})

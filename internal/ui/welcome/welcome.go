@@ -229,7 +229,48 @@ func keyForm(c *ui.Context, m Model, fg, muted, border ui.Color, failure ui.Colo
 }
 
 func noteLine(m Model) string {
-	return m.Note
+	return welcomeNoticeCopy(m.Note)
+}
+
+var welcomeCatalogZH = map[string]string{
+	"welcomeTitle":           "使用你自己的 API Key",
+	"welcomeBody":            "当前尚未设置默认模型。请选择一个内置服务商并填写对应的 API Key，应用会用它校验并初始化默认模型。\n你也可以先跳过，直接进入应用后再前往设置配置。",
+	"welcomeProviderLabel":   "选择服务商",
+	"welcomeKeyHint":         "应用不会展示已保存的密钥原文，保存前会先做一次可用性校验。",
+	"welcomeSave":            "保存并进入应用",
+	"welcomeSaving":          "校验并保存中…",
+	"welcomeSkip":            "稍后配置，直接进入",
+	"welcomeErrorEmptyKey":   "请先输入 API Key。",
+	"welcomeErrorNoProvider": "未找到可用的内置服务商。",
+	"welcomeSaved":           "已保存 API Key，正在进入应用…",
+}
+
+var welcomeCatalogEN = map[string]string{
+	"welcomeTitle":           "Use your own API key",
+	"welcomeBody":            "No default model is configured yet. Choose a built-in provider and enter an API key to validate it and set up your default model.\nYou can also skip this for now and configure it later in Settings.",
+	"welcomeProviderLabel":   "Choose a provider",
+	"welcomeKeyHint":         "Saved API keys are never shown in plain text. The key will be validated before it is saved.",
+	"welcomeSave":            "Save & continue",
+	"welcomeSaving":          "Validating and saving…",
+	"welcomeSkip":            "Set up later",
+	"welcomeErrorEmptyKey":   "Enter an API key first.",
+	"welcomeErrorNoProvider": "No built-in provider is available.",
+	"welcomeSaved":           "API key saved. Opening the app…",
+}
+
+func welcomeNoticeCopy(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return raw
+	}
+	dict := welcomeCatalogZH
+	if i18n.Locale() == i18n.LocaleEN {
+		dict = welcomeCatalogEN
+	}
+	if text, ok := dict[trimmed]; ok {
+		return text
+	}
+	return raw
 }
 
 func noteColor(m Model, muted, failure ui.Color) ui.Color {

@@ -255,7 +255,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		}
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	root := ui.Row(c.Key("schedule-page")).Label("Automation tasks page").Grow(1).FillWidth().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).Background(chrome.Color(colors.BG))
+	root := ui.Row(c.Key("schedule-page")).Label("Automation tasks page").Grow(1).FillWidth().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).Background(ui.Transparent)
 	width := root.Bounds().W
 	if width <= 0 {
 		width, _ = c.Size()

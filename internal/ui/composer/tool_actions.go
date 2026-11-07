@@ -20,7 +20,7 @@ func composerText(zh, en string) string {
 // The existing + launcher owns occasional intake and composition actions. They
 // share its keyboard navigation and never replace or submit the current draft.
 func composerToolItems(m Model, query string) []suggestItem {
-	if m.Inert || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
+	if m.Inert || m.Disabled || composerParentOffline(m) || m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 		return nil
 	}
 	var items []suggestItem
@@ -70,7 +70,7 @@ func composerToolItems(m Model, query string) []suggestItem {
 // The optional voice contribution keeps its microphone trigger in the input
 // activity seat; feedback offers Retry without forcing a trip to Settings.
 func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height float32) {
-	locked := m.State != nil && (m.State.Sending || m.State.Preparing > 0)
+	locked := m.Disabled || composerParentOffline(m) || m.State != nil && (m.State.Sending || m.State.Preparing > 0)
 	button := func(glyph, label string, disabled bool, action func()) {
 		if action == nil {
 			return
@@ -218,7 +218,7 @@ func voiceNeedsSetup(m Model) bool {
 }
 
 func composerSendDisabled(m Model) bool {
-	if m.Inert || m.StopBlocked {
+	if m.Inert || m.Disabled || composerParentOffline(m) || m.StopBlocked {
 		return true
 	}
 	if m.State != nil {

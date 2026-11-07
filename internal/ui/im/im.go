@@ -49,7 +49,6 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -61,7 +60,7 @@ func View(c *ui.Context, m Model) {
 		snap = m.Store.Snapshot()
 	}
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		if !m.Embedded {
 			ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)

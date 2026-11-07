@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginui"
 	desktopwebview "whaleisle/internal/desktop/webview"
@@ -11,6 +12,7 @@ type nativePluginNavigationState struct {
 	owner              *pluginui.Owner
 	endpoint           harness.Endpoint
 	generation         int
+	padOriginal        bool
 	selected           string
 	error              string
 	directoryPickID    string
@@ -37,7 +39,7 @@ func (s *mainState) syncPluginNativeNavigation(visible bool) {
 	}
 	st, win := s.bootStatus, s.win
 	ready := visible && nativePluginHostEnabled() && st.State == harness.Ready && win != nil && win.IsVisible() && !win.IsMinimized()
-	changed := p.generation != st.Generation || p.endpoint != st.Endpoint
+	changed := p.generation != st.Generation || p.endpoint != st.Endpoint || p.padOriginal != s.padOriginalSurface()
 	owner := p.owner
 	if !ready || changed || (owner != nil && !owner.Alive()) {
 		p.owner = nil
@@ -53,8 +55,22 @@ func (s *mainState) syncPluginNativeNavigation(visible bool) {
 	if !missing {
 		return
 	}
-	owner, err := pluginui.New(pluginui.Options{Parent: win, Origin: st.Endpoint.Origin, Cookie: st.Endpoint.Cookie, Navigation: true, Changed: func() { win.Update(func() {}) }, OnFailure: s.onEmbeddedPageFailure, PermissionPolicy: desktopwebview.PermissionPolicy{SessionHost: true, NotificationsAllowed: systemNotificationsSupported}.Decide})
+	padOriginal := s.padOriginalSurface()
+	owner, err := pluginui.New(pluginui.Options{
+		Parent: win, Origin: st.Endpoint.Origin, Cookie: st.Endpoint.Cookie, Navigation: true, PadOriginal: padOriginal,
+		Changed: func() { win.Update(func() {}) }, OnFailure: s.onEmbeddedPageFailure,
+		OnAsk: func(text string, insert bool) error {
+			err := s.askFromPad(text, insert)
+			if err != nil {
+				s.notifyUser(win, err.Error())
+			}
+			return err
+		},
+		OnOpenURL:        mygo.Shell.OpenExternal,
+		PermissionPolicy: desktopwebview.PermissionPolicy{SessionHost: true, NotificationsAllowed: systemNotificationsSupported}.Decide,
+	})
 	s.mu.Lock()
+	p.padOriginal = padOriginal
 	current := s.nativePlugins.navigation == p && s.bootStatus.State == harness.Ready && s.bootStatus.Generation == st.Generation && s.bootStatus.Endpoint == st.Endpoint
 	if current {
 		if err != nil {
@@ -191,7 +207,9 @@ func (s *mainState) renderPluginShellOverlay(c *ui.Context) {
 	}
 	s.mu.Unlock()
 	if owner != nil {
-		owner.RenderGlobalNativeSlot(c, "shell.overlay")
+		for _, slot := range []string{"shell.overlay", "shell.titlebar.trailing", "shell.terminalDrawer", "shell.bottom"} {
+			owner.RenderGlobalNativeSlot(c, slot)
+		}
 	}
 }
 

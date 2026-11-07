@@ -34,6 +34,23 @@ func TestSessionSuppressesWelcomeWithoutAcknowledgingOrInventingDesktopAPI(t *te
 	}
 }
 
+func TestNavigationPadSuppressionYieldsToWhalePadOriginal(t *testing.T) {
+	source := []byte(`window.__ModuleLoader__.load({ id: "dsh-pad", factory: function () { var NS = "dsh-pad"; function start(ctx) { const client = new PadClient(); client.start(); } return module.exports; } });`)
+	observed, ok := suppressNativePad(source)
+	if !ok {
+		t.Fatal("dsh-pad module not recognized")
+	}
+	if !strings.Contains(string(observed), `desktopNativeNavigation`) || !strings.Contains(string(observed), `desktopNativeSession`) {
+		t.Fatal("suppression no longer gated on native pages")
+	}
+	if !strings.Contains(string(observed), `new URLSearchParams(location.search).get('whalePadOriginal') !== '1'`) {
+		t.Fatal("navigation opt-in cannot reach the shipped overlay")
+	}
+	if !strings.Contains(string(observed), `window.__whalePadComposer`) {
+		t.Fatal("whalePadOriginal composer bridge was not wired")
+	}
+}
+
 func TestUnknownOnboardingModuleCannotShowWelcome(t *testing.T) {
 	source := []byte(`window.__ModuleLoader__.load({id: "@deepseek-ai/dsh-client-ui-settings-models", factory(){return futureUnverifiedWelcome}})`)
 	r := &http.Response{StatusCode: 200, Request: &http.Request{URL: &url.URL{Path: "/plugins/"}}, Header: http.Header{"Content-Type": []string{"text/javascript"}}, Body: io.NopCloser(bytes.NewReader(source))}

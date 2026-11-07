@@ -13,7 +13,7 @@ var whaleRichSurface = typeof whaleRichSurface === "object" ? whaleRichSurface :
   return node.getBoundingClientRect();
  }
  function restore(node,old){try{if(!old.open&&node.matches(':popover-open'))node.hidePopover();if(node.getAttribute('popover')==='manual'){if(old.popover===null)node.removeAttribute('popover');else node.setAttribute('popover',old.popover)}for(const [name,value] of old.applied){if(node.style.getPropertyValue(name)!==value)continue;const prior=old.properties.get(name);if(prior.value)node.style.setProperty(name,prior.value,prior.priority);else node.style.removeProperty(name)}node.removeAttribute('data-whale-rich-seat')}catch{}}
- function clear(){for(const [node,old] of active)restore(node,old);active.clear()}
+ function clear(){for(const [node,old] of active)restore(node,old);active.clear();source?.()?.drain?.()}
  // React DOM's actual HostPortal retains its fiber return chain to the source
  // host marker. Time, text, role and document proximity never grant ownership.
  function ownsPortal(node,root){
@@ -52,16 +52,26 @@ var whaleRichSurface = typeof whaleRichSurface === "object" ? whaleRichSurface :
   lastToken=command.token;
   for(const [node,old] of active)if(!next.has(node)){restore(node,old);active.delete(node)}
   if(!next.size){clear();return true}
-  if(!css){css=document.createElement('style');css.textContent='html[data-whale-rich-mask] body *{visibility:hidden!important;pointer-events:none!important}html[data-whale-rich-mask] body [data-whale-rich-seat],html[data-whale-rich-mask] body [data-whale-rich-seat] *{visibility:visible!important;pointer-events:auto!important}[data-whale-rich-seat]::backdrop{display:none!important}html[data-whale-rich-mask] body [data-whale-rich-seat][hidden],html[data-whale-rich-mask] body [data-whale-rich-seat][aria-hidden="true"],html[data-whale-rich-mask] body [hidden] [data-whale-rich-seat],html[data-whale-rich-mask] body [aria-hidden="true"] [data-whale-rich-seat]{visibility:hidden!important;pointer-events:none!important}';document.documentElement.setAttribute('data-whale-rich-mask','');document.head.appendChild(css)}
+  if(!css){css=document.createElement('style');css.textContent='html[data-whale-rich-mask] body :not([data-whale-rich-seat]):not([data-whale-rich-seat] *){visibility:hidden!important;pointer-events:none!important}:where([data-whale-rich-seat]){visibility:visible;pointer-events:auto;position:fixed;inset:auto;margin:0;border:none;padding:0;background:transparent;color:inherit;overflow:visible}[data-whale-rich-seat]::backdrop{display:none!important}html[data-whale-rich-mask] body [data-whale-rich-seat][hidden],html[data-whale-rich-mask] body [hidden] [data-whale-rich-seat]{visibility:hidden!important;pointer-events:none!important}';document.documentElement.setAttribute('data-whale-rich-mask','');document.head.appendChild(css)}
   const assign=(node,old,name,value)=>{if(!old.properties.has(name))old.properties.set(name,{value:node.style.getPropertyValue(name),priority:node.style.getPropertyPriority(name)});node.style.setProperty(name,value,'important');old.applied.set(name,node.style.getPropertyValue(name))};
-  try{for(const [node,seat] of next){if(!active.has(node)){
-   const computed=getComputedStyle(node),baseline={};for(const name of ['border-top','border-right','border-bottom','border-left','padding-top','padding-right','padding-bottom','padding-left','background-color'])baseline[name]=computed.getPropertyValue(name);
-   height.set(node,Math.max(1,rect(node).height));const old={popover:node.getAttribute('popover'),open:node.matches(':popover-open'),display:computed.display==='contents'?'block':computed.display,overflow:computed.overflow,properties:new Map(),applied:new Map()};active.set(node,old);node.setAttribute('popover','manual');node.setAttribute('data-whale-rich-seat','');if(!node.matches(':popover-open'))node.showPopover();for(const [name,value] of Object.entries(baseline))assign(node,old,name,value);
+  let drifted=false;
+  try{for(const [node,seat] of next){const record=env.actions.get(seat.handle);if(!active.has(node)){
+   const computed=getComputedStyle(node),ambientFixed=!!(record?.owner?.ambient&&computed.position==='fixed'),baseline={};
+   if(!ambientFixed)for(const name of ['border-top','border-right','border-bottom','border-left','padding-top','padding-right','padding-bottom','padding-left','background-color'])baseline[name]=computed.getPropertyValue(name);
+   height.set(node,Math.max(1,rect(node).height));const old={popover:node.getAttribute('popover'),open:node.matches(':popover-open'),display:computed.display==='contents'?'block':computed.display,overflow:computed.overflow,ambientFixed,properties:new Map(),applied:new Map()};active.set(node,old);node.setAttribute('popover','manual');node.setAttribute('data-whale-rich-seat','');if(!node.matches(':popover-open'))node.showPopover();for(const [name,value] of Object.entries(baseline))assign(node,old,name,value);
   }
-   const old=active.get(node);for(const [name,value] of Object.entries({display:old.display,position:'fixed',inset:'auto',left:seat.x+'px',top:seat.y+'px',width:seat.w+'px',height:seat.h+'px',margin:'0',boxSizing:'border-box',overflow:old.overflow,clipPath:'inset('+seat.ct+'px '+seat.cr+'px '+seat.cb+'px '+seat.cl+'px)'}))assign(node,old,name.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),value);
-   const r=node.getBoundingClientRect();if(Math.abs(r.x-seat.x)>1||Math.abs(r.y-seat.y)>1||Math.abs(r.width-seat.w)>1||Math.abs(r.height-seat.h)>1)throw Error('top-layer geometry not retained');
-  }}catch{clear();return false}return true;
+   const old=active.get(node);
+   if(old.ambientFixed){
+    if(seat.ct||seat.cr||seat.cb||seat.cl)assign(node,old,'clip-path','inset('+seat.ct+'px '+seat.cr+'px '+seat.cb+'px '+seat.cl+'px)');
+    else if(old.applied.has('clip-path')){const prior=old.properties.get('clip-path');if(prior?.value)node.style.setProperty('clip-path',prior.value,prior.priority);else node.style.removeProperty('clip-path');old.applied.delete('clip-path')}
+    const r=node.getBoundingClientRect(),rx=r.left??r.x,ry=r.top??r.y;if(r.width<=0||r.height<=0)throw Error('top-layer geometry not retained');
+    if(Math.abs(rx-seat.x)>1||Math.abs(ry-seat.y)>1||Math.abs(r.width-seat.w)>1||Math.abs(r.height-seat.h)>1)drifted=true;
+   }else{
+    for(const [name,value] of Object.entries({display:old.display,position:'fixed',inset:'auto',left:seat.x+'px',top:seat.y+'px',width:seat.w+'px',height:seat.h+'px',margin:'0',boxSizing:'border-box',overflow:old.overflow,clipPath:'inset('+seat.ct+'px '+seat.cr+'px '+seat.cb+'px '+seat.cl+'px)'}))assign(node,old,name.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),value);
+    const r=node.getBoundingClientRect(),rx=r.left??r.x,ry=r.top??r.y;if(Math.abs(rx-seat.x)>2||Math.abs(ry-seat.y)>2||Math.abs(r.width-seat.w)>2||Math.abs(r.height-seat.h)>2)throw Error('top-layer geometry not retained');
+   }
+  }}catch{clear();return false}finally{env.drain?.()}if(drifted)env.schedule?.();return true;
  }
- const ack=(command,send)=>{const ok=layout(command);const reply=()=>send({type:'richAck',token:command.token,revision:command.revision,ok:ok&&command.token===lastToken&&(command.seats.length===0||command.revision===source?.().revision&&same(command.subject,source?.().subject))});if(ok&&command.seats.length)requestAnimationFrame(()=>requestAnimationFrame(reply));else reply()};
- return {ack,bind(get){clear();lastToken=0;source=get;return ()=>{clear();source=null}},layout,clear,release(command){if(command.token!==lastToken||active.size)return false;css?.remove();css=null;document.documentElement.removeAttribute('data-whale-rich-mask');return true},cause,portals,ownsPortal,rect,hidden,applied(node){return active.has(node)},height(node){return height.get(node)||Math.max(1,rect(node).height)}};
+ const ack=(command,send)=>{const ok=layout(command);send({type:'richAck',token:command.token,revision:command.revision,ok:ok&&command.token===lastToken&&(command.seats.length===0||command.revision===source?.().revision&&same(command.subject,source?.().subject))})};
+ return {ack,bind(get){clear();lastToken=0;source=get;return ()=>{clear();source=null}},layout,clear,release(command){if(command.token!==lastToken||active.size)return false;css?.remove();css=null;document.documentElement.removeAttribute('data-whale-rich-mask');source?.()?.drain?.();return true},cause,portals,ownsPortal,rect,hidden,applied(node){return active.has(node)},height(node){return height.get(node)||Math.max(1,rect(node).height)}};
 })();

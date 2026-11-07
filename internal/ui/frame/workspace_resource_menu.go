@@ -52,9 +52,9 @@ func workspaceResourceEntries(m Model) []workspaceResourceEntry {
 	}
 	selected := m.Store != nil && m.Store.SelectedSessionID() != ""
 	standalone := m.Sizes == nil || m.Sizes.Workspace == nil
-	route("files", i18n.T(i18n.KeyRightPaneFiles), paneLabel("浏览工作区文件", "Browse workspace files"), conversationHeaderIcons["PanelLeftOutline"], false)
-	route("diff", i18n.T(i18n.KeyRightPaneDiff), paneLabel("查看工作区变更", "Review workspace changes"), conversationHeaderIcons["CodeOutline"], false)
-	route("agents", i18n.T(i18n.KeyRightPaneAgents), paneLabel("查看子智能体及其记录", "Browse subagents and their records"), conversationHeaderIcons["AgentPresetOutline"], !selected && !standalone)
+	route("files", i18n.T(i18n.KeyRightPaneFiles), surfacesText("card.files.description"), conversationHeaderIcons["PanelLeftOutline"], false)
+	route("diff", i18n.T(i18n.KeyRightPaneDiff), surfacesText("card.diff.description"), conversationHeaderIcons["CodeOutline"], false)
+	route("agents", i18n.T(i18n.KeyRightPaneAgents), surfacesText("card.agents.description"), conversationHeaderIcons["AgentPresetOutline"], !selected && !standalone)
 	if standalone {
 		route("team", paneLabel("团队", "Team"), "", conversationHeaderIcons["UsersOutline"], false)
 	} else {
@@ -79,14 +79,14 @@ func workspaceResourceEntries(m Model) []workspaceResourceEntry {
 		route("schedule-task", schedulePaneTitle(m), "", conversationHeaderIcons["ClockOutline"], false)
 	}
 	if m.HostTerminalStore != nil {
-		entries = append(entries, workspaceResourceEntry{"host-terminal", termui.HostTitle(), paneLabel("新建 Host 终端", "Create a Host terminal"), conversationHeaderIcons["CodeOutline"], !selected, func() {
+		entries = append(entries, workspaceResourceEntry{"host-terminal", termui.HostTitle(), surfacesText("card.terminal.description"), conversationHeaderIcons["CodeOutline"], !selected, func() {
 			openWorkspaceResource(m, "host-terminal", m.OnNewHostTerminal)
 		}})
 	}
 	if standalone && m.OnOpenBrowserPreview != nil {
 		entries = append(entries, workspaceResourceEntry{"browser", i18n.T(i18n.KeyBrowserPreviewTitle), "", workspacePaneBrowserIcon, false, m.OnOpenBrowserPreview})
 	} else if m.BrowserContent != nil || m.NewWorkspaceBrowser != nil {
-		route("browser", i18n.T(i18n.KeyBrowserPreviewTitle), paneLabel("浏览网页与文档", "Browse pages and documents"), workspacePaneResourcesIcon, false)
+		route("browser", i18n.T(i18n.KeyBrowserPreviewTitle), surfacesText("card.browser.description"), workspacePaneResourcesIcon, false)
 	}
 	for _, registered := range m.PluginRightPaneKinds {
 		if registered.ID == "" || registered.Kind == "" || registered.Label == "" || m.DisableDeveloperTools && registered.Kind == "session-inspector-log" {

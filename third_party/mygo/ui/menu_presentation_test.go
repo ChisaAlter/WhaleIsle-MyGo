@@ -118,11 +118,40 @@ func TestMenuOpenTracksOwnAndDescendantMenusWithoutStaleOwner(t *testing.T) {
 // rather than Tester's native-menu model. No operating-system window is opened.
 type menuOverlayFixtureHost struct{ *headless }
 
+// The tests freeze the clock, which would hold a menu below its place,
+// rising, and ask for frames all along: menus show at once with less
+// motion. TestMenuRisesIntoPlace has the motion.
 func menuOverlayTester(view func(*context), width, height int) *Tester {
 	tt := coreNewTester(view, width, height)
 	tt.rt.host = menuOverlayFixtureHost{tt.h}
+	tt.h.prefs = platform.Preferences{ReduceMotion: true}
+	tt.rt.themeChanged()
 	tt.Frame()
 	return tt
+}
+
+// menuRowChecked reports whether the row of the item labeled label, under
+// root, shows the check mark.
+func menuRowChecked(root *node, label string) bool {
+	var checked, found bool
+	var walk func(*node)
+	walk = func(n *node) {
+		if n == nil || found {
+			return
+		}
+		if n.kind == kindText && n.text == label && n.parent != nil {
+			found = true
+			for s := n.parent.first; s != nil; s = s.next {
+				checked = checked || s.kind == kindIcon && s.svg == menuCheck
+			}
+			return
+		}
+		for k := n.first; k != nil; k = k.next {
+			walk(k)
+		}
+	}
+	walk(root)
+	return checked
 }
 
 func TestMenuOverlayPaintsIconsDangerChecksAndSubmenu(t *testing.T) {
@@ -170,8 +199,8 @@ func TestMenuOverlayPaintsIconsDangerChecksAndSubmenu(t *testing.T) {
 				}
 			}
 			walk(tt.rt.c.root)
-			if icon == nil || icon.Bounds().W != 16 || icon.ts.color != tt.rt.c.theme.Danger {
-				t.Fatal("danger icon is not a 16px vector in the danger color")
+			if icon == nil || icon.Bounds().W != 14 || icon.ts.color != tt.rt.c.theme.Danger {
+				t.Fatal("danger icon is not a 14px vector in the danger color")
 			}
 			box := icon.Bounds()
 			pixel := tt.Image().RGBAAt(int(box.X+box.W/2), int(box.Y+box.H/2))
@@ -179,8 +208,11 @@ func TestMenuOverlayPaintsIconsDangerChecksAndSubmenu(t *testing.T) {
 			if pixel != (color.RGBA{want.R, want.G, want.B, want.A}) {
 				t.Fatalf("danger icon was not painted: %v want %v", pixel, want)
 			}
-			if deleteBox.X <= box.X+box.W || !tt.HasText("✓") || !tt.HasText(accelerator(Ctrl, KeyD)) {
-				t.Fatal("check/icon/label/shortcut columns overlap or disappeared")
+			if deleteBox.X <= box.X+box.W || !tt.HasText(accelerator(Ctrl, KeyD)) {
+				t.Fatal("icon/label/shortcut columns overlap or disappeared")
+			}
+			if !menuRowChecked(tt.rt.c.root, "Pinned") || menuRowChecked(tt.rt.c.root, "Delete") {
+				t.Fatal("the check mark is not on the checked item alone")
 			}
 			if err := tt.Click("Locked"); err != nil {
 				t.Fatal(err)
@@ -188,9 +220,9 @@ func TestMenuOverlayPaintsIconsDangerChecksAndSubmenu(t *testing.T) {
 			if tt.rt.menu.overlay == nil {
 				t.Fatal("disabled item closed the menu")
 			}
-			more, ok := tt.Find("More ›")
+			more, ok := tt.Find("More")
 			if !ok {
-				t.Fatal("submenu arrow disappeared")
+				t.Fatal("submenu item disappeared")
 			}
 			tt.Move(more.X+more.W/2, more.Y+more.H/2)
 			if !tt.HasText("Delete child") {
@@ -248,7 +280,7 @@ func TestMenuOverlayPointerLeaveDelayReentryAndKeyboard(t *testing.T) {
 			if !ownerOpen {
 				t.Fatal("menu closed before200ms")
 			}
-			more, _ := tt.Find("More ›")
+			more, _ := tt.Find("More")
 			tt.Move(more.X+more.W/2, more.Y+more.H/2)
 			tt.SetTime(base.Add(3 * time.Second))
 			if !ownerOpen || !tt.HasText("Child") {

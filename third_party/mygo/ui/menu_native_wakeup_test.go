@@ -9,7 +9,9 @@ import (
 // deliberately runs a frame even when none is requested, so it cannot expose a
 // menu promoted to overlay only after the current scene was committed.
 func TestMenuPublicContextMenuRightReleaseRequestsVisibleOverlay(t *testing.T) {
-	h := &headless{w: 400, h: 300, scale: 1}
+	// Less motion: a menu rising into place asks for a frame each frame, more
+	// than pump allows.
+	h := &headless{w: 400, h: 300, scale: 1, prefs: platform.Preferences{ReduceMotion: true}}
 	var open bool
 	rt := newRuntime(func(c *context) {
 		public := makeContext(c)

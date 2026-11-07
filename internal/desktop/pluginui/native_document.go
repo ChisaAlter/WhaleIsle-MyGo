@@ -32,16 +32,22 @@ type NativeNode struct {
 	FullScreen bool    `json:"fullScreen,omitempty"`
 	Anchor     string  `json:"anchor,omitempty"`
 	Modal      bool    `json:"modal,omitempty"`
-	Min, Max   float64
-	Options    []NativeOption `json:"options,omitempty"`
-	Children   []NativeNode   `json:"children,omitempty"`
+	// Ambient seats keep authored shell-overlay coordinates: X/Y are DOM-space
+	// and VW/VH the viewport they were measured in, not anchor offsets.
+	Ambient  bool    `json:"ambient,omitempty"`
+	VW       float64 `json:"vw,omitempty"`
+	VH       float64 `json:"vh,omitempty"`
+	Min, Max float64
+	Options  []NativeOption `json:"options,omitempty"`
+	Children []NativeNode   `json:"children,omitempty"`
 }
 type NativeDocument struct {
-	Handle    string       `json:"handle,omitempty"`
-	Slot      string       `json:"slot"`
-	Nodes     []NativeNode `json:"nodes"`
-	Provider  string       `json:"provider,omitempty"`
-	Namespace string       `json:"namespace,omitempty"`
+	Handle     string       `json:"handle,omitempty"`
+	Slot       string       `json:"slot"`
+	Nodes      []NativeNode `json:"nodes"`
+	Provider   string       `json:"provider,omitempty"`
+	Namespace  string       `json:"namespace,omitempty"`
+	Registrant string       `json:"registrant,omitempty"`
 }
 
 func validNativeNodes(nodes []NativeNode) bool {
@@ -59,6 +65,9 @@ func validNativeNodes(nodes []NativeNode) bool {
 			switch n.Kind {
 			case "rich":
 				if !validRichType(n.RichType) || !mirrorFragmentFinite(n.Height) || n.Height < 1 || n.Height > 1200 || n.Handle == "" || !mirrorFragmentFinite(n.Width) || n.Width < 0 || n.Width > 8192 || !mirrorFragmentFinite(n.X) || !mirrorFragmentFinite(n.Y) || n.X < -8192 || n.X > 8192 || n.Y < -8192 || n.Y > 8192 || len(n.Anchor) > 64 {
+					return false
+				}
+				if n.Ambient && (!n.Popup || !mirrorFragmentFinite(n.VW) || !mirrorFragmentFinite(n.VH) || n.VW < 1 || n.VW > 32768 || n.VH < 1 || n.VH > 32768) {
 					return false
 				}
 			case "text", "group", "row", "button", "input", "textarea", "check", "select", "range", "unsupported":
@@ -146,7 +155,7 @@ func (o *Owner) renderNativeSnapshot(c *ui.Context, s Snapshot, slot, callID str
 				if handle == "" {
 					handle = slot
 				}
-				s.Outlets = append(s.Outlets, SessionOutlet{Handle: handle, Slot: slot, Available: true, Native: document.Nodes})
+				s.Outlets = append(s.Outlets, SessionOutlet{Handle: handle, Slot: slot, Available: true, Native: document.Nodes, Registrant: document.Registrant})
 			}
 		}
 	}

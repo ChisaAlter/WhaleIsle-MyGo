@@ -2,8 +2,10 @@ package settings
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -82,8 +84,8 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionAppearance, "等宽字体", "Monospace font", "填写本机已安装的等宽字体名。留空则用系统默认。", "Name an installed monospace font. Leave blank for the system default."),
 		value(SectionAppearance, "代码字号", "Code size", fontSize("code")),
 		row(SectionAppearance, "字号大小", "Font size", "仅影响会话内容的字号", "Only affects the size of conversation content"),
-		row(SectionAppearance, "输入特效", "Typing effect", "键入字符时在输入框播放短暂回显，可替换光标样式。", "Play a short echo in the composer while typing; can replace the cursor style."),
-		row(SectionAppearance, "发送消息时的思考炫光", "Thinking glow when sending", "智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored edge glow around the composer while the agent sends or thinks."),
+		row(SectionAppearance, "输入特效", "Typing effects", "键入字符时在输入框播放短暂回显，可替换光标样式。", "Echo typed characters in the composer, with an optional custom caret."),
+		row(SectionAppearance, "发送消息时的思考炫光", "Thinking glow when sending", "智能体发送或思考时，在输入条周围播放彩色边光。", "Play a colored border beam on the composer while a turn is sending or thinking."),
 		row(SectionInterface, "标题栏 Git 操作", "Titlebar Git actions", "显示初始化、切换分支、提交及菜单。", "Show init, branch switching, commit and menus."),
 		row(SectionInterface, "终端抽屉开关", "Terminal drawer toggle", "在标题栏显示终端抽屉按钮。", "Show the terminal drawer button in the titlebar."),
 		row(SectionInterface, "右侧栏按钮", "Right-panel buttons", "在标题栏显示右侧栏按钮。", "Show the right-panel button in the titlebar."),
@@ -110,7 +112,12 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionRemote, "传输加密", "Transport encryption", "手机会话使用端到端加密。", "Phone sessions use end-to-end encryption."),
 		row(SectionRemote, "刷新配对码", "Refresh pairing code", "只换二维码；已配对设备仍有效，除非解除配对。", "Only replaces the QR code; paired devices stay valid unless unpaired."),
 	}
-	entries = append(entries, nestedSearchEntries()...)
+	for _, entry := range nestedSearchEntries() {
+		if entry.section == SectionAbout && m.About == nil && slices.Contains(entry.reveal, "settings-advanced") {
+			entry.section = SectionGeneral
+		}
+		entries = append(entries, entry)
+	}
 	if m.Account != nil && m.Account.Status != "credential-stored" && m.OnSignIn != nil {
 		entries = append(entries, searchEntry{section: SectionGeneral, title: providerCopy("账户登录", "Sign in"), detail: providerCopy("登录账户", "Sign in to your account"), target: "general-account", open: m.OnSignIn})
 	}
@@ -154,7 +161,7 @@ func searchEntries(m Model) []searchEntry {
 			section := SectionForNamespace(name)
 			pageTitle := navigationLabel(m, section)
 			section = SectionGeneral // the namespace browser is the generic General form destination
-			entries = append(entries, searchEntry{section: section, title: title, detail: field.Description + " · " + pageTitle + " · " + name, target: "field-" + key, open: open})
+			entries = append(entries, searchEntry{section: section, title: title, detail: field.Description + " · " + pageTitle + " · " + name, target: "field-" + key, reveal: []string{"settings-advanced"}, open: open})
 		}
 	}
 	for _, contribution := range m.ContributedSections {
@@ -251,13 +258,40 @@ func settingsSearchMatches(m Model, available map[SectionID]bool, query string) 
 	return matches
 }
 
+func activateSettingsSearchEntry(c *ui.Context, m Model, snap store.ViewState, entry searchEntry, clear func()) {
+	base := activeSection(m, snap)
+	if clear != nil {
+		clear()
+	}
+	open := entry.open
+	if open == nil {
+		for _, nav := range primaryNavigation(m, snap) {
+			if nav.id == entry.section {
+				open = nav.onSelect
+				break
+			}
+		}
+	}
+	jump := settingsSearchJumpState(c)
+	*jump = settingsSearchJump{
+		Section:        entry.section,
+		BaseActive:     base,
+		Target:         entry.target,
+		Reveal:         append([]string(nil), entry.reveal...),
+		Pending:        true,
+		HighlightUntil: c.Now().Add(1600 * time.Millisecond),
+		Revealed:       map[string]bool{},
+	}
+	if open != nil {
+		open()
+	}
+}
+
 // settingsSearchResults is the options pane while the search box holds text:
 // one button per matching row (title, then "page · line"), or the empty state.
 func settingsSearchResults(c *ui.Context, m Model, snap store.ViewState, query string, fg, muted, hover ui.Color, clear func()) {
-	available := map[SectionID]func(){}
 	ids := map[SectionID]bool{}
 	for _, entry := range primaryNavigation(m, snap) {
-		available[entry.id] = entry.onSelect
 		ids[entry.id] = true
 	}
 	matches := settingsSearchMatches(m, ids, query)
@@ -289,18 +323,7 @@ func settingsSearchResults(c *ui.Context, m Model, snap store.ViewState, query s
 				button.Background(hover)
 			}
 			if button.Clicked() {
-				if clear != nil {
-					clear()
-				}
-				open := entry.open
-				if open == nil {
-					open = available[entry.section]
-				}
-				if open != nil {
-					jump := settingsSearchJumpState(c)
-					*jump = settingsSearchJump{Section: entry.section, Target: entry.target, Reveal: entry.reveal, Pending: true}
-					open()
-				}
+				activateSettingsSearchEntry(c, m, snap, entry, clear)
 			}
 		}
 	})

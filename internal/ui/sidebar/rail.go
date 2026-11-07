@@ -42,7 +42,7 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 		button("sidebar-rail-new", i18n.T(i18n.KeySidebarNewSessionFallback), sidebarRailIcons["new"], true, m.OnCreate)
 		ui.Box(c).Height(12).Shrink(0)
 	}
-	ui.Column(c.Key("sidebar-rail-panels")).FillWidth().Gap(12).Shrink(0).Children(func() {
+	ui.Column(c.Key("sidebar-rail-panels")).Label(sidebarLocaleText("panels.label")).FillWidth().Gap(12).Shrink(0).Children(func() {
 		panel := func(id, key, label string, icon *ui.SVG, action func()) ui.Element {
 			b := button(key, label, icon, action != nil, action).Selected(m.ActivePanel == id).
 				Background(ui.Transparent).TextColor(fg)

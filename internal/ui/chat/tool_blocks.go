@@ -161,10 +161,26 @@ func searchHitsBlock(c *ui.Context, st toolSeatStyle, key, query, output string,
 			})
 		})
 		if hidden > 0 {
+			files := searchHitsFileCount(hits)
+			ui.Text(c, toolSearchMatchesSummary(len(shown), float64(len(hits)), files, true)).
+				FontSize(size).FixedLineHeight(toolSeatLine).TextColor(st.Muted)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyChatToolMoreHits), hidden)).
 				FontSize(size).FixedLineHeight(toolSeatLine).TextColor(st.Muted)
 		}
 	})
+}
+
+func searchHitsFileCount(hits []searchHit) int {
+	seen := make(map[string]struct{})
+	for _, h := range hits {
+		if h.Path != "" {
+			seen[h.Path] = struct{}{}
+		}
+	}
+	if len(seen) == 0 && len(hits) > 0 {
+		return 1
+	}
+	return len(seen)
 }
 
 // searchHitLocation is the "path:line" prefix, muted and separate from the code.
@@ -354,6 +370,13 @@ func todoBlock(c *ui.Context, st toolSeatStyle, key, output string, onCopy func(
 			ui.Text(c, i18n.T(i18n.KeyChatTodoEmpty)).FontSize(size).TextColor(st.Muted)
 			return
 		}
+		doneCount := 0
+		for _, item := range items {
+			if item.Status == "completed" {
+				doneCount++
+			}
+		}
+		ui.Text(c, todoCompletedFractionCount(doneCount, len(items))).FontSize(size - 1).TextColor(st.Muted)
 		for _, item := range items {
 			item := item
 			done := item.Status == "completed"

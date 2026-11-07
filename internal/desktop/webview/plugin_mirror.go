@@ -15,7 +15,7 @@ func (h *Host) PluginMirrorSource(capability *pluginslots.Gateway, width, height
 	if h == nil || capability == nil || width < 1 || width > 2048 || height < 1 || height > 1536 {
 		return nil, errors.New("plugin mirror: bounded source required")
 	}
-	return h.pluginSource(capability, width, height)
+	return h.pluginSource(capability, width, height, true)
 }
 
 // PluginRichSource retains the same binding-free page for live rich controls.
@@ -25,10 +25,10 @@ func (h *Host) PluginRichSource(capability *pluginslots.Gateway, width, height i
 	if h == nil || capability == nil || width < 1 || width > 8192 || height < 1 || height > 8192 {
 		return nil, errors.New("plugin rich content: bounded source required")
 	}
-	return h.pluginSource(capability, width, height)
+	return h.pluginSource(capability, width, height, false)
 }
 
-func (h *Host) pluginSource(capability *pluginslots.Gateway, width, height int) (*mygo.Window, error) {
+func (h *Host) pluginSource(capability *pluginslots.Gateway, width, height int, hide bool) (*mygo.Window, error) {
 	registered, _ := pluginSurfaceCapabilities.Load(h)
 	if registered != capability {
 		return nil, errors.New("plugin source: exact registered capability required")
@@ -47,8 +47,10 @@ func (h *Host) pluginSource(capability *pluginslots.Gateway, width, height int) 
 		if !allowed || w == nil || parent == nil || w.IsDestroyed() || parent.IsDestroyed() || !parent.IsVisible() || parent.IsMinimized() {
 			return
 		}
-		w.Hide()
 		bounds := w.ContentBounds()
+		if hide || !w.IsVisible() || bounds.Width != width || bounds.Height != height {
+			w.Hide()
+		}
 		if bounds.Width != width || bounds.Height != height {
 			w.SetContentSize(width, height)
 		}

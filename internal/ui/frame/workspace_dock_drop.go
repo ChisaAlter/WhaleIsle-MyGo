@@ -83,12 +83,12 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 	width, height := surface.Bounds().W, max(float32(0), surface.Bounds().H-38)
 	ui.Box(c.Key("workspace-dock-hints")).Absolute().Left(0).Right(0).Top(38).Bottom(0).PassThrough().Children(func() {
 		for _, item := range []struct {
-			edge, zh, en string
-			x, y, w, h   float32
+			edge, label string
+			x, y, w, h  float32
 		}{
-			{"left", "左侧", "Left", 0, 0, width * .4, height},
-			{"right", "右侧", "Right", width * .6, 0, width * .4, height},
-			{"tabs", "标签组", "Tabs", width * .4, 0, width * .2, height},
+			{"left", sidebarRightText("dock.drop.left"), 0, 0, width * .4, height},
+			{"right", sidebarRightText("dock.drop.right"), width * .6, 0, width * .4, height},
+			{"tabs", sidebarRightText("dock.drop.center"), width * .4, 0, width * .2, height},
 		} {
 			item := item
 			if item.edge != "tabs" && !w.canSplit(n) {
@@ -105,7 +105,7 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 			if over {
 				zone.Children(func() {
 					ui.Box(c).Fill().Radius(12).Background(c.Theme().Surface).Border(1.5, c.Theme().Accent).
-						AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Text(c, paneLabel(item.zh, item.en)).FontSize(theme.InterfaceSize(13)).FontWeight(500) })
+						AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Text(c, item.label).FontSize(theme.InterfaceSize(13)).FontWeight(500) })
 				})
 			}
 			if payload, ok := ui.Drop[workspaceTabDrag](zone); ok {

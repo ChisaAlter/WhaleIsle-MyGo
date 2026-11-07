@@ -66,11 +66,11 @@ func (b *Controller) deviceResizeRails(c *ui.Context, t *Tab, canvas ui.Element,
 		x, y, w, h       int
 		cursor           ui.Cursor
 	}{
-		{"west", browserChromeLabel("拖动左侧调整网页宽度", "Drag the left edge to resize webpage width"), x - 10, y, 10, h, ui.CursorResizeEW},
-		{"east", browserChromeLabel("拖动右侧调整网页宽度", "Drag the right edge to resize webpage width"), x + w, y, 10, h, ui.CursorResizeEW},
-		{"south", browserChromeLabel("拖动底部调整网页高度", "Drag the bottom edge to resize webpage height"), x, y + h, w, 10, ui.CursorResizeNS},
-		{"southwest", browserChromeLabel("拖动左下角调整网页尺寸", "Drag the bottom-left corner to resize the webpage"), x - 10, y + h, 10, 10, ui.CursorResizeNESW},
-		{"southeast", browserChromeLabel("拖动右下角调整网页尺寸", "Drag the bottom-right corner to resize the webpage"), x + w, y + h, 10, 10, ui.CursorResizeNWSE},
+		{"west", browserPreviewText("viewportRailWest"), x - 10, y, 10, h, ui.CursorResizeEW},
+		{"east", browserPreviewText("viewportRailEast"), x + w, y, 10, h, ui.CursorResizeEW},
+		{"south", browserPreviewText("viewportRailSouth"), x, y + h, w, 10, ui.CursorResizeNS},
+		{"southwest", browserPreviewText("viewportRailSouthwest"), x - 10, y + h, 10, 10, ui.CursorResizeNESW},
+		{"southeast", browserPreviewText("viewportRailSoutheast"), x + w, y + h, 10, 10, ui.CursorResizeNWSE},
 	} {
 		rail := ui.Box(c).Key(browserResizeRailKey{tabID: t.ID, host: t.Host, epoch: t.Host.BrowserPageVersion(), zoom: zoom, canvasW: cw, canvasH: ch, direction: spec.direction}).Absolute().Left(float32(spec.x)).Top(float32(spec.y)).Width(float32(spec.w)).Height(float32(spec.h)).Cursor(spec.cursor).Focusable().Label(spec.label).Tooltip(spec.label + browserChromeLabel("；方向键10px，Shift+方向键50px，Esc撤销本次拖动", "; arrow keys: 10px, Shift+arrows: 50px, Esc: undo this drag")).Disabled(disabled).Background(railColor)
 		dx, dy, held := rail.Dragged()

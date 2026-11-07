@@ -138,18 +138,27 @@ func preferenceRowTitle(c *ui.Context, title string, fg ui.Color, help *rowHelp)
 }
 
 func appearancePresetChoices(cursor bool) [][2]string {
-	choices := [][2]string{{"default", providerCopy("默认", "Default")}}
+	choices := [][2]string{{"default", providerCopy("跟随主题", "Follow theme")}}
 	if cursor {
 		choices = append(choices, [2]string{"rainbow", providerCopy("彩虹", "Rainbow")})
 	}
-	return append(choices, [][2]string{{"aurora", providerCopy("极光", "Aurora")}, {"sunset", providerCopy("日落", "Sunset")}, {"ocean", providerCopy("海洋", "Ocean")}, {"sakura", providerCopy("樱花", "Sakura")}, {"custom", providerCopy("自定义", "Custom")}}...)
+	return append(choices, [][2]string{{"aurora", providerCopy("极光", "Aurora")}, {"sunset", providerCopy("晚霞", "Sunset")}, {"ocean", providerCopy("海洋", "Ocean")}, {"sakura", providerCopy("樱花", "Sakura")}, {"custom", providerCopy("自定义", "Custom")}}...)
+}
+func effectChoiceOptionLabel(typing bool, path, value string) string {
+	if !typing && path == "mode" && value == "aurora" {
+		return "Aurora"
+	}
+	if typing && (path == "colors.id" || path == "palette.id") && value == "sunset" {
+		return providerCopy("落日", "Sunset")
+	}
+	return effectOptionLabel(value)
 }
 func effectOptionLabel(value string) string {
 	labels := map[string][2]string{
-		"legacy": {"经典", "Classic"}, "lounge": {"静谧", "Lounge"}, "aurora": {"极光", "Aurora"}, "reactive": {"响应", "Reactive"}, "custom": {"自定义", "Custom"},
-		"clockwise": {"顺时针", "Clockwise"}, "counterclockwise": {"逆时针", "Counterclockwise"}, "pingPong": {"往返", "Back and forth"}, "linear": {"线性", "Linear"}, "ease": {"缓动", "Ease"}, "ease-in-out": {"渐入渐出", "Ease in and out"}, "cubic-bezier": {"贝塞尔曲线", "Cubic Bézier"},
-		"preset": {"预设", "Preset"}, "theme": {"跟随主题", "Theme"}, "drop": {"下落", "Drop"}, "rise": {"上升", "Rise"}, "flash": {"闪烁", "Flash"}, "native": {"系统光标", "Native"}, "block": {"方块", "Block"}, "underline": {"下划线", "Underline"},
-		"warm": {"暖色", "Warm"}, "rose": {"玫瑰", "Rose"}, "glacier": {"冰川", "Glacier"}, "cyber": {"赛博", "Cyber"}, "sunset": {"日落", "Sunset"}, "cyan": {"青色", "Cyan"}, "ocean": {"海洋", "Ocean"}, "candy": {"糖果", "Candy"}, "forest": {"森林", "Forest"}, "violet": {"紫罗兰", "Violet"}, "ember": {"余烬", "Ember"},
+		"legacy": {"Legacy", "Legacy"}, "lounge": {"Lounge", "Lounge"}, "aurora": {"极光", "Aurora"}, "reactive": {"Reactive", "Reactive"}, "custom": {"自定义", "Custom"},
+		"clockwise": {"顺时针", "Clockwise"}, "counterclockwise": {"逆时针", "Counterclockwise"}, "pingPong": {"往返", "Ping-pong"}, "pingpong": {"往返", "Ping-pong"}, "linear": {"线性", "Linear"}, "ease": {"缓入缓出", "Ease"}, "ease-in-out": {"平滑缓入缓出", "Ease in/out"}, "cubic-bezier": {"平滑曲线", "Smooth curve"}, "smoothstep": {"平滑曲线", "Smooth curve"},
+		"preset": {"预设", "Preset"}, "theme": {"跟随主题", "Follow theme"}, "drop": {"落锤", "Drop"}, "rise": {"上浮", "Rise"}, "flash": {"闪现", "Flash"}, "native": {"跟随系统", "System caret"}, "system": {"跟随系统", "System caret"}, "block": {"方块", "Block"}, "underline": {"下划线", "Underline"},
+		"warm": {"暖色", "Warm"}, "rose": {"玫瑰", "Rose"}, "glacier": {"冰川", "Glacier"}, "cyber": {"赛博", "Cyber"}, "sunset": {"日落", "Sunset"}, "cyan": {"青色", "Cyan"}, "ocean": {"海洋", "Ocean"}, "candy": {"糖果", "Candy"}, "forest": {"森林", "Forest"}, "violet": {"紫藤", "Violet"}, "ember": {"熔金", "Ember"},
 	}
 	if pair, ok := labels[value]; ok {
 		return providerCopy(pair[0], pair[1])

@@ -1528,7 +1528,6 @@ func conversationContentWidth(colW float32) float32 {
 func rightPane(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	field := chrome.BackdropSurface(chrome.Color(colors.Sidebar))
 	border := chrome.Color(colors.Border)
 
 	tab := "files"
@@ -1546,7 +1545,9 @@ func rightPane(c *ui.Context, m Model) {
 		})
 	} else {
 		if m.workspacePane == nil || m.workspacePane.Kind != "project-observer" {
-			artifact.Draw(chrome.Glass(field, chrome.MaterialPanel))
+			// The right rail shares the left rail's material — one surface
+			// translucency over the themed background, not a raised panel.
+			artifact.Draw(chrome.Glass(chrome.Color(colors.Sidebar), chrome.MaterialSidebar))
 		}
 	}
 	artifact.Children(func() {

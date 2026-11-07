@@ -49,6 +49,8 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeySurfacesGitCommitSubtitle), branch, len(w.Changes))).
 				FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, GitLocale("commit.description")).
+				FillWidth().FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Scroll(c).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
 					if paintCommitPreparation(c, m, fg, muted) {
@@ -83,6 +85,7 @@ func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitFiles)).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(fg).Grow(1)
+		ui.Text(c, formatSelectedCount(len(w.selectedCommitPaths()), len(w.Changes))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesGitSelectAll), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			selectAllCommitFiles(w, true)
 		}

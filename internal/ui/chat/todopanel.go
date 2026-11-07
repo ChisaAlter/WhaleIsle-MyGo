@@ -137,6 +137,24 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 	})
 }
 
+func todoCompletedFraction(todos []session.PlanTodo) string {
+	if len(todos) == 0 {
+		return ""
+	}
+	done := 0
+	for _, t := range todos {
+		switch strings.ToLower(strings.TrimSpace(t.Status)) {
+		case "completed", "complete", "done":
+			done++
+		}
+	}
+	return todoCompletedFractionCount(done, len(todos))
+}
+
+func todoCompletedFractionCount(done, total int) string {
+	return fmt.Sprintf("%d/%d %s", done, total, historyNavigationText("已完成", "completed"))
+}
+
 func todoProgressLabel(todos []session.PlanTodo) string {
 	done, active, pending := 0, 0, 0
 	for _, t := range todos {
@@ -150,8 +168,8 @@ func todoProgressLabel(todos []session.PlanTodo) string {
 		}
 	}
 	parts := make([]string, 0, 3)
-	if done > 0 {
-		parts = append(parts, fmt.Sprintf("%d %s", done, historyNavigationText("已完成", "completed")))
+	if len(todos) > 0 {
+		parts = append(parts, todoCompletedFractionCount(done, len(todos)))
 	}
 	if active > 0 {
 		parts = append(parts, fmt.Sprintf("%d %s", active, historyNavigationText("进行中", "in progress")))

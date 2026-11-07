@@ -83,7 +83,7 @@ func authoritativeFeedbackStatus(c *ui.Context, store *session.Store, muted ui.C
 	busy := v.BusyID != "" || v.Loading
 	if v.Error != "" && v.EditorID == "" {
 		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, v.Error).FontSize(11).TextColor(muted).Grow(1)
+			ui.Text(c, feedbackStatusErrorText(v)).FontSize(11).TextColor(muted).Grow(1)
 			if messageAction(c, messageIconRefreshOutline, i18n.T(i18n.KeyCommandCatalogRetry), true, muted).Disabled(busy).Clicked() {
 				store.RefreshFeedback(context.Background())
 			}

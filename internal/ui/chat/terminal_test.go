@@ -265,3 +265,55 @@ func terminalExport(t *testing.T, tt *ui.Tester, suffix string) {
 		t.Fatal(err)
 	}
 }
+
+func TestTerminalExpandRestAndToolCopyParity(t *testing.T) {
+	previous := i18n.Locale()
+	defer i18n.SetLocale(previous)
+
+	m := &toolTerminalModel{
+		Command:   "seq 1 5",
+		Output:    "line-1\nline-2\nline-3\nline-4\nline-5\n",
+		HasOutput: true,
+		HasExit:   true,
+		FoldLines: 3,
+	}
+	tt := terminalViewFixture(t, m, 640, false)
+	if !tt.HasText("… 2 more lines") || tt.HasText("line-5") {
+		t.Fatalf("expected folded terminal output, got: %q", tt.Texts())
+	}
+	if err := tt.Click("Expand the remaining 2 output lines"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("line-5") || !tt.HasText("Collapse output") {
+		t.Fatalf("expected expanded terminal output, got: %q", tt.Texts())
+	}
+	if err := tt.Click("Collapse output"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("… 2 more lines") || tt.HasText("line-5") {
+		t.Fatalf("expected re-collapsed terminal output, got: %q", tt.Texts())
+	}
+
+	i18n.SetLocale(i18n.LocaleEN)
+	if got := toolReadWindowLabel(50, 120); got != "Showing 50 of 120 lines" {
+		t.Fatalf("toolReadWindowLabel en = %q", got)
+	}
+	if got := toolSearchPathsSummary(10, 25, true); got != "Showing 10 of 25 paths" {
+		t.Fatalf("toolSearchPathsSummary en = %q", got)
+	}
+	if got := toolSearchMatchesSummary(10, 25, 3, true); got != "Showing 10 of 25 matches · 3 files" {
+		t.Fatalf("toolSearchMatchesSummary en = %q", got)
+	}
+
+	i18n.SetLocale(i18n.LocaleZH)
+	if got := terminalExpandRestLabel(4); got != "… 其余 4 行" {
+		t.Fatalf("terminalExpandRestLabel zh = %q", got)
+	}
+	if got := toolReadWindowLabel(50, 120); got != "显示 50 / 120 行" {
+		t.Fatalf("toolReadWindowLabel zh = %q", got)
+	}
+	if got := toolSearchMatchesSummary(10, 25, 3, true); got != "显示 10 / 共 25 处匹配 · 3 个文件" {
+		t.Fatalf("toolSearchMatchesSummary zh = %q", got)
+	}
+}
+

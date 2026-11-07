@@ -7,6 +7,8 @@ import (
 
 // Native Pad owns the dock and card lifecycle. Do not start a second PadClient
 // inside a hidden navigation/Session page; ordinary full Host pages are intact.
+// A navigation page carrying whalePadOriginal opts into hosting the shipped
+// overlay itself while the native pad desktop stays retired.
 func suppressNativePad(source []byte) ([]byte, bool) {
 	text := string(source)
 	module := `window.__ModuleLoader__.load({ id: "dsh-pad", factory:`
@@ -24,7 +26,11 @@ func suppressNativePad(source []byte) ([]byte, bool) {
 		return source, false
 	}
 	part = strings.Replace(part, "function start(ctx) {", `function start(ctx) {
-  if (['desktopNativeNavigation','desktopNativeSession','desktopNativePlugins'].some(key => new URLSearchParams(location.search).get(key) === '1')) return;`, 1)
+  if (['desktopNativeNavigation','desktopNativeSession','desktopNativePlugins'].some(key => new URLSearchParams(location.search).get(key) === '1') && new URLSearchParams(location.search).get('whalePadOriginal') !== '1') return;
+  if (new URLSearchParams(location.search).get('whalePadOriginal') === '1' && typeof composer === 'object' && composer && typeof composer.attach === 'function') {
+    composer.attach({ setDraft: text => window.__whalePadComposer?.(text, false), submit() {}, captureInsertion: () => ({}), insertText: text => Boolean(window.__whalePadComposer?.(text, true)) });
+    composer.attach = () => () => {};
+  }`, 1)
 	text = text[:begin] + part + text[end:]
 	return []byte(text), true
 }

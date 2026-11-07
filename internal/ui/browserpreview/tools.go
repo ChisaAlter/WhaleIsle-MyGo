@@ -180,10 +180,10 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 	}
 	s := &t.tools.settings
 	disabled := t.Host == nil || state.Loading || t.tools.operation != nil || b.operation != nil || b.recording != nil
-	ui.Row(c).FillWidth().MinWidth(0).Height(32).Gap(4).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Height(32).Gap(4).AlignItems(ui.Center).Label(browserPreviewText("deviceToolbarAria")).Children(func() {
 		label := s.Preset
 		if label == "" {
-			label = browserChromeLabel("自定义", "Custom")
+			label = browserPreviewText("viewportResponsive")
 		}
 		ui.MenuButton(c, label, func(menu *ui.Menu) {
 			for _, preset := range browserDevicePresets {
@@ -191,11 +191,11 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 					b.updateBrowserDevice(t, preset.Width, preset.Height, preset.Name)
 				}
 			}
-		}).Height(28).MaxWidth(125).Disabled(disabled)
-		submitted := ui.TextInput(c, &s.WidthDraft).Width(58).Height(28).Label(browserChromeLabel("视口宽度", "Viewport width")).Disabled(disabled).Submitted()
+		}).Label(browserPreviewText("viewportPreset")).Height(28).MaxWidth(125).Disabled(disabled)
+		submitted := ui.TextInput(c, &s.WidthDraft).Width(58).Height(28).Label(browserPreviewText("viewportWidth")).Disabled(disabled).Submitted()
 		ui.Text(c, "×").FontSize(11)
-		submitted = ui.TextInput(c, &s.HeightDraft).Width(58).Height(28).Label(browserChromeLabel("视口高度", "Viewport height")).Disabled(disabled).Submitted() || submitted
-		if ui.Button(c, "↵").Size(28, 28).Label(browserChromeLabel("应用尺寸", "Apply size")).Disabled(disabled).Clicked() || submitted {
+		submitted = ui.TextInput(c, &s.HeightDraft).Width(58).Height(28).Label(browserPreviewText("viewportHeight")).Disabled(disabled).Submitted() || submitted
+		if ui.Button(c, "↵").Size(28, 28).Label(browserPreviewText("viewportDimensions")).Disabled(disabled).Clicked() || submitted {
 			w, h, err := s.dimensions(s.WidthDraft, s.HeightDraft)
 			if err != nil {
 				t.Error = err.Error()
@@ -203,11 +203,11 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				b.updateBrowserDevice(t, w, h, "")
 			}
 		}
-		if ui.Button(c, "↻").Size(28, 28).Label(browserChromeLabel("旋转设备", "Rotate device")).Disabled(disabled).Clicked() {
+		if ui.Button(c, "↻").Size(28, 28).Label(browserPreviewText("viewportRotate")).Disabled(disabled).Clicked() {
 			b.updateBrowserDevice(t, s.Height, s.Width, s.Preset)
 		}
 		ui.Box(c).Grow(1)
-		if ui.Button(c, "×").Size(28, 28).Label(browserChromeLabel("关闭设备工具栏", "Close device toolbar")).Clicked() {
+		if ui.Button(c, "×").Size(28, 28).Label(browserPreviewText("deviceToolbarHide")).Clicked() {
 			s.Device = false
 			b.showHost(t.Host)
 			b.update()

@@ -16,6 +16,9 @@ import (
 // passes its shared query. dsh-project client.js:529,533-543 owns the lifecycle
 // and history menus; neither a separate title input nor Refresh is in that menu.
 func TestProjectSearchHistorySharedSidebarControls(t *testing.T) {
+	// The sidebar Project section is commented out in sidebar.View while the
+	// feature is reworked; un-skip when the two projects.View calls return.
+	t.Skip("sidebar projects.View disabled")
 	locale := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(locale)

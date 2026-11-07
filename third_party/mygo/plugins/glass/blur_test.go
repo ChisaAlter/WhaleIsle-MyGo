@@ -182,6 +182,51 @@ func TestBlurString(t *testing.T) {
 	if s := b.String(); s != "blur(8) mask(100%→0% 180°)" {
 		t.Errorf("String: %q", s)
 	}
+	if s := (Blur{Radius: 40, Saturation: 0.5}).String(); s != "blur(40) saturate(150%)" {
+		t.Errorf("String: %q", s)
+	}
+}
+
+// TestBlurSaturation checks that a blur's Saturation saturates what shows
+// through, as CSS's backdrop-filter: blur() saturate() does, once, while a
+// blur without it leaves the colors as they are.
+func TestBlurSaturation(t *testing.T) {
+	under := func(b Blur) [3]int {
+		view := func(c *ui.Context) {
+			ui.Box(c).Fill().Background(ui.RGB(200, 100, 100)).Children(func() {
+				ui.Box(c).Absolute().Left(0).Top(0).Size(80, 40).Material(b)
+			})
+		}
+		return pixelAt(ui.NewTester(view, 80, 40).Image(), 40, 20)
+	}
+	plain, saturated := under(Blur{Radius: 4}), under(Blur{Radius: 4, Saturation: 0.5})
+	if d := plain[0] - 200; d < -2 || d > 2 || plain[1] < 98 || plain[1] > 102 {
+		t.Errorf("a plain blur changed the color: %v", plain)
+	}
+	// saturate(150%) of rgb(200 100 100), whose luminance is 121: 121 +
+	// 1.5·(200-121) = 240 and 121 + 1.5·(100-121) = 89.
+	if saturated[0] < 234 || saturated[0] > 244 || saturated[1] < 84 || saturated[1] > 94 {
+		t.Errorf("saturate(150%%) gave %v, want about [240 89 89]", saturated)
+	}
+	// A progressive blur's levels add up, each reading those before it: the
+	// last saturates what they blurred, so where it shows wholly the colors
+	// are saturated once, by the element's edge too, and where the blur fades
+	// out they are as they were.
+	view := func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(200, 100, 100)).Children(func() {
+			ui.Box(c).Absolute().Left(0).Top(50).Size(160, 100).Material(Blur{
+				Radius: 12, Saturation: 0.5,
+				Mask: &ui.LinearGradient{From: ui.RGB(0, 0, 0), To: ui.Transparent, Angle: 180},
+			})
+		})
+	}
+	img := ui.NewTester(view, 160, 200).Image()
+	if top := pixelAt(img, 80, 52); top[0] < 234 || top[0] > 244 || top[1] < 84 || top[1] > 94 {
+		t.Errorf("under the top of a progressive saturated blur: %v, want about [240 89 89]", top)
+	}
+	if bottom := pixelAt(img, 80, 148); bottom[0] > 210 || bottom[1] < 95 {
+		t.Errorf("where a progressive saturated blur fades out: %v, want about [200 100 100]", bottom)
+	}
 }
 
 // blurOp appends the levels of a blur of most pixels over r to s, along

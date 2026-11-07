@@ -199,3 +199,4 @@ func TestQueueDockStaysMountedForEmptyPreview(t *testing.T) {
 		t.Fatal("dock painted without queue rows")
 	}
 }
+

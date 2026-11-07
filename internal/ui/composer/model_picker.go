@@ -77,7 +77,8 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 		return
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(c, panel.Width(240).Padding(8).Gap(8), colors)
+		panel = menuSurface(c, panel.MinWidth(240).MaxWidth(420).Padding(8).Gap(8).
+			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors)
 		panel.Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyComposerModelUnavailable)).FontSize(13).TextColor(muted)
 			if m.Snapshot.ModelsErr != "" {

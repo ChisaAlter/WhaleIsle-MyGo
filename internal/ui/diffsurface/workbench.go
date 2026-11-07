@@ -152,7 +152,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 					}
 				}
 			}
-			if widgets.Button(c, colors, word("提交…", "Commit…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!w.Repository || len(w.Changes) == 0 || w.Operation != nil).Clicked() {
+			if actionButtonWithReason(c, colors, word("提交…", "Commit…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}, w.commitDisabledReason()) {
 				w.CommitOpen = true
 			}
 			if widgets.Button(c, colors, word("仓库操作", "Repository actions"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {

@@ -15,7 +15,16 @@ import (
 var usageSeriesColors = []ui.Color{ui.Hex("#5B8FF9"), ui.Hex("#61DDAA"), ui.Hex("#F6BD16"), ui.Hex("#E8684A"), ui.Hex("#9270CA"), ui.Hex("#6F7B8B")}
 
 func totalsText(t usagestore.Totals) string {
-	return fmt.Sprintf("Input %.0f · Output %.0f · Cache read %.0f · Cache write %.0f", t.Input, t.Output, t.CacheRead, t.CacheWrite)
+	return fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f · 缓存读取 %.0f · 缓存写入 %.0f", "Input %.0f · Output %.0f · Cache read %.0f · Cache write %.0f"), t.Input, t.Output, t.CacheRead, t.CacheWrite)
+}
+
+func phaseTotalsText(c *usagestore.PhaseBuckets) string {
+	if c == nil || c.Peak == nil || c.OffPeak == nil {
+		return ""
+	}
+	peak := fmt.Sprintf(usageText("高峰 命中 %.0f · 未命中 %.0f · 输出 %.0f", "Peak hit %.0f · miss %.0f · output %.0f"), c.Peak.CacheRead, c.Peak.Input+c.Peak.CacheWrite, c.Peak.Output)
+	idle := fmt.Sprintf(usageText("空闲 命中 %.0f · 未命中 %.0f · 输出 %.0f", "Off-peak hit %.0f · miss %.0f · output %.0f"), c.OffPeak.CacheRead, c.OffPeak.Input+c.OffPeak.CacheWrite, c.OffPeak.Output)
+	return peak + "\n" + idle
 }
 
 func usageCostText(models []usagestore.ModelUsage, settings usagestore.BillingSettings) string {
@@ -54,7 +63,11 @@ func dayTip(day usagestore.DayUsage, providers map[string]string, settings usage
 	rows := dayModels(day, providers)
 	lines := []string{fmt.Sprintf("%s UTC · %.0f tokens", day.Date, day.Total), usageCostText(rows, settings)}
 	for _, row := range rows {
-		lines = append(lines, fmt.Sprintf("%s · %s · %.0f\n%s\n%s", row.Provider, row.Model, row.Total, totalsText(row.Totals), usageCostText([]usagestore.ModelUsage{row}, settings)))
+		detail := totalsText(row.Totals)
+		if phases := phaseTotalsText(row.Cost); phases != "" {
+			detail += "\n" + phases
+		}
+		lines = append(lines, fmt.Sprintf("%s · %s · %.0f\n%s\n%s", row.Provider, row.Model, row.Total, detail, usageCostText([]usagestore.ModelUsage{row}, settings)))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -387,7 +400,11 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 					percent = row.Total / total * 100
 				}
 				ui.Text(c, fmt.Sprintf("%s · %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-				ui.Text(c, totalsText(row.Totals)+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				detail := totalsText(row.Totals)
+				if phases := phaseTotalsText(row.Cost); phases != "" {
+					detail += "\n" + phases
+				}
+				ui.Text(c, detail+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			}
 		})
 	})
@@ -414,23 +431,26 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 		}
 	}
 	costValue := "—"
-	sum, priced := 0.0, 0
+	costDetail := usageText("暂无已定价模型", "No priced models yet")
+	peakSum, idleSum, priced := 0.0, 0.0, 0
 	for _, row := range models {
 		p, i, ok := usagestore.EstimateModelPhases(row, settings)
 		if ok {
-			sum += p + i
+			peakSum += p
+			idleSum += i
 			priced++
 		}
 	}
 	if priced > 0 {
-		costValue = fmt.Sprintf("≈ ¥%.2f", sum/100)
+		costValue = fmt.Sprintf("≈ ¥%.2f", (peakSum+idleSum)/100)
+		costDetail = fmt.Sprintf(usageText("峰段 ¥%.2f · 谷段 ¥%.2f", "Peak ¥%.2f · Off-peak ¥%.2f"), peakSum/100, idleSum/100)
 	}
 	metrics := []struct{ label, value, detail string }{
-		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f", "Input %.0f · Output %.0f"), input, t.Output)},
-		{usageText("估算费用", "Estimated cost"), costValue, usageText("按模型价格估算", "Estimated from model prices")},
+		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f · 缓存读取 %.0f", "Input %.0f · Output %.0f · Cache read %.0f"), input, t.Output, t.CacheRead)},
+		{usageText("估算费用", "Estimated cost"), costValue, costDetail},
 		{usageText("会话", "Sessions"), fmt.Sprint(o.AllTime.SessionCount), fmt.Sprintf(usageText("主会话 %d · 子代理 %d", "Main %d · Subagent %d"), o.Coverage.UsageSessionsMain, o.Coverage.UsageSessionsSubagent)},
 		{usageText("最常用模型", "Top model"), topName, topDetail},
-		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf(usageText("缓存读取 %.0f", "Cache read %.0f"), t.CacheRead)},
+		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf(usageText("缓存读取 %.0f · 缓存写入 %.0f", "Cache read %.0f · Cache write %.0f"), t.CacheRead, t.CacheWrite)},
 	}
 	surface, border, secondary := usageCardPalette(c)
 	grid := ui.Grid(c.Key("usage-kpis")).FillWidth().MinWidth(0).Gap(12)

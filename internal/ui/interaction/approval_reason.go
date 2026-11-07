@@ -38,8 +38,29 @@ func approvalReasonText(p interaction.Pending) string {
 	return p.Detail // Older/projected callers may only have the existing detail.
 }
 
+func approvalDetailAriaLabel() string {
+	if i18n.Locale() == i18n.LocaleZH {
+		return "审批详情"
+	}
+	return "Approval details"
+}
+
+func approvalEscalationText(p interaction.Pending) string {
+	toolName := strings.TrimSpace(p.Title)
+	if toolName == "" || toolName == interaction.EventApproval {
+		toolName = "tool"
+	}
+	if i18n.Locale() == i18n.LocaleZH {
+		return "工具 " + toolName + " 请求越权执行"
+	}
+	return "Tool " + toolName + " requests privileged execution"
+}
+
 func approvalReason(c *ui.Context, p interaction.Pending, muted ui.Color) {
 	text := approvalReasonText(p)
+	if text == "" && strings.TrimSpace(p.ApprovalDisplayReason) == "" && strings.TrimSpace(p.ApprovalOriginalReason) == "" {
+		text = approvalEscalationText(p)
+	}
 	if text != "" {
 		questionText(c, text, 12, muted)
 	}

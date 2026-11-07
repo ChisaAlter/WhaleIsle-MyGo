@@ -49,7 +49,6 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -57,7 +56,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot()
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
 			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {

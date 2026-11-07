@@ -59,6 +59,47 @@ type Theme struct {
 	// FontSize is the size of text, Font its family ("" is the system's).
 	FontSize float32
 	Font     string
+	// Menu is the look of menus, select popups and popovers. Its zero value
+	// takes the colors above.
+	Menu MenuStyle
+}
+
+// MenuStyle is the look of the panels of menus, select popups and
+// popovers, and of their rows. A zero color takes the theme's own: Fill is
+// Background, Stroke and Separator are Border, Hover is SurfaceHover, Icon
+// is Text and Caption is TextMuted.
+type MenuStyle struct {
+	// Fill fills the panel, over Material when it is set.
+	Fill Color
+	// Material, if set, paints under Fill, as a backdrop blur that a
+	// translucent Fill lets show through.
+	Material Material
+	// Stroke is the hairline around the panel, half a DIP outside it.
+	Stroke Color
+	// Hover fills the row the pointer or the arrow keys are on.
+	Hover Color
+	// Icon colors the items' icons, Caption their shortcuts.
+	Icon    Color
+	Caption Color
+	// Separator colors the lines between groups of items.
+	Separator Color
+}
+
+// menuStyle returns the theme's menu look with its zero colors filled in.
+func (t *Theme) menuStyle() MenuStyle {
+	m := t.Menu
+	pick := func(c *Color, def Color) {
+		if *c == Transparent {
+			*c = def
+		}
+	}
+	pick(&m.Fill, t.Background)
+	pick(&m.Stroke, t.Border)
+	pick(&m.Hover, t.SurfaceHover)
+	pick(&m.Icon, t.Text)
+	pick(&m.Caption, t.TextMuted)
+	pick(&m.Separator, t.Border)
+	return m
 }
 
 // Space returns n units of the theme's Spacing, to size elements of your

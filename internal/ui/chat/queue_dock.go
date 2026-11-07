@@ -37,7 +37,7 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 	root.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
-			if n := len(m.Board.Queue); n > 0 {
+			if n := len(m.Board.Queue) + len(m.Board.Pending); n > 0 {
 				ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
 			}
 			if len(m.Board.Queue)+len(m.Board.Pending) > 1 {
@@ -53,9 +53,23 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 		if len(m.Board.Queue)+len(m.Board.Pending) > 1 && *collapsed && m.QueueEditor.ItemID == "" {
 			return
 		}
-		paintQueueEditor(c, m, fg, muted)
+		if m.QueueEditor.ItemID != "" && !queueHasItemID(m.Board.Queue, m.QueueEditor.ItemID) {
+			paintQueueEditor(c, m, fg, muted)
+		}
 		paintQueueRows(c, m, fg, muted, accent, border, true)
 	})
+}
+
+func queueHasItemID(items []session.PlanQueueItem, id string) bool {
+	if id == "" {
+		return false
+	}
+	for _, it := range items {
+		if it.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // queueDockHasRows reports whether the dock has anything worth mounting.
@@ -67,10 +81,127 @@ func queueCountLabel(n int) string {
 	if i18n.Locale() == i18n.LocaleZH {
 		return queueCountNumber(n) + " 条排队消息"
 	}
-	if n == 1 {
-		return "1 queued"
+	return queueCountNumber(n) + " queued messages"
+}
+
+func queueSendingCopy() string {
+	return referenceCopy("Sending…", "发送中…")
+}
+
+func queueEditCopy() string {
+	return referenceCopy("Edit queued message", "编辑排队消息")
+}
+
+func queueEditUnsupportedCopy() string {
+	return referenceCopy("Contains non-text content; editing is not supported yet", "包含非文本内容，暂不支持编辑")
+}
+
+func queueSaveEditCopy() string {
+	return referenceCopy("Save queued message", "保存排队消息")
+}
+
+func queueCancelEditCopy() string {
+	return referenceCopy("Cancel editing", "取消编辑")
+}
+
+func queueRemoveCopy() string {
+	return referenceCopy("Remove queued message", "删除排队消息")
+}
+
+func queueSteerCopy() string {
+	return referenceCopy("Steer queued message", "插话发送")
+}
+
+func queueSteerUnavailableCopy() string {
+	return referenceCopy("Steering is available only while the agent is running", "仅运行中可插话发送")
+}
+
+func sessionInUseNotice() string {
+	return referenceCopy(
+		"This session is already in use, possibly by another running DSH instance (such as dsh web or the desktop app). Quit other running DSH instances and try again.",
+		"当前会话已被占用，可能是其他正在运行的 DSH 导致的（如其他 dsh web、桌面端），请退出其他正在运行的 DSH 后重试。",
+	)
+}
+
+func parentOfflineNotice() string {
+	return referenceCopy(
+		"Parent session offline; sending is unavailable but you can still stop the run",
+		"父会话已离线，无法继续发送；仍可停止当前运行",
+	)
+}
+
+func readOnlyChildNotice() string {
+	return referenceCopy(
+		"Read-only child session; messages cannot be sent",
+		"只读子会话，无法发送消息",
+	)
+}
+
+func normalizeConversationNotice(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
 	}
-	return queueCountNumber(n) + " items"
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, "session_in_use") || strings.Contains(lower, "already in use") || strings.Contains(trimmed, "当前会话已被占用") {
+		return sessionInUseNotice()
+	}
+	if lower == "parent_offline" || lower == "parentoffline" || strings.Contains(lower, "parent session offline") || strings.Contains(trimmed, "父会话已离线") {
+		return parentOfflineNotice()
+	}
+	if lower == "read_only" || lower == "readonly" || strings.Contains(lower, "read-only child session") || strings.Contains(trimmed, "只读子会话") {
+		return readOnlyChildNotice()
+	}
+	return trimmed
+}
+
+func conversationSessionNotice(snap session.ViewState) string {
+	if notice := normalizeConversationNotice(snap.HistoryError); notice != "" && notice != strings.TrimSpace(snap.HistoryError) {
+		return notice
+	}
+	if notice := normalizeConversationNotice(snap.LastAction); notice != "" && notice != strings.TrimSpace(snap.LastAction) {
+		return notice
+	}
+	if snap.SelectedID == "" {
+		return ""
+	}
+	var selected *session.Item
+	for i := range snap.Items {
+		if snap.Items[i].SessionID == snap.SelectedID {
+			selected = &snap.Items[i]
+			break
+		}
+	}
+	if selected == nil {
+		return ""
+	}
+	if selected.SubagentIdentity != nil && selected.SubagentIdentity.Mode == "one-shot" {
+		return readOnlyChildNotice()
+	}
+	if selected.ParentID != "" {
+		parentOnline := false
+		parentFound := false
+		for i := range snap.Items {
+			if snap.Items[i].SessionID == selected.ParentID {
+				parentFound = true
+				parentOnline = snap.Items[i].AgentAvailable || snap.Items[i].Running
+				break
+			}
+		}
+		if (parentFound && !parentOnline) || (!parentFound && !selected.AgentAvailable && selected.ContactError != "") {
+			return parentOfflineNotice()
+		}
+	}
+	return ""
+}
+
+func queueItemEditUnsupported(item session.PlanQueueItem) bool {
+	return len(item.Attachments) > 0 || (item.ContentKnown && !item.TextOnly) || strings.HasPrefix(strings.TrimSpace(item.Preview), "[image]")
+}
+
+type queueInlineEditState struct {
+	editing bool
+	draft   string
 }
 
 func queueCountNumber(n int) string {
@@ -89,57 +220,135 @@ func queueCountNumber(n int) string {
 // prompts. Compact rows keep the preview on one line and put the actions in
 // icon seats; the expanded board keeps the same order with more room.
 func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border ui.Color, compact bool) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	for _, pending := range m.Board.Pending {
 		paintPendingSubmission(c, pending, fg, muted)
 	}
 	for _, q := range m.Board.Queue {
 		item := q
-		row := ui.Row(c).Key("queue-row:"+item.ID).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).
-			Padding(4, 6, 4, 6).Radius(8)
-		row.Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				paintQueueAttachments(c, m, item, fg, muted)
-				line := item.Preview
-				if item.Source != "" && !compact {
-					line = item.Source + ": " + line
+		itemBox := ui.Column(c).Key("queue-item:"+item.ID).FillWidth().MinWidth(0).Gap(4)
+		localEdit := ui.Local(itemBox, "inline-edit", func() queueInlineEditState {
+			return queueInlineEditState{draft: item.Preview}
+		})
+		storeEditing := m.QueueEditor.ItemID != "" && m.QueueEditor.ItemID == item.ID
+		unsupported := queueItemEditUnsupported(item)
+		can := m.Board.QueueActions
+		editEnabled := can.Can(session.QueueActionEdit, item) && !unsupported
+		steerEnabled := can.Can(session.QueueActionSteer, item)
+		removeEnabled := can.Can(session.QueueActionRemove, item)
+
+		itemBox.Children(func() {
+			row := ui.Row(c).Key("queue-row:"+item.ID).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).
+				Padding(4, 6, 4, 6).Radius(8)
+			row.Children(func() {
+				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+					paintQueueAttachments(c, m, item, fg, muted)
+					line := item.Preview
+					if item.Source != "" && !compact {
+						line = item.Source + ": " + line
+					}
+					if strings.TrimSpace(line) == "" {
+						line = i18n.T(i18n.KeyChatQueueEmptyPreview)
+					}
+					ui.Text(c, maskedUserText(line)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(fg).SingleLine().MinWidth(0)
+					if unsupported {
+						ui.Text(c, queueEditUnsupportedCopy()).FontSize(11).TextColor(muted)
+					}
+				})
+				action := func(icon *ui.SVG, label, tip string, enabled bool, tone ui.Color, run func()) {
+					if run == nil {
+						return
+					}
+					if tip == "" {
+						tip = label
+					}
+					button := ui.Button(c, "").Label(label).Tooltip(tip).Description(tip).Width(24).Height(24).Radius(6).
+						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
+					button.Children(func() { ui.Icon(c, icon).Width(13).Height(13).TextColor(tone) })
+					if !enabled {
+						button.Disabled(true).Opacity(.35)
+						return
+					}
+					if button.Hovered() {
+						button.Background(tone.Alpha(.12))
+					}
+					if button.Clicked() {
+						run()
+					}
 				}
-				if strings.TrimSpace(line) == "" {
-					line = i18n.T(i18n.KeyChatQueueEmptyPreview)
+				if (m.OnQueueEdit != nil || m.OnSaveQueueEdit != nil) && item.ID != "" {
+					editLabel := i18n.T(i18n.KeyPlanBoardQueueEdit)
+					editTip := editLabel
+					if unsupported {
+						editTip = queueEditUnsupportedCopy()
+					}
+					action(messageIconEditOutline, editLabel, editTip, editEnabled, muted, func() {
+						localEdit.editing = true
+						localEdit.draft = item.Preview
+						if m.OnQueueEdit != nil {
+							m.OnQueueEdit(item.ID, item.Preview)
+						}
+					})
 				}
-				ui.Text(c, maskedUserText(line)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(fg).SingleLine().MinWidth(0)
+				if m.OnQueueSteer != nil && item.ID != "" {
+					steerLabel := i18n.T(i18n.KeyPlanBoardQueueSteer)
+					steerTip := steerLabel
+					if !steerEnabled && !can.Running {
+						steerTip = queueSteerUnavailableCopy()
+					}
+					action(queueIconSteer, steerLabel, steerTip, steerEnabled, accent, func() {
+						m.OnQueueSteer(item.ID)
+					})
+				}
+				if m.OnQueueRemove != nil && item.ID != "" {
+					removeLabel := i18n.T(i18n.KeyPlanBoardQueueRemove)
+					action(messageIconCloseOutline, removeLabel, removeLabel, removeEnabled, muted, func() {
+						m.OnQueueRemove(item.ID)
+					})
+				}
 			})
-			action := func(icon *ui.SVG, label string, enabled bool, tone ui.Color, run func()) {
-				if run == nil {
-					return
+			if storeEditing || (localEdit.editing && !unsupported) {
+				draft := localEdit.draft
+				saving := false
+				ready := true
+				errText := ""
+				if storeEditing {
+					draft = m.QueueEditor.Text
+					saving = m.QueueEditor.Saving
+					ready = m.QueueEditor.Ready
+					errText = m.QueueEditor.Error
 				}
-				button := ui.Button(c, "").Label(label).Tooltip(label).Width(24).Height(24).Radius(6).
-					Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
-				button.Children(func() { ui.Icon(c, icon).Width(13).Height(13).TextColor(tone) })
-				if !enabled {
-					button.Disabled(true).Opacity(.35)
-					return
-				}
-				if button.Hovered() {
-					button.Background(tone.Alpha(.12))
-				}
-				if button.Clicked() {
-					run()
-				}
-			}
-			can := m.Board.QueueActions
-			if m.OnQueueEdit != nil && item.ID != "" {
-				action(messageIconEditOutline, i18n.T(i18n.KeyPlanBoardQueueEdit), can.Can(session.QueueActionEdit, item), muted, func() {
-					m.OnQueueEdit(item.ID, item.Preview)
-				})
-			}
-			if m.OnQueueSteer != nil && item.ID != "" {
-				action(queueIconSteer, i18n.T(i18n.KeyPlanBoardQueueSteer), can.Can(session.QueueActionSteer, item), accent, func() {
-					m.OnQueueSteer(item.ID)
-				})
-			}
-			if m.OnQueueRemove != nil && item.ID != "" {
-				action(messageIconCloseOutline, i18n.T(i18n.KeyPlanBoardQueueRemove), can.Can(session.QueueActionRemove, item), muted, func() {
-					m.OnQueueRemove(item.ID)
+				ui.Column(c).Key("queue-inline-editor:"+item.ID).FillWidth().MinWidth(0).Gap(6).Padding(4, 6, 4, 6).Children(func() {
+					if ready {
+						ui.TextArea(c.Key("queue-edit-"+item.ID), &draft).Label(queueEditCopy()).FillWidth().Lines(2, 6).ReadOnly(saving).OnChange(func() {
+							localEdit.draft = draft
+							if storeEditing && m.OnChangeQueueEdit != nil {
+								m.OnChangeQueueEdit(m.QueueEditor.Token, draft)
+							}
+						})
+					}
+					if errText != "" {
+						ui.Text(c, errText).FontSize(theme.InterfaceSize(11)).TextColor(fg)
+					}
+					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+						saveLabel := queueSaveEditCopy()
+						if ui.Button(c, saveLabel).Label(saveLabel).Tooltip(saveLabel).Disabled(!ready || saving || strings.TrimSpace(draft) == "").Clicked() {
+							if storeEditing && m.OnSaveQueueEdit != nil {
+								m.OnSaveQueueEdit(m.QueueEditor.Token)
+							} else if m.OnQueueEdit != nil {
+								m.OnQueueEdit(item.ID, strings.TrimSpace(draft))
+							}
+							localEdit.editing = false
+						}
+						cancelLabel := queueCancelEditCopy()
+						if stdButton(c, palette, cancelLabel, buttonGhost, saving).Label(cancelLabel).Tooltip(cancelLabel).Clicked() {
+							if storeEditing && m.OnCancelQueueEdit != nil {
+								m.OnCancelQueueEdit(m.QueueEditor.Token)
+							}
+							localEdit.editing = false
+							localEdit.draft = item.Preview
+						}
+					})
 				})
 			}
 		})

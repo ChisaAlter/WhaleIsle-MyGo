@@ -58,8 +58,7 @@ func coreToolbar(c *context, fn func()) *node {
 				rt := c.rt
 				if s := rt.states[it.id]; s != nil {
 					if it.menu {
-						ms := more.st
-						rt.askMenu(s, ms.vx, ms.vy+ms.vh, true)
+						rt.askMenuBelow(s, more.st)
 					} else {
 						rt.clickLater = append(rt.clickLater, it.id)
 						rt.consumed = true

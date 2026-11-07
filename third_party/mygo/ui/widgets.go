@@ -623,11 +623,11 @@ func corePopover(c *context, anchor *node, open *bool, fn func()) *node {
 	})
 }
 
-// stylePanel gives the panel of a popup the theme's look.
+// stylePanel gives the panel of a popup the theme's look, as a menu's
+// (Theme.Menu), menuGap from what it opens from.
 func stylePanel(c *context, panel *node) {
-	t := c.theme
-	panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(12).Background(t.Background).Border(.5, t.Border.Alpha(.6))
-	panel.Shadow(0, 6, 20, 0, RGBA(0, 0, 0, 0.18))
+	panel.Margin(menuGap, 0, 0, 0)
+	styleMenuPanel(c, panel)
 }
 
 // Select creates a drop-down choosing one of options into *selected.
@@ -643,15 +643,20 @@ func coreSelect(c *context, selected *string, options []string) *node {
 	})
 	sel.Popup(func(panel *node) {
 		stylePanel(c, panel)
+		panel.MinWidth(max(menuMinWidth, b.Bounds().W))
+		hover := t.menuStyle().Hover
 		for _, opt := range options {
-			item := sel.Item(opt).FillWidth().Height(36).Padding(6, 10).Radius(8)
-			switch {
-			case item.Highlighted():
-				item.Background(t.SurfaceHover)
-			case opt == *selected:
-				item.Background(t.Surface)
+			// The options are a menu's rows; the chosen one has its check mark.
+			item := sel.Item(opt).FillWidth().MinHeight(menuRowHeight).Padding(6, 8).Gap(6).Radius(menuRowRadius).AlignItems(Center)
+			if item.Highlighted() {
+				item.Background(hover)
 			}
-			item.Children(func() { coreText(c, opt).SingleLine() })
+			item.Children(func() {
+				coreText(c, opt).Grow(1).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20)
+				if opt == *selected {
+					coreIcon(c, menuCheck).Size(14, 14).Shrink(0).TextColor(t.Text)
+				}
+			})
 		}
 	})
 	return b

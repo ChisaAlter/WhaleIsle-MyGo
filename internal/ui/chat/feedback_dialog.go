@@ -35,6 +35,19 @@ func feedbackText(key string) string {
 		"conflict":                    {"这条反馈已在别处改动，已显示最新状态", "This feedback changed elsewhere; the latest state is shown"},
 		"noteTooLarge":                {"描述太长，请缩短后再提交", "The description is too long; shorten it and submit again"},
 		"error":                       {"反馈保存失败", "Could not save feedback"},
+		"error.generic":               {"反馈保存失败", "Could not save feedback"},
+		"error.conflict":              {"这条反馈已在别处改动，已显示最新状态", "This feedback changed elsewhere; the latest state is shown"},
+		"error.noteTooLarge":          {"描述太长，请缩短后再提交", "The description is too long; shorten it and submit again"},
+		"load":                        {"反馈状态加载失败", "Could not load feedback"},
+		"error.load":                  {"反馈状态加载失败", "Could not load feedback"},
+		"like":                        {"好的回答", "Good response"},
+		"action.like":                 {"好的回答", "Good response"},
+		"likeActive":                  {"取消标记", "Remove rating"},
+		"action.likeActive":           {"取消标记", "Remove rating"},
+		"dislike":                     {"有问题的回答", "Bad response"},
+		"action.dislike":              {"有问题的回答", "Bad response"},
+		"dislikeActive":               {"取消标记", "Remove rating"},
+		"action.dislikeActive":        {"取消标记", "Remove rating"},
 	}
 	if i18n.Locale() == i18n.LocaleEN {
 		return copy[key][1]
@@ -179,6 +192,28 @@ func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, ca
 		})
 	})
 	if !open {
+		dismiss()
+	}
+}
+
+func feedbackStatusErrorText(v session.FeedbackView) string {
+	if v.Error == "" {
+		return ""
+	}
+	if !v.Ready {
+		return feedbackText("load")
+	}
+	if strings.Contains(v.Error, "version-conflict") {
+		return feedbackText("conflict")
+	}
+	if strings.Contains(v.Error, "note-too-large") {
+		return feedbackText("noteTooLarge")
+	}
+	return feedbackText("error")
+}
+
+func unusedFeedbackDialogTail(dismiss func()) {
+	if false {
 		dismiss()
 	}
 }

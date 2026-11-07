@@ -27,7 +27,7 @@ func viewExplorer(c *ui.Context, m Model) {
 		m.Tabs.Tree.EnsureHostOnly(m.BindingID, root, m.HostOnly)
 		m.Tabs.Tree.Observe(m.WatchRemoteContext, !tabsFor(m).AutoRefreshDisabled)
 	}
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.Field)).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent).Children(func() {
 		if root == "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 			return

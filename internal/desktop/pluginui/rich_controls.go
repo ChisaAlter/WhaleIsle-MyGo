@@ -25,6 +25,7 @@ type richSeat struct {
 type richPlacement struct {
 	handle       string
 	bounds, clip mygo.Rectangle
+	ambient      bool
 }
 type richLayout struct {
 	page     *bridgePage
@@ -104,7 +105,7 @@ func (o *Owner) renderRichControl(c *ui.Context, s Snapshot, outlet string, node
 			}
 		}
 		if len(o.rich.seats) < 128 {
-			o.rich.seats = append(o.rich.seats, richPlacement{node.Handle, bounds, clip})
+			o.rich.seats = append(o.rich.seats, richPlacement{node.Handle, bounds, clip, node.Ambient})
 		}
 	})
 	if message := o.RichError(); message != "" {
@@ -123,6 +124,9 @@ func (o *Owner) renderRichPopup(c *ui.Context, s Snapshot, outlet string, node N
 		width, height := min(float32(node.Width), w), min(float32(node.Height), h)
 		if node.FullScreen {
 			x, y, width, height = 0, 0, w, h
+		} else if node.Ambient {
+			x = max(0, min(w-width, float32(ambientAxis(node.X, node.Width, node.VW, float64(w)))))
+			y = max(0, min(h-height, float32(ambientAxis(node.Y, node.Height, node.VH, float64(h)))))
 		} else {
 			r := anchor.Bounds()
 			x = max(0, min(w-width, r.X+x))
@@ -137,13 +141,63 @@ func (o *Owner) renderRichPopup(c *ui.Context, s Snapshot, outlet string, node N
 		node.Inline = false
 		node.Height = float64(height)
 		popup.Children(func() { o.renderRichControl(c, s, outlet, node) })
-		if !node.FullScreen && popup.PressedOutside() {
-			_ = o.nativeInteraction(s, outlet, node.Handle, "outside", "")
-		}
-		if popup.OverlayShortcut(0, ui.KeyEscape) {
-			_ = o.nativeInteraction(s, outlet, node.Handle, "escape", "")
+		if !node.Ambient || node.Modal {
+			if !node.FullScreen && popup.PressedOutside() {
+				_ = o.nativeInteraction(s, outlet, node.Handle, "outside", "")
+			}
+			if popup.OverlayShortcut(0, ui.KeyEscape) {
+				_ = o.nativeInteraction(s, outlet, node.Handle, "escape", "")
+			}
 		}
 	})
+}
+
+// AmbientReservedWidth matches the original right-edge dock's content column
+// reservation when an expanded ambient dock sits at the right edge of a wide
+// viewport.
+func (o *Owner) AmbientReservedWidth(viewport float32) float32 {
+	if o == nil || viewport < 1280 {
+		return 0
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closed || o.masked || o.incompatible || !o.state.Connected {
+		return 0
+	}
+	var reserved float32
+	var visit func(nodes []NativeNode)
+	visit = func(nodes []NativeNode) {
+		for _, node := range nodes {
+			if node.Kind == "popup" && node.Ambient && !node.FullScreen && !node.Modal && node.Width >= 120 && node.Height >= 80 {
+				w := min(node.Width, float64(viewport))
+				x := max(0, min(float64(viewport)-w, ambientAxis(node.X, node.Width, node.VW, float64(viewport))))
+				if x+w >= float64(viewport)-14 {
+					reserved = max(reserved, float32(math.Round(w))+12)
+				}
+			}
+			if len(node.Children) > 0 {
+				visit(node.Children)
+			}
+		}
+	}
+	for _, doc := range o.state.GlobalDocuments {
+		if doc.Slot == "shell.overlay" {
+			visit(doc.Nodes)
+		}
+	}
+	return reserved
+}
+
+// ambientAxis maps a DOM coordinate into the native viewport by preserving the
+// nearer edge's offset. It is the identity once the page matches native size.
+func ambientAxis(pos, size, domSpan, nativeSpan float64) float64 {
+	if domSpan < 1 || domSpan == nativeSpan {
+		return pos
+	}
+	if off := domSpan - (pos + size); off < pos {
+		return nativeSpan - off - size
+	}
+	return pos
 }
 func richNativeRect(r ui.Rect) mygo.Rectangle {
 	x, y := int(math.Ceil(float64(r.X))), int(math.Ceil(float64(r.Y)))
@@ -166,16 +220,22 @@ func richSubtract(a, b mygo.Rectangle) []mygo.Rectangle {
 	}
 	return out
 }
-func richBuildLayout(rows []richPlacement) (mygo.Rectangle, []mygo.Rectangle, []richSeat, bool) {
+
+// A non-empty forced bounds pins the source viewport to it; ambient seats need
+// the full content rect so their authored absolute and fixed positions hold.
+func richBuildLayout(rows []richPlacement, forced mygo.Rectangle) (mygo.Rectangle, []mygo.Rectangle, []richSeat, bool) {
 	if len(rows) == 0 || len(rows) > 128 {
 		return mygo.Rectangle{}, nil, nil, false
 	}
-	b := rows[0].bounds
-	for _, row := range rows {
-		r := row.bounds
-		right, bottom := max(b.X+b.Width, r.X+r.Width), max(b.Y+b.Height, r.Y+r.Height)
-		b.X, b.Y = min(b.X, r.X), min(b.Y, r.Y)
-		b.Width, b.Height = right-b.X, bottom-b.Y
+	b := forced
+	if b.Width < 1 || b.Height < 1 {
+		b = rows[0].bounds
+		for _, row := range rows {
+			r := row.bounds
+			right, bottom := max(b.X+b.Width, r.X+r.Width), max(b.Y+b.Height, r.Y+r.Height)
+			b.X, b.Y = min(b.X, r.X), min(b.Y, r.Y)
+			b.Width, b.Height = right-b.X, bottom-b.Y
+		}
 	}
 	if b.Width < 1 || b.Height < 1 || b.Width > 8192 || b.Height > 8192 {
 		return b, nil, nil, false
@@ -230,7 +290,16 @@ func (o *Owner) EndNativeFrame() {
 		}
 		return
 	}
-	bounds, holes, seats, ok := richBuildLayout(o.rich.seats)
+	var forced mygo.Rectangle
+	for _, row := range o.rich.seats {
+		if row.ambient && o.parent != nil {
+			if cb := o.parent.ContentBounds(); cb.Width >= 1 && cb.Height >= 1 {
+				forced = mygo.Rectangle{Width: min(cb.Width, 8192), Height: min(cb.Height, 8192)}
+			}
+			break
+		}
+	}
+	bounds, holes, seats, ok := richBuildLayout(o.rich.seats, forced)
 	if !ok {
 		o.rich.err = "Plugin rich content exceeds the live native surface bounds"
 		o.mu.Unlock()
@@ -248,6 +317,11 @@ func (o *Owner) EndNativeFrame() {
 		o.mu.Unlock()
 		return
 	}
+	prev := o.rich.applied
+	if prev == nil {
+		prev = o.rich.pending
+	}
+	sameSurface := prev != nil && prev.page == o.page && prev.subject.equal(o.selected) && prev.bounds.Width == bounds.Width && prev.bounds.Height == bounds.Height
 	o.rich.nextToken++
 	token := o.rich.nextToken
 	o.rich.token = token
@@ -263,7 +337,9 @@ func (o *Owner) EndNativeFrame() {
 	if h == nil || g == nil {
 		return
 	}
-	h.SetVisible(false)
+	if !sameSurface {
+		h.SetVisible(false)
+	}
 	go func() {
 		if captureDone != nil {
 			select {
@@ -283,6 +359,7 @@ func (o *Owner) EndNativeFrame() {
 			o.richFailure(layout, token, err)
 			return
 		}
+		debugDumpRich(o.selected.Kind, o, bounds, seats, holes)
 		err := o.sendToPage(layout.page, map[string]any{"type": "richLayout", "revision": layout.revision, "subject": layout.subject, "token": token, "seats": seats})
 		if err != nil {
 			o.richFailure(layout, token, err)

@@ -36,6 +36,32 @@ func workflowStatus(s string) string {
 	return s
 }
 func workflowAbnormal(s string) bool { return s == "failed" || s == "cancelled" || s == "interrupted" }
+
+func workflowMemberCount(count int) string {
+	if i18n.Locale() == i18n.LocaleEN {
+		if count == 1 {
+			return "1 member"
+		}
+		return fmt.Sprintf("%d members", count)
+	}
+	return fmt.Sprintf("%d 个成员", count)
+}
+
+func workflowEmptyLabel() string {
+	return workflowText("没有启动成员", "No members started")
+}
+
+func workflowUnphasedLabel() string {
+	return workflowText("未分阶段", "Unphased")
+}
+
+func workflowEmptyPhaseLabel() string {
+	return workflowText("空阶段名", "Empty phase name")
+}
+
+func workflowUnnamedMemberLabel() string {
+	return workflowText("空成员名", "Empty member name")
+}
 func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardStyle) {
 	// State belongs to the exact Host/session binding, run and phase, not labels.
 	key := fmt.Sprintf("workflow:%q:%q", m.Snapshot.PlanHistoryBinding, run.ID)
@@ -70,7 +96,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				ink = st.Err
 			}
 			ui.Text(c, workflowStatus(run.Status)).FontSize(11).TextColor(ink)
-			ui.Text(c, fmt.Sprintf("%d" + " " + i18n.T(i18n.KeyChatWorkflowMembers), count)).FontSize(11).TextColor(st.Muted)
+			ui.Text(c, workflowMemberCount(count)).FontSize(11).TextColor(st.Muted)
 		})
 		if !disclosures.run.open {
 			for _, phase := range run.Phases {
@@ -80,15 +106,15 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 		}
 		ui.Column(c.Key("run-content")).Bind(&disclosures.run.content).FillWidth().Gap(6).Children(func() {
 			if count == 0 {
-				ui.Text(c, i18n.T(i18n.KeyChatWorkflowNoMember)).FontSize(11).TextColor(st.Muted)
+				ui.Text(c, workflowEmptyLabel()).FontSize(11).TextColor(st.Muted)
 			}
 			for _, phase := range run.Phases {
 				p := phase
-				phaseName := i18n.T(i18n.KeyChatWorkflowUngrouped)
+				phaseName := workflowUnphasedLabel()
 				if p.Name != nil {
 					phaseName = *p.Name
 					if phaseName == "" {
-						phaseName = i18n.T(i18n.KeyChatWorkflowEmptyPhase)
+						phaseName = workflowEmptyPhaseLabel()
 					}
 				}
 				pk := key + ":" + p.Key
@@ -101,7 +127,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 						phaseState.toggle()
 					}
 					header.Children(func() {
-						ui.Text(c, workflowDisclosureArrow(phaseState.open)+phaseName+" · "+workflowPhaseSummary(p.Members))
+						ui.Text(c, workflowDisclosureArrow(phaseState.open)+phaseName+" · "+workflowMemberCount(len(p.Members))+" · "+workflowPhaseSummary(p.Members))
 					})
 					if !phaseState.open {
 						return
@@ -111,7 +137,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 							ch := member
 							label := ch.Label
 							if label == "" {
-								label = i18n.T(i18n.KeyChatWorkflowUnnamed)
+								label = workflowUnnamedMemberLabel()
 							}
 							available := m.FeedbackStore != nil && session.WorkflowMemberAvailable(m.Snapshot.Items, m.Snapshot.SelectedID, ch)
 							paintWorkflowMember(c, ch, label, available, st, func() {

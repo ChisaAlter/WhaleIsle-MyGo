@@ -499,6 +499,10 @@ func StatusView(c *ui.Context, m Model) {
 	// state, not transcript copy; the shell shows user-facing status only.
 	if action := displayableAction(m.Snapshot.LastAction); action != "" {
 		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
+	} else if notice := conversationSessionNotice(m.Snapshot); notice != "" {
+		ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
+	} else if false {
+		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
 	}
 }
 
@@ -560,7 +564,7 @@ func displayableAction(text string) string {
 			return ""
 		}
 	}
-	return trimmed
+	return normalizeConversationNotice(trimmed)
 }
 
 // messageSpacing grades the vertical rhythm of one transcript row. The side

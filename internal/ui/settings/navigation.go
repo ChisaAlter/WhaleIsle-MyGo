@@ -214,6 +214,9 @@ func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted 
 			m.OnSelectCredentials()
 		}
 	})
+	if m.About == nil && hasDesktopDiagnostics(m.Desktop) {
+		desktopDiagnostics(c, m.Desktop, fg, muted)
+	}
 	if m.Store == nil {
 		return
 	}

@@ -84,4 +84,20 @@ func TestFeedbackStatusLine(t *testing.T) {
 	if FeedbackStatusLine("  ") != "" {
 		t.Fatal("blank")
 	}
+	prev := i18n.Locale()
+	defer i18n.SetLocale(prev)
+	i18n.SetLocale(i18n.LocaleEN)
+	if got := feedbackText("error.load"); got != "Could not load feedback" {
+		t.Fatalf("feedbackText(error.load) en = %q", got)
+	}
+	if got := feedbackStatusErrorText(session.FeedbackView{Error: "http 503"}); got != "Could not load feedback" {
+		t.Fatalf("feedbackStatusErrorText en = %q", got)
+	}
+	i18n.SetLocale(i18n.LocaleZH)
+	if got := feedbackText("error.load"); got != "反馈状态加载失败" {
+		t.Fatalf("feedbackText(error.load) zh = %q", got)
+	}
+	if got := feedbackStatusErrorText(session.FeedbackView{Error: "http 503"}); got != "反馈状态加载失败" {
+		t.Fatalf("feedbackStatusErrorText zh = %q", got)
+	}
 }

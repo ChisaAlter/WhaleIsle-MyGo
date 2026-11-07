@@ -6,6 +6,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
@@ -24,7 +25,7 @@ const (
 	// MaterialCanvas is the main chat/work surface that the wallpaper shows
 	// through.
 	MaterialCanvas Material = iota
-	// MaterialSidebar is the left rail and the title strip above it.
+	// MaterialSidebar is the left rail and the titlebar strip above it.
 	MaterialSidebar
 	// MaterialPanel is a raised surface: composer card, dialog, side pane.
 	MaterialPanel
@@ -309,13 +310,44 @@ func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui
 	return e.Background(ui.Transparent).Draw(Glass(base, m, radius...))
 }
 
+// MenuBaseFill returns the reference menu surface base color for colors:
+// when a wallpaper or ambient gradient is active, --dsw-menu-surface-fill
+// uses rgb(248, 249, 250) in light mode and rgb(67, 69, 74) (#43454a) in dark
+// mode; without a backdrop, it returns the flat surface token (#ffffff in
+// light, colors.Field in dark).
+func MenuBaseFill(colors theme.Colors, dark bool) ui.Color {
+	if backgroundState.active {
+		if dark {
+			return ui.RGB(67, 69, 74)
+		}
+		return ui.RGB(248, 249, 250)
+	}
+	if dark {
+		return Color(colors.Field)
+	}
+	return ui.RGB(255, 255, 255)
+}
+
+// MenuBorderColor returns the reference menu elevation hairline color:
+// in dark mode over a live backdrop, body[data-ds-dark-theme] [data-menu-material]
+// uses --dsw-alias-border-l3 (rgba(255, 255, 255, 0.16)); otherwise --dsw-alias-border-l1.
+func MenuBorderColor(colors theme.Colors, dark bool) ui.Color {
+	if dark && backgroundState.active && colors.BorderL3 != "" {
+		return Color(colors.BorderL3)
+	}
+	return Color(colors.BorderL1)
+}
+
+// menuBlur is the reference menu backdrop-filter: blur(40px) saturate(150%).
+var menuBlur = glass.Blur{Radius: 40, Saturation: 0.5}
+
 // MenuSurface dresses e as the shared menu panel: the menu material, which
-// keeps its own fill instead of following the glass slider, the hairline border
-// and the elevation shadow. The caller keeps its width and padding; the radius
-// passed here is the panel's own corner, set on the element as well as given to
-// the glass, so the border, the shadow and the clip follow the same curve. A
-// panel left at the default radius drew a square border and a square shadow
-// around rounded glass: a second frame outside the menu's edge.
+// blurs what was rendered under the menu (backdrop-filter: blur(40px)
+// saturate(150%)) and keeps its own fill instead of following the glass
+// slider, the hairline border and the elevation shadow. The caller keeps its
+// width and padding; the radius passed here is the panel's own corner, set on
+// the element as well as given to the glass, so the border, the shadow and the
+// clip follow the same curve.
 //
 // The hairline is painted after the glass: a Draw callback runs after the
 // element's border, so a bordered glass panel would lose its edge under an
@@ -323,6 +355,9 @@ func GlassSurface(e ui.Element, base ui.Color, m Material, radius ...float32) ui
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	round := firstRadius(radius)
 	e = GlassSurface(e.Radius(round), base, MaterialMenu, round).Border(0.5, border)
+	if backgroundState.active {
+		e = e.Material(menuPanelGlass{})
+	}
 	return MenuElevation(e.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if border.A == 0 || r.W <= 0 || r.H <= 0 {
 			return
@@ -332,7 +367,7 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 }
 
 // MenuRow is one selectable row of an app popover: no frame of its own, the
-// shared 36 DIP rhythm, a rounded hover/pressed fill and room for leading and
+// shared 34 DIP rhythm, a rounded hover/pressed fill and room for leading and
 // trailing glyphs. Callers add a label and children themselves.
 func MenuRow(c *ui.Context, colors theme.Colors) ui.Element {
 	return MenuRowColors(c, Color(colors.Hover), Color(colors.Pressed))
@@ -340,8 +375,8 @@ func MenuRow(c *ui.Context, colors theme.Colors) ui.Element {
 
 // MenuRowColors is MenuRow for callers that only hold ui.Theme colors.
 func MenuRowColors(c *ui.Context, hover, pressed ui.Color) ui.Element {
-	row := ui.Button(c, "").FillWidth().MinHeight(36).Padding(6, 8).Radius(8).BorderWidth(0).
-		Background(ui.Transparent).AlignItems(ui.Center)
+	row := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Gap(6).Radius(12).BorderWidth(0).
+		Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
 	row = row.Transition(ui.ElementTransition{Duration: PopoverDuration, Colors: true})
 	if row.Pressed() {
 		return row.Background(pressed)
@@ -380,7 +415,60 @@ func MenuShadow(p *ui.Painter, rect ui.Rect, radius float32) {
 //		chrome.MenuSurface(panel, fill, border, 10)
 //	})
 func MenuElevation(e ui.Element) ui.Element {
-	return e.Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .22))
+	return e.Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).
+		Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04))
+}
+
+// menuPanelGlass is the ui.Material a theme's Menu asks for (Theme.Menu) and
+// that MenuSurface applies: a real scene backdrop blur (blur(40px)
+// saturate(150%)) over whatever was rendered behind the menu (ambient
+// gradient, wallpaper, composer card, borders, and text), plus the wallpaper
+// frost fallback when applicable.
+type menuPanelGlass struct{}
+
+// PaintMaterial paints the menu frost and scene backdrop blur over box,
+// rounded by radii.
+func (menuPanelGlass) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
+	if !backgroundState.active || box.W <= 0 || box.H <= 0 {
+		return
+	}
+	round := radii[0]
+	if gradientBackdrop.frame == nil {
+		if bmp, r, ok := menuFrostScreenBitmap(); ok {
+			p.Clip(box, round, func() { p.Image(bmp, r, ui.FillBox) })
+		} else if patch, ok := glassPatch(box, frostOf(MaterialMenu)); ok {
+			p.Clip(box, round, func() { p.Image(patch, box, ui.FillBox) })
+		}
+	}
+	menuBlur.PaintMaterial(p, box, radii)
+}
+
+// MenuStyle returns the ui.Theme.Menu of the resolved colors: the menu's own
+// fill — the raised surface at its material share over a live backdrop,
+// opaque where there is none — the hairline of a menu's elevation,
+// and the menu's icon, caption and separator inks. Set it on the theme so
+// toolkit-drawn menus, select popups and popovers take the same look
+// MenuSurface gives the chrome's own popovers:
+//
+//	t.Menu = chrome.MenuStyle(colors, dark)
+func MenuStyle(colors theme.Colors, dark bool) ui.MenuStyle {
+	base := MenuBaseFill(colors, dark)
+	fill := base
+	if backgroundState.active {
+		fill = MaterialFill(base, MaterialAlpha(MaterialMenu, effectivePrefs(backgroundState.prefs), dark))
+	}
+	st := ui.MenuStyle{
+		Fill:      fill,
+		Stroke:    MenuBorderColor(colors, dark),
+		Hover:     Color(colors.Hover),
+		Icon:      Color(theme.SkinSemanticToken("", dark, "--dsw-alias-menu-icon", colors.FG)),
+		Caption:   Color(colors.Caption),
+		Separator: Color(colors.Border),
+	}
+	if fill.A < 255 {
+		st.Material = menuPanelGlass{}
+	}
+	return st
 }
 
 // backdropPixels returns the prepared wallpaper pixels, the window box they

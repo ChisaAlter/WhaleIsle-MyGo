@@ -30,6 +30,11 @@ func displayFailure(raw json.RawMessage) (message, code string) {
 		message = i18n.T(i18n.KeyChatRetrySignIn)
 	case "QUOTA", "ACCOUNT_QUOTA":
 		message = i18n.T(i18n.KeyChatRetryQuota)
+	case "SESSION_IN_USE", "session_in_use":
+		message = sessionInUseNotice()
+	}
+	if normalized := normalizeConversationNotice(message); normalized != "" && normalized != message {
+		message = normalized
 	}
 	if message == "" && len(raw) > 0 {
 		message = string(raw)

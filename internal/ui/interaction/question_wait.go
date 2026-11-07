@@ -10,11 +10,21 @@ import (
 )
 
 func questionWaitStatus(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, muted ui.Color) {
-	w := card.Wait
-	if w == nil || p.Continued {
+	zh := i18n.Locale() == i18n.LocaleZH
+	if p.Continued {
+		message := "Work continued — you can still answer"
+		if zh {
+			message = "已继续工作，仍可回答"
+		}
+		ui.Row(c).FillWidth().Gap(8).Children(func() {
+			ui.Text(c, message).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1)
+		})
 		return
 	}
-	zh := i18n.Locale() == i18n.LocaleZH
+	w := card.Wait
+	if w == nil {
+		return
+	}
 	message := ""
 	held := w.State == "waiting" || w.State == "editing"
 	if held {

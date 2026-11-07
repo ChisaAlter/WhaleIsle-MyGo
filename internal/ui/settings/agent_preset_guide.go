@@ -11,6 +11,63 @@ import (
 
 type presetModeGuide struct{ Intro, Explanation, Usage string }
 
+func agentPresetGuideSectionsLabel() string {
+	return providerCopy("帮助内容", "Guide sections")
+}
+
+func agentPresetGuideExampleTaskLabel() string {
+	return providerCopy("示例任务", "Example task")
+}
+
+func agentPresetGuideFootnotesLabel() string {
+	return providerCopy("脚注", "Footnotes")
+}
+
+func agentPresetSeatHintCopy() string {
+	return providerCopy(
+		"主任务创建后，它的工作模式就固定了。这里选择的是下一个主任务会使用的模式。",
+		"Once a main task is created, its mode is fixed. Your choice here applies to the next main task.",
+	)
+}
+
+func agentPresetHeaderHintCopy() string {
+	return providerCopy(
+		"预设决定新建主任务时的工具与提示词组装方式。当前支持内置预设与项目目录中的自定义预设。",
+		"A preset defines how tools and prompts are assembled for a new main task. Built-in presets and custom presets in your project directory are supported.",
+	)
+}
+
+func agentPresetNoDescriptionCopy() string {
+	return providerCopy("该预设未提供说明。", "No description is provided for this preset.")
+}
+
+func agentPresetSwitchRefusedCopy() string {
+	return providerCopy("切换预设未生效。", "Couldn't switch preset.")
+}
+
+func agentPresetStandardUnavailableCopy() string {
+	return providerCopy("标准模式暂不可用。", "Standard mode is currently unavailable.")
+}
+
+func agentPresetCreatePluginDescriptionCopy() string {
+	return providerCopy(
+		"用创造模式启动新任务。Agent 可读取运行时、编写并注册插件，并在完成后热重载或重启使其生效。",
+		"Start a new task in Creator mode. The agent can inspect the runtime, write and register plugins, and hot-reload or restart when finished so changes take effect.",
+	)
+}
+
+func agentPresetCreatePluginCheckingCopy() string {
+	return providerCopy("正在检查创造模式是否可用…", "Checking whether Creator mode is available…")
+}
+
+func agentPresetCreatePluginUnavailableCopy() string {
+	return providerCopy("创造模式暂不可用，请完成引导或稍后重试。", "Creator mode is currently unavailable. Complete onboarding or try again later.")
+}
+
+func agentPresetCreatePluginMissingCopy() string {
+	return providerCopy("当前未加载「创造模式」预设（cordis）。", "The Creator mode preset (cordis) is not currently loaded.")
+}
+
 // Only shipped, unnamed roster entries inherit the built-in capability guides.
 func agentPresetGuide(row session.ManagedAgentPreset) (presetModeGuide, bool) {
 	if !row.BuiltIn {
@@ -45,7 +102,7 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 				state.Page, state.Trigger = "explanation", "explanation"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
-	if presetTextAction(c, i18n.T(KeyPass4HowToUse), row.ID, &state.UsageTrigger, muted, fg) {
+			if presetTextAction(c, i18n.T(KeyPass4HowToUse), row.ID, &state.UsageTrigger, muted, fg) {
 				state.Page, state.Trigger = "usage", "usage"
 				state.Explanation, state.Usage = ui.ScrollState{}, ui.ScrollState{}
 			}
@@ -66,7 +123,7 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 						}
 					})
 					ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Selectable()
-					ui.Row(c).Gap(8).Children(func() {
+					ui.Row(c).Gap(8).Label(agentPresetGuideSectionsLabel()).Children(func() {
 						for _, tab := range []struct{ id, label string }{{"explanation", providerCopy("模式说明", "Mode details")}, {"usage", providerCopy("如何使用", "How to use")}} {
 							button := ui.Button(c.Key(tab.id), tab.label).Role(ui.RoleTab).Selected(state.Page == tab.id)
 							if state.Page == tab.id {
@@ -102,49 +159,194 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 
 var presetGuidesEN = map[string]presetModeGuide{
 	"standard": {
-		Intro:       "Choose Standard mode when starting a new task. Describe what you want to accomplish, point to the relevant files, and explain how to check the result.",
-		Explanation: "### How it works\n\nThe agent calls tools directly to read and edit files, search, and run terminal commands. It includes Skills, planning, goals, subagents, workflows, and context compaction.\n\n### When to choose it\n\nStart here for everyday coding, file work, and research. Standard mode can also write scripts and process files in batches. PTC changes how tool calls are organized; it is not required for batch tasks.",
-		Usage:       "### Fix a bug\n\n> Find out why submitting the search form twice makes the results disappear. Fix it and run the relevant tests. Explain the cause and what changed.\n\nExpected output: a code change, the relevant test results, and an explanation of the cause.\n\n### Organize project notes\n\n> Read the Markdown notes in this project. Summarize the agreed decisions and open questions, with links to the source files.\n\nExpected output: a summary with references that you can check against the original notes.",
+		Intro: "Choose Standard mode when starting a new task. Describe what you want to accomplish, point to the relevant files, and explain how to check the result.",
+		Explanation: `### How it works
+
+The agent calls tools directly to read and edit files, search, and run terminal commands. It includes Skills, planning, goals, subagents, workflows, and context compaction.
+
+### When to choose it
+
+Start here for everyday coding, file work, and research. Standard mode can also write scripts and process files in batches. PTC changes how tool calls are organized; it is not required for batch tasks.`,
+		Usage: `### Fix a bug
+
+> Find out why submitting the search form twice makes the results disappear. Fix it and run the relevant tests. Explain the cause and what changed.
+
+Expected output: a code change, the relevant test results, and an explanation of the cause.
+
+### Organize project notes
+
+> Read the Markdown notes in this project. Summarize the agreed decisions and open questions, with links to the source files.
+
+Expected output: a summary with references that you can check against the original notes.`,
 	},
 	"ptc": {
-		Intro:       "Choose PTC mode when starting a new task. Specify the input files, processing rules, and output format. The agent writes the code.",
-		Explanation: "### How tools are called\n\nPTC means Programmatic Tool Calling. In this built-in preset, the agent uses run_code to write a TypeScript program that calls tools through a generated SDK. The program can use loops, conditions, error handling, and concurrent calls where appropriate.\n\n### What reaches the model\n\nTool results first reach the program, which can filter and combine them. The model receives what the program prints or returns; image results are attached separately. Nested tool calls are still recorded and remain subject to tool permissions.\n\n### Compared with Standard mode\n\nBoth modes can handle coding and batch tasks. Standard mode exposes individual tools directly; PTC organizes tool calls in code. The current PTC preset leaves the workflow tool disabled. Speed and token use depend on the task and how the program handles its results.",
-		Usage:       "### Check a set of configuration files\n\n> Check all JSON files in configs/. List missing required fields and invalid values against schema.json. Save a CSV with one row per issue. Include unreadable files in the report and keep checking the rest. Leave the original files unchanged.\n\nExpected output: an issue summary and a CSV report. The program can repeat the same checks, handle individual failures, and collect the results.\n\n### Summarize error logs\n\n> Analyze the log files in logs/. Group errors by service and error type. Show the ten most frequent groups and one example from each. Save the full counts to a CSV.\n\nExpected output: the top error groups and a complete count table. Intermediate data can be aggregated in the program before the summary reaches the model.",
+		Intro: "Choose PTC mode when starting a new task. Specify the input files, processing rules, and output format. The agent writes the code.",
+		Explanation: `### How tools are called
+
+PTC means Programmatic Tool Calling. In this built-in preset, the agent uses run_code to write a TypeScript program that calls tools through a generated SDK. The program can use loops, conditions, error handling, and concurrent calls where appropriate.
+
+### What reaches the model
+
+Tool results first reach the program, which can filter and combine them. The model receives what the program prints or returns; image results are attached separately. Nested tool calls are still recorded and remain subject to tool permissions.
+
+### Compared with Standard mode
+
+Both modes can handle coding and batch tasks. Standard mode exposes individual tools directly; PTC organizes tool calls in code. The current PTC preset leaves the workflow tool disabled. Speed and token use depend on the task and how the program handles its results.`,
+		Usage: `### Check a set of configuration files
+
+> Check all JSON files in configs/. List missing required fields and invalid values against schema.json. Save a CSV with one row per issue. Include unreadable files in the report and keep checking the rest. Leave the original files unchanged.
+
+Expected output: an issue summary and a CSV report. The program can repeat the same checks, handle individual failures, and collect the results.
+
+### Summarize error logs
+
+> Analyze the log files in logs/. Group errors by service and error type. Show the ten most frequent groups and one example from each. Save the full counts to a CSV.
+
+Expected output: the top error groups and a complete count table. Intermediate data can be aggregated in the program before the summary reaches the model.`,
 	},
 	"minimal": {
-		Intro:       "Choose Minimal mode for a new task. For a comparison, hold the model, permissions, input, and starting workspace state constant across runs.",
-		Explanation: "### What is included\n\nOne persistent shell tool, read_image, and a fixed system prompt. Image reading requires an image-capable model. Older history is compacted automatically under context pressure; use /compact while the agent is idle to compact it manually. The built-in preset does not load Skills, planning, or the standard runtime context.\n\n### When to choose it\n\nUse it as a baseline for experiments and comparisons. It can still read files and execute scripts through shell commands, but offers fewer built-in ways to manage a long task. Fewer tools does not necessarily make it easier for a beginner.",
-		Usage:       "### Compare performance on a small bug fix\n\n> Run the tests for this project, find the cause of the failure, and make the smallest fix. Run the relevant tests again and report the result.\n\nRun the same task separately in Standard and Minimal modes from the same starting state. Compare task completion, tool calls, and the resulting changes. Minimal mode performs the work through terminal commands.",
+		Intro: "Choose Minimal mode for a new task. For a comparison, hold the model, permissions, input, and starting workspace state constant across runs.",
+		Explanation: `### What is included
+
+One persistent shell tool, read_image, and a fixed system prompt. Image reading requires an image-capable model. Older history is compacted automatically under context pressure; use /compact while the agent is idle to compact it manually. The built-in preset does not load Skills, planning, or the standard runtime context.
+
+### When to choose it
+
+Use it as a baseline for experiments and comparisons. It can still read files and execute scripts through shell commands, but offers fewer built-in ways to manage a long task. Fewer tools does not necessarily make it easier for a beginner.`,
+		Usage: `### Compare performance on a small bug fix
+
+> Run the tests for this project, find the cause of the failure, and make the smallest fix. Run the relevant tests again and report the result.
+
+Run the same task separately in Standard and Minimal modes from the same starting state. Compare task completion, tool calls, and the resulting changes. Minimal mode performs the work through terminal commands.`,
 	},
 	"cordis": {
-		Intro:       "Choose Creator mode for a new task. Describe the capability you want, where it should appear, and how you will verify it.",
-		Explanation: "### What you can create\n\nCreator mode includes the standard task tools plus runtime inspection, persistent plugin management, and guidance for authoring Cordis plugins and agent presets. It can create a plugin that adds a capability or UI, or a preset that combines tools and prompts for a particular job.\n\n### Plugins and modes\n\nA plugin adds capabilities to DSH, such as a tool, a service connection, or a UI entry. A mode is an agent preset that selects tools and defines how the agent works in a task. A plugin can be included in a custom preset.\n\n### How the result takes effect\n\nAsk the agent to install and verify the result, not just generate source code. A plugin may load immediately or require a restart, depending on what it changes. A newly created preset is selected when starting a new task.",
-		Usage:       "### Add a UI\n\n> Create a DSH plugin that adds a project notes entry to the sidebar. Let me browse the Markdown files in this workspace and preview a selected note. Install it and verify that the page opens.\n\nExpected output: an installed plugin with a working entry and preview page, plus any remaining activation steps.\n\n### Add a tool\n\n> Create a plugin with a tool that reads this project’s test report and summarizes the failed tests. Register it and verify it with a sample report.\n\nExpected output: a plugin with a callable tool and a verified sample call.\n\n### Create my own mode\n\n> Create a “Code review” mode based on Standard mode. Have it prioritize potential bugs and test gaps, cite file paths and lines, and ask before modifying files. Save it as a selectable preset.\n\nExpected output: a custom preset for new tasks. These review instructions guide the agent; permission settings determine which actions it can execute.",
+		Intro: "Choose Creator mode for a new task. Describe the capability you want, where it should appear, and how you will verify it.",
+		Explanation: `### What you can create
+
+Creator mode includes the standard task tools plus runtime inspection, persistent plugin management, and guidance for authoring Cordis plugins and agent presets. It can create a plugin that adds a capability or UI, or a preset that combines tools and prompts for a particular job.
+
+### Plugins and modes
+
+A plugin adds capabilities to DSH, such as a tool, a service connection, or a UI entry. A mode is an agent preset that selects tools and defines how the agent works in a task. A plugin can be included in a custom preset.
+
+### How the result takes effect
+
+Ask the agent to install and verify the result, not just generate source code. A plugin may load immediately or require a restart, depending on what it changes. A newly created preset is selected when starting a new task.`,
+		Usage: `### Add a UI
+
+> Create a DSH plugin that adds a project notes entry to the sidebar. Let me browse the Markdown files in this workspace and preview a selected note. Install it and verify that the page opens.
+
+Expected output: an installed plugin with a working entry and preview page, plus any remaining activation steps.
+
+### Add a tool
+
+> Create a plugin with a tool that reads this project’s test report and summarizes the failed tests. Register it and verify it with a sample report.
+
+Expected output: a plugin with a callable tool and a verified sample call.
+
+### Create my own mode
+
+> Create a “Code review” mode based on Standard mode. Have it prioritize potential bugs and test gaps, cite file paths and lines, and ask before modifying files. Save it as a selectable preset.
+
+Expected output: a custom preset for new tasks. These review instructions guide the agent; permission settings determine which actions it can execute.`,
 	},
 }
 
 var presetGuidesZH = map[string]presetModeGuide{
 	"standard": {
-		Intro:       "新建任务时选择「标准模式」，说明要完成什么、相关文件在哪里，以及怎样判断任务完成。",
-		Explanation: "### 工作方式\n\nAgent 直接调用工具来读写文件、检索资料和执行终端命令。包含 Skills、计划、目标、子 Agent、工作流和上下文压缩等能力。\n\n### 什么时候选\n\n日常编程、文件处理和资料整理可以从这里开始。标准模式也能编写脚本、批量处理文件；PTC 改变的是工具调用方式，批量任务并不必须使用 PTC。",
-		Usage:       "### 修复一个问题\n\n> 搜索表单连续提交两次后，结果会消失。请定位原因、修复问题并运行相关测试，最后说明原因和修改内容。\n\n预期产出：代码修改、相关测试结果，以及问题原因说明。\n\n### 整理项目资料\n\n> 阅读项目中的 Markdown 记录，整理已经达成的结论和仍待确认的问题，并附上对应文件链接。\n\n预期产出：一份带来源引用的总结，方便回到原文核对。",
+		Intro: "新建任务时选择「标准模式」，说明要完成什么、相关文件在哪里，以及怎样判断任务完成。",
+		Explanation: `### 工作方式
+
+Agent 直接调用工具来读写文件、检索资料和执行终端命令。包含 Skills、计划、目标、子 Agent、工作流和上下文压缩等能力。
+
+### 什么时候选
+
+日常编程、文件处理和资料整理可以从这里开始。标准模式也能编写脚本、批量处理文件；PTC 改变的是工具调用方式，批量任务并不必须使用 PTC。`,
+		Usage: `### 修复一个问题
+
+> 搜索表单连续提交两次后，结果会消失。请定位原因、修复问题并运行相关测试，最后说明原因和修改内容。
+
+预期产出：代码修改、相关测试结果，以及问题原因说明。
+
+### 整理项目资料
+
+> 阅读项目中的 Markdown 记录，整理已经达成的结论和仍待确认的问题，并附上对应文件链接。
+
+预期产出：一份带来源引用的总结，方便回到原文核对。`,
 	},
 	"ptc": {
-		Intro:       "新建任务时选择「PTC 模式」，说明输入文件、处理规则和输出格式。代码由 Agent 编写。",
-		Explanation: "### 怎样调用工具\n\nPTC 是 Programmatic Tool Calling，即通过程序调用工具。当前内置预设让 Agent 通过 run_code 编写 TypeScript 程序，使用生成的工具 SDK 发起调用。程序可以组织循环、条件判断、错误处理，以及适合并发执行的调用。\n\n### 哪些结果交给模型\n\n工具返回的数据先交给程序，经过筛选、计算或合并，再通过输出或返回值交给模型；图片结果会另行附加。程序中的工具调用仍会被记录，也仍受工具权限约束。\n\n### 与标准模式的区别\n\n两种模式都能编程、批量处理文件。标准模式直接向模型提供各个工具；PTC 让模型用代码组织工具调用。当前 PTC 预设未启用 workflow 工具。速度和 token 用量取决于具体任务与结果处理方式。",
-		Usage:       "### 批量检查配置文件\n\n> 检查 configs/ 下所有 JSON 文件，按照 schema.json 找出缺失字段和不合法的值。每个问题写成 CSV 中的一行；读取失败的文件也记入报告，继续检查其余文件。保留原文件。\n\n预期产出：问题汇总和一份 CSV 报告。程序可以对多份文件执行相同检查，处理单个文件的失败，再汇总结果。\n\n### 汇总错误日志\n\n> 分析 logs/ 下的日志，按服务和错误类型统计次数，列出出现最多的十类错误，每类保留一条示例。完整统计另存为 CSV。\n\n预期产出：高频错误摘要和完整统计表。中间数据可以先在程序中聚合，再把汇总交给模型。",
+		Intro: "新建任务时选择「PTC 模式」，说明输入文件、处理规则和输出格式。代码由 Agent 编写。",
+		Explanation: `### 怎样调用工具
+
+PTC 是 Programmatic Tool Calling，即通过程序调用工具。当前内置预设让 Agent 通过 run_code 编写 TypeScript 程序，使用生成的工具 SDK 发起调用。程序可以组织循环、条件判断、错误处理，以及适合并发执行的调用。
+
+### 哪些结果交给模型
+
+工具返回的数据先交给程序，经过筛选、计算或合并，再通过输出或返回值交给模型；图片结果会另行附加。程序中的工具调用仍会被记录，也仍受工具权限约束。
+
+### 与标准模式的区别
+
+两种模式都能编程、批量处理文件。标准模式直接向模型提供各个工具；PTC 让模型用代码组织工具调用。当前 PTC 预设未启用 workflow 工具。速度和 token 用量取决于具体任务与结果处理方式。`,
+		Usage: `### 批量检查配置文件
+
+> 检查 configs/ 下所有 JSON 文件，按照 schema.json 找出缺失字段和不合法的值。每个问题写成 CSV 中的一行；读取失败的文件也记入报告，继续检查其余文件。保留原文件。
+
+预期产出：问题汇总和一份 CSV 报告。程序可以对多份文件执行相同检查，处理单个文件的失败，再汇总结果。
+
+### 汇总错误日志
+
+> 分析 logs/ 下的日志，按服务和错误类型统计次数，列出出现最多的十类错误，每类保留一条示例。完整统计另存为 CSV。
+
+预期产出：高频错误摘要和完整统计表。中间数据可以先在程序中聚合，再把汇总交给模型。`,
 	},
 	"minimal": {
-		Intro:       "新建任务时选择「极简模式」。做对照测试时，保持模型、权限、任务输入和工作区起始状态一致。",
-		Explanation: "### 保留哪些能力\n\n提供持久 Shell 和 read_image 工具，并使用固定系统提示词。读取图片需要支持图片输入的模型。上下文压力达到阈值时自动压缩较早历史；Agent 空闲时可输入 /compact 手动压缩。内置预设不加载 Skills、计划，也不注入标准运行时上下文。\n\n### 什么时候选\n\n适合作为实验和对照测试的基线。Agent 仍能通过终端命令读写文件、运行脚本，但缺少管理长任务的内置辅助能力。工具少，不代表对新手更容易。",
-		Usage:       "### 对比基础修复表现\n\n> 运行这个项目的测试，找出失败原因，做最小修复，再运行相关测试并报告结果。\n\n分别用标准模式和极简模式，从相同的工作区状态执行这条任务，对比完成情况、工具调用和最终修改。极简模式会通过终端命令完成这些操作。",
+		Intro: "新建任务时选择「极简模式」。做对照测试时，保持模型、权限、任务输入和工作区起始状态一致。",
+		Explanation: `### 保留哪些能力
+
+提供持久 Shell 和 read_image 工具，并使用固定系统提示词。读取图片需要支持图片输入的模型。上下文压力达到阈值时自动压缩较早历史；Agent 空闲时可输入 /compact 手动压缩。内置预设不加载 Skills、计划，也不注入标准运行时上下文。
+
+### 什么时候选
+
+适合作为实验和对照测试的基线。Agent 仍能通过终端命令读写文件、运行脚本，但缺少管理长任务的内置辅助能力。工具少，不代表对新手更容易。`,
+		Usage: `### 对比基础修复表现
+
+> 运行这个项目的测试，找出失败原因，做最小修复，再运行相关测试并报告结果。
+
+分别用标准模式和极简模式，从相同的工作区状态执行这条任务，对比完成情况、工具调用和最终修改。极简模式会通过终端命令完成这些操作。`,
 	},
 	"cordis": {
-		Intro:       "新建任务时选择「创造模式」，说明希望增加什么能力、从哪里使用，以及怎样验证效果。",
-		Explanation: "### 可以创造什么\n\n创造模式具备标准任务工具，并增加运行时检查、持久化插件管理，以及 Cordis 插件和 Agent 预设的开发指引。可以编写插件来添加功能或界面，也可以组合工具和提示词，创建适合特定任务的模式。\n\n### 插件与模式的关系\n\n插件为 DSH 增加能力，例如工具、服务连接或界面入口。模式是一份 Agent 预设，用来选择任务可用的工具，并约定 Agent 的工作方式。自定义模式中也可以使用自己开发的插件。\n\n### 怎样让成果生效\n\n可以要求 Agent 完成安装并验证实际效果。插件可能即时加载，也可能需要重启，取决于修改内容；新建的模式在创建新任务时选择。",
-		Usage:       "### 添加一个界面\n\n> 帮我写一个 DSH 插件，在侧栏增加「项目笔记」入口，列出当前工作区的 Markdown 文件，点击后能预览内容。完成安装并验证页面能打开。\n\n预期产出：带侧栏入口和预览页的插件，以及仍需完成的生效步骤。\n\n### 添加一个工具\n\n> 写一个插件，提供读取项目测试报告、汇总失败用例的工具。注册工具，并用一份示例报告验证调用结果。\n\n预期产出：可调用的新工具，以及一次示例调用的验证结果。\n\n### 创建自己的模式\n\n> 基于标准模式创建「代码审查」模式，优先检查潜在错误和测试缺口，指出文件与行号，修改文件前先询问我。保存成可选择的预设。\n\n预期产出：可在新任务中选择的自定义模式。审查要求用于指导 Agent，实际可执行的操作仍由权限设置决定。",
+		Intro: "新建任务时选择「创造模式」，说明希望增加什么能力、从哪里使用，以及怎样验证效果。",
+		Explanation: `### 可以创造什么
+
+创造模式具备标准任务工具，并增加运行时检查、持久化插件管理，以及 Cordis 插件和 Agent 预设的开发指引。可以编写插件来添加功能或界面，也可以组合工具和提示词，创建适合特定任务的模式。
+
+### 插件与模式的关系
+
+插件为 DSH 增加能力，例如工具、服务连接或界面入口。模式是一份 Agent 预设，用来选择任务可用的工具，并约定 Agent 的工作方式。自定义模式中也可以使用自己开发的插件。
+
+### 怎样让成果生效
+
+可以要求 Agent 完成安装并验证实际效果。插件可能即时加载，也可能需要重启，取决于修改内容；新建的模式在创建新任务时选择。`,
+		Usage: `### 添加一个界面
+
+> 帮我写一个 DSH 插件，在侧栏增加「项目笔记」入口，列出当前工作区的 Markdown 文件，点击后能预览内容。完成安装并验证页面能打开。
+
+预期产出：带侧栏入口和预览页的插件，以及仍需完成的生效步骤。
+
+### 添加一个工具
+
+> 写一个插件，提供读取项目测试报告、汇总失败用例的工具。注册工具，并用一份示例报告验证调用结果。
+
+预期产出：可调用的新工具，以及一次示例调用的验证结果。
+
+### 创建自己的模式
+
+> 基于标准模式创建「代码审查」模式，优先检查潜在错误和测试缺口，指出文件与行号，修改文件前先询问我。保存成可选择的预设。
+
+预期产出：可在新任务中选择的自定义模式。审查要求用于指导 Agent，实际可执行的操作仍由权限设置决定。`,
 	},
 }
+
 // presetTextAction is the card footer's plain text action: 12 DIP muted, no
 // border or fill, and the primary text colour on hover.
 func presetTextAction(c *ui.Context, label, id string, trigger *ui.Handle, muted, fg ui.Color) bool {

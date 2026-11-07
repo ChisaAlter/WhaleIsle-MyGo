@@ -56,14 +56,14 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 	}
 	label := composerText("访问模式，当前：", "Access mode, current: ") + display
 	trigger := chip(c, colors, picker.open, ink).Label(label).Tooltip(description).
-		Padding(0, 10).Gap(6).Disabled(locked).Bind(&picker.nav.Anchor)
+		Disabled(locked).Bind(&picker.nav.Anchor)
 	trigger.Children(func() {
 		if icon := permissionMenuIcon(value); icon != nil {
 			ui.Icon(c, icon).Size(14, 14).Shrink(0)
 		}
-		ui.Text(c, display).Grow(1).MinWidth(0).SingleLine().FontSize(13).FontWeight(500).TextColor(ink)
+		ui.Text(c, display).Grow(1).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(ink)
 		if value == session.PermissionAutoReview {
-			ui.Text(c, "EXP").FontSize(10).TextColor(chrome.Color(colors.Caption)).Shrink(0)
+			ui.Text(c, "EXP").FontSize(8).FixedLineHeight(10).FontWeight(500).TextColor(chrome.Color(colors.Muted)).Shrink(0)
 		}
 		if snap.PermissionSelectionBusy {
 			ui.Text(c, "…").Size(12, 12).TextColor(ink)
@@ -95,9 +95,10 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 	if picker.nav.Active < 0 || picker.nav.Active >= len(options) {
 		picker.nav.Active = 0
 	}
+	menuIconColor := chrome.Color(theme.SkinSemanticToken("", isDark(colors), "--dsw-alias-menu-icon", colors.FG))
 	ui.PopoverBase(c, trigger, &picker.open, func(panel ui.Element) {
-		panel = menuSurface(c, panel.Width(320).MaxWidthPercent(100).Padding(6).Gap(2).
-			AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 6, 0), colors)
+		panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(144).MaxWidth(360).
+			AttachTo(trigger, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 4, 0), colors)
 		pointerX, pointerY, pointerPresent := panel.PointerPosition()
 		pointerMoved := pointerPresent && (!picker.pointerPresent || picker.pointerX != pointerX || picker.pointerY != pointerY)
 		picker.pointerX, picker.pointerY, picker.pointerPresent = pointerX, pointerY, pointerPresent
@@ -118,10 +119,10 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 					m.OnRetryPermissions()
 				}
 			}
-			ui.Scroll(c).FillWidth().MaxHeight(320).Gap(2).Children(func() {
+			ui.Scroll(c).FillWidth().MaxHeight(320).Gap(0).Children(func() {
 				for i, option := range options {
 					i, option := i, option
-					row := menuRow(c, colors).Label(option.Label).Tooltip(option.Description).Bind(picker.nav.Rows[i]).Gap(10)
+					row := menuRow(c, colors).Label(option.Label).Tooltip(option.Description).Bind(picker.nav.Rows[i])
 					if i == picker.nav.Active {
 						row = row.Background(chrome.Color(colors.Hover))
 					}
@@ -130,12 +131,14 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 					}
 					row.Children(func() {
 						if icon := permissionMenuIcon(option.ID); icon != nil {
-							ui.Icon(c, icon).Size(16, 16).Shrink(0).TextColor(chrome.Color(colors.FG))
+							ui.Icon(c, icon).Size(14, 14).Shrink(0).TextColor(menuIconColor)
 						}
-						ui.Text(c, option.Label).FontSize(13).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0).SingleLine()
-						if option.ID == session.PermissionAutoReview {
-							ui.Text(c, "EXP").FontSize(10).TextColor(chrome.Color(colors.Caption)).Shrink(0)
-						}
+						ui.Row(c).Grow(1).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, option.Label).FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG)).MinWidth(0).SingleLine()
+							if option.ID == session.PermissionAutoReview {
+								ui.Text(c, "EXP").FontSize(8).FixedLineHeight(10).FontWeight(500).TextColor(chrome.Color(colors.Muted)).Shrink(0)
+							}
+						})
 						if option.ID == value {
 							ui.Icon(c, checkIcon).Size(14, 14).Shrink(0).TextColor(chrome.Color(colors.FG))
 						}

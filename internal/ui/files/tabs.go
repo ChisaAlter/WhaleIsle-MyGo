@@ -435,6 +435,7 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 		}
 	}
 	ui.Text(c, label("有未保存的修改：", "Unsaved changes: ")+path).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	ui.Text(c, FilesLocale("unsaved.body")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	if saveErr != "" {
 		ui.Text(c, saveErr).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
 	}

@@ -473,7 +473,7 @@ func View(c *ui.Context, m Model) {
 			// SidebarRoot.panelList: 36-high rows with a 4-DIP gap, so the
 			// pitch is 40, inset 2 inside the 256-DIP list (native buttons sit at
 			// x=14, 252 wide, with 插件 at y=120 and 自动化任务 at y=160).
-			ui.Column(c).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
+			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
 				nav := func(id, key string, drawIcon func(), label string, fn func()) {
 					row := ui.Button(c.Key("sidebar-panel-"+key), "").FillWidth().Height(skinLayout.NavHeight).Radius(12).
 						Selected(m.ActivePanel == id).Background(ui.Transparent).TextColor(fg).BorderWidth(0).
@@ -525,7 +525,8 @@ func View(c *ui.Context, m Model) {
 					batchToolbar(c, m, fg)
 					ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).ScrollbarsVisible(sidebarScrollbarLinger(c, root)).Children(func() {
 						if sessionSearchResultsView(c, m, fg, muted) {
-							projects.View(c, m.Projects)
+							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+							// projects.View(c, m.Projects)
 							publicSidebarSlot(c, m, "sidebar.workspaces.sections", "", nil)
 							return
 						}
@@ -533,7 +534,8 @@ func View(c *ui.Context, m Model) {
 						items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
 						workspaceRowsView(c, m, items, fg, muted, border)
 						workspaceListFeedback(c, m, items, fg, muted)
-						projects.View(c, m.Projects)
+						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+						// projects.View(c, m.Projects)
 						archivedItems := archivedSectionItems(m)
 						if (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0 {
 							archivedSection(c, m, archivedItems, sectionInk, muted)

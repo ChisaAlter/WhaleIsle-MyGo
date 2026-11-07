@@ -58,7 +58,6 @@ func View(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	bg := chrome.Color(colors.BG)
 	border := chrome.Color(colors.Border)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
@@ -66,7 +65,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot()
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(14, 16, 8, 16).Gap(4).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, usageChartIcon).Size(16, 16).TextColor(fg)
@@ -75,8 +74,12 @@ func View(c *ui.Context, m Model) {
 				// is a real action once the Host supplies it; the range dialog the
 				// reference's gear opens does not exist in this build, so no second
 				// dead button is drawn.
-				if m.OnExportStats != nil {
-					widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Menu(func(menu *ui.Menu) {
+				exportDisabled := m.OnExportStats == nil
+				export := widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: exportDisabled})
+				if exportDisabled {
+					export.Tooltip(usageText("本版本还没有统计导出。", "Exporting statistics is not wired in this build"))
+				} else {
+					export.Menu(func(menu *ui.Menu) {
 						for _, format := range []struct{ id, zh, en string }{{"json", "导出 JSON", "Export JSON"}, {"days", "导出每日 CSV", "Export daily CSV"}, {"models", "导出模型 CSV", "Export model CSV"}} {
 							if menu.Item(usageText(format.zh, format.en)).Chosen() {
 								m.OnExportStats(format.id)
@@ -85,7 +88,7 @@ func View(c *ui.Context, m Model) {
 					})
 				}
 				pricingView(c, m, fg, muted, accent)
-				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(m.Store.Stats().Loading).Clicked() {
 					m.Store.RefreshStats(context.Background(), true)
 					if m.OnRefresh != nil {
 						m.OnRefresh()
@@ -109,6 +112,9 @@ func View(c *ui.Context, m Model) {
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {
+				if m.Preferences != nil {
+					ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() { m.Preferences(c, fg, muted) })
+				}
 				statsView(c, m, fg, muted, accent, field)
 
 				if m.ActionError != "" {

@@ -119,7 +119,8 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(c, panel.Padding(6).Gap(2).MinWidth(240).MaxWidthPercent(100), colors)
+		panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(144).MaxWidth(360).
+			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(4, 0, 0, 0), colors)
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.Rows[nav.Active].RequestFocus(c)
@@ -138,17 +139,15 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 						nav.Active = i
 					}
 					row.Children(func() {
-						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-								ui.Text(c, o.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(opt.Text)
-								if o.ID == selectedID {
-									ui.Icon(c, checkIcon).Size(14, 14).Shrink(0)
-								}
-							})
+						ui.Column(c).Grow(1).MinWidth(0).MaxWidth(280).Gap(2).Children(func() {
+							ui.Text(c, o.Label).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(opt.Text)
 							if o.Description != "" {
-								ui.Text(c, o.Description).FontSize(11).MaxLines(2).TextColor(chrome.Color(colors.Muted))
+								ui.Text(c, o.Description).FontSize(12).FixedLineHeight(16).MaxLines(2).TextColor(chrome.Color(colors.Caption))
 							}
 						})
+						if o.ID == selectedID {
+							ui.Icon(c, checkIcon).Size(14, 14).Shrink(0).TextColor(chrome.Color(colors.FG))
+						}
 					})
 					if row.Clicked() && pick != nil {
 						*open = false
@@ -158,9 +157,6 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 					}
 				}
 			})
-			ui.Box(c).FillWidth().Height(1).Shrink(0).Margin(4, 6).Background(chrome.Color(colors.Caption).Alpha(.35))
-			ui.Text(c, i18n.T(i18n.KeyComposerMenuFooter)).FontSize(10).
-				TextColor(chrome.Color(colors.Caption)).Padding(2, 6)
 		})
 		// The current row takes the focus once as the popup opens, so the arrows
 		// and Enter work at once, the way a native select does. Later frames

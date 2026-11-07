@@ -32,3 +32,5 @@ pet-render-assets/
 /ghostty-vt.dll
 /ghostty-vt.dll.LICENSE
 /terminal-runtime.json
+
+/bin/

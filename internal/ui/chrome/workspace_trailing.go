@@ -155,7 +155,7 @@ func captionGit(c *ui.Context, m WorkspaceTrailingModel) {
 				}
 			}
 			ui.PopoverBase(c.Key("caption-git-menu"), trigger, open, func(panel ui.Element) {
-				panel = MenuSurface(panel.MinWidth(144).MaxWidth(360).Padding(6).Gap(0).Role(ui.RoleMenu), c.Theme().Background, c.Theme().Border, 12)
+				panel = MenuSurface(panel.MinWidth(144).MaxWidth(360).Padding(4).Gap(0).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, 16)
 				// The menu fades in over the popover token, as every floating card
 				// does: a PopoverBase panel cannot play PopoverTransition (it is born
 				// in the frame it opens), so Reveal runs the enter by hand.

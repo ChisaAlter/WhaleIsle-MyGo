@@ -281,8 +281,29 @@ func settingsSelectedRailColors(m Model) (fill, ink ui.Color) {
 	return fill, chrome.Color(colors.FG)
 }
 
+func effectiveActiveSection(c *ui.Context, m Model, snap settings.ViewState) SectionID {
+	base := activeSection(m, snap)
+	if m.ActiveSection != "" && m.SectionContent != nil {
+		return base
+	}
+	jump := settingsSearchJumpState(c)
+	if jump.Section == "" {
+		return base
+	}
+	if base != jump.BaseActive && base != jump.Section {
+		*jump = settingsSearchJump{}
+		return base
+	}
+	for _, entry := range primaryNavigation(m, snap) {
+		if entry.id == jump.Section {
+			return jump.Section
+		}
+	}
+	return base
+}
+
 func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color, query *string) {
-	active := activeSection(m, snap)
+	active := effectiveActiveSection(c, m, snap)
 	searching := strings.TrimSpace(*query) != ""
 	selectedBG, selectedFG := settingsSelectedRailColors(m)
 	groups := navigationGroups(m, snap)
@@ -294,7 +315,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 		} else {
 			ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
 		}
-		settingsRailSearch(c, query, fg, muted, border)
+		settingsRailSearch(c, m, snap, query, fg, muted, border)
 		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
 		// sit 12 DIP from each other.
 		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
@@ -339,10 +360,19 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 // settingsRailSearch is the 164x32 search field above the groups: a 12 DIP
 // pill with a hairline border, the magnifier at +10, the text from +32 and a
 // clear button once there is text.
-func settingsRailSearch(c *ui.Context, query *string, fg, muted, border ui.Color) {
+func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *string, fg, muted, border ui.Color) {
 	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		if ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).Changed() {
+		input := ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).OnSubmit(func() {
+			ids := map[SectionID]bool{}
+			for _, entry := range primaryNavigation(m, snap) {
+				ids[entry.id] = true
+			}
+			if matches := settingsSearchMatches(m, ids, *query); len(matches) > 0 {
+				activateSettingsSearchEntry(c, m, snap, matches[0], func() { *query = "" })
+			}
+		})
+		if input.Changed() {
 			*settingsSearchJumpState(c) = settingsSearchJump{}
 		}
 		if *query != "" {
@@ -356,8 +386,16 @@ func settingsRailSearch(c *ui.Context, query *string, fg, muted, border ui.Color
 	})
 }
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color, query *string) {
-	active := activeSection(m, snap)
-	settingsSearchJumpState(c).Active = active
+	active := effectiveActiveSection(c, m, snap)
+	jump := settingsSearchJumpState(c)
+	jump.Active = active
+	if m.FilterPtr != nil {
+		jump.FilterQuery = strings.TrimSpace(*m.FilterPtr)
+	} else {
+		jump.FilterQuery = ""
+	}
+	jump.HighlightedKey = ""
+	jump.HighlightedTitle = ""
 	// General/Interface source lists have no inter-row gap: each Setting-Cell
 	// owns its 16 DIP vertical padding and a half-pixel bottom border.
 	gap := float32(10)
@@ -366,13 +404,18 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 	} else if active == SectionAppearance {
 		gap = 28
 	}
-	pane := settingsOptionsScroll(c, "settings-options-"+string(active), gap, paneBG)
+	searching := strings.TrimSpace(*query) != ""
+	scrollKey := "settings-options-" + string(active)
+	if searching {
+		scrollKey = "settings-options-search"
+	}
+	pane := settingsOptionsScroll(c, scrollKey, gap, paneBG)
 	// A section switch fades the page in over the popover token. The pane is
 	// keyed by its section, so each switch builds a new element whose lifetime is
 	// one opening, and Reveal runs the enter by hand.
 	pane.Opacity(chrome.Reveal(c, pane, chrome.PopoverDuration))
 	pane.Children(func() {
-		if searching := strings.TrimSpace(*query) != ""; searching {
+		if searching {
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			settingsSearchResults(c, m, snap, *query, fg, muted, chrome.Color(colors.Hover), func() { *query = "" })
 			return
@@ -383,64 +426,62 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			m.SectionContent(c)
 			return
 		}
-		if m.DesktopActive && m.Desktop != nil {
-			desktopPane(c, m, fg, muted)
-			if active == SectionGeneral {
-				// The reference keeps its General rows (permission, language,
-				// font, work detail, shortcuts, links, busy/close) at the top;
-				// the account shortcut and the namespace browser sit last.
-				generalNavigation(c, m, snap, fg, muted)
-			}
-			return
-		}
-		if active == SectionGeneral {
-			generalNavigation(c, m, snap, fg, muted)
-		}
-		if m.ConversationActive && m.Conversation != nil {
-			conversationPane(c, m, fg, muted)
-			return
-		}
-		if m.FeaturesActive && m.Features != nil {
-			featuresPane(c, m, fg, muted)
-			return
-		}
-		if m.AccountActive && m.Account != nil {
-			accountPane(c, m, fg, muted)
-			return
-		}
-		if m.CredentialsActive && m.Credentials != nil {
+		if active == SectionGeneral && m.CredentialsActive && m.Credentials != nil {
 			credentialsPane(c, m, fg, muted)
 			return
 		}
-		if m.AppearanceActive && m.Appearance != nil {
+		if active == SectionGeneral && m.Desktop != nil && !m.AccountActive {
+			desktopPane(c, m, fg, muted)
+			// The reference keeps its General rows (permission, language,
+			// font, work detail, shortcuts, links, busy/close) at the top;
+			// the account shortcut and the namespace browser sit last.
+			generalNavigation(c, m, snap, fg, muted)
+			return
+		}
+		if active == SectionGeneral && !m.AccountActive {
+			generalNavigation(c, m, snap, fg, muted)
+		}
+		if active == SectionConversation && m.Conversation != nil {
+			conversationPane(c, m, fg, muted)
+			return
+		}
+		if active == SectionFeatures && m.Features != nil {
+			featuresPane(c, m, fg, muted)
+			return
+		}
+		if active == SectionAccount && m.Account != nil {
+			accountPane(c, m, fg, muted)
+			return
+		}
+		if active == SectionAppearance && m.Appearance != nil {
 			appearancePane(c, m, fg, muted)
 			return
 		}
-		if m.InterfaceActive && m.Interface != nil {
+		if active == SectionInterface && m.Interface != nil {
 			interfacePane(c, m, fg, muted)
 			return
 		}
-		if m.ModelsActive && m.Models != nil {
+		if active == SectionModels && m.Models != nil {
 			modelsPane(c, m, fg, muted)
 			return
 		}
-		if m.PluginsActive && m.Plugins != nil {
+		if active == SectionPlugins && m.Plugins != nil {
 			pluginsPane(c, m, fg, muted)
 			return
 		}
-		if m.SkillsActive && m.Skills != nil {
+		if active == SectionSkills && m.Skills != nil {
 			skillsPane(c, m, fg, muted)
 			return
 		}
-		if m.AgentPresetsActive && m.AgentPresets != nil {
+		if active == SectionAgentPresets && m.AgentPresets != nil {
 			agentPresetsPane(c, m, fg, muted)
 			return
 		}
-		if m.MCPActive && m.MCP != nil {
+		if active == SectionMCP && m.MCP != nil {
 			mcpPane(c, m, fg, muted)
 			return
 		}
-		if m.AboutActive && m.About != nil {
+		if active == SectionAbout && m.About != nil {
 			aboutPane(c, m, fg, muted)
 			return
 		}

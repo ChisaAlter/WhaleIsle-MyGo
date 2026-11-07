@@ -320,6 +320,7 @@ func (rt *engine) pointerDown(x, y float32, button int, mods Modifiers, count in
 		// A menu button's menu opens as the button goes down, and takes
 		// the release.
 		rt.openMenuButton(target)
+		rt.menu.pointer = true
 		return
 	}
 	// Count quick successive presses at the same place.

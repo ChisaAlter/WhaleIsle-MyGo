@@ -10,8 +10,13 @@ func hostShellView(c *ui.Context, store *hostterminal.Store, v hostterminal.View
 	if ui.Button(c, terminalLabel("选择或刷新 shell", "Choose or refresh the shell")).FontSize(12).Disabled(!v.Ready || session == "" || v.Busy || shells.Loading).Clicked() {
 		store.DiscoverShells(v.Owner, session)
 	}
+	if shells.Loading {
+		ui.Text(c, sidebarTerminalText("shellLoading")).FontSize(12).TextColor(muted)
+	} else if shells.Loaded && len(shells.Items) == 0 {
+		ui.Text(c, sidebarTerminalText("shellEmpty")).FontSize(12).TextColor(muted)
+	}
 	if len(shells.Items) > 0 {
-		selected := terminalLabel("选择 shell", "Choose shell")
+		selected := sidebarTerminalText("shell")
 		for _, item := range shells.Items {
 			if item.Path == shells.SelectedPath {
 				selected = item.Name

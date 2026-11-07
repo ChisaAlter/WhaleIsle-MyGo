@@ -33,9 +33,9 @@ func (b *Controller) browserToolsMenu(menu *ui.Menu, t *Tab, state desktop.State
 	if menu.Item(label).Disabled(disabled || !t.Host.BrowserDevToolsAvailable()).Chosen() {
 		b.openBrowserDevTools(t)
 	}
-	pipLabel := browserChromeLabel("画中画", "Picture-in-picture")
+	pipLabel := browserPreviewText("pipOpen")
 	if b.pip != nil {
-		pipLabel = browserChromeLabel("关闭画中画", "Close picture-in-picture")
+		pipLabel = browserPreviewText("pipClose")
 	}
 	if menu.Item(pipLabel).Disabled(disabled).Chosen() {
 		if b.pip != nil {
@@ -44,7 +44,11 @@ func (b *Controller) browserToolsMenu(menu *ui.Menu, t *Tab, state desktop.State
 			b.openPictureInPicture(t)
 		}
 	}
-	if menu.Item(browserChromeLabel("设备工具栏", "Device toolbar")).Checked(s.Device).Disabled(disabled).Chosen() {
+	deviceLabel := browserPreviewText("deviceToolbarShow")
+	if s.Device {
+		deviceLabel = browserPreviewText("deviceToolbarHide")
+	}
+	if menu.Item(deviceLabel).Checked(s.Device).Disabled(disabled).Chosen() {
 		b.CancelAction()
 		s.Device = !s.Device
 		b.showHost(t.Host)
@@ -107,13 +111,17 @@ func (b *Controller) browserToolsMenu(menu *ui.Menu, t *Tab, state desktop.State
 		b.changeBrowserZoom(t, 1)
 	}
 	menu.Separator()
-	if s.Device && menu.Item(browserChromeLabel("锁定设备比例", "Lock device aspect ratio")).Checked(s.AspectLocked).Chosen() {
+	lockLabel := browserPreviewText("viewportLock")
+	if s.AspectLocked {
+		lockLabel = browserPreviewText("viewportUnlock")
+	}
+	if s.Device && menu.Item(lockLabel).Checked(s.AspectLocked).Chosen() {
 		s.AspectLocked = !s.AspectLocked
 	}
 	for _, choice := range []struct {
 		label, kind string
 		available   bool
-	}{{browserChromeLabel("清登录 Cookie…", "Clear sign-in cookies…"), "cookies", !disabled && t.Host.BrowserCookieToolsAvailable()}, {browserChromeLabel("清 HTTP 缓存…", "Clear HTTP cache…"), "cache", toolAvailable}, {browserChromeLabel("清五类站点数据…", "Clear five site-data categories…"), "site-data", !disabled && t.Host.BrowserSiteDataToolsAvailable()}} {
+	}{{browserPreviewText("clearCookies"), "cookies", !disabled && t.Host.BrowserCookieToolsAvailable()}, {browserPreviewText("clearCache"), "cache", toolAvailable}, {browserChromeLabel("清五类站点数据…", "Clear five site-data categories…"), "site-data", !disabled && t.Host.BrowserSiteDataToolsAvailable()}} {
 		if menu.Item(choice.label).Disabled(!choice.available).Chosen() {
 			b.CancelAction()
 			t.tools.confirmation = &browserDataConfirmation[*desktop.Host]{kind: choice.kind, host: t.Host, epoch: t.Host.BrowserPageVersion()}
@@ -125,7 +133,7 @@ func (b *Controller) browserToolsMenu(menu *ui.Menu, t *Tab, state desktop.State
 		t.ActionMessage = browserChromeLabel("已取消等待；已提交的操作可能已生效", "Stopped waiting; the submitted operation may already have taken effect")
 	}
 	menu.Separator()
-	if menu.Item(browserChromeLabel("发现本机服务", "Discover local services")).Checked(t.toolsExpanded).Chosen() {
+	if menu.Item(browserPreviewText("discovered")).Checked(t.toolsExpanded).Chosen() {
 		t.toolsExpanded = !t.toolsExpanded
 		b.update()
 	}
@@ -135,7 +143,7 @@ func (b *Controller) recordingMenu(menu *ui.Menu, t *Tab, disabled bool) {
 	if r := b.recording; r != nil && r.tab == t {
 		switch r.phase {
 		case "recording":
-			if menu.Item(browserChromeLabel("停止录制", "Stop recording")).Chosen() {
+			if menu.Item(browserPreviewText("recordStop")).Chosen() {
 				b.stopBrowserRecording(r)
 			}
 		case "ready":
@@ -149,7 +157,7 @@ func (b *Controller) recordingMenu(menu *ui.Menu, t *Tab, disabled bool) {
 			b.cancelBrowserRecording(browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported"))
 			b.update()
 		}
-	} else if menu.Item(browserChromeLabel("录制视频", "Record video")).Disabled(disabled || !browserrecording.PlatformAvailable()).Chosen() {
+	} else if menu.Item(browserPreviewText("recordStart")).Disabled(disabled || !browserrecording.PlatformAvailable()).Chosen() {
 		b.startBrowserRecording(t)
 	}
 	if t.RecordingPath != "" && menu.Item(browserChromeLabel("显示视频", "Show video")).Chosen() {

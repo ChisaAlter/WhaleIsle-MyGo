@@ -142,6 +142,13 @@ func compactCount(value float64) string {
 	}
 }
 
+func costText(zh, en string) string {
+	if strings.HasPrefix(i18n.Locale(), "zh") {
+		return zh
+	}
+	return en
+}
+
 func money(r cost.Result) string {
 	if !r.Available {
 		return i18n.T(i18n.KeyComposerCostMoneyUnavailable)
@@ -156,6 +163,53 @@ func money(r cost.Result) string {
 	return v
 }
 
+func routeName(provider, model string) string {
+	if provider == "" && model == "" {
+		return costText("未知模型", "Unknown model")
+	}
+	if provider == "" {
+		return model
+	}
+	if model == "" {
+		return provider
+	}
+	return provider + "/" + model
+}
+
+func routeCostLabel(r cost.Result) string {
+	if !r.Available {
+		return i18n.T(i18n.KeyComposerCostMoneyUnavailable)
+	}
+	if r.Priced == 0 {
+		return i18n.T(i18n.KeyComposerCostNoPrices)
+	}
+	v := fmt.Sprintf(costText("费用 ¥%.2f", "Cost ¥%.2f"), r.Cents/100)
+	if r.Unpriced > 0 {
+		v += i18n.T(i18n.KeyComposerCostPartlyUnpriced)
+	}
+	return v
+}
+
+func priceLines(p usage.ModelPrice) []string {
+	fmtVal := func(v float64) string { return fmt.Sprintf("%.6g", v) }
+	if p.Flat || p.Idle == nil {
+		return []string{fmt.Sprintf(
+			costText("价格：命中 %s / 未命中 %s / 输出 %s（元/百万 tokens）", "Price: hit %s / miss %s / output %s (CNY per million tokens)"),
+			fmtVal(p.InputCacheHit), fmtVal(p.InputCacheMiss), fmtVal(p.Output),
+		)}
+	}
+	return []string{
+		fmt.Sprintf(
+			costText("高峰：命中 %s / 未命中 %s / 输出 %s（元/百万 tokens）", "Peak: hit %s / miss %s / output %s (CNY per million tokens)"),
+			fmtVal(p.InputCacheHit), fmtVal(p.InputCacheMiss), fmtVal(p.Output),
+		),
+		fmt.Sprintf(
+			costText("空闲：命中 %s / 未命中 %s / 输出 %s（元/百万 tokens）", "Off-peak: hit %s / miss %s / output %s (CNY per million tokens)"),
+			fmtVal(p.Idle.InputCacheHit), fmtVal(p.Idle.InputCacheMiss), fmtVal(p.Idle.Output),
+		),
+	}
+}
+
 // bucketTotal is the sum the status line reports for a session.
 func bucketTotal(b cost.Bucket) float64 { return b.Hit + b.Miss + b.Output }
 
@@ -167,13 +221,25 @@ func cacheHitPercent(b cost.Bucket) string {
 	return fmt.Sprintf("%.1f%%", 100*b.Hit/(b.Hit+b.Miss))
 }
 
+func usageBucketLine(peak bool, b cost.Bucket) string {
+	rate := ""
+	if pct := cacheHitPercent(b); pct != "" {
+		rate = " (" + pct + ")"
+	}
+	hit, miss, out := compactCount(b.Hit)+rate, compactCount(b.Miss), compactCount(b.Output)
+	if peak {
+		return fmt.Sprintf(costText("高峰 命中 %s · 未命中 %s · 输出 %s", "Peak hit %s · miss %s · output %s"), hit, miss, out)
+	}
+	return fmt.Sprintf(costText("空闲 命中 %s · 未命中 %s · 输出 %s", "Off-peak hit %s · miss %s · output %s"), hit, miss, out)
+}
+
 // tokensDetail is the panel's per-bucket breakdown.
 func tokensDetail(b cost.Bucket) string {
 	rate := ""
 	if pct := cacheHitPercent(b); pct != "" {
 		rate = " (" + pct + ")"
 	}
-	return fmt.Sprintf(i18n.T(i18n.KeyComposerCostTokensDetail),
+	return fmt.Sprintf(costText("命中 %s · 未命中 %s · 输出 %s", "Hit %s · miss %s · output %s"),
 		compactCount(b.Hit)+rate, compactCount(b.Miss), compactCount(b.Output))
 }
 
@@ -261,12 +327,14 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 				seconds = 0
 			}
 			phase := i18n.T(i18n.KeyComposerDockOffPeak)
+			hint := costText("空闲时段（北京时间工作日 12:00–14:00、18:00–次日 9:00 及周末全天）", "Off-peak hours (everything outside the peak windows, weekends included)")
 			if peak {
 				phase = i18n.T(i18n.KeyComposerDockPeak)
+				hint = costText("高峰时段（北京时间工作日 9:00–12:00、14:00–18:00）", "Peak hours (Beijing 9:00–12:00 and 14:00–18:00 on weekdays)")
 			}
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockPeakSwitch), phase,
 				fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60))).
-				FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Tooltip(hint)
 		}
 		label := i18n.T(i18n.KeyComposerCostEstimate) + "：" + money(r)
 		if !m.Billing.Loaded && r.Available {
@@ -291,39 +359,39 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 			panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Radius(12).Background(c.Theme().Background).Border(.5, c.Theme().Border).Padding(16).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)).Children(func() {
 				ui.Scroll(c).FillWidth().MaxHeight(328).Children(func() {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
+						ui.Text(c, costText("会话累计费用", "Session cost")+" · "+money(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						ui.Text(c, i18n.T(i18n.KeyComposerCostNotABill)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						if m.Billing.Err != "" {
 							ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
-						for _, row := range r.Rows {
-							name := row.Provider + "/" + row.Model
-							if name == "/" {
-								name = i18n.T(i18n.KeyComposerCostUnknownRoute)
+						if len(r.Rows) == 0 && (m.Snapshot.SelectedProvider != "" || m.Snapshot.SelectedModel != "") {
+							name := routeName(m.Snapshot.SelectedProvider, m.Snapshot.SelectedModel)
+							if p, ok := usage.ResolveModelPrice(m.Snapshot.SelectedProvider, m.Snapshot.SelectedModel, m.Billing.Settings.Prices); ok {
+								ui.Text(c, name).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								for _, line := range priceLines(p) {
+									ui.Text(c, line).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								}
+							} else {
+								ui.Text(c, name+" · "+costText("没有设置价格", "No price set")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 							}
-							price := i18n.T(i18n.KeyComposerCostUnpriced)
+						}
+						for _, row := range r.Rows {
+							name := routeName(row.Provider, row.Model)
+							price := costText("没有设置价格", "No price set")
 							if row.Priced {
-								price = fmt.Sprintf("¥%.2f", row.Cents/100)
+								price = fmt.Sprintf(costText("费用 ¥%.2f", "Cost ¥%.2f"), row.Cents/100)
 							}
 							ui.Text(c, name+" · "+price).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPeakPriceLine), tokensDetail(*row.Peak))).
+							ui.Text(c, usageBucketLine(true, *row.Peak)).
 								FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-							ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine), tokensDetail(*row.OffPeak))).
+							ui.Text(c, usageBucketLine(false, *row.OffPeak)).
 								FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 							if row.Priced {
-								p := row.Price
 								if row.PriceSource == "official" {
-									label := "Official prices"
-									if i18n.Locale() == i18n.LocaleZH {
-										label = "官方价格"
-									}
-									ui.Text(c, label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+									ui.Text(c, costText("官方价格", "Official prices")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 								}
-								ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostPriceLine), p.InputCacheHit, p.InputCacheMiss, p.Output)).
-									FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-								if !p.Flat && p.Idle != nil {
-									ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerCostOffPeakPriceLine),
-										fmt.Sprintf("Hit %.6g · Miss %.6g · Output %.6g", p.Idle.InputCacheHit, p.Idle.InputCacheMiss, p.Idle.Output))).
-										FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+								for _, line := range priceLines(row.Price) {
+									ui.Text(c, line).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 								}
 							}
 						}
@@ -335,8 +403,13 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 								renderChildren(c, m, muted)
 							}
 						}
-						if m.OnPrices != nil && ui.Button(c, i18n.T(i18n.KeyComposerCostGlobalBilling)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
-							m.OnPrices()
+						noPriceHint := costText("在 设置 → 消耗统计 → 计费设置 中设置模型价格", "Set model prices in Settings → Usage stats → Billing settings")
+						if m.OnPrices != nil {
+							if ui.Button(c, noPriceHint).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+								m.OnPrices()
+							}
+						} else if r.Priced == 0 || r.Unpriced > 0 {
+							ui.Text(c, noPriceHint).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 					})
 				})
@@ -376,10 +449,10 @@ func renderChildren(c *ui.Context, m Model, muted ui.Color) {
 		if name == "" {
 			name = s.ID
 		}
-		ui.Text(c, name+" · "+money(own)+" · "+tokensDetail(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, name+" · "+routeCostLabel(own)+" · "+tokensDetail(own.Total)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	if remaining > 0 {
-		ui.Text(c, fmt.Sprintf("+%d", remaining)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf(costText("还有 %d 个", "%d more"), remaining)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 }
 
@@ -391,5 +464,6 @@ func childSummary(m Model, n int) string {
 		}
 	}
 	r := cost.Calculate(m.Snapshot.SelectedID, sources, m.Billing.Settings)
-	return fmt.Sprintf("%s · %s · %s ▾", fmt.Sprintf(i18n.T(i18n.KeyComposerCostSubagents), n), money(r), tokensDetail(r.Total))
+	summary := fmt.Sprintf(costText("子代理 %d 个", "Subagents (%d)"), n)
+	return fmt.Sprintf("%s · %s · %s ▾", summary, routeCostLabel(r), tokensDetail(r.Total))
 }

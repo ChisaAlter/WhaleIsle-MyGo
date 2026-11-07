@@ -31,7 +31,7 @@ func (p *ModelCommandState) Handle(text, sessionID, targetID string, editing boo
 		return true, "Select the draft's session before choosing a model"
 	}
 	if attachments > 0 {
-		return true, "/model does not accept attachments; remove them before opening the picker"
+		return true, CommandAttachmentsUnsupportedNotice("model")
 	}
 	p.SessionID, p.Open = sessionID, true
 	return true, ""

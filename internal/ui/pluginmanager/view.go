@@ -77,7 +77,7 @@ func View(c *ui.Context, m Model) {
 	fg, muted, bg, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.BG), chrome.Color(colors.Border)
 	w, _ := c.Size()
 	inset := max(float32(24), min(float32(48), w*.04))
-	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, inset, 48, inset).Background(bg).AlignItems(ui.Center).Children(func() {
+	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, inset, 48, inset).Background(ui.Transparent).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(960).MinWidth(0).Gap(32).Children(func() {
 			detail := m.SelectedExternalTab == "" && s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
 			if !detail && (s.View.Kind != "more" || m.SelectedExternalTab != "") {

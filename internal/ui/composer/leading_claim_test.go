@@ -4,6 +4,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestLeadingInputSpaceClaimsDeclaredHostCommand(t *testing.T) {
@@ -79,5 +81,60 @@ func TestPermissionDecorationLeavesHostSpaceAndArguments(t *testing.T) {
 	d.Client.ReplaceText(nil, "workspace-write")
 	if handleModelCommand(m) || d.PermissionCommand.Open {
 		t.Fatal("argument-bearing Host permission opened native popup")
+	}
+}
+
+func TestCommandAttachmentsUnsupportedRefusesClaimedAndBareHostCommands(t *testing.T) {
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		i18n.SetLocale(locale)
+		d, m, _ := suggestionFixture("/goal")
+		m.Snapshot.ClientReady = true
+		m.Snapshot.SelectedID = "a"
+		yes := true
+		m.Snapshot.SlashCommands = []api.ListResultItem2{
+			{Name: "goal", Input: &api.ListResultItem2Input{Hint: "Goal"}},
+			{Name: "compact"},
+			{Name: "attachable", Input: &api.ListResultItem2Input{Hint: "Attachable", Attachments: &yes}},
+		}
+		d.Attachments = []session.ComposerAttachment{{Path: "note.txt", Name: "note.txt"}}
+		submitted := 0
+		m.OnSubmitGesture = func(bool) { submitted++ }
+		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeySpace}) {
+			t.Fatal("Space did not claim /goal")
+		}
+		d.Client.ReplaceText(nil, "ship v1")
+		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyEnter}) {
+			t.Fatal("Enter not handled")
+		}
+		wantGoalErr := CommandAttachmentsUnsupportedNotice("goal")
+		if submitted != 0 || d.Error != wantGoalErr || d.Text != "/goal ship v1" || len(d.Attachments) != 1 {
+			t.Fatalf("locale %s claimed command with attachment should refuse without clearing: submitted=%d err=%q want=%q text=%q", locale, submitted, d.Error, wantGoalErr, d.Text)
+		}
+
+		// Bare Host command with attachments also surfaces the refusal notice and keeps draft/attachments.
+		d.Error = ""
+		d.Client.ReplaceText(&ui.TextInputRange{Start: 0, End: ui.UTF16Len(d.Text)}, "/compact")
+		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyEnter}) {
+			t.Fatal("Enter not handled for /compact")
+		}
+		wantCompactErr := CommandAttachmentsUnsupportedNotice("compact")
+		if submitted != 0 || d.Error != wantCompactErr || d.Text != "/compact" || len(d.Attachments) != 1 {
+			t.Fatalf("locale %s bare command with attachment should refuse without clearing: submitted=%d err=%q want=%q text=%q", locale, submitted, d.Error, wantCompactErr, d.Text)
+		}
+
+		// A command declaring attachments=true proceeds to submission.
+		d.Error = ""
+		d.Client.ReplaceText(&ui.TextInputRange{Start: 0, End: ui.UTF16Len(d.Text)}, "/attachable")
+		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeySpace}) {
+			t.Fatal("Space did not claim /attachable")
+		}
+		d.Client.ReplaceText(nil, "with file")
+		if !draftInputEvent(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyEnter}) {
+			t.Fatal("Enter not handled for /attachable")
+		}
+		if submitted != 1 || d.Error != "" {
+			t.Fatalf("locale %s attachable command was blocked: submitted=%d err=%q", locale, submitted, d.Error)
+		}
 	}
 }

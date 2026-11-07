@@ -29,24 +29,40 @@ func toolSearchCard(c *ui.Context, m *toolSearchModel, st ToolCardStyle, key str
 	}
 	style := markdown.Style{FG: st.FG, Muted: secondary, CodeBG: background, CodeBanner: banner, ToolCodeLanguage: st.Muted}
 	labels := markdown.SearchLabels{
-		PathsSummary: func(shown int, total float64, truncated bool) string {
-			if truncated {
-				return fmt.Sprintf(i18n.T(i18n.KeyToolSearchPathsTruncated), shown, markdown.SearchNumber(total))
-			}
-			return fmt.Sprintf(i18n.T(i18n.KeyToolSearchPaths), shown)
-		},
-		MatchesSummary: func(shown int, total float64, files int, truncated bool) string {
-			if truncated {
-				return fmt.Sprintf(i18n.T(i18n.KeyToolSearchMatchesTruncated), shown, markdown.SearchNumber(total), files)
-			}
-			return fmt.Sprintf(i18n.T(i18n.KeyToolSearchMatches), shown, files)
-		},
-		Copy: i18n.T(i18n.KeyChatToolCopy), Copied: i18n.T(i18n.KeyToolReadCopied), NoResults: i18n.T(i18n.KeyToolSearchEmpty), Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: i18n.T(i18n.KeyToolSearchCollapseAria),
-		Expand: func(n int) string { return fmt.Sprintf(i18n.T(i18n.KeyToolSearchExpand), n) }, ExpandAria: func(n int) string { return fmt.Sprintf(i18n.T(i18n.KeyToolSearchExpandAria), n) },
+		PathsSummary:   toolSearchPathsSummary,
+		MatchesSummary: toolSearchMatchesSummary,
+		Copy: i18n.T(i18n.KeyChatToolCopy), Copied: i18n.T(i18n.KeyToolReadCopied), NoResults: i18n.T(i18n.KeyToolSearchEmpty), Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: toolSearchCollapseAriaLabel(),
+		Expand: toolSearchExpandRestLabel, ExpandAria: toolSearchExpandAriaLabel,
 	}
 	markdown.ToolSearchBlock(c.Key("tool-search:"+key), data, 8, style, labels).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolSearchCard))
 	if m.Recovery != "" {
 		prefs := theme.RenderPreferences()
 		ui.Text(c, m.Recovery).Font(prefs.Interface.Family).FontSize(13).FixedLineHeight(20).TextColor(st.Muted).MinWidth(0).Shrink(0).Selectable().Margin(4, 0, 4, 4)
 	}
+}
+
+func toolSearchPathsSummary(shown int, total float64, truncated bool) string {
+	if truncated {
+		return fmt.Sprintf(referenceCopy("Showing %d of %s paths", "显示 %d / 共 %s 个路径"), shown, markdown.SearchNumber(total))
+	}
+	return fmt.Sprintf(referenceCopy("%d paths", "%d 个路径"), shown)
+}
+
+func toolSearchMatchesSummary(shown int, total float64, files int, truncated bool) string {
+	if truncated {
+		return fmt.Sprintf(referenceCopy("Showing %d of %s matches · %d files", "显示 %d / 共 %s 处匹配 · %d 个文件"), shown, markdown.SearchNumber(total), files)
+	}
+	return fmt.Sprintf(referenceCopy("%d matches · %d files", "%d 处匹配 · %d 个文件"), shown, files)
+}
+
+func toolSearchExpandRestLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("… %d more lines", "… 其余 %d 行"), n)
+}
+
+func toolSearchExpandAriaLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("Expand %d more result lines", "展开其余 %d 行结果"), n)
+}
+
+func toolSearchCollapseAriaLabel() string {
+	return referenceCopy("Collapse results", "收起结果")
 }

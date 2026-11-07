@@ -66,7 +66,7 @@ func terminalTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(c.Theme().Border)
 	ui.Row(c).FillWidth().Height(32).Shrink(0).MinWidth(0).Gap(4).Padding(0, 8).AlignItems(ui.Center).Children(func() {
-		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
+		ui.ScrollHorizontal(c).Label(userTerminalText("sessions.list")).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 				for index, pane := range append([]*terminalPane(nil), p.panes...) {
 					paintTerminalChip(c, m, pane, index+1, fg, muted)

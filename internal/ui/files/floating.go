@@ -140,6 +140,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 				}
 			})
 		ui.Text(c, label("已保存文件的只读预览；点击刷新读取最新内容。", "Saved-file preview. Refresh to read the latest saved content.")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
+		ui.Text(c, FilesLocale("preview.floating.description")).FontSize(theme.InterfaceSize(10)).TextColor(muted).Padding(0, 12, 4, 12)
 		if f.snapshot.Problem != "" {
 			ui.Text(c, f.snapshot.Problem).FontSize(theme.InterfaceSize(10)).TextColor(muted)
 		}

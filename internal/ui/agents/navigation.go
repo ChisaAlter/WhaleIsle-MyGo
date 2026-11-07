@@ -124,7 +124,7 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 							})
 						}
 						if v.Busy {
-							ui.Text(c, agentText("正在读取…", "Loading…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+							ui.Text(c, agentText("正在读取…", "Loading…")+" · "+SubagentLocale("loading.label")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						}
 					})
 				})
@@ -171,6 +171,9 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 						// Preserve the existing dedicated continuation route. Never send through
 						// the main composer or pretend one-shot history is an ordinary Session.
 						if reason := childReadOnlyReason(v); reason != "" {
+							if title := childReadOnlyTitle(v); title != "" {
+								ui.Text(c, title).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(fg)
+							}
 							ui.Text(c, reason).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						}
 						if v.Address.Mode == "continuable" && m.PromptDraft != nil {

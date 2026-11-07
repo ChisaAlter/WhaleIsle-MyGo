@@ -152,11 +152,12 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		settingsNotice(c, "about:157", "", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			for _, row := range []struct{ label, value string }{{i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
+			for _, row := range []struct{ id, label, value string }{{"about-detail-id", i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {"about-detail-user-data", i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {"about-detail-vendor", i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
 				if row.value != "" {
-					bodyPreferenceRow(c, "about-detail-"+row.label, row.label, "", fg, muted, func() {
+					element := bodyPreferenceRow(c, "about-detail-"+row.label, row.label, "", fg, muted, func() {
 						ui.Text(c, row.value).FillWidth().SingleLine().Tooltip(row.value).Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 					})
+					settingsSearchTarget(c, row.id, row.label, element)
 				}
 			}
 			if a.AnalyticsEnabled != nil {
@@ -179,7 +180,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					}
 				}
 			})
-			if m.Desktop != nil && m.Desktop.Fields.Workspace != nil {
+			if hasDesktopDiagnostics(m.Desktop) {
 				desktopDiagnostics(c, m.Desktop, fg, muted)
 			}
 			if m.Store != nil {

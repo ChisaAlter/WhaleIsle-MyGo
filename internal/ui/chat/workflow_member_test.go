@@ -78,4 +78,14 @@ func TestWorkflowWholeMemberRowRetainsFocusWithoutNavigatingFinishedChild(t *tes
 	if _, ok := tt.Find("Open Owned child task"); ok {
 		t.Fatal("completed member retained a live-navigation accessible label")
 	}
+	if got := workflowMemberCount(1); got != "1 member" || workflowMemberCount(3) != "3 members" {
+		t.Fatalf("workflowMemberCount en = %q / %q", got, workflowMemberCount(3))
+	}
+	if workflowEmptyLabel() != "No members started" || workflowUnphasedLabel() != "Unphased" || workflowEmptyPhaseLabel() != "Empty phase name" || workflowUnnamedMemberLabel() != "Empty member name" {
+		t.Fatalf("workflow labels en mismatch")
+	}
+	i18n.SetLocale(i18n.LocaleZH)
+	if workflowMemberCount(2) != "2 个成员" || workflowEmptyLabel() != "没有启动成员" || workflowUnnamedMemberLabel() != "空成员名" {
+		t.Fatalf("workflow labels zh mismatch")
+	}
 }

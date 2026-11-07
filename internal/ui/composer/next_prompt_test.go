@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func nextPromptRegressionModel() Model {
@@ -25,6 +26,8 @@ func TestNextPromptEligibilityAndAcceptanceGates(t *testing.T) {
 		{"model-popup", func(m *Model) { m.State.ModelCommand = ModelCommandState{Open: true, SessionID: "a"} }},
 		{"running", func(m *Model) { m.Snapshot.Items[0].Running = true }},
 		{"subagent", func(m *Model) { m.Snapshot.Items[0].Origin = "subagent" }},
+		{"subagent-identity", func(m *Model) { m.Snapshot.Items[0].SubagentIdentity = &session.SessionSubagentIdentity{Mode: "continuable"} }},
+		{"parent-offline", func(m *Model) { m.ParentOffline = true }},
 		{"draft-attachment", func(m *Model) { m.State.Attachments = []session.ComposerAttachment{{Path: "kept.txt"}} }},
 		{"inert", func(m *Model) { m.Inert = true }},
 		{"pending-interaction", func(m *Model) { m.StopBlocked = true }},
@@ -64,5 +67,30 @@ func TestNextPromptTabInsertsWithoutSendingOrInterruptingIME(t *testing.T) {
 	before := m.State.Text
 	if acceptNextPrompt(m) || m.State.Text != before || accepted != 1 {
 		t.Fatal("suggestion interrupted marked Chinese text")
+	}
+}
+
+func TestNextPromptRendersTabBadgeAndLocalizedAdoptionHint(t *testing.T) {
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		i18n.SetLocale(locale)
+		m := nextPromptRegressionModel()
+		m.UseTextInputClient = true
+		accepted, submitted := 0, 0
+		m.OnAcceptNextPrompt = func() string { accepted++; return m.NextPrompt.Text }
+		m.OnSubmit = func() { submitted++ }
+		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 700, 260)
+		if !tt.HasText(m.NextPrompt.Text) || !tt.HasText("Tab") {
+			t.Fatalf("locale %s missing nextPrompt text or Tab badge: %v", locale, tt.Texts())
+		}
+		if _, ok := tt.Find(NextPromptHint()); !ok {
+			t.Fatalf("locale %s missing Tab adoption hint %q", locale, NextPromptHint())
+		}
+		if err := tt.Click(NextPromptAcceptLabel(m.NextPrompt.Text)); err != nil {
+			t.Fatalf("locale %s click accept label failed: %v", locale, err)
+		}
+		if accepted != 1 || submitted != 0 || m.State.Text != m.NextPrompt.Text {
+			t.Fatalf("locale %s click adoption mismatch: accepted=%d submitted=%d draft=%q", locale, accepted, submitted, m.State.Text)
+		}
 	}
 }

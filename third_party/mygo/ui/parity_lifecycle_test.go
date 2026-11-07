@@ -63,7 +63,7 @@ func TestMenuLiveSubmenuDoesNotRetargetPendingPress(t *testing.T) {
 	if err := tt.Click("Resources"); err != nil {
 		t.Fatal(err)
 	}
-	more, ok := tt.Find("More ›")
+	more, ok := tt.Find("More")
 	if !ok {
 		t.Fatal("submenu owner missing")
 	}
@@ -74,7 +74,9 @@ func TestMenuLiveSubmenuDoesNotRetargetPendingPress(t *testing.T) {
 	}
 	x, y := first.X+first.W/2, first.Y+first.H/2
 	tt.Press(x, y)
-	rows = []string{"second", "first"}
+	// The submenu grows up from its row's bottom, so the item added after
+	// the pressed one takes its place under the pointer.
+	rows = []string{"first", "second"}
 	tt.Frame()
 	tt.Release(x, y)
 	if chosen != "" {

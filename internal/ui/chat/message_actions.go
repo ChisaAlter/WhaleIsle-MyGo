@@ -289,3 +289,72 @@ func branchActionLabel() string {
 	}
 	return "在新对话中分支"
 }
+
+// messageEditText returns verbatim zh/en copy from dsh-client-ui-message-edit/locales.ts.
+func messageEditText(key string) string {
+	copy := map[string][2]string{
+		"edit":                {"编辑", "Edit"},
+		"action.edit":         {"编辑", "Edit"},
+		"running":             {"等待当前回复结束后编辑", "Wait for the current response to finish before editing"},
+		"action.running":      {"等待当前回复结束后编辑", "Wait for the current response to finish before editing"},
+		"unsupported":         {"包含非文本内容，暂不支持编辑", "Messages with non-text content cannot be edited yet"},
+		"action.unsupported":  {"包含非文本内容，暂不支持编辑", "Messages with non-text content cannot be edited yet"},
+		"cancel":              {"取消", "Cancel"},
+		"action.cancel":       {"取消", "Cancel"},
+		"banner":              {"正在重新编辑此消息", "Re-editing this message"},
+		"editor.banner":       {"正在重新编辑此消息", "Re-editing this message"},
+		"editing":             {"正在下方输入框中重新编辑", "Re-editing in the input box below"},
+		"editor.editing":      {"正在下方输入框中重新编辑", "Re-editing in the input box below"},
+		"hint.running":        {"当前回复尚未结束，结束后可发送", "The current response has not finished; send once it settles"},
+		"editor.hint.running": {"当前回复尚未结束，结束后可发送", "The current response has not finished; send once it settles"},
+		"stale":               {"会话已有更新的消息，此条不能再重新发送", "Newer messages arrived, so this one can no longer be resent"},
+		"editor.hint.stale":   {"会话已有更新的消息，此条不能再重新发送", "Newer messages arrived, so this one can no longer be resent"},
+		"busy":                {"输入框正忙，暂时无法编辑", "The input box is busy; editing is unavailable right now"},
+		"error.busy":          {"输入框正忙，暂时无法编辑", "The input box is busy; editing is unavailable right now"},
+		"error":               {"无法重新发送编辑后的消息，请重试", "Could not resend the edited message. Try again."},
+		"error.generic":       {"无法重新发送编辑后的消息，请重试", "Could not resend the edited message. Try again."},
+	}
+	if i18n.Locale() == i18n.LocaleEN {
+		return copy[key][1]
+	}
+	return copy[key][0]
+}
+
+// messageEditStatus resolves the edit status copy for a user message row.
+func messageEditStatus(snap session.ViewState, msg session.Message, editingSeq float64) string {
+	editSeq, editTextOnly := projectedLatestEditable(snap)
+	if editingSeq > 0 && msg.Seq == editingSeq {
+		if editSeq != msg.Seq {
+			return messageEditText("stale")
+		}
+		if snap.PromptBusy {
+			return messageEditText("hint.running")
+		}
+		if snap.MessageEditBusy {
+			return messageEditText("busy")
+		}
+		return messageEditText("editing")
+	}
+	if msg.Seq <= 0 || msg.Seq != editSeq {
+		if msg.Seq > 0 && editSeq > msg.Seq {
+			return messageEditText("stale")
+		}
+		return ""
+	}
+	if snap.PromptBusy {
+		return messageEditText("running")
+	}
+	if snap.MessageEditBusy {
+		return messageEditText("busy")
+	}
+	if !editTextOnly || msg.ImageRef != "" {
+		return messageEditText("unsupported")
+	}
+	if refs, _ := userMessageParts(msg.Body); len(refs) > 0 {
+		return messageEditText("unsupported")
+	}
+	return messageEditText("edit")
+}
+
+func unusedBranchActionTail() {
+}

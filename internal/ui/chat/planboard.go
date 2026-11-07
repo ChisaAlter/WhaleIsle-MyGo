@@ -384,10 +384,10 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 			ui.Text(c, e.Error).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if e.Ready && m.OnSaveQueueEdit != nil && ui.Button(c, i18n.T(i18n.KeySettingsSave)).Disabled(e.Saving || strings.TrimSpace(e.Text) == "").Clicked() {
+			if e.Ready && m.OnSaveQueueEdit != nil && ui.Button(c, queueSaveEditCopy()).Label(queueSaveEditCopy()).Disabled(e.Saving || strings.TrimSpace(e.Text) == "").Clicked() {
 				m.OnSaveQueueEdit(e.Token)
 			}
-			if m.OnCancelQueueEdit != nil && stdButton(c, palette, i18n.T(i18n.KeySidebarRenameCancel), buttonGhost, e.Saving).Clicked() {
+			if m.OnCancelQueueEdit != nil && stdButton(c, palette, queueCancelEditCopy(), buttonGhost, e.Saving).Label(queueCancelEditCopy()).Clicked() {
 				m.OnCancelQueueEdit(e.Token)
 			}
 		})

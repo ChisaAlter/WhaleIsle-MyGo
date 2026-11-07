@@ -310,3 +310,40 @@ func TestFeedbackSelectedLabelKeepsSemanticKeyboardFocus(t *testing.T) {
 		t.Fatal("selected glyph/label changed keyboard owner")
 	}
 }
+
+func TestMessageEditStatusAndCopyParity(t *testing.T) {
+	prev := i18n.Locale()
+	defer i18n.SetLocale(prev)
+
+	textMsg := session.Message{ID: "u1", Role: "user", Kind: session.MessageKindText, Seq: 2, Body: "hello"}
+	imgMsg := session.Message{ID: "u2", Role: "user", Kind: session.MessageKindText, Seq: 4, Body: "[image] C:\\tmp\\a.png"}
+
+	i18n.SetLocale(i18n.LocaleEN)
+	if got := messageEditStatus(session.ViewState{PromptBusy: true, Messages: []session.Message{textMsg}}, textMsg, 0); got != "Wait for the current response to finish before editing" {
+		t.Fatalf("running status en = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{MessageEditBusy: true, Messages: []session.Message{textMsg}}, textMsg, 0); got != "The input box is busy; editing is unavailable right now" {
+		t.Fatalf("busy status en = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{Messages: []session.Message{imgMsg}}, imgMsg, 0); got != "Messages with non-text content cannot be edited yet" {
+		t.Fatalf("unsupported status en = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{Messages: []session.Message{textMsg, {ID: "u3", Role: "user", Kind: session.MessageKindText, Seq: 6, Body: "later"}}}, textMsg, 2); got != "Newer messages arrived, so this one can no longer be resent" {
+		t.Fatalf("stale status en = %q", got)
+	}
+
+	i18n.SetLocale(i18n.LocaleZH)
+	if got := messageEditStatus(session.ViewState{PromptBusy: true, Messages: []session.Message{textMsg}}, textMsg, 0); got != "等待当前回复结束后编辑" {
+		t.Fatalf("running status zh = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{MessageEditBusy: true, Messages: []session.Message{textMsg}}, textMsg, 0); got != "输入框正忙，暂时无法编辑" {
+		t.Fatalf("busy status zh = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{Messages: []session.Message{imgMsg}}, imgMsg, 0); got != "包含非文本内容，暂不支持编辑" {
+		t.Fatalf("unsupported status zh = %q", got)
+	}
+	if got := messageEditStatus(session.ViewState{Messages: []session.Message{textMsg, {ID: "u3", Role: "user", Kind: session.MessageKindText, Seq: 6, Body: "later"}}}, textMsg, 2); got != "会话已有更新的消息，此条不能再重新发送" {
+		t.Fatalf("stale status zh = %q", got)
+	}
+}
+

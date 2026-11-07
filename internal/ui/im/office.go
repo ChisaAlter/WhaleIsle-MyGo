@@ -16,7 +16,7 @@ func officeSettingsView(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady
-	page := ui.Column(c.Key(fmt.Sprintf("office-%d", v.Scope))).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.BG))
+	page := ui.Column(c.Key(fmt.Sprintf("office-%d", v.Scope))).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent)
 	feedback := ui.Local(page, "feedback", func() string { return "" })
 	message, kind := v.Notice, "success"
 	if v.Error != "" {

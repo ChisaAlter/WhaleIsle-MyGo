@@ -50,6 +50,18 @@ func terminalExitText(m *toolTerminalModel) string {
 	return ""
 }
 
+func terminalExpandRestLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("… %d more lines", "… 其余 %d 行"), n)
+}
+
+func terminalExpandAriaLabel(n int) string {
+	return fmt.Sprintf(referenceCopy("Expand the remaining %d output lines", "展开其余 %d 行输出"), n)
+}
+
+func terminalCollapseAriaLabel() string {
+	return referenceCopy("Collapse output", "收起输出")
+}
+
 func terminalPrompt(cwd, home string) string {
 	if cwd == "" {
 		return "$"
@@ -201,6 +213,41 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 			if !visible {
 				ui.Box(c).MinWidth(0).Margin(0, 0, 0, 30).Padding(12, 14, 12, 0).Label(i18n.T(i18n.KeyToolTerminalNoOutput)).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyToolTerminalNoOutput)).Font(font).FontSize(11).FixedLineHeight(16).TextColor(st.Muted)
+				})
+			} else if m.FoldLines > 0 && len(lines) > m.FoldLines {
+				expanded := ui.Local(card, "expanded-output", func() bool { return false })
+				visibleLines := lines
+				remaining := len(lines) - m.FoldLines
+				if !*expanded {
+					visibleLines = lines[:m.FoldLines]
+				}
+				ui.Column(c.Key("output-folded")).MinWidth(0).Margin(0, 0, 0, 30).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {
+					spans := []ui.Span{}
+					for index, line := range visibleLines {
+						spans = append(spans, line...)
+						if index+1 < len(visibleLines) {
+							spans = append(spans, ui.Span{Text: "\n"})
+						}
+					}
+					ui.RichText(c, spans...).Font(font).FontSize(11).FixedLineHeight(18).TextColor(st.FG).NoWrap().Selectable().
+						Padding(12, 14, 6, 0).MinWidth(0).Shrink(0)
+					if !*expanded {
+						restText := terminalExpandRestLabel(remaining)
+						restAria := terminalExpandAriaLabel(remaining)
+						btn := ui.Button(c.Key("expand-rest"), restText).Label(restAria).Tooltip(restAria).
+							Background(ui.Transparent).BorderWidth(0).Padding(0, 14, 10, 0).FontSize(11).TextColor(st.Muted)
+						if btn.Clicked() {
+							*expanded = true
+						}
+					} else {
+						collapseText := i18n.T(i18n.KeyChatRowCollapse)
+						collapseAria := terminalCollapseAriaLabel()
+						btn := ui.Button(c.Key("collapse-rest"), collapseText).Label(collapseAria).Tooltip(collapseAria).
+							Background(ui.Transparent).BorderWidth(0).Padding(0, 14, 10, 0).FontSize(11).TextColor(st.Muted)
+						if btn.Clicked() {
+							*expanded = false
+						}
+					}
 				})
 			} else {
 				ui.ScrollBoth(c.Key("output")).MinWidth(0).Margin(0, 0, 0, 30).MaxHeight(terminalMaxHeight).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {

@@ -291,6 +291,8 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if len(s.LargeFiles) > 0 {
 		ui.Text(c, word("警告：以下文件超过 100 MiB，远端可能拒绝。", "Warning: these files exceed 100 MiB and may be rejected by the remote.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		ui.Text(c, GitLocale("commit.largeFileWarning")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
+		ui.Text(c, GitLocale("commit.largeFileHint")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		for _, file := range s.LargeFiles {
 			f := file
 			ui.Row(c).Gap(6).Children(func() {
@@ -311,6 +313,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
 	}
 	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch
+	ui.Text(c, GitLocale("commit.message")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
 	ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch"))
 	if s.MakeBranch {

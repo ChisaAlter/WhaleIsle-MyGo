@@ -82,7 +82,27 @@ func (s *mainState) saveDefaultAgentPreset(id string) {
 	}()
 }
 
+// padOriginalSurface reports whether the shipped dsh-pad overlay runs inside
+// the hidden navigation Host (default); goPadSurface "native" restores the
+// retired Go dock/card front end.
+func (s *mainState) padOriginalSurface() bool {
+	if s.cfgStore == nil {
+		return true
+	}
+	return !strings.EqualFold(strings.TrimSpace(s.cfgStore.Get().PadSurface), "native")
+}
+
 func (s *mainState) syncPadDesktop() *pad.Desktop {
+	if s.padOriginalSurface() {
+		s.mu.Lock()
+		stale := s.padDesktop
+		s.padDesktop, s.padDesktopAttempted = nil, false
+		s.mu.Unlock()
+		if stale != nil {
+			stale.Close()
+		}
+		return nil
+	}
 	s.mu.Lock()
 	desktop, win, st, quitting := s.padDesktop, s.win, s.bootStatus, s.quitting
 	attempted := s.padDesktopAttempted
@@ -134,10 +154,19 @@ func (s *mainState) padReservedWidth(c *ui.Context) float32 {
 	d := s.padDesktop
 	masked := s.settingsOpen || s.launcherOpen || s.closingOverlay || s.confirmAsk != nil || s.dirPickOpen || s.quitting
 	s.mu.Unlock()
-	if d == nil || masked {
+	if masked {
 		return 0
 	}
 	width, _ := c.Size()
+	if s.padOriginalSurface() {
+		if owner := s.pluginNavigationOwner(); owner != nil {
+			return owner.AmbientReservedWidth(width)
+		}
+		return 0
+	}
+	if d == nil {
+		return 0
+	}
 	return d.ReservedWidth(width)
 }
 

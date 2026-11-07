@@ -151,14 +151,14 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		state.locale, state.stored = i18n.Locale(), d.Zone
 	}
 	ui.PopoverBase(c.Key("schedule-zone-menu"), trigger, &state.open, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(360).MaxWidthPercent(100).Padding(6).Gap(4), c.Theme().Background, ui.Transparent, 16)
+		panel = chrome.MenuSurface(panel.Width(360).MaxWidthPercent(100).Padding(4).Gap(4), c.Theme().Surface, c.Theme().Border, 16)
 		if panel.OverlayShortcut(0, ui.KeyEscape) {
 			state.open, state.query = false, ""
 			trigger.Focus()
 			return
 		}
 		panel.Children(func() {
-			search := ui.TextInputBase(c.Key("schedule-zone-search"), &state.query).Label(scheduleText("按 UTC 偏移、IANA ID 或城市搜索", "Search by UTC offset, IANA ID, or city")).Placeholder(scheduleText("搜索时区", "Search time zones")).AutoFocus().FillWidth().MinWidth(0).Padding(8, 10)
+			search := ui.TextInputBase(c.Key("schedule-zone-search"), &state.query).Label(scheduleText("搜索 UTC 偏移、IANA 标识或城市", "Search by UTC offset, IANA ID, or city")).Placeholder(scheduleText("搜索时区", "Search time zones")).AutoFocus().FillWidth().MinWidth(0).Padding(8, 10)
 			items := matchingScheduleZones(state.catalog, p.recentZones, state.query)
 			if len(state.rows) != len(items) {
 				state.rows = make([]*ui.Handle, len(items))
