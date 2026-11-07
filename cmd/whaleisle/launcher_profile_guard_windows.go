@@ -15,9 +15,15 @@ import (
 // Chromium's Windows ProcessSingleton holds the profile's lockfile open for
 // writing. Use that same file rather than inventing a second cooperative lock:
 // an Electron owner rejects our open, and our held handle rejects its open.
-// OPEN_ALWAYS preserves any existing file; no profile content is read or removed.
+// When the Electron desktop is running side-by-side on the shared profile,
+// fall back to the native sub-profile lock so WhaleIsle-MyGo can still launch
+// directly on its own loopback port (DefaultGoPort).
 func claimDesktopProfile() (func(), error) {
-	return claimDesktopProfileAt(paths.UserDataDir())
+	release, err := claimDesktopProfileAt(paths.UserDataDir())
+	if err == nil {
+		return release, nil
+	}
+	return claimDesktopProfileAt(filepath.Join(paths.UserDataDir(), "native"))
 }
 
 func claimDesktopProfileAt(profile string) (func(), error) {
