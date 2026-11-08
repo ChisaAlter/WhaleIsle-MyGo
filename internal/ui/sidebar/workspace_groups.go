@@ -82,6 +82,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	// Sections own their 4-DIP separation; the scroll container adds none.
 	// Rows inside a section keep the reference's 2-DIP spacing.
 	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(4).Shrink(0)
+	rowTransition := workspaceGroupListMotion(c, list, layout.HostGeneration, groups)
 	m = workspaceDragModel(list, m)
 	blocks := make([]workspaceDropBlock, 0, len(groups))
 	hoverState := workspaceHoverGroup(c, list, m)
@@ -97,7 +98,8 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
 				collapsed = false
 			}
-			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).Shrink(0)
+			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).Shrink(0).
+				Transition(rowTransition)
 			blocks = append(blocks, workspaceDropBlock{Group: g, Element: block})
 			block.Children(func() {
 				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
@@ -209,15 +211,19 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						if g.Kind != "flat" {
 							depth += g.Depth
 						}
-						if isArchived(m.Snapshot, r.Item.SessionID) {
-							title := r.Item.Title
-							if strings.TrimSpace(title) == "" {
-								title = i18n.T(i18n.KeySidebarNewSessionFallback)
+						rowSlot := ui.Column(c.Key(sessionRowKey{layout.HostGeneration, g.Key, "slot/" + r.Item.SessionID})).FillWidth().Shrink(0).
+							Transition(rowTransition)
+						rowSlot.Children(func() {
+							if isArchived(m.Snapshot, r.Item.SessionID) {
+								title := r.Item.Title
+								if strings.TrimSpace(title) == "" {
+									title = i18n.T(i18n.KeySidebarNewSessionFallback)
+								}
+								rowArchivedSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item.SessionID, title, depth, rowModel, muted)
+							} else {
+								rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
 							}
-							rowArchivedSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item.SessionID, title, depth, rowModel, muted)
-						} else {
-							rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
-						}
+						})
 					}
 					if g.Kind != "flat" && (visible.Hidden > 0 || visible.Watermark > visible.Baseline) {
 						label := workspaceText("展开其余 "+strconv.Itoa(visible.Hidden)+" 个会话", "Show "+strconv.Itoa(visible.Hidden)+" more sessions")

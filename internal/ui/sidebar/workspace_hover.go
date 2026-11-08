@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/components"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -269,13 +268,8 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 				menu.CloseOnPointerLeave(true)
 				for _, action := range m.DirectoryActions {
 					label, visible := action.Presentation(g.Workspace.Path, false)
-					if visible && menu.Item(label).Chosen() {
+					if visible && menu.Item(label).Icon(workspaceScratchCreateArtwork).Chosen() {
 						action.Run(g.Workspace.Path)
-					}
-				}
-				if g.Kind == "workspace" && g.Workspace.Path != "" && menu.Item(workspaceText("在 Finder 中打开工作区", "Reveal workspace in Finder")).Icon(menuCopyArtwork).Chosen() {
-					if err := components.OpenInFileManager(g.Workspace.Path); err != nil {
-						c.AddToast(ui.Toast{ID: "workspace-reveal-failed:" + g.Key, Title: workspaceText("无法打开工作区文件夹，请确认目录仍存在后重试。", "Could not open the workspace folder. Check that the directory still exists and retry."), Type: "error"})
 					}
 				}
 				if g.Kind == "workspace" && m.OnBeginWorkspaceRename != nil && menu.Item(workspaceText("重命名", "Rename")).Icon(menuEditArtwork).Chosen() {

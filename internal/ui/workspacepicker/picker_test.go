@@ -207,6 +207,30 @@ func TestPickerHonorsDirectoryActionScopeAndFilteredKeyboardOrder(t *testing.T) 
 	}
 }
 
+func TestDeleteWorkspaceModalParity(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleZH)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	store := session.New()
+	request := &session.WorkspaceNavigationState{Token: 9, Mode: "remove", TargetID: "wb", TargetTitle: "WhaleBridge"}
+	tt := ui.NewTester(func(c *ui.Context) {
+		managementDialog(c, Model{Store: store}, session.ViewState{Workspaces: []session.WorkspaceRow{{WorkspaceID: "wb", Title: "WhaleBridge"}}}, request, theme.Resolve("system").Dark)
+	}, 500, 360)
+	if !tt.HasText("删除工作区") {
+		t.Fatal("delete workspace modal missing title/action label 删除工作区")
+	}
+	wantDesc := FormatWorkspaceDeleteDescription("WhaleBridge")
+	if !tt.HasText(wantDesc) {
+		t.Fatalf("delete workspace modal missing exact description %q", wantDesc)
+	}
+	if tt.HasText("移除工作区注册？") || tt.HasText("移除注册") {
+		t.Fatal("delete workspace modal retained legacy non-parity strings")
+	}
+	cancelBtn, ok := tt.Find("取消")
+	if !ok || cancelBtn.H != 36 {
+		t.Fatalf("cancel button geometry=%+v ok=%v (want height 36)", cancelBtn, ok)
+	}
+}
+
 func saveSecondarySnapshot(t *testing.T, tt *ui.Tester, name string) {
 	t.Helper()
 	dir := os.Getenv("SECONDARY_SNAPSHOT_DIR")

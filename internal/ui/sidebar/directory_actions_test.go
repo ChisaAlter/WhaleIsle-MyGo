@@ -36,12 +36,12 @@ func TestWorkspaceDirectoryMenuUsesPathLabelAndHidesOnlyRefusedAction(t *testing
 			if err := tt.Click(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), path)); err != nil {
 				t.Fatal(err)
 			}
-			want := []string{"Inspect directory", "Reveal workspace in Finder"}
+			want := []string{"Inspect directory"}
 			if path == "/active" {
-				want = []string{"Open Project", "Inspect directory", "Reveal workspace in Finder"}
+				want = []string{"Open Project", "Inspect directory"}
 			}
 			if path == "/new" {
-				want = []string{"Create Project in this directory", "Inspect directory", "Reveal workspace in Finder"}
+				want = []string{"Create Project in this directory", "Inspect directory"}
 			}
 			if !reflect.DeepEqual(tt.Menu(), want) {
 				t.Fatalf("menu=%v want=%v", tt.Menu(), want)

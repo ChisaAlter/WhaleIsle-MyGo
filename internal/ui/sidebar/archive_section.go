@@ -13,7 +13,8 @@ import (
 // here nor changing the surrounding browser may reuse a workspace disclosure.
 // Expansion remains local to the sidebar; it never writes workspace preferences.
 func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui.Color) {
-	ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(2).Shrink(0).Children(func() {
+	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(2).Shrink(0)
+	section.Transition(workspaceArchiveSectionMotion(c, section, m.Snapshot)).Children(func() {
 		label := i18n.T(i18n.KeySidebarArchivedSection)
 		header := ui.ButtonBase(c.Key("workspace-archive-disclosure")).Label(label).
 			Role(ui.RoleDisclosure).Expanded(*m.archiveExpanded).
