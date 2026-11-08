@@ -88,7 +88,7 @@ func View(c *ui.Context, m Model) {
 					}
 				})
 				ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-					ui.Column(c).Gap(4).Children(func() {
+					ui.Column(c).Gap(4).Selectable().Children(func() {
 						paintBootLogLines(c, m.Logs, muted, alert)
 						if len(m.Logs) == 0 {
 							ui.Text(c, i18n.T(KeyWaiting)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -241,7 +241,7 @@ func paintBootLogLines(c *ui.Context, logs []string, muted, alert ui.Color) {
 			ink = alert
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).TextColor(muted.Alpha(.6)).Shrink(0)
+			ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).TextColor(muted.Alpha(.6)).Shrink(0).Unselectable()
 			ui.Text(c, line).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(11.5)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(ink).Selectable().MinWidth(0).Grow(1)
 		})
 	}

@@ -58,10 +58,10 @@ func trajectoryJSONCopy(value any, pretty bool) string {
 func trajectoryPayloadView(c *ui.Context, scope, body string, fg, muted ui.Color) {
 	value, ok := trajectoryJSONValue(body)
 	if !ok {
-		ui.Text(c, body).FontSize(12).TextColor(fg)
+		ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
 		return
 	}
-	root := ui.Column(c.Key("trajectory-json:" + scope)).FillWidth().Gap(4)
+	root := ui.Column(c.Key("trajectory-json:" + scope)).FillWidth().Gap(4).Selectable()
 	tree := ui.Local(root, "structured", func() bool { return false })
 	root.Children(func() {
 		label := "Structured JSON"

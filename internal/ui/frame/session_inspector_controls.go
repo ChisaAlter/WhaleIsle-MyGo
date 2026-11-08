@@ -80,6 +80,7 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 				p.draft = p.Filter
 				p.filterQuery = p.draft
 				p.filterActive = -1
+				p.filterHovered = -1
 				p.filterList = ui.ListState{}
 			}
 		}
@@ -91,6 +92,7 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 				if p.filterQuery != p.draft {
 					p.filterQuery = p.draft
 					p.filterActive = -1
+					p.filterHovered = -1
 					p.filterList = ui.ListState{}
 				}
 				items := inspectorTypeCandidates(rows, p.draft)
@@ -111,10 +113,18 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 					ui.Text(c, paneLabel("没有匹配候选，仍可确认当前关键词。", "No suggestions. You can still apply this keyword.")).FontSize(11)
 				} else {
 					p.filterList.Key = func(i int) any { return items[i] }
+					hoveredItem := -1
 					ui.List(c, &p.filterList, len(items), func(i int) {
 						row := inspectorButton(c, items[i]).FillWidth().Padding(4, 6).Selected(i == p.filterActive).Tooltip(items[i])
+						if row.Hovered() {
+							hoveredItem = i
+							if p.filterHovered != i {
+								p.filterHovered = i
+								p.filterActive = i
+							}
+						}
 						ink := c.Theme().Text
-						if row.Hovered() || i == p.filterActive {
+						if i == p.filterActive || (p.filterActive < 0 && row.Hovered()) {
 							row.Background(c.Theme().SurfaceHover)
 							ink = c.Theme().Accent
 						}
@@ -124,6 +134,7 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 							anchor.Focus()
 						}
 					}).Height(min(float32(180), float32(len(items)*22))).FillWidth()
+					p.filterHovered = hoveredItem
 				}
 				action := func(label string) ui.Element {
 					button := inspectorButton(c, label).Padding(3, 6).Border(.5, c.Theme().Border).Radius(4)

@@ -199,7 +199,7 @@ func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bo
 		// The original DiffFile is unified: preserve source order and signs,
 		// including the original line ranges in each @@ hunk header.
 		ui.ScrollBoth(c).FillWidth().MinWidth(0).MaxHeight(360).Children(func() {
-			ui.Column(c).FillWidth().Padding(4, 0).Gap(0).Children(func() {
+			ui.Column(c).FillWidth().Padding(4, 0).Gap(0).Selectable().Children(func() {
 				for _, line := range lines {
 					ink, bg := st.FG, ui.Transparent
 					switch {

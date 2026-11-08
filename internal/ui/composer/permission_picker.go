@@ -74,6 +74,7 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 	if trigger.Clicked() {
 		picker.open = !picker.open
 		picker.nav.Focused = false
+		picker.pointerPresent = false
 		picker.nav.Active = 0
 		for i, option := range options {
 			if option.ID == value {
@@ -102,14 +103,17 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 		pointerX, pointerY, pointerPresent := panel.PointerPosition()
 		pointerMoved := pointerPresent && (!picker.pointerPresent || picker.pointerX != pointerX || picker.pointerY != pointerY)
 		picker.pointerX, picker.pointerY, picker.pointerPresent = pointerX, pointerY, pointerPresent
+		reveal := !picker.nav.Focused
 		if len(options) > 0 {
 			if panel.Shortcut(0, ui.KeyDown) {
 				picker.nav.Active = (picker.nav.Active + 1) % len(options)
 				picker.nav.Rows[picker.nav.Active].RequestFocus(c)
+				reveal = true
 			}
 			if panel.Shortcut(0, ui.KeyUp) {
 				picker.nav.Active = (picker.nav.Active + len(options) - 1) % len(options)
 				picker.nav.Rows[picker.nav.Active].RequestFocus(c)
+				reveal = true
 			}
 		}
 		panel.Children(func() {
@@ -123,11 +127,15 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 				for i, option := range options {
 					i, option := i, option
 					row := menuRow(c, colors).Label(option.Label).Tooltip(option.Description).Bind(picker.nav.Rows[i])
-					if i == picker.nav.Active {
-						row = row.Background(chrome.Color(colors.Hover))
-					}
 					if pointerMoved && row.Hovered() {
 						picker.nav.Active = i
+						reveal = false
+					}
+					if i == picker.nav.Active {
+						row = row.Background(chrome.Color(colors.Hover))
+						if reveal {
+							row.ScrollIntoView()
+						}
 					}
 					row.Children(func() {
 						if icon := permissionMenuIcon(option.ID); icon != nil {

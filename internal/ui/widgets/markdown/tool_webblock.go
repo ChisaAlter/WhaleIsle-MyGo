@@ -56,10 +56,10 @@ func ToolWebBlock(c *ui.Context, data WebData, st Style, labels WebLabels) ui.El
 			// The marker owns 2.5em of the list's inherited chat font. A separate
 			// column preserves the ordered marker when source text wraps or scrolls.
 			ui.Scroll(c.Key("sources")).FillWidth().MinWidth(0).MaxHeight(320).Shrink(0).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(10).Selectable().Children(func() {
 					for i, source := range data.Sources {
 						ui.Row(c.Key("source:" + strconv.Itoa(i))).FillWidth().MinWidth(0).Shrink(0).AlignItems(ui.Start).Children(func() {
-							ui.Text(c, strconv.Itoa(i+1)+".").Font(prefs.Chat.Family).FontSize(prefs.Chat.Size).FixedLineHeight(20).TextColor(st.FG).Width(prefs.Chat.Size*2.5).Padding(0, 5, 0, 0).TextAlign(ui.End).NoWrap().Shrink(0)
+							ui.Text(c, strconv.Itoa(i+1)+".").Font(prefs.Chat.Family).FontSize(prefs.Chat.Size).FixedLineHeight(20).TextColor(st.FG).Width(prefs.Chat.Size*2.5).Padding(0, 5, 0, 0).TextAlign(ui.End).NoWrap().Shrink(0).Unselectable()
 							ui.Column(c).Grow(1).MinWidth(0).Shrink(1).Children(func() {
 								webResultLink(c.Key("link"), source.URL, WebLinkLabel(source.URL, source.Title), prefs.Interface.Family, 14, 20, false, st)
 								pendingMargin := false

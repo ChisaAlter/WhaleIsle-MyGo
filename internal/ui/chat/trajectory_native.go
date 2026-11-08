@@ -533,7 +533,7 @@ func trajectoryToolResultView(c *ui.Context, source session.Message, fg, muted u
 	if len(refs) == 0 {
 		return false, ""
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Selectable().Children(func() {
 		for index, raw := range content {
 			if ref := refs[index]; ref != "" {
 				ImageInlineView(c.Key(index), ref, fg, muted, onOpen)

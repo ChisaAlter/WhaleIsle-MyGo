@@ -109,10 +109,10 @@ func inspectorJSONTree(c *ui.Context, state *inspectorJSONTreeState, raw []byte,
 	state.setRaw(raw)
 	if state.invalid {
 		ui.Text(c, paneLabel("无法解析 JSON，显示原始内容", "Invalid JSON; showing raw content")).FontSize(11)
-		ui.Text(c, state.raw).FontSize(11)
+		ui.Text(c, state.raw).FontSize(11).Selectable()
 		return
 	}
-	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).LineHeight(0).Children(func() {
+	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).LineHeight(0).Selectable().Children(func() {
 		for _, row := range state.visibleRows() {
 			rowContext := c.Key("json-field:" + row.path)
 			ui.Row(rowContext).FillWidth().Padding(2, 0, 2, float32(row.depth+1)*16).AlignItems(ui.Start).Children(func() {

@@ -152,7 +152,7 @@ func ToolSearchBlock(c *ui.Context, data SearchData, maxLines int, st Style, lab
 	}
 	head, tail, hidden := searchVisibleRows(rows, maxLines, *expanded)
 	root.Children(func() {
-		ui.Row(c.Key("banner")).MinWidth(0).Shrink(0).Padding(9, 14, 9, 14).Gap(12).AlignItems(ui.Center).Background(banner).Children(func() {
+		ui.Row(c.Key("banner")).MinWidth(0).Shrink(0).Padding(9, 14, 9, 14).Gap(12).AlignItems(ui.Center).Background(banner).Unselectable().Children(func() {
 			ui.Text(c, caption).Font(prefs.Interface.Family).FontSize(headerSize).FixedLineHeight(headerHeight).TextColor(st.Muted).SingleLine().Grow(1).MinWidth(0)
 			if len(rows) > 0 {
 				label := labels.Copy
@@ -173,7 +173,7 @@ func ToolSearchBlock(c *ui.Context, data SearchData, maxLines int, st Style, lab
 			ui.Text(c, labels.NoResults).Font(prefs.Code.Family).FontSize(codeSize).FixedLineHeight(codeHeight).TextColor(tertiary).Padding(12, 14, 12, 14).MinWidth(0)
 			return
 		}
-		ui.Column(c.Key("body")).ScrollOverflowX().MinWidth(0).Shrink(0).Padding(8, 14, 12, 0).Children(func() {
+		ui.Column(c.Key("body")).ScrollOverflowX().MinWidth(0).Shrink(0).Padding(8, 14, 12, 0).Selectable().Children(func() {
 			paint := func(row searchRow) {
 				switch row.kind {
 				case "path":

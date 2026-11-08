@@ -155,8 +155,8 @@ func paintSplitRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fo
 	if !wrap {
 		minWidth = splitColumnWidth(rows)
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Padding(0, 8, 4, 8).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(1).Selectable().Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Padding(0, 8, 4, 8).Unselectable().Children(func() {
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffBefore)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffAfter)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 		})

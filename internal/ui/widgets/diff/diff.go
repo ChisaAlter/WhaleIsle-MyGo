@@ -102,7 +102,7 @@ func View(c *ui.Context, source string, st Style) {
 	if len(spans) == 0 {
 		return
 	}
-	ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG)
+	ui.RichText(c, spans...).Font(theme.RenderPreferences().Code.Family).FontSize(theme.CurrentPreferences().Code.Size).TextColor(st.FG).Selectable()
 }
 
 // LineDiff produces a unified-style patch string between a and b using go-diff.

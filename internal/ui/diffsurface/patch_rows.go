@@ -132,7 +132,7 @@ func diffLineBox(kind diffLineKind) float32 {
 func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, fold hunkFold) {
 	lines := visibleUnifiedLines(rows, fold)
 	if wrap {
-		ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(1).Selectable().Children(func() {
 			for _, line := range lines {
 				if line.Kind == diffLineHunk {
 					paintHunkHeader(c, line.Text, line.Hunk, st, fold)
@@ -145,13 +145,13 @@ func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, 
 	}
 	minWidth := unifiedMinWidth(rows)
 	ui.Row(c).FillWidth().MinWidth(0).Gap(0).AlignItems(ui.Start).Children(func() {
-		ui.Column(c).Width(diffNumberWidth + diffSignWidth).Shrink(0).Gap(1).Children(func() {
+		ui.Column(c).Width(diffNumberWidth + diffSignWidth).Shrink(0).Gap(1).Unselectable().Children(func() {
 			for _, line := range lines {
 				paintDiffGutter(c, line, st)
 			}
 		})
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Column(c).MinWidth(minWidth).Gap(1).Children(func() {
+			ui.Column(c).MinWidth(minWidth).Gap(1).Selectable().Children(func() {
 				for _, line := range lines {
 					paintDiffText(c, line, st, fold)
 				}
@@ -286,8 +286,8 @@ func paintDiffLine(c *ui.Context, line diffLine, st diff.Style, minWidth float32
 		if line.Number > 0 {
 			number = strconv.Itoa(line.Number)
 		}
-		ui.Text(c, number).Width(diffNumberWidth).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End)
-		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center)
+		ui.Text(c, number).Width(diffNumberWidth).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End).Unselectable()
+		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center).Unselectable()
 		text := ui.Text(c, line.Text).Font("monospace").FontSize(st.FontSize).TextColor(color).Grow(1).MinWidth(0)
 		if !wrap {
 			text.NoWrap()
@@ -322,8 +322,8 @@ func paintSplitCell(c *ui.Context, line string, number int, wrap bool, minWidth 
 		if number > 0 {
 			label = strconv.Itoa(number)
 		}
-		ui.Text(c, label).Width(diffNumberWidth - 6).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End)
-		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center)
+		ui.Text(c, label).Width(diffNumberWidth - 6).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End).Unselectable()
+		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center).Unselectable()
 		body := ui.Text(c, text).Font("monospace").FontSize(st.FontSize).TextColor(color).Grow(1).MinWidth(0)
 		if !wrap {
 			body.NoWrap()

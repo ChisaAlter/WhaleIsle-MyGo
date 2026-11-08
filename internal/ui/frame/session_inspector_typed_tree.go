@@ -317,7 +317,7 @@ func (s *inspectorObjectTreeState) rows(object inspectorObject, objects map[stri
 }
 
 func inspectorTypedTree(c *ui.Context, state *inspectorObjectTreeState, object inspectorObject, objects map[string]inspectorObject, navigate func(string), colors theme.Colors) {
-	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).Children(func() {
+	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).Selectable().Children(func() {
 		for _, row := range state.rows(object, objects) {
 			ctx := c.Key("object-field:" + row.path + ":" + row.label)
 			ui.Row(ctx).FillWidth().Padding(2, 0, 2, float32(row.depth+1)*16).Gap(4).AlignItems(ui.Start).Children(func() {

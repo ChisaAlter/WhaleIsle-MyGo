@@ -160,7 +160,7 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 		banner.Children(func() {
 			ui.Scroll(c.Key("header")).TrackScroll(position).FillWidth().MinWidth(0).MaxHeight(terminalHeaderMaxHeight).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(12).Padding(9, rightPadding, 9, 30).AlignItems(ui.Start).Children(func() {
-					ui.Column(c).Grow(1).MinWidth(0).Gap(0).Children(func() {
+					ui.Column(c).Grow(1).MinWidth(0).Gap(0).Selectable().Children(func() {
 						for index, line := range commandLines {
 							ui.Row(c.Key(strconv.Itoa(index))).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
 								if index == 0 && (!m.Background || m.Running) {
@@ -170,7 +170,7 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 								if index == 0 {
 									prompt = terminalPrompt(m.Cwd, home)
 								}
-								ui.Text(c, prompt).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(st.Muted).NoWrap().Shrink(0)
+								ui.Text(c, prompt).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(st.Muted).NoWrap().Shrink(0).Unselectable()
 								ui.Text(c, line).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(st.FG).
 									Grow(1).MinWidth(0).Selectable().Description(fmt.Sprintf(i18n.T(i18n.KeyToolTerminalLine), index+1))
 							})

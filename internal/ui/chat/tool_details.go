@@ -43,7 +43,7 @@ func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, k
 	}
 	font := theme.RenderPreferences().Interface.Family
 	card := ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
-		Border(border, borderInk).Radius(16).Background(background).Clip()
+		Border(border, borderInk).Radius(16).Background(background).Clip().Selectable()
 	card.Children(func() {
 		if model.Caption != "" {
 			end := float32(14)

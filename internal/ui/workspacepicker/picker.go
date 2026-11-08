@@ -149,6 +149,7 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				count++
 			}
 			focused := ui.Local(panel, "menu-focus", func() int { return 0 })
+			hovered := ui.Local(panel, "menu-hovered", func() int { return -1 })
 			focusNext := false
 			if panel.OverlayShortcut(0, ui.KeyDown) && count > 0 {
 				*focused = (*focused + 1) % count
@@ -159,14 +160,28 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				focusNext = true
 			}
 			first := ui.Local(panel, "menu-first-focus", func() bool { return true })
+			hoveredItem := -1
 			index := 0
 			row := func(key, label, path string, selected bool, icon string, disabled bool, choose func()) {
 				button := menuRow(c.Key(key), label, path, selected, icon, disabled, colors)
+				if button.Hovered() && !disabled {
+					hoveredItem = index
+					if !focusNext && !*first && *hovered != index {
+						*hovered = index
+						*focused = index
+						button.Focus()
+					}
+				}
 				if (*first || focusNext) && index == *focused {
 					button.Focus().ScrollIntoView()
 				}
 				if !focusNext && !*first && button.Focused() {
 					*focused = index
+				}
+				if button.Pressed() {
+					button.Background(chrome.Color(colors.Pressed))
+				} else if index == *focused || button.FocusWithin() {
+					button.Background(chrome.Color(colors.Hover))
 				}
 				index++
 				if button.Clicked() && choose != nil {
@@ -219,6 +234,7 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 			if request.Error != "" {
 				ui.Text(c, request.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).Padding(6, 8)
 			}
+			*hovered = hoveredItem
 			*first = false
 		})
 	})
@@ -231,11 +247,6 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 func menuRow(c *ui.Context, label, path string, selected bool, icon string, disabled bool, colors theme.Colors) ui.Element {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(6, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
-	if button.Pressed() {
-		button.Background(chrome.Color(colors.Pressed))
-	} else if button.Hovered() || button.FocusWithin() {
-		button.Background(chrome.Color(colors.Hover))
-	}
 	button.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })

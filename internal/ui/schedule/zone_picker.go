@@ -16,13 +16,15 @@ type scheduleZoneChoice struct {
 }
 
 type scheduleZonePicker struct {
-	open    bool
-	query   string
-	locale  string
-	stored  string
-	catalog []scheduleZoneChoice
-	active  int
-	rows    []*ui.Handle
+	open         bool
+	query        string
+	locale       string
+	stored       string
+	catalog      []scheduleZoneChoice
+	active       int
+	hoveredIndex int
+	reveal       bool
+	rows         []*ui.Handle
 }
 
 func scheduleZoneLabel(zone, system string, at time.Time) string {
@@ -140,6 +142,8 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		if state.open {
 			state.catalog = nil
 			state.active = -1
+			state.hoveredIndex = -1
+			state.reveal = false
 		}
 	}
 	trigger.Expanded(state.open)
@@ -166,9 +170,13 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 					state.rows[index] = &ui.Handle{}
 				}
 				state.active = -1
+				state.hoveredIndex = -1
+				state.reveal = false
 			}
 			if search.Changed() {
 				state.active = -1
+				state.hoveredIndex = -1
+				state.reveal = false
 			}
 			if len(items) > 0 {
 				next := -1
@@ -186,6 +194,7 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 				}
 				if next >= 0 {
 					state.active = next
+					state.reveal = true
 					state.rows[next].RequestFocus(c)
 				}
 			}
@@ -193,11 +202,27 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 				if len(items) == 0 {
 					ui.Text(c, scheduleText("没有匹配的时区", "No matching time zones")).Padding(8, 10).TextColor(c.Theme().TextMuted)
 				}
+				hoveredItem := -1
 				for index, item := range items {
 					item := item
 					row := ui.Button(c.Key("schedule-zone-"+item.ID), "").Label(item.Label).Tooltip(strings.Join(item.Aliases, ", ")).Bind(state.rows[index]).FillWidth().MinWidth(0).Padding(8, 10).BorderWidth(0).Background(ui.Transparent).Radius(6)
+					if row.Hovered() {
+						hoveredItem = index
+						if state.hoveredIndex != index {
+							state.hoveredIndex = index
+							state.active = index
+							state.reveal = false
+						}
+					}
 					if row.Focused() {
 						state.active = index
+					}
+					if index == state.active {
+						row.Background(c.Theme().SurfaceHover)
+						if state.reveal {
+							row.ScrollIntoView()
+							state.reveal = false
+						}
 					}
 					row.Children(func() {
 						ui.Text(c, item.Label).Grow(1).MinWidth(0)
@@ -223,6 +248,7 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 						trigger.Focus()
 					}
 				}
+				state.hoveredIndex = hoveredItem
 			})
 		})
 	})

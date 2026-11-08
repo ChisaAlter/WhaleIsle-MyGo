@@ -16,6 +16,7 @@ import (
 type SessionInspectorPaneState struct {
 	filterOpen                                              bool
 	filterActive                                            int
+	filterHovered                                           int
 	filterQuery                                             string
 	filterList                                              ui.ListState
 	detailsPercent                                          float32
