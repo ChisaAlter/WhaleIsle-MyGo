@@ -20,6 +20,8 @@ type modelCatalogMenu struct {
 	RootFocus            string
 	Open                 bool
 	Active               int
+	HoveredIndex         int
+	ScrollActive         bool
 	Composing            bool
 }
 
@@ -329,7 +331,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					m.OnModelChange(label)
 				}
 				if len(m.Snapshot.ModelLabels) > 4 {
-					ui.TextInput(c, &state.Query).Label("Search models").Placeholder(i18n.T(i18n.KeyComposerModelSearch)).FillWidth().Margin(2, 0, 3, 0).Padding(5, 7).Radius(12).BorderWidth(0).Background(ui.Transparent).FontSize(12).AutoFocus().OnChange(func() { state.Active = 0 }).HandleInput(func(ev ui.InputEvent) bool {
+					ui.TextInput(c, &state.Query).Label("Search models").Placeholder(i18n.T(i18n.KeyComposerModelSearch)).FillWidth().Margin(2, 0, 3, 0).Padding(5, 7).Radius(12).BorderWidth(0).Background(ui.Transparent).FontSize(12).AutoFocus().OnChange(func() { state.Active = 0; state.ScrollActive = true }).HandleInput(func(ev ui.InputEvent) bool {
 						if ev.Kind == ui.InputCompose {
 							state.Composing = ev.Text != ""
 							return false
@@ -341,11 +343,13 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 						case ui.KeyDown:
 							if !m.Snapshot.ModelSelectionBusy && len(visible) > 0 {
 								state.Active = (state.Active + 1) % len(visible)
+								state.ScrollActive = true
 							}
 							return true
 						case ui.KeyUp:
 							if !m.Snapshot.ModelSelectionBusy && len(visible) > 0 {
 								state.Active = (state.Active + len(visible) - 1) % len(visible)
+								state.ScrollActive = true
 							}
 							return true
 						case ui.KeyEnter, ui.KeyTab:
@@ -360,14 +364,26 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 				ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 					ui.Column(c).FillWidth().Gap(0).Children(func() {
 						index := 0
+						hoveredRow := -1
 						var buttons []ui.Element
 						for _, g := range groups {
 							ui.Text(c, g.Name).FontSize(11).FontWeight(500).FixedLineHeight(16).Padding(5, 8, 2, 8).TextColor(muted)
 							for _, choice := range g.Choices {
 								selected := choice.Label == m.Snapshot.SelectedModel
 								button := menuRow(c, colors).Label("Choose model " + choice.Label).Disabled(m.Snapshot.ModelSelectionBusy)
-								if button.Hovered() || (len(m.Snapshot.ModelLabels) > 4 && index == state.Active) {
+								if button.Hovered() {
+									hoveredRow = index
+									if state.HoveredIndex != index {
+										state.HoveredIndex = index
+										state.Active = index
+									}
+								}
+								if (len(m.Snapshot.ModelLabels) > 4 && index == state.Active) || (len(m.Snapshot.ModelLabels) <= 4 && button.Hovered()) {
 									button = button.Background(chrome.Color(colors.Hover))
+								}
+								if len(m.Snapshot.ModelLabels) > 4 && index == state.Active && state.ScrollActive {
+									button.ScrollIntoView()
+									state.ScrollActive = false
 								}
 								button.Children(func() {
 									ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
@@ -386,6 +402,9 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 								}
 								index++
 							}
+						}
+						if hoveredRow < 0 {
+							state.HoveredIndex = -1
 						}
 						if len(m.Snapshot.ModelLabels) <= 4 {
 							modelMenuKeyboard(buttons)
@@ -411,6 +430,7 @@ func modelMenuKeyboard(buttons []ui.Element) {
 		}
 		if next >= 0 {
 			buttons[next].Focus()
+			buttons[next].ScrollIntoView()
 			return
 		}
 	}

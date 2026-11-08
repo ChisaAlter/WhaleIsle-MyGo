@@ -103,3 +103,28 @@ func TestCodeBlockLineNumbersAndPaletteFollowTheme(t *testing.T) {
 		t.Fatal("dark and light code palettes are not distinct")
 	}
 }
+
+func TestMarkdownCrossBlockSelectionAndCopy(t *testing.T) {
+	source := "First paragraph\n\n```go\nprintln(1)\n```\n\nLast paragraph"
+	for _, docLayout := range []bool{false, true} {
+		tt := ui.NewTester(func(c *ui.Context) {
+			ui.Column(c).FillWidth().Children(func() {
+				View(c, source, Style{DocumentLayout: docLayout, FontSize: 14, FG: ui.RGB(20, 20, 20), Muted: ui.RGB(90, 90, 90), CodeBG: ui.RGB(245, 245, 245)})
+			})
+		}, 700, 500)
+		last, ok := tt.Find("Last paragraph")
+		if !ok {
+			t.Fatalf("docLayout=%v: last paragraph missing: %v", docLayout, tt.Texts())
+		}
+		tt.ClickAt(last.X+4, last.Y+last.H/2)
+		tt.Command("selectAll")
+		tt.Command("copy")
+		got := tt.Clipboard()
+		if !strings.Contains(got, "First paragraph") || !strings.Contains(got, "println(1)") || !strings.Contains(got, "Last paragraph") {
+			t.Fatalf("docLayout=%v: cross-block copy = %q", docLayout, got)
+		}
+		if strings.Contains(got, "\ngo\n") {
+			t.Fatalf("docLayout=%v: code card header leaked into selection copy: %q", docLayout, got)
+		}
+	}
+}

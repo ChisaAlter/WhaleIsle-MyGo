@@ -452,15 +452,16 @@ func (s *ListState) sync(e *node, n int) {
 		// where the heights known put the offset, or to the end.
 		top := max(0, st.contentH-float64(st.h))
 		y := max(0, min(st.scrollY, top))
-		switch d := y - s.wroteY; {
-		case top > 0 && y >= top-0.5 && (s.last == n-1 || rt.scrollDrag.st == st || d < -2*float64(st.h) || d > 2*float64(st.h)):
+		d := y - s.wroteY
+		switch {
+		case d >= 0 && top > 0 && y >= top-0.5 && (s.last == n-1 || rt.scrollDrag.st == st || d > 2*float64(st.h)):
 			s.req = listRequest{set: true, end: true}
 		case d >= -2*float64(st.h) && d <= 2*float64(st.h):
 			s.inset += d
 		default:
 			s.req = listRequest{set: true, offset: true, y: y}
 		}
-		s.following = s.FollowEnd && top > 0 && y >= top-0.5
+		s.following = s.FollowEnd && d >= 0 && top > 0 && y >= top-0.5
 	}
 	s.wroteY = st.scrollY
 	s.syncMotion(n)
@@ -1361,6 +1362,9 @@ func (s *ListState) remember(e *node, first, last int, atEnd bool, scroll float6
 			m.from += scroll - m.last
 		}
 		m.last = scroll
+	}
+	if e.c.rt.wheelID == e.id && e.c.rt.wheelRemainY < 0 {
+		atEnd = false
 	}
 	s.first, s.last, s.atEnd = first, last, atEnd
 	s.following = s.FollowEnd && atEnd

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -323,9 +324,12 @@ func conversationView(c *ui.Context, m Model) {
 										OnToggle:   func() { toggleThinkingExpanded(m.ThinkingExpanded, key) },
 									}, disclosureStyle{FG: fg, Muted: muted, Hover: chrome.Color(colors.Hover), Accent: chrome.Color(colors.Accent), Size: 12})
 									if open && detail != "" {
-										ui.Column(row.Context).Padding(0, 0, 2, 22).Children(func() {
-											ui.Text(row.Context, detail).FontSize(12).TextColor(fg)
-										})
+										ui.Column(row.Context).Key("turn-end-detail").Padding(0, 0, 2, 22).
+											Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
+												Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
+											Children(func() {
+												ui.Text(row.Context, detail).FontSize(12).TextColor(fg).Selectable()
+											})
 									}
 								})
 							}

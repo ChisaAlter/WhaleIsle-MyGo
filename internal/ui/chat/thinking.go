@@ -70,7 +70,10 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 			return
 		}
 		bodyIndent := max(float32(22), 22+theme.CurrentPreferences().Chat.Size-14)
-		ui.Column(c).FillWidth().MinWidth(0).Padding(4, 0, 4, bodyIndent).Children(func() {
+		ui.Column(c).Key("thinking-body").FillWidth().MinWidth(0).Padding(4, 0, 4, bodyIndent).
+			Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
+				Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
+			Children(func() {
 			if st.Body != nil {
 				st.Body(c)
 			} else {

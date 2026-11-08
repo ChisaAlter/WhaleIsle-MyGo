@@ -311,7 +311,7 @@ func (s *streamDocument) extendFence(source string) bool {
 // keys survive freezing, final settlement and tail edits, preserving code-wrap
 // choices and image/control ownership through stream updates.
 func viewStreamingDocument(c *ui.Context, source string, st Style) {
-	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0)
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0).Selectable()
 	state := ui.Local(root, "markdown-document", func() streamDocument { return streamDocument{} })
 	blocks := state.update(source, st.Streaming)
 	st.lineHeight = BodyLineHeight(st)

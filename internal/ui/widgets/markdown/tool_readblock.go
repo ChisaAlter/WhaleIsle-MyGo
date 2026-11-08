@@ -63,7 +63,7 @@ func ToolReadBlock(c *ui.Context, label, language string, lines []ReadLine, tota
 		languageInk = st.Muted
 	}
 	root.Children(func() {
-		ui.Row(c.Key("banner")).MinWidth(0).Height(42).Shrink(0).Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("banner")).MinWidth(0).Height(42).Shrink(0).Unselectable().Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
 			ui.Row(c).MinWidth(0).Grow(1).Gap(12).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, languageLabel).Font(prefs.Code.Family).FontSize(11).FixedLineHeight(18).TextColor(languageInk).NoWrap().Shrink(0)
 				ui.Text(c, label).Font(prefs.Interface.Family).FontSize(11).FixedLineHeight(18).TextColor(languageInk).SingleLine().MinWidth(0).Shrink(1).Tooltip(label)
@@ -99,10 +99,10 @@ func ToolReadBlock(c *ui.Context, label, language string, lines []ReadLine, tota
 		tail := maxLines - head
 		capped := hidden > 0 && !*expanded
 		paint := func() {
-			ui.Column(c.Key("lines")).MinWidth(0).Shrink(0).Padding(6, 22, 20, 22).Children(func() {
+			ui.Column(c.Key("lines")).MinWidth(0).Shrink(0).Selectable().Padding(6, 22, 20, 22).Children(func() {
 				line := func(i int) {
 					ui.Row(c.Key(lines[i].Number)).MinWidth(0).Shrink(0).MinHeight(height).AlignItems(ui.Start).Children(func() {
-						ui.Text(c, strconv.Itoa(lines[i].Number)).Role(ui.RoleNone).Font(prefs.Code.Family).FontSize(size).FixedLineHeight(height).TextColor(languageInk).Width(gutter).Margin(0, 12, 0, 0).TextAlign(ui.End).NoWrap().Shrink(0)
+						ui.Text(c, strconv.Itoa(lines[i].Number)).Role(ui.RoleNone).Unselectable().Font(prefs.Code.Family).FontSize(size).FixedLineHeight(height).TextColor(languageInk).Width(gutter).Margin(0, 12, 0, 0).TextAlign(ui.End).NoWrap().Shrink(0)
 						text := ui.RichText(c, rows[i]...).Font(prefs.Code.Family).FontSize(size).FixedLineHeight(height).TextColor(st.FG).MinWidth(0).MinHeight(height).Shrink(0).Selectable()
 						if !*wrap {
 							text.NoWrap()

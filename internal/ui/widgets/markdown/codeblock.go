@@ -55,7 +55,7 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 	copied := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
 	highlight := ui.Local(root, "highlight", func() codeHighlightCache { return codeHighlightCache{} })
 	root.Children(func() {
-		ui.Row(c).FillWidth().Height(codeHeaderH).Background(codeBanner(st)).
+		ui.Row(c).FillWidth().Height(codeHeaderH).Unselectable().Background(codeBanner(st)).
 			Padding(0, 6, 0, 12).Gap(2).AlignItems(ui.Center).Children(func() {
 			label := language
 			if label == "" {
@@ -84,7 +84,7 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 		spans := highlight.update(language, code, st)
 		lineHeight := codeLineHeight(st)
 		paint := func(el ui.Element) ui.Element {
-			return el.Font(font).FontSize(size).FixedLineHeight(lineHeight).TextColor(st.FG)
+			return el.Font(font).FontSize(size).FixedLineHeight(lineHeight).TextColor(st.FG).Selectable()
 		}
 		if *wrap {
 			paint(ui.RichText(c, spans...).FillWidth().MinWidth(0)).Padding(codeBodyPadY, codeBodyPadX, codeBodyPadY, codeBodyPadX)
@@ -110,6 +110,7 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 func codeToolbarButton(c *ui.Context, icon *ui.SVG, label string, st Style, action func()) {
 	b := ui.Button(c, "").Label(label).Tooltip(label).Width(codeToolbarBtn).Height(codeToolbarBtn).
 		Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).TextColor(st.Muted).
+		Cursor(ui.CursorPointer).Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Colors: true}).
 		Justify(ui.Center).AlignItems(ui.Center)
 	if b.Hovered() {
 		b.Background(st.Muted.Alpha(.12)).TextColor(st.FG)

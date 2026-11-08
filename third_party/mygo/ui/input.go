@@ -453,6 +453,10 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 					rt.wheelRemainY = 0
 				}
 				rt.wheelRemainY += float64(dy)
+				if dy < 0 && s.list != nil {
+					s.list.following = false
+					s.list.StopScrollAnimation()
+				}
 			}
 			rt.requestFrame()
 			return

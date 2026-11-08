@@ -44,12 +44,12 @@ func (s toolSeatStyle) maxHeight() float32 {
 // toolSeat paints the shared frame around a family-specific body. payload is what
 // the copy action yields; an empty payload renders no copy seat.
 func toolSeat(c *ui.Context, st toolSeatStyle, key, label, payload string, onCopy func(string), body func()) {
-	seat := ui.Column(c).Key("tool-seat:"+key).Label(label).FillWidth().MinWidth(0).
+	seat := ui.Column(c).Key("tool-seat:"+key).Label(label).FillWidth().MinWidth(0).Selectable().
 		Background(st.Field).Radius(toolSeatRadius).Padding(toolSeatPad, toolSeatPad, toolSeatPad, toolSeatPad).Gap(2)
 	copied := ui.Local(seat, "tool-seat-copied", func() string { return "" })
 	seat.Children(func() {
 		if onCopy != nil && payload != "" {
-			ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Unselectable().Justify(ui.End).Children(func() {
 				text := i18n.T(i18n.KeyChatToolCopy)
 				if *copied == payload {
 					text = i18n.T(i18n.KeyMarkdownCopied)

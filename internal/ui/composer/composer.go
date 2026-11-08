@@ -1093,12 +1093,22 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 		}
 		drilled := false
 		clicked := -1
+		type suggestNavState struct {
+			LastSel      int
+			HoveredIndex int
+		}
+		nav := ui.Local(popup, "suggest-nav", func() suggestNavState {
+			return suggestNavState{LastSel: -1, HoveredIndex: -1}
+		})
+		scrollActive := nav.LastSel != sel
+		nav.LastSel = sel
 		ui.Scroll(c).FillWidth().MaxHeight(max(80, height-40)).Gap(0).Children(func() {
 			// Rows are plain buttons: the list widget paints its own accent
 			// selection over the reference's single hover fill, and the arrows and
 			// Enter already belong to the editor's keymap.
 			ui.Column(c).FillWidth().Gap(0).Children(func() {
 				section := ""
+				hoveredRow := -1
 				for i, it := range items {
 					i, it := i, it
 					if it.section != "" && it.section != section {
@@ -1107,8 +1117,23 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					section = it.section
 					itemRow := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Radius(12).
 						AlignItems(ui.Center).Justify(ui.Start).Gap(6).BorderWidth(0).Background(ui.Transparent)
-					if i == sel || itemRow.Hovered() {
+					if itemRow.Hovered() {
+						hoveredRow = i
+						if nav.HoveredIndex != i {
+							nav.HoveredIndex = i
+							sel = i
+							nav.LastSel = i
+							if list != nil && list.Selected != nil {
+								*list.Selected = i
+							}
+						}
+					}
+					if i == sel {
 						itemRow = itemRow.Background(hover)
+						if scrollActive {
+							itemRow.ScrollIntoView()
+							scrollActive = false
+						}
 					}
 					itemRow.Children(func() {
 						ui.Text(c, it.label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(fg)
@@ -1133,6 +1158,9 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 					if itemRow.Clicked() {
 						clicked = i
 					}
+				}
+				if hoveredRow < 0 {
+					nav.HoveredIndex = -1
 				}
 			})
 			// Keyboard hints for the overlay; the rows above stay Tab/Enter

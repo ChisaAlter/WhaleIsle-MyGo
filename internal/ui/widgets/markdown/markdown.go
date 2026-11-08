@@ -215,7 +215,7 @@ func View(c *ui.Context, source string, st Style) {
 	}
 	// A stable wrapper gives ui.Local an element whose node persists while the
 	// row is mounted, so the parsed body survives frame to frame during scroll.
-	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0)
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0).Selectable()
 	root.Children(func() {
 		cached := ui.Local(root, "parsed-body", func() parsedBody { return parsedBody{} })
 		key := makeBodyKey(st)

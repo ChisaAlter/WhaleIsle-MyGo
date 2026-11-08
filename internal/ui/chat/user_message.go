@@ -96,7 +96,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 					}
 					if body != "" || len(content.value.ExtraBlocks) > 0 {
 						radii := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark).BubbleRadii
-						ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
+						ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).Selectable().
 							Background(chrome.Color(colors.Bubble)).Radius(radii[:]...).Padding(10, 16, 10, 16).Children(func() {
 							ink := fg
 							if m.EditingSeq > 0 && msg.Seq == m.EditingSeq {

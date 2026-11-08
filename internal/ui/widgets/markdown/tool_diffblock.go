@@ -89,7 +89,7 @@ func ToolDiffBlock(c *ui.Context, language string, rows []DiffLine, clipboard st
 		measure(DiffLine{Text: caption})
 	}
 	root.Children(func() {
-		ui.Row(c.Key("banner")).Height(42).Shrink(0).Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("banner")).Height(42).Shrink(0).Unselectable().Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, languageLabel).Font(font).FontSize(11).FixedLineHeight(18).TextColor(languageInk).NoWrap().Grow(1).MinWidth(0)
 			ui.Row(c).Gap(4).Shrink(0).Children(func() {
 				wrapLabel, unwrapLabel := codeWrapLabels(st)
@@ -113,7 +113,7 @@ func ToolDiffBlock(c *ui.Context, language string, rows []DiffLine, clipboard st
 			})
 		})
 		paint := func() {
-			body := ui.Column(c.Key("lines")).MinWidth(0).Shrink(0).Padding(6, 0, 20, 0)
+			body := ui.Column(c.Key("lines")).MinWidth(0).Shrink(0).Selectable().Padding(6, 0, 20, 0)
 			if !*wrap {
 				body.MinWidth(width)
 			}

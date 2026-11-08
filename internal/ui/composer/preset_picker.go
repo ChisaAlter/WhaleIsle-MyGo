@@ -45,10 +45,12 @@ type presetOptions struct {
 }
 
 type presetNavigation struct {
-	Active  int
-	Focused bool
-	Rows    []*ui.Handle
-	Anchor  ui.Handle
+	Active       int
+	HoveredIndex int
+	ScrollActive bool
+	Focused      bool
+	Rows         []*ui.Handle
+	Anchor       ui.Handle
 }
 
 // presetSelect renders one closed-chip picker: a 28px capsule showing the
@@ -97,9 +99,12 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 	if trigger.Clicked() {
 		*open = !*open
 		nav.Focused = false
+		nav.HoveredIndex = -1
+		nav.ScrollActive = true
 	}
 	if !*open {
 		nav.Focused = false
+		nav.HoveredIndex = -1
 		return trigger
 	}
 	if len(nav.Rows) != len(options) {
@@ -123,20 +128,33 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(4, 0, 0, 0), colors)
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
+			nav.ScrollActive = true
 			nav.Rows[nav.Active].RequestFocus(c)
 		}
 		if panel.Shortcut(0, ui.KeyUp) {
 			nav.Active = (nav.Active + len(options) - 1) % len(options)
+			nav.ScrollActive = true
 			nav.Rows[nav.Active].RequestFocus(c)
 		}
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(0).Children(func() {
+				hoveredRow := -1
 				for i, o := range options {
 					i, o := i, o
 					row := menuRow(c, colors).Bind(nav.Rows[i])
-					if row.Hovered() || i == nav.Active {
+					if row.Hovered() {
+						hoveredRow = i
+						if nav.HoveredIndex != i {
+							nav.HoveredIndex = i
+							nav.Active = i
+						}
+					}
+					if i == nav.Active {
 						row = row.Background(chrome.Color(colors.Hover))
-						nav.Active = i
+						if nav.ScrollActive {
+							row.ScrollIntoView()
+							nav.ScrollActive = false
+						}
 					}
 					row.Children(func() {
 						ui.Column(c).Grow(1).MinWidth(0).MaxWidth(280).Gap(2).Children(func() {
@@ -155,6 +173,9 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 						pick(o.ID)
 						nav.Anchor.RequestFocus(c)
 					}
+				}
+				if hoveredRow < 0 {
+					nav.HoveredIndex = -1
 				}
 			})
 		})
