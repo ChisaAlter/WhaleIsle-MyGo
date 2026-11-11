@@ -1,6 +1,7 @@
 {
   "name": "Whale Isle MyGo",
   "identifier": "ai.deepseek.harness.gui.mygo",
+  "version": "0.1.0",
   "urlSchemes": [
     "whaleisle"
   ],
