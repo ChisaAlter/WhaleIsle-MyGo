@@ -1,4 +1,4 @@
-// Preserve the native visual-preview readiness boundary in a copied rc.2 runtime.
+// Preserve the native visual-preview readiness boundary in a copied released runtime.
 // Never applies to unknown bundles or to the source of the runtime copy.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -9,6 +9,8 @@ export const bundlePath = 'deepseek-harness/packages/client/ui-visual-replies/li
 export const recordFile = 'session-runtime-readiness.json';
 export const baseSHA256 = 'b58fda1a53692c10f85f07ad1758cfdc5937062f721315e1b9d55427b34372d8';
 export const outputSHA256 = '8278107b486c56cd4519232f29e265f84f07943b51d469acd38cc0c6f694ec9b';
+const rc4BaseSHA256 = '270c0b7a152a8f137ce255073c76cedce1aec68c2403a0033c17a57ee97ebd23';
+const rc4OutputSHA256 = '00dd3a8aed5fe4f98f852d4d5a81d910cd1dbed01922cfa23a1004d7d364abb3';
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const original = `function requireEnabled(config) {
 \tif (!config.enabled.get()) throw new Error("Visual replies are disabled. Enable Visual replies in Settings to create a preview or publish a page.");
@@ -37,14 +39,21 @@ const oldCall = '\t\t\trequireEnabled(config);';
 const newCall = '\t\t\tawait requireEnabled(config, exec.signal);';
 export const patchSHA256 = hash(replacement + '\n' + oldCall + ' => ' + newCall + '\n7 calls');
 
+export function readinessProfile(version) {
+  if (version === '0.2.1-rc.2') return {id: guardID, baseSHA256, patchSHA256, outputSHA256};
+  if (version === '0.2.1-rc.4') return {id: guardID, baseSHA256: rc4BaseSHA256, patchSHA256, outputSHA256: rc4OutputSHA256};
+  throw new Error(`Unsupported Session runtime readiness version: ${version}`);
+}
+
 /** A byte-bound patch of the one released compiled bundle; no tool is executed. */
-export function patchSessionReadinessSource(source) {
-  if (hash(source) !== baseSHA256) throw new Error('Session runtime readiness expected the exact rc.2 visual-reply bundle');
+export function patchSessionReadinessSource(source, version = '0.2.1-rc.2') {
+  const profile = readinessProfile(version);
+  if (hash(source) !== profile.baseSHA256) throw new Error(`Session runtime readiness expected the exact ${version.replace('0.2.1-', '')} visual-reply bundle`);
   if (source.split(original).length !== 2 || source.split(oldCall).length !== 8) {
     throw new Error('Session runtime readiness requires one function and exactly seven operation checks');
   }
   const output = source.replace(original, replacement).replaceAll(oldCall, newCall);
-  if (hash(output) !== outputSHA256) throw new Error('Session runtime readiness output differs from the pinned patch');
+  if (hash(output) !== profile.outputSHA256) throw new Error('Session runtime readiness output differs from the pinned patch');
   return output;
 }
 
@@ -54,7 +63,8 @@ function within(root, candidate) {
 }
 
 /** Apply only to the fresh copy identified by its stager, never the source tree. */
-export async function applySessionRuntimeReadiness(vendorDir, sourceVendorDir) {
+export async function applySessionRuntimeReadiness(vendorDir, sourceVendorDir, version = '0.2.1-rc.2') {
+  const profile = readinessProfile(version);
   const root = await fs.realpath(path.resolve(vendorDir));
   const source = await fs.realpath(path.resolve(sourceVendorDir));
   if (source === root || within(source, root) || within(root, source)) {
@@ -74,13 +84,13 @@ export async function applySessionRuntimeReadiness(vendorDir, sourceVendorDir) {
     if (error.code !== 'ENOENT') throw error;
   }
   if (record !== undefined) {
-    if (record.id !== guardID || record.baseSHA256 !== baseSHA256 || record.patchSHA256 !== patchSHA256 || record.outputSHA256 !== outputSHA256 || hash(bytes) !== outputSHA256) {
+    if (Object.entries(profile).some(([key, value]) => record[key] !== value) || hash(bytes) !== profile.outputSHA256) {
       throw new Error('Session runtime readiness record does not match the copied bundle');
     }
     return record;
   }
-  const output = patchSessionReadinessSource(bytes.toString('utf8'));
-  record = {id: guardID, baseSHA256, patchSHA256, outputSHA256};
+  const output = patchSessionReadinessSource(bytes.toString('utf8'), version);
+  record = profile;
   await fs.writeFile(filename, output);
   await fs.writeFile(recordPath, JSON.stringify(record, null, 2) + '\n', {flag: 'wx'});
   return record;

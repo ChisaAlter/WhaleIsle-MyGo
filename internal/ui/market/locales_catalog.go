@@ -104,6 +104,13 @@ var marketLocaleCatalog = []marketLocaleEntry{
 	{module: `dsh-client-ui-settings-market`, key: `allowBuildsKeys`, zh: `将允许：{keys}`, en: `Will allow: {keys}`},
 	{module: `dsh-client-ui-settings-market`, key: `allowBuildsConfirm`, zh: `允许并重试`, en: `Allow and retry`},
 	{module: `dsh-client-ui-settings-market`, key: `harnessDown`, zh: `插件已写入，但 Harness 没有起来。请从现有入口重启，不要再安装一次。`, en: `The plugin was written, but Harness did not come back. Restart from an existing entry; do not install again.`},
+	{module: `dsh-client-ui-plugin-market`, key: `factCategory`, zh: `分类`, en: `Category`},
+	{module: `dsh-client-ui-plugin-market`, key: `versionsLabel`, zh: `{name} 的版本`, en: `Versions of {name}`},
+	{module: `dsh-client-ui-plugin-market`, key: `removeSourceNamed`, zh: `移除 {url}`, en: `Remove {url}`},
+	{module: `dsh-client-ui-plugin-market`, key: `filter`, zh: `标签`, en: `Labels`},
+	{module: `dsh-client-ui-plugin-market`, key: `openEntry`, zh: `查看 {name}`, en: `View {name}`},
+	{module: `dsh-client-ui-plugin-market`, key: `installTitle`, zh: `安装 {name}`, en: `Install {name}`},
+	{module: `dsh-client-ui-plugin-market`, key: `installVersionTitle`, zh: `安装 {name} {version}`, en: `Install {name} {version}`},
 }
 
 func init() {

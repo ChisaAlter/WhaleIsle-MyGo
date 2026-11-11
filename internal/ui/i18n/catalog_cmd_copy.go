@@ -97,7 +97,7 @@ func init() {
 
 	Register(KeyCmdOfficePreviewReady, "Office 转换完成，PDF 只读预览已打开。", "Office conversion finished; the read-only PDF preview is open.")
 	Register(KeyCmdOfficePreviewMissingFonts, "缺失字体：%s。本次预览无法使用这些字体，文字和排版可能与原文档不同。", "Missing fonts: %s. This preview cannot use them, so text and layout may differ from the original document.")
-	Register(KeyCmdOfficePreviewUnavailable, "Office 预览不可用。请在运行 DeepSeekHarness Go Host 的主机上启用文档预览服务，并确认 LibreOffice Kit 运行依赖可用；然后点击“转为 PDF 预览”重试。", "Office preview is unavailable. Enable the document preview service on the host running DeepSeekHarness Go, confirm the LibreOffice Kit runtime is available, then retry “Preview as PDF”.")
+	Register(KeyCmdOfficePreviewUnavailable, "Office 预览不可用。请在运行 鲸屿 MyGo Host 的主机上启用文档预览服务，并确认 LibreOffice Kit 运行依赖可用；然后点击“转为 PDF 预览”重试。", "Office preview is unavailable. Enable the document preview service on the host running Whale Isle MyGo, confirm the LibreOffice Kit runtime is available, then retry “Preview as PDF”.")
 	Register(KeyCmdOfficePreviewCancelled, "Office 预览已取消；点击“转为 PDF 预览”可重试。", "Office preview was cancelled; retry with “Preview as PDF”.")
 	Register(KeyCmdOfficePreviewTooLarge, "Office 文件或转换后的 PDF 超过预览大小上限；请缩小文件后重试。", "The Office file or the converted PDF exceeds the preview size limit; shrink the file and retry.")
 	Register(KeyCmdOfficePreviewInvalid, "无法预览此 Office 文件。文件可能已损坏、受密码保护，或与扩展名不符。", "This Office file cannot be previewed. It may be damaged, password-protected, or not match its extension.")

@@ -42,7 +42,7 @@ func main() {
 		log.Print("The standalone native launcher currently requires Windows.")
 		return
 	}
-	mygo.App.SetName("MyGo鲸屿 Launcher")
+	mygo.App.SetName("鲸屿 MyGo Launcher")
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
 	}
@@ -54,7 +54,7 @@ func main() {
 		}
 	})
 	mygo.App.WhenReady(func() {
-		s.win = mygo.NewWindow(mygo.WindowOptions{Title: "MyGo鲸屿 Launcher", Width: 1040, Height: 740, Content: ui.View(s.view)})
+		s.win = mygo.NewWindow(mygo.WindowOptions{Title: "鲸屿 MyGo Launcher", Width: 1040, Height: 740, Content: ui.View(s.view)})
 		s.win.OnClose(func(e *mygo.CloseEvent) {
 			s.mu.Lock()
 			busy := s.busy

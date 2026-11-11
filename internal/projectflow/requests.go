@@ -21,6 +21,7 @@ type RequestCard struct {
 	AuthorityError string                `json:"authorityError"`
 	HandoverError  string                `json:"handoverError"`
 	Queue          *RequestQueueEntry    `json:"queue"`
+	Stage          *RequestStage         `json:"stage,omitempty"`
 	Changes        *RequestChangeSummary `json:"changes"`
 	WorkPreview    []RequestWork         `json:"workPreview"`
 	Counts         *RequestWorkCounts    `json:"counts"`
@@ -47,24 +48,59 @@ type RequestCard struct {
 	Work []RequestWork `json:"work"`
 }
 
+type RequestAsk struct {
+	Question        string   `json:"question"`
+	Options         []string `json:"options,omitempty"`
+	IfUnanswered    string   `json:"ifUnanswered,omitempty"`
+	At              float64  `json:"at"`
+	DelegationRef   string   `json:"delegationRef,omitempty"`
+	WorkerSessionID string   `json:"workerSessionId,omitempty"`
+}
+
+type RequestAutoRetry struct {
+	DelegationRef string  `json:"delegationRef"`
+	RunID         string  `json:"runId"`
+	Kind          string  `json:"kind"`
+	Attempt       int     `json:"attempt"`
+	MaxAttempts   int     `json:"maxAttempts"`
+	At            float64 `json:"at"`
+	Phase         string  `json:"phase"`
+}
+
+type RequestStage struct {
+	State          string            `json:"state"`
+	NeedsYou       bool              `json:"needsYou"`
+	Reason         string            `json:"reason,omitempty"`
+	FailureKind    string            `json:"failureKind,omitempty"`
+	WorkstreamID   string            `json:"workstreamId,omitempty"`
+	WorkTitle      string            `json:"workTitle,omitempty"`
+	Ask            *RequestAsk       `json:"ask,omitempty"`
+	AutoRetry      *RequestAutoRetry `json:"autoRetry,omitempty"`
+	AttemptCount   int               `json:"attemptCount,omitempty"`
+	CompletedCount int               `json:"completedCount,omitempty"`
+	TotalCount     int               `json:"totalCount,omitempty"`
+}
+
 type RequestWorkCounts struct {
 	Total     int `json:"total"`
 	Completed int `json:"completed"`
 }
 
 type RequestWork struct {
-	WorkstreamID    string         `json:"workstreamId"`
-	DelegationRef   string         `json:"delegationRef"`
-	Title           string         `json:"title"`
-	Status          string         `json:"status"`
-	MemberName      string         `json:"memberName"`
-	WorkerSessionID string         `json:"workerSessionId"`
-	Current         *bool          `json:"current"`
-	Summary         string         `json:"summary"`
-	BlockedReason   string         `json:"blockedReason"`
-	MemberRole      string         `json:"memberRole"`
-	ReportID        string         `json:"reportId"`
-	WaitingReason   *WaitingReason `json:"waitingReason"`
+	WorkstreamID    string            `json:"workstreamId"`
+	DelegationRef   string            `json:"delegationRef"`
+	Title           string            `json:"title"`
+	Status          string            `json:"status"`
+	MemberName      string            `json:"memberName"`
+	WorkerSessionID string            `json:"workerSessionId"`
+	Current         *bool             `json:"current"`
+	Summary         string            `json:"summary"`
+	BlockedReason   string            `json:"blockedReason"`
+	MemberRole      string            `json:"memberRole"`
+	ReportID        string            `json:"reportId"`
+	WaitingReason   *WaitingReason    `json:"waitingReason"`
+	Ask             *RequestAsk       `json:"ask,omitempty"`
+	AutoRetry       *RequestAutoRetry `json:"autoRetry,omitempty"`
 }
 
 type RequestQueueEntry struct {
@@ -145,6 +181,15 @@ type RequestPage struct {
 	Items      []RequestCard `json:"items"`
 	Total      int           `json:"total"`
 	NextCursor *string       `json:"nextCursor"`
+}
+
+func (c Client) AttentionRequests(ctx context.Context, projectID string) (RequestPage, error) {
+	var out RequestPage
+	if projectID == "" {
+		return out, fmt.Errorf("select a Project")
+	}
+	err := c.call(ctx, "requests/attention", map[string]any{"projectId": projectID}, &out)
+	return out, err
 }
 
 func (c Client) Requests(ctx context.Context, projectID, kind, cursor string) (RequestPage, error) {

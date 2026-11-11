@@ -6,6 +6,11 @@ import (
 	"fmt"
 )
 
+type ReportSource struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
 type Report struct {
 	DelegationRef        string          `json:"delegationRef"`
 	CallID               string          `json:"callId"`
@@ -14,6 +19,7 @@ type Report struct {
 	Summary              string          `json:"summary"`
 	Evidence             []string        `json:"evidence"`
 	RemainingIssues      []string        `json:"remainingIssues"`
+	Sources              []ReportSource  `json:"sources,omitempty"`
 	Artifacts            []Artifact      `json:"artifacts"`
 	Request              json.RawMessage `json:"request"`
 	PrerequisitesChanged bool            `json:"prerequisitesChanged"`

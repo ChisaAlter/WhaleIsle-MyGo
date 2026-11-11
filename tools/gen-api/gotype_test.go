@@ -137,3 +137,25 @@ func TestNameFromSymbol(t *testing.T) {
 		}
 	}
 }
+
+func TestRootTypesRetainNamedAliasesAndProjectionDecoder(t *testing.T) {
+	g := newGoTypeer()
+	g.curPkg = "fixture"
+	g.schemas = map[string]*Schema{
+		"namespace":   {Kind: "object", Fields: []SchemaField{{Name: "ns", Schema: &Schema{Kind: "string"}}}},
+		"projections": {Kind: "union", Members: []*Schema{{Kind: "nulllit"}, {Kind: "object"}}},
+	}
+	g.structType(g.schemas["namespace"], "NamespacesItem")
+	name, err := g.rootType("namespace", "@deepseek-ai/dsh-settings/types#SettingsNamespaceView", "settings result", "SettingsNamespaceView")
+	if err != nil || name != "SettingsNamespaceView" {
+		t.Fatalf("public alias: %q %v", name, err)
+	}
+	if !strings.Contains(g.defs[len(g.defs)-1].code, "type SettingsNamespaceView = NamespacesItem") {
+		t.Fatal("deduplication removed the public type")
+	}
+	before := len(g.defs)
+	name, err = g.rootType("projections", "@deepseek-ai/dsh-api-session-controller/types#SessionProjectionsValue", "projection result", "SessionProjectionsValue")
+	if err != nil || name != "SessionProjectionsValue" || len(g.defs) != before {
+		t.Fatal("generator replaced the projection decoder", name, err)
+	}
+}

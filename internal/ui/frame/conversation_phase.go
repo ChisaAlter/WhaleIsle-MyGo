@@ -58,7 +58,7 @@ const (
 // still unknown settles: the skeleton stands in for Hero until the page lands,
 // so opening a session cannot flash an empty transcript.
 func conversationPhase(snap session.ViewState, interactions bool) conversationLayoutPhase {
-	if conversationHasTurnContent(snap) || interactions || snap.PromptBusy || snap.PromptAttempted {
+	if conversationHasTurnContent(snap) || interactions || snap.PromptBusy || snap.PromptAttempted || isWhaleAssistantSession(snap) {
 		return conversationActive
 	}
 	for _, item := range snap.Items {
@@ -68,7 +68,7 @@ func conversationPhase(snap session.ViewState, interactions bool) conversationLa
 		// A managed presentation replaces the transcript with Host content; a
 		// running session keeps the Hero until its first message arrives, which
 		// is what the Original blank-draft surface does.
-		if item.Presentation != nil && item.Presentation.Composer == "managed" {
+		if item.Presentation != nil {
 			return conversationActive
 		}
 	}

@@ -203,6 +203,7 @@ type node struct {
 	offsetAfterLayout func(Rect) Point
 	observeLayout     func(Rect)
 	decorativeButton  bool
+	noPointerCursor   bool
 	epoch             uint64
 	key               any
 	valueInput        func(*node)

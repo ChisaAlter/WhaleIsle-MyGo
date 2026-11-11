@@ -60,7 +60,7 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 
 	route := "github"
 	open := true
-	reason := releaseText("CNB 尚未配置鲸屿go原生发布源，请使用 GitHub。", "CNB has no configured MyGo native release source. Use GitHub.")
+	reason := releaseText("CNB 尚未配置 鲸屿 MyGo 原生发布源，请使用 GitHub。", "CNB has no configured Whale Isle MyGo native release source. Use GitHub.")
 	blocked := ui.NewTester(func(c *ui.Context) {
 		trigger := ui.Button(c, "route")
 		routePopup(c, Model{DownloadRoute: &route, RouteUnavailable: map[string]string{"cnb": reason}}, trigger, &open, false)

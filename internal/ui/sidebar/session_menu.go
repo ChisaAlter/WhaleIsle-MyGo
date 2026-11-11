@@ -40,9 +40,9 @@ func sessionPinLabel(pinned bool) string {
 
 func sessionPinTip(pinned bool) string {
 	if pinned {
-		return workspaceText("取消置顶", "Unpin session")
+		return i18n.T(i18n.KeyWSMenuUnpinSession)
 	}
-	return workspaceText("置顶会话", "Pin session")
+	return i18n.T(i18n.KeyWSMenuPinSession)
 }
 
 func pinAction(m Model, it session.Item) func() {

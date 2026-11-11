@@ -53,6 +53,10 @@ func BundledNode() (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		base := filepath.Dir(exe)
 		candidates = append(candidates, filepath.Join(base, "runtime", "node", name), filepath.Join(base, "node", name))
+		if strings.EqualFold(filepath.Base(base), "bin") {
+			parent := filepath.Dir(base)
+			candidates = append(candidates, filepath.Join(parent, "runtime", "node", name), filepath.Join(parent, "node", name))
+		}
 	}
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {

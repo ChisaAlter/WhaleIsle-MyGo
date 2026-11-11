@@ -28,6 +28,8 @@ type Model struct {
 	RoutineCreate             RoutineCreateModel
 	Routines                  RoutineModel
 	WhaleSettings             WhaleSettingsModel
+	WhaleTasks                WhaleTasksModel
+	Proactive                 ProactiveModel
 	Tasks                     TaskModel
 	ThemeID                   string
 	SystemDark                bool
@@ -94,9 +96,21 @@ func View(c *ui.Context, m Model) {
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).Padding(12, 16, 12, 16).Gap(12).Children(func() {
+				if m.Proactive.Open {
+					proactiveBlock(c, m.Proactive, fg, muted, border, accent)
+					return
+				}
 				ui.Text(c, i18n.T(i18n.KeyAssistantStubNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 
 				modeBlock(c, m, fg, muted, border, accent)
+				inboxLabel := whaleTaskCopy("任务收件箱", "Task inbox")
+				if unread := proactiveUnread(m.Proactive.State.Notices); unread > 0 {
+					inboxLabel += " (" + strconv.Itoa(unread) + ")"
+				}
+				if m.Proactive.OnToggle != nil && ui.Button(c, inboxLabel).Clicked() {
+					m.Proactive.OnToggle()
+				}
+				whaleTasksBlock(c, m, fg, muted, border, accent)
 				whaleSettingsBlock(c, m, fg, muted, field, border, accent)
 				dshbotRosterBlock(c, m, fg, muted, field, border, accent)
 				if m.Mode == assiststore.ModeDshbot && m.BotNotificationStatus != "" {

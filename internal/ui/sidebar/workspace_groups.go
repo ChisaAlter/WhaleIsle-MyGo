@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"github.com/egoist/mygo/ui"
+	"slices"
 	"strconv"
 	"strings"
 	"whaleisle/internal/store/session"
@@ -20,7 +21,7 @@ func workspaceViewOptions(c *ui.Context, m Model) {
 	workspaceViewOptionsMenu(c, m, nil)
 }
 func visibleWorkspaceGroups(m Model, items []session.Item) []session.WorkspaceGroup {
-	groups := session.BuildWorkspaceGroups(m.Snapshot, items)
+	groups := slices.Clone(session.BuildSidebarWorkspaceGroups(m.Snapshot, items))
 	for i := range groups {
 		if m.navigationOnly[groups[i].Key] {
 			groups[i].Kind = "navigation"
@@ -64,6 +65,10 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	layout := m.Snapshot.WorkspaceLayout
 	hiddenParents := map[string]bool{}
 	owners := session.WorkspaceSessionOwnersForView(m.Snapshot, items)
+	workspaceTitles := make(map[string]string, len(m.Snapshot.Workspaces))
+	for _, workspace := range m.Snapshot.Workspaces {
+		workspaceTitles[workspace.WorkspaceID] = session.WorkspaceDisplayTitle(workspace.Title, workspace.Path)
+	}
 	var prevByWorkspace map[string]map[string]string
 	if m.OnMoveWorkspaceSessionBefore != nil {
 		prevByWorkspace = make(map[string]map[string]string, len(m.Snapshot.Workspaces))
@@ -104,12 +109,15 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			block.Children(func() {
 				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 				if g.Kind != "flat" {
-					title := session.WorkspaceDisplayTitle(g.Workspace.Title, workspaceText("默认工作区", "Default workspace"))
+					title := session.WorkspaceDisplayTitle(g.Workspace.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 					if title == "" {
 						title = g.Workspace.Path
 					}
 					if g.Kind == "scratch" {
 						title = workspaceText("无工作目录", "No working directory")
+					}
+					if g.Kind == "pinned" {
+						title = workspaceText("已置顶", "Pinned")
 					}
 					if g.Kind == "other" {
 						title = workspaceText("其他会话", "Other sessions")
@@ -126,11 +134,11 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						// disclosure arrow on hover (the arrow rotates as the group opens).
 						hovered := header.Hovered() || header.FocusWithin()
 						lead := ui.ButtonBase(c).Width(16).Height(20).Shrink(0).Padding(0).BorderWidth(0).
-							Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center()
+							Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center().Cursor(ui.CursorPointer)
 						lead.Children(func() {
-							if hovered || g.Kind == "scratch" {
+							if hovered || g.Kind == "scratch" || g.Kind == "pinned" {
 								size, ink := float32(12), muted
-								if g.Kind == "scratch" {
+								if g.Kind == "scratch" || g.Kind == "pinned" {
 									size, ink = 14, chrome.Color(colors.Muted)
 									if holdsSelection {
 										ink = chrome.Color(colors.Accent)
@@ -159,7 +167,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
 						titleButton.Children(func() {
 							text := ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
-							if g.Kind == "scratch" {
+							if g.Kind == "scratch" || g.Kind == "pinned" {
 								text.FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(chrome.Color(colors.Muted)).FixedLineHeight(theme.InterfaceSize(18))
 							}
 						})
@@ -171,7 +179,9 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 							m.OnToggleWorkspaceGroup(g.Key)
 						}
 						anchor.pressed = anchor.pressed || lead.Pressed() || titleButton.Pressed()
-						workspaceRowActions(c, m, header, g, muted)
+						if g.Kind != "pinned" {
+							workspaceRowActions(c, m, header, g, muted)
+						}
 					})
 					if g.Kind == "workspace" && g.Workspace.CreatedAt != "" {
 						hoverAnchors = append(hoverAnchors, anchor)
@@ -193,6 +203,13 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						rowModel := m
 						rowModel.OnMoveSessionBefore = nil
 						rowModel.sessionDrag = nil
+						rowModel.pinnedSection = g.Kind == "pinned"
+						if rowModel.pinnedSection {
+							rowModel.sessionContext = workspaceTitles[owners[r.Item.SessionID]]
+							if rowModel.sessionContext == "" {
+								rowModel.sessionContext = workspaceText("无工作目录", "No working directory")
+							}
+						}
 						if g.Kind == "workspace" && !m.Batch.Enabled && m.OnMoveWorkspaceSessionBefore != nil {
 							rowModel.sessionDrag = &sessionDragContext{Workspace: g.Key, Order: g.Workspace.SessionIDs, Rows: rows}
 						}
@@ -202,7 +219,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						// A selected session in another workspace must reorder that workspace,
 						// never whichever cwd happens to be selected for the next new conversation.
 						owner := owners[r.Item.SessionID]
-						if !local && owner != "" && prevByWorkspace != nil {
+						if !local && g.Kind != "pinned" && owner != "" && prevByWorkspace != nil {
 							if previous, ok := prevByWorkspace[owner][r.Item.SessionID]; ok && previous != "" {
 								rowModel.OnMoveSessionBefore = func(id, _ string) { m.OnMoveWorkspaceSessionBefore(owner, id, previous) }
 							}
@@ -226,12 +243,12 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						})
 					}
 					if g.Kind != "flat" && (visible.Hidden > 0 || visible.Watermark > visible.Baseline) {
-						label := workspaceText("展开其余 "+strconv.Itoa(visible.Hidden)+" 个会话", "Show "+strconv.Itoa(visible.Hidden)+" more sessions")
+						label := i18n.WSf(i18n.KeyWSSessionsExpand, "n", strconv.Itoa(visible.Hidden))
 						accessible := workspaceText("显示更多", "Show more")
 						if visible.Hidden == 0 {
-							label, accessible = workspaceText("收起", "Show less"), workspaceText("收起会话", "Show less")
+							label, accessible = i18n.T(i18n.KeyWSSessionsCollapse), workspaceText("收起会话", "Show less")
 						}
-						if ui.Button(c.Key("workspace-overflow/"+g.Key), label).Label(accessible + " " + g.Key).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Clicked() {
+						if ui.Button(c.Key("workspace-overflow/"+g.Key), label).Label(accessible + " " + g.Key).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer).Clicked() {
 							if visible.Hidden == 0 {
 								resetWorkspaceWatermark(m, g.Key, nil)
 							} else {

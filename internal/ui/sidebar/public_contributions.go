@@ -73,7 +73,7 @@ func sidebarPanelRows(m Model) []publicPanelRow {
 		for _, builtin := range builtins {
 			if builtin.id == entry.ID {
 				builtin.entry = &entry
-				if entry.Label != "" {
+				if entry.Label != "" && (builtin.id != "whale" || builtin.label == i18n.T(i18n.KeySidebarAssistant)) {
 					builtin.label = entry.Label
 				}
 				rows = append(rows, builtin)
@@ -105,6 +105,17 @@ func sidebarPanelRows(m Model) []publicPanelRow {
 }
 
 func publicPanelGlyph(c *ui.Context, m Model, row publicPanelRow, ink ui.Color) {
+	if row.id == "whale" {
+		if !m.PublicContributions.NativeWinner("sidebar.panellist", "", row.id) {
+			return
+		}
+		if image := chrome.BrandAvatar(); image != nil {
+			ui.Image(c, image).Size(18, 18).Fit(ui.Contain)
+		} else {
+			ui.Text(c, "◉").TextColor(ink)
+		}
+		return
+	}
 	if row.entry != nil && !row.entry.Native && m.PublicContributions.RenderEntry != nil {
 		// A plugin's glyph is a web fragment: give it the 16 DIP icon box of the native rows
 		// so it can neither claim the row's width nor push the label aside.

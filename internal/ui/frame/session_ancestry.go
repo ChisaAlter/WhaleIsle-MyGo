@@ -55,6 +55,9 @@ func paintSessionAncestry(c *ui.Context, chain []session.Item, open func(string)
 				ui.Text(c, "/").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).Shrink(0)
 			}
 			title := strings.TrimSpace(it.Title)
+			if it.Presentation != nil && strings.TrimSpace(it.Presentation.Title) != "" {
+				title = strings.TrimSpace(it.Presentation.Title)
+			}
 			if title == "" {
 				// An untitled Session reads as the localized new-session label; the
 				// internal id never reaches the title band.

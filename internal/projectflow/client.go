@@ -26,6 +26,7 @@ type Project struct {
 		Running              int      `json:"running"`
 		Queued               int      `json:"queued"`
 		Provisioning         int      `json:"provisioning"`
+		NeedsYou             int      `json:"needsYou"`
 		RunningJobs          int      `json:"runningJobs"`
 		RunningJobSessionIDs []string `json:"runningJobSessionIds"`
 	} `json:"activity"`

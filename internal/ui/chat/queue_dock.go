@@ -11,6 +11,8 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+var queueIconGrip = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none"><circle cx="4" cy="3" r="1" fill="currentColor"/><circle cx="8" cy="3" r="1" fill="currentColor"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="8" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="9" r="1" fill="currentColor"/><circle cx="8" cy="9" r="1" fill="currentColor"/></svg>`))
+
 // QueueDockView paints the compact queue dock that belongs above the composer:
 // one row per queued prompt with its preview and icon-only actions, plus the
 // inline queue editor. The expanded plan board renders the same rows from
@@ -33,7 +35,12 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 	accent := chrome.Color(colors.Accent)
 	root := ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(6).
 		Background(field).Border(0.5, border).Radius(12).Padding(8, 10, 8, 10)
-	collapsed := ui.Local(root, "collapsed", func() bool { return true })
+	collapsed := ui.Local(root, "collapsed", func() bool {
+		if m.Open != nil {
+			return !*m.Open
+		}
+		return true
+	})
 	root.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
@@ -86,6 +93,18 @@ func queueCountLabel(n int) string {
 
 func queueSendingCopy() string {
 	return referenceCopy("Sending…", "发送中…")
+}
+
+func queueReorderLabel(n, total int) string {
+	return i18n.ChatParityf(i18n.KeyParityConvQueueReorder, "n", queueCountNumber(n), "total", queueCountNumber(total))
+}
+
+func queueMoveCopy() string {
+	return i18n.T(i18n.KeyParityConvQueueReorderHint)
+}
+
+func queueMoveFailedCopy() string {
+	return i18n.T(i18n.KeyParityConvQueueMoveFailed)
 }
 
 func queueEditCopy() string {
@@ -221,18 +240,38 @@ func queueCountNumber(n int) string {
 // icon seats; the expanded board keeps the same order with more room.
 func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border ui.Color, compact bool) {
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	rowsOwner := ui.Box(c.Key("queue-rows-owner")).Size(0, 0).PassThrough()
+	moveFailed := ui.Local(rowsOwner, "queue-move-failed", func() bool { return false })
+	dispatchMove := func(itemID string, toIndex int) {
+		*moveFailed = false
+		if m.OnQueueMove != nil {
+			m.OnQueueMove(itemID, toIndex)
+		}
+		if m.OnQueueMoveResult != nil && !m.OnQueueMoveResult(itemID, toIndex) {
+			*moveFailed = true
+		}
+	}
+	errNotice := strings.TrimSpace(m.QueueMoveError)
+	if errNotice == "" && (m.QueueMoveFailed || *moveFailed) {
+		errNotice = queueMoveFailedCopy()
+	}
+	if errNotice != "" {
+		ui.Text(c, errNotice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(palette.Danger))
+	}
 	for _, pending := range m.Board.Pending {
 		paintPendingSubmission(c, pending, fg, muted)
 	}
-	for _, q := range m.Board.Queue {
+	for index, q := range m.Board.Queue {
+		index := index
 		item := q
-		itemBox := ui.Column(c).Key("queue-item:"+item.ID).FillWidth().MinWidth(0).Gap(4)
+		itemBox := ui.Column(c).Key("queue-item:" + item.ID).FillWidth().MinWidth(0).Gap(4)
 		localEdit := ui.Local(itemBox, "inline-edit", func() queueInlineEditState {
 			return queueInlineEditState{draft: item.Preview}
 		})
 		storeEditing := m.QueueEditor.ItemID != "" && m.QueueEditor.ItemID == item.ID
 		unsupported := queueItemEditUnsupported(item)
 		can := m.Board.QueueActions
+		moveEnabled := can.Can(session.QueueActionMove, item) && !storeEditing && !localEdit.editing
 		editEnabled := can.Can(session.QueueActionEdit, item) && !unsupported
 		steerEnabled := can.Can(session.QueueActionSteer, item)
 		removeEnabled := can.Can(session.QueueActionRemove, item)
@@ -240,7 +279,47 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 		itemBox.Children(func() {
 			row := ui.Row(c).Key("queue-row:"+item.ID).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).
 				Padding(4, 6, 4, 6).Radius(8)
+			if moveEnabled && (m.OnQueueMove != nil || m.OnQueueMoveResult != nil) {
+				queueDropTarget(row, m, item.ID, accent, dispatchMove)
+			}
 			row.Children(func() {
+				if (m.OnQueueMove != nil || m.OnQueueMoveResult != nil) && len(m.Board.Queue) > 1 && item.ID != "" {
+					reorderLabel := queueReorderLabel(index+1, len(m.Board.Queue))
+					moveTip := queueMoveCopy()
+					grip := ui.Button(c, "").Key("queue-grip:"+item.ID).Label(reorderLabel).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(6).
+						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
+					grip.Children(func() {
+						ui.Box(c).Fill().PassThrough().Label(moveTip)
+						ui.Icon(c, queueIconGrip).Width(12).Height(12).TextColor(muted)
+					})
+					if !moveEnabled {
+						grip.Disabled(true).Opacity(.35)
+					} else {
+						grip.Drag(queueDrag{Scope: can.Scope, ID: item.ID})
+						ui.DragEnd[queueDrag](grip)
+						grip.HandleInput(func(ev ui.InputEvent) bool {
+							if ev.Kind != ui.InputKeyDown || ev.Mods != 0 {
+								return false
+							}
+							switch ev.Key {
+							case ui.KeyUp:
+								if index > 0 {
+									dispatchMove(item.ID, index-1)
+								}
+								return true
+							case ui.KeyDown:
+								if index+1 < len(m.Board.Queue) {
+									dispatchMove(item.ID, index+1)
+								}
+								return true
+							}
+							return false
+						})
+						if grip.Hovered() {
+							grip.Background(muted.Alpha(.12))
+						}
+					}
+				}
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 					paintQueueAttachments(c, m, item, fg, muted)
 					line := item.Preview

@@ -60,6 +60,7 @@ type WallpaperEditor struct {
 	downloadItem                                          *wallpapers.Item
 	pointerPreview                                        *ui.DecorativePreview
 	backgroundPreview                                     *chrome.BackgroundEffectPreview
+	LowPowerGPU                                           bool
 }
 
 func (g *WallpaperEditor) Cropping() bool { return g.cropOpen }

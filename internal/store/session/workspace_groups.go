@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -158,6 +159,8 @@ type WorkspaceSessionRow struct {
 	Depth int
 }
 
+const PinnedWorkspaceGroup = "::pinned"
+
 func hostPathKey(p string) string {
 	p = strings.TrimSpace(p)
 	windows := strings.Contains(p, `\`) || (len(p) >= 2 && p[1] == ':')
@@ -217,6 +220,10 @@ func WorkspaceSessionOwners(workspaces []WorkspaceRow, items []Item) map[string]
 	return owners
 }
 func buildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
+	return buildWorkspaceGroupsForSidebar(snap, items, false)
+}
+
+func buildWorkspaceGroupsForSidebar(snap ViewState, items []Item, hoistPinned bool) []WorkspaceGroup {
 	if snap.Items == nil {
 		snap.Items = items
 	}
@@ -264,7 +271,13 @@ func buildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 	}
 	byGroup := map[string][]Item{}
 	var scratch []Item
+	pinned := map[string]Item{}
 	for _, item := range visible {
+		if hoistPinned && snap.WorkspaceLayout.ArchivedFilter != "only" && !item.Blank &&
+			slices.Contains(snap.PinnedSessionIDs, item.SessionID) && !slices.Contains(snap.ArchivedSessionIDs, item.SessionID) {
+			pinned[item.SessionID] = item
+			continue
+		}
 		if id, member := owners[item.SessionID]; member {
 			byGroup[id] = append(byGroup[id], item)
 		} else {
@@ -276,6 +289,17 @@ func buildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 		parents = registeredWorkspaceParents(snap.Workspaces)
 	}
 	var out []WorkspaceGroup
+	if len(pinned) > 0 {
+		group := WorkspaceGroup{Key: PinnedWorkspaceGroup, Kind: "pinned"}
+		for _, id := range snap.PinnedSessionIDs {
+			if item, ok := pinned[id]; ok {
+				group.Items = append(group.Items, item)
+				group.Workspace.SessionIDs = append(group.Workspace.SessionIDs, id)
+				delete(pinned, id)
+			}
+		}
+		out = append(out, group)
+	}
 	visited := map[string]bool{}
 	var emit func(string, int)
 	emit = func(parent string, depth int) {

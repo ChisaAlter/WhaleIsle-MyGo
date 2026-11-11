@@ -166,7 +166,9 @@ func conversationView(c *ui.Context, m Model) {
 		}
 		HistoryNavigationView(c, m, list, muted)
 		whaleUIPanelView(c, m)
-		ui.Box(c).Fill().Height(1).Background(border)
+		if !m.FullColumnViewport {
+			ui.Box(c).Fill().Height(1).Background(border)
+		}
 		if len(msgs) == 0 && historyRows == 0 {
 			if m.Inspector != nil {
 				m.Inspector.CancelPicking()
@@ -175,7 +177,7 @@ func conversationView(c *ui.Context, m Model) {
 			// The empty Session is the Hero's job (conversationPhase), so this
 			// only paints for a standalone surface or an errored settle: center
 			// the hint instead of pinning a 13px line to the top-left corner.
-			if m.Snapshot.HistoryError == "" {
+			if m.Snapshot.HistoryError == "" && !m.FullColumnViewport {
 				ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
 				})

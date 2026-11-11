@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	"whaleisle/internal/config"
+	"whaleisle/internal/product"
 )
 
-// TestCoverUpgradePathInvariants encodes M11 “覆盖 Electron 安装”约束：
-// 同 appId / 数据目录名，且 NSIS 默认装到 Programs\Deepseek-Harness-Desktop。
+// TestCoverUpgradePathInvariants encodes the side-by-side MyGo install + shared
+// userData contract: independent AppID and install directory (never overwriting
+// Programs\Deepseek-Harness-Desktop), while retaining shared DataDirName.
 func TestCoverUpgradePathInvariants(t *testing.T) {
 	if got := config.DataDirName; got != "Deepseek-Harness-Desktop" {
 		t.Fatalf("DataDirName = %q, want Deepseek-Harness-Desktop (shared with Electron)", got)
@@ -24,13 +26,18 @@ func TestCoverUpgradePathInvariants(t *testing.T) {
 	}
 	body := string(raw)
 	for _, want := range []string{
-		"ai.deepseek.harness.gui",
-		"Deepseek-Harness-Desktop",
+		product.AppID,
+		product.Name,
+		`InstallDir "$LOCALAPPDATA\Programs\` + product.InstallDir + `"`,
+		"WhaleIsle-MyGo-Setup-",
 		"LOCALAPPDATA",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("whaleisle.nsi missing %q", want)
 		}
+	}
+	if strings.Contains(body, `InstallDir "$LOCALAPPDATA\Programs\Deepseek-Harness-Desktop"`) {
+		t.Fatal("whaleisle.nsi must not default to Electron's Programs\\Deepseek-Harness-Desktop install directory")
 	}
 
 	mygo := filepath.Join(repoRoot, "mygo.json")
@@ -38,9 +45,12 @@ func TestCoverUpgradePathInvariants(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mygo.json: %v", err)
 	}
-	if !strings.Contains(string(mj), `"identifier": "ai.deepseek.harness.gui"`) &&
-		!strings.Contains(string(mj), `"identifier":"ai.deepseek.harness.gui"`) {
-		t.Fatalf("mygo.json identifier must be ai.deepseek.harness.gui; got %s", truncate(string(mj), 200))
+	if !strings.Contains(string(mj), `"identifier": "`+product.AppID+`"`) &&
+		!strings.Contains(string(mj), `"identifier":"`+product.AppID+`"`) {
+		t.Fatalf("mygo.json identifier must be %s; got %s", product.AppID, truncate(string(mj), 200))
+	}
+	if !strings.Contains(string(mj), `"name": "`+product.EnglishName+`"`) {
+		t.Fatalf("mygo.json name must be %s; got %s", product.EnglishName, truncate(string(mj), 200))
 	}
 
 	// Simulated Electron userData: ImportReport must see artifacts without reading secrets.

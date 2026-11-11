@@ -14,6 +14,7 @@ const (
 	QueueActionRemove UpdateQueueAction = "remove"
 	QueueActionSteer  UpdateQueueAction = "steer"
 	QueueActionEdit   UpdateQueueAction = "edit"
+	QueueActionMove   UpdateQueueAction = "move"
 )
 
 // queueActionPayload follows session-controller QueueAction: kind, and text
@@ -31,6 +32,52 @@ func queueActionPayload(action UpdateQueueAction, editText []string) (map[string
 		return nil, false
 	}
 	return payload, true
+}
+
+// MoveQueue reorders one pending item to toIndex via session/updateQueue action=move.
+func (s *Store) MoveQueue(ctx context.Context, sessionID, itemID string, toIndex int) {
+	if s == nil || itemID == "" || toIndex < 0 {
+		return
+	}
+	s.mu.Lock()
+	client := s.client
+	if sessionID == "" {
+		sessionID = s.selectedID
+	}
+	generation := s.followGeneration
+	if client != nil && sessionID != "" {
+		state := s.queueActionsLocked()
+		if sessionID != s.selectedID || !state.Can(QueueActionMove, s.queueItemLocked(itemID)) || toIndex >= len(s.planBoard.Queue) {
+			s.mu.Unlock()
+			return
+		}
+		fromIndex := -1
+		for i, it := range s.planBoard.Queue {
+			if it.ID == itemID {
+				fromIndex = i
+				break
+			}
+		}
+		if fromIndex == toIndex {
+			s.mu.Unlock()
+			return
+		}
+		s.queueMutationScope, s.queueMutationID = state.Scope, itemID
+		s.invalidateViewLocked()
+	}
+	s.mu.Unlock()
+	if client == nil || sessionID == "" {
+		s.mu.Lock()
+		s.lastAction = "queue: no session"
+		s.invalidateViewLocked()
+		s.mu.Unlock()
+		s.fire()
+		return
+	}
+	payload := map[string]any{"kind": string(QueueActionMove), "toIndex": toIndex}
+	req := map[string]any{"sessionId": sessionID, "itemId": itemID, "action": payload}
+	s.fire()
+	go s.runUpdateQueue(ctx, client, sessionID, generation, itemID, QueueActionMove, req)
 }
 
 // UpdateQueue mutates one pending item; only an accepted Host receipt changes
@@ -107,6 +154,32 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 				}
 			}
 			s.planBoard.Queue = next
+		} else if action == QueueActionMove {
+			if actMap, ok := req["action"].(map[string]any); ok {
+				if toIndex, ok := actMap["toIndex"].(int); ok && toIndex >= 0 && toIndex < len(s.planBoard.Queue) {
+					fromIndex := -1
+					for i, it := range s.planBoard.Queue {
+						if it.ID == itemID {
+							fromIndex = i
+							break
+						}
+					}
+					if fromIndex >= 0 && fromIndex != toIndex {
+						moved := s.planBoard.Queue[fromIndex]
+						rest := make([]PlanQueueItem, 0, len(s.planBoard.Queue)-1)
+						for i, it := range s.planBoard.Queue {
+							if i != fromIndex {
+								rest = append(rest, it)
+							}
+						}
+						reordered := make([]PlanQueueItem, 0, len(s.planBoard.Queue))
+						reordered = append(reordered, rest[:toIndex]...)
+						reordered = append(reordered, moved)
+						reordered = append(reordered, rest[toIndex:]...)
+						s.planBoard.Queue = reordered
+					}
+				}
+			}
 		}
 	}
 	s.invalidateViewLocked()

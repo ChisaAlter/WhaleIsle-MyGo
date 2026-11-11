@@ -25,6 +25,11 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 		return nil, err
 	}
 	out := []string{viewPatch, nativePatch}
+	proactivePatch, err := writeProactiveOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, proactivePatch)
 	if !o.SkipUserPlugins {
 		p, err := writeSessionSearchOverlay(o)
 		if err != nil {

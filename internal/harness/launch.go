@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,7 +143,7 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 					return Plan{}, err
 				}
 			}
-			plan.Command, plan.Args = node, append([]string{o.DshBin}, web...)
+			plan.Command, plan.Args = node, append(nativeTaskPreload(o, sourceRoot), append([]string{o.DshBin}, web...)...)
 		} else {
 			plan.Command, plan.Args = o.DshBin, web
 		}
@@ -170,7 +171,7 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 		if err := validateSessionRuntimeNode(filepath.Dir(root), node); err != nil {
 			return Plan{}, err
 		}
-		plan.Command, plan.Args = node, append([]string{binJS}, web...)
+		plan.Command, plan.Args = node, append(nativeTaskPreload(o, root), append([]string{binJS}, web...)...)
 		plan.Source = "vendor " + binJS
 		plan.Kind = "source"
 		return plan, nil
@@ -203,6 +204,31 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 	plan.Source = "npx " + spec
 	plan.Kind = "npx"
 	return plan, nil
+}
+
+// Only the generated desktop overlay on a known source CLI opts into this
+// preload. Configured executable/PATH/npx launchers retain their contract.
+func nativeTaskPreload(o LaunchOptions, root string) []string {
+	if root == "" {
+		return nil
+	}
+	for _, patch := range o.PatchFiles {
+		if filepath.Base(patch) != "desktop-proactive.patch.yml" {
+			continue
+		}
+		module := filepath.Join(filepath.Dir(patch), "proactive-provenance.mjs")
+		if abs, err := filepath.Abs(module); err == nil {
+			module = abs
+		}
+		if info, err := os.Stat(module); err == nil && info.Mode().IsRegular() {
+			p := filepath.ToSlash(module)
+			if !strings.HasPrefix(p, "/") {
+				p = "/" + p
+			}
+			return []string{"--import", (&url.URL{Scheme: "file", Path: p}).String()}
+		}
+	}
+	return nil
 }
 
 func resolveHarnessRoot(o LaunchOptions) string {
@@ -259,7 +285,11 @@ func resolveNode(configured string) (string, error) {
 	}
 	bases := []string{}
 	if exe, err := os.Executable(); err == nil {
-		bases = append(bases, filepath.Dir(exe))
+		exeDir := filepath.Dir(exe)
+		bases = append(bases, exeDir)
+		if strings.EqualFold(filepath.Base(exeDir), "bin") {
+			bases = append(bases, filepath.Dir(exeDir))
+		}
 	}
 	if wd, err := os.Getwd(); err == nil {
 		bases = append(bases, wd)

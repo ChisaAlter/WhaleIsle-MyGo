@@ -87,25 +87,7 @@ func workspaceOrdinaryTeam(c *ui.Context, m Model) {
 	model := m.OrdinaryTeam()
 	model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
 	model.Columns = 1
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
-		if ui.Button(c, paneLabel("回到浮层", "Return to popover")).Margin(8, 12).AlignSelf(ui.Start).Clicked() {
-			w := m.Sizes.Workspace
-			docked := n.Float == nil
-			w.pending = func() {
-				if !w.close(n.ID) {
-					return
-				}
-				if model.State != nil {
-					model.State.FloatingOpen = true
-					model.State.Pinned = true
-				}
-				onlyGuide := true
-				w.Root.eachResource(func(p *WorkspacePane) { onlyGuide = onlyGuide && p.Kind == "guide" })
-				if docked && onlyGuide && m.RightPaneOpen && m.OnToggleTools != nil {
-					m.OnToggleTools()
-				}
-			}
-		}
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Padding(8, 0, 0, 0).Children(func() {
 		if model.State != nil && model.State.NavigationError != "" {
 			model.Error = model.State.NavigationError
 		}

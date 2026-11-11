@@ -5,6 +5,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
+	fonttheme "whaleisle/internal/ui/theme"
 )
 
 func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
@@ -34,6 +36,12 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 					}
 				})
 			})
+			if g.LowPowerGPU {
+				ui.Text(c, i18n.T(i18n.KeySettingsParityThemeEffectLowPowerGPU)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				if i18n.Locale() == i18n.LocaleEN {
+					ui.Text(c, i18n.T(i18n.KeySettingsParityThemeEffectLowPowerGPUAlt)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+				}
+			}
 		})
 	})
 	if !*open {

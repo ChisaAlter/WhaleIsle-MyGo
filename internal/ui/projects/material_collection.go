@@ -31,7 +31,7 @@ func materialCollectionView(c *ui.Context, m Model) {
 		}
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		for _, path := range []string{"charter.md", "preferences.md", "notes.md"} {
+		for _, path := range []string{"charter.md", "preferences.md", "notes.md", "research-hosts.txt"} {
 			if ui.Button(c, path).Disabled(m.Busy).Clicked() && m.OnMaterial != nil {
 				m.OnMaterial(d.ProjectID, path)
 			}

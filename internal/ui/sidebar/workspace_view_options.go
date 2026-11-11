@@ -3,6 +3,7 @@ package sidebar
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -45,13 +46,13 @@ func workspaceViewOptionsMenu(c *ui.Context, m Model, open *bool) {
 	}
 	filterPick := func(value string) func() { return func() { setArchiveFilter(m, value) } }
 	choices := []workspaceViewChoice{
-		{"workspace", workspaceText("按工作区", "By workspace"), workspaceText("分组方式", "Group by"), workspaceFolderClosedArtwork, group == "workspace", groupPick("workspace"), m.OnWorkspaceGrouping == nil},
+		{"workspace", workspaceText("按工作区", "By workspace"), i18n.T(i18n.KeyWSGroupByLabel), workspaceFolderClosedArtwork, group == "workspace", groupPick("workspace"), m.OnWorkspaceGrouping == nil},
 		{"workspace-tree", workspaceText("按工作区树", "Workspace tree"), "", workspaceTreeMenuArt, group == "workspace-tree", groupPick("workspace-tree"), m.OnWorkspaceGrouping == nil},
 		{"flat", workspaceText("单列表", "Single list"), "", workspaceFlatMenuArt, group == "flat", groupPick("flat"), m.OnWorkspaceGrouping == nil},
-		{"manual", workspaceText("手动排序", "Manual order"), workspaceText("排序方式", "Order by"), workspaceOrderMenuArt, order == "manual", orderPick("manual"), m.OnWorkspaceOrdering == nil},
+		{"manual", workspaceText("手动排序", "Manual order"), i18n.T(i18n.KeyWSOrderByLabel), workspaceOrderMenuArt, order == "manual", orderPick("manual"), m.OnWorkspaceOrdering == nil},
 		{"updated", workspaceText("最近更新", "Recently updated"), "", sidebarRailIcons["clock"], order == "updated", orderPick("updated"), m.OnWorkspaceOrdering == nil},
-		{"default", workspaceText("隐藏已归档", "Hide archived"), workspaceText("筛选列表与搜索", "Filter list and search"), archiveArtwork, filter == "default", filterPick("default"), !canSetArchiveFilter(m)},
-		{"show", workspaceText("全部对话（显示已归档）", "All conversations (show archived)"), "", workspaceFlatMenuArt, filter == "show", filterPick("show"), !canSetArchiveFilter(m)},
+		{"default", i18n.T(i18n.KeyWSViewOptionsHideArchived), i18n.T(i18n.KeyWSFilterByLabel), archiveArtwork, filter == "default", filterPick("default"), !canSetArchiveFilter(m)},
+		{"show", i18n.T(i18n.KeyWSViewOptionsShowArchived), "", workspaceFlatMenuArt, filter == "show", filterPick("show"), !canSetArchiveFilter(m)},
 		{"only", workspaceText("仅显示已归档", "Only archived"), "", archiveArtwork, filter == "only", filterPick("only"), !canSetArchiveFilter(m)},
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
@@ -66,6 +67,9 @@ func workspaceViewOptionsMenu(c *ui.Context, m Model, open *bool) {
 		item := ui.ButtonBase(c.Key("view-choice-"+choice.id)).Label(choice.label).Role(ui.RoleMenuItem).
 			FillWidth().Height(32).Padding(4, 8).Gap(8).Radius(6).BorderWidth(0).
 			Background(ui.Transparent).AlignItems(ui.Center).Disabled(choice.disabled)
+		if !choice.disabled {
+			item.Cursor(ui.CursorPointer)
+		}
 		if item.Hovered() || item.Focused() {
 			item.Background(chrome.Color(colors.Hover))
 		}

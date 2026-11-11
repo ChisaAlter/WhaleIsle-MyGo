@@ -14,9 +14,10 @@ var workspaceGroupsMemo struct {
 }
 
 type workspaceGroupsEntry struct {
-	key ProjectionKey
-	ids []string
-	out []WorkspaceGroup
+	key         ProjectionKey
+	ids         []string
+	out         []WorkspaceGroup
+	hoistPinned bool
 }
 
 const workspaceGroupsMemoSize = 4
@@ -25,13 +26,23 @@ const workspaceGroupsMemoSize = 4
 // Results for a store-projected view are shared across callers and frames;
 // callers must not modify them.
 func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
+	return memoWorkspaceGroups(snap, items, false)
+}
+
+// BuildSidebarWorkspaceGroups moves ordinary pinned rows into their shared
+// leading section. Account grouping callers retain BuildWorkspaceGroups.
+func BuildSidebarWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
+	return memoWorkspaceGroups(snap, items, true)
+}
+
+func memoWorkspaceGroups(snap ViewState, items []Item, hoistPinned bool) []WorkspaceGroup {
 	key := snap.RosterProjectionKey()
 	if !key.Valid() {
-		return buildWorkspaceGroups(snap, items)
+		return buildWorkspaceGroupsForSidebar(snap, items, hoistPinned)
 	}
 	workspaceGroupsMemo.Lock()
 	for i, e := range workspaceGroupsMemo.entries {
-		if e.key == key && sameItemIDs(e.ids, items) {
+		if e.key == key && e.hoistPinned == hoistPinned && sameItemIDs(e.ids, items) {
 			copy(workspaceGroupsMemo.entries[1:i+1], workspaceGroupsMemo.entries[:i])
 			workspaceGroupsMemo.entries[0] = e
 			workspaceGroupsMemo.Unlock()
@@ -39,13 +50,13 @@ func BuildWorkspaceGroups(snap ViewState, items []Item) []WorkspaceGroup {
 		}
 	}
 	workspaceGroupsMemo.Unlock()
-	out := buildWorkspaceGroups(snap, items)
+	out := buildWorkspaceGroupsForSidebar(snap, items, hoistPinned)
 	ids := make([]string, len(items))
 	for i, it := range items {
 		ids[i] = it.SessionID
 	}
 	workspaceGroupsMemo.Lock()
-	entries := append([]workspaceGroupsEntry{{key: key, ids: ids, out: out}}, workspaceGroupsMemo.entries...)
+	entries := append([]workspaceGroupsEntry{{key: key, ids: ids, out: out, hoistPinned: hoistPinned}}, workspaceGroupsMemo.entries...)
 	if len(entries) > workspaceGroupsMemoSize {
 		entries = entries[:workspaceGroupsMemoSize]
 	}

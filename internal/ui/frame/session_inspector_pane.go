@@ -52,7 +52,7 @@ func sessionInspectorGuide(c *ui.Context, m Model) {
 	if m.DisableDeveloperTools {
 		return
 	}
-	if ui.Button(c, paneLabel("会话日志 · 检查当前会话原始事件", "Session Log · Inspect this session's raw events")).Clicked() && m.RightPaneTab != nil {
+	if ui.Button(c, paneLabel("会话日志 · 检查当前会话原始事件", "Session Log · Inspect this session's raw events")).Cursor(ui.CursorPointer).Clicked() && m.RightPaneTab != nil {
 		*m.RightPaneTab = "session-inspector-log"
 	}
 }

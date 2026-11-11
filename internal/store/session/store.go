@@ -1401,6 +1401,7 @@ func (s *Store) RunningCount() int {
 func (s *Store) Select(sessionID string) {
 	s.mu.Lock()
 	if s.selectedID == sessionID {
+		needRefresh := s.client != nil && sessionID != "" && !s.historyReady && !s.historyLoading
 		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
 		if changed {
@@ -1408,6 +1409,9 @@ func (s *Store) Select(sessionID string) {
 		}
 		if control != nil {
 			go control()
+		}
+		if needRefresh {
+			s.refreshSelectedViews()
 		}
 		return
 	}
@@ -1514,11 +1518,29 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	// to the same id. Preserve that current foreground row; the follow stream
 	// owns its running/error state and the stale list must not replay it.
 	if preserveSelected && priorSelected.SessionID != "" {
+		foundSelected := false
 		for i := range s.items {
 			if s.items[i].SessionID == priorSelected.SessionID {
-				s.items[i] = priorSelected
+				foundSelected = true
+				if priorSelected.UpdatedAt != 0 {
+					mergeSessionPresentation(&priorSelected, s.items[i])
+					mergeSessionSubagentIdentity(&priorSelected, s.items[i])
+					s.items[i] = priorSelected
+				} else {
+					mergeSessionPresentation(&s.items[i], priorSelected)
+					mergeSessionSubagentIdentity(&s.items[i], priorSelected)
+					if s.items[i].Cwd == "" {
+						s.items[i].Cwd = priorSelected.Cwd
+					}
+					if s.items[i].Title == "" {
+						s.items[i].Title = priorSelected.Title
+					}
+				}
 				break
 			}
+		}
+		if !foundSelected {
+			s.items = append(s.items, priorSelected)
 		}
 	}
 	s.reconcileSidebarStatusesLocked(s.items)
@@ -1555,15 +1577,17 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	s.applyPinnedFlagsLocked()
 	startFollow := false
 	if s.selectedID == "" && len(s.items) > 0 {
-		pick := s.items[0].SessionID
+		pick := ""
 		for _, it := range s.items {
-			if it.ParentID == "" && it.Origin != "subagent" && it.SubagentIdentity == nil {
+			if it.ParentID == "" && it.Origin != "subagent" && it.SubagentIdentity == nil && !isPluginOwnedSession(it) {
 				pick = it.SessionID
 				break
 			}
 		}
-		s.selectSessionLocked(pick)
-		startFollow = true
+		if pick != "" {
+			s.selectSessionLocked(pick)
+			startFollow = true
+		}
 	}
 	s.mu.Unlock()
 	s.fire()

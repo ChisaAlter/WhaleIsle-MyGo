@@ -96,9 +96,16 @@ func stopNativeAcceptance() {
 	state.mu.Lock()
 	state.quitting = true
 	sup := state.sup
+	win := state.win
 	state.mu.Unlock()
 	if sup != nil {
 		sup.Stop()
+	}
+	// This startup check owns a hidden window and does not exercise the
+	// protected user-quit flow. Destroy it for teardown: OnClose correctly
+	// rejects Quit while quitCleanupFinished is false.
+	if win != nil {
+		win.Destroy()
 	}
 	mygo.App.Quit()
 }

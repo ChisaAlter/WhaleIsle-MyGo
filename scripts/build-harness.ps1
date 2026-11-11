@@ -2,7 +2,7 @@
 #
 # The shared desktop home contains rc.2 required events. The historical
 # alpha.1 reference cannot read them, despite also claiming session format v4.
-# Stage an explicit complete installed rc.2 runtime with -RuntimeSourceResources;
+# Stage an explicit installed rc.2 or complete rc.4 runtime with -RuntimeSourceResources;
 # never merge a newer snapshot into an existing older dependency graph.
 #
 # The sources in runtime/vendor/deepseek-harness are a verbatim copy of the
@@ -14,6 +14,10 @@
 param(
     [string]$RuntimeSourceResources,
     [string]$RuntimeDestination,
+    [string]$DesktopSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
+    [string]$DesktopSourceRevision = 'c9d805a7de0e0b7b80d5768cd30ab489275d1b3b',
+    [string]$LegacyVendor,
+    [string]$AcpSource,
     [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
     [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
@@ -27,8 +31,19 @@ if ($RuntimeSourceResources) {
     if (-not $RuntimeDestination) { $RuntimeDestination = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime' }
     $StageNode = Join-Path $RuntimeSourceResources 'runtime\primary-runtime\dependencies\node\bin\node.exe'
     if (-not (Test-Path -LiteralPath $StageNode -PathType Leaf)) { throw 'The selected original resources directory has no bundled Node runtime.' }
-    & $StageNode (Join-Path $PSScriptRoot 'session-runtime.mjs') stage $RuntimeSourceResources $RuntimeDestination
+    $InstalledHost = Get-Content -LiteralPath (Join-Path $RuntimeSourceResources 'vendor\deepseek-harness\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($InstalledHost.version -eq '0.2.1-rc.4') {
+        if (-not $DesktopSourceRoot) { throw 'DesktopSourceRoot is required for rc.4 main task/IM plugins.' }
+        if (-not $LegacyVendor) { $LegacyVendor = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime\vendor' }
+        & $StageNode (Join-Path $PSScriptRoot 'session-runtime-complete.mjs') stage $RuntimeSourceResources $RuntimeDestination $DesktopSourceRoot $DesktopSourceRevision $LegacyVendor
+    } else {
+        & $StageNode (Join-Path $PSScriptRoot 'session-runtime.mjs') stage $RuntimeSourceResources $RuntimeDestination
+    }
     if ($LASTEXITCODE -ne 0) { throw 'Compatible Host staging failed; the original runtime and session files were not changed.' }
+    if ($AcpSource) {
+        & $StageNode (Join-Path $PSScriptRoot 'session-runtime-acp.mjs') $AcpSource $RuntimeDestination
+        if ($LASTEXITCODE -ne 0) { throw 'ACP package snapshot failed; staged files retained.' }
+    }
     return
 }
 if ($SourceMode -eq 'current') {

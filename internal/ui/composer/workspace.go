@@ -1,6 +1,9 @@
 package composer
 
-import "whaleisle/internal/store/session"
+import (
+	"strings"
+	"whaleisle/internal/store/session"
+)
 
 // RequiresWorkspace follows ConversationContent's inert posture. A ready list
 // is authoritative: a deleted workspace must not be resurrected from its cwd.
@@ -9,8 +12,13 @@ func RequiresWorkspace(snap session.ViewState, hero bool) bool {
 	if snap.SelectedID == "" {
 		return true
 	}
-	if !hero {
+	if !hero || strings.HasPrefix(snap.SelectedID, "session-whale-") {
 		return false
+	}
+	for _, item := range snap.Items {
+		if item.SessionID == snap.SelectedID && item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" {
+			return false
+		}
 	}
 	for _, workspace := range snap.Workspaces {
 		for _, id := range workspace.SessionIDs {

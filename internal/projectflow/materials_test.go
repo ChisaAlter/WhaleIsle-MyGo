@@ -45,7 +45,7 @@ func TestProjectMaterialEditing(t *testing.T) {
 	c := Client{Origin: srv.URL}
 	ctx := context.Background()
 	drafts := map[string]*MaterialDraft{}
-	for _, path := range []string{"notes.md", "preferences.md", "charter.md"} {
+	for _, path := range []string{"notes.md", "preferences.md", "charter.md", "research-hosts.txt"} {
 		d := &MaterialDraft{ProjectID: "p", Path: path}
 		drafts[path] = d
 		m, e := c.ReadMaterial(ctx, "p", path)

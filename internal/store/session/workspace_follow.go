@@ -141,12 +141,16 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 					break
 				}
 			}
+			s.reconcileInitialDefaultWorkspaceLocked()
 		}
 	case "upsert":
 		if frame.Workspace.WorkspaceID == "" {
 			return false
 		}
 		s.putWorkspaceRowLocked(WorkspaceRow(frame.Workspace))
+		if s.selectedID == "" {
+			s.reconcileInitialDefaultWorkspaceLocked()
+		}
 	case "remove":
 		// The local removal action closes an owned conversation only after its
 		// successful receipt as well; this echo alone must not clear selection.

@@ -803,3 +803,46 @@ func TestDirectoryBrowserEditorEscapeMaskAndNestedEscapeOwnership(t *testing.T) 
 		t.Fatal("nested Escape escaped both modal layers")
 	}
 }
+
+func TestDirectoryPickerNativeModeAndWorkspacePersistMergeExternalConfigEdit(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := config.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Update(func(c *config.Config) { c.SidebarWidth = 280 }); err != nil {
+		t.Fatal(err)
+	}
+	other, err := config.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := other.Update(func(c *config.Config) { c.SidebarWidth = 312 }); err != nil {
+		t.Fatal(err)
+	}
+	root := browserRoot()
+	sessions := session.New()
+	s := &mainState{dirPickOpen: true, dirPickMode: "workspace", cfgStore: cfg}
+	s.dirPickBrowser.Parent = &root
+	s.setDirectoryPickerNativeMode(sessions, nil, true)
+	s.mu.Lock()
+	useNative, errText := s.dirPickBrowser.UseNative, s.dirPickErr
+	s.mu.Unlock()
+	if errText != "" || !useNative || !cfg.Get().DirectoryPickerUseNative || cfg.Get().SidebarWidth != 312 {
+		t.Fatalf("native mode failed or clobbered external config: useNative=%v err=%q cfg=%+v", useNative, errText, cfg.Get())
+	}
+	if err := other.Merge(func(c *config.Config) { c.TerminalHeight = 300 }); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.persistRegisteredWorkspace(`C:\AI\WhaleIsle-MyGo`); err != nil {
+		t.Fatalf("persistRegisteredWorkspace after external config edit: %v", err)
+	}
+	reloaded, err := config.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := reloaded.Get()
+	if !got.DirectoryPickerUseNative || got.Workspace != `C:\AI\WhaleIsle-MyGo` || got.SidebarWidth != 312 || got.TerminalHeight != 300 {
+		t.Fatalf("merged config lost fields: %+v", got)
+	}
+}

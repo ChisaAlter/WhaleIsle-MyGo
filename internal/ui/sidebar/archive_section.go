@@ -19,7 +19,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 		header := ui.ButtonBase(c.Key("workspace-archive-disclosure")).Label(label).
 			Role(ui.RoleDisclosure).Expanded(*m.archiveExpanded).
 			FillWidth().Height(34).Padding(0, 8).Gap(6).Radius(12).
-			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center)
+			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 		if header.Hovered() || header.FocusWithin() {
 			header.Background(selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark)))
 		}

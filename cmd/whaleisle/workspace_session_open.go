@@ -164,11 +164,11 @@ func (s *mainState) openGlobalWorkspaceSession(win *mygo.Window, sessions *sessi
 		sessions.Select("")
 		return
 	}
-	s.openWorkspaceSession(win, sessions, sessions.ComposerHostGeneration(), id)
+	s.openWorkspaceSession(win, sessions, state.WorkspaceLayout.HostGeneration, id)
 }
 
 func (s *mainState) openWorkspaceSession(win *mygo.Window, sessions *session.Store, expectedHost uint64, workspaceID string) {
-	if sessions == nil || sessions.ComposerHostGeneration() != expectedHost {
+	if sessions == nil || sessions.WorkspaceHostGeneration() != expectedHost {
 		return
 	}
 	s.revealMainConversation()

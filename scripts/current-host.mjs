@@ -82,7 +82,7 @@ export async function verifyRuntime(root) {
   const installed=await verifyStagedSessionRuntime(root);
   const project=['dsh-project/package.json','dsh-project/lib/index.js','dsh-project/lib/transport.js','dsh-project/client/client.js'];
   for(const relative of project)if(!fs.statSync(path.join(root,relative),{throwIfNoEntry:false})?.isFile())throw Error(`Installed Host Project artifact missing: ${relative}`);
-  return {...installed,sourceCommit:installed.harnessPin.sha,buildProfile:'installed-rc2',platform:'win32',arch:process.arch};
+  return {...installed,sourceCommit:installed.harnessPin.sha,buildProfile:installed.cliVersion==='0.2.1-rc.4'?'installed-rc4':'installed-rc2',platform:'win32',arch:process.arch};
 }
 export function stage(work,legacyVendor,target) {
  const manifest=verify(work); absent(target);

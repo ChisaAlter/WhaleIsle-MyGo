@@ -114,6 +114,8 @@ type Model struct {
 	ownerNavigation          map[string]pluginui.WorkspaceNavigation
 	navigationOnly           map[string]bool
 	ownerRow                 bool
+	pinnedSection            bool
+	sessionContext           string
 	DirectoryActions         []workspacepicker.DirectoryAction
 	NativePages              []pluginui.NativeView
 	OnOpenNativePage         func(handle string)
@@ -202,7 +204,11 @@ type Model struct {
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
 	OnBrowseWorkspace func()
 	// OnRevealWorkspace opens the current workspace in the OS file manager.
-	OnRevealWorkspace func()
+	OnRevealWorkspace     func()
+	OnRevealWorkspacePath func(id, path string)
+	ArchiveConfirm        *ArchiveConfirmState
+	DeleteConfirm         *DeleteConfirmState
+	ActionToast           *RowActionToastState
 	// OnRenameWorkspace calls workspace/rename when a workspace id is known.
 	OnRenameWorkspace func(title string)
 	// OnDeleteWorkspace calls workspace/delete when a workspace id is known.
@@ -252,15 +258,15 @@ func sidebarBrand(c *ui.Context, m Model, colors theme.Colors, fg, muted ui.Colo
 		// Claude's brand scope uses the user's sans stack rather than Inter.
 		publicSidebarSlot(c, m, "sidebar.brand.name", "", func() {
 			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Font(theme.RenderPreferences().Interface.Family).Children(func() {
-				ui.Row(c).Gap(6).AlignItems(ui.Center).MinWidth(0).Children(func() {
-					ui.Row(c).Label("鲸屿go").Gap(0).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "鲸").FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(20)).
+				ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
+					ui.Row(c).Label(product.Name).Gap(0).Shrink(0).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, "鲸").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
 							FontWeight(700).TextColor(fg).SingleLine()
-						ui.Text(c, "屿go").FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(20)).
+						ui.Text(c, "屿 MyGo").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
 							FontWeight(700).TextColor(chrome.Color(colors.Accent)).SingleLine()
 					})
-					ui.Text(c, "WHALE ISLE").FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(14)).
-						FontWeight(700).LetterSpacing(0.6).TextColor(fg.Alpha(0.88)).SingleLine()
+					ui.Text(c, "WHALE ISLE MYGO").Shrink(0).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(14)).
+						FontWeight(700).LetterSpacing(0.1).TextColor(fg.Alpha(0.88)).SingleLine()
 				})
 				ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8.5)).
 					FixedLineHeight(theme.InterfaceSize(11)).FontWeight(500).LetterSpacing(0.28).TextColor(muted)
@@ -268,11 +274,11 @@ func sidebarBrand(c *ui.Context, m Model, colors theme.Colors, fg, muted ui.Colo
 		})
 	}
 	if platform == "darwin" || m.OnCreate == nil {
-		ui.Row(c.Key("sidebar-brand-identity")).Label(product.Name).Grow(1).MinWidth(0).Gap(8).AlignItems(ui.Center).DragWindow().Children(identity)
+		ui.Row(c.Key("sidebar-brand-identity")).Label(product.Name).Grow(1).MinWidth(0).Gap(7).AlignItems(ui.Center).DragWindow().Children(identity)
 		return
 	}
 	brand := ui.ButtonBase(c.Key("sidebar-brand-new")).Label(product.Name).Description(i18n.T(i18n.KeySidebarNewSessionFallback)).
-		Grow(1).Shrink(1).MinWidth(0).Height(38).Gap(8).Padding(0).AlignItems(ui.Center).Justify(ui.Start).Radius(8)
+		Grow(1).Shrink(1).MinWidth(0).Height(38).Gap(7).Padding(0).AlignItems(ui.Center).Justify(ui.Start).Radius(8).Cursor(ui.CursorPointer)
 	brand.Children(identity)
 	if brand.Clicked() {
 		m.OnCreate()
@@ -437,14 +443,14 @@ func View(c *ui.Context, m Model) {
 		} else {
 			// Keep the full product name readable within the sidebar's brand
 			// column, alongside the avatar and collapse control.
-			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(8).AlignItems(ui.Center).
+			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(6).AlignItems(ui.Center).
 				DragWindow().Children(func() {
 				sidebarBrand(c, m, colors, fg, muted, runtime.GOOS)
 				if m.OnToggle != nil {
 					// Native 收起侧边栏: a 28x28 r8 control at (240,22) inside the
 					// 60-DIP brand row; the 16x16 panel glyph sits centred.
 					collapse := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").
-						Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Center()
+						Width(28).Height(28).Shrink(0).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Center()
 					collapseInk := chrome.Color(colors.Secondary)
 					if collapse.Hovered() {
 						collapse.Background(chrome.Color(colors.Hover))
@@ -576,8 +582,11 @@ func View(c *ui.Context, m Model) {
 	})
 	renderSessionHover(c, m, root, m.sessionHover.dragging)
 	sessionRenameDialog(c, m)
+	sessionArchiveConfirmDialog(c, m)
+	sessionDeleteConfirmDialog(c, m)
 	batchDialog(c, m)
 	batchResultToast(c, m)
+	rowActionToastView(c, m)
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
@@ -651,10 +660,15 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 			if !it.Blank || pluginMenu {
 				showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
 				if !showActions && !it.Blank {
-					ui.Text(c, sessionTrailingLabel(status, it.UpdatedAt)).Label("Session time " + it.SessionID).
-						FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
-					if it.Pinned {
-						sessionPinIndicator(c, it.SessionID, muted)
+					if m.pinnedSection {
+						ui.Text(c, m.sessionContext).Label("Workspace " + it.SessionID).MaxWidth(64).MinWidth(0).
+							FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine().Tooltip(m.sessionContext)
+					} else {
+						ui.Text(c, sessionTrailingLabel(status, it.UpdatedAt)).Label("Session time " + it.SessionID).
+							FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+						if it.Pinned {
+							sessionPinIndicator(c, it.SessionID, muted)
+						}
 					}
 				}
 				// Shipped rowActions: ellipsis, archive, pin, separated by 15 DIP.

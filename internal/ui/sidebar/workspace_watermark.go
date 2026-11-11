@@ -49,6 +49,13 @@ func workspaceWatermarkAttention(m Model) map[string]bool {
 // visibleWorkspaceSessionRows is shared by rendering, drag acceptance and batch
 // selection: a hidden overflow row cannot become a Select visible target.
 func visibleWorkspaceSessionRows(m Model, group session.WorkspaceGroup) workspaceWatermarkRows {
+	if group.Kind == "pinned" {
+		rows := make([]session.WorkspaceSessionRow, len(group.Items))
+		for i, item := range group.Items {
+			rows[i] = session.WorkspaceSessionRow{Item: item}
+		}
+		return workspaceWatermarkRows{Rows: rows, Total: len(rows), Watermark: len(rows), Baseline: len(rows)}
+	}
 	var rows []session.WorkspaceSessionRow
 	projKey := m.Snapshot.RosterProjectionKey()
 	if projKey.Valid() {

@@ -89,7 +89,7 @@ func paintTrajectoryRequestTabs(c *ui.Context, selected *string, schema, header 
 			if *selected == tab.id {
 				ink = accent
 			}
-			if ui.Button(c, tab.label).FontSize(theme.InterfaceSize(11)).BorderWidth(0).Background(ui.Transparent).TextColor(ink).Clicked() {
+			if ui.Button(c, tab.label).FontSize(theme.InterfaceSize(11)).BorderWidth(0).Background(ui.Transparent).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
 				*selected = tab.id
 			}
 		}

@@ -47,7 +47,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 				}
 			} else {
 				for _, work := range card.Work {
-					if work.MemberRole != "" && work.MemberRole != "readonly" {
+					if work.MemberRole != "" && work.MemberRole != "readonly" && work.MemberRole != "research" {
 						if ui.Button(c, tr("查看改动", "View changes")).Height(28).Disabled(m.Busy || !actions.Known || actions.WorkDiff == nil).Clicked() {
 							actions.WorkDiff(work.WorkstreamID)
 						}

@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/jobflow"
+	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -45,7 +46,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	if colors.Secondary != "" {
 		headerInk = chrome.Color(colors.Secondary)
 	}
-	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
+	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk).Cursor(ui.CursorPointer)
 	if compact {
 		anchor.Size(28, 28).Padding(0)
 	}
@@ -82,7 +83,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	w, h := viewportDIP(c)
 	ui.PopoverBase(c.Key("jobs-popover"), anchor, &open, func(panel ui.Element) {
 		headerPopupInset(c, panel, anchor, min(float32(500), max(float32(0), w-32)), w, 12)
-		panel = chrome.PopoverReveal(c, panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4).Background(chrome.Color(colors.BG)).Radius(12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+		panel = chrome.PopoverReveal(c, panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 		panel.Children(func() {
 			ui.Scroll(c.Key("jobs-roster")).Label("Background jobs list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(472), h-148))).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
@@ -95,7 +96,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 					if s.Error != "" {
 						ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(8).Children(func() {
 							ui.Text(c, s.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
-							if retry := ui.Button(c, archiveText("重新读取任务", "Retry jobs")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).AlignSelf(ui.Start).Disabled(s.Loading); retry.Clicked() {
+							if retry := ui.Button(c, archiveText("重新读取任务", "Retry jobs")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).AlignSelf(ui.Start).Cursor(ui.CursorPointer).Disabled(s.Loading); retry.Clicked() {
 								controller.Retry(s.Generation)
 							}
 						})
@@ -112,14 +113,26 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 						if s.SettledOpen != nil {
 							settledOpen = *s.SettledOpen
 						}
-						ui.Row(c).FillWidth().Gap(4).Padding(4).Children(func() {
+						if len(live) > 0 {
+							ui.Box(c).FillWidth().Height(.5).Margin(4, 4, 0, 4).Background(chrome.Color(colors.Border))
+						}
+						ui.Row(c).FillWidth().Gap(4).Padding(4).AlignItems(ui.Center).Children(func() {
 							text := fmt.Sprintf(archiveText("已结束 %d", "Finished %d"), len(settled))
-							button := ui.Button(c, text).Label("Toggle finished jobs").MinWidth(0).Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11))
+							button := ui.Button(c, "").Label("Toggle finished jobs").MinWidth(0).Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer)
+							button.Children(func() {
+								ui.Row(c).Gap(3).AlignItems(ui.Center).Children(func() {
+									icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
+									if !settledOpen {
+										icon.Rotate(-90)
+									}
+									ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted)
+								})
+							})
 							if button.Clicked() {
 								controller.ToggleSettled(s.Generation)
 							}
 							ui.Box(c).Grow(1)
-							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
 								controller.ClearSettled(s.Generation)
 							}
 						})
@@ -178,13 +191,15 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 		label = job.ID
 	}
 	live := job.Live()
+	durText := jobDuration(job, time.Now())
+	durTip := agents.FormatJobsDurationTitle(live, durText)
 	ui.Column(c.Key("job-" + job.ID)).FillWidth().MinWidth(0).Children(func() {
 		line := ui.Row(c.Key("job-line-" + job.ID)).Label("Job row: " + job.ID).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center)
 		if live {
 			line.Padding(4, 8, 4, 2).Radius(8).Background(chrome.Color(colors.Field))
 		}
 		line.Children(func() {
-			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(4, 7).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(!job.Observable())
+			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(4, 7).Radius(6).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
 			button.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 					jobStateIndicator(c, job.Status)
@@ -199,7 +214,10 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 							detail = jobStatus(job.Status)
 						}
 						ui.Text(c, detail).FontSize(theme.InterfaceSize(10)).TextColor(muted).MaxWidthPercent(35).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(detail)
-						ui.Text(c, jobDuration(job, time.Now())).FontSize(theme.InterfaceSize(11)).TextColor(muted).Shrink(0)
+						if job.ExitCode != nil {
+							ui.Text(c, agents.FormatJobsTerminalExitCode(*job.ExitCode)).FontSize(theme.InterfaceSize(10)).TextColor(muted).Shrink(0)
+						}
+						ui.Text(c, durText).Tooltip(durTip).FontSize(theme.InterfaceSize(11)).TextColor(muted).Shrink(0)
 					} else {
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 							ink := fg
@@ -217,7 +235,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 									detail = jobStatus(job.Status)
 								}
 								ui.Text(c, detail).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(detail)
-								ui.Text(c, jobDuration(job, time.Now())).FontSize(theme.InterfaceSize(11)).TextColor(muted).Shrink(0)
+								ui.Text(c, durText).Tooltip(durTip).FontSize(theme.InterfaceSize(11)).TextColor(muted).Shrink(0)
 							})
 						})
 					}
@@ -235,7 +253,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				controller.Toggle(s.Generation, job.ID)
 			}
 			if job.Status == "running" {
-				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(archiveText("停止任务 ", "Stop task ")+job.Label).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
+				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
 				stop.Children(func() {
 					if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
 						ui.Spinner(c).Size(10, 10).TextColor(muted)
@@ -309,7 +327,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			ui.Text(c, job.Label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)
-			if ui.Button(c, archiveText("复制", "Copy")).Label("Copy job command").FontSize(theme.InterfaceSize(11)).Disabled(job.Label == "").Clicked() {
+			if ui.Button(c, archiveText("复制", "Copy")).Label("Copy job command").FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(job.Label == "").Clicked() {
 				mygo.Clipboard.WriteText(job.Label)
 			}
 		})

@@ -128,7 +128,7 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 		panel := ui.Column(c).Key(p).Absolute().Left(float32(p.bounds.X)).Top(float32(p.bounds.Y)).Width(float32(r.Width)).Height(float32(r.Height)).Background(c.Theme().Background).Border(1, c.Theme().Border).Clip()
 		panel.Children(func() {
 			ui.Row(c).Height(32).FillWidth().Padding(4).Gap(4).Children(func() {
-				grip := ui.Box(c).Key("browser-mini-move").Grow(1).Height(24).Focusable().Label(browserPreviewText("miniTitle"))
+				grip := ui.Box(c).Key("browser-mini-move").Grow(1).Height(24).Cursor(ui.CursorMove).Focusable().Label(browserPreviewText("miniTitle"))
 				title := p.host.State().Title
 				if title == "" {
 					title = p.host.State().URL

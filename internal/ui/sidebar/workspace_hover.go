@@ -53,10 +53,12 @@ func workspaceCreatedLabel(raw string) string {
 	}
 	created = created.In(time.Local)
 	clock := created.Format("15:04")
-	if i18n.Locale() == i18n.LocaleZH {
-		return fmt.Sprintf("创建于 %d年%d月%d日 %s", created.Year(), created.Month(), created.Day(), clock)
-	}
-	return fmt.Sprintf("Created %d-%d-%d %s", created.Year(), created.Month(), created.Day(), clock)
+	date := i18n.WSf(i18n.KeyWSDateYmd,
+		"y", fmt.Sprintf("%d", created.Year()),
+		"m", fmt.Sprintf("%d", int(created.Month())),
+		"d", fmt.Sprintf("%d", created.Day()),
+	)
+	return i18n.WSf(i18n.KeyWSHoverCreated, "time", date+" "+clock)
 }
 
 func (s *workspaceHoverState) close() {
@@ -139,7 +141,7 @@ func workspaceHoverCard(c *ui.Context, m Model, list ui.Element, state *workspac
 			AlignItems(ui.Start).Justify(ui.Start).Padding(12, 16).Gap(8).Radius(12).Clip().
 			Background(ui.RGB(44, 44, 46)).TextColor(ui.RGB(255, 255, 255)).
 			BorderWidth(0).Shadow(0, 0, 1, 0, ui.RGBA(0, 0, 0, .2)).
-			Shadow(0, 0, 4, 0, ui.RGBA(0, 0, 0, .02)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08))
+			Shadow(0, 0, 4, 0, ui.RGBA(0, 0, 0, .02)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08)).Cursor(ui.CursorPointer)
 		copying := now.Before(state.copiedUntil)
 		if copying {
 			panel.MinHeight(state.panelHeight).Justify(ui.Center).AlignItems(ui.Center)
@@ -149,7 +151,7 @@ func workspaceHoverCard(c *ui.Context, m Model, list ui.Element, state *workspac
 		}
 		panel.Children(func() {
 			if copying {
-				ui.Text(c, workspaceText("已复制", "Copied")).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
+				ui.Text(c, i18n.T(i18n.KeyWSHoverCopied)).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
 				return
 			}
 			ui.Text(c, shown.label).Label("Workspace preview: " + state.shown).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
@@ -253,15 +255,17 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		actions.Absolute().Right(8).Top(7).Opacity(0)
 	}
 	actions.Children(func() {
-		wsName := session.WorkspaceDisplayTitle(g.Workspace.Title, workspaceText("默认工作区", "Default workspace"))
+		wsName := session.WorkspaceDisplayTitle(g.Workspace.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 		if wsName == "" {
 			wsName = g.Workspace.Path
 		}
 		if wsName == "" {
 			wsName = g.Key
 		}
-		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil) || hasDirectoryActions {
+		hasReveal := g.Kind == "workspace" && g.Workspace.Path != "" && (m.OnRevealWorkspace != nil || m.OnRevealWorkspacePath != nil)
+		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil || hasReveal) || hasDirectoryActions {
 			more := ui.Button(c.Key("workspace-menu:"+g.Key), "").Label(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), wsName)).
+				Tooltip(i18n.WSf(i18n.KeyWSActionsWorkspaceAria, "name", wsName)).
 				Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
 			more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
 			more.Menu(func(menu *ui.Menu) {
@@ -272,10 +276,17 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 						action.Run(g.Workspace.Path)
 					}
 				}
-				if g.Kind == "workspace" && m.OnBeginWorkspaceRename != nil && menu.Item(workspaceText("重命名", "Rename")).Icon(menuEditArtwork).Chosen() {
+				if hasReveal && menu.Item(i18n.T(i18n.KeyWSWorkspaceReveal)).Icon(workspaceFolderClosedArtwork).Chosen() {
+					if m.OnRevealWorkspacePath != nil {
+						m.OnRevealWorkspacePath(g.Key, g.Workspace.Path)
+					} else if m.OnRevealWorkspace != nil {
+						m.OnRevealWorkspace()
+					}
+				}
+				if g.Kind == "workspace" && m.OnBeginWorkspaceRename != nil && menu.Item(i18n.T(i18n.KeyWSRename)).Icon(menuEditArtwork).Chosen() {
 					m.OnBeginWorkspaceRename(g.Key)
 				}
-				if g.Kind == "workspace" && m.OnBeginWorkspaceRemoval != nil && menu.Item(workspaceText("删除工作区", "Delete workspace")).Icon(menuTrashArtwork).Danger(true).Chosen() {
+				if g.Kind == "workspace" && m.OnBeginWorkspaceRemoval != nil && menu.Item(i18n.T(i18n.KeyWSDeleteWorkspace)).Icon(menuTrashArtwork).Danger(true).Chosen() {
 					m.OnBeginWorkspaceRemoval(g.Key)
 				}
 			})

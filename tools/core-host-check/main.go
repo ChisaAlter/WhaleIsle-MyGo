@@ -47,6 +47,8 @@ type report struct {
 	ModelRequests       int              `json:"modelRequests"`
 	DurationMS          int64            `json:"durationMS"`
 	OwnedRunRoot        string           `json:"ownedRunRoot,omitempty"`
+	RuntimeRoot         string           `json:"runtimeRoot,omitempty"`
+	HostVersion         string           `json:"hostVersion,omitempty"`
 	SimulatedModel      bool             `json:"simulatedModel,omitempty"`
 	OwnedModelStopped   bool             `json:"ownedModelStopped,omitempty"`
 	ModelListenerClosed bool             `json:"modelListenerClosed,omitempty"`
@@ -77,6 +79,12 @@ func main() {
 	resumeRun := flag.String("resume-run", "", "owned isolated run to continue after fixture-only repair")
 	contributionsOnly := flag.Bool("native-contributions-only", false, "read only the actual fixed native contribution graph in a fresh owned Host")
 	promptFlow := flag.Bool("prompt-flow", false, "exercise real Host/Go Store with an owned deterministic loopback model; no external model API")
+	queueIdle := flag.Bool("queue-idle", false, "exercise queue movement and idle release through the real Host and Go Store")
+	dshbotFlow := flag.Bool("dshbot-flow", false, "exercise retained dshbot contacts and rooms on the staged Host with a loopback model")
+	phoneFlow := flag.Bool("phone-flow", false, "exercise an owned local relay, native remote bridge and headless phone browser; requires WHALEISLE_PHONE_TOOLS and WHALEISLE_PHONE_CHROME")
+	whaleTasks := flag.Bool("whale-tasks", false, "exercise native background reading tasks with a local model, cancellation and restart")
+	proactiveFlow := flag.Bool("proactive-flow", false, "exercise native proactive task execution, schedules and recovery with the real Host and local model")
+	acpFlow := flag.Bool("acp-flow", false, "exercise staged T3 ACP with an owned JSONL subprocess; no external agents or model calls")
 	realFlow := flag.Bool("real-model-flow", false, "two guarded official deepseek-flash synthetic turns; requires an explicit secret file and cumulative ledger")
 	realPreflight := flag.Bool("real-model-preflight", false, "capture and validate the real Host's final payload, then refuse it before credentials, reservation or network")
 	realSecret := flag.String("real-model-secret-file", "", "explicit T3-provided secret file; never uses an existing environment key")
@@ -90,16 +98,16 @@ func main() {
 	r := report{Started: started.UTC().Format(time.RFC3339)}
 	var err error
 	if *realFlow || *realPreflight || *realSecret != "" || *realLedger != "" {
-		if *promptFlow || *contributionsOnly || *resumeRun != "" {
+		if *promptFlow || *queueIdle || *dshbotFlow || *phoneFlow || *whaleTasks || *proactiveFlow || *acpFlow || *contributionsOnly || *resumeRun != "" {
 			err = errors.New("real model modes require their own fresh isolated run")
 		} else {
 			err = runRealModelFlow(*stage, *base, *realSecret, *realLedger, *realFlow, *realPreflight, &r)
 		}
-	} else if *promptFlow {
-		if *resumeRun != "" || *contributionsOnly {
+	} else if *promptFlow || *queueIdle || *dshbotFlow || *phoneFlow || *whaleTasks || *proactiveFlow || *acpFlow {
+		if *resumeRun != "" || *contributionsOnly || *dshbotFlow && (*promptFlow || *queueIdle) || *phoneFlow && (*promptFlow || *queueIdle || *dshbotFlow) || *whaleTasks && (*promptFlow || *queueIdle || *dshbotFlow || *phoneFlow) || *proactiveFlow && (*promptFlow || *queueIdle || *dshbotFlow || *phoneFlow || *whaleTasks) || *acpFlow && (*promptFlow || *queueIdle || *dshbotFlow || *phoneFlow || *whaleTasks || *proactiveFlow) {
 			err = errors.New("prompt-flow requires its own fresh isolated run")
 		} else {
-			err = runPromptFlow(*stage, *base, &r)
+			err = runPromptFlow(*stage, *base, &r, *queueIdle, *dshbotFlow, *phoneFlow, *whaleTasks, *proactiveFlow, *acpFlow)
 		}
 	} else {
 		err = run(*stage, *base, *resumeRun, *contributionsOnly, &r)
@@ -108,7 +116,7 @@ func main() {
 		if *realFlow || *realPreflight || *realSecret != "" || *realLedger != "" {
 			r.Failure = "controlled real-model check stopped; see bounded check and guard audit codes"
 			r.Checks = append(r.Checks, check{Name: "run", FailureClass: "controlled-real-model", Detail: safeRealFailure(err)})
-		} else if *promptFlow {
+		} else if *promptFlow || *queueIdle || *dshbotFlow || *phoneFlow || *whaleTasks || *proactiveFlow || *acpFlow {
 			r.Failure = err.Error()
 			r.Checks = append(r.Checks, check{Name: "run", FailureClass: "owned-prompt-flow"})
 		} else {

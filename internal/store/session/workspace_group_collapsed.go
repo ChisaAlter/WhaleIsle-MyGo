@@ -18,6 +18,9 @@ func WorkspaceGroupCollapsed(snap ViewState, key string) bool {
 	if collapsed, explicit := snap.WorkspaceLayout.Collapsed[key]; explicit {
 		return collapsed
 	}
+	if key == PinnedWorkspaceGroup {
+		return false
+	}
 	projKey := snap.RosterProjectionKey()
 	if projKey.Valid() {
 		workspaceDefaultOpenMemo.Lock()

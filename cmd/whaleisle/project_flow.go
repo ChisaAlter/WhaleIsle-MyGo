@@ -92,7 +92,11 @@ func (s *projectController) projectModel(win *mygo.Window) projects.Model {
 		s.stopProjectProcessLocked()
 		expanded := f.expanded
 		generation := f.generation + 1
-		*f = projectFlowState{client: s.dshClient, expanded: expanded, generation: generation}
+		var ordinaryTeam *ordinaryTeamState
+		if f.ordinaryTeam != nil && f.ordinaryTeam.client == s.dshClient {
+			ordinaryTeam = f.ordinaryTeam
+		}
+		*f = projectFlowState{client: s.dshClient, expanded: expanded, generation: generation, ordinaryTeam: ordinaryTeam}
 	}
 	workspace := ""
 	if s.cfgStore != nil {

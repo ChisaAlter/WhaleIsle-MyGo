@@ -59,14 +59,14 @@ func View(c *ui.Context, m Model) {
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 				if m.OnRefresh != nil {
 					m.OnRefresh()
 				} else {
 					m.Store.Refresh(context.Background(), m.SessionID)
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyScheduleBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyScheduleBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 				m.OnClose()
 			}
 		})
@@ -103,7 +103,7 @@ func View(c *ui.Context, m Model) {
 							}
 						})
 						if entry.ID != "" && m.EditID != nil && m.EditTitle != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleEditTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleEditTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 								*m.EditID = entry.ID
 								*m.EditTitle = entry.Title
 								if m.EditPrompt != nil {
@@ -112,12 +112,12 @@ func View(c *ui.Context, m Model) {
 							}
 						}
 						if entry.ID != "" && m.OnHistory != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 								m.OnHistory(entry.ID)
 							}
 						}
 						if entry.ID != "" && m.OnDelete != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleDelete)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+							if ui.Button(c, i18n.T(i18n.KeyScheduleDelete)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 								m.OnDelete(entry.ID)
 							}
 						}
@@ -128,7 +128,7 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(i18n.KeyScheduleEditTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.TextInput(c, m.EditTitle).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
-					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 						m.OnSaveTitle(*m.EditID, *m.EditTitle)
 					}
 				})
@@ -136,7 +136,7 @@ func View(c *ui.Context, m Model) {
 					ui.Text(c, i18n.T(i18n.KeyScheduleEditPrompt)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.TextInput(c, m.EditPrompt).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
-						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 							m.OnSavePrompt(*m.EditID, *m.EditPrompt)
 						}
 					})
@@ -146,7 +146,7 @@ func View(c *ui.Context, m Model) {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyScheduleHistory)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
 					if m.OnCopyHistory != nil {
-						if ui.Button(c, i18n.T(i18n.KeyScheduleCopyHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+						if ui.Button(c, i18n.T(i18n.KeyScheduleCopyHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 							m.OnCopyHistory(m.HistoryText)
 						}
 					}

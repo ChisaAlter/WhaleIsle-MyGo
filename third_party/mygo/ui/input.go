@@ -1040,6 +1040,7 @@ func (e *node) Clicked() bool {
 		return false
 	}
 	e.flags |= flagClickable
+	e.noPointerCursor = false
 	if e.disabled() || e.st.clicks == 0 {
 		return false
 	}
@@ -1054,6 +1055,7 @@ func (e *node) Clicks() int {
 		return 0
 	}
 	e.flags |= flagClickable
+	e.noPointerCursor = false
 	if e.disabled() {
 		return 0
 	}
@@ -1078,6 +1080,9 @@ func (e *node) DoubleClicked() bool {
 	if !e.hasState() {
 		return false
 	}
+	if e.flags&flagClickable == 0 {
+		e.noPointerCursor = true
+	}
 	e.flags |= flagClickable
 	if e.disabled() || e.st.doubleClicks == 0 {
 		return false
@@ -1091,6 +1096,9 @@ func (e *node) DoubleClicked() bool {
 func (e *node) RightClicked() bool {
 	if !e.hasState() {
 		return false
+	}
+	if e.flags&flagClickable == 0 {
+		e.noPointerCursor = true
 	}
 	e.flags |= flagClickable
 	if e.disabled() || e.st.rightClicks == 0 {

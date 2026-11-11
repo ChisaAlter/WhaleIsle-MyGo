@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/egoist/mygo"
+	"strings"
 	"time"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/projects"
@@ -12,6 +14,9 @@ import (
 // is the same retained requirements view, not the last card opened in a modal.
 func (s *projectController) bindRequirementCatalog(win *mygo.Window, m *projects.Model, o *projects.ObserverState) {
 	o.OnLoadCatalog = func(kind string, delta int) { s.loadRequirementCatalog(win, o, kind, delta) }
+	m.OnAskAnswer = func(requestID, workstreamID, question, answer string) {
+		s.submitProjectAskAnswer(win, o, requestID, workstreamID, question, answer)
+	}
 	queue := m.OnRequestQueue
 	m.OnRequestQueue = func(id, action string) {
 		if queue != nil {
@@ -41,6 +46,49 @@ func (s *projectController) bindRequirementCatalog(win *mygo.Window, m *projects
 			}
 			return actions
 		}
+	}
+}
+
+func (s *projectController) submitProjectAskAnswer(win *mygo.Window, o *projects.ObserverState, requestID, workstreamID, question, answer string) {
+	answer = strings.TrimSpace(answer)
+	if win == nil || o == nil || requestID == "" || answer == "" {
+		return
+	}
+	s.mu.Lock()
+	f := s.projectFlow
+	sessions := s.sessions
+	if f.busy || sessions == nil || o.CoordinatorSessionID == "" {
+		s.mu.Unlock()
+		return
+	}
+	title := requestID
+	for _, card := range o.Attention.Items {
+		if card.ID == requestID && card.Title != "" {
+			title = card.Title
+			break
+		}
+	}
+	workLabel := ""
+	if workstreamID != "" {
+		workLabel = fmt.Sprintf("，workId=%s", workstreamID)
+	}
+	draft := fmt.Sprintf("[回答「%s」（requestId=%s%s）的问题]\n问题：%s\n回答：%s", title, requestID, workLabel, question, answer)
+	target := s.composerDraftLocked(o.CoordinatorSessionID)
+	if target.Text != "" || len(target.Attachments) > 0 || target.Sending || target.Preparing > 0 || target.EditSeq > 0 || target.EditSessionID != "" {
+		f.err = "Lead 已有未发送草稿；原草稿已保留，未覆盖。"
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+	sessions.Select(o.CoordinatorSessionID)
+	if submitErr := submitProjectRecoveryDraft(target, draft, func() {
+		snap := sessions.Snapshot()
+		s.submitComposer(win, sessions, target, o.CoordinatorSessionID, snap.ScratchCwd, 0, false, snap.ComposerHostGeneration)
+		o.RefreshCatalog()
+	}); submitErr != nil {
+		s.mu.Lock()
+		s.projectFlow.err = submitErr.Error()
+		s.mu.Unlock()
 	}
 }
 
@@ -95,8 +143,14 @@ func (s *projectController) loadRequirementCatalog(win *mygo.Window, o *projects
 		rpc := projectflow.Client{Origin: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTP: client.HTTP}
 		page, err := rpc.Requests(ctx, o.ProjectID, kind, cursors[len(cursors)-1])
 		var overview projectflow.Overview
+		var attention projectflow.RequestPage
+		var hasAttention bool
 		if err == nil && kind == "current" {
 			overview, err = rpc.TeamOverviewPage(ctx, o.ProjectID, "")
+			if att, attErr := rpc.AttentionRequests(ctx, o.ProjectID); attErr == nil {
+				attention = att
+				hasAttention = true
+			}
 		}
 		win.Update(func() {
 			s.mu.Lock()
@@ -115,6 +169,9 @@ func (s *projectController) loadRequirementCatalog(win *mygo.Window, o *projects
 			delete(o.CatalogErrors, kind)
 			f.requestKind, f.requestPage, f.requestCursors, f.requestLoaded = kind, page, cursors, true
 			if kind == "current" {
+				if hasAttention {
+					o.Attention = attention
+				}
 				f.team = &overview
 				for i := range f.listing.Projects {
 					if f.listing.Projects[i].ID == o.ProjectID {

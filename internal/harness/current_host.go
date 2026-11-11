@@ -89,11 +89,22 @@ var installedProjectArtifacts = []string{
 func readInstalledRuntimeCapabilities(vendorDir string, bridges CurrentHostBridges) CurrentHostCapabilities {
 	c := CurrentHostCapabilities{}
 	fail := func(reason string) CurrentHostCapabilities { c.Reason = reason; return c }
-	// 1. The staged session runtime: rc.2 pins, bundled Node, its five hashed
+	// 1. The staged session runtime: release pins, bundled Node, its five hashed
 	// artifacts (ui-visual-replies must be the pinned readiness output) and the
 	// desktop session event vocabulary. Reused, never duplicated.
 	if err := validateStagedSessionRuntime(vendorDir); err != nil {
-		return fail("Installed Host runtime does not prove the pinned rc.2 assembly: " + err.Error())
+		return fail("Installed Host runtime does not prove a supported release assembly: " + err.Error())
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(vendorDir, sessionRuntimeManifestName))
+	var manifest struct {
+		CLIVersion string `json:"cliVersion"`
+	}
+	if err != nil || json.Unmarshal(manifestBytes, &manifest) != nil {
+		return fail("Installed Host runtime manifest is unavailable")
+	}
+	commit, safety, supported := sessionRuntimeProfile(manifest.CLIVersion)
+	if !supported {
+		return fail("Installed Host release is unsupported")
 	}
 	// 2. The readiness record must name the same pinned triple.
 	raw, err := os.ReadFile(filepath.Join(vendorDir, installedReadinessRecordName))
@@ -101,7 +112,7 @@ func readInstalledRuntimeCapabilities(vendorDir string, bridges CurrentHostBridg
 		return fail("Installed Host readiness record is missing: " + installedReadinessRecordName)
 	}
 	var record sessionRuntimeSafety
-	if err := json.Unmarshal(raw, &record); err != nil || record != rc2SessionRuntimeSafety {
+	if err := json.Unmarshal(raw, &record); err != nil || record != safety {
 		return fail("Installed Host readiness record does not pin the visual-readiness gate")
 	}
 	// 3. The hashed bundle must still carry the gate itself.
@@ -120,9 +131,9 @@ func readInstalledRuntimeCapabilities(vendorDir string, bridges CurrentHostBridg
 			return fail("Installed Host Project package is incomplete: " + name)
 		}
 	}
-	// Provenance is the rc.2 release commit the session runtime pins; the source
+	// Provenance is the release commit the session runtime pins; the source
 	// build's sourceCommit is not claimed here.
-	c.SourceCommit = sessionRuntimeHarnessCommit
+	c.SourceCommit = commit
 	c.ArtifactsReady = true
 	c.VisualReplyReader = true
 	c.ReadinessGuardReady = true

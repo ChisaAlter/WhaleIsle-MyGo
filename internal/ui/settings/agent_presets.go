@@ -13,6 +13,7 @@ import (
 // AgentPresetsAccess edits the persisted default for future sessions. The
 // composer owns current-session agentPresets/select independently.
 type AgentPresetsAccess struct {
+	ACP                   *ACPAccess
 	DisableDeveloperTools bool
 	OnSaveDefault         func(string)
 	Manager               *session.AgentPresetManager
@@ -70,6 +71,7 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// The 0.3.13 section is a 12 DIP column: an 18/600 title, a 13 DIP intro and
 	// the card groups.
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
+		acpSettings(c, a.ACP, fg, muted)
 		ui.Text(c, i18n.T(KeyPass4PresetsTitle)).FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(KeyPass4PresetsHint)).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
 		settingsNotice(c, "agent_presets:77", "error", snap.Err != "", func() string { return snap.Err })

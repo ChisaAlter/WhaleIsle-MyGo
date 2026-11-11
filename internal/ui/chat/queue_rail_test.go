@@ -185,6 +185,40 @@ func TestQueueDockShowsPreviewAndIconActions(t *testing.T) {
 	}
 }
 
+func TestQueueDockSupportsReordering(t *testing.T) {
+	movedID := ""
+	movedIndex := -1
+	m := PlanBoardModel{
+		ThemeID: "deepseek.light",
+		Board: session.PlanBoard{
+			Queue: []session.PlanQueueItem{
+				{ID: "q1", Preview: "first queued prompt"},
+				{ID: "q2", Preview: "second queued prompt"},
+			},
+			QueueActions: session.QueueActionState{Mutable: true},
+		},
+		OnQueueMove: func(id string, toIndex int) {
+			movedID = id
+			movedIndex = toIndex
+		},
+	}
+	tt := ui.NewTester(func(c *ui.Context) { QueueDockView(c, m) }, 640, 240)
+	// Expand the multi-row queue dock first
+	if err := tt.Click(trajectoryText("展开或收起队列", "Expand or collapse queue")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(queueReorderLabel(1, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if movedID != "" {
+		t.Fatal("grip click must only focus, not reorder")
+	}
+	tt.Key(0, ui.KeyDown)
+	if movedID != "q1" || movedIndex != 1 {
+		t.Fatalf("queue move not dispatched: id=%q toIndex=%d", movedID, movedIndex)
+	}
+}
+
 func TestQueueDockStaysMountedForEmptyPreview(t *testing.T) {
 	m := PlanBoardModel{ThemeID: "deepseek.light", Board: session.PlanBoard{
 		Queue:        []session.PlanQueueItem{{ID: "q2"}},
@@ -199,4 +233,3 @@ func TestQueueDockStaysMountedForEmptyPreview(t *testing.T) {
 		t.Fatal("dock painted without queue rows")
 	}
 }
-

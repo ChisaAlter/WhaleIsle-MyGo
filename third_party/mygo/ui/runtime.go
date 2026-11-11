@@ -859,8 +859,11 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 	if s.textClient != nil && s.textAdapter == nil {
 		s.textAdapter = &textInputAdapter{rt: rt, id: s.id}
 	}
-	if (e.flags&flagEditable != 0 || e.flags&flagSelectable != 0 && s.editor != nil) && s.cursor == 0 {
+	if (e.flags&flagEditable != 0 || s.textClient != nil && s.flags&flagDisabled == 0 || e.flags&flagSelectable != 0 && s.editor != nil) && s.cursor == 0 {
 		s.cursor = CursorText + 1
+	}
+	if s.cursor == 0 && s.flags&flagDisabled == 0 && (e.flags&flagClickable != 0 && !e.noPointerCursor || e.role == RoleButton || e.role == RoleSwitch || e.role == RoleCheckBox || e.role == RoleRadio || e.role == RoleTab || e.role == RoleMenuItem || e.role == RoleMenuButton || e.role == RolePopUpButton || e.role == RoleDisclosure || e.role == RoleLink || e.role == RoleSlider) {
+		s.cursor = CursorPointer + 1
 	}
 	v := intersect(Rect{e.x, e.y, e.w, e.h}, clip)
 	s.vx, s.vy, s.vw, s.vh = v.X, v.Y, v.W, v.H
@@ -968,7 +971,14 @@ func (rt *engine) updateCursor() {
 			}
 			for s := h.st; s != nil; s = rt.states[s.parent] {
 				if s.flags&flagDisabled != 0 && s.flags&flagClickable != 0 {
-					c = CursorNotAllowed
+					// As the reference's CSS: a disabled switch, check box,
+					// radio or tab keeps the default arrow, while buttons and
+					// the other controls show not-allowed.
+					switch s.role {
+					case RoleSwitch, RoleCheckBox, RoleRadio, RoleTab:
+					default:
+						c = CursorNotAllowed
+					}
 					break
 				}
 				if s.parent == 0 {

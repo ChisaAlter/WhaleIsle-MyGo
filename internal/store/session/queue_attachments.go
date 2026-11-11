@@ -41,7 +41,7 @@ func (a QueueActionState) Can(action UpdateQueueAction, item PlanQueueItem) bool
 		return a.Running
 	case QueueActionEdit:
 		return !item.ContentKnown || item.TextOnly
-	case QueueActionRemove:
+	case QueueActionRemove, QueueActionMove:
 		return true
 	}
 	return false

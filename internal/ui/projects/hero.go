@@ -62,7 +62,7 @@ func directoryRefusalText(reason string) string {
 	case "system-data":
 		return tr("系统配置目录（如 AppData、.config、.ssh）不能作为 Project 目录，请选择你的项目文件夹。", "System configuration folders cannot be Project folders. Choose your project folder.")
 	case "app-data":
-		return tr("这是鲸屿自己的数据目录，不能作为 Project 目录，请选择你的项目文件夹。", "This is Whale Isle’s own data folder and cannot be a Project folder. Choose your project folder.")
+		return tr("这是 鲸屿 MyGo 自己的数据目录，不能作为 Project 目录，请选择你的项目文件夹。", "This is Whale Isle MyGo’s own data folder and cannot be a Project folder. Choose your project folder.")
 	default:
 		return tr("此目录不能作为 Project 目录。", "This directory cannot host a Project.")
 	}

@@ -84,7 +84,7 @@ export async function stage(config) {
   const nodeDir = runtimeIncluded ? input(config.nodeDir, 'Official Darwin Node distribution') : '';
   if (runtimeIncluded) inspectMachO(path.join(nodeDir, 'bin/node'), config.arch);
   const output = fresh(config.output);
-  const app = path.join(output, 'DeepSeekHarness Go.app');
+  const app = path.join(output, 'Whale Isle MyGo.app');
   const bin = path.join(app, 'Contents/MacOS');
   const resources = path.join(app, 'Contents/Resources');
   fs.mkdirSync(bin, {recursive: true});
@@ -117,7 +117,7 @@ export async function stage(config) {
     fs.writeFileSync(path.join(bin, '.runtime-staged'), '1', {flag: 'wx'});
   }
   const values = {
-    CFBundleName: 'DeepSeekHarness Go', CFBundleDisplayName: 'DeepSeekHarness Go',
+    CFBundleName: 'Whale Isle MyGo', CFBundleDisplayName: 'Whale Isle MyGo',
     CFBundleIdentifier: macOSBundleIdentifier, CFBundleExecutable: 'whaleisle',
     CFBundleShortVersionString: bundleVersion, CFBundleVersion: bundleVersion,
     CFBundlePackageType: 'APPL', CFBundleInfoDictionaryVersion: '6.0',
@@ -156,10 +156,10 @@ export async function archive(config) {
   fs.mkdirSync(disk);
   // ditto retains the app's existing signatures and resource metadata. Neither
   // this command nor hdiutil signs or grants permissions to the application.
-  run('/usr/bin/ditto', [app, path.join(disk, 'DeepSeekHarness Go.app')]);
+  run('/usr/bin/ditto', [app, path.join(disk, 'Whale Isle MyGo.app')]);
   fs.symlinkSync('/Applications', path.join(disk, 'Applications'));
   const dmg = path.join(output, stem + '.dmg');
-  run('/usr/bin/hdiutil', ['create', '-volname', 'DeepSeekHarness Go', '-srcfolder', disk, '-format', 'UDZO', '-o', dmg]);
+  run('/usr/bin/hdiutil', ['create', '-volname', 'Whale Isle MyGo', '-srcfolder', disk, '-format', 'UDZO', '-o', dmg]);
   inspectDMG(dmg);
   const artifacts = [{file: path.basename(dmg), format: 'dmg', platform: 'darwin', arch: config.arch,
     runtimeIncluded: info.runtimeIncluded, sha256: await sha256(dmg), size: fs.statSync(dmg).size}];

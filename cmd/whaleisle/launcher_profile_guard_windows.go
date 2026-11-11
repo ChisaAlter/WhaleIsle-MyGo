@@ -38,8 +38,8 @@ func claimDesktopProfileAt(profile string) (func(), error) {
 		0, nil, windows.OPEN_ALWAYS, windows.FILE_ATTRIBUTE_NORMAL, 0)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", lifecycleText(
-			"此数据目录正由另一个鲸屿桌面占用，或无法取得独占访问。请先关闭原版/其他桌面，或使用独立数据目录。",
-			"This profile is in use by another Whale Isle desktop, or exclusive access is unavailable. Close the other desktop or choose an independent data directory."), err)
+			"此共享数据目录正由另一个鲸屿 MyGo / 鲸屿桌面占用，或无法取得独占访问。请先关闭其他桌面实例，或使用独立数据目录。",
+			"This shared profile is in use by another Whale Isle MyGo / Whale Isle desktop, or exclusive access is unavailable. Close the other desktop or choose an independent data directory."), err)
 	}
 	var once sync.Once
 	return func() { once.Do(func() { _ = windows.CloseHandle(h) }) }, nil

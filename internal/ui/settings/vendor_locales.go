@@ -365,12 +365,12 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "Welcome to",
 		},
 		"onboardingBrand": {
-			ZH: "Whale Isle",
-			EN: "Whale Isle",
+			ZH: "鲸屿 MyGo",
+			EN: "Whale Isle MyGo",
 		},
 		"onboardingIntroduction": {
-			ZH: "Whale Isle 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。",
-			EN: "Whale Isle works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.",
+			ZH: "鲸屿 MyGo 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。",
+			EN: "Whale Isle MyGo works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.",
 		},
 		"onboardingStart": {
 			ZH: "开始设置",
@@ -381,8 +381,8 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "Add credits",
 		},
 		"onboardingCreditDescription": {
-			ZH: "Whale Isle 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。",
-			EN: "Whale Isle charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.",
+			ZH: "鲸屿 MyGo 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。",
+			EN: "Whale Isle MyGo charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.",
 		},
 		"onboardingTopUp": {
 			ZH: "去充值",
@@ -433,8 +433,8 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "How much detail would you like to see?",
 		},
 		"onboardingProcessDescription": {
-			ZH: "这只会影响工作过程的展示方式，不会影响 Whale Isle 的工作能力。",
-			EN: "This only changes how progress is shown, not what Whale Isle can do.",
+			ZH: "这只会影响工作过程的展示方式，不会影响 鲸屿 MyGo 的工作能力。",
+			EN: "This only changes how progress is shown, not what Whale Isle MyGo can do.",
 		},
 		"onboardingCompact": {
 			ZH: "聚焦结果",
@@ -489,8 +489,8 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "Skip adding credits?",
 		},
 		"onboardingNoCreditDescription": {
-			ZH: "没有可用额度时，Whale Isle 将无法开始新的任务。你可以稍后前往 个人中心 → 账号与余额 进行充值。",
-			EN: "Whale Isle can’t start new tasks without credits. You can add them later in Profile → Accounts.",
+			ZH: "没有可用额度时，鲸屿 MyGo 将无法开始新的任务。你可以稍后前往 个人中心 → 账号与余额 进行充值。",
+			EN: "Whale Isle MyGo can’t start new tasks without credits. You can add them later in Profile → Accounts.",
 		},
 		"onboardingUnderstood": {
 			ZH: "我知道了",
@@ -581,8 +581,8 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "Loading…",
 		},
 		"backToHarness": {
-			ZH: "返回 Whale Isle",
-			EN: "Back to Whale Isle",
+			ZH: "返回 鲸屿 MyGo",
+			EN: "Back to Whale Isle MyGo",
 		},
 		"settings": {
 			ZH: "设置",
@@ -721,8 +721,8 @@ Expected output: a custom preset for new tasks. These review instructions guide 
 			EN: "No balance available",
 		},
 		"quotaDescription": {
-			ZH: "没有可用额度时，Whale Isle 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。",
-			EN: "Whale Isle cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.",
+			ZH: "没有可用额度时，鲸屿 MyGo 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。",
+			EN: "Whale Isle MyGo cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.",
 		},
 		"quotaTopUp": {
 			ZH: "去充值",
@@ -1227,8 +1227,8 @@ Target version: {version}`,
 			EN: "This desktop app and official Harness.",
 		},
 		"about.app": {
-			ZH: "Whale Isle",
-			EN: "Whale Isle",
+			ZH: "鲸屿 MyGo",
+			EN: "Whale Isle MyGo",
 		},
 		"about.appMeta": {
 			ZH: "Based on DeepSeek Harness",
@@ -1315,8 +1315,8 @@ Target version: {version}`,
 			EN: "No installer asset found. Opened the releases page.",
 		},
 		"about.updateManualInstall": {
-			ZH: "已打开安装映像，请将 Whale Isle 拖入 Applications 完成更新。",
-			EN: "Disk image opened. Drag Whale Isle into Applications to finish updating.",
+			ZH: "已打开安装映像，请将 Whale Isle MyGo 拖入 Applications 完成更新。",
+			EN: "Disk image opened. Drag Whale Isle MyGo into Applications to finish updating.",
 		},
 		"about.updateError": {
 			ZH: "检测或安装失败：{message}",
@@ -1405,6 +1405,54 @@ Target version: {version}`,
 		"hostRelease.later": {
 			ZH: "暂不刷新",
 			EN: "Not now",
+		},
+		"nav.group.agent": {
+			ZH: "智能体",
+			EN: "Agent",
+		},
+		"search.results": {
+			ZH: "搜索结果",
+			EN: "Search results",
+		},
+		"about.center.open": {
+			ZH: "打开更新",
+			EN: "Open updates",
+		},
+		"about.center.idle": {
+			ZH: "当前版本 {current}",
+			EN: "Current version {current}",
+		},
+		"about.center.current": {
+			ZH: "已是最新版本（{current}）",
+			EN: "Up to date ({current})",
+		},
+		"about.center.available": {
+			ZH: "发现新版本 {version}",
+			EN: "Version {version} is available",
+		},
+		"about.center.downloading": {
+			ZH: "正在下载 {version} · {percent}%",
+			EN: "Downloading {version} · {percent}%",
+		},
+		"about.center.paused": {
+			ZH: "{version} 下载已暂停 · {percent}%",
+			EN: "{version} download paused · {percent}%",
+		},
+		"about.center.verifying": {
+			ZH: "正在校验 {version}",
+			EN: "Verifying {version}",
+		},
+		"about.center.ready": {
+			ZH: "{version} 已准备好，可以安装",
+			EN: "{version} is ready to install",
+		},
+		"about.center.installing": {
+			ZH: "正在安装 {version}",
+			EN: "Installing {version}",
+		},
+		"about.center.error": {
+			ZH: "更新未完成：{message}",
+			EN: "Update not finished: {message}",
 		},
 	},
 	"dsh-client-ui-settings-market": {
@@ -3390,6 +3438,34 @@ We look forward to exploring the limits of intelligence together with users and 
 			ZH: "远程出错：{message}",
 			EN: "Remote error: {message}",
 		},
+		"relayConnectingHint": {
+			ZH: "正在连接中继…",
+			EN: "Connecting to relay…",
+		},
+		"pairingLifetimeHint": {
+			ZH: "二维码过期或使用后自动刷新；复制的链接长期有效。",
+			EN: "The QR refreshes after expiry or use. Copied links stay valid until revoked.",
+		},
+		"persistentLinkHint": {
+			ZH: "长期链接可重复配对，在这里撤销。已配对设备不受影响。",
+			EN: "Reusable links can pair new devices until revoked here. Paired devices stay connected.",
+		},
+		"revokeLink": {
+			ZH: "撤销长期链接",
+			EN: "Revoke persistent link",
+		},
+		"revokeLinkConfirm": {
+			ZH: "撤销后，旧链接不能再配对；已配对设备保持连接。",
+			EN: "The old link will stop pairing new devices. Paired devices stay connected.",
+		},
+		"revokeLinkAction": {
+			ZH: "撤销并生成新链接",
+			EN: "Revoke and replace link",
+		},
+		"linkRevoked": {
+			ZH: "旧链接已撤销，可重新复制新链接。",
+			EN: "Old link revoked. You can copy the replacement link.",
+		},
 	},
 	"dsh-client-ui-settings-session-log": {
 		"title": {
@@ -4908,6 +4984,42 @@ We look forward to exploring the limits of intelligence together with users and 
 			ZH: "关闭",
 			EN: "Close",
 		},
+		"effect.lowPowerGpu": {
+			ZH: "检测到集成显卡，背景特效默认关闭；开启后可能影响流畅度。",
+			EN: "An integrated GPU was detected, so the background effect starts off; turning it on may make the app less smooth.",
+		},
+		"preset.defaultLight.label": {
+			ZH: "DeepSeek 浅色",
+			EN: "DeepSeek Light",
+		},
+		"preset.defaultDark.label": {
+			ZH: "DeepSeek 深色",
+			EN: "DeepSeek Dark",
+		},
+		"preset.midnight.label": {
+			ZH: "午夜",
+			EN: "Midnight",
+		},
+		"preset.celadon.label": {
+			ZH: "青瓷",
+			EN: "Celadon",
+		},
+		"preset.violet.label": {
+			ZH: "暮紫",
+			EN: "Violet",
+		},
+		"preset.amber.label": {
+			ZH: "琥珀",
+			EN: "Amber",
+		},
+		"preset.paper.label": {
+			ZH: "宣纸",
+			EN: "Paper",
+		},
+		"preset.contrast.label": {
+			ZH: "对比",
+			EN: "Contrast",
+		},
 		"cursorFx.title": {
 			ZH: "指针特效",
 			EN: "Cursor effects",
@@ -6233,7 +6345,7 @@ func settingsVendorFormat(module, key string, vars map[string]string) string {
 		return ""
 	}
 	for k, v := range vars {
-		text = strings.ReplaceAll(text, "{" + k + "}", v)
+		text = strings.ReplaceAll(text, "{"+k+"}", v)
 	}
 	return text
 }

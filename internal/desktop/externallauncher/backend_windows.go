@@ -39,7 +39,8 @@ func Discover() (Installation, error) {
 		return v
 	}
 	displayName := read("DisplayName")
-	if read("NativeRuntime") != appuninstall.NativeMarker || (displayName != product.Name && displayName != "Whale Isle") {
+	if read("NativeRuntime") != appuninstall.NativeMarker ||
+		(displayName != product.Name && displayName != product.EnglishName && displayName != "鲸屿go" && displayName != "Whale Isle") {
 		return Installation{}, ErrNotInstalled
 	}
 	root := read("InstallLocation")

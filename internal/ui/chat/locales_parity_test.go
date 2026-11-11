@@ -54,7 +54,7 @@ func TestChatAllModulesLocalesParity(t *testing.T) {
 	}
 
 	i18n.SetLocale(i18n.LocaleEN)
-	if got := ChatLocale("openui.desktopOnly"); got != "Open this interactive reply in Whale Isle desktop." {
+	if got := ChatLocale("openui.desktopOnly"); got != "Open this interactive reply in Whale Isle MyGo desktop." {
 		t.Fatalf("en openui.desktopOnly = %q", got)
 	}
 	if got := FormatStepProcessJoinTwo("Preparing to read files", "Preparing to edit files"); got != "Preparing to read files and Preparing to edit files" {

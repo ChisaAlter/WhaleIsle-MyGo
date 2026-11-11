@@ -37,7 +37,7 @@ type TrajectoryModel struct {
 	TurnsCollapsed *bool
 	// CallsCollapsed folds tool-call bodies.
 	CallsCollapsed *bool
-	// DetailTab is overview|args|result|timing for the inspector.
+	// DetailTab is overview|args|result|timing|options|usage for the inspector.
 	DetailTab *string
 	// OnCopyDetail copies the active inspector text (Electron event-details copy).
 	OnCopyDetail func(text string)
@@ -160,7 +160,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 						label = i18n.T(i18n.KeyTrajLoading)
 					}
 					ui.Row(c).FillWidth().Padding(4, 8, 4, 8).Children(func() {
-						if ui.Button(c, label).Disabled(m.Snapshot.HistoryPageBusy).
+						if ui.Button(c, label).Cursor(ui.CursorPointer).Disabled(m.Snapshot.HistoryPageBusy).
 							FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(field).FillWidth().Clicked() {
 							m.OnLoadEarlier()
 						}
@@ -192,7 +192,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 						bg = hover
 					}
 					btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
-						Padding(0).Radius(0)
+						Padding(0).Radius(0).Cursor(ui.CursorPointer)
 					btn.Children(func() {
 						ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
 							if row.FoldKey != "" {
@@ -200,7 +200,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 								if row.Folded {
 									glyph = "▸"
 								}
-								if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(24).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Clicked() {
+								if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(24).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
 									folds.toggle(row)
 								}
 							}
@@ -244,7 +244,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 			inspector.Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-					if ui.Button(c, "×").Label("Close trajectory details").Width(24).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent).Clicked() {
+					if ui.Button(c, "×").Label("Close trajectory details").Width(24).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
 						*selected = ""
 					}
 				})
@@ -254,7 +254,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 				requestPayload, requestEvents := trajectoryRequestBodies(m.Snapshot, detail.ID)
 				programAvailable := trajectoryProgramAvailable(detail.Source)
 				historyAvailable := detail.Source.Kind == session.MessageKindSystemPrompt || headerPayload != ""
-				if *detailTab == "program" && !programAvailable || *detailTab == "usage" && requestPayload == "" || *detailTab == "history-diff" && !historyAvailable || *detailTab == "schema" && schemaPayload == "" || *detailTab == "request-header" && headerPayload == "" || (*detailTab == "request" || *detailTab == "request-events") && requestPayload == "" {
+				if *detailTab == "program" && !programAvailable || *detailTab == "history-diff" && !historyAvailable || *detailTab == "schema" && schemaPayload == "" || *detailTab == "request-header" && headerPayload == "" || (*detailTab == "request" || *detailTab == "request-events" || *detailTab == "usage") && requestPayload == "" {
 					*detailTab = "overview"
 				}
 				ui.ScrollHorizontal(c).FillWidth().Height(28).Children(func() {
@@ -264,17 +264,22 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 							{"args", i18n.T(i18n.KeyTrajTabArgs)},
 							{"result", i18n.T(i18n.KeyTrajTabResult)},
 							{"timing", i18n.T(i18n.KeyTrajTabTiming)},
-							{"raw", trajectoryText("原文", "Raw")}, {"source", trajectoryText("来源", "Source")}, {"program", trajectoryText("程序", "Program")}, {"history-diff", trajectoryText("历史差异", "History diff")}, {"usage", trajectoryText("用量", "Usage")},
+							{"options", TrajectoryLocale("tab.options")},
+							{"raw", trajectoryText("原文", "Raw")},
+							{"source", trajectoryText("来源", "Source")},
+							{"program", trajectoryText("程序", "Program")},
+							{"history-diff", trajectoryText("历史差异", "History diff")},
+							{"usage", TrajectoryLocale("tab.usage")},
 						} {
 							if tab.id == "program" {
 								if !programAvailable {
 									continue
 								}
 							}
-							if tab.id == "usage" && requestPayload == "" {
+							if tab.id == "history-diff" && !historyAvailable {
 								continue
 							}
-							if tab.id == "history-diff" && !historyAvailable {
+							if tab.id == "usage" && requestPayload == "" {
 								continue
 							}
 							t := tab
@@ -285,7 +290,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 								weight = 600
 							}
 							if ui.Button(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).BorderWidth(0).
-								Background(ui.Transparent).TextColor(ink).Clicked() {
+								Background(ui.Transparent).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
 								*detailTab = t.id
 							}
 						}
@@ -375,7 +380,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 					}
 				})
 				if m.OnCopyDetail != nil && strings.TrimSpace(copyBody) != "" {
-					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
+					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
 						m.OnCopyDetail(copyBody)
 					}
 				}
@@ -392,7 +397,7 @@ func paintTrajToggle(c *ui.Context, label string, on bool, muted, hover, fg ui.C
 		ink = fg
 	}
 	if ui.Button(c, label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
-		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Clicked() {
+		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Cursor(ui.CursorPointer).Clicked() {
 		click()
 	}
 }
@@ -409,7 +414,7 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 		ink = fg
 	}
 	if ui.Button(c, icon+" "+label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
-		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Clicked() {
+		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Cursor(ui.CursorPointer).Clicked() {
 		click()
 	}
 }

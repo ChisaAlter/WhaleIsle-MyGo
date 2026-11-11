@@ -7,6 +7,14 @@ import (
 	"fmt"
 )
 
+// SessionProjectionsValue keeps the sequenced and migration-required wire arms
+// distinct. It is deliberately owned by this decoder, not the schema generator.
+type SessionProjectionsValue struct {
+	Kind    string          `json:"kind,omitempty"`
+	AsOfSeq float64         `json:"asOfSeq"`
+	Values  json.RawMessage `json:"values"`
+}
+
 // UnmarshalJSON admits the published projection union and the earlier Host's
 // kind-less sequenced shape. A cached migration hint never acquires a sequence.
 func (v *SessionProjectionsValue) UnmarshalJSON(raw []byte) error {

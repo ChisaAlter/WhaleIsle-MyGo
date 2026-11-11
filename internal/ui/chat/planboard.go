@@ -48,7 +48,13 @@ type PlanBoardModel struct {
 	// OnQueueSteer maps to session/updateQueue action=steer.
 	OnQueueSteer func(itemID string)
 	// OnQueueEdit prefills composer / submits edit action with preview text.
+	// OnQueueEdit prefills composer / submits edit action with preview text.
 	OnQueueEdit func(itemID, preview string)
+	// OnQueueMove maps to session/updateQueue action=move.
+	OnQueueMove       func(itemID string, toIndex int)
+	OnQueueMoveResult func(itemID string, toIndex int) bool
+	QueueMoveFailed   bool
+	QueueMoveError    string
 }
 
 // PlanBoardView paints the M5 plan strip (empty state OK).

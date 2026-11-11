@@ -226,7 +226,7 @@ func projectObserverHeader(c *ui.Context, m Model) {
 			width := min(float32(460), max(float32(0), w-32))
 			ui.PopoverBase(c.Key("project-requirements-popover"), anchor, &open, func(panel ui.Element) {
 				headerPopupInset(c, panel, anchor, width, w, 16)
-				panel = chrome.PopoverReveal(c, panel.Label(paneLabel("需求", "Requirements")).Width(width).MaxHeight(min(float32(620), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Radius(12).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+				panel = chrome.PopoverReveal(c, panel.Label(paneLabel("需求", "Requirements")).Width(width).MaxHeight(min(float32(620), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Radius(12).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 				panel.Children(func() {
 					o.OnPin = func() { pinProjectRequirements(m, o); open = false }
 					o.OnReturn = nil

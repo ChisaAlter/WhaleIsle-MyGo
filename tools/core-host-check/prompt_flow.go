@@ -11,12 +11,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"whaleisle/internal/desktop/proactive"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 )
@@ -32,13 +37,18 @@ const (
 // modelFixture implements only the deterministic Messages responses used by
 // this opt-in check. It neither imports a model SDK nor forwards HTTP requests.
 type modelFixture struct {
-	server             *http.Server
-	address            string
-	log                *os.File
-	mu                 sync.Mutex
-	requests, canceled int
-	readTool           string
-	toolResult         bool
+	server               *http.Server
+	address              string
+	log                  *os.File
+	mu                   sync.Mutex
+	requests, canceled   int
+	readTool             string
+	toolResult           bool
+	taskWait             bool
+	taskWaiting          bool
+	taskInputMismatch    bool
+	waitStarted          bool
+	releaseProactiveWait bool
 }
 
 func newModelFixture(root, workspace string) (*modelFixture, error) {
@@ -98,6 +108,43 @@ func newModelFixture(root, workspace string) (*modelFixture, error) {
 			w.(http.Flusher).Flush()
 		}
 		event("message_start", map[string]any{"message": map[string]any{"id": fmt.Sprintf("owned-model-%d", id), "type": "message", "role": "assistant", "model": body.Model, "content": []any{}, "stop_reason": nil, "stop_sequence": nil, "usage": map[string]int{"input_tokens": 80, "output_tokens": 0}}})
+		if slices.Contains(names, "task_read_input") {
+			f.mu.Lock()
+			wait := f.taskWait
+			f.taskWaiting = wait
+			f.mu.Unlock()
+			if wait {
+				event("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+				event("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_TASK_WAIT"}})
+				<-req.Context().Done()
+				f.mu.Lock()
+				f.taskWaiting = false
+				f.canceled++
+				f.mu.Unlock()
+				return
+			}
+			tool, args := "task_read_input", map[string]any{"inputId": "input-1"}
+			if strings.Contains(last, "tool_result") {
+				if !strings.Contains(last, ownedFileText) {
+					f.record(map[string]any{"kind": "task-input-mismatch", "content": last})
+					f.mu.Lock()
+					f.taskInputMismatch = true
+					f.mu.Unlock()
+				}
+				tool = "task_report"
+				args = map[string]any{"summary": "QA_TASK_SUMMARY: " + ownedFileText, "evidence": []string{"input-1"}, "coveredCriteria": []string{taskCriterion}, "unmet": []string{}, "outcome": "completed"}
+			}
+			raw, _ := json.Marshal(args)
+			event("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("task-tool-%d", id), "name": tool, "input": map[string]any{}}})
+			event("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+			event("content_block_stop", map[string]any{"index": 0})
+			event("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 30}})
+			event("message_stop", map[string]any{})
+			return
+		}
+		if emitProactiveTool(last, id, workspace, event) {
+			return
+		}
 		if strings.Contains(last, "QA_TOOL") && !strings.Contains(last, "tool_result") {
 			for _, tool := range body.Tools {
 				name := strings.ToLower(tool.Name)
@@ -144,8 +191,14 @@ func newModelFixture(root, workspace string) (*modelFixture, error) {
 			text = "QA_NEXT_OK: next turn after stop completed."
 		}
 		event("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
-		if strings.Contains(last, "QA_WAIT") {
+		f.mu.Lock()
+		holdProactive := !f.releaseProactiveWait
+		f.mu.Unlock()
+		if strings.Contains(last, "QA_WAIT") && holdProactive {
 			event("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_WAIT_STREAM: awaiting real session cancellation."}})
+			f.mu.Lock()
+			f.waitStarted = true
+			f.mu.Unlock()
 			select {
 			case <-req.Context().Done():
 				f.mu.Lock()
@@ -217,11 +270,23 @@ func hasOwnedFileResult(v session.ViewState) bool {
 	return false
 }
 
-func runPromptFlow(stage, base string, r *report) error {
+func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFlow, whaleTasks, proactiveFlow, acpFlow bool) error {
 	stage, err := filepath.Abs(stage)
 	if err != nil {
 		return err
 	}
+	r.RuntimeRoot = stage
+	metadata, err := os.ReadFile(filepath.Join(stage, "vendor", "deepseek-harness", "package.json"))
+	if err != nil {
+		return err
+	}
+	var identity struct {
+		Version string `json:"version"`
+	}
+	if err = json.Unmarshal(metadata, &identity); err != nil {
+		return err
+	}
+	r.HostVersion = identity.Version
 	root, err := os.MkdirTemp(base, "core-host-prompt-")
 	if err != nil {
 		return err
@@ -282,7 +347,55 @@ func runPromptFlow(stage, base string, r *report) error {
 	vendor := filepath.Join(stage, "vendor")
 	harnessRoot := filepath.Join(vendor, "deepseek-harness")
 	node := filepath.Join(stage, "node", "node.exe")
-	sup := harness.New(harness.Options{Install: harness.NewInstallServer(harness.InstallServerOptions{NodeBin: node}), Launch: harness.LaunchOptions{NodeBin: node, HarnessRoot: harnessRoot, VendorDir: vendor, Host: "127.0.0.1", Port: 32280, Home: home}, Prepare: harness.PrepareOptions{VendorDir: vendor, HarnessRoot: harnessRoot, DshHome: home, ProfileDir: filepath.Join(home, "profiles", "web"), RemoteSet: true, Remote: false}, Workspace: workspace, ReadyTimeout: 3 * time.Minute})
+	var acpFixture *acpFixtureState
+	if acpFlow {
+		acpFixture, err = prepareACPFixture(root, home, vendor, node)
+		if err != nil {
+			return err
+		}
+	}
+	var patches []string
+	if queueIdle {
+		patch := filepath.Join(root, "idle-release.patch.yml")
+		if err = os.WriteFile(patch, []byte("- id: session-controller\n  config:\n    idleReleaseMs: 1500\n    idleReleaseKeep: 0\n"), 0600); err != nil {
+			return err
+		}
+		patches = []string{patch}
+	}
+	var proactiveOwner atomic.Pointer[proactive.Service]
+	openProactive := func() (*proactive.Service, error) {
+		service, err := proactive.Open(userData)
+		if err == nil {
+			proactiveOwner.Store(service)
+		}
+		return service, err
+	}
+	desktop := installctrl.DesktopOps{}
+	if proactiveFlow || acpFlow {
+		if _, err := openProactive(); err != nil {
+			return err
+		}
+		desktop.Proactive = func(ctx context.Context, action string, payload json.RawMessage) (any, error) {
+			return proactiveOwner.Load().Dispatch(ctx, action, payload)
+		}
+	}
+	if proactiveFlow {
+		if os.Getenv("WHALEISLE_PROACTIVE_TOOL_ONLY") == "1" {
+			patch, err := prepareProactiveToolFixture(root, harnessRoot, workspace)
+			if err != nil {
+				return err
+			}
+			patches = append(patches, patch)
+		}
+		if os.Getenv("WHALEISLE_PROACTIVE_EXTERNAL_DELIVERY") == "1" {
+			patch, err := prepareProactiveDeliveryFixture(root, vendor, workspace)
+			if err != nil {
+				return err
+			}
+			patches = append(patches, patch)
+		}
+	}
+	sup := harness.New(harness.Options{Install: harness.NewInstallServer(harness.InstallServerOptions{NodeBin: node, Desktop: desktop}), Launch: harness.LaunchOptions{NodeBin: node, HarnessRoot: harnessRoot, VendorDir: vendor, Host: "127.0.0.1", Port: 32280, Home: home, PatchFiles: patches}, Prepare: harness.PrepareOptions{VendorDir: vendor, HarnessRoot: harnessRoot, DshHome: home, ProfileDir: filepath.Join(home, "profiles", "web"), Whale: whaleTasks || os.Getenv("WHALEISLE_PROACTIVE_EXTERNAL_DELIVERY") == "1", Dshbot: dshbotFlow, RemoteSet: true, Remote: false}, Workspace: workspace, ReadyTimeout: 3 * time.Minute})
 	var endpoint harness.Endpoint
 	var store *session.Store
 	var mux *dsh.Mux
@@ -358,6 +471,9 @@ func runPromptFlow(stage, base string, r *report) error {
 				default:
 				}
 			}, Emit: func(e dsh.EventsEmit) { boundStore.OnEmit(owner, e) }, Waterfall: func(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+				if acpFixture != nil {
+					return acpFixture.approve(wf)
+				}
 				if wf.Event != "approval/request" {
 					return nil, nil
 				}
@@ -383,9 +499,39 @@ func runPromptFlow(stage, base string, r *report) error {
 	if err = start(); err != nil {
 		return fmt.Errorf("start owned Host: %w", err)
 	}
-	pass("real-host-ready", "vendored rc.2 Host; Go dsh RPC/events client; isolated workspace/profile; no desktop window")
+	pass("real-host-ready", "Host "+r.HostVersion+"; Go dsh RPC/events client; isolated workspace/profile; no desktop window")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	if _, err := sup.PlatformSession(ctx); err == nil || err.Error() != "Platform account unavailable" {
+		return fmt.Errorf("isolated platform publisher must load and report no account: %v", err)
+	}
+	pass("platform-plugin-live-route", "staged platform plugin loaded its relative imports and returned an authenticated empty account snapshot in the isolated profile")
+	if acpFlow {
+		return exerciseACP(ctx, client, store, workspace, home, acpFixture, pass, openProactive, func() (*dsh.Client, *session.Store, error) { stop(); err := start(); return client, store, err })
+	}
+	if proactiveFlow {
+		return exerciseProactive(ctx, client, model, workspace, userData, home, pass, func() (*dsh.Client, error) { stop(); err := start(); return client, err }, openProactive)
+	}
+	if whaleTasks {
+		return exerciseWhaleTasks(ctx, client, store, model, workspace, root, pass, func() (*dsh.Client, *session.Store, error) { stop(); err := start(); return client, store, err })
+	}
+	if dshbotFlow {
+		return exerciseDshbot(ctx, client, store, workspace, pass, func() (*dsh.Client, *session.Store, error) {
+			stop()
+			err := start()
+			return client, store, err
+		})
+	}
+	if phoneFlow {
+		var created api.WorkspaceCreateValue
+		if err := client.Call(ctx, "workspace/create", map[string]any{"request": map[string]any{"path": workspace}}, &created); err != nil {
+			return fmt.Errorf("register visible phone workspace: %w", err)
+		}
+		store.FollowWorkspace(ctx)
+		if err := await(ctx, func() (bool, error) { return store.Snapshot().WorkspaceReady, nil }); err != nil {
+			return err
+		}
+	}
 	id, err := store.CreateComposerSession(ctx, workspace)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
@@ -401,6 +547,9 @@ func runPromptFlow(stage, base string, r *report) error {
 		return err
 	}
 	pass("session-create-follow", "created via production Go composer adapter; real Host session/follow opened")
+	if queueIdle {
+		return exerciseQueueIdle(ctx, client, store, model, id, workspace, pass)
+	}
 	save := func(name string) error {
 		v := store.Snapshot()
 		raw, err := json.MarshalIndent(map[string]any{"sessionId": v.SelectedID, "historyReady": v.HistoryReady, "historyError": v.HistoryError, "promptBusy": v.PromptBusy, "lastAction": v.LastAction, "messages": v.Messages}, "", "  ")
@@ -442,6 +591,9 @@ func runPromptFlow(stage, base string, r *report) error {
 		return err
 	}
 	pass("prompt-full-reply", "production SubmitComposer → Host → loopback HTTP/SSE → durable Go Store assistant row")
+	if phoneFlow {
+		return exercisePhone(ctx, stage, root, userData, endpoint, store, id, pass)
+	}
 	if err = send(toolPrompt, "QA_TOOL_OK"); err != nil {
 		return err
 	}

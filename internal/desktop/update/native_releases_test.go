@@ -11,7 +11,7 @@ import (
 )
 
 func nativeFixture() NativeRelease {
-	return NativeRelease{Feed: Feed{Version: "1.2.3", URL: "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v1.2.3/WhaleIsle-Setup-1.2.3.exe", SHA256: strings.Repeat("a", 64), Size: 1024},
+	return NativeRelease{Feed: Feed{Version: "1.2.3", URL: "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v1.2.3/WhaleIsle-MyGo-Setup-1.2.3.exe", SHA256: strings.Repeat("a", 64), Size: 1024},
 		Tag: "v1.2.3", Platform: "windows", Arch: "amd64", Format: "nsis", RuntimeIncluded: true,
 		HostSourceCommit: NativeHostSourceCommit, HostReadinessGuard: NativeHostReadinessGuard}
 }
@@ -94,6 +94,19 @@ func TestNativeReleaseInstalledRC2ProvenancePair(t *testing.T) {
 
 // Explicit local release output only: this never downloads, installs or starts
 // the artifact. The publisher has already hashed the actual staged installer.
+func TestNativeReleaseRC4MatchesItsReadinessGuard(t *testing.T) {
+	r := nativeFixture()
+	r.HostSourceCommit = NativeHostRC4SourceCommit
+	r.HostReadinessGuard = NativeHostRC2ReadinessGuard
+	if err := r.Validate("windows", "amd64", true); err != nil {
+		t.Fatal(err)
+	}
+	r.HostReadinessGuard = NativeHostReadinessGuard
+	if err := r.Validate("windows", "amd64", true); err == nil {
+		t.Fatal("rc.4 accepted source-build guard")
+	}
+}
+
 func TestNativeReleaseCatalogBuiltFixture(t *testing.T) {
 	filename := os.Getenv("WHALEISLE_NATIVE_RELEASE_FIXTURE_CATALOG")
 	if filename == "" {

@@ -6,8 +6,9 @@ import (
 	"math"
 	"strings"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func agentMetricLabel(row session.AgentNavigationRow, now float64) (string, string) {
@@ -85,10 +86,14 @@ func catalogKeyboard(buttons []ui.Element, open func(int), back func()) {
 }
 
 func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, muted ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	fg := chrome.Color(colors.FG)
+	nowMs := float64(c.Now().UnixMilli())
 	if len(v.Rows) == 0 && !v.Busy {
-		ui.Text(c, i18n.T(i18n.KeyAgentsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(muted)
-		ui.Text(c, AgentsPanelLocale("empty.title")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.Text(c, AgentsPanelLocale("empty.body")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		ui.Column(c).FillWidth().MinHeight(160).Padding(16).AlignItems(ui.Center).Justify(ui.Center).Gap(4).Children(func() {
+			ui.Text(c, AgentsPanelLocale("empty.title")).FontSize(theme.InterfaceSize(14)).FontWeight(500).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+			ui.Text(c, AgentsPanelLocale("empty.body")).MaxWidth(220).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+		})
 	}
 	var buttons []ui.Element
 	var addresses []session.AgentSessionAddress
@@ -101,36 +106,58 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	}
 	for _, row := range v.Rows {
 		row := row
-		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).Padding(8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(v.Busy || !row.CanOpen())
-		if button.Hovered() {
-			button.Background(c.Theme().SurfaceHover)
+		disabled := v.Busy || !row.CanOpen()
+		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.Color(colors.Field)).Disabled(disabled)
+		if !disabled {
+			button.Cursor(ui.CursorPointer)
+			if button.Hovered() {
+				button.Background(chrome.Color(colors.Hover))
+			}
 		}
 		button.Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 				if row.Address.Mode != "external" {
-					ink := muted
-					if row.Running {
-						ink = c.Theme().Accent
+					state := widgets.StateDone
+					if !row.ActivityKnown {
+						state = widgets.StateIdle
+					} else if row.Running {
+						state = widgets.StateRunning
 					}
-					ui.Box(c).Size(6, 6).Radius(3).Background(ink).Shrink(0)
+					widgets.StateDot(c, state)
 				}
-				ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(13))
-				meta := agentText("当前未运行", "Inactive")
+				ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+				if row.Address.Mode != "external" {
+					if row.Metrics.Tokens != nil {
+						ui.Text(c, FormatSubagentTokens(*row.Metrics.Tokens)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+					}
+					if row.ActivityKnown || row.Metrics.Timing != nil && row.Metrics.Timing.Since == nil {
+						if ms, ok := row.Metrics.Duration(row.Running, nowMs); ok {
+							durText := FormatSubagentDuration(ms)
+							exactTip := FormatSubagentExactDurationTitle(FormatSubagentExactDuration(ms))
+							ui.Text(c, durText).Tooltip(exactTip).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+						}
+					}
+				}
+				meta := AgentsPanelLocale("activity.inactive")
 				if !row.ActivityKnown {
 					meta = agentText("模式未知", "Activity unknown")
 				}
 				if row.Running {
-					meta = agentText("正在运行", "Running")
+					meta = AgentsPanelLocale("activity.running")
+				} else if row.ActivityKnown && row.Metrics.Completed {
+					meta = AgentsPanelLocale("activity.completed")
 				}
 				switch row.Address.Mode {
 				case "external":
-					meta = agentText("外部任务", "External")
+					meta = AgentsPanelLocale("mode.external")
 				case "one-shot":
-					meta += " · " + agentText("一次性", "One-shot")
+					meta += " · " + AgentsPanelLocale("mode.oneShot")
 				case "continuable":
-					meta += " · " + agentText("可继续", "Continuable")
+					meta += " · " + AgentsPanelLocale("mode.continuable")
+				case "unknown":
+					meta += " · " + AgentsPanelLocale("mode.unknown")
 				}
-				ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).TextColor(muted).Shrink(0)
+				ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
 			})
 		})
 		if row.CanOpen() {
@@ -139,6 +166,18 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 		}
 		if button.Clicked() {
 			open(row.Address)
+		}
+		if m.OnOpenChat != nil && row.CanOpen() {
+			sidebarAria := FormatSubagentOpenSidebarAria(row.Label)
+			sbBtn := ui.Button(c.Key("agent-sidebar/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID), SubagentLocale("open.sidebar")).
+				Label(sidebarAria).Tooltip(sidebarAria).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
+				Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy)
+			if !v.Busy {
+				sbBtn.Cursor(ui.CursorPointer)
+			}
+			if sbBtn.Clicked() {
+				m.OnOpenChat(v.Token, row.Address)
+			}
 		}
 	}
 	catalogKeyboard(buttons, func(index int) { open(addresses[index]) }, func() {

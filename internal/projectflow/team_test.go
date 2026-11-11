@@ -148,3 +148,45 @@ func TestTeamOverviewPageRetainsHostCursorAndWaitingReason(t *testing.T) {
 		t.Fatal("unrequested page was accepted or followed")
 	}
 }
+
+func TestSessionTeamDecodesStringModelSelection(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			RPCID   string
+			Payload map[string]any
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		var value any
+		switch r.URL.Path {
+		case "/api/session/list":
+			value = map[string]any{"items": []any{map[string]any{"sessionId": "lead", "running": false}}}
+		case "/api/session/projections":
+			value = map[string]any{
+				"values": map[string]any{
+					"agentTeam": map[string]any{
+						"members": []any{map[string]any{"id": "lead", "name": "lead", "role": "lead", "phase": "active"}},
+						"tasks":   []any{},
+					},
+					"modelSelection": map[string]any{
+						"next": map[string]any{
+							"provider": "anthropic",
+							"model":    "claude-sonnet-4-6",
+						},
+					},
+				},
+			}
+		default:
+			t.Errorf("unexpected route %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": value}})
+	}))
+	defer srv.Close()
+	c := Client{Origin: srv.URL}
+	team, err := c.SessionTeam(context.Background(), "lead")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(team.Members) != 1 || team.Members[0].ModelError != "" || team.Members[0].ModelLabel != "claude-sonnet-4-6" {
+		t.Fatalf("unexpected member model decoding: %+v", team.Members)
+	}
+}

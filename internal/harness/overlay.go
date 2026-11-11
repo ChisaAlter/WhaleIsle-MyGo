@@ -97,6 +97,9 @@ func optionalPlugins(o PrepareOptions) []DesktopPlugin {
 		remote = o.Remote
 	}
 	var out []DesktopPlugin
+	if _, err := os.Stat(filepath.Join(o.VendorDir, "dsh-acp", "package.json")); err == nil {
+		out = append(out, DesktopPlugin{VendorName: "dsh-acp", Package: "dsh-acp-agents", InsertID: "dsh-acp-agents", ModuleLink: "dsh-acp-agents", OverlayDir: "dsh-acp", OverlayFile: "desktop-acp.patch.yml", Required: true})
+	}
 	if o.Dshbot {
 		out = append(out, DesktopPlugin{
 			VendorName:  "dshbot",
@@ -152,6 +155,14 @@ func Prepare(o PrepareOptions) ([]string, error) {
 	endLinks := startuptrace.Begin("profile.links")
 	for _, p := range plugins {
 		source := filepath.Join(o.VendorDir, p.VendorName)
+		if p.VendorName == "dsh-acp" {
+			for _, name := range []string{"lib/index.js", "lib/presets.js", "lib/t3-runtime.js", "lib/t3-session.js", "lib/t3-auth.js", "lib/mcp-server.js", "lib/vendor/t3.cjs", "lib/vendor/t3-mcp-bridge.cjs"} {
+				if _, err := os.Stat(filepath.Join(source, filepath.FromSlash(name))); err != nil {
+					endLinks()
+					return nil, fmt.Errorf("incomplete ACP runtime: %s: %w", name, err)
+				}
+			}
+		}
 		if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
 			if p.Required {
 				endLinks()

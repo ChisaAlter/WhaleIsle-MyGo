@@ -16,9 +16,8 @@ import (
 	"whaleisle/internal/product"
 )
 
-// AppUserModelID follows the desktop build contract asserted by
-// reference/electron/src/main/package-contract.test.js.
-const AppUserModelID = "ai.deepseek.harness.gui"
+// AppUserModelID identifies the independent Whale Isle MyGo desktop shell.
+const AppUserModelID = product.AppID
 
 // ShortcutName is the Start-menu link the shell owns.
 const ShortcutName = product.Name + ".lnk"

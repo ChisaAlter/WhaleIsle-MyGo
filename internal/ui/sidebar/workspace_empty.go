@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -71,12 +72,12 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 			}
 			p.StrokePath(path, 1.5, muted)
 		})
-		text := workspaceText("暂无会话", "No sessions yet")
+		text := i18n.T(i18n.KeyWSEmptyNone)
 		if filter == "only" {
 			text = workspaceText("暂无已归档会话", "No archived sessions")
 		}
 		ui.Text(c, text).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(muted)
-		if filter == "only" && canSetArchiveFilter(m) && ui.Button(c, workspaceText("查看其他会话", "View other sessions")).Padding(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).Clicked() {
+		if filter == "only" && canSetArchiveFilter(m) && ui.Button(c, i18n.T(i18n.KeyWSEmptyViewOthers)).Padding(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)).Clicked() {
 			setArchiveFilter(m, "default")
 		}
 	})

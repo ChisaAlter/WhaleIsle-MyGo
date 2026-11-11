@@ -17,7 +17,7 @@ func paintAgentAncestors(c *ui.Context, ancestors []session.AgentNavigationAnces
 			if label == "" {
 				label = ancestor.SessionID
 			}
-			if ui.Button(c, label).Label("Agent ancestor "+ancestor.SessionID).Tooltip(ancestor.SessionID).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Clicked() && jump != nil {
+			if ui.Button(c, label).Label("Agent ancestor "+ancestor.SessionID).Tooltip(ancestor.SessionID).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() && jump != nil {
 				jump(ancestor.Depth)
 			}
 			ui.Text(c, "›").FontSize(theme.InterfaceSize(11)).TextColor(c.Theme().TextMuted)

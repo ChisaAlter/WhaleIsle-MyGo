@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -26,6 +27,7 @@ type AppearanceAccess struct {
 	OnSave            func()
 	LastAction        string
 	Err               string
+	LowPowerGPU       bool
 }
 
 func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -72,12 +74,20 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
 	if a.Background != nil {
+		if a.LowPowerGPU {
+			a.Background.LowPowerGPU = true
+		}
 		a.Background.OnBrowse = a.OnBrowseWallpaper
 		a.Background.ExplicitImage = func() string {
 			if a.WallpaperPath != nil {
 				return *a.WallpaperPath
 			}
 			return ""
+		}
+	} else if a.LowPowerGPU {
+		ui.Text(c, i18n.T(i18n.KeySettingsParityThemeEffectLowPowerGPU)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		if i18n.Locale() == i18n.LocaleEN {
+			ui.Text(c, i18n.T(i18n.KeySettingsParityThemeEffectLowPowerGPUAlt)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 	}
 	wallpaperBackgroundPane(c, a.Background, fg, muted)

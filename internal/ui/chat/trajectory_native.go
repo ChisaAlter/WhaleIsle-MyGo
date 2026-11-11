@@ -234,7 +234,7 @@ func trajectoryLinks(c *ui.Context, m TrajectoryModel, row trajRow, all []trajRo
 	ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
 		for _, label := range []string{"Assistant", "Parent tool", "Result"} {
 			if id := targets[label]; id != "" {
-				if ui.Button(c, label).Label("Trajectory jump " + label).Clicked() {
+				if ui.Button(c, label).Label("Trajectory jump " + label).Cursor(ui.CursorPointer).Clicked() {
 					*selected = id
 				}
 			}
@@ -285,7 +285,7 @@ func trajectoryUsage(snapshot session.ViewState, row trajRow) (session.Trajector
 	var selected session.TrajectoryRequest
 	found := false
 	for _, request := range snapshot.TrajectoryRequests {
-		if request.StartSeq > row.Source.Seq {
+		if row.Source.Seq > 0 && request.StartSeq > row.Source.Seq {
 			continue
 		}
 		var usage map[string]float64
@@ -301,6 +301,64 @@ func trajectoryUsage(snapshot session.ViewState, row trajRow) (session.Trajector
 	}
 	return selected, cumulative, found
 }
+
+func trajectoryOptionsDetail(snapshot session.ViewState, row trajRow) string {
+	for _, request := range snapshot.TrajectoryRequests {
+		if "request:"+request.ID == row.ID {
+			if request.ProviderMetadata != nil {
+				raw, _ := json.MarshalIndent(request.ProviderMetadata, "", "  ")
+				if len(raw) > 0 && string(raw) != "null" && string(raw) != "{}" {
+					return string(raw)
+				}
+			}
+		}
+	}
+	if len(row.Source.Raw) > 0 {
+		var parsed map[string]any
+		if json.Unmarshal(row.Source.Raw, &parsed) == nil {
+			if opts, ok := parsed["options"]; ok && opts != nil {
+				raw, _ := json.MarshalIndent(opts, "", "  ")
+				return string(raw)
+			}
+		}
+	}
+	return ""
+}
+
+func trajectoryRowError(row trajRow) string {
+	source := row.Source
+	if source.Tool != nil && (source.Tool.State == "failed" || source.Tool.State == "error") {
+		if source.Tool.Result != nil && source.Tool.Result.Body != "" {
+			return source.Tool.Result.Body
+		}
+		if source.Body != "" {
+			return source.Body
+		}
+	}
+	if strings.Contains(strings.ToLower(source.EventType), "error") || strings.Contains(strings.ToLower(source.EventType), "fail") {
+		if source.Body != "" {
+			return source.Body
+		}
+	}
+	if len(source.Raw) > 0 {
+		var parsed map[string]any
+		if json.Unmarshal(source.Raw, &parsed) == nil {
+			if errVal, ok := parsed["error"]; ok && errVal != nil {
+				switch e := errVal.(type) {
+				case string:
+					if strings.TrimSpace(e) != "" {
+						return e
+					}
+				default:
+					raw, _ := json.Marshal(e)
+					return string(raw)
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func trajectoryProgramAvailable(source session.Message) bool {
 	name := source.Body
 	if source.Tool != nil {
@@ -336,6 +394,16 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		}
 		trajectoryPayloadView(c, "raw:"+row.ID, body, fg, muted)
 		return true, body
+	case "options":
+		opts := trajectoryOptionsDetail(m.Snapshot, row)
+		if opts == "" {
+			msg := TrajectoryLocale("options.notRecorded")
+			ui.Text(c, msg).TextColor(muted)
+			return true, msg
+		}
+		ui.Text(c, TrajectoryLocale("options.json")).FontSize(11).FontWeight(600).TextColor(muted)
+		trajectoryPayloadView(c, "options:"+row.ID, opts, fg, muted)
+		return true, opts
 	case "program":
 		args := source.Args
 		if source.Tool != nil {
@@ -354,10 +422,10 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 				if *jsonMode {
 					label = trajectoryText("程序源码", "Program source")
 				}
-				if ui.Button(c, label).Clicked() {
+				if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
 					*jsonMode = !*jsonMode
 				}
-				if ui.Button(c, trajectoryText("复制程序", "Copy program")).Clicked() {
+				if ui.Button(c, trajectoryText("复制程序", "Copy program")).Cursor(ui.CursorPointer).Clicked() {
 					c.Services().WriteClipboard(program)
 				}
 			})
@@ -379,9 +447,32 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		return true, patch
 	case "usage":
 		request, cumulative, found := trajectoryUsage(m.Snapshot, row)
+		var reqUsage map[string]float64
+		if found && len(request.Usage) > 0 {
+			_ = json.Unmarshal(request.Usage, &reqUsage)
+		}
+		inTok := reqUsage["input"] + reqUsage["inputTokens"]
+		outTok := reqUsage["output"] + reqUsage["outputTokens"]
+		reasonTok := reqUsage["reasoning"] + reqUsage["reasoningTokens"]
 		if !found {
-			ui.Text(c, trajectoryText("选择请求以查看用量", "Select a request to inspect its accounting")).TextColor(muted)
-			return true, ""
+			reasonTok = cumulative["reasoning"] + cumulative["reasoningTokens"]
+		}
+		summaryLine := fmt.Sprintf("%s: %.0f tok · %s: %.0f tok · %s: %.0f tok",
+			TrajectoryLocale("usage.input"), inTok,
+			TrajectoryLocale("usage.output"), outTok,
+			TrajectoryLocale("usage.reasoning"), reasonTok,
+		)
+		ui.Column(c).FillWidth().Gap(4).Children(func() {
+			ui.Text(c, TrajectoryLocale("usage.thisRequest")).FontSize(11).FontWeight(600).TextColor(muted)
+			ui.Text(c, summaryLine).FontSize(12).TextColor(fg)
+			if len(cumulative) > 0 {
+				ui.Text(c, TrajectoryLocale("usage.sessionCumulative")).FontSize(11).FontWeight(600).TextColor(muted)
+				ui.Text(c, fmt.Sprintf("%s: %.0f tok", TrajectoryLocale("usage.total"), cumulative["total"]+cumulative["totalTokens"])).FontSize(12).TextColor(fg)
+			}
+		})
+		if !found {
+			ui.Text(c, TrajectoryLocale("usage.notReported")).TextColor(muted)
+			return true, summaryLine
 		}
 		body, _ := json.MarshalIndent(map[string]any{"request": json.RawMessage(request.Usage), "cumulativeThroughRequest": cumulative}, "", "  ")
 		trajectoryPayloadView(c, "usage:"+row.ID, string(body), fg, muted)
@@ -394,10 +485,24 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		if body == "" {
 			body = strings.Join([]string{row.Full.Input, row.Full.Output, row.Full.Tools}, "\n")
 		}
+		errText := trajectoryRowError(row)
 		root.Children(func() {
+			if errText != "" {
+				ui.Text(c, TrajectoryLocale("details.error")).FontSize(11).FontWeight(600).TextColor(muted)
+				ui.Text(c, errText).FontSize(12).TextColor(fg).Selectable()
+			}
+			if source.Kind == session.MessageKindTool {
+				ui.Text(c, TrajectoryLocale("details.toolCalls")).FontSize(11).FontWeight(600).TextColor(muted)
+			}
 			if source.Role == "user" {
 				content := session.UserMessageContent(source)
 				if content.Structured {
+					if len(content.Attachments) > 0 {
+						ui.Text(c, TrajectoryLocale("attachment.list")).FontSize(11).FontWeight(600).TextColor(muted)
+						for idx := range content.Attachments {
+							ui.Text(c, FormatTrajectoryAttachmentImageIndex(idx+1)).FontSize(11).TextColor(muted)
+						}
+					}
 					userContentAttachments(c, content.Attachments, fg, muted, field, field, m.OnOpenImage)
 					userReferenceText(c, content.Text, 13, fg, muted, nil, userReferenceFacts{Interactive: false, Occurrence: m.Snapshot.SelectedID + ":" + row.ID})
 					for index, block := range content.ExtraBlocks {
@@ -411,7 +516,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 				return
 			}
 			if row.Full.Think != "" {
-				if ui.Button(c, trajectoryText("思考", "Thinking")).Clicked() {
+				if ui.Button(c, trajectoryText("思考", "Thinking")).Cursor(ui.CursorPointer).Clicked() {
 					*thinking = !*thinking
 				}
 				if *thinking {
@@ -424,6 +529,15 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 				refs = append(refs, source.ImageRef)
 			}
 			refs = append(refs, trajectoryStructuredImageRefs(source)...)
+			if len(refs) > 0 || len(source.Files) > 0 {
+				ui.Text(c, TrajectoryLocale("attachment.list")).FontSize(11).FontWeight(600).TextColor(muted)
+				for idx := range refs {
+					ui.Text(c, FormatTrajectoryAttachmentImageIndex(idx+1)).FontSize(11).TextColor(muted)
+				}
+				for _, f := range source.Files {
+					ui.Text(c, f).FontSize(11).TextColor(muted)
+				}
+			}
 			seen := map[string]bool{}
 			for _, ref := range refs {
 				if ref != "" && !seen[ref] && !renderedImages[ref] {
@@ -439,7 +553,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		if *unix {
 			label = trajectoryText("显示本地时间", "Show local time")
 		}
-		if ui.Button(c, label).Clicked() {
+		if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
 			*unix = !*unix
 		}
 		body := trajectoryTimingDetail(row)
@@ -534,8 +648,12 @@ func trajectoryToolResultView(c *ui.Context, source session.Message, fg, muted u
 		return false, ""
 	}
 	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Selectable().Children(func() {
+		ui.Text(c, TrajectoryLocale("attachment.list")).FontSize(11).FontWeight(600).TextColor(muted)
+		imgIdx := 0
 		for index, raw := range content {
 			if ref := refs[index]; ref != "" {
+				imgIdx++
+				ui.Text(c, FormatTrajectoryAttachmentImageIndex(imgIdx)).FontSize(11).TextColor(muted)
 				ImageInlineView(c.Key(index), ref, fg, muted, onOpen)
 				continue
 			}

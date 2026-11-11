@@ -19,7 +19,7 @@ func externalOpenButton(c *ui.Context, draft string, open func(string) error) (c
 	}
 	label := browserChromeLabel("在外部打开", "Open externally")
 	button := ui.ButtonBase(c).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).
-		Background(ui.Transparent).Role(ui.RoleButton).Label(label).
+		Background(ui.Transparent).Role(ui.RoleButton).Cursor(ui.CursorPointer).Label(label).
 		Tooltip(browserChromeLabel("用系统浏览器打开当前地址；不传递 Browser 分区 Cookie。", "Open the current address in the system browser; Browser profile cookies are not transferred."))
 	button.Children(func() { ui.Icon(c, externalLinkIcon).Size(16, 16) })
 	if !button.Clicked() {

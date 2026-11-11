@@ -71,7 +71,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	m.Releases = snapshot.rows
 	m.RouteUnavailable = make(map[string]string)
 	if _, err := update.NativeCatalogURL("cnb"); err != nil {
-		m.RouteUnavailable["cnb"] = lifecycleText("CNB 尚未配置鲸屿go原生发布源，请使用 GitHub。", "CNB has no configured MyGo native release source. Use GitHub.")
+		m.RouteUnavailable["cnb"] = lifecycleText("CNB 尚未配置 鲸屿 MyGo 原生发布源，请使用 GitHub。", "CNB has no configured Whale Isle MyGo native release source. Use GitHub.")
 	}
 	m.ReleaseBusy = snapshot.busy || refresh
 	m.ReleaseStatus = snapshot.status

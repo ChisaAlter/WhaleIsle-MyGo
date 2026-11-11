@@ -24,6 +24,8 @@ func materialLabel(path string) string {
 		return tr("偏好", "Preferences")
 	case "notes.md":
 		return tr("笔记", "Notes")
+	case "research-hosts.txt":
+		return tr("研究站点", "Research sites")
 	}
 	return path
 }
@@ -40,7 +42,7 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 		if ui.Button(c, tr("工作成果", "Work results")).Disabled(m.Busy).Clicked() && m.OnMaterialCollection != nil {
 			m.OnMaterialCollection(d.ProjectID)
 		}
-		for _, path := range []string{"charter.md", "preferences.md", "notes.md"} {
+		for _, path := range []string{"charter.md", "preferences.md", "notes.md", "research-hosts.txt"} {
 			path := path
 			if ui.Button(c, materialLabel(path)).Disabled(m.Busy || path == d.Path).Clicked() && m.OnMaterial != nil {
 				m.OnMaterial(d.ProjectID, path)
@@ -52,6 +54,8 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 		ui.Text(c, tr("编辑用户笔记；自动生成的记录为只读。", "Edit user notes; generated records are read-only.")).FontSize(theme.InterfaceSize(13))
 	case "charter.md":
 		ui.Text(c, tr("记录此项目必须遵守的简短规则。", "Record the short rules this Project must follow.")).FontSize(theme.InterfaceSize(13))
+	case "research-hosts.txt":
+		ui.Text(c, tr("限制研究成员只能读取这些站点：每行一个域名（如 example.com，同时包含它的子域），用 # 写注释。留空表示不限制。", "Limit research members to these sites: one domain per line (example.com also covers its subdomains), # starts a comment. Leave it empty for no limit.")).FontSize(theme.InterfaceSize(13))
 	default:
 		ui.Text(c, tr("长期习惯与偏好，例如回复风格和常用命令。保存不会发送消息或启动工作。", "Persistent preferences such as response style and common commands. Saving does not send a message or start work.")).FontSize(theme.InterfaceSize(13))
 	}
@@ -108,7 +112,10 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 		})
 	}
 	if d.Loaded {
-		ui.TextArea(c.Key("material/"+d.ProjectID+"/"+d.Path), &d.Draft).Label(tr("项目材料编辑器：", "Project material editor: ") + materialLabel(d.Path)).FillWidth().MinWidth(0).Height(240).FontSize(theme.InterfaceSize(14)).ReadOnly(!m.MaterialMutable).Disabled(m.Busy)
+		editor := ui.TextArea(c.Key("material/"+d.ProjectID+"/"+d.Path), &d.Draft).Label(tr("项目材料编辑器：", "Project material editor: ") + materialLabel(d.Path)).FillWidth().MinWidth(0).Height(240).FontSize(theme.InterfaceSize(14)).ReadOnly(!m.MaterialMutable).Disabled(m.Busy)
+		if d.Path == "research-hosts.txt" {
+			editor.Placeholder(tr("example.com\ndocs.example.org  # 注释", "example.com\ndocs.example.org  # comment"))
+		}
 		if d.Path == "charter.md" {
 			ui.Progress(c, float64(len(d.Draft))/16000).FillWidth().Height(3)
 			ui.Text(c, fmt.Sprintf(tr("已使用 %.1f / 16 KB", "%.1f / 16 KB used"), float64(len(d.Draft))/1000)).FontSize(theme.InterfaceSize(12))

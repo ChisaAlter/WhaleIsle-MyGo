@@ -79,7 +79,7 @@ func companionWindowOptions(displays []mygo.Display, stage mygo.Rectangle) mygo.
 	d := activePetDisplay(displays, stage)
 	b := d.Bounds
 	s := petCoordinateScale(d)
-	return mygo.WindowOptions{Title: "Whale Isle companion", URL: "whale-pet://localhost/index.html",
+	return mygo.WindowOptions{Title: "Whale Isle MyGo companion", URL: "whale-pet://localhost/index.html",
 		X: int(math.Round(float64(b.X) / s)), Y: int(math.Round(float64(b.Y) / s)), Width: int(math.Round(float64(b.Width) / s)), Height: int(math.Round(float64(b.Height) / s)),
 		Hidden: true, Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true, DisableMove: true, DisableResize: true, DisableMaximize: true, DisableMinimize: true, DisableFullScreen: true, DisableShadow: true,
 		Page: mygo.PageOptions{WindowControlsOnly: true, DevTools: mygo.DevToolsDisabled}}

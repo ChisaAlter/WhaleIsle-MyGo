@@ -76,7 +76,7 @@ func TestWhalePetDispatchFollowsTheCurrentCompanion(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("pet page = %d, want 200", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "Whale Isle companion") {
+	if !strings.Contains(rec.Body.String(), "Whale Isle MyGo companion") {
 		t.Fatal("the served page is not the pet page")
 	}
 

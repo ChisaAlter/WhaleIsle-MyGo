@@ -1,6 +1,10 @@
 package frame
 
 import (
+	"image"
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -28,7 +32,7 @@ func TestSidebarStaysExpandedWithoutAWorkspace(t *testing.T) {
 	}
 	// The brand block: wordmark and subtitle, plus the collapse control at its
 	// top right (the rail's expand control must not be built).
-	for _, text := range []string{"鲸屿go", "BASED ON DEEPSEEK HARNESS"} {
+	for _, text := range []string{"鲸屿 MyGo", "WHALE ISLE MYGO", "BASED ON DEEPSEEK HARNESS"} {
 		if !tt.HasText(text) {
 			t.Fatalf("expanded sidebar lost the brand %q; texts=%q", text, tt.Texts())
 		}
@@ -96,5 +100,52 @@ func TestSidebarKeepsTheTrackAtDesktopWidths(t *testing.T) {
 		if track != tc.wantTrack {
 			t.Fatalf("width %d: track=%v drawer=%v, want track=%v", tc.width, track, sizes.drawerMode(), tc.wantTrack)
 		}
+	}
+}
+
+func TestSidebarBrandFitsDefaultAndMinWidths(t *testing.T) {
+	i18n.SetLocale("zh")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, tc := range []struct {
+		name  string
+		width float32
+	}{
+		{"280", SidebarDefault},
+		{"264", SidebarMin},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sizes := DefaultLayout()
+			sizes.Sidebar = tc.width
+			sizes.Bottom, sizes.Right = 0, 0
+			tt := ui.NewTester(func(c *ui.Context) {
+				View(c, Model{Store: session.New(), Sizes: &sizes, OnOpenSettings: func() {}, OnOpenAssistant: func() {}})
+			}, 1024, 613)
+			if captureDir := os.Getenv("WHALE_ALIGNMENT_CAPTURE_DIR"); captureDir != "" {
+				if err := os.MkdirAll(captureDir, 0755); err == nil {
+					full := tt.Image()
+					crop := full.SubImage(image.Rect(0, 0, 320, 140))
+					if f, err := os.Create(filepath.Join(captureDir, "sidebar-brand-"+tc.name+".png")); err == nil {
+						_ = png.Encode(f, crop)
+						_ = f.Close()
+					}
+				}
+			}
+			collapse, ok := tt.Find(i18n.T(i18n.KeySidebarCollapse))
+			if !ok {
+				t.Fatalf("missing collapse control at width %v", tc.width)
+			}
+			if collapse.W < 27.5 {
+				t.Fatalf("collapse control shrunk to %+v at width %v", collapse, tc.width)
+			}
+			for _, label := range []string{"WHALE ISLE MYGO", "BASED ON DEEPSEEK HARNESS"} {
+				r, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("missing %q at width %v", label, tc.width)
+				}
+				if r.X+r.W > collapse.X-2 {
+					t.Fatalf("%q rect %+v collides with collapse button %+v at width %v", label, r, collapse, tc.width)
+				}
+			}
+		})
 	}
 }

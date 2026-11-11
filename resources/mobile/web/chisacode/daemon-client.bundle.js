@@ -18533,14 +18533,16 @@ var RELAY_DEVICE_AUTH_VERSION2 = 1;
 var RelayAuthBootstrapSchema = external_exports.object({
   version: external_exports.literal(RELAY_DEVICE_AUTH_VERSION2),
   /**
-   * Short-lived one-time pairing token. Present only on fresh pairing offers.
-   * Old clients ignore this optional object entirely.
+   * Enrollment credential from a one-time QR or a revocable persistent link.
+   * Both exchange for an independent device secret over the encrypted channel.
    */
   pairingToken: external_exports.string().min(16).max(256),
   /**
    * Absolute expiry as unix epoch milliseconds.
    */
-  expiresAtMs: external_exports.number().int().positive()
+  expiresAtMs: external_exports.number().int().positive(),
+  /** Missing means a short-lived one-time QR. Persistent links require explicit revocation. */
+  kind: external_exports.enum(["persistent"]).optional()
 });
 var RelayDeviceAuthChallengeSchema = external_exports.object({
   type: external_exports.literal("relay_device_auth_challenge"),

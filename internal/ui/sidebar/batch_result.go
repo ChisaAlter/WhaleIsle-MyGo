@@ -1,12 +1,13 @@
 package sidebar
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -64,12 +65,12 @@ func batchResultSummary(b session.SessionBatch) (string, []session.SessionBatchR
 			failures = append(failures, result)
 		}
 	}
-	text := fmt.Sprintf(workspaceText("已归档 %d 个会话", "Archived %d sessions"), succeeded)
+	text := i18n.WSf(i18n.KeyWSSelectionResultArchived, "n", strconv.Itoa(succeeded))
 	if b.Kind == "delete" {
-		text = fmt.Sprintf(workspaceText("已删除 %d 个会话", "Deleted %d sessions"), succeeded)
+		text = i18n.WSf(i18n.KeyWSSelectionResultDeleted, "n", strconv.Itoa(succeeded))
 	}
 	if len(failures) > 0 {
-		text += "；" + fmt.Sprintf(workspaceText("%d 个会话未完成", "%d sessions unfinished"), len(failures))
+		text += "；" + i18n.WSf(i18n.KeyWSSelectionResultFailed, "n", strconv.Itoa(len(failures)))
 	}
 	return text, failures
 }

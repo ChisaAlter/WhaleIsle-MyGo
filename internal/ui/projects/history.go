@@ -59,6 +59,16 @@ func reportsView(c *ui.Context, m Model) {
 				for _, v := range r.RemainingIssues {
 					ui.Text(c, tr("剩余问题：", "Remaining issue:")+v).FontSize(fonttheme.InterfaceSize(12))
 				}
+				if len(r.Sources) > 0 {
+					ui.Text(c, fmt.Sprintf(tr("查阅的来源 · %d", "Sources consulted · %d"), len(r.Sources))).FontSize(fonttheme.InterfaceSize(12))
+					for _, s := range r.Sources {
+						prefix := ""
+						if s.Kind == "search" {
+							prefix = tr("搜索：", "Searched: ")
+						}
+						ui.Text(c, prefix+s.Text).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+					}
+				}
 				for _, file := range r.Artifacts {
 					file := file
 					if ui.Button(c, tr("打开引用文件：", "Open referenced file:")+file.Path).FillWidth().Disabled(m.Busy || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {

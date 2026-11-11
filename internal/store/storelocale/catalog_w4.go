@@ -591,7 +591,7 @@ func init() {
 	register(KeyStoreComponentsWhalebridgeComponentProcessManagementReq, "鲸桥组件进程管理仅支持 Windows", "WhaleBridge component process management requires Windows")
 	register(KeyStoreComponentsUnknownAction, "未知操作: ", "Unknown action: ")
 	register(KeyStoreComponentsWhalebridge, "鲸桥", "WhaleBridge")
-	register(KeyStoreComponentsConnectApiProvidersAndSubscriptionAccou, "将 API 供应商和订阅账号接入 DeepSeekHarness Go，统一管理模型、请求路由与用量。", "Connect API providers and subscription accounts to DeepSeekHarness Go to manage models, request routing and usage in one place.")
+	register(KeyStoreComponentsConnectApiProvidersAndSubscriptionAccou, "将 API 供应商和订阅账号接入 鲸屿 MyGo，统一管理模型、请求路由与用量。", "Connect API providers and subscription accounts to Whale Isle MyGo to manage models, request routing and usage in one place.")
 	register(KeyStoreComponentsTheComponentReleaseAddressIsNotASuppo, "组件发布地址不是受支持的官方源", "The component release address is not a supported official source")
 	register(KeyStoreComponentsComponentMetadataHttpD, "组件元数据 HTTP %d", "Component metadata HTTP %d")
 	register(KeyStoreComponentsTheWhalebridgeReleaseManifestIsInvalid, "鲸桥发布清单无效", "The WhaleBridge release manifest is invalid")

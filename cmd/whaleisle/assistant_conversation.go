@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 )
@@ -36,6 +40,76 @@ func (s *mainState) openAssistantConversation(ep harness.Endpoint, mode assistst
 	s.openAssistantConversationIntent(ep, mode, botID, text, false)
 }
 
+func persistedSessionExistsOnDisk(dshHome, sid string) bool {
+	sid = strings.TrimSpace(sid)
+	if sid == "" || dshHome == "" {
+		return false
+	}
+	if info, err := os.Stat(filepath.Join(dshHome, "sessions", sid)); err == nil && info.IsDir() {
+		return true
+	}
+	if matches, err := filepath.Glob(filepath.Join(dshHome, "sessions", "*", sid)); err == nil {
+		for _, m := range matches {
+			if info, statErr := os.Stat(m); statErr == nil && info.IsDir() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *mainState) whaleAssistantPersistedInfo() (sessionID, name, homeDir string) {
+	homeDir = filepath.Join(paths.DshHome(), "data", "whale")
+	name = "鲸鱼娘"
+	if raw, err := os.ReadFile(filepath.Join(homeDir, "settings.json")); err == nil {
+		var disk struct {
+			Name      string `json:"name"`
+			SessionID string `json:"sessionId"`
+		}
+		if json.Unmarshal(raw, &disk) == nil {
+			if n := strings.TrimSpace(disk.Name); n != "" {
+				name = n
+			}
+			if sid := strings.TrimSpace(disk.SessionID); sid != "" {
+				if persistedSessionExistsOnDisk(paths.DshHome(), sid) {
+					sessionID = sid
+				}
+			}
+		}
+	}
+	if s == nil {
+		return sessionID, name, homeDir
+	}
+	s.mu.Lock()
+	asst, sessions := s.assistant, s.sessions
+	s.mu.Unlock()
+	if sessions != nil {
+		snap := sessions.Snapshot()
+		for _, item := range snap.Items {
+			if item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" {
+				if t := strings.TrimSpace(item.Presentation.Title); t != "" {
+					name = t
+				}
+				if w := strings.TrimSpace(item.Presentation.WorkingDirectory); w != "" {
+					homeDir = w
+				}
+				if sessionID == "" {
+					sessionID = strings.TrimSpace(item.SessionID)
+				}
+				break
+			}
+		}
+	}
+	if sessionID == "" && asst != nil {
+		if sid := strings.TrimSpace(asst.Snapshot().SessionID); sid != "" {
+			if persistedSessionExistsOnDisk(paths.DshHome(), sid) {
+				sessionID = sid
+			}
+		}
+	}
+	return sessionID, name, homeDir
+}
+
 // The sidebar's default action opens the canonical conversation immediately;
 // the native management page remains a separate entry with its own drafts.
 func (s *mainState) openWhaleFromSidebar(win *mygo.Window) {
@@ -44,9 +118,32 @@ func (s *mainState) openWhaleFromSidebar(win *mygo.Window) {
 	ep := s.bootStatus.Endpoint
 	ready := s.bootStatus.State == harness.Ready
 	enabled := s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
+	sessions := s.sessions
+	asst := s.assistant
 	s.mu.Unlock()
-	if !ready || !enabled {
+	if !enabled {
 		s.notifyUser(win, hostNotReadyToast())
+		return
+	}
+	s.dshMu.Lock()
+	client := s.dshClient
+	s.dshMu.Unlock()
+	knownID, whaleName, whaleHome := s.whaleAssistantPersistedInfo()
+	if knownID != "" && sessions != nil {
+		s.mu.Lock()
+		s.resumePendingSession = ""
+		s.mu.Unlock()
+		s.revokePhoneGit()
+		sessions.EnsureSessionPresentation(knownID, "dsh-whale:assistant", whaleName, whaleHome)
+		sessions.Select(knownID)
+		if asst != nil {
+			asst.SetSessionID(knownID)
+		}
+	}
+	if !ready || client == nil {
+		if knownID == "" {
+			s.notifyUser(win, hostNotReadyToast())
+		}
 		return
 	}
 	s.openAssistantConversationIntent(ep, assiststore.ModeWhale, "", "", true)
@@ -55,7 +152,7 @@ func (s *mainState) openWhaleFromSidebar(win *mygo.Window) {
 func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode assiststore.Mode, botID, text string, sidebar bool) {
 	s.mu.Lock()
 	asst, sessions, win := s.assistant, s.sessions, s.win
-	if asst == nil || sessions == nil || win == nil || !s.assistantOpen && !sidebar || s.assistantPluginBusy || asst.Snapshot().Busy {
+	if asst == nil || sessions == nil || win == nil || !s.assistantOpen && !sidebar || (!sidebar && (s.assistantPluginBusy || asst.Snapshot().Busy)) {
 		s.mu.Unlock()
 		return
 	}
@@ -99,7 +196,7 @@ func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode as
 		}
 		win.Update(func() {
 			asst.SetBusy(false)
-			if !s.assistantConversationCurrent(ep, client, generation, mode, sidebar) || !owner.NavigationCurrent() {
+			if !s.assistantConversationCurrent(ep, client, generation, mode, sidebar) || ((!sidebar || text != "") && !owner.NavigationCurrent()) {
 				return
 			}
 			if openErr == nil && strings.TrimSpace(sid) == "" {
@@ -107,13 +204,14 @@ func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode as
 			}
 			if openErr != nil {
 				asst.SetLastAction(openErr.Error(), openErr.Error())
-				if sidebar {
+				if sidebar && !(mode == assiststore.ModeWhale && strings.HasPrefix(sessions.SelectedSessionID(), "session-whale-")) {
 					s.notifyUser(win, openErr.Error())
 				}
 				return
 			}
 			// Preserve an existing session draft rather than submit it accidentally.
 			s.mu.Lock()
+			s.resumePendingSession = ""
 			draft := s.composerDraftLocked(sid)
 			conflict := text != "" && (draft.Text != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing > 0 || draft.EditSeq != 0)
 			s.mu.Unlock()
@@ -122,6 +220,10 @@ func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode as
 				return
 			}
 			s.revokePhoneGit()
+			if mode == assiststore.ModeWhale {
+				_, whaleName, whaleHome := s.whaleAssistantPersistedInfo()
+				sessions.EnsureSessionPresentation(sid, "dsh-whale:assistant", whaleName, whaleHome)
+			}
 			sessions.Select(sid)
 			if mode == assiststore.ModeDshbot {
 				s.markOpenedBotRead(ep, client, botID, sid)
@@ -149,7 +251,9 @@ func (s *mainState) openAssistantConversationIntent(ep harness.Endpoint, mode as
 				snap := sessions.Snapshot()
 				s.submitComposer(win, sessions, draft, sid, snap.ScratchCwd, 0, false, snap.ComposerHostGeneration)
 			}
-			sessions.RefreshList(context.Background())
+			if !sessions.SelectionSummary().ListLoading {
+				sessions.RefreshList(context.Background())
+			}
 		})
 	}()
 }

@@ -685,11 +685,15 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	}
 	newSessionShortcut := menuShortcutLabels["session.new"]
 	m.Store.SetSessionBatchScope(sidebar.BatchSelectionScope(sidebar.Model{Snapshot: snap, Collapsed: m.Sizes.sidebarCollapsed(), SearchQuery: m.SessionSearch}))
+	activePanel := m.ActivePanel
+	if activePanel == "" && isWhaleAssistantSession(snap) {
+		activePanel = "assistant"
+	}
 	sidebar.View(c, sidebar.Model{
 		PublicContributions:      m.PublicContributions,
 		WorkspaceNavigation:      m.WorkspaceNavigation,
 		OnWorkspaceSessionAction: m.OnWorkspaceSessionAction,
-		ActivePanel:              m.ActivePanel,
+		ActivePanel:              activePanel,
 		NewSessionShortcut:       newSessionShortcut,
 		MenuShortcutLabels:       menuShortcutLabels,
 		PendingStatuses:          sidebarPendingStatuses(m),
@@ -1360,6 +1364,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnChangeQueueEdit: m.Store.ChangeQueueEdit,
 										OnCancelQueueEdit: m.Store.CancelQueueEdit,
 										OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },
+										OnQueueMove: func(itemID string, toIndex int) {
+											m.Store.MoveQueue(context.Background(), snap.SelectedID, itemID, toIndex)
+										},
+										QueueMoveFailed: strings.HasPrefix(snap.LastAction, "queue: "),
 									})
 								})
 								ui.Box(c).Grow(1).MinWidth(0)
@@ -1457,6 +1465,10 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										OnChangeQueueEdit: m.Store.ChangeQueueEdit,
 										OnCancelQueueEdit: m.Store.CancelQueueEdit,
 										OnSaveQueueEdit:   func(token uint64) { m.Store.SaveQueueEdit(context.Background(), token) },
+										OnQueueMove: func(itemID string, toIndex int) {
+											m.Store.MoveQueue(context.Background(), snap.SelectedID, itemID, toIndex)
+										},
+										QueueMoveFailed: strings.HasPrefix(snap.LastAction, "queue: "),
 									})
 								}
 								paintComposer(emptyHero)

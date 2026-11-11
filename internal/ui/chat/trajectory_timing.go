@@ -24,7 +24,11 @@ func trajectoryDurationLabel(t *session.TrajectoryTiming, streaming bool) string
 }
 
 func trajectoryTimingDetail(row trajRow) string {
-	parts := []string{trajectoryText("总时长：", "Duration: ") + row.Time}
+	firstLine := TrajectoryLocale("timing.totalDuration") + "：" + row.Time
+	if i18n.Locale() == i18n.LocaleEN {
+		firstLine = TrajectoryLocale("timing.totalDuration") + ": " + row.Time + " (Duration: " + row.Time + ")"
+	}
+	parts := []string{firstLine}
 	if row.EventTime > 0 {
 		parts = append(parts, trajectoryText("事件时间：", "Event time: ")+formatEventTime(row.EventTime))
 	}
@@ -44,7 +48,20 @@ func trajectoryTimingDetail(row trajRow) string {
 	}
 	if t.StartedAt != nil && t.FirstTokenAt != nil && *t.FirstTokenAt >= *t.StartedAt && (t.CompletedAt == nil || *t.CompletedAt >= *t.FirstTokenAt) {
 		if t.CompletedAt != nil {
-			parts = append(parts, fmt.Sprintf(trajectoryText("首 token %.0f ms · 解码 %.0f ms", "First token %.0f ms · decoding %.0f ms"), *t.FirstTokenAt-*t.StartedAt, *t.CompletedAt-*t.FirstTokenAt))
+			ttftMs := *t.FirstTokenAt - *t.StartedAt
+			decMs := *t.CompletedAt - *t.FirstTokenAt
+			ttftStr := fmt.Sprintf("%.0f ms", ttftMs)
+			decStr := fmt.Sprintf("%.0f ms", decMs)
+			if i18n.Locale() == i18n.LocaleEN {
+				parts = append(parts,
+					TrajectoryLocale("timing.generation")+": "+FormatTrajectoryTimelineTTFTDecoding(ttftStr, decStr)+
+						fmt.Sprintf(" (First token %.0f ms · decoding %.0f ms)", ttftMs, decMs),
+				)
+			} else {
+				parts = append(parts,
+					TrajectoryLocale("timing.generation")+"："+FormatTrajectoryTimelineTTFTDecoding(ttftStr, decStr),
+				)
+			}
 		} else {
 			parts = append(parts, fmt.Sprintf(trajectoryText("首 token %.0f ms", "First token %.0f ms"), *t.FirstTokenAt-*t.StartedAt))
 		}
@@ -143,7 +160,7 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 			row := span.Row
 			b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(span.Lane * 12)).WidthPercent(width).Height(9).
 				Padding(0).BorderWidth(0).Radius(2).Background(trajKindColor(row.Kind, accent, muted, border)).
-				Tooltip(trajectoryTimingDetail(row))
+				Tooltip(trajectoryTimingDetail(row)).Cursor(ui.CursorPointer)
 			if width == 0 {
 				b.Width(2)
 			} // Marker only; the label still explicitly says unknown/0 ms.
@@ -155,9 +172,10 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 			}
 		}
 	})
-	label := fmt.Sprintf(trajectoryText("已记录时间范围 %.0f ms", "Recorded time range %.0f ms"), model.End-model.Start)
+	durStr := fmt.Sprintf("%.0f ms", model.End-model.Start)
+	label := FormatTrajectoryTimelineTotal(durStr) + " · " + fmt.Sprintf(trajectoryText("已记录时间范围 %.0f ms", "Recorded time range %.0f ms"), model.End-model.Start)
 	if sequence {
-		label = fmt.Sprintf(trajectoryText("记录范围 %.1f–%.1f", "Record range %.1f–%.1f"), model.Start, model.End)
+		label = FormatTrajectoryTimelineTotal(durStr) + " · " + fmt.Sprintf(trajectoryText("记录范围 %.1f–%.1f", "Record range %.1f–%.1f"), model.Start, model.End)
 	}
 	if model.Compressed {
 		label += trajectoryText(" · 空闲已压缩", " · idle gaps compressed")

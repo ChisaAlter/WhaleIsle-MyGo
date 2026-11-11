@@ -106,7 +106,7 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 						history bool
 						label   string
 					}{{false, tr("当前与近期", "Current and recent")}, {true, tr("全部记录", "All records")}} {
-						if ui.Button(c, option.label).Role(ui.RoleTab).Selected(s.History == option.history).Clicked() {
+						if ui.Button(c, option.label).Role(ui.RoleTab).Selected(s.History == option.history).Cursor(ui.CursorPointer).Clicked() {
 							s.SetHistory(option.history)
 						}
 					}
@@ -121,7 +121,7 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 		}
 		body := ui.Scroll(c.Key("project-team-records")).FillWidth().MinWidth(0).MinHeight(0).Grow(1).TrackScroll(&scroll.track)
 		body.Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(14).Padding(3, 0, 6, 0).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Padding(8, 12, 16, 14).Children(func() {
 				if m.Error != "" || s.NavigationError != "" {
 					message := m.Error
 					if s.NavigationError != "" {
@@ -129,10 +129,10 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 					}
 					ui.Column(c).FillWidth().Gap(5).Children(func() {
 						ui.Text(c, message).TextColor(chrome.Color(colors.Danger)).FontSize(theme.InterfaceSize(12)).Selectable()
-						if m.Error != "" && m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Disabled(m.Loading).Clicked() {
+						if m.Error != "" && m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Cursor(ui.CursorPointer).Disabled(m.Loading).Clicked() {
 							m.OnRefresh()
 						}
-						if s.NavigationError != "" && ui.Button(c, tr("关闭提示", "Dismiss notice")).Clicked() {
+						if s.NavigationError != "" && ui.Button(c, tr("关闭提示", "Dismiss notice")).Cursor(ui.CursorPointer).Clicked() {
 							s.NavigationError = ""
 						}
 					})
@@ -148,13 +148,18 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 				}
 				team := m.Overview.Team
 				if team.Failure != "" {
-					ui.Text(c, tr("团队持久记录无效：", "Invalid persisted Team record: ")+team.Failure).TextColor(chrome.Color(colors.Danger)).Selectable()
+					ui.Text(c, tr("团队持久记录无效：", "Invalid team persistence record: ")+team.Failure).Tooltip("Invalid persisted Team record: " + team.Failure).TextColor(chrome.Color(colors.Danger)).Selectable()
 				}
 				members, tasks, labels := projectTeamRecords(m)
 				s.MemberPage = teamBoundedPage(s.MemberPage, len(members), ProjectTeamMemberPageSize)
 				s.TaskPage = teamBoundedPage(s.TaskPage, len(tasks), ProjectTeamTaskPageSize)
-				ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-					ui.Text(c, fmt.Sprintf(tr("成员（%d）", "Members (%d)"), len(members))).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Padding(0, 0, 0, 4).Gap(8).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, tr("成员", "Members")).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
+						if len(members) > 1 {
+							ui.Text(c, fmt.Sprint(len(members))).FontSize(theme.InterfaceSize(12)).FontWeight(400).TextColor(chrome.Color(colors.Caption))
+						}
+					})
 					page := teamPage(members, s.MemberPage, ProjectTeamMemberPageSize)
 					columns := max(1, m.Columns)
 					for start := 0; start < len(page); start += columns {
@@ -181,10 +186,15 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 						} else if len(team.Tasks) == 0 {
 							message = tr("尚未安排后台工作，在主对话中提出需求即可。", "No background work yet. Describe what you need in the main conversation.")
 						}
-						ui.Text(c, message).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						ui.Row(c).FillWidth().Padding(0, 0, 0, 4).Children(func() {
+							ui.Text(c, message).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						})
 						return
 					}
-					ui.Text(c, fmt.Sprintf(tr("工作（%d）", "Work (%d)"), len(tasks))).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+					ui.Row(c).FillWidth().MinWidth(0).Padding(0, 0, 0, 4).Gap(8).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, tr("工作", "Work")).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
+						ui.Text(c, fmt.Sprint(len(tasks))).FontSize(theme.InterfaceSize(12)).FontWeight(400).TextColor(chrome.Color(colors.Caption))
+					})
 					if !s.History && m.Project.CurrentTaskIDs == nil && teamHasRecentCompletion(team.Tasks) {
 						ui.Text(c, tr("包含近期登记的历史工作。", "Includes recently recorded historical work.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}
@@ -211,10 +221,10 @@ func projectTeamPagination(c *ui.Context, page *int, total, size int, label stri
 	}
 	ui.Row(c.Key(label)).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Label(label).Children(func() {
 		ui.Text(c, fmt.Sprintf("%d–%d / %d", *page*size+1, min((*page+1)*size, total), total)).Grow(1).FontSize(theme.InterfaceSize(12))
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(*page == 0).Clicked() {
+		if ui.Button(c, tr("上一页", "Previous")).Cursor(ui.CursorPointer).Disabled(*page == 0).Clicked() {
 			*page--
 		}
-		if ui.Button(c, tr("下一页", "Next")).Disabled((*page+1)*size >= total).Clicked() {
+		if ui.Button(c, tr("下一页", "Next")).Cursor(ui.CursorPointer).Disabled((*page+1)*size >= total).Clicked() {
 			*page++
 		}
 	})
@@ -380,68 +390,91 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 		}
 	}
 	current := member.ID == m.SessionID
-	button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(8).Radius(8).BorderWidth(0).Background(ui.Transparent).Tooltip(tr("查看工作过程", "View work history")).Disabled(current || status == "failed" || status == "provisioning" || m.OnOpenMember == nil)
-	if current && len(m.Overview.Team.Members) > 1 {
-		button.Background(chrome.Color(colors.Hover))
+	highlightCurrent := current && len(m.Overview.Team.Members) > 1
+	inert := current || status == "failed" || status == "provisioning" || m.OnOpenMember == nil
+	borderColor := chrome.Color(colors.Border)
+	borderWidth := float32(.5)
+	if member.Error != "" || (m.State.FailedMember == member.ID && m.State.NavigationError != "") {
+		borderColor = chrome.Color(colors.Danger)
+	} else if highlightCurrent {
+		borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
+		borderWidth = 1
 	}
-	button.Children(func() {
-		ui.Column(c).FillWidth().MinWidth(0).Gap(3).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-				switch status {
-				case "running", "provisioning":
-					widgets.StateDot(c, widgets.StateRunning)
-				case "failed":
-					widgets.StateDot(c, widgets.StateError)
-				default:
-					projectIcon(c, "user", 14, muted, false)
-				}
-				ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
-				if current {
-					ui.Text(c, tr("当前会话", "Current chat")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				}
-			})
-			text := stateLabel(status)
-			if status == "inactive" {
-				text = tr("空闲", "Idle")
-			}
-			if member.Phase != "active" && member.Running {
-				text += " · " + tr("回合运行中", "Turn running")
-			}
-			if runningJob {
-				job := tr("后台命令运行中", "Background command running")
-				if m.ActivityStale {
-					job = tr("后台命令上次仍在运行", "Background command last seen running")
-				}
-				text += " · " + job
-			}
-			if member.ModelLabel != "" {
-				text += " · " + tr("模型：", "Model: ") + member.ModelLabel
-			}
-			ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if member.Error != "" {
-				ui.Text(c, member.Error).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Danger)).Selectable()
-			}
-			if m.State.FailedMember == member.ID && m.State.NavigationError != "" {
-				ui.Text(c, m.State.NavigationError).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Danger))
-			}
-		})
-	})
-	if button.Clicked() {
-		if err := m.OnOpenMember(member.ID); err != nil {
-			m.State.NavigationError, m.State.FailedMember = err.Error(), member.ID
+	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
+	cardHovered := card.Hovered()
+	card.Children(func() {
+		button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(8).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+		if !inert {
+			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
 		} else {
-			m.State.NavigationError, m.State.FailedMember = "", ""
+			button.Cursor(ui.CursorDefault)
 		}
-	}
+		showModel := cardHovered || button.Hovered() || button.Focused()
+		button.Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+				ui.Row(c).Width(14).Height(theme.InterfaceSize(18)).AlignItems(ui.Center).Justify(ui.Center).Shrink(0).Children(func() {
+					switch status {
+					case "running", "provisioning":
+						widgets.StateDot(c, widgets.StateRunning)
+					case "failed":
+						widgets.StateDot(c, widgets.StateError)
+					default:
+						projectIcon(c, "user", 14, muted, false)
+					}
+				})
+				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(5).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(chrome.Color(colors.FG))
+						if current {
+							ui.Row(c).Shrink(0).Padding(1, 5).Radius(4).Background(chrome.MaterialFill(chrome.Color(colors.Accent), .15)).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, tr("当前会话", "Current chat")).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.Accent)).SingleLine()
+							})
+						}
+					})
+					text := stateLabel(status)
+					if status == "inactive" {
+						text = tr("空闲", "Idle")
+					}
+					if member.Phase != "active" && member.Running {
+						text += " · " + tr("回合运行中", "Turn running")
+					}
+					if runningJob {
+						job := tr("后台命令运行中", "Background command running")
+						if m.ActivityStale {
+							job = tr("后台命令上次仍在运行", "Background command last seen running")
+						}
+						text += " · " + job
+					}
+					if showModel && member.ModelLabel != "" {
+						text += " · " + tr("模型: ", "Model: ") + member.ModelLabel
+					}
+					ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted).SingleLine().Ellipsis("…")
+					if member.Error != "" {
+						ui.Text(c, member.Error).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger)).Selectable()
+					}
+					if m.State.FailedMember == member.ID && m.State.NavigationError != "" {
+						ui.Text(c, m.State.NavigationError).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
+					}
+				})
+			})
+		})
+		if !inert && button.Clicked() {
+			if err := m.OnOpenMember(member.ID); err != nil {
+				m.State.NavigationError, m.State.FailedMember = err.Error(), member.ID
+			} else {
+				m.State.NavigationError, m.State.FailedMember = "", ""
+			}
+		}
+	})
 }
 
 func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTask, labels map[string]string) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	muted := chrome.Color(colors.Muted)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
-			ui.Text(c, task.Subject).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(600)
-			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field)).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Start).Children(func() {
+			ui.Text(c, task.Subject).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {
 				state := widgets.StateIdle
 				if task.Status == "in_progress" {
 					state = widgets.StateRunning
@@ -457,35 +490,12 @@ func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTas
 				if task.Status == "completed" {
 					label = tr("已完成", "Completed")
 				}
-				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			})
 		})
 		expanded := m.State.ExpandedTaskIDs[task.ID]
-		if task.Description != "" {
-			text := ui.Text(c, task.Description).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(13)).Selectable()
-			clamped := ui.Local(text, "clamped", func() bool { return false })
-			if !expanded {
-				text.MaxLines(2).Ellipsis("…")
-			}
-			font := theme.RenderPreferences().Interface.Family
-			text.DrawOver(func(p *ui.Painter, rect ui.Rect) {
-				_, full := p.MeasureText(rect.W, ui.Span{Text: task.Description, Font: font, Size: theme.InterfaceSize(13)})
-				_, two := p.MeasureText(0, ui.Span{Text: "Ag\nAg", Font: font, Size: theme.InterfaceSize(13)})
-				if next := full > two+.5; next != *clamped {
-					*clamped = next
-					c.Services().Invalidate()
-				}
-			})
-			label := tr("展开", "Show more")
-			if expanded {
-				label = tr("收起", "Show less")
-			}
-			if (expanded || *clamped) && ui.Button(c, label).Height(24).Clicked() {
-				if m.State.ExpandedTaskIDs == nil {
-					m.State.ExpandedTaskIDs = map[string]bool{}
-				}
-				m.State.ExpandedTaskIDs[task.ID] = !expanded
-			}
+		if expanded && task.Description != "" {
+			ui.Text(c, task.Description).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(chrome.Color(colors.Secondary)).Selectable()
 		}
 		owner := labels[task.OwnerName]
 		if owner == "" {
@@ -494,33 +504,62 @@ func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTas
 		if owner == "" {
 			owner = tr("未分配", "Unowned")
 		}
-		ui.Text(c, tr("负责人：", "Assignee: ")+owner).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		if task.Status == "pending" {
-			label := tr("被依赖阻塞", "Blocked by dependencies")
-			if task.Ready {
-				label = tr("可开始", "Ready")
-			}
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
-		if len(task.BlockedBy) > 0 {
-			dependencies := make([]string, 0, len(task.BlockedBy))
-			for _, id := range task.BlockedBy {
-				label := tr("前置工作不可用", "Prerequisite unavailable")
-				for _, candidate := range m.Overview.Team.Tasks {
-					if candidate.ID == id {
-						label = candidate.Subject
-						break
+		ui.Row(c).FillWidth().MinWidth(0).Gap(10).AlignItems(ui.Start).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Wrap().Gap(10).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, tr("负责人: ", "Assignee: ")+owner).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+				if task.Status == "pending" {
+					label := tr("被依赖阻塞", "Blocked by dependencies")
+					if task.Ready {
+						label = tr("可开始", "Ready")
 					}
+					ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
 				}
-				dependencies = append(dependencies, label)
+				if len(task.BlockedBy) > 0 {
+					dependencies := make([]string, 0, len(task.BlockedBy))
+					for _, id := range task.BlockedBy {
+						label := tr("前置工作不可用", "Prerequisite unavailable")
+						for _, candidate := range m.Overview.Team.Tasks {
+							if candidate.ID == id {
+								label = candidate.Subject
+								break
+							}
+						}
+						dependencies = append(dependencies, label)
+					}
+					ui.Text(c, tr("依赖: ", "Blocked by: ")+strings.Join(dependencies, ", ")).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+				}
+				if len(task.WriteScopes) > 0 {
+					ui.Text(c, tr("写入范围: ", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+				}
+				for _, warning := range task.WriteScopeWarnings {
+					ui.Text(c, warning).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(chrome.Color(colors.Danger))
+				}
+			})
+			if task.Description != "" {
+				label := tr("展开", "Show more")
+				icon := "chevron-down"
+				if expanded {
+					label = tr("收起", "Show less")
+					icon = "chevron-up"
+				}
+				toggle := ui.Button(c, "").Label(label).Padding(0).BorderWidth(0).Background(ui.Transparent).Shrink(0).Cursor(ui.CursorPointer)
+				toggleColor := muted
+				if toggle.Hovered() || toggle.Focused() {
+					toggleColor = fg
+				}
+				toggle.Children(func() {
+					ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(toggleColor)
+						projectIcon(c, icon, 12, toggleColor, false)
+					})
+				})
+				if toggle.Clicked() {
+					if m.State.ExpandedTaskIDs == nil {
+						m.State.ExpandedTaskIDs = map[string]bool{}
+					}
+					m.State.ExpandedTaskIDs[task.ID] = !expanded
+				}
 			}
-			ui.Text(c, tr("依赖：", "Blocked by: ")+strings.Join(dependencies, ", ")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
-		if len(task.WriteScopes) > 0 {
-			ui.Text(c, tr("写入范围：", "Write scopes: ")+strings.Join(task.WriteScopes, ", ")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		}
-		for _, warning := range task.WriteScopeWarnings {
-			ui.Text(c, warning).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning)
-		}
+		})
 	})
 }

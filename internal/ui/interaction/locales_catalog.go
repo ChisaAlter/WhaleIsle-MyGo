@@ -29,6 +29,18 @@ var interactionLocaleCatalog = []interactionLocaleEntry{
 	{module: `dsh-client-ui-plan`, key: `preview.historyUnavailable`, zh: `无法读取会话历史`, en: `Session history is unavailable`},
 	{module: `dsh-client-ui-plan`, key: `preview.unavailable`, zh: `计划预览不可用`, en: `Plan preview is unavailable`},
 	{module: `dsh-client-ui-plan`, key: `chip.exitFailed`, zh: `退出计划模式失败`, en: `Failed to exit plan mode`},
+	{module: `dsh-client-ui-approval`, key: `escalation`, zh: `工具 {toolName} 请求越权执行`, en: `Tool {toolName} requests privileged execution`},
+	{module: `dsh-client-ui-approval`, key: `reject`, zh: `拒绝`, en: `Reject`},
+	{module: `dsh-client-ui-user-questions`, key: `error.incomplete`, zh: `请先完成这道问题。`, en: `Please complete this question first.`},
+	{module: `dsh-client-ui-user-questions`, key: `error.unanswered`, zh: `请选择一个选项或填写自定义答案。`, en: `Please select an option or enter a custom answer.`},
+	{module: `dsh-client-ui-user-questions`, key: `wait.takeTime`, zh: `慢慢回答`, en: `Take time`},
+	{module: `dsh-client-ui-user-questions`, key: `wait.held`, zh: `会一直等你回答`, en: `Waiting until you answer`},
+	{module: `dsh-client-ui-user-questions`, key: `wait.countdown`, zh: `{seconds} 秒后继续工作`, en: `Continuing in {seconds}s`},
+	{module: `dsh-client-ui-user-questions`, key: `wait.paused`, zh: `已暂停 · 剩余 {seconds} 秒`, en: `Paused · {seconds}s remaining`},
+	{module: `dsh-client-ui-user-questions`, key: `review.status`, zh: `已回答`, en: `Answered`},
+	{module: `dsh-client-ui-user-questions`, key: `plan.approve`, zh: `同意执行`, en: `Approve`},
+	{module: `dsh-client-ui-user-questions`, key: `plan.decline`, zh: `拒绝`, en: `Refuse`},
+	{module: `dsh-client-ui-user-questions`, key: `action.next`, zh: `下一题`, en: `Next`},
 }
 
 func init() {

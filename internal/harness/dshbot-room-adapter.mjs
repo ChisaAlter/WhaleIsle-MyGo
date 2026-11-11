@@ -1,4 +1,4 @@
-// Profile-local rc.2 registration of the original dshbot room composition.
+// Profile-local rc.2/rc.4 registration of the original dshbot room composition.
 import * as original from __ORIGINAL_DSHBOT_MODULE__;
 export * from __ORIGINAL_DSHBOT_MODULE__;
 

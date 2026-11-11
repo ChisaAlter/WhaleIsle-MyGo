@@ -32,6 +32,16 @@ func TestRequestCardsAndArchiveAuthority(t *testing.T) {
 			kind, _ := q.Payload["kind"].(string)
 			kinds[kind] = true
 			value = map[string]any{"items": []any{card}, "total": 1}
+		case "requests/attention":
+			askCard := map[string]any{
+				"id": "r-ask", "projectId": "p", "revision": 1, "status": "blocked", "title": "Need decision",
+				"stage": map[string]any{
+					"state":    "awaitingAnswer",
+					"needsYou": true,
+					"ask":      map[string]any{"question": "Which port should we bind?", "options": []string{"8080", "9090"}},
+				},
+			}
+			value = map[string]any{"items": []any{askCard}, "total": 1}
 		case "requests/get":
 			if q.Payload["requestId"] != "r" {
 				t.Error("wrong request identity")
@@ -61,6 +71,10 @@ func TestRequestCardsAndArchiveAuthority(t *testing.T) {
 	}
 	if len(kinds) != 3 {
 		t.Fatal(kinds)
+	}
+	att, err := c.AttentionRequests(ctx, "p")
+	if err != nil || len(att.Items) != 1 || att.Items[0].Stage == nil || !att.Items[0].Stage.NeedsYou || att.Items[0].Stage.Ask == nil || att.Items[0].Stage.Ask.Question != "Which port should we bind?" {
+		t.Fatal(att, err)
 	}
 	card, err := c.Request(ctx, "p", "r")
 	if err != nil || card.Revision != 2 || card.Goal == "" || card.Delivery.Summary != "Delivered" {

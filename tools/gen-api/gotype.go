@@ -27,10 +27,14 @@ type goDef struct {
 
 func newGoTypeer() *goTypeer {
 	return &goTypeer{
-		used:        map[string]bool{},
+		used:        map[string]bool{"SessionProjectionsValue": true},
 		inProg:      map[string]bool{},
 		structCache: map[string]string{},
-		symbolNames: map[string]string{},
+		// This wire union has a handwritten decoder enforcing sequence authority.
+		// Keep it at that boundary instead of regenerating a RawMessage alias.
+		symbolNames: map[string]string{
+			"@deepseek-ai/dsh-api-session-controller/types#SessionProjectionsValue": "SessionProjectionsValue",
+		},
 	}
 }
 
@@ -240,6 +244,13 @@ func (g *goTypeer) rootType(ref, typeSymbol, what, hint string) (string, error) 
 	var name string
 	if s.Kind == "object" && !s.Unsupported {
 		name = g.structType(s, hint)
+		// Deduplicated fields may share a struct, but named public schemas still
+		// need their own stable entry point (for example SettingsNamespaceView).
+		if typeSymbol != "" && name != goTypeName(hint) {
+			target := name
+			name = g.uniqueName(hint)
+			g.defs = append(g.defs, goDef{pkg: g.curPkg, code: fmt.Sprintf("// %s is the wire type of %s.\ntype %s = %s\n", name, what, name, target)})
+		}
 	} else {
 		expr, note := g.goType(s, hint)
 		name = g.uniqueName(hint)

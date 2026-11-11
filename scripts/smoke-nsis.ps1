@@ -92,8 +92,8 @@ $OutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
 $StageRoot = Join-Path $OutputRoot 'whaleisle'
 if (-not $SkipPackage) {
     if (-not $env:WHALEISLE_PACKAGE_SKIP_RUNTIME) { $env:WHALEISLE_PACKAGE_SKIP_RUNTIME = '1' }
-    Write-Host "Running package.ps1 in fresh owned output $OutputRoot ..."
-    & (Join-Path $PSScriptRoot 'package.ps1') -OutputRoot $OutputRoot
+    Write-Host "Running package.ps1 -StageOnly in fresh owned output $OutputRoot ..."
+    & (Join-Path $PSScriptRoot 'package.ps1') -OutputRoot $OutputRoot -StageOnly
 }
 
 $StageExe = Join-Path $StageRoot 'whaleisle.exe'
@@ -113,8 +113,8 @@ if (-not (Test-Path $Nsi)) {
 # Even an explicitly reused stage never overwrites an existing installer.
 $SmokeID = [guid]::NewGuid().ToString('n')
 $SmokeAppID = 'whaleisle.nsis-smoke.' + $SmokeID
-$SmokeName = 'WhaleIsle NSIS Smoke ' + $SmokeID
-$Setup = Join-Path $OutputRoot ('WhaleIsle-Smoke-' + $SmokeID + '.exe')
+$SmokeName = 'Whale Isle MyGo NSIS Smoke ' + $SmokeID
+$Setup = Join-Path $OutputRoot ('WhaleIsle-MyGo-Smoke-' + $SmokeID + '.exe')
 
 Write-Host "Compiling NSIS with $Makensis (VERSION=$Version) ..."
 Push-Location (Join-Path $PSScriptRoot 'nsis')

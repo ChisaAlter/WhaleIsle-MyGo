@@ -43,6 +43,21 @@ func (s *mainState) ordinaryTeamModel(win *mygo.Window) projects.OrdinaryTeamMod
 		m.NextRefresh = t.lastRead.Add(5 * time.Second)
 	}
 	s.mu.Unlock()
+	if m.Team != nil {
+		snapshot := sessions.RenderSnapshot()
+		team := *m.Team
+		team.Members = append([]projectflow.TeamMember(nil), team.Members...)
+		status := make(map[string]bool, len(snapshot.Items))
+		for _, item := range snapshot.Items {
+			status[item.SessionID] = item.Running
+		}
+		for i := range team.Members {
+			if running, known := status[team.Members[i].ID]; known {
+				team.Members[i].Running = running
+			}
+		}
+		m.Team = &team
+	}
 	m.OnRefresh = func() { s.refreshOrdinaryTeam(win, t) }
 	m.OnOpenMember = func(id string) {
 		s.dshMu.Lock()
@@ -73,6 +88,12 @@ func (s *mainState) ordinaryTeamModel(win *mygo.Window) projects.OrdinaryTeamMod
 	}
 	if initial && client != nil && sid != "" {
 		s.refreshOrdinaryTeam(win, t)
+		s.mu.Lock()
+		m.Loading = t.loading
+		if !t.lastRead.IsZero() {
+			m.NextRefresh = t.lastRead.Add(5 * time.Second)
+		}
+		s.mu.Unlock()
 	}
 	return m
 }
@@ -82,7 +103,7 @@ func (s *mainState) refreshOrdinaryTeam(win *mygo.Window, t *ordinaryTeamState) 
 	currentClient := s.dshClient
 	s.dshMu.Unlock()
 	s.mu.Lock()
-	if win == nil || t == nil || t.client == nil || t.loading || s.projectFlow.ordinaryTeam != t || currentClient != t.client || t.sessionID == "" {
+	if t == nil || t.client == nil || t.loading || s.projectFlow.ordinaryTeam != t || currentClient != t.client || t.sessionID == "" {
 		s.mu.Unlock()
 		return
 	}
@@ -97,21 +118,23 @@ func (s *mainState) refreshOrdinaryTeam(win *mygo.Window, t *ordinaryTeamState) 
 		defer cancel()
 		client := projectflow.Client{Origin: t.client.Endpoint.Origin, Cookie: t.client.Endpoint.Cookie, HTTP: t.client.HTTP}
 		team, err := client.SessionTeam(ctx, t.sessionID)
-		win.Update(func() {
-			s.dshMu.Lock()
-			currentClient := s.dshClient
-			s.dshMu.Unlock()
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			if s.projectFlow.ordinaryTeam != t || currentClient != t.client || t.read != read {
-				return
-			}
-			t.loading = false
-			if err != nil {
-				t.err = err.Error()
-				return
-			}
+		s.dshMu.Lock()
+		currentClient := s.dshClient
+		s.dshMu.Unlock()
+		s.mu.Lock()
+		if s.projectFlow.ordinaryTeam != t || currentClient != t.client || t.read != read {
+			s.mu.Unlock()
+			return
+		}
+		t.loading = false
+		if err != nil {
+			t.err = err.Error()
+		} else {
 			t.team = team
-		})
+		}
+		s.mu.Unlock()
+		if win != nil {
+			win.Update(func() {})
+		}
 	}()
 }

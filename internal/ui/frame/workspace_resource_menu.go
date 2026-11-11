@@ -79,14 +79,14 @@ func workspaceResourceEntries(m Model) []workspaceResourceEntry {
 		route("schedule-task", schedulePaneTitle(m), "", conversationHeaderIcons["ClockOutline"], false)
 	}
 	if m.HostTerminalStore != nil {
-		entries = append(entries, workspaceResourceEntry{"host-terminal", termui.HostTitle(), surfacesText("card.terminal.description"), conversationHeaderIcons["CodeOutline"], !selected, func() {
+		entries = append(entries, workspaceResourceEntry{"host-terminal", termui.HostTitle(), surfacesText("card.terminal.description"), workspacePaneTerminalIcon, !selected, func() {
 			openWorkspaceResource(m, "host-terminal", m.OnNewHostTerminal)
 		}})
 	}
 	if standalone && m.OnOpenBrowserPreview != nil {
 		entries = append(entries, workspaceResourceEntry{"browser", i18n.T(i18n.KeyBrowserPreviewTitle), "", workspacePaneBrowserIcon, false, m.OnOpenBrowserPreview})
 	} else if m.BrowserContent != nil || m.NewWorkspaceBrowser != nil {
-		route("browser", i18n.T(i18n.KeyBrowserPreviewTitle), surfacesText("card.browser.description"), workspacePaneResourcesIcon, false)
+		route("browser", i18n.T(i18n.KeyBrowserPreviewTitle), surfacesText("card.browser.description"), workspacePaneBrowserIcon, false)
 	}
 	for _, registered := range m.PluginRightPaneKinds {
 		if registered.ID == "" || registered.Kind == "" || registered.Label == "" || m.DisableDeveloperTools && registered.Kind == "session-inspector-log" {
@@ -119,8 +119,8 @@ func workspaceResourceEntries(m Model) []workspaceResourceEntry {
 				}
 				entries[i].title, entries[i].description = registered.Label, registered.Description
 				entries[i].disabled = entries[i].disabled || registered.Disabled
-				if registered.Icon != "" {
-					entries[i].icon = workspaceResourceIcon(registered.Icon)
+				if icon := workspaceResourceIcon(registered.Icon); registered.Icon != "" && icon != workspacePaneResourcesIcon {
+					entries[i].icon = icon
 				}
 				order[kind] = registered.Order
 				native = true

@@ -666,11 +666,13 @@ func (rt *engine) buildMenuOverlay(c *context) {
 			rt.menu.overlay, rt.menu.focused, rt.menu.submenu = nil, false, -1
 			rt.requestFrame()
 		}
+		back.noPointerCursor = true
 		// The panel takes the width of its items, and goes where placeMenu
 		// puts it once laid out.
 		panel := coreBox(c).Role(RoleMenu).Absolute().Left(0).Top(0).MinWidth(menuMinWidth).MaxWidth(menuMaxWidth)
 		styleMenuPanel(c, panel)
 		panel.flags |= flagClickable | flagHover
+		panel.noPointerCursor = true
 		anchor, above, end := p.anchor, p.above, p.alignEnd
 		panel.offsetAfterLayout = func(r Rect) Point {
 			x, y := placeMenu(anchor, r.W, r.H, vw, vh, above, end)
@@ -798,6 +800,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 			subPanel = coreBox(c).Role(RoleMenu).Absolute().Left(0).Top(0).MinWidth(submenuMin).MaxWidth(menuMaxWidth)
 			styleMenuPanel(c, subPanel)
 			subPanel.flags |= flagClickable | flagHover
+			subPanel.noPointerCursor = true
 			// The main panel and its rows are placed by now: they come first.
 			subPanel.offsetAfterLayout = func(r Rect) Point {
 				x, y := placeSubmenu(Rect{X: subRow.x, Y: subRow.y, W: subRow.w, H: subRow.h}, r.W, r.H, vw, vh)

@@ -84,4 +84,39 @@ func TestQueueActionProtocolAndReceipt(t *testing.T) {
 	if !ok || payload["kind"] != "edit" || payload["content"].([]map[string]string)[0]["text"] != "full\ntext" {
 		t.Fatalf("edit protocol=%v", payload)
 	}
+	// Verify QueueActionMove protocol and local reorder on accepted receipt.
+	s := New()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			RPCID   any `json:"rpcId"`
+			Payload struct {
+				Args struct {
+					Request struct {
+						SessionID string         `json:"sessionId"`
+						ItemID    string         `json:"itemId"`
+						Action    map[string]any `json:"action"`
+					} `json:"request"`
+				} `json:"args"`
+			} `json:"payload"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		req := body.Payload.Args.Request
+		if req.Action["kind"] != "move" || req.Action["toIndex"] != float64(0) {
+			t.Errorf("unexpected move action: %+v", req.Action)
+		}
+		rpcOK(w, body.RPCID, map[string]any{"accepted": true})
+	}))
+	defer srv.Close()
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+	s.Attach(client, nil)
+	s.selectedID = "A"
+	s.planBoard.Queue = []PlanQueueItem{{ID: "q1", Preview: "first"}, {ID: "q2", Preview: "second"}}
+	moveAction := map[string]any{"kind": "move", "toIndex": 0}
+	if err := s.runUpdateQueue(context.Background(), client, "A", s.followGeneration, "q2", QueueActionMove, map[string]any{"sessionId": "A", "itemId": "q2", "action": moveAction}); err != nil {
+		t.Fatal(err)
+	}
+	snap := s.Snapshot()
+	if len(snap.PlanBoard.Queue) != 2 || snap.PlanBoard.Queue[0].ID != "q2" || snap.PlanBoard.Queue[1].ID != "q1" {
+		t.Fatalf("move did not reorder queue: %+v", snap.PlanBoard.Queue)
+	}
 }

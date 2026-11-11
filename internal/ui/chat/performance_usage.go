@@ -75,9 +75,21 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 	open := ui.Local(root, "open", func() bool { return false })
 	delta := theme.CurrentPreferences().Chat.Size - 14
 	root.Children(func() {
-		label := fmt.Sprintf("%s %s", formatTokensCompact(u.Total), i18n.T(i18n.KeyChatUsageTokens))
-		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(label).Height(28+delta).MinWidth(0).Padding(0, 8).Gap(4).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Expanded(*open)
+		totalCompact := formatTokensCompact(u.Total)
+		label := fmt.Sprintf("%s %s", totalCompact, i18n.T(i18n.KeyChatUsageTokens))
+		summaryLabel := i18n.ChatParityf(i18n.KeyParityChatTurnUsageConsumed, "total", totalCompact)
+		summaryAlt := ""
+		if u.CacheRead != nil && u.Total > u.Output && *u.CacheRead > 0 {
+			pct := fmt.Sprintf("%.0f", 100**u.CacheRead/(u.Total-u.Output))
+			summaryLabel = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCache, "total", totalCompact, "percent", pct)
+			summaryAlt = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCacheV2, "total", totalCompact, "percent", pct)
+		}
+		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(summaryLabel).Description(summaryLabel).Height(28+delta).MinWidth(0).Padding(0, 8).Gap(4).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Expanded(*open)
 		trigger.Children(func() {
+			ui.Box(c).Fill().PassThrough().Label(summaryLabel)
+			if summaryAlt != "" && summaryAlt != summaryLabel {
+				ui.Box(c).Fill().PassThrough().Label(summaryAlt)
+			}
 			ui.Icon(c, usageDatabaseIcon).Size(15+delta, 15+delta)
 			w, _ := c.Size()
 			if w > 480 {

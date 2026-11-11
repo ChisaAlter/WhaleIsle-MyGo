@@ -61,7 +61,7 @@ func paintTrajectoryLifecycleTabs(c *ui.Context, selected *string, available boo
 			if *selected == tab.id {
 				ink = accent
 			}
-			if ui.Button(c, tab.label).TextColor(ink).Clicked() {
+			if ui.Button(c, tab.label).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
 				*selected = tab.id
 			}
 		}

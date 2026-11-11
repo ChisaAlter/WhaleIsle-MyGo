@@ -34,6 +34,7 @@ func headerNotice(c *ui.Context, key, message string, colors theme.Colors, botto
 			}
 		})
 		_ = panel.Clicked()
+		panel.Cursor(ui.CursorDefault)
 		chrome.GlassSurface(panel, chrome.Color(colors.Field), chrome.MaterialPanel, 12)
 		panel.Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
 			ui.Scroll(c.Key("notice-message")).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), height-bottom-112)).Children(func() {

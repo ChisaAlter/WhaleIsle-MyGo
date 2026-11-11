@@ -99,6 +99,7 @@ type Model struct {
 	OnRequestList, OnRequestGet     func(string)
 	OnRequestPage                   func(int)
 	OnRequestArchive                func(string, bool)
+	OnAskAnswer                     func(string, string, string, string)
 	OnCloseRequests, OnBackRequests func()
 
 	Detail                                        *projectflow.WorkDetail

@@ -228,7 +228,7 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 
 		if open {
 			backdrop := ui.Box(c).Key("sidebar-drawer-backdrop").Absolute().Top(0).Bottom(0).Left(0).Right(0)
-			backdrop.Background(ui.RGBA(0, 0, 0, .28)).Label(i18n.T(i18n.KeySidebarCollapse))
+			backdrop.Background(ui.RGBA(0, 0, 0, .28)).Label(i18n.T(i18n.KeySidebarCollapse)).Cursor(ui.CursorDefault)
 			if backdrop.Clicked() {
 				sizes.ToggleSidebar()
 			}

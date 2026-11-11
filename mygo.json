@@ -1,6 +1,6 @@
 {
-  "name": "DeepSeekHarness Go",
-  "identifier": "ai.deepseek.harness.gui",
+  "name": "Whale Isle MyGo",
+  "identifier": "ai.deepseek.harness.gui.mygo",
   "urlSchemes": [
     "whaleisle"
   ],

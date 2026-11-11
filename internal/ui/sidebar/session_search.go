@@ -3,6 +3,7 @@ package sidebar
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -142,7 +143,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
-		ui.Text(c, workspaceText("无匹配会话", "No matching sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyWSSearchNoMatches)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	for _, result := range rows {
 		row := result
@@ -258,7 +259,13 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		}
 	}
 	if more {
-		ui.Text(c, fmt.Sprintf(workspaceText("仅显示前 %d 条结果，请缩小搜索范围。", "Only the first %d results are shown. Narrow your search."), session.SessionSearchResultLimit)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		msg := i18n.WSf(i18n.KeyWSSearchHasMore, "n", strconv.Itoa(session.SessionSearchResultLimit))
+		if i18n.Locale() == i18n.LocaleEN {
+			msg = fmt.Sprintf("Only the first %d results are shown. Narrow your search.", session.SessionSearchResultLimit)
+		}
+		ui.Box(c).Label(i18n.WSf(i18n.KeyWSSearchHasMore, "n", strconv.Itoa(session.SessionSearchResultLimit))).Children(func() {
+			ui.Text(c, msg).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		})
 	}
 	return true
 }
@@ -270,6 +277,19 @@ func revealSessionSearchResult(m Model, id string) {
 		return
 	}
 	key := "::scratch"
+	for _, group := range session.BuildSidebarWorkspaceGroups(m.Snapshot, m.Snapshot.Items) {
+		if group.Kind != "pinned" {
+			continue
+		}
+		for _, item := range group.Items {
+			if item.SessionID == id {
+				if session.WorkspaceGroupCollapsed(m.Snapshot, group.Key) {
+					m.OnToggleWorkspaceGroup(group.Key)
+				}
+				return
+			}
+		}
+	}
 	for _, ws := range m.Snapshot.Workspaces {
 		for _, member := range ws.SessionIDs {
 			if member == id {

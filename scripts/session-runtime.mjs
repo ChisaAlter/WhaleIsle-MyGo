@@ -9,7 +9,7 @@ import {applyWindowsBackgroundRuntime} from './windows-background-runtime.mjs';
 import {cloneGraph, inventoryGraph, verifyGraph} from './session-runtime-graph.mjs';
 import {recordInstalled, verify as verifyMobile} from './mobile-runtime.mjs';
 import {
-  applySessionRuntimeReadiness, guardID, baseSHA256, patchSHA256, outputSHA256,
+  applySessionRuntimeReadiness, readinessProfile,
   bundlePath as readinessBundlePath, recordFile as readinessRecordFile,
 } from './session-runtime-readiness.mjs';
 
@@ -22,10 +22,17 @@ const artifactPaths = Object.freeze({
   session: 'packages/core/session/lib/index.js',
   persistence: 'packages/session/session-persistence/lib/index.js',
 });
-const supportedHarnessPin = Object.freeze({
+const supportedHarnessPins = Object.freeze([{
   repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
   ref: 'dsh-v0.2.1-rc.2', sha: '687f282e8625c6b8d11ff58211a90524be2e4317', npm: '0.2.1-rc.2',
-});
+}, {
+  repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
+  ref: 'dsh-v0.2.1-rc.4', sha: '504a01a9578abc2c6f1fb896b1dc322c9fe24f66', npm: '0.2.1-rc.4',
+}]);
+function supportedPin(version, pin) {
+  return supportedHarnessPins.find(candidate => candidate.npm === version &&
+    Object.entries(candidate).every(([key, value]) => pin?.[key] === value));
+}
 const requiredArtifacts = [...Object.values(artifactPaths).map(value => 'deepseek-harness/' + value), readinessBundlePath, 'harness-upstream.json'];
 const fixtureHeader = () => ({version: 4, id: 'runtime-compat-fixture', createdAt: 0, isSeeded: false});
 function fixtureEvent(type) {
@@ -181,6 +188,7 @@ export async function stageSessionRuntime(resources, destination) {
   const nodeSource = await fileInside(source, 'runtime/primary-runtime/dependencies/node/bin/node.exe');
   const metadata = await inspectSessionRuntime(path.join(vendor, 'deepseek-harness'));
   if (metadata.harnessPin === null) throw new Error('Runtime source has no harness-upstream.json pin');
+  if (!supportedPin(metadata.cliVersion, metadata.harnessPin)) throw new Error('Unsupported source Session runtime profile or Harness pin');
   const nodeHash = await sha(nodeSource);
   await fs.mkdir(target);
   const targetVendor = path.join(target, 'vendor');
@@ -197,7 +205,7 @@ export async function stageSessionRuntime(resources, destination) {
   }
   await fs.mkdir(path.join(target, 'node'));
   await fs.copyFile(nodeSource, path.join(target, 'node/node.exe'), constants.COPYFILE_EXCL);
-  const safetyPatch = await applySessionRuntimeReadiness(targetVendor, graph.root);
+  const safetyPatch = await applySessionRuntimeReadiness(targetVendor, graph.root, metadata.cliVersion);
   const staged = await inspectSessionRuntime(path.join(targetVendor, 'deepseek-harness'));
   for (const relative of [...Object.values(artifactPaths).map(value => 'deepseek-harness/' + value), 'harness-upstream.json']) {
     if (staged.artifacts[relative] !== metadata.artifacts[relative]) throw new Error(`Staged runtime artifact changed: ${relative}`);
@@ -257,7 +265,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest) {
   if (within(source, target) || within(target, source)) throw Error('Release runtime destination overlaps source');
   try { await fs.lstat(target); throw Error('Release runtime destination must be fresh'); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
-  await verifyStagedSessionRuntime(path.join(source, 'vendor'));
+  const metadata = await verifyStagedSessionRuntime(path.join(source, 'vendor'));
   await fs.mkdir(target);
   const vendor = path.join(target, 'vendor');
   cloneGraph(path.join(source, 'vendor'), vendor, {exclude: ['runtime-graph.json', 'dshd-remote/debug.log']});
@@ -266,7 +274,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest) {
   const mobile = path.join(vendor, 'dshd-remote');
   if (!(await fs.stat(path.join(mobile, 'staging-manifest.json')).catch(error => { if (error.code !== 'ENOENT') throw error; }))) {
     // The original manager's plain-Node fallback expects a nested Harness tree.
-    // The released complete runtime instead owns one exact rc.2 sibling graph.
+    // The released complete runtime instead owns one exact sibling Host graph.
     const manager = path.join(mobile, 'src/main/dshd-remote.js');
     const original = await fs.readFile(manager, 'utf8');
     const before = "return path.join(__dirname, '..', '..', 'vendor', 'deepseek-harness');";
@@ -274,7 +282,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest) {
     if (original.split(before).length !== 2) throw Error('Installed mobile manager has no unique supported Harness fallback');
     const patched = original.replace(before, after);
     await fs.writeFile(manager, patched);
-    await fs.writeFile(path.join(mobile, 'source-provenance.json'), JSON.stringify({schemaVersion: 1, profile: 'installed-rc2', sourceRoot: path.join(source, 'vendor/dshd-remote'), managerRelocation: {path: 'src/main/dshd-remote.js', baseSHA256: crypto.createHash('sha256').update(original).digest('hex'), outputSHA256: crypto.createHash('sha256').update(patched).digest('hex'), reason: 'Use the same verified rc.2 Host graph as the desktop rather than an absent nested source-build copy.'}}, null, 2) + '\n', {flag: 'wx'});
+    await fs.writeFile(path.join(mobile, 'source-provenance.json'), JSON.stringify({schemaVersion: 1, profile: metadata.cliVersion === '0.2.1-rc.4' ? 'installed-rc4' : 'installed-rc2', sourceRoot: path.join(source, 'vendor/dshd-remote'), managerRelocation: {path: 'src/main/dshd-remote.js', baseSHA256: crypto.createHash('sha256').update(original).digest('hex'), outputSHA256: crypto.createHash('sha256').update(patched).digest('hex'), reason: 'Use the same verified Host graph as the desktop rather than an absent nested source-build copy.'}}, null, 2) + '\n', {flag: 'wx'});
     recordInstalled(mobile);
   }
   verifyMobile(mobile);
@@ -291,8 +299,7 @@ export async function verifyStagedSessionRuntime(vendorDir) {
   const manifestPath = await fileInside(root, 'host-session-runtime.json');
   if ((await fs.lstat(manifestPath)).isSymbolicLink()) throw new Error('Session runtime manifest must be a regular staged file');
   const manifest = await readJSON(manifestPath);
-  if (manifest.schemaVersion !== 1 || manifest.cliVersion !== supportedHarnessPin.npm ||
-      !manifest.harnessPin || Object.entries(supportedHarnessPin).some(([key, value]) => manifest.harnessPin[key] !== value)) {
+  if (manifest.schemaVersion !== 1 || !supportedPin(manifest.cliVersion, manifest.harnessPin)) {
     throw new Error('Unsupported staged Session runtime profile or Harness pin');
   }
   if (!Array.isArray(manifest.requiredEventTypes) || manifest.requiredEventTypes.length !== sessionAdmissionTypes.length ||
@@ -314,16 +321,16 @@ export async function verifyStagedSessionRuntime(vendorDir) {
       throw new Error(`Staged Session runtime artifact hash mismatch: ${relative}`);
     }
   }
-  const expectedPatch = {id: guardID, baseSHA256, patchSHA256, outputSHA256};
+  const expectedPatch = readinessProfile(manifest.cliVersion);
   const recordPath = await fileInside(root, readinessRecordFile);
   if ((await fs.lstat(recordPath)).isSymbolicLink()) throw new Error('Session readiness record must be a regular staged file');
   const record = await readJSON(recordPath);
   for (const [key, expected] of Object.entries(expectedPatch)) {
     if (manifest.safetyPatch?.[key] !== expected || record[key] !== expected) throw new Error('Staged Session runtime readiness record mismatch');
   }
-  if (manifest.artifacts[readinessBundlePath] !== outputSHA256) throw new Error('Staged Session runtime readiness output mismatch');
+  if (manifest.artifacts[readinessBundlePath] !== expectedPatch.outputSHA256) throw new Error('Staged Session runtime readiness output mismatch');
   const inspected = await inspectSessionRuntime(path.join(root, 'deepseek-harness'));
-  if (Object.entries(supportedHarnessPin).some(([key, value]) => inspected.harnessPin?.[key] !== value)) {
+  if (inspected.cliVersion !== manifest.cliVersion || !supportedPin(manifest.cliVersion, inspected.harnessPin)) {
     throw new Error('Staged Session runtime Harness pin changed');
   }
   if (manifest.node?.path !== 'node/node.exe' || !/^[a-f0-9]{64}$/.test(manifest.node?.sha256 ?? '') ||

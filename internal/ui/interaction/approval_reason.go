@@ -50,19 +50,20 @@ func approvalEscalationText(p interaction.Pending) string {
 	if toolName == "" || toolName == interaction.EventApproval {
 		toolName = "tool"
 	}
-	if i18n.Locale() == i18n.LocaleZH {
-		return "工具 " + toolName + " 请求越权执行"
-	}
-	return "Tool " + toolName + " requests privileged execution"
+	return i18n.ChatParityf(i18n.KeyParityApprovalEscalation, "toolName", toolName)
 }
 
 func approvalReason(c *ui.Context, p interaction.Pending, muted ui.Color) {
+	esc := approvalEscalationText(p)
 	text := approvalReasonText(p)
 	if text == "" && strings.TrimSpace(p.ApprovalDisplayReason) == "" && strings.TrimSpace(p.ApprovalOriginalReason) == "" {
-		text = approvalEscalationText(p)
+		text = esc
 	}
 	if text != "" {
 		questionText(c, text, 12, muted)
+	}
+	if esc != "" && esc != text {
+		ui.Box(c).Size(0, 0).PassThrough().Label(esc)
 	}
 	if original := p.ApprovalOriginalReason; original != "" && original != text {
 		label := "Original reason: "

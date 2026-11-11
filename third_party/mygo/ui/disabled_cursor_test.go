@@ -11,7 +11,7 @@ func TestDisabledCursorIsNotAllowed(t *testing.T) {
 	}, 200, 100)
 	b, _ := tt.Find("Save")
 	tt.Move(b.X+b.W/2, b.Y+b.H/2)
-	if tt.Cursor() != CursorDefault {
+	if tt.Cursor() != CursorPointer {
 		t.Fatalf("enabled control cursor = %v", tt.Cursor())
 	}
 	disabled = true

@@ -58,10 +58,13 @@ func (s *mainState) setDirectoryPickerNativeMode(sessions *session.Store, win *m
 	cfgStore, request := s.cfgStore, s.dirPickRequest
 	allowed := s.dirPickOpen && !s.dirPickBrowser.NativeBusy && s.dirPickBrowser.FolderDraft == nil
 	s.mu.Unlock()
-	if !allowed || cfgStore == nil {
+	if !allowed {
 		return
 	}
-	err := cfgStore.Update(func(cfg *config.Config) { cfg.DirectoryPickerUseNative = enabled })
+	var err error
+	if cfgStore != nil {
+		err = cfgStore.Merge(func(cfg *config.Config) { cfg.DirectoryPickerUseNative = enabled })
+	}
 	s.mu.Lock()
 	if !s.dirPickOpen || s.dirPickRequest != request {
 		s.mu.Unlock()
@@ -596,7 +599,7 @@ func (s *mainState) directoryPickerView(c *ui.Context, win *mygo.Window, session
 			}
 			var onNativeMode func(bool)
 			var onNativePick func()
-			if runtime.GOOS == "windows" && cfgStore != nil {
+			if runtime.GOOS == "windows" {
 				onNativeMode = func(enabled bool) { s.setDirectoryPickerNativeMode(sessions, win, enabled) }
 				onNativePick = func() { s.nativeDirectoryPicker(sessions, win, onPick) }
 			}

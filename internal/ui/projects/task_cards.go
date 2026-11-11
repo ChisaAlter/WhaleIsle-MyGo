@@ -75,6 +75,13 @@ func observerRequests(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 	}
 	ordered := make([]projectflow.RequestCard, 0, len(visible))
 	seen := map[string]bool{}
+	if len(o.Attention.Items) > 0 {
+		ui.Text(c, fmt.Sprintf(tr("需要你 · %d", "Needs you · %d"), max(o.Attention.Total, len(o.Attention.Items)))).FontSize(theme.InterfaceSize(12)).FontWeight(600)
+		for _, card := range o.Attention.Items {
+			seen[card.ID] = true
+			observerTaskCard(c.Key(p.ID+"/"+card.ID), m, o, p, card, "card", queue)
+		}
+	}
 	for _, id := range o.ReadingOrder {
 		if card, ok := byID[id]; ok && !seen[id] {
 			ordered = append(ordered, card)
@@ -96,7 +103,7 @@ func observerRequests(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		}
 		observerTaskCard(c.Key(p.ID+"/"+card.ID), m, o, p, card, initial, queue)
 	}
-	if len(ordered) == 0 && o.CatalogLoaded["current"] && o.CatalogLoaded["completed"] {
+	if len(ordered) == 0 && len(o.Attention.Items) == 0 && o.CatalogLoaded["current"] && o.CatalogLoaded["completed"] {
 		ui.Text(c, tr("任务会显示在这里。在Lead对话中描述目标，查看进展与交付。", "Tasks appear here. Describe a goal in the Lead conversation to follow progress and delivery.")).FontSize(theme.InterfaceSize(13))
 	}
 	requirementPageControls(c, m, o, "current")
@@ -240,6 +247,9 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		if mode.Tab == "team" {
 			mode.Tab = "work"
 		}
+		if card.Stage != nil && card.Stage.NeedsYou {
+			taskCardAttention(c, box, m, card, colors)
+		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 			for _, tab := range []struct{ id, label string }{{"overview", tr("概览", "Overview")}, {"plan", tr("计划", "Plan")}, {"work", tr("工作", "Work")}, {"results", tr("成果", "Results")}} {
 				active := mode.Tab == tab.id
@@ -293,6 +303,8 @@ func taskCardSteps(card projectflow.RequestCard, team *projectflow.Overview) []p
 			role = tr("评审", "Review")
 		case "docs":
 			role = tr("文档", "Docs")
+		case "research":
+			role = tr("调研", "Research")
 		}
 		if role != "" {
 			if s.MemberName == tr("团队成员", "Team member") {
@@ -371,6 +383,16 @@ func taskCardStatus(p projectflow.Project, card projectflow.RequestCard, team *p
 	}
 	if card.Status == "needsReview" {
 		return tr("需复核", "Needs review"), executor, "", tr("交付依据已变化，请查看详情后重新加入队列。", "Its delivery evidence changed; review details, then queue it again.")
+	}
+	if card.Stage != nil {
+		switch card.Stage.State {
+		case "awaitingAnswer":
+			return tr("等你回答", "Waiting for your answer"), executor, card.Stage.Reason, tr("回答后协调者会继续推进这项任务。", "Answer below so the coordinator can continue.")
+		case "awaitingDecision":
+			return tr("待确认", "Ready to queue"), executor, card.Stage.Reason, tr("确认无误后加入开发队列。", "Add this requirement to the queue when ready.")
+		case "retry":
+			return tr("自动重试中", "Retrying"), executor, card.Stage.Reason, tr("系统正在按有界策略自动重试。", "Retrying automatically within the retry budget.")
+		}
 	}
 	if card.Queue != nil {
 		switch card.Queue.State {
@@ -582,7 +604,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 					if work.ReportID != "" && ui.Button(c, tr("查看成果", "View result")).Height(28).Disabled(m.Busy || !current || actions.WorkAction == nil).Clicked() {
 						actions.WorkAction("report", work)
 					}
-					changes := card.Status != "completed" && !historical && work.MemberRole != "" && work.MemberRole != "readonly"
+					changes := card.Status != "completed" && !historical && work.MemberRole != "" && work.MemberRole != "readonly" && work.MemberRole != "research"
 					if changes && ui.Button(c, tr("查看变更", "View changes")).Height(28).Disabled(m.Busy || !current || actions.WorkDiff == nil).Clicked() {
 						actions.WorkDiff(work.WorkstreamID)
 					}
@@ -599,6 +621,9 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 				})
 				if work.BlockedReason != "" && work.BlockedReason != "stopped" && work.WaitingReason == nil {
 					ui.Text(c, work.BlockedReason).FontSize(theme.InterfaceSize(12))
+				}
+				if work.Ask != nil && strings.TrimSpace(work.Ask.Question) != "" {
+					ui.Text(c, tr("待回答：", "Question: ")+work.Ask.Question).FontSize(theme.InterfaceSize(12))
 				}
 				for _, stream := range actions.Workstreams {
 					if stream.ID != work.WorkstreamID {
@@ -734,6 +759,58 @@ func taskCardCurrent(m Model, card projectflow.RequestCard) bool {
 		return requestCardActions(m, card).Known
 	}
 	return m.RequestCard != nil && m.RequestCard.ID == card.ID && m.RequestCard.ProjectID == card.ProjectID && m.RequestCard.Revision == card.Revision
+}
+
+func taskCardAttention(c *ui.Context, box ui.Element, m Model, card projectflow.RequestCard, colors theme.Colors) {
+	if card.Stage == nil || !card.Stage.NeedsYou {
+		return
+	}
+	draft := ui.Local(box, "ask-draft/"+card.ID, func() string { return "" })
+	ui.Column(c.Key("attention/"+card.ID)).FillWidth().MinWidth(0).Gap(6).Padding(10, 12).Radius(10).Border(1, chrome.Color(colors.Border)).Background(chrome.Color(colors.Hover)).Children(func() {
+		if card.Stage.State == "awaitingAnswer" && card.Stage.Ask != nil {
+			header := tr("协调者向你提问", "Coordinator question")
+			if card.Stage.WorkTitle != "" {
+				header = card.Stage.WorkTitle + " · " + tr("需要你确认", "Needs your answer")
+			}
+			ui.Text(c, header).FontSize(theme.InterfaceSize(12)).FontWeight(600)
+			ui.Text(c, card.Stage.Ask.Question).FontSize(theme.InterfaceSize(13))
+			if len(card.Stage.Ask.Options) > 0 {
+				ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
+					for _, opt := range card.Stage.Ask.Options {
+						opt := opt
+						if ui.Button(c, opt).Height(26).Disabled(m.Busy || !m.RequestMutable).Clicked() {
+							*draft = opt
+						}
+					}
+				})
+			}
+			ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+				ui.TextInput(c.Key("ask-input/"+card.ID), draft).Placeholder(tr("直接输入回答，或点选上方选项后补充说明…", "Type your answer, or pick an option above and add context…")).Grow(1).MinWidth(0).Disabled(m.Busy || !m.RequestMutable)
+				if ui.PrimaryButton(c, tr("回答", "Answer")).Height(28).Disabled(m.Busy || !m.RequestMutable || strings.TrimSpace(*draft) == "" || m.OnAskAnswer == nil).Clicked() {
+					ans := strings.TrimSpace(*draft)
+					*draft = ""
+					m.OnAskAnswer(card.ID, card.Stage.WorkstreamID, card.Stage.Ask.Question, ans)
+				}
+			})
+			if card.Stage.Ask.IfUnanswered != "" {
+				ui.Text(c, tr("如暂不回答：", "If left unanswered: ")+card.Stage.Ask.IfUnanswered).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
+			}
+			return
+		}
+		title := tr("需要你处理", "Needs your input")
+		switch {
+		case card.Stage.State == "awaitingDecision" || card.Queue != nil && card.Queue.State == "discussing":
+			title = tr("等你确认是否开始", "Ready when you are")
+		case card.Status == "needsReview":
+			title = tr("依据变化，需你复核", "Evidence changed; review needed")
+		case card.Stage.FailureKind == "credential":
+			title = tr("模型凭据需要处理", "Model credentials need attention")
+		}
+		ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FontWeight(600)
+		if card.Stage.Reason != "" {
+			ui.Text(c, card.Stage.Reason).FontSize(theme.InterfaceSize(13))
+		}
+	})
 }
 
 // Match the requirements checklist: a completed check, otherwise a static

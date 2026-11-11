@@ -4,6 +4,8 @@
 # Prerequisites: runtime/vendor/deepseek-harness built (see build-harness.ps1).
 # Usage (from repo root):  . .\scripts\env.ps1; .\scripts\regen-codegen.ps1
 
+param([string]$HarnessRoot, [switch]$ApiOnly)
+
 $ErrorActionPreference = 'Stop'
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
@@ -12,15 +14,17 @@ Set-Location $ProjectRoot
 $EnvScript = Join-Path $PSScriptRoot 'env.ps1'
 . $EnvScript
 
-$HarnessPackages = Join-Path $ProjectRoot 'runtime\vendor\deepseek-harness\packages'
-$Schema = Join-Path $ProjectRoot 'runtime\vendor\deepseek-harness\docs\persistence-schema.json'
+if (-not $HarnessRoot) { $HarnessRoot = Join-Path $ProjectRoot 'runtime\vendor\deepseek-harness' }
+$HarnessRoot = (Resolve-Path -LiteralPath $HarnessRoot).Path
+$HarnessPackages = Join-Path $HarnessRoot 'packages'
+$Schema = Join-Path $HarnessRoot 'docs\persistence-schema.json'
 $ApiOut = Join-Path $ProjectRoot 'internal\dsh\api'
 $EventsOut = Join-Path $ProjectRoot 'internal\dsh\events'
 
 if (-not (Test-Path $HarnessPackages)) {
     throw "Harness packages not found at $HarnessPackages - run scripts\build-harness.ps1 first."
 }
-if (-not (Test-Path $Schema)) {
+if (-not $ApiOnly -and -not (Test-Path $Schema)) {
     throw "persistence-schema.json not found at $Schema"
 }
 
@@ -41,8 +45,10 @@ Write-Host "gen-api: $($typert.Count) package root(s) -> $ApiOut"
 & go run ./tools/gen-api @inArgs -out $ApiOut
 if ($LASTEXITCODE -ne 0) { throw "gen-api failed with exit $LASTEXITCODE" }
 
-Write-Host "gen-events: $Schema -> $EventsOut"
-& go run ./tools/gen-events -in $Schema -out $EventsOut
-if ($LASTEXITCODE -ne 0) { throw "gen-events failed with exit $LASTEXITCODE" }
+if (-not $ApiOnly) {
+    Write-Host "gen-events: $Schema -> $EventsOut"
+    & go run ./tools/gen-events -in $Schema -out $EventsOut
+    if ($LASTEXITCODE -ne 0) { throw "gen-events failed with exit $LASTEXITCODE" }
+}
 
 Write-Host 'regen-codegen: done'

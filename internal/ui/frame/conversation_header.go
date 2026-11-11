@@ -43,6 +43,11 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 	// The caption owns the title and actions. View tabs are a separate,
 	// non-draggable row, independent of compact title actions.
 	ui.Row(c).Key("conversation-title-band").Label("Conversation title band").FillWidth().Height(workspaceCaptionContent).Padding(0, rightInset, 0, leftInset).AlignItems(ui.Center).DragWindow().Children(func() {
+		if isWhaleAssistantSession(snap) {
+			if img := chrome.BrandAvatar(); img != nil {
+				ui.Image(c, img).Key("conversation-whale-mark").Width(16).Height(16).Shrink(0)
+			}
+		}
 		if m.ConversationContributions != nil {
 			m.ConversationContributions(c, snap, "conversation.session.header.leading")
 		}
@@ -79,6 +84,11 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 					})
 				}
 				conversationMoreMenu(c, m, snap, secondary)
+				if m.OnOpenWhaleSettings != nil && isWhaleAssistantSession(snap) {
+					conversationHeaderButton(c, "conversation-whale-settings", archiveText("助理设置", "Assistant settings"), "SettingsOutline", true, muted, m.OnOpenWhaleSettings, 0)
+				}
+				ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityConvSessionMoreViews))
+				ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityConvSessionMoreViewsAlt))
 				projectObserverHeader(c, m)
 				subagentsHeader(c, m, snap, compact, secondary)
 				jobsHeader(c, m)
@@ -105,7 +115,7 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 			}
 		})
 		ui.Row(c).Key("conversation-header-corner").Shrink(0).AlignItems(ui.Center).Children(func() {
-			if m.OnOpenWhaleSettings != nil {
+			if false && m.OnOpenWhaleSettings != nil {
 				for _, item := range snap.Items {
 					if item.SessionID == snap.SelectedID && item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant" {
 						conversationHeaderButton(c, "conversation-whale-settings", archiveText("助理设置", "Assistant settings"), "SettingsOutline", true, muted, m.OnOpenWhaleSettings, 0)
@@ -121,6 +131,21 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 			}
 		})
 	})
+}
+
+func isWhaleAssistantSession(snap session.ViewState) bool {
+	if snap.SelectedID == "" {
+		return false
+	}
+	if strings.HasPrefix(snap.SelectedID, "session-whale-") {
+		return true
+	}
+	for _, item := range snap.Items {
+		if item.SessionID == snap.SelectedID {
+			return item.Presentation != nil && item.Presentation.Owner == "dsh-whale:assistant"
+		}
+	}
+	return false
 }
 
 type scheduleHeaderState struct {
@@ -202,7 +227,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		w, h := viewportDIP(c)
 		ui.PopoverBase(c.Key("schedule-header-popover"), anchor, &local.open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, min(float32(336), max(float32(0), w-32)), w, 16)
-			panel = chrome.PopoverReveal(c, panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(5, 0, 0, 0).Padding(3).Radius(16).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel = chrome.PopoverReveal(c, panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(5, 0, 0, 0).Padding(3).Radius(16).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 			panel.Children(func() {
 				ui.Scroll(c.Key("schedule-header-list")).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146))).Children(func() {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {

@@ -19,6 +19,7 @@ type ObserverState struct {
 	FloatingOpen, Pinned bool                               `json:"-"`
 	HistoryKind          string                             `json:"historyKind,omitempty"`
 	Scroll               ui.ScrollState                     `json:"-"`
+	Attention            projectflow.RequestPage            `json:"-"`
 	Pages                map[string]projectflow.RequestPage `json:"-"`
 	Cursors              map[string][]string                `json:"-"`
 	CatalogLoaded        map[string]bool                    `json:"-"`
@@ -63,6 +64,7 @@ func (o *ObserverState) navigate(m Model, section string) bool {
 func (o *ObserverState) RefreshCatalog() {
 	o.CatalogLoaded = map[string]bool{}
 	o.CatalogErrors = map[string]string{}
+	o.Attention = projectflow.RequestPage{}
 }
 
 func ObserverView(c *ui.Context, m Model, o *ObserverState) {
@@ -71,7 +73,9 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 		ui.Text(c, tr("此需求观察器当前不可用，请从原项目会话重新打开。", "Requirements are unavailable. Reopen from the source Project conversation."))
 		return
 	}
-	o.Section = "tasks"
+	if o.Section != "members" {
+		o.Section = "tasks"
+	}
 	if o.Pages == nil {
 		o.Pages = map[string]projectflow.RequestPage{}
 	}

@@ -2,6 +2,7 @@ package sidebar
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"whaleisle/internal/ui/widgets"
 
@@ -88,7 +89,7 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 		title = i18n.T(i18n.KeySidebarNewSessionFallback)
 	}
 	if strings.TrimSpace(title) == "" {
-		title = workspaceText("未命名会话", "Untitled session")
+		title = i18n.T(i18n.KeyWSSessionUntitled)
 	}
 	locked := m.Batch.Busy || m.Batch.Confirming || m.OnBatchEdit == nil
 	row := ui.Row(c.Key("batch-row-"+item.SessionID)).Label("Select session "+item.SessionID).FillWidth().Height(32).Radius(12).
@@ -111,7 +112,7 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 			ui.Box(c).Size(16, 20)
 		} else {
 			ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				check := ui.Checkbox(c.Key("batch-checkbox-"+item.SessionID), &selected, "").Label(fmt.Sprintf(workspaceText("选择会话“%s”", "Select session “%s”"), title)).Size(16, 16).Gap(0).Disabled(locked)
+				check := ui.Checkbox(c.Key("batch-checkbox-"+item.SessionID), &selected, "").Label(i18n.WSf(i18n.KeyWSSelectionSessionAria, "name", title)).Size(16, 16).Gap(0).Disabled(locked)
 				changed = check.Changed()
 			})
 		}
@@ -135,9 +136,9 @@ func batchToggle(c *ui.Context, m Model, fg ui.Color) {
 	}
 	b := m.Batch
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	label := workspaceText("多选会话", "Select sessions")
+	label := i18n.T(i18n.KeyWSSelectionEnter)
 	if b.Enabled {
-		label = workspaceText("退出多选", "Exit selection")
+		label = i18n.T(i18n.KeyWSSelectionExit)
 	}
 	button := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).Padding(0).Radius(8).
 		BorderWidth(0).Background(ui.Transparent).Disabled(b.Busy || b.Confirming).Center()
@@ -163,20 +164,20 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if !b.Enabled {
 		return
 	}
-	ui.Text(c, fmt.Sprintf(workspaceText("已选 %d 项", "%d sessions selected"), len(b.Selected))).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(workspaceText("会话批量操作", "Session batch actions"))
+	ui.Text(c, i18n.WSf(i18n.KeyWSSelectionCount, "n", strconv.Itoa(len(b.Selected)))).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, workspaceText("全选可见", "Select visible")).Disabled(locked).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyWSSelectionAllVisible)).Disabled(locked).Clicked() {
 			m.OnBatchEdit("visible", VisibleBatchTargets(m))
 		}
-		if ui.Button(c, workspaceText("清除选择", "Clear selection")).Disabled(locked || len(b.Selected) == 0).Clicked() {
+		if ui.Button(c, i18n.T(i18n.KeyWSSelectionClear)).Disabled(locked || len(b.Selected) == 0).Clicked() {
 			m.OnBatchEdit("clear", nil)
 		}
 	})
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, workspaceText("批量归档", "Archive selected")).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
+		if ui.Button(c, i18n.T(i18n.KeyWSSelectionArchive)).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
 			m.OnBatchRequest("archive")
 		}
-		if ui.Button(c, workspaceText("批量删除", "Delete selected")).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
+		if ui.Button(c, i18n.T(i18n.KeyWSSelectionDelete)).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
 			m.OnBatchRequest("delete")
 		}
 	})

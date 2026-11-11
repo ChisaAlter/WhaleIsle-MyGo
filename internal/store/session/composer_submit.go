@@ -31,6 +31,7 @@ type ComposerAttachment struct {
 // navigation may change the selected session, but never retarget this request.
 type ComposerTarget struct {
 	draftPresetID, draftPresetCwd string
+	workspaceIDs                  map[string]string
 	SessionID                     string
 	store                         *Store
 	client                        *dsh.Client
@@ -45,7 +46,20 @@ func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {
 	if s.client == nil {
 		return nil, ErrNoClient
 	}
-	return &ComposerTarget{SessionID: id, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: NormalizePromptMode(string(s.promptMode)), draftPresetID: s.stagedPresetLocked(s.cwd), draftPresetCwd: filepathClean(s.cwd)}, nil
+	return &ComposerTarget{SessionID: id, store: s, client: s.client, epoch: s.composerHostGeneration, followGeneration: s.followGeneration, mode: NormalizePromptMode(string(s.promptMode)), draftPresetID: s.stagedPresetLocked(s.cwd), draftPresetCwd: filepathClean(s.cwd), workspaceIDs: s.composerWorkspaceIDsLocked(id)}, nil
+}
+
+// Capture explicit Host accounts for a new-session gesture. Directory-only
+// callers retain their existing contract when no registered account is known.
+func (s *Store) composerWorkspaceIDsLocked(id string) map[string]string {
+	if id != "" || !s.workspaceReady {
+		return nil
+	}
+	ids := make(map[string]string, len(s.workspaceMemberships))
+	for id, workspace := range s.workspaceMemberships {
+		ids[hostPathKey(workspace.Path)] = id
+	}
+	return ids
 }
 func (t *ComposerTarget) currentLocked() bool {
 	return t.store.client == t.client && t.store.composerHostGeneration == t.epoch
@@ -170,6 +184,10 @@ func (t *ComposerTarget) CreateSession(ctx context.Context, cwd string) (string,
 		return "", errors.New("choose a workspace before sending")
 	}
 	request := api.SessionCreateRequest{Cwd: &cwd}
+	if workspaceID := t.workspaceIDs[hostPathKey(cwd)]; workspaceID != "" {
+		request.WorkspaceId = &workspaceID
+		request.Cwd = nil
+	}
 	if t.draftPresetCwd == filepathClean(cwd) && t.draftPresetID != "" {
 		request.AgentPreset = &t.draftPresetID
 	}

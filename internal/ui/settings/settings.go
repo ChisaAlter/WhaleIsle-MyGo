@@ -71,6 +71,9 @@ type Model struct {
 	Skills                *SkillsAccess
 	AgentPresetsActive    bool
 	AgentPresets          *AgentPresetsAccess
+	RemoteActive          bool
+	Remote                *RemoteAccess
+	OnSelectRemote        func()
 	OnSelectDesktop       func()
 	OnSelectAccount       func()
 	OnSignIn              func()
@@ -99,7 +102,7 @@ type Model struct {
 
 // View paints namespace list + schema-driven form.
 func View(c *ui.Context, m Model) {
-	if m.Store == nil && m.Desktop == nil && m.SectionContent == nil {
+	if m.Store == nil && m.Desktop == nil && m.SectionContent == nil && m.Remote == nil {
 		return
 	}
 	finishPreferenceErrors := beginBodyPreferenceErrorNotices(c)
@@ -483,6 +486,10 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		}
 		if active == SectionAbout && m.About != nil {
 			aboutPane(c, m, fg, muted)
+			return
+		}
+		if active == SectionRemote && m.Remote != nil {
+			remotePane(c, m, fg, muted)
 			return
 		}
 		if (snap.SelectedNS == "pet" || snap.SelectedNS == "live2d") && m.Pet != nil {

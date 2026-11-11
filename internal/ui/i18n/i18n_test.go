@@ -32,13 +32,16 @@ func TestTChineseAndEnglish(t *testing.T) {
 	if got := T(KeyTrayQuit); got != "退出" {
 		t.Fatalf("zh tray.quit = %q", got)
 	}
-	if got := T(KeyAppName); got != "鲸屿go" {
+	if got := T(KeyAppName); got != "鲸屿 MyGo" {
 		t.Fatalf("app.name = %q", got)
 	}
 
 	SetLocale("en")
 	if Locale() != LocaleEN {
 		t.Fatalf("Locale() = %q after SetLocale(en)", Locale())
+	}
+	if got := T(KeyAppName); got != "Whale Isle MyGo" {
+		t.Fatalf("en app.name = %q", got)
 	}
 	if got := T(KeyTrayOpen); got != "Open main window" {
 		t.Fatalf("en tray.open = %q", got)

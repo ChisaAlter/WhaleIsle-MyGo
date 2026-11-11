@@ -1,9 +1,12 @@
 package composer
 
 import (
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -13,6 +16,8 @@ type permissionPickerState struct {
 	nav                presetNavigation
 	pointerX, pointerY float32
 	pointerPresent     bool
+	confirmation       *presetChoice
+	acknowledged       bool
 }
 
 func permissionDescription(value, description string) string {
@@ -20,6 +25,10 @@ func permissionDescription(value, description string) string {
 		return composerText("无沙箱运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。", "Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.")
 	}
 	return description
+}
+
+func permissionRequiresRiskConfirmation(id string) bool {
+	return id == session.PermissionFullAccess || id == session.PermissionAutoReview
 }
 
 // The current-session permission seat has its own Menu, not the generic preset
@@ -71,6 +80,17 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 			chevron(c, picker.open)
 		}
 	})
+	if m.PermissionSwitchFailed || strings.EqualFold(strings.TrimSpace(snap.PermissionsErr), "switch_failed") {
+		errText := i18n.T(i18n.KeyParityPermSwitchFailed)
+		errAlt := i18n.T(i18n.KeyParityPermSwitchFailedAlt)
+		ui.Text(c, errText).FontSize(11).TextColor(chrome.Color(colors.Danger)).SingleLine()
+		if errAlt != "" && errAlt != errText {
+			ui.Box(c).Size(0, 0).PassThrough().Label(errAlt)
+		}
+	}
+	if picker.confirmation != nil {
+		paintPickerPermissionConfirmation(c, m, picker, chrome.Color(colors.BG), chrome.Color(colors.FG))
+	}
 	if trigger.Clicked() {
 		picker.open = !picker.open
 		picker.nav.Focused = false
@@ -118,7 +138,11 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 		}
 		panel.Children(func() {
 			if snap.PermissionsErr != "" {
-				ui.Text(c, snap.PermissionsErr).FontSize(12).TextColor(chrome.Color(colors.FG)).Padding(6).MaxLines(3)
+				errMsg := snap.PermissionsErr
+				if strings.EqualFold(strings.TrimSpace(errMsg), "switch_failed") {
+					errMsg = i18n.T(i18n.KeyParityPermSwitchFailed)
+				}
+				ui.Text(c, errMsg).FontSize(12).TextColor(chrome.Color(colors.FG)).Padding(6).MaxLines(3)
 				if m.OnRetryPermissions != nil && ui.Button(c, composerText("重试", "Retry")).Clicked() {
 					m.OnRetryPermissions()
 				}
@@ -154,7 +178,13 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 					if row.Clicked() {
 						picker.open, picker.nav.Focused = false, false
 						picker.nav.Anchor.RequestFocus(c)
-						m.OnPermissionChange(option.ID)
+						if m.ConfirmPermissionInPicker && option.ID != value && permissionRequiresRiskConfirmation(option.ID) {
+							picked := option
+							picker.confirmation = &picked
+							picker.acknowledged = false
+						} else {
+							m.OnPermissionChange(option.ID)
+						}
 					}
 				}
 			})
@@ -164,6 +194,64 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 			picker.nav.Rows[picker.nav.Active].RequestFocus(c)
 		}
 	})
+}
+
+func paintPickerPermissionConfirmation(c *ui.Context, m Model, picker *permissionPickerState, panel, fg ui.Color) {
+	if picker.confirmation == nil {
+		return
+	}
+	title := composerText("确认启用完全权限？", "Enable Full access?")
+	description := i18n.T(i18n.KeyParityPermConfirmDescription)
+	action := composerText("启用完全权限", "Enable Full access")
+	ackLabel := composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue")
+	if picker.confirmation.ID == session.PermissionAutoReview {
+		title = composerText("确认启用自动审查（实验）？", "Enable Auto review (experimental)?")
+		description = composerText("自动审查不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前 agent 相同的模型进行审查；审查拒绝的调用由你批准或拒绝。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。", "Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it; you approve or reject each call it denies. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.")
+		action = composerText("启用自动审查", "Enable Auto review")
+		ackLabel = composerText("我已了解这些风险，并愿意继续", "I understand these risks and want to continue")
+	}
+	open := true
+	ui.DialogBase(c.Key("picker-permission-risk"), &open, func(backdrop, dialog ui.Element) {
+		mask := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
+		chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .32), mask)
+		dialog.Width(520).MaxWidthPercent(92).Padding(24).Radius(28).Clip().Opacity(mask).
+			Background(panel).
+			Draw(chrome.Glass(panel, chrome.MaterialPanel, 28)).Children(func() {
+			ui.Column(c).Gap(14).Children(func() {
+				ui.Text(c, title).FontSize(16).Bold().TextColor(fg)
+				ui.Text(c, description).FontSize(12).TextColor(fg).LineHeight(1.5)
+				if picker.confirmation.ID != session.PermissionAutoReview {
+					ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityPermConfirmNewSessionDesc))
+					ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityPermConfirmDescriptionAlt))
+				}
+				cb := ui.Checkbox(c, &picker.acknowledged, ackLabel)
+				cb.Children(func() {
+					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledge))
+					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledgeAlt))
+					ui.Box(c).Fill().PassThrough().Label(composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue"))
+				})
+				ui.Row(c).Gap(8).Children(func() {
+					if ui.Button(c, composerText("取消", "Cancel")).Clicked() {
+						picker.confirmation = nil
+						picker.acknowledged = false
+					}
+					if ui.PrimaryButton(c, action).Disabled(!picker.acknowledged).Clicked() {
+						targetID := picker.confirmation.ID
+						picker.confirmation = nil
+						picker.acknowledged = false
+						if m.OnPermissionChange != nil {
+							m.OnPermissionChange(targetID)
+						}
+					}
+				})
+			})
+		})
+		chrome.MenuElevation(dialog)
+	})
+	if !open {
+		picker.confirmation = nil
+		picker.acknowledged = false
+	}
 }
 
 // Host-configured values outside the shipped design set have no made-up glyph.

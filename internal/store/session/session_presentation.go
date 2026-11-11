@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 )
 
 // SessionPresentation is the Host's sessionListMetadata.presentation. It is
@@ -68,8 +69,46 @@ func (s *Store) applySessionPresentationLocked(id, kind string, seq float64, pre
 		mergeSessionPresentation(&next, s.items[i])
 		s.items[i].Presentation = next.Presentation
 		s.items[i].presentationKnown, s.items[i].presentationKind, s.items[i].presentationSeq = next.presentationKnown, next.presentationKind, next.presentationSeq
+		if s.items[i].Cwd == "" && next.Presentation != nil && strings.TrimSpace(next.Presentation.WorkingDirectory) != "" {
+			s.items[i].Cwd = strings.TrimSpace(next.Presentation.WorkingDirectory)
+		}
+		if s.items[i].Title == "" && next.Presentation != nil && strings.TrimSpace(next.Presentation.Title) != "" {
+			s.items[i].Title = strings.TrimSpace(next.Presentation.Title)
+		}
 		return
 	}
+	if id != "" && presentation != nil {
+		s.items = append(s.items, Item{
+			SessionID:         id,
+			Title:             strings.TrimSpace(presentation.Title),
+			Cwd:               strings.TrimSpace(presentation.WorkingDirectory),
+			Presentation:      presentation,
+			presentationKnown: true,
+			presentationKind:  kind,
+			presentationSeq:   seq,
+		})
+	}
+}
+
+// EnsureSessionPresentation seeds or updates a session's presentation in the
+// store before session/list completes, so selecting a known plugin-owned
+// session (such as the Whale Assistant) renders its header and composer posture
+// immediately even while a large session directory is still being listed.
+func (s *Store) EnsureSessionPresentation(id, owner, title, cwd string) {
+	id = strings.TrimSpace(id)
+	owner = strings.TrimSpace(owner)
+	if s == nil || id == "" || owner == "" {
+		return
+	}
+	pres := &SessionPresentation{
+		Owner:            owner,
+		Title:            strings.TrimSpace(title),
+		WorkingDirectory: strings.TrimSpace(cwd),
+	}
+	s.mu.Lock()
+	s.applySessionPresentationLocked(id, "cached", 0, pres)
+	s.mu.Unlock()
+	s.fire()
 }
 
 func (s *Store) applySessionPresentationControlLocked(raw json.RawMessage) {

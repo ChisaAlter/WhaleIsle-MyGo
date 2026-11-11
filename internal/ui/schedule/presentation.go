@@ -55,7 +55,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 				})
 				ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(8).Padding(0, 0, 14).Children(func() {
 					for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已开启", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
-						b := ui.Button(c.Key("schedule-filter-"+option.id), scheduleText(option.zh, option.en)).Height(28).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(14))
+						b := ui.Button(c.Key("schedule-filter-"+option.id), scheduleText(option.zh, option.en)).Height(28).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(14)).Cursor(ui.CursorPointer)
 						if p.statusFilter == option.id || (option.id == "all" && p.statusFilter == "") {
 							b.Background(chrome.Color(colors.Hover)).TextColor(fg).FontWeight(500)
 						}

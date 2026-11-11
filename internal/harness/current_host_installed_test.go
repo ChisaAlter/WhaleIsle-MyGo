@@ -133,6 +133,45 @@ func TestInstalledRuntimeProofAcceptsTheStagedRc2(t *testing.T) {
 	}
 }
 
+func TestInstalledRuntimeProofRC4KeepsVersionAndGateTogether(t *testing.T) {
+	vendor, safety, manifest := installedProofFixture(t)
+	previous := rc4SessionRuntimeSafety
+	rc4SessionRuntimeSafety = safety
+	t.Cleanup(func() { rc4SessionRuntimeSafety = previous })
+	manifest["cliVersion"] = "0.2.1-rc.4"
+	pin := manifest["harnessPin"].(map[string]string)
+	pin["ref"], pin["npm"], pin["sha"] = "dsh-v0.2.1-rc.4", "0.2.1-rc.4", sessionRuntimeRC4Commit
+	write := func() {
+		t.Helper()
+		raw, err := json.Marshal(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(vendor, sessionRuntimeManifestName), raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write()
+	c := ReadCurrentHostCapabilities(vendor, CurrentHostBridges{})
+	if !c.ArtifactsReady || c.SourceCommit != sessionRuntimeRC4Commit {
+		t.Fatalf("rc.4 capability identity: %+v", c)
+	}
+	if err := ValidateCurrentHostForLaunch(filepath.Join(vendor, "deepseek-harness")); err != nil {
+		t.Fatal(err)
+	}
+	pin["sha"] = sessionRuntimeHarnessCommit
+	write()
+	if err := ValidateCurrentHostForLaunch(filepath.Join(vendor, "deepseek-harness")); err == nil {
+		t.Fatal("rc.4 accepted an rc.2 provenance pin")
+	}
+	pin["sha"] = sessionRuntimeRC4Commit
+	manifest["safetyPatch"] = previous
+	write()
+	if err := ValidateCurrentHostForLaunch(filepath.Join(vendor, "deepseek-harness")); err == nil {
+		t.Fatal("rc.4 accepted a gate that differs from the bundled bytes")
+	}
+}
+
 func TestInstalledRuntimeProofFailsClosed(t *testing.T) {
 	t.Run("corrupted readiness record", func(t *testing.T) {
 		vendor, safety, _ := installedProofFixture(t)

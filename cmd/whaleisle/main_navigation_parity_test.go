@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
@@ -17,6 +18,7 @@ import (
 )
 
 func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
+	t.Setenv(paths.EnvUserData, t.TempDir())
 	previous := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(previous) })

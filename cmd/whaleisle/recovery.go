@@ -121,6 +121,9 @@ func (s *mainState) restoreResumeSelection() {
 	s.mu.Lock()
 	s.resumePendingSession = ""
 	s.mu.Unlock()
+	if snap.SelectedID != "" && snap.SelectedID != id {
+		return
+	}
 	if workspace != current {
 		sessions.SetLastAction(i18n.T(i18n.KeyCmdRecoveredDraftsWereKeptTheWorkspaceCha))
 		return

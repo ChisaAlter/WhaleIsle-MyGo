@@ -79,6 +79,75 @@ func aboutUpdatePhaseSummary(a *AboutAccess) string {
 	}
 }
 
+func aboutUpdateCenterSubtitle(a *AboutAccess) string {
+	if a == nil {
+		return ""
+	}
+	version := strings.TrimSpace(a.UpdateVersion)
+	if version == "" {
+		version = strings.TrimSpace(a.Version)
+	}
+	current := strings.TrimSpace(a.Version)
+	percent := fmt.Sprintf("%.0f", a.UpdatePercent)
+	switch a.UpdatePhase {
+	case "idle":
+		if current != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterIdle, "current", current)
+		}
+	case "current":
+		if current != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterCurrent, "current", current)
+		}
+	case "available":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterAvailable, "version", version)
+		}
+	case "downloading":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterDownloading, "version", version, "percent", percent)
+		}
+	case "paused":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterPaused, "version", version, "percent", percent)
+		}
+	case "verifying":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterVerifying, "version", version)
+		}
+	case "ready":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterReady, "version", version)
+		}
+	case "installing":
+		if version != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterInstalling, "version", version)
+		}
+	case "error":
+		msg := strings.TrimSpace(a.UpdateStatus)
+		if msg == "" {
+			msg = strings.TrimSpace(a.Err)
+		}
+		if msg != "" {
+			return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterError, "message", msg)
+		}
+	}
+	return ""
+}
+
+func aboutUpdateCenterErrorAlt(a *AboutAccess) string {
+	if a == nil || a.UpdatePhase != "error" {
+		return ""
+	}
+	msg := strings.TrimSpace(a.UpdateStatus)
+	if msg == "" {
+		msg = strings.TrimSpace(a.Err)
+	}
+	if msg == "" {
+		return ""
+	}
+	return i18n.SettingsParityFormat(i18n.KeySettingsParityAboutCenterErrorAlt, "message", msg)
+}
+
 func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if m.About == nil {
 		return
@@ -232,9 +301,18 @@ func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
 		if a.OnOpenUpdateCenter != nil && ui.Button(c, providerCopy("打开更新中心", "Open Update Center")).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 			a.OnOpenUpdateCenter()
 		}
+		if a.OnOpenUpdateCenter != nil && ui.Button(c, i18n.T(i18n.KeySettingsParityAboutCenterOpen)).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
+			a.OnOpenUpdateCenter()
+		}
 	})
 	if summary := aboutUpdatePhaseSummary(a); summary != "" && summary != a.UpdateStatus && !(a.UpdateBusy && a.UpdatePhase == "checking") {
 		ui.Text(c, summary).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	}
+	if center := aboutUpdateCenterSubtitle(a); center != "" && center != aboutUpdatePhaseSummary(a) && !(a.UpdateBusy && a.UpdatePhase == "checking") {
+		ui.Text(c, center).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	}
+	if altErr := aboutUpdateCenterErrorAlt(a); altErr != "" && altErr != aboutUpdateCenterSubtitle(a) && !(a.UpdateBusy && a.UpdatePhase == "checking") {
+		ui.Text(c, altErr).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if a.UpdateStatus != "" {
 		ui.Text(c, a.UpdateStatus).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

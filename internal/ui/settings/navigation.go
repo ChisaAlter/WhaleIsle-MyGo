@@ -75,7 +75,7 @@ func activeSection(m Model, snap store.ViewState) (active SectionID) {
 		{m.InterfaceActive, SectionInterface}, {m.ConversationActive, SectionConversation},
 		{m.FeaturesActive, SectionFeatures}, {m.ModelsActive, SectionModels},
 		{m.PluginsActive, SectionPlugins}, {m.SkillsActive, SectionSkills},
-		{m.AgentPresetsActive, SectionAgentPresets}, {m.MCPActive, SectionMCP}, {m.AboutActive, SectionAbout},
+		{m.AgentPresetsActive, SectionAgentPresets}, {m.MCPActive, SectionMCP}, {m.RemoteActive, SectionRemote}, {m.AboutActive, SectionAbout},
 	} {
 		if item.active {
 			return item.id
@@ -147,7 +147,11 @@ func navigationGroups(m Model, snap store.ViewState) []navigationGroup {
 	add(&agents, SectionMarket, "BrowseOutline", m.OnOpenMarket != nil, m.OnOpenMarket)
 	add(&features, SectionFeatures, "PersonalizationOutline", m.Features != nil, m.OnSelectFeatures)
 	add(&features, SectionPet, "SettingsOutline", m.Pet != nil, selectNamespace("pet"))
-	add(&features, SectionRemote, "DeviceOutline", m.OnOpenRemote != nil, m.OnOpenRemote)
+	selectRemote := m.OnOpenRemote
+	if selectRemote == nil {
+		selectRemote = m.OnSelectRemote
+	}
+	add(&features, SectionRemote, "DeviceOutline", m.OnOpenRemote != nil || m.Remote != nil, selectRemote)
 	add(&features, SectionRemoteWorkspace, "ServerOutline", m.OnOpenRemoteWorkspace != nil, m.OnOpenRemoteWorkspace)
 	seen := map[SectionID]bool{}
 	for _, list := range [][]navigationEntry{account, general, agents, features} {

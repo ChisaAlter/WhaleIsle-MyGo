@@ -6,6 +6,7 @@
 # Usage (from repo root):  . .\scripts\env.ps1; .\scripts\package.ps1
 param(
     [string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT,
+    [string]$RuntimeRoot,
     [switch]$StageOnly,
     [string]$GoExecutable = 'go'
 )
@@ -96,16 +97,17 @@ if (Test-Path $PetAssets -PathType Container) {
 if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
     $VendorSrc = $env:WHALEISLE_VENDOR
+    if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
     if (-not $VendorSrc) { $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor' }
     if (Test-Path (Join-Path $VendorSrc 'current-host-build.json')) {
         & node (Join-Path $PSScriptRoot 'current-host.mjs') verify $VendorSrc
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host artifacts failed verification' }
     }
     # An executable rebuild does not update the adjacent Host. Require the
-    # actual built reader's rc.2 event vocabulary and preserved readiness gate.
+    # actual built reader's event vocabulary and preserved readiness gate.
     if (-not (Test-Path (Join-Path $VendorSrc 'current-host-build.json'))) {
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') verify $VendorSrc
-        if ($LASTEXITCODE -ne 0) { throw 'Host session runtime is stale, mixed or unverified. Stage a complete rc.2 runtime before packaging.' }
+        if ($LASTEXITCODE -ne 0) { throw 'Host session runtime is stale, mixed or unverified. Stage a complete supported runtime before packaging.' }
     } else {
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') inspect (Join-Path $VendorSrc 'deepseek-harness')
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host cannot read the shared desktop session schema.' }
@@ -113,8 +115,13 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $VendorDst = Join-Path $Stage 'runtime\vendor'
     $SessionInput = Test-Path -LiteralPath (Join-Path $VendorSrc 'host-session-runtime.json') -PathType Leaf
     if ($SessionInput) {
+        $InputManifest = Get-Content -LiteralPath (Join-Path $VendorSrc 'host-session-runtime.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($InputManifest.cliVersion -eq '0.2.1-rc.4') {
+            & node (Join-Path $PSScriptRoot 'session-runtime-complete.mjs') verify (Split-Path -Parent $VendorSrc)
+            if ($LASTEXITCODE -ne 0) { throw 'rc.4 packaging requires the complete phone, retained dshbot and desktop main plugin assembly.' }
+        }
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') release (Split-Path -Parent $VendorSrc) (Join-Path $Stage 'runtime')
-        if ($LASTEXITCODE -ne 0) { throw 'Complete rc.2 runtime staging or actual mobile native ABI validation failed.' }
+        if ($LASTEXITCODE -ne 0) { throw 'Complete runtime staging or actual mobile native ABI validation failed.' }
         $LinksHelper = Join-Path $Stage 'runtime\runtime-links.exe'
         & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $LinksHelper ./scripts/session-runtime-links
         if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency transaction helper build failed.' }
@@ -187,13 +194,13 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
 
 $Readme = Join-Path $DistRoot 'README.md'
 $readmeText = @'
-# 鲸屿go - staged packaging output (M11)
+# 鲸屿 MyGo - staged packaging output (M11)
 
 This folder holds **staging artifacts** only. `scripts/package.ps1` does not download NSIS or emit an installer when packager tools are absent.
 
 ## Staged layout
 
-- `whaleisle/whaleisle.exe` - MyGo desktop shell (link-time `main.buildVersion` via `go build -ldflags`)
+- `whaleisle/whaleisle.exe` - Whale Isle MyGo desktop shell (link-time `main.buildVersion` via `go build -ldflags`)
 - `whaleisle/whaleisle-preview.exe` - separate Windows AppContainer helper; scripts remain off until an explicit per-document action and successful runtime checks
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
@@ -204,17 +211,18 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 
 ## Next steps (NSIS / MyGo packager)
 
-1. Build the vendored harness runtime: `scripts/build-harness.ps1` (`runtime/vendor/`).
-2. `mygo.json` `identifier` is **`ai.deepseek.harness.gui`** (same appId as Electron for cover upgrades).
-3. NSIS script: `scripts/nsis/whaleisle.nsi` installs exe, resources, and optional `runtime/` trees.
-4. Sign the setup executable before release.
+1. Build the installed rc.4 runtime with `scripts/build-harness.ps1 -RuntimeSourceResources <resources> -RuntimeDestination <fresh-runtime> -DesktopSourceRoot <desktop-source>`. This includes phone resources, retained dshbot and the pinned main plugins.
+2. Select that exact runtime for packaging: `scripts/package.ps1 -RuntimeRoot <fresh-runtime> -OutputRoot <fresh-output>`. Existing rc.2 inputs remain available through the original defaults.
+3. `mygo.json` `identifier` is **`ai.deepseek.harness.gui.mygo`** (independent side-by-side install under `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` while sharing `%APPDATA%\Deepseek-Harness-Desktop` userData).
+4. NSIS script: `scripts/nsis/whaleisle.nsi` installs exe, resources, and optional `runtime/` trees.
+5. Sign the setup executable before release.
 
 ## Application identifier
 
 | Field | Release value |
 | --- | --- |
-| App ID / identifier | `ai.deepseek.harness.gui` |
-| Product name | 鲸屿go |
+| App ID / identifier | `ai.deepseek.harness.gui.mygo` |
+| Product name | 鲸屿 MyGo |
 
 '@
 [System.IO.File]::WriteAllText($Readme, $readmeText)
@@ -236,7 +244,7 @@ if ($MakensisCmd) {
     if (Test-Path $LocalMakensis) { $MakensisPath = $LocalMakensis }
 }
 if ($MakensisPath -and (Test-Path $Nsi)) {
-    $Setup = Join-Path $DistRoot ("WhaleIsle-Setup-{0}.exe" -f $Version)
+    $Setup = Join-Path $DistRoot ("WhaleIsle-MyGo-Setup-{0}.exe" -f $Version)
     Write-Host "NSIS found: building $Setup"
     Push-Location (Join-Path $PSScriptRoot 'nsis')
     try {

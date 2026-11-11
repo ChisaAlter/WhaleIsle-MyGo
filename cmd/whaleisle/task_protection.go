@@ -145,7 +145,11 @@ func (s *mainState) localTaskRunningCount() int {
 	count := s.sessionRunningCount()
 	s.mu.Lock()
 	count += s.terminalSessions.RunningCount()
+	runner := s.proactivePanel.runner
 	s.mu.Unlock()
+	if runner != nil && runner.DeliveryRunning() {
+		count++
+	}
 	return count
 }
 
@@ -182,6 +186,12 @@ func (s *mainState) closeTaskProtectedResources() error {
 // Imports already own the import slot. Reuse the same task inspection, drain
 // and confirmation without rejecting that owner as a competing operation.
 func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) (bool, error) {
+	s.mu.Lock()
+	proactiveRunner := s.proactivePanel.runner
+	s.mu.Unlock()
+	if proactiveRunner != nil {
+		defer proactiveRunner.FreezeAdmissions()()
+	}
 	var did bool
 	var err error
 	if sup != nil {

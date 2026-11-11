@@ -7,7 +7,7 @@ import {verify as verifyHost, supportedCommits} from './current-host.mjs';
 import {verify as verifyMobile} from './mobile-runtime.mjs';
 
 export const macOSApplication = 'whaleisle-mygo';
-export const macOSBundleIdentifier = 'ai.deepseek.harness.gui';
+export const macOSBundleIdentifier = 'ai.deepseek.harness.gui.mygo';
 export const macOSExecutable = 'Contents/MacOS/whaleisle';
 export const macOSPackageManifest = 'Contents/Resources/native-macos-package.json';
 export const hostSourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770';

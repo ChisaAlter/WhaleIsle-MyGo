@@ -6,12 +6,14 @@ import (
 	"regexp"
 
 	"github.com/egoist/mygo"
+
+	"whaleisle/internal/product"
 )
 
 // This is the actual release identifier in mygo.json, the macOS bundle, and
 // scripts/nsis/whaleisle.nsi. It identifies this app, never the current user.
 // Keep it aligned with those packaging contracts if the application is renamed.
-const youtubeApplicationOrigin = "https://ai.deepseek.harness.gui"
+const youtubeApplicationOrigin = "https://" + product.AppID
 
 var youtubeVideoID = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 

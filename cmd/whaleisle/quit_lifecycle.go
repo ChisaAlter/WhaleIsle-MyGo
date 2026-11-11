@@ -70,6 +70,7 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	cancelPreparation := s.launcherStartCancel
 	s.mu.Unlock()
 	s.cancelImportCatalogScan()
+	s.stopProactiveMonitor()
 	s.stopNativeUpdateCenter()
 	if cancelPreparation != nil {
 		cancelPreparation()

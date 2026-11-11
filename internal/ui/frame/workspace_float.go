@@ -179,7 +179,7 @@ func workspaceFloating(c *ui.Context, m Model) {
 			panel.Children(func() {
 				ui.Row(c).FillWidth().Height(38).Gap(4).Padding(4).Children(func() {
 					terminal, sid, title, editing := workspaceTerminalTitle(m, n)
-					grip := ui.Box(c).Key("float-move").Grow(1).Height(28).Focusable().Label(paneLabel("移动浮动面板", "Move floating pane"))
+					grip := ui.Box(c).Key("float-move").Grow(1).Height(28).Cursor(ui.CursorMove).Focusable().Label(paneLabel("移动浮动面板", "Move floating pane"))
 					grip.Children(func() {
 						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
 							ui.Text(c, title).FontSize(theme.InterfaceSize(11))

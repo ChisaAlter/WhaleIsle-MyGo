@@ -10,23 +10,50 @@ type scheduleLocaleEntry struct {
 }
 
 var scheduleLocaleCatalog = []scheduleLocaleEntry{
-	{module: `dsh-client-ui-schedule`, key: `list.loading`, zh: `正在加载提醒…`, en: `Loading reminders…`},
-	{module: `dsh-client-ui-schedule`, key: `list.error`, zh: `无法加载提醒。`, en: `Could not load reminders.`},
-	{module: `dsh-client-ui-schedule`, key: `delete.pending`, zh: `正在删除…`, en: `Deleting…`},
-	{module: `dsh-client-ui-schedule`, key: `delete.label`, zh: `删除提醒：{title}`, en: `Delete reminder: {title}`},
-	{module: `dsh-client-ui-schedule`, key: `list.open`, zh: `打开提醒详情：{title}`, en: `Open reminder details: {title}`},
+	{module: `dsh-client-ui-schedule`, key: `trigger.label`, zh: `提醒`, en: `Reminders`},
 	{module: `dsh-client-ui-schedule`, key: `trigger.one`, zh: `{count} 个提醒`, en: `{count} reminder`},
 	{module: `dsh-client-ui-schedule`, key: `trigger.other`, zh: `{count} 个提醒`, en: `{count} reminders`},
 	{module: `dsh-client-ui-schedule`, key: `list.aria`, zh: `活动提醒`, en: `Active reminders`},
+	{module: `dsh-client-ui-schedule`, key: `list.loading`, zh: `正在加载提醒…`, en: `Loading reminders…`},
+	{module: `dsh-client-ui-schedule`, key: `list.error`, zh: `无法加载提醒。`, en: `Could not load reminders.`},
+	{module: `dsh-client-ui-schedule`, key: `list.retry`, zh: `重试`, en: `Retry`},
+	{module: `dsh-client-ui-schedule`, key: `list.nextRun`, zh: `下次提醒：{time}`, en: `Next reminder: {time}`},
+	{module: `dsh-client-ui-schedule`, key: `list.open`, zh: `打开提醒详情：{title}`, en: `Open reminder details: {title}`},
+	{module: `dsh-client-ui-schedule`, key: `delete.action`, zh: `删除`, en: `Delete`},
+	{module: `dsh-client-ui-schedule`, key: `delete.pending`, zh: `正在删除…`, en: `Deleting…`},
+	{module: `dsh-client-ui-schedule`, key: `delete.label`, zh: `删除提醒：{title}`, en: `Delete reminder: {title}`},
+	{module: `dsh-client-ui-schedule`, key: `frequency.once`, zh: `单次`, en: `Once`},
+	{module: `dsh-client-ui-schedule`, key: `frequency.every`, zh: `每 {value} {unit}`, en: `Every {value} {unit}`},
+	{module: `dsh-client-ui-schedule`, key: `frequency.daily`, zh: `每天 {time}`, en: `Daily at {time}`},
+	{module: `dsh-client-ui-schedule`, key: `frequency.weekly`, zh: `每周{weekday} {time}`, en: `Weekly on {weekday} at {time}`},
 	{module: `dsh-client-ui-schedule`, key: `frequency.cronRule`, zh: `{rule}（{timeZone}）`, en: `{rule} ({timeZone})`},
+	{module: `dsh-client-ui-schedule`, key: `frequency.cronLocal`, zh: `{rule}`, en: `{rule}`},
 	{module: `dsh-client-ui-schedule`, key: `cron.weekday.name`, zh: `周{weekday}`, en: `{weekday}`},
 	{module: `dsh-client-ui-schedule`, key: `cron.weekday.range`, zh: `{from}至{to}`, en: `{from}–{to}`},
 	{module: `dsh-client-ui-schedule`, key: `cron.months`, zh: `（{months}）`, en: ` in {months}`},
+	{module: `dsh-client-ui-schedule`, key: `cron.day.every`, zh: `每天{months}`, en: `Every day{months}`},
 	{module: `dsh-client-ui-schedule`, key: `cron.day.weekdays`, zh: `{weekdays}{months}`, en: `{weekdays}{months}`},
+	{module: `dsh-client-ui-schedule`, key: `cron.day.monthdays`, zh: `每月{days}日{months}`, en: `Day {days} of the month{months}`},
+	{module: `dsh-client-ui-schedule`, key: `cron.day.both`, zh: `每月{days}日或{weekdays}{months}`, en: `Day {days} or {weekdays}{months}`},
+	{module: `dsh-client-ui-schedule`, key: `cron.hours.every`, zh: `每小时`, en: `every hour`},
+	{module: `dsh-client-ui-schedule`, key: `cron.hours.step`, zh: `每 {step} 小时`, en: `every {step} hours`},
 	{module: `dsh-client-ui-schedule`, key: `cron.hours.range`, zh: `{from} 至 {to}`, en: `{from}–{to}`},
 	{module: `dsh-client-ui-schedule`, key: `cron.hours.list`, zh: `{hours}`, en: `{hours}`},
+	{module: `dsh-client-ui-schedule`, key: `cron.time.everyMinute`, zh: `{hours}每分钟`, en: `every minute ({hours})`},
+	{module: `dsh-client-ui-schedule`, key: `cron.time.stepMinutes`, zh: `{hours}每 {step} 分钟`, en: `every {step} minutes ({hours})`},
+	{module: `dsh-client-ui-schedule`, key: `cron.time.atMinutes`, zh: `{hours}第 {minutes} 分`, en: `at minute {minutes} ({hours})`},
 	{module: `dsh-client-ui-schedule`, key: `cron.time.at`, zh: `{times}`, en: `at {times}`},
+	{module: `dsh-client-ui-schedule`, key: `relative.now`, zh: `即将`, en: `due now`},
+	{module: `dsh-client-ui-schedule`, key: `relative.past`, zh: `{value}{unit}前`, en: `{value} {unit} ago`},
 	{module: `dsh-client-ui-schedule`, key: `relative.future`, zh: `{value}{unit}后`, en: `in {value} {unit}`},
+	{module: `dsh-client-ui-schedule`, key: `unit.second.one`, zh: `秒`, en: `s`},
+	{module: `dsh-client-ui-schedule`, key: `unit.second.other`, zh: `秒`, en: `s`},
+	{module: `dsh-client-ui-schedule`, key: `unit.minute.one`, zh: `分钟`, en: `min`},
+	{module: `dsh-client-ui-schedule`, key: `unit.minute.other`, zh: `分钟`, en: `min`},
+	{module: `dsh-client-ui-schedule`, key: `unit.hour.one`, zh: `小时`, en: `hr`},
+	{module: `dsh-client-ui-schedule`, key: `unit.hour.other`, zh: `小时`, en: `hr`},
+	{module: `dsh-client-ui-schedule`, key: `unit.day.one`, zh: `天`, en: `day`},
+	{module: `dsh-client-ui-schedule`, key: `unit.day.other`, zh: `天`, en: `days`},
 	{module: `dsh-client-ui-schedule.task-manager`, key: `list.loading`, zh: `正在加载任务…`, en: `Loading tasks…`},
 	{module: `dsh-client-ui-schedule.task-manager`, key: `detail.close`, zh: `关闭详情`, en: `Close details`},
 	{module: `dsh-client-ui-schedule.task-manager`, key: `detail.more`, zh: `自动化任务操作`, en: `Automation task actions`},
@@ -89,4 +116,9 @@ func scheduleLocaleText(key string) string {
 		}
 	}
 	return i18n.T(key)
+}
+
+// ScheduleLocaleText returns the localized schedule catalog string for key.
+func ScheduleLocaleText(key string) string {
+	return scheduleLocaleText(key)
 }

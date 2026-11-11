@@ -25,7 +25,7 @@ func detailView(c *ui.Context, m Model) {
 		if ui.Button(c, tr("实时跟进成员过程", "Follow member live")).Disabled(m.Busy || m.ProcessWatching || d.Worker == nil || !d.Worker.Materialized).Clicked() && m.OnProcess != nil {
 			m.OnProcess(false)
 		}
-		if d.Worker != nil && d.Worker.Role != "readonly" && d.Workstream.ID != "" && m.OnWorkDiff != nil {
+		if d.Worker != nil && d.Worker.Role != "readonly" && d.Worker.Role != "research" && d.Workstream.ID != "" && m.OnWorkDiff != nil {
 			if ui.Button(c, tr("查看工作区差异", "View workspace diff")).Disabled(m.Busy || !m.Listing.Available).Clicked() {
 				m.OnWorkDiff(d.Workstream.ID)
 			}

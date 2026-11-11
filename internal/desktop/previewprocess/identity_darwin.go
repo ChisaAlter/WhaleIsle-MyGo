@@ -98,7 +98,7 @@ func verifyMacBundle(ctx context.Context, helper string) (string, error) {
 	if filepath.Clean(helper) != expected || actual != expected {
 		return "", errors.New("preview helper must be the embedded nonsymlink companion")
 	}
-	hostReq := `anchor apple generic and identifier "ai.deepseek.harness.gui"`
+	hostReq := `anchor apple generic and identifier "ai.deepseek.harness.gui.mygo"`
 	if _, err = macCodesign(ctx, "--verify", "--strict", "-R", hostReq, host); err != nil {
 		return "", err
 	}

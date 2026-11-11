@@ -2,7 +2,9 @@ package projectflow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"whaleisle/internal/dsh"
 )
 
@@ -52,16 +54,18 @@ type WaitingReason struct {
 }
 
 type Workstream struct {
-	Group                string `json:"group"`
-	ID                   string `json:"id"`
-	Title                string `json:"title"`
-	Status               string `json:"status"`
-	WorkerSessionID      string `json:"workerSessionId"`
-	BlockedReason        string `json:"blockedReason"`
-	PendingSummary       bool   `json:"pendingSummary"`
-	HasReport            bool   `json:"hasReport"`
-	PrerequisitesChanged bool   `json:"prerequisitesChanged"`
-	CurrentDelegationRef string `json:"currentDelegationRef"`
+	Group                string            `json:"group"`
+	ID                   string            `json:"id"`
+	Title                string            `json:"title"`
+	Status               string            `json:"status"`
+	WorkerSessionID      string            `json:"workerSessionId"`
+	BlockedReason        string            `json:"blockedReason"`
+	PendingSummary       bool              `json:"pendingSummary"`
+	HasReport            bool              `json:"hasReport"`
+	PrerequisitesChanged bool              `json:"prerequisitesChanged"`
+	CurrentDelegationRef string            `json:"currentDelegationRef"`
+	Ask                  *RequestAsk       `json:"ask,omitempty"`
+	AutoRetry            *RequestAutoRetry `json:"autoRetry,omitempty"`
 	Delegation           struct {
 		Phase         string         `json:"phase"`
 		WaitingReason *WaitingReason `json:"waitingReason"`
@@ -193,10 +197,8 @@ func (c Client) enrichTeamMembers(ctx context.Context, team *TeamProjection) {
 			Values struct {
 				ModelSelection struct {
 					Next struct {
-						Model *struct {
-							Provider string `json:"provider"`
-							Model    string `json:"model"`
-						} `json:"model"`
+						Provider string          `json:"provider"`
+						Model    json.RawMessage `json:"model"`
 					} `json:"next"`
 				} `json:"modelSelection"`
 			} `json:"values"`
@@ -205,8 +207,24 @@ func (c Client) enrichTeamMembers(ctx context.Context, team *TeamProjection) {
 			member.ModelError = err.Error()
 			continue
 		}
-		if model := p.Values.ModelSelection.Next.Model; model != nil {
-			member.ModelLabel = model.Provider + " / " + model.Model
+		rawModel := p.Values.ModelSelection.Next.Model
+		if len(rawModel) > 0 {
+			var modelName string
+			if err := json.Unmarshal(rawModel, &modelName); err == nil {
+				member.ModelLabel = strings.TrimSpace(modelName)
+			} else {
+				var nested struct {
+					Provider string `json:"provider"`
+					Model    string `json:"model"`
+				}
+				if err := json.Unmarshal(rawModel, &nested); err == nil && nested.Model != "" {
+					if nested.Provider != "" {
+						member.ModelLabel = nested.Provider + " / " + nested.Model
+					} else {
+						member.ModelLabel = nested.Model
+					}
+				}
+			}
 		}
 	}
 }

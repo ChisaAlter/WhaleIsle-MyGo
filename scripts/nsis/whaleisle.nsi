@@ -6,30 +6,30 @@
 ; Usage:
 ;   makensis /DVERSION=0.0.0-dev scripts\nsis\whaleisle.nsi
 ;
-; Cover-upgrade target matches Electron appId ai.deepseek.harness.gui
-; default install dir under %LOCALAPPDATA%\Programs\Deepseek-Harness-Desktop.
+; Side-by-side native install identity separate from Electron appId
+; ai.deepseek.harness.gui, defaulting to %LOCALAPPDATA%\Programs\WhaleIsle-MyGo.
 
 !ifndef VERSION
   !define VERSION "0.0.0-dev"
 !endif
 
 !ifndef PRODUCT_NAME
-  !define PRODUCT_NAME "鲸屿go"
+  !define PRODUCT_NAME "鲸屿 MyGo"
 !endif
 !ifndef APP_ID
-  !define APP_ID "ai.deepseek.harness.gui"
+  !define APP_ID "ai.deepseek.harness.gui.mygo"
 !endif
 !define EXE_NAME "whaleisle.exe"
 !ifndef STAGE_DIR
   !define STAGE_DIR "..\..\dist\whaleisle"
 !endif
 !ifndef SETUP_OUT
-  !define SETUP_OUT "..\..\dist\WhaleIsle-Setup-${VERSION}.exe"
+  !define SETUP_OUT "..\..\dist\WhaleIsle-MyGo-Setup-${VERSION}.exe"
 !endif
 
 Name "${PRODUCT_NAME}"
 OutFile "${SETUP_OUT}"
-InstallDir "$LOCALAPPDATA\Programs\Deepseek-Harness-Desktop"
+InstallDir "$LOCALAPPDATA\Programs\WhaleIsle-MyGo"
 InstallDirRegKey HKCU "Software\${APP_ID}" "InstallLocation"
 RequestExecutionLevel user
 Unicode true

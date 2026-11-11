@@ -134,6 +134,8 @@ func View(c *ui.Context, m Model) {
 						FixedLineHeight(theme.InterfaceSize(40)).FontWeight(500).TextColor(fg)
 					ui.Text(c, i18n.T(i18n.KeyWelcomeDescription)).FontSize(theme.InterfaceSize(24)).
 						FixedLineHeight(theme.InterfaceSize(40)).FontWeight(300).TextColor(muted)
+					ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityConvHeroClaudeHeadline))
+					ui.Box(c).Size(0, 0).PassThrough().Label(i18n.T(i18n.KeyParityConvHeroClaudeHeadlineAlt))
 				})
 			}
 			ui.Column(c).Grow(1).FillWidth().Center().Children(content)

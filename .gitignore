@@ -5,6 +5,7 @@
 # Built harness runtime + node_modules; rebuild with scripts/build-harness.ps1
 # (sources are copied from the reference snapshot, see reference/README.md)
 runtime/
+/runtime-rc4/
 
 # Read-only snapshot of the original Electron app (regenerate per reference/README.md)
 reference/electron/

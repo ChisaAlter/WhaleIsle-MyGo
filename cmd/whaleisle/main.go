@@ -1,4 +1,4 @@
-// Command whaleisle is the Go desktop shell of DeepSeekHarness Go.
+// Command whaleisle is the Go desktop shell of Whale Isle MyGo.
 //
 // Assembles M1 shell chrome and M2 harness boot: single-instance lock,
 // config / credentials, custom title bar, tray, close-to-tray, open-at-login,
@@ -242,6 +242,7 @@ type mainState struct {
 	settingsSkillEditUser                   bool
 	settingsSkillEditWritable               bool
 	settingsAgentPresetsActive              bool
+	acpPanel                                acpPanelState
 	settingsModelLabel                      string
 	settingsModelSession                    string
 	settingsModelDrafts                     map[string]string
@@ -287,6 +288,8 @@ type mainState struct {
 	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
 	assistantGroupLive                      assistantGroupLiveState
 	whaleSettings                           assiststore.WhaleSettingsEditor
+	whaleTasks                              assiststore.WhaleTaskPanel
+	proactivePanel                          proactivePanelState
 	whaleCatalog                            whaleCatalogState
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
@@ -568,6 +571,7 @@ var state = mainState{fileEditViewMode: files.EditViewEdit}
 // dsh RPC; unsupported operations stay explicit 501 responses in installctrl.
 func desktopControlOps() installctrl.DesktopOps {
 	return installctrl.DesktopOps{
+		Proactive: state.dispatchProactive,
 		State: func(context.Context) (any, error) {
 			state.mu.Lock()
 			cfgStore := state.cfgStore
@@ -2042,6 +2046,11 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.bindQuestionDraftRecovery(inter)
 	}
 	go s.runDSH(ctx, client, mux, inter)
+	s.dshMu.Lock()
+	if s.dshClient == client && ctx.Err() == nil {
+		s.bindProactiveRunner(ctx, client)
+	}
+	s.dshMu.Unlock()
 	sessions.InitializeDefaultModel(context.Background())
 	sessions.RefreshModelCatalog(context.Background())
 	sessions.RefreshAgentPresets(context.Background())
@@ -2055,6 +2064,7 @@ func (s *mainState) stopDSH() {
 }
 
 func (s *mainState) stopDSHLocked() {
+	s.bindProactiveRunner(context.Background(), nil)
 	s.assistantBotCreator.Suspend()
 	s.assistantBotVisibility.Suspend()
 	s.assistantContacts.Suspend()
@@ -2067,6 +2077,10 @@ func (s *mainState) stopDSHLocked() {
 	s.cancelComposerVoice()
 	s.mu.Lock()
 	s.cancelSessionLogExportsLocked()
+	if s.acpPanel.cancel != nil {
+		s.acpPanel.cancel()
+	}
+	s.acpPanel = acpPanelState{generation: s.acpPanel.generation + 1}
 	s.stopProjectProcessLocked()
 	s.invalidateSettingsSkillCreateLocked()
 	s.invalidateSettingsSkillHubLocked()
@@ -2414,6 +2428,7 @@ func main() {
 			state.assistant = asst
 			state.mu.Unlock()
 		}
+		state.openProactive(userData)
 		state.openCustomPanels(userData)
 		if roster, err := dshbotstore.Open(userData); err != nil {
 			log.Println("dshbot roster:", err)
@@ -2514,6 +2529,31 @@ func main() {
 			// transparent (native dark + glassOpacity model).
 			bgColor = "rgba(0,0,0,0)"
 		}
+		state.mu.Lock()
+		state.layout = frame.DefaultLayout()
+		if cfg.SidebarWidth >= 264 {
+			state.layout.Sidebar = cfg.SidebarWidth
+			if state.layout.Sidebar > 420 {
+				state.layout.Sidebar = 420
+			}
+		}
+		state.terminalVisible = false
+		state.layout.Bottom = 0
+		state.terminalSavedBottom = frame.DefaultLayout().Bottom
+		if cfg.TerminalHeight >= 80 {
+			state.terminalSavedBottom = cfg.TerminalHeight
+		}
+		state.chatList = ui.ListState{FollowEnd: true}
+		state.fileExpanded = map[string]bool{}
+		state.planBoardOpen = false
+		state.todoPanelCollapsed = true
+		state.trajActualDur = true
+		state.trajDetailTab = "overview"
+		state.mu.Unlock()
+		stateKey := "main"
+		if isolatedDesktopRun() {
+			stateKey = ""
+		}
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
 			Title:          i18n.T(i18n.KeyAppName),
@@ -2521,7 +2561,7 @@ func main() {
 			Height:         winHeight,
 			MinWidth:       winMinWidth,
 			MinHeight:      winMinHeight,
-			StateKey:       "main",
+			StateKey:       stateKey,
 			Hidden:         hidden || background || launcherFirst,
 			TitleBarStyle:  mygo.TitleBarHidden,
 			TitleBarHeight: int(chrome.EffectiveTitleBarHeight()),
@@ -2728,6 +2768,8 @@ func main() {
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
 		state.startNativeUpdateCenter(win)
+		state.startProactiveMonitor()
+		mygo.App.OnQuit(state.cancelProactiveMonitor)
 		state.startNativeUIRecovery(win)
 		win.OnClosed(state.cancelImportCatalogScan)
 		win.OnClosed(state.stopNativeUpdateCenter)
@@ -4342,7 +4384,7 @@ func mainView(c *ui.Context) {
 						OnOpenLink:            desktopwebview.OpenExternal,
 						AppName:               i18n.T(i18n.KeyAppName),
 						Version:               buildVersion,
-						Identifier:            "ai.deepseek.harness.gui",
+						Identifier:            product.AppID,
 						UserData:              paths.UserDataDir(),
 						VendorRoot:            paths.VendorDir(),
 						AnalyticsEnabled:      state.analyticsEnabled,
@@ -5542,6 +5584,7 @@ func mainView(c *ui.Context) {
 				roomRuntimeRendered = asstSnap.Mode == assiststore.ModeDshbot
 				roomRuntimeModel := state.assistantRoomRuntimeModel(ep, dshbotSelectedID)
 				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
+				whaleTasksModel := state.assistantWhaleTasksModel(ep)
 				assistant.View(c, assistant.Model{
 					RoutineCreate:         routineCreateModel,
 					RoomCreate:            roomCreateModel,
@@ -5554,6 +5597,8 @@ func mainView(c *ui.Context) {
 					RoomRuntime:           roomRuntimeModel,
 					Routines:              routineModel,
 					WhaleSettings:         whaleSettingsModel,
+					WhaleTasks:            whaleTasksModel,
+					Proactive:             state.proactiveModel(),
 					Tasks:                 taskModel,
 					ThemeID:               themeID,
 					SystemDark:            mygo.Theme.IsDark(),
@@ -6608,7 +6653,9 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnNoDirectory: func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
+						OnNoDirectory:    func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
+						OnCreateSession:  func() { state.openGlobalWorkspaceSession(win, sessions) },
+						DirectoryActions: state.workspaceDirectoryActions(win),
 						OnCreateWorkspaceSession: func(generation uint64, id string) {
 							state.openWorkspaceSession(win, sessions, generation, id)
 						},
@@ -6917,17 +6964,7 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnOpenAssistant: func() {
-							state.mu.Lock()
-							state.assistantConversationGeneration++
-							state.assistantOpen = true
-							state.marketOpen = false
-							state.scheduleOpen = false
-							state.settingsOpen = false
-							state.launcherOpen = false
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
+							state.openWhaleFromSidebar(win)
 						},
 						OnOpenLauncher: func() {
 							state.mu.Lock()
@@ -7352,6 +7389,17 @@ func mainView(c *ui.Context) {
 			Store:               sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
 			FrameView:     sessionViews.view(sessions),
 			SessionSearch: &sessionSearch, RenameSessionID: &renameSessionID, RenameDraft: &renameDraft,
+			Interactions: interactions, HideArchivedList: cfgHideArchivedList, RightPaneTab: &rightPaneTab,
+			OnToggleTools: func() {
+				state.mu.Lock()
+				next := !state.filesPaneOpen
+				state.toolsMenuOpen = false
+				state.mu.Unlock()
+				state.setFilesPaneOpen(next)
+				if win != nil {
+					win.Update(func() {})
+				}
+			},
 			WorkspaceRoot: workspaceRoot, WorkspacePage: sharedNativeCaption && desktopChromeLocked,
 			GitWorkbench: &gitWorkbench,
 			Account: sidebar.Account{

@@ -137,6 +137,19 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	s.mu.Unlock()
 	s.bindShellParity(c, &m, win)
 	sessions := m.Store
+	if m.ActivePanel == "" && sessions != nil {
+		snap := sessions.RenderSnapshot()
+		if strings.HasPrefix(snap.SelectedID, "session-whale-") {
+			m.ActivePanel = "assistant"
+		} else if snap.SelectedID != "" {
+			for _, it := range snap.Items {
+				if it.SessionID == snap.SelectedID && it.Presentation != nil && it.Presentation.Owner == "dsh-whale:assistant" {
+					m.ActivePanel = "assistant"
+					break
+				}
+			}
+		}
+	}
 	m.ScheduleStore = s.schedule
 	m.OnOpenScheduleTask = s.openScheduleTask
 	m.OnOpenScheduleSession = s.openScheduleSession
@@ -155,7 +168,13 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		}
 	}
 	m.OnOpenDeliverable = func(path string) { s.queueNavigationFile(sessions, path) }
-	m.OnSelectSession = func(id string) { s.selectMainPanel(""); sessions.Select(id) }
+	m.OnSelectSession = func(id string) {
+		s.mu.Lock()
+		s.resumePendingSession = ""
+		s.mu.Unlock()
+		s.selectMainPanel("")
+		sessions.Select(id)
+	}
 	m.OnCreateSession = func() { s.openGlobalWorkspaceSession(win, sessions) }
 	m.DirectoryActions = s.workspaceDirectoryActions(win)
 	m.OnCreateWorkspaceSession = func(generation uint64, id string) {

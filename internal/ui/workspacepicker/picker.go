@@ -4,7 +4,6 @@ package workspacepicker
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -97,23 +96,43 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
 		panel.Key("workspace-registration").Width(440).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Children(func() {
-			ui.Text(c, text("添加工作区", "Add workspace")).FontSize(theme.InterfaceSize(17)).FontWeight(500)
+			ui.Text(c, i18n.T(i18n.KeyWSWorkspaceAdd)).FontSize(theme.InterfaceSize(17)).FontWeight(500)
+			if request.Error != "" {
+				ui.Text(c, i18n.T(i18n.KeyWSFolderErrorTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.Muted))
+			}
 			ui.Text(c, request.Draft).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(14))
 			ui.Text(c, request.Error).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				if ui.Button(c, text("取消", "Cancel")).Disabled(request.Busy).Clicked() {
+				cancelBtn := ui.Button(c, text("取消", "Cancel")).Disabled(request.Busy)
+				if !request.Busy {
+					cancelBtn.Cursor(ui.CursorPointer)
+				}
+				if cancelBtn.Clicked() {
 					m.Store.CancelWorkspaceNavigation(request.Token)
 				}
 				ui.Box(c).Grow(1)
-				if m.OnBrowse != nil && ui.Button(c, text("重新选择…", "Choose again…")).Disabled(request.Busy).Clicked() {
-					m.OnBrowse()
+				if m.OnBrowse != nil {
+					chooseBtn := ui.Button(c, text("重新选择…", "Choose again…")).Tooltip(i18n.T(i18n.KeyWSFolderErrorRetry)).Disabled(request.Busy)
+					if !request.Busy {
+						chooseBtn.Cursor(ui.CursorPointer)
+					}
+					if chooseBtn.Clicked() {
+						m.OnBrowse()
+					}
 				}
 				label := text("重试", "Retry")
 				if request.Busy {
 					label = text("正在添加…", "Adding…")
 				}
-				if m.OnRegister != nil && ui.PrimaryButton(c, label).Disabled(request.Busy || strings.TrimSpace(request.Draft) == "").Clicked() {
-					m.OnRegister(request.Token, request.Draft)
+				if m.OnRegister != nil {
+					regDisabled := request.Busy || strings.TrimSpace(request.Draft) == ""
+					regBtn := ui.PrimaryButton(c, label).Disabled(regDisabled)
+					if !regDisabled {
+						regBtn.Cursor(ui.CursorPointer)
+					}
+					if regBtn.Clicked() {
+						m.OnRegister(request.Token, request.Draft)
+					}
 				}
 			})
 		})
@@ -192,7 +211,7 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				ui.Scroll(c).FillWidth().MinWidth(0).Height(min(float32(len(snap.Workspaces))*34, max(34, height-180))).Children(func() {
 					for _, workspace := range snap.Workspaces {
 						ws := workspace
-						title := session.WorkspaceDisplayTitle(ws.Title, text("默认工作区", "Default workspace"))
+						title := session.WorkspaceDisplayTitle(ws.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 						if title == "" {
 							title = ws.Path
 						}
@@ -206,16 +225,16 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				ui.Box(c).FillWidth().Height(.5).Margin(3, 2).Background(chrome.Color(colors.Border))
 			}
 			if !snap.WorkspaceReady {
-				ui.Text(c, text("正在加载工作区…", "Loading workspaces…")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(6, 8)
+				ui.Text(c, i18n.T(i18n.KeyWSPickerLoading)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(6, 8)
 			}
 			if m.OnNoDirectory != nil {
-				row("no-directory", text("无工作区文件夹", "No workspace folder"), "", m.Store.WorkspaceID() == "" && snap.ScratchCwd != "" && snap.SelectedCwd == snap.ScratchCwd, "chat", request.Busy, func() {
+				row("no-directory", i18n.T(i18n.KeyWSMenuNoDirectory), "", m.Store.WorkspaceID() == "" && snap.ScratchCwd != "" && snap.SelectedCwd == snap.ScratchCwd, "chat", request.Busy, func() {
 					m.Store.CancelWorkspaceNavigation(request.Token)
 					m.OnNoDirectory()
 				})
 			}
 			if m.OnBrowse != nil {
-				row("add-workspace", text("添加工作区…", "Add workspace…"), "", false, "add", request.Busy, m.OnBrowse)
+				row("add-workspace", i18n.T(i18n.KeyWSMenuAddWorkspace), "", false, "add", request.Busy, m.OnBrowse)
 			}
 			for _, action := range m.DirectoryActions {
 				label, visible := action.Presentation(actionPath, true)
@@ -247,6 +266,9 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 func menuRow(c *ui.Context, label, path string, selected bool, icon string, disabled bool, colors theme.Colors) ui.Element {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(6, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
+	if !disabled {
+		button.Cursor(ui.CursorPointer)
+	}
 	button.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })
@@ -314,9 +336,9 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 	title := text("工作区", "Workspace")
 	switch request.Mode {
 	case "rename":
-		title = text("重命名工作区", "Rename workspace")
+		title = i18n.T(i18n.KeyWSRenameWorkspaceTitle)
 	case "remove":
-		title = text("删除工作区", "Delete workspace")
+		title = i18n.T(i18n.KeyWSDeleteWorkspace)
 	}
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
@@ -334,11 +356,14 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 			blocked := request.Busy
 			draft := request.Draft
 			feedback := request.Error
-			targetTitle := session.WorkspaceDisplayTitle(request.TargetTitle, text("默认工作区", "Default workspace"))
+			targetTitle := session.WorkspaceDisplayTitle(request.TargetTitle, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 			ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
 					close := ui.Button(c, "").Label(text("关闭", "Close")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(request.Busy)
+					if !request.Busy {
+						close.Cursor(ui.CursorPointer)
+					}
 					if close.Hovered() && !request.Busy {
 						close.Background(chrome.Color(colors.Hover))
 					}
@@ -372,7 +397,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 						if request.Mode == "rename" {
 							seeded := ui.Local(panel, "rename-seeded", func() bool { return false })
 							if !*seeded {
-								draft = session.WorkspaceDisplayTitle(draft, text("默认工作区", "Default workspace"))
+								draft = session.WorkspaceDisplayTitle(draft, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 								if draft != request.Draft {
 									m.Store.SetWorkspaceNavigationDraft(request.Token, draft)
 								}
@@ -380,7 +405,7 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 							}
 							input := ui.TextInput(c.Key(request.Token), &draft).FillWidth().MinWidth(0).Height(44).Padding(7, 14).Radius(16).
 								Border(0.5, borderL4).Background(ui.Transparent).
-								FontSize(theme.InterfaceSize(14)).Label(text("工作区名称", "Workspace name")).Disabled(request.Busy)
+								FontSize(theme.InterfaceSize(14)).Label(i18n.T(i18n.KeyWSFieldWorkspaceName)).Disabled(request.Busy)
 							first := ui.Local(input, "rename-focus", func() bool { return true })
 							if *first {
 								input.Focus().SetTextSelection(0, utf8.RuneCountInString(draft))
@@ -399,19 +424,21 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 									blocked = blocked || ws.Title == trimmed
 									continue
 								}
-								if trimmed != "" && session.WorkspaceDisplayTitle(ws.Title, text("默认工作区", "Default workspace")) == trimmed {
+								if trimmed != "" && session.WorkspaceDisplayTitle(ws.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle)) == trimmed {
 									blocked = true
-									feedback = fmt.Sprintf(text("已存在名为“%s”的工作区。", "A workspace named “%s” already exists."), trimmed)
+									feedback = i18n.WSf(i18n.KeyWSConflictNamed, "name", trimmed)
 								}
 							}
 							blocked = blocked || !found
 							submitted = input.Submitted() && !input.Composing()
 						} else {
 							ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-							if ui.Button(c, text("重命名工作区", "Rename workspace")).FillWidth().Clicked() {
+							renameMenuBtn := ui.Button(c, i18n.T(i18n.KeyWSRenameWorkspaceTitle)).FillWidth().Cursor(ui.CursorPointer)
+							if renameMenuBtn.Clicked() {
 								m.Store.BeginWorkspaceRename(request.TargetID)
 							}
-							if ui.Button(c, text("删除工作区", "Delete workspace")).FillWidth().Clicked() {
+							deleteMenuBtn := ui.Button(c, i18n.T(i18n.KeyWSDeleteWorkspace)).FillWidth().Cursor(ui.CursorPointer)
+							if deleteMenuBtn.Clicked() {
 								m.Store.BeginWorkspaceRemoval(request.TargetID)
 							}
 						}
@@ -429,6 +456,9 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 				cancelBtn := ui.Button(c, cancelLabel).Label(cancelLabel).Height(36).Padding(0, 14).Radius(12).
 					FontSize(theme.InterfaceSize(14)).TextColor(fg).
 					Border(0.5, borderL3).Background(ui.Transparent).Disabled(request.Busy)
+				if !request.Busy {
+					cancelBtn.Cursor(ui.CursorPointer)
+				}
 				if cancelBtn.Hovered() && !request.Busy {
 					cancelBtn.Background(chrome.Color(colors.Hover))
 				}
@@ -448,10 +478,13 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 					if btnFG.A == 0 {
 						btnFG = chrome.Color(colors.BG)
 					}
-					renameLabel := text("重命名", "Rename")
+					renameLabel := i18n.T(i18n.KeyWSRename)
 					renameBtn := ui.Button(c, renameLabel).Label(renameLabel).Height(36).Padding(0, 14).Radius(12).
 						FontSize(theme.InterfaceSize(14)).TextColor(btnFG).
 						BorderWidth(0).Background(brand).Disabled(blocked)
+					if !blocked {
+						renameBtn.Cursor(ui.CursorPointer)
+					}
 					if renameBtn.Hovered() && !blocked {
 						renameBtn.Background(brandHover)
 					}
@@ -459,10 +492,13 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 						m.Store.ConfirmWorkspaceRename(context.Background(), request.Token, draft)
 					}
 				} else if request.Mode == "remove" {
-					deleteLabel := text("删除工作区", "Delete workspace")
+					deleteLabel := i18n.T(i18n.KeyWSDeleteWorkspace)
 					deleteBtn := ui.Button(c, deleteLabel).Label(deleteLabel).Height(36).Padding(0, 14).Radius(12).
 						FontSize(theme.InterfaceSize(14)).TextColor(danger).
 						Border(0.5, borderL3).Background(ui.Transparent).Disabled(request.Busy)
+					if !request.Busy {
+						deleteBtn.Cursor(ui.CursorPointer)
+					}
 					if deleteBtn.Hovered() && !request.Busy {
 						deleteBtn.Background(chrome.Color(colors.Hover))
 					}

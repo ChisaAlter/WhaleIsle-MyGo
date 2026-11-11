@@ -49,7 +49,7 @@ func handleNativeRecoveryProcess() bool {
 		return true
 	}
 	defer process.close()
-	mygo.App.SetName("Whale Isle · Recovery")
+	mygo.App.SetName("Whale Isle MyGo · Recovery")
 	if hello.Locale != "" {
 		i18n.SetLocale(hello.Locale)
 	}

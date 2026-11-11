@@ -62,14 +62,14 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 				}
 				if len(running) > 0 && ui.Button(c, interruptLabel).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
 					Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).
-					FontSize(theme.InterfaceSize(11)).Disabled(v.ActionBusy || (v.RetainedReadOnly && !(m.ChatOnly && v.RetainedPromptAllowed))).Clicked() {
+					FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(v.ActionBusy || (v.RetainedReadOnly && !(m.ChatOnly && v.RetainedPromptAllowed))).Clicked() {
 					if m.ChatOnly && v.RetainedReadOnly {
 						m.Store.InterruptRetainedAgentExplicit(v.Token, v.Address)
 					} else {
 						m.Store.InterruptAgentNavigation(v.Token, running)
 					}
 				}
-				if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Clicked() {
+				if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
 					m.Store.CloseAgentNavigation()
 					m.OnClose()
 				}
@@ -89,7 +89,7 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 				ui.Column(c).FillWidth().Padding(8, 12, 4, 12).Children(func() {
 					ui.Column(c).FillWidth().Radius(10).Border(0.5, border).Padding(10, 12).Gap(4).Children(func() {
 						ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-							if !m.ChatOnly && v.Depth > 0 && ui.Button(c, agentText("返回上一级", "Back to parent")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Clicked() {
+							if !m.ChatOnly && v.Depth > 0 && ui.Button(c, agentText("返回上一级", "Back to parent")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
 								m.Store.BackAgentNavigation(v.Token)
 							}
 							ui.Text(c, v.Title).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Grow(1)
@@ -97,7 +97,7 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 							if v.Depth > 0 {
 								caption = agentText("回到最新 / 重连", "Latest / reconnect")
 							}
-							if ui.Button(c, caption).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy).Clicked() {
+							if ui.Button(c, caption).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(v.Busy).Clicked() {
 								m.Store.RefreshAgentNavigation(v.Token)
 							}
 						})
@@ -140,7 +140,7 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 					if v.Depth > 0 {
 						ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 							ui.Box(c).Grow(1)
-							if ui.Button(c, agentText("较早记录", "Earlier records")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy || !v.Process.HasMore).Clicked() {
+							if ui.Button(c, agentText("较早记录", "Earlier records")).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(v.Busy || !v.Process.HasMore).Clicked() {
 								m.Store.EarlierAgentNavigation(v.Token)
 							}
 						})

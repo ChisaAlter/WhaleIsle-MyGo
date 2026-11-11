@@ -161,7 +161,7 @@ func verifyPackagedMobileResources(root string) (string, error) {
 		return "", nil
 	}
 	var m mobileResourceManifest
-	if err := json.Unmarshal(raw, &m); err != nil || m.Format != 3 || m.Profile != "installed-rc2" || m.Files == nil || m.Links == nil {
+	if err := json.Unmarshal(raw, &m); err != nil || m.Format != 3 || (m.Profile != "installed-rc2" && m.Profile != "installed-rc4") || m.Files == nil || m.Links == nil {
 		return "", fmt.Errorf("unsupported packaged mobile manifest")
 	}
 	platform, arch := runtime.GOOS, runtime.GOARCH
@@ -253,6 +253,18 @@ func verifyPackagedMobileResources(root string) (string, error) {
 	}
 	vendor := filepath.Dir(root)
 	peer := filepath.Join(vendor, "deepseek-harness")
+	if m.Profile == "installed-rc4" {
+		identity, err := os.ReadFile(filepath.Join(peer, "package.json"))
+		var host struct{ Version string }
+		if err != nil || json.Unmarshal(identity, &host) != nil || host.Version != "0.2.1-rc.4" {
+			return "", fmt.Errorf("mobile rc.4 Host version mismatch")
+		}
+		for _, name := range []string{"viewer.html", "assets/standalone-runtime.js", "assets/icons.js", "assets/mermaid.js", "assets/three.js", "assets/echarts-core.js", "assets/echarts-full.js"} {
+			if m.Files["mobile/web/whale-ui/"+name] == "" {
+				return "", fmt.Errorf("missing mobile Whale UI resource: %s", name)
+			}
+		}
+	}
 	for _, name := range []string{"apps/cli/lib/bin.js", "packages/core/session/lib/index.js", "packages/session/session-persistence/lib/index.js"} {
 		filename, err := mobileChild(peer, name)
 		if err != nil {

@@ -85,10 +85,10 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 		open := state.FloatingOpen
 		ui.PopoverBase(c.Key("project-team-popover"), anchor, &open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, width, w, 16)
-			panel = panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Radius(12).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18))
+			panel = panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Radius(12).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18))
 			panel = chrome.PopoverReveal(c, panel)
 			panel.Children(func() {
-				ui.Row(c).FillWidth().Gap(6).Children(func() {
+				ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Gap(8).Padding(4, 14, 8, 14).Children(func() {
 					if ui.Button(c, paneLabel("持续观察", "Keep observing")).Clicked() {
 						if err := openProjectTeamSidebar(m, model); err != nil {
 							state.NavigationError = err.Error()

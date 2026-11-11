@@ -15,7 +15,7 @@ import (
 //go:embed dshbot-room-adapter.mjs
 var dshbotRoomAdapter string
 
-// The original dshbot package still provisions .agent-presets on disk. rc.2
+// The original dshbot package still provisions .agent-presets on disk. rc.2/rc.4
 // needs the same definition registered with the live registry instead. Keep
 // this adaptation inside the already selected dsh-bot entry and its profile.
 func writeDshbotRoomOverlay(o PrepareOptions, plugin DesktopPlugin) (string, error) {
@@ -34,7 +34,7 @@ func writeDshbotRoomOverlay(o PrepareOptions, plugin DesktopPlugin) (string, err
 	if err = json.Unmarshal(registry, &identity); err != nil {
 		return "", err
 	}
-	if identity.Name != "@deepseek-ai/dsh-agent-preset-registry" || identity.Version != "0.2.1-rc.2" {
+	if identity.Name != "@deepseek-ai/dsh-agent-preset-registry" || (identity.Version != "0.2.1-rc.2" && identity.Version != "0.2.1-rc.4") {
 		return writeInsertOverlay(o.ProfileDir, plugin)
 	}
 	source := filepath.Join(o.VendorDir, plugin.VendorName)

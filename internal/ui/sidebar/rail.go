@@ -14,6 +14,9 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 		b := ui.ButtonBase(c.Key(key)).Size(36, 36).Shrink(0).Padding(0).Radius(12).
 			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).
 			Label(label).Tooltip(label).Disabled(!enabled)
+		if enabled {
+			b.Cursor(ui.CursorPointer)
+		}
 		if b.Hovered() {
 			b.Background(chrome.Color(colors.Hover))
 		}

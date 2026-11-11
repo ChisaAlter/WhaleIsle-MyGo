@@ -195,7 +195,7 @@ func (s *Store) applyWorkspacePreferenceViewLocked(scope string) {
 			s.workspaceLayout.view.Collapsed[row.WorkspaceID] = value
 		}
 	}
-	for _, key := range []string{"::scratch", "::other"} {
+	for _, key := range []string{"::scratch", "::other", PinnedWorkspaceGroup} {
 		if value, ok := prefs.Collapsed[key]; ok {
 			s.workspaceLayout.view.Collapsed[key] = value
 		}
@@ -296,7 +296,7 @@ func (s *Store) workspacePreferencesChangedLocked(kind, key string) {
 		e.archivedFilter = &value
 	case "collapsed":
 		value := s.workspaceLayout.view.Collapsed[key]
-		if key == "::scratch" || key == "::other" {
+		if key == "::scratch" || key == "::other" || key == PinnedWorkspaceGroup {
 			if e.collapsed == nil {
 				e.collapsed = map[string]bool{}
 			}

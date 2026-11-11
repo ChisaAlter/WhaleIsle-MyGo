@@ -162,6 +162,16 @@ func deliveryEvidenceView(c *ui.Context, m Model) {
 			for _, v := range r.RemainingIssues {
 				ui.Text(c, tr("原报告未完成项：", "Recorded remaining issue: ")+v).FontSize(fonttheme.InterfaceSize(13)).Selectable()
 			}
+			if len(r.Sources) > 0 {
+				ui.Text(c, fmt.Sprintf(tr("查阅的来源 · %d", "Sources consulted · %d"), len(r.Sources))).FontSize(fonttheme.InterfaceSize(12))
+				for _, s := range r.Sources {
+					prefix := ""
+					if s.Kind == "search" {
+						prefix = tr("搜索：", "Searched: ")
+					}
+					ui.Text(c, prefix+s.Text).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+				}
+			}
 			if len(r.Request) > 0 && string(r.Request) != "null" {
 				var value any
 				if json.Unmarshal(r.Request, &value) == nil {

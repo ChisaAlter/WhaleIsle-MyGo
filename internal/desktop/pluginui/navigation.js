@@ -34,7 +34,7 @@ function whaleBindNativeNavigation(ctx){
   function registry(){
    const result=[];declared.clear();
    for(const slot of ['main','sidebar.page','settings.section','settings.remote.tab','settings.plugins.tab'])for(const entry of slot==='settings.plugins.tab'?ctx.slots.entries(slot):entries(slot)){
-    const declaredBy=entry.registrant||entry.options.registrant;if(!whaleHostsEntry(slot,{stock:stock(entry),nativeDefault:nativeDefaults.has(declaredBy),nativeSetting:nativeSettings.has(declaredBy)}))continue;
+    const declaredBy=entry.registrant||entry.options.registrant||entry.options.locale;if(!whaleHostsEntry(slot,{stock:stock(entry),nativeDefault:nativeDefaults.has(declaredBy),nativeSetting:nativeSettings.has(declaredBy)}))continue;
     const id=entry.options.key||entry.options.id;if(!id)continue;
     const identity=[slot,String(id),String(entry.registrant||entry.options.registrant||'')];
     const key=slot==='settings.plugins.tab'?JSON.stringify(identity):identity.join(':');

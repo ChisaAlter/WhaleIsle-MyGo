@@ -427,10 +427,12 @@ func popover(c *context, anchor *node, open *bool, modal bool, fn func(panel *no
 			if back.Clicked() {
 				*open = false
 			}
+			back.noPointerCursor = true
 		}
 		panel = coreBox(c).Role(RolePopup).AttachTo(anchor, AnchorBottomLeft, AnchorTopLeft)
 		// Presses on it stay in it.
 		panel.flags |= flagClickable
+		panel.noPointerCursor = true
 		panel.Children(func() { fn(panel) })
 		if panel.OverlayShortcut(0, KeyEscape) || !modal && panel.PressedOutside() {
 			*open = false
@@ -470,9 +472,11 @@ func coreDialogBaseOptions(c *context, open *bool, options DialogOptions, fn fun
 				}
 			}
 		}
+		back.noPointerCursor = true
 		back.Children(func() {
 			panel = coreBox(c).Role(RoleDialog)
 			panel.flags |= flagClickable
+			panel.noPointerCursor = true
 			panel.Children(func() { fn(back, panel) })
 		})
 	})

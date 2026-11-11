@@ -315,3 +315,49 @@ func TestObserverCardAssetsAndWorkUseExactCardActions(t *testing.T) {
 		t.Fatalf("last-read delivered card displaced active work: inspector=%v diff=%v", inspected, diffs)
 	}
 }
+
+func TestObserverAttentionAskAndResearchSitesMaterial(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	m, o := observerTaskFixture(t)
+	askCard := projectflow.RequestCard{
+		ID: "ask-1", ProjectID: "project-fixture", Revision: 1, Title: "Clarify research scope", Status: "blocked",
+		Stage: &projectflow.RequestStage{
+			State:        "awaitingAnswer",
+			NeedsYou:     true,
+			WorkstreamID: "work-res",
+			WorkTitle:    "Domain survey",
+			Ask: &projectflow.RequestAsk{
+				Question:     "Which domains should the research member consult?",
+				Options:      []string{"docs.example.org", "All public docs"},
+				IfUnanswered: "Paused until you answer.",
+			},
+		},
+	}
+	o.Attention = projectflow.RequestPage{Items: []projectflow.RequestCard{askCard}, Total: 1}
+	var gotReq, gotWork, gotQ, gotAns string
+	m.OnAskAnswer = func(reqID, workID, q, ans string) {
+		gotReq, gotWork, gotQ, gotAns = reqID, workID, q, ans
+	}
+	tt := ui.NewTester(func(c *ui.Context) { ObserverView(c, m, o) }, 900, 800)
+	tt.Frame()
+	if !tt.HasText("Needs you · 1") || !tt.HasText("Which domains should the research member consult?") {
+		t.Fatalf("attention ask card not rendered: %q", tt.Texts())
+	}
+	if err := tt.Click("docs.example.org"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Answer"); err != nil {
+		t.Fatal(err)
+	}
+	if gotReq != "ask-1" || gotWork != "work-res" || gotQ != "Which domains should the research member consult?" || gotAns != "docs.example.org" {
+		t.Fatalf("unexpected ask answer payload: %s / %s / %s / %s", gotReq, gotWork, gotQ, gotAns)
+	}
+	draft := projectflow.MaterialDraft{ProjectID: "project-fixture", Path: "research-hosts.txt", Loaded: true}
+	m.Material = &draft
+	m.MaterialMutable = true
+	ttMat := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { materialsView(c, m) }) }, 850, 600)
+	if !ttMat.HasText("Research sites") || !ttMat.HasText("Limit research members to these sites: one domain per line (example.com also covers its subdomains), # starts a comment. Leave it empty for no limit.") {
+		t.Fatalf("research-hosts.txt material view missing: %q", ttMat.Texts())
+	}
+}

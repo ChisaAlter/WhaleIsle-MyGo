@@ -10,7 +10,7 @@ import (
 
 func stateLabel(state string) string {
 	labels := map[string][2]string{
-		"ready": {"就绪", "Ready"}, "running": {"运行中", "Running"}, "assigned": {"已分配，未运行", "Assigned, not running"}, "completed": {"工作已完成", "Work completed"}, "delivered": {"已交付", "Delivered"}, "reported": {"已提交报告", "Report submitted"}, "paused": {"已停止", "Stopped"}, "stopping": {"正在停止", "Stopping"}, "provisioning": {"准备中", "Preparing"}, "queued": {"排队中", "Queued"}, "blocked": {"受阻", "Blocked"}, "failed": {"失败", "Failed"}, "summaryFailed": {"汇总失败", "Summary failed"}, "pendingSummary": {"等待汇总", "Awaiting summary"}, "needsReview": {"依赖已改变，需复核", "Dependencies changed; review needed"}, "unavailable": {"运行状态不可用", "Runtime status unavailable"}, "pending": {"待处理", "Pending"}, "in_progress": {"进行中", "In progress"}}
+		"ready": {"就绪", "Ready"}, "running": {"运行中", "Running"}, "inactive": {"未运行", "Inactive"}, "assigned": {"已分配，未运行", "Assigned, not running"}, "completed": {"工作已完成", "Work completed"}, "delivered": {"已交付", "Delivered"}, "reported": {"已提交报告", "Report submitted"}, "paused": {"已停止", "Stopped"}, "stopping": {"正在停止", "Stopping"}, "provisioning": {"准备中", "Preparing"}, "queued": {"排队中", "Queued"}, "blocked": {"受阻", "Blocked"}, "failed": {"失败", "Failed"}, "summaryFailed": {"汇总失败", "Summary failed"}, "pendingSummary": {"等待汇总", "Awaiting summary"}, "needsReview": {"依赖已改变，需复核", "Dependencies changed; review needed"}, "unavailable": {"运行状态不可用", "Runtime status unavailable"}, "pending": {"待处理", "Pending"}, "in_progress": {"进行中", "In progress"}}
 	if pair, ok := labels[state]; ok {
 		return tr(pair[0], pair[1])
 	}
@@ -97,8 +97,6 @@ func teamView(c *ui.Context, m Model) {
 				ui.Text(c, name+" · "+stateLabel(o.MemberState(member))).FontSize(fonttheme.InterfaceSize(13))
 				if member.ModelLabel != "" {
 					ui.Text(c, member.ModelLabel).FontSize(fonttheme.InterfaceSize(12))
-				} else if member.ModelError != "" {
-					ui.Text(c, tr("模型状态暂不可读：", "Model unavailable: ")+member.ModelError).FontSize(fonttheme.InterfaceSize(12))
 				}
 				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect("", member.ID)

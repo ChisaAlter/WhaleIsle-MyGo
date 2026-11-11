@@ -25,6 +25,7 @@ func scheduleNotice(c *ui.Context, key, message string, colors theme.Colors, bot
 		panel := ui.Column(c.Key("notice")).Absolute().Left((width-size)/2).Bottom(bottom).Width(size).MaxHeight(max(float32(0), height-bottom-24)).Padding(12, 16).Gap(8).Role(ui.RoleStatus).Label(message).Border(.5, chrome.Color(colors.Border)).Radius(12)
 		// The notice's blank space belongs to it, not to a composer underneath.
 		_ = panel.Clicked()
+		panel.Cursor(ui.CursorDefault)
 		chrome.GlassSurface(panel, chrome.Color(colors.Field), chrome.MaterialPanel, 12)
 		panel.Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .18)).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {

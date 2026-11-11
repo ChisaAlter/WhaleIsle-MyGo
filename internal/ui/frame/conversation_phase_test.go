@@ -35,6 +35,8 @@ func TestConversationPhaseSeparatesHistoryReadinessFromEmpty(t *testing.T) {
 		// blank-draft surface stays until the first message arrives, and the
 		// composer owns the running/stop affordance.
 		{"running blank", session.ViewState{SelectedID: "new", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "new", Running: true}}}, false, conversationHero},
+		{"presentation owned ordinary composer", session.ViewState{SelectedID: "session-whale-1", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "session-whale-1", Blank: true, Presentation: &session.SessionPresentation{Owner: "dsh-whale:assistant", Title: "鲸鱼娘"}}}}, false, conversationActive},
+		{"presentation owned managed composer", session.ViewState{SelectedID: "managed-1", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "managed-1", Blank: true, Presentation: &session.SessionPresentation{Owner: "plugin", Title: "Plugin", Composer: "managed"}}}}, false, conversationActive},
 		{"prompt pending", session.ViewState{SelectedID: "new", PromptBusy: true, SelectedSummaryBlank: true}, false, conversationActive},
 		{"first prompt failed", session.ViewState{SelectedID: "new", PromptAttempted: true, SelectedSummaryBlank: true}, false, conversationActive},
 		{"interaction", session.ViewState{SelectedID: "new", SelectedSummaryBlank: true}, true, conversationActive},

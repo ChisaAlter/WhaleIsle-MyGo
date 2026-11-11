@@ -10,6 +10,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"whaleisle/internal/config"
 )
@@ -79,7 +80,11 @@ func VendorDir() string {
 	}
 	candidates := []string{}
 	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "runtime", "vendor"))
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates, filepath.Join(exeDir, "runtime", "vendor"))
+		if strings.EqualFold(filepath.Base(exeDir), "bin") {
+			candidates = append(candidates, filepath.Join(filepath.Dir(exeDir), "runtime", "vendor"))
+		}
 	}
 	if wd, err := os.Getwd(); err == nil {
 		candidates = append(candidates, filepath.Join(wd, "runtime", "vendor"))

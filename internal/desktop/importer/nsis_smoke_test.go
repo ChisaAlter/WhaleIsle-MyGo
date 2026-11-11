@@ -40,7 +40,7 @@ func TestNSISInstallerSmoke(t *testing.T) {
 		t.Fatalf("smoke-nsis.ps1: %v\n%s", err, out)
 	}
 
-	setups, err := filepath.Glob(filepath.Join(output, "WhaleIsle-Smoke-*.exe"))
+	setups, err := filepath.Glob(filepath.Join(output, "WhaleIsle-MyGo-Smoke-*.exe"))
 	if err != nil || len(setups) != 1 {
 		t.Fatalf("expected one fresh installer, got %v: %v", setups, err)
 	}

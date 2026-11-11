@@ -245,6 +245,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			default:
 				renderInteractionSlot(c, p, "conversation.approval.actions", func() {}, renderers...)
 				deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false)
+				deny.Children(func() {
+					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityApprovalReject))
+				})
 				allow := interactionPrimaryButton(c, colors, i18n.T(i18n.KeyInteractionAllow), false)
 				if keys != nil {
 					allow.HandleInput(approvalHandler(keys, p, store, true))

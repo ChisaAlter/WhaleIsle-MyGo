@@ -51,7 +51,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			mode := &p.Mode
 			parts := ui.SelectBase(c.Key("inspector-mode-select"), mode)
 			parts.Trigger.Label(paneLabel("展示形式", "Presentation")).Padding(2, 4).BorderWidth(0).Radius(0).
-				Background(chrome.Color(colors.Field)).FontSize(11).MinHeight(0).Children(func() {
+				Background(chrome.Color(colors.Field)).FontSize(11).MinHeight(0).Cursor(ui.CursorPointer).Children(func() {
 				label := paneLabel("原始数据", "Raw Log")
 				if *mode == "chat-node" {
 					label = paneLabel("对话分组", "Chat Group")
@@ -64,7 +64,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			parts.Popup(func(panel ui.Element) {
 				panel.MinWidth(120).Padding(3).Background(chrome.Color(colors.Field)).Border(.5, border).Radius(4)
 				for _, item := range []struct{ key, label string }{{"session-log", paneLabel("原始数据", "Raw Log")}, {"chat-node", paneLabel("对话分组", "Chat Group")}} {
-					option := parts.Item(item.key).Label(item.label).Padding(4, 6)
+					option := parts.Item(item.key).Label(item.label).Padding(4, 6).Cursor(ui.CursorPointer)
 					if option.Highlighted() {
 						option.Background(chrome.Color(colors.Hover))
 					}
@@ -274,7 +274,7 @@ func inspectorCell(c *ui.Context, width float32) ui.Element {
 
 func inspectorTableHeader(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, width float32, colors theme.Colors) {
 	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(700).Background(chrome.Color(colors.Field)).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
-		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "ID") })
+		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, paneLabel("序号", "ID")).Tooltip(paneLabel("序号", "Index")) })
 		inspectorCell(c, 190).Role(ui.RoleColumnHeader).Gap(6).Children(func() { inspectorText(c, paneLabel("类型", "Type")); inspectorTypeFilter(c, p, rows) })
 		inspectorCell(c, 65).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "T/S") })
 		if p.Mode != "chat-node" {

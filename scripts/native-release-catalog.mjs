@@ -67,7 +67,11 @@ async function inspectWindows(stage, installer, arch) {
   if (fs.readFileSync(path.join(stage, '.runtime-staged'), 'utf8').trim() !== '1') throw Error('Invalid runtime staging marker');
   const vendor = path.join(stage, 'runtime/vendor');
   const host = await verifyHost(vendor);
-  const guarded = supportedCommits.includes(host.sourceCommit) && host.safetyPatch?.id === guard || host.sourceCommit === '687f282e8625c6b8d11ff58211a90524be2e4317' && host.buildProfile === 'installed-rc2' && host.safetyPatch?.id === sessionGuard;
+  const installedProfile = {
+    '687f282e8625c6b8d11ff58211a90524be2e4317': 'installed-rc2',
+    '504a01a9578abc2c6f1fb896b1dc322c9fe24f66': 'installed-rc4',
+  }[host.sourceCommit];
+  const guarded = supportedCommits.includes(host.sourceCommit) && host.safetyPatch?.id === guard || installedProfile !== undefined && host.buildProfile === installedProfile && host.safetyPatch?.id === sessionGuard;
   if (!guarded || host.platform !== 'win32' || host.arch !== (arch === 'amd64' ? 'x64' : 'arm64')) throw Error('Host is not the native MyGo-compatible runtime');
   verifyMobile(path.join(vendor, 'dshd-remote'));
   if (peMachine(path.join(stage, 'runtime/node/node.exe')) !== expectedMachine) throw Error('Bundled Node target mismatch');

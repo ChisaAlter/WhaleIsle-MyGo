@@ -124,6 +124,21 @@ func TestDshbotRoomCompatibilityOnlyForSelectedRc2Plugin(t *testing.T) {
 	}
 }
 
+func TestDshbotRoomCompatibilityRc4KeepsHiddenComposition(t *testing.T) {
+	o, p := dshbotRoomFixture(t)
+	if err := os.WriteFile(filepath.Join(o.HarnessRoot, "packages", "preset", "agent-preset-registry", "package.json"), []byte(`{"name":"@deepseek-ai/dsh-agent-preset-registry","version":"0.2.1-rc.4"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	patch, err := writeDshbotRoomOverlay(o, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := os.ReadFile(filepath.Join(filepath.Dir(patch), "room-adapter.mjs"))
+	if err != nil || !strings.Contains(string(module), `"hidden":true`) || !strings.Contains(string(module), `"name":"dshbot/ask-participant"`) {
+		t.Fatalf("rc.4 lost its hidden room registrar: %v", err)
+	}
+}
+
 func TestDshbotRoomAdapterAwaitsRegistrationAndDisposes(t *testing.T) {
 	node := os.Getenv("WHALEISLE_DSHBOT_ROOM_TEST_NODE")
 	if node == "" {

@@ -15,7 +15,7 @@ import (
 func (s *mainState) whaleSettingsOwner(ep harness.Endpoint) (*dsh.Client, string) {
 	s.mu.Lock()
 	petSettings := s.settingsPetActiveLocked()
-	active := (s.assistantOpen || petSettings) && s.bootStatus.State == harness.Ready && s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
+	active := (s.assistantOpen && !s.proactivePanel.open || petSettings) && s.bootStatus.State == harness.Ready && s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
 	readyEndpoint := s.bootStatus.Endpoint
 	generation := s.bootStatus.Generation
 	asst := s.assistant
@@ -200,6 +200,7 @@ func (s *mainState) observeWhaleSettings() {
 	_, host := s.whaleSettingsOwner(ep)
 	if host == "" {
 		s.whaleSettings.Suspend()
+		s.whaleTasks.Suspend()
 	} else {
 		s.whaleSettings.Bind(host)
 	}

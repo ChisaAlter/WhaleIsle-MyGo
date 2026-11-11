@@ -21,6 +21,7 @@ type Job struct {
 	Detail     string  `json:"detail,omitempty"`
 	StartedAt  float64 `json:"startedAt"`
 	FinishedAt float64 `json:"finishedAt,omitempty"`
+	ExitCode   *int    `json:"exitCode,omitempty"`
 	Output     struct {
 		Total      int64    `json:"total"`
 		Earliest   int64    `json:"earliest"`

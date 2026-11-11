@@ -30,8 +30,8 @@ func TestPrepareWritesOverlaysAndJunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 8 { // 4 builtin + remote + plugin views + native contribution UI + market
-		t.Fatalf("got %d patches, want 8: %v", len(patches), patches)
+	if len(patches) != 9 { // 4 builtin + remote + plugin views + native contribution UI + proactive + market
+		t.Fatalf("got %d patches, want 9: %v", len(patches), patches)
 	}
 	joined := strings.Join(patches, "\n")
 	if !strings.Contains(joined, "desktop-dsh-market.patch.yml") {
@@ -73,8 +73,8 @@ func TestPrepareOptionalPlugins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 9 { // 4 builtin + dshbot + whale + plugin views + native UI + market, no remote
-		t.Fatalf("got %d patches, want 9", len(patches))
+	if len(patches) != 10 { // 4 builtin + dshbot + whale + plugin views + native UI + proactive + market, no remote
+		t.Fatalf("got %d patches, want 10", len(patches))
 	}
 	joined := strings.Join(patches, "\n")
 	if !strings.Contains(joined, "desktop-dshbot.patch.yml") || !strings.Contains(joined, "desktop-dsh-whale.patch.yml") {
@@ -89,5 +89,41 @@ func TestOverlayYAMLQuotesScopedName(t *testing.T) {
 	got := overlayYAML("xmanrui-dsh-im", "@xmanrui/dsh-im")
 	if !strings.Contains(got, `name: "@xmanrui/dsh-im"`) {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestPrepareACPRequiresCompleteT3Package(t *testing.T) {
+	vendor, profile := t.TempDir(), t.TempDir()
+	for _, name := range []string{"dsh-task-control", "dsh-platform-session", "dsh-usage-panel", "dsh-im", "dsh-acp"} {
+		dir := filepath.Join(vendor, name)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"`+name+`"}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts := PrepareOptions{VendorDir: vendor, ProfileDir: profile, RemoteSet: true}
+	if _, err := Prepare(opts); err == nil {
+		t.Fatal("accepted ACP without its T3 bundle")
+	}
+	for _, name := range []string{"lib/index.js", "lib/presets.js", "lib/t3-runtime.js", "lib/t3-session.js", "lib/t3-auth.js", "lib/mcp-server.js", "lib/vendor/t3.cjs", "lib/vendor/t3-mcp-bridge.cjs", "client/client.js"} {
+		file := filepath.Join(vendor, "dsh-acp", name)
+		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte("// owned fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	patches, err := Prepare(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(patches, "\n"), "desktop-acp.patch.yml") {
+		t.Fatal("ACP not mounted")
+	}
+	if _, err := os.Stat(filepath.Join(profile, "node_modules", "dsh-acp-agents", "lib", "vendor", "t3.cjs")); err != nil {
+		t.Fatal(err)
 	}
 }

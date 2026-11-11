@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -34,6 +35,7 @@ type DesktopOps struct {
 	RemovePlugin     func(context.Context, string) (any, error)
 	DisablePlugins   func(context.Context, []string) (any, error)
 	EnablePlugin     func(context.Context, string) (any, error)
+	Proactive        func(context.Context, string, json.RawMessage) (any, error)
 }
 
 func (s *Server) handleDesktop(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +71,8 @@ func (s *Server) handleDesktop(w http.ResponseWriter, r *http.Request) {
 		s.handleDesktopPatch(w, r, s.opts.Desktop.ApplyPetSettings, "pet settings")
 	case r.Method == http.MethodPost && r.URL.Path == "/desktop/plugin":
 		s.handleDesktopPlugin(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/desktop/proactive":
+		s.handleProactive(w, r)
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 	}
@@ -81,7 +85,56 @@ func (s *Server) desktopEmpty() bool {
 	// wired. Other desktop operations still report their individual boundary.
 	return s.opts.Install == nil && d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
 		d.PetSettings == nil && d.ApplyPetSettings == nil && d.InstallCatalog == nil &&
-		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil
+		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil && d.Proactive == nil
+}
+
+func (s *Server) handleProactive(w http.ResponseWriter, r *http.Request) {
+	// Tool arguments include complete file edits. The install/config endpoint's
+	// 64 KiB envelope is not a tool-content limit; decode this authenticated
+	// route directly and reject trailing values without truncating arguments.
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	var body map[string]json.RawMessage
+	err := decoder.Decode(&body)
+	if err == nil && body == nil {
+		err = fmt.Errorf("expected a JSON object")
+	}
+	if err == nil {
+		var extra any
+		if decoder.Decode(&extra) != io.EOF {
+			err = fmt.Errorf("expected one JSON object")
+		}
+	}
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	action := strings.TrimSpace(rawString(body["action"]))
+	if action == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "proactive action is required"})
+		return
+	}
+	// The Host receives this server's bearer token. Possession of that token
+	// authorizes a proposal, not a human approval of its own external action.
+	if action == "approval/decide" {
+		writeJSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "approval decisions require the native user interface"})
+		return
+	}
+	payload := body["payload"]
+	if len(payload) == 0 {
+		payload = json.RawMessage("{}")
+	}
+	if value, err := rawObject(payload); err != nil || value == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "proactive payload must be an object"})
+		return
+	}
+	if s.opts.Desktop.Proactive == nil {
+		s.handleDesktopValue(w, r, nil, "proactive")
+		return
+	}
+	s.handleDesktopValue(w, r, func(ctx context.Context) (any, error) {
+		return s.opts.Desktop.Proactive(ctx, action, payload)
+	}, "proactive")
 }
 
 func (s *Server) handleDesktopValue(w http.ResponseWriter, r *http.Request, fn func(context.Context) (any, error), name string) {

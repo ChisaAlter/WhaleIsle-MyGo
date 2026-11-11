@@ -54,14 +54,14 @@ func sessionRenameDialog(c *ui.Context, m Model) {
 	}
 	ui.DialogBase(c.Key("session-rename-dialog:"+m.RenameSessionID), &open, func(backdrop, panel ui.Element) {
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), chrome.DialogSurfaceBox{Width: 380, Height: 206, Radius: 14, Padding: 20}).Label(workspaceText("重命名会话", "Rename session")).Gap(14).Children(func() {
+		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), chrome.DialogSurfaceBox{Width: 380, Height: 206, Radius: 14, Padding: 20}).Label(i18n.T(i18n.KeyWSRenameSessionTitle)).Gap(14).Children(func() {
 			ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, workspaceText("重命名会话", "Rename session")).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(chrome.Color(colors.FG)).Grow(1)
+				ui.Text(c, i18n.T(i18n.KeyWSRenameSessionTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(chrome.Color(colors.FG)).Grow(1)
 				if ui.Button(c, "×").Label(workspaceText("关闭", "Close")).Size(24, 24).Padding(0).Background(ui.Transparent).BorderWidth(0).Disabled(m.RenameBusy).Clicked() {
 					close()
 				}
 			})
-			input := ui.TextInput(c.Key("session-rename-name"), m.RenameDraft).Label(workspaceText("会话名称", "Session name")).FillWidth().MinWidth(0).Height(34).Shrink(0).FontSize(theme.InterfaceSize(14)).Disabled(m.RenameBusy)
+			input := ui.TextInput(c.Key("session-rename-name"), m.RenameDraft).Label(i18n.T(i18n.KeyWSFieldSessionName)).FillWidth().MinWidth(0).Height(34).Shrink(0).FontSize(theme.InterfaceSize(14)).Disabled(m.RenameBusy)
 			first := ui.Local(input, "initial-focus", func() bool { return true })
 			if *first {
 				input.Focus().SetTextSelection(0, utf8.RuneCountInString(*m.RenameDraft))

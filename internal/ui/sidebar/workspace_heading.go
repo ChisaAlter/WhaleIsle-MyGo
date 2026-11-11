@@ -44,7 +44,7 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 						*m.SearchFocus = false
 					}
 				}
-				clear := ui.Button(c, "×").Label(workspaceText("清除搜索", "Clear search")).Width(24).Height(28).
+				clear := ui.Button(c, "×").Label(i18n.T(i18n.KeyWSSearchClear)).Width(24).Height(28).
 					Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
 				if input.Shortcut(0, ui.KeyEscape) || clear.Clicked() {
 					*m.SearchQuery = ""
@@ -63,7 +63,7 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 			}
 			sectionLabel := i18n.T(i18n.KeySidebarWorkspaceSection)
 			if m.Snapshot.WorkspaceLayout.GroupBy == "flat" {
-				sectionLabel = workspaceText("会话", "Sessions")
+				sectionLabel = i18n.T(i18n.KeyWSSectionSessions)
 			}
 			ui.Text(c, sectionLabel).FontSize(labelSize).FontWeight(400).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
 			if m.SearchQuery != nil {
@@ -85,7 +85,7 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 		batchToggle(c, m, muted)
 		if !*expanded {
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-			label := workspaceText("视图选项", "View options")
+			label := i18n.T(i18n.KeyWSViewOptionsLabel)
 			options := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).
 				Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
 			optionsInk := muted
@@ -118,6 +118,7 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 				}
 				add.Children(func() { ui.Icon(c, sidebarRailIcons["add"]).Size(16, 16).TextColor(addInk) })
 				if add.Clicked() {
+					*menuOpen = false
 					m.OnBrowseWorkspace()
 				}
 			}

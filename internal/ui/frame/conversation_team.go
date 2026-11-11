@@ -32,7 +32,11 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 	}
 	owner.Children(func() {
 		anchor := conversationHeaderButton(c, "conversation-agents", paneLabel("团队", "Team"), "UsersOutline", compact, ink, func() {
-			state.FloatingOpen, state.Pinned, state.HoverDismissed = !state.FloatingOpen, true, false
+			if state.FloatingOpen && state.Pinned {
+				state.FloatingOpen, state.Pinned, state.HoverDismissed = false, false, true
+			} else {
+				state.FloatingOpen, state.Pinned, state.HoverDismissed = true, true, false
+			}
 			state.HoverAt, state.LeaveAt = time.Time{}, time.Time{}
 		}, 0)
 		if anchor.Hovered() {
@@ -54,30 +58,28 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		w, h := viewportDIP(c)
 		width := min(float32(500), max(float32(0), w-32))
-		if model.Team != nil && len(model.Team.Members) == 1 && len(model.Team.Tasks) == 0 {
+		visibleTasks := 0
+		if model.Team != nil {
+			for _, task := range model.Team.Tasks {
+				if task.Status != "deleted" {
+					visibleTasks++
+				}
+			}
+		}
+		if model.Team != nil && len(model.Team.Members) == 1 && visibleTasks == 0 {
 			width = min(float32(320), max(float32(0), w-32))
 		}
 		open := state.FloatingOpen
 		ui.PopoverBase(c.Key("conversation-team-popover"), anchor, &open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, width, w, 16)
-			panel = chrome.PopoverReveal(c, panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Radius(12).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel = chrome.PopoverReveal(c, panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Radius(12).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 			panel.Children(func() {
-				ui.Row(c).FillWidth().Padding(0, 10).Gap(6).Children(func() {
-					if ui.Button(c, paneLabel("持续观察", "Keep observing")).Clicked() {
-						if err := openOrdinaryTeamSidebar(m); err != nil {
-							state.NavigationError = err.Error()
-						} else {
-							open = false
-							state.FloatingOpen = false
-						}
-					}
-				})
 				model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
 				model.Columns = 1
 				if w > 560 && width > 320 {
 					model.Columns = 2
 				}
-				model.MaxHeight = min(float32(632), max(float32(0), h-80))
+				model.MaxHeight = min(float32(664), max(float32(0), h-48))
 				if state.NavigationError != "" {
 					model.Error = state.NavigationError
 				}

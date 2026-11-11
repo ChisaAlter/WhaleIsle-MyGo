@@ -288,7 +288,7 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 		var panel ui.Element
 		box.Children(func() {
 			if copyTitle != "" {
-				panel = ui.ButtonBase(c.Key("session-preview-copy:" + s.shown)).Selectable().Label("Copy session title " + a.item.SessionID).
+				panel = ui.ButtonBase(c.Key("session-preview-copy:" + s.shown)).Selectable().Cursor(ui.CursorPointer).Label("Copy session title " + a.item.SessionID).
 					Description(workspaceText("复制：", "Copy: ") + copyTitle)
 			} else {
 				panel = ui.Box(c.Key("session-preview-body:" + s.shown))

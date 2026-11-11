@@ -10,8 +10,7 @@ import (
 )
 
 // These identifiers are the native NSIS contract in scripts/nsis/whaleisle.nsi.
-// The legacy Electron installer shares RegistryKey, so that key alone is unsafe.
-const RegistryKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ai.deepseek.harness.gui`
+const RegistryKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\` + product.AppID
 const NativeMarker = "WhaleIsle-MyGo"
 
 var ErrNotNative = errors.New("no verified current native installation; use Installed apps")
@@ -21,10 +20,19 @@ type Plan struct{ executable, current string }
 
 func (p Plan) InstallLocation() string { return filepath.Dir(p.executable) }
 
+func validDisplayName(name string) bool {
+	switch name {
+	case product.Name, product.EnglishName, "鲸屿go", "Whale Isle":
+		return true
+	default:
+		return false
+	}
+}
+
 // Resolve accepts only this running native installation and the fixed NSIS
 // executable. Registry command text is compared, never parsed or executed.
 func Resolve(current string, r Record) (Plan, error) {
-	if r.NativeRuntime != NativeMarker || (r.DisplayName != product.Name && r.DisplayName != "Whale Isle") || !filepath.IsAbs(current) || !filepath.IsAbs(r.InstallLocation) {
+	if r.NativeRuntime != NativeMarker || !validDisplayName(r.DisplayName) || !filepath.IsAbs(current) || !filepath.IsAbs(r.InstallLocation) {
 		return Plan{}, ErrNotNative
 	}
 	root := filepath.Clean(r.InstallLocation)

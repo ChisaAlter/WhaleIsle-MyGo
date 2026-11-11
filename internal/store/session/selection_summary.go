@@ -87,6 +87,13 @@ func (s *Store) ComposerHostGeneration() uint64 {
 	return s.composerHostGeneration
 }
 
+// WorkspaceHostGeneration returns the current workspace/events host generation without building a view.
+func (s *Store) WorkspaceHostGeneration() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.eventsGeneration
+}
+
 // PlanHistoryBinding returns the current plan history binding without building a view.
 func (s *Store) PlanHistoryBinding() string {
 	s.mu.Lock()

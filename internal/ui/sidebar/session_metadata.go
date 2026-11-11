@@ -1,20 +1,21 @@
 package sidebar
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/i18n"
 )
 
 func sessionTrailingLabel(status string, updatedAt float64) string {
 	switch status {
 	case "approval":
-		return workspaceText("待审批", "Approval")
+		return i18n.T(i18n.KeyWSStatusCompactApproval)
 	case "plan-review":
-		return workspaceText("计划待审", "Plan review")
+		return i18n.T(i18n.KeyWSStatusCompactPlanReview)
 	case "question":
-		return workspaceText("待回答", "Answer")
+		return i18n.T(i18n.KeyWSStatusCompactAnswer)
 	}
 	return sessionRelativeTime(updatedAt, float64(time.Now().UnixMilli()))
 }
@@ -25,28 +26,27 @@ func sessionRelativeTime(at, now float64) string {
 	diff := max(float64(0), now-at)
 	for _, bucket := range []struct {
 		end, unit float64
-		zh, en    string
+		key       string
 	}{
-		{60_000, 0, "刚刚", "now"},
-		{3_600_000, 60_000, "%d分钟", "%dmin"},
-		{86_400_000, 3_600_000, "%d小时", "%dh"},
-		{30 * 86_400_000, 86_400_000, "%d天", "%dd"},
-		{365 * 86_400_000, 30 * 86_400_000, "%d个月", "%dmo"},
-		{0, 365 * 86_400_000, "%d年", "%dy"},
+		{60_000, 0, i18n.KeyWSTimeNow},
+		{3_600_000, 60_000, i18n.KeyWSTimeMinutes},
+		{86_400_000, 3_600_000, i18n.KeyWSTimeHours},
+		{30 * 86_400_000, 86_400_000, i18n.KeyWSTimeDays},
+		{365 * 86_400_000, 30 * 86_400_000, i18n.KeyWSTimeMonths},
+		{0, 365 * 86_400_000, i18n.KeyWSTimeYears},
 	} {
 		if bucket.end == 0 || diff < bucket.end {
-			label := workspaceText(bucket.zh, bucket.en)
 			if bucket.unit == 0 {
-				return label
+				return i18n.T(bucket.key)
 			}
-			return fmt.Sprintf(label, int64(diff/bucket.unit))
+			return i18n.WSf(bucket.key, "n", strconv.FormatInt(int64(diff/bucket.unit), 10))
 		}
 	}
 	return ""
 }
 
 func sessionPinIndicator(c *ui.Context, id string, ink ui.Color) {
-	ui.Box(c.Key("session-pin")).Label("Session pinned "+id).Tooltip(workspaceText("已置顶", "Pinned")).
+	ui.Box(c.Key("session-pin")).Label("Session pinned "+id).Tooltip(i18n.T(i18n.KeyWSRowPinned)).
 		Width(16).Height(20).Margin(0, 0, 0, 6).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Icon(c, sessionPinArtwork).Width(14).Height(14).TextColor(ink)
 	})

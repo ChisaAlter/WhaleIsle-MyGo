@@ -15,6 +15,7 @@ import (
 
 const sessionRuntimeManifestName = "host-session-runtime.json"
 const sessionRuntimeHarnessCommit = "687f282e8625c6b8d11ff58211a90524be2e4317"
+const sessionRuntimeRC4Commit = "504a01a9578abc2c6f1fb896b1dc322c9fe24f66"
 
 type sessionRuntimeSafety struct {
 	ID           string `json:"id"`
@@ -28,6 +29,24 @@ var rc2SessionRuntimeSafety = sessionRuntimeSafety{
 	BaseSHA256:   "b58fda1a53692c10f85f07ad1758cfdc5937062f721315e1b9d55427b34372d8",
 	PatchSHA256:  "ed43fdb62635abf846038af45a1cb4a6d45f29147851ce8573c5dc8b41d08d5f",
 	OutputSHA256: "8278107b486c56cd4519232f29e265f84f07943b51d469acd38cc0c6f694ec9b",
+}
+
+var rc4SessionRuntimeSafety = sessionRuntimeSafety{
+	ID:           "mygo-session-runtime-readiness-v1",
+	BaseSHA256:   "270c0b7a152a8f137ce255073c76cedce1aec68c2403a0033c17a57ee97ebd23",
+	PatchSHA256:  "ed43fdb62635abf846038af45a1cb4a6d45f29147851ce8573c5dc8b41d08d5f",
+	OutputSHA256: "00dd3a8aed5fe4f98f852d4d5a81d910cd1dbed01922cfa23a1004d7d364abb3",
+}
+
+func sessionRuntimeProfile(version string) (string, sessionRuntimeSafety, bool) {
+	switch version {
+	case "0.2.1-rc.2":
+		return sessionRuntimeHarnessCommit, rc2SessionRuntimeSafety, true
+	case "0.2.1-rc.4":
+		return sessionRuntimeRC4Commit, rc4SessionRuntimeSafety, true
+	default:
+		return "", sessionRuntimeSafety{}, false
+	}
 }
 
 var sessionRuntimeArtifacts = []string{
@@ -77,10 +96,11 @@ func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntim
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return fmt.Errorf("compatible Host runtime provenance: %w", err)
 	}
-	if manifest.SchemaVersion != 1 || manifest.CLIVersion != "0.2.1-rc.2" ||
-		manifest.HarnessPin.SHA != sessionRuntimeHarnessCommit || manifest.HarnessPin.Ref != "dsh-v0.2.1-rc.2" ||
-		manifest.HarnessPin.Npm != "0.2.1-rc.2" || manifest.HarnessPin.Repo != "https://github.com/deepseek-ai/deepseek-harness.git" ||
-		manifest.SafetyPatch != rc2SessionRuntimeSafety {
+	commit, safety, supported := sessionRuntimeProfile(manifest.CLIVersion)
+	if manifest.SchemaVersion != 1 || !supported ||
+		manifest.HarnessPin.SHA != commit || manifest.HarnessPin.Ref != "dsh-v"+manifest.CLIVersion ||
+		manifest.HarnessPin.Npm != manifest.CLIVersion || manifest.HarnessPin.Repo != "https://github.com/deepseek-ai/deepseek-harness.git" ||
+		manifest.SafetyPatch != safety {
 		return fmt.Errorf("compatible Host runtime has unsupported provenance or visual-readiness patch")
 	}
 	if manifest.Node.Path != "node/node.exe" {
@@ -110,7 +130,7 @@ func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntim
 		if manifest.Artifacts[artifact] != digest {
 			return fmt.Errorf("compatible Host runtime artifact changed: %s", artifact)
 		}
-		if artifact == sessionRuntimeArtifacts[4] && digest != rc2SessionRuntimeSafety.OutputSHA256 {
+		if artifact == sessionRuntimeArtifacts[4] && digest != safety.OutputSHA256 {
 			return fmt.Errorf("compatible Host runtime visual-readiness gate is not the pinned build")
 		}
 	}
@@ -216,7 +236,7 @@ func validateSessionRuntimeForLaunchWithReader(harnessRoot string, read sessionR
 	}
 	for _, event := range desktopSessionEventTypes {
 		if !known[event] {
-			return fmt.Errorf("Host session reader is older than the shared desktop session schema (missing %s): %s; stage the complete original rc.2 runtime with scripts/session-runtime.mjs; session files were not changed", event, harnessRoot)
+			return fmt.Errorf("Host session reader is older than the shared desktop session schema (missing %s): %s; stage a complete supported runtime with scripts/session-runtime.mjs; session files were not changed", event, harnessRoot)
 		}
 	}
 	return nil

@@ -119,7 +119,7 @@ func run(stage, root string, visualOnly bool, r *report) error {
 	if visualOnly {
 		d := composer.NewDraftState("owned unsent draft")
 		d.Attachments = []session.ComposerAttachment{
-			{Path: path, Name: "note.txt", Upload: api.FileUploadValue{ReceiptId: "visual-fixture", File: api.FileUploadValueFile{Bytes: float64(len(text))}}},
+			{Path: path, Name: "note.txt", Upload: api.FileUploadValue{ReceiptId: "visual-fixture", File: api.SessionVisualReplyValueAttachment{Bytes: float64(len(text))}}},
 			{Path: imagePath, Name: "photo.png", ImageData: base64.StdEncoding.EncodeToString(pb.Bytes())},
 		}
 		r.Checks["scope"] = "actual native UI only; local visual fixture for text-ready metadata and PNG; no Host started"

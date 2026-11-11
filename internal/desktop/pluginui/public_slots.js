@@ -22,7 +22,7 @@ function whaleReportedRegistrant(entry,entriesOf){const registrant=String(entry.
 function whaleCreatePublicSlots(ctx,{entries,handle,schedule}){
  const slots=['sidebar.brand.mark','sidebar.brand.name','sidebar.toggle.badge','sidebar.panellist','sidebar.footer.action','sidebar.settings','sidebar.workspaces','sidebar.workspaces.sections','sidebar.session.row.leading','sidebar.session.row.badge','sidebar.session.row.hover','sidebar.workspaces.session.row.action','sidebar.workspaces.session.menu.item','settings.header','settings.action','settings.close','settings.trigger','settings.launcher','settings.launcher.action','settings.general.item','settings.interface.item','settings.appearance.item','settings.conversation.item','settings.features.item','settings.pet.item','settings.usage.item'];
  const menus=new Map(),contexts=new Map();let workspaceContext=null;
- let bundledName='';const module=entry=>{const r=String(entry.registrant||entry.options.registrant||'');return r!==''&&(r===bundledName||whaleStockFibers.includes(r))?whaleBundledMarker:r};
+ let bundledName='';const module=entry=>{const r=String(entry.registrant||entry.options.registrant||entry.options.locale||'');return r!==''&&(r===bundledName||whaleStockFibers.includes(r))?whaleBundledMarker:r};
  const builtinSettings=new Set(['@deepseek-ai/dsh-client-locale','@deepseek-ai/dsh-client-ui-git','@deepseek-ai/dsh-client-ui-titlebar','@deepseek-ai/dsh-client-ui-permission-presets','@deepseek-ai/dsh-client-ui-visual-replies','@deepseek-ai/dsh-client-ui-settings-general','@deepseek-ai/dsh-client-ui-settings-session-log','@deepseek-ai/dsh-client-ui-shortcuts','@deepseek-ai/dsh-client-ui-conversation','@deepseek-ai/dsh-client-ui-chat','@deepseek-ai/dsh-client-ui-workspace','@deepseek-ai/dsh-client-ui-theme','dsh-whale','dsh-remote','dsh-project','dsh-usage-panel']);
  const native=(slot,entry)=>{
   const m=module(entry);if(m===whaleBundledMarker)return true;
@@ -32,7 +32,7 @@ function whaleCreatePublicSlots(ctx,{entries,handle,schedule}){
   if(slot==='settings.launcher')return m==='@deepseek-ai/dsh-client-ui-settings-account';
   if(slot==='sidebar.workspaces')return ['@deepseek-ai/dsh-client-ui-workspace','@deepseek-ai/dsh-client-ui-codex-sidebar'].includes(m);
   if(slot==='sidebar.brand.mark'||slot==='sidebar.brand.name')return ['@deepseek-ai/dsh-client-ui-brand-official','@deepseek-ai/dsh-client-ui-codex-sidebar'].includes(m);
-  if(slot==='sidebar.panellist')return ['@deepseek-ai/dsh-client-ui-plugin-manager','@deepseek-ai/dsh-client-ui-schedule','dsh-whale'].includes(m);
+  if(slot==='sidebar.panellist')return ['@deepseek-ai/dsh-client-ui-plugin-manager','@deepseek-ai/dsh-client-ui-schedule','dsh-whale'].includes(m)||String(entry.options&&entry.options.id||'')==='whale';
   if(slot==='sidebar.workspaces.session.menu.item'||slot==='sidebar.workspaces.session.row.action')return m==='@deepseek-ai/dsh-client-ui-workspace';
   if(slot==='sidebar.session.row.leading'||slot==='sidebar.session.row.hover')return m==='@deepseek-ai/dsh-client-ui-schedule';
   return false;

@@ -23,6 +23,7 @@ type modelCatalogMenu struct {
 	HoveredIndex         int
 	ScrollActive         bool
 	Composing            bool
+	Agent                string
 }
 
 // Match original ordered-subsequence scoring, retaining catalog order on ties.
@@ -209,6 +210,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 				state.Pane = "model"
 			}
 			state.RootFocus = "model"
+			if hasExternalAgents(m.Snapshot) {
+				state.Agent = selectedModelAgent(m.Snapshot)
+				state.Pane = "root"
+			}
 		}
 		ui.PopoverBase(c, trigger, &state.Open, func(panel ui.Element) {
 			panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(240).MaxWidth(420).
@@ -218,7 +223,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			// subtree shortcut owns Escape from both menu buttons and search,
 			// before Popover's fallback dismissal can discard the return focus.
 			if !state.Composing && (pane.Shortcut(0, ui.KeyEscape) || pane.Shortcut(ui.Shift, ui.KeyTab)) {
-				if state.Pane != "root" && hasCurrentChoice {
+				if state.Pane != "root" && (hasCurrentChoice || hasExternalAgents(m.Snapshot)) {
 					state.Pane, state.Query = "root", ""
 				} else {
 					state.Open = false
@@ -228,6 +233,28 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			}
 			pane.Children(func() {
 				if state.Pane == "root" || state.Pane == "" {
+					var buttons []ui.Element
+					if hasExternalAgents(m.Snapshot) {
+						name := "DeepSeek Harness"
+						for _, g := range groupedModelChoices(m.Snapshot, "") {
+							if g.Provider == state.Agent {
+								name = g.Name
+							}
+						}
+						button := menuRow(c, colors).Label("Agent  " + name + "  ›")
+						button.Children(func() {
+							ui.Text(c, "Agent").FontSize(13).TextColor(chrome.Color(colors.FG))
+							ui.Box(c).Grow(1)
+							ui.Text(c, name+"  ›").FontSize(13).TextColor(muted)
+						})
+						buttons = append(buttons, button)
+						if state.RootFocus == "agent" {
+							button.AutoFocus()
+						}
+						if button.Clicked() || button.Shortcut(0, ui.KeyRight) {
+							state.Pane, state.RootFocus = "agent", "agent"
+						}
+					}
 					modelButton := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelMenuModel) + "  " + m.Snapshot.SelectedModel + "  ›").Disabled(m.Inert)
 					modelButton.Children(func() {
 						ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(6).Children(func() {
@@ -237,10 +264,10 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 							ui.Text(c, "›").FontSize(13).TextColor(muted).Shrink(0)
 						})
 					})
-					if state.RootFocus != "effort" {
+					if state.RootFocus != "effort" && state.RootFocus != "agent" {
 						modelButton.AutoFocus()
 					}
-					buttons := []ui.Element{modelButton}
+					buttons = append(buttons, modelButton)
 					if modelButton.Clicked() || modelButton.Shortcut(0, ui.KeyRight) {
 						state.Pane, state.RootFocus, state.Query, state.Active = "model", "model", "", -1
 					}
@@ -265,7 +292,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					modelMenuKeyboard(buttons)
 					return
 				}
-				if hasCurrentChoice {
+				if hasCurrentChoice || hasExternalAgents(m.Snapshot) {
 					back := menuRow(c, colors).Label(i18n.T(i18n.KeyComposerModelBack))
 					back.Children(func() {
 						ui.Text(c, i18n.T(i18n.KeyComposerModelBack)).Grow(1).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(chrome.Color(colors.FG))
@@ -298,7 +325,35 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 					modelMenuKeyboard(buttons)
 					return
 				}
+				if state.Pane == "agent" {
+					var buttons []ui.Element
+					choices := []modelCatalogGroup{{Provider: "harness", Name: "DeepSeek Harness"}}
+					for _, g := range groupedModelChoices(m.Snapshot, "") {
+						if strings.HasPrefix(g.Provider, "acp:") {
+							choices = append(choices, g)
+						}
+					}
+					for _, g := range choices {
+						button := menuRow(c, colors).Label("Choose agent " + g.Name)
+						button.Children(func() { ui.Text(c, g.Name).FontSize(13).TextColor(chrome.Color(colors.FG)) })
+						buttons = append(buttons, button)
+						if g.Provider == state.Agent {
+							button.AutoFocus()
+						}
+						if button.Clicked() {
+							state.Agent = g.Provider
+							state.Pane = "model"
+							state.Query = ""
+							state.Active = -1
+						}
+					}
+					modelMenuKeyboard(buttons)
+					return
+				}
 				groups := groupedModelChoices(m.Snapshot, state.Query)
+				if hasExternalAgents(m.Snapshot) {
+					groups = modelGroupsForAgent(groups, state.Agent)
+				}
 				visible := []session.ModelCatalogChoice{}
 				for _, g := range groups {
 					visible = append(visible, g.Choices...)

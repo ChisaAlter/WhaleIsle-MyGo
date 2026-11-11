@@ -188,6 +188,22 @@ var modelSelectionLocaleCatalog = map[string]localePair{
 		ZH: "当前模型未提供推理等级。",
 		EN: "This model provides no reasoning effort levels.",
 	},
+	"command.description": {
+		ZH: "选择本会话使用的模型",
+		EN: "Select the model for this conversation",
+	},
+	"trigger.fallback": {
+		ZH: "请选择模型",
+		EN: "Select model",
+	},
+	"warning.groupLoad": {
+		ZH: "{name} 加载失败：{message}",
+		EN: "{name} failed to load: {message}",
+	},
+	"empty.models": {
+		ZH: "暂无可用模型",
+		EN: "No models available.",
+	},
 }
 
 // ModelSelectionLocaleText returns the localized text for a dsh-client-ui-model-selection key.
@@ -609,6 +625,46 @@ var conversationLocaleCatalog = map[string]localePair{
 	"queue.steerFailed": {
 		ZH: "插话发送失败，请重试。",
 		EN: "Steering failed. Try again.",
+	},
+	"queue.reorder": {
+		ZH: "调整顺序：第 {n} 条，共 {total} 条",
+		EN: "Reorder queued message {n} of {total}",
+	},
+	"queue.reorder.hint": {
+		ZH: "拖动调整顺序，或按 ↑ ↓",
+		EN: "Drag to reorder, or press ↑ ↓",
+	},
+	"queue.moveFailed": {
+		ZH: "调整顺序失败：这条消息可能已经开始发送。",
+		EN: "Reorder failed: this message may have already started sending.",
+	},
+	"hero.claudeHeadline": {
+		ZH: "今天想一起探索什么？",
+		EN: "What shall we explore today?",
+	},
+	"session.moreViews": {
+		ZH: "更多会话视图",
+		EN: "More conversation views",
+	},
+	"plan.approved": {
+		ZH: "已批准执行",
+		EN: "Approved",
+	},
+	"plan.rejected": {
+		ZH: "已拒绝",
+		EN: "Rejected",
+	},
+	"plan.cancelled": {
+		ZH: "已取消",
+		EN: "Cancelled",
+	},
+	"plan.reviewing": {
+		ZH: "等待确认",
+		EN: "Waiting for review",
+	},
+	"plan.view": {
+		ZH: "查看计划",
+		EN: "View plan",
 	},
 }
 

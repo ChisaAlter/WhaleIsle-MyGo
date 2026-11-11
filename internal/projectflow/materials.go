@@ -25,7 +25,7 @@ func (m Material) Editable() string {
 	return m.Text
 }
 func materialPath(path string) bool {
-	return path == "notes.md" || path == "preferences.md" || path == "charter.md"
+	return path == "notes.md" || path == "preferences.md" || path == "charter.md" || path == "research-hosts.txt"
 }
 func (c Client) ReadMaterial(ctx context.Context, id, path string) (Material, error) {
 	out, err := c.material(ctx, "store/read", id, path, nil)

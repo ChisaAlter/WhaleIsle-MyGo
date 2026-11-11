@@ -52,6 +52,78 @@ func (s *Store) ReadWorkspaceNavigationPreferences(hostKey string) (WorkspaceNav
 }
 
 // MergeWorkspaceNavigationPreferences applies only base->next view changes to
+// Merge refreshes the baseline from disk when config.json was updated by
+// another process (such as the shared desktop pet) before applying fn and
+// writing the merged configuration atomically.
+func (s *Store) Merge(fn func(*Config)) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	var latest *Store
+	if ok, matchErr := s.baseline.matches(s.path); matchErr == nil && ok {
+		latest = &Store{
+			path:     s.path,
+			raw:      s.raw,
+			cfg:      s.cfg,
+			baseline: s.baseline,
+		}
+	} else {
+		latest, err = Open(filepath.Dir(s.path))
+		if err != nil {
+			return err
+		}
+	}
+	if s.baseline.exists && !latest.baseline.exists {
+		return fmt.Errorf("%w: configuration file was removed", ErrConflict)
+	}
+	candidate := cloneConfig(latest.cfg)
+	if fn != nil {
+		fn(&candidate)
+	}
+	if candidate.SkipUserPlugins != latest.cfg.SkipUserPlugins {
+		candidate.SkipUserPlugins = latest.cfg.SkipUserPlugins
+	}
+	next := normalize(cloneConfig(candidate))
+	encoded, err := json.Marshal(next)
+	if err != nil {
+		return err
+	}
+	var known map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &known); err != nil {
+		return err
+	}
+	merged := mergeKnownConfig(latest.raw, known)
+	data, err := json.MarshalIndent(merged, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := latest.checkBaseline(); err != nil {
+		return err
+	}
+	rename := s.rename
+	if rename == nil {
+		rename = os.Rename
+	}
+	guardedRename := func(oldpath, newpath string) error {
+		if err := latest.checkBaseline(); err != nil {
+			return err
+		}
+		return rename(oldpath, newpath)
+	}
+	if err := writeAtomic(s.path, data, guardedRename); err != nil {
+		return err
+	}
+	s.raw = merged
+	s.setCfgLocked(next)
+	s.baseline = fileBaseline{exists: true, data: data}
+	return nil
+}
+
+// MergeWorkspaceNavigationPreferences merges one Host's view preferences onto
 // a fresh configuration. Concurrent changes to the same field are conflicts;
 // unrelated fields, other Hosts, and unknown configuration keys survive.
 // The caller retains base on failure and acknowledges next on success, since

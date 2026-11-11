@@ -229,7 +229,10 @@ export function recordInstalled(root) {
     const peer=path.join(path.dirname(root),'deepseek-harness'),harnessArtifacts={};
     for(const relative of peerArtifacts) {const filename=path.join(peer,relative);if(!inside(path.dirname(root),fs.realpathSync(filename)))throw Error('Mobile Host peer escapes vendor graph');harnessArtifacts[relative]=sha(filename);}
     const graph=inventoryGraph(root,['staging-manifest.json','debug.log']);
-    const manifest={format:3,profile:'installed-rc2',platform:build.platform,arch:build.arch,nodePath:path.relative(root,bundledNode(root)).split(path.sep).join('/'),files:graph.files,links:graph.links,harnessPeer:{path:'../deepseek-harness',artifacts:harnessArtifacts}};
+    const version=JSON.parse(fs.readFileSync(path.join(peer,'package.json'),'utf8')).version;
+    const profile=version==='0.2.1-rc.4'?'installed-rc4':version==='0.2.1-rc.2'?'installed-rc2':null;
+    if(!profile)throw Error('Unsupported installed mobile Host version');
+    const manifest={format:3,profile,platform:build.platform,arch:build.arch,nodePath:path.relative(root,bundledNode(root)).split(path.sep).join('/'),files:graph.files,links:graph.links,harnessPeer:{path:'../deepseek-harness',artifacts:harnessArtifacts}};
     fs.writeFileSync(path.join(root,'staging-manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
     verify(root);
     return {profile:manifest.profile,runtime:build.runtime,node:build.node,abi:build.abi,files:Object.keys(graph.files).length,links:Object.keys(graph.links).length};
@@ -239,7 +242,7 @@ export function recordInstalled(root) {
   }
 }
 export function verifyInstalled(root,manifest,build) {
-  if(manifest.profile!=='installed-rc2'||manifest.platform!==build.platform||manifest.arch!==build.arch||!['node','electron'].includes(build.runtime)||!/^v\d+\.\d+\.\d+/.test(build.node)||!/^\d+$/.test(String(build.abi)))throw Error('Unsupported installed mobile runtime identity');
+  if(!['installed-rc2','installed-rc4'].includes(manifest.profile)||manifest.platform!==build.platform||manifest.arch!==build.arch||!['node','electron'].includes(build.runtime)||!/^v\d+\.\d+\.\d+/.test(build.node)||!/^\d+$/.test(String(build.abi)))throw Error('Unsupported installed mobile runtime identity');
   supportedPlatform(build.platform);
   const executable=safeChild(root,manifest.nodePath);
   if(!manifest.files[manifest.nodePath]||sha(executable)!==build.nodeSHA256)throw Error('Mobile Node build provenance mismatch');
@@ -251,6 +254,10 @@ export function verifyInstalled(root,manifest,build) {
   for(const [relative,expected] of Object.entries(build.nativeArtifacts))if(manifest.files[relative]!==expected||sha(safeChild(root,relative))!==expected)throw Error(`Mobile native binding proof changed: ${relative}`);
   if(manifest.harnessPeer?.path!=='../deepseek-harness')throw Error('Mobile runtime is missing its exact Host peer');
   const vendor=fs.realpathSync(path.dirname(root)),peer=path.join(vendor,'deepseek-harness');
+  if(manifest.profile==='installed-rc4') {
+    if(JSON.parse(fs.readFileSync(path.join(peer,'package.json'),'utf8')).version!=='0.2.1-rc.4')throw Error('Mobile rc.4 Host version mismatch');
+    assertFiles(root,['mobile/web/whale-ui/viewer.html', ...['standalone-runtime','icons','mermaid','three','echarts-core','echarts-full'].map(name=>`mobile/web/whale-ui/assets/${name}.js`)]);
+  }
   for(const relative of peerArtifacts) {
     const filename=safeChild(peer,relative);
     if(!inside(vendor,fs.realpathSync(filename))||sha(filename)!==manifest.harnessPeer.artifacts?.[relative])throw Error(`Mobile Host peer changed: ${relative}`);

@@ -23,44 +23,46 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
-	SVGImages             *svgimage.Owner
-	GroupMembers          []session.GroupMember
-	NextPrompt            session.NextPromptSuggestion
-	OnAcceptNextPrompt    func() string
-	ComposerBeam          bool
-	ComposerBeamStyle     json.RawMessage
-	TypingFx              bool
-	TypingFxStyle         json.RawMessage
-	ResizeEnabled         bool
-	Resize                *ResizeState
-	ResizeMaxWidth        float32
-	OnResizeEnd           func(axis string, value float32)
-	Snapshot              session.ViewState
-	ThemeID               string
-	SystemDark            bool
-	WorkspaceRoot         string
-	WorkspacePickerAnchor *ui.Handle
-	Inert                 bool   // no Session or no owning workspace: the card opens the workspace picker
-	Disabled              bool   // session composer unavailable
-	ParentOffline         bool   // continuable child session whose parent session is offline
-	Placeholder           string // explicit placeholder override
-	OnRequestWorkspace    func()
-	Draft                 *string
-	State                 *DraftState
-	OnSubmit              func()
-	OnSubmitGesture       func(accelerated bool)
-	OnOpenURL             func(string)
-	OnOpenReference       func(path string) // existing session-owned file preview route
-	OnAttachFiles         func([]string)
-	OnRetryAttachment     func(int)
-	OnWorkspaceReference  func(filelink.Reference) error
-	OnPasteImage          func(bool)
-	ModelPick             *string
-	PermissionOptions     []session.PermissionOption
-	AgentPresetOptions    []session.AgentPresetOption
-	AgentPresetSelection  session.AgentPresetSelectionView
-	PermissionPick        *string
-	AgentPresetPick       *string
+	SVGImages                 *svgimage.Owner
+	GroupMembers              []session.GroupMember
+	NextPrompt                session.NextPromptSuggestion
+	OnAcceptNextPrompt        func() string
+	ComposerBeam              bool
+	ComposerBeamStyle         json.RawMessage
+	TypingFx                  bool
+	TypingFxStyle             json.RawMessage
+	ResizeEnabled             bool
+	Resize                    *ResizeState
+	ResizeMaxWidth            float32
+	OnResizeEnd               func(axis string, value float32)
+	Snapshot                  session.ViewState
+	ThemeID                   string
+	SystemDark                bool
+	WorkspaceRoot             string
+	WorkspacePickerAnchor     *ui.Handle
+	Inert                     bool   // no Session or no owning workspace: the card opens the workspace picker
+	Disabled                  bool   // session composer unavailable
+	ParentOffline             bool   // continuable child session whose parent session is offline
+	Placeholder               string // explicit placeholder override
+	OnRequestWorkspace        func()
+	Draft                     *string
+	State                     *DraftState
+	OnSubmit                  func()
+	OnSubmitGesture           func(accelerated bool)
+	OnOpenURL                 func(string)
+	OnOpenReference           func(path string) // existing session-owned file preview route
+	OnAttachFiles             func([]string)
+	OnRetryAttachment         func(int)
+	OnWorkspaceReference      func(filelink.Reference) error
+	OnPasteImage              func(bool)
+	ModelPick                 *string
+	PermissionOptions         []session.PermissionOption
+	PermissionSwitchFailed    bool
+	ConfirmPermissionInPicker bool
+	AgentPresetOptions        []session.AgentPresetOption
+	AgentPresetSelection      session.AgentPresetSelectionView
+	PermissionPick            *string
+	AgentPresetPick           *string
 
 	OnRetrySlashCommands func()
 	SlashCatalog         []SlashCommand
