@@ -38,9 +38,13 @@ func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		ui.Text(c, releaseText("当前版本：", "Current version: ")+nonempty(m.Version, "dev")).FontSize(theme.InterfaceSize(14)).TextColor(colPrimary)
 		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Children(func() {
-			enabled := m.ReleaseAutoDownload
-			if ui.Checkbox(c, &enabled, releaseText("有新版本时在后台自动下载", "Download new versions automatically in the background")).Grow(1).Changed() && m.OnSetAutoDownload != nil {
-				m.OnSetAutoDownload(enabled)
+			if m.OnSetAutoDownload != nil {
+				enabled := m.ReleaseAutoDownload
+				if ui.Checkbox(c, &enabled, releaseText("有新版本时在后台自动下载", "Download new versions automatically in the background")).Grow(1).Changed() {
+					m.OnSetAutoDownload(enabled)
+				}
+			} else {
+				ui.Box(c).Grow(1)
 			}
 			if ghostSmall(c, releaseText("检查更新", "Check for updates")).Disabled(m.ReleaseBusy).Clicked() && m.OnRefreshReleases != nil {
 				m.OnRefreshReleases()

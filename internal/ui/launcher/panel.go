@@ -260,10 +260,12 @@ func rail(c *ui.Context, m Model, tab string) {
 			railTab(c, m, TabPlugins, i18n.T(i18n.KeyLauncherTabPlugins), tab, 0)
 			railTab(c, m, TabSettings, i18n.T(i18n.KeyLauncherTabSettings), tab, 0)
 		})
-		ui.Column(c).FillWidth().Padding(10, 12, 0, 12).
-			BorderWidth(1, 0, 0, 0).BorderColor(colBorderL1).Children(func() {
-			railRouteChip(c, m)
-		})
+		if m.DownloadRoute != nil {
+			ui.Column(c).FillWidth().Padding(10, 12, 0, 12).
+				BorderWidth(1, 0, 0, 0).BorderColor(colBorderL1).Children(func() {
+				railRouteChip(c, m)
+			})
+		}
 	})
 }
 

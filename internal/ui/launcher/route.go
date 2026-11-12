@@ -17,17 +17,19 @@ func routePageHead(c *ui.Context, m Model, title, lede string) {
 				ui.Text(c, lede).FontSize(fonttheme.InterfaceSize(12)).TextColor(colTertiary)
 			}
 		})
-		label := i18n.T(i18n.KeyLauncherRouteCurrentPrefix) + " " + railRouteLabel(m)
-		btn := ghostSmall(c.Key("route-"+title), "").Radius(8).Label(label)
-		open := ui.Local(btn, "route-open", func() bool { return false })
-		btn.Children(func() {
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
-				routeChevron(c, colTertiary, *open)
+		if m.DownloadRoute != nil {
+			label := i18n.T(i18n.KeyLauncherRouteCurrentPrefix) + " " + railRouteLabel(m)
+			btn := ghostSmall(c.Key("route-"+title), "").Radius(8).Label(label)
+			open := ui.Local(btn, "route-open", func() bool { return false })
+			btn.Children(func() {
+				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+					routeChevron(c, colTertiary, *open)
+				})
 			})
-		})
-		// Local state belongs to this trigger, never the rail-footer pointer.
-		routePopup(c, m, btn, open, false)
+			// Local state belongs to this trigger, never the rail-footer pointer.
+			routePopup(c, m, btn, open, false)
+		}
 	})
 }
 
