@@ -44,7 +44,7 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 	if !automatic {
 		t.Fatal("auto-download preference callback not consumed")
 	}
-	if err := tt.Click(releaseText("暂停下载", "Pause download")); err != nil {
+	if err := tt.Click(releaseText("暂停", "Pause")); err != nil {
 		t.Fatal(err)
 	}
 	if pauses != 1 || !paused {
@@ -77,7 +77,7 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 func TestUpdateCenterInstallingDoesNotOfferDownloadCancellation(t *testing.T) {
 	m := Model{ReleaseBusy: true, ReleasePhase: "installing", OnCancelRelease: func() { t.Fatal("install exposed download cancellation") }}
 	tt := ui.NewTester(func(c *ui.Context) { UpdateCenterFooter(c, m) }, 600, 240)
-	if _, ok := tt.Find(releaseText("取消下载 / 读取", "Cancel download / lookup")); ok {
+	if _, ok := tt.Find(releaseText("取消", "Cancel")); ok {
 		t.Fatal("the download cancel action cannot cancel installation admission")
 	}
 }

@@ -36,7 +36,14 @@ New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 Write-Host "Building whaleisle.exe (buildVersion=$Version) -> $ExeOut"
 $ldflags = "-s -w -X main.buildVersion=$Version"
-if ((& $GoExecutable env GOOS).Trim() -eq 'windows') { $ldflags += ' -H windowsgui' }
+if ((& $GoExecutable env GOOS).Trim() -eq 'windows') {
+    $ldflags += ' -H windowsgui'
+    # Plain go build links .syso in the main package: icon, manifest and
+    # version info (mygo build embeds the same resources). Without them the
+    # installed exe and its shortcuts show no icon.
+    & $GoExecutable tool mygo winres -pkg cmd/whaleisle -arch ((& $GoExecutable env GOARCH).Trim()) -version $Version
+    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
+}
 & $GoExecutable build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
 if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
 
@@ -48,12 +55,17 @@ $PreviewArch = (& $GoExecutable env GOARCH).Trim()
 if ($PreviewOS -eq 'windows') {
     if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
     $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
+    & $GoExecutable tool mygo winres -pkg cmd/whaleisle-preview -arch $PreviewArch -version $Version
+    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
     & $GoExecutable build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
     if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
     $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
+    & $GoExecutable tool mygo winres -pkg cmd/whaleisle-integration -arch $PreviewArch -version $Version
+    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
     & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
     if ($LASTEXITCODE -ne 0) { throw "Integration cleanup helper build failed (exit $LASTEXITCODE)" }
 }
+Remove-Item -Path "$ProjectRoot\cmd\*\mygo_windows_*.syso" -Force -ErrorAction SilentlyContinue
 
 $ResSrc = Join-Path $ProjectRoot 'resources'
 $ResDst = Join-Path $Stage 'resources'

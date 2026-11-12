@@ -31,6 +31,8 @@ type state struct {
 	installed                       externallauncher.Installation
 	running, busy                   bool
 	message, problem, tab, selected string
+	relBusy                         bool
+	relStatus, relErr, relPhase     string
 	rows                            []update.NativeRelease
 	staged                          update.ApplyResult
 	stagedVersion                   string
@@ -91,8 +93,16 @@ func (s *state) notify() {
 	}
 }
 func (s *state) notice(message string)                      { s.mu.Lock(); s.message = message; s.mu.Unlock(); s.notify() }
-func (s *state) operation(work func(context.Context) error) { s.operationMode(work, true) }
-func (s *state) operationMode(work func(context.Context) error, cancellable bool) {
+func (s *state) operation(work func(context.Context) error) { s.operationMode(work, true, false) }
+
+// releaseOperation runs a download/stage/install operation. Only these feed
+// the release strip — controller start/stop and catalog lookups stay on the
+// generic busy/problem/message channels so unrelated state never swaps the
+// install card's action slot.
+func (s *state) releaseOperation(work func(context.Context) error, cancellable bool) {
+	s.operationMode(work, cancellable, true)
+}
+func (s *state) operationMode(work func(context.Context) error, cancellable, release bool) {
 	s.mu.Lock()
 	if s.busy {
 		s.mu.Unlock()
@@ -104,6 +114,12 @@ func (s *state) operationMode(work func(context.Context) error, cancellable bool
 	}
 	s.busy = true
 	s.problem = ""
+	if release {
+		s.relBusy = true
+		s.relErr = ""
+		s.relStatus = ""
+		s.relPhase = ""
+	}
 	s.mu.Unlock()
 	s.notify()
 	go func() {
@@ -115,8 +131,16 @@ func (s *state) operationMode(work func(context.Context) error, cancellable bool
 		s.cancel = nil
 		s.installed = installed
 		s.running = running
+		if release {
+			s.relBusy = false
+			s.relPhase = ""
+		}
 		if err != nil {
-			s.problem = err.Error()
+			if release {
+				s.relErr = err.Error()
+			} else {
+				s.problem = err.Error()
+			}
 		} else if probeErr != nil && !errors.Is(probeErr, externallauncher.ErrNotInstalled) {
 			s.problem = probeErr.Error()
 		}
@@ -153,8 +177,18 @@ func (s *state) releases() {
 		}
 		s.mu.Lock()
 		version := s.installed.Version
+		missing := s.installed.Executable == ""
 		s.mu.Unlock()
 		rows = update.PrepareNativeReleases(rows, version, update.NativeInstallerCacheDir(filepath.Join(paths.UserDataDir(), "updates")))
+		// A fresh install requires a runtime-inclusive package; shell-only rows
+		// carry the reason in the list instead of failing on download click.
+		for i := range rows {
+			if rows[i].UnavailableReason == "" {
+				if verr := rows[i].Validate(runtime.GOOS, runtime.GOARCH, missing); verr != nil {
+					rows[i].UnavailableReason = verr.Error()
+				}
+			}
+		}
 		s.mu.Lock()
 		s.rows = rows
 		s.message = "Choose a native desktop package to download and verify."
@@ -163,7 +197,12 @@ func (s *state) releases() {
 	})
 }
 func (s *state) stage(id string) {
-	s.operation(func(ctx context.Context) error {
+	s.releaseOperation(func(ctx context.Context) error {
+		s.mu.Lock()
+		s.relStatus = "Downloading and verifying the installer…"
+		s.relPhase = "downloading"
+		s.mu.Unlock()
+		s.notify()
 		rows, err := update.ListNativeReleases(ctx, "github")
 		if err != nil {
 			return err
@@ -202,10 +241,11 @@ func (s *state) stage(id string) {
 		s.staged = staged
 		s.stagedVersion = selected.Version
 		s.selected = selected.PackageKey()
+		s.relStatus = ""
 		s.message = "Installer verified. Stop the desktop first, then install. This launcher remains open."
 		s.mu.Unlock()
 		return nil
-	})
+	}, true)
 }
 func (s *state) install() {
 	s.mu.Lock()
@@ -218,7 +258,11 @@ func (s *state) install() {
 	if err != nil || choice.Button != 1 {
 		return
 	}
-	s.operationMode(func(ctx context.Context) error {
+	s.releaseOperation(func(ctx context.Context) error {
+		s.mu.Lock()
+		s.relStatus = "Installing…"
+		s.relPhase = "installing"
+		s.mu.Unlock()
 		fresh, err := s.controller.Install(ctx, staged, version)
 		if err != nil {
 			return err
@@ -227,6 +271,7 @@ func (s *state) install() {
 		s.installed = fresh
 		s.staged = update.ApplyResult{}
 		s.stagedVersion = ""
+		s.relStatus = ""
 		s.message = "Installation registered and adopted. Start desktop when ready."
 		s.mu.Unlock()
 		return nil
@@ -234,7 +279,7 @@ func (s *state) install() {
 }
 func (s *state) view(c *ui.Context) {
 	s.mu.Lock()
-	m := launcher.Model{ThemeID: "light", Version: buildVersion, LauncherPackage: true, ManagedDesktop: true, VendorReady: s.installed.Executable != "", DesktopRunning: s.running, StartBusy: s.busy, StartError: s.problem, StatusNote: s.message, ActiveTab: s.tab, Releases: append([]update.NativeRelease(nil), s.rows...), ReleaseBusy: s.busy, ReleaseError: s.problem, ReleaseStatus: s.message, ReleaseSelectedPackage: s.selected, ReleaseStagedTag: s.stagedVersion, ReleaseReceived: s.received, ReleaseTotal: s.total}
+	m := launcher.Model{ThemeID: "light", Version: buildVersion, LauncherPackage: true, ManagedDesktop: true, VendorReady: s.installed.Executable != "", DesktopRunning: s.running, StartBusy: s.busy, StartError: s.problem, StatusNote: s.message, ActiveTab: s.tab, Releases: append([]update.NativeRelease(nil), s.rows...), ReleaseBusy: s.relBusy, ReleaseError: s.relErr, ReleaseStatus: s.relStatus, ReleasePhase: s.relPhase, ReleaseSelectedPackage: s.selected, ReleaseStagedTag: s.stagedVersion, ReleaseReceived: s.received, ReleaseTotal: s.total}
 	if s.installed.Version != "" {
 		m.Version = s.installed.Version
 	}
@@ -242,6 +287,13 @@ func (s *state) view(c *ui.Context) {
 	s.mu.Unlock()
 	if cancel != nil {
 		m.OnCancelRelease = cancel
+	}
+	m.OnDismissRelease = func() {
+		s.mu.Lock()
+		s.relErr = ""
+		s.relStatus = ""
+		s.mu.Unlock()
+		s.notify()
 	}
 	m.OnStart = func() { s.operation(s.controller.Start) }
 	m.OnStop = func() {

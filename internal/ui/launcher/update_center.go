@@ -26,7 +26,7 @@ func UpdateCenterFooter(c *ui.Context, m Model) {
 	} else {
 		applyLightTokens()
 	}
-	nativeReleaseActions(c, m)
+	releaseStrip(c, m)
 }
 
 func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
@@ -46,10 +46,8 @@ func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
 				m.OnRefreshReleases()
 			}
 		})
-		if fixedFooter {
-			nativeReleaseStatus(c, m)
-		} else {
-			nativeReleaseOperation(c, m)
+		if !fixedFooter {
+			releaseStrip(c, m)
 		}
 		latest := ""
 		for _, release := range m.Releases {

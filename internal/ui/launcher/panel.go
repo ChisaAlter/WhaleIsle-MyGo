@@ -52,6 +52,7 @@ var (
 	colKindFG     = chrome.Color("rgb(154, 52, 18)")
 	colOfficialBG = chrome.Color("rgb(228, 237, 253)")
 	colSegActive  = chrome.Color("rgb(235, 238, 242)")
+	colDanger     = chrome.Color("rgb(236, 19, 19)")
 )
 
 // launcherColors is the resolved palette the standard buttons read; the token
@@ -117,6 +118,7 @@ type Model struct {
 	OnInstallRuntime                                                      func()
 	OnInstallRelease                                                      func(packageID string)
 	OnCancelRelease                                                       func()
+	OnDismissRelease                                                      func()
 	OnStartStagedRelease                                                  func()
 	OnOpenSettings                                                        func()
 	OnEnableSkipUserPlugins                                               func()
@@ -206,6 +208,7 @@ func applyLightTokens() {
 	colKindFG = chrome.Color("rgb(154, 52, 18)")
 	colOfficialBG = chrome.Color("rgb(228, 237, 253)")
 	colSegActive = chrome.Color("rgb(235, 238, 242)")
+	colDanger = chrome.Color("rgb(236, 19, 19)")
 }
 
 func applyDarkTokens() {
@@ -232,6 +235,7 @@ func applyDarkTokens() {
 	colKindFG = chrome.Color("rgb(253, 186, 116)")
 	colOfficialBG = chrome.Color(th.Hover)
 	colSegActive = chrome.Color(th.Hover)
+	colDanger = chrome.Color(th.Danger)
 }
 
 func rail(c *ui.Context, m Model, tab string) {
@@ -347,7 +351,10 @@ func railTab(c *ui.Context, m Model, id, label, active string, badge int) {
 
 func stage(c *ui.Context, m Model, tab string) {
 	// launcher.css: the padded stage stays fixed; main alone scrolls.
-	ui.Column(c).Fill().MinWidth(0).Padding(56, 24, 24, 24).Children(func() {
+	// Grow, not Fill: a row child at percent(100) measures the rail's full
+	// width, so long content (release errors) widened the shell past the
+	// window instead of wrapping inside the remaining space.
+	ui.Column(c).Grow(1).MinWidth(0).FillHeight().Padding(56, 24, 24, 24).Children(func() {
 		ui.Scroll(c).Fill().MinWidth(0).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Box(c).Grow(1).MinWidth(0)
@@ -524,8 +531,11 @@ func homePanel(c *ui.Context, m Model) {
 
 	if !m.VendorReady {
 		homeInstall(c, m)
+	} else {
+		// Without an install card the strip has no stable home; it surfaces as
+		// its own card only while an operation is active.
+		releaseStrip(c, m)
 	}
-	nativeReleaseOperation(c, m)
 	if r := strings.TrimSpace(m.PluginRecoveryReason); r != "" {
 		ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
 			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
@@ -584,11 +594,20 @@ func homeInstall(c *ui.Context, m Model) {
 					ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 				}
 			}
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
-					m.OnInstallRuntime()
+			// The card's single action slot: the idle call to action and the
+			// operation strip swap content in the same row — a download, error
+			// or staged installer never adds a new block that shifts the card.
+			ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
+				if releaseIdle(m) {
+					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+						if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
+							m.OnInstallRuntime()
+						}
+						ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+					})
+				} else {
+					releaseStripContent(c, m)
 				}
-				ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			})
 		})
 	})

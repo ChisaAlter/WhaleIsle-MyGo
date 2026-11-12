@@ -104,6 +104,15 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	m.OnCancelRelease = func() {
 		s.cancelNativeUpdate(win)
 	}
+	m.OnDismissRelease = func() {
+		s.mu.Lock()
+		r := &s.nativeReleases
+		r.err = ""
+		r.status = ""
+		r.phase = settledNativeReleasePhase(*r)
+		s.mu.Unlock()
+		s.nativeReleaseNotify(win)
+	}
 	m.OnStartStagedRelease = func() { s.startNativeStaged(win) }
 	// The launcher notice must refer to the same pinned native catalog that the
 	// install action uses, never the older untyped feed.
@@ -198,6 +207,17 @@ func (s *mainState) refreshNativeReleasesOwned(win *mygo.Window, parent context.
 				r.status = i18n.T(i18n.KeyCmdReleaseLookupCancelled)
 			}
 		} else {
+			// Rows are decoded with requireRuntime=false; a fresh install still
+			// cannot use a shell-only package. Mark the reason on the row so the
+			// versions list shows it instead of failing on download click.
+			requireRuntime := !s.startupRecovery.updateVendorReady
+			for i := range rows {
+				if rows[i].UnavailableReason == "" {
+					if verr := rows[i].Validate(runtime.GOOS, runtime.GOARCH, requireRuntime); verr != nil {
+						rows[i].UnavailableReason = verr.Error()
+					}
+				}
+			}
 			r.rows = rows
 			r.catalogRoute = route
 			r.status = fmt.Sprintf(i18n.T(i18n.KeyCmdLoadedMygoReleases), len(rows))

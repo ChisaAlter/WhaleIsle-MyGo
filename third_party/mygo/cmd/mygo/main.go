@@ -29,6 +29,7 @@ Commands:
 	dev                  run a development build with live reload
 	build                build production apps (a .app and a .dmg on macOS)
 	keygen               create the key pair that signs updates
+	winres [dir]         write the app's Windows resources (.syso) for go build
 	doctor               check that the development environment is ready
 	version              print the MyGo version
 
@@ -78,6 +79,8 @@ func main() {
 		err = runDoctor(args)
 	case "keygen":
 		err = runKeygen(args)
+	case "winres":
+		err = runWinres(args)
 	case "sign-uninstaller": // run by makensis, see uninstallerSigning
 		err = runSignUninstaller(args)
 	case "version", "-v", "--version":
