@@ -367,3 +367,15 @@ QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实
 **harness 修正（非产品缺陷）：** ①`startCreatorPluginDraft` 内部自带 `win.Update`——QA 从 `win.Update` 回调内调用会 UI 线程重入死锁（两次 ~20min 无超时卡死的根因）；②`mark` 增加 stderr 进度日志，驱动不再是无输出的黑盒。
 
 **批次 4 剩余 `Not Run`：** `[real-ui]` 真实菜单点击（展开/收起态更多行渲染与点击需 UI 树驱动，现有断言停在状态/组成层）；actions 注册的撤销→菜单消失路径；HMR 瞬时空→宽限期→恢复的真实插件路径（需真实可重载插件）；rc.2 回归跑（旧契约降级分支逻辑已证，rc.2 全量套件未重跑）。
+
+### 2026-11-14 批次 4 深化：控件层验证 + 门控契约修正 + rc.2 降级回归（`composer-qa49`）
+
+**门控契约修正（实测上游源码定性）：** `ui-sidebar` 的 `hasEntryActions && <PanelMoreMenu/>`（`client.js:551`）证明"更多"启动器仅在 `entriesOfSlot("sidebar.panellist.actions").length > 0` 时存在。此前实现附带"有未固定项即显示"的兜底偏离契约，已修正为 `bundled || (有注册 && 有未固定行)`：bundled 注册自带 browse/create 内容即可开门；foreign 注册算门控但只在有未固定行提供可渲染内容时才开门（外来 action owner 组件无法原生渲染=如实降级，见下）。
+
+**控件层验证（`ui.NewTester` 真实命中测试层，4 个新用例）：** 点击"更多"行→真实菜单项顺序（未固定行/固定到左侧栏子菜单/分隔/浏览更多插件/创建你的插件）→`ChooseMenuItem` 逐项驱动：`h-notes` 打开且不回钉、`OnOpenMarket`、`OnCreatePluginDraft("leftbar")`、子菜单回钉；行右键→"从左侧栏取消固定"→回调；无注册→"更多"行不存在；rail 折叠态同路径。
+
+**HMR 宽限期单测化：** 撤销视图决策抽出为 `pluginViewMissingDecision`（纯函数）：活桥首失开始计时、2.5s 内保持静默打开、逾期通知一次并关闭、死桥立即静默关闭（无 HMR 提示）——4 个断言点全覆盖。
+
+**rc.2 降级回归（`composer-qa49`，默认 vendor + 默认 Node）：** `extension-panel-more` 实测走旧契约分支——"no sidebar.panellist.actions registrations (old-contract runtime: correctly no More)"；pins/creator 两 mark 亦过。`external-edit-conflict` 一次超时（qa45 同 runtime 通过、qa48 rc.4 通过）——既有观察项抖动，与本批改动正交。
+
+**环境约束补记：** `WHALEISLE_NODE` 显式覆盖在两个 runtime 上均被 Host 拒（`selected Node differs from the verified Host session runtime`）；rc.4 的正确指定方式是 `runtime-rc4\node\node.exe` 配套捆绑 Node，rc.2/默认树不传该变量走自身解析。

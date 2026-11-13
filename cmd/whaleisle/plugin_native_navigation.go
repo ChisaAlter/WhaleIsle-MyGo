@@ -175,18 +175,8 @@ func (s *mainState) renderPluginNativeView(c *ui.Context) bool {
 		p := s.nativePlugins.navigation
 		win := s.win
 		notify, close := false, true
-		if p != nil && snapshot.Connected {
-			// The bridge is alive and the registry dropped this handle. Grace
-			// lets an HMR rebuild re-register before it counts as withdrawn.
-			if p.missingSince.IsZero() {
-				p.missingSince = time.Now()
-				close = false
-			} else if time.Since(p.missingSince) <= 2500*time.Millisecond {
-				close = false
-			} else {
-				notify = !p.missingNotified
-				p.missingNotified = true
-			}
+		if p != nil {
+			notify, close = pluginViewMissingDecision(snapshot.Connected, p, time.Now())
 		}
 		s.mu.Unlock()
 		if notify {
@@ -217,6 +207,27 @@ func (s *mainState) renderPluginNativeView(c *ui.Context) bool {
 
 // renderPluginNativeSlotView is the in-place settings/sidebar consumer. It does
 // not add a center-page shell or move the native session header/composer.
+// pluginViewMissingDecision decides what a missing selected view costs, once,
+// holding the state lock. A dead bridge withdraws the view immediately and
+// quietly; a live bridge grants the registration one grace window to come back
+// (HMR) before the close earns a single unavailable notice.
+func pluginViewMissingDecision(connected bool, p *nativePluginNavigationState, now time.Time) (notify, close bool) {
+	if !connected {
+		return false, true
+	}
+	switch {
+	case p.missingSince.IsZero():
+		p.missingSince = now
+		return false, false
+	case now.Sub(p.missingSince) <= 2500*time.Millisecond:
+		return false, false
+	default:
+		notify = !p.missingNotified
+		p.missingNotified = true
+		return notify, true
+	}
+}
+
 func (s *mainState) renderPluginNativeSlotView(c *ui.Context, handle string) bool {
 	s.mu.Lock()
 	p := s.nativePlugins.navigation

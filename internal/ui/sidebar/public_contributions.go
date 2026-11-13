@@ -153,12 +153,18 @@ func sidebarPanelMoreAvailable(m Model) (show, bundled bool) {
 	if m.PublicContributions.Registrations == nil {
 		return false, false
 	}
-	for _, reg := range m.PublicContributions.Registrations("sidebar.panellist.actions") {
+	regs := m.PublicContributions.Registrations("sidebar.panellist.actions")
+	for _, reg := range regs {
 		if reg.Native {
 			bundled = true
 		}
 	}
-	return bundled || len(sidebarPanelMenuRows(m)) > 0, bundled
+	// The source gates the launcher on the slot having registrations at all
+	// (`hasEntryActions && <PanelMoreMenu/>`). Bundled registrations make the
+	// native browse/create rows renderable on their own; a foreign owner we
+	// cannot render still counts for the gate but only earns a menu while
+	// unpinned rows give it content.
+	return bundled || (len(regs) > 0 && len(sidebarPanelMenuRows(m)) > 0), bundled
 }
 
 func publicPanelGlyph(c *ui.Context, m Model, row publicPanelRow, ink ui.Color) {
