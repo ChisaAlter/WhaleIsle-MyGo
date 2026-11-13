@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/latest"><img src="https://img.shields.io/badge/release-v0.1.0-0A66C2" alt="Release v0.1.0" /></a>
+  <a href="https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/latest"><img src="https://img.shields.io/badge/release-v0.1.1-0A66C2" alt="Release v0.1.1" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT" /></a>
   <img src="https://img.shields.io/badge/UI-Go%20%2B%20MyGo-00ADD8" alt="Go + MyGo" />
   <img src="https://img.shields.io/badge/Windows-x64-0A66C2" alt="Windows x64" />
@@ -45,13 +45,13 @@ Whale Isle MyGo turns [DeepSeek Harness](https://github.com/deepseek-ai/deepseek
 
 | Platform | Installer | Checksums & notes |
 | --- | --- | --- |
-| Windows 10+ · x64 · v0.1.0 | [WhaleIsle-MyGo-Setup-0.1.0.exe](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v0.1.0/WhaleIsle-MyGo-Setup-0.1.0.exe) | [Release page & SHA256SUMS](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/tag/v0.1.0) |
+| Windows 10+ · x64 · v0.1.1 | [WhaleIsle-MyGo-Setup-0.1.1.exe](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v0.1.1/WhaleIsle-MyGo-Setup-0.1.1.exe) | [Release page & SHA256SUMS](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/tag/v0.1.1) |
 
 The desktop installer is currently unsigned; if Windows SmartScreen prompts on first launch, choose **More info → Run anyway**. On macOS, you can build and run directly from source below.
 
 ## Getting started
 
-1. Install and launch **Whale Isle MyGo** (the launcher manages desktop versions, runtime setup, imports and components).
+1. Install and launch **Whale Isle MyGo** (the desktop app includes a built-in start page that manages updates, runtime setup, imports and components).
 2. Open **Settings → Models** and configure an API provider; usage is billed by your chosen provider.
 3. Pick a workspace folder or start a new conversation right away (if you already use Whale Isle, your existing sessions and model settings appear automatically).
 4. To hand a directory to an AI team: enable **Project** in **Settings → Built-in features**, then open Project from the new-session screen.
@@ -108,15 +108,15 @@ Common shortcuts: `Ctrl+N` new session · `Ctrl+B` left sidebar · `Ctrl+\` righ
 | **Themes & glass backdrop** | Light, dark or system mode, built-in color themes, font tuning, aurora gradients and custom wallpapers |
 
 <p align="center">
-  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="Whale Isle MyGo 0.1.0 native launcher" width="680" />
+  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="Whale Isle MyGo 0.1.0 built-in start page" width="680" />
 </p>
 
 ## FAQ
 
 - **Does it cost money?** The app is free and open source (MIT); your configured model provider charges for API usage.
 - **Will it conflict with the original Whale Isle?** No. Whale Isle MyGo installs to `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` with its own app ID, shortcuts and update channel. Both editions can stay installed and even run at the same time.
-- **Where is my data stored?** By default it shares `%APPDATA%\Deepseek-Harness-Desktop` on Windows (`~/Library/Application Support/Deepseek-Harness-Desktop` on macOS) so your sessions and settings carry over seamlessly. To import skills, MCP servers or settings from the official `~/.dsh` CLI, use the **Import** tab in the launcher.
-- **How do I upgrade?** Click **Check for updates** in the launcher or **Settings → About** to download, verify and install new releases.
+- **Where is my data stored?** By default it shares `%APPDATA%\Deepseek-Harness-Desktop` on Windows (`~/Library/Application Support/Deepseek-Harness-Desktop` on macOS) so your sessions and settings carry over seamlessly. To import skills, MCP servers or settings from the official `~/.dsh` CLI, use the **Import** tab on the start page.
+- **How do I upgrade?** Click **Check for updates** on the start page or in **Settings → About** to download, verify and install new releases. Downloads can be paused and resumed.
 
 ## Run from source
 
@@ -126,19 +126,18 @@ Requires Git, Go `1.25+`, and Node.js `22.19+` or `24+` (used to run the local D
 git clone https://github.com/ChisaAlter/WhaleIsle-MyGo.git
 cd WhaleIsle-MyGo
 
-# Configure the Go toolchain environment and build the desktop app, launcher and preview helper
+# Configure the Go toolchain environment and build the desktop app and preview helper
 . .\scripts\env.ps1
-go build ./cmd/whaleisle ./cmd/whaleisle-launcher ./cmd/whaleisle-preview
+go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
 # Optional: package the Windows NSIS installer
-$env:WHALEISLE_VERSION = '0.1.0'
+$env:WHALEISLE_VERSION = '0.1.1'
 .\scripts\package.ps1
 ```
 
 | Directory | Contents |
 | --- | --- |
 | `cmd/whaleisle` | Whale Isle MyGo desktop shell and window lifecycle |
-| `cmd/whaleisle-launcher` | Standalone native launcher |
 | `cmd/whaleisle-preview` | On-demand helper process for web and interactive card previews |
 | `internal/ui` | Native UI surfaces built on MyGo UI (chat, workbench, Project, settings, launcher) |
 | `internal/desktop` | Desktop integrations (Git, SSH remote, phone remote, companion, updater) |

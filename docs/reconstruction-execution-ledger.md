@@ -449,11 +449,11 @@ B项当前状态：代码已推送27项、实现/整合中9项（B19、B20、B21
 
 ### E03 · launcher-slim · 独立轻量启动器管理另一桌面安装
 - 基线状态：证据不足
-- 当前状态：待澄清/补证据
+- 当前状态：已定结论（不要求独立启动器）
 - 完成准则：明确是否要求独立轻量启动器产品形态；若要求，具备独立管理另一桌面安装的入口与生命周期；若不要求，记录明确范围结论，不把应用内 Host 管理算缺失。
 - 提交：无已发布提交
 - 验证范围：未补充运行证据；运行类确认留待对应后置门槛，不提前启动一轮审查。
-- 基线说明：原生是应用内启动器，未找到独立launcher产品形态；是否必须保留该形态需明确，不将已实现Host管理计为缺失。
+- 基线说明：原生是应用内启动器，未找到独立launcher产品形态；范围结论（2026-11-13）：不要求独立启动器，以完整安装包加应用内启动页为唯一分发形态；cmd/whaleisle-launcher 仅作参考代码保留，见 docs/standalone-launcher.md。不将已实现Host管理计为缺失。
 - 原版证据：package.json:25;electron-builder.launcher.yml:1;src/launcher/launcher-service.js:380-414,931
 - 原生证据：internal/ui/launcher/panel.go:1;cmd/whaleisle/native_releases.go:36
 

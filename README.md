@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/latest"><img src="https://img.shields.io/badge/release-v0.1.0-0A66C2" alt="Release v0.1.0" /></a>
+  <a href="https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/latest"><img src="https://img.shields.io/badge/release-v0.1.1-0A66C2" alt="Release v0.1.1" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT" /></a>
   <img src="https://img.shields.io/badge/UI-Go%20%2B%20MyGo-00ADD8" alt="Go + MyGo" />
   <img src="https://img.shields.io/badge/Windows-x64-0A66C2" alt="Windows x64" />
@@ -45,13 +45,13 @@
 
 | 平台 | 安装包 | 校验与说明 |
 | --- | --- | --- |
-| Windows 10+ · x64 · v0.1.0 | [WhaleIsle-MyGo-Setup-0.1.0.exe](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v0.1.0/WhaleIsle-MyGo-Setup-0.1.0.exe) | [发布页与 SHA256 清单](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/tag/v0.1.0) |
+| Windows 10+ · x64 · v0.1.1 | [WhaleIsle-MyGo-Setup-0.1.1.exe](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v0.1.1/WhaleIsle-MyGo-Setup-0.1.1.exe) | 约 301 MiB，已内置运行时，安装后无需再下载。[发布页与 SHA256 清单](https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/tag/v0.1.1) |
 
 桌面安装包暂未附带商业代码签名，Windows 首次运行若弹出 SmartScreen 提示，点击「更多信息 → 仍要运行」即可。Mac 版本可通过下方源码方式直接编译运行。
 
 ## 快速开始
 
-1. 安装并打开 **鲸屿 MyGo**（独立启动器负责管理桌面端版本、运行环境、导入和组件）。
+1. 安装并打开 **鲸屿 MyGo**（桌面端内置启动页，负责版本更新、运行环境、导入和组件管理）。
 2. 打开「设置 → 模型」配置 API 服务，模型调用费用由你所选的服务商收取。
 3. 选择一个本地工作目录，或直接新建会话开始对话（若已安装原版鲸屿，原有的模型配置与历史会话会自动出现）。
 4. 想把目录交给团队长期推进：在「设置 → 内置功能」开启 **Project**，再在新会话首屏进入 Project。
@@ -108,15 +108,15 @@ Project 把一个本地代码库或目录变成可持续推进的项目。你在
 | **多主题与毛玻璃** | 浅色 / 深色 / 跟随系统，内置多套配色皮肤、字体微调、极光渐变与自定义壁纸 |
 
 <p align="center">
-  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="鲸屿 MyGo 0.1.0 原生启动器" width="680" />
+  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="鲸屿 MyGo 0.1.0 内置启动页" width="680" />
 </p>
 
 ## 常见问题
 
 - **要花钱吗？** 软件免费开源（MIT）；模型调用费用由你自己在「设置 → 模型」中配置的服务商收取。
 - **已安装原版鲸屿，再装 MyGo 版会冲突吗？** 不会。鲸屿 MyGo 默认安装在 `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo`，拥有独立的应用标识、快捷方式和更新通道，不会覆盖原版，两个版本甚至可以同时打开运行。
-- **数据保存在哪？** 默认与原版鲸屿共用 `%APPDATA%\Deepseek-Harness-Desktop`（macOS 为 `~/Library/Application Support/Deepseek-Harness-Desktop`），方便无缝延续已有会话与配置；覆盖升级不会丢失数据。若需导入官方 CLI `~/.dsh` 的配置，可在启动器「导入」页一键导入。
-- **怎么升级？** 在启动器或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新。
+- **数据保存在哪？** 默认与原版鲸屿共用 `%APPDATA%\Deepseek-Harness-Desktop`（macOS 为 `~/Library/Application Support/Deepseek-Harness-Desktop`），方便无缝延续已有会话与配置；覆盖升级不会丢失数据。若需导入官方 CLI `~/.dsh` 的配置，可在启动页「导入」页一键导入。
+- **怎么升级？** 在启动页或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新；支持暂停、断点续传。
 
 ## 从源码运行
 
@@ -126,19 +126,18 @@ Project 把一个本地代码库或目录变成可持续推进的项目。你在
 git clone https://github.com/ChisaAlter/WhaleIsle-MyGo.git
 cd WhaleIsle-MyGo
 
-# 加载本地 Go 工具链环境并编译桌面端、启动器与预览进程
+# 加载本地 Go 工具链环境并编译桌面端与预览进程
 . .\scripts\env.ps1
-go build ./cmd/whaleisle ./cmd/whaleisle-launcher ./cmd/whaleisle-preview
+go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
 # 如需打包 Windows 安装程序
-$env:WHALEISLE_VERSION = '0.1.0'
+$env:WHALEISLE_VERSION = '0.1.1'
 .\scripts\package.ps1
 ```
 
 | 目录 | 内容 |
 | --- | --- |
 | `cmd/whaleisle` | 鲸屿 MyGo 桌面主程序入口与窗口管理 |
-| `cmd/whaleisle-launcher` | 独立原生启动器 |
 | `cmd/whaleisle-preview` | 按需启动的网页与交互式卡片预览辅助进程 |
 | `internal/ui` | 基于 MyGo UI 实现的全部原生界面（对话、工作台、Project、设置、启动器等） |
 | `internal/desktop` | 桌面能力集成（Git、SSH 远程、手机远程、桌宠、更新中心等） |

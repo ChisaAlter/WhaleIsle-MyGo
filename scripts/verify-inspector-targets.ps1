@@ -26,7 +26,7 @@ try {
   Check 'affected-vet' 'go' @('vet','./internal/store/session','./internal/ui/chat','./internal/ui/frame')
  }
  if($Stage -eq 'all'){
-  Check 'command-tests' 'go' @('test','./cmd/whaleisle/...','./cmd/whaleisle-preview/...','./cmd/whaleisle-launcher/...','-count=1')
+  Check 'command-tests' 'go' @('test','./cmd/whaleisle/...','./cmd/whaleisle-preview/...','-count=1')
  }
  if($Stage -in 'all','build'){
   Check 'production-build' 'go' @('build','-o','whaleisle-pass253.exe','./cmd/whaleisle')

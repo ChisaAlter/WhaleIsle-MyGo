@@ -1,3 +1,6 @@
+// Deprecated: the standalone launcher is no longer built, packaged or distributed.
+// Updates and installs are handled by the desktop app's built-in start page; see
+// docs/standalone-launcher.md. This file is kept as reference only.
 // whaleisle-launcher is a standalone native surface. It never starts a Host in
 // its own process or bundles the desktop runtime it manages.
 package main

@@ -74,7 +74,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Compile Windows desktop, launcher and preview
+      - name: Compile Windows desktop and preview
         shell: pwsh
         env:
           CGO_ENABLED: '0'
@@ -87,6 +87,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Go toolchain unavailable' }
           $output = Join-Path $env:RUNNER_TEMP 'whaleisle-build'
           New-Item -ItemType Directory -Path $output | Out-Null
-          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-launcher ./cmd/whaleisle-preview
+          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-preview
           if ($LASTEXITCODE -ne 0) { throw 'Windows compile failed' }
-          'Windows amd64 desktop, launcher and preview Go compile passed. No executable was launched or packaged.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          'Windows amd64 desktop and preview Go compile passed. No executable was launched or packaged.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
