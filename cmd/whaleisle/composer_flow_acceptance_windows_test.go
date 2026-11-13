@@ -48,10 +48,12 @@ func TestComposerFlowAcceptance(t *testing.T) {
 // qaModel serves Anthropic Messages with deterministic SSE. "QA_WAIT" streams
 // forever so the stop gesture has a live turn to cancel.
 type qaModel struct {
-	server   *http.Server
-	addr     string
-	requests atomic.Int64
-	lastText atomic.Value
+	server    *http.Server
+	addr      string
+	requests  atomic.Int64
+	lastText  atomic.Value
+	gatedTool atomic.Value
+	toolNames atomic.Value
 }
 
 func newQAModel() (*qaModel, error) {
@@ -71,6 +73,12 @@ func newQAModel() (*qaModel, error) {
 			Messages []struct {
 				Content any `json:"content"`
 			} `json:"messages"`
+			Tools []struct {
+				Name        string `json:"name"`
+				InputSchema struct {
+					Properties map[string]any `json:"properties"`
+				} `json:"input_schema"`
+			} `json:"tools"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		text := ""
@@ -100,6 +108,66 @@ func newQAModel() (*qaModel, error) {
 			}
 			emit("content_block_stop", map[string]any{"index": 0})
 			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 4000}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		if strings.Contains(text, "tool_result") {
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_APPROVED_OK: gated tool result returned after approval."}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+			emit("message_stop", map[string]any{})
+			return
+		}
+		if strings.Contains(text, "QA_APPROVE") {
+			var names []string
+			for _, t := range body.Tools {
+				names = append(names, t.Name)
+			}
+			m.toolNames.Store(strings.Join(names, ","))
+			gated := []string{"pwsh", "bash", "powershell", "shell", "exec", "run_command", "runcommand", "cmd", "write", "edit", "apply_patch", "fs_write", "writefile"}
+			chosenTool := -1
+		outer:
+			for _, g := range gated {
+				for i, tool := range body.Tools {
+					if strings.Contains(strings.ToLower(tool.Name), g) {
+						chosenTool = i
+						break outer
+					}
+				}
+			}
+			if chosenTool >= 0 {
+				tool := body.Tools[chosenTool]
+				m.gatedTool.Store(tool.Name)
+				args := map[string]any{}
+				for key := range tool.InputSchema.Properties {
+					switch strings.ToLower(key) {
+					case "command", "cmd", "script":
+						args[key] = "echo qa-approve"
+					case "path", "file_path", "filepath", "filename":
+						args[key] = "qa-approve.txt"
+					case "content", "text", "new_string":
+						args[key] = "qa approved write"
+					case "command_line":
+						args[key] = "echo qa-approve"
+					case "sandbox_permissions":
+						args[key] = "danger-full-access"
+					case "justification", "description", "reason":
+						args[key] = "qa approval escalation"
+					}
+				}
+				raw, _ := json.Marshal(args)
+				emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("qa-gated-%d", m.requests.Load()), "name": tool.Name, "input": map[string]any{}}})
+				emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+				emit("content_block_stop", map[string]any{"index": 0})
+				emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+				emit("message_stop", map[string]any{})
+				return
+			}
+			emit("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+			emit("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": "QA_NO_GATED_TOOL: session advertised no exec/write-class tool."}})
+			emit("content_block_stop", map[string]any{"index": 0})
+			emit("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 10}})
 			emit("message_stop", map[string]any{})
 			return
 		}
@@ -437,6 +505,72 @@ func runComposerFlowQA() error {
 			return
 		}
 		mark("retry-after-rejection", true, "second submit accepted and replied")
+		// --- one-time approval on a gated tool call ---
+		sessions.Select(id1)
+		state.mu.Lock()
+		dA := state.composerDraftLocked(id1)
+		dA.EditSeq = 0
+		dA.Error = ""
+		dA.Text = "QA_APPROVE run gated tool"
+		state.mu.Unlock()
+		state.submitComposer(win, sessions, dA, id1, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+		approvalSeen := ""
+		var approveErr error
+		approveDeadline := time.Now().Add(40 * time.Second)
+		for time.Now().Before(approveDeadline) {
+			if approvalSeen == "" {
+				for _, p := range state.interactions.Snapshot().Pending {
+					if p.Event == "approval/request" {
+						approvalSeen = p.EventID
+						break
+					}
+				}
+			}
+			v := sessions.Snapshot()
+			for _, m := range v.Messages {
+				if m.Role == "assistant" && strings.Contains(m.Body, "QA_NO_GATED_TOOL") {
+					approveErr = fmt.Errorf("session advertised no exec/write-class tool")
+				}
+				if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
+					approveErr = fmt.Errorf("tool completed without an approval request")
+				}
+			}
+			if approveErr != nil {
+				break
+			}
+			if approvalSeen != "" {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		toolUsed, _ := model.gatedTool.Load().(string)
+		allTools, _ := model.toolNames.Load().(string)
+		switch {
+		case approveErr != nil:
+			mark("one-time-approval", false, fmt.Sprintf("inconclusive: %s (tool=%q advertised=[%s])", approveErr.Error(), toolUsed, allTools))
+		case approvalSeen == "":
+			mark("one-time-approval", false, "no approval/request reached the interaction store within 40s")
+		default:
+			state.interactions.ResolveAllow(approvalSeen)
+			if err := waitStore(deadline, "approval accepted tool completes", func() (bool, error) {
+				for _, m := range sessions.Snapshot().Messages {
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
+						return true, nil
+					}
+				}
+				return false, nil
+			}); err != nil {
+				finish(fmt.Errorf("approval resolved but tool never completed: %w", err))
+				return
+			}
+			cleared := true
+			for _, p := range state.interactions.Snapshot().Pending {
+				if p.EventID == approvalSeen {
+					cleared = false
+				}
+			}
+			mark("one-time-approval", cleared, fmt.Sprintf("pending approval %s resolved once; tool result returned; pending cleared=%v", approvalSeen, cleared))
+		}
 		// --- optional sustained-stream workload for frame-cost sampling ---
 		if n, _ := strconv.Atoi(os.Getenv("WHALEISLE_COMPOSER_QA_WORKLOAD")); n > 0 {
 			// Nudge: invalidate the window directly so a flat frame counter
@@ -513,7 +647,12 @@ func runComposerFlowQA() error {
 			mygo.RunOnMain(func() { reqCount, paintCount = mygo.TestFrameCounters() })
 			mark("workload-streams", true, fmt.Sprintf("%d long turns; visible=%v min=%v holdFrames(interaction=%v,sizeBurst=%v) frames=%d→%d | base[%s] mid[%s] end[req=%d paint=%d]", n, visible, minimized, interaction, sizeBurst, framesBefore, framesAfter, baseSnap, midSnap, reqCount, paintCount))
 			// Real input path: set the composer text through UI Automation's
-			// ValuePattern, the channel assistive technology uses.
+			// ValuePattern, the channel assistive technology uses. Restore a
+			// minimized window first: UIA and focus need a presentable surface.
+			if win.IsMinimized() {
+				win.Restore()
+				time.Sleep(500 * time.Millisecond)
+			}
 			var uiaOK bool
 			mygo.RunOnMain(func() { uiaOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "value", "UIA typed text") })
 			if uiaOK {
@@ -528,6 +667,27 @@ func runComposerFlowQA() error {
 			} else {
 				mark("real-input-uia-setvalue", false, "Composer draft element not performable")
 			}
+			// Unicode text delivery through the real wndproc: WM_CHAR is the
+			// channel committed IME strings and typed text arrive on. Focus the
+			// composer through UIA, then send CJK code units.
+			var focusOK, sentOK bool
+			mygo.RunOnMain(func() {
+				focusOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "focus", "")
+				sentOK = true
+				for _, r := range "你好" {
+					if !mygo.TestSendChar(hwnd, r) {
+						sentOK = false
+					}
+				}
+			})
+			time.Sleep(400 * time.Millisecond)
+			state.mu.Lock()
+			draftAfterChars := ""
+			if d := state.composerDrafts[id1]; d != nil {
+				draftAfterChars = d.Text
+			}
+			state.mu.Unlock()
+			mark("real-input-unichar", sentOK && strings.Contains(draftAfterChars, "你好"), fmt.Sprintf("focus=%v sent=%v draft=%q", focusOK, sentOK, draftAfterChars))
 		}
 		failed := false
 		for _, st := range steps {
