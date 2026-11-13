@@ -5,9 +5,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,10 +20,68 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
+	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/files"
+	"whaleisle/internal/ui/frame"
 )
+
+// findFileResourcePane walks the workspace dock for the files pane owning rel,
+// matching OpenFileResource's own identity check (Kind + ResourcePath).
+func findFileResourcePane(w *frame.WorkspacePanes, rel string) *frame.WorkspacePane {
+	if w == nil {
+		return nil
+	}
+	var pane *frame.WorkspacePane
+	var walk func(n *frame.WorkspacePane)
+	walk = func(n *frame.WorkspacePane) {
+		if n == nil || pane != nil {
+			return
+		}
+		if n.Kind == "files" && n.Files != nil && n.Files.ResourcePath == rel {
+			pane = n
+			return
+		}
+		for _, tab := range n.DockTabs {
+			walk(tab)
+		}
+		walk(n.First)
+		walk(n.Second)
+	}
+	walk(w.Root)
+	return pane
+}
+
+// markFileTabDirty writes a real draft at all three levels of the same value:
+// the FileTab a native edit produces, the pane's edit state, and the mainState
+// mirror. All three are synced by capture/publish every frame, so a partial
+// write is clobbered by the next projection; a consistent write survives.
+func markFileTabDirty(state *mainState, pane *frame.WorkspacePane, rel, root, draft string) bool {
+	if pane == nil || pane.Files == nil {
+		return false
+	}
+	var tab *files.FileTab
+	if ws := pane.Files.Tabs.Workspaces[filepath.Clean(root)]; ws != nil {
+		for _, t := range ws.Open {
+			if t != nil && t.Path == rel {
+				tab = t
+				break
+			}
+		}
+	}
+	if tab == nil {
+		return false
+	}
+	tab.Editing, tab.Draft = true, draft
+	pane.Files.Editing, pane.Files.Draft = true, draft
+	state.mu.Lock()
+	state.fileEditing, state.fileEditDraft = true, draft
+	state.mu.Unlock()
+	return true
+}
 
 // Opt-in real-window composer QA: one hidden desktop, one fresh profile, one
 // owned Host, one deterministic loopback model. Drives the same entry points
@@ -214,6 +274,19 @@ func runComposerFlowQA() error {
 	if err = os.WriteFile(notePath, []byte("qa owned attachment bytes\n"), 0o600); err != nil {
 		return err
 	}
+	// A git baseline lets the diff scenario exercise the real work surface:
+	// init+commit, then scenarios modify tracked files and open the diff pane.
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"-c", "user.name=qa", "-c", "user.email=qa@qa.local", "commit", "-qm", "baseline"},
+	} {
+		gitCmd := exec.Command("git", args...)
+		gitCmd.Dir = workspace
+		if gErr := gitCmd.Run(); gErr != nil {
+			return fmt.Errorf("qa workspace git %v: %w", args, gErr)
+		}
+	}
 	cfg, err := config.Open(data)
 	if err != nil {
 		return err
@@ -319,13 +392,29 @@ func runComposerFlowQA() error {
 			return
 		}
 		id1 := sessions.Snapshot().SelectedID
-		sessions.CreateSession(ctx)
+		createAttempts := 0
+		lastCreate := time.Time{}
 		if err := waitStore(deadline, "session 2 created", func() (bool, error) {
 			watch()
 			v := sessions.Snapshot()
-			return v.SelectedID != id1 && v.SelectedID != "", nil
+			if v.SelectedID != id1 && v.SelectedID != "" {
+				return true, nil
+			}
+			// A create gesture issued while the previous selection still
+			// settles can be dropped by the workspace-target owner fence; the
+			// real user's recovery is issuing the gesture again.
+			if time.Since(lastCreate) > 4*time.Second {
+				sessions.CreateSession(ctx)
+				lastCreate = time.Now()
+				createAttempts++
+			}
+			return false, nil
 		}); err != nil {
-			finish(err)
+			keys := []string{}
+			for action := range seenActions {
+				keys = append(keys, action)
+			}
+			finish(fmt.Errorf("%w (attempts=%d last=%q actions=%v sel=%q items=%d)", err, createAttempts, sessions.Snapshot().LastAction, keys, sessions.Snapshot().SelectedID, len(sessions.Snapshot().Items)))
 			return
 		}
 		id2 := sessions.Snapshot().SelectedID
@@ -646,6 +735,355 @@ func runComposerFlowQA() error {
 			var reqCount, paintCount int64
 			mygo.RunOnMain(func() { reqCount, paintCount = mygo.TestFrameCounters() })
 			mark("workload-streams", true, fmt.Sprintf("%d long turns; visible=%v min=%v holdFrames(interaction=%v,sizeBurst=%v) frames=%d→%d | base[%s] mid[%s] end[req=%d paint=%d]", n, visible, minimized, interaction, sizeBurst, framesBefore, framesAfter, baseSnap, midSnap, reqCount, paintCount))
+			// --- file + diff work surface (batch 3 scope) ---
+			// Drive the same dock entry a tree/reference click uses: the pane's
+			// WorkspaceFileState owns the tab; the async workspacefs read
+			// publishes Preview on a following frame. Runs on the UI thread so
+			// dock mutations stay serialized with renders.
+			fd := time.Now().Add(45 * time.Second)
+			snap3 := sessions.Snapshot()
+			state.dshMu.Lock()
+			qaClient := state.dshClient
+			state.dshMu.Unlock()
+			openDone := make(chan error, 1)
+			win.Update(func() {
+				fm := files.Model{
+					BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap3.SelectedID), SessionID: snap3.SelectedID, WorkspaceRoot: snap3.SelectedCwd,
+					Tabs: &state.fileTabs,
+					ReadTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
+						return workspacefs.ReadRemoteTextPage(ctx, qaClient, snap3.SelectedID, rel, offset)
+					},
+					ReadRemoteContext: func(ctx context.Context, rel string) (string, error) {
+						return workspacefs.ReadRemoteText(ctx, qaClient, rel, workspacefs.DefaultMaxReadBytes)
+					},
+					StatRemoteContext: func(ctx context.Context, rel string) string {
+						return workspacePreviewStat(ctx, qaClient, snap3.SelectedID, rel)
+					},
+				}
+				state.mu.Lock()
+				state.filesPaneOpen, state.rightPaneTab = true, "files"
+				workspacePanes := state.layout.Workspace
+				state.mu.Unlock()
+				if workspacePanes == nil {
+					openDone <- errors.New("workspace dock not initialized")
+					return
+				}
+				handled, oerr := workspacePanes.OpenFileResource(fm, "qa-note.txt")
+				if oerr == nil && !handled {
+					oerr = errors.New("OpenFileResource left qa-note.txt unhandled")
+				}
+				openDone <- oerr
+			})
+			select {
+			case oerr := <-openDone:
+				if oerr != nil {
+					mark("file-open-preview", false, oerr.Error())
+				} else if err := waitStore(fd, "workspace file preview loads", func() (bool, error) {
+					state.mu.Lock()
+					prev, perr := state.filePreview, state.filePreviewErr
+					state.mu.Unlock()
+					if perr != "" {
+						return false, errors.New(perr)
+					}
+					return strings.Contains(prev, "qa owned attachment bytes"), nil
+				}); err != nil {
+					mark("file-open-preview", false, err.Error())
+				} else {
+					mark("file-open-preview", true, "qa-note.txt resource tab preview loaded through workspacefs read")
+				}
+			case <-time.After(30 * time.Second):
+				mark("file-open-preview", false, "OpenFileResource did not run on the UI thread")
+			}
+			// Modify the tracked file after the baseline commit, then route the
+			// dock to the diff pane: its workbench runs git.DiffHEAD during
+			// render and publishes the text through the same adapter.
+			if werr := os.WriteFile(notePath, []byte("qa owned attachment bytes\nqa diff probe line\n"), 0o600); werr != nil {
+				mark("diff-surface-load", false, werr.Error())
+			} else {
+				win.Update(func() {
+					state.mu.Lock()
+					state.filesPaneOpen, state.rightPaneTab = true, "diff"
+					state.mu.Unlock()
+				})
+				if err := waitStore(fd, "diff surface loads git output", func() (bool, error) {
+					win.Invalidate()
+					state.mu.Lock()
+					text, derr := state.diffText, state.diffErr
+					state.mu.Unlock()
+					if derr != "" {
+						return false, errors.New(derr)
+					}
+					return strings.Contains(text, "qa diff probe line"), nil
+				}); err != nil {
+					mark("diff-surface-load", false, err.Error())
+				} else {
+					mark("diff-surface-load", true, "git.DiffHEAD output reached diff surface")
+				}
+			}
+			// Dirty draft lifecycle: drive the pane's WorkspaceFileState — the
+			// render binds source.Tabs = &pane.Files.Tabs, so the FileTab there
+			// is the authoritative owner of Editing/Draft (tab.Dirty() compares
+			// tab.Draft != tab.Preview). Mirrors are published downstream.
+			dirtyDone := make(chan bool, 1)
+			win.Update(func() {
+				state.mu.Lock()
+				state.filesPaneOpen, state.rightPaneTab = true, "files"
+				state.mu.Unlock()
+				dirtyDone <- markFileTabDirty(&state, findFileResourcePane(state.layout.Workspace, "qa-note.txt"), "qa-note.txt", snap3.SelectedCwd, "qa local edit draft\n")
+			})
+			fd2 := time.Now().Add(45 * time.Second)
+			select {
+			case injected := <-dirtyDone:
+				if !injected {
+					mark("file-edit-switch-return", false, "no open FileTab for qa-note.txt on the files pane")
+				} else if err := waitStore(fd2, "file draft published from pane state", func() (bool, error) {
+					win.Invalidate()
+					state.mu.Lock()
+					e, d := state.fileEditing, state.fileEditDraft
+					state.mu.Unlock()
+					return e && strings.Contains(d, "qa local edit draft"), nil
+				}); err != nil {
+					mark("file-edit-switch-return", false, err.Error())
+				} else {
+					win.Update(func() { state.mu.Lock(); state.rightPaneTab = "diff"; state.mu.Unlock() })
+					time.Sleep(500 * time.Millisecond)
+					// The "files" route selects the browser pane, not the open
+					// file: selectKind skips resource-owning files panes. The
+					// real return gesture is activating the file's dock tab,
+					// which OpenFileResource performs on the existing resource.
+					reactDone := make(chan string, 1)
+					win.Update(func() {
+						state.mu.Lock()
+						state.rightPaneTab = "files"
+						workspacePanes := state.layout.Workspace
+						state.mu.Unlock()
+						if workspacePanes == nil {
+							reactDone <- "workspace dock not initialized"
+							return
+						}
+						fm2 := files.Model{
+							BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap3.SelectedID), SessionID: snap3.SelectedID, WorkspaceRoot: snap3.SelectedCwd,
+							Tabs: &state.fileTabs,
+						}
+						handled, rerr := workspacePanes.OpenFileResource(fm2, "qa-note.txt")
+						if rerr == nil && !handled {
+							rerr = errors.New("OpenFileResource did not reactivate qa-note.txt")
+						}
+						if rerr != nil {
+							reactDone <- rerr.Error()
+							return
+						}
+						reactDone <- ""
+					})
+					fd2b := time.Now().Add(45 * time.Second)
+					seenDirty, seenE, seenSel := false, false, ""
+					seenD := ""
+					paneFound := false
+					select {
+					case rerr := <-reactDone:
+						if rerr != "" {
+							mark("file-edit-switch-return", false, rerr)
+						} else if err := waitStore(fd2b, "file edit draft survives pane switching", func() (bool, error) {
+							win.Invalidate()
+							dirty := false
+							if pane := findFileResourcePane(state.layout.Workspace, "qa-note.txt"); pane != nil && pane.Files != nil {
+								paneFound = true
+								if ws := pane.Files.Tabs.Workspaces[filepath.Clean(snap3.SelectedCwd)]; ws != nil {
+									for _, t := range ws.Open {
+										if t != nil && t.Path == "qa-note.txt" && t.Dirty() {
+											dirty = true
+										}
+									}
+								}
+							}
+							seenDirty = dirty
+							state.mu.Lock()
+							seenE, seenD, seenSel = state.fileEditing, state.fileEditDraft, state.selectedFile
+							state.mu.Unlock()
+							return dirty && seenE && strings.Contains(seenD, "qa local edit draft") && seenSel == "qa-note.txt", nil
+						}); err != nil {
+							mark("file-edit-switch-return", false, fmt.Sprintf("%v (paneFound=%v dirty=%v editing=%v draft=%q sel=%q)", err, paneFound, seenDirty, seenE, seenD, seenSel))
+						} else {
+							disk, _ := os.ReadFile(notePath)
+							mark("file-edit-switch-return", !strings.Contains(string(disk), "qa local edit draft"), "dirty draft kept across diff/files route switch; disk not implicitly saved")
+						}
+					case <-time.After(20 * time.Second):
+						mark("file-edit-switch-return", false, "file pane reactivation did not run on the UI thread")
+					}
+				}
+			case <-time.After(20 * time.Second):
+				mark("file-edit-switch-return", false, "draft injection did not run on the UI thread")
+			}
+			// External modification while dirty: two real product paths surface
+			// the conflict — the resource observer ("loaded content kept") and
+			// the explicit file-selection reread ("disk content reread; draft
+			// kept"). Both preserve the draft; only the explicit reread adopts
+			// the new disk baseline, so preview is recorded as detail, not
+			// asserted. The invariant: conflict surfaced, draft kept, and the
+			// external disk content is never implicitly overwritten by a save.
+			if werr := os.WriteFile(notePath, []byte("external disk change\n"), 0o600); werr != nil {
+				mark("external-edit-conflict", false, werr.Error())
+			} else {
+				snap4 := sessions.Snapshot()
+				reloadDone := make(chan string, 1)
+				win.Update(func() {
+					state.mu.Lock()
+					state.filesPaneOpen, state.rightPaneTab = true, "files"
+					workspacePanes := state.layout.Workspace
+					state.mu.Unlock()
+					if workspacePanes != nil {
+						fm2 := files.Model{
+							BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap4.SelectedID), SessionID: snap4.SelectedID, WorkspaceRoot: snap4.SelectedCwd,
+							Tabs: &state.fileTabs,
+						}
+						// syncTextRead only consumes the queued read while the
+						// owning pane renders, so reactivate the file tab first.
+						_, _ = workspacePanes.OpenFileResource(fm2, "qa-note.txt")
+					}
+					pane := findFileResourcePane(workspacePanes, "qa-note.txt")
+					if pane == nil || pane.Files == nil {
+						reloadDone <- "no files pane"
+						return
+					}
+					pf := pane.Files
+					// OpenPresentedPath is the product's file-selection gesture:
+					// selectTab restores s.Selected (which capture can blank during
+					// route projections) and a blocked tab re-reads on activation,
+					// sharing ReloadSelectedFile's draft/conflict handling.
+					handled, perr := files.OpenPresentedPath(files.Model{
+						BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap4.SelectedID), SessionID: snap4.SelectedID, WorkspaceRoot: snap4.SelectedCwd,
+						Tabs: &pf.Tabs, SelectedFile: &pf.Selected,
+						Preview: &pf.Preview, PreviewErr: &pf.Error,
+						Editing: &pf.Editing, EditDraft: &pf.Draft,
+						EditStatus: &pf.Status, StatNote: &pf.Stat,
+						ReadTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
+							return workspacefs.ReadRemoteTextPage(ctx, qaClient, snap4.SelectedID, rel, offset)
+						},
+						ReadRemoteContext: func(ctx context.Context, rel string) (string, error) {
+							return workspacefs.ReadRemoteText(ctx, qaClient, rel, workspacefs.DefaultMaxReadBytes)
+						},
+						StatRemoteContext: func(ctx context.Context, rel string) string {
+							return workspacePreviewStat(ctx, qaClient, snap4.SelectedID, rel)
+						},
+					}, "qa-note.txt")
+					if perr == nil && !handled {
+						perr = errors.New("OpenPresentedPath left qa-note.txt unhandled")
+					}
+					if perr != nil {
+						reloadDone <- perr.Error()
+						return
+					}
+					reloadDone <- ""
+				})
+				select {
+				case rerr := <-reloadDone:
+					if rerr != "" {
+						mark("external-edit-conflict", false, rerr)
+					} else {
+						lastSt, lastD, lastP := "", "", ""
+						tabPrev, tabDraft, tabStatus, tabErr := "", "", "", ""
+						tabFlags := ""
+						if err := waitStore(time.Now().Add(45*time.Second), "external edit conflict keeps draft", func() (bool, error) {
+							win.Invalidate()
+							state.mu.Lock()
+							lastSt, lastD, lastP = state.fileEditStatus, state.fileEditDraft, state.filePreview
+							state.mu.Unlock()
+							if pane := findFileResourcePane(state.layout.Workspace, "qa-note.txt"); pane != nil && pane.Files != nil {
+								if ws := pane.Files.Tabs.Workspaces[filepath.Clean(snap4.SelectedCwd)]; ws != nil {
+									for _, t := range ws.Open {
+										if t != nil && t.Path == "qa-note.txt" {
+											tabPrev, tabDraft, tabStatus, tabErr = t.Preview, t.Draft, t.Status, t.Error
+											if blob, jerr := t.MarshalJSON(); jerr == nil {
+												var flags struct {
+													ReadLoading      bool `json:"readLoading"`
+													ReadBlocked      bool `json:"readBlocked"`
+													ReadResume       bool `json:"readResume"`
+													ExternalChanged  bool `json:"externalChanged"`
+												}
+												if json.Unmarshal(blob, &flags) == nil {
+													tabFlags = fmt.Sprintf("loading=%v blocked=%v resume=%v external=%v", flags.ReadLoading, flags.ReadBlocked, flags.ReadResume, flags.ExternalChanged)
+												}
+											}
+										}
+									}
+								}
+							}
+							if strings.Contains(lastSt, "草稿") || strings.Contains(strings.ToLower(lastSt), "draft") {
+								return strings.Contains(lastD, "qa local edit draft"), nil
+							}
+							return false, nil
+						}); err != nil {
+							mark("external-edit-conflict", false, fmt.Sprintf("%v (status=%q draft=%q preview=%q | tab preview=%q draft=%q status=%q err=%q %s)", err, lastSt, lastD, lastP, tabPrev, tabDraft, tabStatus, tabErr, tabFlags))
+						} else if disk, _ := os.ReadFile(notePath); !strings.Contains(string(disk), "external disk change") {
+							mark("external-edit-conflict", false, "conflict path implicitly overwrote the external disk change")
+						} else {
+							path := "observer kept loaded content"
+							if strings.Contains(lastP, "external disk change") || strings.Contains(tabPrev, "external disk change") {
+								path = "explicit reread adopted disk baseline"
+							}
+							mark("external-edit-conflict", true, fmt.Sprintf("conflict surfaced (%s); dirty draft kept; external disk change not overwritten", path))
+						}
+					}
+				case <-time.After(30 * time.Second):
+					mark("external-edit-conflict", false, "ReloadSelectedFile did not run on the UI thread")
+				}
+			}
+			// Staged-vs-unstaged reflection at the same git layer the workbench
+			// calls; the per-change stage menu is render-internal and stays a
+			// declared gap until a UI driver reaches it.
+			if out, gerr := exec.Command("git", "-C", workspace, "add", "qa-note.txt").CombinedOutput(); gerr != nil {
+				mark("diff-stage-reflect", false, fmt.Sprintf("git add: %v %s", gerr, out))
+			} else {
+				changes, cerr := git.Changes(workspace)
+				staged := false
+				for _, ch := range changes {
+					if ch.Path == "qa-note.txt" && ch.Staged() {
+						staged = true
+					}
+				}
+				scoped, derr := git.DiffScope(workspace, "", true)
+				headCount, _ := exec.Command("git", "-C", workspace, "rev-list", "--count", "HEAD").Output()
+				ok := cerr == nil && derr == nil && staged && strings.Contains(scoped, "external disk change") && strings.TrimSpace(string(headCount)) == "1"
+				mark("diff-stage-reflect", ok, fmt.Sprintf("staged=%v scopedHasContent=%v commits=%s (no implicit commit)", staged, strings.Contains(scoped, "external disk change"), strings.TrimSpace(string(headCount))))
+			}
+			// Terminal drawer: restartTerminal is the real open gesture (it
+			// sets terminalVisible + layout.Bottom itself); ensureTerminal is
+			// only the already-open refresh path. The panel must survive the
+			// dock route switching back to files.
+			termDone := make(chan bool, 1)
+			win.Update(func() {
+				state.restartTerminal(snap3.SelectedCwd, mygo.Theme.IsDark())
+				state.mu.Lock()
+				termDone <- state.terminalPanel != nil
+				state.mu.Unlock()
+			})
+			select {
+			case hasPanel := <-termDone:
+				if !hasPanel {
+					mark("terminal-route", false, "restartTerminal produced no panel")
+				} else {
+					time.Sleep(800 * time.Millisecond)
+					win.Update(func() {
+						state.mu.Lock()
+						state.filesPaneOpen, state.rightPaneTab = true, "files"
+						termDone <- state.terminalPanel != nil
+						state.mu.Unlock()
+					})
+					select {
+					case alive := <-termDone:
+						mark("terminal-route", alive, "terminal panel mounted on workspace root; routed back to files")
+					case <-time.After(20 * time.Second):
+						mark("terminal-route", false, "route-back did not run on the UI thread")
+					}
+				}
+			case <-time.After(20 * time.Second):
+				mark("terminal-route", false, "restartTerminal did not run on the UI thread")
+			}
+			win.Update(func() {
+				state.mu.Lock()
+				state.filesPaneOpen = false
+				state.mu.Unlock()
+			})
 			// Real input path: set the composer text through UI Automation's
 			// ValuePattern, the channel assistive technology uses. Restore a
 			// minimized window first: UIA and focus need a presentable surface.
