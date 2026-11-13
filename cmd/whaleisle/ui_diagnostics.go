@@ -28,6 +28,8 @@ var (
 	uiDiagFrames      atomic.Int64
 	uiDiagLastFrameNs atomic.Int64
 	uiDiagSlowFrames  atomic.Int64
+	uiDiagRefreshHits atomic.Int64
+	uiDiagRefreshNil  atomic.Int64
 )
 
 func uiDiagSeconds(name string, fallback int) int {
@@ -111,8 +113,8 @@ func startUIDiagnostics() {
 				frames := uiDiagFrames.Load()
 				last := uiDiagLastFrameNs.Load()
 				builds, hits := uiDiagSnapshotCounters()
-				fmt.Fprintf(w, "=== t=%dms wall=%s frames=%d slowFrames=%d lastViewUs=%d snapBuilds=%d snapHits=%d\n%s\n",
-					time.Since(start).Milliseconds(), time.Now().Format("15:04:05.000"), frames, uiDiagSlowFrames.Load(), last/1000, builds, hits,
+				fmt.Fprintf(w, "=== t=%dms wall=%s frames=%d slowFrames=%d lastViewUs=%d snapBuilds=%d snapHits=%d refresh=%d refreshNilWin=%d\n%s\n",
+					time.Since(start).Milliseconds(), time.Now().Format("15:04:05.000"), frames, uiDiagSlowFrames.Load(), last/1000, builds, hits, uiDiagRefreshHits.Load(), uiDiagRefreshNil.Load(),
 					uiDiagGoroutineOne(string(buf[:n])))
 				if trace := session.ViewTraceReport(); trace != "" {
 					fmt.Fprintf(w, "### viewTrace\n%s\n", trace)

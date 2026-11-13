@@ -118,9 +118,33 @@ func TestEmptyTranscriptCentersItsHintInsteadOfTopLeftLine(t *testing.T) {
 }
 
 func TestInternalStatusPhrasesStayOutOfTranscript(t *testing.T) {
-	for _, internal := range []string{"workspace ready: Whale Isle", "workspace ready", "session ready: abc", "session created", "agent preset selected", "prompt accepted", "session pinned", "prompt sent", "skill updated: demo"} {
+	for _, internal := range []string{
+		"workspace ready: Whale Isle",
+		"workspace ready",
+		"session ready: abc",
+		"session created",
+		"agent preset selected",
+		"prompt accepted",
+		"session pinned",
+		"prompt sent",
+		"skill updated: demo",
+		"llm: 2 configurable, 1 listed, 4 models",
+		"queue move q-1",
+		"goal paused",
+		"batch delete: 2/2",
+		"workspace path opened",
+		"Workspace selected: Demo",
+		"Workspace renamed: Demo",
+		"current session model updated",
+		"当前会话模型已更新",
+	} {
 		if got := displayableAction(internal); got != "" {
 			t.Fatalf("internal phrase %q surfaced as %q", internal, got)
+		}
+	}
+	for _, preserved := range []string{"queue: mutation was not accepted", "goals/get: offline"} {
+		if got := displayableAction(preserved); got == "" {
+			t.Fatalf("real error %q was dropped", preserved)
 		}
 	}
 	if got := displayableAction("  已重新连接  "); got != "已重新连接" {

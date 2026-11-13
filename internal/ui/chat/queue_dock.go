@@ -156,6 +156,16 @@ func readOnlyChildNotice() string {
 	)
 }
 
+func localizeConversationErrorDetail(detail string) string {
+	detail = strings.TrimSpace(detail)
+	lower := strings.ToLower(detail)
+	if strings.HasPrefix(lower, "session/conflict:") {
+		rest := strings.TrimSpace(detail[len("session/conflict:"):])
+		return referenceCopy("session/conflict: "+rest, "会话目录冲突："+rest)
+	}
+	return detail
+}
+
 func normalizeConversationNotice(text string) string {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
@@ -170,6 +180,34 @@ func normalizeConversationNotice(text string) string {
 	}
 	if lower == "read_only" || lower == "readonly" || strings.Contains(lower, "read-only child session") || strings.Contains(trimmed, "只读子会话") {
 		return readOnlyChildNotice()
+	}
+	switch lower {
+	case "connect a host to choose a registered workspace":
+		return referenceCopy("Connect a Host to choose a registered workspace", "请先连接 Host 以选择已注册的工作区")
+	case "workspace registration removed; files are unchanged":
+		return referenceCopy("Workspace registration removed; files are unchanged", "已移除工作区注册，本地文件未受影响")
+	case "double escape unavailable: host shortcut configuration could not be loaded":
+		return referenceCopy("Double Escape unavailable: Host shortcut configuration could not be loaded", "双击 Esc 不可用：无法加载 Host 快捷键配置")
+	case "workspace path open unavailable":
+		return referenceCopy("Opening workspace path is unavailable on this Host", "当前 Host 不支持打开工作区路径")
+	case "workspace path not opened":
+		return referenceCopy("Workspace path could not be opened", "未能打开工作区路径")
+	}
+	errorPrefixes := []struct {
+		prefix  string
+		zhLabel string
+	}{
+		{prefix: "create workspace session: ", zhLabel: "创建工作区会话失败："},
+		{prefix: "create no-directory session: ", zhLabel: "创建无目录会话失败："},
+		{prefix: "no workspace folder: ", zhLabel: "未找到工作区目录："},
+		{prefix: "workspace follow: ", zhLabel: "工作区同步失败："},
+		{prefix: "workspace init: ", zhLabel: "初始化工作区失败："},
+	}
+	for _, entry := range errorPrefixes {
+		if strings.HasPrefix(lower, entry.prefix) {
+			detail := localizeConversationErrorDetail(trimmed[len(entry.prefix):])
+			return referenceCopy(trimmed, entry.zhLabel+detail)
+		}
 	}
 	return trimmed
 }

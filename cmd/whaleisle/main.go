@@ -288,6 +288,11 @@ type mainState struct {
 	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
 	assistantGroupLive                      assistantGroupLiveState
 	whaleSettings                           assiststore.WhaleSettingsEditor
+	whaleNavName                            string
+	whaleNavKey                             string
+	whaleNavSerial                          uint64
+	whaleNavBusy                            bool
+	whaleNavFetchedAt                       time.Time
 	whaleTasks                              assiststore.WhaleTaskPanel
 	proactivePanel                          proactivePanelState
 	whaleCatalog                            whaleCatalogState
@@ -1987,6 +1992,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	var refreshQueued atomic.Bool
 	refresh := func() {
+		uiDiagRefreshHits.Add(1)
 		s.cancelComposerVoiceIfStale()
 		if win != nil {
 			if refreshQueued.CompareAndSwap(false, true) {
@@ -1998,6 +2004,8 @@ func (s *mainState) syncDialogue(st harness.Status) {
 			} else {
 				win.Invalidate()
 			}
+		} else {
+			uiDiagRefreshNil.Add(1)
 		}
 	}
 	sessions.Attach(client, refresh)
@@ -4510,7 +4518,7 @@ func mainView(c *ui.Context) {
 						Selected:   &state.settingsModelLabel,
 						SessionID:  sessSnap.SelectedID,
 						Err:        sessSnap.ModelsErr,
-						LastAction: sessSnap.LastAction,
+						LastAction: settingsModelsSessionAction(sessSnap.LastAction, sessSnap.ModelsErr),
 						OnRefresh: func() {
 							if sessions != nil {
 								sessions.RefreshModelCatalog(context.Background())
@@ -4550,9 +4558,6 @@ func mainView(c *ui.Context) {
 						})
 					}
 					lastPluginAction := state.settingsPluginsLastAction
-					if lastPluginAction == "" {
-						lastPluginAction = marketSnap.ListMethod
-					}
 					pluginsSection = &settings.PluginsAccess{
 						Inventory:        state.pluginInventoryAccess(),
 						Tabs:             state.pluginSettingsTabs(),
@@ -4664,7 +4669,7 @@ func mainView(c *ui.Context) {
 						Err:        sessSnap.SkillCatalog.Err,
 						Notice:     sessSnap.SkillCatalog.Notice,
 						Busy:       sessSnap.SkillCatalog.Busy || state.settingsSkillEditorSaving,
-						LastAction: strings.TrimSpace(strings.Join([]string{state.settingsSkillsLastAction, sessSnap.LastAction, sessSnap.SkillCatalog.Action}, "\n")),
+						LastAction: joinNonEmptyLines(state.settingsSkillsLastAction, settingsSkillsSessionAction(sessSnap.LastAction), sessSnap.SkillCatalog.Action),
 						EditGroups: &state.settingsSkillEditGroups,
 						OnSetVisibleGroupInvocable: func(rows []settings.SkillRow, enabled bool) {
 							state.setVisibleSkillGroupInvocation(sessions, sessSnap.SkillCatalog, rows, enabled)
@@ -6355,6 +6360,7 @@ func mainView(c *ui.Context) {
 					}
 					state.mu.Lock()
 					connReady := st.State == harness.Ready && state.dshMuxReady
+					assistantNavName := state.whaleNavName
 					updateInstalling := state.nativeReleases.installing
 					updatePhase := state.nativeReleases.phase
 					updateDetail := strings.TrimSpace(state.nativeReleases.status + " " + state.nativeReleases.err)
@@ -6978,6 +6984,7 @@ func mainView(c *ui.Context) {
 							}
 						},
 						ConnectionReady:         connReady,
+						AssistantName:           assistantNavName,
 						DesktopUpdateInstalling: updateInstalling,
 						DesktopUpdatePhase:      updatePhase,
 						DesktopUpdateDetail:     updateDetail,

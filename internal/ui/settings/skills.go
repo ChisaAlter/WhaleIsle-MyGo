@@ -137,8 +137,8 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if !a.Busy {
 					*recovery = !a.EditCanSave
 				}
-				if a.LastAction != "" {
-					ui.Text(c, a.LastAction).FillWidth().Selectable().TextColor(fg)
+				if actionText := settingsActionText(a.LastAction); actionText != "" {
+					ui.Text(c, actionText).FillWidth().Selectable().TextColor(fg)
 				}
 				if a.DetailPreview != "" {
 					ui.Text(c, a.DetailPreview).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
