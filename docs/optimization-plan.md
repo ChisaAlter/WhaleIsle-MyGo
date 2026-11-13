@@ -315,6 +315,34 @@
 
 **`real-input-unichar` 语义边界：** `WM_CHAR` 是 IME 提交后的真实投递通道（真实 wndproc→`platform.TextInput`→草稿），但不经过 OS 输入上下文（HIMC）——**真 IME 组合态验证仍 `Not Run`**，合成 `WM_IME_COMPOSITION` 无法伪造组合串。
 
-**间歇性 detached-send 卡死（观察中）：** qa19/qa22 各出现一次"detached 发送在途且无错误回执"（`send=false derr="" modelRequests=0`）。已在 `composer_detached.go` 飞行管线加阶段日志（`qa-flight`）——qa25 中 `begin→prepare→submit→retire` 全通未复现；插桩保留等待复现定位。疑点仍是 `context.Background()` 无超时的 RPC 链（`PrepareAttachment`/`Submit`/`AwaitSubmissionRetirement`）。
+**间歇性 detached-send 卡死（已定位并修复）：** qa19/qa22/qa27/qa29 复现"发送静默无回执"（`send=false derr="" att=1 modelRequests=0`，草稿从未 detach）。在 `submitComposer`/`submitDetachedComposer` 各静默早退点加 `composer submit dropped` 诊断日志后，qa29 现场抓到真凶：**`requires-workspace` 门**——新会话 `SelectedCwd` 已是真实工作区且 `WorkspaceReady=true`，但 `Workspaces[].SessionIDs` 名册刷新滞后于会话创建（竞态窗口），`RequiresWorkspace` 误判无工作区 → `pickAndApplyWorkspace` 静默吞掉发送（`composer submit dropped: requires-workspace hero=true sel=... cwd=<workspace> wsReady=true workspaces=1`）。修复：`internal/ui/composer/workspace.go` 增加"`SelectedCwd` 匹配**已注册** `WorkspaceRow.Path`（`session.HostPathKey` 归一化）即豁免"——名册就绪时 cwd 属注册内根 = 归属证据，未注册的 cwd（如已删工作区 `C:/removed`）仍要求准入，"ready 名册为权威、不复活已删工作区"语义不变；`workspace_test.go` 新增 roster-lag/斜杠大小写/deleted-cwd 用例。同时 `composer_detached.go` 飞行管线包 2 分钟有界 ctx（`PrepareAttachment`/`Submit`/`AwaitSubmissionRetirement` 原用 `context.Background()` 可静默无限等待），并修复 `AbandonSubmission` 覆盖原始 stage 错误导致 `CompleteDetachedSend` 误判成功静默丢草稿的问题。`composer submit dropped` 诊断日志保留为生产面包屑。
 
-**批次 1 剩余 `Not Run`：** 真 IME 组合态（需 OS 输入法）；会话内断线重连由 `native_reconnect_acceptance_windows_test.go` 独立覆盖（需复跑确认）。
+### 2026-11-13 批次 3 首批工作面证据（`composer-qa31`，可见窗口，12/12 通过）
+
+QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实入口驱动：
+
+| 场景 | 结果 | 证据层 |
+| --- | --- | --- |
+| 文件打开+预览：`state.layout.Workspace.OpenFileResource(files.Model{真实 ReadRemoteContext/ReadTextPageContext}, "qa-note.txt")` → 真实 `WorkspaceFileState` tab → 异步 workspacefs 读取 → `state.filePreview` 含文件内容 | ✅ | `[process]`（dock 路由+tab 生命周期+读取管线全真，非直接设 state 字段） |
+| Diff 面板：修改已跟踪文件 → `rightPaneTab="diff"` 路由 → `paintWorkbench` 渲染期同步 `git.DiffHEAD` → `state.diffText` 含新增行 | ✅ | `[process]`（真实 git repo + 真实 DiffHEAD 输出） |
+
+**harness 修正（非产品缺陷）：** 此前 qa28 两场景超时——①共享 230s deadline 被 workload 耗尽导致等待立即返回；②只设 `state.selectedFile` 未调 `OpenFileResource`，tab/读取从未启动。已改为 `win.Update` 内驱动真入口 + 每场景独立 45s 预算。
+
+**qa30/qa33 间歇异常（已定位并修复）：** `session 2 created` 两次超时。根因：`WorkspaceSessionTarget.currentLocked` 栅栏（followGeneration/cwd/workspaceErr/workspaceCurrentLocked）在会话 1 收尾竞态中失稳 → `Create` 返回 "owner changed" → `ReportFailure` 同一栅栏再判一次拒绝写入 `lastAction`——**纯静默丢弃**。修复：`ReportFailure` 拒绝支路增加诊断面包屑；测试侧重发手势+`seenActions`/`LastAction` 诊断输出。qa34 起 `createdSignalSampled=true` 连续通过。
+
+### 2026-11-13 批次 3 文件+Diff 工作面全绿（`composer-qa45`，可见窗口，16/16 通过）
+
+新增场景均经产品真实入口驱动：
+
+| 场景 | 结果 | 证据层 |
+| --- | --- | --- |
+| `file-edit-switch-return`：文件 tab 注入 dirty 草稿（`FileTab.Draft != Preview` + `Editing`，三级状态一致写入）→ `rightPaneTab` diff → `OpenFileResource` 重新激活文件 dock tab → 权威 `FileTab` 草稿+编辑态存活，磁盘未隐式写 | ✅ | `[process]`（权威 `pane.Files.Tabs` 状态，非镜像字段） |
+| `external-edit-conflict`：外部 `os.WriteFile` 修改已打开文件 → 资源观察者检测到 → 冲突状态"草稿和已加载内容已保留" + `readBlocked` + 草稿保留 + 磁盘未被隐式覆盖 | ✅ | `[process]`（观察者路径=产品真实检测路径；显式 `OpenPresentedPath` reread 为备选路径，preview 采纳差异如实记录为 detail 不断言） |
+| `diff-stage-reflect`：外部 `git add` → `git.Changes` 报 staged + scoped diff 含改动 + commit 数不变（无隐式 commit） | ✅ | `[process]`（真实 git；Diff 菜单项 UI 驱动仍为声明缺口） |
+| `terminal-route`：`restartTerminal`（真实打开手势，非 `ensureTerminal` 刷新路径）→ panel 挂载 → 路由回 files → panel 仍在 | ✅ | `[process]` |
+
+**harness 修正（非产品缺陷，3 处）：** ①`"files"` 路由经 `selectKind` 激活的是文件**浏览器** pane（`workspace_panes.go:140` 专门跳过带资源的 pane）——返回文件 tab 的真实手势是 `OpenFileResource`/`activateDockTab`，此前断言活动 pane 投影镜像导致误报；②顶层 `state.fileEditDraft` 等是逐帧投影（`finishFileProjection` 用活动 pane 的 `WorkspaceFileState` publish，diff 激活时恒为空）——断言必须落在权威 `FileTab`/`pane.Files`；③`state.fileTabs` 是逐帧拷贝，`textReader`/`readTab`/`binding` 值字段不与 `pane.Files.Tabs` 共享——读操作必须绑 pane 实例。
+
+**已知时序现象（观察中，未升级为产品缺陷）：** `WorkspaceFileState.capture` 会把镜像标量（含 `Selected`）写回 pane 状态；投影切换期间若镜像被另一 pane 的空 `Files` publish 清空，`s.Selected` 可能瞬时为 `""`（qa43 观测到 `selectedTab` 一度为 nil、观察者退役）。`FileTab` 权威态不受影响且 `selectTab`/`restore` 会自愈——记为观察项，若用户路径可复现编辑区空白再升级为 `product-defect`。
+
+**批次 3 剩余 `Not Run`：** Diff 暂存/还原菜单项 UI 驱动（`[real-ui]` 缺口，无外部驱动点）；终端焦点交接细节；隐式 save/commit/push 不存在性的完整检查（draft 未隐式保存、stage 未隐式 commit 已证）。
