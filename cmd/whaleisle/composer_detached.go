@@ -21,7 +21,7 @@ const detachedSendTimeout = 2 * time.Minute
 func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftState, id string, owner *session.ComposerTarget) {
 	flight, ok := d.BeginDetachedSend()
 	if !ok {
-		log.Printf("composer submit dropped: detach-refused id=%s sending=%v preparing=%d editSeq=%v att=%d text=%q", id, d.Sending, d.Preparing, d.EditSeq, len(d.Attachments), d.Text)
+		log.Printf("composer submit dropped: detach-refused id=%s sending=%v preparing=%d editSeq=%v att=%d textLen=%d", id, d.Sending, d.Preparing, d.EditSeq, len(d.Attachments), len(d.Text))
 		return
 	}
 	requestID := owner.BeginSubmission(flight.Text, flight.Attachments)

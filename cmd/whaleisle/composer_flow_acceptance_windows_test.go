@@ -982,7 +982,6 @@ func runComposerFlowQA() error {
 					} else {
 						lastSt, lastD, lastP := "", "", ""
 						tabPrev, tabDraft, tabStatus, tabErr := "", "", "", ""
-						tabFlags := ""
 						if err := waitStore(time.Now().Add(45*time.Second), "external edit conflict keeps draft", func() (bool, error) {
 							win.Invalidate()
 							state.mu.Lock()
@@ -993,17 +992,6 @@ func runComposerFlowQA() error {
 									for _, t := range ws.Open {
 										if t != nil && t.Path == "qa-note.txt" {
 											tabPrev, tabDraft, tabStatus, tabErr = t.Preview, t.Draft, t.Status, t.Error
-											if blob, jerr := t.MarshalJSON(); jerr == nil {
-												var flags struct {
-													ReadLoading      bool `json:"readLoading"`
-													ReadBlocked      bool `json:"readBlocked"`
-													ReadResume       bool `json:"readResume"`
-													ExternalChanged  bool `json:"externalChanged"`
-												}
-												if json.Unmarshal(blob, &flags) == nil {
-													tabFlags = fmt.Sprintf("loading=%v blocked=%v resume=%v external=%v", flags.ReadLoading, flags.ReadBlocked, flags.ReadResume, flags.ExternalChanged)
-												}
-											}
 										}
 									}
 								}
@@ -1013,7 +1001,7 @@ func runComposerFlowQA() error {
 							}
 							return false, nil
 						}); err != nil {
-							mark("external-edit-conflict", false, fmt.Sprintf("%v (status=%q draft=%q preview=%q | tab preview=%q draft=%q status=%q err=%q %s)", err, lastSt, lastD, lastP, tabPrev, tabDraft, tabStatus, tabErr, tabFlags))
+							mark("external-edit-conflict", false, fmt.Sprintf("%v (status=%q draft=%q preview=%q | tab preview=%q draft=%q status=%q err=%q)", err, lastSt, lastD, lastP, tabPrev, tabDraft, tabStatus, tabErr))
 						} else if disk, _ := os.ReadFile(notePath); !strings.Contains(string(disk), "external disk change") {
 							mark("external-edit-conflict", false, "conflict path implicitly overwrote the external disk change")
 						} else {
