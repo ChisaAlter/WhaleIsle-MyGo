@@ -130,10 +130,15 @@ cd WhaleIsle-MyGo
 . .\scripts\env.ps1
 go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
+# 验收临时文件在命令结束后回收，编译/下载缓存仍跨项目共享
+.\scripts\with-build-workspace.ps1 { go test ./internal/store/... }
+
 # 如需打包 Windows 安装程序
 $env:WHALEISLE_VERSION = '0.1.1'
-.\scripts\package.ps1
+.\scripts\package.ps1 -CleanStage
 ```
+
+Go 默认使用用户级共享缓存，显式设置的 `GOCACHE`、`GOMODCACHE` 等仍有效。`-CleanStage` 只在安装包和更新元数据生成成功后回收本轮打包副本；需要保留副本时省略它，`-StageOnly` 也继续保留输出。临时验收用法见 [构建产物管理](docs/build-storage.md)。
 
 | 目录 | 内容 |
 | --- | --- |
@@ -144,6 +149,10 @@ $env:WHALEISLE_VERSION = '0.1.1'
 | `internal/harness` | 本地 DeepSeek Harness 服务监管与运行时准备 |
 | `third_party/mygo` | 内置的跨平台原生桌面与图形界面引擎 |
 | `scripts/` | 构建、运行时装配与安装包打包脚本 |
+
+## 开发技术路线
+
+后续开发遵循 [核心架构与技术路线](ARCHITECTURE.md)：**原生核心工作台 + DSH 前端插件兼容容器**。核心编码体验优先，同时承接 DSH 插件、左侧自定义扩展空间、会话 View 与右侧工具；不要求插件作者另写 Go 界面。文档区分目标设计、现有实现和验收条件。
 
 ## 反馈与致谢
 

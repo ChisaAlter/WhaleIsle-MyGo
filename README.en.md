@@ -130,10 +130,15 @@ cd WhaleIsle-MyGo
 . .\scripts\env.ps1
 go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
+# Reclaim QA temporary files on exit while sharing compiler/download caches
+.\scripts\with-build-workspace.ps1 { go test ./internal/store/... }
+
 # Optional: package the Windows NSIS installer
 $env:WHALEISLE_VERSION = '0.1.1'
-.\scripts\package.ps1
+.\scripts\package.ps1 -CleanStage
 ```
+
+Go uses its user-level shared caches and respects explicit `GOCACHE`, `GOMODCACHE` and other overrides. `-CleanStage` reclaims this run's payload only after the installer and update metadata are ready. Omit it to retain the payload; `-StageOnly` also retains its output. See [build storage](docs/build-storage.md) (Chinese) for disposable QA workspaces.
 
 | Directory | Contents |
 | --- | --- |
@@ -144,6 +149,10 @@ $env:WHALEISLE_VERSION = '0.1.1'
 | `internal/harness` | Local DeepSeek Harness supervisor and runtime preparation |
 | `third_party/mygo` | Bundled cross-platform native windowing and UI engine |
 | `scripts/` | Build, runtime staging and installer packaging scripts |
+
+## Architecture and development direction
+
+Follow the [core architecture and technical roadmap](ARCHITECTURE.md) (Chinese): **a native core workbench with a first-class DSH frontend compatibility container**. Core coding workflows take priority while preserving DSH plugins, custom left-sidebar spaces, conversation Views, and right-sidebar tools. Plugin authors should not need a separate Go UI. The document distinguishes the target design, existing implementation, and acceptance criteria.
 
 ## Feedback and acknowledgements
 
