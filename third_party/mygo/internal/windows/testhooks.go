@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"syscall"
+	"unicode/utf16"
 	"unsafe"
 
 	"github.com/egoist/mygo/internal/accelerator"
@@ -453,4 +454,21 @@ var testFrameRequests, testPaintMsgs atomic.Int64
 
 func TestFrameCounters() (requests, paints int64) {
 	return testFrameRequests.Load(), testPaintMsgs.Load()
+}
+
+// TestSendChar delivers a UTF-16 code unit to the surface through WM_CHAR,
+// the same channel a committed IME string and typed text arrive on.
+func TestSendChar(hwnd uintptr, r rune) bool {
+	w := theBackend.windows[hwnd]
+	if w == nil || w.surface == nil {
+		return false
+	}
+	if r > 0xFFFF {
+		hi, lo := utf16.EncodeRune(r)
+		procSendMessageW.Call(w.surface.hwnd, wmChar, uintptr(hi), 0)
+		procSendMessageW.Call(w.surface.hwnd, wmChar, uintptr(lo), 0)
+		return true
+	}
+	procSendMessageW.Call(w.surface.hwnd, wmChar, uintptr(r), 0)
+	return true
 }

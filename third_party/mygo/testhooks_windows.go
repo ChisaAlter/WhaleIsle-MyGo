@@ -32,3 +32,5 @@ func TestAccessibilityPerform(hwnd uintptr, label, action, value string) bool {
 }
 
 func TestFrameCounters() (requests, paints int64) { return winhooks.TestFrameCounters() }
+
+func TestSendChar(hwnd uintptr, r rune) bool { return winhooks.TestSendChar(hwnd, r) }

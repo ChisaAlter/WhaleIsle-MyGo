@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
+
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
@@ -21,10 +23,12 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 	}
 	go func() {
 		ctx := context.Background()
+		log.Printf("qa-flight %d: begin (attachments=%d)", flight.ID, len(flight.Attachments))
 		attachments := append([]session.ComposerAttachment(nil), flight.Attachments...)
 		var err error
 		for i := range attachments {
 			attachments[i], err = owner.PrepareAttachment(ctx, attachments[i])
+			log.Printf("qa-flight %d: prepare %d -> err=%v", flight.ID, i, err)
 			if err != nil {
 				break
 			}
@@ -32,11 +36,14 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 		if err == nil {
 			owner.UpdateSubmissionAttachments(requestID, attachments)
 			err = owner.Submit(ctx, flight.Text, attachments, 0, requestID)
+			log.Printf("qa-flight %d: submit -> err=%v", flight.ID, err)
 			if err == nil && len(attachments) > 0 {
 				err = owner.AwaitSubmissionRetirement(ctx, requestID)
+				log.Printf("qa-flight %d: retire -> err=%v", flight.ID, err)
 			}
 		} else {
 			err = owner.AbandonSubmission(requestID, err)
+			log.Printf("qa-flight %d: abandon -> err=%v", flight.ID, err)
 		}
 		win.Update(func() {
 			s.mu.Lock()
