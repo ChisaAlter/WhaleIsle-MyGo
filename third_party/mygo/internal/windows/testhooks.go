@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -431,4 +432,25 @@ func popupLabels(h uintptr) []string {
 		labels = append(labels, label)
 	}
 	return labels
+}
+
+// TestHoldsFrames reports why a window stopped building views: a live
+// move/resize interaction or a size burst holds the last frame and validates
+// paints without building. Both stuck true means the window never paints
+// again.
+func TestHoldsFrames(hwnd uintptr) (interaction, sizeBurst bool) {
+	w := theBackend.windows[hwnd]
+	if w == nil {
+		return false, false
+	}
+	return w.interaction, w.sizeBurst
+}
+
+
+// testPaintCounters count frames requested of the surface and WM_PAINT
+// deliveries, so a dropped repaint can be told apart from a skipped build.
+var testFrameRequests, testPaintMsgs atomic.Int64
+
+func TestFrameCounters() (requests, paints int64) {
+	return testFrameRequests.Load(), testPaintMsgs.Load()
 }

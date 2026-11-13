@@ -218,7 +218,7 @@ func (s *surface) Size() (float64, float64, float64) {
 	return float64(r.Right - r.Left), float64(r.Bottom - r.Top), float64(s.dpi()) / 96
 }
 
-func (s *surface) RequestFrame() { procInvalidateRectW.Call(s.hwnd, 0, 0) }
+func (s *surface) RequestFrame() { testFrameRequests.Add(1); procInvalidateRectW.Call(s.hwnd, 0, 0) }
 
 // RefreshRate returns the refresh rate of the monitor showing the window,
 // in its current display mode.
@@ -401,6 +401,7 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	}
 	switch m {
 	case wmPaint:
+		testPaintMsgs.Add(1)
 		var ps paintStruct
 		dc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
 		if s.w.holdsFrames() {
