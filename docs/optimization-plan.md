@@ -346,3 +346,24 @@ QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实
 **已知时序现象（观察中，未升级为产品缺陷）：** `WorkspaceFileState.capture` 会把镜像标量（含 `Selected`）写回 pane 状态；投影切换期间若镜像被另一 pane 的空 `Files` publish 清空，`s.Selected` 可能瞬时为 `""`（qa43 观测到 `selectedTab` 一度为 nil、观察者退役）。`FileTab` 权威态不受影响且 `selectTab`/`restore` 会自愈——记为观察项，若用户路径可复现编辑区空白再升级为 `product-defect`。
 
 **批次 3 剩余 `Not Run`：** Diff 暂存/还原菜单项 UI 驱动（`[real-ui]` 缺口，无外部驱动点）；终端焦点交接细节；隐式 save/commit/push 不存在性的完整检查（draft 未隐式保存、stage 未隐式 commit 已证）。
+
+### 2026-11-14 批次 4 首批：左栏扩展空间"更多"菜单链路（`composer-qa48`，rc.4 vendor + 配套 Node，可见窗口，19/19 通过）
+
+按 `ARCHITECTURE.md` §5/§6 新契约实施 `sidebar.panellist.actions`（"更多"菜单）端到端接入：
+
+| 工作面 | 结果 | 证据层 |
+| --- | --- | --- |
+| `sidebar.panellist.actions` 加入 JS/Go 公共插槽白名单；新增 `Owner.PublicSlotRegistrations`（catalog 级注册观察——actions 注册不挂 DOM，不能用 `Entries()` 门控） | ✅ | `[static]` + `[process]`（qa48 观测 `registrations=1 bundledNative=true`） |
+| bundle/native 判定修正：`ui-entry-customization` 等 bundle 注册以 `whaleBundledMarker` registrant 呈现时同样视为内置（此前仅认显式包名） | ✅ | `[process]`（`bundledNative=true`） |
+| Pin 为内存态（`nativePlugins.navigation.unpinned`）：取消固定→更多菜单、固定→回栏、`plugins` 永不可取消、owner/page 重置恢复注册默认、不持久化 | ✅ | `[process]`（`extension-panel-pins`：unpin/repin/pluginsPinned 全 true）+ 单测 4 项 |
+| 侧栏"更多"行+菜单（展开态 `sidebar.go` + 收起态 `rail.go` 共用组装）；门控=有 actions 注册才显示（rc.2 无注册→无更多入口=正确旧契约降级） | ✅ | `[static]` + 单测 `TestSidebarPanelMoreGateFollowsRegistrations` |
+| "Create your plugin"→`startCreatorPluginDraft`：草稿播种+cordis 预设+**不发送**（`whenDraftExists:'append'` 语义：非空草稿追加、保留附件/引用） | ✅ | `[process]`（`extension-panel-creator`：草稿含"带左侧栏入口"+`agentPresetPick=cordis`+`model.requests` 不变） |
+| 选中插件视图撤销时区分 HMR 重建与真禁用/卸载：2.5s 宽限期，逾期 toast"扩展已不可用"后关闭 | ✅ | `[static]` |
+
+**新增 QA 场景（qa48，`WHALEISLE_VENDOR=runtime-rc4\vendor` + `runtime-rc4\node\node.exe`）：** `extension-panel-more`/`extension-panel-pins`/`extension-panel-creator` 三个 mark 全过；16 项存量场景在 rc.4 下全过（含 workload-streams 帧耗与 UIA 真实输入）。
+
+**rc.4 运行要求实测：** rc.4 Host 校验 Node 来源——系统 Node 24.20 被拒（`selected Node differs from the verified Host session runtime`），必须使用 `runtime-rc4\node\node.exe` 配套捆绑 Node。该约束已属 `sessionRuntimeProfile` 语义，如实记录。
+
+**harness 修正（非产品缺陷）：** ①`startCreatorPluginDraft` 内部自带 `win.Update`——QA 从 `win.Update` 回调内调用会 UI 线程重入死锁（两次 ~20min 无超时卡死的根因）；②`mark` 增加 stderr 进度日志，驱动不再是无输出的黑盒。
+
+**批次 4 剩余 `Not Run`：** `[real-ui]` 真实菜单点击（展开/收起态更多行渲染与点击需 UI 树驱动，现有断言停在状态/组成层）；actions 注册的撤销→菜单消失路径；HMR 瞬时空→宽限期→恢复的真实插件路径（需真实可重载插件）；rc.2 回归跑（旧契约降级分支逻辑已证，rc.2 全量套件未重跑）。
