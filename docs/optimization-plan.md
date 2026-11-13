@@ -293,3 +293,28 @@
 **判读：** 慢帧集中在首回合（字体/布局缓存冷启动特征），历史最长的 workload 段反而 0 慢帧——无随历史长度恶化的热点。单次 27ms 尖峰出现在收尾。批次 2 的"先测量"要求已满足：**无病态热点**；首回合冷启动构建与偶发尖峰是有界微优化候选，不做猜测性重构。
 
 **harness 修复（本轮）：** 会话创建/取消等待从 `LastAction` 瞬态字符串改为稳定状态观测（`SelectedID`/`Items[].Running`）+ `seenActions` 采样记录——修掉了三次假超时 flake（瞬态动作在 100ms 轮询间被覆盖）。
+
+### 2026-11-13 批次 1 交互验收闭环（`composer-qa25`，可见窗口 + workload=2，10/10 通过）
+
+同一候选二进制在真实隔离桌面（真实 `mainView` + 真实 owned Host + loopback 确定性模型）完成全部批次 1 交互场景：
+
+| 场景 | 结果 | 证据层 |
+| --- | --- | --- |
+| 双会话创建（`session created` 信号） | ✅ | `[process]` |
+| 草稿文本+附件跨会话切换不丢 | ✅ | `[process]` |
+| 带附件发送+提交中编辑（消息恰入列一次、新打字保留） | ✅ | `[process]` |
+| 流式中 `session/cancel` | ✅ | `[process]` |
+| 过期编辑序号被拒（草稿+错误保留） | ✅ | `[process]` |
+| 拒绝后重提成功 | ✅ | `[process]` |
+| **一次性审批**：`pwsh` 工具 `sandbox_permissions:"danger-full-access"` 升级 → `approveEscalation` → `approval/request` waterfall → `interaction.Store.Pending` → `ResolveAllow` 恰一次 → 工具执行 → `tool_result` → pending 清空 | ✅ | `[process]`（真实 Host 沙箱升级审批，非 fixture 注入事件） |
+| workload 持续流+帧链路（mid: `cc=580 req=1770 paint=1231 frames=501`） | ✅ | `[process]` |
+| UIA `ValuePattern.SetValue` 写草稿 | ✅ | `[real-ui]` |
+| `WM_CHAR` Unicode 输入（"你好"经真实 wndproc→`TextInput`） | ✅ | `[real-ui]` |
+
+**审批触发结论（供复用）：** 本部署没有任何内置工具经 `tools/pre-execute` 返回 `ask`（fs 工具未挂审批门）；真实审批路径有二——①shell 工具（`pwsh`/`bash`）的 `sandbox_permissions` 升级参数走 `approveEscalation`；②ACP agent `session/request_permission`。harness 用①拿到确定性端到端审批。`one-time-approval` 三次 inconclusive 的根因分别是：工具选择未按优先级（选了 `edit`）、`rw_exec` 远程工具无升级参数、选中工具 schema 不广告升级参数——均已修正。
+
+**`real-input-unichar` 语义边界：** `WM_CHAR` 是 IME 提交后的真实投递通道（真实 wndproc→`platform.TextInput`→草稿），但不经过 OS 输入上下文（HIMC）——**真 IME 组合态验证仍 `Not Run`**，合成 `WM_IME_COMPOSITION` 无法伪造组合串。
+
+**间歇性 detached-send 卡死（观察中）：** qa19/qa22 各出现一次"detached 发送在途且无错误回执"（`send=false derr="" modelRequests=0`）。已在 `composer_detached.go` 飞行管线加阶段日志（`qa-flight`）——qa25 中 `begin→prepare→submit→retire` 全通未复现；插桩保留等待复现定位。疑点仍是 `context.Background()` 无超时的 RPC 链（`PrepareAttachment`/`Submit`/`AwaitSubmissionRetirement`）。
+
+**批次 1 剩余 `Not Run`：** 真 IME 组合态（需 OS 输入法）；会话内断线重连由 `native_reconnect_acceptance_windows_test.go` 独立覆盖（需复跑确认）。
