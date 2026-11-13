@@ -135,6 +135,8 @@ func (s *mainState) openPluginMainView(handle string) {
 func (s *mainState) bindPluginNativeNavigation(m *frame.Model) {
 	m.NativePages = append([]pluginui.NativeView(nil), s.pluginNativeViews()...)
 	m.OnOpenNativePage = s.openPluginMainView
+	m.PanelUnpinned = s.pluginPanelUnpinned
+	m.OnSetPanelPinned = s.setPluginPanelPinned
 	if selected := s.selectedPluginMainView(); selected != "" {
 		m.ActivePanel = selected
 	}

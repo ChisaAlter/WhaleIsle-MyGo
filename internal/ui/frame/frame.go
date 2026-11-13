@@ -301,6 +301,8 @@ type Model struct {
 	OrdinaryTeam            func() projects.OrdinaryTeamModel
 	NativePages             []pluginui.NativeView
 	OnOpenNativePage        func(string)
+	PanelUnpinned           func(id string) bool
+	OnSetPanelPinned        func(id string, pinned bool)
 	AgentsPromptDraft       *string
 	OnOpenAgentDocument     func(uint64, session.AgentSessionAddress, string)
 	OnOpenAgentPaneDocument func(string, *session.Store, uint64, session.AgentSessionAddress, string)
@@ -409,8 +411,8 @@ type Model struct {
 	OnOpenTerminalTarget  func(string) error
 	CanAddSelectionToChat bool
 
-	ConnectionBanner                        string
-	ConnectionReady                         bool
+	ConnectionBanner string
+	ConnectionReady  bool
 	// AssistantName is the published Whale display name snapshot for the
 	// sidebar panel row; empty falls back to the localized assistant label.
 	AssistantName                           string
@@ -734,6 +736,9 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnOpenAssistant:       m.OnOpenAssistant,
 		NativePages:           m.NativePages,
 		OnOpenNativePage:      m.OnOpenNativePage,
+		PanelUnpinned:         m.PanelUnpinned,
+		OnSetPanelPinned:      m.OnSetPanelPinned,
+		OnCreatePluginDraft:   m.OnCreatePluginDraft,
 		OnOpenLauncher:        m.OnOpenLauncher,
 		OnOpenSessionPlugins:  selectedSessionPluginAction(m, snap.SelectedID, m.OnOpenSessionPlugins),
 		OnCloseSessionPlugins: selectedSessionPluginAction(m, snap.SelectedID, m.OnCloseSessionPlugins),

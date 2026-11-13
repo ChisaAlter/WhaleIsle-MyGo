@@ -54,10 +54,22 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 			}
 			return b
 		}
-		for _, entry := range sidebarPanelRows(m) {
+		for _, entry := range sidebarPanelIconRows(m) {
 			entry := entry
 			button := panel(entry.active, "sidebar-rail-panel:"+entry.rowKey(), entry.label, nil, entry.run)
+			if sidebarPanelPinnable(m, entry) {
+				id := entry.id
+				button.ContextMenu(func(menu *ui.Menu) {
+					if menu.Item(sidebarLocaleText("panels.unpin")).Chosen() {
+						m.OnSetPanelPinned(id, false)
+					}
+				})
+			}
 			button.Children(func() { publicPanelGlyph(c, m, entry, fg) })
+		}
+		if show, bundled := sidebarPanelMoreAvailable(m); show {
+			more := button("sidebar-rail-panel-more", sidebarLocaleText("panels.more"), menuEllipsisArtwork, true, nil)
+			more.Menu(func(menu *ui.Menu) { sidebarPanelMoreMenu(m, menu, bundled) })
 		}
 	})
 	ui.Box(c).Height(12).Shrink(0)

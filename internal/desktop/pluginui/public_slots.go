@@ -49,6 +49,7 @@ type PublicContributions struct {
 	Slot             func(*ui.Context, string, string, func())
 	Before           func(*ui.Context, string, string, string)
 	Entries          func(string, string) []PublicSlotEntry
+	Registrations    func(string) []PublicSlotEntry
 	RenderEntry      func(*ui.Context, string, string, string) bool
 	MenuActions      func(string, string) []PublicMenuAction
 	Invoke           func(PublicMenuAction)
@@ -82,7 +83,7 @@ func (o *Owner) RenderPublicSlotBefore(c *ui.Context, slot, ownerKey, beforeID s
 
 var publicSlots = map[string]bool{
 	"sidebar.brand.mark": true, "sidebar.brand.name": true, "sidebar.toggle.badge": true,
-	"sidebar.panellist": true, "sidebar.footer.action": true, "sidebar.settings": true,
+	"sidebar.panellist": true, "sidebar.panellist.actions": true, "sidebar.footer.action": true, "sidebar.settings": true,
 	"sidebar.workspaces": true, "sidebar.workspaces.sections": true,
 	"sidebar.session.row.leading": true, "sidebar.session.row.badge": true, "sidebar.session.row.hover": true,
 	"sidebar.workspaces.session.row.action": true, "sidebar.workspaces.session.menu.item": true,
@@ -126,6 +127,24 @@ func (o *Owner) PublicSlotEntries(slot, ownerKey string) []PublicSlotEntry {
 	result := []PublicSlotEntry{}
 	for _, d := range s.PublicDocuments {
 		if !d.Catalog && d.Slot == slot && d.OwnerKey == ownerKey {
+			result = append(result, d)
+		}
+	}
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Order < result[j].Order })
+	return result
+}
+
+// PublicSlotRegistrations reports registry-level catalog records — entries a
+// registrant declared even while nothing mounts them. Presence gates like the
+// panel-list More menu key on registrations, not rendered occurrences.
+func (o *Owner) PublicSlotRegistrations(slot string) []PublicSlotEntry {
+	s := o.Snapshot()
+	if !s.Connected || s.Subject == nil || s.Unavailable != "" {
+		return nil
+	}
+	result := []PublicSlotEntry{}
+	for _, d := range s.PublicDocuments {
+		if d.Catalog && d.Slot == slot {
 			result = append(result, d)
 		}
 	}

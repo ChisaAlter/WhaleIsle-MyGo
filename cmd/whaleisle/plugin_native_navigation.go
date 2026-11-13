@@ -1,11 +1,14 @@
 package main
 
 import (
+	"time"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginui"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/i18n"
 )
 
 type nativePluginNavigationState struct {
@@ -17,6 +20,14 @@ type nativePluginNavigationState struct {
 	error              string
 	directoryPickID    string
 	directoryPickOwner *pluginui.Owner
+	// unpinned holds sidebar panel ids hidden into the More menu. Like the
+	// source contract it is memory only: the set dies with the owner page.
+	unpinned map[string]bool
+	// missingSince/missingNotified give a withdrawn view a short grace window:
+	// an HMR rebuild drops its registration for a beat, while a real disable
+	// or uninstall keeps it gone. Only the second case earns the notice.
+	missingSince    time.Time
+	missingNotified bool
 }
 
 // syncPluginNativeNavigation keeps one hidden source for the current Host. It
@@ -45,6 +56,9 @@ func (s *mainState) syncPluginNativeNavigation(visible bool) {
 		p.owner = nil
 		p.selected = ""
 		p.error = ""
+		// The owner page is the sidebar region; its teardown resets pins to
+		// registration defaults, matching the source's memory-only entryPins.
+		p.unpinned = nil
 	}
 	p.generation, p.endpoint = st.Generation, st.Endpoint
 	missing := ready && p.owner == nil && p.error == ""
@@ -128,6 +142,7 @@ func (s *mainState) closePluginNativeView() {
 	if p != nil {
 		owner = p.owner
 		p.selected = ""
+		p.missingSince, p.missingNotified = time.Time{}, false
 	}
 	s.mu.Unlock()
 	if owner != nil {
@@ -156,9 +171,37 @@ func (s *mainState) renderPluginNativeView(c *ui.Context) bool {
 		}
 	}
 	if selectedView == nil {
-		s.closePluginNativeView()
+		s.mu.Lock()
+		p := s.nativePlugins.navigation
+		win := s.win
+		notify, close := false, true
+		if p != nil && snapshot.Connected {
+			// The bridge is alive and the registry dropped this handle. Grace
+			// lets an HMR rebuild re-register before it counts as withdrawn.
+			if p.missingSince.IsZero() {
+				p.missingSince = time.Now()
+				close = false
+			} else if time.Since(p.missingSince) <= 2500*time.Millisecond {
+				close = false
+			} else {
+				notify = !p.missingNotified
+				p.missingNotified = true
+			}
+		}
+		s.mu.Unlock()
+		if notify {
+			s.notifyUser(win, i18n.T(i18n.KeySidebarExtensionUnavailable))
+		}
+		if close {
+			s.closePluginNativeView()
+		}
 		return false
 	}
+	s.mu.Lock()
+	if p := s.nativePlugins.navigation; p != nil {
+		p.missingSince, p.missingNotified = time.Time{}, false
+	}
+	s.mu.Unlock()
 	ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		pluginModuleFailures(c, owner)
 		ui.Text(c, selectedView.Label).FontSize(20).FontWeight(600)
@@ -240,4 +283,34 @@ func (s *mainState) pluginRootRenderer() func(*ui.Context) bool {
 		return nil
 	}
 	return owner.GlobalNativeRenderer("root")
+}
+
+// Panel pins are sidebar-region memory: a hidden entry moves to the More menu
+// and an owner/page reset restores the registration default. The plugin
+// manager row stays pinned by contract and is never unpinnable.
+func (s *mainState) pluginPanelUnpinned(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p := s.nativePlugins.navigation
+	return p != nil && p.unpinned[id]
+}
+
+func (s *mainState) setPluginPanelPinned(id string, pinned bool) {
+	s.mu.Lock()
+	p := s.nativePlugins.navigation
+	win := s.win
+	if p != nil {
+		if p.unpinned == nil {
+			p.unpinned = map[string]bool{}
+		}
+		if pinned || id == "plugins" {
+			delete(p.unpinned, id)
+		} else {
+			p.unpinned[id] = true
+		}
+	}
+	s.mu.Unlock()
+	if win != nil {
+		win.Invalidate()
+	}
 }

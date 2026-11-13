@@ -87,6 +87,7 @@ const (
 	KeySidebarAssistant                   = "sidebar.assistant"
 	KeySidebarWorkspaceSection            = "sidebar.workspace_section"
 	KeySidebarNewSessionFallback          = "sidebar.new_session_fallback"
+	KeySidebarExtensionUnavailable        = "sidebar.extension_unavailable"
 	KeyChatEmpty                          = "chat.empty"
 	KeyChatHeroSlogan                     = "chat.hero_slogan"
 	KeyChatHeroPreview                    = "chat.hero_preview"
@@ -1087,6 +1088,7 @@ var zhCN = map[string]string{
 	KeySidebarAssistant:               "鲸鱼娘",
 	KeySidebarWorkspaceSection:        "工作区",
 	KeySidebarNewSessionFallback:      "新会话",
+	KeySidebarExtensionUnavailable:    "该扩展已不可用",
 	KeyChatEmpty:                      "选择会话后开始对话",
 	KeyChatHeroSlogan:                 "探索未至之鲸",
 	KeyChatHeroPreview:                "大肥鱼版",
@@ -2043,6 +2045,7 @@ var en = map[string]string{
 	KeySidebarDeleteConfirm:               "Delete this session? This cannot be undone.",
 	KeySidebarPin:                         "Pin",
 	KeySidebarUnpin:                       "Unpin",
+	KeySidebarExtensionUnavailable:         "This extension is no longer available",
 	KeySidebarPinnedPrefix:                "Pin · ",
 	KeySidebarBrand:                       product.Name,
 	KeySidebarMarket:                      "Plugins",

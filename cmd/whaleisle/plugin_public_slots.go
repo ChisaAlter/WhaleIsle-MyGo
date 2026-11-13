@@ -52,6 +52,12 @@ func (s *mainState) pluginPublicContributions() pluginui.PublicContributions {
 			}
 			return nil
 		},
+		Registrations: func(slot string) []pluginui.PublicSlotEntry {
+			if owner := s.pluginNavigationOwner(); owner != nil {
+				return owner.PublicSlotRegistrations(slot)
+			}
+			return nil
+		},
 		RenderEntry: func(c *ui.Context, slot, ownerKey, handle string) bool {
 			if owner := s.pluginNavigationOwner(); owner != nil {
 				return owner.RenderPublicSlotEntry(c, slot, ownerKey, handle)

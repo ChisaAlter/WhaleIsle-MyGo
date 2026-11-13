@@ -70,9 +70,9 @@ type Model struct {
 	// ViewportW/H are the window's client area in DIPs. Context.Size reports
 	// device pixels on a scaled display, so the hover cards take their bounds
 	// from here and fall back to Context.Size only when the frame did not say.
-	ViewportW                   float32
-	ViewportH                   float32
-	ConnectionReady             bool
+	ViewportW       float32
+	ViewportH       float32
+	ConnectionReady bool
 	// AssistantName is the published Whale display name snapshot; empty falls
 	// back to the localized assistant label. Populated by the Host-side
 	// settings observer, never read from disk here.
@@ -147,6 +147,12 @@ type Model struct {
 	OnOpenSchedule     func()
 	OnOpenAssistant    func()
 	OnOpenLauncher     func()
+	// Panel pins are sidebar-region memory, matching the source contract's
+	// memory-only entryPins: unpinning moves a launcher into the More menu and
+	// a page reload restores the registration default.
+	PanelUnpinned       func(id string) bool
+	OnSetPanelPinned    func(id string, pinned bool)
+	OnCreatePluginDraft func(region string)
 	// Explicit native access is attached only to the selected Session row.
 	OnOpenSessionPlugins  func(sessionID string)
 	OnCloseSessionPlugins func(sessionID string)
@@ -432,7 +438,7 @@ func View(c *ui.Context, m Model) {
 			// pitch is 40, inset 2 inside the 256-DIP list (native buttons sit at
 			// x=14, 252 wide, with 插件 at y=120 and 自动化任务 at y=160).
 			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
-				nav := func(id, key string, drawIcon func(), label string, fn func()) {
+				nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
 					row := ui.Button(c.Key("sidebar-panel-"+key), "").FillWidth().Height(skinLayout.NavHeight).Radius(12).
 						Selected(m.ActivePanel == id).Background(ui.Transparent).TextColor(fg).BorderWidth(0).
 						Padding(7, 8, 7, 8).AlignItems(ui.Center)
@@ -460,14 +466,27 @@ func View(c *ui.Context, m Model) {
 								FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
 						})
 					})
+					if contextMenu != nil {
+						row.ContextMenu(contextMenu)
+					}
 					if fn != nil && row.Clicked() {
 						fn()
 					}
 				}
-				for _, panel := range sidebarPanelRows(m) {
+				for _, panel := range sidebarPanelIconRows(m) {
 					panel := panel
-					nav(panel.active, panel.rowKey(), func() { publicPanelGlyph(c, m, panel, fg) }, panel.label, panel.run)
+					var contextMenu func(*ui.Menu)
+					if sidebarPanelPinnable(m, panel) {
+						id := panel.id
+						contextMenu = func(menu *ui.Menu) {
+							if menu.Item(sidebarLocaleText("panels.unpin")).Chosen() {
+								m.OnSetPanelPinned(id, false)
+							}
+						}
+					}
+					nav(panel.active, panel.rowKey(), func() { publicPanelGlyph(c, m, panel, fg) }, panel.label, panel.run, contextMenu)
 				}
+				sidebarPanelMoreRow(c, m, fg, colors)
 			})
 			menuOpen := &workspaceMenuFB
 			if m.WorkspaceMenuOpen != nil {

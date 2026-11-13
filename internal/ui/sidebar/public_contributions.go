@@ -5,6 +5,7 @@ import (
 	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func publicSidebarSlot(c *ui.Context, m Model, slot, ownerKey string, fallback func()) {
@@ -32,6 +33,17 @@ type publicPanelRow struct {
 	id, active, label, handle string
 	entry                     *pluginui.PublicSlotEntry
 	run                       func()
+}
+
+// A row is pinnable when it is driven by a live sidebar.panellist
+// registration. The plugin manager stays pinned by contract, and fallback
+// rows without a registration behind them have nothing to unpin.
+func sidebarPanelPinnable(m Model, row publicPanelRow) bool {
+	return row.entry != nil && row.id != "plugins" && m.PanelUnpinned != nil && m.OnSetPanelPinned != nil
+}
+
+func sidebarPanelRowUnpinned(m Model, row publicPanelRow) bool {
+	return sidebarPanelPinnable(m, row) && m.PanelUnpinned(row.id)
 }
 
 // Row identity follows the elected occurrence or live view handle, not its
@@ -104,6 +116,51 @@ func sidebarPanelRows(m Model) []publicPanelRow {
 	return rows
 }
 
+// sidebarPanelIconRows are the launchers shown in the sidebar: the merged
+// rows minus the ones the user unpinned into the More menu. The unpinned set
+// is region memory owned by the caller; without it nothing is filtered.
+func sidebarPanelIconRows(m Model) []publicPanelRow {
+	rows := sidebarPanelRows(m)
+	if m.PanelUnpinned == nil {
+		return rows
+	}
+	visible := rows[:0]
+	for _, row := range rows {
+		if !sidebarPanelRowUnpinned(m, row) {
+			visible = append(visible, row)
+		}
+	}
+	return visible
+}
+
+// sidebarPanelMenuRows lists the unpinned launchers for the panel list's More
+// menu, in sidebar order. Opening a row does not pin it.
+func sidebarPanelMenuRows(m Model) []publicPanelRow {
+	rows := []publicPanelRow{}
+	for _, row := range sidebarPanelRows(m) {
+		if sidebarPanelRowUnpinned(m, row) {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+// sidebarPanelMoreAvailable reports the contract gate: the region shows More
+// only while sidebar.panellist.actions has registrations. Bundled
+// registrations are rendered natively; foreign rows stay unrendered rather
+// than becoming guessed controls, so the button also requires content.
+func sidebarPanelMoreAvailable(m Model) (show, bundled bool) {
+	if m.PublicContributions.Registrations == nil {
+		return false, false
+	}
+	for _, reg := range m.PublicContributions.Registrations("sidebar.panellist.actions") {
+		if reg.Native {
+			bundled = true
+		}
+	}
+	return bundled || len(sidebarPanelMenuRows(m)) > 0, bundled
+}
+
 func publicPanelGlyph(c *ui.Context, m Model, row publicPanelRow, ink ui.Color) {
 	if row.id == "whale" {
 		if !m.PublicContributions.NativeWinner("sidebar.panellist", "", row.id) {
@@ -142,4 +199,70 @@ func publicPanelGlyph(c *ui.Context, m Model, row publicPanelRow, ink ui.Color) 
 		return
 	}
 	ui.Icon(c, sidebarRailIcons[key]).Size(16, 16).TextColor(ink)
+}
+
+// sidebarPanelMoreRow renders the panel list's More row while the contract's
+// actions slot offers renderable content. Menu order follows the source:
+// unpinned launchers first (opening never pins), then the bundled browse and
+// create entries. Foreign action rows never become guessed controls.
+func sidebarPanelMoreRow(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
+	show, bundled := sidebarPanelMoreAvailable(m)
+	if !show {
+		return
+	}
+	skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
+	row := ui.Button(c.Key("sidebar-panel-more"), "").Label(sidebarLocaleText("panels.more")).FillWidth().Height(skinLayout.NavHeight).Radius(12).
+		Background(ui.Transparent).TextColor(fg).BorderWidth(0).
+		Padding(7, 8, 7, 8).AlignItems(ui.Center)
+	if skinLayout.Skin == theme.SkinCodex {
+		row.Padding(6, 8).MinHeight(32)
+	}
+	if row.Hovered() || row.MenuOpen() {
+		row.Background(chrome.Color(colors.Hover))
+	}
+	row.Children(func() {
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(fg)
+			lineHeight := theme.InterfaceSize(22)
+			if skinLayout.Active() {
+				lineHeight = 20
+			}
+			ui.Text(c, sidebarLocaleText("panels.more")).FontSize(skinLayout.SidebarFont).
+				FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
+		})
+	})
+	row.Menu(func(menu *ui.Menu) { sidebarPanelMoreMenu(m, menu, bundled) })
+}
+
+// sidebarPanelMoreMenu fills the panel list's More menu for the expanded
+// sidebar row and the rail icon: unpinned launchers in sidebar order (opening
+// never pins), a pin-back submenu, then the bundled browse and create rows.
+func sidebarPanelMoreMenu(m Model, menu *ui.Menu, bundled bool) {
+	menu.CloseOnPointerLeave(true)
+	unpinned := sidebarPanelMenuRows(m)
+	for _, row := range unpinned {
+		row := row
+		if menu.Item(row.label).Disabled(row.run == nil).Checked(m.ActivePanel == row.active).Chosen() && row.run != nil {
+			row.run()
+		}
+	}
+	if len(unpinned) > 0 && m.OnSetPanelPinned != nil {
+		menu.Submenu(sidebarLocaleText("panels.pin"), func(sub *ui.Menu) {
+			for _, row := range unpinned {
+				row := row
+				if sub.Item(row.label).Chosen() {
+					m.OnSetPanelPinned(row.id, true)
+				}
+			}
+		})
+		menu.Separator()
+	}
+	if bundled {
+		if m.OnOpenMarket != nil && menu.Item(sidebarLocaleText("panels.browse")).Chosen() {
+			m.OnOpenMarket()
+		}
+		if m.OnCreatePluginDraft != nil && menu.Item(sidebarLocaleText("panels.create")).Chosen() {
+			m.OnCreatePluginDraft("leftbar")
+		}
+	}
 }

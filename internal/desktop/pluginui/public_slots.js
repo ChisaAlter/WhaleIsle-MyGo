@@ -20,7 +20,7 @@ function whaleBundledRegistrant(entriesOf){
 function whaleStockReady(entriesOf){return entriesOf('settings.section').some(entry=>whaleStockSections.includes(String(entry.options&&entry.options.id||'')))}
 function whaleReportedRegistrant(entry,entriesOf){const registrant=String(entry.registrant||'').trim().slice(0,8192);return registrant!==''&&(registrant===whaleBundledRegistrant(entriesOf)||whaleStockFibers.includes(registrant))?whaleBundledMarker:registrant}
 function whaleCreatePublicSlots(ctx,{entries,handle,schedule}){
- const slots=['sidebar.brand.mark','sidebar.brand.name','sidebar.toggle.badge','sidebar.panellist','sidebar.footer.action','sidebar.settings','sidebar.workspaces','sidebar.workspaces.sections','sidebar.session.row.leading','sidebar.session.row.badge','sidebar.session.row.hover','sidebar.workspaces.session.row.action','sidebar.workspaces.session.menu.item','settings.header','settings.action','settings.close','settings.trigger','settings.launcher','settings.launcher.action','settings.general.item','settings.interface.item','settings.appearance.item','settings.conversation.item','settings.features.item','settings.pet.item','settings.usage.item'];
+ const slots=['sidebar.brand.mark','sidebar.brand.name','sidebar.toggle.badge','sidebar.panellist','sidebar.panellist.actions','sidebar.footer.action','sidebar.settings','sidebar.workspaces','sidebar.workspaces.sections','sidebar.session.row.leading','sidebar.session.row.badge','sidebar.session.row.hover','sidebar.workspaces.session.row.action','sidebar.workspaces.session.menu.item','settings.header','settings.action','settings.close','settings.trigger','settings.launcher','settings.launcher.action','settings.general.item','settings.interface.item','settings.appearance.item','settings.conversation.item','settings.features.item','settings.pet.item','settings.usage.item'];
  const menus=new Map(),contexts=new Map();let workspaceContext=null;
  let bundledName='';const module=entry=>{const r=String(entry.registrant||entry.options.registrant||entry.options.locale||'');return r!==''&&(r===bundledName||whaleStockFibers.includes(r))?whaleBundledMarker:r};
  const builtinSettings=new Set(['@deepseek-ai/dsh-client-locale','@deepseek-ai/dsh-client-ui-git','@deepseek-ai/dsh-client-ui-titlebar','@deepseek-ai/dsh-client-ui-permission-presets','@deepseek-ai/dsh-client-ui-visual-replies','@deepseek-ai/dsh-client-ui-settings-general','@deepseek-ai/dsh-client-ui-settings-session-log','@deepseek-ai/dsh-client-ui-shortcuts','@deepseek-ai/dsh-client-ui-conversation','@deepseek-ai/dsh-client-ui-chat','@deepseek-ai/dsh-client-ui-workspace','@deepseek-ai/dsh-client-ui-theme','dsh-whale','dsh-remote','dsh-project','dsh-usage-panel']);
@@ -33,6 +33,10 @@ function whaleCreatePublicSlots(ctx,{entries,handle,schedule}){
   if(slot==='sidebar.workspaces')return ['@deepseek-ai/dsh-client-ui-workspace','@deepseek-ai/dsh-client-ui-codex-sidebar'].includes(m);
   if(slot==='sidebar.brand.mark'||slot==='sidebar.brand.name')return ['@deepseek-ai/dsh-client-ui-brand-official','@deepseek-ai/dsh-client-ui-codex-sidebar'].includes(m);
   if(slot==='sidebar.panellist')return ['@deepseek-ai/dsh-client-ui-plugin-manager','@deepseek-ai/dsh-client-ui-schedule','dsh-whale'].includes(m)||String(entry.options&&entry.options.id||'')==='whale';
+  /* The bundled entry-customization supplies the native More menu; whether it
+   * keeps its package registrant or folds into the web-app bundle's shared
+   * name, it is the only bundled consumer of this slot. */
+  if(slot==='sidebar.panellist.actions')return m==='@deepseek-ai/dsh-client-ui-entry-customization'||m===whaleBundledMarker;
   if(slot==='sidebar.workspaces.session.menu.item'||slot==='sidebar.workspaces.session.row.action')return m==='@deepseek-ai/dsh-client-ui-workspace';
   if(slot==='sidebar.session.row.leading'||slot==='sidebar.session.row.hover')return m==='@deepseek-ai/dsh-client-ui-schedule';
   return false;
