@@ -224,7 +224,7 @@ func (t *WorkspaceSessionTarget) candidateLocked(id string) bool {
 	for _, item := range s.items {
 		if item.SessionID == id {
 			return item.Blank && !item.Running && !item.Pinned && item.ParentID == "" && item.Origin == "" && item.Title == "" && item.Presentation == nil &&
-				hostPathKey(item.Cwd) != "" && hostPathKey(item.Cwd) == hostPathKey(ws.Path)
+				strings.TrimSpace(item.Cwd) != "" && item.Cwd == ws.Path
 		}
 	}
 	return false
@@ -322,6 +322,20 @@ func (t *WorkspaceSessionTarget) Create(ctx context.Context) (string, error) {
 	}
 	var out api.SessionCreateValue
 	err := t.client.Call(ctx, "session/create", map[string]any{"request": req}, &out)
+	if err != nil && candidate != "" {
+		var failure *dsh.Error
+		if errors.As(err, &failure) && failure.Code == "session/conflict" {
+			s.mu.Lock()
+			stillCurrent := t.currentLocked() && t.result == ""
+			s.mu.Unlock()
+			if !stillCurrent || ctx.Err() != nil {
+				return "", errors.New("workspace creation owner changed")
+			}
+			req.SessionId = nil
+			out = api.SessionCreateValue{}
+			err = t.client.Call(ctx, "session/create", map[string]any{"request": req}, &out)
+		}
+	}
 	if err != nil {
 		// This Host error names a real session already published before attach
 		// failed. Keep it visible as ungrouped; do not invent a membership.
@@ -449,10 +463,16 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 	if t.stagedPreset != "" && s.stagedPresetLocked(t.workspacePath) == t.stagedPreset {
 		delete(s.presetDraft.staged, filepathClean(t.workspacePath))
 	}
+	clearedAction := false
+	if s.lastAction != "" && s.lastAction != "session archived" {
+		s.lastAction = ""
+		s.invalidateViewLocked()
+		clearedAction = true
+	}
 	if s.selectedID == id {
 		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
-		if changed {
+		if changed || clearedAction {
 			s.fire()
 		}
 		if control != nil {

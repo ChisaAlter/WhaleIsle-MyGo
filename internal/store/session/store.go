@@ -570,6 +570,19 @@ func (s *Store) CreateSession(ctx context.Context) {
 				return
 			}
 			if target.Select(id) {
+				// Workspace creation has no receipt of its own; publish the same
+				// completion signal the non-workspace create path reports. The
+				// fence matches ReportFailure: only while the selection this
+				// gesture produced is still current on the same Host.
+				s.mu.Lock()
+				if s.selectedID == id && s.client == target.client && s.eventsGeneration == target.hostGeneration {
+					s.lastAction = "session created"
+					s.invalidateViewLocked()
+					s.mu.Unlock()
+					s.fire()
+				} else {
+					s.mu.Unlock()
+				}
 				s.InitializeDefaultModel(ctx)
 			}
 		}()
@@ -663,7 +676,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 }
 
 func filepathClean(p string) string {
-	return strings.TrimSpace(strings.ReplaceAll(p, "\\", "/"))
+	return hostPathKey(p)
 }
 
 // Detach clears the client (harness stopped or lost).
@@ -1414,6 +1427,9 @@ func (s *Store) Select(sessionID string) {
 			s.refreshSelectedViews()
 		}
 		return
+	}
+	if s.lastAction != "session archived" {
+		s.lastAction = ""
 	}
 	s.selectSessionLocked(sessionID)
 	s.mu.Unlock()

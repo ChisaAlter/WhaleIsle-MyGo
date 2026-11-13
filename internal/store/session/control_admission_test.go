@@ -19,7 +19,7 @@ import (
 // without a control reader. The socket fixture proves actual reader admission;
 // the packaged-Host timed flow separately proves the real projection contract.
 func TestSelectedSessionEntriesAdmitOneControlReader(t *testing.T) {
-	for _, entry := range []string{"initial-list", "create", "fork", "same-select", "same-workspace-select"} {
+	for _, entry := range []string{"initial-list", "create", "fork", "same-select", "same-select-missing-history", "same-workspace-select"} {
 		t.Run(entry, func(t *testing.T) {
 			var controls, follows atomic.Int32
 			notify := make(chan struct{}, 64)
@@ -93,16 +93,19 @@ func TestSelectedSessionEntriesAdmitOneControlReader(t *testing.T) {
 				} else {
 					s.runForkSession(ctx, client, s.eventsGeneration, "source")
 				}
-			case "same-select":
+			case "same-select", "same-select-missing-history":
 				s.mu.Lock()
 				s.selectedID = "target"
-				s.historyReady = true
+				s.historyReady = entry == "same-select"
 				s.mu.Unlock()
 				s.Select("target")
 			case "same-workspace-select":
 				s.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"project","path":"/project","title":"Project","sessionIds":["target"]}],"pinnedSessionIds":[],"archivedSessionIds":[]}}`))
 				s.mu.Lock()
 				s.selectedID = "target"
+				// This case reuses an already-open conversation. The public
+				// Select recovery path is covered separately when history is absent.
+				s.historyReady = true
 				s.mu.Unlock()
 				target, e := s.CaptureWorkspaceSessionTarget(s.eventsGeneration, "project", "target")
 				if e != nil {
@@ -139,8 +142,17 @@ func TestSelectedSessionEntriesAdmitOneControlReader(t *testing.T) {
 			if !same || controls.Load() != 1 {
 				t.Fatalf("same selection restarted/cleared control: ownerSame=%v opens=%d", same, controls.Load())
 			}
-			if strings.HasPrefix(entry, "same-") && follows.Load() != 0 {
+			if strings.HasPrefix(entry, "same-") && entry != "same-select-missing-history" && follows.Load() != 0 {
 				t.Fatal("same-ID control admission restarted follow")
+			}
+			if entry == "same-select-missing-history" {
+				deadline := time.Now().Add(3 * time.Second)
+				for follows.Load() == 0 && time.Now().Before(deadline) {
+					time.Sleep(time.Millisecond)
+				}
+				if follows.Load() != 1 {
+					t.Fatal("same-ID selection did not restore exactly one missing history reader")
+				}
 			}
 		})
 	}
