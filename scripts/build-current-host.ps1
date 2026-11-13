@@ -21,7 +21,9 @@ if ($UnifiedShortcuts) {
 }
 # Install pinned pnpm locally, never alter the global toolchain.
 $Tools = Join-Path $WorkRoot 'build-tools'
-& npm install --cache (Join-Path $WorkRoot 'npm-cache') --prefix $Tools --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org 'pnpm@11.8.0'
+# Reuse npm's configured content cache; only the pinned tool installation is
+# task-local. Explicit npm_config_cache still supports cold-cache acceptance.
+& npm install --prefix $Tools --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org 'pnpm@11.8.0'
 if ($LASTEXITCODE -ne 0) { throw 'Pinned pnpm bootstrap failed' }
 $Pnpm = Join-Path $Tools 'node_modules\pnpm\bin\pnpm.cjs'
 if (-not (Test-Path $Pnpm)) { $Pnpm = Join-Path $Tools 'node_modules\pnpm\bin\pnpm.mjs' }

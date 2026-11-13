@@ -15,12 +15,12 @@ function node(name) {
   setPointerCapture(){n.captured=true;}, hasPointerCapture(){return n.captured;},
   releasePointerCapture(){n.captured=false;n.emit('lostpointercapture');},
   getBoundingClientRect:()=>({left:0,top:0,right:100,bottom:100,width:100,height:100}),
-  getContext:()=>({}), closest:()=>null, removeAttribute(){}, setAttribute(){}, replaceChildren(){}, remove(){},
+  getContext:()=>({}), closest:()=>null, removeAttribute(){}, setAttribute(){}, replaceChildren(){}, append(){}, remove(){},
  };
  nodes.set(name,n);return n;
 }
 const window=node('window'), document=node('document');
-Object.assign(document,{hidden:false, body:{dataset:{behavior:'{"clickSound":true}'},appendChild(){}},
+Object.assign(document,{hidden:false, body:{dataset:{behavior:'{"clickSound":true}'},appendChild(){},append(){}},
  documentElement:node('html'),getElementById:node,querySelector:()=>node('task'),createElement:()=>node('new')});
 class AudioContext {
  state='running';currentTime=0;
@@ -32,6 +32,7 @@ window.AudioContext=AudioContext;
 window.WhalePetCareAnimation={create:()=>({close(){},update(){}})};
 class Observer {observe(){}disconnect(){}}
 const context=vm.createContext({window, document, ResizeObserver:Observer, MutationObserver:Observer, location:{href:''}, performance:{now:()=>1000},
+ matchMedia:()=>({matches:false,addEventListener(){}}),
  fetch:url=>url==='task.json'?Promise.resolve({ok:true,json:async()=>({Behavior:{clickSound}})}):new Promise(()=>{}), Image:class {set src(_){}},
  setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id;},clearTimeout:i=>timers.delete(i),
  setInterval:()=>++id,clearInterval(){},requestAnimationFrame:()=>++id,cancelAnimationFrame(){}});

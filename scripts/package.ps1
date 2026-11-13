@@ -8,10 +8,13 @@ param(
     [string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT,
     [string]$RuntimeRoot,
     [switch]$StageOnly,
+    # Opt in: preserve the installer/metadata, reclaim only this run's payload.
+    [switch]$CleanStage,
     [string]$GoExecutable = 'go'
 )
 
 $ErrorActionPreference = 'Stop'
+if ($StageOnly -and $CleanStage) { throw 'StageOnly retains its payload; use CleanStage only when building an installer.' }
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
@@ -310,9 +313,16 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
 		[System.IO.File]::WriteAllText($sumPath, "$sum  $(Split-Path -Leaf $Setup)`n")
 		Write-Host "Wrote blockmap: $blockmapPath"
 		Write-Host "Wrote SHA256 manifest: $sumPath"
+        if ($CleanStage) {
+            & node (Join-Path $PSScriptRoot 'build-storage.mjs') package-stage $Stage $DistRoot
+            if ($LASTEXITCODE -ne 0) { throw "Installer is ready at $Setup; package stage cleanup failed at $Stage" }
+            Write-Host "Reclaimed package stage; installer and update metadata retained -> $Setup"
+        }
     }
 } else {
     Write-Host "Note: makensis not on PATH; NSIS script at scripts/nsis/whaleisle.nsi (run after staging)"
+    if ($CleanStage) { throw "CleanStage requires a successful installer build; staging retained at $Stage" }
 }
 
-Write-Host "package.ps1: done -> $Stage"
+if ($CleanStage) { Write-Host "package.ps1: done -> $Setup" }
+else { Write-Host "package.ps1: done -> $Stage" }
