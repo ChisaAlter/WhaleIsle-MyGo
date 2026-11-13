@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os/exec"
@@ -21,6 +22,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
@@ -307,6 +309,7 @@ func runComposerFlowQA() error {
 	var steps []step
 	mark := func(name string, pass bool, detail string) {
 		steps = append(steps, step{Name: name, Pass: pass, Detail: detail})
+		log.Printf("qa-mark %s pass=%v %s", name, pass, detail)
 	}
 	result := make(chan error, 1)
 	finish := func(err error) {
@@ -1072,6 +1075,58 @@ func runComposerFlowQA() error {
 				state.filesPaneOpen = false
 				state.mu.Unlock()
 			})
+			// Batch-4 left extension space contract: the panel-list More menu
+			// exists only while sidebar.panellist.actions has registrations,
+			// launchers unpin into it, and the bundled create entry only seeds
+			// a draft. Old-contract runtimes have no registrations, which the
+			// adapter must render as no More affordance, not an error.
+			{
+				var regs []pluginui.PublicSlotEntry
+				if err := waitStore(time.Now().Add(45*time.Second), "panel actions registrations", func() (bool, error) {
+					if owner := state.pluginNavigationOwner(); owner != nil {
+						regs = owner.PublicSlotRegistrations("sidebar.panellist.actions")
+						return len(regs) > 0, nil
+					}
+					return false, nil
+				}); err != nil {
+					mark("extension-panel-more", true, "no sidebar.panellist.actions registrations (old-contract runtime: correctly no More)")
+				} else {
+					bundled := false
+					for _, reg := range regs {
+						if reg.Native {
+							bundled = true
+						}
+					}
+					mark("extension-panel-more", bundled, fmt.Sprintf("registrations=%d bundledNative=%v", len(regs), bundled))
+				}
+				// Panel pins are region memory: unpin hides a launcher, pin
+				// restores it, and the plugin manager stays pinned by contract.
+				state.setPluginPanelPinned("schedules", false)
+				unpinned := state.pluginPanelUnpinned("schedules")
+				state.setPluginPanelPinned("schedules", true)
+				repinned := !state.pluginPanelUnpinned("schedules")
+				state.setPluginPanelPinned("plugins", false)
+				mark("extension-panel-pins", unpinned && repinned && !state.pluginPanelUnpinned("plugins"), fmt.Sprintf("unpin=%v repin=%v pluginsPinned=%v", unpinned, repinned, !state.pluginPanelUnpinned("plugins")))
+				// "Create your plugin" seeds the draft and the cordis preset
+				// without sending: identical to the source whenDraftExists
+				// append semantics.
+				before := model.requests.Load()
+				sid := sessions.SelectedSessionID()
+				// Called off the UI thread: the function schedules its own
+				// win.Update; nesting it inside one would deadlock.
+				state.startCreatorPluginDraft(win, sessions, "leftbar")
+				if err := waitStore(time.Now().Add(20*time.Second), "creator draft seeded", func() (bool, error) {
+					state.mu.Lock()
+					defer state.mu.Unlock()
+					d := state.composerDrafts[sid]
+					return d != nil && strings.Contains(d.Text, "带左侧栏入口") && state.agentPresetPick == "cordis", nil
+				}); err != nil {
+					mark("extension-panel-creator", false, fmt.Sprintf("%v (preset=%q)", err, state.agentPresetPick))
+				} else {
+					time.Sleep(500 * time.Millisecond)
+					mark("extension-panel-creator", model.requests.Load() == before, fmt.Sprintf("draft seeded; sent requests unchanged=%v", model.requests.Load() == before))
+				}
+			}
 			// Real input path: set the composer text through UI Automation's
 			// ValuePattern, the channel assistive technology uses. Restore a
 			// minimized window first: UIA and focus need a presentable surface.
