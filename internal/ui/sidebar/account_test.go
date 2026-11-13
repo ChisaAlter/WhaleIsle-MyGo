@@ -1,14 +1,11 @@
 package sidebar
 
 import (
-	"os"
-	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -230,27 +227,21 @@ func TestWhaleAssistantNavLabelAndUpdateFooterWidth(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 
-	tmp := t.TempDir()
-	t.Setenv(paths.EnvUserData, tmp)
-	settingsPath := filepath.Join(paths.DshHome(), "data", "whale", "settings.json")
-	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(settingsPath, []byte(`{"name":"Claude Duts"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := whaleAssistantNavLabel(Model{ConnectionReady: false}); got != i18n.T(i18n.KeySidebarAssistant) {
+	if got := whaleAssistantNavLabel(Model{ConnectionReady: false, AssistantName: "Claude Duts"}); got != i18n.T(i18n.KeySidebarAssistant) {
 		t.Fatalf("disconnected whaleAssistantNavLabel=%q, want fallback", got)
 	}
-	if got := whaleAssistantNavLabel(Model{ConnectionReady: true}); got != "Claude Duts" {
+	if got := whaleAssistantNavLabel(Model{ConnectionReady: true, AssistantName: "Claude Duts"}); got != "Claude Duts" {
 		t.Fatalf("connected whaleAssistantNavLabel=%q, want Claude Duts", got)
+	}
+	if got := whaleAssistantNavLabel(Model{ConnectionReady: true}); got != i18n.T(i18n.KeySidebarAssistant) {
+		t.Fatalf("unnamed whaleAssistantNavLabel=%q, want fallback", got)
 	}
 
 	const onePixelPNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 	updateOpened := 0
 	m := Model{
 		ConnectionReady:    true,
+		AssistantName:      "Claude Duts",
 		OnOpenAssistant:    func() {},
 		DesktopUpdatePhase: "available",
 		OnOpenDesktopUpdate: func() {

@@ -411,6 +411,9 @@ type Model struct {
 
 	ConnectionBanner                        string
 	ConnectionReady                         bool
+	// AssistantName is the published Whale display name snapshot for the
+	// sidebar panel row; empty falls back to the localized assistant label.
+	AssistantName                           string
 	ConnectionConnecting                    bool
 	ConnectionError                         string
 	ConnectionEpoch                         uint64
@@ -737,6 +740,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		SessionPluginsActive:  m.SessionPluginsActive,
 		OnOpenSettings:        m.OnOpenSettings,
 		ConnectionReady:       m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
+		AssistantName:           m.AssistantName,
 		ConnectionError:         m.ConnectionError,
 		OnReconnect:             m.OnReconnect,
 		DesktopUpdateInstalling: m.DesktopUpdateInstalling,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
@@ -125,6 +126,14 @@ func (s *mainState) assistantWhaleSettingsModel(ep harness.Endpoint) assistantui
 				if accepted && err == nil && (command.Action == "identity" || command.Action == "name") {
 					s.mu.Lock()
 					sessions := s.sessions
+					if actual != nil {
+						s.whaleNavName = strings.TrimSpace(actual.Name)
+						s.whaleNavFetchedAt = time.Now()
+					} else {
+						// Read-back failed: expire the published name so the
+						// observer refetches on the next frame.
+						s.whaleNavFetchedAt = time.Time{}
+					}
 					s.mu.Unlock()
 					if sessions != nil {
 						sessions.RefreshList(ctx)
@@ -204,4 +213,58 @@ func (s *mainState) observeWhaleSettings() {
 	} else {
 		s.whaleSettings.Bind(host)
 	}
+	s.observeWhaleNavLabel(ep)
+}
+
+// The sidebar's Whale row shows the assistant's display name. Unlike the
+// settings editor it is visible on every frame, so the name is fetched once per
+// Host through the plugin RPC and republished as a snapshot; periodic refetch
+// keeps external edits converging without any draw-path I/O.
+const whaleNavRefetch = 30 * time.Second
+
+func (s *mainState) observeWhaleNavLabel(ep harness.Endpoint) {
+	s.mu.Lock()
+	enabled := s.bootStatus.State == harness.Ready && s.cfgStore != nil && s.cfgStore.Get().WhaleAssistantEnabled
+	endpoint := s.bootStatus.Endpoint
+	generation := s.bootStatus.Generation
+	s.mu.Unlock()
+	s.dshMu.Lock()
+	client := s.dshClient
+	s.dshMu.Unlock()
+	key := ""
+	if enabled && ep.Origin != "" && client != nil && client.Endpoint.Origin == ep.Origin && client.Endpoint.Cookie == ep.Cookie && endpoint.Origin == ep.Origin && endpoint.Cookie == ep.Cookie {
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%p\x00%s\x00%s\x00%d", client, ep.Origin, ep.Cookie, generation)))
+		key = fmt.Sprintf("%x", digest)
+	}
+	s.mu.Lock()
+	if s.whaleNavKey != key {
+		s.whaleNavKey = key
+		s.whaleNavName = ""
+		s.whaleNavBusy = false
+		s.whaleNavFetchedAt = time.Time{}
+		s.whaleNavSerial++
+	}
+	if key == "" || s.whaleNavBusy || time.Since(s.whaleNavFetchedAt) < whaleNavRefetch {
+		s.mu.Unlock()
+		return
+	}
+	s.whaleNavBusy = true
+	serial := s.whaleNavSerial
+	s.mu.Unlock()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		name := ""
+		if settings, err := s.pluginRPCClient(ep).WhaleSettings(ctx); err == nil {
+			name = strings.TrimSpace(settings.Name)
+		}
+		s.mu.Lock()
+		if s.whaleNavKey == key && s.whaleNavSerial == serial {
+			s.whaleNavName = name
+			s.whaleNavBusy = false
+			s.whaleNavFetchedAt = time.Now()
+		}
+		s.mu.Unlock()
+		s.refreshWhaleSettingsUI()
+	}()
 }

@@ -3,18 +3,13 @@
 package sidebar
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/pluginui"
-	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
@@ -25,63 +20,16 @@ import (
 	"whaleisle/internal/ui/workspacepicker"
 )
 
-var whaleSettingsCache struct {
-	mu        sync.Mutex
-	path      string
-	checkedAt time.Time
-	exists    bool
-	modTime   time.Time
-	name      string
-}
-
+// whaleAssistantNavLabel renders only the published snapshot. The name is
+// fetched through the Whale settings observation flow (Host plugin RPC); this
+// draw path never touches disk.
 func whaleAssistantNavLabel(m Model) string {
 	fallback := i18n.T(i18n.KeySidebarAssistant)
 	if !m.ConnectionReady {
 		return fallback
 	}
-	path := filepath.Join(paths.DshHome(), "data", "whale", "settings.json")
-	now := time.Now()
-	whaleSettingsCache.mu.Lock()
-	if whaleSettingsCache.path == path && now.Sub(whaleSettingsCache.checkedAt) < 2*time.Second {
-		exists := whaleSettingsCache.exists
-		name := whaleSettingsCache.name
-		whaleSettingsCache.mu.Unlock()
-		if exists && name != "" {
-			return name
-		}
-		return fallback
-	}
-	whaleSettingsCache.mu.Unlock()
-
-	st, err := os.Stat(path)
-	if err != nil || st.IsDir() {
-		whaleSettingsCache.mu.Lock()
-		whaleSettingsCache.path = path
-		whaleSettingsCache.checkedAt = now
-		whaleSettingsCache.exists = false
-		whaleSettingsCache.mu.Unlock()
-		return fallback
-	}
-	whaleSettingsCache.mu.Lock()
-	defer whaleSettingsCache.mu.Unlock()
-	whaleSettingsCache.checkedAt = now
-	whaleSettingsCache.exists = true
-	if whaleSettingsCache.path != path || !whaleSettingsCache.modTime.Equal(st.ModTime()) {
-		var cfg struct {
-			Name string `json:"name"`
-		}
-		name := ""
-		if raw, err := os.ReadFile(path); err == nil {
-			if json.Unmarshal(raw, &cfg) == nil {
-				name = strings.TrimSpace(cfg.Name)
-			}
-		}
-		whaleSettingsCache.path = path
-		whaleSettingsCache.modTime = st.ModTime()
-		whaleSettingsCache.name = name
-	}
-	if whaleSettingsCache.name != "" {
-		return whaleSettingsCache.name
+	if name := strings.TrimSpace(m.AssistantName); name != "" {
+		return name
 	}
 	return fallback
 }
@@ -125,6 +73,10 @@ type Model struct {
 	ViewportW                   float32
 	ViewportH                   float32
 	ConnectionReady             bool
+	// AssistantName is the published Whale display name snapshot; empty falls
+	// back to the localized assistant label. Populated by the Host-side
+	// settings observer, never read from disk here.
+	AssistantName               string
 	ConnectionError             string
 	DesktopUpdateInstalling     bool
 	DesktopUpdatePhase          string
