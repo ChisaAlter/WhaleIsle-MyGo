@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -425,6 +426,7 @@ func (t *WorkspaceSessionTarget) ReportFailure(err error) bool {
 	s.mu.Lock()
 	if !t.currentLocked() {
 		s.mu.Unlock()
+		log.Printf("session: workspace create error suppressed by stale-owner fence: %s", err)
 		return false
 	}
 	s.lastAction = err.Error()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"path/filepath"
 	"strings"
 
@@ -74,6 +75,7 @@ func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, 
 
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
 	if d.Sending || d.Preparing > 0 {
+		log.Printf("composer submit dropped: busy sending=%v preparing=%d id=%s", d.Sending, d.Preparing, id)
 		return
 	}
 	if win == nil || sessions == nil {
@@ -85,6 +87,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	s.mu.Unlock()
 	live := sessions.Snapshot()
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
+		log.Printf("composer submit dropped: stale current=%v selected=%q want=%q hostGen=%d/%d", current, live.SelectedID, id, live.ComposerHostGeneration, hostGeneration)
 		return
 	}
 	// Local contributions own their bare invocation before workspace/prompt
@@ -115,6 +118,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	if composer.RequiresWorkspace(live, hero) {
 		// Match the Hero card's keyboard/click route even for a retained
 		// submit callback: choosing a workspace precedes creating a Session.
+		log.Printf("composer submit dropped: requires-workspace hero=%v sel=%q cwd=%q scratch=%q wsReady=%v workspaces=%d", hero, live.SelectedID, live.SelectedCwd, live.ScratchCwd, live.WorkspaceReady, len(live.Workspaces))
 		s.pickAndApplyWorkspace(win, sessions, cwd)
 		return
 	}

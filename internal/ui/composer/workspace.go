@@ -30,5 +30,16 @@ func RequiresWorkspace(snap session.ViewState, hero bool) bool {
 	if snap.WorkspaceReady && snap.ScratchCwd != "" && snap.SelectedCwd == snap.ScratchCwd {
 		return false
 	}
+	// The workspace SessionIDs roster can lag a just-created Session by a
+	// frame; a resolved cwd under a still-registered workspace root is
+	// ownership evidence, not a deleted workspace resurrected from its cwd.
+	if snap.WorkspaceReady && snap.SelectedCwd != "" {
+		cwd := session.HostPathKey(snap.SelectedCwd)
+		for _, workspace := range snap.Workspaces {
+			if workspace.Path != "" && session.HostPathKey(workspace.Path) == cwd {
+				return false
+			}
+		}
+	}
 	return snap.WorkspaceReady || snap.SelectedCwd == ""
 }

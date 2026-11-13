@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
@@ -11,9 +12,16 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
+// detachedSendTimeout bounds a detached send's staging pipeline (attachment
+// prepare, submit dispatch, submission retirement). Every stage is a local-RPC
+// call that should complete in seconds; two minutes is already generous and
+// converts a silently stuck send into a surfaced draft-preserving failure.
+const detachedSendTimeout = 2 * time.Minute
+
 func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftState, id string, owner *session.ComposerTarget) {
 	flight, ok := d.BeginDetachedSend()
 	if !ok {
+		log.Printf("composer submit dropped: detach-refused id=%s sending=%v preparing=%d editSeq=%v att=%d text=%q", id, d.Sending, d.Preparing, d.EditSeq, len(d.Attachments), d.Text)
 		return
 	}
 	requestID := owner.BeginSubmission(flight.Text, flight.Attachments)
@@ -22,7 +30,11 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 		return
 	}
 	go func() {
-		ctx := context.Background()
+		// Bound the whole staging pipeline: prepare/submit/retire are local-RPC
+		// calls that should finish in seconds. An unbounded Background here
+		// turned a stuck RPC into a silent infinite in-flight send (qa19/qa22).
+		ctx, cancel := context.WithTimeout(context.Background(), detachedSendTimeout)
+		defer cancel()
 		log.Printf("qa-flight %d: begin (attachments=%d)", flight.ID, len(flight.Attachments))
 		attachments := append([]session.ComposerAttachment(nil), flight.Attachments...)
 		var err error
@@ -42,8 +54,17 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 				log.Printf("qa-flight %d: retire -> err=%v", flight.ID, err)
 			}
 		} else {
-			err = owner.AbandonSubmission(requestID, err)
+			stageErr := err
+			err = owner.AbandonSubmission(requestID, stageErr)
 			log.Printf("qa-flight %d: abandon -> err=%v", flight.ID, err)
+			// Abandon succeeding must not mask the stage failure: a nil here
+			// would complete the flight as sent and silently drop the draft.
+			if err == nil {
+				err = stageErr
+			}
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = errors.New(i18n.T(i18n.KeyCmdComposerSendTimeout))
 		}
 		win.Update(func() {
 			s.mu.Lock()

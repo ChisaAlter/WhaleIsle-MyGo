@@ -679,6 +679,11 @@ func filepathClean(p string) string {
 	return hostPathKey(p)
 }
 
+// HostPathKey normalizes a Host-reported filesystem path for equality checks.
+func HostPathKey(p string) string {
+	return hostPathKey(p)
+}
+
 // Detach clears the client (harness stopped or lost).
 func (s *Store) Detach() {
 	s.mu.Lock()

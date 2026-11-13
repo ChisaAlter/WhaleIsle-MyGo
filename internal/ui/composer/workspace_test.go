@@ -23,6 +23,10 @@ func TestRequiresWorkspaceFollowsSelectedSessionOwnership(t *testing.T) {
 		{"foreign membership", session.ViewState{SelectedID: "s", WorkspaceReady: true, Workspaces: []session.WorkspaceRow{{SessionIDs: []string{"other"}}}}, true, true},
 		{"scratch", session.ViewState{SelectedID: "s", WorkspaceReady: true, ScratchCwd: "C:/scratch", SelectedCwd: "C:/scratch"}, true, false},
 		{"active transcript", session.ViewState{SelectedID: "s", WorkspaceReady: true}, false, false},
+		// A just-created workspace Session reaches submit before the roster
+		// refresh lists its id; its resolved cwd still proves ownership.
+		{"roster lag", session.ViewState{SelectedID: "s", WorkspaceReady: true, SelectedCwd: `C:\AI\work`, Workspaces: []session.WorkspaceRow{{Path: "c:/ai/work/", SessionIDs: []string{"other"}}}}, true, false},
+		{"deleted cwd", session.ViewState{SelectedID: "s", WorkspaceReady: true, SelectedCwd: "C:/removed", Workspaces: []session.WorkspaceRow{{Path: "C:/work", SessionIDs: []string{"other"}}}}, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := RequiresWorkspace(tc.snap, tc.hero); got != tc.want {
