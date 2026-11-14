@@ -1,0 +1,6 @@
+# Bundle patch carried by the package itself (dsh.bundle.patch), matching the
+# real third-party plugin layout (@xmanrui/dsh-im): the self-insert gives the
+# loader a plugin fiber of its own instead of the app bundle's.
+- insert:
+    - id: qa-panel
+      name: qa-panel

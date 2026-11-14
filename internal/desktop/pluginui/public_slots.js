@@ -47,7 +47,7 @@ function whaleCreatePublicSlots(ctx,{entries,handle,schedule}){
   menus.clear();bundledName=whaleBundledRegistrant(entries);const documents=[],menuActions=[],markers=[...document.querySelectorAll('[data-whale-slot-entry]')];
   if(typeof window.__whaleSessionEntryOf!=='function')return {publicDocuments:documents,publicMenus:menuActions};
   for(const slot of slots)for(const entry of entries(slot)){
-   if(entry.options.id)documents.push({slot,ownerKey:'',handle:'c'+handle(entry),id:String(entry.options.id),registrant:module(entry),label:label(entry),order:Number.isFinite(entry.options.order)?entry.options.order:0,native:native(slot,entry),catalog:true,nodes:[]});
+   if(entry.options.id)documents.push({slot,ownerKey:'',handle:'c'+handle(entry),id:String(entry.options.id),registrant:module(entry),rawRegistrant:String(entry.registrant||entry.options.registrant||'').slice(0,8192),label:label(entry),order:Number.isFinite(entry.options.order)?entry.options.order:0,native:native(slot,entry),catalog:true,nodes:[]});
    for(const root of markers.filter(node=>window.__whaleSessionEntryOf(node,slot)===entry&&!whaleRichSurface.hidden(node))){
     const ownerKey=root.getAttribute('data-whale-public-session')||'';
     const owner={root,globalEntry:entry,globalSlot:slot},isNative=native(slot,entry),id=handle(root);

@@ -18,6 +18,9 @@ type PublicSlotEntry struct {
 	Handle     string       `json:"handle"`
 	ID         string       `json:"id,omitempty"`
 	Registrant string       `json:"registrant"`
+	// RawRegistrant is the loader-reported fiber/registrant before bundled-name
+	// folding — diagnostics only; consumers must use Registrant.
+	RawRegistrant string     `json:"rawRegistrant,omitempty"`
 	Label      string       `json:"label,omitempty"`
 	Order      float64      `json:"order"`
 	Native     bool         `json:"native,omitempty"`

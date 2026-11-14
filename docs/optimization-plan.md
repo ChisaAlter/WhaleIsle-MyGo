@@ -379,3 +379,21 @@ QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实
 **rc.2 降级回归（`composer-qa49`，默认 vendor + 默认 Node）：** `extension-panel-more` 实测走旧契约分支——"no sidebar.panellist.actions registrations (old-contract runtime: correctly no More)"；pins/creator 两 mark 亦过。`external-edit-conflict` 一次超时（qa45 同 runtime 通过、qa48 rc.4 通过）——既有观察项抖动，与本批改动正交。
 
 **环境约束补记：** `WHALEISLE_NODE` 显式覆盖在两个 runtime 上均被 Host 拒（`selected Node differs from the verified Host session runtime`）；rc.4 的正确指定方式是 `runtime-rc4\node\node.exe` 配套捆绑 Node，rc.2/默认树不传该变量走自身解析。
+
+### 2026-11-14 批次 4 三方插件实证：`qa-panel` fixture 端到端（`composer-qa51`，rc.4 vendor + 配套 Node，21/21 通过）
+
+**真实第三方包走普通 loader 全程验证（`[process]`）：** `cmd/whaleisle/testdata/qa-panel` 为完整 dual-face 包（`package.json` 含 `dsh.bundle.patch`/`dsh.client`/`exports["./client"]`、`lib/index.js` host cordis 插件、`client/client.js` 模块），经 `WHALEISLE_EXTRA_OVERLAY` 链入 profile `node_modules` 并随 `--patch` 普通装载。实测 marks：
+
+- `extension-plugin-panel pass=true foreign registrant="qa-panel" view=main:qa-panel:qa-panel opened and closed unpin=true repin=true` — 外来 panellist 条目 `Native=false`、对应 `main` 视图经 live owner 选举打开/关闭、pin 存取与 bundled 条目同权。
+- `extension-panel-browse pass=true marketOpen=true marketManager=true` — "Browse plugins" 菜单回调路由到插件管理器面（`selectMainPanel("plugins")` 同一调用路径）。
+- 存量 19 项（含 `external-edit-conflict` 观察者路径）全过，`error: <nil>`。
+
+**fiber 归因根因（对 `dsh-whale` 逐字段对照定位）：** cordis 客户端 loader 以 `module.exports.name` 为插件 fiber 名；缺失时落到应用 combo 共享的 minified fiber（本环境为 `qC`）→ 注册被 `whaleBundledRegistrant` 正确折叠为 `whaleisle:bundled`。补齐 `exports.name` 后立即获得独立 fiber，`raw="qa-panel"`。`locale` 兜底、`dsh.bundle` 声明、patch 插入形态均非决定因子（逐项实验排除）。`PublicSlotEntry.RawRegistrant`（JS→Go 透传 loader 原始 registrant）作为诊断字段保留。
+
+**诊断收益已固化：** catalog 文档新增 `rawRegistrant` 字段——归因问题（bundle 折叠前后差异）将来可直接从注册表 dump 读出，不必反复实验。
+
+**批次 4 剩余 `Not Run`（如实）：**
+
+- **live 启停/卸载/HMR：`Not Run (no driver)`** — Host 侧存在真实运行时生命周期 RPC（`boot/plugin-manager` 的 `pluginManager.setPluginEnabled`/`setBundleEnabled`/`installBundle`，含持久化 + live reload），但 `ctx.remote` 经 gateway 对等协议传输，`/api` 通用 RPC 桥只服务 Connection 通道；从原生侧驱动需 gateway 协议客户端，超出本轮预算。撤销语义本身已有真实 Host + Chrome CDP 证据（`functional_test.go` `__fixtureWithdraw`→槽位注册撤销→快照更新），native 侧"无注册→无 More"门控有控件层单测——两端各自有据，live 串联缺驱动。
+- **真实市场安装：`Not Run (no target)`** — market fixture 为 catalog mock，`installBundle` 需网络源；`dsh plugin add <local-path>` 走 pnpm 安装层可行但未做端到端验收。
+- **外来 action owner 组件渲染** — 第三方 `sidebar.panellist.actions` 注册的 React 组件无法原生渲染，如实降级为计入门控、渲染未固定行 + bundled browse/create。

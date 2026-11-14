@@ -313,12 +313,22 @@ func runComposerFlowQA() error {
 	}
 	result := make(chan error, 1)
 	finish := func(err error) {
-		raw, _ := json.MarshalIndent(map[string]any{"pid": os.Getpid(), "steps": steps, "modelRequests": model.requests.Load(), "error": fmt.Sprint(err)}, "", "  ")
+		state.mu.Lock()
+		sup := state.sup
+		state.mu.Unlock()
+		var hostLog []string
+		if sup != nil {
+			if lines := sup.Logs(); len(lines) > 40 {
+				hostLog = lines[len(lines)-40:]
+			} else {
+				hostLog = lines
+			}
+		}
+		raw, _ := json.MarshalIndent(map[string]any{"pid": os.Getpid(), "steps": steps, "modelRequests": model.requests.Load(), "hostLog": hostLog, "error": fmt.Sprint(err)}, "", "  ")
 		_ = os.WriteFile(out, append(raw, '\n'), 0o600)
 		result <- err
 		state.mu.Lock()
 		state.quitting = true
-		sup := state.sup
 		state.mu.Unlock()
 		if sup != nil {
 			sup.Stop()
@@ -360,7 +370,13 @@ func runComposerFlowQA() error {
 			time.Sleep(100 * time.Millisecond)
 		}
 		if sessions == nil {
-			finish(fmt.Errorf("owned composer QA readiness timeout (win=%v state=%s endpoint=%s)", win != nil, lastState, lastEndpoint))
+			state.mu.Lock()
+			bootLogs := append([]string(nil), state.bootLogs...)
+			state.mu.Unlock()
+			if n := len(bootLogs); n > 8 {
+				bootLogs = bootLogs[n-8:]
+			}
+			finish(fmt.Errorf("owned composer QA readiness timeout (win=%v state=%s endpoint=%s) boot=%q", win != nil, lastState, lastEndpoint, strings.Join(bootLogs, " | ")))
 			return
 		}
 		state.revealMainConversation()
@@ -1126,6 +1142,88 @@ func runComposerFlowQA() error {
 					time.Sleep(500 * time.Millisecond)
 					mark("extension-panel-creator", model.requests.Load() == before, fmt.Sprintf("draft seeded; sent requests unchanged=%v", model.requests.Load() == before))
 				}
+			}
+			// A real third-party client plugin (WHALEISLE_EXTRA_OVERLAY stages
+			// testdata/qa-panel into the profile) must surface through the
+			// ordinary loader: a foreign panellist entry, a real main view,
+			// and pin memory that treats it like any other launcher.
+			if os.Getenv(harness.EnvExtraOverlay) == "" {
+				mark("extension-plugin-panel", true, "overlay env unset; fixture plugin not staged")
+			} else {
+				var qaReg *pluginui.PublicSlotEntry
+				if err := waitStore(time.Now().Add(60*time.Second), "qa-panel registration", func() (bool, error) {
+					owner := state.pluginNavigationOwner()
+					if owner == nil {
+						return false, nil
+					}
+					for _, reg := range owner.PublicSlotRegistrations("sidebar.panellist") {
+						if reg.ID == "qa-panel" {
+							r := reg
+							qaReg = &r
+							return true, nil
+						}
+					}
+					return false, nil
+				}); err != nil {
+					mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
+				} else if qaReg.Native || !strings.Contains(qaReg.Registrant, "qa-panel") {
+					var dump []string
+					if owner := state.pluginNavigationOwner(); owner != nil {
+						for _, r := range owner.PublicSlotRegistrations("sidebar.panellist") {
+							dump = append(dump, fmt.Sprintf("%s=%s/%s(n=%v)", r.ID, r.Registrant, r.RawRegistrant, r.Native))
+						}
+					}
+					mark("extension-plugin-panel", false, fmt.Sprintf("fixture misclassified: native=%v registrant=%q raw=%q all=[%s]", qaReg.Native, qaReg.Registrant, qaReg.RawRegistrant, strings.Join(dump, " ")))
+				} else {
+					// Its main view is elected through the same live-owner
+					// contract as the bundled panels; opening it must select
+					// the real handle, and unpinning must move it to More.
+					var viewHandle string
+					if err := waitStore(time.Now().Add(20*time.Second), "qa-panel main view", func() (bool, error) {
+						for _, view := range state.pluginNativeViews() {
+							if view.ID == "qa-panel" {
+								viewHandle = view.Handle
+								return true, nil
+							}
+						}
+						return false, nil
+					}); err != nil {
+						mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
+					} else {
+						win.Update(func() { state.openPluginNativeView(viewHandle) })
+						if err := waitStore(time.Now().Add(20*time.Second), "qa-panel view selected", func() (bool, error) {
+							state.mu.Lock()
+							defer state.mu.Unlock()
+							p := state.nativePlugins.navigation
+							return p != nil && p.selected == viewHandle, nil
+						}); err != nil {
+							mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
+						} else {
+							win.Update(func() { state.closePluginNativeView() })
+							// Pin memory treats a third-party launcher like
+							// the bundled ones: unpinned into More, pinned
+							// back out.
+							state.setPluginPanelPinned("qa-panel", false)
+							pUnpinned := state.pluginPanelUnpinned("qa-panel")
+							state.setPluginPanelPinned("qa-panel", true)
+							pRepinned := !state.pluginPanelUnpinned("qa-panel")
+							mark("extension-plugin-panel", pUnpinned && pRepinned, fmt.Sprintf("foreign registrant=%q view=%s opened and closed unpin=%v repin=%v", qaReg.Registrant, viewHandle, pUnpinned, pRepinned))
+						}
+					}
+				}
+			}
+			// "Browse plugins" routes to the plugin manager surface. The menu
+			// item's OnOpenMarket callback is bound to selectMainPanel in
+			// main_navigation.go; the reachable assertion is the same call.
+			if owner := state.pluginNavigationOwner(); owner != nil && len(owner.PublicSlotRegistrations("sidebar.panellist.actions")) > 0 {
+				state.selectMainPanel("plugins")
+				state.mu.Lock()
+				mOpen, mManager := state.marketOpen, state.marketManager
+				state.mu.Unlock()
+				mark("extension-panel-browse", mOpen && mManager, fmt.Sprintf("marketOpen=%v marketManager=%v", mOpen, mManager))
+				win.Update(func() { state.selectMainPanel("") })
+			} else {
+				mark("extension-panel-browse", true, "no actions registrations; Browse not offered on this runtime")
 			}
 			// Real input path: set the composer text through UI Automation's
 			// ValuePattern, the channel assistive technology uses. Restore a
