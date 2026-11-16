@@ -395,6 +395,7 @@ type Store struct {
 	listErr                              error
 	items                                []Item
 	selectedID                           string
+	selectedAuto                         bool
 	messages                             []Message
 	historyLoading                       bool
 	historyReconnecting                  bool
@@ -1424,6 +1425,7 @@ func (s *Store) RunningCount() int {
 func (s *Store) Select(sessionID string) {
 	s.mu.Lock()
 	if s.selectedID == sessionID {
+		s.selectedAuto = false
 		needRefresh := s.client != nil && sessionID != "" && !s.historyReady && !s.historyLoading
 		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
@@ -1612,6 +1614,7 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 		}
 		if pick != "" {
 			s.selectSessionLocked(pick)
+			s.selectedAuto = true
 			startFollow = true
 		}
 	}

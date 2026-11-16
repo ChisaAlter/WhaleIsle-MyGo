@@ -6019,6 +6019,7 @@ func mainView(c *ui.Context) {
 						},
 						TitlebarPreferences:     settingsstore.TitlebarPreferencesFrom(settingsView),
 						DisableDeveloperTools:   !settingsstore.DeveloperToolsEnabled(settingsView),
+						DeveloperToolsPending:   setStore != nil && !(settingsView.Described && settingsView.HasDocument) && settingsView.Err == "",
 						HideArchivedList:        cfgHideArchivedList,
 						ChatPreferences:         settingsstore.ChatPreferencesFrom(settingsView),
 						ConversationPreferences: settingsstore.ConversationPreferencesFrom(settingsView),

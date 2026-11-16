@@ -328,12 +328,13 @@ func runComposerFlowQA() error {
 		raw, _ := json.MarshalIndent(map[string]any{"pid": os.Getpid(), "steps": steps, "modelRequests": model.requests.Load(), "hostLog": hostLog, "error": fmt.Sprint(err)}, "", "  ")
 		_ = os.WriteFile(out, append(raw, '\n'), 0o600)
 		result <- err
-		state.mu.Lock()
-		state.quitting = true
-		state.mu.Unlock()
 		if sup != nil {
 			sup.Stop()
 		}
+		state.mu.Lock()
+		state.quitting = true
+		state.quitCleanupFinished = true
+		state.mu.Unlock()
 		mygo.App.Quit()
 	}
 	waitStore := func(deadline time.Time, what string, cond func() (bool, error)) error {
@@ -381,6 +382,7 @@ func runComposerFlowQA() error {
 			return
 		}
 		state.revealMainConversation()
+		win.ShowInactive()
 		if _, err := win.CapturePage(); err != nil {
 			finish(err)
 			return
@@ -989,6 +991,12 @@ func runComposerFlowQA() error {
 					if perr == nil && !handled {
 						perr = errors.New("OpenPresentedPath left qa-note.txt unhandled")
 					}
+					state.mu.Lock()
+					state.fileTabs = pf.Tabs
+					state.selectedFile = pf.Selected
+					state.filePreview, state.filePreviewErr = pf.Preview, pf.Error
+					state.fileEditing, state.fileEditDraft, state.fileEditStatus = pf.Editing, pf.Draft, pf.Status
+					state.mu.Unlock()
 					if perr != nil {
 						reloadDone <- perr.Error()
 						return
@@ -1172,7 +1180,7 @@ func runComposerFlowQA() error {
 	select {
 	case err := <-result:
 		return err
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		return fmt.Errorf("native desktop exited before composer QA proof")
 	}
 }

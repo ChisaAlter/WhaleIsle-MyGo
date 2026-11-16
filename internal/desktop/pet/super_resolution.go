@@ -15,9 +15,11 @@ const anime4kFallbackScript = "// optional anime4k.js sidecar unavailable; falli
 
 type anime4kProvenance struct {
 	Files []struct {
-		Path   string `json:"path"`
-		Size   int64  `json:"size"`
-		SHA256 string `json:"sha256"`
+		Path     string `json:"path"`
+		Size     int64  `json:"size"`
+		SHA256   string `json:"sha256"`
+		LFSize   int64  `json:"lfSize"`
+		LFSHA256 string `json:"lfSha256"`
 	} `json:"files"`
 }
 
@@ -38,6 +40,23 @@ func expectedAnime4KIdentity() (size int64, digest string, ok bool) {
 	return 0, "", false
 }
 
+func expectedAnime4KLFIdentity() (lfSize int64, lfDigest string, ok bool) {
+	raw, err := assets.ReadFile("assets/anime4k-provenance.json")
+	if err != nil {
+		return 0, "", false
+	}
+	var p anime4kProvenance
+	if json.Unmarshal(raw, &p) != nil {
+		return 0, "", false
+	}
+	for _, f := range p.Files {
+		if f.Path == "anime4k.js" && f.LFSize > 0 && len(f.LFSHA256) == 64 {
+			return f.LFSize, f.LFSHA256, true
+		}
+	}
+	return 0, "", false
+}
+
 // loadOptionalAnime4K resolves the large optional WebGL shader script from disk
 // instead of embedding ~9 MiB into the binary. Priority:
 //  1. Configured pet render root / WHALEISLE_PET_RENDER_ASSETS
@@ -50,11 +69,12 @@ func expectedAnime4KIdentity() (size int64, digest string, ok bool) {
 // no-op JS stub so pet-super-resolution falls back to raw rendering.
 func loadOptionalAnime4K() []byte {
 	size, wantSHA, ok := expectedAnime4KIdentity()
+	lfSize, lfSHA, _ := expectedAnime4KLFIdentity()
 	if !ok {
 		return []byte(anime4kFallbackScript)
 	}
 	for _, c := range anime4KCandidateLocations() {
-		if data, verified := readVerifiedAnime4K(c.dir, c.file, size, wantSHA); verified {
+		if data, verified := readVerifiedAnime4K(c.dir, c.file, size, wantSHA, lfSize, lfSHA); verified {
 			return data
 		}
 	}
@@ -66,6 +86,7 @@ func (p *Companion) loadAnime4K() []byte {
 		return loadOptionalAnime4K()
 	}
 	size, wantSHA, ok := expectedAnime4KIdentity()
+	lfSize, lfSHA, _ := expectedAnime4KLFIdentity()
 	if !ok {
 		return []byte(anime4kFallbackScript)
 	}
@@ -83,7 +104,7 @@ func (p *Companion) loadAnime4K() []byte {
 		dirs = append(dirs, filepath.Clean(userRoot))
 	}
 	for _, dir := range dirs {
-		if data, verified := readVerifiedAnime4K(dir, "anime4k.js", size, wantSHA); verified {
+		if data, verified := readVerifiedAnime4K(dir, "anime4k.js", size, wantSHA, lfSize, lfSHA); verified {
 			return data
 		}
 	}
@@ -153,19 +174,25 @@ func anime4KUserDataDir() string {
 	return filepath.Join(base, config.DataDirName)
 }
 
-func readVerifiedAnime4K(dir, name string, wantSize int64, wantSHA string) ([]byte, bool) {
+func readVerifiedAnime4K(dir, name string, wantSize int64, wantSHA string, lfSize int64, lfSHA string) ([]byte, bool) {
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, false
 	}
 	defer root.Close()
-	data, err := limited(root, name, wantSize)
-	if err != nil || int64(len(data)) != wantSize {
+	maxSize := wantSize
+	if lfSize > maxSize {
+		maxSize = lfSize
+	}
+	data, err := limited(root, name, maxSize)
+	if err != nil {
 		return nil, false
 	}
+	n := int64(len(data))
 	sum := sha256.Sum256(data)
-	if hex.EncodeToString(sum[:]) != wantSHA {
-		return nil, false
+	digest := hex.EncodeToString(sum[:])
+	if (n == wantSize && digest == wantSHA) || (lfSize > 0 && len(lfSHA) == 64 && n == lfSize && digest == lfSHA) {
+		return data, true
 	}
-	return data, true
+	return nil, false
 }

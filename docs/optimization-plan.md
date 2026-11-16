@@ -456,7 +456,7 @@ QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实
 ### 2026-11-16 0.2.0 工程收口与桌宠高阶渲染包按需下载闭环
 
 1. **桌宠 3A 应用内按需下载与校验**：
-   - 新增 [download.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download.go) 与 [download_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download_test.go)，读取嵌入的 `render-manifest.json` 与 `anime4k-provenance.json`，覆盖 10 个固定文件（合计 `48,063,128 B`，约 `45.84 MiB`），采用 `.partial` 流式写入、大小与 SHA-256 校验、断点续传跳过已校验文件、取消清理、`os.Lstat` 签名缓存及 UI 线程热重载（`PollDownloadedRenderAssets`）。
+   - 新增 [download.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download.go) 与 [download_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download_test.go)，读取嵌入的 `render-manifest.json` 与 `anime4k-provenance.json`，覆盖 10 个固定文件（合计 `48,004,161 B`，约 `45.78 MiB`），采用 `.partial` 流式写入、大小与 SHA-256 校验、断点续传跳过已校验文件、取消清理、`os.Lstat` 签名缓存及 UI 线程热重载（`PollDownloadedRenderAssets`）。
    - 更新 [neural.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/neural.go)、[super_resolution.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/super_resolution.go) 与 [companion.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/companion.go)，仅在 `<exeDir>/pet-render-assets` 不存在且无显式开发覆盖时回退至 `<UserDataDir>/pet-render-assets`，既不影响既有破坏/篡改拒绝契约，也支持非提权安装版在线补齐 `THA4 + Anime4K`。
    - 更新 [pet.go](file:///c:/AI/WhaleIsle-MyGo/internal/ui/settings/pet.go) 与 [pet_download_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/ui/settings/pet_download_test.go)，在桌宠开启且未安装高阶包时于开启开关下方及「本地皮肤与动画」折叠区展示「下载高阶渲染包」/ 实时进度 / 取消 / 重试 / 已就绪状态。
 2. **外围 Node 唤醒消除与 Host 启动后压缩钩子**：

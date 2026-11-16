@@ -10,12 +10,16 @@
       "path": "anime4k.js",
       "sourcePath": "reference/electron/src/renderer/pet-live2d/anime4k.js",
       "size": 9457468,
-      "sha256": "547a050bd6c9920524561e8418912ad2d134af142777f458ecb14b09970f41ee"
+      "sha256": "547a050bd6c9920524561e8418912ad2d134af142777f458ecb14b09970f41ee",
+      "lfSize": 9398501,
+      "lfSha256": "b4b6fcbe537f4a1479854fcedb470f782c696d46f6534323814bec0f3245b240"
     },
     {
       "path": "anime4k.LICENSE",
       "sourcePath": "reference/electron/src/renderer/pet-live2d/anime4k.LICENSE",
-      "sha256": "ff3c8af9d473ffcaf51d676b1aa80dae159d6a94e50449f0302ccef86e6dbd37"
+      "sha256": "ff3c8af9d473ffcaf51d676b1aa80dae159d6a94e50449f0302ccef86e6dbd37",
+      "lfSize": 1071,
+      "lfSha256": "1400a656d5f45a7f5a663824a4da85d67ee43c0321c12209b6483a582439b3ad"
     }
   ],
   "notes": "Byte-for-byte offline import from the read-only reference. Embedded in the Go executable; no CDN or runtime download. GPU speed and image quality require real WebView2 verification, not inferred from this source identity."

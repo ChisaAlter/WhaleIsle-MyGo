@@ -191,6 +191,7 @@ type Model struct {
 	GroupMembers                    []session.GroupMember
 	OnReplyGroupThread              func(string)
 	DisableDeveloperTools           bool
+	DeveloperToolsPending           bool
 	TitlebarPreferences             settings.TitlebarPreferences
 	WorkspaceTrailing               func(*ui.Context, string)
 	WorkspacePage                   bool
@@ -498,7 +499,7 @@ func View(c *ui.Context, m Model) {
 	colors := th.Active(m.SystemDark)
 	border := chrome.Color(colors.Border)
 	muted := chrome.Color(colors.Muted)
-	if m.DisableDeveloperTools && m.ChatPaneTab != nil && *m.ChatPaneTab == "trajectory" {
+	if m.DisableDeveloperTools && !m.DeveloperToolsPending && m.ChatPaneTab != nil && *m.ChatPaneTab == "trajectory" {
 		selectConversationView(m, "chat")
 	}
 	m.Store.LoadStopSequenceConfig()
@@ -1113,6 +1114,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					paneTab := "chat"
 					if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 						paneTab = strings.TrimSpace(*m.ChatPaneTab)
+					}
+					if m.DisableDeveloperTools && paneTab == "trajectory" {
+						paneTab = "chat"
 					}
 					// The ledger owns its empty/loading states. Chat's hero or
 					// history-error placeholder must not hide the selected view.

@@ -324,6 +324,7 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 // selectSessionLocked invalidates all work belonging to the old transcript,
 // including an Open or page request that completes after a selection change.
 func (s *Store) selectSessionLocked(sessionID string) {
+	s.selectedAuto = false
 	s.invalidateViewLocked()
 	s.mainConversationReadID = ""
 	delete(s.completionUnread, sessionID)

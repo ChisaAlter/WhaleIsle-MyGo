@@ -6,7 +6,7 @@ func (w *WorkspacePanes) CaptureSessionProjection(m Model) {
 	if w == nil {
 		return
 	}
-	if w.Root == nil {
+	if w.Root == nil || derefString(m.RightPaneTab) != "" {
 		w.syncRoute(derefString(m.RightPaneTab))
 	}
 	n := w.Root.find(w.legacyFileID)

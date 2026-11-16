@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -24,8 +25,9 @@ func TestEmbeddedAnime4KIdentityAndPublishedRoute(t *testing.T) {
 	}
 	var provenance struct {
 		Files []struct {
-			Path   string
-			SHA256 string `json:"sha256"`
+			Path     string
+			SHA256   string `json:"sha256"`
+			LFSHA256 string `json:"lfSha256"`
 		}
 	}
 	if err := json.Unmarshal(raw, &provenance); err != nil {
@@ -40,8 +42,9 @@ func TestEmbeddedAnime4KIdentityAndPublishedRoute(t *testing.T) {
 			t.Fatal(readErr)
 		}
 		sum := sha256.Sum256(data)
-		if hex.EncodeToString(sum[:]) != file.SHA256 {
-			t.Fatalf("import changed on disk: %s", file.Path)
+		got := hex.EncodeToString(sum[:])
+		if got != file.SHA256 && (file.LFSHA256 == "" || got != file.LFSHA256) {
+			t.Fatalf("import changed on disk: %s (got %s)", file.Path, got)
 		}
 	}
 	license, _ := assets.ReadFile("assets/anime4k.LICENSE")
@@ -135,6 +138,21 @@ func TestOptionalAnime4KRuntimeLookupAndGracefulDegradation(t *testing.T) {
 	sum := sha256.Sum256(resUserData.Body.Bytes())
 	if hex.EncodeToString(sum[:]) != wantSHA {
 		t.Fatal("served checksum mismatch")
+	}
+
+	// LF-normalized download bytes (matching GitHub raw) are also verified & served.
+	lfBytes := bytes.ReplaceAll(diskBytes, []byte("\r\n"), []byte("\n"))
+	if err := os.WriteFile(filepath.Join(userPetAssets, "anime4k.js"), lfBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resLF := httptest.NewRecorder()
+	p.ServeHTTP(resLF, httptest.NewRequest("GET", "whale-pet://localhost/anime4k.js", nil))
+	if resLF.Body.Len() != 9398501 {
+		t.Fatalf("LF served size=%d want 9398501", resLF.Body.Len())
+	}
+	lfSum := sha256.Sum256(resLF.Body.Bytes())
+	if hex.EncodeToString(lfSum[:]) != "b4b6fcbe537f4a1479854fcedb470f782c696d46f6534323814bec0f3245b240" {
+		t.Fatal("LF served checksum mismatch")
 	}
 
 	// WHALEISLE_PET_RENDER_ASSETS takes priority over userData when present & valid.

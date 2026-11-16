@@ -94,3 +94,22 @@ func TestWorkspaceSessionLegacyMigrationFixture(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkspaceSessionRightPaneTabSyncBeforeCapture(t *testing.T) {
+	s := &mainState{layout: frame.DefaultLayout()}
+	s.switchWorkspaceSessionLocked("host-a", "/project", "one")
+	if s.layout.Workspace == nil || s.layout.Workspace.Root == nil {
+		t.Fatal("expected initialized workspace panes root")
+	}
+	s.filesPaneOpen = true
+	s.rightPaneTab = "files"
+	raw := s.exportWorkspaceSessionsLocked()
+	restarted := &mainState{layout: frame.DefaultLayout()}
+	if err := restarted.restoreWorkspaceSessions(recovery.State{Layout: recovery.Layout{WorkspacePanes: raw}}); err != nil {
+		t.Fatal(err)
+	}
+	restarted.switchWorkspaceSessionLocked("host-a", "/project", "one")
+	if !restarted.filesPaneOpen || restarted.rightPaneTab != "files" {
+		t.Fatalf("expected files pane tab to survive export/restore, got open=%v tab=%q", restarted.filesPaneOpen, restarted.rightPaneTab)
+	}
+}

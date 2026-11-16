@@ -30,7 +30,7 @@ func TestEmbeddedDownloadManifestClosure(t *testing.T) {
 	if len(specs) != 10 {
 		t.Fatalf("expected 10 pinned files (9 THA4 + anime4k.js), got %d", len(specs))
 	}
-	const wantTotal = int64(38605660 + 9457468)
+	const wantTotal = int64(38605660 + 9398501)
 	if total != wantTotal {
 		t.Fatalf("totalBytes=%d, want %d", total, wantTotal)
 	}

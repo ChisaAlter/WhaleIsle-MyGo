@@ -53,10 +53,12 @@ type renderDownloadState struct {
 }
 
 type downloadFileSpec struct {
-	Path   string
-	Size   int64
-	SHA256 string
-	URL    string
+	Path      string
+	Size      int64
+	SHA256    string
+	AltSize   int64
+	AltSHA256 string
+	URL       string
 }
 
 var (
@@ -125,6 +127,8 @@ func activeDownloadSpecs() ([]downloadFileSpec, int64, string, []byte, error) {
 			SourcePath string `json:"sourcePath"`
 			Size       int64  `json:"size"`
 			SHA256     string `json:"sha256"`
+			LFSize     int64  `json:"lfSize"`
+			LFSHA256   string `json:"lfSha256"`
 		} `json:"files"`
 	}
 	if err := json.Unmarshal(provRaw, &prov); err != nil {
@@ -139,13 +143,22 @@ func activeDownloadSpecs() ([]downloadFileSpec, int64, string, []byte, error) {
 		if f.Size <= 0 || len(f.SHA256) != 64 || prov.Repository == "" || prov.Commit == "" || src == "" {
 			return nil, 0, "", nil, errors.New("invalid anime4k provenance entry")
 		}
+		dlSize, dlSHA := f.Size, f.SHA256
+		var altSize int64
+		var altSHA string
+		if f.LFSize > 0 && len(f.LFSHA256) == 64 {
+			dlSize, dlSHA = f.LFSize, f.LFSHA256
+			altSize, altSHA = f.Size, f.SHA256
+		}
 		specs = append(specs, downloadFileSpec{
-			Path:   "anime4k.js",
-			Size:   f.Size,
-			SHA256: f.SHA256,
-			URL:    rawURL,
+			Path:      "anime4k.js",
+			Size:      dlSize,
+			SHA256:    dlSHA,
+			AltSize:   altSize,
+			AltSHA256: altSHA,
+			URL:       rawURL,
 		})
-		total += f.Size
+		total += dlSize
 		break
 	}
 	return specs, total, manifest.Commit, manifestRaw, nil
@@ -456,7 +469,8 @@ func (p *Companion) runDownloadRenderAssets(
 			if st.Mode()&os.ModeSymlink != 0 {
 				return fmt.Errorf("destination file is a symlink: %s", spec.Path)
 			}
-			if st.Mode().IsRegular() && st.Size() == spec.Size && verifyFileSHA256(dest, spec.Size, spec.SHA256) {
+			altOK := spec.AltSize > 0 && len(spec.AltSHA256) == 64 && st.Mode().IsRegular() && st.Size() == spec.AltSize && verifyFileSHA256(dest, spec.AltSize, spec.AltSHA256)
+			if (st.Mode().IsRegular() && st.Size() == spec.Size && verifyFileSHA256(dest, spec.Size, spec.SHA256)) || altOK {
 				completed += spec.Size
 				p.renderDownload.downloaded.Store(completed)
 				notify()
