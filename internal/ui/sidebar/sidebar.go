@@ -66,6 +66,13 @@ func sidebarListMaxHeight(m Model, c *ui.Context, ratio float32) float32 {
 	return max(120, winH*ratio)
 }
 
+// PluginEntry represents one custom installed plugin row in the left sidebar.
+type PluginEntry struct {
+	ID    string
+	Label string
+	Order int
+}
+
 // Model is sidebar state for one frame.
 type Model struct {
 	pinnedSection     bool
@@ -150,6 +157,9 @@ type Model struct {
 	MenuShortcutLabels map[string]string
 	OnNoDirectory      func()
 	OnOpenMarket       func()
+	PluginEntries      []PluginEntry
+	OnOpenPlugin       func(string)
+	OnCreatePlugin     func()
 	OnOpenSchedule     func()
 	OnOpenAssistant    func()
 	OnOpenLauncher     func()
@@ -455,7 +465,19 @@ func View(c *ui.Context, m Model) {
 				}
 				for _, panel := range sidebarPanelRows(m) {
 					panel := panel
-					nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, nil)
+					var menu func(*ui.Menu)
+					if panel.id == "plugins" && m.OnCreatePlugin != nil {
+						menu = func(ctxMenu *ui.Menu) {
+							ctxMenu.CloseOnPointerLeave(true)
+							if m.OnOpenMarket != nil && ctxMenu.Item(sidebarLocaleText("panels.browse")).Chosen() {
+								m.OnOpenMarket()
+							}
+							if ctxMenu.Item(sidebarLocaleText("panels.create")).Chosen() {
+								m.OnCreatePlugin()
+							}
+						}
+					}
+					nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, menu)
 				}
 			})
 			menuOpen := &workspaceMenuFB

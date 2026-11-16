@@ -306,6 +306,7 @@ type mainState struct {
 	phoneActionMsg               string
 	sshProbeLine                 string
 	webviewOpen                  bool
+	activePluginViewLabel        string
 	browserPreviewOpen           bool
 	officePreview                officePreviewState
 	pdfPreviewRequest            uint64
@@ -1091,6 +1092,7 @@ func (s *mainState) closeWebViewHost() {
 	s.webviewHost = nil
 	s.pluginViewResumeAfterRestart = false
 	s.webviewHostErr = ""
+	s.activePluginViewLabel = ""
 	s.mu.Unlock()
 	if host != nil {
 		_ = host.Close()
@@ -1235,12 +1237,15 @@ func (s *mainState) openWebViewURL(browse string) {
 	}
 	s.mu.Lock()
 	browserPanel := s.browserPreviewOpen
+	pluginTitle := strings.TrimSpace(s.activePluginViewLabel)
 	s.mu.Unlock()
 	panelH := webviewui.PanelChromeHeight
 	hostTitle := i18n.T(i18n.KeyWebViewTitle)
 	if browserPanel {
 		panelH = browserpreviewui.PanelChromeHeight
 		hostTitle = i18n.T(i18n.KeyBrowserPreviewTitle)
+	} else if pluginTitle != "" {
+		hostTitle = pluginTitle
 	}
 	inset := chrome.TitleBarHeight + panelH
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
@@ -1837,7 +1842,6 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.bindWorkspacePreferences(sessions, client)
 	chat.SetAttachmentResolver(sessions.CaptureAttachmentRead)
 	setStore.Attach(client, refresh)
-	s.refreshPluginInventory()
 	s.refreshReferencedCredentials()
 	s.refreshProviderDiscovery()
 	usageStore.Attach(client, refresh)
@@ -5490,6 +5494,7 @@ func mainView(c *ui.Context) {
 				state.mu.Lock()
 				host := state.webviewHost
 				hostErr := state.webviewHostErr
+				pluginTitle := strings.TrimSpace(state.activePluginViewLabel)
 				hostActive := host != nil && host.Alive()
 				hostURL := ""
 				if hostActive {
@@ -5505,6 +5510,7 @@ func mainView(c *ui.Context) {
 					host.SyncBounds()
 				}
 				webviewui.View(c, webviewui.Model{
+					Title:         pluginTitle,
 					HarnessOrigin: origin,
 					ThemeID:       themeID,
 					SystemDark:    mygo.Theme.IsDark(),
@@ -5520,6 +5526,7 @@ func mainView(c *ui.Context) {
 						state.closeWebViewHost()
 						state.mu.Lock()
 						state.webviewOpen = false
+						state.activePluginViewLabel = ""
 						state.mu.Unlock()
 						asstSvc.SetOpen(false)
 						state.returnFromAccountPage()
@@ -6483,6 +6490,10 @@ func mainView(c *ui.Context) {
 							if win != nil {
 								win.Update(func() {})
 							}
+						},
+						SidebarPlugins: state.sidebarPluginEntries(i18n.Locale()),
+						OnOpenSidebarPlugin: func(id string) {
+							state.openInstalledPluginViewWithLabel(id, state.sidebarPluginLabel(id))
 						},
 						OnCreatePluginDraft: func(region string) {
 							agentPresetPick = "cordis"

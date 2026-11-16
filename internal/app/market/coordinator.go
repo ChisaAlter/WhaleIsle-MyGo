@@ -98,6 +98,9 @@ type Coordinator struct {
 
 	installReady bgProbe[bool]
 
+	profileDir     string
+	sidebarPlugins bgProbe[[]manager.SidebarPluginEntry]
+
 	nativePlugins   nativePluginBinding
 	pluginInventory plugininventory.Controller
 }
@@ -141,11 +144,17 @@ func (c *Coordinator) AttachHost(client *dsh.Client, managedProfileDir string, o
 	store := c.EnsureStore()
 	c.mu.Lock()
 	c.client = client
+	c.profileDir = managedProfileDir
 	c.mu.Unlock()
+	c.sidebarPlugins.clear()
 	store.SetUpdateProfileDir(managedProfileDir)
 	store.Attach(client, onRefresh)
 	c.AttachInventory(client)
 	c.BindNativePluginManager(client)
+	if client != nil {
+		c.RefreshInventory()
+		store.Refresh(context.Background())
+	}
 }
 
 // DetachHost invalidates in-flight attempts and disconnects Host transports from
@@ -154,8 +163,10 @@ func (c *Coordinator) DetachHost() {
 	c.Invalidate()
 	c.mu.Lock()
 	c.client = nil
+	c.profileDir = ""
 	store := c.store
 	c.mu.Unlock()
+	c.sidebarPlugins.clear()
 	if store != nil {
 		store.SetUpdateProfileDir("")
 		store.Detach()

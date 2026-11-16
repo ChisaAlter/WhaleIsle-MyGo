@@ -187,5 +187,10 @@ entries['plugins.item']=[];changed('plugins.item');assert.equal(clicks,3);ctx.di
 entries.main=[{options:{key:'custom-owner',registrant:'host',children:{'custom.settings':{}}}}];
 entries['custom.settings']=[{options:{id:'contribution',registrant:'fixture'}}];
 exported.apply(ctx);assert.equal(selected.at(-1),'custom-owner');ctx.dispose();
+entries['custom.settings']=[];
+entries.main=[{options:{key:'qa-panel',registrant:'fixture'}}];
+entries['sidebar.panellist']=[{options:{id:'qa-panel',registrant:'fixture',label:'QA Panel'}}];
+const viewsBefore=selected.length;
+exported.apply(ctx);assert.equal(selected.length,viewsBefore+1);assert.equal(selected.at(-1),'qa-panel');ctx.dispose();
 console.log('main/settings/plugin configuration owners, single activation and disposal passed');
 `

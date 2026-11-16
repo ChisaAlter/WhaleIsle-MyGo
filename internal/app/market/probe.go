@@ -44,3 +44,13 @@ func (p *bgProbe[T]) get(key string, ttl time.Duration, load func() T, notify fu
 	p.mu.Unlock()
 	return val
 }
+
+func (p *bgProbe[T]) clear() {
+	p.mu.Lock()
+	var zero T
+	p.key = ""
+	p.value = zero
+	p.at = time.Time{}
+	p.has = false
+	p.mu.Unlock()
+}

@@ -31,9 +31,14 @@ func (s *mainState) selectMainPanel(panel string) {
 	s.marketManager = panel == "plugins"
 	s.scheduleOpen = panel == "schedule"
 	s.toolsMenuOpen = false
+	wasWebview := s.webviewOpen
+	s.webviewOpen = false
 	win := s.win
 	set := s.settings
 	s.mu.Unlock()
+	if wasWebview {
+		s.closeWebViewHost()
+	}
 	s.assistantService().SetOpen(panel == "assistant")
 	retireStaleInlineVisualPages()
 	if panel == "plugins" && set != nil {
@@ -61,6 +66,7 @@ func (s *mainState) revealMainConversation() {
 	s.usageOpen = false
 	s.imOpen = false
 	s.remoteOpen = false
+	wasWebview := s.webviewOpen
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
 	s.marketOpen = false
@@ -68,6 +74,9 @@ func (s *mainState) revealMainConversation() {
 	s.toolsMenuOpen = false
 	win := s.win
 	s.mu.Unlock()
+	if wasWebview {
+		s.closeWebViewHost()
+	}
 	s.assistantService().SetOpen(false)
 	retireStaleInlineVisualPages()
 	if win != nil {
@@ -168,6 +177,11 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.openWorkspaceSession(win, sessions, generation, id)
 	}
 	m.OnOpenMarket = func() { s.selectMainPanel("plugins") }
+	m.SidebarPlugins = s.sidebarPluginEntries(i18n.Locale())
+	m.OnOpenSidebarPlugin = func(id string) { s.openInstalledPluginViewWithLabel(id, s.sidebarPluginLabel(id)) }
+	if m.OnCreatePluginDraft == nil && sessions != nil {
+		m.OnCreatePluginDraft = func(region string) { s.startCreatorPluginDraft(win, sessions, region) }
+	}
 	m.OnOpenSchedule = func() { s.selectMainPanel("schedule") }
 	m.OnOpenAssistant = func() { s.openWhaleFromSidebar(win) }
 	s.gateAssistantNavigation(&m)

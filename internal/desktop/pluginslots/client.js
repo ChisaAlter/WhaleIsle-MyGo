@@ -81,7 +81,9 @@ window.__ModuleLoader__.load({
             const options = entry.options;
             const id = options.key || options.id;
             if (!id || (slot === 'main' && id === 'conversation')) continue;
-            const tab = slot === 'sidebar.page' ? entries('sidebar.nav.tab').find(row => row.options.id === id) : null;
+            const tab = slot === 'sidebar.page'
+              ? entries('sidebar.nav.tab').find(row => row.options.id === id)
+              : (slot === 'main' ? entries('sidebar.panellist').find(row => (row.options.id || row.options.key) === id) : null);
             rows.push({slot, id, label: label(tab?.options || options)});
           }
         }

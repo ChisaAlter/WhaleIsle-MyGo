@@ -13,6 +13,7 @@ import (
 
 // Model wires the plugin webview panel chrome (WebView2 host sits below).
 type Model struct {
+	Title         string
 	HarnessOrigin string
 	ThemeID       string
 	SystemDark    bool
@@ -41,7 +42,11 @@ func View(c *ui.Context, m Model) {
 	root := ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0).Background(bg)
 	root.Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWebViewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
+			title := strings.TrimSpace(m.Title)
+			if title == "" {
+				title = i18n.T(i18n.KeyWebViewTitle)
+			}
+			ui.Text(c, title).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
 			if m.HostActive && m.HostError != "" {
 				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1)
 			} else {

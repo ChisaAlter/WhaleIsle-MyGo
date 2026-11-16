@@ -367,6 +367,8 @@ type Model struct {
 	OfficePreviewStatus              func(path string) string
 	OnOpenBrowserPreview             func()
 	OnOpenMarket                     func()
+	SidebarPlugins                   []sidebar.PluginEntry
+	OnOpenSidebarPlugin              func(string)
 	OnCreatePluginDraft              func(region string)
 	OnOpenSchedule                   func()
 	OnOpenAssistant                  func()
@@ -671,6 +673,10 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	if activePanel == "" && isWhaleAssistantSession(snap) {
 		activePanel = "assistant"
 	}
+	var onCreatePlugin func()
+	if m.OnCreatePluginDraft != nil {
+		onCreatePlugin = func() { m.OnCreatePluginDraft("leftbar") }
+	}
 	sidebar.View(c, sidebar.Model{
 		ActivePanel:        activePanel,
 		NewSessionShortcut: newSessionShortcut,
@@ -706,6 +712,9 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		},
 		OnCreate:              createSession,
 		OnOpenMarket:          m.OnOpenMarket,
+		PluginEntries:         m.SidebarPlugins,
+		OnOpenPlugin:          m.OnOpenSidebarPlugin,
+		OnCreatePlugin:        onCreatePlugin,
 		OnOpenSchedule:        m.OnOpenSchedule,
 		OnOpenAssistant:       m.OnOpenAssistant,
 		OnOpenLauncher:        m.OnOpenLauncher,

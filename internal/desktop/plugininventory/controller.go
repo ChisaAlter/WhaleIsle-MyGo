@@ -26,6 +26,7 @@ type Preset struct {
 }
 type Snapshot struct {
 	Host                               uint64
+	Revision                           uint64
 	Connected, Ready, Busy, GlobalOpen bool
 	Query, SelectedID, Expanded, Err   string
 	Global                             []Row
@@ -140,6 +141,7 @@ func (c *Controller) Refresh(parent context.Context) {
 		return
 	}
 	c.state.Global, c.state.Presets = normalize(wire)
+	c.state.Revision++
 	c.state.Ready = true
 	// Refresh keeps filter, chosen preset and expanded row; selection falls back
 	// only when that preset is no longer present in the authoritative inventory.

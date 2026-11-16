@@ -21,6 +21,8 @@ import (
 type Entry struct {
 	Label                    string
 	Detail                   string
+	Title                    json.RawMessage
+	Official                 bool
 	Enabled                  *bool  // from listBundles when present
 	Removable                bool   // from listBundles when present
 	Source                   string // listBundles source or empty
@@ -54,6 +56,7 @@ type Store struct {
 	client           *dsh.Client
 	generation       uint64
 	refreshID        uint64
+	completedRefresh uint64
 	discovery        discoveryState
 	updates          updateState
 	updateProfileDir string
@@ -90,6 +93,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	}
 	s.generation++
 	s.refreshID++
+	s.completedRefresh++
 	s.clearConfirmationLocked()
 	s.rows = nil
 	s.inventoryLoaded = false
@@ -108,6 +112,7 @@ func (s *Store) Detach() {
 	}
 	s.generation++
 	s.refreshID++
+	s.completedRefresh++
 	s.clearConfirmationLocked()
 	s.client = nil
 	s.inventoryLoaded = false
@@ -141,6 +146,11 @@ func (s *Store) Snapshot() ViewState {
 	}
 	st.Methods = append([]string(nil), s.methods...)
 	st.Rows = append([]Entry(nil), s.rows...)
+	for i := range st.Rows {
+		if len(st.Rows[i].Title) > 0 {
+			st.Rows[i].Title = append(json.RawMessage(nil), st.Rows[i].Title...)
+		}
+	}
 	return st
 }
 
@@ -260,10 +270,16 @@ func entriesFromBundles(bundles api.ListBundlesResult) []Entry {
 		if b.Source != nil {
 			src = *b.Source
 		}
+		var title json.RawMessage
+		if b.Meta != nil && len(b.Meta.Title) > 0 {
+			title = append(json.RawMessage(nil), b.Meta.Title...)
+		}
 		caps := classifyBundleEntry(b)
 		out = append(out, Entry{
 			Label:                    b.Name,
 			Detail:                   detail,
+			Title:                    title,
+			Official:                 b.Official,
 			Enabled:                  &en,
 			Removable:                b.Removable,
 			Source:                   src,
@@ -331,6 +347,7 @@ func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, 
 	s.loading = false
 	s.err = err
 	s.inventoryLoaded = err == nil
+	s.completedRefresh++
 	if err == nil {
 		s.rows = rows
 		s.rawListPreview = preview
@@ -467,3 +484,6 @@ func valueOrEmpty(v *string) string {
 
 // RuntimeToken changes on every attachment, including reconnect to the same client.
 func (s *Store) RuntimeToken() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.generation }
+
+// CompletedRefreshID increments whenever a host attach, detach, or Refresh completes.
+func (s *Store) CompletedRefreshID() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.completedRefresh }
