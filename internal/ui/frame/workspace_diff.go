@@ -55,20 +55,25 @@ func (d *WorkspaceDiffState) model(m Model) Model {
 	return m
 }
 func (w *WorkspacePanes) beginDiffProjection(m Model) {
-	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Diff != nil {
+	if previous := w.Root.find(w.legacyDiffID); previous != nil && previous.Diff != nil {
 		previous.Diff.capture(m)
 	}
 	hasDiff := false
 	w.Root.eachLeaf(func(n *WorkspacePane) { hasDiff = hasDiff || n.Diff != nil })
-	current := w.diffState(w.Root.find(w.Active))
+	currentPane := w.Root.find(w.Active)
+	current := w.diffState(currentPane)
 	if !hasDiff {
 		current.capture(m)
 	}
 	current.publish(m)
+	if currentPane != nil {
+		w.legacyDiffID = currentPane.ID
+	}
 }
 func (w *WorkspacePanes) finishDiffProjection(m Model) {
 	if n := w.Root.find(w.Active); n != nil {
 		w.diffState(n).publish(m)
+		w.legacyDiffID = n.ID
 	}
 }
 func copyDiffPane(target, source *WorkspacePane) {

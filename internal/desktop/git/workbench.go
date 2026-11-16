@@ -118,11 +118,15 @@ func readNumstat(counts map[string][2]int, out []byte, prefix string) {
 // countUntrackedLines counts a file HEAD does not know yet. A large or binary
 // file reports zero instead of guessing.
 func countUntrackedLines(root, path string) (int, int) {
-	info, err := os.Stat(filepath.Join(root, path))
-	if err != nil || info.IsDir() || info.Size() > 4<<20 {
+	if err := literalPath(path); err != nil {
 		return 0, 0
 	}
-	data, err := os.ReadFile(filepath.Join(root, path))
+	target := filepath.Join(root, filepath.FromSlash(path))
+	info, err := os.Lstat(target)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 4<<20 {
+		return 0, 0
+	}
+	data, err := os.ReadFile(target)
 	if err != nil || len(data) == 0 {
 		return 0, 0
 	}

@@ -694,3 +694,63 @@ func TestRefreshCordisConnectionStatus(t *testing.T) {
 		t.Fatalf("PluginDiag = %q", snap.PluginDiag)
 	}
 }
+
+func TestOpenPreservesCorruptChannelsAndLeavesNoTempFiles(t *testing.T) {
+	dir := t.TempDir()
+	root := Dir(dir)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, channelsFile)
+	const broken = "{broken-channels"
+	if err := os.WriteFile(target, []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(dir); err == nil {
+		t.Fatal("Open succeeded on corrupt channels.json, want error")
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != broken {
+		t.Fatalf("channels.json modified: %q", got)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backups := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), channelsFile+".corrupt-") {
+			backups++
+		}
+		if strings.Contains(e.Name(), ".tmp") {
+			t.Fatalf("unexpected temp file: %s", e.Name())
+		}
+	}
+	if backups != 1 {
+		t.Fatalf("backups = %d, want 1", backups)
+	}
+
+	cleanDir := t.TempDir()
+	s, err := Open(cleanDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := s.Snapshot().SelectedID
+	s.SetDraft(id, "draft text")
+	if err := s.Persist(); err != nil {
+		t.Fatal(err)
+	}
+	s.SendDraft(context.Background(), id, "msg")
+	cleanEntries, err := os.ReadDir(Dir(cleanDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range cleanEntries {
+		if strings.Contains(e.Name(), ".tmp") {
+			t.Fatalf("leaked temp file: %s", e.Name())
+		}
+	}
+}

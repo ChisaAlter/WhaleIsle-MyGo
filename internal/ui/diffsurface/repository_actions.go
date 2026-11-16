@@ -22,6 +22,7 @@ type gitOperationResult struct {
 
 type gitOperation struct {
 	root, label string
+	gen         uint64
 	done        chan gitOperationResult
 }
 
@@ -29,11 +30,14 @@ func beginGitOperation(c *ui.Context, w *Workbench, label string, run func(conte
 	if w.Operation != nil {
 		return
 	}
-	operation := &gitOperation{root: w.Root, label: label, done: make(chan gitOperationResult, 1)}
+	w.setInvalidate(c.Services().Invalidate)
+	gen := w.bindRoot(w.Root)
+	operation := &gitOperation{root: w.Root, label: label, gen: gen, done: make(chan gitOperationResult, 1)}
 	w.Operation = operation
 	w.ReviewToken = ""
 	w.ReviewText = ""
 	w.Status = ""
+	loader := w.loader
 	invalidate := c.Services().Invalidate
 	progress := git.NewProgress(w.Root, label, invalidate)
 	w.Progress = progress
@@ -63,7 +67,9 @@ func beginGitOperation(c *ui.Context, w *Workbench, label string, run func(conte
 		}
 		progress.Finish(phase, result.err != nil)
 		operation.done <- result
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -78,16 +84,17 @@ func finishGitOperation(m Model) {
 	select {
 	case result := <-operation.done:
 		w.Operation = nil
-		sameRoot := operation.root == m.WorkspaceRoot
+		sameRoot := operation.root == m.WorkspaceRoot && (operation.gen == 0 || operation.gen == w.currentGen())
 		if sameRoot {
 			if result.stack != nil {
 				w.LastStack = mergeStackHistory(w.LastStack, result.stack)
 			}
-			w.reload(m.WorkspaceRoot)
+			w.invalidateDiffCache()
+			w.requestReload(m.WorkspaceRoot, true)
 			if w.BranchesOpen {
 				w.reloadBranches()
 			}
-			refresh(m)
+			refreshWithForce(m, true)
 			if result.committed {
 				w.Message = ""
 			}
@@ -189,6 +196,7 @@ func actionButtonWithReason(c *ui.Context, colors fonttheme.Colors, label string
 func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
+	w.finishPublishPrepare(m)
 	if !w.PublishReview {
 		ui.Text(c, word("填写已有 HTTPS/SSH 远端 URL，或用已登录的 gh 创建 GitHub 仓库。新仓库默认私有。", "Enter an existing HTTPS/SSH remote URL, or create a GitHub repository using your signed-in gh account. New repositories default to private.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.Text(c, GitLocale("publish.description")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
@@ -212,15 +220,14 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		}
-		if widgets.Button(c, colors, word("核对发布目标", "Review publish target"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
-			input, err := git.PreparePublish(m.WorkspaceRoot, git.PublishInput{Name: w.PublishName, RemoteURL: w.PublishRemoteURL, Public: w.PublishPublic})
-			if err != nil {
-				w.Status = err.Error()
-			} else {
-				w.ReviewedPublish = input
-				w.PublishReview = true
-				w.Status = ""
-			}
+		preparing := w.isPublishPreparing()
+		reviewLabel := word("核对发布目标", "Review publish target")
+		if preparing {
+			reviewLabel = word("正在核对发布目标…", "Checking publish destination…")
+		}
+		if widgets.Button(c, colors, reviewLabel, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: preparing}).Disabled(preparing).Clicked() {
+			w.setInvalidate(c.Services().Invalidate)
+			w.requestPublishPrepare(m, git.PublishInput{Name: w.PublishName, RemoteURL: w.PublishRemoteURL, Public: w.PublishPublic})
 		}
 		if widgets.Button(c, colors, word("取消发布", "Cancel publish"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			w.PublishOpen, w.PublishReview = false, false

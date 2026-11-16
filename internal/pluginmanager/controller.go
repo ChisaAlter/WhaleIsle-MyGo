@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -34,6 +37,9 @@ type action struct {
 	urls                        []string
 	options                     InstallOptions
 	owner, revision             uint64
+	capabilityKind              CapabilityKind
+	mcpSpecs                    []json.RawMessage
+	localSkills                 []LocalSkillManifest
 }
 
 func initial(owner uint64, connected bool) State {
@@ -210,12 +216,76 @@ func JoinPackages(bundles []Bundle, plugins []Plugin) []Package {
 			}
 			p.Parts = append(p.Parts, r)
 		}
+		caps := classifyInstalledBundle(bundle)
+		p.CapabilityKind = caps.Kind
+		p.NativeCompatible = caps.NativeCompatible
+		p.CompatibilityLabel = caps.CompatibilityLabel
 		packages = append(packages, p)
 	}
 	sort.SliceStable(packages, func(i, j int) bool {
 		return strings.ToLower(ShortName(packages[i].Name)) < strings.ToLower(ShortName(packages[j].Name))
 	})
 	return packages
+}
+
+func classifyInstalledBundle(bundle Bundle) PackageCapabilities {
+	if strings.HasPrefix(bundle.Source, "file:") {
+		if dir := fileSpecToDir(bundle.Source); dir != "" {
+			if caps, err := InspectLocalPackage(dir); err == nil && caps.Kind != CapabilityUnknown {
+				return caps
+			}
+		}
+	}
+	hasClient, hasHost := false, false
+	for _, row := range bundle.Rows {
+		lower := strings.ToLower(row.ModuleName)
+		if strings.Contains(lower, "client-ui-") || strings.HasSuffix(lower, "/client") || strings.Contains(lower, "-client-") {
+			hasClient = true
+		} else {
+			hasHost = true
+		}
+	}
+	var caps PackageCapabilities
+	switch {
+	case hasHost && hasClient:
+		caps.HasHostContribution, caps.HasWebClient = true, true
+		finalizeCapabilities(&caps)
+		return caps
+	case hasClient:
+		caps.HasWebClient = true
+		finalizeCapabilities(&caps)
+		return caps
+	case hasHost || bundle.Installed || len(bundle.Overrides) > 0:
+		caps.HasHostContribution = true
+		finalizeCapabilities(&caps)
+		return caps
+	default:
+		return InferCapabilityFromCatalogMetadata("", bundle.Name, bundle.Name, bundle.Description)
+	}
+}
+
+func fileSpecToDir(spec string) string {
+	if strings.HasPrefix(spec, "file://") {
+		if u, err := url.Parse(spec); err == nil && u.Path != "" {
+			p := filepath.FromSlash(u.Path)
+			if len(p) >= 3 && p[0] == '\\' && p[2] == ':' {
+				p = p[1:]
+			}
+			return p
+		}
+	}
+	if strings.HasPrefix(spec, "file:") {
+		raw := strings.TrimSpace(strings.TrimPrefix(spec, "file:"))
+		if raw != "" {
+			return filepath.FromSlash(raw)
+		}
+	}
+	if spec != "" {
+		if info, err := os.Stat(spec); err == nil && info.IsDir() {
+			return spec
+		}
+	}
+	return ""
 }
 func hasPackage(packages []Package, name string) bool {
 	for _, p := range packages {
@@ -450,7 +520,27 @@ func (c *Controller) run(op action) {
 		case "remove":
 			result, err = client.Remove(ctx, op.target)
 		case "install":
-			result, err = client.Install(ctx, op.spec, op.options)
+			if op.capabilityKind == CapabilityMCP && len(op.mcpSpecs) > 0 {
+				for _, spec := range op.mcpSpecs {
+					if err = client.UpsertMCPServer(ctx, spec); err != nil {
+						break
+					}
+				}
+				if err == nil {
+					result = Change{Changed: true, Application: "applied", Stage: "done", Target: op.target}
+				}
+			} else if op.capabilityKind == CapabilitySkill && len(op.localSkills) > 0 {
+				for _, skill := range op.localSkills {
+					if err = client.CreateSkill(ctx, skill); err != nil {
+						break
+					}
+				}
+				if err == nil {
+					result = Change{Changed: true, Application: "applied", Stage: "done", Target: op.target}
+				}
+			} else {
+				result, err = client.Install(ctx, op.spec, op.options)
+			}
 		case "exemption":
 			result, err = client.Exempt(ctx, op.target, op.runtime)
 		}

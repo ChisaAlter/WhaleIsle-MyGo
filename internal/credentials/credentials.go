@@ -35,6 +35,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // FileName is the secrets file inside the user data directory.
@@ -101,26 +102,43 @@ type localState struct {
 // ErrUnsupportedEnvelopeVersion; it is never reinterpreted as plaintext.
 // Loading never writes and never returns partial credentials with an error.
 func Load(dir string) (Credentials, error) {
-	path := filepath.Join(dir, FileName)
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return Credentials{}, nil
-	}
+	var creds Credentials
+	err := withDirLock(dir, false, func() error {
+		var loadErr error
+		_, creds, loadErr = loadRawUnlocked(dir)
+		return loadErr
+	})
 	if err != nil {
 		return Credentials{}, err
 	}
+	return creds, nil
+}
+
+func loadRawUnlocked(dir string) (map[string]json.RawMessage, Credentials, error) {
+	path := filepath.Join(dir, FileName)
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, Credentials{}, nil
+	}
+	if err != nil {
+		return nil, Credentials{}, err
+	}
+	return decodeDocumentBytes(dir, path, data)
+}
+
+func decodeDocumentBytes(dir, path string, data []byte) (map[string]json.RawMessage, Credentials, error) {
 	kind, err := classifyDocument(data)
 	if err != nil {
-		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
+		return nil, Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
 	}
 	if kind == docEnvelope {
-		return decryptEnvelope(dir, data)
+		return decryptEnvelopeRaw(dir, data)
 	}
-	var creds Credentials
-	if err := decodeCredentialsObject(data, &creds); err != nil {
-		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
+	raw, creds, err := decodeCredentialsRaw(data)
+	if err != nil {
+		return nil, Credentials{}, fmt.Errorf("credentials: %s: %w", path, err)
 	}
-	return creds, nil
+	return raw, creds, nil
 }
 
 // documentKind is how a credentials.json document must be decoded.
@@ -174,56 +192,136 @@ func classifyDocument(data []byte) (documentKind, error) {
 // decodeCredentialsObject requires a JSON object and only assigns out on
 // success, so a malformed document never leaves partial credentials behind.
 func decodeCredentialsObject(data []byte, out *Credentials) error {
-	var doc json.RawMessage
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return ErrInvalidCredentialsFormat
-	}
-	trimmed := bytes.TrimSpace(doc)
-	if len(trimmed) == 0 || trimmed[0] != '{' {
-		return ErrInvalidCredentialsFormat
-	}
-	var creds Credentials
-	if err := json.Unmarshal(trimmed, &creds); err != nil {
-		return ErrInvalidCredentialsFormat
+	_, creds, err := decodeCredentialsRaw(data)
+	if err != nil {
+		return err
 	}
 	*out = creds
 	return nil
 }
 
-// Save writes an encrypted envelope using the platform storage key. Windows
-// retains safeStorage-v1; macOS uses a distinct Keychain-backed format. The write is atomic (temp file +
-// rename in the same directory).
-func Save(dir string, creds Credentials) error {
-	// Never create a replacement key for an existing native envelope. A
-	// missing/locked Keychain item must leave the previous file recoverable.
-	create := true
-	if credentialOS.version == KeychainEnvelopeVersion {
-		existing, readErr := os.ReadFile(filepath.Join(dir, FileName))
-		if readErr != nil && !errors.Is(readErr, fs.ErrNotExist) {
-			return readErr
-		}
-		if readErr == nil {
-			kind, classifyErr := classifyDocument(existing)
-			if classifyErr != nil {
-				return classifyErr
-			}
-			if kind == docEnvelope {
-				var env envelope
-				if err := json.Unmarshal(existing, &env); err != nil {
-					return err
-				}
-				if env.Version == KeychainEnvelopeVersion {
-					create = false
-				}
-			}
+func decodeCredentialsRaw(data []byte) (map[string]json.RawMessage, Credentials, error) {
+	var doc json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, Credentials{}, ErrInvalidCredentialsFormat
+	}
+	trimmed := bytes.TrimSpace(doc)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return nil, Credentials{}, ErrInvalidCredentialsFormat
+	}
+	var creds Credentials
+	if err := json.Unmarshal(trimmed, &creds); err != nil {
+		return nil, Credentials{}, ErrInvalidCredentialsFormat
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &raw); err != nil {
+		return nil, Credentials{}, ErrInvalidCredentialsFormat
+	}
+	if raw == nil {
+		raw = map[string]json.RawMessage{}
+	}
+	return raw, creds, nil
+}
+
+var modeledCredentialKeys = [6]string{
+	"apiKey",
+	"baseUrl",
+	"githubToken",
+	"remoteToken",
+	"remoteRelayToken",
+	"remoteDevices",
+}
+
+func cloneRawMap(src map[string]json.RawMessage) map[string]json.RawMessage {
+	out := make(map[string]json.RawMessage, len(src))
+	for k, v := range src {
+		out[k] = bytes.Clone(v)
+	}
+	return out
+}
+
+func mergeCredentialsIntoRaw(base map[string]json.RawMessage, creds Credentials) (map[string]json.RawMessage, error) {
+	credsJSON, err := json.Marshal(creds)
+	defer clear(credsJSON)
+	if err != nil {
+		return nil, err
+	}
+	var credsMap map[string]json.RawMessage
+	if err := json.Unmarshal(credsJSON, &credsMap); err != nil {
+		return nil, err
+	}
+	merged := cloneRawMap(base)
+	for _, k := range modeledCredentialKeys {
+		if v, ok := credsMap[k]; ok {
+			merged[k] = bytes.Clone(v)
 		}
 	}
+	return merged, nil
+}
+
+// Save writes an encrypted envelope using the platform storage key. Windows
+// retains safeStorage-v1; macOS uses a distinct Keychain-backed format. The write is atomic (temp file +
+// Sync + Close + retry rename in the same directory) and preserves unmodeled fields.
+func Save(dir string, creds Credentials) error {
+	return withDirLock(dir, true, func() error {
+		existingRaw, create, _, err := readExistingRawForSave(dir)
+		if err != nil {
+			return err
+		}
+		defer clearRawMap(existingRaw)
+		merged, err := mergeCredentialsIntoRaw(existingRaw, creds)
+		if err != nil {
+			return err
+		}
+		defer clearRawMap(merged)
+		return sealAndWriteRaw(dir, merged, create, nil)
+	})
+}
+
+func clearRawMap(m map[string]json.RawMessage) {
+	for k, v := range m {
+		clear(v)
+		delete(m, k)
+	}
+}
+
+func readExistingRawForSave(dir string) (map[string]json.RawMessage, bool, fileBaseline, error) {
+	path := filepath.Join(dir, FileName)
+	data, baseline, err := readBytesAndBaseline(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return map[string]json.RawMessage{}, true, fileBaseline{}, nil
+	}
+	if err != nil {
+		return nil, false, fileBaseline{}, err
+	}
+	kind, err := classifyDocument(data)
+	if err != nil {
+		return nil, false, fileBaseline{}, fmt.Errorf("credentials: %s: %w", path, err)
+	}
+	create := true
+	if kind == docEnvelope {
+		var env envelope
+		if err := json.Unmarshal(data, &env); err != nil {
+			return nil, false, fileBaseline{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
+		}
+		if env.Version == credentialOS.version || env.Version == EnvelopeVersion {
+			create = false
+		}
+	}
+	raw, _, err := decodeDocumentBytes(dir, path, data)
+	if err != nil {
+		return nil, false, fileBaseline{}, err
+	}
+	return raw, create, baseline, nil
+}
+
+func sealAndWriteRaw(dir string, raw map[string]json.RawMessage, create bool, rename func(string, string) error) error {
 	key, err := credentialOS.key(dir, create)
 	defer clear(key)
 	if err != nil {
 		return err
 	}
-	plaintext, err := json.Marshal(creds)
+	plaintext, err := json.Marshal(raw)
 	defer clear(plaintext)
 	if err != nil {
 		return err
@@ -236,20 +334,25 @@ func Save(dir string, creds Credentials) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(filepath.Join(dir, FileName), data)
+	return writeAtomic(filepath.Join(dir, FileName), data, rename)
 }
 
 // decryptEnvelope decodes a document already classified as docEnvelope. The
 // payload is validated before the Local State key is read.
 func decryptEnvelope(dir string, data []byte) (Credentials, error) {
+	_, creds, err := decryptEnvelopeRaw(dir, data)
+	return creds, err
+}
+
+func decryptEnvelopeRaw(dir string, data []byte) (map[string]json.RawMessage, Credentials, error) {
 	path := filepath.Join(dir, FileName)
 	var env envelope
 	if err := json.Unmarshal(data, &env); err != nil {
-		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
+		return nil, Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
 	}
 	blob, err := base64.StdEncoding.DecodeString(env.Payload)
 	if err != nil {
-		return Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
+		return nil, Credentials{}, fmt.Errorf("credentials: %s: %w", path, ErrInvalidCredentialsFormat)
 	}
 	var key, plaintext []byte
 	if env.Version == EnvelopeVersion {
@@ -257,32 +360,39 @@ func decryptEnvelope(dir string, data []byte) (Credentials, error) {
 	} else if env.Version == credentialOS.version {
 		key, err = credentialOS.key(dir, false)
 	} else {
-		return Credentials{}, ErrUnsupportedEnvelopeVersion
+		return nil, Credentials{}, ErrUnsupportedEnvelopeVersion
 	}
 	defer clear(key)
 	if err != nil {
-		return Credentials{}, err
+		return nil, Credentials{}, err
 	}
 	if env.Version != EnvelopeVersion {
 		plaintext, err = open(key, blob)
 	}
 	if err != nil {
-		return Credentials{}, err
+		return nil, Credentials{}, err
 	}
 	defer clear(plaintext)
-	var creds Credentials
-	if err := decodeCredentialsObject(plaintext, &creds); err != nil {
-		return Credentials{}, fmt.Errorf("credentials: %s: decrypted envelope: %w", path, err)
+	raw, creds, err := decodeCredentialsRaw(plaintext)
+	if err != nil {
+		return nil, Credentials{}, fmt.Errorf("credentials: %s: decrypted envelope: %w", path, err)
 	}
-	return creds, nil
+	return raw, creds, nil
 }
 
 // loadLocalStateKey reads Local State next to credentials.json and returns
 // the DPAPI-unprotected os_crypt AES-256 key.
 func loadLocalStateKey(dir string) ([]byte, error) {
+	return loadOrCreateLocalStateKey(dir, false)
+}
+
+func loadOrCreateLocalStateKey(dir string, create bool) ([]byte, error) {
 	path := filepath.Join(dir, LocalStateName)
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) && create {
+			return createLocalStateKey(path)
+		}
 		return nil, fmt.Errorf("credentials: %s: %w", path, err)
 	}
 	var state localState
@@ -303,6 +413,35 @@ func loadLocalStateKey(dir string) ([]byte, error) {
 	key, err := dpapiUnprotect(blob[len(dpapiMarker):])
 	if err != nil {
 		return nil, fmt.Errorf("credentials: %s: %w", path, err)
+	}
+	return key, nil
+}
+
+func createLocalStateKey(path string) ([]byte, error) {
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		clear(key)
+		return nil, err
+	}
+	protected, err := dpapiProtect(key)
+	if err != nil {
+		clear(key)
+		return nil, err
+	}
+	blob := append([]byte("DPAPI"), protected...)
+	state := map[string]any{
+		"os_crypt": map[string]any{
+			"encrypted_key": base64.StdEncoding.EncodeToString(blob),
+		},
+	}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		clear(key)
+		return nil, err
+	}
+	if err := writeAtomic(path, append(data, '\n'), nil); err != nil {
+		clear(key)
+		return nil, err
 	}
 	return key, nil
 }
@@ -353,7 +492,7 @@ func open(key, blob []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func writeAtomic(path string, data []byte) error {
+func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) error) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -366,8 +505,26 @@ func writeAtomic(path string, data []byte) error {
 		tmp.Close()
 		return err
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if rename == nil {
+		rename = os.Rename
+	}
+	var errRename error
+	for attempt := 0; attempt < 8; attempt++ {
+		errRename = rename(tmp.Name(), path)
+		if errRename == nil {
+			return nil
+		}
+		if errors.Is(errRename, ErrConflict) {
+			return errRename
+		}
+		time.Sleep(jitteredDuration(time.Duration(attempt+1) * 5 * time.Millisecond))
+	}
+	return errRename
 }

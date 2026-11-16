@@ -3,8 +3,10 @@ package main
 // Native child windows cannot be covered by a canvas modal. Hide only their
 // surfaces; preserve the owned page, documents, account lease and workspace.
 func (s *mainState) syncSettingsNativeSurfaces() {
+	asstOpen := s.assistantService().Open()
 	s.mu.Lock()
-	open, host, prior := s.settingsOpen, s.webviewHost, s.settingsOverlayHost
+	open := s.exclusiveSurfaceMaskLocked(asstOpen).nativeOverlayMasked()
+	host, prior := s.webviewHost, s.settingsOverlayHost
 	show := s.webviewOpen || s.browserPreviewOpen
 	if open {
 		s.settingsOverlayHost = host

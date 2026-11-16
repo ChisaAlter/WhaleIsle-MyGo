@@ -165,12 +165,21 @@ func (s *mainState) returnFromAccountPage() {
 	}
 }
 
-func (s *mainState) clearAccountReturn() {
-	s.closeAccountPlatform()
-	s.dismissAccountQuotaPage()
+func (s *mainState) clearAccountReturnDetached() *accountPlatformLease {
 	s.mu.Lock()
+	lease := s.detachAccountPlatformLocked()
 	s.accountReturn = accountReturnState{}
+	quotaState := s.accountQuotaNotice
+	s.accountQuotaNotice = accountQuotaNoticeState{}
 	s.mu.Unlock()
+	if quotaState.store != nil && quotaState.opened {
+		quotaState.store.DismissQuotaNotice(quotaState.id)
+	}
+	return lease
+}
+
+func (s *mainState) clearAccountReturn() {
+	closeAccountPlatformLease(s.clearAccountReturnDetached())
 }
 
 func (s *mainState) openAccountInfo(raw string) {

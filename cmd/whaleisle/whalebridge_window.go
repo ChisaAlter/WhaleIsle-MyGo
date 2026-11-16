@@ -93,9 +93,32 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		return
 	}
 	current.win = win
+	var superseded *mygo.Window
 	s.mu.Lock()
+	if s.quitting {
+		s.mu.Unlock()
+		win.Close()
+		return
+	}
+	if existing := s.whaleBridgeWin; existing != nil && existing.win != nil && !existing.win.IsDestroyed() {
+		if sameManagementOrigin(existing.url, address) {
+			s.mu.Unlock()
+			win.Close()
+			if accounts {
+				_ = existing.win.Page().LoadURL(address + whaleBridgeAccountsAnchor)
+			}
+			existing.win.Restore()
+			existing.win.Show()
+			existing.win.Focus()
+			return
+		}
+		superseded = existing.win
+	}
 	s.whaleBridgeWin = current
 	s.mu.Unlock()
+	if superseded != nil {
+		superseded.Close()
+	}
 	applyWindowIcon(win)
 	pg := win.Page()
 	syncShape := func() {

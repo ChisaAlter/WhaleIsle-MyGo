@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
@@ -133,6 +134,9 @@ func TestNativeCoreRecoveryDesktop(t *testing.T) {
 func runNativeCoreRecoveryDesktop() error {
 	if !isolatedDesktopRun() || os.Getenv("WHALEISLE_USER_DATA") == "" || os.Getenv("WHALEISLE_VENDOR") == "" {
 		return fmt.Errorf("explicit isolated data and verified vendor are required")
+	}
+	if os.Getenv(updater.EnvDisableAutoUpdate) == "" {
+		_ = os.Setenv(updater.EnvDisableAutoUpdate, "1")
 	}
 	out := os.Getenv("WHALEISLE_ACCEPTANCE_OUTPUT")
 	if !filepath.IsAbs(out) {

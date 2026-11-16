@@ -207,7 +207,7 @@ function createProjectEnvironment(options = {}) {
       }
       files.push(item);
     }
-    const diff = current.headCommit ? await git(current.canonicalPath, ['diff', 'HEAD', '--'], { maxBytes: 1024 * 1024 }) : { code: 0, stdout: '', truncated: false };
+    const diff = current.headCommit ? await git(current.canonicalPath, ['diff', '--no-ext-diff', '--no-textconv', 'HEAD', '--'], { maxBytes: 1024 * 1024 }) : { code: 0, stdout: '', truncated: false };
     if (diff.code !== 0) throw new Error(gitFailureMessage(diff, '读取差异失败'));
     return { ok: true, isGit: true, headCommit: current.headCommit, branch: current.branch, dirty: files.length > 0,
       files, diff: diff.stdout, truncated: Boolean(diff.truncated), fingerprint: digest(JSON.stringify({ head: current.headCommit, files })) };
@@ -358,7 +358,7 @@ function createProjectEnvironment(options = {}) {
     const { current, root, pathspec } = await changeScope(payload);
     if (!current.isGit) throw new Error('该目录不是 Git 仓库，无法读取需求改动');
     const base = treeId(payload.base), end = payload.end ? treeId(payload.end) : await captureTree(root, pathspec, current.canonicalPath);
-    const args = ['-c', 'core.quotepath=off', 'diff', '--no-renames', base, end];
+    const args = ['-c', 'core.quotepath=off', 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', base, end];
     const targets = await git(root, [...args, '--name-only', '-z', '--', pathspec]);
     if (targets.code !== 0 || targets.truncated) throw new Error(gitFailureMessage(targets, '读取需求改动路径失败'));
     authorizeDiffPaths(root, current.canonicalPath, targets.stdout);
@@ -373,10 +373,10 @@ function createProjectEnvironment(options = {}) {
     const { current, root, pathspec } = await changeScope(payload);
     if (!current.isGit) throw new Error('该目录不是 Git 仓库，无法撤销');
     const base = treeId(payload.base), end = treeId(payload.end);
-    const targets = await git(root, ['diff', '--name-only', '--no-renames', '-z', end, base, '--', pathspec]);
+    const targets = await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--name-only', '--no-renames', '-z', end, base, '--', pathspec]);
     if (targets.code !== 0 || targets.truncated) throw new Error(gitFailureMessage(targets, '读取撤销路径失败'));
     authorizeDiffPaths(root, current.canonicalPath, targets.stdout);
-    const patch = await git(root, ['diff', '--binary', '--no-renames', end, base, '--', pathspec], { maxBytes: 64 * 1024 * 1024 });
+    const patch = await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--no-renames', end, base, '--', pathspec], { maxBytes: 64 * 1024 * 1024 });
     if (patch.code !== 0 || patch.truncated) throw new Error(gitFailureMessage(patch, '生成撤销补丁失败'));
     if (!patch.stdout.trim()) return { ok: true, applied: false };
     const file = path.join(os.tmpdir(), `whale-project-revert-${crypto.randomUUID()}.patch`);

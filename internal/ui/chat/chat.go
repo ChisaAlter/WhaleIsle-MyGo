@@ -25,10 +25,6 @@ import (
 
 // Model is chat state for one frame.
 type Model struct {
-	nativeUserEditor      bool
-	ReasoningBody         func(*ui.Context, session.Message, func())
-	RenderSlot            func(*ui.Context, session.ViewState, session.Message, string, func())
-	ToolRenderSlot        func(*ui.Context, string, *session.ToolCallView, func())
 	OpenUIParent          uintptr
 	OpenUIWindow          *mygo.Window
 	OpenUIMediaOcclusions []mygo.Rectangle
@@ -115,7 +111,9 @@ func View(c *ui.Context, m Model) {
 }
 
 func conversationView(c *ui.Context, m Model) {
+	seq := chatViewSeq.Add(1)
 	if m.GroupRoom {
+		checkOpenUIListEvictions(seq)
 		if m.Inspector != nil {
 			m.Inspector.CancelPicking()
 			m.Inspector.CancelReveal()
@@ -123,6 +121,9 @@ func conversationView(c *ui.Context, m Model) {
 		groupThreadsView(c, m)
 		return
 	}
+	ui.Box(c).Absolute().Left(0).Top(0).Size(1, 1).PassThrough().Draw(func(*ui.Painter, ui.Rect) {
+		checkOpenUIListEvictions(seq)
+	})
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
@@ -279,15 +280,8 @@ func conversationView(c *ui.Context, m Model) {
 						// Electron turn/end strip: 「已完成，用时 …」 with the usage row
 						// below it. The store writes elapsed milliseconds into Body.
 						if msg.Role == "status" && msg.EventType == "turn/end" {
-							nativeTail := func() {
-								if m.TurnContributions != nil {
-									m.TurnContributions(row.Context, m.Snapshot, msg)
-								}
-							}
-							if m.RenderSlot != nil {
-								m.RenderSlot(row.Context, m.Snapshot, msg, "turnTail", nativeTail)
-							} else {
-								nativeTail()
+							if m.TurnContributions != nil {
+								m.TurnContributions(row.Context, m.Snapshot, msg)
 							}
 							ScheduleTurnCardsView(row.Context, m, cards[msg.Seq])
 							key := "turn-end:" + msg.ID
@@ -371,7 +365,6 @@ func conversationView(c *ui.Context, m Model) {
 								OnInspectCall: inspectCallHandler(m.OnInspectToolCall, msg.ID, msg.Seq),
 								Todo:          todoBaselineForCall(todoBaselines, msg),
 								TodoBaselines: todoBaselines,
-								RenderSlot:    m.ToolRenderSlot,
 								OnOpen: func(path string) {
 									if m.OnOpenImageLightbox != nil {
 										m.OnOpenImageLightbox(path)
@@ -396,18 +389,6 @@ func conversationView(c *ui.Context, m Model) {
 								Size:        secondaryChatSize(),
 								Accent:      chrome.Color(colors.Accent),
 								Hover:       chrome.Color(colors.Hover),
-							}
-							if m.ReasoningBody != nil || m.RenderSlot != nil {
-								thSt.Body = func(ctx *ui.Context) {
-									native := func() {
-										markdown.View(ctx, msg.Body, transcriptMarkdownStyle(muted, muted, chrome.Color(colors.Field), fg, secondaryChatSize(), darkSurface(muted)))
-									}
-									if m.ReasoningBody != nil {
-										m.ReasoningBody(ctx, msg, native)
-									} else {
-										m.RenderSlot(ctx, m.Snapshot, msg, "reasoning.body", native)
-									}
-								}
 							}
 							ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 						case session.MessageKindUnknown:
@@ -463,6 +444,9 @@ func conversationView(c *ui.Context, m Model) {
 									md.AvailableWidth = m.ContentWidth
 								}
 								md.ResolveFile = projectedFileMentionResolver(m.Snapshot, msg)
+								if md.ResolveFile != nil {
+									md.ResolveRevision = projectedFileMentionRevision(m.Snapshot, msg)
+								}
 								md.OnOpenFile = m.OnOpenDeliverable
 								md.RenderFence = func(ctx *ui.Context, language, program string, offset int) bool {
 									return openUIFence(ctx, m, msg, language, program, offset)
@@ -651,6 +635,12 @@ func inspectCallHandler(inspect func(callID, messageID string, seq float64), mes
 	}
 }
 
+type transcriptControlState struct {
+	key     string
+	present bool
+	val     bool
+}
+
 type transcriptViewMemoKey struct {
 	projKey        session.ProjectionKey
 	messages       int
@@ -678,14 +668,36 @@ type transcriptViewMemo struct {
 	turnPrefix    transcriptTurnPrefixViewMemo
 }
 
+type turnPrefixChunk struct {
+	start, end             int
+	msgs                   []session.Message
+	controls               map[string]transcriptControl
+	controlStates          []transcriptControlState
+	keys                   []transcriptMessageKey
+	keySet                 map[transcriptMessageKey]struct{}
+	localTargets           map[int]assistantActionTarget
+	lastSeat               int
+	lastSeatHadLatest      bool
+	hasPostSeatUserOrReply bool
+	startsWithUser         bool
+	endsWithFlush          bool
+	hasUserOrAssistant     bool
+	copyableSources        map[string]struct{}
+}
+
 type transcriptTurnPrefixViewMemo struct {
 	ready                   bool
 	turnPrefixGen           uint64
 	visPrefixLen            int
 	key                     transcriptViewMemoKey
+	prefixLastInput         float64
+	chunks                  []turnPrefixChunk
+	chunkRebuilds           int
+	chunkHits               int
 	prefixMsgs              []session.Message
 	prefixKeys              []transcriptMessageKey
 	prefixKeySet            map[transcriptMessageKey]struct{}
+	prefixControlStates     []transcriptControlState
 	workingControls         map[string]transcriptControl
 	lastTailControlKeys     []string
 	actionTargetsLatest     map[int]assistantActionTarget
@@ -707,10 +719,306 @@ func (k transcriptViewMemoKey) samePrefixConfig(o transcriptViewMemoKey) bool {
 		k.selectedID == o.selectedID &&
 		k.mode == o.mode &&
 		k.collapseTiming == o.collapseTiming &&
-		k.locale == o.locale &&
-		k.expandedLen == o.expandedLen &&
-		k.expandedXOR == o.expandedXOR &&
-		k.expandedSum == o.expandedSum
+		k.locale == o.locale
+}
+
+func isTranscriptProjectionExpandedKey(k string) bool {
+	return strings.HasPrefix(k, "transcript-turn:") || strings.HasPrefix(k, "transcript-group:")
+}
+
+func controlStatesMatch(states []transcriptControlState, exp map[string]bool) bool {
+	for _, st := range states {
+		val, ok := exp[st.key]
+		if ok != st.present || (ok && val != st.val) {
+			return false
+		}
+	}
+	return true
+}
+
+func (tp *transcriptTurnPrefixViewMemo) controlsMatch(expanded *map[string]bool, key transcriptViewMemoKey) bool {
+	if tp.key.expandedLen == key.expandedLen &&
+		tp.key.expandedXOR == key.expandedXOR &&
+		tp.key.expandedSum == key.expandedSum {
+		return true
+	}
+	var exp map[string]bool
+	if expanded != nil {
+		exp = *expanded
+	}
+	if !controlStatesMatch(tp.prefixControlStates, exp) {
+		return false
+	}
+	tp.key.expandedLen = key.expandedLen
+	tp.key.expandedXOR = key.expandedXOR
+	tp.key.expandedSum = key.expandedSum
+	return true
+}
+
+func splitTurnPrefixSpans(visPrefix []session.Message) [][2]int {
+	if len(visPrefix) == 0 {
+		return nil
+	}
+	keys, _, known := transcriptMessageTurnKeys(visPrefix)
+	turnSpan := map[float64][2]int{}
+	for i := range visPrefix {
+		if !known[i] {
+			continue
+		}
+		k := keys[i]
+		sp, ok := turnSpan[k]
+		if !ok {
+			turnSpan[k] = [2]int{i, i}
+		} else {
+			sp[1] = i
+			turnSpan[k] = sp
+		}
+	}
+	var rawSpans [][2]int
+	for i := 0; i < len(visPrefix); {
+		end := i + 1
+		if known[i] {
+			end = turnSpan[keys[i]][1] + 1
+			for j := i + 1; j < end; j++ {
+				if known[j] {
+					if otherEnd := turnSpan[keys[j]][1] + 1; otherEnd > end {
+						end = otherEnd
+					}
+				}
+			}
+		} else if visPrefix[i].Kind == session.MessageKindThinking || visPrefix[i].Kind == session.MessageKindTool {
+			for end < len(visPrefix) && !known[end] && (visPrefix[end].Kind == session.MessageKindThinking || visPrefix[end].Kind == session.MessageKindTool) {
+				end++
+			}
+		}
+		rawSpans = append(rawSpans, [2]int{i, end})
+		i = end
+	}
+	// Coalesce a standalone user prompt row into the turn immediately after it so
+	// turn boundaries align cleanly for chunked action-target splicing.
+	spans := make([][2]int, 0, len(rawSpans))
+	for i := 0; i < len(rawSpans); i++ {
+		sp := rawSpans[i]
+		if sp[1]-sp[0] == 1 && !known[sp[0]] && visPrefix[sp[0]].Role == "user" && i+1 < len(rawSpans) {
+			sp[1] = rawSpans[i+1][1]
+			i++
+		}
+		spans = append(spans, sp)
+	}
+	return spans
+}
+
+func buildTurnPrefixChunk(spanMsgs []session.Message, start, end int, m Model, lastInput float64) turnPrefixChunk {
+	msgs, controls := projectTranscriptWithLastInput(spanMsgs, m, true, lastInput)
+	keys := transcriptMessageKeys(m, msgs)
+	keySet := make(map[transcriptMessageKey]struct{}, len(keys))
+	for _, k := range keys {
+		k.Occurrence = 0
+		keySet[k] = struct{}{}
+	}
+	var states []transcriptControlState
+	if len(controls) > 0 {
+		states = make([]transcriptControlState, 0, len(controls))
+		var exp map[string]bool
+		if m.ThinkingExpanded != nil {
+			exp = *m.ThinkingExpanded
+		}
+		for ck := range controls {
+			val, ok := exp[ck]
+			states = append(states, transcriptControlState{
+				key:     ck,
+				present: ok,
+				val:     val,
+			})
+		}
+	}
+	localTargets, lastSeat := assistantActionTargetsWithLastSeat(msgs)
+	lastSeatHadLatest := false
+	hasPostSeatUserOrReply := false
+	if target, ok := localTargets[lastSeat]; ok {
+		lastSeatHadLatest = target.latest
+		if !target.latest {
+			hasPostSeatUserOrReply = true
+		}
+		target.latest = false
+		localTargets[lastSeat] = target
+	}
+	startsWithUser := len(msgs) > 0 && msgs[0].Role == "user"
+	endsWithFlush := true
+	hasPendingAssistant := false
+	hasUserOrAssistant := false
+	var copyableSources map[string]struct{}
+	for _, msg := range msgs {
+		if msg.Kind != session.MessageKindTurnDelivery && msg.TurnDelivery == nil && (msg.Role == "user" || msg.Role == "assistant") {
+			hasUserOrAssistant = true
+		}
+		if msg.Role == "user" {
+			hasPendingAssistant = false
+		}
+		if showMessageCopy(msg) && msg.SourceMessageID != "" {
+			if copyableSources == nil {
+				copyableSources = make(map[string]struct{}, 2)
+			}
+			copyableSources[msg.SourceMessageID] = struct{}{}
+		}
+		if msg.Role == "assistant" && showMessageCopy(msg) {
+			hasPendingAssistant = true
+		}
+		if msg.EventType == "turn/end" {
+			hasPendingAssistant = false
+		}
+	}
+	endsWithFlush = !hasPendingAssistant
+
+	return turnPrefixChunk{
+		start:                  start,
+		end:                    end,
+		msgs:                   msgs,
+		controls:               controls,
+		controlStates:          states,
+		keys:                   keys,
+		keySet:                 keySet,
+		localTargets:           localTargets,
+		lastSeat:               lastSeat,
+		lastSeatHadLatest:      lastSeatHadLatest,
+		hasPostSeatUserOrReply: hasPostSeatUserOrReply,
+		startsWithUser:         startsWithUser,
+		endsWithFlush:          endsWithFlush,
+		hasUserOrAssistant:     hasUserOrAssistant,
+		copyableSources:        copyableSources,
+	}
+}
+
+func spliceTurnPrefixChunks(tp *transcriptTurnPrefixViewMemo, m Model) {
+	totalMsgs := 0
+	totalControls := 0
+	totalStates := 0
+	canSpliceKeys := true
+	seenKeys := make(map[transcriptMessageKey]struct{}, 64)
+	canSpliceTargets := true
+	seenSources := make(map[string]struct{}, 16)
+
+	for i := range tp.chunks {
+		ch := &tp.chunks[i]
+		totalMsgs += len(ch.msgs)
+		totalControls += len(ch.controls)
+		totalStates += len(ch.controlStates)
+		if canSpliceKeys {
+			for k := range ch.keySet {
+				if _, dup := seenKeys[k]; dup {
+					canSpliceKeys = false
+					break
+				}
+				seenKeys[k] = struct{}{}
+			}
+		}
+		if canSpliceTargets {
+			if i > 0 && !tp.chunks[i-1].endsWithFlush && !ch.startsWithUser {
+				canSpliceTargets = false
+			}
+			for src := range ch.copyableSources {
+				if _, dup := seenSources[src]; dup {
+					canSpliceTargets = false
+					break
+				}
+				seenSources[src] = struct{}{}
+			}
+		}
+	}
+
+	prefixMsgs := make([]session.Message, totalMsgs)
+	controls := make(map[string]transcriptControl, totalControls)
+	states := make([]transcriptControlState, 0, totalStates)
+	var prefixKeys []transcriptMessageKey
+	if canSpliceKeys {
+		prefixKeys = make([]transcriptMessageKey, totalMsgs)
+	}
+	var latestTargets map[int]assistantActionTarget
+	if canSpliceTargets {
+		latestTargets = make(map[int]assistantActionTarget, len(tp.chunks))
+	}
+
+	offset := 0
+	lastTargetChunk := -1
+	globalLastSeat := -1
+	for i := range tp.chunks {
+		ch := &tp.chunks[i]
+		copy(prefixMsgs[offset:], ch.msgs)
+		if canSpliceKeys {
+			copy(prefixKeys[offset:], ch.keys)
+		}
+		for k, v := range ch.controls {
+			controls[k] = v
+		}
+		states = append(states, ch.controlStates...)
+		if canSpliceTargets && len(ch.localTargets) > 0 {
+			for seat, target := range ch.localTargets {
+				target.latest = false
+				latestTargets[offset+seat] = target
+			}
+			if ch.lastSeat >= 0 {
+				lastTargetChunk = i
+				globalLastSeat = offset + ch.lastSeat
+			}
+		}
+		offset += len(ch.msgs)
+	}
+
+	if !canSpliceKeys {
+		prefixKeys = transcriptMessageKeys(m, prefixMsgs)
+	}
+
+	var historicalTargets map[int]assistantActionTarget
+	if !canSpliceTargets {
+		latestTargets, historicalTargets = assistantActionTargetsForTurnPrefix(prefixMsgs)
+	} else {
+		if lastTargetChunk >= 0 {
+			ch := &tp.chunks[lastTargetChunk]
+			isLatest := ch.lastSeatHadLatest
+			if isLatest {
+				for j := lastTargetChunk + 1; j < len(tp.chunks); j++ {
+					if tp.chunks[j].hasUserOrAssistant {
+						isLatest = false
+						break
+					}
+				}
+			}
+			if isLatest {
+				target := latestTargets[globalLastSeat]
+				target.latest = true
+				latestTargets[globalLastSeat] = target
+				historicalTargets = make(map[int]assistantActionTarget, len(latestTargets))
+				for k, v := range latestTargets {
+					historicalTargets[k] = v
+				}
+				target.latest = false
+				historicalTargets[globalLastSeat] = target
+			} else {
+				historicalTargets = latestTargets
+			}
+		} else {
+			historicalTargets = latestTargets
+		}
+	}
+
+	prefixKeySet := make(map[transcriptMessageKey]struct{}, len(prefixKeys))
+	for _, pk := range prefixKeys {
+		pk.Occurrence = 0
+		prefixKeySet[pk] = struct{}{}
+	}
+
+	tp.prefixMsgs = prefixMsgs
+	tp.prefixKeys = prefixKeys
+	tp.prefixKeySet = prefixKeySet
+	tp.prefixControlStates = states
+	tp.workingControls = controls
+	tp.lastTailControlKeys = tp.lastTailControlKeys[:0]
+	tp.actionTargetsLatest = latestTargets
+	tp.actionTargetsHistorical = historicalTargets
+	tp.msgsBuf = make([]session.Message, len(prefixMsgs), len(prefixMsgs)+32)
+	copy(tp.msgsBuf, prefixMsgs)
+	tp.keysBuf = make([]transcriptMessageKey, len(prefixKeys), len(prefixKeys)+32)
+	copy(tp.keysBuf, prefixKeys)
 }
 
 func canReuseStreamingTranscriptTail(prev, curr session.Message) bool {
@@ -736,8 +1044,11 @@ func makeTranscriptViewMemoKey(m Model) (transcriptViewMemoKey, bool) {
 	var expLen int
 	var expXOR, expSum uint64
 	if m.ThinkingExpanded != nil && *m.ThinkingExpanded != nil {
-		expLen = len(*m.ThinkingExpanded)
 		for k, v := range *m.ThinkingExpanded {
+			if !isTranscriptProjectionExpandedKey(k) {
+				continue
+			}
+			expLen++
 			h := uint64(14695981039346656037)
 			for i := 0; i < len(k); i++ {
 				h ^= uint64(k[i])
@@ -792,34 +1103,47 @@ func (memo *transcriptViewMemo) resolve(m Model) ([]session.Message, map[string]
 		visible[visPrefixLen-1].Kind != session.MessageKindThinking &&
 		visible[visPrefixLen-1].Kind != session.MessageKindTool {
 		tp := &memo.turnPrefix
+		visPrefix := visible[:visPrefixLen]
 		if !tp.ready || tp.turnPrefixGen != turnPrefixGen || tp.visPrefixLen != visPrefixLen || !key.samePrefixConfig(tp.key) {
-			visPrefix := visible[:visPrefixLen]
-			prefixMsgs, prefixControls := projectTranscript(visPrefix, m)
-			latestTargets, historicalTargets := assistantActionTargetsForTurnPrefix(prefixMsgs)
-			prefixKeys := transcriptMessageKeys(m, prefixMsgs)
-			prefixKeySet := make(map[transcriptMessageKey]struct{}, len(prefixKeys))
-			for _, pk := range prefixKeys {
-				pk.Occurrence = 0
-				prefixKeySet[pk] = struct{}{}
+			lastInput := float64(0)
+			for _, msg := range visPrefix {
+				if msg.Role == "user" && msg.Kind == session.MessageKindText {
+					lastInput = max(lastInput, msg.Seq)
+				}
 			}
-			msgsBuf := make([]session.Message, len(prefixMsgs), len(prefixMsgs)+32)
-			copy(msgsBuf, prefixMsgs)
-			keysBuf := make([]transcriptMessageKey, len(prefixKeys), len(prefixKeys)+32)
-			copy(keysBuf, prefixKeys)
-			*tp = transcriptTurnPrefixViewMemo{
-				ready:                   true,
-				turnPrefixGen:           turnPrefixGen,
-				visPrefixLen:            visPrefixLen,
-				key:                     key,
-				prefixMsgs:              prefixMsgs,
-				prefixKeys:              prefixKeys,
-				prefixKeySet:            prefixKeySet,
-				workingControls:         prefixControls,
-				actionTargetsLatest:     latestTargets,
-				actionTargetsHistorical: historicalTargets,
-				msgsBuf:                 msgsBuf,
-				keysBuf:                 keysBuf,
+			spans := splitTurnPrefixSpans(visPrefix)
+			chunks := make([]turnPrefixChunk, len(spans))
+			for idx, sp := range spans {
+				chunks[idx] = buildTurnPrefixChunk(visPrefix[sp[0]:sp[1]], sp[0], sp[1], m, lastInput)
 			}
+			tp.ready = true
+			tp.turnPrefixGen = turnPrefixGen
+			tp.visPrefixLen = visPrefixLen
+			tp.key = key
+			tp.prefixLastInput = lastInput
+			tp.chunks = chunks
+			tp.chunkRebuilds += len(spans)
+			spliceTurnPrefixChunks(tp, m)
+		} else if !tp.controlsMatch(m.ThinkingExpanded, key) {
+			var exp map[string]bool
+			if m.ThinkingExpanded != nil {
+				exp = *m.ThinkingExpanded
+			}
+			dirty := 0
+			for idx := range tp.chunks {
+				ch := &tp.chunks[idx]
+				if controlStatesMatch(ch.controlStates, exp) {
+					tp.chunkHits++
+					continue
+				}
+				tp.chunks[idx] = buildTurnPrefixChunk(visPrefix[ch.start:ch.end], ch.start, ch.end, m, tp.prefixLastInput)
+				dirty++
+			}
+			tp.chunkRebuilds += dirty
+			tp.key = key
+			spliceTurnPrefixChunks(tp, m)
+		} else {
+			tp.chunkHits += len(tp.chunks)
 		}
 		for _, k := range tp.lastTailControlKeys {
 			delete(tp.workingControls, k)

@@ -111,6 +111,9 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	if releaseURL == "" {
 		return ApplyResult{}, fmt.Errorf("empty release URL")
 	}
+	if _, err := validateDownloadURL(releaseURL); err != nil {
+		return ApplyResult{}, err
+	}
 	maxBytes := opt.MaxBytes
 	if maxBytes == 0 {
 		maxBytes = 512 << 20
@@ -118,10 +121,7 @@ func DownloadAndStageOpts(ctx context.Context, opt StageOptions) (ApplyResult, e
 	if maxBytes < 1 || maxBytes > 8<<30 || opt.ExpectSize > maxBytes {
 		return ApplyResult{}, fmt.Errorf("installer exceeds download size limit")
 	}
-	client := opt.HTTPClient
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
-	}
+	client := hardenDownloadClient(opt.HTTPClient, 5*time.Minute)
 	destDir := opt.DestDir
 	if destDir == "" {
 		destDir = filepath.Join(os.TempDir(), "whaleisle-updates")
@@ -288,7 +288,8 @@ type stageProgressWriter struct {
 
 func (p *stageProgressWriter) Write(b []byte) (int, error) {
 	p.received += int64(len(b))
-	if p.notify != nil && (p.last.IsZero() || time.Since(p.last) >= 100*time.Millisecond || p.received == p.total) {
+	done := p.total > 0 && p.received >= p.total
+	if p.notify != nil && (p.last.IsZero() || time.Since(p.last) >= 100*time.Millisecond || done) {
 		p.last = time.Now()
 		p.notify(p.received, p.total)
 	}

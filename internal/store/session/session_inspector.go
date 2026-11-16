@@ -8,12 +8,21 @@ import (
 	"whaleisle/internal/dsh"
 )
 
+const (
+	inspectorClosedMaxEvents = 512
+	inspectorClosedMaxBytes  = 4 << 20
+	inspectorOpenMaxEvents   = 4096
+	inspectorOpenMaxBytes    = 32 << 20
+)
+
 // Inspector retains only the existing, authorized Session window. It never
 // reads Host files, creates another subscription, or uploads log contents.
 type sessionInspectorState struct {
 	client        *dsh.Client
 	session       string
 	generation    uint64
+	open          bool
+	rawBytes      int
 	events        map[float64]json.RawMessage
 	contextWaking map[float64]bool
 	settledRoots  map[float64]string
@@ -33,12 +42,65 @@ type InspectorSnapshot struct {
 	Records, Chat      []InspectorRecord
 }
 
+func (s *Store) SetInspectorOpen(open bool) {
+	s.mu.Lock()
+	if s.inspector.open == open {
+		s.mu.Unlock()
+		return
+	}
+	s.inspector.open = open
+	evicted := false
+	if !open {
+		evicted = s.pruneInspectorEventsLocked()
+	}
+	s.invalidateViewLocked()
+	s.mu.Unlock()
+	if evicted {
+		s.fire()
+	}
+}
+
+func (s *Store) inspectorLimitsLocked() (maxEvents, maxBytes int) {
+	if s.inspector.open {
+		return inspectorOpenMaxEvents, inspectorOpenMaxBytes
+	}
+	return inspectorClosedMaxEvents, inspectorClosedMaxBytes
+}
+
+func (s *Store) pruneInspectorEventsLocked() bool {
+	maxEvents, maxBytes := s.inspectorLimitsLocked()
+	if len(s.inspector.events) <= maxEvents && s.inspector.rawBytes <= maxBytes {
+		return false
+	}
+	seqs := make([]float64, 0, len(s.inspector.events))
+	for seq := range s.inspector.events {
+		seqs = append(seqs, seq)
+	}
+	sort.Float64s(seqs)
+	evicted := false
+	for _, seq := range seqs {
+		if len(s.inspector.events) <= maxEvents && s.inspector.rawBytes <= maxBytes {
+			break
+		}
+		s.inspector.rawBytes -= len(s.inspector.events[seq])
+		if s.inspector.rawBytes < 0 {
+			s.inspector.rawBytes = 0
+		}
+		delete(s.inspector.events, seq)
+		evicted = true
+	}
+	if evicted {
+		s.pruneInspectorSettlementsLocked()
+	}
+	return evicted
+}
+
 func (s *Store) resetInspectorLocked() {
 	settled := s.inspector.settledRoots
 	if s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		settled = nil
 	}
-	s.inspector = sessionInspectorState{client: s.client, session: s.selectedID, generation: s.followGeneration, events: map[float64]json.RawMessage{}, settledRoots: settled}
+	s.inspector = sessionInspectorState{client: s.client, session: s.selectedID, generation: s.followGeneration, open: s.inspector.open, events: map[float64]json.RawMessage{}, settledRoots: settled}
 }
 func (s *Store) captureInspectorEventLocked(raw json.RawMessage) bool {
 	s.invalidateViewLocked()
@@ -60,13 +122,18 @@ func (s *Store) captureInspectorEventWithHeadLocked(raw json.RawMessage, typ str
 	if s.inspector.events == nil || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		s.resetInspectorLocked()
 	}
-	if string(s.inspector.events[seq]) == string(raw) {
-		return false
+	if old, existed := s.inspector.events[seq]; existed {
+		if string(old) == string(raw) {
+			return false
+		}
+		s.inspector.rawBytes -= len(old)
 	}
-	// Follow/page hand us immutable decoded event bytes. Retain that window
-	// without duplicating its payload; snapshots copy before exposing it.
+	// Follow/page hand us immutable decoded event bytes. Retain within bounded
+	// sliding window without duplicating payload; snapshots copy before exposing it.
 	s.inspector.events[seq] = raw
+	s.inspector.rawBytes += len(raw)
 	s.inspector.contextWaking = nil
+	s.pruneInspectorEventsLocked()
 	return true
 }
 func inspectorRecord(key, parent string, raw json.RawMessage) InspectorRecord {

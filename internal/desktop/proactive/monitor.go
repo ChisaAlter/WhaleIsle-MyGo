@@ -57,17 +57,24 @@ func (m *Monitor) changed(err error) {
 
 func (m *Monitor) loop() {
 	defer close(m.done)
+	unsub := m.service.subscribe(m.Wake)
+	defer unsub()
 	if err := m.service.recoverNotices(); err != nil {
 		m.changed(err)
 		return
 	}
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+	var timer *time.Timer
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
 	for {
 		if m.ctx.Err() != nil {
 			return
 		}
 		m.deliverPending()
+		immediateRetry := false
 		for _, source := range m.service.Sources() {
 			if m.ctx.Err() != nil {
 				return
@@ -90,6 +97,7 @@ func (m *Monitor) loop() {
 			m.readCancel = nil
 			m.mu.Unlock()
 			if cancelled {
+				immediateRetry = true
 				continue
 			}
 			applyErr := m.service.ApplyDiscovery(source, started, items, err)
@@ -100,16 +108,63 @@ func (m *Monitor) loop() {
 				}
 				m.changed(applyErr)
 			} else {
+				if errors.Is(applyErr, ErrConflict) {
+					immediateRetry = true
+				}
 				m.changed(nil)
 			}
+		}
+		if immediateRetry && m.ctx.Err() == nil {
+			continue
+		}
+		delay, scheduled := m.nextSourceWait(time.Now())
+		var timerC <-chan time.Time
+		if scheduled {
+			if timer == nil {
+				timer = time.NewTimer(delay)
+			} else {
+				timer.Reset(delay)
+			}
+			timerC = timer.C
+		} else if timer != nil {
+			timer.Stop()
 		}
 		select {
 		case <-m.ctx.Done():
 			return
-		case <-tick.C:
+		case <-timerC:
 		case <-m.wake:
 		}
 	}
+}
+
+func (m *Monitor) nextSourceWait(now time.Time) (time.Duration, bool) {
+	if m.reader == nil {
+		return 0, false
+	}
+	var earliest time.Time
+	hasEarliest := false
+	for _, source := range m.service.Sources() {
+		if !source.Enabled {
+			continue
+		}
+		next, err := time.Parse(time.RFC3339Nano, source.NextCheck)
+		if err != nil || !next.After(now) {
+			return time.Millisecond, true
+		}
+		if !hasEarliest || next.Before(earliest) {
+			earliest = next
+			hasEarliest = true
+		}
+	}
+	if !hasEarliest {
+		return 0, false
+	}
+	d := earliest.Sub(now)
+	if d < time.Millisecond {
+		d = time.Millisecond
+	}
+	return d, true
 }
 
 func (m *Monitor) deliverPending() {

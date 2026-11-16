@@ -37,7 +37,8 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			defer server.Close()
 			defer unblock()
 			t.Setenv(desktopupdate.EnvFeedURL, server.URL)
-			s := &mainState{launcherUpdateAvailable: true}
+			s := &mainState{}
+			s.launcherController().SetUpdateAvailableForTest(true)
 			dispatched := make(chan error, 1)
 			go func() {
 				tab := ""
@@ -72,10 +73,7 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("launcher dispatch waited for the gated HTTP response")
 			}
-			s.mu.Lock()
-			busy := s.launcherUpdateCheckBusy
-			s.mu.Unlock()
-			if !busy {
+			if !s.launcherController().UpdateProbeState().CheckBusy {
 				t.Fatal("check lost its busy state before the response")
 			}
 			select {
@@ -86,9 +84,8 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			unblock()
 			deadline := time.Now().Add(3 * time.Second)
 			for {
-				s.mu.Lock()
-				busy, message, available := s.launcherUpdateCheckBusy, s.launcherUpdate, s.launcherUpdateAvailable
-				s.mu.Unlock()
+				st := s.launcherController().UpdateProbeState()
+				busy, message, available := st.CheckBusy, st.Message, st.Available
 				if !busy {
 					want := string(desktopupdate.StatusUpToDate)
 					if status != http.StatusOK {

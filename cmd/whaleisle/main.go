@@ -7,9 +7,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -29,6 +26,11 @@ import (
 
 	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/accountlogout"
+	assistantctl "whaleisle/internal/app/assistant"
+	launcherctl "whaleisle/internal/app/launcher"
+	marketctl "whaleisle/internal/app/market"
+	projectctl "whaleisle/internal/app/project"
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
 	desktopcomponents "whaleisle/internal/desktop/components"
@@ -42,7 +44,6 @@ import (
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
-	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/desktop/providerdiscovery"
 	"whaleisle/internal/desktop/providerprofiles"
@@ -54,7 +55,6 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
-	"whaleisle/internal/pad"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/recovery"
@@ -103,41 +103,44 @@ import (
 type mainState struct {
 	remoteWorkspaceLease  atomic.Uint64
 	childComposerBindings map[string]string
-	padDesktop            *pad.Desktop
-	padDesktopAttempted   bool
-	pluginComposerOwner   *nativePluginComposerOwner
 	fileOpenWithOwner     fileOpenWithOwner
 	fileOpenWithState     files.OpenWithState
 	// pendingToast holds at most one message for the next painted frame; see
 	// notifyUser. It is never read from background timers.
-	pendingToast          string
-	sessionLogDownloads   map[sessionLogExportKey]*sessionLogExportOperation
-	voiceDevices          *composerVoiceDevices
-	workspaceOpenInApp    *frame.WorkspaceOpenInAppState
-	svgImages             *nativeSVGImages
-	svgImagesPaused       bool
-	nativePlugins         nativePluginManagerState
-	customPanels          customPanelState
-	applicationMenu       *desktopApplicationMenu
-	wallpaperControls     *settings.WallpaperEditor
-	wallpaperVisible      bool
-	commandSearchFocus    bool
-	appearanceEditor      *theme.Editor
-	appearanceVisible     bool
-	shortcutEditor        *shortcuts.Editor
-	shortcutPreferences   *shortcutprefs.Store
-	shortcutRevision      string
-	shortcutEditorSeq     uint64
-	wallpaperChoicesCache []string
-	wallpaperChoicesReady bool
+	pendingToast            string
+	sessionLogDownloads     map[sessionLogExportKey]*sessionLogExportOperation
+	voiceDevices            *composerVoiceDevices
+	workspaceOpenInApp      *frame.WorkspaceOpenInAppState
+	initCtrlMu              sync.Mutex
+	updaterCtl              *updater.Center
+	marketCtl               *marketctl.Coordinator
+	launcherCtl             *launcherctl.Controller
+	assistantCtl            *assistantctl.Service
+	projectCtl              *projectctl.Manager
+	svgImages               *nativeSVGImages
+	svgImagesPaused         bool
+	customPanels            customPanelState
+	applicationMenu         *desktopApplicationMenu
+	wallpaperControls       *settings.WallpaperEditor
+	wallpaperVisible        bool
+	commandSearchFocus      bool
+	appearanceEditor        *theme.Editor
+	appearanceVisible       bool
+	shortcutEditor          *shortcuts.Editor
+	shortcutPreferences     *shortcutprefs.Store
+	shortcutRevision        string
+	shortcutEditorSeq       uint64
+	wallpaperChoicesCache   []string
+	wallpaperChoicesReady   bool
+	wallpaperChoicesLoading bool
+	wallpaperChoicesGen     uint64
 	// shortcutBindingsCache holds the accepted bindings for this state; see
 	// pageShortcutBindings.
 	shortcutBindingsMu    sync.Mutex
 	shortcutBindingsCache shortcutBindingsCache
 	projectWindowHidden   bool
-	startupRecovery       startupRecoveryState
+	nativeRecovery        atomic.Pointer[nativeUIRecoveryController]
 	voice                 *composerVoiceOperation
-	projectFlow           projectFlowState
 	featurePreferences    featurePreferenceState
 	resumeStore           *recovery.Store
 	resumeCheckpoint      *resumeCheckpoint
@@ -183,7 +186,6 @@ type mainState struct {
 	// confirmAskTechnicalOpen is the disclosure state of the queued question's
 	// evidence block; askConfirm resets it for each new request.
 	confirmAskTechnicalOpen bool
-	desktopOnboarding       *settingsstore.DesktopOnboarding
 	sup                     *harness.Supervisor
 	bootStatus              harness.Status
 	bootLogs                []string
@@ -253,7 +255,6 @@ type mainState struct {
 	settingsProviderProfiles                providerprofiles.Controller
 	settingsReferencedCredentials           credentialrefs.Controller
 	settingsProviderDiscovery               providerdiscovery.Controller
-	settingsPluginInventory                 plugininventory.Controller
 	remoteMachines                          *remotestore.Store
 	remoteFiles                             *remotestore.Files
 	remoteFileEditor                        remoteui.FileEditor
@@ -268,38 +269,13 @@ type mainState struct {
 	sshConnectEpoch                         uint64
 	sshConnectCancel                        context.CancelFunc
 	imDraft                                 string
-	assistant                               *assiststore.Store
-	dshbotRoster                            *dshbotstore.Store
-	assistantTasks                          dshbotstore.TaskControls
-	assistantRoutines                       dshbotstore.RoutineControls
-	botNotifications                        *botNotificationRun
-	botNotificationMessage                  string
-	botNotificationShowing                  bool
-	botNotificationDenied                   bool
-	botNotificationReadSlot                 chan struct{}
-	assistantRoutineCreator                 dshbotstore.RoutineCreator
-	assistantRoomCreator                    dshbotstore.RoomCreator
-	assistantBotVisibility                  dshbotstore.BotVisibilityManager
-	assistantContacts                       dshbotstore.ContactControls
-	assistantBotCreator                     dshbotstore.BotCreator
-	assistantBotDeleter                     dshbotstore.BotDeleter
-	assistantBotDuplicator                  dshbotstore.BotDuplicator
-	assistantRoomEditor                     dshbotstore.RoomEditor
-	assistantRoomRuntime                    dshbotstore.RoomRuntimeReader
-	assistantGroupLive                      assistantGroupLiveState
-	whaleSettings                           assiststore.WhaleSettingsEditor
-	whaleNavName                            string
-	whaleNavKey                             string
-	whaleNavSerial                          uint64
-	whaleNavBusy                            bool
-	whaleNavFetchedAt                       time.Time
-	whaleTasks                              assiststore.WhaleTaskPanel
-	proactivePanel                          proactivePanelState
 	whaleCatalog                            whaleCatalogState
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
 	desktopLastAction                       string
 	credsDraft                              credentialsDraft
+	credsSeedLoading                        bool
+	credsSeedGen                            uint64
 	credsSaveErr                            string
 	credsLastAction                         string
 	credsHarnessNote                        string
@@ -311,7 +287,6 @@ type mainState struct {
 	accountStatusNotices                    accountStatusNoticeState
 	accountQuotaNotice                      accountQuotaNoticeState
 	im                                      *imstore.Store
-	market                                  *marketstore.Store
 	schedule                                *schedstore.Store
 	usageOpen                               bool
 	imOpen                                  bool
@@ -320,132 +295,80 @@ type mainState struct {
 	scheduleOpen                            bool
 	scheduleHistoryText                     string
 	remoteOpen                              bool
-	marketBatchReceipts                     map[string]string
-	marketBatch                             []marketstore.InstallTarget
-	marketActive                            *marketAttempt
-	marketWorker                            *marketAttempt
-	marketApproval                          *marketAttempt
-	marketCatalogTarget                     *marketstore.InstallTarget
-	marketInstallSpec                       string
-	marketInstallBusy                       bool
-	marketInstallRequestID                  string
-	marketInstallMsg                        string
-	marketInstallLog                        string
-	marketActivation                        marketstore.Activation
-	marketNeedsAllowBuilds                  bool
-	marketAllowBuilds                       []string
-	marketIncompatible                      []api.ChangeResultErrorIncompatibleItem
 	hasRemoteToken                          bool
 	hasRemoteRelayToken                     bool
 	// Phone-remote tokens copied from the credential store for the daemon
 	// config. Secrets: never logged and never written to config.json.
-	remoteToken                     string
-	remoteRelayToken                string
-	remoteDeviceCount               int
-	remoteDeviceNames               []string
-	phoneActionMsg                  string
-	sshProbeLine                    string
-	webviewOpen                     bool
-	browserPreviewOpen              bool
-	officePreview                   officePreviewState
-	pdfPreviewRequest               uint64
-	mediaPreviewRequest             uint64
-	htmlDocumentRequest             uint64
-	browserController               *browserpreviewui.Controller
-	browserPreviewDraft             string
-	browserPreviewNavigateErr       string
-	webviewHost                     *desktopwebview.Host
-	settingsOverlayHost             *desktopwebview.Host
-	webviewHostErr                  string
-	lastWebViewURL                  string
-	lastWebViewOrigin               string
-	pluginViewResumeAfterRestart    bool
-	pluginViewHostGeneration        int
-	assistantOpen                   bool
-	assistantConversationGeneration uint64
-	assistantDraft                  string
-	assistantLastAct                string
-	assistantPluginBusy             bool
-	assistantPluginDetail           string
-	launcherOpen                    bool
+	remoteToken                  string
+	remoteRelayToken             string
+	remoteDeviceCount            int
+	remoteDeviceNames            []string
+	phoneActionMsg               string
+	sshProbeLine                 string
+	webviewOpen                  bool
+	browserPreviewOpen           bool
+	officePreview                officePreviewState
+	pdfPreviewRequest            uint64
+	mediaPreviewRequest          uint64
+	htmlDocumentRequest          uint64
+	browserController            *browserpreviewui.Controller
+	browserPreviewDraft          string
+	browserPreviewNavigateErr    string
+	webviewHost                  *desktopwebview.Host
+	settingsOverlayHost          *desktopwebview.Host
+	webviewHostErr               string
+	lastWebViewURL               string
+	lastWebViewOrigin            string
+	pluginViewResumeAfterRestart bool
+	pluginViewHostGeneration     int
+	launcherOpen                 bool
 	// launcherWin is the separate 1060x660 launcher window (G04). Nil keeps the
 	// in-window launcher panel: isolated/QA desktops, --background, --settings,
 	// headless tests and a failed window creation all stay on that fallback.
 	launcherWin *launcherWindow
 	// launcherWindowAllowed is decided once at startup: only a cold foreground
 	// start hides the main window behind a separate launcher window.
-	launcherWindowAllowed   bool
-	toolsMenuOpen           bool
-	filesPaneOpen           bool // Electron tools → files/diff right dock
-	launcherTab             string
-	launcherWorkspaceDraft  string
-	launcherImport          string
-	launcherImportJournal   []string
-	launcherImportBusy      bool
-	launcherImportCancel    context.CancelFunc
-	launcherUpdate          string
-	launcherUpdateCheckBusy bool
-	updateCheckPending      bool
-	// updateProgress is the visible update row; updateJournal keeps the update
-	// evidence outside the installation directory (port of the reference shell
-	// update dialog and update-journal.js).
-	updateProgress          *updateProgressState
-	updateJournal           updateJournalBook
-	launcherPrefsError      string
-	nativeReleases          nativeReleaseState
-	launcherUpdateAvailable bool
-	launcherUpdateSynced    bool
-	launcherNote            string
-	launcherTriedStart      bool
-	launcherStartBusy       bool
-	launcherStartPreparing  bool
-	launcherStartCancel     context.CancelFunc
-	launcherStartFailed     bool
-	launcherStartErr        string
-	launcherPrefsSeeded     bool
-	launcherQuitAfterStart  bool
+	launcherWindowAllowed bool
+	toolsMenuOpen         bool
+	filesPaneOpen         bool // Electron tools → files/diff right dock
+	launcherImport        string
+	launcherImportJournal []string
+	launcherImportBusy    bool
+	launcherImportCancel  context.CancelFunc
+	lifecycleCtx          context.Context
+	lifecycleCancel       context.CancelFunc
 	// phoneBootStarted gates the once-per-session phone gateway start when the
 	// harness first becomes ready; phoneBootStartAction is nil in production
 	// (the real start) and replaced by a counter in tests.
-	phoneBootStarted              bool
-	phoneBootStartAction          func()
-	phoneDiagSampling             bool
-	launcherAutoStartDesktop      bool
-	launcherAskOnUpdate           bool
-	launcherDownloadRoute         string
-	launcherImportOverwrite       bool
-	launcherImportAttachments     bool
-	launcherImportCategories      map[string]bool
-	launcherImportCatalog         *importer.Catalog
-	launcherImportScan            importCatalogScan
-	launcherComponents            []desktopcomponents.Row
-	launcherComponentsFresh       bool
-	launcherComponentsRefreshBusy bool
-	launcherComponentStatus       string
-	launcherHarnessVersion        string
-	quitRequestPending            bool
-	quitCleanupFinished           bool
-	closingOverlay                bool
-	launcherRoutePopOpen          bool
-	workspaceMenuOpen             bool
-	workspacePickerAnchor         ui.Handle
-	workspaceRenameDraft          string
-	pendingDeeplink               deeplink.Target
-	settingsDrafts                []settingsDraftSlot
-	workspaceSessions             workspaceSessionLayouts
-	layout                        frame.LayoutSizes
-	chatList                      ui.ListState
-	draft                         string
-	editMessageSeq                float64
-	feedbackCommentMsgID          string
-	feedbackCommentDraft          string
-	modelPick                     string
-	permissionPick                string
-	agentPresetPick               string
-	thinkingExpanded              map[string]bool
-	renameSessionID               string
-	renameDraft                   string
-	sessionSearch                 string
+	phoneBootStarted         bool
+	phoneBootStartAction     func()
+	phoneDiagSampling        bool
+	launcherImportCategories map[string]bool
+	launcherImportCatalog    *importer.Catalog
+	launcherImportScan       importCatalogScan
+	launcherStartCancel      context.CancelFunc
+	quitRequestPending       bool
+	quitCleanupFinished      bool
+	closingOverlay           bool
+	workspaceMenuOpen        bool
+	workspacePickerAnchor    ui.Handle
+	workspaceRenameDraft     string
+	pendingDeeplink          deeplink.Target
+	settingsDrafts           []settingsDraftSlot
+	workspaceSessions        workspaceSessionLayouts
+	layout                   frame.LayoutSizes
+	chatList                 ui.ListState
+	draft                    string
+	editMessageSeq           float64
+	feedbackCommentMsgID     string
+	feedbackCommentDraft     string
+	modelPick                string
+	permissionPick           string
+	agentPresetPick          string
+	thinkingExpanded         map[string]bool
+	renameSessionID          string
+	renameDraft              string
+	sessionSearch            string
 
 	gitBranch           string
 	gitDirty            bool
@@ -546,8 +469,6 @@ type mainState struct {
 	composerTextInput       *composer.DraftClient
 	composerDrafts          map[string]*composer.DraftState
 	workspaceSessionOpen    workspaceSessionOpenState
-	startupSelection        startupSelectionState
-	projectPreference       projectPreferenceState
 
 	terminalPanel         *termui.Panel
 	terminalSessions      termui.Sessions
@@ -560,6 +481,8 @@ type mainState struct {
 
 	dshMu             sync.Mutex
 	dshCancel         context.CancelFunc
+	dshCtx            context.Context
+	dshRefresh        func()
 	dshEndpoint       string
 	dshClient         *dsh.Client
 	dshMux            *dsh.Mux
@@ -567,6 +490,9 @@ type mainState struct {
 	dshMuxLost        bool
 	dshBootstrapError string
 	dshNetworkOffline bool
+	coldStoresDir     string
+	coldStoresOnce    sync.Once
+	coldStoresDone    chan struct{}
 }
 
 var state = mainState{fileEditViewMode: files.EditViewEdit}
@@ -578,22 +504,14 @@ func desktopControlOps() installctrl.DesktopOps {
 	return installctrl.DesktopOps{
 		Proactive: state.dispatchProactive,
 		State: func(context.Context) (any, error) {
+			plugins := state.marketCoordinator().InstalledPluginLabels()
 			state.mu.Lock()
 			cfgStore := state.cfgStore
 			status := state.bootStatus
-			market := state.market
 			state.mu.Unlock()
 			var cfg config.Config
 			if cfgStore != nil {
 				cfg = cfgStore.Get()
-			}
-			var plugins []string
-			if market != nil {
-				for _, row := range market.Snapshot().Rows {
-					if strings.TrimSpace(row.Label) != "" {
-						plugins = append(plugins, row.Label)
-					}
-				}
 			}
 			public := desktopPublicConfig(cfg)
 			return map[string]any{
@@ -603,24 +521,7 @@ func desktopControlOps() installctrl.DesktopOps {
 			}, nil
 		},
 		ListMarketplace: func(ctx context.Context, opt installctrl.MarketplaceOptions) (any, error) {
-			state.mu.Lock()
-			market := state.market
-			state.mu.Unlock()
-			if market == nil {
-				return map[string]any{"ok": true, "plugins": []any{}}, nil
-			}
-			if opt.Refresh {
-				market.Refresh(ctx)
-			}
-			query := strings.ToLower(strings.TrimSpace(opt.Query))
-			rows := market.Snapshot().Rows
-			plugins := make([]map[string]any, 0, len(rows))
-			for _, row := range rows {
-				if query != "" && !strings.Contains(strings.ToLower(row.Label+" "+row.Detail), query) {
-					continue
-				}
-				plugins = append(plugins, map[string]any{"id": row.Label, "name": row.Label, "summary": row.Detail})
-			}
+			plugins := state.marketCoordinator().ListPluginsForInstallControl(ctx, opt.Refresh, opt.Query)
 			return map[string]any{"ok": true, "plugins": plugins}, nil
 		},
 		ApplyConfig: state.applyDesktopConfigPatch,
@@ -748,24 +649,7 @@ func (s *mainState) seedDesktopDraft() {
 	s.desktopSaveErr = ""
 }
 
-func (s *mainState) seedCredentialsDraft() {
-	creds, err := credentials.Load(paths.UserDataDir())
-	if err != nil {
-		s.credsSaveErr = err.Error()
-		s.credsDraft.seeded = true
-		return
-	}
-	s.credsDraft = credentialsDraft{
-		apiKey:           creds.APIKey,
-		baseURL:          creds.BaseURL,
-		githubToken:      creds.GithubToken,
-		remoteToken:      creds.RemoteToken,
-		remoteRelayToken: creds.RemoteRelayToken,
-		seeded:           true,
-	}
-	s.credsSaveErr = ""
-}
-
+// saveCredentials persists credential changes. REQUIRES: s.mu held.
 func (s *mainState) saveCredentials() {
 	dir := paths.UserDataDir()
 	existing, err := credentials.Load(dir)
@@ -787,9 +671,7 @@ func (s *mainState) saveCredentials() {
 	s.credsSaveErr = ""
 	s.credsLastAction = i18n.T(i18n.KeySettingsCredSaved)
 	s.applyRemoteCredentials(existing)
-	s.dshMu.Lock()
 	client := s.dshClient
-	s.dshMu.Unlock()
 	if client != nil {
 		go func(key string) {
 			if err := settingsstore.SyncAPIKeyToHarness(context.Background(), client, key); err != nil {
@@ -1014,15 +896,8 @@ func (s *mainState) showMainWindow() {
 }
 
 func (s *mainState) applyDeeplink(t deeplink.Target) {
-	s.assistantBotCreator.Suspend()
-	s.assistantBotVisibility.Suspend()
-	s.assistantContacts.Suspend()
-	s.assistantBotDeleter.Suspend()
-	s.assistantBotDuplicator.Suspend()
-	s.assistantRoomCreator.Suspend()
-	s.assistantRoomEditor.Suspend()
-	s.assistantRoomRuntime.Suspend()
-	s.assistantRoutines.Bind(dshbotstore.RoutineScope{})
+	s.assistantService().SuspendViews()
+	closeAssistant := false
 	s.mu.Lock()
 	s.pendingDeeplink = t
 	// Session and Agents links navigate to the conversation workspace. Tool
@@ -1031,8 +906,8 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	if t.Action == deeplink.ActionSession || t.Action == deeplink.ActionAgents {
 		s.imOpen, s.remoteOpen, s.marketOpen = false, false, false
 		s.webviewOpen, s.browserPreviewOpen = false, false
-		s.assistantOpen, s.toolsMenuOpen = false, false
-		s.assistantConversationGeneration++
+		s.toolsMenuOpen = false
+		closeAssistant = true
 	}
 	switch t.Action {
 	case deeplink.ActionLauncher:
@@ -1042,8 +917,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 	case deeplink.ActionSettings:
 		s.settingsEmbeddedSection = ""
 		s.settingsOpen = true
@@ -1052,8 +926,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
 		s.settingsAccountActive = false
@@ -1114,8 +987,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 	case deeplink.ActionMarket:
 		s.marketOpen = true
 		s.marketManager = false
@@ -1125,8 +997,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.scheduleOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 	case deeplink.ActionSchedule:
 		s.scheduleOpen = true
 		s.launcherOpen = false
@@ -1135,8 +1006,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 	case deeplink.ActionAgents:
 		s.filesPaneOpen = true
 		s.rightPaneTab = "agents"
@@ -1155,8 +1025,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.marketOpen = false
 		s.webviewOpen = false
 		s.browserPreviewOpen = false
-		s.assistantConversationGeneration++
-		s.assistantOpen = false
+		closeAssistant = true
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
 		s.settingsAccountActive = true
@@ -1186,6 +1055,9 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	usage := s.usage
 	sessions := s.sessions
 	s.mu.Unlock()
+	if closeAssistant {
+		s.assistantService().SetOpen(false)
+	}
 	if t.Action == deeplink.ActionLauncher {
 		// The launcher deep link opens/reuses the one launcher window
 		// (index.js:340-348); the panel fallback still needs the main window.
@@ -1287,66 +1159,8 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 	}
 }
 
-// Assistant entry hands the resolved canonical session to the existing chat owner.
-func (s *mainState) handleAssistantNativePrompt(_ string, ep harness.Endpoint, text string) {
-	s.mu.Lock()
-	asst := s.assistant
-	s.mu.Unlock()
-	if asst == nil || strings.TrimSpace(text) == "" {
-		return
-	}
-	target := asst.Snapshot()
-	if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
-		asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), i18n.T(i18n.KeyCmdComposerHostChanged))
-		return
-	}
-	s.openAssistantConversation(ep, target.Mode, target.DshbotID, strings.TrimSpace(text))
-}
-
 func (s *mainState) pluginRPCClient(ep harness.Endpoint) *pluginrpc.Client {
 	return &pluginrpc.Client{BaseURL: ep.Origin, Cookie: ep.Cookie}
-}
-
-func (s *mainState) runAssistantPluginRPC(win *mygo.Window, ep harness.Endpoint, label string, fn func(context.Context, *pluginrpc.Client) (string, error)) {
-	s.mu.Lock()
-	if s.assistantPluginBusy {
-		s.mu.Unlock()
-		return
-	}
-	s.assistantPluginBusy = true
-	s.assistantPluginDetail = label + "…"
-	s.assistantLastAct = s.assistantPluginDetail
-	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
-	go func() {
-		detail, err := fn(context.Background(), s.pluginRPCClient(ep))
-		msg := detail
-		if err != nil {
-			msg = label + ": " + err.Error()
-		} else if msg == "" {
-			msg = label + ": ok"
-		} else {
-			msg = label + ": " + truncateRunes(msg, 180)
-		}
-		s.mu.Lock()
-		s.assistantPluginBusy = false
-		s.assistantPluginDetail = msg
-		s.assistantLastAct = msg
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
-	}()
-}
-
-func truncateRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n]) + "…"
 }
 
 func (s *mainState) openWebViewHost(origin string) {
@@ -1596,11 +1410,11 @@ func (s *mainState) showElectronImportReport(win *mygo.Window) {
 }
 
 func (s *mainState) updateDownloadRoute() string {
+	if override := s.launcherController().DownloadRouteOverride(); override != "" {
+		return override
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.launcherDownloadRoute != "" {
-		return s.launcherDownloadRoute
-	}
 	if s.cfgStore != nil {
 		return s.cfgStore.Get().DownloadRoute
 	}
@@ -1633,10 +1447,29 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	if cmd == "" {
 		return false
 	}
+	s.launcherController().MarkComponentsStale()
+	switch cmd {
+	case "launcher", "l-home":
+		s.launcherController().SetTab(launcher.TabHome)
+	case "l-set", "launcher-settings":
+		s.launcherController().SetTab(launcher.TabSettings)
+	case "l-comp", "launcher-components":
+		s.launcherController().SetTab(launcher.TabComponents)
+	case "l-ver", "launcher-versions":
+		s.launcherController().SetTab(launcher.TabVersions)
+	case "l-imp", "launcher-import":
+		s.launcherController().SetTab(launcher.TabImport)
+	case "l-plug", "launcher-plugins":
+		s.launcherController().SetTab(launcher.TabPlugins)
+	default:
+		if sid, ok := strings.CutPrefix(cmd, "session:"); ok && strings.TrimSpace(sid) != "" {
+			s.launcherController().RetireStartupSelection()
+		}
+	}
+	s.assistantService().SetOpen(cmd == "assist" || cmd == "assistant")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.launcherOpen = false
-	s.launcherComponentsFresh = false
 	s.toolsMenuOpen = false
 	s.settingsOpen = false
 	s.usageOpen = false
@@ -1646,16 +1479,12 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	s.remoteOpen = false
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
 	switch cmd {
 	case "market":
 		s.marketOpen = true
 	case "usage":
 		s.usageOpen = true
 	case "assist", "assistant":
-		s.assistantConversationGeneration++
-		s.assistantOpen = true
 	case "schedule", "sched":
 		s.scheduleOpen = true
 	case "im":
@@ -1671,24 +1500,8 @@ func (s *mainState) pollAcceptOpenHook() bool {
 		s.settingsOpen = true
 		s.settingsDesktopActive = true
 		s.seedDesktopDraft()
-	case "launcher", "l-home":
+	case "launcher", "l-home", "l-set", "launcher-settings", "l-comp", "launcher-components", "l-ver", "launcher-versions", "l-imp", "launcher-import", "l-plug", "launcher-plugins":
 		s.launcherOpen = true
-		s.launcherTab = launcher.TabHome
-	case "l-set", "launcher-settings":
-		s.launcherOpen = true
-		s.launcherTab = launcher.TabSettings
-	case "l-comp", "launcher-components":
-		s.launcherOpen = true
-		s.launcherTab = launcher.TabComponents
-	case "l-ver", "launcher-versions":
-		s.launcherOpen = true
-		s.launcherTab = launcher.TabVersions
-	case "l-imp", "launcher-import":
-		s.launcherOpen = true
-		s.launcherTab = launcher.TabImport
-	case "l-plug", "launcher-plugins":
-		s.launcherOpen = true
-		s.launcherTab = launcher.TabPlugins
 	case "desktop", "d-main":
 		// all overlays already cleared
 	case "term", "terminal":
@@ -1705,12 +1518,15 @@ func (s *mainState) pollAcceptOpenHook() bool {
 		if sid, ok := strings.CutPrefix(cmd, "session:"); ok && strings.TrimSpace(sid) != "" {
 			target := strings.TrimSpace(sid)
 			s.todoPanelCollapsed = true
-			s.startupSelection.consumed = true
 			s.workspaceSessionOpen.generation++
+			ctx := s.lifecycleContext()
 			go func() {
 				var sessions *session.Store
 				var snap session.ViewState
 				for i := 0; i < 100; i++ {
+					if ctx.Err() != nil {
+						return
+					}
 					s.mu.Lock()
 					sessions = s.sessions
 					s.mu.Unlock()
@@ -1720,7 +1536,11 @@ func (s *mainState) pollAcceptOpenHook() bool {
 							break
 						}
 					}
-					time.Sleep(100 * time.Millisecond)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(100 * time.Millisecond):
+					}
 				}
 				if sessions == nil {
 					return
@@ -1756,23 +1576,30 @@ func (s *mainState) pollAcceptOpenHook() bool {
 }
 
 func (s *mainState) watchAcceptOpenHook() {
-	if isolatedDesktopRun() {
+	if isolatedDesktopRun() || os.Getenv("WHALEISLE_ACCEPT_OPEN_HOOK") != "1" {
 		return
 	}
+	ctx := s.lifecycleContext()
 	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
 		for {
-			time.Sleep(200 * time.Millisecond)
-			if s.pollAcceptOpenHook() {
-				s.mu.Lock()
-				w := s.win
-				s.mu.Unlock()
-				if w != nil {
-					w.Update(func() {})
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if s.pollAcceptOpenHook() {
+					s.mu.Lock()
+					w := s.win
+					s.mu.Unlock()
+					if w != nil {
+						w.Update(func() {})
+					}
+					// A route may hand the window to the launcher or back to the
+					// desktop; the move is its own main-thread task, never a nested
+					// content update.
+					mygo.RunOnMain(func() { s.syncLauncherStage() })
 				}
-				// A route may hand the window to the launcher or back to the
-				// desktop; the move is its own main-thread task, never a nested
-				// content update.
-				mygo.RunOnMain(func() { s.syncLauncherStage() })
 			}
 		}
 	}()
@@ -1799,16 +1626,10 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	}
 	s.bootStatus = st
 	startuptrace.Mark("boot.status", st.State.String())
-	persistenceFailed := s.recordStartupStatusLocked(st)
 	if st.State == harness.Ready {
-		// The startup outcome file is what an external observer reads as Ready, so
-		// this mark is the end of the measured cold-start chain.
 		startuptrace.Mark("boot.outcome_recorded")
 		startuptrace.Finish("ready")
 	}
-	// A fatal local-service failure writes one bounded diagnostic for the error
-	// surface to name (native crash-report.js). One file per failure: keyed by
-	// the supervisor generation, and by the pre-supervisor error text otherwise.
 	failedMessage := ""
 	if st.State == harness.Failed {
 		key := st.Generation
@@ -1822,49 +1643,51 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	} else {
 		s.crashReportGeneration = 0
 	}
-	// Starting the phone gateway is decided under the same lock as the ready
-	// transition, then run after unlock (it spawns the daemon and takes phoneOp).
-	startPhone := false
-	switch st.State {
-	case harness.Starting:
-		s.launcherStartBusy = true
-		if !st.RecoveryActive && !st.RecoveryCancelled {
-			s.launcherOpen = true
-		}
-	case harness.Ready:
-		s.launcherStartBusy = false
-		s.launcherStartFailed = false
-		s.launcherStartErr = ""
-		quitLauncher := true
-		if s.cfgStore != nil {
-			quitLauncher = s.cfgStore.Get().QuitAfterStart
-		}
-		if st.RecoveryCancelled {
-			// Cancellation keeps the current page, including an explicitly opened launcher.
-		} else if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || s.startupRecovery.updateHold) {
-			s.launcherOpen = false
-		} else {
-			s.launcherOpen = true
-		}
-		startPhone = s.claimPhoneBootStartLocked()
-	case harness.Failed:
-		s.launcherStartBusy = false
-		if !st.RecoveryCancelled {
-			s.launcherOpen = true
-		}
-		if s.launcherTriedStart || prev == harness.Starting {
-			s.launcherStartFailed = true
-			if st.Err != nil {
-				s.launcherStartErr = st.Err.Error()
-			}
-		}
-	}
-	if s.sup != nil {
-		s.bootLogs = s.sup.Logs()
+	sup := s.sup
+	if sup != nil {
+		s.bootLogs = sup.Logs()
 	}
 	logs := append([]string(nil), s.bootLogs...)
 	win := s.win
 	lw := s.launcherWin
+	s.mu.Unlock()
+
+	var startLogs []string
+	if sup != nil {
+		startLogs = sup.CurrentStartLogs()
+	}
+	l := s.launcherController()
+	persistenceFailed := l.RecordStartupStatus(st, startLogs, buildVersion)
+	l.ObserveBootStatus(prev, st)
+	updateHold := s.updaterCenter().Hold()
+
+	startPhone := false
+	s.mu.Lock()
+	if s.bootStatus.Generation == st.Generation && s.bootStatus.State == st.State {
+		switch st.State {
+		case harness.Starting:
+			if !st.RecoveryActive && !st.RecoveryCancelled {
+				s.launcherOpen = true
+			}
+		case harness.Ready:
+			quitLauncher := true
+			if s.cfgStore != nil {
+				quitLauncher = s.cfgStore.Get().QuitAfterStart
+			}
+			if st.RecoveryCancelled {
+				// Cancellation keeps the current page, including an explicitly opened launcher.
+			} else if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || updateHold) {
+				s.launcherOpen = false
+			} else {
+				s.launcherOpen = true
+			}
+			startPhone = s.claimPhoneBootStartLocked()
+		case harness.Failed:
+			if !st.RecoveryCancelled {
+				s.launcherOpen = true
+			}
+		}
+	}
 	s.mu.Unlock()
 	// The native shell starts its phone gateway as soon as the config with
 	// remoteEnabled is in effect; MyGo had no such call, so a boot-time enable
@@ -1926,23 +1749,24 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.dshMu.Unlock()
 		return
 	}
-	s.stopDSHLocked()
+	oldLease := s.stopDSHLocked()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.dshCancel = cancel
+	s.dshCtx = ctx
 	s.dshEndpoint = key
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.mu.Lock()
+	s.dshClient = client
+	s.dshMux = nil
 	s.dshMuxReady = false
 	s.dshMuxLost = false
 	s.dshBootstrapError = ""
 	s.dshNetworkOffline = false
 	s.mu.Unlock()
-	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
 	s.replaceMCPControllerLocked()
 	s.settingsProviderProfiles.ResetHost()
 	s.remoteWorkspaceLease.Add(1)
-	s.dshClient = client
 	s.accountSignOut.Bind(client)
-	s.attachPluginInventory(client)
 	s.settingsReferencedCredentials.Attach(client)
 	s.settingsProviderDiscovery.Attach(client)
 	s.mu.Lock()
@@ -1967,9 +1791,6 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	if s.im == nil {
 		s.im = imstore.New()
 	}
-	if s.market == nil {
-		s.market = marketstore.New()
-	}
 	if s.schedule == nil {
 		s.schedule = schedstore.New()
 	}
@@ -1979,11 +1800,11 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	usageStore := s.usage
 	remoteMachines := s.remoteMachines
 	imStore := s.im
-	marketStore := s.market
 	schedStore := s.schedule
 	win := s.win
 	s.mu.Unlock()
 	s.dshMu.Unlock()
+	closeAccountPlatformLease(oldLease)
 
 	// A retained interaction store still owns the previous Host's refresh hook.
 	// SetAutoAllow publishes synchronously; that hook may re-enter mainState.
@@ -1991,9 +1812,12 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		inter.SetAutoAllow(interactionConfig.Get().AutoAllowTools)
 	}
 	var refreshQueued atomic.Bool
+	var viewTabsHydrated atomic.Bool
 	refresh := func() {
 		uiDiagRefreshHits.Add(1)
+		s.noteNativeUIActivity()
 		s.cancelComposerVoiceIfStale()
+		s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 		if win != nil {
 			if refreshQueued.CompareAndSwap(false, true) {
 				win.Update(func() {
@@ -2009,6 +1833,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		}
 	}
 	sessions.Attach(client, refresh)
+	retireStaleInlineVisualPages()
 	s.bindWorkspacePreferences(sessions, client)
 	chat.SetAttachmentResolver(sessions.CaptureAttachmentRead)
 	setStore.Attach(client, refresh)
@@ -2019,9 +1844,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
-	marketStore.SetUpdateProfileDir(s.managedMarketProfile(st))
-	marketStore.Attach(client, refresh)
-	s.bindNativePluginManager(client)
+	s.marketCoordinator().AttachHost(client, s.managedMarketProfile(st), refresh)
 	schedStore.Attach(client, refresh)
 	go func() {
 		_ = settingsstore.ReportProductEvent(context.Background(), client, api.ProductEvent(
@@ -2029,7 +1852,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		))
 	}()
 	setStore.RefreshVision(context.Background())
-	go s.hydrateViewTabsFromHarness(setStore)
+	s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 	s.mu.Lock()
 	workspace := ""
 	if s.cfgStore != nil {
@@ -2042,7 +1865,15 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	mux := &dsh.Mux{Endpoint: client.Endpoint}
 	s.dshMu.Lock()
+	if s.dshClient != client || ctx.Err() != nil {
+		s.dshMu.Unlock()
+		return
+	}
+	s.mu.Lock()
 	s.dshMux = mux
+	coldDir := s.coldStoresDir
+	s.mu.Unlock()
+	s.dshRefresh = refresh
 	s.dshMu.Unlock()
 	s.hostTerminals.Bind(client, mux, false, refresh)
 	sessions.AttachMux(mux)
@@ -2059,6 +1890,9 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.bindProactiveRunner(ctx, client)
 	}
 	s.dshMu.Unlock()
+	if coldDir != "" {
+		s.triggerDeferredColdStores(coldDir, nil)
+	}
 	sessions.InitializeDefaultModel(context.Background())
 	sessions.RefreshModelCatalog(context.Background())
 	sessions.RefreshAgentPresets(context.Background())
@@ -2067,20 +1901,14 @@ func (s *mainState) syncDialogue(st harness.Status) {
 
 func (s *mainState) stopDSH() {
 	s.dshMu.Lock()
-	defer s.dshMu.Unlock()
-	s.stopDSHLocked()
+	lease := s.stopDSHLocked()
+	s.dshMu.Unlock()
+	retireStaleInlineVisualPages()
+	closeAccountPlatformLease(lease)
 }
 
-func (s *mainState) stopDSHLocked() {
-	s.bindProactiveRunner(context.Background(), nil)
-	s.assistantBotCreator.Suspend()
-	s.assistantBotVisibility.Suspend()
-	s.assistantContacts.Suspend()
-	s.assistantBotDeleter.Suspend()
-	s.assistantBotDuplicator.Suspend()
-	s.assistantRoomCreator.Suspend()
-	s.assistantRoomEditor.Suspend()
-	s.assistantRoomRuntime.Suspend()
+func (s *mainState) stopDSHLocked() *accountPlatformLease {
+	s.assistantService().StopDSH()
 	s.hostTerminals.Bind(nil, nil, false, nil)
 	s.cancelComposerVoice()
 	s.mu.Lock()
@@ -2089,41 +1917,39 @@ func (s *mainState) stopDSHLocked() {
 		s.acpPanel.cancel()
 	}
 	s.acpPanel = acpPanelState{generation: s.acpPanel.generation + 1}
-	s.stopProjectProcessLocked()
 	s.invalidateSettingsSkillCreateLocked()
 	s.invalidateSettingsSkillHubLocked()
-	s.stopProjectRefreshLocked()
-	s.closeProjectHistoricalLocked()
 	s.mu.Unlock()
+	s.projectManager().Suspend()
 	if s.remoteFiles != nil {
 		s.remoteFiles.Bind(nil, "", nil)
 	}
 	if s.remoteMachines != nil {
 		s.remoteMachines.Attach(nil, nil)
 	}
-	s.invalidateMarketLocked()
 	if s.dshCancel != nil {
 		s.dshCancel()
 		s.dshCancel = nil
 	}
+	s.dshCtx = nil
+	s.dshRefresh = nil
 	s.dshEndpoint = ""
 	s.replaceMCPControllerLocked()
 	s.settingsProviderProfiles.ResetHost()
 	s.remoteWorkspaceLease.Add(1)
-	s.dshClient = nil
-	s.bindNativePluginManager(nil)
-	s.clearAccountReturn()
-	s.accountSignOut.Bind(nil)
-	s.attachPluginInventory(nil)
-	s.settingsReferencedCredentials.Attach(nil)
-	s.settingsProviderDiscovery.Attach(nil)
-	s.dshMux = nil
 	s.mu.Lock()
+	s.dshClient = nil
+	s.dshMux = nil
 	s.dshMuxReady = false
 	s.dshMuxLost = false
 	s.dshBootstrapError = ""
 	s.dshNetworkOffline = false
 	s.mu.Unlock()
+	lease := s.clearAccountReturnDetached()
+	s.accountSignOut.Bind(nil)
+	s.marketCoordinator().DetachHost()
+	s.settingsReferencedCredentials.Attach(nil)
+	s.settingsProviderDiscovery.Attach(nil)
 	if s.sessions != nil {
 		s.sessions.Detach()
 	}
@@ -2139,13 +1965,10 @@ func (s *mainState) stopDSHLocked() {
 	if s.im != nil {
 		s.im.Detach()
 	}
-	if s.market != nil {
-		s.market.SetUpdateProfileDir("")
-		s.market.Detach()
-	}
 	if s.schedule != nil {
 		s.schedule.Detach()
 	}
+	return lease
 }
 
 func (s *mainState) refreshSettingsMCP() {
@@ -2207,7 +2030,6 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 							sessions.InitializeDefaultWorkspace(ctx)
 							sessions.OnEventsReady(eventsOwner)
 							sessions.WatchSpeechCatalogForEvents(eventsOwner)
-							sessions.WatchNativeContributionsForEvents(eventsOwner)
 							sessions.RefreshPermissionCatalogForEvents(eventsOwner)
 						}
 					})
@@ -2398,6 +2220,9 @@ func main() {
 			log.Println("userdata:", err)
 		}
 		userData := paths.UserDataDir()
+		state.mu.Lock()
+		state.coldStoresDir = userData
+		state.mu.Unlock()
 		imgDir := imgcache.Dir(userData)
 		if err := os.MkdirAll(imgDir, 0o755); err != nil {
 			log.Println("imgcache:", err)
@@ -2411,41 +2236,6 @@ func main() {
 			attDir := filepath.Join(userData, "cache", "attachments")
 			session.SetAttachmentCacheDir(attDir)
 		}
-		if imS, err := imstore.Open(userData); err != nil {
-			log.Println("im:", err)
-			state.mu.Lock()
-			if state.im == nil {
-				state.im = imstore.New()
-			}
-			state.mu.Unlock()
-		} else {
-			state.mu.Lock()
-			state.im = imS
-			state.imDraft = imS.Snapshot().Draft
-			state.mu.Unlock()
-		}
-		if asst, err := assiststore.Open(userData); err != nil {
-			log.Println("assistant:", err)
-			state.mu.Lock()
-			if state.assistant == nil {
-				state.assistant = assiststore.New()
-			}
-			state.mu.Unlock()
-		} else {
-			state.mu.Lock()
-			state.assistant = asst
-			state.mu.Unlock()
-		}
-		state.openProactive(userData)
-		state.openCustomPanels(userData)
-		if roster, err := dshbotstore.Open(userData); err != nil {
-			log.Println("dshbot roster:", err)
-		} else {
-			state.mu.Lock()
-			state.dshbotRoster = roster
-			state.mu.Unlock()
-		}
-		startuptrace.Mark("stores.opened")
 
 		cfgStore, err := config.Open(userData)
 		if err != nil {
@@ -2483,6 +2273,7 @@ func main() {
 		state.closeToTray = cfg.CloseToTray
 		state.themeID = cfg.Theme
 		state.mu.Unlock()
+		state.launcherController().SetCloseToTray(cfg.CloseToTray)
 
 		if creds, err := credentials.Load(userData); err != nil {
 			log.Println("credentials:", err)
@@ -2494,23 +2285,6 @@ func main() {
 			state.credsMissing = strings.TrimSpace(creds.APIKey) == ""
 			_, markerErr := os.Stat(filepath.Join(userData, welcomeMarker))
 			state.welcomeDone = markerErr == nil
-			state.mu.Unlock()
-		}
-		if tcfg, err := sshremote.LoadTunnelConfig(userData); err != nil {
-			log.Println("ssh-tunnel:", err)
-		} else {
-			state.mu.Lock()
-			state.sshTunnel = sshremote.NewTunnelSession()
-			state.sshTunnel.SetConfig(tcfg)
-			state.sshHost = tcfg.Host
-			state.sshUser = tcfg.User
-			if tcfg.Port > 0 {
-				state.sshPort = strconv.Itoa(tcfg.Port)
-			} else {
-				state.sshPort = "22"
-			}
-			state.sshIdentity = tcfg.IdentityFile
-			state.sshForward = tcfg.LocalForward
 			state.mu.Unlock()
 		}
 		startuptrace.Mark("config.loaded")
@@ -2618,7 +2392,11 @@ func main() {
 		// closes the companion through OnClosed below; re-arm it when the new
 		// window is shown so an enabled pet comes back instead of staying
 		// closed for the rest of the session.
-		win.OnShow(func() { state.desktopPet.SetReady(!isolatedDesktopRun()); startuptrace.Mark("window.shown") })
+		win.OnShow(func() {
+			state.desktopPet.SetReady(!isolatedDesktopRun())
+			startuptrace.Mark("window.shown")
+			state.triggerDeferredColdStores(userData, nil)
+		})
 		win.OnClosed(func() { state.desktopPet.Close() })
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
 		win.OnHide(state.cancelComposerVoice)
@@ -2635,39 +2413,14 @@ func main() {
 		win.OnClosed(state.pauseSVGImages)
 		win.OnShow(state.resumeSVGImages)
 		win.OnRestore(state.resumeSVGImages)
-		win.OnClosed(state.whaleSettings.Suspend)
-		win.OnClosed(state.stopBotNotifications)
-		win.OnFocus(state.clearFocusedBotNotifications)
+		asstSvc := state.assistantService()
+		win.OnHide(asstSvc.OnWindowHide)
+		win.OnMinimize(asstSvc.OnWindowMinimize)
+		win.OnClosed(asstSvc.OnWindowClosed)
+		win.OnFocus(asstSvc.OnWindowFocus)
 		win.OnBlur(state.accountWindowBlurred)
 		win.OnFocus(state.returnFromAccountExternal)
 		win.OnClosed(state.clearAccountReturn)
-		win.OnHide(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
-		win.OnMinimize(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
-		win.OnClosed(func() { state.assistantRoutines.Bind(dshbotstore.RoutineScope{}) })
-		win.OnHide(state.assistantRoomCreator.Suspend)
-		win.OnHide(state.assistantBotCreator.Suspend)
-		win.OnHide(state.assistantBotVisibility.Suspend)
-		win.OnHide(state.assistantContacts.Suspend)
-		win.OnHide(state.assistantBotDeleter.Suspend)
-		win.OnHide(state.assistantBotDuplicator.Suspend)
-		win.OnHide(state.assistantRoomEditor.Suspend)
-		win.OnHide(state.assistantRoomRuntime.Suspend)
-		win.OnMinimize(state.assistantRoomCreator.Suspend)
-		win.OnMinimize(state.assistantBotCreator.Suspend)
-		win.OnMinimize(state.assistantBotVisibility.Suspend)
-		win.OnMinimize(state.assistantContacts.Suspend)
-		win.OnMinimize(state.assistantBotDeleter.Suspend)
-		win.OnMinimize(state.assistantBotDuplicator.Suspend)
-		win.OnMinimize(state.assistantRoomEditor.Suspend)
-		win.OnMinimize(state.assistantRoomRuntime.Suspend)
-		win.OnClosed(state.assistantRoomCreator.Suspend)
-		win.OnClosed(state.assistantBotCreator.Suspend)
-		win.OnClosed(state.assistantBotVisibility.Suspend)
-		win.OnClosed(state.assistantContacts.Suspend)
-		win.OnClosed(state.assistantBotDeleter.Suspend)
-		win.OnClosed(state.assistantBotDuplicator.Suspend)
-		win.OnClosed(state.assistantRoomEditor.Suspend)
-		win.OnClosed(state.assistantRoomRuntime.Suspend)
 		win.OnHide(state.suspendMCPHealth)
 		win.OnMinimize(state.suspendMCPHealth)
 		win.OnClosed(state.suspendMCPHealth)
@@ -2702,14 +2455,15 @@ func main() {
 			}
 			state.fileTabs.Pause()
 			state.projectWindowHidden = true
-			state.stopProjectRefreshLocked()
 			state.mu.Unlock()
+			state.projectManager().SetWindowHidden(true)
 			state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 		})
 		win.OnShow(func() {
 			state.mu.Lock()
 			state.projectWindowHidden = false
 			state.mu.Unlock()
+			state.projectManager().SetWindowHidden(false)
 			win.Invalidate()
 		})
 		win.OnClosed(func() {
@@ -2720,10 +2474,8 @@ func main() {
 			if state.sessions != nil {
 				state.sessions.CloseAgentNavigation()
 			}
-			state.stopProjectProcessLocked()
-			state.stopProjectRefreshLocked()
-			state.closeProjectHistoricalLocked()
 			state.mu.Unlock()
+			state.projectManager().Close()
 		})
 
 		win.OnClose(func(e *mygo.CloseEvent) {
@@ -2753,7 +2505,6 @@ func main() {
 		state.mu.Lock()
 		state.win = win
 		state.launcherWindowAllowed = launcherFirst
-		state.watchAcceptOpenHook()
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
 			state.layout.Sidebar = cfg.SidebarWidth
@@ -2775,9 +2526,10 @@ func main() {
 		state.trajActualDur = true
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
+		state.watchAcceptOpenHook()
 		state.startNativeUpdateCenter(win)
-		state.startProactiveMonitor()
-		mygo.App.OnQuit(state.cancelProactiveMonitor)
+		state.assistantService().StartProactiveMonitor()
+		mygo.App.OnQuit(state.assistantService().CancelProactiveMonitor)
 		state.startNativeUIRecovery(win)
 		win.OnClosed(state.cancelImportCatalogScan)
 		win.OnClosed(state.stopNativeUpdateCenter)
@@ -2822,25 +2574,244 @@ func main() {
 	}
 }
 
+type deferredColdStoreOps struct {
+	openIM           func(string) (*imstore.Store, error)
+	openAssistant    func(string) (*assiststore.Store, error)
+	openProactive    func(string)
+	openCustomPanels func(string)
+	openDshbotRoster func(string) (*dshbotstore.Store, error)
+	loadSSHTunnel    func(string) (sshremote.TunnelConfig, error)
+}
+
+func (s *mainState) defaultDeferredColdStoreOps(ops *deferredColdStoreOps) deferredColdStoreOps {
+	var resolved deferredColdStoreOps
+	if ops != nil {
+		resolved = *ops
+	}
+	if resolved.openIM == nil {
+		resolved.openIM = imstore.Open
+	}
+	if resolved.openAssistant == nil {
+		resolved.openAssistant = assiststore.Open
+	}
+	if resolved.openProactive == nil {
+		resolved.openProactive = s.openProactive
+	}
+	if resolved.openCustomPanels == nil {
+		resolved.openCustomPanels = s.openCustomPanels
+	}
+	if resolved.openDshbotRoster == nil {
+		resolved.openDshbotRoster = dshbotstore.Open
+	}
+	if resolved.loadSSHTunnel == nil {
+		resolved.loadSSHTunnel = sshremote.LoadTunnelConfig
+	}
+	return resolved
+}
+
+// triggerDeferredColdStores starts non-critical local store loading asynchronously
+// once (primarily after window.shown, or earlier if Host connects in background).
+func (s *mainState) triggerDeferredColdStores(userData string, ops *deferredColdStoreOps) <-chan struct{} {
+	if s == nil || userData == "" {
+		return nil
+	}
+	s.mu.Lock()
+	if s.coldStoresDone == nil {
+		s.coldStoresDone = make(chan struct{})
+	}
+	done := s.coldStoresDone
+	s.mu.Unlock()
+	s.coldStoresOnce.Do(func() {
+		ctx := s.lifecycleContext()
+		resolved := s.defaultDeferredColdStoreOps(ops)
+		go func() {
+			defer close(done)
+			s.loadDeferredColdStores(ctx, userData, resolved)
+		}()
+	})
+	return done
+}
+
+func (s *mainState) loadDeferredColdStores(ctx context.Context, userData string, ops deferredColdStoreOps) {
+	if ctx.Err() != nil {
+		return
+	}
+	var wg sync.WaitGroup
+	wg.Add(6)
+	go func() {
+		defer wg.Done()
+		s.commitDeferredIMStore(ctx, userData, ops.openIM)
+	}()
+	go func() {
+		defer wg.Done()
+		if ctx.Err() != nil {
+			return
+		}
+		if asst, err := ops.openAssistant(userData); err != nil {
+			log.Println("assistant:", err)
+			if ctx.Err() == nil {
+				s.assistantService().EnsureAssistantStore()
+			}
+		} else if ctx.Err() == nil {
+			s.assistantService().AttachAssistantStore(asst)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		s.commitDeferredProactive(ctx, userData, ops.openProactive)
+	}()
+	go func() {
+		defer wg.Done()
+		if ctx.Err() != nil {
+			return
+		}
+		ops.openCustomPanels(userData)
+	}()
+	go func() {
+		defer wg.Done()
+		if ctx.Err() != nil {
+			return
+		}
+		if roster, err := ops.openDshbotRoster(userData); err != nil {
+			log.Println("dshbot roster:", err)
+		} else if ctx.Err() == nil {
+			s.assistantService().AttachDshbotRoster(roster)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		s.commitDeferredSSHTunnel(ctx, userData, ops.loadSSHTunnel)
+	}()
+	wg.Wait()
+	if ctx.Err() != nil {
+		return
+	}
+	startuptrace.Mark("stores.opened")
+	s.mu.Lock()
+	win := s.win
+	s.mu.Unlock()
+	if win != nil {
+		win.Update(func() {})
+	}
+}
+
+func (s *mainState) commitDeferredIMStore(ctx context.Context, userData string, openFn func(string) (*imstore.Store, error)) {
+	if ctx.Err() != nil {
+		return
+	}
+	imS, err := openFn(userData)
+	if ctx.Err() != nil {
+		return
+	}
+	loadedDraft := ""
+	if err == nil && imS != nil {
+		loadedDraft = imS.Snapshot().Draft
+	}
+	var attachIM, detachPrev *imstore.Store
+	s.dshMu.Lock()
+	client, refresh, dshCtx := s.dshClient, s.dshRefresh, s.dshCtx
+	s.mu.Lock()
+	if err != nil {
+		log.Println("im:", err)
+		if s.im == nil {
+			s.im = imstore.New()
+			attachIM = s.im
+		}
+	} else if imS != nil && (s.im == nil || s.im.Root() == "") {
+		detachPrev = s.im
+		s.im = imS
+		if s.imDraft == "" {
+			s.imDraft = loadedDraft
+		}
+		attachIM = imS
+	}
+	s.mu.Unlock()
+	s.dshMu.Unlock()
+	if detachPrev != nil {
+		detachPrev.Detach()
+	}
+	if attachIM != nil && client != nil && (dshCtx == nil || dshCtx.Err() == nil) {
+		attachIM.Attach(client, refresh)
+		s.dshMu.Lock()
+		stale := s.dshClient != client || s.dshCtx != dshCtx || (dshCtx != nil && dshCtx.Err() != nil)
+		s.dshMu.Unlock()
+		if stale {
+			attachIM.Detach()
+		}
+	}
+}
+
+func (s *mainState) commitDeferredProactive(ctx context.Context, userData string, openFn func(string)) {
+	if ctx.Err() != nil {
+		return
+	}
+	openFn(userData)
+	if ctx.Err() != nil {
+		return
+	}
+	s.dshMu.Lock()
+	client, dshCtx := s.dshClient, s.dshCtx
+	s.dshMu.Unlock()
+	if client != nil && dshCtx != nil && dshCtx.Err() == nil {
+		s.bindProactiveRunner(dshCtx, client)
+		s.dshMu.Lock()
+		stale := s.dshClient != client || s.dshCtx != dshCtx || dshCtx.Err() != nil
+		s.dshMu.Unlock()
+		if stale {
+			s.assistantService().StopProactiveRunner()
+		}
+	}
+	s.assistantService().StartProactiveMonitor()
+}
+
+func (s *mainState) commitDeferredSSHTunnel(ctx context.Context, userData string, loadFn func(string) (sshremote.TunnelConfig, error)) {
+	if ctx.Err() != nil {
+		return
+	}
+	tcfg, err := loadFn(userData)
+	if err != nil {
+		log.Println("ssh-tunnel:", err)
+		return
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	s.mu.Lock()
+	if s.sshTunnel == nil && s.sshHost == "" && s.sshUser == "" && s.sshPort == "" && s.sshIdentity == "" && s.sshForward == "" {
+		s.sshTunnel = sshremote.NewTunnelSession()
+		s.sshTunnel.SetConfig(tcfg)
+		s.sshHost = tcfg.Host
+		s.sshUser = tcfg.User
+		if tcfg.Port > 0 {
+			s.sshPort = strconv.Itoa(tcfg.Port)
+		} else {
+			s.sshPort = "22"
+		}
+		s.sshIdentity = tcfg.IdentityFile
+		s.sshForward = tcfg.LocalForward
+	}
+	s.mu.Unlock()
+}
+
 func startHarness(cfg config.Config) {
 	startuptrace.Mark("harness.start_requested")
+	startupStore := state.launcherController().RecoveryStore()
 	state.mu.Lock()
 	if state.quitting {
 		state.mu.Unlock()
 		return
 	}
 	cfgStore := state.cfgStore
-	startupStore := state.startupRecovery.store
 	if state.launcherImportBusy {
-		state.launcherStartBusy = false
 		state.launcherImport = i18n.T(i18n.KeyCmdImportStartBlocked)
 		state.mu.Unlock()
+		state.launcherController().SetStartBusy(false)
 		return
 	}
-	state.launcherStartBusy = true
 	prepareCtx, cancelPreparation := context.WithCancel(context.Background())
 	state.launcherStartCancel = cancelPreparation
 	state.mu.Unlock()
+	state.launcherController().SetStartBusy(true)
 	defer func() {
 		cancelPreparation()
 		state.mu.Lock()
@@ -2926,13 +2897,11 @@ func startHarness(cfg config.Config) {
 	if strings.TrimSpace(cfg.Workspace) == "" {
 		state.mu.Lock()
 		state.launcherOpen = true
-		state.launcherStartBusy = false
-		state.launcherStartFailed = true
-		state.launcherStartErr = i18n.T(i18n.KeyLauncherNoWorkspace)
 		state.mu.Unlock()
+		state.launcherController().SetStartError(false, true, i18n.T(i18n.KeyLauncherNoWorkspace))
 		state.refreshBoot(harness.Status{
 			State: harness.Failed,
-			Err:   fmt.Errorf("workspace not configured"),
+			Err:   fmt.Errorf("%s", i18n.T(i18n.KeyLauncherNoWorkspace)),
 		})
 		return
 	}
@@ -2948,13 +2917,13 @@ func startHarness(cfg config.Config) {
 	launch := func() {
 		state.mu.Lock()
 		if state.quitting || state.launcherImportBusy {
-			state.launcherStartBusy = false
 			state.mu.Unlock()
+			state.launcherController().SetStartBusy(false)
 			return
 		}
 		state.sup = sup
-		state.startupRecovery.recorded = false
 		state.mu.Unlock()
+		state.launcherController().ResetRecoveryRecording()
 		sup.Start()
 	}
 	state.mu.Lock()
@@ -2968,9 +2937,7 @@ func startHarness(cfg config.Config) {
 }
 
 func (s *mainState) finishLauncherPreparation(win *mygo.Window) {
-	s.mu.Lock()
-	s.launcherStartPreparing = false
-	s.mu.Unlock()
+	s.launcherController().EndPreparationOnly()
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -2983,8 +2950,8 @@ func (s *mainState) finishLauncherPreparation(win *mygo.Window) {
 func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
 	s.mu.Lock()
 	s.launcherOpen = true
-	s.launcherStartPreparing = true
 	s.mu.Unlock()
+	s.launcherController().BeginBootPreparation()
 	// launcher.js opens the launcher before any start decision. UI thread only:
 	// the startup callback and the welcome window's completion both run there.
 	s.syncLauncherStage()
@@ -2993,13 +2960,12 @@ func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
 		canStartAfterRecovery := s.recoverImportBeforeStart()
 		if s.coldStartupAllowed(cfg, canStartAfterRecovery) {
 			s.mu.Lock()
-			if s.quitting {
-				s.mu.Unlock()
+			quitting := s.quitting
+			s.mu.Unlock()
+			if quitting {
 				return
 			}
-			s.launcherTriedStart = true
-			s.launcherStartBusy = true
-			s.mu.Unlock()
+			s.launcherController().MarkColdStartBusy()
 			startHarness(cfg)
 		}
 	}()
@@ -3265,17 +3231,15 @@ func (s *mainState) runGitRemote(action string, root string, run func(context.Co
 	}()
 }
 
-func (s *mainState) hydrateViewTabsFromHarness(setStore *settingsstore.Store) {
-	if setStore == nil {
+func (s *mainState) tryHydrateViewTabsFromHarness(setStore *settingsstore.Store, hydrated *atomic.Bool) {
+	if setStore == nil || hydrated == nil || hydrated.Load() {
 		return
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		on, ok := setStore.ViewTabsEnabled()
-		if !ok {
-			time.Sleep(40 * time.Millisecond)
-			continue
-		}
+	on, ok := setStore.ViewTabsEnabled()
+	if !ok || !hydrated.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
 		s.mu.Lock()
 		s.desktopDraft.showViewTabs = on
 		cfgStore := s.cfgStore
@@ -3289,8 +3253,7 @@ func (s *mainState) hydrateViewTabsFromHarness(setStore *settingsstore.Store) {
 		if win != nil {
 			win.Update(func() {})
 		}
-		return
-	}
+	}()
 }
 
 func (s *mainState) applyImportCatalog(win *mygo.Window, sourceHome string) {
@@ -3320,11 +3283,10 @@ func (s *mainState) startCreatorPluginDraft(win *mygo.Window, sessions *session.
 	draft.Client.Sync()
 	s.marketOpen = false
 	s.scheduleOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
 	s.settingsOpen = false
 	s.launcherOpen = false
 	s.mu.Unlock()
+	s.assistantService().SetOpen(false)
 	if sessions != nil {
 		sessions.SelectAgentPresetIDForSession(context.Background(), sid, "cordis")
 	}
@@ -3333,16 +3295,11 @@ func (s *mainState) startCreatorPluginDraft(win *mygo.Window, sessions *session.
 	}
 }
 
-func marketInstallRequestID() string {
-	var b [16]byte
-	_, _ = rand.Read(b[:])
-	return hex.EncodeToString(b[:])
-}
-
 func mainView(c *ui.Context) {
 	// Recorded first so the deferred call runs after every layer, and the
 	// opt-in sampler sees the whole build.
 	viewStarted := time.Now()
+	state.noteNativeUIActivity()
 	defer recordViewFrame(viewStarted)
 	// Registered first so it runs last: the closing layer must sit above chat,
 	// dialogs, settings and the launcher on every return path below. It takes
@@ -3352,7 +3309,6 @@ func mainView(c *ui.Context) {
 	defer func() { state.paintClosingOverlayLayer(c, closingColors) }()
 	// Registered before deferred native overlays: their rich seats must collect
 	// DrawOver geometry before the final exact-Host placement is flushed.
-	defer state.endPluginRichFrame(c)
 	// The first-run 预览版说明 layer is intentionally not part of this build:
 	// users asked for the blocking notice to be removed.
 	consumePendingToast(c)
@@ -3362,8 +3318,6 @@ func mainView(c *ui.Context) {
 	openInApp := state.observeWorkspaceOpenInApp()
 	defer openInApp.FinishFrame(c)
 	defer state.observePluginCreator()
-	defer state.paintPad(c)
-	defer state.paintPluginShellOverlayLayer(c)
 	defer state.finishVoiceDeviceSettingsFrame()
 	defer state.syncResumeCheckpoint(c)
 	standaloneScheduleRendered := false
@@ -3373,8 +3327,9 @@ func mainView(c *ui.Context) {
 		}
 		state.schedulePanelRendered = standaloneScheduleRendered
 	}()
-	state.beginAssistantGroupRuntimeFrame()
-	defer state.finishAssistantGroupRuntimeFrame()
+	asstSvc := state.assistantService()
+	asstSvc.BeginGroupRuntimeFrame()
+	defer asstSvc.FinishGroupRuntimeFrame()
 	state.flushInactiveGeneralFontEdits(false)
 	defer state.syncSettingsNativeSurfaces()
 	composerRendered := false
@@ -3397,19 +3352,8 @@ func mainView(c *ui.Context) {
 	state.beginAppearanceFrame(c)
 	state.configurePointerEffects(c)
 	defer state.endAppearanceFrame()
-	defer state.observeAssistantBotRoute()
-	roomRuntimeRendered := false
-	defer func() { state.observeAssistantRoomRuntime(roomRuntimeRendered) }()
-	roomEditRendered := false
-	defer func() { state.observeAssistantRoomEditor(roomEditRendered) }()
-	roomCreateRendered := false
-	defer func() { state.observeAssistantRoomCreator(roomCreateRendered) }()
-	defer func() { state.observeAssistantBotCreator(roomCreateRendered) }()
-	defer func() { state.observeAssistantBotVisibility(roomCreateRendered) }()
-	defer func() { state.observeAssistantContacts(roomCreateRendered) }()
-	defer func() { state.observeAssistantBotDeleter(roomCreateRendered) }()
-	defer func() { state.observeAssistantBotDuplicator(roomCreateRendered) }()
-	defer func() { state.observeBotNotifications(roomCreateRendered) }()
+	var assistantObs assistantctl.FrameObservation
+	defer func() { asstSvc.ObserveFrame(assistantObs) }()
 	creatorTaskRendered := false
 	defer func() { state.observeCreatorTask(creatorTaskRendered) }()
 	defer func() { state.observeAgentPresetReader(creatorTaskRendered) }()
@@ -3418,14 +3362,15 @@ func mainView(c *ui.Context) {
 	defer func() { state.observeProviderDiscovery(providerDiscoveryRendered) }()
 	mcpPanelRendered := false
 	defer func() { state.observeMCPHealth(mcpPanelRendered) }()
-	state.observeWhaleSettings()
+	asstSvc.ObserveWhaleSettings()
 	state.cancelComposerVoiceIfStale()
 	state.restoreResumeSelection()
 	state.refreshPetTask()
+	marketStore := state.marketCoordinator().EnsureStore()
+	marketSnap := state.marketCoordinator().ViewSnapshot()
+	marketCanRestart := marketSnap.CanRestart
+	assistantOpen := asstSvc.Open()
 	state.mu.Lock()
-	if state.market == nil {
-		state.market = marketstore.New()
-	}
 	themeID := state.themeID
 	st := state.bootStatus
 	logs := append([]string(nil), state.bootLogs...)
@@ -3434,7 +3379,7 @@ func mainView(c *ui.Context) {
 	nextPromptRendered := false
 	defer func() {
 		if !nextPromptRendered && sessions != nil {
-			sessions.SyncNextPrompt(context.Background(), false)
+			sessions.SyncNextPrompt(state.lifecycleContext(), false)
 			sessions.UnmountNativeJobs()
 		}
 	}()
@@ -3455,9 +3400,10 @@ func mainView(c *ui.Context) {
 	}
 	setStore := state.settings
 	settingsOpen := state.settingsOpen
+	settingsEmbeddedSectionFrame := state.settingsEmbeddedSection
+	browserPreviewDraft := state.browserPreviewDraft
 	usageStore := state.usage
 	imStore := state.im
-	marketStore := state.market
 	schedStore := state.schedule
 	usageOpen := state.usageOpen
 	accountActionError := state.accountReturn.err
@@ -3465,32 +3411,10 @@ func mainView(c *ui.Context) {
 	marketOpen := state.marketOpen
 	marketManager := state.marketManager
 	scheduleOpen := state.scheduleOpen
-	marketInstallSpecPtr := &state.marketInstallSpec
-	marketInstallBusy := state.marketInstallBusy
-	marketCanCancel := state.marketInstallBusy && state.marketInstallRequestID != ""
-	marketInstallMsg := state.marketInstallMsg
-	marketInstallLog := state.marketInstallLog
-	marketActivation := state.marketActivation
-	marketCanRestart := state.sup != nil && state.marketWorker == nil && !state.taskRestartPending && st.State != harness.Starting
-	marketNeedsAllowBuilds := state.marketNeedsAllowBuilds
-	marketAllowBuilds := append([]string(nil), state.marketAllowBuilds...)
-	marketIncompatible := append([]api.ChangeResultErrorIncompatibleItem(nil), state.marketIncompatible...)
 	remoteOpen := state.remoteOpen
 	nodeBin := ""
 	webviewOpen := state.webviewOpen
 	browserPreviewOpen := state.browserPreviewOpen
-	assistantOpen := state.assistantOpen
-	if !assistantOpen || st.State != harness.Ready {
-		state.assistantBotCreator.Suspend()
-		state.assistantBotVisibility.Suspend()
-		state.assistantContacts.Suspend()
-		state.assistantBotDeleter.Suspend()
-		state.assistantBotDuplicator.Suspend()
-		state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-		state.assistantRoomCreator.Suspend()
-		state.assistantRoomEditor.Suspend()
-		state.assistantRoomRuntime.Suspend()
-	}
 	launcherOpen := state.launcherOpen && state.launcherWin.destroyed()
 	toolsMenuOpen := state.toolsMenuOpen
 	cfgHideArchivedList := false
@@ -3546,6 +3470,7 @@ func mainView(c *ui.Context) {
 	gitBusy := state.gitBusy
 	gitCommitOpen := state.gitCommitOpen
 	gitCommitDraft := state.gitCommitDraft
+	rawGitCommitDraft := state.gitCommitDraft
 	// This frame already holds state.mu (the snapshot above); the Locked
 	// accessors assume that and never re-lock.
 	if generated, ok := state.takeGeneratedCommitMessageLocked(); ok {
@@ -3567,7 +3492,8 @@ func mainView(c *ui.Context) {
 	fileEditDraft := state.fileEditDraft
 	fileEditStatus := state.fileEditStatus
 	fileEditViewMode := state.fileEditViewMode
-	fileEditSplit := state.fileEditSplit
+	rawFileEditSplit := state.fileEditSplit
+	fileEditSplit := rawFileEditSplit
 	if fileEditSplit <= 0 {
 		fileEditSplit = 200
 	}
@@ -3582,6 +3508,7 @@ func mainView(c *ui.Context) {
 	planBoardOpen := state.planBoardOpen
 	todoPanelCollapsed := state.todoPanelCollapsed
 	chatPaneTab := state.chatPaneTab
+	rawChatPaneTab := chatPaneTab
 	if chatPaneTab == "" {
 		chatPaneTab = "chat"
 	}
@@ -3590,11 +3517,62 @@ func mainView(c *ui.Context) {
 	trajActualDur := state.trajActualDur
 	trajTurnsFold := state.trajTurnsFold
 	trajCallsFold := state.trajCallsFold
-	trajDetailTab := state.trajDetailTab
+	rawTrajDetailTab := state.trajDetailTab
+	trajDetailTab := rawTrajDetailTab
 	if trajDetailTab == "" || trajDetailTab == "overview" || trajDetailTab == i18n.T(i18n.KeyTrajTabOverview) {
 		trajDetailTab = "overview"
 	}
 	imageLightboxPath := state.imageLightboxPath
+	startThinkingExpanded, thinkingExpandedNil := cloneBoolMapForDiff(thinkingExpanded)
+	startFileExpanded, fileExpandedNil := cloneBoolMapForDiff(fileExpanded)
+	wbStart := mainViewWritebackSnapshot{
+		layout:               layout,
+		draft:                draft,
+		editMessageSeq:       editMessageSeq,
+		feedbackCommentMsgID: feedbackCommentMsgID,
+		feedbackCommentDraft: feedbackCommentDraft,
+		modelPick:            modelPick,
+		permissionPick:       permissionPick,
+		agentPresetPick:      agentPresetPick,
+		thinkingExpanded:     startThinkingExpanded,
+		thinkingExpandedNil:  thinkingExpandedNil,
+		renameSessionID:      renameSessionID,
+		renameDraft:          renameDraft,
+		sessionSearch:        sessionSearch,
+		fileTabs:             fileTabs,
+		gitWorkbench:         gitWorkbench,
+		fileExpanded:         startFileExpanded,
+		fileExpandedNil:      fileExpandedNil,
+		selectedFile:         selectedFile,
+		fileFilter:           fileFilter,
+		filePreview:          filePreview,
+		filePreviewErr:       filePreviewErr,
+		filePreviewList:      filePreviewList,
+		fileEditing:          fileEditing,
+		fileEditDraft:        fileEditDraft,
+		fileEditStatus:       fileEditStatus,
+		fileEditViewMode:     fileEditViewMode,
+		fileEditSplit:        rawFileEditSplit,
+		rightPaneTab:         rightPaneTab,
+		agentsPromptDraft:    agentsPromptDraft,
+		goalDraft:            goalDraft,
+		diffPath:             diffPath,
+		diffText:             diffText,
+		diffErr:              diffErr,
+		planBoardOpen:        planBoardOpen,
+		todoPanelCollapsed:   todoPanelCollapsed,
+		chatPaneTab:          rawChatPaneTab,
+		trajSearch:           trajSearch,
+		trajSelectedID:       trajSelectedID,
+		trajActualDur:        trajActualDur,
+		trajTurnsFold:        trajTurnsFold,
+		trajCallsFold:        trajCallsFold,
+		trajDetailTab:        rawTrajDetailTab,
+		imageLightboxPath:    imageLightboxPath,
+		gitCommitOpen:        gitCommitOpen,
+		gitCommitDraft:       rawGitCommitDraft,
+		gitPROpen:            gitPROpen,
+	}
 	workspaceRoot := ""
 	if state.cfgStore != nil {
 		workspaceRoot = state.cfgStore.Get().Workspace
@@ -3607,20 +3585,12 @@ func mainView(c *ui.Context) {
 	}
 
 	state.mu.Unlock()
-	state.syncPadDesktop()
-	state.syncPluginNativeNavigation(st.State == harness.Ready)
-	if !settingsOpen {
-		state.syncPluginPublicSettingsSection("", false)
+	if !assistantOpen || st.State != harness.Ready {
+		asstSvc.SuspendViews()
 	}
 	if !settingsOpen && !usageOpen {
 		settings.ClearPreferenceErrorNotices(c)
 	}
-	state.syncPluginContributions(st.State == harness.Ready && marketOpen && marketManager && !settingsOpen && !launcherOpen && !usageOpen && !imOpen && !scheduleOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen && !assistantOpen)
-	// Session-scoped contributions stay bound to the selected conversation; the
-	// sync is throttled because reading the full session snapshot every frame is
-	// expensive (see plugin_session_host.go).
-	state.syncPluginSession(st.State == harness.Ready && !launcherOpen && !usageOpen && !imOpen && !marketOpen && !scheduleOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen && !assistantOpen && !settingsOpen)
-	state.beginPluginRichFrame(state.pluginRichFrameVisible())
 	imOnboardingRendered := false
 	defer func() {
 		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Open {
@@ -3666,6 +3636,7 @@ func mainView(c *ui.Context) {
 	}
 	state.mu.Lock()
 	state.fileTabs = fileTabs
+	wbStart.fileTabs = fileTabs
 	state.mu.Unlock()
 	if state.browserController != nil {
 		state.browserController.PrunePDFDocuments()
@@ -3697,7 +3668,6 @@ func mainView(c *ui.Context) {
 	th := theme.Resolve(themeID)
 	systemDark := mygo.Theme.IsDark()
 	svgImages := state.svgImageOwner(win, sessions)
-	defer state.renderDesktopOnboarding(c, themeID, systemDark)
 	colors := th.Active(systemDark)
 	// The quit layer paints from the same palette as everything above it.
 	closingColors = colors
@@ -3797,9 +3767,6 @@ func mainView(c *ui.Context) {
 			p.Fill(r, canvasFill, 0)
 		}
 	}).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
-		if state.paintPluginRootClient(c, st.State == harness.Ready, launcherOpen || settingsOpen, titleColors) {
-			return
-		}
 		if launcherOpen {
 			// One launcher model, two surfaces: the separate 1060x660 launcher
 			// window and this in-window fallback panel (launcher_window.go).
@@ -3855,7 +3822,9 @@ func mainView(c *ui.Context) {
 		})
 		// In-window tools menu (UIA-clickable). Replaces native Popup which automation cannot invoke reliably.
 		if toolsMenuOpen && !desktopChromeLocked && st.State == harness.Ready {
+			openAsst := false
 			openTool := func(apply func()) {
+				openAsst = false
 				state.mu.Lock()
 				state.launcherOpen = false
 				state.toolsMenuOpen = false
@@ -3867,10 +3836,9 @@ func mainView(c *ui.Context) {
 				state.remoteOpen = false
 				state.webviewOpen = false
 				state.browserPreviewOpen = false
-				state.assistantConversationGeneration++
-				state.assistantOpen = false
 				apply()
 				state.mu.Unlock()
+				asstSvc.SetOpen(openAsst)
 				if win != nil {
 					win.Update(func() {})
 				}
@@ -3884,11 +3852,11 @@ func mainView(c *ui.Context) {
 					}
 				}
 				toolBtn(i18n.T(i18n.KeyBrowserPreviewOpen), func() {
-					state.showBrowserPreview(state.browserPreviewDraft)
+					state.showBrowserPreview(browserPreviewDraft)
 					openTool(func() { state.browserPreviewOpen = true })
 				})
 				toolBtn(i18n.T(i18n.KeyAssistantOpen), func() {
-					openTool(func() { state.assistantConversationGeneration++; state.assistantOpen = true })
+					openTool(func() { openAsst = true })
 				})
 				toolBtn(i18n.T(i18n.KeyWebViewOpen), func() {
 					openTool(func() { state.webviewOpen = true })
@@ -4101,22 +4069,12 @@ func mainView(c *ui.Context) {
 				desktopErr := state.desktopSaveErr
 				desktopAction := state.desktopLastAction
 				if credsActive && !embeddedActive && !state.credsDraft.seeded {
-					state.seedCredentialsDraft()
+					state.ensureCredentialsDraftSeededLocked()
 				}
 				credsErr := state.credsSaveErr
 				credsAction := state.credsLastAction
 				credsHarness := state.credsHarnessNote
-				var wallpaperChoices []string
-				if (desktopActive || appearanceActive) && !embeddedActive {
-					if !state.wallpaperChoicesReady {
-						exeDir, _ := os.Executable()
-						state.wallpaperChoicesCache = theme.ListWallpapers(theme.WallpaperGalleryDirs(paths.UserDataDir(), filepath.Dir(exeDir))...)
-						state.wallpaperChoicesReady = true
-					}
-					wallpaperChoices = state.wallpaperChoicesCache
-				} else {
-					state.wallpaperChoicesReady = false
-				}
+				wantWallpaperChoices := (desktopActive || appearanceActive) && !embeddedActive
 				var restartPolicy *config.RestartPreferences
 				if (desktopActive || aboutActive) && !embeddedActive && state.cfgStore != nil {
 					savedPolicy := config.RestartPreferencesFrom(state.cfgStore.Get())
@@ -4133,7 +4091,6 @@ func mainView(c *ui.Context) {
 					CloseToTray:               &state.desktopDraft.closeToTray,
 					OpenAtLogin:               &state.desktopDraft.openAtLogin,
 					WallpaperPath:             &state.desktopDraft.wallpaperPath,
-					WallpaperChoices:          wallpaperChoices,
 				}
 				credFields := settings.CredentialsFields{
 					APIKey:           &state.credsDraft.apiKey,
@@ -4165,6 +4122,8 @@ func mainView(c *ui.Context) {
 					}
 				}
 				state.mu.Unlock()
+				wallpaperChoices := state.cachedWallpaperChoices(wantWallpaperChoices)
+				desktopFields.WallpaperChoices = wallpaperChoices
 				var referencedCredentials *settings.ReferencedCredentialsAccess
 				if !embeddedActive && (credsActive || modelsActive || snap.SelectedNS == "llm-deepseek" || snap.SelectedNS == "llm-pi-ai" || snap.SelectedNS == "web-search-deepseek") {
 					referencedCredentials = state.referencedCredentialsAccess()
@@ -4188,7 +4147,9 @@ func mainView(c *ui.Context) {
 							}
 						},
 						OnBrowseWorkspace: func() {
+							state.mu.Lock()
 							def := strings.TrimSpace(state.desktopDraft.workspace)
+							state.mu.Unlock()
 							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
 								Parent:      win,
 								Title:       i18n.T(i18n.KeySettingsDesktopBrowseWorkspace),
@@ -4500,8 +4461,6 @@ func mainView(c *ui.Context) {
 				modelsSection := &settings.ModelsAccess{}
 				if modelsActive && !embeddedActive {
 					modelsSection = &settings.ModelsAccess{
-						ProviderExtras:    state.renderPluginModelExtras,
-						FooterExtras:      state.renderPluginModelFooter,
 						ProviderDiscovery: state.providerDiscoveryAccess(),
 						ProviderProfiles:  state.providerProfilesAccess(),
 						Vision:            state.visionSettingsAccess(),
@@ -4546,12 +4505,12 @@ func mainView(c *ui.Context) {
 				}
 				pluginsSection := &settings.PluginsAccess{}
 				if pluginsActive && !embeddedActive {
-					marketSnap := marketstore.ViewState{}
+					marketViewState := marketstore.ViewState{}
 					if marketStore != nil {
-						marketSnap = marketStore.Snapshot()
+						marketViewState = marketStore.Snapshot()
 					}
-					pluginRows := make([]settings.PluginRow, 0, len(marketSnap.Rows))
-					for _, row := range marketSnap.Rows {
+					pluginRows := make([]settings.PluginRow, 0, len(marketViewState.Rows))
+					for _, row := range marketViewState.Rows {
 						pluginRows = append(pluginRows, settings.PluginRow{
 							Name: row.Label, Status: row.Detail, Disabled: row.Enabled != nil && !*row.Enabled,
 							CanToggle: row.CanToggle(), ReadOnlyReason: row.ReadOnlyReason, Error: row.Error,
@@ -4560,15 +4519,14 @@ func mainView(c *ui.Context) {
 					lastPluginAction := state.settingsPluginsLastAction
 					pluginsSection = &settings.PluginsAccess{
 						Inventory:        state.pluginInventoryAccess(),
-						Tabs:             state.pluginSettingsTabs(),
 						Rows:             pluginRows,
-						HasListRPC:       marketSnap.HasListRPC,
-						Err:              marketSnap.Err,
-						ClientReady:      marketSnap.ClientReady,
-						Loading:          marketSnap.Loading,
-						Busy:             marketInstallBusy,
-						OperationMessage: marketInstallMsg,
-						Activation:       marketActivation,
+						HasListRPC:       marketViewState.HasListRPC,
+						Err:              marketViewState.Err,
+						ClientReady:      marketViewState.ClientReady,
+						Loading:          marketViewState.Loading,
+						Busy:             marketSnap.InstallBusy,
+						OperationMessage: marketSnap.InstallMsg,
+						Activation:       marketSnap.Activation,
 						CanRestart:       marketCanRestart,
 						OnRestart:        state.restartMarketPlugins,
 						LastAction:       lastPluginAction,
@@ -4711,7 +4669,7 @@ func mainView(c *ui.Context) {
 						HubHits:      append([]settings.SkillHubHit(nil), state.settingsSkillHubHits...),
 						OnRefresh: func() {
 							if sessions != nil {
-								sessions.RefreshSkills(context.Background())
+								sessions.RefreshSkills(state.lifecycleContext())
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -4744,7 +4702,7 @@ func mainView(c *ui.Context) {
 						},
 						OnSetModelInvocable: func(name string, modelInvocable bool) {
 							if sessions != nil {
-								sessions.SetCatalogSkillInvocation(context.Background(), name, modelInvocable)
+								sessions.SetCatalogSkillInvocation(state.lifecycleContext(), name, modelInvocable)
 							}
 						},
 					}
@@ -4761,7 +4719,6 @@ func mainView(c *ui.Context) {
 					}
 				}
 				settingsModel := settings.Model{
-					PublicContributions:   state.pluginPublicContributions(),
 					Pet:                   state.desktopPet,
 					ReferencedCredentials: referencedCredentials,
 					Store:                 setStore,
@@ -4831,7 +4788,7 @@ func mainView(c *ui.Context) {
 						state.settingsSkillsActive = false
 						state.settingsAgentPresetsActive = false
 						if !state.credsDraft.seeded {
-							state.seedCredentialsDraft()
+							state.ensureCredentialsDraftSeededLocked()
 						}
 						state.mu.Unlock()
 						if win != nil {
@@ -4854,6 +4811,7 @@ func mainView(c *ui.Context) {
 						state.settingsSkillsActive = false
 						state.settingsAgentPresetsActive = false
 						state.mu.Unlock()
+						state.ensureNativeUpdateCenterAsync(win)
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -5034,7 +4992,7 @@ func mainView(c *ui.Context) {
 						state.settingsAgentPresetsActive = false
 						state.mu.Unlock()
 						if sessions != nil {
-							sessions.RefreshSkills(context.Background())
+							sessions.RefreshSkills(state.lifecycleContext())
 						}
 						if win != nil {
 							win.Update(func() {})
@@ -5183,18 +5141,14 @@ func mainView(c *ui.Context) {
 					},
 				}
 				state.wireSettingsBodies(&settingsModel)
-				settingsModel = state.withPluginSettingsSections(state.settingsSectionModel(settingsModel, func(_ *ui.Context, section settings.SectionID) {
+				settingsModel = state.settingsSectionModel(settingsModel, func(_ *ui.Context, section settings.SectionID) {
 					paintMainContent(section)
-				}))
-				state.syncPluginPublicSettingsSection(string(settings.ActiveSectionID(settingsModel)), true)
+				})
 				settings.ModalView(c, settingsModel)
 				return
 			}
 		}
 		paintMainContent = func(embeddedSection settings.SectionID) {
-			if acceptPanelOK && embeddedSection == "" && !marketOpen && !scheduleOpen && !assistantOpen && !usageOpen && !imOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen && state.selectedPluginMainView() != "" && state.renderPluginNativeView(c) {
-				return
-			}
 			if acceptPanelOK && embeddedSection == "" && marketOpen && marketManager {
 				state.pluginManagerView(c, themeID)
 				return
@@ -5209,7 +5163,8 @@ func mainView(c *ui.Context) {
 				state.mu.Lock()
 				muxReadyMarket := state.dshMuxReady
 				state.mu.Unlock()
-				marketOwner := state.captureMarketOwner(marketStore)
+				marketOwner := marketSnap.Owner
+				spec := marketSnap.InstallSpec
 				marketui.View(c, marketui.Model{
 					SVGImages:     svgImages,
 					OnOpenManager: state.openNativePluginManager,
@@ -5218,26 +5173,25 @@ func mainView(c *ui.Context) {
 							log.Println("market README link:", err)
 						}
 					},
-					Embedded:             embeddedSection == settings.SectionMarket,
-					Store:                marketStore,
-					ThemeID:              themeID,
-					SystemDark:           mygo.Theme.IsDark(),
-					HarnessReady:         st.State == harness.Ready,
-					MuxConnected:         muxReadyMarket,
-					HarnessMarketOverlay: true,
-					PluginDisabled:       false,
-					InstallReady:         state.marketInstallReadyFor(nodeBin),
-					InstallSpec:          marketInstallSpecPtr,
-					InstallBusy:          marketInstallBusy,
-					InstallMessage:       marketInstallMsg,
-					InstallLog:           marketInstallLog,
-					Activation:           marketActivation,
-					CanRestart:           marketCanRestart,
-					OnRestart:            state.restartMarketPlugins,
-					NeedsAllowBuilds:     marketNeedsAllowBuilds,
-					AllowBuilds:          marketAllowBuilds,
-					CanCancelInstall:     marketCanCancel,
-					Incompatible:         marketIncompatible,
+					Embedded:         embeddedSection == settings.SectionMarket,
+					Store:            marketStore,
+					ThemeID:          themeID,
+					SystemDark:       mygo.Theme.IsDark(),
+					HarnessReady:     st.State == harness.Ready,
+					MuxConnected:     muxReadyMarket,
+					PluginDisabled:   false,
+					InstallReady:     state.marketInstallReadyFor(nodeBin),
+					InstallSpec:      &spec,
+					InstallBusy:      marketSnap.InstallBusy,
+					InstallMessage:   marketSnap.InstallMsg,
+					InstallLog:       marketSnap.InstallLog,
+					Activation:       marketSnap.Activation,
+					CanRestart:       marketCanRestart,
+					OnRestart:        state.restartMarketPlugins,
+					NeedsAllowBuilds: marketSnap.NeedsAllowBuilds,
+					AllowBuilds:      marketSnap.AllowBuilds,
+					CanCancelInstall: marketSnap.CanCancelInstall,
+					Incompatible:     marketSnap.Incompatible,
 					OnClose: func() {
 						state.mu.Lock()
 						state.marketOpen = false
@@ -5288,21 +5242,8 @@ func mainView(c *ui.Context) {
 							mygo.Clipboard.WriteText(log)
 						}
 					},
-					OnOpenHarnessMarket: func() {
-						origin := ""
-						state.mu.Lock()
-						if state.sup != nil {
-							st := state.sup.Status()
-							if st.State == harness.Ready {
-								origin = st.Endpoint.Origin
-							}
-						}
-						state.mu.Unlock()
-						if origin != "" {
-							state.openWebViewHostPlugin(origin, desktopwebview.PluginMarket)
-						}
-					},
 				})
+				state.marketCoordinator().CommitInstallSpec(marketSnap.InstallSpec, spec)
 				return
 			}
 			if acceptPanelOK && embeddedSection == "" && scheduleOpen && schedStore != nil {
@@ -5419,15 +5360,14 @@ func mainView(c *ui.Context) {
 				imDraft := state.imDraft
 				state.mu.Unlock()
 				imui.View(c, imui.Model{
-					Embedded:         embeddedSection == "channels",
-					Store:            imStore,
-					ThemeID:          themeID,
-					SystemDark:       mygo.Theme.IsDark(),
-					HarnessReady:     st.State == harness.Ready,
-					MuxConnected:     muxReadyIM,
-					HarnessIMOverlay: !imPluginDisabled,
-					PluginDisabled:   imPluginDisabled,
-					Draft:            &imDraft,
+					Embedded:       embeddedSection == "channels",
+					Store:          imStore,
+					ThemeID:        themeID,
+					SystemDark:     mygo.Theme.IsDark(),
+					HarnessReady:   st.State == harness.Ready,
+					MuxConnected:   muxReadyIM,
+					PluginDisabled: imPluginDisabled,
+					Draft:          &imDraft,
 					OnClose: func() {
 						if sel := imStore.Snapshot().SelectedID; sel != "" {
 							imStore.SetDraft(sel, imDraft)
@@ -5505,412 +5445,29 @@ func mainView(c *ui.Context) {
 				return
 			}
 			if acceptPanelOK && embeddedSection == "" && assistantOpen {
-				origin := st.Endpoint.Origin
-				ep := st.Endpoint
-				whaleOn := true
-				dshbotOn := false
-				if state.cfgStore != nil {
-					cfg := state.cfgStore.Get()
-					whaleOn = cfg.WhaleAssistantEnabled
-					dshbotOn = cfg.DshbotEnabled
-				}
-				whaleVendor := false
-				dshbotVendor := false
-				if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dsh-whale")); err == nil && info.IsDir() {
-					whaleVendor = true
-				}
-				if info, err := os.Stat(filepath.Join(paths.VendorDir(), "dshbot")); err == nil && info.IsDir() {
-					dshbotVendor = true
-				}
 				state.mu.Lock()
-				assistantDraft := state.assistantDraft
 				lastWebURL := state.lastWebViewURL
-				lastNative := state.assistantLastAct
-				pluginBusy := state.assistantPluginBusy
-				pluginDetail := state.assistantPluginDetail
-				asst := state.assistant
-				var dshbotRows []dshbotstore.Row
-				var dshbotRosterAt string
-				if dr := state.dshbotRoster; dr != nil {
-					snap := dr.Snapshot()
-					if snap.Origin == origin {
-						dshbotRows = snap.Rows
-						dshbotRosterAt = snap.FetchedAt
-					}
-				}
 				state.mu.Unlock()
-				if asst == nil {
-					asst = assiststore.New()
-					state.mu.Lock()
-					state.assistant = asst
-					state.mu.Unlock()
-				}
-				asst.Attach(func() {
-					if win != nil {
-						win.Update(func() {})
-					}
-				})
-				asstSnap := asst.Snapshot()
-				assistantDraft = asst.ConsumeAcceptedDraft(assistantDraft)
-				dshbotSelectedID := ""
-				if asstSnap.DshbotOrigin == origin {
-					dshbotSelectedID = asstSnap.DshbotID
-				}
-				if lastNative == "" {
-					lastNative = asstSnap.LastAction
-				}
-				if lastNative == "" && sessions != nil {
-					lastNative = sessionViews.snapshot(sessions).LastAction
-				}
-				history := asstSnap.History
-				if len(history) == 0 && sessions != nil {
+				var sessionLastAction string
+				var sessionMsgs []struct{ Role, Body string }
+				if sessions != nil {
 					sessSnap := sessionViews.snapshot(sessions)
-					var pairs []struct{ Role, Body string }
+					sessionLastAction = sessSnap.LastAction
 					for _, m := range sessSnap.Messages {
-						pairs = append(pairs, struct{ Role, Body string }{m.Role, m.Body})
+						sessionMsgs = append(sessionMsgs, struct{ Role, Body string }{m.Role, m.Body})
 					}
-					history = assiststore.HistoryFromSessionMessages(pairs, 8)
 				}
-				taskModel := state.assistantTasksModel(ep, dshbotSelectedID)
-				routineModel := state.assistantRoutinesModel(ep, dshbotSelectedID)
-				routineCreateModel := state.assistantRoutineCreateModel(ep, dshbotSelectedID, routineModel.State, routineModel.OnRefresh)
-				roomCreateRendered = asstSnap.Mode == assiststore.ModeDshbot
-				roomCreateModel := state.assistantRoomCreateModel(ep)
-				botCreateModel := state.assistantBotCreateModel(ep)
-				botVisibilityModel := state.assistantBotVisibilityModel(ep)
-				contactsModel := assistant.ContactsModel{}
-				if asstSnap.Mode == assiststore.ModeDshbot {
-					contactsModel = state.assistantContactsModel(ep)
-				}
-				botDeleteModel := state.assistantBotDeleteModel(ep, dshbotSelectedID)
-				botDuplicateModel := state.assistantBotDuplicateModel(ep, dshbotSelectedID)
-				roomEditRendered = asstSnap.Mode == assiststore.ModeDshbot
-				roomEditModel := state.assistantRoomEditModel(ep, dshbotSelectedID)
-				roomRuntimeRendered = asstSnap.Mode == assiststore.ModeDshbot
-				roomRuntimeModel := state.assistantRoomRuntimeModel(ep, dshbotSelectedID)
-				whaleSettingsModel := state.assistantWhaleSettingsModel(ep)
-				whaleTasksModel := state.assistantWhaleTasksModel(ep)
-				assistant.View(c, assistant.Model{
-					RoutineCreate:         routineCreateModel,
-					RoomCreate:            roomCreateModel,
-					BotCreate:             botCreateModel,
-					BotVisibility:         botVisibilityModel,
-					Contacts:              contactsModel,
-					BotDelete:             botDeleteModel,
-					BotDuplicate:          botDuplicateModel,
-					RoomEdit:              roomEditModel,
-					RoomRuntime:           roomRuntimeModel,
-					Routines:              routineModel,
-					WhaleSettings:         whaleSettingsModel,
-					WhaleTasks:            whaleTasksModel,
-					Proactive:             state.proactiveModel(),
-					Tasks:                 taskModel,
-					ThemeID:               themeID,
-					SystemDark:            mygo.Theme.IsDark(),
-					Mode:                  asstSnap.Mode,
-					WhaleEnabled:          whaleOn,
-					DshbotEnabled:         dshbotOn,
-					WhaleVendorPresent:    whaleVendor,
-					DshbotVendorPresent:   dshbotVendor,
-					HarnessReady:          true,
-					Busy:                  asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || contactsModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
-					LastWebViewURL:        lastWebURL,
-					LastNativeAction:      lastNative,
-					LastErr:               asstSnap.LastErr,
-					SessionID:             asstSnap.SessionID,
-					History:               history,
-					Draft:                 &assistantDraft,
-					PluginRPCBusy:         pluginBusy,
-					PluginRPCDetail:       pluginDetail,
-					DshbotRoster:          dshbotRows,
-					DshbotRosterFetched:   dshbotRosterAt,
-					BotNotificationStatus: state.botNotificationStatusText(),
-					DshbotSelectedID:      dshbotSelectedID,
-					OnDshbotSelect: func(botID string) {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.assistantTasks.Bind(dshbotstore.TaskScope{})
-						asst.SelectDshbot(botID, origin)
-					},
-					OnSetMode: func(mode assiststore.Mode) {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.whaleSettings.Suspend()
-						state.assistantTasks.Bind(dshbotstore.TaskScope{})
-						if asst != nil {
-							asst.SetMode(mode)
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenModeWeb: func() {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.whaleSettings.Suspend()
-						plugin := desktopwebview.PluginWhale
-						if assiststore.NormalizeMode(asstSnap.Mode) == assiststore.ModeDshbot {
-							plugin = desktopwebview.PluginDshbot
-						}
-						state.mu.Lock()
-						state.webviewOpen = true
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
-						state.assistantDraft = assistantDraft
-						state.mu.Unlock()
-						state.openWebViewHostPlugin(origin, plugin)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenSession: func(_ string) {
-						target := asst.Snapshot()
-						if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
-							asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), i18n.T(i18n.KeyCmdComposerHostChanged))
-							return
-						}
-						state.openAssistantConversation(ep, target.Mode, target.DshbotID, "")
-					},
-					OnClose: func() {
-						state.whaleSettings.Suspend()
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.assistantTasks.Bind(dshbotstore.TaskScope{})
-						state.mu.Lock()
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
-						state.assistantDraft = assistantDraft
-						state.mu.Unlock()
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnToggleWhale: func(enabled bool) {
-						state.whaleSettings.Suspend()
-						state.setAssistantFlag(&enabled, nil)
-					},
-					OnToggleDshbot: func(enabled bool) {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.assistantTasks.Bind(dshbotstore.TaskScope{})
-						state.setAssistantFlag(nil, &enabled)
-					},
-					OnOpenWhaleWeb: func() {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.whaleSettings.Suspend()
-						state.mu.Lock()
-						state.webviewOpen = true
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
-						state.assistantDraft = assistantDraft
-						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenWhaleWeb)
-						state.mu.Unlock()
-						state.openWebViewHostPlugin(origin, desktopwebview.PluginWhale)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnOpenDshbotWeb: func() {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.whaleSettings.Suspend()
-						state.mu.Lock()
-						state.webviewOpen = true
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
-						state.assistantDraft = assistantDraft
-						state.assistantLastAct = i18n.T(i18n.KeyAssistantOpenDshbotWeb)
-						state.mu.Unlock()
-						state.openWebViewHostPlugin(origin, desktopwebview.PluginDshbot)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnNativePrompt: func(text string) {
-						state.handleAssistantNativePrompt(origin, ep, text)
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
-					OnWhaleEnsure: func() {
-						state.openAssistantConversation(ep, assiststore.ModeWhale, "", "")
-					},
-					OnWhaleCatalog: func() {
-						state.runAssistantPluginRPC(win, ep, "catalog", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							out, err := c.WhaleCatalog(ctx)
-							return string(out), err
-						})
-					},
-					OnWhalePetChat: func(text string) {
-						state.handleAssistantNativePrompt(origin, ep, text)
-					},
-					OnWhalePetState: func() {
-						state.runAssistantPluginRPC(win, ep, "pet/state", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							out, err := c.WhalePetState(ctx, false)
-							return string(out), err
-						})
-					},
-					OnWhalePetLook: func() {
-						paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-							Parent: win,
-							Title:  i18n.T(i18n.KeyAssistantWhalePetLook),
-						})
-						if err != nil {
-							state.mu.Lock()
-							state.assistantPluginDetail = "pet/look: " + err.Error()
-							state.assistantLastAct = state.assistantPluginDetail
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-							return
-						}
-						if len(paths) == 0 {
-							return
-						}
-						imgPath := paths[0]
-						state.runAssistantPluginRPC(win, ep, "pet/look", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							st, err := c.WhalePetStateTyped(ctx, false)
-							if err != nil {
-								return "", err
-							}
-							if st.Model == nil || strings.TrimSpace(st.Model.Provider) == "" || strings.TrimSpace(st.Model.Model) == "" {
-								return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdWhaleVisionModelMissing))
-							}
-							raw, err := os.ReadFile(imgPath)
-							if err != nil {
-								return "", err
-							}
-							if len(raw) == 0 || len(raw) > 4<<20 {
-								return "", fmt.Errorf("%s", i18n.T(i18n.KeyCmdWhaleLookImageLimit))
-							}
-							b64 := base64.StdEncoding.EncodeToString(raw)
-							out, err := c.WhalePetLook(ctx, st.Model.Provider, st.Model.Model, b64)
-							return string(out), err
-						})
-					},
-					OnDshbotDescribe: func() {
-						state.runAssistantPluginRPC(win, ep, "describe", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							out, err := c.DshbotDescribe(ctx)
-							return string(out), err
-						})
-					},
-					OnDshbotCatalog: func() {
-						state.runAssistantPluginRPC(win, ep, "catalog/items", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							out, err := c.DshbotCatalog(ctx)
-							return string(out), err
-						})
-					},
-					OnDshbotActivity: func() {
-						state.runAssistantPluginRPC(win, ep, "bot/activity", func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							act, err := c.DshbotActivityTyped(ctx, nil)
-							if err != nil {
-								return "", err
-							}
-							return fmt.Sprintf(i18n.T(i18n.KeyCmdActivityEntryCount), len(act.Entries)), nil
-						})
-					},
-					OnDshbotRefreshRoster: func() {
-						label := i18n.T(i18n.KeyAssistantDshbotRosterRefresh)
-						state.runAssistantPluginRPC(win, ep, label, func(ctx context.Context, c *pluginrpc.Client) (string, error) {
-							res, err := c.DshbotDescribeTyped(ctx, "")
-							if err != nil {
-								return "", err
-							}
-							state.mu.Lock()
-							roster := state.dshbotRoster
-							state.mu.Unlock()
-							if roster != nil {
-								roster.SetFromDescribeForHost(res, false, origin)
-								if act, aerr := c.DshbotActivityTyped(ctx, nil); aerr == nil {
-									roster.MergeActivity(act)
-								}
-								for _, row := range roster.Snapshot().Rows {
-									if row.Kind != "room" {
-										continue
-									}
-									if rt, rerr := c.DshbotGroupRuntime(ctx, row.ID); rerr == nil {
-										roster.ApplyGroupRuntime(rt)
-									}
-								}
-							}
-							rows := pluginrpc.RosterRowsFromDescribe(res, false)
-							return fmt.Sprintf("%d", len(rows)), nil
-						})
-					},
-					OnDshbotOpenRosterSession: func(botID string) {
-						state.assistantBotCreator.Suspend()
-						state.assistantBotVisibility.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantContacts.Suspend()
-						state.assistantBotDeleter.Suspend()
-						state.assistantBotDuplicator.Suspend()
-						state.assistantRoomCreator.Suspend()
-						state.assistantRoomEditor.Suspend()
-						state.assistantRoomRuntime.Suspend()
-						state.assistantRoutines.Bind(dshbotstore.RoutineScope{})
-						state.openAssistantDshbot(ep, botID)
-					},
+				model, obs, commitDraft := asstSvc.BuildPanelModel(assistantctl.PanelBuildOptions{
+					Endpoint:          st.Endpoint,
+					ThemeID:           themeID,
+					SystemDark:        mygo.Theme.IsDark(),
+					LastWebViewURL:    lastWebURL,
+					SessionLastAction: sessionLastAction,
+					SessionMessages:   sessionMsgs,
 				})
-				state.mu.Lock()
-				state.assistantDraft = assistantDraft
-				state.mu.Unlock()
+				assistantObs = obs
+				assistant.View(c, model)
+				commitDraft()
 				return
 			}
 			if acceptPanelOK && embeddedSection == "" && browserPreviewOpen {
@@ -5963,9 +5520,8 @@ func mainView(c *ui.Context) {
 						state.closeWebViewHost()
 						state.mu.Lock()
 						state.webviewOpen = false
-						state.assistantConversationGeneration++
-						state.assistantOpen = false
 						state.mu.Unlock()
+						asstSvc.SetOpen(false)
 						state.returnFromAccountPage()
 						if win != nil {
 							win.Update(func() {})
@@ -6008,20 +5564,6 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
-					OnOpenBrowser: func() {
-						u := resumeURL
-						if hostActive {
-							u = hostURL
-						}
-						if u != "" {
-							if err := desktopwebview.OpenExternal(u); err != nil {
-								log.Printf("webview: open browser: %v", err)
-							}
-						}
-						if win != nil {
-							win.Update(func() {})
-						}
-					},
 				})
 				return
 			}
@@ -6037,7 +5579,7 @@ func mainView(c *ui.Context) {
 						write(context.Background(), ns, map[string]string{key: value})
 					}}
 					usagePreferences = func(c *ui.Context, fg, muted ui.Color) {
-						settings.UsagePreferencesWithContributions(c, host, state.pluginPublicContributions(), fg, muted)
+						settings.UsagePreferences(c, host, fg, muted)
 					}
 				}
 				usageui.View(c, usageui.Model{
@@ -6212,9 +5754,7 @@ func mainView(c *ui.Context) {
 					if state.composerSuggest.Selected == nil {
 						state.composerSuggest.Selected = &state.composerSuggestSel
 					}
-					if strings.HasPrefix(draft, "/") && snap.ClientReady {
-						sessions.EnsureSlashCommands(context.Background())
-					}
+					needSlashCommands := strings.HasPrefix(draft, "/") && snap.ClientReady
 					state.composerSlash = composer.BuildSlashCatalog(composer.StubSlashCommands(), composer.FromAPIList(snap.SlashCommands))
 					if kind, _, _, ok := composer.ActiveSuggest(draft); ok && kind == composer.SuggestMention {
 						// Indexing runs on a worker (see composerPathsLocked); this
@@ -6229,14 +5769,22 @@ func mainView(c *ui.Context) {
 					composerSkillsFilter := state.composerSkillsFilter
 					skillCreateName := state.skillCreateName
 					composerChipEdit := state.composerChipEdit
+					needSkillsRefresh := false
 					if composerSkillsOpen && snap.SelectedID != "" && snap.SelectedID != state.composerSkillsSession {
-						sessions.RefreshSkills(context.Background())
+						needSkillsRefresh = true
 						state.composerSkillsSession = snap.SelectedID
 					}
 					if composerSkillsList.Selected == nil {
 						composerSkillsList.Selected = &state.composerSkillsSel
 					}
+					compStart := captureComposerWriteback(composerSuggest, composerSkillsList, composerSkillsOpen, composerSkillsFilter, skillCreateName, composerChipEdit)
 					state.mu.Unlock()
+					if needSlashCommands {
+						sessions.EnsureSlashCommands(state.lifecycleContext())
+					}
+					if needSkillsRefresh {
+						sessions.RefreshSkills(state.lifecycleContext())
+					}
 					state.ensureTerminal(workspaceRoot, mygo.Theme.IsDark())
 					state.mu.Lock()
 					termPanel := state.terminalPanel
@@ -6358,34 +5906,19 @@ func mainView(c *ui.Context) {
 					if accountUsage.Details.Profile.Value.AvatarURL != nil {
 						avatarURL = strings.TrimSpace(*accountUsage.Details.Profile.Value.AvatarURL)
 					}
+					uFrame := state.updaterCenter().FrameSnapshot()
+					assistantNavName := asstSvc.WhaleNavName()
 					state.mu.Lock()
 					connReady := st.State == harness.Ready && state.dshMuxReady
-					assistantNavName := state.whaleNavName
-					updateInstalling := state.nativeReleases.installing
-					updatePhase := state.nativeReleases.phase
-					updateDetail := strings.TrimSpace(state.nativeReleases.status + " " + state.nativeReleases.err)
 					state.mu.Unlock()
+					updateInstalling := uFrame.Installing
+					updatePhase := uFrame.Phase
+					updateDetail := uFrame.Detail
 					// One settings copy per build: the frame model only reads it, and each
 					// Snapshot copies every namespace's documents.
 					settingsView := currentSettingsView()
 					frameModel := frame.Model{
-						PublicContributions:             state.pluginPublicContributions(),
-						ConversationViews:               state.pluginConversationViews(),
-						OnSelectConversationView:        state.selectPluginConversationView,
-						OnClearConversationView:         state.clearPluginConversationView,
-						OnSelectBuiltinConversationView: state.selectBuiltinPluginConversationView,
-						RenderConversationView:          state.renderPluginConversationView,
-						PluginRightPaneTabs:             state.pluginRightPaneTabs(),
-						PluginRightPaneKinds:            state.pluginRightPaneKinds(),
-						OnOpenPluginRightPaneKind:       state.pluginRightPaneKindOpener(win, sessions, snap.SelectedID, layout.Workspace),
-						OnSelectPluginRightPaneTab:      state.selectPluginRightPaneTab,
-						OnClosePluginRightPaneTab:       state.closePluginRightPaneTab,
-						RenderPluginRightPaneTab:        state.renderPluginRightPaneTab,
-
 						SVGImages:             svgImages,
-						PluginSlot:            state.renderPluginNativeSlot,
-						InteractionRenderSlot: state.renderPluginInteractionSlot,
-						RightOverlayReserve:   state.padReservedWidth(c),
 						ChildBusyEnter:        setStore.BusyEnterFor(fileClient),
 						ChildDraft:            state.childComposerDraft,
 						OnQueryReferences:     state.boundReferenceQuery(sessions, snap),
@@ -6470,12 +6003,11 @@ func mainView(c *ui.Context) {
 							state.settingsOpen = false
 							state.webviewOpen = false
 							state.browserPreviewOpen = false
-							state.assistantConversationGeneration++
-							state.assistantOpen = false
 							state.remoteOpen = false
 							state.marketOpen = false
 							state.scheduleOpen = false
 							state.mu.Unlock()
+							asstSvc.SetOpen(false)
 							sid := ""
 							if sessions != nil {
 								sid = sessions.SelectedSessionID()
@@ -6642,7 +6174,7 @@ func mainView(c *ui.Context) {
 						},
 						OnToggleSkillModel: func(name string, modelInvocable bool) {
 							if sessions != nil {
-								sessions.SetSkillInvocation(context.Background(), name, modelInvocable, true)
+								sessions.SetSkillInvocation(state.lifecycleContext(), name, modelInvocable, true)
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -6653,7 +6185,7 @@ func mainView(c *ui.Context) {
 							state.composerSkillsOpen = open
 							state.mu.Unlock()
 							if open && sessions != nil {
-								sessions.RefreshSkills(context.Background())
+								sessions.RefreshSkills(state.lifecycleContext())
 							}
 							if win != nil {
 								win.Update(func() {})
@@ -6661,7 +6193,7 @@ func mainView(c *ui.Context) {
 						},
 						OnNoDirectory:    func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) },
 						OnCreateSession:  func() { state.openGlobalWorkspaceSession(win, sessions) },
-						DirectoryActions: state.workspaceDirectoryActions(win),
+						DirectoryActions: state.projectDirectoryActions(win),
 						OnCreateWorkspaceSession: func(generation uint64, id string) {
 							state.openWorkspaceSession(win, sessions, generation, id)
 						},
@@ -6943,11 +6475,10 @@ func mainView(c *ui.Context) {
 							state.mu.Lock()
 							state.marketOpen = true
 							state.scheduleOpen = false
-							state.assistantConversationGeneration++
-							state.assistantOpen = false
 							state.settingsOpen = false
 							state.launcherOpen = false
 							state.mu.Unlock()
+							asstSvc.SetOpen(false)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -6960,11 +6491,10 @@ func mainView(c *ui.Context) {
 							state.mu.Lock()
 							state.scheduleOpen = true
 							state.marketOpen = false
-							state.assistantConversationGeneration++
-							state.assistantOpen = false
 							state.settingsOpen = false
 							state.launcherOpen = false
 							state.mu.Unlock()
+							asstSvc.SetOpen(false)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -6975,10 +6505,10 @@ func mainView(c *ui.Context) {
 						OnOpenLauncher: func() {
 							state.mu.Lock()
 							state.launcherOpen = true
-							state.launcherTab = launcher.TabHome
 							state.toolsMenuOpen = false
 							state.settingsOpen = false
 							state.mu.Unlock()
+							state.launcherController().SetTab(launcher.TabHome)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -6991,10 +6521,10 @@ func mainView(c *ui.Context) {
 						OnOpenDesktopUpdate: func() {
 							state.mu.Lock()
 							state.launcherOpen = true
-							state.launcherTab = launcher.TabVersions
 							state.toolsMenuOpen = false
 							state.settingsOpen = false
 							state.mu.Unlock()
+							state.launcherController().SetTab(launcher.TabVersions)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -7010,8 +6540,8 @@ func mainView(c *ui.Context) {
 							OnSignIn:            state.startAccountSignIn,
 							OnContact:           state.contactAccountSupport,
 							Notices:             state.sidebarAccountNotices(),
-							LauncherActions:     state.pluginAccountLauncherActions,
-							RenderLauncherPopup: state.renderPluginAccountLauncherPopup,
+							LauncherActions:     state.phoneLauncherActions,
+							RenderLauncherPopup: state.renderPhonePopup,
 						},
 						OnOpenSettings: func() { state.toggleApplicationSettings(c) },
 						OnToggleTools: func() {
@@ -7239,7 +6769,6 @@ func mainView(c *ui.Context) {
 						}
 						return nil
 					}
-					state.bindPluginNativeNavigation(&frameModel)
 					state.bindShellParity(c, &frameModel, win)
 					state.bindWorkspaceTrailing(win, &frameModel, gitBadge, gitRepositoryStatus, gitBusy, workspaceRoot, gitCommitDraft)
 					frameModel.WorkspaceOpenInApp = openInApp
@@ -7256,15 +6785,11 @@ func mainView(c *ui.Context) {
 						}
 					})
 					state.consumeNavigationFile(frameModel)
-					frameModel = state.withPluginSessionFrame(frameModel)
 					state.gateAssistantNavigation(&frameModel)
 					nextPromptRendered = true
 					frame.View(c, frameModel)
 					state.workspaceNavigationView(c, win, sessions, themeID, systemDark, func() { state.openNoDirectory(win, sessions, activeDraft, snap.SelectedID) })
 					state.directoryPickerView(c, win, sessions, themeID, systemDark, func(mode, path string) {
-						if state.completePluginDirectoryAction(mode, path) {
-							return
-						}
 						if mode == "mention" {
 							root := strings.TrimSpace(workspaceRoot)
 							if root == "" && state.cfgStore != nil {
@@ -7280,70 +6805,68 @@ func mainView(c *ui.Context) {
 						}
 						state.applyWorkspacePath(win, sessions, path, false)
 					})
-					state.renderPluginSessionSlot(c)
 					state.mu.Lock()
-					// Splitters mutate Sidebar/Right/Main/RightTree on the paint-local
-					// copy. Do not clobber Bottom: toggleTerminal writes it on state and
-					// a concurrent paint used to wipe the terminal open height back to 0.
-					bottom := state.layout.Bottom
-					state.layout = layout
-					state.layout.Bottom = bottom
-					state.composerSuggest = composerSuggest
-					state.composerSkillsList = composerSkillsList
-					state.composerSkillsOpen = composerSkillsOpen
-					state.composerSkillsFilter = composerSkillsFilter
-					state.skillCreateName = skillCreateName
-					state.composerChipEdit = composerChipEdit
-					state.draft = activeDraft.Text
-					state.editMessageSeq = editMessageSeq
-					state.feedbackCommentMsgID = feedbackCommentMsgID
-					state.feedbackCommentDraft = feedbackCommentDraft
-					state.modelPick = modelPick
-					state.permissionPick = permissionPick
-					state.agentPresetPick = agentPresetPick
-					state.thinkingExpanded = thinkingExpanded
-					state.renameSessionID = renameSessionID
-					state.renameDraft = renameDraft
+					state.commitComposerWritebackLocked(compStart, captureComposerWriteback(composerSuggest, composerSkillsList, composerSkillsOpen, composerSkillsFilter, skillCreateName, composerChipEdit))
+					previousChatPaneTab := state.commitMainViewWritebackLocked(wbStart, mainViewWritebackSnapshot{
+						layout:               layout,
+						draft:                activeDraft.Text,
+						editMessageSeq:       editMessageSeq,
+						feedbackCommentMsgID: feedbackCommentMsgID,
+						feedbackCommentDraft: feedbackCommentDraft,
+						modelPick:            modelPick,
+						permissionPick:       permissionPick,
+						agentPresetPick:      agentPresetPick,
+						thinkingExpanded:     thinkingExpanded,
+						renameSessionID:      renameSessionID,
+						renameDraft:          renameDraft,
+						sessionSearch:        sessionSearch,
+						fileTabs:             fileTabs,
+						gitWorkbench:         gitWorkbench,
+						fileExpanded:         fileExpanded,
+						selectedFile:         selectedFile,
+						fileFilter:           fileFilter,
+						filePreview:          filePreview,
+						filePreviewErr:       filePreviewErr,
+						filePreviewList:      filePreviewList,
+						fileEditing:          fileEditing,
+						fileEditDraft:        fileEditDraft,
+						fileEditStatus:       fileEditStatus,
+						fileEditViewMode:     fileEditViewMode,
+						fileEditSplit:        fileEditSplit,
+						rightPaneTab:         rightPaneTab,
+						agentsPromptDraft:    agentsPromptDraft,
+						goalDraft:            goalDraft,
+						diffPath:             diffPath,
+						diffText:             diffText,
+						diffErr:              diffErr,
+						planBoardOpen:        planBoardOpen,
+						todoPanelCollapsed:   todoPanelCollapsed,
+						chatPaneTab:          chatPaneTab,
+						trajSearch:           trajSearch,
+						trajSelectedID:       trajSelectedID,
+						trajActualDur:        trajActualDur,
+						trajTurnsFold:        trajTurnsFold,
+						trajCallsFold:        trajCallsFold,
+						trajDetailTab:        trajDetailTab,
+						imageLightboxPath:    imageLightboxPath,
+						gitCommitOpen:        gitCommitOpen,
+						gitCommitDraft:       gitCommitDraft,
+						gitPROpen:            gitPROpen,
+					})
+					if sessionSearch == wbStart.sessionSearch {
+						sessionSearch = state.sessionSearch
+					}
+					if chatPaneTab == wbStart.chatPaneTab {
+						chatPaneTab = state.chatPaneTab
+					}
 					state.sessionSearch = sessionSearch
-					state.fileTabs = fileTabs
-					state.gitWorkbench = gitWorkbench
-					state.fileExpanded = fileExpanded
-					state.selectedFile = selectedFile
-					state.fileFilter = fileFilter
-					state.filePreview = filePreview
-					state.filePreviewErr = filePreviewErr
-					state.filePreviewList = filePreviewList
-					state.fileEditing = fileEditing
-					state.fileEditDraft = fileEditDraft
-					state.fileEditStatus = fileEditStatus
-					state.fileEditViewMode = fileEditViewMode
-					state.fileEditSplit = fileEditSplit
-					state.rightPaneTab = rightPaneTab
-					state.agentsPromptDraft = agentsPromptDraft
-					state.goalDraft = goalDraft
-					state.diffPath = diffPath
-					state.diffText = diffText
-					state.diffErr = diffErr
-					state.planBoardOpen = planBoardOpen
-					state.todoPanelCollapsed = todoPanelCollapsed
-					previousChatPaneTab := state.chatPaneTab
 					state.chatPaneTab = chatPaneTab
-					state.trajSearch = trajSearch
-					state.trajSelectedID = trajSelectedID
-					state.trajActualDur = trajActualDur
-					state.trajTurnsFold = trajTurnsFold
-					state.trajCallsFold = trajCallsFold
-					state.trajDetailTab = trajDetailTab
-					state.imageLightboxPath = imageLightboxPath
-					state.gitCommitOpen = gitCommitOpen
-					state.gitCommitDraft = gitCommitDraft
-					state.gitPROpen = gitPROpen
 					state.mu.Unlock()
 					frame.TraceConversationTabWriteback(previousChatPaneTab, chatPaneTab)
 					// Search synchronously notifies the attached session store. Its
 					// refresh callback also takes state.mu, so publish after unlocking.
 					if sessions != nil {
-						sessions.UpdateSessionSearch(context.Background(), sessionSearch)
+						sessions.UpdateSessionSearch(state.lifecycleContext(), sessionSearch)
 					}
 				})
 				return
@@ -7392,8 +6915,7 @@ func mainView(c *ui.Context) {
 			navAvatarURL = strings.TrimSpace(*navAccountUsage.Details.Profile.Value.AvatarURL)
 		}
 		navigationModel := frame.Model{
-			PublicContributions: state.pluginPublicContributions(),
-			Store:               sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
+			Store: sessions, Sizes: &layout, ThemeID: themeID, SystemDark: systemDark,
 			FrameView:     sessionViews.view(sessions),
 			SessionSearch: &sessionSearch, RenameSessionID: &renameSessionID, RenameDraft: &renameDraft,
 			Interactions: interactions, HideArchivedList: cfgHideArchivedList, RightPaneTab: &rightPaneTab,
@@ -7419,8 +6941,8 @@ func mainView(c *ui.Context) {
 				OnSignIn:            state.startAccountSignIn,
 				OnContact:           state.contactAccountSupport,
 				Notices:             state.sidebarAccountNotices(),
-				LauncherActions:     state.pluginAccountLauncherActions,
-				RenderLauncherPopup: state.renderPluginAccountLauncherPopup,
+				LauncherActions:     state.phoneLauncherActions,
+				RenderLauncherPopup: state.renderPhonePopup,
 			},
 		}
 		if navigationModel.WorkspacePage {
@@ -7431,16 +6953,14 @@ func mainView(c *ui.Context) {
 			state.bindWorkspaceTrailing(win, &navigationModel, gitBadge, gitRepositoryStatus, gitBusy, workspaceRoot, gitCommitDraft)
 		}
 		state.withMainNavigation(c, sharedNavigation, navigationModel, func() {
-			if settingsOpen && setStore != nil && state.settingsEmbeddedSection != "" {
+			if settingsOpen && setStore != nil && settingsEmbeddedSectionFrame != "" {
 				ui.Box(c).Fill().Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
 				return
 			}
 			paintMainContent("")
 		})
 		if navigationModel.WorkspacePage {
-			state.mu.Lock()
-			state.gitWorkbench = gitWorkbench
-			state.mu.Unlock()
+			state.commitGitWorkbenchIfChanged(wbStart.gitWorkbench, gitWorkbench)
 		}
 		paintSettingsOverlay()
 

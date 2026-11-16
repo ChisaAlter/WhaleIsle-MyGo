@@ -81,8 +81,8 @@ func TestInactiveHostOffersNoFakeData(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeyWebViewOpenBrowser)); err != nil {
 		t.Fatal(err)
 	}
-	// One auto-open on the first frame plus this explicit retry.
-	if openedHost != 2 || openedBrowser != 1 {
+	// Explicit click opens the host window once (no implicit auto-open on mount).
+	if openedHost != 1 || openedBrowser != 1 {
 		t.Fatalf("host=%d browser=%d", openedHost, openedBrowser)
 	}
 }

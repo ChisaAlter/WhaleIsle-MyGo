@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -127,28 +126,6 @@ func TestConversationViewTabsHaveSeparateRowAndKeyboardNavigation(t *testing.T) 
 			}
 			saveConversationEvidence(t, tt, fmt.Sprintf("conversation-tabs-%v", width))
 		})
-	}
-}
-
-func TestConversationViewsUseActualHandleAndKeepBuiltins(t *testing.T) {
-	tab, opened, cleared := "chat", "", 0
-	m := Model{ChatPaneTab: &tab, ConversationViews: []pluginui.ConversationView{
-		{Handle: "ignored", ID: "trajectory", Label: "Duplicate"},
-		{Handle: "owner:revision:custom", ID: "report", Label: "Report"},
-	}, OnSelectConversationView: func(handle string) { opened = handle }, OnClearConversationView: func() { cleared++ }}
-	tt := ui.NewTester(func(c *ui.Context) { conversationViewTabs(c, m, theme.Resolve("deepseek.light").Light, false) }, 400, 100)
-	if tt.HasText("Duplicate") {
-		t.Fatal("duplicated built-in view")
-	}
-	if err := tt.Click("Report"); err != nil {
-		t.Fatal(err)
-	}
-	if tab != "plugin:owner:revision:custom" || opened != "owner:revision:custom" {
-		t.Fatalf("wrong native handle %q %q", tab, opened)
-	}
-	tt.Key(0, ui.KeyHome)
-	if tab != "chat" || cleared != 1 {
-		t.Fatalf("builtin did not retire custom: %q %d", tab, cleared)
 	}
 }
 

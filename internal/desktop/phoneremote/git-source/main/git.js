@@ -1090,17 +1090,56 @@ async function gitCreateChangeRequest(cwd, input, onProgress) {
   });
 }
 
+const ALLOWED_REMOTE_PROTOCOLS = new Set(['https:', 'http:', 'ssh:', 'git:']);
+
+function isSafeRemoteUrl(raw) {
+  if (typeof raw !== 'string') return false;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length > 2048) return false;
+  if (trimmed.startsWith('-') || /[\u0000-\u001f\u007f\s]/.test(trimmed)) return false;
+  if (/^(?:ext|fd)::/i.test(trimmed)) return false;
+  if (/^(?:https?|ssh|git):\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (!ALLOWED_REMOTE_PROTOCOLS.has(parsed.protocol)) return false;
+      if (!parsed.hostname || parsed.hostname.startsWith('-')) return false;
+      if (parsed.username.startsWith('-') || parsed.password.startsWith('-')) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const scpMatch = /^([A-Za-z0-9._-]+)@((?:\[[0-9a-fA-F:]+\])|[A-Za-z0-9.-]+):([^\s]+)$/.exec(trimmed);
+  if (!scpMatch) return false;
+  const [, user, host, repoPath] = scpMatch;
+  if (!user || user.startsWith('-') || !host || host.startsWith('-')) return false;
+  if (!repoPath || repoPath.startsWith(':') || repoPath.startsWith('-')) return false;
+  return true;
+}
+
+function isSafePublishRepoName(name) {
+  if (typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 200) return false;
+  if (trimmed.startsWith('-') || /[\u0000-\u001f\u007f\s\\]/.test(trimmed)) return false;
+  const parts = trimmed.split('/');
+  if (parts.length > 2) return false;
+  return parts.every((part) => /^[A-Za-z0-9._-]+$/.test(part) && part !== '.' && part !== '..' && !part.startsWith('-'));
+}
+
 async function gitPublishRepository(cwd, input, onProgress) {
   const emit = typeof onProgress === 'function' ? onProgress : () => {};
   const root = asCwd(cwd);
   if (!root) return fail('Git status is unavailable.');
-  const remotes = await listRemoteNames(root);
-  // CTA offers Publish when origin is missing; allow other remotes (e.g. upstream only).
-  if (remotes.includes('origin')) return fail('This repository already has an origin remote.');
   const remoteUrl = typeof input?.remoteUrl === 'string' ? input.remoteUrl.trim() : '';
   const name = typeof input?.name === 'string' && input.name.trim()
     ? input.name.trim()
     : path.basename(root);
+  if (remoteUrl && !isSafeRemoteUrl(remoteUrl)) return fail('Invalid remote URL.');
+  if (!remoteUrl && !isSafePublishRepoName(name)) return fail('Invalid repository name.');
+  const remotes = await listRemoteNames(root);
+  // CTA offers Publish when origin is missing; allow other remotes (e.g. upstream only).
+  if (remotes.includes('origin')) return fail('This repository already has an origin remote.');
   const visibility = input?.visibility === 'public' ? 'public' : 'private';
   emit({ kind: 'phase', title: 'Publishing repository...' });
   const headProbe = await runGit(root, ['rev-parse', '--verify', 'HEAD']);
@@ -1109,7 +1148,7 @@ async function gitPublishRepository(cwd, input, onProgress) {
     // An `origin` that appears before the add reports failure still changed
     // the remote config; drop the memo before the write.
     invalidateReadContext(root);
-    const added = await runGit(root, ['remote', 'add', 'origin', remoteUrl]);
+    const added = await runGit(root, ['remote', 'add', 'origin', '--', remoteUrl]);
     if (added.code !== 0) return fail(gitFailureMessage(added, 'git remote add failed.'));
     // Empty repo → remote_added without push (avoids opaque HEAD refspec failure).
     if (!hasCommits) return ok({ status: 'remote_added', remoteName: 'origin', url: remoteUrl });
@@ -1118,7 +1157,7 @@ async function gitPublishRepository(cwd, input, onProgress) {
     return { ...pushed, url: remoteUrl, remoteName: 'origin' };
   }
   const createArgs = [
-    'repo', 'create', name,
+    'repo', 'create',
     visibility === 'private' ? '--private' : '--public',
     '--source=.',
     '--remote=origin',
@@ -1126,6 +1165,7 @@ async function gitPublishRepository(cwd, input, onProgress) {
     '--yes',
   ];
   if (hasCommits) createArgs.push('--push');
+  createArgs.push('--', name);
   // `gh repo create --remote=origin` writes the remote as part of its work.
   invalidateReadContext(root);
   const created = await run('gh', createArgs, root, { timeoutMs: COMMIT_TIMEOUT_MS });

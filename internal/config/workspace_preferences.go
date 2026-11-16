@@ -87,27 +87,13 @@ func (s *Store) SaveWorkspaceNavigationPreferences(hostKey string, prefs Workspa
 	if err != nil {
 		return err
 	}
-	merged := map[string]json.RawMessage{}
-	for k, v := range s.raw {
-		merged[k] = v
-	}
+	merged := cloneRawMap(s.raw)
 	merged[workspaceNavigationKey] = rootRaw
-	data, err := json.MarshalIndent(merged, "", "  ")
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-	unlock, err := s.lockCommit()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err = s.checkBaseline(); err != nil {
-		return err
-	}
-	if err = writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }

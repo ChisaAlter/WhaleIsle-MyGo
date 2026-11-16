@@ -3,10 +3,8 @@ package webview
 import (
 	"errors"
 	"slices"
-	"sync"
 
 	"github.com/egoist/mygo"
-	"whaleisle/internal/desktop/pluginslots"
 )
 
 type mediaPlacement struct {
@@ -47,53 +45,10 @@ func intersectMediaRect(a, b mygo.Rectangle) mygo.Rectangle {
 // A platform unable to confirm clipping hides the page and reports failure.
 // Ordinary Browser and document Hosts never opt into this path.
 func (h *Host) PresentMedia(bounds, clip mygo.Rectangle, occlusions []mygo.Rectangle) (bool, error) {
-	return h.presentClipped(bounds, clip, occlusions, nil)
+	return h.presentClipped(bounds, clip, occlusions)
 }
 
-var pluginSurfaceCapabilities sync.Map // *Host -> *pluginslots.Gateway, native caller owned
-
-// NewPluginSurface creates only a binding-free exact-gateway page. The owner
-// retains and closes its capability; it never receives application bindings.
-func NewPluginSurface(opts HostOptions, capability *pluginslots.Gateway) (*Host, error) {
-	if capability == nil || !capability.AllowsBrowserURL(opts.URL) || opts.SessionOrigin != "" || opts.SessionCookie != "" {
-		return nil, errors.New("plugin UI: exact browser capability required")
-	}
-	opts.Untrusted = true
-	opts.TrustedOrigins = nil
-	opts.AllowNavigation = capability.AllowsBrowserURL
-	closed := opts.OnClosed
-	var host *Host
-	opts.OnClosed = func() {
-		if host != nil {
-			pluginSurfaceCapabilities.Delete(host)
-		}
-		if closed != nil {
-			closed()
-		}
-	}
-	var err error
-	host, err = NewHost(opts)
-	if err == nil {
-		// A fixed native seat has no resize frame. Keeping the default invisible
-		// thick frame would shrink the DOM viewport inside these exact bounds.
-		host.win.SetResizable(false)
-		host.SyncBounds()
-		pluginSurfaceCapabilities.Store(host, capability)
-	}
-	return host, err
-}
-
-// PresentPlugin preserves a contribution's full viewport while native scrolling
-// clips its pixels and input. The exact-Host capability must authorize this
-// binding-free Host; a caller cannot use the path for ordinary browser pages.
-func (h *Host) PresentPlugin(bounds, clip mygo.Rectangle, occlusions []mygo.Rectangle, capability *pluginslots.Gateway) (bool, error) {
-	if h == nil || capability == nil {
-		return false, errors.New("plugin UI: Host capability required")
-	}
-	return h.presentClipped(bounds, clip, occlusions, capability)
-}
-
-func (h *Host) presentClipped(bounds, clip mygo.Rectangle, occlusions []mygo.Rectangle, capability *pluginslots.Gateway) (bool, error) {
+func (h *Host) presentClipped(bounds, clip mygo.Rectangle, occlusions []mygo.Rectangle) (bool, error) {
 	if h == nil {
 		return false, errors.New("media: native browser is unavailable")
 	}
@@ -102,13 +57,6 @@ func (h *Host) presentClipped(bounds, clip mygo.Rectangle, occlusions []mygo.Rec
 		h.mu.Lock()
 		w, parent := h.win, h.parent
 		private := h.transient && h.gateway == nil && h.localPDFURL == "" && h.localPDFViewerURL == "" && h.localHTMLURL == "" && h.localMediaURL == ""
-		if capability != nil {
-			// This is an application-owned authenticated gateway, not a plugin URL
-			// claim. Construction guarantees disabled bindings; require its pinned
-			// browser origin and navigation guard for every subsequent paint too.
-			registered, _ := pluginSurfaceCapabilities.Load(h)
-			private = registered == capability && h.gateway == nil && h.allowNavigation != nil && capability.AllowsBrowserURL(h.initialBaseURL) && h.allowNavigation(h.initialBaseURL) && h.localPDFURL == "" && h.localPDFViewerURL == "" && h.localHTMLURL == "" && h.localMediaURL == ""
-		}
 		if private {
 			h.mediaSeat = true
 		}

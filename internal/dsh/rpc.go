@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,12 +43,24 @@ type Client struct {
 	HTTP     *http.Client
 }
 
+// defaultCallTimeout bounds ordinary RPC calls when the caller provides no
+// deadline, without applying a whole-response http.Client.Timeout that would
+// sever long-lived SSE (/plugins/events) or large archive (/api/session.export) streams.
+var defaultCallTimeout = 60 * time.Second
+
 var defaultHTTPClient = &http.Client{
 	Transport: &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		MaxIdleConns:        128,
-		MaxIdleConnsPerHost: 64,
-		IdleConnTimeout:     90 * time.Second,
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          128,
+		MaxIdleConnsPerHost:   64,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 120 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	},
 }
 
@@ -84,6 +97,13 @@ func (c *Client) CallWithProgress(ctx context.Context, method string, args any, 
 
 // callPayload shares the authenticated Connection envelope across RPC dialects.
 func (c *Client) callPayload(ctx context.Context, method string, payload any, out any, progress ...func(int64, int64)) error {
+	if ctx != nil && defaultCallTimeout > 0 {
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, defaultCallTimeout)
+			defer cancel()
+		}
+	}
 	rpcID := newID()
 	body, err := json.Marshal(map[string]any{
 		"type":    "client-request",

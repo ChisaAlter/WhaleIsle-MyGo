@@ -74,9 +74,6 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 	if !found {
 		return
 	}
-	if !settingsItemBefore(c, "permission-row") {
-		return
-	}
 	clearFailure := bodyPreferenceFieldError(c, a, "permission", "defaultPreset", providerCopy("权限", "Permission"))
 	defaults := a.Snapshot.PermissionDefaults
 	if value == "" {

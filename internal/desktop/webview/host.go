@@ -73,8 +73,10 @@ type HostOptions struct {
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
 // Native ui.Content cannot embed a webview; this child covers the panel area.
 type Host struct {
-	devToolsMu   sync.Mutex
-	devToolsOpen bool
+	devToolsMu           sync.Mutex
+	devToolsOpen         bool
+	devToolsShortcutPage *mygo.Page
+	devToolsTracked      *mygo.Page
 	// mediaSeat is opt-in for a trusted native paint-owned, clipped surface.
 	// Its geometry must never be replaced by the ordinary whole-panel sync.
 	mediaSeat             bool
@@ -292,7 +294,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	}
 	pg := child.Page()
 	h.installDevToolsShortcut(pg)
-	registerDevToolsPage(pg)
+	h.trackDevToolsPage(pg)
 	pg.OnWillNavigate(func(e *mygo.NavigateEvent) {
 		if (opts.AllowNavigation != nil && !opts.AllowNavigation(e.URL)) || (gateway != nil && !gateway.AllowsBrowserURL(e.URL)) || (opts.Untrusted && validateHTTPURL(e.URL) != nil) {
 			e.PreventDefault()
@@ -458,7 +460,7 @@ func (h *Host) Navigate(raw string) error {
 	}
 	pg := win.Page()
 	h.installDevToolsShortcut(pg)
-	registerDevToolsPage(pg)
+	h.trackDevToolsPage(pg)
 	if pg == nil {
 		return errors.New("webview: no page")
 	}
@@ -592,6 +594,19 @@ func (h *Host) Close() error {
 	onClosed := h.onClosed
 	h.onClosed = nil
 	h.mu.Unlock()
+	h.devToolsMu.Lock()
+	tracked := h.devToolsTracked
+	h.devToolsTracked = nil
+	h.devToolsShortcutPage = nil
+	h.devToolsMu.Unlock()
+	if tracked != nil {
+		unregisterDevToolsPage(tracked)
+	}
+	if win != nil && !win.IsDestroyed() {
+		if pg := win.Page(); pg != nil && pg != tracked {
+			unregisterDevToolsPage(pg)
+		}
+	}
 	h.gateway.Close()
 	if onClosed != nil {
 		onClosed()

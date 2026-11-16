@@ -1,5 +1,15 @@
-param([int]$OwnerId)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r106-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -25,13 +35,13 @@ public class InspectorChatR106 {
 '@
 [void][InspectorChatR106]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
-if($owner.ExecutablePath -ne 'C:\AI\WhaleIsle-MyGo\.devdata\r106-inspector-fixture.exe'){throw 'Unexpected fixture owner'}
+if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath){throw 'Unexpected fixture owner'}
 $handle=(Get-Process -Id $OwnerId).MainWindowHandle
 [void][InspectorChatR106]::ShowWindow($handle,9)
 [void][InspectorChatR106]::SetForegroundWindow($handle)
 [void][InspectorChatR106]::SetWindowPos($handle,[IntPtr]::Zero,0,0,1820,1000,0x0040)
 $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-native-pass250-chat-desktop'
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-native-pass250-chat-desktop' }
 function ReadMetrics {[InspectorChatR106]::Key($handle,0x78);Start-Sleep -Milliseconds 180;Get-Content -LiteralPath ($prefix+'-metrics.json') -Raw|ConvertFrom-Json}
 function Find([string]$name){$all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition);foreach($e in $all){if($e.Current.Name -eq $name){return $e}}}
 Start-Sleep -Milliseconds 300

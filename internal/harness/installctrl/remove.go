@@ -9,6 +9,9 @@ import (
 // RemovePluginContext uses only the bundled CLI, never a network-fetched dsh.
 // The caller owns import exclusion, task protection and stopping the Host.
 func RemovePluginContext(parent context.Context, cfg InstallConfig, name string) Result {
+	if parent == nil {
+		parent = context.Background()
+	}
 	out := Result{Spec: name}
 	if RegistryPluginName(name+"@0.0.0") != name {
 		out.Error = "invalid plugin name"
@@ -16,6 +19,16 @@ func RemovePluginContext(parent context.Context, cfg InstallConfig, name string)
 	}
 	if !InstallReady(cfg) || strings.TrimSpace(cfg.ProfileDir) == "" {
 		out.Error = "bundled Node and dsh CLI are required for removal"
+		return out
+	}
+	if err := parent.Err(); err != nil {
+		out.Error = err.Error()
+		return out
+	}
+	unlock := lockProfile(cfg.ProfileDir)
+	defer unlock()
+	if err := parent.Err(); err != nil {
+		out.Error = err.Error()
 		return out
 	}
 	timeout := cfg.Timeout

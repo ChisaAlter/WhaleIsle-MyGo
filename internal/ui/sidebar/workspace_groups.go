@@ -2,7 +2,6 @@ package sidebar
 
 import (
 	"github.com/egoist/mygo/ui"
-	"slices"
 	"strconv"
 	"strings"
 	"whaleisle/internal/store/session"
@@ -10,6 +9,12 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
+
+const flatSessionPageBase = 50
+
+func sidebarPaginationToggle(c *ui.Context, key, label, accessible string, muted ui.Color) bool {
+	return ui.Button(c.Key(key), label).Label(accessible).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer).Clicked()
+}
 
 func workspaceText(zh, en string) string {
 	if i18n.Locale() == i18n.LocaleZH {
@@ -21,12 +26,7 @@ func workspaceViewOptions(c *ui.Context, m Model) {
 	workspaceViewOptionsMenu(c, m, nil)
 }
 func visibleWorkspaceGroups(m Model, items []session.Item) []session.WorkspaceGroup {
-	groups := slices.Clone(session.BuildSidebarWorkspaceGroups(m.Snapshot, items))
-	for i := range groups {
-		if m.navigationOnly[groups[i].Key] {
-			groups[i].Kind = "navigation"
-		}
-	}
+	groups := session.BuildSidebarWorkspaceGroups(m.Snapshot, items)
 	if browseArchiveFilter(m) != "only" {
 		if len(items) == 0 && (len(m.Snapshot.Workspaces) == 0 || m.Snapshot.WorkspaceLayout.GroupBy == "flat") {
 			return nil
@@ -86,7 +86,13 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	workspaceRowsStatus(c, m, fg)
 	// Sections own their 4-DIP separation; the scroll container adds none.
 	// Rows inside a section keep the reference's 2-DIP spacing.
-	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(4).Shrink(0)
+	flatFill := len(groups) == 1 && groups[0].Kind == "flat" && m.sidebarBodyFill
+	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(4)
+	if flatFill {
+		list.Grow(1).MinHeight(0)
+	} else {
+		list.Shrink(0)
+	}
 	rowTransition := workspaceGroupListMotion(c, list, layout.HostGeneration, groups)
 	m = workspaceDragModel(list, m)
 	blocks := make([]workspaceDropBlock, 0, len(groups))
@@ -103,8 +109,13 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
 				collapsed = false
 			}
-			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).Shrink(0).
+			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).
 				Transition(rowTransition)
+			if flatFill {
+				block.Grow(1).MinHeight(0)
+			} else {
+				block.Shrink(0)
+			}
 			blocks = append(blocks, workspaceDropBlock{Group: g, Element: block})
 			block.Children(func() {
 				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
@@ -198,8 +209,31 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 				workspaceGroupSessionRun(c, block, m, g, collapsed, func(visible workspaceWatermarkRows) {
 					rows := visible.Rows
 					local := g.Kind == "flat" || g.Kind == "scratch" || g.Kind == "other"
-					for _, row := range rows {
-						r := row
+					var flatLimit *int
+					flatHidden := 0
+					revealIdx := -1
+					if g.Kind == "flat" {
+						flatLimit = ui.Local(block, workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-limit"}, func() int { return flatSessionPageBase })
+						if *flatLimit < flatSessionPageBase {
+							*flatLimit = flatSessionPageBase
+						}
+						if m.searchState != nil && m.searchState.Reveal != "" {
+							for idx, candidate := range rows {
+								if candidate.Item.SessionID == m.searchState.Reveal {
+									revealIdx = idx
+									if idx >= *flatLimit {
+										*flatLimit = ((idx / flatSessionPageBase) + 1) * flatSessionPageBase
+									}
+									break
+								}
+							}
+						}
+						if len(rows) > *flatLimit {
+							flatHidden = len(rows) - *flatLimit
+							rows = rows[:*flatLimit]
+						}
+					}
+					renderRow := func(rc *ui.Context, r session.WorkspaceSessionRow) {
 						rowModel := m
 						rowModel.OnMoveSessionBefore = nil
 						rowModel.sessionDrag = nil
@@ -228,7 +262,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						if g.Kind != "flat" {
 							depth += g.Depth
 						}
-						rowSlot := ui.Column(c.Key(sessionRowKey{layout.HostGeneration, g.Key, "slot/" + r.Item.SessionID})).FillWidth().Shrink(0).
+						rowSlot := ui.Column(rc.Key(sessionRowKey{layout.HostGeneration, g.Key, "slot/" + r.Item.SessionID})).FillWidth().Shrink(0).
 							Transition(rowTransition)
 						rowSlot.Children(func() {
 							if isArchived(m.Snapshot, r.Item.SessionID) {
@@ -236,19 +270,79 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 								if strings.TrimSpace(title) == "" {
 									title = i18n.T(i18n.KeySidebarNewSessionFallback)
 								}
-								rowArchivedSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item.SessionID, title, depth, rowModel, muted)
+								rowArchivedSession(rc.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item.SessionID, title, depth, rowModel, muted)
 							} else {
-								rowSession(c.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
+								rowSession(rc.Key(sessionRowKey{layout.HostGeneration, g.Key, r.Item.SessionID}), r.Item, depth, rowModel, fg, muted, border)
+							}
+						})
+					}
+					if g.Kind == "flat" {
+						if len(rows) > 0 {
+							flatState := ui.Local(block, workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-list-state"}, func() struct {
+								list         ui.ListState
+								revealSerial uint64
+							} {
+								return struct {
+									list         ui.ListState
+									revealSerial uint64
+								}{}
+							})
+							if revealIdx >= 0 && revealIdx < len(rows) && m.searchState != nil && flatState.revealSerial != m.searchState.RevealSerial {
+								flatState.list.ScrollTo(revealIdx, ui.Center)
+								flatState.revealSerial = m.searchState.RevealSerial
+							}
+							capRatio := float32(1.0)
+							if m.archiveExpanded != nil && *m.archiveExpanded {
+								capRatio = 0.52
+							}
+							capH := sidebarListMaxHeight(m, c, capRatio)
+							flatList := ui.List(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-list"}), &flatState.list, len(rows)).
+								ItemKey(func(i int) any { return sessionRowKey{layout.HostGeneration, g.Key, rows[i].Item.SessionID} }).
+								FillWidth().MinWidth(0).Gap(2).
+								MaxHeight(capH).
+								ScrollbarsVisible(m.scrollbarsVisible)
+							if flatFill {
+								flatList.Grow(1).MinHeight(0)
+							} else {
+								intrinsicH := float32(len(rows)*32 + max(0, len(rows)-1)*2)
+								flatList.MinHeight(min(capH, intrinsicH))
+							}
+							flatList.Rows(func(lr ui.ListRow) {
+								r := rows[lr.Index]
+								if sidebarVirtualRowHook != nil {
+									sidebarVirtualRowHook("flat", lr.Index, r.Item.SessionID)
+								}
+								renderRow(lr.Context, r)
+							})
+						}
+					} else {
+						for _, row := range rows {
+							renderRow(c, row)
+						}
+					}
+					if g.Kind == "flat" && flatLimit != nil && (flatHidden > 0 || (len(visible.Rows) > flatSessionPageBase && *flatLimit > flatSessionPageBase)) {
+						label := i18n.WSf(i18n.KeyWSSessionsExpand, "n", strconv.Itoa(flatHidden))
+						accessible := workspaceText("显示更多", "Show more") + " " + g.Key
+						if flatHidden == 0 {
+							label, accessible = i18n.T(i18n.KeyWSSessionsCollapse), workspaceText("收起会话", "Show less")+" "+g.Key
+						}
+						ui.Box(c).FillWidth().Shrink(0).Children(func() {
+							if sidebarPaginationToggle(c, "flat-overflow/"+g.Key, label, accessible, muted) {
+								if flatHidden == 0 {
+									*flatLimit = flatSessionPageBase
+								} else {
+									*flatLimit += flatSessionPageBase
+								}
 							}
 						})
 					}
 					if g.Kind != "flat" && (visible.Hidden > 0 || visible.Watermark > visible.Baseline) {
 						label := i18n.WSf(i18n.KeyWSSessionsExpand, "n", strconv.Itoa(visible.Hidden))
-						accessible := workspaceText("显示更多", "Show more")
+						accessible := workspaceText("显示更多", "Show more") + " " + g.Key
 						if visible.Hidden == 0 {
-							label, accessible = i18n.T(i18n.KeyWSSessionsCollapse), workspaceText("收起会话", "Show less")
+							label, accessible = i18n.T(i18n.KeyWSSessionsCollapse), workspaceText("收起会话", "Show less")+" "+g.Key
 						}
-						if ui.Button(c.Key("workspace-overflow/"+g.Key), label).Label(accessible + " " + g.Key).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer).Clicked() {
+						if sidebarPaginationToggle(c, "workspace-overflow/"+g.Key, label, accessible, muted) {
 							if visible.Hidden == 0 {
 								resetWorkspaceWatermark(m, g.Key, nil)
 							} else {

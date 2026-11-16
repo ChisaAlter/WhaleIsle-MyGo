@@ -49,6 +49,9 @@ func (p *nativeRecoveryProcess) alive() bool {
 	result, err := windows.WaitForSingleObject(p.handle, 0)
 	return err == nil && result == uint32(windows.WAIT_TIMEOUT)
 }
+func (p *nativeRecoveryProcess) waitExit() {
+	_, _ = windows.WaitForSingleObject(p.handle, windows.INFINITE)
+}
 func (p *nativeRecoveryProcess) close() {
 	if p.handle != 0 {
 		windows.CloseHandle(p.handle)
@@ -144,16 +147,22 @@ func (p *nativeRecoveryProcess) stopTree(watchdogPID int) error {
 	if err := windows.TerminateProcess(p.handle, 1); err != nil {
 		return err
 	}
+	var firstErr error
 	for maxDepth := len(depth); maxDepth > 0; maxDepth-- {
 		for _, t := range targets {
 			if t.depth == maxDepth {
 				if result, _ := windows.WaitForSingleObject(t.handle, 0); result == uint32(windows.WAIT_TIMEOUT) {
 					if err := windows.TerminateProcess(t.handle, 1); err != nil {
-						return err
+						if after, _ := windows.WaitForSingleObject(t.handle, 0); after == uint32(windows.WAIT_TIMEOUT) && firstErr == nil {
+							firstErr = err
+						}
 					}
 				}
 			}
 		}
+	}
+	if firstErr != nil {
+		return firstErr
 	}
 	for _, t := range targets {
 		if result, err := windows.WaitForSingleObject(t.handle, 5000); err != nil || result == uint32(windows.WAIT_TIMEOUT) {

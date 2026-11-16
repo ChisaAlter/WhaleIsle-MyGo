@@ -101,20 +101,19 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 }
 
 func (s *mainState) hostBundleMessage(win *mygo.Window, message string) {
-	s.mu.Lock()
-	s.launcherUpdate = message
-	s.launcherComponentStatus = message
-	s.mu.Unlock()
+	s.launcherController().SetComponentActivity(message, message, false)
 	if win != nil {
 		win.Update(func() {})
 	}
 }
 
 func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.HostBundle) (bool, error) {
+	startBusy := s.launcherController().StartBusy()
+	marketBusy := s.marketCoordinator().IsBusy()
 	s.mu.Lock()
 	store := s.cfgStore
 	sup := s.sup
-	busy := s.taskRestartPending || s.launcherImportBusy || s.launcherStartBusy || s.marketWorker != nil || s.marketInstallBusy || s.quitting
+	busy := s.taskRestartPending || s.launcherImportBusy || startBusy || marketBusy || s.quitting
 	if !busy {
 		s.taskRestartPending = true
 	}
@@ -147,8 +146,9 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 	}
 	var applyErr error
 	did := s.withTaskProtection(win, sup, "stop", func() error {
+		curStartBusy := s.launcherController().StartBusy()
 		s.mu.Lock()
-		changed := s.sup != sup || s.launcherImportBusy || s.launcherStartBusy || s.quitting
+		changed := s.sup != sup || s.launcherImportBusy || curStartBusy || s.quitting
 		s.mu.Unlock()
 		current := store.Get()
 		if changed || (sup != nil && sup.Status().Generation != generation) ||
@@ -163,14 +163,10 @@ func (s *mainState) selectHostBundle(win *mygo.Window, bundle desktopcomponents.
 		applyErr = bundle.Select(paths.UserDataDir())
 		s.mu.Lock()
 		if applyErr == nil {
-			// The next normal Start must recreate all runtime-dependent bridges,
-			// rather than restarting a supervisor bound to the previous vendor.
 			s.sup = nil
 		}
-		s.launcherStartBusy = false
-		s.launcherStartFailed = false
-		s.launcherStartErr = ""
 		s.mu.Unlock()
+		s.launcherController().SetStartError(false, false, "")
 		s.refreshBoot(harness.Status{State: harness.Stopped})
 		return applyErr
 	})

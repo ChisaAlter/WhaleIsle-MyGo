@@ -365,6 +365,15 @@ func (s *Store) cachedProjectAssistantMessageLocked(msg Message) []Message {
 		raw:         string(msg.Raw),
 		rows:        cloneMessages(rows),
 	}
+	if len(s.assistantMsgCache) > maxSessionDecodeCacheEntries {
+		keep := make(map[float64]bool, len(s.messages))
+		for _, m := range s.messages {
+			if m.Seq > 0 {
+				keep[m.Seq] = true
+			}
+		}
+		pruneSeqCache(s.assistantMsgCache, maxSessionDecodeCacheEntries, keep)
+	}
 	return rows
 }
 

@@ -129,6 +129,10 @@ func TestToolImageViewSingleCardMetadataAndIndependentPath(t *testing.T) {
 				t.Fatalf("header path %v %v", *files, *expanded)
 			}
 			openImageView(t, tt, expanded)
+			toolImageWait(t, tt, func() bool {
+				tt.Frame()
+				return !tt.HasText(i18n.T(i18n.KeyToolImageLoading)) && !tt.HasText("Loading image…")
+			})
 			for _, want := range []string{"/work/recorded.png", "480x240px (downscaled from 960x480px), 2048 bytes", extra} {
 				if !tt.HasText(want) {
 					t.Fatalf("missing %q: %v", want, tt.Texts())
@@ -167,6 +171,10 @@ func TestToolImageViewTilesWrapAndKeepDuplicates(t *testing.T) {
 	}
 	tt, expanded, _, _ := toolImageViewFixture(t, toolImageViewCall(t, true, 3, nil), false, false, 220)
 	openImageView(t, tt, expanded)
+	toolImageWait(t, tt, func() bool {
+		tt.Frame()
+		return !tt.HasText(i18n.T(i18n.KeyToolImageLoading)) && !tt.HasText("Loading image…")
+	})
 	frames := []ui.Rect{}
 	for _, name := range []string{"sample-a", "sample-b", "sample-c"} {
 		r, ok := tt.Find(name + ", click to view original")

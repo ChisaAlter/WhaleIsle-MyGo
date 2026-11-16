@@ -47,13 +47,18 @@ type DraftClient struct {
 	// Native text input retains this adapter identity across frames so an
 	// ordinary repaint does not release an active IME composition.
 	input              typingInputClient
+	altInput           typingInputClient
+	useAltInput        bool
 	accessPlaceholder  string
 	typing             typingEffects
 	Draft              *string
 	selection          ui.TextInputSelection
 	marked             *ui.TextInputRange
 	compositionPending *ui.TextInputRange
-	compositionEnded   time.Time
+	imeClosingEnter    bool
+	imeClosingEscape   bool
+	imeProcessKey      string
+	imeProcessActive   bool
 	typingUndoAt       time.Time
 	typingUndoEnd      int
 	layout             *ui.TextLayout // display projection, not the clipboard string
@@ -88,6 +93,7 @@ type DraftClient struct {
 func NewDraftClient(draft *string) *DraftClient {
 	c := &DraftClient{Draft: draft, font: ui.Font{Size: 14}}
 	c.input.DraftClient = c
+	c.altInput.DraftClient = c
 	if draft != nil {
 		c.lastText = *draft
 		end := ui.UTF16Len(c.lastText)
@@ -96,6 +102,105 @@ func NewDraftClient(draft *string) *DraftClient {
 	}
 	c.shape()
 	return c
+}
+
+func (c *DraftClient) textInputHandle() ui.TextInputClient {
+	c.input.DraftClient = c
+	c.altInput.DraftClient = c
+	if c.useAltInput {
+		return &c.altInput
+	}
+	return &c.input
+}
+
+func isEnterPhysicalCode(code string) bool {
+	return code == "Enter" || code == "NumpadEnter"
+}
+
+func (c *DraftClient) clearIMEKeyLatch() {
+	c.imeClosingEnter = false
+	c.imeClosingEscape = false
+	c.imeProcessKey = ""
+	c.imeProcessActive = false
+}
+
+func (c *DraftClient) cancelComposition() {
+	if c.marked != nil || c.compositionPending != nil || c.typing.composing || c.imeClosingEnter || c.imeClosingEscape || c.imeProcessActive {
+		c.useAltInput = !c.useAltInput
+	}
+	c.marked = nil
+	c.compositionPending = nil
+	c.typing.composing = false
+	c.clearIMEKeyLatch()
+}
+
+func (c *DraftClient) noteIMEProcessKey(code string) {
+	c.imeProcessKey = code
+	c.imeProcessActive = true
+	switch {
+	case code == "" || isEnterPhysicalCode(code):
+		c.imeClosingEnter = true
+		c.imeClosingEscape = false
+	case code == "Escape":
+		c.imeClosingEscape = true
+		c.imeClosingEnter = false
+	default:
+		c.imeClosingEnter = false
+		c.imeClosingEscape = false
+	}
+}
+
+func (c *DraftClient) noteIMEKeyUp(key ui.Key, code string) {
+	if key == ui.KeyEnter || isEnterPhysicalCode(code) {
+		c.imeClosingEnter = false
+		if isEnterPhysicalCode(c.imeProcessKey) || c.imeProcessKey == "" {
+			c.imeProcessActive = false
+			c.imeProcessKey = ""
+		}
+		return
+	}
+	if key == ui.KeyEscape || code == "Escape" {
+		c.imeClosingEscape = false
+		if c.imeProcessKey == "Escape" || c.imeProcessKey == "" {
+			c.imeProcessActive = false
+			c.imeProcessKey = ""
+		}
+		return
+	}
+	if c.imeProcessActive && (code == "" || code == c.imeProcessKey) {
+		c.imeProcessActive = false
+		c.imeProcessKey = ""
+	}
+}
+
+func (c *DraftClient) consumeClosingEnter() bool {
+	if c.marked != nil {
+		return true
+	}
+	if c.imeClosingEnter || (c.imeProcessActive && (isEnterPhysicalCode(c.imeProcessKey) || c.imeProcessKey == "")) {
+		c.imeClosingEnter = false
+		if isEnterPhysicalCode(c.imeProcessKey) || c.imeProcessKey == "" {
+			c.imeProcessActive = false
+			c.imeProcessKey = ""
+		}
+		return true
+	}
+	return false
+}
+
+func (c *DraftClient) consumeClosingEscape() bool {
+	if c.marked != nil {
+		return true
+	}
+	if c.imeClosingEscape || (c.imeProcessActive && (c.imeProcessKey == "Escape" || c.imeProcessKey == "")) {
+		c.imeClosingEscape = false
+		if c.imeProcessKey == "Escape" || c.imeProcessKey == "" {
+			c.imeProcessActive = false
+			c.imeProcessKey = ""
+		}
+		return true
+	}
+	return false
 }
 
 // Sync reconciles selection after the draft was changed without ReplaceText.
@@ -129,8 +234,7 @@ func (c *DraftClient) SetSelectionUTF16(start, end int) {
 	c.ensure()
 	c.typingUndoAt = time.Time{}
 	c.selection = ui.TextInputSelection{Range: c.normalizeRange(ui.TextInputRange{Start: start, End: end}), Reversed: start > end}
-	c.marked = nil
-	c.compositionPending = nil
+	c.cancelComposition()
 	c.revealCaret = true
 	c.revealCaretInViewport()
 }
@@ -151,8 +255,7 @@ func (c *DraftClient) ensure() {
 		c.revision++
 		c.lastText = cur
 		c.references = draftReferences(cur)
-		c.marked = nil
-		c.compositionPending = nil
+		c.cancelComposition()
 		c.typingUndoAt = time.Time{}
 		c.clampSelection()
 		c.shape()
@@ -255,6 +358,16 @@ func (c *DraftClient) ReplaceText(r *ui.TextInputRange, text string) {
 	c.replace(wanted, text, true)
 	c.marked = nil
 	c.compositionPending = nil
+	if !committing {
+		c.clearIMEKeyLatch()
+	} else {
+		c.imeClosingEscape = false
+		if !c.imeProcessActive || (!isEnterPhysicalCode(c.imeProcessKey) && c.imeProcessKey != "") {
+			c.imeClosingEnter = false
+			c.imeProcessActive = false
+			c.imeProcessKey = ""
+		}
+	}
 	c.typingUndoAt = time.Time{}
 	if typing {
 		c.typingUndoAt, c.typingUndoEnd = now, c.selection.Caret()
@@ -269,6 +382,8 @@ func (c *DraftClient) SetMarkedText(r *ui.TextInputRange, text string, selected 
 		c.pushUndo()
 	}
 	c.compositionPending = nil
+	c.imeClosingEnter = false
+	c.imeClosingEscape = false
 	wanted := c.normalizeRange(c.target(r))
 	c.replace(wanted, text, false)
 	mark := ui.TextInputRange{Start: wanted.Start, End: wanted.Start + ui.UTF16Len(text)}
@@ -282,13 +397,18 @@ func (c *DraftClient) UnmarkText() {
 	if c.marked != nil {
 		r := *c.marked
 		c.compositionPending = &r
-		c.compositionEnded = time.Now()
+		if !c.imeProcessActive || isEnterPhysicalCode(c.imeProcessKey) || c.imeProcessKey == "" {
+			c.imeClosingEnter = true
+		}
+		if c.imeProcessActive && c.imeProcessKey == "Escape" {
+			c.imeClosingEscape = true
+		}
 	}
 	c.marked = nil
 }
 
 func (c *DraftClient) composing() bool {
-	return c.marked != nil || c.compositionPending != nil && time.Since(c.compositionEnded) < 10*time.Millisecond
+	return c.marked != nil || c.imeClosingEnter || c.imeClosingEscape || c.imeProcessActive
 }
 
 func (c *DraftClient) BoundsForRange(r ui.TextInputRange) (ui.Rect, ui.TextInputRange, bool) {

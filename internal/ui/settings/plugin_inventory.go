@@ -8,15 +8,11 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/plugininventory"
-	"whaleisle/internal/desktop/pluginslots"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
 type PluginInventoryAccess struct {
-	ClientModules                        pluginslots.ClientModulesSnapshot
-	ClientPage                           string
-	OnRetryClientModules                 func()
 	Snapshot                             plugininventory.Snapshot
 	OnRefresh, OnToggleGlobal            func()
 	OnQuery, OnSelectPreset, OnToggleRow func(string)
@@ -285,25 +281,6 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 			})
 		}
 	})
-}
-
-// The client page owns this status and retry. Host inventory refresh remains a
-// separate read-only action and must never stand in for entries.retry().
-func clientModulesPane(c *ui.Context, a *PluginInventoryAccess, fg, muted ui.Color) {
-	s := a.ClientModules
-	ui.Text(c, pluginsText("客户端模块", "Client modules")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	if !s.Connected {
-		ui.Text(c, pluginsText("客户端页面未连接。打开此 Host 的插件页面后可查看模块同步状态。", "Client page disconnected. Open a plugin page for this Host to inspect module synchronization.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		return
-	}
-	ui.Text(c, pluginsText("所属页面：", "Page: ")+a.ClientPage).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	for _, failure := range s.Failures {
-		ui.Text(c, failure.ID+": "+failure.Message).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-	}
-	settingsNotice(c, "plugin_inventory:304", "error", s.Error != "", func() string { return s.Error })
-	if a.OnRetryClientModules != nil && ui.Button(c, pluginsText("重试客户端模块", "Retry client modules")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Syncing || s.Retrying || (len(s.Failures) == 0 && s.Error == "")).Clicked() {
-		a.OnRetryClientModules()
-	}
 }
 
 // inventoryCardChevron is the 12 DIP chevron at a card's trailing edge: down while

@@ -9,8 +9,9 @@ function createGitGate({backend,authority,authorize,review}){let generation=0,ro
   const granted=[];
   for(const raw of requested){
    if(typeof raw!=='string'||!raw)throw Error('Invalid Git workspace root');
-   const canonical=gitFS.realpathSync(raw);
-   if(!gitFS.statSync(canonical).isDirectory()||gitPath.parse(canonical).root===canonical||authority.isHighRiskWorkspaceRoot(canonical))throw Error('Unsafe Git workspace root');
+   const realpath=gitFS.realpathSync.native||gitFS.realpathSync;
+   const canonical=realpath(raw);
+   if(!gitFS.statSync(canonical).isDirectory()||gitPath.parse(canonical).root===canonical||authority.hasGitDirSegment?.(canonical)||authority.isHighRiskWorkspaceRoot(canonical))throw Error('Unsafe Git workspace root');
    if(!granted.includes(canonical))granted.push(canonical);
   }
   if(!granted.length)return;
@@ -20,7 +21,8 @@ function createGitGate({backend,authority,authorize,review}){let generation=0,ro
  for(const name of names)git[name]=async(cwd,...args)=>{
   const epoch=generation;
   if(!enabled||typeof cwd!=='string')throw Error('Mobile Git is not authorized for this workspace');
-  const root=gitFS.realpathSync(cwd);
+  const realpath=gitFS.realpathSync.native||gitFS.realpathSync;
+  const root=realpath(cwd);
   if(!roots.has(root))throw Error('Mobile Git is not authorized for this workspace');
   if(!await authorize(root,name)||epoch!==generation||!enabled||!roots.has(root))throw Error('Mobile Git desktop workspace permission expired');
   if(name==='gitCreateChangeRequest'&&args[0]?.generateOnly!==true&&(!args[0]?.preserveProvided||!args[0]?.title)){

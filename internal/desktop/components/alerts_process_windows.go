@@ -4,8 +4,6 @@ package components
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -24,11 +22,7 @@ func bridgeAlertProcessIdentity(pid int, exe string) (string, error) {
 	buf := make([]uint16, 32768)
 	size := uint32(len(buf))
 	ok, _, _ := bridgeQueryImage.Call(uintptr(h), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&size)))
-	expected, err := filepath.EvalSymlinks(exe)
-	if err == nil {
-		expected, err = filepath.Abs(expected)
-	}
-	if ok == 0 || err != nil || !strings.EqualFold(filepath.Clean(syscall.UTF16ToString(buf[:size])), filepath.Clean(expected)) {
+	if ok == 0 || !sameWindowsExePath(syscall.UTF16ToString(buf[:size]), exe) {
 		return "", fmt.Errorf("process image mismatch")
 	}
 	var created, exited, kernel, user syscall.Filetime

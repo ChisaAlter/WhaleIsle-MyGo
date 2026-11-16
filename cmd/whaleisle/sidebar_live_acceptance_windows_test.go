@@ -328,6 +328,7 @@ func runSidebarDesktop(root, phase string) error {
 			v.RemoteWorkspaceEnabled = false
 			v.WhaleAssistantEnabled = false
 			v.DshbotEnabled = false
+			v.AutoDownloadUpdates = false
 		}); err != nil {
 			return err
 		}

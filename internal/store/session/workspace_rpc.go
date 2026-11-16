@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"os"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
@@ -53,13 +52,11 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 				s.workspaceNavigationToken == token && s.cwd == cwd && s.selectedID == selected &&
 				len(s.workspaceMemberships) == 0 && !s.hasOrdinarySessionsLocked()
 			s.mu.Unlock()
-			if canCreate {
-				if info, statErr := os.Stat(cwd); statErr == nil && info.IsDir() {
-					var created api.WorkspaceCreateValue
-					if errCreate := client.Call(ctx, "workspace/create", map[string]any{"request": map[string]any{"path": cwd}}, &created); errCreate == nil {
-						createdRow = workspaceRowFromCreate(created.Workspace)
-						out.Workspace = created.Workspace
-					}
+			if canCreate && isHostAbsolutePath(cwd) {
+				var created api.WorkspaceCreateValue
+				if errCreate := client.Call(ctx, "workspace/create", map[string]any{"request": map[string]any{"path": cwd}}, &created); errCreate == nil {
+					createdRow = workspaceRowFromCreate(created.Workspace)
+					out.Workspace = created.Workspace
 				}
 			}
 		}
@@ -161,4 +158,18 @@ func (s *Store) RenameWorkspace(ctx context.Context, workspaceID, title string) 
 	}
 	s.mu.Unlock()
 	s.fire()
+}
+
+// isHostAbsolutePath checks POSIX (/...) and Windows (X:\, X:/, \\...) roots
+// without consulting the desktop's local filesystem; remote Host paths remain
+// opaque until workspace/create resolves them.
+func isHostAbsolutePath(path string) bool {
+	p := strings.TrimSpace(path)
+	if strings.HasPrefix(p, "/") || strings.HasPrefix(p, `\\`) {
+		return true
+	}
+	if len(p) >= 3 && ((p[0] >= 'a' && p[0] <= 'z') || (p[0] >= 'A' && p[0] <= 'Z')) && p[1] == ':' && (p[2] == '/' || p[2] == '\\') {
+		return true
+	}
+	return false
 }

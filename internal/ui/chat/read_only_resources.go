@@ -125,7 +125,8 @@ func ReadOnlyResourceResultsView(c *ui.Context, opts ReadOnlyResourceOptions, st
 			}
 		}
 		if read.Path != "" {
-			if opts.Scope != "" && filepath.IsAbs(read.Path) && loadChatBitmap(read.Path) != nil {
+			bmp, _ := cachedChatBitmap(read.Path, c.Services().Invalidate)
+			if opts.Scope != "" && filepath.IsAbs(read.Path) && bmp != nil {
 				open := func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false }
 				ImageInlineView(c, read.Path, st.FG, st.Muted, open)
 				if stdButton(c, st.Colors, i18n.T(i18n.KeyChatImageEnlarge)+": "+ref, buttonGhost, false).Clicked() {

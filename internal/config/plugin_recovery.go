@@ -83,25 +83,13 @@ func (s *Store) UpdatePluginRecovery(fn func(map[string]any)) error {
 		return err
 	}
 	merged = mergeKnownConfig(merged, known)
-	data, err := json.MarshalIndent(merged, "", "  ")
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-
-	unlock, err := s.lockCommit()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err := s.checkBaseline(); err != nil {
-		return err
-	}
-	if err := writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
 	s.setCfgLocked(next)
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }
 

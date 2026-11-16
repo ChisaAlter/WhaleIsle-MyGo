@@ -9,7 +9,7 @@ func cancelVoiceOnEscape(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		return false
 	}
 	client.stop.reset()
-	if client.marked != nil || m.StopBlocked || m.stopSuggestionsOpen || ev.Mods != 0 || ev.Repeat {
+	if client.composing() || m.StopBlocked || m.stopSuggestionsOpen || ev.Mods != 0 || ev.Repeat {
 		return false
 	}
 	if m.OnCancelVoice != nil {

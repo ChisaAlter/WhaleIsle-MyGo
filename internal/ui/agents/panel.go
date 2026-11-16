@@ -13,7 +13,6 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/i18n"
-	interui "whaleisle/internal/ui/interaction"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
 )
@@ -21,7 +20,6 @@ import (
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
 	ChatPreferences       settings.ChatPreferences
-	InteractionRenderSlot interui.SlotRenderer
 	BusyEnter             string
 	ComposerOverride      func(*ui.Context, session.AgentSessionAddress) bool
 	ChildDraft            func(binding string, address session.AgentSessionAddress) *composer.DraftState

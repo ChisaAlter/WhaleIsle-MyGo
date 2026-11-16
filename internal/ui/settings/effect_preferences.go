@@ -357,9 +357,6 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		enabledKey, styleKey, presetsKey = "typingFx", "typingFxStyle", "typingFxPresets"
 		title = providerCopy("输入特效", "Typing effects")
 	}
-	if !settingsItemBefore(c, "effect-row-"+enabledKey) {
-		return
-	}
 	_, enabled, found := bodyHostValue(a, "ui-conversation", enabledKey)
 	if !found {
 		return

@@ -112,9 +112,6 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 		w, _ := c.Size()
 		ui.PopoverBase(c.Key("plugin-add-menu"), trigger, opened, func(panel ui.Element) {
 			panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), w-48))).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, 16))
-			if m.OnNativeOverlay != nil {
-				m.OnNativeOverlay(true)
-			}
 			panel.Children(func() {
 				entryWithHint := func(title, description string, enabled bool, hint string, action func()) {
 					row := ui.ButtonBase(c).FillWidth().Height(72).Padding(6, 12).Role(ui.RoleMenuItem).Label(title).Disabled(!enabled)
@@ -151,9 +148,6 @@ func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 					})
 				if m.OnCreatePlugin != nil {
 					entry(copyText("让 Agent 创建插件", "Let the agent create a plugin"), m.CreatePluginDescription, m.CreatePluginReady, m.OnCreatePlugin)
-				}
-				if m.AddActions != nil {
-					m.AddActions(c)
 				}
 			})
 		})

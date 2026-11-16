@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"whaleisle/internal/processutil"
@@ -69,9 +70,10 @@ type Runtime struct {
 	spawn            func(Resources) (Child, error)
 	resources        func(string, string) (Resources, error)
 	stopTimeout      time.Duration
-	deviceAction     DeviceActionState
-	deviceSequence   uint64
-	deviceActionDone chan struct{}
+	deviceAction       DeviceActionState
+	deviceSequence     uint64
+	deviceActionDone   chan struct{}
+	hostActionInFlight atomic.Int32
 }
 
 func NewRuntime() *Runtime {
@@ -303,7 +305,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 		return
 	}
 	if event.Kind == "host-open-settings" || event.Kind == "host-save-config" {
-		r.handleHostAction(child, event.Kind, event.ID, event.Section, event.Patch)
+		r.dispatchHostAction(child, event.Kind, event.ID, event.Section, event.Patch)
 		return
 	}
 	if event.Kind == "git-authorize" {

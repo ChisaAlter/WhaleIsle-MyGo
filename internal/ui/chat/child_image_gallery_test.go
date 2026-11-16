@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -34,6 +35,21 @@ func TestChildImageGalleryScopedNavigation(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ReadOnlyResourceResultsView(c, ReadOnlyResourceOptions{Scope: scope, Reads: reads}, ToolCardStyle{})
 	}, 1100, 900)
+	deadline := time.Now().Add(2 * time.Second)
+	wantA := i18n.T(i18n.KeyChatImageEnlarge) + ": attachment:a"
+	wantB := i18n.T(i18n.KeyChatImageEnlarge) + ": attachment:b"
+	for {
+		_, okA := tt.Find(wantA)
+		_, okB := tt.Find(wantB)
+		if okA && okB {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for child gallery images (%v, %v); texts=%v", okA, okB, tt.Texts())
+		}
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+	}
 	click := func(label string) {
 		t.Helper()
 		if err := tt.Click(label); err != nil {

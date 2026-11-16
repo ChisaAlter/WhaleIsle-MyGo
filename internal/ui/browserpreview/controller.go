@@ -2,6 +2,8 @@ package browserpreview
 
 import (
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -15,6 +17,13 @@ import (
 // Controller owns isolated native pages. It is used only from the UI thread;
 // page state is owned by Host and its native navigation callbacks.
 type Controller struct {
+	reclaimMu                 sync.Mutex
+	hideTTL                   time.Duration
+	hidden                    bool
+	closed                    bool
+	miniTab                   *Tab
+	newHostFn                 func(desktop.HostOptions) (*desktop.Host, error)
+	closeHostFn               func(*desktop.Host) error
 	frameContext              *ui.Context
 	mini                      *browserMiniPlayer
 	miniGeometry              mygo.Rectangle
@@ -60,6 +69,10 @@ type Tab struct {
 	Draft, Error  string
 	lastURL       string
 	resumeURL     string
+	resumeTitle   string
+	reclaimed     bool
+	hideTimer     *time.Timer
+	hideGen       uint64
 	Host          *desktop.Host
 }
 
@@ -100,6 +113,7 @@ func (b *Controller) update() {
 }
 func (b *Controller) NewTab(raw string) {
 	b.Hide()
+	b.markShown()
 	b.next++
 	workspace, _ := b.browserWorkspace()
 	b.Tabs = append(b.Tabs, &Tab{ID: b.next, workspace: workspace})
@@ -111,10 +125,12 @@ func (b *Controller) NewTab(raw string) {
 }
 func (b *Controller) Navigate(raw string) {
 	b.CancelAction()
+	b.markShown()
 	if b.current() == nil {
 		b.NewTab("")
 	}
 	t := b.current()
+	b.cancelTabReclaim(t)
 	workspace, scopeErr := b.browserWorkspace()
 	if scopeErr != nil {
 		t.Error = scopeErr.Error()
@@ -137,6 +153,8 @@ func (b *Controller) Navigate(raw string) {
 	t.Draft = normalized
 	t.Error = ""
 	t.ActionMessage = ""
+	t.reclaimed = false
+	t.resumeTitle = ""
 	if t.Host != nil && t.Host.Alive() {
 		if state := t.Host.State(); state.URL == normalized && !state.Loading && state.Error == "" {
 			// ElectronWebViewImpl.loadUrl reloads an already observed address;
@@ -148,7 +166,7 @@ func (b *Controller) Navigate(raw string) {
 		b.showHost(t.Host)
 		return
 	}
-	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnFailure: b.pageFailure(t)})
+	h, err := b.createHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnFailure: b.pageFailure(t)})
 	if err != nil {
 		t.Error = err.Error()
 		b.update()
@@ -165,9 +183,19 @@ func (b *Controller) Hide() {
 	b.pauseDocumentReads()
 	b.CancelAction()
 	b.cancelInteractivePreviews()
+	b.reclaimMu.Lock()
+	b.hidden = true
+	b.reclaimMu.Unlock()
 	for _, t := range b.Tabs {
+		if b.mini != nil && b.mini.tab == t {
+			continue
+		}
 		if t.Host != nil {
+			b.reclaimMu.Lock()
+			b.captureTabResumeStateLocked(t)
+			b.reclaimMu.Unlock()
 			t.Host.SetVisible(false)
+			b.scheduleTabReclaim(t)
 		}
 	}
 }
@@ -176,12 +204,23 @@ func (b *Controller) Select(index int) {
 		return
 	}
 	b.Hide()
+	b.markShown()
 	b.Active = index
 	b.resumeCurrent()
-	if t := b.current(); t.Host != nil {
-		b.showHost(t.Host)
-		if t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil {
-			t.Draft = t.Host.State().URL
+	if t := b.current(); t != nil {
+		b.cancelTabReclaim(t)
+		b.resumeReclaimedTab(t)
+		if t.Host != nil {
+			b.showHost(t.Host)
+			if t.source == nil && t.Document == nil && t.HTML == nil && t.Media == nil {
+				st := t.Host.State()
+				if st.URL != "" {
+					t.Draft = st.URL
+				}
+				if st.Title != "" {
+					t.resumeTitle = st.Title
+				}
+			}
 		}
 	}
 	b.update()
@@ -191,23 +230,26 @@ func (b *Controller) CloseTab(index int) {
 		return
 	}
 	b.Hide()
-	if b.mini != nil && b.mini.tab == b.Tabs[index] {
+	target := b.Tabs[index]
+	b.cancelTabReclaim(target)
+	if b.mini != nil && b.mini.tab == target {
 		b.CloseMiniPlayer()
 	}
-	if b.floatingDocument != nil && b.floatingDocument.tab == b.Tabs[index] {
+	if b.floatingDocument != nil && b.floatingDocument.tab == target {
 		b.stopFloatingDocument()
 	}
-	if d := b.Tabs[index].Document; d != nil {
+	if d := target.Document; d != nil {
 		d.Close()
 	}
-	if d := b.Tabs[index].Media; d != nil {
+	if d := target.Media; d != nil {
 		d.Close()
 	}
-	if d := b.Tabs[index].HTML; d != nil {
+	if d := target.HTML; d != nil {
 		d.Close()
 	}
-	if h := b.Tabs[index].Host; h != nil {
-		_ = h.Close()
+	if h := target.Host; h != nil {
+		target.Host = nil
+		_ = b.closeHost(h)
 	}
 	b.Tabs = append(b.Tabs[:index], b.Tabs[index+1:]...)
 	if index < b.Active {
@@ -223,6 +265,7 @@ func (b *Controller) CloseTab(index int) {
 	}
 }
 func (b *Controller) Close() {
+	b.stopAllReclaimTimers()
 	b.CloseMiniPlayer()
 	b.stopLocalDiscovery()
 	b.pauseDocumentReads()
@@ -240,8 +283,9 @@ func (b *Controller) Close() {
 		if t.Document != nil {
 			t.Document.Close()
 		}
-		if t.Host != nil {
-			_ = t.Host.Close()
+		if h := t.Host; h != nil {
+			t.Host = nil
+			_ = b.closeHost(h)
 		}
 	}
 	b.Tabs = nil

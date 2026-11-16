@@ -62,6 +62,7 @@ func nativeSettingsAcceptance() error {
 		v.Workspace, v.Host, v.Port, v.Locale = workspace, "127.0.0.1", 32185, "en"
 		v.NodeBin = os.Getenv("WHALEISLE_NODE")
 		v.HarnessAutoRestart = false
+		v.AutoDownloadUpdates = false
 	}); err != nil {
 		return err
 	}
@@ -218,7 +219,10 @@ func nativeSettingsAcceptance() error {
 				return
 			}
 			if page == "Plugins" {
-				err = settingsQAWait("real plugin inventory", func() bool { s := state.settingsPluginInventory.Snapshot(); return s.Ready && !s.Busy && s.Err == "" })
+				err = settingsQAWait("real plugin inventory", func() bool {
+					s := state.marketCoordinator().Inventory().Snapshot()
+					return s.Ready && !s.Busy && s.Err == ""
+				})
 			} else if page == "MCP" {
 				err = settingsQAWait("real MCP empty catalog", func() bool {
 					s := state.mcpController().Snapshot()

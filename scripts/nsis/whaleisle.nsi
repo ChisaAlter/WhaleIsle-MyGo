@@ -118,9 +118,6 @@ Section "Install"
 
 !ifndef SHELL_ONLY
 !if /FileExists "${STAGE_DIR}\.pet-render-staged"
-!else
-  !error "THA4 resources not staged. Run package.ps1 with WHALEISLE_PET_RENDER_ASSETS."
-!endif
   ; Exact manifest selection only; do not package arbitrary sidecar files.
   !insertmacro WI_SetPayloadOutPath "$INSTDIR\pet-render-assets\avatar"
   File "${STAGE_DIR}\pet-render-assets\avatar\character.png"
@@ -147,6 +144,11 @@ Section "Install"
   File "${STAGE_DIR}\pet-render-assets\ort\LICENSE"
   !insertmacro WI_CheckExtract
   !insertmacro WI_SetPayloadOutPath "$INSTDIR"
+!else
+!ifdef INCLUDE_PET_ASSETS
+  !error "THA4 resources not staged. Run package.ps1 with WHALEISLE_PET_RENDER_ASSETS."
+!endif
+!endif
 !endif
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"

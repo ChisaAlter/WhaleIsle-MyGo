@@ -49,3 +49,24 @@ func TestProjectBoundaryFixture(t *testing.T) {
 		t.Fatal("missing opener silently succeeded")
 	}
 }
+
+func TestReadyMemoizesRepeatedNodeProbes(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node unavailable")
+	}
+	probes := 0
+	prev := onReadyNodeProbe
+	onReadyNodeProbe = func() { probes++ }
+	t.Cleanup(func() { onReadyNodeProbe = prev })
+
+	b := New(Options{NodeBin: node, Home: t.TempDir(), Workspace: t.TempDir()})
+	for i := 0; i < 4; i++ {
+		if !b.Ready(context.Background()) {
+			t.Fatalf("Ready() returned false on call %d", i+1)
+		}
+	}
+	if probes != 1 {
+		t.Fatalf("expected 1 Node probe for repeated Ready checks, got %d", probes)
+	}
+}

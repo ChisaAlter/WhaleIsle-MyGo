@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/desktop/taskcontrol"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
@@ -20,24 +21,30 @@ func TestNativeUpdateCenterRestoresPinnedPauseAndPreference(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("installed native installer recovery baseline is Windows")
 	}
-	t.Setenv(paths.EnvUserData, t.TempDir())
+	dir := t.TempDir()
+	t.Setenv(paths.EnvUserData, dir)
 	release := updateCenterFixture()
 	s := &mainState{}
-	s.nativeReleases = nativeReleaseState{centerLoaded: true, autoDownload: true, paused: true, phase: "paused", active: release, route: "cnb", requireRuntime: true, received: 8, total: 16, staging: nativeReleaseStagingDir(release)}
-	s.persistNativeUpdateCenter()
+	s.updaterCenter().RestoreReleaseState(updater.ReleaseState{
+		CenterLoaded: true, AutoDownload: true, Paused: true, Phase: "paused", Active: release,
+		Route: "cnb", RequireRuntime: true, Received: 8, Total: 16,
+		Staging: filepath.Join(dir, "updates", "native-partials", release.PackageKey()),
+	})
+	s.updaterCenter().Persist()
 	reopened := &mainState{}
 	reopened.ensureNativeUpdateCenter()
-	r := reopened.nativeReleases
-	if !r.centerLoaded || !r.paused || r.busy || !r.autoDownload || !r.requireRuntime || r.active.URL != release.URL || r.active.DownloadRoute != "github" || r.received != 8 {
+	r := reopened.updaterCenter().ReleaseSnapshot()
+	if !r.CenterLoaded || !r.Paused || r.Busy || !r.AutoDownload || !r.RequireRuntime || r.Active.URL != release.URL || r.Active.DownloadRoute != "github" || r.Received != 8 {
 		t.Fatalf("recovery=%+v", r)
 	}
-	if r.staged.Path != "" {
+	if r.Staged.Path != "" {
 		t.Fatal("partial file became an installer")
 	}
-	reopened.cancelNativeUpdate(nil)
+	reopened.updaterCenter().Cancel(nil)
 	reopened2 := &mainState{}
 	reopened2.ensureNativeUpdateCenter()
-	if reopened2.nativeReleases.active.Tag != "" || reopened2.nativeReleases.paused || !reopened2.nativeReleases.autoDownload {
+	r2 := reopened2.updaterCenter().ReleaseSnapshot()
+	if r2.Active.Tag != "" || r2.Paused || !r2.AutoDownload {
 		t.Fatal("cancel or preference did not persist")
 	}
 }
@@ -54,7 +61,7 @@ func TestNativeUpdateCenterPreservesMalformedStateAndBoundsDiscard(t *testing.T)
 	}
 	s := &mainState{}
 	s.ensureNativeUpdateCenter()
-	if s.nativeReleases.err == "" {
+	if s.updaterCenter().ReleaseSnapshot().Err == "" {
 		t.Fatal("corrupt recovery was hidden")
 	}
 	preserved, err := filepath.Glob(name + ".invalid-*")
@@ -65,7 +72,7 @@ func TestNativeUpdateCenterPreservesMalformedStateAndBoundsDiscard(t *testing.T)
 	if err := os.WriteFile(filepath.Join(outside, "keep"), []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if discardNativePartial(outside) == nil {
+	if updater.DiscardNativePartial(paths.UserDataDir(), outside) == nil {
 		t.Fatal("outside directory was accepted for recursive removal")
 	}
 	if b, err := os.ReadFile(filepath.Join(outside, "keep")); err != nil || string(b) != "keep" {

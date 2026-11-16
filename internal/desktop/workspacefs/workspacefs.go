@@ -3,6 +3,8 @@ package workspacefs
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -55,25 +57,44 @@ func ReadFileText(filePath string, maxBytes int64) (ReadTextResult, error) {
 		maxBytes = DefaultMaxReadBytes
 	}
 	filePath = filepath.Clean(filePath)
-	st, err := os.Stat(filePath)
+	if filePath == "" || filePath == "." {
+		return ReadTextResult{}, ErrNotFile
+	}
+	dir := filepath.Dir(filePath)
+	base := filepath.Base(filePath)
+	if base == "" || base == "." || base == ".." || base == "/" || base == `\` {
+		return ReadTextResult{}, ErrNotFile
+	}
+	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return ReadTextResult{}, err
 	}
-	if st.IsDir() {
+	defer root.Close()
+
+	lst, err := root.Lstat(base)
+	if err != nil {
+		return ReadTextResult{}, err
+	}
+	if lst.IsDir() || lst.Mode()&os.ModeSymlink != 0 || !lst.Mode().IsRegular() {
 		return ReadTextResult{}, ErrNotFile
 	}
-	if !st.Mode().IsRegular() {
-		return ReadTextResult{}, ErrNotFile
-	}
-	size := st.Size()
+	size := lst.Size()
 	if size > maxBytes {
 		return ReadTextResult{Size: size}, ErrTooLarge
 	}
-	f, err := os.Open(filePath)
+	f, err := root.Open(base)
 	if err != nil {
 		return ReadTextResult{}, err
 	}
 	defer f.Close()
+
+	fst, err := f.Stat()
+	if err != nil {
+		return ReadTextResult{}, err
+	}
+	if fst.IsDir() || !fst.Mode().IsRegular() || !os.SameFile(lst, fst) {
+		return ReadTextResult{}, ErrNotFile
+	}
 
 	data, err := io.ReadAll(io.LimitReader(f, maxBytes+1))
 	if err != nil {
@@ -95,6 +116,29 @@ func ReadFileText(filePath string, maxBytes int64) (ReadTextResult, error) {
 	}, nil
 }
 
+func openRootTempFile(root *os.Root, dirRel string, mode os.FileMode) (*os.File, string, error) {
+	prefix := ".whaleisle-save-"
+	if dirRel != "" && dirRel != "." {
+		prefix = strings.TrimSuffix(dirRel, "/") + "/" + prefix
+	}
+	var rnd [8]byte
+	for range 16 {
+		if _, err := rand.Read(rnd[:]); err != nil {
+			return nil, "", err
+		}
+		tmpRel := prefix + hex.EncodeToString(rnd[:])
+		f, err := root.OpenFile(tmpRel, os.O_CREATE|os.O_EXCL|os.O_RDWR, mode)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return f, tmpRel, nil
+	}
+	return nil, "", fmt.Errorf("workspacefs: failed to allocate unique temporary file")
+}
+
 // WriteFileText writes UTF-8 text to filePath under the workspace (caller must
 // JoinRoot first). Refuses binary-looking content (NUL) and empty path.
 func WriteFileText(filePath, text string) error {
@@ -110,11 +154,43 @@ func WriteFileText(filePath, text string) error {
 		return ErrBinary
 	}
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	base := filepath.Base(filePath)
+	if base == "" || base == "." || base == ".." || base == "/" || base == `\` {
+		return ErrNotFile
+	}
+	ancestor := dir
+	var relDirParts []string
+	for {
+		if _, err := os.Lstat(ancestor); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			return os.ErrNotExist
+		}
+		relDirParts = append([]string{filepath.Base(ancestor)}, relDirParts...)
+		ancestor = parent
+	}
+	root, err := os.OpenRoot(ancestor)
+	if err != nil {
 		return err
 	}
+	defer root.Close()
+
+	relDir := strings.Join(relDirParts, "/")
+	if relDir != "" {
+		if err := root.MkdirAll(relDir, 0o755); err != nil {
+			return err
+		}
+	}
+	targetRel := base
+	if relDir != "" {
+		targetRel = relDir + "/" + base
+	}
 	mode := os.FileMode(0o644)
-	if st, err := os.Lstat(filePath); err == nil {
+	if st, err := root.Lstat(targetRel); err == nil {
 		if !st.Mode().IsRegular() {
 			return ErrNotFile
 		}
@@ -122,12 +198,11 @@ func WriteFileText(filePath, text string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	f, err := os.CreateTemp(dir, ".whaleisle-save-*")
+	f, tmpRel, err := openRootTempFile(root, relDir, mode)
 	if err != nil {
 		return err
 	}
-	tmp := f.Name()
-	defer os.Remove(tmp)
+	defer root.Remove(tmpRel)
 	if err = f.Chmod(mode); err == nil {
 		_, err = f.Write(data)
 	}
@@ -141,7 +216,7 @@ func WriteFileText(filePath, text string) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if err = os.Rename(tmp, filePath); err != nil {
+	if err = root.Rename(tmpRel, targetRel); err != nil {
 		return err
 	}
 	return nil
@@ -183,6 +258,7 @@ func JoinRoot(root, rel string) (string, error) {
 	// Nonexistent leaf names are allowed for saves. Resolve the nearest existing
 	// ancestor so a symlinked parent cannot escape the workspace on creation.
 	node := full
+	var suffix []string
 	for {
 		real, resolveErr := filepath.EvalSymlinks(node)
 		if resolveErr == nil {
@@ -195,7 +271,8 @@ func JoinRoot(root, rel string) (string, error) {
 					return "", fmt.Errorf("workspacefs: git metadata is outside file access")
 				}
 			}
-			break
+			args := append([]string{real}, suffix...)
+			return filepath.Join(args...), nil
 		}
 		if !errors.Is(resolveErr, os.ErrNotExist) {
 			return "", resolveErr
@@ -208,9 +285,9 @@ func JoinRoot(root, rel string) (string, error) {
 		if node == root || parent == node {
 			return "", resolveErr
 		}
+		suffix = append([]string{filepath.Base(node)}, suffix...)
 		node = parent
 	}
-	return full, nil
 }
 
 func bytesContainsNUL(b []byte) bool {
@@ -231,11 +308,11 @@ func IsNotExist(err error) bool {
 // The complete canonical authority check still occurs before each local access.
 func ValidateRelativePath(rel string) error {
 	rel = filepath.ToSlash(rel)
-	if filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") || filepath.VolumeName(rel) != "" || strings.ContainsAny(rel, "\\\x00") {
+	if filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") || filepath.VolumeName(rel) != "" || strings.ContainsAny(rel, "\\\x00:") {
 		return fmt.Errorf("workspacefs: invalid relative path")
 	}
 	for _, part := range strings.Split(rel, "/") {
-		if part == ".." || strings.EqualFold(part, ".git") {
+		if part == ".." || strings.EqualFold(part, ".git") || strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
 			return fmt.Errorf("workspacefs: invalid relative path")
 		}
 	}

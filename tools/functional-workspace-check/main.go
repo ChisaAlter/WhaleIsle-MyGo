@@ -114,6 +114,9 @@ func run(stage, root string, officeOnly bool, r *report) error {
 				return err
 			}
 		}
+		if err := os.Setenv("PSModuleAnalysisCachePath", filepath.Join(root, "localappdata", "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache")); err != nil {
+			return err
+		}
 	}
 	vendor := filepath.Join(stage, "vendor")
 	harnessRoot := filepath.Join(vendor, "deepseek-harness")

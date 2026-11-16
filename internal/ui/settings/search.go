@@ -169,42 +169,7 @@ func searchEntries(m Model) []searchEntry {
 			entries = append(entries, searchEntry{section: contribution.ID, title: field.Title, detail: field.Description, target: field.Target, reveal: field.Reveal, open: contribution.OnSelect})
 		}
 	}
-	if m.PublicContributions.Entries != nil {
-		for _, page := range primaryNavigation(m, snap) {
-			slot := "settings." + string(page.id) + ".item"
-			if page.id == SectionUsageStats {
-				slot = "settings.usage.item"
-			}
-			for _, contribution := range m.PublicContributions.Entries(slot, "") {
-				if contribution.Native {
-					continue
-				}
-				title, detail := settingsContributionSearchText(contribution.Nodes)
-				if label := strings.TrimSpace(contribution.Label); label != "" {
-					if title != "" {
-						detail = strings.TrimSpace(title + " · " + detail)
-					}
-					title = label
-				}
-				if title != "" {
-					entries = append(entries, searchEntry{section: page.id, title: title, detail: detail, target: "public-settings-item-" + contribution.Handle, open: page.onSelect})
-				}
-			}
-		}
-	}
-	filtered := entries[:0]
-	for _, entry := range entries {
-		slot := "settings." + string(entry.section) + ".item"
-		if entry.section == SectionUsageStats {
-			slot = "settings.usage.item"
-		}
-		id := settingsSearchEntryBuiltinID(entry, slot)
-		if id != "" && !m.PublicContributions.NativeWinner(slot, "", id) {
-			continue
-		}
-		filtered = append(filtered, entry)
-	}
-	return filtered
+	return entries
 }
 
 // settingsSearchMatches matches every word across the title, description and

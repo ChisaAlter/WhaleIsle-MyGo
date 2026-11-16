@@ -167,9 +167,10 @@ type ViewState struct {
 	Messages         []Message
 	// HistoryReady records an authoritative opening snapshot for this selection.
 	// Reopening the same selection retains that baseline while HistoryLoading.
-	HistoryLoading bool
-	HistoryReady   bool
-	HistoryError   string
+	HistoryLoading      bool
+	HistoryReconnecting bool
+	HistoryReady        bool
+	HistoryError        string
 	// SelectedSummaryBlank is Host list authority, not inferred from Messages.
 	SelectedSummaryBlank bool
 	MessageEditBusy      bool
@@ -396,6 +397,7 @@ type Store struct {
 	selectedID                           string
 	messages                             []Message
 	historyLoading                       bool
+	historyReconnecting                  bool
 	historyReady                         bool
 	historyError                         string
 	promptBusy                           bool
@@ -450,6 +452,7 @@ type Store struct {
 	bandCancel                           context.CancelFunc
 	bandActions                          []BandAction
 	bandGeneration                       float64
+	bandPressSeq                         uint64
 	speechFollowCancel                   context.CancelFunc
 	speechSelection                      string
 	speechReadiness                      speechReadinessState
@@ -724,6 +727,7 @@ func (s *Store) Detach() {
 	}
 	s.bandActions = nil
 	s.bandGeneration = 0
+	s.bandPressSeq++
 	if s.speechFollowCancel != nil {
 		s.speechFollowCancel()
 		s.speechFollowCancel = nil
@@ -1097,6 +1101,7 @@ func (s *Store) ensureViewCacheLocked() {
 		ListLoading:         s.listLoading,
 		SelectedID:          s.selectedID,
 		HistoryLoading:      s.historyLoading,
+		HistoryReconnecting: s.historyReconnecting,
 		HistoryReady:        s.historyReady,
 		HistoryError:        s.historyError,
 		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),

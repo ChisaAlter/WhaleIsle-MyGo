@@ -121,12 +121,12 @@ func yesNo(ok bool) string {
 }
 
 func entryExists(path string, wantDir bool) bool {
-	info, err := os.Stat(path)
-	if err != nil {
+	info, err := os.Lstat(path)
+	if err != nil || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
 		return false
 	}
 	if wantDir {
 		return info.IsDir()
 	}
-	return !info.IsDir()
+	return info.Mode().IsRegular()
 }

@@ -43,8 +43,9 @@ func customPanelBotScope(hostScope, origin, sid string, roster dshbotstore.Snaps
 	return panel.Scope{}, ""
 }
 func (s *mainState) currentCustomPanelScope(sid string) (panel.Scope, string) {
+	roster := s.assistantService().DshbotRoster()
 	s.mu.Lock()
-	roster, cfg, sessions, ep, ready := s.dshbotRoster, s.cfgStore, s.sessions, s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
+	cfg, sessions, ep, ready := s.cfgStore, s.sessions, s.bootStatus.Endpoint, s.bootStatus.State == harness.Ready
 	s.mu.Unlock()
 	if !ready || roster == nil || cfg == nil || !cfg.Get().DshbotEnabled || sessions == nil || sessions.SelectedSessionID() != sid {
 		return panel.Scope{}, ""

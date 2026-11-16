@@ -1,10 +1,17 @@
 param(
  [Parameter(Mandatory=$true)][int]$OwnerId,
- [switch]$CaptureFinal
+ [switch]$CaptureFinal,
+ [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+ [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
 )
 $ErrorActionPreference='Stop'
-$fixturePath='C:\AI\WhaleIsle-MyGo\.devdata\r111-inspector-fixture.exe'
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass255-native-picker'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r111-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-pass255-native-picker' }
 $protectedIds=@(20012,16008)
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
 if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in $protectedIds){throw 'Wrong owned fixture'}

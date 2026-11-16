@@ -33,7 +33,7 @@ func PrepareWhaleBridgeUpdate(ctx context.Context, userData, route string) (*Bri
 	if err != nil {
 		return nil, err
 	}
-	return prepareBridgeUpdate(ctx, userData, endpoint, &http.Client{Timeout: 5 * time.Minute}, false)
+	return prepareBridgeUpdate(ctx, userData, endpoint, bridgeHardenedHTTPClient(&http.Client{Timeout: 5 * time.Minute}, 5*time.Minute), false)
 }
 
 func prepareBridgeUpdate(ctx context.Context, userData, endpoint string, client *http.Client, fixture bool) (*BridgeChange, error) {
@@ -41,6 +41,7 @@ func prepareBridgeUpdate(ctx context.Context, userData, endpoint string, client 
 		return nil, errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallOrSwitchIsAlreadyRun))
 	}
 	defer componentInstallMu.Unlock()
+	client = bridgeHardenedHTTPClient(client, 5*time.Minute)
 	p, err := newBridgeChange(userData)
 	if err != nil {
 		return nil, err
@@ -114,11 +115,11 @@ func verifyBridgeVersion(root, version string) (bridgeReleaseManifest, error) {
 		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsInvalidWhalebridgeVersion))
 	}
 	dir := filepath.Join(root, "versions", version)
-	if info, err := os.Lstat(dir); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+	if info, err := os.Lstat(dir); err != nil || !info.IsDir() || isReparseOrSymlink(info) {
 		return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeVersionDirectoryIsMissing))
 	}
 	for _, name := range []string{bridgeManifest, bridgeAsset} {
-		if info, err := os.Lstat(filepath.Join(dir, name)); err != nil || !info.Mode().IsRegular() {
+		if info, err := os.Lstat(filepath.Join(dir, name)); err != nil || isReparseOrSymlink(info) || !info.Mode().IsRegular() {
 			return m, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeVersionFileIsMissingOrI))
 		}
 	}
@@ -219,25 +220,11 @@ func (p *BridgeChange) restore(old installedFile, running bool, life bridgeLifec
 }
 
 func replaceBridgeRecord(root string, inst installedFile) error {
-	b, _ := json.Marshal(inst)
-	f, err := os.CreateTemp(root, ".installed-")
+	b, err := json.Marshal(inst)
 	if err != nil {
 		return err
 	}
-	name := f.Name()
-	defer os.Remove(name)
-	if _, err := f.Write(b); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, filepath.Join(root, "installed.json"))
+	return writeFileAtomicRetry(filepath.Join(root, "installed.json"), b, 0o600)
 }
 
 func stopBridgeInstance(ctx context.Context, root, version string, life bridgeLifecycle) (bool, error) {

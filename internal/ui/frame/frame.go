@@ -13,7 +13,6 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/shortcuts"
@@ -179,27 +178,11 @@ const terminalDrawerMin = float32(180)
 
 // Model wires the frame to session state and layout handles.
 type Model struct {
-	PublicContributions             pluginui.PublicContributions
-	InteractionRenderSlot           interui.SlotRenderer
-	WorkspaceNavigation             []pluginui.WorkspaceNavigation
-	OnWorkspaceSessionAction        func(sessionID, owner, action string)
-	GlobalPluginSlot                func(*ui.Context, string, func())
-	OnCloseWindow                   func()
-	OnCloseForegroundModal          func() bool
-	ChildBusyEnter                  string
-	RightOverlayReserve             float32
-	ConversationViews               []pluginui.ConversationView
-	OnSelectConversationView        func(string)
-	OnClearConversationView         func()
-	OnSelectBuiltinConversationView func(string)
-	RenderConversationView          func(*ui.Context) bool
-	PluginRightPaneTabs             []pluginui.RightPaneTab
-	PluginRightPaneKinds            []PluginRightPaneKind
-	OnOpenPluginRightPaneKind       func(kind, replaceGuideID string) error
-	OnSelectPluginRightPaneTab      func(string)
-	OnClosePluginRightPaneTab       func(string)
-	RenderPluginRightPaneTab        func(*ui.Context, string) bool
-	SVGImages                       *svgimage.Owner
+	OnCloseWindow          func()
+	OnCloseForegroundModal func() bool
+	ChildBusyEnter         string
+	RightOverlayReserve    float32
+	SVGImages              *svgimage.Owner
 	OpenUIParent                    uintptr
 	OpenUIWindow                    *mygo.Window
 	CustomPanelContent              func(*ui.Context)
@@ -275,6 +258,7 @@ type Model struct {
 
 	WorkspaceRoot   string
 	FileBindingID   string
+	invalidate      func()
 	FileTabs        *files.Tabs
 	GitWorkbench    *diffsurface.Workbench
 	FileExpanded    *map[string]bool
@@ -299,10 +283,6 @@ type Model struct {
 	OnOpenAgents            func()
 	OnOpenTeam              func()
 	OrdinaryTeam            func() projects.OrdinaryTeamModel
-	NativePages             []pluginui.NativeView
-	OnOpenNativePage        func(string)
-	PanelUnpinned           func(id string) bool
-	OnSetPanelPinned        func(id string, pinned bool)
 	AgentsPromptDraft       *string
 	OnOpenAgentDocument     func(uint64, session.AgentSessionAddress, string)
 	OnOpenAgentPaneDocument func(string, *session.Store, uint64, session.AgentSessionAddress, string)
@@ -392,7 +372,6 @@ type Model struct {
 	OnOpenWhaleSettings              func()
 	OnNewHostTerminal                func()
 	OnPreviewDeliverablePresentation func(string, string) error
-	PluginSlot                       func(*ui.Context, string, string, float64, func())
 	OnOpenLauncher                   func()
 	OnContactAccount                 func()
 	OnOpenSettings                   func()
@@ -444,9 +423,6 @@ type Model struct {
 	OnOpenHistoryReference        func(path string, complete func(error))
 	ConversationContributions     func(*ui.Context, session.ViewState, string)
 	ConversationTurnContributions func(*ui.Context, session.ViewState, session.Message)
-	OnOpenSessionPlugins          func()
-	OnCloseSessionPlugins         func()
-	SessionPluginsActive          bool
 	OnDownloadSessionLog          func(string)
 	SessionLogDownloading         func(string) bool
 	OnOpenSessionFeedback         func(string)
@@ -491,6 +467,9 @@ func View(c *ui.Context, m Model) {
 	}
 	if m.ComposerResize != nil {
 		m.ComposerResize.Adopt(m.FileBindingID, m.ConversationPreferences.ComposerResizeHeight, m.ConversationPreferences.ComposerResizeWidth)
+	}
+	if c != nil {
+		m.invalidate = c.Services().Invalidate
 	}
 	prepareWorkspace(m)
 	m = m.Sizes.Workspace.beginFileProjection(m)
@@ -585,9 +564,6 @@ func View(c *ui.Context, m Model) {
 	m.centerHeight = maxf(0, height-shell.Bounds().Y)
 	shell.Children(func() {
 		mainRow(c, m, snap, colors, border, muted)
-		if !m.ExternalNavigation {
-			renderGlobalShellSlot(c, m, "shell.bottom", nil)
-		}
 	})
 	if !jobsMounted && m.Store != nil {
 		m.Store.UnmountNativeJobs()
@@ -695,11 +671,8 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		activePanel = "assistant"
 	}
 	sidebar.View(c, sidebar.Model{
-		PublicContributions:      m.PublicContributions,
-		WorkspaceNavigation:      m.WorkspaceNavigation,
-		OnWorkspaceSessionAction: m.OnWorkspaceSessionAction,
-		ActivePanel:              activePanel,
-		NewSessionShortcut:       newSessionShortcut,
+		ActivePanel:        activePanel,
+		NewSessionShortcut: newSessionShortcut,
 		MenuShortcutLabels:       menuShortcutLabels,
 		PendingStatuses:          sidebarPendingStatuses(m),
 		Batch:                    m.Store.SessionBatch(),
@@ -734,15 +707,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnOpenMarket:          m.OnOpenMarket,
 		OnOpenSchedule:        m.OnOpenSchedule,
 		OnOpenAssistant:       m.OnOpenAssistant,
-		NativePages:           m.NativePages,
-		OnOpenNativePage:      m.OnOpenNativePage,
-		PanelUnpinned:         m.PanelUnpinned,
-		OnSetPanelPinned:      m.OnSetPanelPinned,
-		OnCreatePluginDraft:   m.OnCreatePluginDraft,
 		OnOpenLauncher:        m.OnOpenLauncher,
-		OnOpenSessionPlugins:  selectedSessionPluginAction(m, snap.SelectedID, m.OnOpenSessionPlugins),
-		OnCloseSessionPlugins: selectedSessionPluginAction(m, snap.SelectedID, m.OnCloseSessionPlugins),
-		SessionPluginsActive:  m.SessionPluginsActive,
 		OnOpenSettings:        m.OnOpenSettings,
 		ConnectionReady:       m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
 		AssistantName:           m.AssistantName,
@@ -969,7 +934,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						OnSearchFileRefs:        m.OnSearchFileRefs,
 						OnSearchReferences:      m.OnSearchReferences,
 						OnQueryReferences:       m.OnQueryReferences,
-						RenderSlot:              nativeComposerSlot(m),
 						ExtraActions:            func(c *ui.Context) { projects.ProjectStopButton(c, m.Projects, snap.SelectedID) },
 						SuggestList:             m.ComposerSuggest,
 						SkillsOpen:              m.ComposerSkillsOpen,
@@ -1150,20 +1114,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					if m.ChatPaneTab != nil && strings.TrimSpace(*m.ChatPaneTab) != "" {
 						paneTab = strings.TrimSpace(*m.ChatPaneTab)
 					}
-					if strings.HasPrefix(paneTab, "plugin:") {
-						ui.Column(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
-							if m.RenderConversationView == nil || !m.RenderConversationView(c) {
-								ui.Text(c, paneLabel("插件视图尚不可用，你可以切回对话。", "This plugin view is not available yet. You can return to Chat.")).Padding(12)
-								if ui.Button(c, i18n.T(i18n.KeyChatPaneTabChat)).Clicked() {
-									*m.ChatPaneTab = "chat"
-									if m.OnClearConversationView != nil {
-										m.OnClearConversationView()
-									}
-								}
-							}
-						})
-						return
-					}
 					// The ledger owns its empty/loading states. Chat's hero or
 					// history-error placeholder must not hide the selected view.
 					if paneTab != "trajectory" && (phase == conversationHero || phase == conversationSettling || (snap.HistoryError != "" && len(snap.Messages) == 0)) {
@@ -1217,9 +1167,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									} else {
 										navigation := sessionInspectorChatNavigation(m)
 										chat.View(c, chat.Model{
-											ReasoningBody:                    nativeReasoningSlot(m),
-											RenderSlot:                       nativeMessageSlot(m),
-											ToolRenderSlot:                   nativeToolSlot(m),
 											OnPreviewDeliverablePresentation: m.OnPreviewDeliverablePresentation,
 											OnInspectToolCall:                inspectActionFor(inspectToolCall, m.toolCallInspector()),
 											TurnContributions:                m.ConversationTurnContributions,
@@ -1436,7 +1383,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								region.Children(func() {
 									paint := func() {
 										interui.View(c, interui.Model{Snapshot: viewSnap, ScopeAgentID: snap.SelectedID,
-											RenderSlot: m.InteractionRenderSlot,
 											ThemeID:    m.ThemeID, SystemDark: m.SystemDark, Store: m.Interactions,
 											OnAutoAllowChanged: m.OnAutoAllowChanged, OnOpenPlanResource: m.OnOpenPlanResource}, *residentCard)
 									}
@@ -1554,7 +1500,7 @@ func rightPane(c *ui.Context, m Model) {
 	tab := "files"
 	if m.RightPaneTab != nil {
 		switch *m.RightPaneTab {
-		case "guide", "project-team", "plugin-native", "custom-panels", "session-inspector-log", "changes-review", "subagentchat", "plan", "diff", "agents", "team", "browser", "host-terminal", "schedule-task":
+		case "guide", "project-team", "custom-panels", "session-inspector-log", "changes-review", "subagentchat", "plan", "diff", "agents", "team", "browser", "host-terminal", "schedule-task":
 			tab = *m.RightPaneTab
 		}
 	}
@@ -1622,16 +1568,6 @@ func rightPane(c *ui.Context, m Model) {
 			workspaceOrdinaryTeam(c, m)
 			return
 		}
-		if tab == "plugin-native" {
-			handle := ""
-			if m.workspacePane != nil {
-				handle = m.workspacePane.PluginRightPaneHandle
-			}
-			if m.RenderPluginRightPaneTab == nil || handle == "" || !m.RenderPluginRightPaneTab(c, handle) {
-				ui.Text(c, paneLabel("此插件视图已不可用，请从资源菜单重新打开。", "This plugin view is no longer available. Reopen it from the resource menu.")).Padding(12).FillWidth()
-			}
-			return
-		}
 		if tab == "agents" && m.Store != nil {
 			store := m.Store
 			navigation := store
@@ -1640,7 +1576,6 @@ func rightPane(c *ui.Context, m Model) {
 			}
 			agents.ViewWithJobs(c, agents.Model{
 				ChatPreferences:       m.ChatPreferences,
-				InteractionRenderSlot: m.InteractionRenderSlot,
 				OnOpenChat:            subagentChatOpener(m),
 				OnOpenConversation:    subagentConversationOpener(m),
 				Interactions:          m.Interactions,
@@ -1775,24 +1710,13 @@ func rightPane(c *ui.Context, m Model) {
 			StatRemote:          m.OnStatWorkspaceFile,
 			StatNote:            m.FileStatNote,
 			OnShowDiff: func(rel string) {
-				if m.GitWorkbench != nil {
-					m.GitWorkbench.CancelComparison()
-					m.GitWorkbench.BaseRef = ""
-					m.GitWorkbench.Staged = false
-				}
 				if m.RightPaneTab != nil {
 					*m.RightPaneTab = "diff"
 				}
 				if m.DiffPath != nil {
 					*m.DiffPath = rel
 				}
-				text, errMsg := diffsurface.LoadDiff(m.WorkspaceRoot, rel)
-				if m.DiffText != nil {
-					*m.DiffText = text
-				}
-				if m.DiffErr != nil {
-					*m.DiffErr = errMsg
-				}
+				diffsurface.StartDiffAsync(m.GitWorkbench, m.WorkspaceRoot, rel, m.DiffText, m.DiffErr, c.Services().Invalidate)
 			},
 			OnSaveEdit: func(rel, text string) error {
 				full, err := workspacefs.JoinRoot(m.WorkspaceRoot, rel)
@@ -1915,4 +1839,13 @@ func composerTelemetryDock(c *ui.Context, snap session.ViewState, m costui.Model
 		})
 	})
 	return true
+}
+
+func selectedConversationParent(snap session.ViewState) string {
+	for _, item := range snap.Items {
+		if item.SessionID == snap.SelectedID {
+			return item.ParentID
+		}
+	}
+	return ""
 }

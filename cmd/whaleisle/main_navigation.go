@@ -26,17 +26,16 @@ func connectionUnavailableMessage(bootstrapError string, offline, lost bool) str
 // Main panel selection changes visibility only. The marketplace, scheduler,
 // assistant and per-session composer stores remain alive with their drafts.
 func (s *mainState) selectMainPanel(panel string) {
-	s.closePluginNativeView()
 	s.mu.Lock()
 	s.marketOpen = panel == "market" || panel == "plugins"
 	s.marketManager = panel == "plugins"
 	s.scheduleOpen = panel == "schedule"
-	s.assistantConversationGeneration++
-	s.assistantOpen = panel == "assistant"
 	s.toolsMenuOpen = false
 	win := s.win
 	set := s.settings
 	s.mu.Unlock()
+	s.assistantService().SetOpen(panel == "assistant")
+	retireStaleInlineVisualPages()
 	if panel == "plugins" && set != nil {
 		set.RefreshDescribe(context.Background())
 	}
@@ -55,7 +54,6 @@ func (s *mainState) openNativePluginManager() {
 // Global session actions reveal the conversation even from exclusive pages.
 // Only route flags change: drafts and each page's live stores remain resident.
 func (s *mainState) revealMainConversation() {
-	s.closePluginNativeView()
 	s.mu.Lock()
 	s.launcherOpen = false
 	s.settingsOpen = false
@@ -67,33 +65,19 @@ func (s *mainState) revealMainConversation() {
 	s.browserPreviewOpen = false
 	s.marketOpen = false
 	s.scheduleOpen = false
-	s.assistantOpen = false
-	s.assistantConversationGeneration++
 	s.toolsMenuOpen = false
 	win := s.win
 	s.mu.Unlock()
+	s.assistantService().SetOpen(false)
+	retireStaleInlineVisualPages()
 	if win != nil {
 		win.Update(func() {})
-	}
-}
-
-// gateAssistantNavigation follows the desktop Whale overlay preference, not Host
-// readiness. overlay.optionalPlugins mounts Whale even during SkipUserPlugins;
-// OfflinePlugins.ApplyDisabled also preserves this immutable built-in. Neither
-// recovery nor a stale disabled-list entry removes its navigation capability.
-func (s *mainState) gateAssistantNavigation(m *frame.Model) {
-	s.mu.Lock()
-	store := s.cfgStore
-	s.mu.Unlock()
-	if store == nil || !store.Get().WhaleAssistantEnabled {
-		m.OnOpenAssistant = nil
 	}
 }
 
 // withMainNavigation is the stable parent of both chat and the three native
 // global panels. Settings overlay this stable shell; guest/PDF views bypass it.
 func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Model, content func()) {
-	m.RightOverlayReserve = s.padReservedWidth(c)
 	m.PageShortcutBindings = s.pageShortcutBindings()
 	m.SessionSearchFocus = &s.commandSearchFocus
 	m.OnOpenWorkspaceFiles = func() {
@@ -107,25 +91,27 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		content()
 		return
 	}
+	uFrame := s.updaterCenter().FrameSnapshot()
+	assistantOpen := s.assistantService().Open()
 	s.mu.Lock()
 	win := s.win
 	m.ConnectionReady = s.bootStatus.State == harness.Ready && s.dshMuxReady
 	m.ConnectionError = connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
 	m.ConnectionConnecting = s.bootStatus.State == harness.Starting || s.bootStatus.State == harness.Ready && !s.dshMuxReady && s.dshBootstrapError == "" && (!s.dshNetworkOffline || !s.dshMuxLost)
 	m.ConnectionEpoch = uint64(s.bootStatus.Generation)
-	m.DesktopUpdateInstalling = s.nativeReleases.installing
-	m.DesktopUpdatePhase, m.DesktopUpdateDetail = s.nativeReleases.phase, strings.TrimSpace(s.nativeReleases.status+" "+s.nativeReleases.err)
+	m.DesktopUpdateInstalling = uFrame.Installing
+	m.DesktopUpdatePhase, m.DesktopUpdateDetail = uFrame.Phase, uFrame.Detail
 	if m.OnReconnect == nil {
 		m.OnReconnect = s.requestConnectionReconnect
 	}
-	m.RightPaneOpen = s.filesPaneOpen && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen
+	m.RightPaneOpen = s.filesPaneOpen && !s.marketOpen && !s.scheduleOpen && !assistantOpen
 	m.ActivePanel = ""
 	switch {
 	case s.marketOpen:
 		m.ActivePanel = "plugins"
 	case s.scheduleOpen:
 		m.ActivePanel = "schedule"
-	case s.assistantOpen:
+	case assistantOpen:
 		m.ActivePanel = "assistant"
 	}
 	if m.Store == nil {
@@ -174,9 +160,10 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 		s.selectMainPanel("")
 		sessions.Select(id)
+		retireStaleInlineVisualPages()
 	}
 	m.OnCreateSession = func() { s.openGlobalWorkspaceSession(win, sessions) }
-	m.DirectoryActions = s.workspaceDirectoryActions(win)
+	m.DirectoryActions = s.projectDirectoryActions(win)
 	m.OnCreateWorkspaceSession = func(generation uint64, id string) {
 		s.openWorkspaceSession(win, sessions, generation, id)
 	}
@@ -188,11 +175,11 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.selectMainPanel("")
 		s.mu.Lock()
 		s.launcherOpen = true
-		s.launcherTab = launcher.TabHome
 		s.mu.Unlock()
+		s.launcherController().SetTab(launcher.TabHome)
 	}
 	openLauncher := m.OnOpenLauncher
-	m.OnOpenDesktopUpdate = func() { openLauncher(); s.mu.Lock(); s.launcherTab = launcher.TabVersions; s.mu.Unlock() }
+	m.OnOpenDesktopUpdate = func() { openLauncher(); s.launcherController().SetTab(launcher.TabVersions) }
 	m.Account.OnOpen = s.openAccountSettings
 	m.OnOpenSettings = func() {
 		s.mu.Lock()
@@ -256,8 +243,6 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 		s.mu.Unlock()
 		sessions.UpdateSessionSearch(context.Background(), *m.SessionSearch)
 	}()
-	s.bindPluginSessionNavigation(&m)
-	s.bindPluginNativeNavigation(&m)
 	frame.NavigationShell(c, s.navigationFileDropModel(m), content)
 }
 

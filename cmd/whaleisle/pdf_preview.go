@@ -15,6 +15,8 @@ func (s *mainState) openOfficePDF(sessions *session.Store, sid, root, path strin
 
 func (s *mainState) startPDFPreview(sessions *session.Store, sid, root, path string, convert bool) {
 	kind := browserpreviewui.DocumentPDF
-	if convert { kind = browserpreviewui.DocumentOfficePDF }
+	if convert {
+		kind = browserpreviewui.DocumentOfficePDF
+	}
 	s.openWorkspaceDocument(sessions, sid, root, path, kind)
 }

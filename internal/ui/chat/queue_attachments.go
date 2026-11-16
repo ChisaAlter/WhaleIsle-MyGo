@@ -42,8 +42,8 @@ func paintQueueAttachments(c *ui.Context, m PlanBoardModel, item session.PlanQue
 					}
 					return path, err
 				}, c.Services().Invalidate)
-				if state.path != "" && loadChatBitmap(state.path) != nil {
-					ui.Image(c, loadChatBitmap(state.path)).Width(64).Height(48).Fit(ui.Contain)
+				if bmp, _ := cachedChatBitmap(state.path, c.Services().Invalidate); bmp != nil {
+					ui.Image(c, bmp).Width(64).Height(48).Fit(ui.Contain)
 				} else {
 					ui.Text(c, "[image]").Width(64).FontSize(11).TextColor(muted)
 					if state.err != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(10).Clicked() {

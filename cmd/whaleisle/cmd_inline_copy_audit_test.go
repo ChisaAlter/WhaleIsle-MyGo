@@ -13,15 +13,13 @@ import (
 // catalog or keeps a second inline copy next to the i18n lookup.
 var auditedCmdCopyFiles = []string{
 	"git_push_review.go",
-	"plugin_session_host.go",
 	"plugin_creator_task.go",
 	"office_document.go",
 	"workspace_document_preview.go",
 	"media_preview.go",
 	"image_document.go",
 	"import_flow.go",
-	"project_directory.go",
-	"plugin_contributions.go",
+	"../../internal/app/project/directory.go",
 }
 
 // auditedCmdCopyKeys is the migration list. It duplicates the i18n package's

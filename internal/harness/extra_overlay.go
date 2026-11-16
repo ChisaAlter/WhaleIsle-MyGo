@@ -6,14 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/desktop/pluginslots"
-	"whaleisle/internal/desktop/pluginui"
 )
 
 const (
 	sessionSearchOverlayFile = "desktop-session-search.patch.yml"
-	marketOverlayFile        = "desktop-dsh-market.patch.yml"
-	marketPackage            = "@deepseek-ai/dsh-client-ui-settings-market"
-	marketInsertID           = "ui-settings-market"
+	routeAOverlayFile        = "desktop-route-a.patch.yml"
 )
 
 func extraOverlays(o PrepareOptions) ([]string, error) {
@@ -21,11 +18,11 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	nativePatch, err := pluginui.Prepare(o.ProfileDir)
+	routeAPatch, err := writeRouteAHostOverlay(o)
 	if err != nil {
 		return nil, err
 	}
-	out := []string{viewPatch, nativePatch}
+	out := []string{viewPatch, routeAPatch}
 	proactivePatch, err := writeProactiveOverlay(o)
 	if err != nil {
 		return nil, err
@@ -40,13 +37,6 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 			out = append(out, p)
 		}
 	}
-	p, err := writeMarketOverlay(o)
-	if err != nil {
-		return nil, err
-	}
-	if p != "" {
-		out = append(out, p)
-	}
 	office, err := EnsureOfficeOverlay(o)
 	if err != nil {
 		return nil, err
@@ -60,6 +50,46 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	}
 	out = append(out, extra...)
 	return out, nil
+}
+
+func writeRouteAHostOverlay(o PrepareOptions) (string, error) {
+	lines := []string{
+		"# Desktop-managed Route A overlay passed via --patch.",
+		"# Disables background @deepseek-ai/dsh-client-hmr 500ms disk polling while",
+		"# retaining client module metadata for on-demand compat views.",
+		"- id: client-hmr",
+		"  disabled: true",
+	}
+
+	if o.HarnessRoot != "" {
+		hasLibreOffice := hasPackageJSON(o.HarnessRoot, "node_modules/@deepseek-ai/libreoffice-kit/package.json") ||
+			hasPackageJSON(o.HarnessRoot, "apps/cli/node_modules/@deepseek-ai/libreoffice-kit/package.json")
+		if !hasLibreOffice {
+			lines = append(lines,
+				"- id: office-to-pdf",
+				"  disabled: true",
+			)
+		}
+
+		hasSherpaOnnx := hasPackageJSON(o.HarnessRoot, "node_modules/sherpa-onnx-node/package.json") ||
+			hasPackageJSON(o.HarnessRoot, "packages/experimental/speech-to-text-sensevoice/node_modules/sherpa-onnx-node/package.json")
+		if !hasSherpaOnnx {
+			lines = append(lines,
+				"- id: speech-to-text-sensevoice",
+				"  disabled: true",
+			)
+		}
+	}
+
+	lines = append(lines, "")
+	contents := strings.Join(lines, "\n")
+	return writeRawOverlay(o.ProfileDir, "route-a", routeAOverlayFile, contents)
+}
+
+func hasPackageJSON(root, rel string) bool {
+	p := filepath.Join(root, filepath.FromSlash(rel))
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
 }
 
 // EnvExtraOverlay is a development/QA hook: it names a directory holding one
@@ -118,38 +148,6 @@ func writeSessionSearchOverlay(o PrepareOptions) (string, error) {
 	return writeRawOverlay(o.ProfileDir, "session-search", sessionSearchOverlayFile, contents)
 }
 
-func writeMarketOverlay(o PrepareOptions) (string, error) {
-	if o.HarnessRoot != "" {
-		source := resolveMarketSource(o.HarnessRoot)
-		if source != "" {
-			link := filepath.Join(o.ProfileDir, "node_modules", "@deepseek-ai", "dsh-client-ui-settings-market")
-			if _, err := EnsureDirectoryLink(source, link); err != nil {
-				return "", err
-			}
-		}
-	}
-	p := DesktopPlugin{
-		Package:     marketPackage,
-		InsertID:    marketInsertID,
-		OverlayFile: marketOverlayFile,
-		OverlayDir:  "dsh-market",
-	}
-	return writeInsertOverlay(o.ProfileDir, p)
-}
-
-func resolveMarketSource(harnessRoot string) string {
-	candidates := []string{
-		filepath.Join(harnessRoot, "packages", "client", "ui-settings-market"),
-		filepath.Join(harnessRoot, "node_modules", "@deepseek-ai", "dsh-client-ui-settings-market"),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(filepath.Join(c, "package.json")); err == nil {
-			return c
-		}
-	}
-	return ""
-}
-
 func writeRawOverlay(profileDir, overlayDir, filename, contents string) (string, error) {
 	dir := filepath.Join(profileDir, "desktop-plugins", overlayDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -159,12 +157,7 @@ func writeRawOverlay(profileDir, overlayDir, filename, contents string) (string,
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == contents {
 		return path, nil
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(contents), 0o644); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	if err := writeFileAtomic(path, []byte(contents), 0o644); err != nil {
 		return "", err
 	}
 	return path, nil

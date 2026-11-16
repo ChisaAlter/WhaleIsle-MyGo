@@ -6,23 +6,10 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// selectedSessionPluginAction rejects a menu left open across selection changes.
-// Both header and row access operate only on the exact selected Session owner.
-func selectedSessionPluginAction(m Model, selected string, action func()) func(string) {
-	if action == nil || selected == "" || m.Store == nil {
-		return nil
-	}
-	return func(id string) {
-		if id == selected && m.Store.SelectedSessionID() == selected {
-			action()
-		}
-	}
-}
-
 // The installed session-log-export action owns this menu. View selection,
 // plugin discovery and the launcher have separate entry points.
 func conversationMoreMenu(c *ui.Context, m Model, snapshot session.ViewState, ink ui.Color) {
-	if m.ConversationContributions == nil && (m.OnOpenSessionPlugins != nil || m.OnOpenLauncher != nil || m.HideChatViewTabs && m.ChatPaneTab != nil || m.OnOpenMarket != nil || m.OnCreatePluginDraft != nil) {
+	if m.ConversationContributions == nil && (m.OnOpenLauncher != nil || m.HideChatViewTabs && m.ChatPaneTab != nil || m.OnOpenMarket != nil || m.OnCreatePluginDraft != nil) {
 		legacyConversationMoreMenu(c, m, ink)
 		return
 	}
@@ -44,12 +31,11 @@ func conversationMoreMenu(c *ui.Context, m Model, snapshot session.ViewState, in
 }
 
 // Standalone embeddings without the source header publisher retain their
-// existing explicit view/plugin/launcher callbacks. The production publisher
+// existing explicit view/launcher callbacks. The production publisher
 // owns those doors separately from its session-log menu.
 func legacyConversationMoreMenu(c *ui.Context, m Model, ink ui.Color) {
-	hasPlugins := m.OnOpenSessionPlugins != nil
 	hasViews := m.HideChatViewTabs && m.ChatPaneTab != nil
-	if !hasPlugins && !hasViews && m.OnOpenMarket == nil && m.OnCreatePluginDraft == nil {
+	if !hasViews && m.OnOpenMarket == nil && m.OnCreatePluginDraft == nil {
 		conversationHeaderButton(c, "conversation-more", i18n.T(i18n.KeyLauncherOpen), "EllipsisOutline", true, ink, m.OnOpenLauncher, 0)
 		return
 	}
@@ -67,23 +53,8 @@ func legacyConversationMoreMenu(c *ui.Context, m Model, ink ui.Color) {
 				}
 				if menu.Item(label).Chosen() {
 					*m.ChatPaneTab = view.id
-					if m.OnSelectBuiltinConversationView != nil {
-						m.OnSelectBuiltinConversationView(view.id)
-					}
 				}
 			}
-			for _, view := range m.ConversationViews {
-				if menu.Item(view.Label).Disabled(m.OnSelectConversationView == nil).Chosen() {
-					*m.ChatPaneTab = "plugin:" + view.Handle
-					m.OnSelectConversationView(view.Handle)
-				}
-			}
-		}
-		if hasPlugins && menu.Item(i18n.T(i18n.KeyCmdSessionPluginTitle)).Chosen() {
-			m.OnOpenSessionPlugins()
-		}
-		if hasPlugins && m.SessionPluginsActive && m.OnCloseSessionPlugins != nil && menu.Item(i18n.T(i18n.KeySessionPluginsStop)).Chosen() {
-			m.OnCloseSessionPlugins()
 		}
 		if m.OnOpenMarket != nil && menu.Item(paneLabel("浏览更多插件", "Browse other plugins")).Chosen() {
 			m.OnOpenMarket()

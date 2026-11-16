@@ -35,7 +35,7 @@ func (g *Gateway) ExternalURL(raw string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	for _, secret := range []string{g.key, g.session.Token} {
+	for _, secret := range []string{g.key, g.bridgeToken, g.session.Token} {
 		if secret != "" && (strings.Contains(u.String(), secret) || strings.Contains(decoded, secret)) {
 			return "", false
 		}

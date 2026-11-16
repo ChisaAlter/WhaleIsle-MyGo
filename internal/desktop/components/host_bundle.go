@@ -126,7 +126,7 @@ func LoadHostBundle(userData, directory string) (HostBundle, error) {
 	if err != nil || filepath.Dir(target) != versions || strings.HasPrefix(filepath.Base(target), ".") {
 		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsChooseAnInstalledVersionFromTheHostCo))
 	}
-	if info, err := os.Lstat(target); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+	if info, err := os.Lstat(target); err != nil || !info.IsDir() || isReparseOrSymlink(info) {
 		return HostBundle{}, errors.New(storelocale.T(storelocale.KeyStoreComponentsTheHostVersionDirectoryIsMissingOrInv))
 	}
 	manifest, err := readHostBundle(target)
@@ -170,24 +170,7 @@ func (b HostBundle) Select(userData string) error {
 		return err
 	}
 	root := paths.HostComponentDir(userData)
-	file, err := os.CreateTemp(root, ".installed-")
-	if err != nil {
-		return err
-	}
-	name := file.Name()
-	defer os.Remove(name)
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, filepath.Join(root, "installed.json"))
+	return writeFileAtomicRetry(filepath.Join(root, "installed.json"), data, 0o600)
 }
 
 func readHostBundle(root string) (HostBundleManifest, error) {
@@ -299,6 +282,10 @@ func hostFileSHA256(name string) (string, error) {
 // Materialize the package's relative links after files, retaining the pnpm
 // topology used by package-macos. Archive members stay within the staging tree.
 func extractHostBundle(ctx context.Context, archive, destination string) error {
+	return extractHostBundleWithLimits(ctx, archive, destination, 8192, 512<<20, 2<<30)
+}
+
+func extractHostBundleWithLimits(ctx context.Context, archive, destination string, maxFiles int, maxFileBytes, maxTotalBytes int64) error {
 	file, err := os.Open(archive)
 	if err != nil {
 		return err
@@ -316,6 +303,8 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 	defer root.Close()
 	reader := tar.NewReader(compressed)
 	var links []*tar.Header
+	var entryCount int
+	var totalBytes int64
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -326,6 +315,10 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 		}
 		if err != nil {
 			return err
+		}
+		entryCount++
+		if maxFiles > 0 && entryCount > maxFiles {
+			return errors.New("host package exceeds maximum entry limit")
 		}
 		name := filepath.Clean(filepath.FromSlash(header.Name))
 		if !filepath.IsLocal(name) || (name != "runtime" && name != hostBundleManifest && !strings.HasPrefix(name, "runtime"+string(filepath.Separator))) {
@@ -338,6 +331,13 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 				return err
 			}
 		case tar.TypeReg, tar.TypeRegA:
+			if header.Size < 0 || header.Size > maxFileBytes || header.Size > maxTotalBytes-totalBytes {
+				return errors.New("host package entry exceeds size limit")
+			}
+			remaining := maxFileBytes
+			if avail := maxTotalBytes - totalBytes; avail < remaining {
+				remaining = avail
+			}
 			if err := root.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return err
 			}
@@ -345,7 +345,7 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 			if err != nil {
 				return err
 			}
-			_, copyErr := io.Copy(out, reader)
+			written, copyErr := io.Copy(out, io.LimitReader(reader, remaining+1))
 			closeErr := out.Close()
 			if copyErr != nil {
 				return copyErr
@@ -353,6 +353,10 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 			if closeErr != nil {
 				return closeErr
 			}
+			if written > remaining {
+				return errors.New("host package extracted size exceeds limit")
+			}
+			totalBytes += written
 		case tar.TypeSymlink, tar.TypeLink:
 			copy := *header
 			links = append(links, &copy)
@@ -365,14 +369,23 @@ func extractHostBundle(ctx context.Context, archive, destination string) error {
 		return err
 	}
 	for _, header := range links {
+		if header.Linkname == "" || strings.ContainsAny(header.Linkname, "\x00") || strings.ContainsAny(header.Name, "\x00") {
+			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsAHostPackageLinkPointsOutsideTheRunti), header.Name))
+		}
 		name := filepath.Clean(filepath.FromSlash(header.Name))
 		link := filepath.FromSlash(header.Linkname)
-		resolved := link
+		resolved := filepath.Clean(link)
 		if header.Typeflag == tar.TypeSymlink {
-			resolved = filepath.Join(filepath.Dir(name), link)
+			resolved = filepath.Clean(filepath.Join(filepath.Dir(name), link))
 		}
 		if filepath.IsAbs(link) || !filepath.IsLocal(resolved) {
 			return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsAHostPackageLinkPointsOutsideTheRunti), header.Name))
+		}
+		if header.Typeflag == tar.TypeLink {
+			info, lerr := root.Lstat(resolved)
+			if lerr != nil || !info.Mode().IsRegular() {
+				return errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreComponentsAHostPackageLinkPointsOutsideTheRunti), header.Name))
+			}
 		}
 		target := name
 		if err := root.MkdirAll(filepath.Dir(target), 0755); err != nil {

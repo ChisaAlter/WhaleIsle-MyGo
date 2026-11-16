@@ -33,8 +33,11 @@ func NewInstallServer(opts InstallServerOptions) *installctrl.Server {
 	}
 
 	var install installctrl.InstallFunc
+	var installCtx func(context.Context, string, installctrl.InstallOpts) installctrl.Result
 	if installctrl.InstallReady(cfg) {
-		install = installctrl.PNPMInstall(cfg)
+		installCtx = func(ctx context.Context, spec string, opts installctrl.InstallOpts) installctrl.Result {
+			return installctrl.PNPMInstallContext(ctx, cfg)(spec, opts)
+		}
 	} else {
 		install = func(spec string, _ installctrl.InstallOpts) installctrl.Result {
 			msg := "desktop plugin install requires Node.js and a built vendored harness (setup-harness)"
@@ -50,10 +53,11 @@ func NewInstallServer(opts InstallServerOptions) *installctrl.Server {
 	}
 
 	return installctrl.New(installctrl.Options{
-		OnRestart:   opts.OnRestart,
-		Project:     opts.Project,
-		HTMLPreview: opts.HTMLPreview,
-		Install:     install,
-		Desktop:     opts.Desktop,
+		OnRestart:      opts.OnRestart,
+		Project:        opts.Project,
+		HTMLPreview:    opts.HTMLPreview,
+		Install:        install,
+		InstallContext: installCtx,
+		Desktop:        opts.Desktop,
 	})
 }

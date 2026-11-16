@@ -198,6 +198,8 @@ var configJSONFields = func() map[string]bool {
 	return fields
 }()
 
+var pluginInstallRegistryJSONFields = structJSONFields[PluginInstallRegistry]()
+
 // mergeKnownConfig replaces all typed fields, including those omitted after an
 // explicit reset. Only keys outside Config remain opaque and carried through.
 func mergeKnownConfig(raw, known map[string]json.RawMessage) map[string]json.RawMessage {
@@ -209,6 +211,13 @@ func mergeKnownConfig(raw, known map[string]json.RawMessage) map[string]json.Raw
 	}
 	for key, value := range known {
 		merged[key] = value
+	}
+	if nextReg, ok := known["goPluginInstallRegistry"]; ok {
+		if prevReg := raw["goPluginInstallRegistry"]; len(prevReg) > 0 {
+			if mergedReg, err := mergeKnownFieldsObject(prevReg, nextReg, pluginInstallRegistryJSONFields, nil); err == nil {
+				merged["goPluginInstallRegistry"] = mergedReg
+			}
+		}
 	}
 	return merged
 }
@@ -458,7 +467,7 @@ func (s *Store) UpdateChecked(fn func(*Config) error) error {
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}
-	if err := writeAtomic(s.path, data, s.rename); err != nil {
+	if err := writeAtomic(s.path, data, s.guardedRenameFor(s.baseline)); err != nil {
 		return err
 	}
 	s.raw = merged

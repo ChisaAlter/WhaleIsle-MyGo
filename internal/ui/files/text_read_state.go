@@ -5,7 +5,9 @@ package files
 // Host-owned resources do not replace a dirty local editor's baseline.
 type textReadState struct {
 	preview, draft             string
+	conflictContent            string
 	truncated, remote, blocked bool
+	hasConflict, conflictTrunc bool
 }
 
 func reconcileTextRead(before textReadState, result textReadResult) textReadState {
@@ -18,16 +20,38 @@ func reconcileTextRead(before textReadState, result textReadResult) textReadStat
 		}
 	}
 	if before.preview != before.draft {
-		if result.err == nil && !result.truncated && !result.remote && !before.remote {
-			out.preview = result.text
-		} else if result.err == nil && result.text != before.preview {
+		if result.err != nil {
 			out.blocked = true
+			return out
 		}
+		if result.truncated {
+			out.blocked = true
+			out.hasConflict = false
+			out.conflictContent = ""
+			out.conflictTrunc = false
+			return out
+		}
+		if result.text != before.preview {
+			// Retain the previous baseline (before.preview) and unsaved draft
+			// separately from disk V2 so autosave can never advance Preview to V2
+			// and overwrite external changes without explicit user resolution.
+			out.blocked = true
+			out.hasConflict = true
+			out.conflictContent = result.text
+			out.conflictTrunc = false
+			return out
+		}
+		out.hasConflict = false
+		out.conflictContent = ""
+		out.conflictTrunc = false
 		return out
 	}
 	if result.err == nil {
 		out.preview, out.draft = result.text, result.text
 		out.remote = result.remote
+		out.hasConflict = false
+		out.conflictContent = ""
+		out.conflictTrunc = false
 	}
 	return out
 }

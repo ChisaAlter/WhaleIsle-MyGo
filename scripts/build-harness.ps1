@@ -22,10 +22,12 @@ param(
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
     [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
     [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
+    [string]$NodeDir = $env:WHALEISLE_NODE_DIR,
     [switch]$UnifiedShortcuts,
     [switch]$BuildOnly
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'env.ps1')
 if ($RuntimeSourceResources) {
     if ($SourceMode -ne 'custom') { throw 'RuntimeSourceResources and current source build are separate inputs.' }
     if (-not $RuntimeDestination) { $RuntimeDestination = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime' }
@@ -79,9 +81,30 @@ foreach ($name in @('deepseek-harness', 'dsh-usage-panel', 'dsh-im', 'dshbot', '
         Copy-Item $source $target -Recurse -Force
     }
 }
-# Node.js 24 toolchain location (add to PATH if not already present).
-$NodeDir = 'C:\AI\tools\node-v24.21.0-win-x64'
-if (Test-Path $NodeDir) { $env:PATH = "$NodeDir;$env:PATH" }
+# Node.js 24 toolchain location (prefer explicit NodeDir / WHALEISLE_NODE_DIR, then runtime/node, then PATH).
+$savedPath = $env:PATH
+$savedCommitHash = $env:DSH_CLIENT_COMMIT_HASH
+$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+$pnpmToolsPrefix = 'whaleisle-pnpm-'
+$pnpmToolsDir = $null
+try {
+if (-not $NodeDir) {
+    $repoNode = Join-Path $ProjectRoot 'runtime\node'
+    if ((Test-Path -LiteralPath (Join-Path $repoNode 'node.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $repoNode 'npm.cmd') -PathType Leaf)) {
+        $NodeDir = $repoNode
+    } else {
+        $pathNode = Get-Command node -ErrorAction SilentlyContinue
+        if ($pathNode) { $NodeDir = Split-Path -Parent $pathNode.Source }
+    }
+}
+if ($NodeDir -and (Test-Path -LiteralPath (Join-Path $NodeDir 'node.exe') -PathType Leaf)) {
+    $env:PATH = "$NodeDir;$env:PATH"
+}
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+$npmCmd = Get-Command npm -ErrorAction SilentlyContinue
+if (-not $nodeCmd -or -not $npmCmd) {
+    throw 'Node/npm toolchain missing; set WHALEISLE_NODE_DIR (or pass -NodeDir) containing node.exe and npm.cmd, or put them on PATH.'
+}
 
 if (-not (Test-Path (Join-Path $HarnessDir 'package.json'))) {
     throw "Harness sources not found at $HarnessDir - copy them from reference\electron\vendor first (robocopy /E, see docs/plan.md M0)."
@@ -100,18 +123,30 @@ if ($UnifiedShortcuts) {
 }
 
 # --- pnpm bootstrap ---------------------------------------------------------
-# Install the exact pnpm version the harness pins in its package.json
-# "packageManager" field, if the global pnpm does not already match.
+# Resolve exact pnpm version pinned in package.json without modifying global packages.
 $Pkg = Get-Content (Join-Path $HarnessDir 'package.json') -Raw | ConvertFrom-Json
 $PinnedPnpm = $Pkg.packageManager -replace '^pnpm@', ''
 $HavePnpm = $null
-try { $HavePnpm = (pnpm --version) 2>$null } catch { }
-if ($HavePnpm -ne $PinnedPnpm) {
-    Write-Host "Installing pnpm $PinnedPnpm (harness packageManager pin)..."
-    npm i -g "pnpm@$PinnedPnpm"
-    if ($LASTEXITCODE -ne 0) { throw "npm i -g pnpm@$PinnedPnpm failed (exit $LASTEXITCODE)" }
+$pnpmCmd = Get-Command pnpm -ErrorAction SilentlyContinue
+if ($pnpmCmd) {
+    try { $HavePnpm = (& $pnpmCmd.Source --version) 2>$null } catch { }
 }
-Write-Host "pnpm $(pnpm --version) / node $(node --version)"
+$InvokePnpm = $null
+if ($HavePnpm -eq $PinnedPnpm) {
+    $InvokePnpm = { param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PnpmArgs) & $pnpmCmd.Source @PnpmArgs }
+} else {
+    Write-Host "Bootstrapping isolated pnpm $PinnedPnpm (harness packageManager pin)..."
+    $pnpmToolsDir = Join-Path $tempParent ($pnpmToolsPrefix + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $pnpmToolsDir | Out-Null
+    & $npmCmd.Source install --prefix $pnpmToolsDir --ignore-scripts --no-audit --no-fund "pnpm@$PinnedPnpm"
+    if ($LASTEXITCODE -ne 0) { throw "Isolated pnpm@$PinnedPnpm install failed (exit $LASTEXITCODE)" }
+    $pnpmCjs = Join-Path $pnpmToolsDir 'node_modules\pnpm\bin\pnpm.cjs'
+    if (-not (Test-Path -LiteralPath $pnpmCjs -PathType Leaf)) { $pnpmCjs = Join-Path $pnpmToolsDir 'node_modules\pnpm\bin\pnpm.mjs' }
+    if (-not (Test-Path -LiteralPath $pnpmCjs -PathType Leaf)) { throw "Pinned pnpm entry not found under $pnpmToolsDir" }
+    $InvokePnpm = { param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PnpmArgs) & $nodeCmd.Source $pnpmCjs @PnpmArgs }
+}
+$activePnpmVersion = (& $InvokePnpm --version).Trim()
+Write-Host "pnpm $activePnpmVersion / node $(& $nodeCmd.Source --version)"
 
 # --- harness install + official build ---------------------------------------
 # Mirrors reference/electron/scripts/setup-harness.js:
@@ -122,11 +157,11 @@ Write-Host "pnpm $(pnpm --version) / node $(node --version)"
 Push-Location $HarnessDir
 try {
     Write-Host '==> pnpm install --frozen-lockfile'
-    pnpm install --frozen-lockfile
+    & $InvokePnpm install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) { throw "pnpm install --frozen-lockfile failed (exit $LASTEXITCODE)" }
 
     Write-Host '==> pnpm run build:official'
-    pnpm run build:official
+    & $InvokePnpm run build:official
     if ($LASTEXITCODE -ne 0) { throw "pnpm run build:official failed (exit $LASTEXITCODE)" }
 } finally {
     Pop-Location
@@ -146,22 +181,35 @@ foreach ($a in $GhosttyAssets) {
 # --- Desktop plugin packages -------------------------------------------------
 # setup-harness.js installs runtime npm deps (no dev/peer, no scripts) for
 # dsh-usage-panel and dsh-im via `npm ci` (both ship package-lock.json).
-# Idempotency: skip when a previous run already produced a node_modules tree.
+# Verify lockfile hash instead of blindly skipping a potentially stale node_modules.
 $NpmCiPlugins = @('dsh-usage-panel', 'dsh-im')
 foreach ($name in $NpmCiPlugins) {
     $dir = Join-Path $VendorDir $name
     if (-not (Test-Path (Join-Path $dir 'package.json'))) { throw "Plugin package.json missing: $name" }
-    if (Test-Path (Join-Path $dir 'node_modules')) {
-        Write-Host "== $name : node_modules present, skipping npm ci"
+    $lockPath = Join-Path $dir 'package-lock.json'
+    $nmDir = Join-Path $dir 'node_modules'
+    $stampPath = Join-Path $nmDir '.whaleisle-lock.sha256'
+    $lockHash = if (Test-Path -LiteralPath $lockPath -PathType Leaf) { (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { '' }
+    $stampHash = if (Test-Path -LiteralPath $stampPath -PathType Leaf) { (Get-Content -LiteralPath $stampPath -Raw).Trim().ToLowerInvariant() } else { '' }
+    if ((Test-Path -LiteralPath $nmDir -PathType Container) -and $lockHash -and ($stampHash -eq $lockHash)) {
+        Write-Host "== $name : node_modules matches package-lock.json ($lockHash), skipping npm ci"
         continue
+    }
+    if (Test-Path -LiteralPath $nmDir) {
+        Write-Host "== $name : removing stale/unverified node_modules before npm ci"
+        & $nodeCmd.Source -e "const fs=require('node:fs');fs.rmSync(process.argv[1],{recursive:true,force:true})" $nmDir
+        if ($LASTEXITCODE -ne 0) { throw "Failed to remove stale node_modules in $name" }
     }
     Write-Host "== $name : npm ci --omit=dev --omit=peer --ignore-scripts"
     Push-Location $dir
     try {
-        npm ci --omit=dev --omit=peer --ignore-scripts --no-fund --no-audit
+        & $npmCmd.Source ci --omit=dev --omit=peer --ignore-scripts --no-fund --no-audit
         if ($LASTEXITCODE -ne 0) { throw "npm ci failed in $name (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
+    }
+    if ($lockHash -and (Test-Path -LiteralPath $nmDir -PathType Container)) {
+        [IO.File]::WriteAllText($stampPath, $lockHash + "`n")
     }
 }
 
@@ -199,4 +247,11 @@ Write-Host "  Web dist     : $HarnessDir\apps\web\dist\index.html"
 Write-Host "  Ghostty      : $($GhosttyAssets.Count) assets present"
 
 # The phone bridge uses original ChisaCode sources and its own plain-Node ABI.
-& (Join-Path $PSScriptRoot 'build-mobile-runtime.ps1')
+& (Join-Path $PSScriptRoot 'build-mobile-runtime.ps1') -NodeDir $NodeDir
+} finally {
+    $env:PATH = $savedPath
+    if ($null -eq $savedCommitHash) { Remove-Item Env:DSH_CLIENT_COMMIT_HASH -ErrorAction SilentlyContinue } else { $env:DSH_CLIENT_COMMIT_HASH = $savedCommitHash }
+    if ($pnpmToolsDir -and (Test-Path -LiteralPath $pnpmToolsDir)) {
+        & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $pnpmToolsDir $tempParent $pnpmToolsPrefix
+    }
+}

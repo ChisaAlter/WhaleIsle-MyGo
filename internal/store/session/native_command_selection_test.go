@@ -3,10 +3,8 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,78 +13,68 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
-func nativeStoreGraphFrame(t *testing.T, revisions map[string]string, omit ...string) []byte {
-	t.Helper()
-	names := []string{"ui-conversation", "connection", "api-session-controller", "file-upload", "locale", "ui-layout", "ui-renderer", "ui-session", "ui-settings", "ui-workspace", "ui-commands", "api-remotes", "ui-input-trigger", "ui-model-selection", "ui-permission-presets", "ui-message-feedback", "unrelated"}
-	entries := []map[string]any{}
-	ids := []string{}
-	for _, name := range names {
-		excluded := false
-		for _, o := range omit {
-			if name == o {
-				excluded = true
-			}
-		}
-		if excluded {
-			continue
-		}
-		prefix := "@deepseek-ai/dsh-client-"
-		if strings.HasPrefix(name, "api-") {
-			prefix = "@deepseek-ai/dsh-"
-		}
-		id := prefix + name
-		ids = append(ids, id)
-		rev := "r1"
-		if r, ok := revisions[name]; ok {
-			rev = r
-		}
-		entries = append(entries, map[string]any{"id": id, "url": "/not-fetched/" + name, "rev": rev, "inject": []string{}, "external": []string{}})
+func nativeStoreInventoryEntries(revisions map[string]string, omit ...string) []map[string]any {
+	omitted := make(map[string]bool, len(omit))
+	for _, o := range omit {
+		omitted[o] = true
 	}
-	raw, err := json.Marshal(map[string]any{"type": "graph", "graph": map[string]any{"rev": "graph", "release": map[string]any{"version": "fixture", "commit": "fixed"}, "entries": entries, "batches": []map[string]any{{"phase": "application", "url": "/not-fetched/batch", "rev": "batch", "entries": ids}}}})
-	if err != nil {
-		t.Fatal(err)
+	spec := []struct {
+		key, module string
+	}{
+		{"ui-model-selection", "@deepseek-ai/dsh-agent-default-model"},
+		{"ui-permission-presets", "@deepseek-ai/dsh-permission-presets"},
+		{"ui-message-feedback", "@deepseek-ai/dsh-message-feedback"},
+		{"file-upload", "@deepseek-ai/dsh-client-file-upload"},
+		{"unrelated", "@deepseek-ai/dsh-unrelated-fixture"},
 	}
-
-	return raw
+	entries := make([]map[string]any, 0, len(spec))
+	for _, item := range spec {
+		ver := "r1"
+		if r, ok := revisions[item.key]; ok {
+			ver = r
+		}
+		enabled := !omitted[item.key]
+		fiberPhase := "active"
+		if !enabled {
+			fiberPhase = "disposed"
+		}
+		entries = append(entries, map[string]any{
+			"entryId":    item.module + "@" + ver,
+			"moduleName": item.module,
+			"enabled":    enabled,
+			"fiberPhase": fiberPhase,
+		})
+	}
+	return entries
 }
+
 func nativeStoreGraph(t *testing.T, revisions map[string]string, omit ...string) dsh.NativeContributions {
 	t.Helper()
-	raw := nativeStoreGraphFrame(t, revisions, omit...)
+	entries := nativeStoreInventoryEntries(revisions, omit...)
+	var sseHits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/plugins/events" {
-			http.NotFound(w, r)
+		if r.URL.Path == "/plugins/events" {
+			sseHits.Add(1)
+			http.Error(w, "legacy SSE must not be used", http.StatusGone)
 			return
 		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprintf(w, "data: %s\n\n", raw)
-		w.(http.Flusher).Flush()
-		<-r.Context().Done()
+		id, _ := modelTestRequest(r)
+		if r.URL.Path == "/api/pluginInventory/list" {
+			modelTestReply(w, id, map[string]any{"entries": entries})
+			return
+		}
+		http.NotFound(w, r)
 	}))
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	got := make(chan dsh.NativeContributions, 2)
-	go func() {
-		defer close(done)
-		_ = (&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}).WatchNativeContributions(ctx, func(v dsh.NativeContributions) {
-			select {
-			case got <- v:
-			case <-ctx.Done():
-			}
-		})
-	}()
-	var value dsh.NativeContributions
-	select {
-	case value = <-got:
-	case <-time.After(3 * time.Second):
-		cancel()
-		srv.Close()
-		t.Fatal("local graph did not arrive")
+	defer srv.Close()
+	value, err := (&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}).ResolveNativeContributions(context.Background())
+	if err != nil {
+		t.Fatalf("ResolveNativeContributions failed: %v", err)
 	}
-	cancel()
-	<-done
-	srv.Close()
+	if sseHits.Load() != 0 {
+		t.Fatalf("unexpected /plugins/events hits: %d", sseHits.Load())
+	}
 	if !value.Known {
-		t.Fatalf("invalid real graph fixture: %+v", value)
+		t.Fatalf("invalid real inventory fixture: %+v", value)
 	}
 	return value
 }
@@ -297,35 +285,33 @@ func TestNativeOwnerFencesRejectBeforeAnyMutationRPC(t *testing.T) {
 	}
 }
 func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T) {
-	frame := nativeStoreGraphFrame(t, nil)
+	entries := nativeStoreInventoryEntries(nil)
 	started := make(chan struct{})
 	release := make(chan struct{})
-	frames := make(chan []byte, 2)
+	var sseHits atomic.Int32
+	var listHits atomic.Int32
 	var projections atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/plugins/events" {
-			w.Header().Set("Content-Type", "text/event-stream")
-			fmt.Fprintf(w, "data: %s\n\n", frame)
-			w.(http.Flusher).Flush()
-			for {
-				select {
-				case raw := <-frames:
-					fmt.Fprintf(w, "data: %s\n\n", raw)
-					w.(http.Flusher).Flush()
-				case <-r.Context().Done():
-					return
-				}
-			}
+			sseHits.Add(1)
+			http.Error(w, "legacy SSE must not be used", http.StatusGone)
+			return
 		}
 		id, _ := modelTestRequest(r)
-		if r.URL.Path == "/api/session/selectModel" {
+		switch r.URL.Path {
+		case "/api/pluginInventory/list":
+			modelTestReply(w, id, map[string]any{"entries": entries})
+		case "/api/session/list":
+			listHits.Add(1)
+			modelTestReply(w, id, map[string]any{"items": []map[string]any{{"sessionId": "current"}}})
+		case "/api/session/selectModel":
 			close(started)
 			<-release
 			modelTestReply(w, id, api.SessionSelectModelValue{Selected: api.ModelCatalogDefault{Provider: "p", Model: "m3"}})
-			return
+		default:
+			projections.Add(1)
+			http.Error(w, "stale projection read", 500)
 		}
-		projections.Add(1)
-		http.Error(w, "stale projection read", 500)
 	}))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -340,7 +326,8 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
 	s := nativeSelectionStore(client, dsh.NativeContributions{})
 	events := s.BeginEvents(ctx, client)
-	s.WatchNativeContributionsForEvents(events)
+	s.OnEventsReady(events)
+	s.WatchNativeContributionsForEvents(events) // Idempotent compat alias.
 	waitModelSnapshot(t, s, func(v ViewState) bool { return v.NativeContributions.Known })
 	o := nativeSelectionOwner(s, "model")
 	result := make(chan error, 1)
@@ -352,11 +339,15 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 	case <-time.After(3 * time.Second):
 		t.Fatal("model request not started")
 	}
-	// No UI frame occurs between the real watcher's withdrawal and restoration.
-	frames <- []byte(`{"type":"graph","graph":{}}`)
-	waitModelSnapshot(t, s, func(v ViewState) bool { return !v.NativeContributions.Known })
-	frames <- frame
-	restored := waitModelSnapshot(t, s, func(v ViewState) bool { return v.NativeContributions.Known })
+	// Simulate Host reconnect: BeginEvents withdraws registration and increments
+	// NativeContributionsGeneration even though OnEventsReady restores defaults.
+	nextEvents := s.BeginEvents(ctx, client)
+	if s.Snapshot().NativeContributions.Known {
+		t.Fatal("BeginEvents did not withdraw native contributions")
+	}
+	s.OnEventsReady(nextEvents)
+	s.ResolveNativeContributionsForEvents(nextEvents)
+	restored := waitModelSnapshot(t, s, func(v ViewState) bool { return v.NativeContributions.Known && v.NativeContributions.Revision != "native-default" })
 	if restored.NativeContributionsGeneration == o.RegistrationGeneration {
 		t.Fatal("real withdrawal/recovery producer reused its registration generation")
 	}
@@ -364,8 +355,8 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 	if err := nativeResult(t, result); err == nil {
 		t.Fatal("withdrawn same-graph owner returned a success receipt")
 	}
-	if projections.Load() != 0 || s.Snapshot().SelectedModel != "Provider — One" || s.Snapshot().ModelSelectionBusy {
-		t.Fatal("old delivery read/committed projection or retained busy")
+	if projections.Load() != 0 || sseHits.Load() != 0 || s.Snapshot().SelectedModel != "Provider — One" || s.Snapshot().ModelSelectionBusy {
+		t.Fatalf("old delivery read/committed projection, retained busy, or dialed SSE (sseHits=%d)", sseHits.Load())
 	}
 	if s.NativeCommandCurrent(o, "model") {
 		t.Fatal("same-graph restore revived old model owner")

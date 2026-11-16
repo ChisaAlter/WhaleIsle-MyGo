@@ -54,6 +54,14 @@ func RemoteGatewayFrom(c Config) RemoteGatewayPreferences {
 	return RemoteGatewayPreferences{Mode: c.RemoteMode, Port: strconv.Itoa(c.RemotePort), BindAddress: c.RemoteBindAddress, RelayEndpoint: c.RemoteRelayEndpoint, RelayTLS: c.RemoteRelayUseTls}
 }
 
+type gatewayChangedError struct{}
+
+func (gatewayChangedError) Error() string {
+	return "Gateway changed; reload before saving / 网关已变更，请重新载入"
+}
+
+func (gatewayChangedError) Unwrap() error { return ErrConflict }
+
 // SaveRemoteGateway rejects invalid input rather than silently replacing it with
 // defaults. Existing normalization remains authoritative on the persisted copy.
 func (s *Store) SaveRemoteGateway(expected, p RemoteGatewayPreferences) error {
@@ -84,11 +92,9 @@ func (s *Store) SaveRemoteGateway(expected, p RemoteGatewayPreferences) error {
 			}
 		}
 	}
-	stale := false
-	err = s.Update(func(c *Config) {
+	return s.UpdateChecked(func(c *Config) error {
 		if RemoteGatewayFrom(*c) != expected {
-			stale = true
-			return
+			return gatewayChangedError{}
 		}
 		c.RemoteMode = p.Mode
 		c.RemotePort = port
@@ -96,12 +102,6 @@ func (s *Store) SaveRemoteGateway(expected, p RemoteGatewayPreferences) error {
 		c.RemoteRelayUrl = p.RelayEndpoint
 		c.RemoteRelayEndpoint = p.RelayEndpoint
 		c.RemoteRelayUseTls = p.RelayTLS
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	if stale {
-		return errors.New("Gateway changed; reload before saving / 网关已变更，请重新载入")
-	}
-	return nil
 }

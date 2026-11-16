@@ -9,9 +9,23 @@ foreach($relative in @('whaleisle-integration.exe','runtime\runtime-links.exe'))
     if(-not(Test-Path -LiteralPath (Join-Path $helperRoot $relative) -PathType Leaf)){throw "Prebuilt helper missing: $relative"}
 }
 $id=[guid]::NewGuid().ToString('N')
-if(-not $OutputRoot){$OutputRoot=Join-Path $project ('tmp\nsis-long-path-'+$id)}
+$ownsOutput = -not $OutputRoot
+$tempParent=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/')
+if(-not $OutputRoot){$OutputRoot=Join-Path $tempParent ('whaleisle-nsis-long-path-'+$id)}
 $root=[IO.Path]::GetFullPath($OutputRoot)
 if(Test-Path -LiteralPath $root){throw 'Fixture output must be fresh'}
+function Resolve-Makensis {
+    $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    if ($env:LOCALAPPDATA) {
+        $shared = Join-Path $env:LOCALAPPDATA 'mygo\nsis-3.13\Bin\makensis.exe'
+        if (Test-Path -LiteralPath $shared -PathType Leaf) { return $shared }
+    }
+    $local = Join-Path $project '.toolchain\nsis\makensis.exe'
+    if (Test-Path -LiteralPath $local -PathType Leaf) { return $local }
+    throw 'makensis not found on PATH, under %LOCALAPPDATA%\mygo\nsis-3.13\Bin, or under .toolchain\nsis\'
+}
+$makensis=Resolve-Makensis
 New-Item -ItemType Directory -Path $root | Out-Null
 $stage=Join-Path $root 'stage'
 $include=Join-Path $root 'runtime-files.nsh'
@@ -46,9 +60,12 @@ fs.symlinkSync(path.dirname(path.join(vendor,deep)),path.join(vendor,'alias-pare
 const graph=inventoryGraph(vendor);fs.writeFileSync(path.join(vendor,'runtime-graph.json'),JSON.stringify({schemaVersion:1,files:graph.files,links:graph.links}));
 console.log(JSON.stringify(emitRuntimeInclude(stage,include)));
 '@
+$buildStorageScript = Join-Path (Split-Path -Parent $PSScriptRoot) 'build-storage.mjs'
+$tempInstallParent = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\', '/')
+$longInstallPrefix = 'whaleisle-nsis-smoke-' + $id
+try {
 & node --input-type=module -e $prepare $stage $project $helperRoot $include
 if($LASTEXITCODE -ne 0){throw 'Fixture payload preparation failed'}
-$makensis=Join-Path $project '.toolchain\nsis\makensis.exe'
 $source=Join-Path $PSScriptRoot 'whaleisle.nsi'
 $normal=Join-Path $root 'normal.exe'
 function Compile([string]$Nsi,[string]$Setup) {
@@ -63,9 +80,13 @@ function Invoke-Owned([string]$Exe,[string]$Arguments) {
     $info.FileName=$Exe;$info.Arguments=$Arguments;$info.UseShellExecute=$false;$info.CreateNoWindow=$true
     $info.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
     $process=New-Object Diagnostics.Process;$process.StartInfo=$info
-    if(-not $process.Start()){throw 'Owned fixture process did not start'}
-    if(-not $process.WaitForExit(120000)){throw 'Small fixture timed out; owned output retained'}
-    $code=$process.ExitCode;$process.Dispose();return $code
+    try {
+        if(-not $process.Start()){throw 'Owned fixture process did not start'}
+        if(-not $process.WaitForExit(120000)){throw 'Small fixture timed out; owned output retained'}
+        return $process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
 }
 $check=@'
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
@@ -106,3 +127,31 @@ foreach($path in @($installed,$appKey,$uninstallKey,$shortcut,$menu)){if(Test-Pa
 $result=[ordered]@{result='PASS-long-path-install-rollback-upgrade-uninstall';outputRoot=$root;installRoot=$installed;transactionDirectoryLength=$transactionDirectoryLength;appID=$appID;normalSetup=$normal;rollbackSetup=$rollback;syntheticPayloadOnly=$true}
 [IO.File]::WriteAllText((Join-Path $root 'receipt.json'),($result|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
 $result|ConvertTo-Json
+} finally {
+    if(Test-Path -LiteralPath $installed){
+        $uninst=Join-Path $installed 'Uninstall.exe'
+        if(Test-Path -LiteralPath $uninst -PathType Leaf){
+            $fallbackUninst=Join-Path $tempParent ('whaleisle-longpath-uninst-'+$id+'.exe')
+            try {
+                Copy-Item -LiteralPath $uninst -Destination $fallbackUninst -Force
+                $null = Invoke-Owned $fallbackUninst ('/S _?='+$installed)
+            } catch {}
+            Remove-Item -LiteralPath $fallbackUninst -Force -ErrorAction SilentlyContinue
+        }
+    }
+    $activeInstall=Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath+' '+$_.CommandLine).IndexOf($installed,[StringComparison]::OrdinalIgnoreCase) -ge 0) }
+    if(-not $activeInstall){
+        if(Test-Path -LiteralPath $installed){ & node $buildStorageScript owned-dir $installed $tempInstallParent $longInstallPrefix }
+        foreach($retiredDir in (Get-ChildItem -LiteralPath $tempInstallParent -Directory -Filter ($longInstallPrefix+'.uninstall-*') -ErrorAction SilentlyContinue)){
+            & node $buildStorageScript owned-dir $retiredDir.FullName $tempInstallParent $longInstallPrefix
+        }
+    }
+    foreach($path in @($appKey,$uninstallKey,$shortcut,$menu)){
+        if(Test-Path -LiteralPath $path){ Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    if($ownsOutput -and (Test-Path -LiteralPath $root)){
+        $activeRoot=Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath+' '+$_.CommandLine).IndexOf($root,[StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if($activeRoot){ Write-Warning "Owned long-path fixture still referenced by another process; retained: $root" }
+        else { & node $buildStorageScript owned-dir $root $tempParent 'whaleisle-nsis-long-path-' }
+    }
+}

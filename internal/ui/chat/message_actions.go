@@ -185,12 +185,6 @@ func combineTurnPrefixActionTargets(
 }
 
 func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarget, owner ui.Element, muted ui.Color) {
-	if m.RenderSlot != nil {
-		native := m
-		native.RenderSlot = nil
-		m.RenderSlot(c, m.Snapshot, target.message, "assistant-actions", func() { assistantMessageActions(c, native, target, owner, muted) })
-		return
-	}
 	msg := target.message
 	row := ui.Row(c).Key("assistant-actions").Label("Assistant message actions").Gap(8).
 		Height(28+theme.CurrentPreferences().Chat.Size-14).AlignItems(ui.Center).Margin(4, 0, 0, -6)

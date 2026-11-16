@@ -84,13 +84,19 @@ func (s *decorationState) clearPointer() {
 	s.pendingPress = false
 	s.lastTime = time.Time{}
 }
+const maxQueuedSplashPresses = 64
+
 func (s *decorationState) pointerDown(x, y float32) {
 	if s.config.PointerEnabled {
-		if s.config.PointerEffect == "splash" && s.width > 0 && s.height > 0 {
+		if s.config.PointerEffect == "splash" && s.fluidError == nil && s.width > 0 && s.height > 0 {
 			// Original pointerDown updates the pointer's last texture coordinate;
 			// the following motion must not inject a delta from before the click.
 			s.fluidPointerX, s.fluidPointerY = x/s.width, 1-y/s.height
 			s.fluidInput.x, s.fluidInput.y = s.fluidPointerX, s.fluidPointerY
+			if len(s.fluidInput.presses) >= maxQueuedSplashPresses {
+				copy(s.fluidInput.presses, s.fluidInput.presses[1:])
+				s.fluidInput.presses = s.fluidInput.presses[:maxQueuedSplashPresses-1]
+			}
 			s.fluidInput.presses = append(s.fluidInput.presses, splashPress{s.fluidPointerX, s.fluidPointerY, s.config})
 		}
 		s.pendingPress = true

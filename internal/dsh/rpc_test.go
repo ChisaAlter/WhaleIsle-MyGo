@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestCallSuccess(t *testing.T) {
@@ -120,5 +122,80 @@ func TestCallMultipartSuccess(t *testing.T) {
 	}
 	if out.Bytes != 3 {
 		t.Fatalf("got %#v", out)
+	}
+}
+
+func TestDefaultHTTPClientTransportAndCallTimeout(t *testing.T) {
+	if defaultHTTPClient.Timeout != 0 {
+		t.Fatalf("defaultHTTPClient.Timeout = %v, want 0 to keep SSE/export streams alive", defaultHTTPClient.Timeout)
+	}
+	tr, ok := defaultHTTPClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("defaultHTTPClient.Transport = %T, want *http.Transport", defaultHTTPClient.Transport)
+	}
+	if tr.DialContext == nil || tr.TLSHandshakeTimeout <= 0 || tr.ResponseHeaderTimeout <= 0 {
+		t.Fatalf("missing transport timeouts: dial=%v tls=%v header=%v", tr.DialContext != nil, tr.TLSHandshakeTimeout, tr.ResponseHeaderTimeout)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/slow/rpc":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			select {
+			case <-time.After(80 * time.Millisecond):
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"type":   "server-response",
+					"rpcId":  body["rpcId"],
+					"result": map[string]any{"ok": true, "value": map[string]any{"done": true}},
+				})
+			case <-r.Context().Done():
+			}
+		case "/plugins/events":
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			time.Sleep(60 * time.Millisecond)
+			_, _ = w.Write([]byte("event: ping\ndata: {}\n\n"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	prevTimeout := defaultCallTimeout
+	defaultCallTimeout = 25 * time.Millisecond
+	t.Cleanup(func() { defaultCallTimeout = prevTimeout })
+
+	c := &Client{Endpoint: Endpoint{Origin: srv.URL}}
+	err := c.Call(context.Background(), "slow/rpc", nil, nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("unbounded ctx Call err = %v, want DeadlineExceeded", err)
+	}
+
+	explicitCtx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	var out struct {
+		Done bool `json:"done"`
+	}
+	if err := c.Call(explicitCtx, "slow/rpc", nil, &out); err != nil || !out.Done {
+		t.Fatalf("explicit deadline Call err=%v out=%#v", err, out)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/plugins/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := (*c.http()).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	buf := make([]byte, 64)
+	n, err := res.Body.Read(buf)
+	if !strings.Contains(string(buf[:n]), "event: ping") {
+		t.Fatalf("SSE read n=%d err=%v body=%q", n, err, string(buf[:n]))
 	}
 }

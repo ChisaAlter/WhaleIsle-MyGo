@@ -123,6 +123,17 @@ func (p OfflinePlugins) validate(name string, remove bool) error {
 	return fmt.Errorf("plugin %q is not in the web profile", name)
 }
 
+func filterBundles(bundles []any, disabled []string) ([]any, bool) {
+	next := make([]any, 0, len(bundles))
+	for _, b := range bundles {
+		name, ok := b.(string)
+		if !ok || immutablePlugin(name) || !slices.Contains(disabled, name) {
+			next = append(next, b)
+		}
+	}
+	return next, len(next) != len(bundles)
+}
+
 // ApplyDisabled is the original applyDisabledBundles runtime consumer. It
 // removes disabled user bundles while preserving dependency entries and all
 // unrelated profile fields, including immutable template bundles.
@@ -138,14 +149,8 @@ func (p OfflinePlugins) ApplyDisabled(disabled []string) error {
 		return err
 	}
 	_, profile, bundles := profileParts(m)
-	next := make([]any, 0, len(bundles))
-	for _, b := range bundles {
-		name, ok := b.(string)
-		if !ok || immutablePlugin(name) || !slices.Contains(disabled, name) {
-			next = append(next, b)
-		}
-	}
-	if len(next) == len(bundles) {
+	next, changed := filterBundles(bundles, disabled)
+	if !changed {
 		return nil
 	}
 	profile["bundles"] = next
@@ -158,33 +163,49 @@ func (p OfflinePlugins) SetEnabled(name string, enabled bool) error {
 	if p.LoadDisabled == nil || p.SaveDisabled == nil {
 		return errors.New("desktop plugin config unavailable")
 	}
-	disabled := slices.Clone(p.LoadDisabled())
+	m, err := p.manifest()
+	if err != nil {
+		return err
+	}
+	oldDisabled := slices.Clone(p.LoadDisabled())
+	disabled := slices.Clone(oldDisabled)
+	_, profile, bundles := profileParts(m)
+	manifestChanged := false
 	if enabled {
 		disabled = slices.DeleteFunc(disabled, func(v string) bool { return v == name })
-		m, err := p.manifest()
-		if err != nil {
-			return err
-		}
-		_, profile, bundles := profileParts(m)
 		found := false
 		for _, b := range bundles {
-			if b == name {
+			if s, ok := b.(string); ok && s == name {
 				found = true
+				break
 			}
 		}
 		if !found {
-			profile["bundles"] = append(bundles, name)
-			if err = p.write(m); err != nil {
-				return err
-			}
+			bundles = append(bundles, name)
+			manifestChanged = true
 		}
 	} else if !slices.Contains(disabled, name) {
 		disabled = append(disabled, name)
 	}
-	if err := p.ApplyDisabled(disabled); err != nil {
+	if filtered, changed := filterBundles(bundles, disabled); changed {
+		bundles = filtered
+		manifestChanged = true
+	}
+	// Persist config first so a SaveDisabled failure never leaves package.json split.
+	if err := p.SaveDisabled(disabled); err != nil {
 		return err
 	}
-	return p.SaveDisabled(disabled)
+	if !manifestChanged {
+		return nil
+	}
+	profile["bundles"] = bundles
+	if err := p.write(m); err != nil {
+		if rerr := p.SaveDisabled(oldDisabled); rerr != nil {
+			return fmt.Errorf("%w (rollback disabled config: %v)", err, rerr)
+		}
+		return err
+	}
+	return nil
 }
 func (p OfflinePlugins) Remove(name string) error {
 	if err := p.validate(name, true); err != nil {

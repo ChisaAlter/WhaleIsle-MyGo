@@ -33,6 +33,40 @@ type Service struct {
 	notices                            map[string]Notice
 	noticeOrder                        []string
 	tools                              map[string]ToolOperation
+	listenersMu                        sync.Mutex
+	nextListen                         uint64
+	listeners                          map[uint64]func()
+}
+
+func (s *Service) subscribe(fn func()) func() {
+	if s == nil || fn == nil {
+		return func() {}
+	}
+	s.listenersMu.Lock()
+	if s.listeners == nil {
+		s.listeners = map[uint64]func(){}
+	}
+	s.nextListen++
+	id := s.nextListen
+	s.listeners[id] = fn
+	s.listenersMu.Unlock()
+	return func() {
+		s.listenersMu.Lock()
+		delete(s.listeners, id)
+		s.listenersMu.Unlock()
+	}
+}
+
+func (s *Service) notifyListeners() {
+	s.listenersMu.Lock()
+	fns := make([]func(), 0, len(s.listeners))
+	for _, fn := range s.listeners {
+		fns = append(fns, fn)
+	}
+	s.listenersMu.Unlock()
+	for _, fn := range fns {
+		fn()
+	}
 }
 
 func Open(userData string) (*Service, error) {
@@ -141,6 +175,7 @@ func (s *Service) commit(events ...Event) error {
 		s.events = append(s.events, encoded[i])
 		s.apply(event)
 	}
+	s.notifyListeners()
 	return nil
 }
 

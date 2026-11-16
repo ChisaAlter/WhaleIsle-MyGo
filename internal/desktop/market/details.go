@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
+	"whaleisle/internal/pluginmanager"
 )
 
 type Details struct {
-	Readme, Version string
-	Requirements    []string
-	Partial         bool
+	Readme, Version          string
+	Requirements             []string
+	Partial                  bool
+	CapabilityKind           CapabilityKind
+	NativeCompatible         bool
+	NativeCompatibilityLabel string
+	Capabilities             PackageCapabilities
 }
 type detailCache struct {
 	value Details
@@ -67,7 +73,13 @@ func (s *Service) Details(ctx context.Context, item CatalogItem, force bool) (De
 	p := &detailPending{done: make(chan struct{})}
 	s.pending[key] = p
 	s.mu.Unlock()
-	value := Details{}
+	value := Details{
+		CapabilityKind:           item.CapabilityKind,
+		NativeCompatible:         item.NativeCompatible,
+		NativeCompatibilityLabel: item.NativeCompatibilityLabel,
+		Capabilities:             item.Capabilities,
+	}
+	var npmManifest []byte
 	o, r, _ := sourceRepo(item.Homepage)
 	if o != "" {
 		c, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -96,6 +108,7 @@ func (s *Service) Details(ctx context.Context, item CatalogItem, force bool) (De
 		if e != nil || m.Name != item.PackageName {
 			value.Partial = true
 		} else {
+			npmManifest = b
 			value.Version = trim(m.Version, 100)
 			if m.Engines["dsh"] != "" {
 				value.Requirements = append(value.Requirements, "dsh: "+trim(m.Engines["dsh"], 256))
@@ -114,6 +127,19 @@ func (s *Service) Details(ctx context.Context, item CatalogItem, force bool) (De
 				value.Requirements = append(value.Requirements, trim(k, 214)+": "+trim(m.PeerDependencies[k], 256))
 			}
 		}
+	}
+	probed := probeDetailsCapabilities(ctx, s.client, o, r, npmManifest)
+	if probed.Kind != "" && probed.Kind != CapabilityUnknown {
+		value.CapabilityKind = probed.Kind
+		value.NativeCompatible = probed.NativeCompatible
+		value.NativeCompatibilityLabel = probed.CompatibilityLabel
+		value.Capabilities = probed
+	} else if value.CapabilityKind == "" {
+		inferred := pluginmanager.InferCapabilityFromCatalogMetadata(item.Category, item.ID, item.PackageName, item.Description)
+		value.CapabilityKind = inferred.Kind
+		value.NativeCompatible = inferred.NativeCompatible
+		value.NativeCompatibilityLabel = inferred.CompatibilityLabel
+		value.Capabilities = inferred
 	}
 	s.mu.Lock()
 	delete(s.pending, key)
@@ -135,4 +161,56 @@ func (s *Service) Details(ctx context.Context, item CatalogItem, force bool) (De
 	close(p.done)
 	s.mu.Unlock()
 	return value, p.err
+}
+
+func probeDetailsCapabilities(ctx context.Context, client *http.Client, owner, repo string, npmManifest []byte) PackageCapabilities {
+	if len(npmManifest) > 0 {
+		if caps := pluginmanager.ClassifyPackageManifestJSON(npmManifest, false, false); caps.Kind != CapabilityUnknown {
+			return caps
+		}
+	}
+	if owner == "" || repo == "" || client == nil {
+		return PackageCapabilities{}
+	}
+	var ghManifest []byte
+	c1, cancel1 := context.WithTimeout(ctx, 4*time.Second)
+	if b, err := publicBody(c1, client, "https://api.github.com/repos/"+owner+"/"+repo+"/contents/package.json", "application/vnd.github.raw+json", 256*1024); err == nil && isJSONObjectBytes(b) {
+		ghManifest = b
+		if caps := pluginmanager.ClassifyPackageManifestJSON(ghManifest, false, false); caps.Kind != CapabilityUnknown {
+			cancel1()
+			return caps
+		}
+	}
+	cancel1()
+
+	hasMCP := false
+	c2, cancel2 := context.WithTimeout(ctx, 4*time.Second)
+	if b, err := publicBody(c2, client, "https://api.github.com/repos/"+owner+"/"+repo+"/contents/.mcp.json", "application/vnd.github.raw+json", 256*1024); err == nil && isJSONObjectBytes(b) {
+		hasMCP = true
+	}
+	cancel2()
+
+	hasSkill := false
+	c3, cancel3 := context.WithTimeout(ctx, 4*time.Second)
+	if b, err := publicBody(c3, client, "https://api.github.com/repos/"+owner+"/"+repo+"/contents/SKILL.md", "application/vnd.github.raw+json", 256*1024); err == nil {
+		trimmed := strings.TrimSpace(string(b))
+		if strings.HasPrefix(trimmed, "---") || strings.HasPrefix(trimmed, "#") {
+			hasSkill = true
+		}
+	}
+	cancel3()
+
+	if len(ghManifest) == 0 && !hasMCP && !hasSkill {
+		return PackageCapabilities{}
+	}
+	return pluginmanager.ClassifyPackageManifestJSON(ghManifest, hasSkill, hasMCP)
+}
+
+func isJSONObjectBytes(raw []byte) bool {
+	trimmed := strings.TrimSpace(string(raw))
+	if !strings.HasPrefix(trimmed, "{") {
+		return false
+	}
+	var obj map[string]json.RawMessage
+	return json.Unmarshal(raw, &obj) == nil
 }

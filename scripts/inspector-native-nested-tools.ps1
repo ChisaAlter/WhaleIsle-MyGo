@@ -1,8 +1,29 @@
-param([Parameter(Mandatory=$true)][int]$OwnerId,[switch]$VerifyTreeLayout,[switch]$VerifyToolRows)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [switch]$VerifyTreeLayout,
+    [switch]$VerifyToolRows,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
 if($VerifyTreeLayout -and $VerifyToolRows){throw 'Choose one fixture revision'}
-$fixturePath=if($VerifyToolRows){'C:\AI\WhaleIsle-MyGo\.devdata\r114-inspector-fixture.exe'}elseif($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\.devdata\r113-inspector-fixture.exe'}else{'C:\AI\WhaleIsle-MyGo\.devdata\r112-inspector-fixture.exe'}
-$prefix=if($VerifyToolRows){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-row-pass258-native'}elseif($VerifyTreeLayout){'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\tool-tree-pass257-native-layout'}else{'C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass256-native-nested-tools'}
+if (-not $FixturePath) {
+    $FixturePath = if($VerifyToolRows){Join-Path $projectRoot '.devdata\r114-inspector-fixture.exe'}elseif($VerifyTreeLayout){Join-Path $projectRoot '.devdata\r113-inspector-fixture.exe'}else{Join-Path $projectRoot '.devdata\r112-inspector-fixture.exe'}
+}
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
+$prefix = if ($EvidencePrefix) {
+    $EvidencePrefix
+} elseif ($VerifyToolRows) {
+    Join-Path $projectRoot 'docs\review-20261022\evidence\tool-row-pass258-native'
+} elseif ($VerifyTreeLayout) {
+    Join-Path $projectRoot 'docs\review-20261022\evidence\tool-tree-pass257-native-layout'
+} else {
+    Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-pass256-native-nested-tools'
+}
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId='+$OwnerId)
 if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in 20012,16008){throw 'Wrong owned fixture'}
 $ownedStart=(Get-Process -Id $OwnerId).StartTime.ToUniversalTime()

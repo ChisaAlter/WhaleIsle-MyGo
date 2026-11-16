@@ -45,6 +45,11 @@ func (s *Store) BeginEventsDelivery(ctx context.Context, client *dsh.Client, mux
 		return nil
 	}
 	s.retireEventsDeliveryLocked(s.eventsDeliveryOwner)
+	for i := range s.pending {
+		if !s.pending[i].Continued && s.pending[i].Sending {
+			s.pending[i].Sending = false
+		}
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	owner := &EventsDeliveryOwner{store: s, client: client, mux: mux, ctx: ctx, cancel: cancel}
 	s.eventsDeliveryOwner = owner
@@ -54,15 +59,33 @@ func (s *Store) BeginEventsDelivery(ctx context.Context, client *dsh.Client, mux
 	return owner
 }
 
-func (s *Store) registerEventsDeliveryLocked(owner *EventsDeliveryOwner, id string, waiter chan dsh.EventResultOutcome) {
+func (s *Store) registerEventsDeliveryLocked(owner *EventsDeliveryOwner, id string, waiter chan dsh.EventResultOutcome) *eventsDelivery {
+	if prev := s.eventsDeliveries[id]; prev != nil {
+		prev.cancel()
+		if prev.responseCancel != nil {
+			prev.responseCancel()
+		}
+		if prev.responseStop != nil {
+			prev.responseStop()
+		}
+		if prev.waiter != nil && prev.waiter != waiter {
+			select {
+			case prev.waiter <- dsh.EventResultOutcome{Kind: "next"}:
+			default:
+			}
+		}
+		delete(s.eventsDeliveries, id)
+	}
 	if owner == nil {
-		return
+		return nil
 	}
 	if s.eventsDeliveries == nil {
 		s.eventsDeliveries = map[string]*eventsDelivery{}
 	}
 	ctx, cancel := context.WithCancel(owner.ctx)
-	s.eventsDeliveries[id] = &eventsDelivery{owner: owner, waiter: waiter, ctx: ctx, cancel: cancel}
+	d := &eventsDelivery{owner: owner, waiter: waiter, ctx: ctx, cancel: cancel}
+	s.eventsDeliveries[id] = d
+	return d
 }
 
 func (s *Store) forgetEventsDeliveryLocked(id string) {

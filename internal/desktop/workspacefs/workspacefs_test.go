@@ -1,6 +1,7 @@
 package workspacefs
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,5 +116,66 @@ func TestWriteFileText(t *testing.T) {
 	got, err := ReadFileText(full, 0)
 	if err != nil || got.Text != "hello\n" {
 		t.Fatalf("got %+v err=%v", got, err)
+	}
+}
+
+func TestSecurityBoundaryPathsAndSymlinks(t *testing.T) {
+	root := t.TempDir()
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []string{
+		"file.txt:Zone.Identifier",
+		"sub/stream:ads",
+		":stream",
+		"trailing-dot.",
+		"trailing-space ",
+		"sub/dir./file.txt",
+		"sub/dir /file.txt",
+		".git.",
+		".git ",
+		".",
+		"sub/.",
+	} {
+		if err := ValidateRelativePath(invalid); err == nil {
+			t.Fatalf("ValidateRelativePath unexpectedly accepted %q", invalid)
+		}
+		if _, err := JoinRoot(root, invalid); err == nil {
+			t.Fatalf("JoinRoot unexpectedly accepted %q", invalid)
+		}
+	}
+	if err := ValidateRelativePath("version..txt"); err != nil {
+		t.Fatalf("valid filename with internal double dot failed: %v", err)
+	}
+
+	targetDir := filepath.Join(realRoot, "real", "sub")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	aliasDir := filepath.Join(realRoot, "alias")
+	if err := os.Symlink(targetDir, aliasDir); err == nil {
+		got, err := JoinRoot(root, "alias/newdir/file.txt")
+		if err != nil {
+			t.Fatalf("JoinRoot through in-root symlink failed: %v", err)
+		}
+		want := filepath.Join(targetDir, "newdir", "file.txt")
+		if got != want {
+			t.Fatalf("JoinRoot did not canonicalize existing ancestor: got %q, want %q", got, want)
+		}
+	}
+
+	regular := filepath.Join(realRoot, "regular.txt")
+	if err := WriteFileText(regular, "alpha"); err != nil {
+		t.Fatal(err)
+	}
+	linkFile := filepath.Join(realRoot, "link.txt")
+	if err := os.Symlink(regular, linkFile); err == nil {
+		if _, err := ReadFileText(linkFile, 1024); !errors.Is(err, ErrNotFile) {
+			t.Fatalf("ReadFileText must reject file symlinks, got %v", err)
+		}
+		if err := WriteFileText(linkFile, "beta"); !errors.Is(err, ErrNotFile) {
+			t.Fatalf("WriteFileText must reject file symlinks, got %v", err)
+		}
 	}
 }

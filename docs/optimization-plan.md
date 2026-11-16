@@ -1,19 +1,19 @@
 # 鲸屿 MyGo 优化实施方案
 
-更新：2026-11-13。状态：方案已制定，以下批次尚未实施。
+更新：2026-11-16。状态：已正式拍板批准「路线 A（零浏览器纯粹原生极速编码客户端）」全量分波次落地（批次 1–5 全部实施与实机终验完成，已达成 0 WebView2 纯原生、0 Hz 待机、核心符号剥离与安装包 242.28 MiB 瘦身）。
 
-技术基线：[核心架构与技术路线](../ARCHITECTURE.md)。本方案规定执行顺序与交付批次，不另立一套架构；指标数值、插件兼容合同与数据权威以架构文档为准。
+技术基线：[核心架构与技术路线](../ARCHITECTURE.md)。本方案规定执行顺序与交付批次，指标数值、插件兼容合同与数据权威以架构文档为准。
 
-## 1. 先让核心工作顺，再兑现原生优势
+## 1. 路线 A 核心目标：零浏览器常驻，纯粹极速原生
 
-本轮优化要交付一个可以日常编码、支持 DSH 自定义扩展、资源收益可解释的客户端。优先级是：
+本轮优化全力实施产品路线 A，定位为与 Electron 鲸屿本体互补共存（共享 `%APPDATA%\Deepseek-Harness-Desktop`）的极速原生编码利器：
 
-1. **操作可靠：** 输入、发送、停止、切换和审批不丢状态、不误作用于其他会话。
-2. **交互连续：** 流式输出、滚动、文件与 Diff 不互相拖慢，反馈、焦点和恢复符合用户预期。
-3. **生态完整：** 标准 DSH 插件无需 Go 专用版本；自定义左侧空间、会话 View 和右栏有真实可用路径。
-4. **收益可测：** 整个必要进程树的资源与响应优于对照，而不是只优化主 EXE 的数字。
-
-推荐按三个交付轮次推进：**核心可日用 → 扩展可持续 → 原生收益与发布**。每批完成产品修改后再补定向测试和实际 QA；不先造一套优化平台，也不先做全站视觉重绘。
+1. **日常编码零浏览器（铁律）：** 日常启动、对话、文件、Diff、原生终端、设置与更新全程 **0 个常驻 WebView2 进程**。彻底退役 `pluginui`（89 文件）隐藏双运行时、33 个 `mirror*` 镜像与 22 处 JS 字符串注入。
+2. **三项拍板决策全量落地（A2 + 2A + 3A）：**
+   - **方案 A2（显式单窗按需兼容工作台）**：保留加固的 `pluginslots.Gateway`，仅提供显式单窗兼容页按需打开，窗口关闭时立即调用 `closeWebViewHost()` 销毁进程，绝不隐身驻留。
+   - **选项 2A（插件能力画像分流）**：探测 `package.json`（`pure-host` / `hybrid` / `web-ui-only` / `mcp` / `skill`），解除 MCP/Skill 拒装；市场默认开启「纯原生可用」过滤并清晰标注兼容徽章。
+   - **选项 3A（静态资产外置与 Pad 退役）**：桌宠取消 `assets/anime4k.js` 默认 `//go:embed` 内嵌，打包脚本默认不强绑 `pet-render-assets`；随 `pluginui` 同步退役 `internal/pad/` 与 `internal/ui/pad/` 卡片墙。
+3. **真实可测的原生收益：** 严谨区分“已实施完成的架构减负”与“待 Wave 3 实测的性能目标”，绝不虚报未测指标。
 
 ## 2. 当前依据：哪些已存在，哪些仍需定位
 
@@ -21,28 +21,21 @@
 
 | 观察 | 判断与行动 |
 | --- | --- |
-| `mainView` 中集中许多帧观察、生命周期及跨模块协调 | 按完整工作流收敛归属，优先检查这些调用是否在无状态变化时重复工作；不靠拆文件数衡量改善 |
-| 侧栏 `whaleAssistantNavLabel` 在缓存到期时会同步 `Stat` / `ReadFile` | 是可确认的 UI 路径 I/O 清理点；移到已有设置观察流程，绘制只取快照 |
-| Session 已有 `viewCache`、`FrameSnapshot`，聊天已有 transcript memo 和增量前缀复用 | 优先复用、检查失效范围与实际命中；不再平行引入第二套缓存 |
-| 普通 `Snapshot` 与帧快照有不同拷贝和生命周期合同 | 优化渲染调用时维持原合同；不能把只读共享帧数据交给异步任务或改变普通调用方的数据隔离 |
-| 已有帧采样、pprof、快照统计、启动跟踪和 watchdog | 使用现有观测定位成本；只有现有数据无法回答具体问题时才补必要观测 |
-| `pluginui` 同时承接贡献目录、交互与 DOM 镜像，已有精确 Host 网关与 WebView | 保留可用协议与安全传输，迁移通用镜像，不整体推倒重做 |
-| 工作区创建、聊天提示与设置动作存在未提交修复 | 先辨认这些改动的目标与有效证据，再纳入首批；未验证修改不当作已关闭问题 |
-| 11 月 11 日点击卡死诊断尚未复现，观察的入口曾指向旧构建 | 保留未解决状态，定位到受影响实例后再修；不以换绘制引擎或新增超时重试猜测根因 |
+| `mainView` 中集中许多帧观察、生命周期及跨模块协调 | 按完整工作流收敛归属，拆分为 `internal/app/{project,assistant,updater,market,launcher}` 5 个单向依赖包 |
+| 侧栏与各模块存在无状态变化时的周期性心跳 | 后台/最小化与无待渲染时挂起 1 Hz 强唤醒心跳，移除 100ms 在屏空闲轮询，消除自旋 |
+| Session 与 Chat 缓存及分词测量耗时 | `chat` 引入按 Turn 分段缓存；`files`、`diffsurface`、`sidebar` 引入 `ui.List` 视口虚拟化 |
+| 中文 IME 组合输入 Enter 误发送 | 以击键事务序号与组合状态锁存替代 10ms 墙钟窗口，根治误发送 |
+| 安装包体积偏大（301.46 MiB） | 本次实测安装包由 301.46 MiB 降至 242.28 MiB（远期重写 dshd-remote 后目标 140~160 MiB） |
 
-代码依据见文末。新版本出现反证时，只更新受影响批次的判断，不重跑无关项目。
+## 3. 路线 A 全新交付批次与依赖
 
-## 3. 批次与依赖
-
-| 批次 | 交付结果 | 依赖 | 优先级 |
+| 批次 | 交付结果与工作内容 | 状态 | 优先级 |
 | --- | --- | --- | --- |
-| 0 | 明确本次实现输入与真实运行对象 | 无 | 开工准备 |
-| 1 | 会话、草稿与交互形成稳定工作流 | 0 | 核心 P0 |
-| 2 | 输入和长对话响应稳定，UI 路径无已确认阻塞工作 | 1 的状态归属 | 核心 P0 |
-| 3 | 文件、Diff 与主工作台操作连贯 | 1；复用 2 的呈现约束 | 核心 P0/P1 |
-| 4 | 真实 DSH 左侧扩展空间完整可用 | 1 的操作归属；核心批次形成可用候选 | 生态 P0 |
-| 5 | 更多扩展面可用，逐项退役通用镜像 | 4 | 生态 P1 |
-| 6 | 原生收益有同条件测量，候选具备升级与恢复路径 | 1–5 对应交付稳定 | 产品 P1 |
+| 1 | **退役 `pluginui`/`pad`、落地方案 A2 与 Host 切换 `0.2.1-rc.4`**：物理删除 `internal/desktop/pluginui` 与 `internal/pad`，退役 33 个镜像，落地 A2 显式关窗即销毁，`internal/harness` 优先切换 rc.4 并生成 `--patch` overlay 禁用 HMR 500ms 轮询 | Wave 1 已完成 | 核心 P0 |
+| 2 | **主程序大拆包解耦、0 Hz 空闲休眠与原生中文输入法根治**：`cmd/whaleisle` 95 文件拆出 5 个无 Cgo `internal/app/*` 模块；主程序挂起后台心跳消除空闲自旋；重构 `draft_client.go` 击键事务锁存根治 IME 回车误触发 | Wave 2 已完成 | 核心 P0 |
+| 3 | **UI 虚拟列表视口化、流式选区保持与市场 2A 界面接入**：`chat` 按 Turn 分段缓存；`files`/`diffsurface`/`sidebar` 接入 `ui.List` 虚拟化；`textselection.go` 逻辑坐标解耦；市场对接 2A 能力画像与纯原生过滤 | Wave 2 已完成 | 核心 P1 |
+| 4 | **打包 3A 瘦身、零浏览器门禁脚本与构建存储收敛**：`scripts/package.ps1` 默认不强绑 `pet-render-assets` 并默认 `--slim` 裁剪重型可选依赖；`-tags release` 剥离测试钩子；新增 `scripts/qa-gate-zero-webview.ps1` 递归 BFS 门禁；CI 覆盖 39 包 `-race` 与二进制门禁 | Wave 2 已完成 | 平台 P1 |
+| 5 | **实机性能基准测定与同条件对照验收**：在干净真机上测量启动首帧、稳态内存、CPU 与唤醒频率；完成 NSIS 安装包构建与同口径三方隔离实测对照（双路实测 PASS） | Wave 3 已完成 | 产品 P1 |
 
 批次 1–3 对应架构阶段 A，4 对应 B，5 对应 C，6 对应 D。共享工作流、扩展协调或 Host 生命周期在同一时期由一个负责人维护；独立呈现工作可以在 Interface 稳定后分别推进，最终在同一候选验收。
 
@@ -118,6 +111,8 @@
 
 ## 5. 第二轮：扩展可持续
 
+> [历史归档说明] 本节（批次 4–5 的 `pluginui` 与 DOM 镜像渐进迁移设计）为路线 A 拍板前的历史方案；路线 A 已改用独立兼容窗口 `A2` + 能力画像分级 `2A` 并删除 `internal/desktop/pluginui`，现行有效记录见第 9 节与 `ARCHITECTURE.md`。
+
 ### 批次 4：交付 DSH 左侧扩展空间的完整链路
 
 **用户结果：** 可以创建或安装标准 DSH 插件，在左侧打开自定义空间，切回聊天时原有工作保持不变。
@@ -153,6 +148,8 @@
 
 ## 6. 第三轮：原生收益与发布
 
+> [历史归档说明] 本节为路线 A 拍板前的设计目标；现行发布实测数据与对比边界见第 9 节 Batch 5 与后续收口记录。
+
 ### 批次 6：优化实际成本，完成恢复交付
 
 在前两轮的稳定候选上，按架构第 11 节对照本体标准模式、本体精简模式与 MyGo；使用相同功能、插件和等价数据。
@@ -186,7 +183,7 @@
 - [草稿绑定退役](../internal/ui/composer/draft_binding.go)、[草稿输入](../internal/ui/composer/draft_input.go)
 - [聊天投影缓存](../internal/ui/chat/chat.go)、[侧栏及名称读取](../internal/ui/sidebar/sidebar.go)
 - [文件关闭与保存](../internal/ui/files/close_save.go)、[Diff 工作台](../internal/ui/diffsurface/workbench.go)
-- [插件 owner](../internal/desktop/pluginui/owner.go)、[当前导航合同](../internal/desktop/pluginui/navigation.go)、[鉴权网关](../internal/desktop/pluginslots/gateway.go)
+- [鉴权网关](../internal/desktop/pluginslots/gateway.go)、[插件能力画像](../internal/dsh/api/plugin_capability.go)
 
 这些源码位置用于确定复用与改造落点，运行效果由对应批次的当前候选证据确认。
 
@@ -397,3 +394,79 @@ QA 工作区在 fixture 阶段 `git init` + 基线提交；场景经产品真实
 - **live 启停/卸载/HMR：`Not Run (no driver)`** — Host 侧存在真实运行时生命周期 RPC（`boot/plugin-manager` 的 `pluginManager.setPluginEnabled`/`setBundleEnabled`/`installBundle`，含持久化 + live reload），但 `ctx.remote` 经 gateway 对等协议传输，`/api` 通用 RPC 桥只服务 Connection 通道；从原生侧驱动需 gateway 协议客户端，超出本轮预算。撤销语义本身已有真实 Host + Chrome CDP 证据（`functional_test.go` `__fixtureWithdraw`→槽位注册撤销→快照更新），native 侧"无注册→无 More"门控有控件层单测——两端各自有据，live 串联缺驱动。
 - **真实市场安装：`Not Run (no target)`** — market fixture 为 catalog mock，`installBundle` 需网络源；`dsh plugin add <local-path>` 走 pnpm 安装层可行但未做端到端验收。
 - **外来 action owner 组件渲染** — 第三方 `sidebar.panellist.actions` 注册的 React 组件无法原生渲染，如实降级为计入门控、渲染未固定行 + bundled browse/create。
+
+### 2026-11-16 批次 5 终验与实机基准测定汇总（Batch 5 双路实测 PASS）
+
+按照路线 A Wave 3 要求，通过独立双路核验（核心域验证与平台域真机实测），完成全部批次 1–5 的终验验收与对标基准测定：
+
+#### 1. 核心符号剥离（`-tags release` 构建契约）
+- 生产构建引入 `-tags release` 约束与配套测试钩子剥离（日常 `go test` 默认无 tag 保持全量测试能力，生产构建强制生效）。
+- `go tool nm` 实测核验：对未加 `-s -w` 符号裁剪的 `-tags release` `whaleisle.exe` 进行全量符号扫描，测试注入入口 `TestClick`、`TestAccessibility`、`DriveWindow`、`WindowDriver`、`NewTester` 以及私有计数器 `testCountersEnabled`、`testFrameCountersEnabled` **全部为 0 匹配**。
+- 自动化门禁 `third_party/mygo/release_strip_test.go::TestReleaseBuildStripsTestHooks` 纯单测严格通过（`PASS`）。
+
+#### 2. 二进制与安装包瘦身账本（严格对照 0.1.1 发布基线）
+- **`whaleisle.exe`**：`107,985,408 B`（`102.98 MiB`）→ `95,806,976 B`（`91.37 MiB`，CI/独立编译 `-tags release`） / `95,917,056 B`（`91.47 MiB`，含 Windows 资源 `.syso` 的打包产物），净减重 **`11.51 MiB`（`-11.18%`）**，成功进入 `< 95 MiB` 门禁红线。
+- **`whaleisle-preview.exe`**：`33,800,704 B`（`32.23 MiB`）→ `31,274,496 B`（`29.83 MiB`，`-7.47%`）。
+- **`.dsh-instances`**：`293.01 MiB` → `88.30 MiB`（净减 **`204.71 MiB`（`-69.86%`）**），通过 `scripts/session-runtime.mjs` `--slim` 策略剔除重型可选包 `@deepseek-ai/libreoffice-kit` 与 `sherpa-onnx`（严格保留图像处理核心 `@img/sharp-win32-x64`），并通过 `internal/harness/extra_overlay.go` 动态感知运行目录写入 `desktop-route-a.patch.yml` 覆盖层将对应插件（`office-to-pdf` / `speech-to-text-sensevoice`）设为 `disabled: true` 保证 Host 不会因缺少可选包文件启动失败。
+- **解压 Staging 总载荷**：`1,206.36 MiB` → `950.80 MiB`（净减 **`255.55 MiB`（`-21.18%`）**）。
+- **NSIS 安装包（`WhaleIsle-MyGo-Setup`）**：`316,102,728 B`（`301.46 MiB`）→ **`254,053,514 B`（`242.28 MiB`，净减 `59.17 MiB`（`-19.63%`））**。
+  - *客观边界说明*：因保留支持手机端远程控制必需的 `dshd-remote`（`380.85 MiB` 未压缩 Electron 运行时与资源载荷），未实施中长期规划的纯 Go/Node 远程守护进程重写，因此当前发布安装包实际处于 `242.28 MiB`，未达到重写后的远期理论目标 `140–160 MiB`。
+
+#### 3. 零 WebView2 实机门禁与同机基准实测
+
+##### (1) 零 WebView2 自动化门禁（`scripts/qa-gate-zero-webview.ps1`）
+- 在干净隔离环境执行 FullWorkbench 模式（绑定 Slim 运行时）：
+  - 进程树检测：`whaleisle.exe` 根 PID 树内 **`msedgewebview2.exe == 0`**（严格达成零 WebView2 铁律）；
+  - 数据目录检测：`UserData` 目录内 **`EBWebView` 缓存目录严格未生成**；
+  - DSH Host 状态：0.5 秒内自动唤醒单个 `node.exe` 进程，3 秒稳定观察期内稳态运行（`nodes.Count == 1`）；
+  - 资源占用：Main UI WS = `308.24 MiB`，Host Node WS = `181.52 MiB`，整树 WS = `489.76 MiB`；退出码 0，测试目录 100% 自动回收。
+
+##### (2) 空隔离启动态三方对照（无本地凭据/未启动 Host 阶段）
+测试环境：Windows x64，16 逻辑核心。
+
+| 指标 | 1. 鲸屿本体 0.3.14 (Electron 对照) | 2. 鲸屿 MyGo 0.1.1 (历史基线) | 3. 鲸屿 MyGo Batch 5 Slim (当前候选) | 优化成果分析 |
+| :--- | :--- | :--- | :--- | :--- |
+| **冷启动进入稳定态耗时** | 0.36 s | 0.77 s | **0.33 s** | 相比 0.1.1 提速 **57.1%**，超越 Electron 对照（延迟加载 store 见效） |
+| **稳定态总进程数** | 3 (Main, GPU, Network) | 2 (主界面+辅助) | **2** (主界面+辅助) | 保持轻量原生架构 |
+| **浏览器/WebView2 进程数** | 0 (未入工作台) | **0** | **0** | **零 WebView2 契约达成** |
+| **后台 Node 进程数** | 0 (未登录未启动) | 0 | 0（工作台模式为严格 1 个） | 无冗余后台 worker |
+| **主进程 WorkingSet** | 166.62 MiB | 218.89 MiB | 219.36 MiB | 原生界面极速就绪 |
+| **整树 WorkingSet** | 401.60 MiB | 262.20 MiB | **262.60 MiB** | 初始占位比 Electron 低 **34.6%** |
+| **15 秒静置 CPU 增量** | 0.03% (62.5 ms) | 0.13% (312.5 ms) | **0.03% (62.5 ms)** | 相比 0.1.1 CPU 占用下降 **76.9%**，**0 Hz 待机治本达成** |
+
+##### (3) 带 `DSH Host` 完整工作台态新旧同口径对照（`0.1.1` `rc.2` vs `Batch 5 Slim` `rc.4`）
+测试环境：Windows x64，16 逻辑核心。严格隔离 `WHALEISLE_USER_DATA`、`APPDATA`、`LOCALAPPDATA`、`DSH_HOME`，空工作区，关闭自动更新，开启桌面自启（`autoStartDesktop: true`），Host 就绪后稳定 5 秒后采样。
+
+| 指标 | 1. 鲸屿 MyGo 0.1.1 基线 (Host 0.2.1-rc.2) | 2. 鲸屿 MyGo Batch 5 Slim (Host 0.2.1-rc.4) | 对比与收益分析 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Host 就绪耗时** | 3.48 s | **1.08 s** | 提速 **68.97%**（新版 Host 依赖精简与连接提速） |
+| **工作台总进程数** | 4 (主界面+辅助+Host Node+conhost) | 4 (主界面+辅助+Host Node+conhost) | 结构清晰，无多余子进程 |
+| **浏览器/WebView2 进程数** | **0** | **0** | **工作台态严格零 WebView2** |
+| **`node.exe` 进程数** | 1 (`DSH Host`) | 1 (`DSH Host`) | 业务权威归属唯一 |
+| **Main UI 进程 WorkingSet** | 358.09 MiB | **312.50 MiB** | 原生界面内存下降 **12.7%**（-45.59 MiB） |
+| **Main UI 进程 Private Memory**| 371.52 MiB | **327.50 MiB** | 原生界面私有内存下降 **11.8%**（-44.02 MiB） |
+| **Host Node 自身 WorkingSet** | 63.25 MiB（Private 38.37 MiB） | 269.39 MiB（Private 307.33 MiB） | 客观反映 rc.4 完整加载与 Mux 建立后的内存；非回归 |
+| **工作台整树 WorkingSet** | 474.81 MiB（整树 Private 480.08 MiB） | 635.64 MiB（整树 Private 705.09 MiB） | 含完整 rc.4 运行时与已连接 Mux 通道 |
+| **就绪后 15 秒静置 CPU 增量** | 2.00% (4,812.5 ms) | 2.67% (6,406.2 ms) | 包含 rc.4 后端初始化与首轮心跳调度 |
+
+*客观边界与说明*：
+1. **关于 Host Node 内存差异**：MyGo 0.1.1 采样的 Node 进程处于极早期空载监听态（`63.25 MiB`）；而 Batch 5 候选完整加载了 `0.2.1-rc.4` 并建立 `127.0.0.1:3181` Mux 连接，其自身 `WorkingSet` 为 `269.39 MiB`。
+2. **长会话对标规划**：就绪初期 15 秒 CPU 增量 `2.67%` 包含 Host 启动后首轮插件自检与心跳，完整 10 轮以上长对话与多插件重负载对标待后续专项基准评估。
+
+### 2026-11-16 0.2.0 工程收口与桌宠高阶渲染包按需下载闭环
+
+1. **桌宠 3A 应用内按需下载与校验**：
+   - 新增 [download.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download.go) 与 [download_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/download_test.go)，读取嵌入的 `render-manifest.json` 与 `anime4k-provenance.json`，覆盖 10 个固定文件（合计 `48,063,128 B`，约 `45.84 MiB`），采用 `.partial` 流式写入、大小与 SHA-256 校验、断点续传跳过已校验文件、取消清理、`os.Lstat` 签名缓存及 UI 线程热重载（`PollDownloadedRenderAssets`）。
+   - 更新 [neural.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/neural.go)、[super_resolution.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/super_resolution.go) 与 [companion.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/pet/companion.go)，仅在 `<exeDir>/pet-render-assets` 不存在且无显式开发覆盖时回退至 `<UserDataDir>/pet-render-assets`，既不影响既有破坏/篡改拒绝契约，也支持非提权安装版在线补齐 `THA4 + Anime4K`。
+   - 更新 [pet.go](file:///c:/AI/WhaleIsle-MyGo/internal/ui/settings/pet.go) 与 [pet_download_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/ui/settings/pet_download_test.go)，在桌宠开启且未安装高阶包时于开启开关下方及「本地皮肤与动画」折叠区展示「下载高阶渲染包」/ 实时进度 / 取消 / 重试 / 已就绪状态。
+2. **外围 Node 唤醒消除与 Host 启动后压缩钩子**：
+   - [scan.go](file:///c:/AI/WhaleIsle-MyGo/internal/petgrowth/scan.go) 与 [scan_fastpath_test.go](file:///c:/AI/WhaleIsle-MyGo/internal/petgrowth/scan_fastpath_test.go) 实现纯 Go 权限与目录签名预扫描快路径，目录缺失、为空或日志未变化时 0 次拉起 `node.exe`。
+   - [bridge.go](file:///c:/AI/WhaleIsle-MyGo/internal/desktop/projectbridge/bridge.go) 对 `Bridge.Ready` 按 `NodeBin` 路径、大小与修改时间进行状态记忆化，避免重复探针拉起 Node。
+   - [launch.go](file:///c:/AI/WhaleIsle-MyGo/internal/harness/launch.go) 与 [proactive-readonly.mjs](file:///c:/AI/WhaleIsle-MyGo/internal/harness/proactive-readonly.mjs) 为桌面默认启动添加 `--expose-gc` 及启动后 1.5s `previousBatchResponses` 清理（实测 `0.2.1-rc.4` 的 `.js.map` 已为惰性生成闭包，`DSH Host` `WorkingSet` 在 FullWorkbench 下实测 `294.88 MiB`，独立探针 `308.93 MiB`，且实测 `GET /` HTTP `200` 与 `GET /plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=d28fa1c1f20f` HTTP `200` / `46,315 B` 完整可用，保障 A2 兼容窗不退化）。
+3. **跨平台打包、CI 与版本收口**：
+   - 更新 [mygo.json](file:///c:/AI/WhaleIsle-MyGo/mygo.json) 版本至 `0.2.0`，[package-macos.mjs](file:///c:/AI/WhaleIsle-MyGo/scripts/package-macos.mjs) 同步改为默认可选 `petRenderAssets`（仅当 `includePetAssets: true` 或 `WHALEISLE_INCLUDE_PET_ASSETS=1` 时打包）。
+   - 在 [main-quality.yml](file:///c:/AI/WhaleIsle-MyGo/.github/workflows/main-quality.yml) 新增 `windows-zero-webview-gate` 任务（验证 `TestReleaseBuildStripsTestHooks`、`-tags release` 编译、`-LauncherOnly` 零 WebView2 门禁及离线契约脚本）。
+   - 修复 [installer-branding-fixture.mjs](file:///c:/AI/WhaleIsle-MyGo/scripts/installer-branding-fixture.mjs)、[package-release-inputs-fixture.mjs](file:///c:/AI/WhaleIsle-MyGo/scripts/package-release-inputs-fixture.mjs) 与 [component-samples-fixture.mjs](file:///c:/AI/WhaleIsle-MyGo/scripts/component-samples-fixture.mjs)，更新 [native_contributions.go](file:///c:/AI/WhaleIsle-MyGo/internal/dsh/native_contributions.go) 废弃注解及文档历史归档标识与死链。
+4. **`0.2.0` 产物与实机验证结果**：
+   - 受影响 `11` 个 Go 包（含 `desktop/pet`、`ui/settings`、`petgrowth`、`petwatch`、`projectbridge`、`harness`、`dsh/...`、`desktop/importer`、`cmd/whaleisle`）、Windows/Linux/`-tags release` `go vet`、`TestReleaseBuildStripsTestHooks` 及 Node 契约检查全部通过。
+   - 重建 [WhaleIsle-MyGo-Setup-0.2.0.exe](file:///c:/AI/WhaleIsle-MyGo/dist/route-a-0.2.0/WhaleIsle-MyGo-Setup-0.2.0.exe)（`254,083,422 B` / `242.31 MiB`，SHA-256 `07b68f5ec5d48bea6930df1f61a3a19b91f7974b4dc9f12bd74430f2e29893f5`）与 [whaleisle.exe](file:///c:/AI/WhaleIsle-MyGo/dist/route-a-0.2.0/whaleisle/whaleisle.exe)（`95,979,008 B` / `91.53 MiB`），双模式 [qa-gate-zero-webview.ps1](file:///c:/AI/WhaleIsle-MyGo/scripts/qa-gate-zero-webview.ps1)（`LauncherOnly` `269.02 MiB WS`，`FullWorkbench` Main UI `307.64 MiB WS` + Host Node `294.88 MiB WS`，`msedgewebview2 == 0`，`nodes == 1`）全部通过。

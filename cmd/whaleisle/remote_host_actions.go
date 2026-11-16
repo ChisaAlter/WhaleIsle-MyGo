@@ -127,7 +127,10 @@ func redactedRemoteConfig(c config.Config) map[string]any {
 func (s *mainState) openPhoneSettingsSection(section string) bool {
 	done := make(chan bool, 1)
 	mygo.RunOnMain(func() {
-		if s.quitting {
+		s.mu.Lock()
+		quitting := s.quitting
+		s.mu.Unlock()
+		if quitting {
 			done <- false
 			return
 		}

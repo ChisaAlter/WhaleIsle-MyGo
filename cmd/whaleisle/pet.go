@@ -70,11 +70,10 @@ func (s *mainState) activatePetConversation(sessions *session.Store, id string) 
 	s.remoteOpen = false
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
 	s.chatPaneTab = "chat"
 	win := s.win
 	s.mu.Unlock()
+	s.assistantService().SetOpen(false)
 	sessions.Select(id)
 	s.showMainWindow()
 	if win != nil {

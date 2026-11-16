@@ -41,6 +41,7 @@ type commitPrepared struct {
 }
 type commitPreparation struct {
 	root   string
+	gen    uint64
 	cancel context.CancelFunc
 	done   chan commitPrepared
 	push   bool
@@ -82,27 +83,22 @@ func (w *Workbench) selectedCommitPaths() []string {
 	}
 	return paths
 }
-func (w *Workbench) scanCommitFiles() {
-	s := w.commitState()
-	s.LargeFiles = nil
-	s.ScanError = ""
-	files, e := git.CheckLargeFiles(w.Root)
-	if e != nil {
-		s.ScanError = e.Error()
-	} else {
-		s.LargeFiles = files
-	}
-}
 
 // RequestCommit routes all native entry points to the same selection/review flow.
 func (w *Workbench) RequestCommit(root, message string) {
+	if w == nil {
+		return
+	}
 	w.cancelCommitPreparation()
 	w.cancelRemotePreparation()
 	w.Remote = nil
-	if w.Root != root {
-		*w = Workbench{Operation: w.Operation, invalidate: w.invalidate}
+	w.pendingCaptionAction = ""
+	w.pendingCaptionRoot = ""
+	w.pendingCaptionGen = 0
+	if w.Root != "" && w.Root != root {
+		w.resetStateForRoot(root, w.invalidate)
 	}
-	w.reload(root)
+	w.requestReload(root, w.Loaded && w.Root == root)
 	w.commitState().CaptionAction = ""
 	w.Message = message
 	w.Status = word("选择本次提交的文件并核对实际 diff。", "Select the files for this commit, then review the exact diff.")
@@ -114,7 +110,7 @@ func finishCommitPreparation(m Model) {
 	}
 	s := w.Commit
 	task := s.Task
-	if task.root != m.WorkspaceRoot {
+	if task.root != m.WorkspaceRoot || (task.gen != 0 && task.gen != w.currentGen()) {
 		w.cancelCommitPreparation()
 		return
 	}
@@ -179,11 +175,14 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 	largeAcknowledged := s.LargeAcknowledged
 	root, message := m.WorkspaceRoot, w.Message
 	prTitle, prBody, prDraft := s.PRTitle, s.PRBody, s.PRDraft
+	w.setInvalidate(c.Services().Invalidate)
+	gen := w.bindRoot(root)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	task := &commitPreparation{root: root, cancel: cancel, done: make(chan commitPrepared, 1), push: push}
+	task := &commitPreparation{root: root, gen: gen, cancel: cancel, done: make(chan commitPrepared, 1), push: push}
 	w.invalidateCommitReview()
 	s.Task = task
 	w.Status = ""
+	loader := w.loader
 	invalidate := c.Services().Invalidate
 	progress := git.NewProgress(root, word("正在准备所选文件…", "Preparing selected files…"), invalidate)
 	w.Progress = progress
@@ -231,7 +230,9 @@ func beginCommitPreparation(c *ui.Context, m Model, push, createPR bool) {
 		}
 		progress.Finish(phase, r.err != nil)
 		task.done <- r
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()

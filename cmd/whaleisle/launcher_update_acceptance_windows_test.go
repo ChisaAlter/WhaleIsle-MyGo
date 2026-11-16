@@ -24,8 +24,9 @@ func probeLauncherUpdateResponsiveness(win *mygo.Window) (map[string]any, error)
 	if win == nil {
 		return proof, fmt.Errorf("owned native window required")
 	}
+	probe := state.launcherController().UpdateProbeState()
 	state.mu.Lock()
-	busy, quitting := state.launcherUpdateCheckBusy, state.quitting
+	busy, quitting := probe.CheckBusy, state.quitting
 	state.mu.Unlock()
 	if busy || quitting {
 		return proof, fmt.Errorf("owned native state is already checking updates or quitting")
@@ -77,9 +78,7 @@ func probeLauncherUpdateResponsiveness(win *mygo.Window) (map[string]any, error)
 		return proof, err
 	}
 	proof["queueProgressMs"] = time.Since(started).Milliseconds()
-	state.mu.Lock()
-	busy = state.launcherUpdateCheckBusy
-	state.mu.Unlock()
+	busy = state.launcherController().UpdateProbeState().CheckBusy
 	if !busy {
 		return proof, fmt.Errorf("busy cleared before gated HTTP response")
 	}
@@ -87,9 +86,8 @@ func probeLauncherUpdateResponsiveness(win *mygo.Window) (map[string]any, error)
 	unblock()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		state.mu.Lock()
-		busy, message, available := state.launcherUpdateCheckBusy, state.launcherUpdate, state.launcherUpdateAvailable
-		state.mu.Unlock()
+		st := state.launcherController().UpdateProbeState()
+		busy, message, available := st.CheckBusy, st.Message, st.Available
 		if !busy {
 			proof["busyClearedAfterResponse"], proof["result"], proof["requestCount"] = true, message, requests.Load()
 			if !strings.Contains(message, string(desktopupdate.StatusUpToDate)) || available {

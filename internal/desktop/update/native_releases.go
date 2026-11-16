@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -375,13 +376,7 @@ func ListNativeReleases(ctx context.Context, route string) ([]NativeRelease, err
 }
 
 func nativeHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, Transport: updateTransport(), CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 10 {
-			return fmt.Errorf("too many native release redirects")
-		}
-		_, err := nativeHTTPS(req.URL.String())
-		return err
-	}}
+	return hardenDownloadClient(nil, timeout)
 }
 
 // NativeStageOptions supplies the persisted base cache and running version.
@@ -402,15 +397,68 @@ func StageNativeRelease(ctx context.Context, release NativeRelease, requireRunti
 	return StageNativeReleaseWithOptions(ctx, release, NativeStageOptions{RequireRuntime: requireRuntime, DestDir: destDir, OnProgress: onProgress})
 }
 
+func isComparableVersion(v string) bool {
+	v = strings.TrimSpace(v)
+	v = strings.TrimPrefix(strings.TrimPrefix(v, "v"), "V")
+	if i := strings.IndexAny(v, "-+"); i >= 0 {
+		v = v[:i]
+	}
+	if v == "" {
+		return false
+	}
+	hasDigit := false
+	for i := 0; i < len(v); i++ {
+		if v[i] >= '0' && v[i] <= '9' {
+			hasDigit = true
+		} else if v[i] != '.' {
+			return false
+		}
+	}
+	return hasDigit
+}
+
+func validateNativeVersionUpgrade(candidate, current string) error {
+	if !isComparableVersion(current) || !isComparableVersion(candidate) {
+		return nil
+	}
+	if CompareVersions(candidate, current) < 0 {
+		return fmt.Errorf("native release %s is older than current version %s; version downgrades are not allowed", candidate, current)
+	}
+	return nil
+}
+
+func nativeSignatureRequired(publisher string) bool {
+	if strings.TrimSpace(publisher) != "" {
+		return true
+	}
+	raw, set := os.LookupEnv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")
+	v := strings.TrimSpace(raw)
+	if set {
+		if v == "0" || strings.EqualFold(v, "false") || strings.EqualFold(v, "no") {
+			return false
+		}
+		if v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes") {
+			return true
+		}
+		if v == "" && flag.Lookup("test.v") != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func StageNativeReleaseWithOptions(ctx context.Context, release NativeRelease, opt NativeStageOptions) (ApplyResult, error) {
 	if release.UnavailableReason != "" {
 		return ApplyResult{}, fmt.Errorf("%s", release.UnavailableReason)
 	}
+	if err := validateNativeVersionUpgrade(release.Version, opt.CurrentVersion); err != nil {
+		return ApplyResult{}, err
+	}
 	if err := release.Validate(runtime.GOOS, runtime.GOARCH, opt.RequireRuntime); err != nil {
 		return ApplyResult{}, err
 	}
-	requireSignature := strings.EqualFold(os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE"), "true") || os.Getenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE") == "1"
 	publisher := strings.TrimSpace(os.Getenv("WHALEISLE_UPDATE_PUBLISHER"))
+	requireSignature := nativeSignatureRequired(publisher)
 	client := nativeHTTPClient(30 * time.Minute)
 	var result ApplyResult
 	var err error
@@ -448,6 +496,9 @@ func PrepareNativeReleases(rows []NativeRelease, currentVersion, cacheDir string
 	out := append([]NativeRelease(nil), rows...)
 	for i := range out {
 		r := &out[i]
+		if err := validateNativeVersionUpgrade(r.Version, currentVersion); err != nil && r.UnavailableReason == "" {
+			r.UnavailableReason = err.Error()
+		}
 		if !r.IsDelta() || r.UnavailableReason != "" {
 			continue
 		}
@@ -459,6 +510,19 @@ func PrepareNativeReleases(rows []NativeRelease, currentVersion, cacheDir string
 		}
 	}
 	return out
+}
+
+// SelectNativeReleaseForVersion selects a release matching selection while
+// rejecting releases older than currentVersion.
+func SelectNativeReleaseForVersion(rows []NativeRelease, selection, currentVersion, goos, arch string, requireRuntime bool) (NativeRelease, error) {
+	rel, err := SelectNativeRelease(rows, selection, goos, arch, requireRuntime)
+	if err != nil {
+		return NativeRelease{}, err
+	}
+	if err := validateNativeVersionUpgrade(rel.Version, currentVersion); err != nil {
+		return NativeRelease{}, err
+	}
+	return rel, nil
 }
 
 func SelectNativeRelease(rows []NativeRelease, selection, goos, arch string, requireRuntime bool) (NativeRelease, error) {

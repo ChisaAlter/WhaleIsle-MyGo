@@ -3,10 +3,10 @@
 package linux
 
 import (
+	"sync"
+
 	"github.com/ebitengine/purego"
 	"github.com/egoist/mygo/internal/platform"
-	"sync"
-	"unsafe"
 )
 
 // browserSeat retains the existing WebKit widget/context. The original hidden
@@ -44,7 +44,7 @@ func loadBrowserSeat() {
 		mustBind(libGDK, &seatGTK.cairoRegion, "gdk_cairo_region")
 		mustBind(libCairo, &seatGTK.cairoClip, "cairo_clip")
 		mustBind(libGDK, &seatGTK.inputShape, "gdk_window_input_shape_combine_region")
-		seatGTK.position = purego.NewCallback(func(overlay, child, allocation, data ptr) bool {
+		seatGTK.position = purego.NewCallback(func(overlay, child ptr, allocation *gdkRectangle, data ptr) bool {
 			p := theBackend.window(data)
 			if p == nil {
 				return false
@@ -52,7 +52,7 @@ func loadBrowserSeat() {
 			for _, w := range p.seats {
 				if w.web == child && w.seat != nil {
 					r := w.seat.bounds
-					*(*gdkRectangle)(unsafe.Pointer(allocation)) = gdkRectangle{X: int32(r.X), Y: int32(r.Y), Width: int32(r.Width), Height: int32(r.Height)}
+					*allocation = gdkRectangle{X: int32(r.X), Y: int32(r.Y), Width: int32(r.Width), Height: int32(r.Height)}
 					return true
 				}
 			}

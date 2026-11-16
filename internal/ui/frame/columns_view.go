@@ -237,14 +237,15 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 			drawer.Transition(shellTrackTransition)
 		}
 		drawer.Children(func() {
-			renderGlobalShellSlot(c, m, "shell.terminalDrawer", func() {
-				if open && terminal != nil {
-					terminal()
-				}
-			})
+			if open && terminal != nil {
+				terminal()
+			}
 		})
 		if !open {
 			drag.active = false
+			if m.Terminal != nil {
+				m.Terminal.ClearFocus()
+			}
 			return
 		}
 		minMain := min(float32(80), maxMain)

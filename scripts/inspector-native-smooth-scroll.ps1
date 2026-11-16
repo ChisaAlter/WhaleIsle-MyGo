@@ -1,5 +1,15 @@
-param([int]$OwnerId)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r107-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -23,12 +33,12 @@ public class InspectorSmoothR107 {
 '@
 [void][InspectorSmoothR107]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
-if($owner.ExecutablePath -ne 'C:\AI\WhaleIsle-MyGo\.devdata\r107-inspector-fixture.exe'){throw 'Wrong owned fixture'}
+if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath){throw 'Wrong owned fixture'}
 $handle=(Get-Process -Id $OwnerId).MainWindowHandle
 [void][InspectorSmoothR107]::ShowWindow($handle,9)
 [void][InspectorSmoothR107]::SetForegroundWindow($handle)
 $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-native-pass251-smooth-desktop'
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-native-pass251-smooth-desktop' }
 function Find([string]$name){$all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition);foreach($e in $all){if($e.Current.Name -eq $name){return $e.Current.BoundingRectangle}};throw ('Missing '+$name)}
 function Metrics {[InspectorSmoothR107]::Key($handle,0x78);Start-Sleep -Milliseconds 350;Get-Content -LiteralPath ($prefix+'-metrics.json') -Raw|ConvertFrom-Json}
 function ClickRecord([string]$name,[int]$key){$r=Find $name;[InspectorSmoothR107]::Pulse($handle,[int]($r.X+$r.Width/2),[int]($r.Y+$r.Height/2),$key)}

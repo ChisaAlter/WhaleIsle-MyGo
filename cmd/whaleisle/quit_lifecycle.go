@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -57,6 +58,24 @@ func (s *mainState) quitAfterCleanup() {
 	}
 }
 
+func (s *mainState) lifecycleContextLocked() context.Context {
+	if s.quitting {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx
+	}
+	if s.lifecycleCtx == nil {
+		s.lifecycleCtx, s.lifecycleCancel = context.WithCancel(context.Background())
+	}
+	return s.lifecycleCtx
+}
+
+func (s *mainState) lifecycleContext() context.Context {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lifecycleContextLocked()
+}
+
 // Only an approved protected commit reaches final cleanup. Callers keep slow
 // shutdown on their worker; controller/pet state is owned by the UI thread.
 func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
@@ -68,7 +87,11 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.quitting = true
 	win := s.win
 	cancelPreparation := s.launcherStartCancel
+	cancelLifecycle := s.lifecycleCancel
 	s.mu.Unlock()
+	if cancelLifecycle != nil {
+		cancelLifecycle()
+	}
 	s.cancelImportCatalogScan()
 	s.stopProactiveMonitor()
 	s.stopNativeUpdateCenter()

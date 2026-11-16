@@ -30,39 +30,60 @@ function Resolve-Makensis {
     $cmd = Get-Command makensis -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
 
+    if ($env:LOCALAPPDATA) {
+        $shared = Join-Path $env:LOCALAPPDATA 'mygo\nsis-3.13\Bin\makensis.exe'
+        if (Test-Path -LiteralPath $shared -PathType Leaf) { return $shared }
+    }
+
     $local = Join-Path $ProjectRoot '.toolchain\nsis\makensis.exe'
-    if (Test-Path $local) { return $local }
+    if (Test-Path -LiteralPath $local -PathType Leaf) { return $local }
 
     return $null
 }
 
 function Ensure-ToolchainNsis {
-    $local = Join-Path $ProjectRoot '.toolchain\nsis\makensis.exe'
-    if (Test-Path $local) { return $local }
+    $existing = Resolve-Makensis
+    if ($existing) { return $existing }
 
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if (-not $winget) {
-        throw 'makensis not found and winget unavailable; install NSIS or place makensis.exe under .toolchain/nsis/'
+        throw 'makensis not found and winget unavailable; install NSIS under %LOCALAPPDATA%\mygo\nsis-3.13 or place makensis on PATH'
     }
 
-    $dl = Join-Path $ProjectRoot '.toolchain\nsis-dl'
+    if ($env:LOCALAPPDATA) {
+        $dest = Join-Path $env:LOCALAPPDATA 'mygo\nsis-3.13'
+        $expected = Join-Path $dest 'Bin\makensis.exe'
+    } else {
+        $dest = Join-Path $ProjectRoot '.toolchain\nsis'
+        $expected = Join-Path $dest 'makensis.exe'
+    }
+
+    $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+    $dl = Join-Path $tempParent ('whaleisle-nsis-dl-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path $dl | Out-Null
-    Write-Host 'Ensuring NSIS via winget download + silent install to .toolchain/nsis ...'
-    & winget.Source download --id NSIS.NSIS --download-directory $dl --accept-package-agreements --accept-source-agreements
-    if ($LASTEXITCODE -ne 0) { throw "winget download NSIS failed (exit $LASTEXITCODE)" }
+    try {
+        Write-Host "Ensuring NSIS via winget download + silent install to $dest ..."
+        & $winget.Source download --id NSIS.NSIS --download-directory $dl --accept-package-agreements --accept-source-agreements
+        if ($LASTEXITCODE -ne 0) { throw "winget download NSIS failed (exit $LASTEXITCODE)" }
 
-    $setup = Get-ChildItem $dl -Filter '*.exe' | Select-Object -First 1
-    if (-not $setup) { throw "NSIS installer not found under $dl" }
+        $setup = Get-ChildItem $dl -Filter '*.exe' | Select-Object -First 1
+        if (-not $setup) { throw "NSIS installer not found under $dl" }
 
-    $dest = Join-Path $ProjectRoot '.toolchain\nsis'
-    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-    New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    & $setup.FullName /S "/D=$dest"
-    Start-Sleep -Seconds 3
-    if (-not (Test-Path $local)) {
-        throw "NSIS silent install did not produce $local"
+        if (Test-Path -LiteralPath $dest) { Remove-Item -Recurse -Force $dest }
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        $proc = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$dest") -PassThru -WindowStyle Hidden
+        if (-not $proc.WaitForExit(180000)) { throw 'NSIS silent installer did not exit within 180 seconds' }
+        if ($proc.ExitCode -ne 0) { throw "NSIS silent installer failed (exit $($proc.ExitCode))" }
+        if (Test-Path -LiteralPath $expected -PathType Leaf) { return $expected }
+        $alt = Join-Path $dest 'makensis.exe'
+        if (Test-Path -LiteralPath $alt -PathType Leaf) { return $alt }
+        throw "NSIS silent install did not produce $expected"
+    } finally {
+        $active = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($dl, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if (-not $active) {
+            & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $dl $tempParent 'whaleisle-nsis-dl-'
+        }
     }
-    return $local
 }
 
 if ($EnsureNsis) {
@@ -84,12 +105,42 @@ if ($env:WHALEISLE_VERSION) {
     $Version = '0.0.0-dev'
 }
 
+$ownsOutput = -not $OutputRoot
+$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+$smokeOutPrefix = 'whaleisle-nsis-smoke-'
 if (-not $OutputRoot) {
-    if ($SkipPackage) { $OutputRoot = Join-Path $ProjectRoot 'dist' }
-    else { $OutputRoot = Join-Path $ProjectRoot ('tmp\nsis-smoke-' + [guid]::NewGuid().ToString('n')) }
+    if ($SkipPackage) { $OutputRoot = Join-Path $ProjectRoot 'dist'; $ownsOutput = $false }
+    else { $OutputRoot = Join-Path $tempParent ($smokeOutPrefix + [guid]::NewGuid().ToString('n')) }
 }
 $OutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
 $StageRoot = Join-Path $OutputRoot 'whaleisle'
+$SmokeID = [guid]::NewGuid().ToString('n')
+$SmokeAppID = 'whaleisle.nsis-smoke.' + $SmokeID
+$SmokeName = 'Whale Isle MyGo NSIS Smoke ' + $SmokeID
+$InstallRoot = $null
+$ManagementCopy = $null
+$savedSkipRuntime = $env:WHALEISLE_PACKAGE_SKIP_RUNTIME
+$tempInstallParent = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\', '/')
+
+function Invoke-OwnedExecutable([string]$Executable, [string]$Arguments) {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $Executable
+    $info.Arguments = $Arguments
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $info
+    try {
+        if (-not $process.Start()) { throw "Could not start owned fixture: $Executable" }
+        if (-not $process.WaitForExit(900000)) { throw "Owned fixture did not exit within 900 seconds: $Executable" }
+        return $process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
+}
+
+try {
 if (-not $SkipPackage) {
     if (-not $env:WHALEISLE_PACKAGE_SKIP_RUNTIME) { $env:WHALEISLE_PACKAGE_SKIP_RUNTIME = '1' }
     Write-Host "Running package.ps1 -StageOnly in fresh owned output $OutputRoot ..."
@@ -111,9 +162,6 @@ if (-not (Test-Path $Nsi)) {
 
 # Compilation is separate from package.ps1's normal development artifact.
 # Even an explicitly reused stage never overwrites an existing installer.
-$SmokeID = [guid]::NewGuid().ToString('n')
-$SmokeAppID = 'whaleisle.nsis-smoke.' + $SmokeID
-$SmokeName = 'Whale Isle MyGo NSIS Smoke ' + $SmokeID
 $Setup = Join-Path $OutputRoot ('WhaleIsle-MyGo-Smoke-' + $SmokeID + '.exe')
 
 Write-Host "Compiling NSIS with $Makensis (VERSION=$Version) ..."
@@ -151,24 +199,8 @@ if ($SevenZip) {
     Write-Host 'Note: 7z not on PATH; skipped archive listing'
 }
 
-function Invoke-OwnedExecutable([string]$Executable, [string]$Arguments) {
-    $info = New-Object Diagnostics.ProcessStartInfo
-    $info.FileName = $Executable
-    $info.Arguments = $Arguments
-    $info.UseShellExecute = $false
-    $info.CreateNoWindow = $true
-    $info.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
-    $process = New-Object Diagnostics.Process
-    $process.StartInfo = $info
-    if (-not $process.Start()) { throw "Could not start owned fixture: $Executable" }
-    if (-not $process.WaitForExit(900000)) { throw "Owned fixture did not exit within 900 seconds: $Executable" }
-    $result = $process.ExitCode
-    $process.Dispose()
-    return $result
-}
-
 if ($SilentInstall) {
-    $InstallRoot = Join-Path $env:TEMP ('whaleisle-nsis-smoke-' + $SmokeID)
+    $InstallRoot = Join-Path $tempInstallParent ($smokeOutPrefix + $SmokeID)
     Write-Host "Silent install -> $InstallRoot ..."
     # NSIS: /S silent; /D= must be last and unquoted.
     $InstallCode = Invoke-OwnedExecutable $Setup "/S /D=$InstallRoot"
@@ -240,3 +272,38 @@ if ($SilentInstall) {
 }
 
 Write-Host 'smoke-nsis.ps1: passed'
+} finally {
+    if ($null -eq $savedSkipRuntime) { Remove-Item Env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ErrorAction SilentlyContinue } else { $env:WHALEISLE_PACKAGE_SKIP_RUNTIME = $savedSkipRuntime }
+    if ($InstallRoot -and (Test-Path -LiteralPath $InstallRoot)) {
+        $uninst = Join-Path $InstallRoot 'Uninstall.exe'
+        if (Test-Path -LiteralPath $uninst -PathType Leaf) {
+            if (-not $ManagementCopy) { $ManagementCopy = Join-Path $tempParent ('uninstall-smoke-' + $SmokeID + '.exe') }
+            try {
+                Copy-Item -LiteralPath $uninst -Destination $ManagementCopy -Force
+                $null = Invoke-OwnedExecutable $ManagementCopy "/S _?=$InstallRoot"
+            } catch {}
+        }
+    }
+    if ($ManagementCopy -and (Test-Path -LiteralPath $ManagementCopy)) { Remove-Item -LiteralPath $ManagementCopy -Force -ErrorAction SilentlyContinue }
+    if ($InstallRoot) {
+        $activeInstall = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($InstallRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if (-not $activeInstall) {
+            if (Test-Path -LiteralPath $InstallRoot) { & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $InstallRoot $tempInstallParent $smokeOutPrefix }
+            foreach ($retiredDir in (Get-ChildItem -LiteralPath $tempInstallParent -Directory -Filter ($smokeOutPrefix + $SmokeID + '.uninstall-*') -ErrorAction SilentlyContinue)) {
+                & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $retiredDir.FullName $tempInstallParent $smokeOutPrefix
+            }
+        }
+    }
+    foreach ($regPath in @(('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\' + $SmokeAppID), ('HKCU:\Software\' + $SmokeAppID))) {
+        if (Test-Path -LiteralPath $regPath) { Remove-Item -LiteralPath $regPath -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) ($SmokeName + '.lnk')
+    $menuFolder = Join-Path ([Environment]::GetFolderPath('Programs')) $SmokeName
+    if (Test-Path -LiteralPath $desktopShortcut) { Remove-Item -LiteralPath $desktopShortcut -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $menuFolder) { Remove-Item -LiteralPath $menuFolder -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($ownsOutput -and (Test-Path -LiteralPath $OutputRoot)) {
+        $activeOutput = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($OutputRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if ($activeOutput) { Write-Warning "Owned smoke output still referenced by another process; retained: $OutputRoot" }
+        else { & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $OutputRoot $tempParent $smokeOutPrefix }
+    }
+}

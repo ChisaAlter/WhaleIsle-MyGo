@@ -61,12 +61,15 @@ func (b *Controller) viewSeat(c *ui.Context, themeID string, dark bool, onClose 
 
 func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func()) {
 	b.rendered = true
+	b.markShown()
 	b.PruneActions()
 	b.resumeCurrent()
 	if b.current() == nil {
 		b.NewTab("")
 	}
 	t := b.current()
+	b.cancelTabReclaim(t)
+	b.resumeReclaimedTab(t)
 	if browserWebTab(t) && t.toolsExpanded {
 		b.resumeLocalDiscovery(t)
 	} else {
@@ -78,6 +81,9 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 		state = t.Host.State()
 		if browserWebTab(t) && state.URL != "" && state.URL != t.lastURL {
 			t.Draft, t.lastURL = state.URL, state.URL
+		}
+		if state.Title != "" {
+			t.resumeTitle = state.Title
 		}
 		t.Host.SyncBounds()
 		b.showHost(t.Host)
@@ -252,6 +258,25 @@ func (b *Controller) documentHeader(c *ui.Context, t *Tab, name string, external
 }
 
 // Recovery may contain multiple pages from the earlier standalone browser.
+func browserTabDisplayTitle(tab *Tab, preferDraft bool) string {
+	if tab == nil {
+		return browserChromeLabel("新标签", "New tab")
+	}
+	if tab.source != nil && !preferDraft {
+		return filepath.Base(tab.source.Path)
+	}
+	if tab.Host != nil && tab.Host.State().Title != "" {
+		return tab.Host.State().Title
+	}
+	if tab.resumeTitle != "" {
+		return tab.resumeTitle
+	}
+	if (preferDraft || tab.reclaimed) && tab.Draft != "" {
+		return tab.Draft
+	}
+	return browserChromeLabel("新标签", "New tab")
+}
+
 // Docked resources omit the nested strip but keep those pages reachable.
 func (b *Controller) savedBrowserTabsMenu(menu *ui.Menu) {
 	if len(b.Tabs) < 2 {
@@ -259,13 +284,7 @@ func (b *Controller) savedBrowserTabsMenu(menu *ui.Menu) {
 	}
 	menu.Submenu(browserChromeLabel("已打开的页面", "Open pages"), func(sub *ui.Menu) {
 		for index, tab := range b.Tabs {
-			title := tab.Draft
-			if tab.Host != nil && tab.Host.State().Title != "" {
-				title = tab.Host.State().Title
-			}
-			if title == "" {
-				title = browserChromeLabel("新标签", "New tab")
-			}
+			title := browserTabDisplayTitle(tab, true)
 			if sub.Item(title).Checked(index == b.Active).Chosen() {
 				b.Select(index)
 			}
@@ -282,12 +301,7 @@ func (b *Controller) browserTabs(c *ui.Context, onClose func()) {
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
 				for i, tab := range b.Tabs {
-					title := browserChromeLabel("新标签", "New tab")
-					if tab.source != nil {
-						title = filepath.Base(tab.source.Path)
-					} else if tab.Host != nil && tab.Host.State().Title != "" {
-						title = tab.Host.State().Title
-					}
+					title := browserTabDisplayTitle(tab, false)
 					button := ui.Button(c, truncate(title, 24)).Key(tab.ID).Height(28).MaxWidth(180).Tooltip(title)
 					if i == b.Active {
 						button.Background(c.Theme().SurfaceHover)

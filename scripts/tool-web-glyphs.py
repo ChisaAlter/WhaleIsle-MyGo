@@ -1,11 +1,27 @@
 """Extract installed CC0 site marks and the medium globe into native SVG data."""
 import hashlib
 import json
+import os
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = Path(r"C:\软件\Whale Isle\resources\vendor\deepseek-harness\apps\web\dist\assets\index-wKUmVWbt.js")
+DEFAULT_BUNDLE = ROOT / "runtime/vendor/deepseek-harness/apps/web/dist/assets"
+bundle_arg = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("WHALEISLE_WEB_BUNDLE", "")
+if bundle_arg:
+    SOURCE = Path(bundle_arg)
+else:
+    matches = sorted(DEFAULT_BUNDLE.glob("index-*.js"))
+    if not matches:
+        raise FileNotFoundError(
+            f"Web bundle JS not found under {DEFAULT_BUNDLE}. Pass path as argv[1] or set WHALEISLE_WEB_BUNDLE."
+        )
+    SOURCE = matches[0]
+if not SOURCE.is_file():
+    raise FileNotFoundError(
+        f"Web bundle JS not found: {SOURCE}. Pass path as argv[1] or set WHALEISLE_WEB_BUNDLE."
+    )
 text = SOURCE.read_text(encoding="utf-8")
 hosts = re.search(r'const SH=\{([^}]+)\};function IH', text).group(1)
 entries = re.findall(r'"([^"]+)":(\w+)', hosts)

@@ -50,6 +50,7 @@ func runNativeSessionRecovery() error {
 			c.Host = "127.0.0.1"
 			c.Port = 32182
 			c.NodeBin = os.Getenv("WHALEISLE_NODE")
+			c.AutoDownloadUpdates = false
 		}); err != nil {
 			return err
 		}

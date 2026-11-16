@@ -44,11 +44,18 @@ func parseMultipartResult(contentType string, body []byte, rpcID, method string)
 		if err != nil {
 			return nil, fmt.Errorf("dsh %s: multipart: %w", method, err)
 		}
-		data, err := io.ReadAll(io.LimitReader(p, 32<<20))
+		const maxPartBytes = 32 << 20
+		data, err := io.ReadAll(io.LimitReader(p, maxPartBytes+1))
 		if err != nil {
 			return nil, err
 		}
 		name := partName(p.Header)
+		if int64(len(data)) > maxPartBytes {
+			if name != "" {
+				return nil, fmt.Errorf("dsh %s: multipart part %q exceeds bounded wire limit", method, name)
+			}
+			return nil, fmt.Errorf("dsh %s: multipart part exceeds bounded wire limit", method)
+		}
 		if name == "" {
 			continue
 		}

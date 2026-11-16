@@ -118,15 +118,12 @@ func startWhalebridgeLocked(root, dshHome string) error {
 	cmd := exec.Command(exe, "whalebridge")
 	processutil.BackgroundTree(cmd)
 	cmd.Dir = filepath.Dir(exe)
-	for _, entry := range os.Environ() {
-		name, _, _ := strings.Cut(entry, "=")
-		switch strings.ToUpper(name) {
-		case "ELECTRON_RUN_AS_NODE", "MAGPIE_WEB_KEY", "MAGPIE_WEB_RUNKEY", "LAUNCHER_COMPONENT_ID", "LAUNCHER_COMPONENT_DATA_DIR", "WHALEBRIDGE_DSH_HOME", "MAGPIE_ADDR":
-			continue
-		}
-		cmd.Env = append(cmd.Env, entry)
-	}
-	cmd.Env = append(cmd.Env, "LAUNCHER_COMPONENT_ID=whalebridge", "LAUNCHER_COMPONENT_DATA_DIR="+dataDir, "WHALEBRIDGE_DSH_HOME="+dshHome, "MAGPIE_ADDR=127.0.0.1:3427")
+	cmd.Env = sanitizeComponentEnv(os.Environ(),
+		"LAUNCHER_COMPONENT_ID=whalebridge",
+		"LAUNCHER_COMPONENT_DATA_DIR="+dataDir,
+		"WHALEBRIDGE_DSH_HOME="+dshHome,
+		"MAGPIE_ADDR=127.0.0.1:3427",
+	)
 	cmd.Stdout = logF
 	cmd.Stderr = logF
 	if err := cmd.Start(); err != nil {

@@ -59,7 +59,7 @@ func explicitSaveDisabled(m Model) bool {
 		return true
 	}
 	if tab := selectedTab(m); tab != nil {
-		return tab.deliverySource != nil || tab.Remote || isTablePreviewPath(tab.Path) || tab.readLoading || tab.readResume
+		return tab.deliverySource != nil || tab.Remote || isTablePreviewPath(tab.Path) || tab.readLoading || tab.readResume || tab.hasConflict
 	}
 	return previewTruncated(m) || textReadBlocked(m)
 }
@@ -151,8 +151,13 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 	jump := ui.Local(row, "line-navigation", func() bool { return false })
 	row.ContextMenu(func(menu *ui.Menu) {
 		treeFileMenu(m, path)(menu)
-		if previewSupportsLineNavigation(m, path) && menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
-			*jump = true
+		if previewSupportsLineNavigation(m, path) {
+			if menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
+				*jump = true
+			}
+			if menu.Item(label("查找…", "Find…")).Chosen() {
+				triggerPreviewFind(m)
+			}
 		}
 	})
 	paintPreviewFeedback(c, m, path, row)

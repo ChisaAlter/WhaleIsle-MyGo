@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
 	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/paths"
+)
+
+const (
+	bridgePrepareTimeout = 2 * time.Minute
+	bridgeApplyTimeout   = 5 * time.Minute
 )
 
 var bridgeChangeUI sync.Mutex
@@ -31,9 +37,9 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 	route := s.updateDownloadRoute()
 	s.mu.Lock()
 	sup := s.sup
-	s.launcherUpdate = i18n.T(i18n.KeyCmdVerifyingWhalebridgeVersionAndImpactTh)
-	s.launcherComponentStatus = s.launcherUpdate
 	s.mu.Unlock()
+	verifyingMsg := i18n.T(i18n.KeyCmdVerifyingWhalebridgeVersionAndImpactTh)
+	s.launcherController().SetComponentActivity(verifyingMsg, verifyingMsg, false)
 	generation := 0
 	if sup != nil {
 		generation = sup.Status().Generation
@@ -62,7 +68,9 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 		var result string
 		switch action {
 		case "update":
-			plan, err = desktopcomponents.PrepareWhaleBridgeUpdate(context.Background(), paths.UserDataDir(), route)
+			prepCtx, cancel := context.WithTimeout(s.lifecycleContext(), bridgePrepareTimeout)
+			plan, err = desktopcomponents.PrepareWhaleBridgeUpdate(prepCtx, paths.UserDataDir(), route)
+			cancel()
 		case "rollback":
 			if !desktopcomponents.WhaleBridgeManagementSupported() {
 				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdComponentWindowsOnly))
@@ -70,7 +78,9 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 				plan, err = desktopcomponents.PrepareWhaleBridgeRollback(paths.UserDataDir())
 			}
 		case "uninstall":
-			removal, err = desktopcomponents.PrepareWhaleBridgeUninstall(context.Background(), paths.UserDataDir())
+			prepCtx, cancel := context.WithTimeout(s.lifecycleContext(), bridgePrepareTimeout)
+			removal, err = desktopcomponents.PrepareWhaleBridgeUninstall(prepCtx, paths.UserDataDir())
+			cancel()
 		case "stop":
 		default:
 			err = desktopcomponents.ErrUnknownAction
@@ -110,9 +120,13 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 					case action == "stop":
 						err = desktopcomponents.RunAction(paths.UserDataDir(), "whalebridge", "stop")
 					case removal != nil:
-						result, err = removal.ApplyWithDataRemoval(context.Background(), removeData)
+						applyCtx, cancel := context.WithTimeout(s.lifecycleContext(), bridgeApplyTimeout)
+						result, err = removal.ApplyWithDataRemoval(applyCtx, removeData)
+						cancel()
 					default:
-						err = plan.Apply(context.Background())
+						applyCtx, cancel := context.WithTimeout(s.lifecycleContext(), bridgeApplyTimeout)
+						err = plan.Apply(applyCtx)
+						cancel()
 					}
 					return err
 				})
@@ -124,28 +138,26 @@ func (s *mainState) changeWhaleBridge(win *mygo.Window, action string) {
 				}
 			}
 		}
-		s.mu.Lock()
-		s.launcherUpdate = desktopcomponents.FormatActionError("whalebridge", action, err)
+		msg := desktopcomponents.FormatActionError("whalebridge", action, err)
 		if cancelled {
-			s.launcherUpdate = i18n.T(i18n.KeyCmdCancelledTheInstalledVersionConnection)
+			msg = i18n.T(i18n.KeyCmdCancelledTheInstalledVersionConnection)
 		} else if err == nil && removal != nil {
-			s.launcherUpdate = i18n.T(i18n.KeyCmdWhalebridgeV) + removal.Version() + i18n.T(i18n.KeyCmdWasUninstalledAndDisconnectedChatsAndO)
+			msg = i18n.T(i18n.KeyCmdWhalebridgeV) + removal.Version() + i18n.T(i18n.KeyCmdWasUninstalledAndDisconnectedChatsAndO)
 			if !removeData {
-				s.launcherUpdate += i18n.T(i18n.KeyCmdProviderSettingsKeysAccountsAndUsageWe)
+				msg += i18n.T(i18n.KeyCmdProviderSettingsKeysAccountsAndUsageWe)
 			} else if result == "" {
-				s.launcherUpdate += i18n.T(i18n.KeyCmdWhalebridgeProviderSettingsKeysAccount)
+				msg += i18n.T(i18n.KeyCmdWhalebridgeProviderSettingsKeysAccount)
 			}
 			if removal.DefaultModel() {
-				s.launcherUpdate += i18n.T(i18n.KeyCmdSelectANewDefaultModel)
+				msg += i18n.T(i18n.KeyCmdSelectANewDefaultModel)
 			}
 			if result != "" {
-				s.launcherUpdate += " " + result
+				msg += " " + result
 			}
 		} else if err == nil && plan != nil {
-			s.launcherUpdate = i18n.T(i18n.KeyCmdWhalebridgeSwitchedToV) + plan.Version() + i18n.T(i18n.KeyCmdUserDataAndTheOriginalRunningStateWer)
+			msg = i18n.T(i18n.KeyCmdWhalebridgeSwitchedToV) + plan.Version() + i18n.T(i18n.KeyCmdUserDataAndTheOriginalRunningStateWer)
 		}
-		s.launcherComponentStatus = s.launcherUpdate
-		s.mu.Unlock()
+		s.launcherController().SetComponentActivity(msg, msg, false)
 		// A stopped, switched or uninstalled instance invalidates its management
 		// page: the loopback key belongs to the old process. Close the embedded
 		// window instead of leaving a dead document (reference ipc-components.js).

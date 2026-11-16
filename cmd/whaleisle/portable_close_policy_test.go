@@ -1,21 +1,24 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	launcherctl "whaleisle/internal/app/launcher"
+)
 
 func TestPrivateDesktopCannotHideWithoutTray(t *testing.T) {
-	previous := portableDesktopRoot
-	t.Cleanup(func() { portableDesktopRoot = previous })
+	previous := launcherctl.SetPortableDesktopRoot("")
+	t.Cleanup(func() { launcherctl.SetPortableDesktopRoot(previous) })
 	t.Setenv("WHALEISLE_ISOLATED", "")
 	state := &mainState{closeToTray: true}
-	portableDesktopRoot = ""
 	if !state.shouldCloseToTray() {
 		t.Fatal("installed desktop should retain its configured close policy")
 	}
-	portableDesktopRoot = t.TempDir()
+	launcherctl.SetPortableDesktopRoot(t.TempDir())
 	if state.shouldCloseToTray() {
 		t.Fatal("portable desktop must close instead of hiding without a tray")
 	}
-	portableDesktopRoot = ""
+	launcherctl.SetPortableDesktopRoot("")
 	t.Setenv("WHALEISLE_ISOLATED", "1")
 	if state.shouldCloseToTray() {
 		t.Fatal("isolated QA desktop must not hide without a tray")

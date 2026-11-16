@@ -6,16 +6,48 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/theme"
 )
 
+const (
+	maxWallpaperCacheEntries = 8
+	wallpaperNegativeTTL     = 15 * time.Second
+)
+
+type wallpaperLRUEntry struct {
+	bmp      *ui.Bitmap
+	failedAt time.Time
+}
+
 var wallpaperCache struct {
-	mu   sync.Mutex
-	path string
-	bmp  *ui.Bitmap
+	mu       sync.Mutex
+	entries  map[string]wallpaperLRUEntry
+	order    []string
+	inFlight map[string]bool
+}
+
+func wallpaperTouchLRU(order []string, key string) []string {
+	for i, existing := range order {
+		if existing == key {
+			order = append(order[:i], order[i+1:]...)
+			break
+		}
+	}
+	return append(order, key)
+}
+
+func wallpaperStoreBounded[V any](entries map[string]V, order *[]string, limit int, key string, value V) {
+	entries[key] = value
+	*order = wallpaperTouchLRU(*order, key)
+	for len(*order) > limit {
+		oldest := (*order)[0]
+		*order = (*order)[1:]
+		delete(entries, oldest)
+	}
 }
 
 // WallpaperBackdrop draws a full-window cover image when path is a readable
@@ -30,7 +62,11 @@ func WallpaperBackdrop(c *ui.Context, path string) {
 	if path == "" {
 		return
 	}
-	bmp := loadWallpaperBitmap(path)
+	var invalidate func()
+	if c != nil {
+		invalidate = c.Services().Invalidate
+	}
+	bmp := loadWallpaperBitmapAsync(path, invalidate)
 	if bmp == nil {
 		return
 	}
@@ -39,27 +75,55 @@ func WallpaperBackdrop(c *ui.Context, path string) {
 	})
 }
 
-func loadWallpaperBitmap(path string) *ui.Bitmap {
+func loadWallpaperBitmapAsync(path string, invalidate func()) *ui.Bitmap {
+	now := time.Now()
 	wallpaperCache.mu.Lock()
-	defer wallpaperCache.mu.Unlock()
-	if wallpaperCache.path == path && wallpaperCache.bmp != nil {
-		return wallpaperCache.bmp
+	if entry, ok := wallpaperCache.entries[path]; ok {
+		if entry.bmp != nil {
+			wallpaperCache.order = wallpaperTouchLRU(wallpaperCache.order, path)
+			wallpaperCache.mu.Unlock()
+			return entry.bmp
+		}
+		if now.Sub(entry.failedAt) < wallpaperNegativeTTL {
+			wallpaperCache.order = wallpaperTouchLRU(wallpaperCache.order, path)
+			wallpaperCache.mu.Unlock()
+			return nil
+		}
+		delete(wallpaperCache.entries, path)
 	}
-	data, err := wallpaperImageBytes(path)
-	if err != nil {
-		wallpaperCache.path = path
-		wallpaperCache.bmp = nil
+	if wallpaperCache.inFlight[path] {
+		wallpaperCache.mu.Unlock()
 		return nil
 	}
-	bmp, err := ui.DecodeBitmap(data)
-	if err != nil {
-		wallpaperCache.path = path
-		wallpaperCache.bmp = nil
-		return nil
+	if wallpaperCache.entries == nil {
+		wallpaperCache.entries = make(map[string]wallpaperLRUEntry, maxWallpaperCacheEntries)
 	}
-	wallpaperCache.path = path
-	wallpaperCache.bmp = bmp
-	return bmp
+	if wallpaperCache.inFlight == nil {
+		wallpaperCache.inFlight = make(map[string]bool)
+	}
+	wallpaperCache.inFlight[path] = true
+	wallpaperCache.mu.Unlock()
+
+	go func() {
+		var bmp *ui.Bitmap
+		if data, err := wallpaperImageBytes(path); err == nil {
+			if decoded, err := ui.DecodeBitmap(data); err == nil {
+				bmp = decoded
+			}
+		}
+		wallpaperCache.mu.Lock()
+		delete(wallpaperCache.inFlight, path)
+		entry := wallpaperLRUEntry{bmp: bmp}
+		if bmp == nil {
+			entry.failedAt = time.Now()
+		}
+		wallpaperStoreBounded(wallpaperCache.entries, &wallpaperCache.order, maxWallpaperCacheEntries, path, entry)
+		wallpaperCache.mu.Unlock()
+		if bmp != nil && invalidate != nil {
+			invalidate()
+		}
+	}()
+	return nil
 }
 
 // Host ui-theme stores the image itself. Decode accepted data URLs in memory;

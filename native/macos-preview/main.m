@@ -6,6 +6,7 @@
 #import <unistd.h>
 #import <signal.h>
 #import <sys/resource.h>
+#import <errno.h>
 #import <math.h>
 #import <CoreGraphics/CoreGraphics.h>
 
@@ -13,23 +14,57 @@ static NSString *nonce;
 static void fail(NSString *why) { fprintf(stderr, "macOS preview: %s\n", why.UTF8String); exit(1); }
 static NSData *readExact(NSUInteger length) {
     NSMutableData *data = [NSMutableData dataWithLength:length]; NSUInteger offset = 0;
-    while (offset < length) { ssize_t n = read(STDIN_FILENO, (char *)data.mutableBytes + offset, length-offset); if (n <= 0) fail(@"parent pipe closed"); offset += n; }
+    while (offset < length) {
+        ssize_t n = read(STDIN_FILENO, (char *)data.mutableBytes + offset, length - offset);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) fail(@"parent pipe closed");
+        offset += (NSUInteger)n;
+    }
     return data;
 }
-static void writeData(NSData *data) {
-    NSUInteger offset=0; while(offset<data.length) { ssize_t n=write(STDOUT_FILENO,(const char *)data.bytes+offset,data.length-offset); if(n<=0) exit(1);offset+=n; }
+static dispatch_queue_t stdoutQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ queue = dispatch_queue_create("org.whaleisle.preview.stdout", DISPATCH_QUEUE_SERIAL); });
+    return queue;
+}
+static void writeDataSync(NSData *data) {
+    NSUInteger offset = 0;
+    while (offset < data.length) {
+        ssize_t n = write(STDOUT_FILENO, (const char *)data.bytes + offset, data.length - offset);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) exit(1);
+        offset += (NSUInteger)n;
+    }
+}
+static void writePacket(NSString *kind, NSDictionary *fields, NSData *payload) {
+    NSMutableDictionary *p = [@{@"version":@1,@"kind":kind,@"nonce":nonce} mutableCopy];
+    if (fields) [p addEntriesFromDictionary:fields];
+    NSData *raw = [NSJSONSerialization dataWithJSONObject:p options:0 error:nil];
+    if (!raw || raw.length > 4096) fail(@"oversize IPC header");
+    uint32_t n = CFSwapInt32HostToLittle((uint32_t)raw.length);
+    NSData *headerPrefix = [NSData dataWithBytes:&n length:4];
+    NSData *payloadCopy = payload ? [payload copy] : nil;
+    dispatch_async(stdoutQueue(), ^{
+        writeDataSync(headerPrefix);
+        writeDataSync(raw);
+        if (payloadCopy) writeDataSync(payloadCopy);
+    });
+}
+static NSString *jsonStringForJS(NSData *raw) {
+    if (!raw) fail(@"JSON serialization failed");
+    NSString *json = [[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
+    if (!json) fail(@"invalid JSON UTF-8");
+    json = [json stringByReplacingOccurrencesOfString:@"\u2028" withString:@"\\u2028"];
+    json = [json stringByReplacingOccurrencesOfString:@"\u2029" withString:@"\\u2029"];
+    return json;
 }
 static NSDictionary *readPacket(void) {
-    NSData *prefix=readExact(4); uint32_t n; memcpy(&n,prefix.bytes,4); n=CFSwapInt32LittleToHost(n);
-    if(n<1 || n>4096) fail(@"invalid IPC header length");
-    id value=[NSJSONSerialization JSONObjectWithData:readExact(n) options:0 error:nil];
-    if(![value isKindOfClass:NSDictionary.class] || ![value[@"version"] isEqual:@1] || ![value[@"nonce"] isEqual:nonce]) fail(@"invalid IPC header");
+    NSData *prefix = readExact(4); uint32_t n; memcpy(&n, prefix.bytes, 4); n = CFSwapInt32LittleToHost(n);
+    if (n < 1 || n > 4096) fail(@"invalid IPC header length");
+    id value = [NSJSONSerialization JSONObjectWithData:readExact(n) options:0 error:nil];
+    if (![value isKindOfClass:NSDictionary.class] || ![value[@"version"] isEqual:@1] || ![value[@"nonce"] isEqual:nonce]) fail(@"invalid IPC header");
     return value;
-}
-static void packet(NSString *kind, NSDictionary *fields) {
-    NSMutableDictionary *p=[@{@"version":@1,@"kind":kind,@"nonce":nonce} mutableCopy]; [p addEntriesFromDictionary:fields];
-    NSData *raw=[NSJSONSerialization dataWithJSONObject:p options:0 error:nil]; if(!raw || raw.length>4096) fail(@"oversize IPC header");
-    uint32_t n=CFSwapInt32HostToLittle((uint32_t)raw.length); writeData([NSData dataWithBytes:&n length:4]);writeData(raw);
 }
 static NSDictionary *signingInfo(SecCodeRef code) {
     CFDictionaryRef info=NULL;
@@ -91,20 +126,22 @@ static void verifyIdentity(void) {
     if(!self.openUI || !self.loaded) return;
     NSString *json=[self.web stringByEvaluatingJavaScriptFromString:@"(()=>{if(window.__previewState&&window.__previewState.error)throw new Error('OpenUI shell failed');return JSON.stringify(window.__whaleOpenUIDrain());})()"];
     if(!json || [json lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>16*(65536+1)+2) fail(@"invalid OpenUI event batch");
-    id batch=[NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    NSData *batchData=[json dataUsingEncoding:NSUTF8StringEncoding];
+    if(!batchData) fail(@"invalid OpenUI event UTF-8");
+    id batch=[NSJSONSerialization JSONObjectWithData:batchData options:0 error:nil];
     if(![batch isKindOfClass:NSArray.class] || [batch count]>16) fail(@"invalid OpenUI event count");
     for(id event in batch) {
         if(![event isKindOfClass:NSDictionary.class]) fail(@"invalid OpenUI event");
         NSData *raw=[NSJSONSerialization dataWithJSONObject:event options:0 error:nil];
         NSUInteger size=raw.length;
-		if(!raw || raw.length>65536 || size<1 || size>65536) fail(@"invalid OpenUI event size");
-        packet(@"openui-event",@{@"bytes":@(raw.length)});writeData(raw);
+        if(!raw || raw.length>65536 || size<1 || size>65536) fail(@"invalid OpenUI event size");
+        writePacket(@"openui-event",@{@"bytes":@(size)},raw);
     }
 }
 - (void)pollOpenUI:(NSTimer *)timer { [self emitOpenUIEvents]; }
 - (void)emitFrame {
     NSData *png=[self framePNG];
-    packet(@"frame",@{@"bytes":@(png.length),@"width":@(self.width),@"height":@700});writeData(png);
+    writePacket(@"frame",@{@"bytes":@(png.length),@"width":@(self.width),@"height":@700},png);
 }
 - (void)mouseButton:(NSInteger)button down:(BOOL)down {
     NSEventType type;
@@ -196,7 +233,7 @@ static void verifyIdentity(void) {
     if(![instance isKindOfClass:NSString.class] || instance.length!=64 || [instance rangeOfCharacterFromSet:nonhex].location!=NSNotFound || ![program isKindOfClass:NSString.class] || program.length<1 || [program lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>262144 || (streaming!=(__bridge id)kCFBooleanTrue && streaming!=(__bridge id)kCFBooleanFalse)) fail(@"invalid OpenUI render payload");
     NSData *raw=[NSJSONSerialization dataWithJSONObject:next options:0 error:nil];
     if(!raw || raw.length>2*1024*1024) fail(@"OpenUI render exceeds limit");
-    NSString *script=[NSString stringWithFormat:@"window.__whaleOpenUIRender(%@);true",[[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding]];
+    NSString *script=[NSString stringWithFormat:@"window.__whaleOpenUIRender(%@);true",jsonStringForJS(raw)];
     NSString *result=[self.web stringByEvaluatingJavaScriptFromString:script];
     if(![result isEqual:@"true"]) fail(@"OpenUI render rejected by shell");
 }
@@ -209,10 +246,7 @@ static void verifyIdentity(void) {
     if(![instance isKindOfClass:NSString.class] || instance.length!=64 || [instance rangeOfCharacterFromSet:nonhex].location!=NSNotFound || ![request isKindOfClass:NSString.class] || request.length<1 || ![status isKindOfClass:NSNumber.class] || !isfinite([status doubleValue]) || floor([status doubleValue])!=[status doubleValue] || [status integerValue]<200 || [status integerValue]>599 || !response[@"body"]) fail(@"invalid OpenUI API response payload");
     NSData *raw=[NSJSONSerialization dataWithJSONObject:response options:0 error:nil];
     if(!raw || raw.length<1 || raw.length>25*1024*1024) fail(@"OpenUI API response exceeds envelope");
-    NSString *json=[[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
-    json=[json stringByReplacingOccurrencesOfString:@"\u2028" withString:@"\\u2028"];
-    json=[json stringByReplacingOccurrencesOfString:@"\u2029" withString:@"\\u2029"];
-    NSString *script=[NSString stringWithFormat:@"(()=>{if(window.__whaleOpenUIAPIResponse(%@)!==true)throw new Error('OpenUI API response rejected');return true;})()",json];
+    NSString *script=[NSString stringWithFormat:@"(()=>{if(window.__whaleOpenUIAPIResponse(%@)!==true)throw new Error('OpenUI API response rejected');return true;})()",jsonStringForJS(raw)];
     NSString *result=[self.web stringByEvaluatingJavaScriptFromString:script];
     if(![result isEqual:@"true"]) fail(@"OpenUI API response rejected by shell");
 }
@@ -282,7 +316,9 @@ static void verifyIdentity(void) {
     if(self.loaded) return;
     if(NSDate.timeIntervalSinceReferenceDate>self.deadline) fail(@"legacy WebView initialization timed out");
     NSString *json=[self.web stringByEvaluatingJavaScriptFromString:@"JSON.stringify(window.__previewState||null)"];
-    NSDictionary *state=[NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    NSData *stateData=[json dataUsingEncoding:NSUTF8StringEncoding];
+    if(!stateData) return;
+    NSDictionary *state=[NSJSONSerialization JSONObjectWithData:stateData options:0 error:nil];
     if(![state isKindOfClass:NSDictionary.class]) return;
     if([state[@"error"] isKindOfClass:NSString.class] && [state[@"error"] length]>0) fail(@"preview shell failed to initialize");
     if(![state[@"ready"] isEqual:@YES]) return;
@@ -301,7 +337,7 @@ static void verifyIdentity(void) {
         if(!isfinite(width) || !isfinite(height) || width<=0 || height<=0 || width>32768 || height>32768 || width*height>32000000) fail(@"unbounded image intrinsic dimensions");
         loaded[@"imageWidth"]=@(width);loaded[@"imageHeight"]=@(height);
     }
-    packet(@"loaded",loaded);
+    writePacket(@"loaded",loaded,nil);
     if(!self.capture) {
         if(self.inlineSeat) { [self.window makeFirstResponder:self.web];[self emitFrame]; }
         else { [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
@@ -319,7 +355,7 @@ static void verifyIdentity(void) {
         NSArray *messages=[state[@"consoleMessages"] isKindOfClass:NSArray.class]?state[@"consoleMessages"]:@[];
         NSDictionary *result=@{@"png":[png base64EncodedStringWithOptions:0],@"width":@(self.width),@"contentHeight":@((NSInteger)ceil(measured)),@"capturedHeight":@(height),@"consoleMessages":messages};
         NSData *body=[NSJSONSerialization dataWithJSONObject:result options:0 error:nil];if(!body || body.length>90*1024*1024) fail(@"capture exceeds limit");
-        packet(@"capture",@{@"bytes":@(body.length)});writeData(body);
+        writePacket(@"capture",@{@"bytes":@(body.length)},body);
     });
 }
 - (void)theme:(NSDictionary *)p {
@@ -329,7 +365,7 @@ static void verifyIdentity(void) {
     NSDictionary *overrides=p[@"variables"] ?: @{};if(![overrides isKindOfClass:NSDictionary.class]) fail(@"invalid theme tokens");
     for(NSString *key in overrides) { id value=overrides[key];if(!vars[key] || ![value isKindOfClass:NSString.class] || [value length]<1 || [value length]>128) fail(@"invalid theme token");vars[key]=value; }
     NSData *raw=[NSJSONSerialization dataWithJSONObject:@{@"type":@"whale-visual-reply-theme",@"appearance":appearance,@"variables":vars} options:0 error:nil];
-    NSString *script=[NSString stringWithFormat:@"window.__previewTheme(%@);true",[[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding]];
+    NSString *script=[NSString stringWithFormat:@"window.__previewTheme(%@);true",jsonStringForJS(raw)];
     [self.web stringByEvaluatingJavaScriptFromString:script];
 }
 @end
@@ -348,7 +384,7 @@ int main(int argc,const char *argv[]) { @autoreleasepool {
     Preview *preview=[Preview new];
     // Ready means the independently signed single-process renderer is identified;
     // no untrusted document has been read or loaded at this point.
-    packet(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES,@"openUIUpdate":@YES,@"openUIAPI":@YES,@"openUIAPIBytes":@(25*1024*1024)});
+    writePacket(@"ready",@{@"helperPID":@(getpid()),@"browserPID":@(getpid()),@"openUI":@YES,@"openUIUpdate":@YES,@"openUIAPI":@YES,@"openUIAPIBytes":@(25*1024*1024)},nil);
     NSDictionary *doc=readPacket();if(![doc[@"kind"] isEqual:@"document"]) fail(@"unsupported document request");
     NSInteger n=[doc[@"bytes"] integerValue],width=[doc[@"width"] integerValue];
     if(n<1 || n>25*1024*1024 || width<240 || width>1600) fail(@"invalid document size");

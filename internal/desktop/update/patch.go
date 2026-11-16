@@ -76,10 +76,16 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 	if releaseURL == "" {
 		return ApplyResult{}, fmt.Errorf("empty release URL")
 	}
-	client := opt.HTTPClient
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
+	if _, err := validateDownloadURL(releaseURL); err != nil {
+		return ApplyResult{}, err
 	}
+	if bmURL := strings.TrimSpace(opt.Feed.BlockMapURL); bmURL != "" {
+		if _, err := validateDownloadURL(bmURL); err != nil {
+			return ApplyResult{}, err
+		}
+	}
+	opt.HTTPClient = hardenDownloadClient(opt.HTTPClient, 5*time.Minute)
+	client := opt.HTTPClient
 	var partial *os.File
 	var partialSize int64
 	if opt.Resume {
@@ -130,10 +136,10 @@ func ApplyBlockPatchOpts(ctx context.Context, opt PatchOptions) (ApplyResult, er
 
 func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, oldSize int64, need []int, firstRange []byte) (ApplyResult, error) {
 	info := opt.BlockMap
-	client := opt.HTTPClient
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
+	if _, err := validateDownloadURL(opt.Feed.URL); err != nil {
+		return ApplyResult{}, err
 	}
+	client := hardenDownloadClient(opt.HTTPClient, 5*time.Minute)
 	releaseURL := strings.TrimSpace(opt.Feed.URL)
 
 	destDir := opt.DestDir
@@ -193,9 +199,12 @@ func reconstructFromBlocks(ctx context.Context, opt PatchOptions, old *os.File, 
 	}
 	copied, fetched := 0, 0
 	var completed int64
+	var lastProgress time.Time
 	progress := func(n int64) {
 		completed += n
-		if opt.OnProgress != nil {
+		done := outSize > 0 && completed >= outSize
+		if opt.OnProgress != nil && (lastProgress.IsZero() || time.Since(lastProgress) >= 100*time.Millisecond || done) {
+			lastProgress = time.Now()
 			opt.OnProgress(completed, outSize)
 		}
 	}

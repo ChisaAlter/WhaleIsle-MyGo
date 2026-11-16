@@ -185,9 +185,14 @@ func View(c *ui.Context, m Model) {
 		_ = ensureSaveQueue(m, t)
 	}
 	defer observeAutosave(m)
-	if (m.AllowPageShortcuts == nil || m.AllowPageShortcuts()) && m.SelectedFile != nil && *m.SelectedFile != "" && c.PageShortcut(ui.Cmd, ui.KeyS) {
-		if err := requestSaveDraft(m); err != nil {
-			setFileStatus(m, err.Error())
+	if (m.AllowPageShortcuts == nil || m.AllowPageShortcuts()) && m.SelectedFile != nil && *m.SelectedFile != "" {
+		if c.PageShortcut(ui.Cmd, ui.KeyS) {
+			if err := requestSaveDraft(m); err != nil {
+				setFileStatus(m, err.Error())
+			}
+		}
+		if c.PageShortcut(ui.Cmd, ui.KeyF) {
+			triggerPreviewFind(m)
 		}
 	}
 	if m.Tabs != nil {
@@ -477,6 +482,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 			})
 			return
 		}
+		paintPreviewFindBar(c, m, sel, border, muted)
 		editing = m.Editing != nil && *m.Editing
 		mode = resolveEditViewMode(m, canHL && editing)
 		if editing && m.EditDraft != nil {

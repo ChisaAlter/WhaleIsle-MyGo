@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestRestartAndConflictingInstance(t *testing.T) {
@@ -73,5 +74,59 @@ func TestInvalidAndLockedFilesArePreserved(t *testing.T) {
 	}
 	if s.Snapshot().Workspace != "" {
 		t.Fatal("failed write changed memory")
+	}
+}
+
+func TestLockFileContainsOwnerDiagnosticsAndRespectsErrBusy(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(dir, FileName+".lock")
+	release, err := acquireLock(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := os.ReadFile(lockPath)
+	if err != nil {
+		release()
+		t.Fatal(err)
+	}
+	var info lockOwnerInfo
+	if err := json.Unmarshal(raw, &info); err != nil {
+		release()
+		t.Fatalf("invalid lock diagnostic payload %q: %v", raw, err)
+	}
+	if info.PID != os.Getpid() {
+		release()
+		t.Fatalf("lock pid = %d, want %d", info.PID, os.Getpid())
+	}
+	if _, err := time.Parse(time.RFC3339Nano, info.CreatedAt); err != nil {
+		release()
+		t.Fatalf("invalid lock timestamp %q: %v", info.CreatedAt, err)
+	}
+
+	if _, err := acquireLock(lockPath); !errors.Is(err, ErrBusy) {
+		release()
+		t.Fatalf("second acquireLock got %v, want ErrBusy", err)
+	}
+	if err := s.Update(func(v *State) { v.Workspace = "blocked" }); !errors.Is(err, ErrBusy) {
+		release()
+		t.Fatalf("Update while locked got %v, want ErrBusy", err)
+	}
+	afterRaw, err := os.ReadFile(lockPath)
+	if err != nil || !bytes.Equal(afterRaw, raw) {
+		release()
+		t.Fatalf("lock diagnostics altered while busy: %q vs %q (%v)", afterRaw, raw, err)
+	}
+
+	release()
+	if _, err := os.Stat(lockPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("lock not removed after release: %v", err)
+	}
+	if err := s.Update(func(v *State) { v.Workspace = "/ok" }); err != nil {
+		t.Fatalf("Update after release failed: %v", err)
 	}
 }

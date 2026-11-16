@@ -67,13 +67,26 @@ type registryDocument struct {
 	CurrentID json.RawMessage   `json:"currentId,omitempty"`
 }
 
+type persistedConnection struct {
+	SavedConnection
+	PasswordSet      bool `json:"passwordSet,omitempty"`
+	PassphraseSet    bool `json:"passphraseSet,omitempty"`
+	ProxyPasswordSet bool `json:"proxyPasswordSet,omitempty"`
+}
+
+type persistedRegistryDocument struct {
+	List      []persistedConnection `json:"list"`
+	CurrentID json.RawMessage       `json:"currentId,omitempty"`
+}
+
 // RegistryPath is the profile file used by the native SSH surface.
 func RegistryPath(userData string) string {
 	return filepath.Join(userData, "ssh", "machines.json")
 }
 
-// LoadConnectionRegistry loads a registry document. Missing files are a new
-// registry and do not create directories or files.
+// LoadConnectionRegistry loads a registry document, backfilling secrets from
+// encrypted credentials storage and migrating any legacy plaintext secrets on
+// disk. Missing files are a new registry and do not create directories or files.
 func LoadConnectionRegistry(path string) (ConnectionRegistry, error) {
 	if strings.TrimSpace(path) == "" {
 		return ConnectionRegistry{}, errors.New("registry path required")
@@ -105,24 +118,150 @@ func LoadConnectionRegistry(path string) (ConnectionRegistry, error) {
 	if reg.CurrentID != "" && !connectionExists(reg.List, reg.CurrentID) {
 		reg.CurrentID = ""
 	}
+
+	credDir := credentialsDirForRegistry(path)
+	legacy := map[string]connectionSecrets{}
+	for _, conn := range reg.List {
+		if conn.ID == "" {
+			continue
+		}
+		sec := extractConnectionSecrets(conn)
+		if !sec.empty() {
+			legacy[conn.ID] = sec
+		}
+	}
+
+	bucket, _, err := loadSSHSecrets(credDir)
+	if err != nil {
+		return ConnectionRegistry{}, err
+	}
+	if len(legacy) > 0 {
+		mergedConns := make(map[string]connectionSecrets, len(bucket.Connections)+len(legacy))
+		for id, sec := range bucket.Connections {
+			mergedConns[id] = sec
+		}
+		for id, sec := range legacy {
+			prev := mergedConns[id]
+			if sec.Password != "" {
+				prev.Password = sec.Password
+			}
+			if sec.Passphrase != "" {
+				prev.Passphrase = sec.Passphrase
+			}
+			if sec.ProxyPassword != "" {
+				prev.ProxyPassword = sec.ProxyPassword
+			}
+			mergedConns[id] = prev
+		}
+		if err := writeSSHConnectionSecrets(credDir, mergedConns); err != nil {
+			return ConnectionRegistry{}, err
+		}
+		bucket.Connections = mergedConns
+		if err := writeSanitizedRegistryFile(path, reg); err != nil {
+			return ConnectionRegistry{}, err
+		}
+	}
+	applyConnectionSecrets(reg.List, bucket.Connections)
 	return reg, nil
 }
 
-// SaveConnectionRegistry writes a registry atomically and preserves the
-// source shell's no-auto-promotion semantics.
+// SaveConnectionRegistry writes a sanitized registry atomically (persisting
+// secrets inside encrypted credentials storage) and preserves the source shell's
+// no-auto-promotion semantics.
 func SaveConnectionRegistry(path string, reg ConnectionRegistry) error {
 	if strings.TrimSpace(path) == "" {
 		return errors.New("registry path required")
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
 	}
 	list := cloneConnections(reg.List)
 	current := strings.TrimSpace(reg.CurrentID)
 	if current != "" && !connectionExists(list, current) {
 		return fmt.Errorf("ssh registry: current connection %q not found", current)
 	}
-	doc := registryDocument{List: list}
+	desired := map[string]connectionSecrets{}
+	for _, conn := range list {
+		if conn.ID == "" {
+			continue
+		}
+		if sec := extractConnectionSecrets(conn); !sec.empty() {
+			desired[conn.ID] = sec
+		}
+	}
+	credDir := credentialsDirForRegistry(path)
+	bucket, _, err := loadSSHSecrets(credDir)
+	if err != nil {
+		return err
+	}
+	if len(desired) > 0 || len(bucket.Connections) > 0 {
+		if err := writeSSHConnectionSecrets(credDir, desired); err != nil {
+			return err
+		}
+	}
+	return writeSanitizedRegistryFile(path, reg)
+}
+
+func extractConnectionSecrets(c SavedConnection) connectionSecrets {
+	sec := connectionSecrets{Password: c.Password, Passphrase: c.Passphrase}
+	if c.Proxy != nil {
+		sec.ProxyPassword = c.Proxy.Password
+	}
+	return sec
+}
+
+func writeSSHConnectionSecrets(credDir string, conns map[string]connectionSecrets) error {
+	return updateSSHSecrets(credDir, func(obj map[string]json.RawMessage) error {
+		if len(conns) == 0 {
+			delete(obj, "connections")
+			return nil
+		}
+		encoded, err := json.Marshal(conns)
+		if err != nil {
+			return err
+		}
+		obj["connections"] = encoded
+		return nil
+	})
+}
+
+func applyConnectionSecrets(list []SavedConnection, secrets map[string]connectionSecrets) {
+	if len(secrets) == 0 {
+		return
+	}
+	for i := range list {
+		sec, ok := secrets[list[i].ID]
+		if !ok {
+			continue
+		}
+		if list[i].Password == "" && sec.Password != "" {
+			list[i].Password = sec.Password
+		}
+		if list[i].Passphrase == "" && sec.Passphrase != "" {
+			list[i].Passphrase = sec.Passphrase
+		}
+		if list[i].Proxy != nil && list[i].Proxy.Password == "" && sec.ProxyPassword != "" {
+			list[i].Proxy.Password = sec.ProxyPassword
+		}
+	}
+}
+
+func writeSanitizedRegistryFile(path string, reg ConnectionRegistry) error {
+	list := cloneConnections(reg.List)
+	sanitizedList := make([]persistedConnection, len(list))
+	for i, conn := range list {
+		sec := extractConnectionSecrets(conn)
+		conn.Password = ""
+		conn.Passphrase = ""
+		if conn.Proxy != nil {
+			conn.Proxy.Password = ""
+		}
+		sanitizedList[i] = persistedConnection{
+			SavedConnection:  conn,
+			PasswordSet:      sec.Password != "",
+			PassphraseSet:    sec.Passphrase != "",
+			ProxyPasswordSet: sec.ProxyPassword != "",
+		}
+	}
+	current := strings.TrimSpace(reg.CurrentID)
+	doc := persistedRegistryDocument{List: sanitizedList}
 	if reg.ExplicitNone || current != "" {
 		if reg.ExplicitNone {
 			doc.CurrentID = json.RawMessage("null")
@@ -138,24 +277,7 @@ func SaveConnectionRegistry(path string, reg ConnectionRegistry) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".machines-*.json")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, path)
+	return writePrivateFileAtomic(path, data)
 }
 
 // SaveConnectionList updates the list while preserving the currentId key

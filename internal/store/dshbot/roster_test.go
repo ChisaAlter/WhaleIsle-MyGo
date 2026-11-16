@@ -3,6 +3,7 @@ package dshbot
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"whaleisle/internal/desktop/pluginrpc"
@@ -93,5 +94,44 @@ func TestMergeActivityAndGroupRuntime(t *testing.T) {
 	}
 	if room.Detail != "runtime: idle,busy" {
 		t.Fatalf("room detail = %q", room.Detail)
+	}
+}
+
+func TestOpenPreservesCorruptRosterAndLeavesNoTemp(t *testing.T) {
+	dir := t.TempDir()
+	root := Dir(dir)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, rosterFile)
+	const broken = "{corrupt-roster"
+	if err := os.WriteFile(target, []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(dir); err == nil {
+		t.Fatal("Open succeeded on corrupt roster.json, want error")
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != broken {
+		t.Fatalf("roster.json overwritten: %q", got)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backups := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), rosterFile+".corrupt-") {
+			backups++
+		}
+		if strings.Contains(e.Name(), ".tmp") {
+			t.Fatalf("unexpected temp file: %s", e.Name())
+		}
+	}
+	if backups != 1 {
+		t.Fatalf("backups = %d, want 1", backups)
 	}
 }

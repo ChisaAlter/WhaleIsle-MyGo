@@ -121,6 +121,7 @@ func TestExplicitSaveReadPermissionRemainsNarrow(t *testing.T) {
 	}{
 		{"dirty failed read", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", readBlocked: true}, true, true},
 		{"dirty truncated", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", Truncated: true}, true, true},
+		{"dirty conflict", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", readBlocked: true, hasConflict: true, conflictContent: "external"}, true, false},
 		{"automatic failed read", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", readBlocked: true}, false, false},
 		{"loading", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", readLoading: true}, true, false},
 		{"resume", FileTab{Path: "a.txt", Preview: "base", Draft: "draft", readResume: true}, true, false},

@@ -130,8 +130,8 @@ func (s *mainState) reloadSettingsSkillEdit() {
 		} else {
 			s.settingsSkillEditTarget = loaded
 			fields := loaded.Fields()
-			s.settingsSkillsDetail = loaded.Label() + "\n\n" + pluginCopy("已重新核对当前文件，下面保留你的草稿。再次保存将写入这份草稿。当前文件：", "The current file was rechecked. Your draft is retained below; Save writes that draft. Current file:") +
-				fmt.Sprintf("\n%s: %s\n%s: %s\n%s: %s\n%s: %t · %s: %t\n\n%s", pluginCopy("描述", "Description"), fields.Description, pluginCopy("使用时机", "When to use"), fields.WhenToUse, pluginCopy("分组", "Groups"), strings.Join(fields.Groups, ", "), pluginCopy("模型可调用", "Model invocable"), fields.ModelInvocable, pluginCopy("用户可调用", "User invocable"), fields.UserInvocable, fields.Content)
+			s.settingsSkillsDetail = loaded.Label() + "\n\n" + resumeText("已重新核对当前文件，下面保留你的草稿。再次保存将写入这份草稿。当前文件：", "The current file was rechecked. Your draft is retained below; Save writes that draft. Current file:") +
+				fmt.Sprintf("\n%s: %s\n%s: %s\n%s: %s\n%s: %t · %s: %t\n\n%s", resumeText("描述", "Description"), fields.Description, resumeText("使用时机", "When to use"), fields.WhenToUse, resumeText("分组", "Groups"), strings.Join(fields.Groups, ", "), resumeText("模型可调用", "Model invocable"), fields.ModelInvocable, resumeText("用户可调用", "User invocable"), fields.UserInvocable, fields.Content)
 		}
 		s.mu.Unlock()
 		if win != nil {

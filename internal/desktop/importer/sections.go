@@ -164,7 +164,7 @@ func privatePath(path string) error {
 		if e != nil && !os.IsNotExist(e) {
 			return e
 		}
-		if e == nil && (info.Mode()&os.ModeSymlink != 0 || (p == absolute && !info.Mode().IsRegular())) {
+		if e == nil && (info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 || (p == absolute && !info.Mode().IsRegular())) {
 			return fmt.Errorf("unsafe import file path")
 		}
 		if p == filepath.Dir(p) {

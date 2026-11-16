@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/startuprec"
 	"whaleisle/internal/startuptrace"
 )
 
@@ -91,10 +92,10 @@ type Options struct {
 	ReadRestartPolicy func() RestartPolicy
 	// ReadyTimeout bounds one start; npx downloads can take minutes.
 	ReadyTimeout time.Duration
-	// OnChange receives every status change, on the supervisor's goroutines.
+	// OnChange receives every status change, serialized on a background worker.
 	OnChange func(Status)
 	// OnPluginRecovery must persist the marker before a skipped-plugin retry.
-	// Called under the supervisor lock; it must not call back into Supervisor.
+	// Called outside the supervisor lock so callers may inspect Supervisor state safely.
 	OnPluginRecovery func(reason string, logs []string) error
 	// Install is the loopback install control server; started with the supervisor
 	// and its env is injected into each harness child.
@@ -104,6 +105,9 @@ type Options struct {
 // logLimit is how many output lines the boot log keeps.
 const logLimit = 400
 
+// maxNotifyQueue bounds buffered OnChange events while preserving essential state transitions.
+const maxNotifyQueue = 64
+
 // stopGrace is how long dsh gets between SIGTERM and SIGKILL on Unix. Windows
 // force-ends the tree on the first terminate, so Stop does not wait there.
 const stopGrace = 5 * time.Second
@@ -111,6 +115,80 @@ const stopGrace = 5 * time.Second
 // restartStablePeriod prevents a short-lived Ready state from replenishing the
 // restart budget. Healthy hosts earn a fresh budget after one minute online.
 const restartStablePeriod = time.Minute
+
+type notifyItem struct {
+	st        Status
+	essential bool
+}
+
+type notifyWorker struct {
+	mu     sync.Mutex
+	queue  []notifyItem
+	closed bool
+	sealed bool
+	done   chan struct{}
+}
+
+func (w *notifyWorker) seal() {
+	w.mu.Lock()
+	w.sealed = true
+	w.mu.Unlock()
+}
+
+func (w *notifyWorker) enqueue(item notifyItem) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed || w.sealed {
+		return false
+	}
+	if !item.essential {
+		if n := len(w.queue); n > 0 {
+			last := &w.queue[n-1]
+			if !last.essential && last.st.Generation == item.st.Generation && last.st.State == item.st.State {
+				last.st = item.st
+				return true
+			}
+		}
+	}
+	if len(w.queue) >= maxNotifyQueue {
+		evicted := false
+		for i, queued := range w.queue {
+			if !queued.essential {
+				copy(w.queue[i:], w.queue[i+1:])
+				w.queue[len(w.queue)-1] = notifyItem{}
+				w.queue = w.queue[:len(w.queue)-1]
+				evicted = true
+				break
+			}
+		}
+		if !evicted && !item.essential {
+			return true
+		}
+	}
+	w.queue = append(w.queue, item)
+	return true
+}
+
+func runNotifyWorker(w *notifyWorker, prev <-chan struct{}, cb func(Status)) {
+	defer close(w.done)
+	if prev != nil {
+		<-prev
+	}
+	for {
+		w.mu.Lock()
+		if len(w.queue) == 0 {
+			w.closed = true
+			w.mu.Unlock()
+			return
+		}
+		item := w.queue[0]
+		copy(w.queue, w.queue[1:])
+		w.queue[len(w.queue)-1] = notifyItem{}
+		w.queue = w.queue[:len(w.queue)-1]
+		w.mu.Unlock()
+		cb(item.st)
+	}
+}
 
 // Supervisor owns one dsh web child at a time.
 type Supervisor struct {
@@ -124,6 +202,7 @@ type Supervisor struct {
 	status           Status
 	cmd              *exec.Cmd
 	exited           chan struct{}
+	stoppingChildren int
 	gen              int
 	logs             []string
 	startLogs        []string // current attempt only; old attempts cannot implicate plugins
@@ -136,8 +215,11 @@ type Supervisor struct {
 	recoveryQueued    bool
 	recoveryCancelled bool
 	restartTimer      *time.Timer
+	launchCtx         context.Context
 	launchCancel      context.CancelFunc
 	statusChanged     chan struct{}
+	notify            *notifyWorker
+	prevNotifyDone    <-chan struct{}
 }
 
 // New returns a stopped supervisor.
@@ -209,10 +291,17 @@ func (s *Supervisor) startOwned() (int, bool) {
 	s.recoveryActive, s.recoveryQueued, s.recoveryCancelled = false, false, false
 	s.attemptRecovery = s.opts.Launch.SkipUserPlugins
 	gen := s.nextGenLocked()
+	launchCtx, launchCancel := context.WithCancel(context.Background())
+	s.launchCtx = launchCtx
+	s.launchCancel = launchCancel
+	s.setLocked(Status{State: Starting})
 	s.mu.Unlock()
 	if install != nil {
-		if err := install.Start(context.Background()); err != nil {
-			s.set(gen, Status{State: Failed, Err: fmt.Errorf("install control: %w", err)})
+		if err := install.Start(launchCtx); err != nil {
+			if s.current(gen) {
+				install.Stop()
+				s.set(gen, Status{State: Failed, Err: fmt.Errorf("install control: %w", err)})
+			}
 			return gen, true
 		}
 	}
@@ -239,6 +328,9 @@ func (s *Supervisor) CancelRecovery() Status {
 	s.nextGenLocked()
 	cmd, exited := s.cmd, s.exited
 	s.cmd, s.exited = nil, nil
+	if cmd != nil {
+		s.stoppingChildren++
+	}
 	st.State, st.Endpoint = Failed, Endpoint{}
 	if st.Err == nil {
 		st.Err = context.Canceled
@@ -248,7 +340,12 @@ func (s *Supervisor) CancelRecovery() Status {
 	s.setLocked(st)
 	st = s.status
 	s.mu.Unlock()
-	stopChild(cmd, exited)
+	if cmd != nil {
+		stopChild(cmd, exited)
+		s.mu.Lock()
+		s.stoppingChildren--
+		s.mu.Unlock()
+	}
 	return st
 }
 
@@ -259,13 +356,31 @@ func (s *Supervisor) Stop() {
 	s.nextGenLocked()
 	cmd, exited := s.cmd, s.exited
 	s.cmd, s.exited = nil, nil
+	if cmd != nil {
+		s.stoppingChildren++
+	}
 	s.recoveryActive, s.recoveryQueued, s.recoveryCancelled = false, false, false
 	s.setLocked(Status{State: Stopped})
+	var notifyDone <-chan struct{}
+	if w := s.notify; w != nil {
+		w.seal()
+		notifyDone = w.done
+	} else if s.prevNotifyDone != nil {
+		notifyDone = s.prevNotifyDone
+	}
 	s.mu.Unlock()
 	if install != nil {
 		install.Stop()
 	}
-	stopChild(cmd, exited)
+	if cmd != nil {
+		stopChild(cmd, exited)
+		s.mu.Lock()
+		s.stoppingChildren--
+		s.mu.Unlock()
+	}
+	if notifyDone != nil {
+		<-notifyDone
+	}
 }
 
 // The caller retains this exact child until its wait goroutine confirms exit.
@@ -288,6 +403,7 @@ func (s *Supervisor) nextGenLocked() int {
 		s.launchCancel()
 		s.launchCancel = nil
 	}
+	s.launchCtx = nil
 	if s.restartTimer != nil {
 		s.restartTimer.Stop()
 		s.restartTimer = nil
@@ -305,6 +421,27 @@ func (s *Supervisor) current(gen int) bool {
 	return s.gen == gen
 }
 
+func (s *Supervisor) enqueueNotifyLocked(st Status, essential bool) {
+	cb := s.opts.OnChange
+	if cb == nil {
+		return
+	}
+	item := notifyItem{st: st, essential: essential}
+	if w := s.notify; w != nil {
+		if w.enqueue(item) {
+			return
+		}
+	}
+	w := &notifyWorker{
+		queue: []notifyItem{item},
+		done:  make(chan struct{}),
+	}
+	prev := s.prevNotifyDone
+	s.notify = w
+	s.prevNotifyDone = w.done
+	go runNotifyWorker(w, prev, cb)
+}
+
 func (s *Supervisor) setLocked(st Status) {
 	if st.State == Ready {
 		if s.status.State != Ready || s.status.Generation != s.gen {
@@ -312,6 +449,13 @@ func (s *Supervisor) setLocked(st Status) {
 		}
 	} else {
 		s.readyAt = time.Time{}
+	}
+	if st.State == Stopped || st.State == Failed {
+		if s.launchCancel != nil {
+			s.launchCancel()
+			s.launchCancel = nil
+		}
+		s.launchCtx = nil
 	}
 	st.Generation = s.gen
 	st.Attempt = s.attempt
@@ -327,9 +471,7 @@ func (s *Supervisor) setLocked(st Status) {
 		close(s.statusChanged)
 		s.statusChanged = nil
 	}
-	if s.opts.OnChange != nil {
-		go s.opts.OnChange(st)
-	}
+	s.enqueueNotifyLocked(st, true)
 }
 
 func (s *Supervisor) set(gen int, st Status) bool {
@@ -358,13 +500,10 @@ func (s *Supervisor) log(line string, generation ...int) {
 	}
 	// Notify while Starting so the launcher can stream logs. Copy status under
 	// the lock; refreshBoot ignores Starting after Ready/Failed.
-	st := s.status
-	cb := s.opts.OnChange
-	notify := st.State == Starting && cb != nil
-	s.mu.Unlock()
-	if notify {
-		go cb(st)
+	if s.status.State == Starting {
+		s.enqueueNotifyLocked(s.status, false)
 	}
+	s.mu.Unlock()
 }
 
 func (s *Supervisor) run(gen int) {
@@ -392,22 +531,30 @@ func (s *Supervisor) run(gen int) {
 	s.startLogs = nil
 	launch := s.opts.Launch
 	readPatches := s.opts.ReadLaunchPatches
-	launchCtx, launchCancel := context.WithCancel(context.Background())
-	s.launchCancel = launchCancel
+	launchCtx, launchCancel := s.launchCtx, s.launchCancel
+	if launchCtx == nil || launchCancel == nil {
+		launchCtx, launchCancel = context.WithCancel(context.Background())
+		s.launchCtx = launchCtx
+		s.launchCancel = launchCancel
+	}
 	defer launchCancel()
 	s.attemptRecovery = launch.SkipUserPlugins
 	if s.recoveryActive {
 		s.setLocked(s.status)
 	}
 	launch.ExtraEnv = append([]string(nil), launch.ExtraEnv...)
-	if install := s.opts.Install; install != nil {
+	install := s.opts.Install
+	dshbot := s.opts.Prepare.Dshbot
+	s.mu.Unlock()
+	if install != nil {
 		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
 	}
 	launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_TASK_CONTROL_TOKEN="+token, "DSHD_PLATFORM_TOKEN="+platformToken)
-	if s.opts.Prepare.Dshbot {
+	if dshbot {
 		launch.ExtraEnv = append(launch.ExtraEnv, "DSHD_DSHBOT_ENABLED=1")
 	}
-	s.mu.Unlock()
+	tokens := s.collectSecretTokens(token, platformToken)
+	tokens = uniqueNonEmpty(tokens, extractInjectedTokens(launch.ExtraEnv))
 
 	// Read the staged module tree ahead of node.exe from the first moment the
 	// launch is known: it overlaps port selection, validation and profile
@@ -489,9 +636,15 @@ func (s *Supervisor) run(gen int) {
 	startuptrace.Mark("host.spawned", strconv.Itoa(cmd.Process.Pid))
 
 	ready := make(chan string, 1)
-	go s.scan(out, ready, token, gen)
+	scanDone := make(chan struct{})
+	go func() {
+		defer close(scanDone)
+		s.scanWithTokens(out, ready, tokens, gen)
+	}()
 	var waitErr error
 	go func() {
+		// Drain StdoutPipe before calling cmd.Wait so trailing logs are never truncated.
+		<-scanDone
 		waitErr = cmd.Wait()
 		close(exited)
 	}()
@@ -500,19 +653,22 @@ func (s *Supervisor) run(gen int) {
 	defer timer.Stop()
 	probe := time.NewTicker(750 * time.Millisecond)
 	defer probe.Stop()
+	probeC := probe.C
 	loggedListen := false
 	for {
 		select {
 		case url := <-ready:
 			warm.Stop()
+			probe.Stop()
+			probeC = nil
 			startuptrace.Mark("host.readyline")
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(launchCtx, 15*time.Second)
 			endHandshake := startuptrace.Begin("host.handshake")
 			ep, err := Redeem(ctx, s.client, url)
 			endHandshake()
 			cancel()
 			if err != nil {
-				s.log("auth: " + err.Error())
+				s.log("auth: "+redactScanLine(err.Error(), tokens), gen)
 				_ = terminate(cmd, true)
 				<-exited
 				s.fail(gen, err, plan.Source)
@@ -537,7 +693,7 @@ func (s *Supervisor) run(gen int) {
 			<-exited
 			s.fail(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source)
 			return
-		case <-probe.C:
+		case <-probeC:
 			if loggedListen {
 				continue
 			}
@@ -548,30 +704,85 @@ func (s *Supervisor) run(gen int) {
 			}
 			_ = c.Close()
 			loggedListen = true
+			probe.Stop()
+			probeC = nil
 			s.log("listening on http://"+addr+" — waiting for dsh web ready URL", gen)
 		}
 	}
 }
 
+func extractInjectedTokens(env []string) []string {
+	var tokens []string
+	for _, kv := range env {
+		key, val, ok := strings.Cut(kv, "=")
+		if !ok || val == "" {
+			continue
+		}
+		switch strings.ToUpper(key) {
+		case installctrl.EnvToken, "DSHD_TASK_CONTROL_TOKEN", "DSHD_PLATFORM_TOKEN":
+			tokens = append(tokens, val)
+		}
+	}
+	return tokens
+}
+
+func uniqueNonEmpty(items ...[]string) []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, list := range items {
+		for _, v := range list {
+			if v == "" {
+				continue
+			}
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			seen[v] = struct{}{}
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func (s *Supervisor) collectSecretTokens(extra ...string) []string {
+	s.mu.Lock()
+	taskTok := s.taskControlToken
+	platTok := s.platformToken
+	install := s.opts.Install
+	env := append([]string(nil), s.opts.Launch.ExtraEnv...)
+	s.mu.Unlock()
+	var installTok string
+	if install != nil {
+		installTok = install.Token()
+	}
+	return uniqueNonEmpty(extra, []string{taskTok, platTok, installTok}, extractInjectedTokens(env))
+}
+
+func redactScanLine(line string, tokens []string) string {
+	for _, tok := range tokens {
+		if tok != "" {
+			line = strings.ReplaceAll(line, tok, "[redacted]")
+		}
+	}
+	return startuprec.RedactLine(line)
+}
+
 // scan copies output lines into the log and reports the first ready URL.
 func (s *Supervisor) scan(r io.Reader, ready chan<- string, taskToken string, generation ...int) {
+	s.scanWithTokens(r, ready, s.collectSecretTokens(taskToken), generation...)
+}
+
+func (s *Supervisor) scanWithTokens(r io.Reader, ready chan<- string, tokens []string, generation ...int) {
 	sc := bufio.NewScanner(crToLF{r})
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	sent := false
 	for sc.Scan() {
 		line := sc.Text()
-		// Capture the child generation token so late output after Stop is also safe.
-		if taskToken != "" {
-			line = strings.ReplaceAll(line, taskToken, "[redacted]")
-		}
 		if url, ok := ParseReady(line); ok && !sent {
 			sent = true
 			ready <- url
-			// The launch token is a credential; keep it out of the log.
-			if i := strings.Index(line, "?token="); i >= 0 {
-				line = line[:i] + "?token=…"
-			}
 		}
+		line = redactScanLine(line, tokens)
 		s.notePluginLog(line, generation...)
 		startuptrace.Log(line)
 		s.log(line, generation...)
@@ -596,9 +807,8 @@ func (s *Supervisor) notePluginLog(line string, generation ...int) {
 	if s.status.State != Starting || (len(generation) > 0 && generation[0] != s.gen) {
 		return
 	}
-	if ApplyPluginLogLine(&s.status.PluginLoad, line) && s.opts.OnChange != nil {
-		st := s.status
-		go s.opts.OnChange(st)
+	if ApplyPluginLogLine(&s.status.PluginLoad, line) {
+		s.enqueueNotifyLocked(s.status, false)
 	}
 }
 
@@ -636,7 +846,15 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	blob := err.Error() + "\n" + strings.Join(s.startLogs, "\n")
 	if !s.opts.Launch.SkipUserPlugins && !s.skippedOnce && looksLikePluginTreeFailure(blob) {
 		if persist := s.opts.OnPluginRecovery; persist != nil {
-			if saveErr := persist(err.Error(), append([]string(nil), s.startLogs...)); saveErr != nil {
+			logsCopy := append([]string(nil), s.startLogs...)
+			s.mu.Unlock()
+			saveErr := persist(err.Error(), logsCopy)
+			s.mu.Lock()
+			if s.gen != gen || s.recoveryCancelled {
+				s.mu.Unlock()
+				return
+			}
+			if saveErr != nil {
 				s.setLocked(Status{State: Failed, Err: fmt.Errorf("plugin recovery could not be saved: %w", saveErr), Source: source})
 				s.mu.Unlock()
 				return

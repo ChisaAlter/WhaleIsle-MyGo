@@ -1,4 +1,4 @@
-//go:build windows && (amd64 || arm64)
+//go:build windows && (amd64 || arm64) && !release
 
 package windows
 
@@ -240,11 +240,28 @@ func TestLoseComposition(removed bool) bool {
 
 // testFailWebViews is how many creations of webviews still fail
 // (TestFailWebViews).
-var testFailWebViews int
+var testFailWebViews atomic.Int32
 
 // TestFailWebViews makes the next n creations of webviews fail, as WebView2
 // reports a failure, when it would have created them; 0 lets them be.
-func TestFailWebViews(n int) { testFailWebViews = n }
+func TestFailWebViews(n int) {
+	if n < 0 {
+		n = 0
+	}
+	testFailWebViews.Store(int32(n))
+}
+
+func consumeTestWebViewFailure() bool {
+	for {
+		n := testFailWebViews.Load()
+		if n <= 0 {
+			return false
+		}
+		if testFailWebViews.CompareAndSwap(n, n-1) {
+			return true
+		}
+	}
+}
 
 // TestTopNonClient returns how many pixels at the top of a window are not
 // its client area, and how many a hidden title bar keeps there on this
@@ -447,12 +464,33 @@ func TestHoldsFrames(hwnd uintptr) (interaction, sizeBurst bool) {
 	return w.interaction, w.sizeBurst
 }
 
-
 // testPaintCounters count frames requested of the surface and WM_PAINT
 // deliveries, so a dropped repaint can be told apart from a skipped build.
-var testFrameRequests, testPaintMsgs atomic.Int64
+// Gated in production so RequestFrame and WM_PAINT perform zero counter writes.
+var (
+	testFrameCountersEnabled         atomic.Bool
+	testFrameRequests, testPaintMsgs atomic.Int64
+)
+
+// EnableTestFrameCounters controls whether RequestFrame and WM_PAINT update QA counters.
+func EnableTestFrameCounters(enabled bool) { testFrameCountersEnabled.Store(enabled) }
+
+func recordFrameCounter(counter *atomic.Int64) {
+	if testFrameCountersEnabled.Load() {
+		counter.Add(1)
+	}
+}
+
+func recordTestFrameRequest() {
+	recordFrameCounter(&testFrameRequests)
+}
+
+func recordTestPaintMsg() {
+	recordFrameCounter(&testPaintMsgs)
+}
 
 func TestFrameCounters() (requests, paints int64) {
+	testFrameCountersEnabled.Store(true)
 	return testFrameRequests.Load(), testPaintMsgs.Load()
 }
 

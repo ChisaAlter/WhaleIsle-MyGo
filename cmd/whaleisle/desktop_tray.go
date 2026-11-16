@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/desktop/notifications"
 	"whaleisle/internal/harness"
@@ -84,21 +85,22 @@ func (s *mainState) desktopTrayMenu() *mygo.Menu {
 	s.mu.Lock()
 	canRestart := s.sup != nil && !s.quitting && !s.launcherImportBusy && !s.taskRestartPending
 	p := s.desktopPet
+	var pStore *config.Store
+	if p != nil {
+		pStore = p.Store
+	}
 	canToggle := p != nil && !s.quitting
 	updateLabel := lifecycleText("检查更新…", "Check for updates…")
-	updateReady := s.nativeReleases.stagedTag != ""
-	if updateReady {
-		title := s.nativeReleases.stagedTitle
-		if title == "" {
-			title = s.nativeReleases.stagedTag
-		}
-		updateLabel = fmt.Sprintf(lifecycleText("更新已就绪：%s…", "Update ready: %s…"), title)
-	}
 	updateWindow := s.win
 	s.mu.Unlock()
+	traySnap := s.updaterCenter().TraySnapshot()
+	updateReady := traySnap.UpdateReady
+	if updateReady {
+		updateLabel = fmt.Sprintf(lifecycleText("更新已就绪：%s…", "Update ready: %s…"), traySnap.Title)
+	}
 	enabled := false
-	if p != nil && p.Store != nil {
-		enabled = p.Store.DesktopPet().Enabled
+	if pStore != nil {
+		enabled = pStore.DesktopPet().Enabled
 	}
 	return buildDesktopTrayMenu(desktopTrayActions{
 		open:     s.showMainWindow,

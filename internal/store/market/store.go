@@ -11,22 +11,27 @@ import (
 	"strings"
 	"sync"
 
+	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/pluginmanager"
 )
 
 // Entry is one row in the installed-plugin list.
 type Entry struct {
-	Label          string
-	Detail         string
-	Enabled        *bool  // from listBundles when present
-	Removable      bool   // from listBundles when present
-	Source         string // listBundles source or empty
-	Version        string
-	Installed      bool
-	IdentityKnown  bool
-	ReadOnlyReason string
-	Error          string
+	Label                    string
+	Detail                   string
+	Enabled                  *bool  // from listBundles when present
+	Removable                bool   // from listBundles when present
+	Source                   string // listBundles source or empty
+	Version                  string
+	Installed                bool
+	IdentityKnown            bool
+	ReadOnlyReason           string
+	Error                    string
+	CapabilityKind           desktopmarket.CapabilityKind
+	NativeCompatible         bool
+	NativeCompatibilityLabel string
 }
 
 // ViewState is a UI-safe snapshot of the store.
@@ -255,20 +260,66 @@ func entriesFromBundles(bundles api.ListBundlesResult) []Entry {
 		if b.Source != nil {
 			src = *b.Source
 		}
+		caps := classifyBundleEntry(b)
 		out = append(out, Entry{
-			Label:          b.Name,
-			Detail:         detail,
-			Enabled:        &en,
-			Removable:      b.Removable,
-			Source:         src,
-			Version:        valueOrEmpty(b.Version),
-			Installed:      b.Installed,
-			IdentityKnown:  true,
-			ReadOnlyReason: valueOrEmpty(b.ReadOnlyReason),
-			Error:          bundleError(b.Error),
+			Label:                    b.Name,
+			Detail:                   detail,
+			Enabled:                  &en,
+			Removable:                b.Removable,
+			Source:                   src,
+			Version:                  valueOrEmpty(b.Version),
+			Installed:                b.Installed,
+			IdentityKnown:            true,
+			ReadOnlyReason:           valueOrEmpty(b.ReadOnlyReason),
+			Error:                    bundleError(b.Error),
+			CapabilityKind:           caps.Kind,
+			NativeCompatible:         caps.NativeCompatible,
+			NativeCompatibilityLabel: caps.CompatibilityLabel,
 		})
 	}
 	return out
+}
+
+func classifyBundleEntry(b api.ListBundlesResultItem) desktopmarket.PackageCapabilities {
+	rows := make([]pluginmanager.BundleRow, 0, len(b.Rows))
+	for _, r := range b.Rows {
+		rows = append(rows, pluginmanager.BundleRow{RowID: r.RowId, ModuleName: r.ModuleName})
+	}
+	desc := ""
+	if b.Description != nil {
+		desc = *b.Description
+	}
+	src := ""
+	if b.Source != nil {
+		src = *b.Source
+	}
+	hasClient, hasHost := false, false
+	for _, r := range rows {
+		lower := strings.ToLower(r.ModuleName)
+		if strings.Contains(lower, "client-ui-") || strings.HasSuffix(lower, "/client") || strings.Contains(lower, "-client-") {
+			hasClient = true
+		} else {
+			hasHost = true
+		}
+	}
+	var caps pluginmanager.PackageCapabilities
+	switch {
+	case hasHost && hasClient:
+		caps.Kind = pluginmanager.CapabilityHybrid
+		caps.NativeCompatible = true
+	case hasClient:
+		caps.Kind = pluginmanager.CapabilityWebUIOnly
+		caps.NativeCompatible = false
+	case hasHost || b.Installed:
+		caps.Kind = pluginmanager.CapabilityPureHost
+		caps.NativeCompatible = true
+	default:
+		caps = pluginmanager.InferCapabilityFromCatalogMetadata("", b.Name, src, desc)
+	}
+	if caps.CompatibilityLabel == "" {
+		caps.CompatibilityLabel = pluginmanager.CompatibilityLabelFor(caps.Kind)
+	}
+	return caps
 }
 
 func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, err error, rows []Entry, preview, regNote, exNote string) {

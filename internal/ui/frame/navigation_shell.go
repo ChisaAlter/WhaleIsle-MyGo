@@ -29,7 +29,6 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	if !m.WorkspacePage && workspaceAutoFullscreen(m) {
 		ui.Column(c).Key("workspace-navigation-shell").Grow(1).MinWidth(0).MinHeight(0).Background(canvas).Children(func() {
 			content()
-			renderGlobalShellSlot(c, m, "shell.bottom", nil)
 		})
 		return
 	}
@@ -55,6 +54,5 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 				})
 			})
 		})
-		renderGlobalShellSlot(c, m, "shell.bottom", nil)
 	})
 }

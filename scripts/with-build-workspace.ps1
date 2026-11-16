@@ -8,7 +8,7 @@ $work = Join-Path $tempRoot ('whaleisle-build-' + [guid]::NewGuid().ToString('N'
 $saved = @{}
 # A cold-cache command may point these variables into $work. Restore them too,
 # so the next command cannot recreate a just-reclaimed private cache directory.
-foreach ($name in @('TEMP', 'TMP', 'GOTMPDIR', 'GOPATH', 'GOCACHE', 'GOMODCACHE', 'npm_config_cache')) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
+foreach ($name in @('TEMP', 'TMP', 'GOTMPDIR', 'GOPATH', 'GOCACHE', 'GOMODCACHE', 'npm_config_cache', 'PSModuleAnalysisCachePath')) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     foreach ($name in @('TEMP', 'TMP', 'GOTMPDIR')) { [Environment]::SetEnvironmentVariable($name, $work, 'Process') }

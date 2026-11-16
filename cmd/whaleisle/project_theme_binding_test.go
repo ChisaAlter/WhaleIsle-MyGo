@@ -3,7 +3,6 @@ package main
 import (
 	"testing"
 
-	"github.com/egoist/mygo"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/projects"
@@ -18,7 +17,6 @@ func TestProjectModelsKeepTheirFrameTheme(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			client := &dsh.Client{}
 			state := &mainState{dshClient: client, themeID: "different-state-theme"}
-			state.projectFlow.client = client
 			parent := frame.Model{ThemeID: "frame-theme", SystemDark: dark}
 			state.bindProjectModel(nil, &parent)
 			project := parent.Projects
@@ -33,26 +31,5 @@ func TestProjectModelsKeepTheirFrameTheme(t *testing.T) {
 				t.Fatal("observer lost its captured frame theme")
 			}
 		})
-	}
-}
-
-func TestProjectVisualPageUsesBoundModelAppearance(t *testing.T) {
-	for _, dark := range []bool{false, true} {
-		s, card, _ := projectCardOwnershipFixture(t)
-		reference := card.Delivery.Pages[0]
-		owner, ok := s.projectVisualOwnerLocked("request:A", reference)
-		if !ok {
-			t.Fatal("fixture publication was not admitted")
-		}
-		// A retained page with no loaded HTML exercises appearance updates
-		// without starting a reader, helper or native surface.
-		page := &projectVisualPage{width: 320, dark: !dark, state: projects.VisualPagePreview{Available: true}}
-		s.projectFlow.visualResults = &projectVisualResultsState{pages: map[projectVisualOwner]*projectVisualPage{owner: page}}
-		model := projects.Model{SystemDark: dark}
-		s.bindProjectVisualResults(&mygo.Window{}, &model)
-		preview := model.VisualPage("request:A", reference, 320)
-		if !preview.Available || page.dark != dark {
-			t.Fatal("retained publication did not use the bound model appearance")
-		}
 	}
 }

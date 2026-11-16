@@ -17,6 +17,26 @@ try {
 } catch { /* Link pairing remains available when the optional QR encoder is missing. */ }
 let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false;
 function clearQR() { qrURL = ''; qrPNG = ''; ++qrGeneration; }
+function parseOffer(raw) {
+  try {
+    if (typeof raw !== 'string' || raw.length > 8192) return null;
+    const url = new URL(raw);
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hash.startsWith('#offer=')) return null;
+    const offer = JSON.parse(Buffer.from(url.hash.slice(7), 'base64url').toString('utf8'));
+    const expiresAtMs = offer?.authBootstrap?.expiresAtMs;
+    if (
+      !offer ||
+      offer.v !== 2 ||
+      typeof expiresAtMs !== 'number' ||
+      !Number.isFinite(expiresAtMs) ||
+      expiresAtMs <= Date.now()
+    ) {
+      return null;
+    }
+    return offer;
+  } catch { return null; }
+}
+
 function usableURL(s) {
   // Native snapshot() always builds urls[].pairingUrl and only flags relayDown
   // in relay mode (reference/electron/src/main/remote.js:344-360); a LAN
@@ -24,24 +44,15 @@ function usableURL(s) {
   if (offerBlocked || !s.listening) return '';
   if (!s.relayConnected && config.remoteMode !== 'lan') return '';
   const raw = s.urls?.[0]?.pairingUrl || '';
-  try {
-    if (raw.length > 8192) return '';
-    const url = new URL(raw);
-    if (!['https:', 'http:'].includes(url.protocol) || !url.hash.startsWith('#offer=')) return '';
-    const offer = JSON.parse(Buffer.from(url.hash.slice(7), 'base64url').toString('utf8'));
-    return offer.v === 2 && offer.authBootstrap?.expiresAtMs > Date.now() ? raw : '';
-  } catch { return ''; }
+  return parseOffer(raw) ? raw : '';
 }
 
 const shellRoutes = typeof __mygoShellRoutes !== 'undefined' ? __mygoShellRoutes : null;
 let shellMountedOn = null;
 function pairingOfferToken(raw) {
-  try {
-    const match = String(raw || '').match(/#offer=([^&\s]+)/);
-    if (!match) return '';
-    const offer = JSON.parse(Buffer.from(match[1], 'base64url').toString('utf8'));
-    return offer?.authBootstrap?.pairingToken || '';
-  } catch { return ''; }
+  const offer = parseOffer(raw);
+  const token = offer?.authBootstrap?.pairingToken;
+  return typeof token === 'string' ? token : '';
 }
 // Mount POST /__remote__/shell/<name> in front of the SPA/proxy (native
 // reference/electron/src/main/remote.js:708-730, 779-807). Tokens are compared

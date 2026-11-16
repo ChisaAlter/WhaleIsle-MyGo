@@ -56,9 +56,6 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 	if f.HarnessAutoRestart == nil || f.HarnessRestartMaxAttempts == nil || f.HarnessRestartBaseDelayMs == nil {
 		return
 	}
-	if !settingsItemBefore(c, "harness-auto-recovery") {
-		return
-	}
 	disabled := d.RestartPolicy == nil || d.OnSetRestartPreference == nil
 	anchor := ui.Column(c.Key("harness-auto-recovery")).FillWidth().MinWidth(0).Gap(0)
 	settingsSearchTarget(c, "harness-auto-recovery", providerCopy("Harness 自动恢复", "Harness auto-recovery"), anchor)

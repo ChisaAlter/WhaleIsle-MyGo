@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -138,6 +136,12 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 		client = &http.Client{Timeout: 12 * time.Second, Transport: updateTransport()}
 	} else {
 		clone := *client
+		if clone.Timeout <= 0 {
+			clone.Timeout = 12 * time.Second
+		}
+		if clone.Transport == nil {
+			clone.Transport = updateTransport()
+		}
 		client = &clone
 	}
 	client.CheckRedirect = func(next *http.Request, _ []*http.Request) error {
@@ -209,18 +213,8 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 }
 
 func validateUpdateURL(raw string) error {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || u.User != nil || u.Hostname() == "" {
-		return fmt.Errorf("update feed URL must be an HTTPS URL without userinfo")
-	}
-	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
-	if u.Scheme == "https" {
-		return nil
-	}
-	if u.Scheme == "http" && (host == "localhost" || (net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())) {
-		return nil
-	}
-	return fmt.Errorf("update feed URL must use HTTPS (HTTP is allowed only for loopback tests)")
+	_, err := validateDownloadURL(raw)
+	return err
 }
 
 // CompareVersions returns -1 if a<b, 0 if equal, 1 if a>b for dotted numeric

@@ -17,18 +17,16 @@ func (s *mainState) recoverImportBeforeStart() bool {
 	}
 	s.mu.Lock()
 	s.launcherOpen = true
-	s.launcherTab = launcher.TabImport
-	s.launcherStartBusy = false
-	s.launcherStartFailed = err != nil
+	errMsg := ""
 	if err != nil {
-		s.launcherStartErr = i18n.T(i18n.KeyCmdImportRecoveryIsIncompleteAllCopiesWer) + err.Error()
-		s.launcherImport = s.launcherStartErr
+		errMsg = i18n.T(i18n.KeyCmdImportRecoveryIsIncompleteAllCopiesWer) + err.Error()
+		s.launcherImport = errMsg
 	} else {
-		s.launcherStartErr = ""
 		s.launcherImport = i18n.T(i18n.KeyCmdAnInterruptedImportWasRecoveredComplet)
 	}
 	win := s.win
 	s.mu.Unlock()
+	s.launcherController().SetImportRecoveryStatus(launcher.TabImport, false, err != nil, errMsg)
 	if win != nil {
 		win.Update(func() {})
 	}

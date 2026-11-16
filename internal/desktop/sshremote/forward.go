@@ -86,9 +86,11 @@ func validateForward(spec ForwardSpec) (ForwardSpec, error) {
 	if spec.Direction != ForwardLocal && spec.Direction != ForwardReverse {
 		return ForwardSpec{}, errors.New("unknown forward direction")
 	}
-	if spec.ListenHost == "" {
-		spec.ListenHost = "127.0.0.1"
+	listenHost, _, err := validateLoopbackListenHost(spec.ListenHost)
+	if err != nil {
+		return ForwardSpec{}, err
 	}
+	spec.ListenHost = listenHost
 	if strings.TrimSpace(spec.TargetHost) == "" {
 		return ForwardSpec{}, errors.New("forward target host required")
 	}
@@ -96,6 +98,22 @@ func validateForward(spec ForwardSpec) (ForwardSpec, error) {
 		return ForwardSpec{}, errors.New("forward port out of range")
 	}
 	return spec, nil
+}
+
+func validateLoopbackListenHost(raw string) (string, net.IP, error) {
+	host := strings.TrimSpace(raw)
+	if host == "" {
+		return "127.0.0.1", net.ParseIP("127.0.0.1"), nil
+	}
+	host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+	if strings.EqualFold(host, "localhost") {
+		return "localhost", net.ParseIP("127.0.0.1"), nil
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return "", nil, fmt.Errorf("forward listen host %q must be loopback", raw)
+	}
+	return host, ip, nil
 }
 
 // String emits the same compact form accepted by ParseForwardSpec.
@@ -126,7 +144,8 @@ func StartForward(ctx context.Context, client *ssh.Client, spec ForwardSpec) (fu
 	if validated.Direction == ForwardReverse {
 		// x/crypto/ssh exposes remote TCP forwarding through ListenTCP. The
 		// listener is consumed by the copy loop below and closes on stop.
-		remoteListener, err := client.ListenTCP(&net.TCPAddr{IP: net.ParseIP(validated.ListenHost), Port: validated.ListenPort})
+		_, listenIP, _ := validateLoopbackListenHost(validated.ListenHost)
+		remoteListener, err := client.ListenTCP(&net.TCPAddr{IP: listenIP, Port: validated.ListenPort})
 		if err != nil {
 			cancel()
 			return nil, err

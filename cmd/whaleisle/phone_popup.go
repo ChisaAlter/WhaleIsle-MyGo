@@ -17,6 +17,13 @@ import (
 	"whaleisle/internal/ui/settings"
 )
 
+// phoneLauncherActions wires the native phone remote trigger into the account menu.
+func (s *mainState) phoneLauncherActions(menu *ui.Menu) {
+	if menu.Item(i18n.T(i18n.KeyRemotePhoneTitle)).Key("account:phone").Chosen() {
+		s.openPhonePopup()
+	}
+}
+
 // openPhonePopup is the native consumer of the existing phone launcher action.
 // Its launcher row stays mounted as the popup anchor; no second menu is added.
 func (s *mainState) openPhonePopup() {

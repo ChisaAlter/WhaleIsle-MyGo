@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	launcherctl "whaleisle/internal/app/launcher"
+)
 
 // Automatic launcher sync must not reveal an explicitly hidden QA desktop.
 // The fake stage records only requested transitions; it never creates a window.
@@ -21,12 +25,12 @@ func TestIsolatedLauncherStageHonorsHiddenPolicy(t *testing.T) {
 			for _, transition := range []struct {
 				name            string
 				open, available bool
-				want            launcherStageResult
+				want            launcherctl.StageResult
 			}{
-				{"closed-panel", false, false, launcherStageResult{MainShown: true}},
-				{"open-panel", true, false, launcherStageResult{MainShown: true}},
-				{"open-launcher", true, true, launcherStageResult{LauncherShown: true}},
-				{"finish-launcher", false, true, launcherStageResult{LauncherClosed: true, MainShown: true}},
+				{"closed-panel", false, false, launcherctl.StageResult{MainShown: true}},
+				{"open-panel", true, false, launcherctl.StageResult{MainShown: true}},
+				{"open-launcher", true, true, launcherctl.StageResult{LauncherShown: true}},
+				{"finish-launcher", false, true, launcherctl.StageResult{LauncherClosed: true, MainShown: true}},
 			} {
 				t.Run(transition.name, func(t *testing.T) {
 					stage := &fakeLauncherStage{
@@ -34,9 +38,9 @@ func TestIsolatedLauncherStageHonorsHiddenPolicy(t *testing.T) {
 						haveLauncher:    transition.available && !transition.open,
 					}
 					originalLauncher := stage.haveLauncher
-					got := applyLauncherStage(stage, transition.open)
+					got := launcherctl.ApplyStage(stage, transition.open)
 					if mode.hidden {
-						if got != (launcherStageResult{}) || len(stage.events) != 0 || stage.haveLauncher != originalLauncher || stage.mainShown || stage.created != 0 || stage.closed != 0 || stage.shows != 0 {
+						if got != (launcherctl.StageResult{}) || len(stage.events) != 0 || stage.haveLauncher != originalLauncher || stage.mainShown || stage.created != 0 || stage.closed != 0 || stage.shows != 0 {
 							t.Fatalf("hidden isolation requested a window transition: result=%+v stage=%+v", got, stage)
 						}
 						return

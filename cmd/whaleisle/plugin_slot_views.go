@@ -14,21 +14,14 @@ func (s *mainState) openInstalledPluginView(name string) {
 	}
 	s.settingsOpen = false
 	s.browserPreviewOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
 	s.webviewOpen = true
 	s.mu.Unlock()
+	s.assistantService().SetOpen(false)
 	s.openWebViewHostPlugin(st.Endpoint.Origin, name)
 }
 
 // Revokes the temporary browser transport as soon as its Host generation ends.
 func (s *mainState) syncPluginViewHost(st harness.Status) {
-	s.mu.Lock()
-	contributions := s.nativePlugins
-	s.mu.Unlock()
-	if contributions.contributions != nil && (st.State != harness.Ready || contributions.contributionGeneration != st.Generation || contributions.contributionOrigin != st.Endpoint.Origin || contributions.contributionCookie != st.Endpoint.Cookie) {
-		s.suspendPluginContributions()
-	}
 	s.mu.Lock()
 	host, sup := s.webviewHost, s.sup
 	hostGeneration := s.pluginViewHostGeneration

@@ -4,10 +4,25 @@ param([string]$OutputRoot)
 $ErrorActionPreference='Stop'
 $project = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'env.ps1')
-if (-not $OutputRoot) { $OutputRoot = Join-Path $project ('tmp\nsis-runtime-links-' + [guid]::NewGuid().ToString('N')) }
+$ownsOutput = -not $OutputRoot
+$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+if (-not $OutputRoot) { $OutputRoot = Join-Path $tempParent ('whaleisle-nsis-links-' + [guid]::NewGuid().ToString('N')) }
 $fixtureRoot = [IO.Path]::GetFullPath($OutputRoot)
 if (Test-Path -LiteralPath $fixtureRoot) { throw 'Fixture output must be fresh.' }
+function Resolve-Makensis {
+    $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    if ($env:LOCALAPPDATA) {
+        $shared = Join-Path $env:LOCALAPPDATA 'mygo\nsis-3.13\Bin\makensis.exe'
+        if (Test-Path -LiteralPath $shared -PathType Leaf) { return $shared }
+    }
+    $local = Join-Path $project '.toolchain\nsis\makensis.exe'
+    if (Test-Path -LiteralPath $local -PathType Leaf) { return $local }
+    throw 'makensis not found on PATH, under %LOCALAPPDATA%\mygo\nsis-3.13\Bin, or under .toolchain\nsis\'
+}
+$makensis = Resolve-Makensis
 New-Item -ItemType Directory -Path $fixtureRoot | Out-Null
+try {
 $stage = Join-Path $fixtureRoot 'stage'
 $vendor = Join-Path $stage 'runtime\vendor'
 New-Item -ItemType Directory -Path (Join-Path $vendor 'one\node_modules'),(Join-Path $vendor 'two\node_modules') -Force | Out-Null
@@ -23,7 +38,6 @@ $graph = [ordered]@{schemaVersion=1;files=$files;links=[ordered]@{'one/node_modu
 $helper = Join-Path $stage 'runtime\runtime-links.exe'
 & go build -ldflags '-s -w -H windowsgui' -o $helper ./scripts/session-runtime-links
 if ($LASTEXITCODE -ne 0) { throw 'Helper build failed' }
-$makensis = Join-Path $project '.toolchain\nsis\makensis.exe'
 $include = Join-Path $PSScriptRoot 'nsis'
 function Build-Fixture([string]$Name,[bool]$Fail) {
     $out=Join-Path $fixtureRoot ($Name+'.exe')
@@ -85,10 +99,15 @@ function Run-HiddenExecutable([string]$Exe,[string[]]$Arguments) {
     $psi.Arguments=($Arguments -join ' ')
     $process = New-Object Diagnostics.Process
     $process.StartInfo=$psi
-    if (-not $process.Start()) { throw 'Fixture process failed to start' }
-    $process.WaitForExit()
-    return $process.ExitCode
+    try {
+        if (-not $process.Start()) { throw 'Fixture process failed to start' }
+        if (-not $process.WaitForExit(300000)) { throw 'Fixture process timed out' }
+        return $process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
 }
+$installed=$null
 $normal=Build-Fixture 'normal' $false
 $rollback=Build-Fixture 'rollback' $true
 $installed=Join-Path $fixtureRoot 'installed'
@@ -149,3 +168,19 @@ Copy-Item -LiteralPath (Join-Path $retiredRoot 'Uninstall.exe') -Destination $re
 if ((Run-HiddenExecutable $retryCopy @('/S',('_?='+$retiredRoot))) -ne 0) { throw 'Partial physical subtree uninstall retry failed' }
 if ((Test-Path -LiteralPath $installed) -or (Test-Path -LiteralPath $retiredRoot)) { throw 'Successful retry retained an owned installed or retired root' }
 Write-Output ('NSIS runtime links fixture PASS: install, upgrade, rollback, unknown-link refusal, owned uninstall and actual partial-cleanup retry; root='+$fixtureRoot)
+} finally {
+    if ($installed) {
+        $unknown = Join-Path $installed 'runtime\vendor\unknown'
+        if (Test-Path -LiteralPath $unknown) {
+            try {
+                $unknownItem = Get-Item -LiteralPath $unknown
+                if ($unknownItem.LinkType -eq 'Junction') { [IO.Directory]::Delete($unknown) }
+            } catch {}
+        }
+    }
+    if ($ownsOutput) {
+        $active = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($fixtureRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if ($active) { Write-Warning "Owned fixture tree still referenced by another process; retained: $fixtureRoot" }
+        else { & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $fixtureRoot $tempParent 'whaleisle-nsis-links-' }
+    }
+}

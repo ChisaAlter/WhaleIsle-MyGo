@@ -57,40 +57,48 @@ func LoadDiff(root, relPath string) (text, errMsg string) {
 }
 
 func refresh(m Model) {
+	refreshWithForce(m, false)
+}
+
+func refreshWithForce(m Model, force bool) {
 	rel := ""
 	if m.PathFilter != nil {
 		rel = *m.PathFilter
 	}
 	if m.Workbench != nil && m.Workbench.BaseRef != "" {
-		beginComparison(m, rel)
+		beginComparisonForce(m, rel, force)
 		return
 	}
 	if m.Workbench != nil {
 		m.Workbench.CancelComparison()
-	}
-	var text, errMsg string
-	if m.Workbench != nil {
-		var err error
-		if m.Workbench.AgainstHEAD {
-			text, err = git.DiffHEAD(m.WorkspaceRoot, rel)
-		} else {
-			text, err = git.DiffScope(m.WorkspaceRoot, rel, m.Workbench.Staged)
+		m.Workbench.RequestDiffAsync(m.WorkspaceRoot, rel, force, m.Workbench.invalidate)
+		text, errMsg, ready, _ := m.Workbench.PollDiffAsync(m.WorkspaceRoot, rel)
+		if ready {
+			if m.Text != nil {
+				*m.Text = text
+			}
+			if m.ErrMsg != nil {
+				*m.ErrMsg = errMsg
+			}
+		} else if force {
+			if m.Text != nil {
+				*m.Text = ""
+			}
+			if m.ErrMsg != nil {
+				*m.ErrMsg = ""
+			}
 		}
-		errMsg = ""
-		if err != nil {
-			errMsg = err.Error()
-		} else if text == "" {
-			errMsg = i18n.T(i18n.KeyDiffEmpty)
+		return
+	}
+	if force {
+		if m.Text != nil {
+			*m.Text = ""
 		}
-	} else {
-		text, errMsg = LoadDiff(m.WorkspaceRoot, rel)
+		if m.ErrMsg != nil {
+			*m.ErrMsg = ""
+		}
 	}
-	if m.Text != nil {
-		*m.Text = text
-	}
-	if m.ErrMsg != nil {
-		*m.ErrMsg = errMsg
-	}
+	defaultDiffCache.ensure(m.WorkspaceRoot, rel, force, m.Text, m.ErrMsg, nil)
 }
 
 // View paints scoped or full-workspace git diff output.
@@ -149,21 +157,26 @@ func View(c *ui.Context, m Model) {
 			return
 		}
 		if strings.TrimSpace(text) == "" {
-			ui.Text(c, i18n.T(i18n.KeyDiffHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted).
+			loading := m.Workbench != nil && (m.Workbench.IsDiffLoading(m.WorkspaceRoot, scope) ||
+				(!m.Workbench.Loaded && m.Workbench.isReloading(m.WorkspaceRoot)) ||
+				(m.Workbench.BaseRef != "" && m.Workbench.comparison != nil))
+			hint := i18n.T(i18n.KeyDiffHint)
+			if loading {
+				hint = word("正在加载差异…", "Loading diff…")
+			}
+			ui.Text(c, hint).FontSize(theme.InterfaceSize(12)).TextColor(muted).
 				Padding(12, 12, 12, 12)
 			return
 		}
 
-		ui.Scroll(c).Fill().MinHeight(0).Padding(8, 8, 8, 8).Children(func() {
-			paintPatchFiles(c, m, text, diff.Style{
-				FontSize: 12,
-				FG:       fg,
-				Add:      ui.RGB(0x22, 0xc5, 0x5e),
-				Del:      ui.RGB(0xef, 0x44, 0x44),
-				Hunk:     accent,
-				File:     muted,
-				Muted:    muted,
-			})
+		paintPatchFiles(c, m, text, diff.Style{
+			FontSize: 12,
+			FG:       fg,
+			Add:      ui.RGB(0x22, 0xc5, 0x5e),
+			Del:      ui.RGB(0xef, 0x44, 0x44),
+			Hunk:     accent,
+			File:     muted,
+			Muted:    muted,
 		})
 	})
 }

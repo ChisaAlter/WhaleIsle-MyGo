@@ -107,13 +107,14 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 	read := attachmentImageRead()
 	fetch := read.Fetch
 	path := read.Cached(image.AttachmentID)
+	svc := c.Services()
 	var bitmap *ui.Bitmap
+	var pending bool
 	if path != "" {
-		bitmap = loadChatBitmap(path)
+		bitmap, pending = cachedChatBitmap(path, svc.Invalidate)
 	}
 	state := attachmentLoad{}
-	if bitmap == nil && fetch != nil {
-		svc := c.Services()
+	if bitmap == nil && !pending && fetch != nil {
 		state = attachmentLoads.ensure(read.Identity(image.AttachmentID), func(ctx context.Context, _ string) (string, error) {
 			local, err := fetch(ctx, image.AttachmentID)
 			if err == nil && loadFetchedChatBitmap(local) == nil {
@@ -122,7 +123,8 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 			return local, err
 		}, svc.Invalidate)
 		if state.path != "" {
-			path, bitmap = state.path, loadChatBitmap(state.path)
+			path = state.path
+			bitmap, _ = cachedChatBitmap(state.path, svc.Invalidate)
 		}
 	}
 	border := float32(math.Max(1, math.Floor(.5*float64(c.DeviceScale()))) / float64(c.DeviceScale()))

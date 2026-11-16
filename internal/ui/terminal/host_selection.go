@@ -7,10 +7,11 @@ import "errors"
 type HostActions struct {
 	// StartFresh is a runtime marker set only by explicit new-pane creation;
 	// layout recovery and clone/reattach must leave it nil/false.
-	StartFresh   *bool
-	CanAddToChat bool
-	AddToChat    func(string) error
-	OpenTarget   func(selection, cwd string) error
+	StartFresh    *bool
+	FocusTerminal bool
+	CanAddToChat  bool
+	AddToChat     func(string) error
+	OpenTarget    func(selection, cwd string) error
 }
 
 func ApplyHostSelection(selection string, valid func() bool, action func(string) error) error {

@@ -33,7 +33,7 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 		// Bound the whole staging pipeline: prepare/submit/retire are local-RPC
 		// calls that should finish in seconds. An unbounded Background here
 		// turned a stuck RPC into a silent infinite in-flight send (qa19/qa22).
-		ctx, cancel := context.WithTimeout(context.Background(), detachedSendTimeout)
+		ctx, cancel := context.WithTimeout(s.lifecycleContext(), detachedSendTimeout)
 		defer cancel()
 		log.Printf("qa-flight %d: begin (attachments=%d)", flight.ID, len(flight.Attachments))
 		attachments := append([]session.ComposerAttachment(nil), flight.Attachments...)

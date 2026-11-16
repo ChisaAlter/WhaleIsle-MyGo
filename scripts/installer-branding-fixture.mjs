@@ -7,7 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const script = fs.readFileSync(path.join(root, 'scripts/nsis/whaleisle.nsi'), 'utf8');
+const script = fs.readFileSync(path.join(root, 'scripts/nsis/whaleisle.nsi'), 'utf8').replace(/\r\n/g, '\n');
 const branding = path.join(root, 'scripts/nsis/branding');
 const source = JSON.parse(fs.readFileSync(path.join(branding, 'source-assets.json'), 'utf8'));
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -36,7 +36,7 @@ assert.match(script, /^!define MUI_HEADERIMAGE_RIGHT$/m);
 assert.match(script, /^BrandingText "\$\{PRODUCT_NAME\} \$\{VERSION\}"$/m);
 assert.match(script, /^!insertmacro MUI_PAGE_LICENSE "branding\\LICENSE"$/m);
 assert.match(script, /^!define MUI_FINISHPAGE_RUN "\$INSTDIR\\\$\{EXE_NAME\}"$/m);
-assert.match(script, /^!define MUI_FINISHPAGE_LINK_LOCATION "https:\/\/github\.com\/ChisaAlter\/Deepseek-Harness-Desktop"$/m);
+assert.match(script, /^!define MUI_FINISHPAGE_LINK_LOCATION "https:\/\/github\.com\/ChisaAlter\/WhaleIsle-MyGo"$/m);
 // MUI clears per-page defines: install and uninstall welcome must each set it.
 assert.match(script, /!define MUI_WELCOMEPAGE_TITLE_3LINES\s+!insertmacro MUI_PAGE_WELCOME/);
 assert.match(script, /!define MUI_WELCOMEPAGE_TITLE_3LINES\s+!insertmacro MUI_UNPAGE_WELCOME/);

@@ -13,6 +13,7 @@ type repositoryStatusResult struct {
 }
 type repositoryStatusRequest struct {
 	root   string
+	gen    uint64
 	cancel context.CancelFunc
 	done   chan repositoryStatusResult
 }
@@ -24,18 +25,31 @@ func (w *Workbench) cancelRepositoryStatus() {
 	}
 }
 func (w *Workbench) reloadRepositoryStatus() {
+	w.reloadRepositoryStatusForce(false)
+}
+func (w *Workbench) reloadRepositoryStatusForce(force bool) {
+	if w == nil {
+		return
+	}
+	gen := w.bindRoot(w.Root)
+	if !force && w.repositoryStatusRequest != nil && w.repositoryStatusRequest.root == w.Root && (w.repositoryStatusRequest.gen == 0 || w.repositoryStatusRequest.gen == gen) {
+		return
+	}
 	w.cancelRepositoryStatus()
 	w.RepositoryStatus = nil
 	w.RepositoryStatusError = ""
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	request := &repositoryStatusRequest{root: w.Root, cancel: cancel, done: make(chan repositoryStatusResult, 1)}
+	request := &repositoryStatusRequest{root: w.Root, gen: gen, cancel: cancel, done: make(chan repositoryStatusResult, 1)}
 	w.repositoryStatusRequest = request
-	root, invalidate := w.Root, w.invalidate
+	root, loader, invalidate := w.Root, w.loader, w.invalidate
+	ops := gitOps
 	go func() {
 		defer cancel()
-		status, err := git.ReadRepositoryStatus(ctx, root)
+		status, err := ops.readRepoStatus(ctx, root)
 		request.done <- repositoryStatusResult{status: status, err: err}
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -45,7 +59,7 @@ func (w *Workbench) finishRepositoryStatus() {
 	if request == nil {
 		return
 	}
-	if request.root != w.Root {
+	if request.root != w.Root || (request.gen != 0 && request.gen != w.currentGen()) {
 		w.cancelRepositoryStatus()
 		return
 	}

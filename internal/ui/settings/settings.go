@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/pet"
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -19,7 +18,6 @@ import (
 
 // Model wires the settings panel to store state.
 type Model struct {
-	PublicContributions pluginui.PublicContributions
 	// Optional feature-owned section body, composed by the application.
 	ActiveSection       SectionID
 	SectionContent      func(*ui.Context)
@@ -140,27 +138,16 @@ func View(c *ui.Context, m Model) {
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
 	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Box(c).Grow(1).MinWidth(0)
-		renderSettingsHeaderActions(c, m, func() {
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-			configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
-			configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
-			if m.OnOpenConfig == nil {
-				configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
-			} else if configButton.Clicked() {
-				m.OnOpenConfig()
-			}
-		})
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
+		configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
+		if m.OnOpenConfig == nil {
+			configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
+		} else if configButton.Clicked() {
+			m.OnOpenConfig()
+		}
 		if m.OnClose != nil {
-			closeLabel := i18n.T(i18n.KeySettingsBack)
-			if m.PublicContributions.Entries != nil {
-				for _, entry := range m.PublicContributions.Entries("settings.close", "") {
-					if entry.Label != "" {
-						closeLabel = entry.Label
-						break
-					}
-				}
-			}
-			close := ui.Button(c, "").Label(closeLabel).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
+			close := ui.Button(c, "").Label(i18n.T(i18n.KeySettingsBack)).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
 			close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(fg) })
 			if close.Clicked() {
 				*settingsSearchJumpState(c) = settingsSearchJump{}
@@ -311,13 +298,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	selectedBG, selectedFG := settingsSelectedRailColors(m)
 	groups := navigationGroups(m, snap)
 	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
-		if m.PublicContributions.Slot != nil {
-			m.PublicContributions.Slot(c, "settings.header", "", func() {
-				ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
-			})
-		} else {
-			ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
-		}
+		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
 		settingsRailSearch(c, m, snap, query, fg, muted, border)
 		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
 		// sit 12 DIP from each other.
@@ -423,8 +404,6 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 			settingsSearchResults(c, m, snap, *query, fg, muted, chrome.Color(colors.Hover), func() { *query = "" })
 			return
 		}
-		finishItems := beginSettingsItemContributions(c, m.PublicContributions, active)
-		defer finishItems()
 		if m.SectionContent != nil && m.ActiveSection != "" {
 			m.SectionContent(c)
 			return
@@ -758,45 +737,5 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 				m.OnDraft(f.Key, *draft)
 			}
 		})
-	}
-}
-
-// settings.action is the content header's action list, immediately before the
-// close button. The config action is the native open-document builtin, order 0.
-func renderSettingsHeaderActions(c *ui.Context, m Model, drawConfig func()) {
-	p := m.PublicContributions
-	entries := []pluginui.PublicSlotEntry{}
-	if p.Entries != nil && p.RenderEntry != nil {
-		entries = p.Entries("settings.action", "")
-	}
-	hasDocument := false
-	for _, entry := range entries {
-		if entry.ID == "open-document" {
-			hasDocument = true
-			break
-		}
-	}
-	drawn := false
-	for _, entry := range entries {
-		if entry.Native && entry.ID == "open-document" {
-			if !drawn {
-				drawConfig()
-				drawn = true
-			}
-		} else if !entry.Native {
-			// Existing native callers do not require a private renderer connection.
-			// If it omits its optional document owner, retain the native action at 0.
-			if !hasDocument && !drawn && entry.Order >= 0 && p.NativeWinner("settings.action", "", "open-document") {
-				drawConfig()
-				drawn = true
-			}
-			if entry.ID == "open-document" {
-				drawn = true
-			}
-			p.RenderEntry(c, entry.Slot, entry.OwnerKey, entry.Handle)
-		}
-	}
-	if !drawn && p.NativeWinner("settings.action", "", "open-document") {
-		drawConfig()
 	}
 }

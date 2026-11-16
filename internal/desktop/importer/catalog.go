@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -91,10 +92,17 @@ func BuildCatalogContext(ctx context.Context, sourceHome, destHome string) (Cata
 	if src == "" || src == "." {
 		return cat, ErrNotDirectory
 	}
-	if info, err := os.Stat(src); err != nil || !info.IsDir() {
-		if err != nil && !os.IsNotExist(err) {
-			return cat, err
+	info, lerr := os.Lstat(src)
+	if lerr != nil {
+		if !os.IsNotExist(lerr) {
+			return cat, lerr
 		}
+		return cat, nil
+	}
+	if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return cat, fmt.Errorf("unsafe import source directory: %s", src)
+	}
+	if !info.IsDir() {
 		return cat, nil
 	}
 
@@ -193,7 +201,7 @@ func AppendSkillDirectory(cat *Catalog, dir string) int {
 		return 0
 	}
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !isSafeDirEntry(e) {
 			continue
 		}
 		abs := filepath.Join(dir, e.Name())
@@ -413,6 +421,10 @@ func walkSessionRels(sessionsRoot string) []string {
 	return rows
 }
 
+func isSafeDirEntry(d os.DirEntry) bool {
+	return d != nil && d.Type()&(os.ModeSymlink|os.ModeIrregular) == 0 && d.IsDir()
+}
+
 func walkSessionRelsContext(ctx context.Context, sessionsRoot string) ([]string, error) {
 	var found []string
 	if !entryExists(sessionsRoot, true) {
@@ -422,7 +434,16 @@ func walkSessionRelsContext(ctx context.Context, sessionsRoot string) ([]string,
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err != nil || d == nil || !d.IsDir() {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.Type()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.IsDir() {
 			return nil
 		}
 		if path == sessionsRoot {
@@ -513,7 +534,7 @@ func scanSkills(src, dst string) ([]CatalogItem, []string) {
 			continue
 		}
 		for _, e := range entries {
-			if !e.IsDir() {
+			if !isSafeDirEntry(e) {
 				continue
 			}
 			abs := filepath.Join(root.dir, e.Name())
@@ -603,7 +624,7 @@ func scanPresets(src, dst string) []CatalogItem {
 	}
 	var out []CatalogItem
 	for _, e := range entries {
-		if !e.IsDir() || !presetIDRe.MatchString(e.Name()) {
+		if !isSafeDirEntry(e) || !presetIDRe.MatchString(e.Name()) {
 			continue
 		}
 		abs := filepath.Join(dir, e.Name())

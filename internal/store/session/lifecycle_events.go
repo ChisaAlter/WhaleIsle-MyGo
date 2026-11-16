@@ -75,6 +75,7 @@ func (s *Store) OnEventsReady(owner *EventsOwner) {
 		s.mu.Unlock()
 		return
 	}
+	s.ensureNativeContributionsLocked(owner)
 	client, generation := s.beginListRefreshLocked()
 	refreshSkills := s.skillRefreshOnEventsReady
 	skillsOwner := workspaceSelectedOwner{client: client, hostGeneration: owner.generation, composerGeneration: s.composerHostGeneration,
@@ -348,11 +349,13 @@ func (s *Store) selectSessionLocked(sessionID string) {
 func (s *Store) invalidateFollowLocked() {
 	s.invalidateViewLocked()
 	s.historyLoading = false
+	s.historyReconnecting = false
 	s.clearHistoryErrorLocked()
 	s.resetTurnFilesLocked()
 	s.turnFilesHistoryBinding = ""
 	s.resetHistoryPagingLocked()
 	s.clearHistoryOutlineLocked()
+	s.clearPerSessionDecodeCachesLocked()
 	s.trajectoryBoundaries = nil
 	s.systemPromptAnchors = nil
 	s.planHistoryBinding = ""

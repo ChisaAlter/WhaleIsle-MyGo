@@ -225,10 +225,18 @@ func applyTextRead(m Model, result textReadResult) {
 		return
 	}
 	dirty := tab.Dirty()
-	baseline := tab.Preview
-	next := reconcileTextRead(textReadState{preview: tab.Preview, draft: tab.Draft, truncated: tab.Truncated, remote: tab.Remote}, result)
+	next := reconcileTextRead(textReadState{
+		preview:         tab.Preview,
+		draft:           tab.Draft,
+		conflictContent: tab.conflictContent,
+		truncated:       tab.Truncated,
+		remote:          tab.Remote,
+		hasConflict:     tab.hasConflict,
+		conflictTrunc:   tab.conflictTruncated,
+	}, result)
 	tab.Preview, tab.Draft = next.preview, next.draft
 	tab.Truncated, tab.Remote, tab.readBlocked = next.truncated, next.remote, next.blocked
+	tab.hasConflict, tab.conflictContent, tab.conflictTruncated = next.hasConflict, next.conflictContent, next.conflictTrunc
 	tab.readFullPath = result.fullPath
 	if result.err == nil && !dirty && result.page != nil {
 		tab.textPage = *result.page
@@ -247,17 +255,21 @@ func applyTextRead(m Model, result textReadResult) {
 			tab.Status = label("重新载入失败，草稿保留：", "Reload failed; draft kept: ") + problem
 		case result.truncated:
 			tab.Status = label("磁盘文件超出完整预览上限，草稿已保留；可显式保存草稿。", "File exceeds the complete preview limit. Draft kept; explicit Save remains available.")
-		case result.text != baseline:
-			tab.Status = label("已重新读取磁盘内容并保留草稿；请核对后保存。", "Disk content reread; draft kept. Review it before saving.")
+		case next.hasConflict:
+			tab.externalChanged = true
+			tab.Status = label("磁盘文件已修改且与当前草稿冲突；已保留草稿与磁盘版本，请选择应用磁盘版本或以当前草稿覆盖磁盘。", "File changed on disk and conflicts with your draft. Both versions were kept; apply the disk version or overwrite the disk file.")
 		default:
 			tab.Status = label("文件未变化，未保存草稿已保留", "File unchanged; unsaved draft kept")
-		}
-		if result.err == nil && !result.truncated && !result.remote && !tab.Remote {
-			tab.externalChanged = false
+			if !result.remote && !tab.Remote {
+				tab.externalChanged = false
+			}
 		}
 	} else {
 		if problem == "" {
 			tab.externalChanged = false
+			tab.hasConflict = false
+			tab.conflictContent = ""
+			tab.conflictTruncated = false
 		}
 		tab.Error = problem
 		tab.Status = ""

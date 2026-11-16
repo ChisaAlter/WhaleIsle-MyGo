@@ -93,7 +93,7 @@ func TestStartupSelectionRetiresOnRoutesNavigationAndHostRestart(t *testing.T) {
 			case "schedule":
 				s.scheduleOpen = true
 			case "assistant":
-				s.assistantOpen = true
+				s.assistantService().SetOpen(true)
 			case "settings":
 				s.settingsOpen = true
 			case "launcher":
@@ -111,7 +111,8 @@ func TestStartupSelectionRetiresOnRoutesNavigationAndHostRestart(t *testing.T) {
 			case "quitting":
 				s.quitting = true
 			case "panel-aba":
-				s.assistantConversationGeneration += 2
+				s.assistantService().SetOpen(true)
+				s.assistantService().SetOpen(false)
 			case "gesture":
 				s.workspaceSessionOpen.generation++
 			case "boot":
@@ -121,7 +122,8 @@ func TestStartupSelectionRetiresOnRoutesNavigationAndHostRestart(t *testing.T) {
 			if s.claimStartupSelection(win, store, receipt) {
 				t.Fatal("startup stole foreground")
 			}
-			s.marketOpen, s.scheduleOpen, s.assistantOpen, s.settingsOpen, s.launcherOpen, s.usageOpen, s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen, s.quitting = false, false, false, false, false, false, false, false, false, false, false
+			s.assistantService().SetOpen(false)
+			s.marketOpen, s.scheduleOpen, s.settingsOpen, s.launcherOpen, s.usageOpen, s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen, s.quitting = false, false, false, false, false, false, false, false, false, false
 			if s.claimStartupSelection(win, store, receipt) {
 				t.Fatal("returning to conversation rearmed startup")
 			}

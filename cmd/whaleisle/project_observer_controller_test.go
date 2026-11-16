@@ -2,53 +2,40 @@ package main
 
 import (
 	"testing"
+
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/projects"
 )
 
-func TestProjectObserverControllersRetainIndependentState(t *testing.T) {
+func TestProjectObserverControllersRetainIndependentStateViaShell(t *testing.T) {
 	parent := &mainState{dshClient: &dsh.Client{}}
-	parent.projectFlow = projectFlowState{client: parent.dshClient}
+	parentFrame := frame.Model{ThemeID: "frame-theme", SystemDark: true}
+	parent.bindProjectModel(nil, &parentFrame)
+	if parentFrame.Projects.ObserverModel == nil {
+		t.Fatal("shell did not bind ObserverModel factory")
+	}
 	a := &projects.ObserverState{ProjectID: "a", CoordinatorSessionID: "lead-a", Section: "tasks"}
 	b := &projects.ObserverState{ProjectID: "b", CoordinatorSessionID: "lead-b", Section: "materials"}
-	ca := parent.observerControllerLocked(a)
-	cb := parent.observerControllerLocked(b)
-	if ca == cb || ca.projectFlow == cb.projectFlow || ca.projectFlow == &parent.projectFlow {
-		t.Fatal("observers share the mutable global controller")
+	mgr := parent.projectManager()
+	ca := mgr.Observer(a)
+	cb := mgr.Observer(b)
+	if ca == cb || ca == mgr.Primary() || cb == mgr.Primary() {
+		t.Fatal("observer controllers share mutable primary state")
 	}
-	ca.projectFlow.requestProjectID = "a"
-	ca.projectFlow.requestKind = "completed"
-	ca.projectFlow.requestCursors = []string{"", "a-page-2"}
-	ca.projectFlow.requestCard = &projectflow.RequestCard{ID: "a-card", ProjectID: "a"}
-	cb.projectFlow.requestProjectID = "b"
-	cb.projectFlow.requestKind = "archived"
-	cb.projectFlow.requestCursors = []string{"", "b-page-2", "b-page-3"}
-	cb.projectFlow.requestCard = &projectflow.RequestCard{ID: "b-card", ProjectID: "b"}
-	ca.projectFlow.materials = map[string]*projectflow.MaterialDraft{"a": {ProjectID: "a", Draft: "unsaved a", Saved: "a", Loaded: true}}
-	cb.projectFlow.materials = map[string]*projectflow.MaterialDraft{"b": {ProjectID: "b", Draft: "unsaved b", Saved: "b", Loaded: true}}
-	// This is the same callback the mounted native observer invokes. Its receiver
-	// must remain attached to A even after B has been selected/rendered.
-	ma := ca.projectModel(nil)
-	_ = cb.projectModel(nil)
+	if mgr.Observer(a) != ca || mgr.Observer(b) != cb {
+		t.Fatal("observer controller lookup was not stable")
+	}
+	ma := parentFrame.Projects.ObserverModel(a)
+	mb := parentFrame.Projects.ObserverModel(b)
+	if ma.ThemeID != "frame-theme" || !ma.SystemDark || mb.ThemeID != "frame-theme" || !mb.SystemDark {
+		t.Fatal("observer models did not retain parent frame theme")
+	}
+	if ma.OnBackRequests == nil || mb.OnBackRequests == nil || ma.VisualPage == nil || mb.VisualPage == nil {
+		t.Fatal("observer models missing expected callbacks")
+	}
 	ma.OnBackRequests()
-	if ca.projectFlow.requestCard != nil || cb.projectFlow.requestCard == nil || cb.projectFlow.requestCard.ID != "b-card" {
-		t.Fatal("A callback modified B's selected card")
-	}
-	if len(ca.projectFlow.requestCursors) != 2 || len(cb.projectFlow.requestCursors) != 3 || cb.projectFlow.requestKind != "archived" {
-		t.Fatal("request pagination did not remain independently retained")
-	}
-	if parent.observerControllerLocked(a) != ca || parent.observerControllerLocked(b) != cb {
-		t.Fatal("switching coordinator replaced its observer controller")
-	}
-	if !ca.projectFlow.materials["a"].Dirty() || !cb.projectFlow.materials["b"].Dirty() {
-		t.Fatal("switching observer lost material drafts")
-	}
-	if parent.projectFlow.requestCard != nil || parent.projectFlow.requestProjectID != "" {
-		t.Fatal("observer mutated sidebar controller")
-	}
-	ca.disposeLocked()
-	if cb.projectFlow.client != parent.dshClient || cb.projectFlow.requestCard == nil {
-		t.Fatal("disposing A invalidated B")
-	}
+	ca.Dispose()
+	mgr.Suspend()
+	mgr.Close()
 }

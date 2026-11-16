@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/store/internal/storefs"
 )
 
 const rosterFile = "roster.json"
@@ -57,8 +58,8 @@ func Open(userData string) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{root: root}
-	if raw, err := os.ReadFile(filepath.Join(root, rosterFile)); err == nil {
-		_ = json.Unmarshal(raw, &s.snap)
+	if _, err := storefs.ReadJSON("dshbot", filepath.Join(root, rosterFile), &s.snap, false); err != nil {
+		return nil, err
 	}
 	return s, nil
 }
@@ -192,7 +193,7 @@ func (s *Store) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.root, rosterFile), raw, 0o644)
+	return storefs.WriteFileAtomic(filepath.Join(s.root, rosterFile), raw, 0o644)
 }
 
 // RowSessionID returns a trimmed session id for a roster id, if present.

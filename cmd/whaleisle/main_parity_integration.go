@@ -4,23 +4,19 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
-	"whaleisle/internal/pad"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/files"
-	padui "whaleisle/internal/ui/pad"
 )
 
 // Child editors are durable draft consumers, but never alias an ordinary
@@ -80,153 +76,6 @@ func (s *mainState) saveDefaultAgentPreset(id string) {
 			apply(ctx, id)
 		}
 	}()
-}
-
-// padOriginalSurface reports whether the shipped dsh-pad overlay runs inside
-// the hidden navigation Host (default); goPadSurface "native" restores the
-// retired Go dock/card front end.
-func (s *mainState) padOriginalSurface() bool {
-	if s.cfgStore == nil {
-		return true
-	}
-	return !strings.EqualFold(strings.TrimSpace(s.cfgStore.Get().PadSurface), "native")
-}
-
-func (s *mainState) syncPadDesktop() *pad.Desktop {
-	if s.padOriginalSurface() {
-		s.mu.Lock()
-		stale := s.padDesktop
-		s.padDesktop, s.padDesktopAttempted = nil, false
-		s.mu.Unlock()
-		if stale != nil {
-			stale.Close()
-		}
-		return nil
-	}
-	s.mu.Lock()
-	desktop, win, st, quitting := s.padDesktop, s.win, s.bootStatus, s.quitting
-	attempted := s.padDesktopAttempted
-	s.mu.Unlock()
-	if win == nil || quitting {
-		return desktop
-	}
-	if desktop == nil && !attempted && st.State == harness.Ready {
-		s.mu.Lock()
-		s.padDesktopAttempted = true
-		s.mu.Unlock()
-		created, err := pad.NewDesktop(pad.Options{Parent: win, UserData: paths.UserDataDir(), VendorDir: paths.VendorDir(), Changed: win.Invalidate, OnAsk: s.askFromPad, OnOpenURL: mygo.Shell.OpenExternal, OnFailure: s.onEmbeddedPageFailure})
-		if err != nil {
-			s.notifyUser(win, resumeText("面板初始化失败：", "Panel initialization failed: ")+err.Error())
-			return nil
-		}
-		s.mu.Lock()
-		s.padDesktop = created
-		s.mu.Unlock()
-		desktop = created
-	}
-	if desktop != nil {
-		origin, cookie := "", ""
-		if st.State == harness.Ready {
-			origin, cookie = st.Endpoint.Origin, st.Endpoint.Cookie
-		}
-		desktop.Sync(origin, cookie, uint64(st.Generation))
-	}
-	return desktop
-}
-
-func (s *mainState) paintPad(c *ui.Context) {
-	d := s.syncPadDesktop()
-	if d == nil {
-		return
-	}
-	s.mu.Lock()
-	masked := s.settingsOpen || s.launcherOpen || s.closingOverlay || s.confirmAsk != nil || s.dirPickOpen || s.quitting
-	themeID := s.themeID
-	s.mu.Unlock()
-	d.SetMasked(masked)
-	if !masked {
-		padui.View(c, padui.Model{Desktop: d, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()})
-	}
-}
-
-func (s *mainState) padReservedWidth(c *ui.Context) float32 {
-	s.mu.Lock()
-	d := s.padDesktop
-	masked := s.settingsOpen || s.launcherOpen || s.closingOverlay || s.confirmAsk != nil || s.dirPickOpen || s.quitting
-	s.mu.Unlock()
-	if masked {
-		return 0
-	}
-	width, _ := c.Size()
-	if s.padOriginalSurface() {
-		if owner := s.pluginNavigationOwner(); owner != nil {
-			return owner.AmbientReservedWidth(width)
-		}
-		return 0
-	}
-	if d == nil {
-		return 0
-	}
-	return d.ReservedWidth(width)
-}
-
-// Both a native click and a card's websocket request arrive here. RunOnMain is
-// reentrant on the UI thread, unlike posting Window.Update then waiting on it.
-func (s *mainState) askFromPad(text string, insert bool) error {
-	if strings.TrimSpace(text) == "" {
-		return errors.New(resumeText("请输入面板需求。", "Enter what you want the panel to do."))
-	}
-	s.mu.Lock()
-	sessions, host := s.sessions, s.bootStatus
-	s.mu.Unlock()
-	if sessions == nil || host.State != harness.Ready {
-		return errors.New(resumeText("会话连接尚未就绪。", "The conversation connection is not ready."))
-	}
-	target, err := sessions.CaptureComposerTarget(sessions.SelectedSessionID())
-	if err != nil {
-		return err
-	}
-	result := errors.New(resumeText("主窗口已关闭。", "The main window has closed."))
-	mygo.RunOnMain(func() {
-		s.mu.Lock()
-		current := !s.quitting && s.sessions == sessions && s.bootStatus.Generation == host.Generation && s.bootStatus.Endpoint == host.Endpoint && s.bootStatus.State == harness.Ready
-		win := s.win
-		s.mu.Unlock()
-		if !current || win == nil || !target.NavigationCurrent() {
-			result = errors.New(resumeText("会话已更改，请重新操作。", "The conversation changed. Try again."))
-			return
-		}
-		v := sessions.Snapshot()
-		s.mu.Lock()
-		d := s.composerDraftLocked(v.SelectedID)
-		s.mu.Unlock()
-		if result = applyPadComposerDraft(d, text, insert); result != nil {
-			return
-		}
-		s.revealMainConversation()
-		d.EditFocus = true
-		win.Invalidate()
-	})
-	return result
-}
-
-// Pad hands authored text to the native editor. It never submits a prompt.
-// insertText replaces the captured UTF-16 selection, as the original input hub
-// does; ask fills an empty draft and refuses to overwrite existing user work.
-func applyPadComposerDraft(d *composer.DraftState, text string, insert bool) error {
-	if d.Sending || d.Preparing > 0 || d.EditSeq > 0 {
-		return errors.New(resumeText("输入框正在发送、准备附件或编辑消息，请稍后重试。", "The composer is sending, preparing attachments or editing a message. Try again when it is ready."))
-	}
-	if !insert && (strings.TrimSpace(d.Text) != "" || len(d.Attachments) != 0) {
-		return errors.New(resumeText("输入框已有草稿，请先发送或清空后再提问。", "The composer has a draft. Send or clear it before asking."))
-	}
-	if insert {
-		selection := d.Client.Selection().Range
-		d.Client.ReplaceText(&selection, text)
-	} else {
-		d.Client.ReplaceText(&ui.TextInputRange{End: ui.UTF16Len(d.Text)}, text)
-	}
-	return nil
 }
 
 type fileOpenWithOwner struct {

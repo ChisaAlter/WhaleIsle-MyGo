@@ -16,8 +16,9 @@ import (
 
 func (s *mainState) importPluginInstaller(win *mygo.Window, dest, node string) importer.PluginInstaller {
 	return func(ctx context.Context, row importer.CatalogItem, spec string) importer.PluginInstallResult {
+		startBusy := s.launcherController().StartBusy()
 		s.mu.Lock()
-		allowed := s.launcherImportBusy && !s.launcherStartBusy && !s.quitting &&
+		allowed := s.launcherImportBusy && !startBusy && !s.quitting &&
 			(s.sup == nil || s.sup.Status().State == harness.Stopped)
 		if allowed {
 			s.launcherImport = fmt.Sprintf(i18n.T(i18n.KeyCmdImportPluginProgress), row.ID, spec)

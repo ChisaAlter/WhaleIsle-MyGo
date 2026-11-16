@@ -49,12 +49,6 @@ func userMessageParts(body string) (refs []string, text string) {
 // userMessageView follows MessageItem's userRow/userStack geometry. The two
 // nested caps express min(chat-width * .702, 82% of the available row).
 func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.Colors, refs []string, body string, onOpenImage func(string)) {
-	if m.RenderSlot != nil && !m.nativeUserEditor {
-		native := m
-		native.nativeUserEditor = true
-		m.RenderSlot(c, m.Snapshot, msg, "conversation.chat.user-editor", func() { userMessageView(c, native, msg, colors, refs, body, onOpenImage) })
-		return
-	}
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	border, field := chrome.Color(colors.Border), chrome.Color(colors.Field)
 	referenceLabels, skillNames := userMessageContextFacts(m.Snapshot, msg)
@@ -177,11 +171,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 				})
 			})
 		}
-		if m.RenderSlot != nil {
-			m.RenderSlot(c, m.Snapshot, msg, "user.content", paintContent)
-		} else {
-			paintContent()
-		}
+		paintContent()
 		actions := ui.Row(c).Label("User message actions").Gap(8).Height(28 + theme.CurrentPreferences().Chat.Size - 14).AlignItems(ui.Center)
 		messageActionMenu(c, actions, m, msg)
 		if !latestUserMessage(m.Snapshot.Messages, msg) && !owner.Hovered() && !owner.FocusWithin() {
@@ -240,11 +230,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 					}
 				}
 			}
-			if m.RenderSlot != nil {
-				m.RenderSlot(c, m.Snapshot, msg, "conversation.chat.user-actions", paintEdit)
-			} else {
-				paintEdit()
-			}
+			paintEdit()
 		})
 	})
 }

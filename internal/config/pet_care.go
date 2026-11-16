@@ -107,27 +107,13 @@ func (s *Store) commitPetLocked(pet map[string]json.RawMessage) error {
 	if json.Compact(&current, s.raw["live2dPet"]) == nil && bytes.Equal(current.Bytes(), next) {
 		return nil
 	}
-	merged := make(map[string]json.RawMessage, len(s.raw)+1)
-	for key, value := range s.raw {
-		merged[key] = value
-	}
+	merged := cloneRawMap(s.raw)
 	merged["live2dPet"] = next
-	data, err := json.MarshalIndent(merged, "", "  ")
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-	unlock, err := s.lockCommit()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err = s.checkBaseline(); err != nil {
-		return err
-	}
-	if err = writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }

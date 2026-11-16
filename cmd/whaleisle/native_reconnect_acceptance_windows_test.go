@@ -119,6 +119,7 @@ func runNativeReconnectDesktop(output string) error {
 			_ = cfg.Update(func(c *config.Config) {
 				c.Workspace = workspace
 				c.NodeBin = os.Getenv("WHALEISLE_NODE")
+				c.AutoDownloadUpdates = false
 			})
 		}
 	}

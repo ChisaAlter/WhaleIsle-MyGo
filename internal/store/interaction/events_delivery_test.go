@@ -6,10 +6,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"whaleisle/internal/dsh"
 )
 
@@ -171,4 +174,120 @@ func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestEventsDeliveryDuplicateEventIDPumpExitsCleanly(t *testing.T) {
+	framesDelivered := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != dsh.MuxPath {
+			http.NotFound(w, r)
+			return
+		}
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		var open dsh.ClientFrame
+		if err := wsjson.Read(r.Context(), c, &open); err != nil {
+			return
+		}
+		_ = wsjson.Write(r.Context(), c, dsh.ServerFrame{
+			Type:     dsh.FrameItem,
+			StreamID: open.StreamID,
+			Value:    json.RawMessage(`{"type":"ready","clientId":"c1","host":{"home":"H"}}`),
+		})
+		for range 2 {
+			_ = wsjson.Write(r.Context(), c, dsh.ServerFrame{
+				Type:     dsh.FrameItem,
+				StreamID: open.StreamID,
+				Value:    json.RawMessage(`{"type":"waterfall","event":"approval/request","eventId":"dup-1","agentId":"A","request":{"toolName":"bash"}}`),
+			})
+		}
+		close(framesDelivered)
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
+	mux := &dsh.Mux{Endpoint: client.Endpoint}
+	defer mux.Close()
+
+	s := New()
+	defer s.Detach()
+	s.AttachClient(client, mux)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	owner := s.BeginEventsDelivery(ctx, client, mux)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- client.FollowEvents(ctx, mux, dsh.EventsFuncs{
+			Waterfall: func(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+				return s.HandleWaterfallForDelivery(owner, wf)
+			},
+			Result: func(res dsh.EventResult, err error) bool {
+				return s.OnResultForDelivery(owner, res, err)
+			},
+			Cancel: func(ev dsh.EventsCancel) {
+				s.OnCancelForDelivery(owner, ev)
+			},
+			Retire: func() {
+				s.RetireEventsDelivery(owner)
+			},
+		})
+	}()
+
+	select {
+	case <-framesDelivered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for duplicate waterfall frames")
+	}
+	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("FollowEvents pump hung in tasks.Wait() on duplicate EventID")
+	}
+}
+
+func TestEmptyEventIDDoesNotWipeCrossSessionPending(t *testing.T) {
+	s := New()
+	defer s.Detach()
+	client, mux := &dsh.Client{}, &dsh.Mux{}
+	s.AttachClient(client, mux)
+	owner := s.BeginEventsDelivery(context.Background(), client, mux)
+	defer s.RetireEventsDelivery(owner)
+
+	wf1 := dsh.EventsWaterfall{EventID: "ev-session-a", AgentID: "A", Event: EventApproval, Request: json.RawMessage(`{"toolName":"bash"}`)}
+	wf2 := dsh.EventsWaterfall{EventID: "ev-session-b", AgentID: "B", Event: EventUserQuestions, Request: json.RawMessage(`{"callId":"c-b","questions":[{"id":"q1","question":"Keep?"}]}`)}
+	ans1 := deliveryAnswer(t, s, owner, wf1)
+	ans2 := deliveryAnswer(t, s, owner, wf2)
+	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 2 })
+
+	// Empty EventID frames / results must be rejected and never trigger dropPending("").
+	s.OnCancel(dsh.EventsCancel{EventID: ""})
+	s.OnCancelForDelivery(owner, dsh.EventsCancel{EventID: "   "})
+	if s.OnResult(dsh.EventResult{EventID: ""}, nil) {
+		t.Fatal("empty result EventID requested retry")
+	}
+	if s.OnResultForDelivery(owner, dsh.EventResult{EventID: ""}, errors.New("boom")) {
+		t.Fatal("empty delivery result EventID requested retry")
+	}
+	outEmpty, err := s.HandleWaterfallForDelivery(owner, dsh.EventsWaterfall{EventID: "", AgentID: "C", Event: EventApproval})
+	if err != nil || outEmpty == nil || (outEmpty.Delivery != nil && outEmpty.Delivery.Valid()) {
+		t.Fatalf("empty waterfall EventID unexpected outcome=%+v err=%v", outEmpty, err)
+	}
+
+	snap := s.Snapshot()
+	if len(snap.Pending) != 2 || len(snap.QuestionCards) != 1 {
+		t.Fatalf("empty EventID cleared unrelated pending/question state: pending=%+v cards=%+v", snap.Pending, snap.QuestionCards)
+	}
+
+	s.RetireEventsDelivery(owner)
+	_ = deliveryReceive(t, ans1)
+	_ = deliveryReceive(t, ans2)
 }

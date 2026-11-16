@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -55,9 +56,22 @@ func handleNativeRecoveryProcess() bool {
 	}
 	var mu sync.Mutex
 	lastBeat := time.Now()
+	paused := false
 	diagnostic, failure := "", ""
 	var win *mygo.Window
 	recovering, dismissed, restarting, stopped := false, false, false, false
+	stateWake := make(chan struct{}, 1)
+	wakeLoop := func() {
+		select {
+		case stateWake <- struct{}{}:
+		default:
+		}
+	}
+	parentDead := make(chan struct{})
+	go func() {
+		process.waitExit()
+		close(parentDead)
+	}()
 	commands := json.NewEncoder(os.Stdout)
 	var sendMu sync.Mutex
 	send := func(kind string) {
@@ -79,6 +93,7 @@ func handleNativeRecoveryProcess() bool {
 		if targetStopped {
 			mygo.App.Quit()
 		}
+		wakeLoop()
 	}
 	go func() {
 		for {
@@ -94,7 +109,11 @@ func handleNativeRecoveryProcess() bool {
 			}
 			mu.Lock()
 			switch message.Kind {
-			case "beat":
+			case "beat", "resume":
+				paused = false
+				lastBeat = time.Now()
+			case "pause":
+				paused = true
 				lastBeat = time.Now()
 			case "diagnostic":
 				diagnostic = message.Diagnostic
@@ -105,6 +124,7 @@ func handleNativeRecoveryProcess() bool {
 			}
 			current := win
 			mu.Unlock()
+			wakeLoop()
 			if current != nil {
 				current.Update(func() {})
 			}
@@ -115,7 +135,55 @@ func handleNativeRecoveryProcess() bool {
 		go func() {
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
-			for range ticker.C {
+			var tickC <-chan time.Time = ticker.C
+			setTicker := func(active bool) {
+				if active && tickC == nil {
+					ticker.Reset(time.Second)
+					tickC = ticker.C
+				} else if !active && tickC != nil {
+					ticker.Stop()
+					select {
+					case <-ticker.C:
+					default:
+					}
+					tickC = nil
+				}
+			}
+			for {
+				mu.Lock()
+				isPaused := paused
+				current := win
+				if isPaused && current == nil {
+					setTicker(false)
+					mu.Unlock()
+					select {
+					case <-parentDead:
+						mu.Lock()
+						active := restarting || stopped
+						mu.Unlock()
+						if !active {
+							mygo.App.Quit()
+						}
+						return
+					case <-stateWake:
+						continue
+					}
+				}
+				setTicker(true)
+				mu.Unlock()
+				select {
+				case <-parentDead:
+					mu.Lock()
+					active := restarting || stopped
+					mu.Unlock()
+					if !active {
+						mygo.App.Quit()
+					}
+					return
+				case <-stateWake:
+					continue
+				case <-tickC:
+				}
 				if !process.alive() {
 					mu.Lock()
 					active := restarting || stopped
@@ -126,8 +194,8 @@ func handleNativeRecoveryProcess() bool {
 					return
 				}
 				mu.Lock()
-				hung := time.Since(lastBeat) > nativeUIHangAfter
-				current := win
+				hung := !paused && time.Since(lastBeat) > nativeUIHangAfter
+				current = win
 				if !hung {
 					dismissed = false
 				}
@@ -283,6 +351,65 @@ func handleNativeRecoveryProcess() bool {
 	return true
 }
 
+type nativeUIRecoveryController struct {
+	hidden          atomic.Bool
+	paused          atomic.Bool
+	inFlightBeat    atomic.Bool
+	activeUntilNano atomic.Int64
+	armCh           chan struct{}
+}
+
+func newNativeUIRecoveryController() *nativeUIRecoveryController {
+	c := &nativeUIRecoveryController{armCh: make(chan struct{}, 1)}
+	c.activeUntilNano.Store(time.Now().Add(3 * time.Second).UnixNano())
+	return c
+}
+
+func (c *nativeUIRecoveryController) signal() {
+	select {
+	case c.armCh <- struct{}{}:
+	default:
+	}
+}
+
+func (c *nativeUIRecoveryController) shouldPauseLocked(now time.Time) bool {
+	if c.inFlightBeat.Load() {
+		return false
+	}
+	return c.hidden.Load() || now.UnixNano() > c.activeUntilNano.Load()
+}
+
+func (s *mainState) noteNativeUIActivity() {
+	c := s.nativeRecovery.Load()
+	if c == nil {
+		return
+	}
+	c.activeUntilNano.Store(time.Now().Add(3 * time.Second).UnixNano())
+	if c.paused.Load() {
+		c.signal()
+	}
+}
+
+func (s *mainState) pauseNativeUIRecovery() {
+	c := s.nativeRecovery.Load()
+	if c == nil {
+		return
+	}
+	c.hidden.Store(true)
+	c.activeUntilNano.Store(0)
+	c.signal()
+}
+
+func (s *mainState) resumeNativeUIRecovery() {
+	c := s.nativeRecovery.Load()
+	if c == nil {
+		return
+	}
+	c.hidden.Store(false)
+	c.activeUntilNano.Store(time.Now().Add(3 * time.Second).UnixNano())
+	c.signal()
+}
+
 func (s *mainState) startNativeUIRecovery(win *mygo.Window) {
 	if win == nil || win.IsDestroyed() {
 		return
@@ -308,11 +435,25 @@ func (s *mainState) startNativeUIRecovery(win *mygo.Window) {
 		log.Println("native recovery monitor:", err)
 		return
 	}
+	ctrl := newNativeUIRecoveryController()
+	s.nativeRecovery.Store(ctrl)
 	queue := make(chan nativeRecoveryMessage, 8)
 	done := make(chan struct{})
 	var once sync.Once
-	stop := func() { once.Do(func() { close(done); input.Close() }) }
+	stop := func() {
+		once.Do(func() {
+			s.nativeRecovery.CompareAndSwap(ctrl, nil)
+			close(done)
+			input.Close()
+		})
+	}
 	win.OnClosed(stop)
+	win.OnHide(s.pauseNativeUIRecovery)
+	win.OnMinimize(s.pauseNativeUIRecovery)
+	win.OnShow(s.resumeNativeUIRecovery)
+	win.OnRestore(s.resumeNativeUIRecovery)
+	win.OnFocus(s.resumeNativeUIRecovery)
+	win.OnResize(s.noteNativeUIActivity)
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { stop() })
 	go func() {
 		defer stop()
@@ -354,19 +495,71 @@ func (s *mainState) startNativeUIRecovery(win *mygo.Window) {
 	}()
 	go func() {
 		defer cmd.Wait()
+		send := func(kind string) {
+			select {
+			case queue <- nativeRecoveryMessage{Kind: kind}:
+			default:
+			}
+		}
+		probeMain := func() {
+			if !ctrl.inFlightBeat.CompareAndSwap(false, true) {
+				return
+			}
+			mygo.RunOnMain(func() {
+				ctrl.inFlightBeat.Store(false)
+				send("beat")
+			})
+		}
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		var tickC <-chan time.Time = ticker.C
+		setTicker := func(active bool) {
+			if active && tickC == nil {
+				ticker.Reset(time.Second)
+				tickC = ticker.C
+			} else if !active && tickC != nil {
+				ticker.Stop()
+				select {
+				case <-ticker.C:
+				default:
+				}
+				tickC = nil
+			}
+		}
 		for {
+			if ctrl.shouldPauseLocked(time.Now()) {
+				setTicker(false)
+				if ctrl.paused.CompareAndSwap(false, true) {
+					send("pause")
+				}
+				select {
+				case <-done:
+					return
+				case <-ctrl.armCh:
+					if ctrl.hidden.Load() {
+						continue
+					}
+					if ctrl.paused.CompareAndSwap(true, false) {
+						send("resume")
+					}
+					setTicker(true)
+					probeMain()
+				}
+				continue
+			}
+			setTicker(true)
 			select {
 			case <-done:
 				return
-			case <-ticker.C:
-				win.Update(func() {
-					select {
-					case queue <- nativeRecoveryMessage{Kind: "beat"}:
-					default:
-					}
-				})
+			case <-ctrl.armCh:
+				if !ctrl.hidden.Load() && ctrl.paused.CompareAndSwap(true, false) {
+					send("resume")
+				}
+			case <-tickC:
+				if ctrl.shouldPauseLocked(time.Now()) {
+					continue
+				}
+				probeMain()
 			}
 		}
 	}()

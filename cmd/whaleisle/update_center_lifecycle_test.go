@@ -3,16 +3,14 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/desktop/taskcontrol"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
@@ -44,10 +42,12 @@ func TestTaskInspectionSummaryDistinguishesKnownAndUnknownWork(t *testing.T) {
 
 func TestNativeUpdateCancelDoesNotMutateInstallAdmission(t *testing.T) {
 	s := &mainState{}
-	s.nativeReleases = nativeReleaseState{busy: true, installing: true, phase: "installing", stagedTag: "v1.2.3"}
-	s.cancelNativeUpdate(nil)
-	if s.nativeReleases.cancelRequested || !s.nativeReleases.installing || s.nativeReleases.phase != "installing" || s.nativeReleases.stagedTag != "v1.2.3" {
-		t.Fatalf("download cancellation changed installer admission: %+v", s.nativeReleases)
+	u := s.updaterCenter()
+	u.RestoreReleaseState(updater.ReleaseState{Busy: true, Installing: true, Phase: "installing", StagedTag: "v1.2.3"})
+	u.Cancel(nil)
+	r := u.ReleaseSnapshot()
+	if r.CancelRequested || !r.Installing || r.Phase != "installing" || r.StagedTag != "v1.2.3" {
+		t.Fatalf("download cancellation changed installer admission: %+v", r)
 	}
 }
 
@@ -72,44 +72,40 @@ func TestNativeAutomaticDownloadRetiresAfterIndependentUpgrade(t *testing.T) {
 			release := updateCenterFixture()
 			release.URL, release.Size, release.SHA256 = server.URL+"/fixture.exe", int64(len(payload)), hex.EncodeToString(digest[:])
 			s := &mainState{}
-			s.startupRecovery.updateVendorReady = true
-			s.launcherDownloadRoute = "github"
-			s.nativeReleases = nativeReleaseState{centerLoaded: true, initialized: true, autoDownload: true, rows: []update.NativeRelease{release}, route: "github", catalogRoute: "github"}
+			u := s.updaterCenter()
+			u.SetVendorReady(true)
+			u.SetFallbackRoute("github")
+			u.RestoreReleaseState(updater.ReleaseState{
+				CenterLoaded: true, Initialized: true, AutoDownload: true,
+				Rows: []update.NativeRelease{release}, Route: "github", CatalogRoute: "github",
+			})
 			if explicit {
-				s.downloadNativeRelease(nil, release.PackageKey(), false)
+				u.Download(nil, release.PackageKey(), false)
 			} else {
-				s.maybeAutoDownloadNative(nil)
+				u.MaybeAutoDownload(nil)
 			}
-			name := filepath.Join(paths.UserDataDir(), "updates", "update-center.json")
 			deadline := time.Now().Add(20 * time.Second)
-			var record nativeUpdateRecord
+			var record updater.NativeUpdateRecord
 			for time.Now().Before(deadline) {
-				// Use the same publication lock as the recovery reader. A bare
-				// Windows read handle can otherwise deny the atomic rename.
-				nativeUpdateDiskMu.Lock()
-				raw, err := os.ReadFile(name)
-				nativeUpdateDiskMu.Unlock()
-				s.mu.Lock()
-				busy := s.nativeReleases.busy
-				s.mu.Unlock()
-				if !busy && err == nil && json.Unmarshal(raw, &record) == nil && record.Phase == "ready" {
+				rec, err := u.ReadRecord()
+				snap := u.ReleaseSnapshot()
+				if !snap.Busy && err == nil && rec.Phase == "ready" {
+					record = rec
 					break
 				}
 				time.Sleep(10 * time.Millisecond)
 			}
 			if record.Phase != "ready" || record.ExplicitVersion != explicit {
-				s.mu.Lock()
-				state := s.nativeReleases
-				s.mu.Unlock()
-				t.Fatalf("download intent was not persisted: record=%+v state=%+v", record, state)
+				t.Fatalf("download intent was not persisted: record=%+v state=%+v", record, u.ReleaseSnapshot())
 			}
 			buildVersion = release.Version
 			reopened := &mainState{}
 			reopened.ensureNativeUpdateCenter()
-			if explicit && reopened.nativeReleases.staged.Path == "" {
+			snap := reopened.updaterCenter().ReleaseSnapshot()
+			if explicit && snap.Staged.Path == "" {
 				t.Fatal("explicit reinstall was retired")
 			}
-			if !explicit && reopened.nativeReleases.active.Tag != "" {
+			if !explicit && snap.Active.Tag != "" {
 				t.Fatal("automatic download survived an independent upgrade to the same version")
 			}
 		})

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"whaleisle/internal/app/updater"
 	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/ui/i18n"
 )
@@ -26,7 +27,7 @@ func TestUpdateCheckMessageUsesProductCopy(t *testing.T) {
 		{"failure", desktopupdate.Result{}, errors.New("network down"), "network down", ""},
 	}
 	for _, tc := range cases {
-		got := updateCheckMessage(tc.res, tc.err)
+		got := updater.CheckMessage(tc.res, tc.err)
 		if !strings.Contains(got, tc.want) {
 			t.Errorf("%s: message %q lacks %q", tc.name, got, tc.want)
 		}

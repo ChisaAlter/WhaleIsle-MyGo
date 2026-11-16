@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
+	"whaleisle/internal/startuprec"
 )
 
 // ExportLogs writes supervisor log lines to path. When path is empty, writes
@@ -62,7 +63,7 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 		if s == "" {
 			return "-"
 		}
-		return s
+		return startuprec.RedactLine(s)
 	}
 	errText := ""
 	if status.Err != nil {
@@ -74,6 +75,10 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 	}
 	if status.RecoveryCancelled {
 		recovery = "cancelled"
+	}
+	redactedLogs := make([]string, len(logs))
+	for i, line := range logs {
+		redactedLogs[i] = startuprec.RedactLine(line)
 	}
 	lines := []string{
 		strings.TrimSpace(product.Name + " " + version),
@@ -92,7 +97,7 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 		"pluginLoad.detail: " + value(status.PluginLoad.Detail),
 		"", "--- logs ---",
 	}
-	return strings.Join(append(lines, logs...), "\n") + "\n"
+	return strings.Join(append(lines, redactedLogs...), "\n") + "\n"
 }
 
 // ExportBootLogsDialog captures version, time and lifecycle state with the log.

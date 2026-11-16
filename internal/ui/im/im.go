@@ -23,7 +23,6 @@ type Model struct {
 	SystemDark       bool
 	HarnessReady     bool
 	MuxConnected     bool
-	HarnessIMOverlay bool
 	PluginDisabled   bool
 	Draft            *string
 	OnClose          func()
@@ -105,7 +104,6 @@ func View(c *ui.Context, m Model) {
 
 			if !m.Embedded {
 				rows := []struct{ label, value string }{
-					{i18n.T(i18n.KeyIMHarnessOverlay), onOff(m.HarnessIMOverlay)},
 					{i18n.T(i18n.KeyIMPluginDisabled), onOff(m.PluginDisabled)},
 					{i18n.T(i18n.KeyIMMux), muxLabel(m.HarnessReady, m.MuxConnected)},
 					{i18n.T(i18n.KeyIMGeneratedRPC), rpcLabel(snap.HasIMRPC, len(snap.Methods))},

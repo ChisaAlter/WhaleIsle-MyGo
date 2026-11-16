@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	EventApproval      = "approval/request"
-	EventUserQuestions = "user-questions/request"
-	outcomeAllowedOnce = "allowed-once"
-	outcomeRejected    = "rejected"
+	EventApproval        = "approval/request"
+	EventUserQuestions   = "user-questions/request"
+	outcomeAllowedOnce   = "allowed-once"
+	outcomeRejected      = "rejected"
+	maxCancelledEventIDs = 1024
 )
 
 // Pending is one waterfall waiting for a UI or policy answer.
@@ -75,8 +76,13 @@ type Store struct {
 	banner              string
 	pending             []Pending
 	waiters             map[string]chan dsh.EventResultOutcome
+	waitDones           map[string]chan struct{}
+	dupDones            map[string]chan struct{}
+	activeWait          map[string]uint64
+	waitSeq             uint64
 	responses           map[string]dsh.EventResultOutcome
 	cancelled           map[string]bool
+	cancelledOrder      []string
 	questionDrafts      map[string]*draftSession
 	planReviewOpened    map[planReviewOpenKey]bool
 	waitCancels         map[string]context.CancelFunc
@@ -88,6 +94,9 @@ func New() *Store {
 		autoAllow:      false,
 		banner:         "",
 		waiters:        make(map[string]chan dsh.EventResultOutcome),
+		waitDones:      make(map[string]chan struct{}),
+		dupDones:       make(map[string]chan struct{}),
+		activeWait:     make(map[string]uint64),
 		responses:      make(map[string]dsh.EventResultOutcome),
 		cancelled:      make(map[string]bool),
 		questionDrafts: make(map[string]*draftSession),
@@ -114,20 +123,49 @@ func (s *Store) Detach() {
 		delete(s.waitCancels, id)
 	}
 	for id, ch := range s.waiters {
-		s.cancelled[id] = true
 		select {
 		case ch <- dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: "client stopped"}}:
 		default:
 		}
 		delete(s.waiters, id)
 	}
+	for id, done := range s.waitDones {
+		close(done)
+		delete(s.waitDones, id)
+	}
+	for id, done := range s.dupDones {
+		close(done)
+		delete(s.dupDones, id)
+	}
+	s.activeWait = make(map[string]uint64)
 	s.pending = nil
 	s.responses = make(map[string]dsh.EventResultOutcome)
+	s.cancelled = make(map[string]bool)
+	s.cancelledOrder = nil
 	s.banner = ""
 	s.questionDrafts = make(map[string]*draftSession)
 	s.planReviewOpened = nil
 	s.mu.Unlock()
 	s.fire()
+}
+
+func (s *Store) markCancelledLocked(id string) {
+	if id == "" {
+		return
+	}
+	if s.cancelled == nil {
+		s.cancelled = make(map[string]bool)
+	}
+	if s.cancelled[id] {
+		return
+	}
+	s.cancelled[id] = true
+	s.cancelledOrder = append(s.cancelledOrder, id)
+	for len(s.cancelledOrder) > maxCancelledEventIDs {
+		evict := s.cancelledOrder[0]
+		s.cancelledOrder = s.cancelledOrder[1:]
+		delete(s.cancelled, evict)
+	}
 }
 
 // Snapshot copies observable state.
@@ -411,7 +449,11 @@ func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 	}
 	p.Sending, p.Error = true, ""
 	s.responses[eventID] = outcome
-	ch <- outcome
+	s.closeDupDoneLocked(eventID)
+	select {
+	case ch <- outcome:
+	default:
+	}
 	s.mu.Unlock()
 	s.fire()
 }
@@ -423,6 +465,9 @@ func (s *Store) OnResult(result dsh.EventResult, err error) bool {
 }
 
 func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.EventResult, err error) bool {
+	if strings.TrimSpace(result.EventID) == "" {
+		return false
+	}
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	if owner != nil && !s.eventsResultCurrentLocked(owner, result) {
@@ -518,13 +563,14 @@ func (s *Store) SnapshotForAgent(agentID string) ViewState {
 }
 
 func (s *Store) dropPending(eventID string) {
-	s.rememberQuestionDraftLocked(eventID)
-	s.forgetEventsDeliveryLocked(eventID)
 	if eventID == "" {
-		s.pending = nil
-		s.questionDrafts = make(map[string]*draftSession)
 		return
 	}
+	s.rememberQuestionDraftLocked(eventID)
+	s.forgetEventsDeliveryLocked(eventID)
+	s.closeWaitDoneLocked(eventID)
+	s.closeDupDoneLocked(eventID)
+	delete(s.activeWait, eventID)
 	if cancel := s.waitCancels[eventID]; cancel != nil {
 		cancel()
 		delete(s.waitCancels, eventID)
@@ -538,6 +584,134 @@ func (s *Store) dropPending(eventID string) {
 		}
 	}
 	s.pending = out
+}
+
+func (s *Store) ensureWaitDoneLocked(eventID string) chan struct{} {
+	if s.waitDones == nil {
+		s.waitDones = make(map[string]chan struct{})
+	}
+	ch := s.waitDones[eventID]
+	if ch == nil {
+		ch = make(chan struct{})
+		s.waitDones[eventID] = ch
+	}
+	return ch
+}
+
+func (s *Store) nextWaitTokenLocked(eventID string) uint64 {
+	if s.activeWait == nil {
+		s.activeWait = make(map[string]uint64)
+	}
+	s.waitSeq++
+	s.activeWait[eventID] = s.waitSeq
+	return s.waitSeq
+}
+
+func (s *Store) clearActiveWait(eventID string, tok uint64) {
+	if tok == 0 {
+		return
+	}
+	s.mu.Lock()
+	if s.activeWait[eventID] == tok {
+		delete(s.activeWait, eventID)
+	}
+	s.mu.Unlock()
+}
+
+func (s *Store) ensureDupDoneLocked(eventID string) chan struct{} {
+	if s.dupDones == nil {
+		s.dupDones = make(map[string]chan struct{})
+	}
+	ch := s.dupDones[eventID]
+	if ch == nil {
+		ch = make(chan struct{})
+		s.dupDones[eventID] = ch
+	}
+	return ch
+}
+
+func (s *Store) closeWaitDoneLocked(eventID string) {
+	if ch := s.waitDones[eventID]; ch != nil {
+		close(ch)
+		delete(s.waitDones, eventID)
+	}
+}
+
+func (s *Store) closeDupDoneLocked(eventID string) {
+	if ch := s.dupDones[eventID]; ch != nil {
+		close(ch)
+		delete(s.dupDones, eventID)
+	}
+}
+
+func (s *Store) registerWaiterLocked(owner *EventsDeliveryOwner, eventID string, ch chan dsh.EventResultOutcome) (*eventsDelivery, chan struct{}, uint64) {
+	if s.waitDones == nil {
+		s.waitDones = make(map[string]chan struct{})
+	}
+	if prev := s.waitDones[eventID]; prev != nil {
+		close(prev)
+	}
+	waitDone := make(chan struct{})
+	s.waitDones[eventID] = waitDone
+	if s.dupDones == nil {
+		s.dupDones = make(map[string]chan struct{})
+	}
+	if prev := s.dupDones[eventID]; prev != nil {
+		close(prev)
+	}
+	s.dupDones[eventID] = make(chan struct{})
+	s.waiters[eventID] = ch
+	tok := s.nextWaitTokenLocked(eventID)
+	return s.registerEventsDeliveryLocked(owner, eventID, ch), waitDone, tok
+}
+
+func (s *Store) waitDuplicateWaterfall(owner *EventsDeliveryOwner, eventID string, dupDone <-chan struct{}) *dsh.EventResultOutcome {
+	var ownerDone <-chan struct{}
+	if owner != nil {
+		ownerDone = owner.ctx.Done()
+	}
+	select {
+	case <-dupDone:
+	case <-ownerDone:
+	}
+	if owner != nil {
+		s.mu.Lock()
+		current := s.eventsOwnerCurrentLocked(owner)
+		cancelled := s.cancelled[eventID]
+		s.mu.Unlock()
+		if !current {
+			return expiredEventsOutcome(owner, eventID)
+		}
+		if cancelled {
+			out := approvalOutcome("cancelled")
+			return s.finishEventsOutcome(owner, eventID, nil, out)
+		}
+	}
+	return &dsh.EventResultOutcome{Kind: "next"}
+}
+
+func (s *Store) waitPrimaryWaterfall(owner *EventsDeliveryOwner, d *eventsDelivery, waitDone <-chan struct{}, eventID string, ch chan dsh.EventResultOutcome, tok uint64) (*dsh.EventResultOutcome, error) {
+	defer s.clearActiveWait(eventID, tok)
+	var deliveryDone, ownerDone <-chan struct{}
+	if d != nil {
+		deliveryDone = d.ctx.Done()
+	}
+	if owner != nil {
+		ownerDone = owner.ctx.Done()
+	}
+	select {
+	case out := <-ch:
+		return s.finishEventsOutcome(owner, eventID, ch, out), nil
+	case <-waitDone:
+		if owner != nil {
+			return expiredEventsOutcome(owner, eventID), nil
+		}
+		return &dsh.EventResultOutcome{Kind: "next"}, nil
+	case <-deliveryDone:
+		return expiredEventsOutcome(owner, eventID), nil
+	case <-ownerDone:
+		return expiredEventsOutcome(owner, eventID), nil
+	}
 }
 
 func (s *Store) findPending(eventID string) *Pending {
@@ -558,21 +732,44 @@ func (s *Store) HandleWaterfall(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome
 }
 
 func (s *Store) handleWaterfallForDelivery(owner *EventsDeliveryOwner, wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
+	if strings.TrimSpace(wf.EventID) == "" {
+		if owner != nil {
+			return expiredEventsOutcome(owner, wf.EventID), nil
+		}
+		return &dsh.EventResultOutcome{Kind: "next"}, nil
+	}
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
 		s.mu.Unlock()
 		return expiredEventsOutcome(owner, wf.EventID), nil
 	}
-	ch := s.waiters[wf.EventID]
+	existingCh := s.waiters[wf.EventID]
+	var (
+		retryTok uint64
+		waitDone chan struct{}
+		delivery *eventsDelivery
+		dupDone  chan struct{}
+	)
+	if existingCh != nil {
+		if s.activeWait[wf.EventID] == 0 {
+			retryTok = s.nextWaitTokenLocked(wf.EventID)
+			waitDone = s.ensureWaitDoneLocked(wf.EventID)
+			delivery = s.eventsDeliveries[wf.EventID]
+		} else {
+			dupDone = s.ensureDupDoneLocked(wf.EventID)
+		}
+	}
 	cancelled := s.cancelled[wf.EventID]
 	s.mu.Unlock()
 	if cancelled {
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
-	if ch != nil {
-		out := <-ch
-		return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
+	if retryTok != 0 {
+		return s.waitPrimaryWaterfall(owner, delivery, waitDone, wf.EventID, existingCh, retryTok)
+	}
+	if dupDone != nil {
+		return s.waitDuplicateWaterfall(owner, wf.EventID, dupDone), nil
 	}
 
 	switch wf.Event {
@@ -639,8 +836,19 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
-	s.waiters[wf.EventID] = ch
-	s.registerEventsDeliveryLocked(owner, wf.EventID, ch)
+	if existingCh := s.waiters[wf.EventID]; existingCh != nil {
+		if s.activeWait[wf.EventID] == 0 {
+			tok := s.nextWaitTokenLocked(wf.EventID)
+			waitDone := s.ensureWaitDoneLocked(wf.EventID)
+			d := s.eventsDeliveries[wf.EventID]
+			s.mu.Unlock()
+			return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, existingCh, tok)
+		}
+		dupDone := s.ensureDupDoneLocked(wf.EventID)
+		s.mu.Unlock()
+		return s.waitDuplicateWaterfall(owner, wf.EventID, dupDone), nil
+	}
+	d, waitDone, tok := s.registerWaiterLocked(owner, wf.EventID, ch)
 	s.pending = append(s.pending, Pending{
 		EventID:                wf.EventID,
 		SourceRequestID:        req.RequestID,
@@ -659,8 +867,7 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 	s.mu.Unlock()
 	s.fire()
 
-	out := <-ch
-	return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
+	return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, ch, tok)
 }
 
 func (s *Store) handleUserQuestions(wf dsh.EventsWaterfall) (*dsh.EventResultOutcome, error) {
@@ -689,8 +896,19 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
-	s.waiters[wf.EventID] = ch
-	s.registerEventsDeliveryLocked(owner, wf.EventID, ch)
+	if existingCh := s.waiters[wf.EventID]; existingCh != nil {
+		if s.activeWait[wf.EventID] == 0 {
+			tok := s.nextWaitTokenLocked(wf.EventID)
+			waitDone := s.ensureWaitDoneLocked(wf.EventID)
+			d := s.eventsDeliveries[wf.EventID]
+			s.mu.Unlock()
+			return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, existingCh, tok)
+		}
+		dupDone := s.ensureDupDoneLocked(wf.EventID)
+		s.mu.Unlock()
+		return s.waitDuplicateWaterfall(owner, wf.EventID, dupDone), nil
+	}
+	d, waitDone, tok := s.registerWaiterLocked(owner, wf.EventID, ch)
 	s.questionDrafts[wf.EventID] = s.liveQuestionDraftLocked(wf.AgentID, callID, req)
 	waitCtx, cancelWait := context.WithCancel(context.Background())
 	s.waitCancels[wf.EventID] = cancelWait
@@ -710,8 +928,7 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 		s.attachQuestionWait(waitCtx, mux, wf.AgentID, callID, wf.EventID)
 	}
 
-	out := <-ch
-	return s.finishEventsOutcome(owner, wf.EventID, ch, out), nil
+	return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, ch, tok)
 }
 
 // OnCancel drops a pending waterfall when the host cancels it.
@@ -720,13 +937,16 @@ func (s *Store) OnCancel(c dsh.EventsCancel) {
 }
 
 func (s *Store) onCancelForDelivery(owner *EventsDeliveryOwner, c dsh.EventsCancel) {
+	if strings.TrimSpace(c.EventID) == "" {
+		return
+	}
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
 		s.mu.Unlock()
 		return
 	}
-	s.cancelled[c.EventID] = true
+	s.markCancelledLocked(c.EventID)
 	ch, ok := s.waiters[c.EventID]
 	if ok {
 		delete(s.waiters, c.EventID)

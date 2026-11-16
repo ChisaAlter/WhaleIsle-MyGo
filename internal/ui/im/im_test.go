@@ -24,7 +24,6 @@ func TestViewIMLabels(t *testing.T) {
 			ThemeID:          "deepseek",
 			HarnessReady:     true,
 			MuxConnected:     true,
-			HarnessIMOverlay: true,
 			Draft:            &draft,
 			OnOpenPluginWeb:  func() {},
 		})

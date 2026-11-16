@@ -8,7 +8,7 @@
 // plug in by adding rows with their own source id, not by changing shape.
 const fs = require('fs');
 const path = require('path');
-const { validComponentId } = require('./store');
+const { validComponentId, validComponentVersion, isContainedPath } = require('./store');
 
 const SOURCE_BUNDLED = 'bundled';
 
@@ -45,14 +45,28 @@ function compareVersions(a, b) {
   return 0;
 }
 
-function safeEntryPath(dir, entry) {
-  if (typeof entry !== 'string' || !entry || path.isAbsolute(entry) || path.win32.isAbsolute(entry) || /^[a-z]:/i.test(entry)) {
+function safeEntryPath(dir, entry, deps = {}) {
+  if (typeof entry !== 'string' || !entry || entry.includes('\0') || path.isAbsolute(entry) || path.win32.isAbsolute(entry) || /^[a-z]:/i.test(entry)) {
     return '';
   }
+  const fsp = deps.fs || fs;
   const base = path.resolve(dir);
   const resolved = path.resolve(base, entry.replaceAll('\\', '/'));
   if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) {
     return '';
+  }
+  try {
+    if (!isContainedPath(base, resolved, { allowEqual: false, fsp })) {
+      return '';
+    }
+    if (typeof fsp.lstatSync === 'function') {
+      const st = fsp.lstatSync(resolved);
+      if (st && typeof st.isSymbolicLink === 'function' && st.isSymbolicLink()) {
+        return '';
+      }
+    }
+  } catch {
+    // Let readManifest stat check handle missing files consistently.
   }
   return resolved;
 }
@@ -70,14 +84,20 @@ function readManifest(dir, deps = {}) {
   if (!manifest || typeof manifest !== 'object') {
     return null;
   }
-  if (!validComponentId(manifest.id) || typeof manifest.version !== 'string' || !manifest.version) {
+  if (!validComponentId(manifest.id) || !validComponentVersion(manifest.version)) {
     return null;
   }
-  const entryFile = safeEntryPath(dir, manifest.entry);
+  const entryFile = safeEntryPath(dir, manifest.entry, deps);
   if (!entryFile) {
     return null;
   }
   try {
+    if (typeof fsp.lstatSync === 'function') {
+      const lstat = fsp.lstatSync(entryFile);
+      if (lstat && typeof lstat.isSymbolicLink === 'function' && lstat.isSymbolicLink()) {
+        return null;
+      }
+    }
     if (!fsp.statSync(entryFile).isFile()) {
       return null;
     }
@@ -113,10 +133,13 @@ function scanCatalog(options = {}, deps = {}) {
     return [];
   }
   for (const idDir of idDirs) {
-    if (!idDir.isDirectory() || !validComponentId(idDir.name)) {
+    if ((typeof idDir.isSymbolicLink === 'function' && idDir.isSymbolicLink()) || !idDir.isDirectory() || !validComponentId(idDir.name)) {
       continue;
     }
     const idPath = path.join(root, idDir.name);
+    if (!isContainedPath(root, idPath, { allowEqual: false, fsp })) {
+      continue;
+    }
     let versionDirs = [];
     try {
       versionDirs = fsp.readdirSync(idPath, { withFileTypes: true });
@@ -124,10 +147,13 @@ function scanCatalog(options = {}, deps = {}) {
       continue;
     }
     for (const vDir of versionDirs) {
-      if (!vDir.isDirectory()) {
+      if ((typeof vDir.isSymbolicLink === 'function' && vDir.isSymbolicLink()) || !vDir.isDirectory() || !validComponentVersion(vDir.name)) {
         continue;
       }
       const dir = path.join(idPath, vDir.name);
+      if (!isContainedPath(idPath, dir, { allowEqual: false, fsp })) {
+        continue;
+      }
       const manifest = readManifest(dir, deps);
       if (!manifest || manifest.id !== idDir.name || manifest.version !== vDir.name) {
         continue;

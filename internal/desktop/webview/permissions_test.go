@@ -52,9 +52,18 @@ func TestPermissionPolicyTable(t *testing.T) {
 	if decide(session, "http://127.0.0.1:32383", mygo.PermissionMicrophone, mygo.PermissionCamera) {
 		t.Error("a microphone+camera request must be refused for the camera")
 	}
-	// Unknown kinds keep the engine default (allow), as the native handler does.
-	if !decide(session, "https://example.com", mygo.Permission("clipboard-read")) {
-		t.Error("unknown permissions must keep the engine default")
+	// Unknown or empty permission kinds fail closed (deny-by-default).
+	if decide(session, "https://example.com", mygo.Permission("clipboard-read")) {
+		t.Error("unknown permissions must be denied by default")
+	}
+	if decide(session, "http://127.0.0.1:32383", mygo.Permission("clipboard-read")) {
+		t.Error("unknown permissions must be denied even on loopback session origin")
+	}
+	if decide(session, "http://127.0.0.1:32383", mygo.PermissionMicrophone, mygo.Permission("clipboard-read")) {
+		t.Error("unknown permission in a mixed request must refuse the whole request")
+	}
+	if decide(session, "http://127.0.0.1:32383") {
+		t.Error("empty permission list must be denied by default")
 	}
 	if decide(session, "https://example.com", mygo.Permission("clipboard-read"), mygo.PermissionCamera) {
 		t.Error("one refused permission must refuse the whole request")

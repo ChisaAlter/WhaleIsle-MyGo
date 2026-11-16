@@ -53,7 +53,7 @@ func (p *Panel) activate(id uint64) {
 				}
 			}
 		}
-		p.active, p.focused = id, id
+		p.active = id
 		p.Term, p.Err = pane.term, pane.err
 	}
 }
@@ -135,6 +135,7 @@ func (p *Panel) closePane(id uint64) {
 	if pane == nil {
 		return
 	}
+	wasFocused := p.focused == id || (p.focused != 0 && p.active == id)
 	if pane.term != nil {
 		_ = pane.term.Close()
 	}
@@ -146,7 +147,9 @@ func (p *Panel) closePane(id uint64) {
 				continue
 			}
 			group.panes = append(group.panes[:j], group.panes[j+1:]...)
-			if len(group.panes) == 0 {
+			if len(group.panes) > 0 {
+				next = group.panes[min(j, len(group.panes)-1)]
+			} else {
 				p.groups = append(p.groups[:i], p.groups[i+1:]...)
 			}
 			break
@@ -155,19 +158,26 @@ func (p *Panel) closePane(id uint64) {
 	for i, member := range p.panes {
 		if member.id == id {
 			p.panes = append(p.panes[:i], p.panes[i+1:]...)
-			if len(p.panes) > 0 {
+			if next == 0 && len(p.panes) > 0 {
 				next = p.panes[min(i, len(p.panes)-1)].id
 			}
 			break
 		}
 	}
 	if p.active == id {
-		p.active, p.focused = 0, 0
+		p.active, p.focused, p.focusPending = 0, 0, 0
 		p.Term, p.Err = nil, nil
 		if next == 0 && len(p.panes) > 0 {
 			next = p.panes[len(p.panes)-1].id
 		}
 		p.activate(next)
+		if next != 0 && wasFocused {
+			p.focusPending = next
+			p.focused = next
+		}
+	} else if wasFocused && p.active != 0 {
+		p.focusPending = p.active
+		p.focused = p.active
 	}
 	p.notice = ""
 }

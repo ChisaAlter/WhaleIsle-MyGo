@@ -7,6 +7,27 @@ export const inject = ['webServer', 'connection', 'agents', 'approval', 'tools',
 
 export function apply(ctx) {
   installToolGate(ctx);
+  // Route A keeps client module metadata for the on-demand A2 compat window,
+  // while compacting boot-only source maps and dead prior HMR batches after startup.
+  const compactTimer = setTimeout(() => {
+    const cm = ctx.get?.('clientModules') ?? ctx.clientModules;
+    cm?.previousBatchResponses?.clear?.();
+    if (process.env.WHALEISLE_KEEP_CLIENT_SOURCEMAPS !== '1') {
+      for (const map of [cm?.responses, cm?.batchResponses]) {
+        if (!(map instanceof Map)) continue;
+        for (const key of map.keys()) {
+          if (typeof key === 'string' && key.endsWith('.map')) {
+            map.delete(key);
+          }
+        }
+      }
+    }
+    if (typeof globalThis.gc === 'function') {
+      globalThis.gc();
+    }
+  }, 1500);
+  compactTimer.unref?.();
+  ctx.effect?.(() => () => clearTimeout(compactTimer));
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix', path: '/native-proactive',
     async handler(req, res) {

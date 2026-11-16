@@ -65,7 +65,11 @@ func CursorEffectConfig(p wallpapers.Preferences, accent ui.Color, reducedMotion
 // motion from the desktop preferences. The view root calls it once per frame;
 // the renderer paints the trail or splash above every layer of the window.
 func ApplyCursorEffects(c *ui.Context, p wallpapers.Preferences, accent ui.Color) bool {
-	config, enabled := CursorEffectConfig(p, accent, c.Preferences().ReduceMotion)
+	active := backdropWindowActive()
+	if active && c != nil {
+		NoteBackdropActivity(c.Now())
+	}
+	config, enabled := CursorEffectConfig(p, accent, c.Preferences().ReduceMotion || !active)
 	ui.SetDecorativeEffects(c, config)
 	return enabled
 }

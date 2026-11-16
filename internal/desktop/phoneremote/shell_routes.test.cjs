@@ -483,3 +483,94 @@ test('saveConfig preserves desktop validation errors without a success result', 
     assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'theme must be a valid theme id' });
   }
 });
+
+test('cookie auth enforces CSRF Origin, Sec-Fetch-Site, and Content-Type checks', async () => {
+  const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ROOT] });
+  const cookie = 'dsh_remote=' + TOKEN;
+
+  const allowedHeaders = [
+    { cookie, origin: 'http://127.0.0.1:3499', host: '127.0.0.1:3499', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json; charset=utf-8' },
+    { cookie, origin: 'https://Example.COM:443', host: 'example.com', 'sec-fetch-site': 'none', 'content-type': 'APPLICATION/JSON' },
+    { cookie },
+  ];
+  for (const headers of allowedHeaders) {
+    const res = await run(handler, { url: '/__remote__/shell/gitStatus', headers, body: JSON.stringify({ cwd: ROOT }) });
+    assert.equal(res.statusCode, 200, JSON.stringify(headers));
+  }
+
+  const blockedHeaders = [
+    { cookie, origin: 'https://evil.example', host: '127.0.0.1:3499' },
+    { cookie, origin: 'http://127.0.0.1:3499' }, // missing Host
+    { cookie, origin: 'null', host: '127.0.0.1:3499' },
+    { cookie, origin: 'javascript:alert(1)', host: '127.0.0.1:3499' },
+    { cookie, host: '127.0.0.1:3499', 'sec-fetch-site': 'cross-site', 'content-type': 'application/json' },
+    { cookie, host: '127.0.0.1:3499', 'sec-fetch-site': 'same-site', 'content-type': 'application/json' },
+    { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+    { cookie, 'content-type': 'multipart/form-data; boundary=abc' },
+    { cookie, 'content-type': 'text/plain' },
+  ];
+  for (const headers of blockedHeaders) {
+    const res = await run(handler, { url: '/__remote__/shell/gitStatus', headers, body: JSON.stringify({ cwd: ROOT }) });
+    assert.equal(res.statusCode, 403, JSON.stringify(headers));
+    assert.deepEqual(JSON.parse(res.body), { ok: false, error: 'forbidden' });
+  }
+
+  // Bearer auth is exempt from browser CSRF headers.
+  const bearerRes = await run(handler, {
+    url: '/__remote__/shell/gitStatus',
+    headers: { authorization: 'Bearer ' + TOKEN, origin: 'https://evil.example', 'sec-fetch-site': 'cross-site', 'content-type': 'text/plain' },
+    body: JSON.stringify({ cwd: ROOT }),
+  });
+  assert.equal(bearerRes.statusCode, 200);
+});
+
+test('rootedListDir and insideRoots canonicalize paths and exclude .git and escaping symlinks', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'shell-routes-sec-'));
+  try {
+    const ws = path.join(tmpBase, 'workspace');
+    const outside = path.join(tmpBase, 'outside');
+    fs.mkdirSync(path.join(ws, 'sub'), { recursive: true });
+    fs.mkdirSync(path.join(ws, '.git', 'objects'), { recursive: true });
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(ws, 'ok.txt'), 'ok');
+    fs.writeFileSync(path.join(ws, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret');
+
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    fs.symlinkSync(outside, path.join(ws, 'escape-link'), linkType);
+    fs.symlinkSync(path.join(ws, '.git'), path.join(ws, 'git-link'), linkType);
+    fs.symlinkSync(path.join(ws, 'sub'), path.join(ws, 'safe-link'), linkType);
+
+    const listed = routes.rootedListDir(ws, '', [ws]);
+    assert.equal(listed.ok, true);
+    const names = listed.entries.map((entry) => entry.name);
+    assert.ok(names.includes('ok.txt'));
+    assert.ok(names.includes('sub'));
+    assert.ok(names.includes('safe-link'));
+    assert.ok(!names.includes('.git'), '.git directory must be omitted');
+    assert.ok(!names.includes('escape-link'), 'escaping symlink must be skipped');
+    assert.ok(!names.includes('git-link'), 'symlink to .git must be skipped');
+
+    assert.equal(routes.rootedListDir(ws, '.git', [ws]).ok, false);
+    assert.equal(routes.rootedListDir(ws, 'escape-link', [ws]).ok, false);
+    assert.equal(routes.rootedListDir(ws, 'git-link', [ws]).ok, false);
+
+    if (process.platform === 'win32') {
+      const mixedCase = ws.replace(/[A-Za-z]/, (c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()));
+      assert.equal(routes.rootedListDir(mixedCase, '', [ws]).ok, true);
+    }
+
+    const handler = routes.createShellHandler({ tokens: () => [TOKEN], git, roots: () => [ws] });
+    const commitEscape = await run(handler, {
+      url: '/__remote__/shell/gitCommit',
+      headers: { authorization: 'Bearer ' + TOKEN },
+      body: JSON.stringify({ cwd: path.join(ws, 'escape-link'), message: 'x' }),
+    });
+    assert.equal(commitEscape.statusCode, 403);
+  } finally {
+    fs.rmSync(tmpBase, { recursive: true, force: true });
+  }
+});

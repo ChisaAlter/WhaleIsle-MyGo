@@ -166,6 +166,7 @@ func combinedDiffRunner(ctx context.Context, dir, name string, args ...string) (
 	cmd := exec.CommandContext(ctx, name, args...)
 	configureGitProcess(cmd)
 	cmd.Dir = dir
+	cmd.Env = gitChildEnv()
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return out, nil

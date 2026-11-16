@@ -21,8 +21,8 @@ import (
 // WebView storage isolate every account/open. All upstream requests are pinned
 // to the exact authenticated origin; arbitrary URL proxying is never supported.
 type Gateway struct {
-	origin, key, cookieName string
-	session                 Session
+	origin, key, cookieName, bridgeToken string
+	session                              Session
 	server                  *http.Server
 	transport               *http.Transport
 	cancel                  context.CancelFunc
@@ -48,12 +48,16 @@ func New(session Session, metadata ClientMetadata) (*Gateway, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, errors.New("Platform transport unavailable")
 	}
+	bt := make([]byte, 32)
+	if _, err := rand.Read(bt); err != nil {
+		return nil, errors.New("Platform transport unavailable")
+	}
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return nil, errors.New("Platform transport unavailable")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	g := &Gateway{origin: "http://" + listener.Addr().String(), key: hex.EncodeToString(b), session: session, cancel: cancel}
+	g := &Gateway{origin: "http://" + listener.Addr().String(), key: hex.EncodeToString(b), bridgeToken: hex.EncodeToString(bt), session: session, cancel: cancel}
 	g.cookieName = "whale-platform-" + g.key[:16]
 	g.transport = http.DefaultTransport.(*http.Transport).Clone()
 	// No ambient proxy configuration can receive account headers.
@@ -61,7 +65,9 @@ func New(session Session, metadata ClientMetadata) (*Gateway, error) {
 	proxy := &httputil.ReverseProxy{Transport: g.transport, Rewrite: func(p *httputil.ProxyRequest) {
 		p.SetURL(target)
 		p.Out.Host = target.Host
-		authorized := equal(p.In.Header.Get("Authorization"), "Bearer "+session.Token)
+		authHeader := p.In.Header.Get("Authorization")
+		authorized := (g.bridgeToken != "" && equal(authHeader, "Bearer "+g.bridgeToken)) ||
+			(session.Token != "" && equal(authHeader, "Bearer "+session.Token))
 		for _, k := range []string{"Cookie", "Authorization", "Proxy-Authorization", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Referer"} {
 			p.Out.Header.Del(k)
 		}
@@ -162,7 +168,7 @@ func (g *Gateway) Preload(locale string) string {
 	} else {
 		locale = "en_US"
 	}
-	payload, _ := json.Marshal(map[string]any{"browserOrigin": g.origin, "origin": g.session.Origin, "token": g.session.Token, "locale": locale, "privateHeaders": g.privateHeaders()})
+	payload, _ := json.Marshal(map[string]any{"browserOrigin": g.origin, "origin": g.session.Origin, "token": g.bridgeToken, "locale": locale, "privateHeaders": g.privateHeaders()})
 	return `(()=>{'use strict';const s=` + string(payload) + `;if(window!==window.top||location.origin!==s.browserOrigin)return;
  const rewrite=value=>{const u=new URL(value,location.href);if(u.origin===s.origin){return s.browserOrigin+u.pathname+u.search+u.hash;}return u.href;};
  const privateHeaders=new Set(s.privateHeaders);const external=value=>new URL(value,location.href).origin!==s.browserOrigin;

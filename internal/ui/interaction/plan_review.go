@@ -11,7 +11,7 @@ import (
 
 // planReviewCard deliberately replaces generic Continue/Deny. Discussion only
 // dismisses the panel; approval is sent exclusively by the explicit decision.
-func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store CardStore, colors fonttheme.Colors, fg, muted, accent ui.Color, onOpen func(planpreview.Document), renderers ...SlotRenderer) {
+func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction.QuestionCardView, store CardStore, colors fonttheme.Colors, fg, muted, accent ui.Color, onOpen func(planpreview.Document)) {
 	review := card.PlanReview
 	if review == nil {
 		return
@@ -41,14 +41,10 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 				if widgets.Button(c, colors, planpreview.Text("返回审批", "Return to review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					store.ReopenPlanReview(pending.EventID)
 				}
-			} else {
-				renderInteractionSlot(c, pending, "conversation.plan-review.actions", func() {
-					if onOpen != nil {
-						if widgets.Button(c, colors, planpreview.Text("预览计划", "Preview plan"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-							openPlan()
-						}
-					}
-				}, renderers...)
+			} else if onOpen != nil {
+				if widgets.Button(c, colors, planpreview.Text("预览计划", "Preview plan"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+					openPlan()
+				}
 			}
 		})
 		if card.PlanReviewHidden {

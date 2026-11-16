@@ -25,6 +25,11 @@ func TestMain(m *testing.M) {
 	case "crash":
 		fmt.Println("boom")
 		os.Exit(3)
+	case "trailinglogs":
+		fmt.Println("trailing line one")
+		fmt.Println("trailing line two")
+		fmt.Print("plugin tree failed to load\n")
+		os.Exit(2)
 	case "plugintree":
 		for _, a := range os.Args {
 			if a == "--skip-user-plugins" {

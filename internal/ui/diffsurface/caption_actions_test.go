@@ -143,8 +143,16 @@ func TestCaptionGlobalReviewUsesSameWorkbenchAcrossPageAndRetiresOwner(t *testin
 		t.Fatal(err)
 	}
 	selection := w.Commit
-	if !w.CaptionReviewOpen() || selection == nil || !tt.HasText("Commit changes") || !tt.HasText("tracked.txt") {
+	if !w.CaptionReviewOpen() || selection == nil || !tt.HasText("Commit changes") {
 		t.Fatal("review was hidden behind the global page", tt.Texts())
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for (!w.Loaded || !tt.HasText("tracked.txt")) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+		tt.Frame()
+	}
+	if !w.Loaded || !tt.HasText("tracked.txt") {
+		t.Fatal("review did not finish loading workspace changes", tt.Texts())
 	}
 	if w.Operation != nil || selection.Task != nil || selection.Plan != nil || w.Remote != nil {
 		t.Fatal("opening the global modal automatically prepared or executed an action")
@@ -193,7 +201,16 @@ func TestCaptionCleanCommitPushRoutesExistingPushReview(t *testing.T) {
 	root := captionFixtureRepo(t)
 	w := &Workbench{}
 	defer w.ClosePane()
-	if !w.RequestCaptionAction(root, "", "commit_push") || w.Remote == nil || w.Remote.Mode != "push" || w.Operation != nil || w.Remote.Task != nil {
+	if !w.RequestCaptionAction(root, "", "commit_push") {
+		t.Fatal("RequestCaptionAction rejected clean commit_push")
+	}
+	m := Model{Workbench: w, WorkspaceRoot: root}
+	deadline := time.Now().Add(5 * time.Second)
+	for !w.Loaded && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+		w.finishAsync(m)
+	}
+	if !w.Loaded || w.Remote == nil || w.Remote.Mode != "push" || w.Operation != nil || w.Remote.Task != nil {
 		t.Fatal("clean default quick Push was trapped in empty file selection")
 	}
 }

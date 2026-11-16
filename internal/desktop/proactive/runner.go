@@ -21,6 +21,7 @@ type Runner struct {
 	active          map[string]context.CancelFunc
 	workers         map[string]chan struct{}
 	notify          func(error)
+	wake            chan struct{}
 	done            chan struct{}
 	frozen          int
 	deliveryRunning bool
@@ -28,9 +29,16 @@ type Runner struct {
 
 func NewRunner(parent context.Context, service *Service, host Host, hostHome string, notify func(error)) *Runner {
 	ctx, cancel := context.WithCancel(parent)
-	r := &Runner{ctx: ctx, cancel: cancel, service: service, host: host, home: hostHome, active: map[string]context.CancelFunc{}, workers: map[string]chan struct{}{}, notify: notify, done: make(chan struct{})}
+	r := &Runner{ctx: ctx, cancel: cancel, service: service, host: host, home: hostHome, active: map[string]context.CancelFunc{}, workers: map[string]chan struct{}{}, notify: notify, wake: make(chan struct{}, 1), done: make(chan struct{})}
 	go r.loop()
 	return r
+}
+
+func (r *Runner) Wake() {
+	select {
+	case r.wake <- struct{}{}:
+	default:
+	}
 }
 
 func (r *Runner) changed(err error) {
@@ -41,6 +49,8 @@ func (r *Runner) changed(err error) {
 
 func (r *Runner) loop() {
 	defer close(r.done)
+	unsub := r.service.subscribe(r.Wake)
+	defer unsub()
 	if err := r.service.recoverDeliveries(r.home); err != nil {
 		r.changed(err)
 		return
@@ -54,20 +64,25 @@ func (r *Runner) loop() {
 			r.Observe(task.ID)
 		}
 	}
-	timer := time.NewTicker(time.Second)
-	defer timer.Stop()
+	var timer *time.Timer
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
 	for {
-		select {
-		case <-r.ctx.Done():
+		if r.ctx.Err() != nil {
 			return
-		case at := <-timer.C:
-			r.mu.Lock()
-			if r.frozen > 0 {
-				r.mu.Unlock()
-				continue
-			}
-			tasks, err := r.service.claimDue(r.home, at)
-			r.mu.Unlock()
+		}
+		r.mu.Lock()
+		frozen := r.frozen > 0
+		var tasks []Task
+		var err error
+		if !frozen {
+			tasks, err = r.service.claimDue(r.home, time.Now())
+		}
+		r.mu.Unlock()
+		if !frozen {
 			if err != nil {
 				r.changed(err)
 				return
@@ -80,7 +95,35 @@ func (r *Runner) loop() {
 			}
 			r.dispatchDeliveries()
 		}
+		delay, scheduled := r.nextWakeDelay(time.Now())
+		var timerC <-chan time.Time
+		if scheduled {
+			if timer == nil {
+				timer = time.NewTimer(delay)
+			} else {
+				timer.Reset(delay)
+			}
+			timerC = timer.C
+		} else if timer != nil {
+			timer.Stop()
+		}
+		select {
+		case <-r.ctx.Done():
+			return
+		case <-timerC:
+		case <-r.wake:
+		}
 	}
+}
+
+func (r *Runner) nextWakeDelay(now time.Time) (time.Duration, bool) {
+	r.mu.Lock()
+	frozen := r.frozen > 0
+	r.mu.Unlock()
+	if frozen {
+		return 0, false
+	}
+	return r.service.nextRunnerWait(r.home, now)
 }
 
 func (r *Runner) Close() {
@@ -130,7 +173,17 @@ func (r *Runner) FreezeAdmissions() func() {
 	r.frozen++
 	r.mu.Unlock()
 	var once sync.Once
-	return func() { once.Do(func() { r.mu.Lock(); r.frozen--; r.mu.Unlock() }) }
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			r.frozen--
+			wake := r.frozen == 0
+			r.mu.Unlock()
+			if wake {
+				r.Wake()
+			}
+		})
+	}
 }
 
 func (r *Runner) PauseForApproval(ctx context.Context, id string) error {

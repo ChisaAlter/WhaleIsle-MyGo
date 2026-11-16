@@ -86,7 +86,8 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			t.Fatal("native role identity changed")
 		}
 		for _, id := range []string{"launcher.open", "settings.open", "market.open", "settings.mcp", "settings.skills", "settings.about"} {
-			s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen, s.assistantOpen = true, true, true, true, true
+			s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen = true, true, true, true
+			s.assistantService().SetOpen(true)
 			item := menu.ItemByID(id)
 			if item == nil || item.Disabled || item.Click == nil {
 				t.Fatalf("safe navigation unavailable: %s", id)
@@ -96,7 +97,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			if len(s.applicationMenu.pending) != 0 {
 				t.Fatalf("command not consumed once: %s", id)
 			}
-			if s.webviewOpen || s.browserPreviewOpen || s.assistantOpen {
+			if s.webviewOpen || s.browserPreviewOpen || s.assistantService().Open() {
 				t.Fatalf("hidden route masks %s", id)
 			}
 			switch id {

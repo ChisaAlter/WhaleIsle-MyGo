@@ -150,6 +150,13 @@ func (s *Store) trajectoryRequestsViewLocked() []TrajectoryRequest {
 		s.trajCacheRev = fingerprint
 		s.trajJournalCache = journal
 		s.trajRequestsCache = nil
+		if len(s.trajEventsCache) > maxSessionDecodeCacheEntries {
+			keep := make(map[float64]bool, len(journal))
+			for seq := range journal {
+				keep[seq] = true
+			}
+			pruneSeqCache(s.trajEventsCache, maxSessionDecodeCacheEntries, keep)
+		}
 	}
 	headers := s.trajHeadersCache
 	if headers == nil || !s.boundariesVerifiedLocked() {

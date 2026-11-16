@@ -8,9 +8,6 @@ import (
 
 // Shared sidebar and conversation frames consume the same live global registry.
 func (s *mainState) bindShellParity(c *ui.Context, m *frame.Model, win *mygo.Window) {
-	m.WorkspaceNavigation = s.pluginWorkspaceNavigation()
-	m.OnWorkspaceSessionAction = s.pluginWorkspaceSessionAction
-	m.GlobalPluginSlot = s.renderPluginGlobalSlot
 	m.OnCloseForegroundModal = func() bool { return s.closeForegroundModal(c) }
 	if win != nil {
 		// Close retains the window's existing tray/unsaved/task protection route.

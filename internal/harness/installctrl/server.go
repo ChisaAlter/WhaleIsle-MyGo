@@ -46,11 +46,12 @@ type InstallFunc func(spec string, opts InstallOpts) Result
 
 // Options configure the loopback server.
 type Options struct {
-	HTMLPreview  http.Handler
-	Project      func(context.Context, map[string]any) map[string]any
-	Install      InstallFunc
-	OnRestart    func()
-	RestartDelay time.Duration
+	HTMLPreview    http.Handler
+	Project        func(context.Context, map[string]any) map[string]any
+	Install        InstallFunc
+	InstallContext func(context.Context, string, InstallOpts) Result
+	OnRestart      func()
+	RestartDelay   time.Duration
 	// Desktop exposes the authenticated /desktop/* control plane used by the
 	// whale assistant. A nil value keeps the legacy routes available and
 	// reports unconfigured desktop operations explicitly.
@@ -66,6 +67,10 @@ type Server struct {
 	listener     net.Listener
 	url          string
 	token        string
+	ctx          context.Context
+	cancel       context.CancelFunc
+	stopped      bool
+	epoch        uint64
 	restartTimer *time.Timer
 }
 
@@ -87,6 +92,10 @@ func (s *Server) Start(ctx context.Context) error {
 		s.mu.Unlock()
 		return nil
 	}
+	if err := ctx.Err(); err != nil {
+		s.mu.Unlock()
+		return err
+	}
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		s.mu.Unlock()
@@ -98,18 +107,23 @@ func (s *Server) Start(ctx context.Context) error {
 		s.mu.Unlock()
 		return err
 	}
+	srvCtx, cancel := context.WithCancel(ctx)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handle)
 	srv := &http.Server{
 		Handler: mux,
 		BaseContext: func(net.Listener) context.Context {
-			return ctx
+			return srvCtx
 		},
 	}
 	s.listener = ln
 	s.token = token
 	s.url = "http://" + ln.Addr().String()
 	s.http = srv
+	s.ctx = srvCtx
+	s.cancel = cancel
+	s.stopped = false
+	s.epoch++
 	s.mu.Unlock()
 
 	go func() { _ = srv.Serve(ln) }()
@@ -119,18 +133,28 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop closes the listener and clears active state.
 func (s *Server) Stop() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.restartTimer != nil {
 		s.restartTimer.Stop()
 		s.restartTimer = nil
 	}
-	if s.http != nil {
-		_ = s.http.Close()
-		s.http = nil
-	}
+	s.epoch++
+	s.stopped = true
+	cancel := s.cancel
+	s.cancel = nil
+	s.ctx = nil
+	srv := s.http
+	s.http = nil
 	s.listener = nil
 	s.url = ""
 	s.token = ""
+	s.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if srv != nil {
+		_ = srv.Close()
+	}
 }
 
 // Env returns DSH_DESKTOP_INSTALL_* entries for a harness child process.
@@ -241,17 +265,57 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "allowBuilds 包含非法包名"})
 		return
 	}
-	install := s.opts.Install
-	if install == nil {
+	if !s.hasInstallHandler() {
 		writeJSON(w, http.StatusInternalServerError, normalizeResult(Result{
 			OK: false, Spec: spec, Error: "install handler not configured",
 		}, spec))
 		return
 	}
-	result := normalizeResult(install(spec, InstallOpts{AllowBuilds: allowBuilds}), spec)
+	ctx, cancel := s.installContext(r.Context())
+	defer cancel()
+	raw, _ := s.runInstall(ctx, spec, InstallOpts{AllowBuilds: allowBuilds})
+	result := normalizeResult(raw, spec)
 	writeJSON(w, http.StatusOK, result)
 	if result.OK && !result.NeedsAllowBuilds {
 		s.scheduleRestart()
+	}
+}
+
+func (s *Server) hasInstallHandler() bool {
+	return s.opts.InstallContext != nil || s.opts.Install != nil
+}
+
+func (s *Server) runInstall(ctx context.Context, spec string, opts InstallOpts) (Result, bool) {
+	if s.opts.InstallContext != nil {
+		return s.opts.InstallContext(ctx, spec, opts), true
+	}
+	if s.opts.Install != nil {
+		return s.opts.Install(spec, opts), true
+	}
+	return Result{}, false
+}
+
+func (s *Server) installContext(reqCtx context.Context) (context.Context, context.CancelFunc) {
+	if reqCtx == nil {
+		reqCtx = context.Background()
+	}
+	s.mu.Lock()
+	srvCtx := s.ctx
+	stopped := s.stopped
+	s.mu.Unlock()
+	if stopped {
+		ctx, cancel := context.WithCancel(reqCtx)
+		cancel()
+		return ctx, cancel
+	}
+	if srvCtx == nil {
+		return context.WithCancel(reqCtx)
+	}
+	ctx, cancel := context.WithCancel(reqCtx)
+	stopWatch := context.AfterFunc(srvCtx, cancel)
+	return ctx, func() {
+		stopWatch()
+		cancel()
 	}
 }
 
@@ -262,13 +326,24 @@ func (s *Server) scheduleRestart() {
 	}
 	delay := s.opts.RestartDelay
 	s.mu.Lock()
+	if s.stopped || s.listener == nil {
+		s.mu.Unlock()
+		return
+	}
 	if s.restartTimer != nil {
 		s.restartTimer.Stop()
 	}
+	epoch := s.epoch
 	s.restartTimer = time.AfterFunc(delay, func() {
 		s.mu.Lock()
-		s.restartTimer = nil
+		stopped := s.stopped || s.listener == nil || s.epoch != epoch
+		if !stopped {
+			s.restartTimer = nil
+		}
 		s.mu.Unlock()
+		if stopped {
+			return
+		}
 		onRestart()
 	})
 	s.mu.Unlock()
@@ -281,6 +356,8 @@ func normalizeResult(result Result, fallbackSpec string) Result {
 		Spec:             result.Spec,
 		Error:            result.Error,
 		Log:              result.Log,
+		RolledBack:       result.RolledBack,
+		RollbackError:    result.RollbackError,
 	}
 	if out.Spec == "" {
 		out.Spec = fallbackSpec

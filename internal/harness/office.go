@@ -49,16 +49,23 @@ func EnsureOfficeOverlay(o PrepareOptions) (string, error) {
 		node := filepath.Join(source, "dependencies", "node", "bin", nodeName)
 		cli := ""
 		if o.HarnessRoot != "" {
-			cli = filepath.Join(o.HarnessRoot, "node_modules", "@deepseek-ai", "libreoffice-kit", "lib", "cli.js")
-			if _, err := os.Stat(cli); err != nil {
-				cli = filepath.Join(o.HarnessRoot, "apps", "cli", "node_modules", "@deepseek-ai", "libreoffice-kit", "lib", "cli.js")
+			primary := filepath.Join(o.HarnessRoot, "node_modules", "@deepseek-ai", "libreoffice-kit", "lib", "cli.js")
+			fallback := filepath.Join(o.HarnessRoot, "apps", "cli", "node_modules", "@deepseek-ai", "libreoffice-kit", "lib", "cli.js")
+			for _, candidate := range []string{primary, fallback} {
+				if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+					cli = candidate
+					break
+				}
 			}
 		}
 		if _, err := os.Stat(node); err != nil {
 			return "", fmt.Errorf("office runtime missing node: %s", node)
 		}
 		if cli == "" {
-			return "", fmt.Errorf("office runtime: harness root required to locate libreoffice-kit cli")
+			if o.HarnessRoot == "" {
+				return "", fmt.Errorf("office runtime: harness root required to locate libreoffice-kit cli")
+			}
+			return "", fmt.Errorf("office runtime missing libreoffice-kit cli under %s", o.HarnessRoot)
 		}
 		contents := strings.Join([]string{
 			"# Desktop-managed overlay passed to every start (full and skip) via",

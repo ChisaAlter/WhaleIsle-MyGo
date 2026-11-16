@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	launcherctl "whaleisle/internal/app/launcher"
 	"whaleisle/internal/config"
 )
 
@@ -24,9 +25,9 @@ type fakeLauncherStage struct {
 	events          []string
 }
 
-func (f *fakeLauncherStage) launcherOpen() bool { return f.haveLauncher }
+func (f *fakeLauncherStage) LauncherOpen() bool { return f.haveLauncher }
 
-func (f *fakeLauncherStage) showLauncher() bool {
+func (f *fakeLauncherStage) ShowLauncher() bool {
 	if !f.windowAvailable {
 		return false
 	}
@@ -39,21 +40,21 @@ func (f *fakeLauncherStage) showLauncher() bool {
 	return true
 }
 
-func (f *fakeLauncherStage) closeLauncher() {
+func (f *fakeLauncherStage) CloseLauncher() {
 	f.haveLauncher = false
 	f.closed++
 	f.events = append(f.events, "close-launcher")
 }
 
-func (f *fakeLauncherStage) showMain() {
+func (f *fakeLauncherStage) ShowMain() {
 	f.mainShown = true
 	f.mainVisible_ = true
 	f.events = append(f.events, "show-main")
 }
 
-func (f *fakeLauncherStage) mainVisible() bool { return f.mainVisible_ }
+func (f *fakeLauncherStage) MainVisible() bool { return f.mainVisible_ }
 
-func (f *fakeLauncherStage) quitting() bool { return f.quitting_ }
+func (f *fakeLauncherStage) Quitting() bool { return f.quitting_ }
 
 func TestLauncherFirstWindowGatesColdStart(t *testing.T) {
 	for _, tc := range []struct {
@@ -115,13 +116,13 @@ func TestLauncherStageColdStartKeepsOneLauncher(t *testing.T) {
 	stage := &fakeLauncherStage{windowAvailable: true}
 	// Cold start: the launcher owns the visible window and the main window stays
 	// hidden (window_fit.go/main.go: Hidden when the launcher comes first).
-	res := applyLauncherStage(stage, true)
+	res := launcherctl.ApplyStage(stage, true)
 	if !res.LauncherShown || res.MainShown || res.LauncherClosed {
 		t.Fatalf("cold start result = %+v", res)
 	}
 	// Any number of later syncs (tray, deep link, boot repaint) reuse it.
 	for i := 0; i < 3; i++ {
-		again := applyLauncherStage(stage, true)
+		again := launcherctl.ApplyStage(stage, true)
 		if again.LauncherShown || again.MainShown || again.LauncherClosed {
 			t.Fatalf("repeat %d created work: %+v", i, again)
 		}
@@ -133,14 +134,14 @@ func TestLauncherStageColdStartKeepsOneLauncher(t *testing.T) {
 
 func TestLauncherStageStartMovesToMainOnce(t *testing.T) {
 	stage := &fakeLauncherStage{windowAvailable: true}
-	applyLauncherStage(stage, true)
+	launcherctl.ApplyStage(stage, true)
 	// harness Ready with quitAfterStart: the stage flag drops.
-	res := applyLauncherStage(stage, false)
+	res := launcherctl.ApplyStage(stage, false)
 	if !res.LauncherClosed || !res.MainShown {
 		t.Fatalf("start hand-off = %+v", res)
 	}
 	// A late boot refresh after ready must not touch the windows again.
-	if again := applyLauncherStage(stage, false); again.LauncherClosed || again.MainShown {
+	if again := launcherctl.ApplyStage(stage, false); again.LauncherClosed || again.MainShown {
 		t.Fatalf("second hand-off = %+v", again)
 	}
 	if stage.closed != 1 || len(stage.events) != 3 || stage.events[0] != "show-launcher" || stage.events[1] != "close-launcher" || stage.events[2] != "show-main" {
@@ -152,8 +153,8 @@ func TestLauncherStageKeepsLauncherOnCancelAndError(t *testing.T) {
 	// Cancel and failure both leave launcherOpen true (refreshBoot keeps the
 	// stage; a protected restart that is cancelled keeps the current page).
 	stage := &fakeLauncherStage{windowAvailable: true}
-	applyLauncherStage(stage, true)
-	res := applyLauncherStage(stage, true)
+	launcherctl.ApplyStage(stage, true)
+	res := launcherctl.ApplyStage(stage, true)
 	if res.LauncherClosed || res.MainShown || stage.closed != 0 || stage.mainShown {
 		t.Fatalf("cancel/error lost the launcher: %+v", res)
 	}
@@ -167,7 +168,7 @@ func TestLauncherStageFallsBackToPanelWindow(t *testing.T) {
 	// even before the stage ends (headless, isolated, --background, creation
 	// failure).
 	stage := &fakeLauncherStage{windowAvailable: false}
-	res := applyLauncherStage(stage, true)
+	res := launcherctl.ApplyStage(stage, true)
 	if !res.MainShown || res.LauncherShown {
 		t.Fatalf("fallback = %+v", res)
 	}
@@ -176,18 +177,18 @@ func TestLauncherStageFallsBackToPanelWindow(t *testing.T) {
 	}
 	// Leaving the stage repaints nothing new; the panel simply disappears.
 	stage.mainVisible_ = true
-	if again := applyLauncherStage(stage, false); again.LauncherClosed || again.MainShown {
+	if again := launcherctl.ApplyStage(stage, false); again.LauncherClosed || again.MainShown {
 		t.Fatalf("fallback close = %+v", again)
 	}
 }
 
 func TestLauncherStageQuittingNeverRevealsMain(t *testing.T) {
 	stage := &fakeLauncherStage{windowAvailable: true, quitting_: true}
-	if res := applyLauncherStage(stage, true); res.MainShown {
+	if res := launcherctl.ApplyStage(stage, true); res.MainShown {
 		t.Fatalf("quit showed the main window: %+v", res)
 	}
-	applyLauncherStage(stage, true)
-	if res := applyLauncherStage(stage, false); !res.LauncherClosed || res.MainShown {
+	launcherctl.ApplyStage(stage, true)
+	if res := launcherctl.ApplyStage(stage, false); !res.LauncherClosed || res.MainShown {
 		t.Fatalf("quit-stage close = %+v", res)
 	}
 }

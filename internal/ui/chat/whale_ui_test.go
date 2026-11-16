@@ -44,6 +44,9 @@ func TestWhaleUIPanelPersistenceAndRollback(t *testing.T) {
 	if err := p.Publish("b", [3]float64{6, 0, 0}, second); err != nil {
 		t.Fatal(err)
 	}
+	if err := p.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(string(p.Snapshot), "First") || !strings.Contains(string(p.Snapshot), "Second") {
 		t.Fatal("append not merged", string(p.Snapshot))
 	}
@@ -51,10 +54,14 @@ func TestWhaleUIPanelPersistenceAndRollback(t *testing.T) {
 	delete(whalePanels.values, p.Path)
 	whalePanels.Unlock()
 	reopened := whalePanelFor(m)
+	reopened.WaitLoaded()
 	if string(reopened.Snapshot) != string(p.Snapshot) {
 		t.Fatal("persisted fold lost")
 	}
 	if err := reopened.Publish("old", [3]float64{5, 0, 0}, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Flush(); err != nil {
 		t.Fatal(err)
 	}
 	if string(reopened.Snapshot) != string(p.Snapshot) {
@@ -67,14 +74,23 @@ func TestWhaleUIPanelPersistenceAndRollback(t *testing.T) {
 	oldPath := p.Path
 	p.Path = filepath.Join(blocker, "cannot-write.json")
 	before, generation := string(p.Snapshot), p.Generation
-	if err := p.Clear(); err == nil || string(p.Snapshot) != before || p.Generation != generation {
+	if err := p.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Flush(); err == nil || string(p.Snapshot) != before || p.Generation != generation {
 		t.Fatal("failed clear committed")
 	}
-	if err := p.Publish("later", [3]float64{7, 0, 0}, first); err == nil || string(p.Snapshot) != before {
+	if err := p.Publish("later", [3]float64{7, 0, 0}, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Flush(); err == nil || string(p.Snapshot) != before {
 		t.Fatal("failed publish committed")
 	}
 	p.Path = oldPath
 	if err := reopened.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Flush(); err != nil {
 		t.Fatal(err)
 	}
 	if reopened.Current() {
@@ -83,11 +99,15 @@ func TestWhaleUIPanelPersistenceAndRollback(t *testing.T) {
 	if err := reopened.Publish("old", [3]float64{6, 0, 0}, second); err != nil {
 		t.Fatal(err)
 	}
+	if err := reopened.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	if reopened.Current() {
 		t.Fatal("clear allowed old-source replay")
 	}
 	t.Setenv(paths.EnvUserData, t.TempDir())
 	other := whalePanelFor(m)
+	other.WaitLoaded()
 	if other.Path == p.Path || other.Current() {
 		t.Fatal("profile state leaked")
 	}

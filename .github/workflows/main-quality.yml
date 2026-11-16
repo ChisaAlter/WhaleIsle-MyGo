@@ -21,30 +21,98 @@ jobs:
     name: Go quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        id: go
         with:
           go-version-file: go.mod
           cache: true
       - name: Check formatting
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          mapfile -t changed < <(git diff --name-only HEAD^1 HEAD -- '*.go')
+          if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_BASE_SHA" ]] && git cat-file -e "${PR_BASE_SHA}^{commit}" 2>/dev/null; then
+            base="$PR_BASE_SHA"
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            base="$BEFORE_SHA"
+          elif git rev-parse --verify HEAD^1 >/dev/null 2>&1; then
+            base="HEAD^1"
+          else
+            base=""
+          fi
+          if [[ -n "$base" ]]; then
+            mapfile -t changed < <(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.go')
+          else
+            mapfile -t changed < <(git ls-files '*.go')
+          fi
           if (( ${#changed[@]} > 0 )); then
             files="$(gofmt -l "${changed[@]}")"
             test -z "$files" || { printf 'Unformatted changed Go files:\n%s\n' "$files"; exit 1; }
           fi
       - name: Vet
-        if: always()
+        if: ${{ !cancelled() && steps.go.outcome == 'success' }}
         run: go vet ./...
       - name: Build
-        if: always()
+        if: ${{ !cancelled() && steps.go.outcome == 'success' }}
         run: go build ./...
+      - name: Test core packages with race detector
+        if: ${{ !cancelled() && steps.go.outcome == 'success' }}
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          go test -race -count=1 \
+            ./internal/paths \
+            ./internal/config \
+            ./internal/credentials \
+            ./internal/pluginmanager \
+            ./internal/harness \
+            ./internal/harness/installctrl \
+            ./internal/recovery \
+            ./internal/startuprec \
+            ./internal/startuptrace \
+            ./internal/app/project \
+            ./internal/app/assistant \
+            ./internal/app/updater \
+            ./internal/app/market \
+            ./internal/app/launcher \
+            ./internal/dsh \
+            ./internal/dsh/api \
+            ./internal/dsh/events \
+            ./internal/markdownsyntax \
+            ./internal/mathrender \
+            ./internal/shortcutprefs \
+            ./internal/shortcuts \
+            ./internal/store/assistant \
+            ./internal/store/custompanel \
+            ./internal/store/dshbot \
+            ./internal/store/hostterminal \
+            ./internal/store/im \
+            ./internal/store/imonboard \
+            ./internal/store/interaction \
+            ./internal/store/market \
+            ./internal/store/office \
+            ./internal/store/pad \
+            ./internal/store/remote \
+            ./internal/store/schedule \
+            ./internal/store/session \
+            ./internal/store/sessioncost \
+            ./internal/store/settings \
+            ./internal/store/usage \
+            ./internal/jobflow \
+            ./internal/workflowrun
+      - name: Test build storage contracts
+        if: ${{ !cancelled() }}
+        run: node --test scripts/build-storage.test.mjs
 
   cross-build:
     name: Cross-build ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -80,5 +148,46 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/out"
-          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}" ./cmd/whaleisle
-          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out/whaleisle-preview-${GOOS}-${GOARCH}" ./cmd/whaleisle-preview
+          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}" ./cmd/whaleisle
+          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-preview-${GOOS}-${GOARCH}" ./cmd/whaleisle-preview
+          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-launcher-${GOOS}-${GOARCH}" ./cmd/whaleisle-launcher
+          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-integration-${GOOS}-${GOARCH}" ./cmd/whaleisle-integration
+          if [ "${GOOS}" = "windows" ] && [ "${GOARCH}" = "amd64" ]; then
+            EXE_SIZE=$(wc -c < "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}")
+            MAX_BYTES=99614720
+            echo "Windows amd64 binary size: ${EXE_SIZE} bytes (threshold: ${MAX_BYTES} bytes / 95 MiB)"
+            if [ "${EXE_SIZE}" -ge "${MAX_BYTES}" ]; then
+              echo "Error: Windows amd64 binary size ${EXE_SIZE} exceeds 95 MiB (${MAX_BYTES} bytes)" >&2
+              exit 1
+            fi
+          fi
+
+  windows-zero-webview-gate:
+    name: Windows Zero-WebView2 & Release Strip Gate
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify release build strips test hooks
+        working-directory: third_party/mygo
+        run: go test -tags release . -run TestReleaseBuildStripsTestHooks
+      - name: Build release binary
+        shell: pwsh
+        run: go build -mod=readonly -tags release -trimpath -o "$env:RUNNER_TEMP\whaleisle.exe" ./cmd/whaleisle
+      - name: Run LauncherOnly Zero-WebView2 Gate
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/qa-gate-zero-webview.ps1 -Executable "$env:RUNNER_TEMP\whaleisle.exe" -LauncherOnly -WarmupSeconds 8
+      - name: Run packaging and branding offline fixtures
+        shell: pwsh
+        run: |
+          node scripts/installer-branding-fixture.mjs
+          node scripts/package-release-inputs-fixture.mjs
+          node --test scripts/session-runtime-slim.test.mjs internal/harness/proactive-tools.test.mjs

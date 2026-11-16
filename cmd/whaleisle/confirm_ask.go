@@ -125,11 +125,14 @@ func (s *mainState) lifecycleDialogOwner(preferred *mygo.Window) *mygo.Window {
 		launcher = lw.win
 	}
 	focused := mygo.FocusedWindow()
-	s.mu.Lock()
-	if !s.lifecycleWindowOwnedLocked(focused) {
-		focused = nil
+	if focused != nil {
+		s.mu.Lock()
+		owned := s.win == focused || (s.launcherWin != nil && s.launcherWin.win == focused) || (s.whaleBridgeWin != nil && s.whaleBridgeWin.win == focused)
+		s.mu.Unlock()
+		if !owned && !s.updaterCenter().IsTemporaryModalWindow(focused) {
+			focused = nil
+		}
 	}
-	s.mu.Unlock()
 	for _, win := range []*mygo.Window{preferred, focused, launcher, main} {
 		if win != nil && !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized() {
 			return win

@@ -58,8 +58,6 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 		})
 		q.win.Focus()
 	})
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
 	for {
 		select {
 		case r := <-done:
@@ -81,12 +79,6 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 			default:
 				return nil, childCtx.Err()
 			}
-		case <-ticker.C:
-			parent.Update(func() {
-				if q.win != nil && !q.win.IsDestroyed() {
-					q.win.Update(func() {})
-				}
-			})
 		}
 	}
 }

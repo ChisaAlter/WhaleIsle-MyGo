@@ -18,8 +18,9 @@ var installSnapshotEntries = []string{
 
 // InstallSnapshot is a pre-add copy of the web profile install surface.
 type InstallSnapshot struct {
-	Dir     string
-	Entries []snapshotEntry
+	profileDir string
+	Dir        string
+	Entries    []snapshotEntry
 }
 
 type snapshotEntry struct {
@@ -39,6 +40,16 @@ func CaptureInstallSnapshot(profileDir string) (*InstallSnapshot, error) {
 	if profileDir == "" {
 		return nil, fmt.Errorf("profile 路径未配置")
 	}
+	unlock := lockProfile(profileDir)
+	defer unlock()
+	return captureInstallSnapshot(profileDir)
+}
+
+func captureInstallSnapshot(profileDir string) (*InstallSnapshot, error) {
+	profileDir = strings.TrimSpace(profileDir)
+	if profileDir == "" {
+		return nil, fmt.Errorf("profile 路径未配置")
+	}
 	if err := os.MkdirAll(profileDir, 0o755); err != nil {
 		return nil, err
 	}
@@ -51,14 +62,14 @@ func CaptureInstallSnapshot(profileDir string) (*InstallSnapshot, error) {
 			return nil, fmt.Errorf("无法安全备份 %s：%w", name, err)
 		}
 		if existed {
-			if isSymlink(st) {
-				// Symlinks/junctions at the top level are backed up as links
-				// via copyPath; reject unexpected types for files.
+			if isInstallLink(file, st) {
+				// Symlinks and Windows NTFS junctions at the top level are backed
+				// up as links via copyPath; reject unexpected types for non-link files.
 			} else if name == "node_modules" {
 				if !st.IsDir() {
 					return nil, fmt.Errorf("无法安全备份 %s：需要普通文件或目录", name)
 				}
-			} else if st.IsDir() {
+			} else if !st.Mode().IsRegular() {
 				return nil, fmt.Errorf("无法安全备份 %s：需要普通文件或目录", name)
 			}
 		}
@@ -68,7 +79,7 @@ func CaptureInstallSnapshot(profileDir string) (*InstallSnapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	snap := &InstallSnapshot{Dir: dir, Entries: entries}
+	snap := &InstallSnapshot{profileDir: profileDir, Dir: dir, Entries: entries}
 	for _, entry := range entries {
 		if !entry.Existed {
 			continue
@@ -100,6 +111,14 @@ func DiscardInstallSnapshot(snap *InstallSnapshot, result Result) Result {
 
 // RollbackInstall restores the snapshot and returns an enriched failure Result.
 func RollbackInstall(snap *InstallSnapshot, failure Result) Result {
+	if snap != nil && snap.profileDir != "" {
+		unlock := lockProfile(snap.profileDir)
+		defer unlock()
+	}
+	return rollbackInstall(snap, failure)
+}
+
+func rollbackInstall(snap *InstallSnapshot, failure Result) Result {
 	if snap == nil {
 		failure.OK = false
 		if failure.Error == "" {
@@ -150,8 +169,20 @@ func RollbackInstall(snap *InstallSnapshot, failure Result) Result {
 	return DiscardInstallSnapshot(snap, failure)
 }
 
-func isSymlink(st os.FileInfo) bool {
-	return st.Mode()&os.ModeSymlink != 0
+func isInstallLink(path string, st os.FileInfo) bool {
+	if st == nil {
+		return false
+	}
+	if st.Mode()&os.ModeSymlink != 0 {
+		return true
+	}
+	// On Windows, NTFS directory junctions report ModeIrregular without
+	// ModeSymlink; confirm via os.Readlink so non-link irregular files still fail.
+	if st.Mode()&os.ModeIrregular != 0 {
+		_, err := os.Readlink(path)
+		return err == nil
+	}
+	return false
 }
 
 func copyPath(src, dst string) error {
@@ -159,15 +190,26 @@ func copyPath(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	if isSymlink(st) {
+	if isInstallLink(src, st) {
 		target, err := os.Readlink(src)
 		if err != nil {
 			return err
 		}
 		if runtime.GOOS == "windows" {
-			// Prefer junction recreation for directory links (needs no elevation
-			// when using the same Create API Electron uses via ensureDirectoryLink).
-			if targetSt, err := os.Stat(src); err == nil && targetSt.IsDir() {
+			// Recreate Windows junctions directly (even if dangling, so they never
+			// fall through to os.Symlink or copyFile) and prefer junctions for
+			// directory symlinks (mklink /J needs no elevation).
+			isSymlink := st.Mode()&os.ModeSymlink != 0
+			isDirLink := !isSymlink
+			if isSymlink {
+				if targetSt, err := os.Stat(src); err == nil && targetSt.IsDir() {
+					isDirLink = true
+				}
+			}
+			if isDirLink {
+				if !filepath.IsAbs(target) {
+					target = filepath.Clean(filepath.Join(filepath.Dir(src), target))
+				}
 				return createWindowsJunction(dst, target)
 			}
 		}
@@ -175,6 +217,9 @@ func copyPath(src, dst string) error {
 	}
 	if st.IsDir() {
 		return copyDir(src, dst)
+	}
+	if !st.Mode().IsRegular() {
+		return fmt.Errorf("无法安全复制 %s：不支持的文件类型 %v", src, st.Mode())
 	}
 	return copyFile(src, dst, st.Mode())
 }

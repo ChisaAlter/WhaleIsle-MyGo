@@ -26,16 +26,18 @@ const (
 	HostKeyOff       HostKeyMode = "off"
 )
 
-// NormalizeHostKeyMode applies the product default and rejects unknown
-// values. dsh-remote defaults to accept-new for a new connection.
+// NormalizeHostKeyMode applies the strict verify default when the mode is empty
+// or unrecognized, failing closed unless accept-new/tofu or off is explicitly requested.
 func NormalizeHostKeyMode(mode string) HostKeyMode {
-	switch HostKeyMode(strings.ToLower(strings.TrimSpace(mode))) {
-	case HostKeyVerify:
-		return HostKeyVerify
-	case HostKeyOff:
-		return HostKeyOff
-	default:
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case string(HostKeyAcceptNew), "tofu":
 		return HostKeyAcceptNew
+	case string(HostKeyOff):
+		return HostKeyOff
+	case string(HostKeyVerify), "strict", "":
+		return HostKeyVerify
+	default:
+		return HostKeyVerify
 	}
 }
 
@@ -106,6 +108,12 @@ func EnsureKnownHostsFile(path string) error {
 // AcceptHostKey appends an OpenSSH known_hosts line for address (host:port)
 // and key. Safe for UI use after the user confirms an *UnknownHostKey.
 func AcceptHostKey(path string, address string, key ssh.PublicKey) error {
+	knownHostsMu.Lock()
+	defer knownHostsMu.Unlock()
+	return acceptHostKeyLocked(path, address, key)
+}
+
+func acceptHostKeyLocked(path string, address string, key ssh.PublicKey) error {
 	if key == nil {
 		return errors.New("host key required")
 	}
@@ -115,8 +123,6 @@ func AcceptHostKey(path string, address string, key ssh.PublicKey) error {
 	line := knownhosts.Line([]string{address}, key)
 	// UI retries after a transient connection failure are common. Avoid
 	// appending duplicate lines while retaining every existing host entry.
-	knownHostsMu.Lock()
-	defer knownHostsMu.Unlock()
 	var needsSeparator bool
 	if data, err := os.ReadFile(path); err == nil {
 		needsSeparator = len(data) > 0 && data[len(data)-1] != '\n'
@@ -193,27 +199,7 @@ func ForgetHostKey(path, address string) error {
 	if !changed {
 		return nil
 	}
-	tmpFile, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmp := tmpFile.Name()
-	defer os.Remove(tmp)
-	if err := tmpFile.Chmod(0o600); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if _, err := tmpFile.WriteString(strings.Join(kept, "\n")); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return err
-	}
-	return nil
+	return writePrivateFileAtomic(path, []byte(strings.Join(kept, "\n")))
 }
 
 // NewHostKeyCallback returns an ssh.HostKeyCallback backed by opts.Path.
@@ -236,21 +222,15 @@ func NewHostKeyCallback(opts HostKeyOptions) (ssh.HostKeyCallback, error) {
 	if opts.Path == "" && mode != HostKeyOff {
 		return nil, errors.New("known_hosts path required")
 	}
-	if mode != HostKeyOff {
-		if err := EnsureKnownHostsFile(opts.Path); err != nil {
-			return nil, err
-		}
-	}
 	if mode == HostKeyOff {
 		return func(string, net.Addr, ssh.PublicKey) error { return nil }, nil
 	}
 	if err := EnsureKnownHostsFile(opts.Path); err != nil {
 		return nil, err
 	}
-	var mu sync.Mutex
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		mu.Lock()
-		defer mu.Unlock()
+		knownHostsMu.Lock()
+		defer knownHostsMu.Unlock()
 
 		cb, err := knownhosts.New(opts.Path)
 		if err != nil {
@@ -273,7 +253,7 @@ func NewHostKeyCallback(opts HostKeyOptions) (ssh.HostKeyCallback, error) {
 			}
 		}
 		if mode == HostKeyAcceptNew {
-			if err := AcceptHostKey(opts.Path, hostname, key); err != nil {
+			if err := acceptHostKeyLocked(opts.Path, hostname, key); err != nil {
 				return fmt.Errorf("ssh: tofu store host key: %w", err)
 			}
 			return nil

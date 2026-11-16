@@ -30,7 +30,16 @@ func TestToolImageLightboxFitsModalAndRestoresOpener(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.SetTime(time.Unix(12100, 0).Add(time.Second))
+	deadline := time.Now().Add(2 * time.Second)
 	panel, ok := tt.Find("Original image preview")
+	for !ok {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for lightbox preview; texts=%v", tt.Texts())
+		}
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+		panel, ok = tt.Find("Original image preview")
+	}
 	if !ok || panel.W != 560 || panel.H != 315 || panel.X != 40 || panel.Y != 106.5 {
 		t.Fatal("lightbox fit", panel)
 	}

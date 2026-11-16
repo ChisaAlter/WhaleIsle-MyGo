@@ -73,7 +73,7 @@ func InstallWhaleBridge(ctx context.Context, userData, route string) error {
 	if err != nil {
 		return err
 	}
-	return installBridge(ctx, userData, endpoint, &http.Client{Timeout: 5 * time.Minute}, false)
+	return installBridge(ctx, userData, endpoint, bridgeHardenedHTTPClient(&http.Client{Timeout: 5 * time.Minute}, 5*time.Minute), false)
 }
 
 func bridgeReleaseEndpoint(route string) (string, error) {
@@ -93,7 +93,17 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAComponentInstallIsAlreadyRunning))
 	}
 	defer componentInstallMu.Unlock()
+	client = bridgeHardenedHTTPClient(client, 5*time.Minute)
 	root := filepath.Join(userData, "components", "whalebridge")
+	for _, dir := range []string{filepath.Join(userData, "components"), root, filepath.Join(root, "versions")} {
+		if _, err := os.Lstat(dir); err == nil {
+			if _, safeErr := lstatNotReparse(dir); safeErr != nil {
+				return safeErr
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
 	// Do not use this first-install path to replace a Host-dependent running component.
 	// Existing installs must go through the separately protected lifecycle workflow.
 	for _, name := range []string{"installed.json", filepath.Join("data", "state.json")} {
@@ -119,7 +129,11 @@ func installBridge(ctx context.Context, userData, endpoint string, client *http.
 		return err
 	}
 
-	record, _ := json.Marshal(installedFile{Version: m.Version})
+	record, err := json.Marshal(installedFile{Version: m.Version})
+	if err != nil {
+		_ = os.RemoveAll(target)
+		return err
+	}
 	if err := bridgeWriteNewRecord(root, record); err != nil {
 		_ = os.RemoveAll(target)
 		return err
@@ -218,7 +232,10 @@ func stageBridgeRelease(ctx context.Context, root string, m bridgeReleaseManifes
 			return "", err
 		}
 	}
-	manifestBytes, _ := json.MarshalIndent(m, "", "  ")
+	manifestBytes, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return "", err
+	}
 	if err := os.WriteFile(filepath.Join(staging, bridgeManifest), manifestBytes, 0600); err != nil {
 		return "", err
 	}
@@ -235,6 +252,9 @@ func stageBridgeRelease(ctx context.Context, root string, m bridgeReleaseManifes
 }
 
 func bridgeWriteNewRecord(root string, b []byte) error {
+	if _, err := lstatNotReparse(root); err != nil {
+		return err
+	}
 	f, err := os.CreateTemp(root, ".installed-")
 	if err != nil {
 		return err
@@ -252,10 +272,29 @@ func bridgeWriteNewRecord(root string, b []byte) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if _, err := os.Lstat(filepath.Join(root, "installed.json")); !os.IsNotExist(err) {
+	dest := filepath.Join(root, "installed.json")
+	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
 		return errors.New(storelocale.T(storelocale.KeyStoreComponentsAnInstallRecordAlreadyExistsOverwriteR))
 	}
-	return os.Rename(name, filepath.Join(root, "installed.json"))
+	var renameErr error
+	attempts := 1
+	if runtime.GOOS == "windows" {
+		attempts = 6
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		if _, statErr := os.Lstat(dest); !os.IsNotExist(statErr) {
+			return errors.New(storelocale.T(storelocale.KeyStoreComponentsAnInstallRecordAlreadyExistsOverwriteR))
+		}
+		renameErr = os.Rename(name, dest)
+		if renameErr == nil {
+			return nil
+		}
+		if runtime.GOOS != "windows" || (!errors.Is(renameErr, os.ErrPermission) && !isWindowsSharingError(renameErr)) {
+			break
+		}
+		time.Sleep(time.Duration(15*(attempt+1)) * time.Millisecond)
+	}
+	return renameErr
 }
 func bridgeURL(raw string, fixture bool) error {
 	u, err := url.Parse(raw)

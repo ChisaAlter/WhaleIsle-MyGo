@@ -3,12 +3,28 @@ name: Preview native build
 # Compile evidence for P01 only. No tests, signing, launch, release or deployment.
 on:
   push:
-    branches: [dot/mygo-reconstruction-20261014]
+    branches:
+      - main
+      - dot/mygo-reconstruction-20261014
     paths:
       - .github/workflows/preview-native-build.yml
       - native/macos-preview/**
       - scripts/build-preview-macos.sh
       - cmd/whaleisle-preview/**
+      - cmd/whaleisle-launcher/**
+      - cmd/whaleisle-integration/**
+      - internal/desktop/previewprocess/**
+      - internal/desktop/htmlpreview/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/preview-native-build.yml
+      - native/macos-preview/**
+      - scripts/build-preview-macos.sh
+      - cmd/whaleisle-preview/**
+      - cmd/whaleisle-launcher/**
+      - cmd/whaleisle-integration/**
       - internal/desktop/previewprocess/**
       - internal/desktop/htmlpreview/**
 
@@ -47,7 +63,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - name: Compile macOS desktop
         shell: bash
         env:
@@ -58,7 +74,8 @@ jobs:
           set -euo pipefail
           go version
           for arch in amd64 arm64; do
-            GOARCH="$arch" go build -mod=readonly -trimpath -o "$RUNNER_TEMP/whaleisle-$arch" ./cmd/whaleisle
+            mkdir -p "$RUNNER_TEMP/out-$arch"
+            GOARCH="$arch" go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out-$arch/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-launcher ./cmd/whaleisle-integration
           done
           echo 'macOS desktop Go compile passed for amd64 and arm64. No application was launched or packaged.' >> "$GITHUB_STEP_SUMMARY"
 
@@ -73,7 +90,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - name: Compile Windows desktop and preview
         shell: pwsh
         env:
@@ -87,6 +104,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Go toolchain unavailable' }
           $output = Join-Path $env:RUNNER_TEMP 'whaleisle-build'
           New-Item -ItemType Directory -Path $output | Out-Null
-          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-preview
+          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-launcher ./cmd/whaleisle-integration
           if ($LASTEXITCODE -ne 0) { throw 'Windows compile failed' }
           'Windows amd64 desktop and preview Go compile passed. No executable was launched or packaged.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

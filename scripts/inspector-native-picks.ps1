@@ -1,5 +1,15 @@
-param([Parameter(Mandatory=$true)][int]$OwnerId)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r110-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -24,13 +34,13 @@ public class InspectorPickR110 {
 '@
 [void][InspectorPickR110]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
-if($owner.ExecutablePath -ne 'C:\AI\WhaleIsle-MyGo\.devdata\r110-inspector-fixture.exe' -or $OwnerId -in 20012,16008){throw 'Wrong owned fixture'}
+if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in 20012,16008){throw 'Wrong owned fixture'}
 $handle=(Get-Process -Id $OwnerId).MainWindowHandle
 if($handle -eq 0){throw 'Owned native window missing'}
 [void][InspectorPickR110]::ShowWindow($handle,9)
 [void][InspectorPickR110]::SetForegroundWindow($handle)
 $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-pass254-native-picks'
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-pass254-native-picks' }
 function Elements { $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) }
 function Find([string]$name){foreach($element in (Elements)){if($element.Current.Name -eq $name -and $element.Current.BoundingRectangle.Width -gt 0){return $element.Current.BoundingRectangle}};throw ('Missing '+$name)}
 function Click([string]$name){$r=Find $name;[InspectorPickR110]::Click($handle,[int]($r.X+$r.Width/2),[int]($r.Y+$r.Height/2));Start-Sleep -Milliseconds 100}

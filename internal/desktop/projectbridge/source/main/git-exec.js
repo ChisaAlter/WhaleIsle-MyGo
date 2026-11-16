@@ -62,8 +62,15 @@ function withTruncationMarker(text, truncated) {
 function gitChildEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (/^npm_config_electron/i.test(key)) delete env[key];
+    if (/^(npm_config_electron|MAGPIE_)/i.test(key)) delete env[key];
   }
+  delete env.ELECTRON_RUN_AS_NODE;
+  delete env.GIT_DIR;
+  delete env.GIT_WORK_TREE;
+  delete env.GIT_INDEX_FILE;
+  delete env.GIT_COMMON_DIR;
+  delete env.GIT_OBJECT_DIRECTORY;
+  delete env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
   // Electron / IDE parents may set a ceiling that hides the workspace repo.
   delete env.GIT_CEILING_DIRECTORIES;
   env.GIT_TERMINAL_PROMPT = '0';

@@ -48,6 +48,13 @@ func (h *Host) installDevToolsShortcut(pg *mygo.Page) {
 	if h == nil || pg == nil || !devToolsShortcutAllowed() {
 		return
 	}
+	h.devToolsMu.Lock()
+	if h.devToolsShortcutPage == pg {
+		h.devToolsMu.Unlock()
+		return
+	}
+	h.devToolsShortcutPage = pg
+	h.devToolsMu.Unlock()
 	pg.OnBeforeInput(func(in mygo.KeyInput) bool {
 		if !IsDevToolsToggle(in) {
 			return false
@@ -65,6 +72,24 @@ func (h *Host) installDevToolsShortcut(pg *mygo.Page) {
 	})
 }
 
+func (h *Host) trackDevToolsPage(pg *mygo.Page) {
+	if h == nil || pg == nil {
+		return
+	}
+	h.devToolsMu.Lock()
+	prev := h.devToolsTracked
+	if prev != pg {
+		h.devToolsTracked = pg
+	} else {
+		prev = nil
+	}
+	h.devToolsMu.Unlock()
+	if prev != nil {
+		unregisterDevToolsPage(prev)
+	}
+	registerDevToolsPage(pg)
+}
+
 // devToolsPage is the runtime inspector switch a page exposes.
 type devToolsPage interface {
 	SetDevToolsEnabled(enabled bool) bool
@@ -76,7 +101,7 @@ var (
 )
 
 // registerDevToolsPage applies the current gate to pg and keeps it in the list
-// so a later setting change reaches pages that already exist.
+// once so a later setting change reaches pages that already exist.
 func registerDevToolsPage(pg devToolsPage) {
 	if pg == nil {
 		return
@@ -84,7 +109,30 @@ func registerDevToolsPage(pg devToolsPage) {
 	allowed := devToolsShortcutAllowed()
 	pg.SetDevToolsEnabled(allowed)
 	devToolsMu.Lock()
+	for _, existing := range devToolsPages {
+		if existing == pg {
+			devToolsMu.Unlock()
+			return
+		}
+	}
 	devToolsPages = append(devToolsPages, pg)
+	devToolsMu.Unlock()
+}
+
+// unregisterDevToolsPage removes a closed or replaced page from devToolsPages.
+func unregisterDevToolsPage(pg devToolsPage) {
+	if pg == nil {
+		return
+	}
+	devToolsMu.Lock()
+	for i, existing := range devToolsPages {
+		if existing == pg {
+			copy(devToolsPages[i:], devToolsPages[i+1:])
+			devToolsPages[len(devToolsPages)-1] = nil
+			devToolsPages = devToolsPages[:len(devToolsPages)-1]
+			break
+		}
+	}
 	devToolsMu.Unlock()
 }
 

@@ -88,9 +88,10 @@ func TestWorkspaceSessionOpenProtectsDraftsAndNewerOwners(t *testing.T) {
 				target.valid = false
 			case "new-panel":
 				s.marketOpen = true
-				s.assistantConversationGeneration++
+				s.assistantService().BumpConversationGeneration()
 			case "panel-aba":
-				s.assistantConversationGeneration += 2
+				s.assistantService().BumpConversationGeneration()
+				s.assistantService().BumpConversationGeneration()
 			}
 			selected := op.finish("created", nil)
 			if selected != (change == "none") || (target.selected == "created") != (change == "none") {

@@ -19,7 +19,16 @@ func (s *Store) Appearance() (theme.Preferences, error) {
 	return p.Normalized(), nil
 }
 
-// SaveAppearance commits native appearance preferences without changing unrelated config.
+var (
+	appearancePrefsFields = structJSONFields[theme.Preferences]()
+	fontPrefFields        = structJSONFields[theme.FontPreference]()
+	themeFamilyFields     = structJSONFields[theme.Family]()
+	themeSeedFields       = structJSONFields[theme.Seed]()
+	appearanceFontKeys    = [5]string{"interface", "chat", "code", "composer", "terminal"}
+)
+
+// SaveAppearance commits native appearance preferences without changing unrelated config
+// and preserves unknown fields inside goAppearance, its fonts, and matched custom themes.
 func (s *Store) SaveAppearance(p theme.Preferences) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -33,27 +42,47 @@ func (s *Store) SaveAppearance(p theme.Preferences) error {
 	if err != nil {
 		return err
 	}
-	merged := map[string]json.RawMessage{}
-	for key, value := range s.raw {
-		merged[key] = value
-	}
-	merged[appearanceKey] = encoded
-	data, err := json.MarshalIndent(merged, "", "  ")
+	mergedObj, err := mergeKnownFieldsObject(s.raw[appearanceKey], encoded, appearancePrefsFields, func(existing, out map[string]json.RawMessage) error {
+		for _, fontKey := range appearanceFontKeys {
+			if prevFont := existing[fontKey]; len(prevFont) > 0 {
+				if nextFont, ok := out[fontKey]; ok {
+					if mergedFont, err := mergeKnownFieldsObject(prevFont, nextFont, fontPrefFields, nil); err == nil {
+						out[fontKey] = mergedFont
+					}
+				}
+			}
+		}
+		if prevCustom := existing["custom"]; len(prevCustom) > 0 {
+			if nextCustom, ok := out["custom"]; ok {
+				mergedCustom, err := mergeObjectArrayByID(prevCustom, nextCustom, themeFamilyFields, func(existingItem, _, mergedItem map[string]json.RawMessage) error {
+					for _, seedKey := range [2]string{"light", "dark"} {
+						if prevSeed := existingItem[seedKey]; len(prevSeed) > 0 {
+							if nextSeed, ok := mergedItem[seedKey]; ok {
+								if mergedSeed, err := mergeKnownFieldsObject(prevSeed, nextSeed, themeSeedFields, nil); err == nil {
+									mergedItem[seedKey] = mergedSeed
+								}
+							}
+						}
+					}
+					return nil
+				})
+				if err == nil {
+					out["custom"] = mergedCustom
+				}
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	unlock, err := s.lockCommit()
+	merged := cloneRawMap(s.raw)
+	merged[appearanceKey] = mergedObj
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err = s.checkBaseline(); err != nil {
-		return err
-	}
-	if err = writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }

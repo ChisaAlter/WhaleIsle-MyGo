@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"path/filepath"
 	"strings"
@@ -94,7 +95,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	// admission. File and feedback actions retain existing attachment state.
 	isRoom, _ := s.assistantGroupMembers(id)
 	if !isRoom && strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
-		sessions.EnsureSlashCommands(context.Background())
+		sessions.EnsureSlashCommands(s.lifecycleContext())
 		live = sessions.Snapshot()
 	}
 	if !isRoom && s.handleSessionLogExportCommand(win, sessions, d, live) {
@@ -124,7 +125,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	}
 	if strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		if d.CanSteerPendingQueue(id, accelerated) {
-			sessions.SteerComposerQueue(context.Background(), id, hostGeneration)
+			sessions.SteerComposerQueue(s.lifecycleContext(), id, hostGeneration)
 		}
 		return
 	}
@@ -179,7 +180,8 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	d.Sending = true
 	d.Error = ""
 	go func() {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(s.lifecycleContext(), detachedSendTimeout)
+		defer cancel()
 		target := id
 		var err error
 		if target == "" {
@@ -201,10 +203,21 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			err = owner.Submit(ctx, text, attachments, editSeq, requestID)
 		}
 		win.Update(func() {
+			s.mu.Lock()
+			current := s.composerDrafts[id] == d
+			quitting := s.quitting
+			s.mu.Unlock()
 			d.Sending = false
+			if quitting || !current {
+				return
+			}
 			d.TargetID = target
 			if err != nil {
-				d.Error = err.Error()
+				if errors.Is(err, context.DeadlineExceeded) {
+					d.Error = i18n.T(i18n.KeyCmdComposerSendTimeout)
+				} else {
+					d.Error = err.Error()
+				}
 				d.Attachments = attachments
 				return
 			}
@@ -229,8 +242,8 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 				delete(s.composerDrafts, "")
 				s.mu.Unlock()
 				sessions.Select(target)
-				sessions.RefreshList(context.Background())
-				sessions.FollowSelected(context.Background())
+				sessions.RefreshList(s.lifecycleContext())
+				sessions.FollowSelected(s.lifecycleContext())
 			}
 		})
 	}()

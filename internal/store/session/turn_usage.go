@@ -36,6 +36,46 @@ type usageEvent struct {
 	} `json:"data"`
 }
 
+const maxSessionDecodeCacheEntries = 4096
+
+func pruneSeqCache[V any](cache map[float64]V, maxEntries int, keepSeqs map[float64]bool) {
+	if len(cache) <= maxEntries {
+		return
+	}
+	seqs := make([]float64, 0, len(cache))
+	for seq := range cache {
+		if len(keepSeqs) > 0 && keepSeqs[seq] {
+			continue
+		}
+		seqs = append(seqs, seq)
+	}
+	sort.Float64s(seqs)
+	toRemove := len(cache) - maxEntries
+	if toRemove > len(seqs) {
+		toRemove = len(seqs)
+	}
+	for i := 0; i < toRemove; i++ {
+		delete(cache, seqs[i])
+	}
+}
+
+func (s *Store) clearPerSessionDecodeCachesLocked() {
+	s.usageCacheRev = 0
+	s.usageEventsCache = nil
+	s.trajCacheRev = 0
+	s.trajJournalCache = nil
+	s.trajEventsCache = nil
+	s.trajHeadersCache = nil
+	s.trajRequestsCache = nil
+	s.trajHadLiveAttempt = false
+	s.trajTimingRev = 0
+	s.trajTimingCache = nil
+	s.trajTimingParsed = nil
+	s.trajTimingOps = nil
+	s.trajTimingAnchors = nil
+	s.assistantMsgCache = nil
+}
+
 type usageCacheEntry struct {
 	raw   string
 	event usageEvent
@@ -281,6 +321,13 @@ func (s *Store) turnUsageLocked() map[float64]TurnUsage {
 			}
 			state = "idle"
 		}
+	}
+	if len(s.usageEventsCache) > maxSessionDecodeCacheEntries {
+		keep := make(map[float64]bool, len(raws))
+		for seq := range raws {
+			keep[seq] = true
+		}
+		pruneSeqCache(s.usageEventsCache, maxSessionDecodeCacheEntries, keep)
 	}
 	return result
 }

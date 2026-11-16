@@ -276,7 +276,7 @@ func (s *decorationState) noteSplashPointer(x, y float32, now time.Time) {
 }
 
 func (s *decorationState) queueSplash(x, y, dx, dy float32, now time.Time) {
-	if s.width <= 0 || s.height <= 0 {
+	if s.fluidError != nil || s.width <= 0 || s.height <= 0 {
 		return
 	}
 	s.fluidInput.x, s.fluidInput.y = x/s.width, 1-y/s.height
@@ -293,6 +293,8 @@ func (s *decorationState) queueSplash(x, y, dx, dy float32, now time.Time) {
 
 func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 	if s.fluidError != nil {
+		s.fluidInput.presses = nil
+		s.pendingPress = false
 		return
 	} // source failed GPU mount is inert until remounted
 	width, height := max(1, int(w*p.scale)), max(1, int(h*p.scale))
@@ -301,6 +303,8 @@ func (s *decorationState) paintSplash(p *Painter, w, h float32, now time.Time) {
 		return
 	}
 	if p.rt.host.occluded() {
+		s.fluidInput.presses = nil
+		s.pendingPress = false
 		if !s.fluidLastInput.IsZero() && now.Sub(s.fluidLastInput) <= splashIdleTail {
 			// Let next() mark the animation held, without requesting a hidden
 			// frame. SurfaceShown then resumes it just as visibilitychange does.

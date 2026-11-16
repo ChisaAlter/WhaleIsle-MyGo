@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -268,6 +270,9 @@ func (a Actions) Inspect() {
 		}
 		inspection, err := client.Inspect(ctx, spec, selected)
 		automatic := false
+		if err == nil {
+			enrichInspectionCapabilities(spec, &inspection)
+		}
 		c.patch(a.owner, func(s *State) {
 			if c.installRead != read || s.Install.Spec != spec || s.Install.Registry != registry {
 				return
@@ -279,10 +284,20 @@ func (a Actions) Inspect() {
 				return
 			}
 			s.Install.Inspection = &inspection
-			if inspection.Bundle != nil && !*inspection.Bundle {
-				s.Install.Error = "The package does not declare a plugin bundle."
+			s.Install.Capabilities = inspection.Capabilities
+			s.Install.CapabilityKind = inspection.CapabilityKind
+			if inspection.Capabilities != nil {
+				s.Install.Guidance = inspection.Capabilities.Guidance
+			} else {
+				s.Install.Guidance = ""
 			}
-			if inspection.Status != "accepted" {
+			if inspection.Capabilities != nil && inspection.Capabilities.Kind == CapabilityWebUIOnly && inspection.Bundle != nil && !*inspection.Bundle {
+				s.Install.Error = inspection.Capabilities.Guidance
+			} else if isNonBundleCapabilityGuidance(inspection) {
+				s.Install.Error = inspection.Capabilities.Guidance
+			} else if inspection.Bundle != nil && !*inspection.Bundle && !nativeCapabilityInstallReady(&inspection) {
+				s.Install.Error = "The package does not declare a plugin bundle."
+			} else if inspection.Status != "accepted" {
 				s.Install.Error = inspection.Problem + ": " + inspection.Reason
 			}
 			automatic = s.Install.Error == ""
@@ -292,12 +307,86 @@ func (a Actions) Inspect() {
 		}
 	}()
 }
+
+func enrichInspectionCapabilities(spec string, inspection *Inspection) {
+	if inspection == nil {
+		return
+	}
+	if inspection.Capabilities == nil {
+		var caps PackageCapabilities
+		if dir := fileSpecToDir(spec); dir != "" {
+			if localCaps, err := InspectLocalPackage(dir); err == nil {
+				caps = localCaps
+				if inspection.Name == "" {
+					switch {
+					case len(caps.MCPServers) > 0:
+						inspection.Name = caps.MCPServers[0]
+					case len(caps.SkillNames) > 0:
+						inspection.Name = caps.SkillNames[0]
+					default:
+						inspection.Name = filepath.Base(dir)
+					}
+				}
+			}
+		}
+		if caps.Kind == "" || caps.Kind == CapabilityUnknown {
+			inferred := InferCapabilityFromCatalogMetadata("", spec, inspection.Name, inspection.Description)
+			if inferred.Kind != CapabilityUnknown {
+				caps = inferred
+			} else if inspection.Bundle != nil && *inspection.Bundle {
+				caps.HasHostContribution = true
+				caps.HasBundle = true
+				finalizeCapabilities(&caps)
+			}
+		}
+		inspection.Capabilities = &caps
+	}
+	if inspection.Capabilities != nil {
+		inspection.CapabilityKind = inspection.Capabilities.Kind
+	}
+	if nativeCapabilityInstallReady(inspection) {
+		inspection.Status = "accepted"
+		inspection.Problem = ""
+		inspection.Reason = ""
+	}
+}
+
+func nativeCapabilityInstallReady(inspection *Inspection) bool {
+	if inspection == nil || inspection.Capabilities == nil {
+		return false
+	}
+	switch inspection.Capabilities.Kind {
+	case CapabilityMCP:
+		return len(inspection.Capabilities.MCPServerSpecs) > 0
+	case CapabilitySkill:
+		return len(inspection.Capabilities.LocalSkills) > 0
+	default:
+		return false
+	}
+}
+
+func isNonBundleCapabilityGuidance(inspection Inspection) bool {
+	if inspection.Capabilities == nil {
+		return false
+	}
+	kind := inspection.Capabilities.Kind
+	if kind != CapabilityMCP && kind != CapabilitySkill {
+		return false
+	}
+	if nativeCapabilityInstallReady(&inspection) {
+		return false
+	}
+	notBundle := inspection.Problem == "not-a-bundle" || inspection.Problem == "not-a-package" || (inspection.Bundle != nil && !*inspection.Bundle)
+	return notBundle && inspection.Capabilities.Guidance != ""
+}
+
 func (a Actions) RequestInstall() {
 	c := a.c
 	c.mu.Lock()
 	s := &c.state
 	i := &s.Install
-	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || (i.Inspection.Bundle != nil && !*i.Inspection.Bundle) || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
+	blockedBundle := i.Inspection != nil && i.Inspection.Bundle != nil && !*i.Inspection.Bundle && !nativeCapabilityInstallReady(i.Inspection)
+	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || blockedBundle || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
 		c.mu.Unlock()
 		return
 	}
@@ -315,6 +404,11 @@ func (a Actions) RequestInstall() {
 	remember := i.Enabled != nil && !i.TransientRegistry
 	choice := i.RegistrySelection
 	op := action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
+	if i.Inspection.Capabilities != nil {
+		op.capabilityKind = i.Inspection.Capabilities.Kind
+		op.mcpSpecs = append([]json.RawMessage(nil), i.Inspection.Capabilities.MCPServerSpecs...)
+		op.localSkills = append([]LocalSkillManifest(nil), i.Inspection.Capabilities.LocalSkills...)
+	}
 	i.RequestID = id
 	i.Phase = "checking"
 	i.DetailsOpen = false

@@ -36,7 +36,7 @@ func TestMainWindowCaptionPlateSitsAtTop12(t *testing.T) {
 // batch-B rule, so both must stay 32x32 at top 12.
 func TestSiblingCaptionPlatesShareTop12(t *testing.T) {
 	platePattern := regexp.MustCompile(`WindowsCaptionButtons:\s*&mygo\.WindowsCaptionButtonOptions\{[^}]*\}`)
-	for _, file := range []string{"welcome_window.go", "launcher_window.go"} {
+	for _, file := range []string{"welcome_window.go", "launcher_ui.go"} {
 		body, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)

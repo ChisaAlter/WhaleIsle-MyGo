@@ -305,7 +305,8 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 	for _, key := range []string{"DEEPSEEK_API_KEY", "WHALEISLE_API_KEY", "DSH_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "NODE_OPTIONS"} {
 		os.Unsetenv(key)
 	}
-	for key, value := range map[string]string{paths.EnvUserData: userData, "DSH_HOME": home, "HOME": ownedHome, "USERPROFILE": ownedHome, "APPDATA": filepath.Join(ownedHome, "AppData", "Roaming"), "LOCALAPPDATA": filepath.Join(ownedHome, "AppData", "Local")} {
+	localAppData := filepath.Join(ownedHome, "AppData", "Local")
+	for key, value := range map[string]string{paths.EnvUserData: userData, "DSH_HOME": home, "HOME": ownedHome, "USERPROFILE": ownedHome, "APPDATA": filepath.Join(ownedHome, "AppData", "Roaming"), "LOCALAPPDATA": localAppData, "PSModuleAnalysisCachePath": filepath.Join(localAppData, "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache")} {
 		if err = os.Setenv(key, value); err != nil {
 			return err
 		}

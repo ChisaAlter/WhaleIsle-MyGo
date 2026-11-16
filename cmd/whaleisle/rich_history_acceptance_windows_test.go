@@ -44,6 +44,7 @@ func nativeRichHistory() error {
 		v.Host = "127.0.0.1"
 		v.Port = 32184
 		v.NodeBin = os.Getenv("WHALEISLE_NODE")
+		v.AutoDownloadUpdates = false
 	}); err != nil {
 		return err
 	}

@@ -25,6 +25,7 @@ type remoteWorkflowState struct {
 }
 type remotePreparation struct {
 	root   string
+	gen    uint64
 	cancel context.CancelFunc
 	done   chan remotePrepared
 }
@@ -47,14 +48,18 @@ func (w *Workbench) cancelRemotePreparation() {
 }
 func (w *Workbench) RequestPR(root string) { w.requestRemote(root, "pr") }
 func (w *Workbench) requestRemote(root, mode string) {
+	if w == nil {
+		return
+	}
 	w.cancelCommitPreparation()
 	w.cancelRemotePreparation()
-	if w.Root != root {
-		w.cancelBranchList()
-		w.cancelRepositoryStatus()
-		*w = Workbench{Operation: w.Operation, invalidate: w.invalidate, AgainstHEAD: true}
+	w.pendingCaptionAction = ""
+	w.pendingCaptionRoot = ""
+	w.pendingCaptionGen = 0
+	if w.Root != "" && w.Root != root {
+		w.resetStateForRoot(root, w.invalidate)
 	}
-	w.reload(root)
+	w.requestReload(root, w.Loaded && w.Root == root)
 	w.Remote = &remoteWorkflowState{Mode: mode, Draft: true}
 	if mode == "pr" {
 		w.Remote.Title = strings.SplitN(w.Message, "\n", 2)[0]
@@ -77,12 +82,15 @@ func beginRemotePreparation(c *ui.Context, m Model) {
 		return
 	}
 	root, mode, title, body, draft := m.WorkspaceRoot, s.Mode, s.Title, s.Body, s.Draft
+	w.setInvalidate(c.Services().Invalidate)
+	gen := w.bindRoot(root)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	task := &remotePreparation{root: root, cancel: cancel, done: make(chan remotePrepared, 1)}
+	task := &remotePreparation{root: root, gen: gen, cancel: cancel, done: make(chan remotePrepared, 1)}
 	s.Task = task
 	s.Plan = nil
 	s.PR = nil
 	w.Status = ""
+	loader := w.loader
 	invalidate := c.Services().Invalidate
 	progress := git.NewProgress(root, word("正在准备后续操作…", "Preparing next action…"), invalidate)
 	w.Progress = progress
@@ -108,7 +116,9 @@ func beginRemotePreparation(c *ui.Context, m Model) {
 		}
 		progress.Finish(phase, r.err != nil)
 		task.done <- r
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -120,7 +130,7 @@ func finishRemotePreparation(m Model) {
 		return
 	}
 	task := s.Task
-	if task.root != m.WorkspaceRoot {
+	if task.root != m.WorkspaceRoot || (task.gen != 0 && task.gen != w.currentGen()) {
 		w.cancelRemotePreparation()
 		return
 	}

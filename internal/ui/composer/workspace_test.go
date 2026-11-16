@@ -99,3 +99,28 @@ func TestInertComposerCardOpensWorkspaceWithoutEditingOrSubmitting(t *testing.T)
 		})
 	}
 }
+
+func TestHeroWorkspaceChipAcceptsRemotePOSIXPath(t *testing.T) {
+	choose := i18n.T(i18n.KeyChatHeroChooseWorkspace)
+	for _, tc := range []struct {
+		name string
+		root string
+		want string
+	}{
+		{name: "posix repo", root: "/home/dev/remote-repo", want: "remote-repo"},
+		{name: "posix root", root: "/", want: "/"},
+		{name: "posix no-workspace folder", root: "/var/dsh-home/no-workspace", want: choose},
+		{name: "sentinel relative", root: "no-workspace", want: choose},
+		{name: "windows path", root: `C:\work\win-repo`, want: "win-repo"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			draft := ""
+			tt := ui.NewTester(func(c *ui.Context) {
+				View(c, Model{Draft: &draft, Hero: true, WorkspaceRoot: tc.root, OnPickHeroWorkspace: func() {}})
+			}, 700, 500)
+			if !tt.HasText(tc.want) {
+				t.Fatalf("root=%q missing %q in texts %v", tc.root, tc.want, tt.Texts())
+			}
+		})
+	}
+}

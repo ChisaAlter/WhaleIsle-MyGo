@@ -5,17 +5,25 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { removeBuildWorkspace, removePackageStage } from './build-storage.mjs';
+import { removeBuildWorkspace, removeOwnedDir, removePackageStage } from './build-storage.mjs';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
 const temporary = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'whale-storage-test-'));
 after(() => fs.rmSync(temporary, { recursive: true, force: true }));
 let sequence = 0;
 const fresh = () => fs.mkdtempSync(path.join(temporary, 'case-'));
+function resolvePowerShell() {
+  for (const candidate of process.platform === 'win32' ? ['pwsh', 'powershell.exe'] : ['pwsh']) {
+    const probe = spawnSync(candidate, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { encoding: 'utf8', windowsHide: true });
+    if (!probe.error && probe.status === 0) return candidate;
+  }
+  return 'pwsh';
+}
+const powershellExecutable = resolvePowerShell();
 function powershell(source, env = {}) {
   const script = path.join(temporary, `probe-${sequence++}.ps1`);
   fs.writeFileSync(script, '$ErrorActionPreference = "Stop"\n' + source);
-  return spawnSync('pwsh', ['-NoProfile', '-File', script], { cwd: temporary, env: { ...process.env, ...env }, encoding: 'utf8', windowsHide: true });
+  return spawnSync(powershellExecutable, ['-NoProfile', '-File', script], { cwd: temporary, env: { ...process.env, ...env }, encoding: 'utf8', windowsHide: true });
 }
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
 
@@ -176,4 +184,41 @@ if ($args[0] -eq 'run') {
       }
     }
   }
+});
+
+test('owned-dir cleanup unlinks nested junctions without descending and enforces prefix', () => {
+  const parent = fresh();
+  const owned = path.join(parent, 'whaleisle-owned-123');
+  const nested = path.join(owned, 'deep', 'sub');
+  const source = fresh();
+  fs.mkdirSync(nested, { recursive: true });
+  fs.writeFileSync(path.join(source, 'keep.txt'), 'protected-data');
+  fs.symlinkSync(source, path.join(nested, 'ext-link'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => removeOwnedDir(owned, parent, 'other-'), /prefixed/);
+  removeOwnedDir(owned, parent, 'whaleisle-owned-');
+  assert.equal(fs.existsSync(owned), false);
+  assert.equal(fs.readFileSync(path.join(source, 'keep.txt'), 'utf8'), 'protected-data');
+  removeOwnedDir(owned, parent, 'whaleisle-owned-');
+});
+
+test('env.ps1 pins PSModuleAnalysisCachePath outside cwd and with-build-workspace restores it', { skip: process.platform !== 'win32' }, () => {
+  const isolated = fresh();
+  const explicitCache = path.join(isolated, 'custom-ps-cache');
+  const res = powershell(`
+    Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+    Remove-Item Env:PSModuleAnalysisCachePath -ErrorAction SilentlyContinue
+    . ${quote(path.join(scripts, 'env.ps1'))}
+    Write-Output "AUTO=$env:PSModuleAnalysisCachePath"
+    $env:PSModuleAnalysisCachePath = ${quote(explicitCache)}
+    & ${quote(path.join(scripts, 'with-build-workspace.ps1'))} {
+      param($work)
+      $env:PSModuleAnalysisCachePath = Join-Path $work 'inner-cache'
+    }
+    Write-Output "RESTORED=$env:PSModuleAnalysisCachePath"
+  `);
+  assert.equal(res.status, 0, res.stderr);
+  const autoMatch = res.stdout.match(/AUTO=(.+)/);
+  assert.ok(autoMatch);
+  assert.equal(path.isAbsolute(autoMatch[1].trim()), true);
+  assert.equal(res.stdout.includes(`RESTORED=${explicitCache}`), true);
 });

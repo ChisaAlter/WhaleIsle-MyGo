@@ -77,13 +77,14 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			s := &mainState{dshClient: client, market: store}
+			s := &mainState{}
+			coord := s.marketCoordinator()
+			coord.SetClient(client)
+			coord.SetStore(store)
 			s.runMarketCatalogInstall(target)
-			waitCatalogFixture(t, func() bool { s.mu.Lock(); defer s.mu.Unlock(); return s.marketWorker == nil })
+			waitCatalogFixture(t, func() bool { return !coord.ViewSnapshot().WorkerBusy })
 			waitCatalogFixture(t, func() bool { return !store.Snapshot().Loading })
-			s.mu.Lock()
-			message := s.marketInstallMsg
-			s.mu.Unlock()
+			message := coord.ViewSnapshot().InstallMsg
 			history := marketstore.NewWithPersonalPath(historyPath).Personal().History
 			if len(history) != 1 || history[0].Result != application || history[0].Plugin != "fixture/plugin" {
 				t.Fatalf("incorrect persisted history: %+v", history)
@@ -107,9 +108,7 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 func TestMarketInstallBlockedWithoutRuntimeReportsWhy(t *testing.T) {
 	s := &mainState{}
 	s.runMarketCatalogInstall(marketstore.InstallTarget{})
-	s.mu.Lock()
-	message := s.marketInstallMsg
-	s.mu.Unlock()
+	message := s.marketCoordinator().ViewSnapshot().InstallMsg
 	if message == "" {
 		t.Fatal("a blocked install left the market with no message")
 	}

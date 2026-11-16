@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -76,6 +77,51 @@ func (b fileBaseline) matches(path string) (bool, error) {
 	return cur.exists == b.exists && bytes.Equal(cur.data, b.data), nil
 }
 
+// guardedRenameFor returns a rename wrapper that verifies expected matches
+// config.json immediately before replacing it, aborting with ErrConflict if an
+// external edit landed in between.
+func (s *Store) guardedRenameFor(expected fileBaseline) func(oldpath, newpath string) error {
+	rename := s.rename
+	if rename == nil {
+		rename = os.Rename
+	}
+	return func(oldpath, newpath string) error {
+		ok, err := expected.matches(s.path)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrConflict
+		}
+		return rename(oldpath, newpath)
+	}
+}
+
+// commitRawLocked commits a merged raw config map under lockCommit with
+// pre-rename baseline verification. Callers must hold s.mu.
+func (s *Store) commitRawLocked(expected fileBaseline, merged map[string]json.RawMessage) (fileBaseline, error) {
+	data, err := json.MarshalIndent(merged, "", "  ")
+	if err != nil {
+		return fileBaseline{}, err
+	}
+	unlock, err := s.lockCommit()
+	if err != nil {
+		return fileBaseline{}, err
+	}
+	defer unlock()
+	ok, err := expected.matches(s.path)
+	if err != nil {
+		return fileBaseline{}, err
+	}
+	if !ok {
+		return fileBaseline{}, ErrConflict
+	}
+	if err := writeAtomic(s.path, data, s.guardedRenameFor(expected)); err != nil {
+		return fileBaseline{}, err
+	}
+	return fileBaseline{exists: true, data: data}, nil
+}
+
 // writeAtomic writes data to a temporary file next to path and renames it into
 // place. rename is injectable so tests can force a deterministic failure.
 func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) error) error {
@@ -88,6 +134,10 @@ func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) 
 	}
 	defer os.Remove(tmp.Name())
 	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
 		tmp.Close()
 		return err
 	}
@@ -106,7 +156,7 @@ func writeAtomic(path string, data []byte, rename func(oldpath, newpath string) 
 		if errors.Is(errRename, ErrConflict) {
 			return errRename
 		}
-		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
+		time.Sleep(jitteredDuration(time.Duration(attempt+1) * 5 * time.Millisecond))
 	}
 	return errRename
 }

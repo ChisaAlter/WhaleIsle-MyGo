@@ -38,9 +38,6 @@ func featureToggleRow(c *ui.Context, row featureRow, fg, muted ui.Color) {
 	if row.value == nil {
 		return
 	}
-	if !settingsItemBefore(c, row.key) {
-		return
-	}
 	outer := ui.Column(c.Key(row.key)).FillWidth().MinWidth(0).Gap(0)
 	settingsSearchTarget(c, row.key, row.title, outer)
 	outer.Draw(func(p *ui.Painter, bounds ui.Rect) {

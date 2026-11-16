@@ -2,6 +2,7 @@ package pluginmanager
 
 import (
 	"context"
+	"encoding/json"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -123,4 +124,21 @@ func (c Client) Exempt(ctx context.Context, pkg, runtime string) (Change, error)
 		AcceptRisk bool   `json:"acceptRisk"`
 	}{pkg, runtime, true, true}, &v)
 	return v, e
+}
+
+// UpsertMCPServer registers an extracted MCP server config on Host without requiring a dsh.bundle.
+func (c Client) UpsertMCPServer(ctx context.Context, spec json.RawMessage) error {
+	return c.Caller.Call(ctx, "mcpServers/upsert", api.McpServerUpsertRequest{Spec: spec}, nil)
+}
+
+// CreateSkill installs a parsed local SKILL.md into the Host skill inventory without requiring a dsh.bundle.
+func (c Client) CreateSkill(ctx context.Context, skill LocalSkillManifest) error {
+	return c.Caller.Call(ctx, "skillInventory/create", api.SkillInventoryCreateRequest{
+		Name:           skill.Name,
+		Description:    skill.Description,
+		Content:        skill.Content,
+		Root:           "user",
+		ModelInvocable: true,
+		UserInvocable:  true,
+	}, nil)
 }

@@ -18,8 +18,6 @@ func (s *mainState) openPetSettings() {
 	s.remoteOpen = false
 	s.webviewOpen = false
 	s.browserPreviewOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
 	s.toolsMenuOpen = false
 	s.settingsDesktopActive = false
 	s.settingsAccountActive = false
@@ -36,6 +34,7 @@ func (s *mainState) openPetSettings() {
 	s.settingsAgentPresetsActive = false
 	settings, win := s.settings, s.win
 	s.mu.Unlock()
+	s.assistantService().SetOpen(false)
 	if settings != nil {
 		settings.Select("pet")
 	}

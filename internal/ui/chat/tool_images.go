@@ -33,7 +33,6 @@ type ToolImageGalleryOptions struct {
 	// the session event window; nil renders the first-write (initial) card.
 	Todo          *todoBaseline
 	TodoBaselines map[string]*todoBaseline
-	RenderSlot    func(*ui.Context, string, *session.ToolCallView, func())
 }
 
 func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolImageGalleryOptions) {

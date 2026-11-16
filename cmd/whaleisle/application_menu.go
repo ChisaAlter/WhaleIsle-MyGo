@@ -120,7 +120,11 @@ func (s *mainState) processApplicationMenuFor(c *ui.Context, owner *mygo.Window)
 	}
 	actions := s.applicationMenuActions(c)
 	for _, gesture := range pending {
-		if s.quitting || gesture.revision != revision || !applicationMenuCommandAllowed(c, gesture.id) || s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending) {
+		s.mu.Lock()
+		quitting := s.quitting
+		shortcutBusy := s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending)
+		s.mu.Unlock()
+		if quitting || gesture.revision != revision || !applicationMenuCommandAllowed(c, gesture.id) || shortcutBusy {
 			continue
 		}
 		if run := actions[gesture.id]; run != nil {
@@ -158,9 +162,10 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		}
 	}
 	actions["workspace.openLocal"] = func() {
+		asstOpen := s.assistantService().Open()
 		s.mu.Lock()
 		sessions := s.sessions
-		blocked := s.marketOpen || s.scheduleOpen || s.assistantOpen || s.launcherOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen
+		blocked := s.marketOpen || s.scheduleOpen || asstOpen || s.launcherOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen
 		s.mu.Unlock()
 		if !blocked {
 			s.observeWorkspaceOpenInApp().OpenCurrent(sessions)
@@ -174,10 +179,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 	actions["settings.about"] = func() { settings("about") }
 	actions["app.quit"] = s.quitDesktopTray
 	actions["window.close"] = func() {
-		s.mu.Lock()
-		w := mygo.FocusedWindow()
-		s.mu.Unlock()
-		if w != nil {
+		if w := mygo.FocusedWindow(); w != nil {
 			w.Close()
 		}
 	}

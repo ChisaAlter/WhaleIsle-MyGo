@@ -33,14 +33,48 @@ type Bridge struct {
 	opts        Options
 	mu          sync.Mutex
 	selectionMu sync.Mutex
+	readyMu     sync.Mutex
+	readyNode   string
+	readySize   int64
+	readyMod    int64
+	readyOK     bool
 }
+
+var onReadyNodeProbe func()
 
 func New(opts Options) *Bridge { return &Bridge{opts: opts} }
 
 // Ready probes only module loading; it never starts Host or runs Git.
+// A verified ready check for the exact Node binary (path, size, modtime) is
+// memoized so repeated launcher/settings checks avoid redundant Node spawns.
 func (b *Bridge) Ready(ctx context.Context) bool {
+	if ctx != nil && ctx.Err() != nil {
+		return false
+	}
+	if b.opts.NodeBin == "" || b.opts.Home == "" {
+		return false
+	}
+	st, err := os.Stat(b.opts.NodeBin)
+	if err != nil || !st.Mode().IsRegular() {
+		return false
+	}
+	b.readyMu.Lock()
+	cached := b.readyOK && b.readyNode == b.opts.NodeBin && b.readySize == st.Size() && b.readyMod == st.ModTime().UnixNano()
+	b.readyMu.Unlock()
+	if cached {
+		return true
+	}
+	if onReadyNodeProbe != nil {
+		onReadyNodeProbe()
+	}
 	result := b.call(ctx, map[string]any{"action": "ready"})
-	return result["ok"] == true && result["available"] == true
+	ok := result["ok"] == true && result["available"] == true
+	if ok {
+		b.readyMu.Lock()
+		b.readyNode, b.readySize, b.readyMod, b.readyOK = b.opts.NodeBin, st.Size(), st.ModTime().UnixNano(), true
+		b.readyMu.Unlock()
+	}
+	return ok
 }
 func (b *Bridge) PrepareOverlay(ctx context.Context, sourceDir, profileDir, harnessRoot string) (string, error) {
 	b.mu.Lock()
@@ -169,7 +203,11 @@ func (b *Bridge) call(parent context.Context, envelope map[string]any) map[strin
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
 		upper := strings.ToUpper(key)
-		if upper == "NODE_OPTIONS" || upper == "NODE_PATH" || upper == "DSHD_HOME" || upper == "DSH_HOME" || strings.HasPrefix(upper, "DSH_DESKTOP_INSTALL_") {
+		if upper == "NODE_OPTIONS" || upper == "NODE_PATH" || upper == "ELECTRON_RUN_AS_NODE" ||
+			upper == "DSHD_HOME" || upper == "DSH_HOME" ||
+			upper == "GIT_DIR" || upper == "GIT_WORK_TREE" || upper == "GIT_INDEX_FILE" ||
+			upper == "GIT_COMMON_DIR" || upper == "GIT_OBJECT_DIRECTORY" || upper == "GIT_ALTERNATE_OBJECT_DIRECTORIES" ||
+			strings.HasPrefix(upper, "MAGPIE_") || strings.HasPrefix(upper, "DSH_DESKTOP_INSTALL_") {
 			continue
 		}
 		cmd.Env = append(cmd.Env, entry)

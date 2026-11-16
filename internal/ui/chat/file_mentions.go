@@ -290,3 +290,86 @@ func mutationMentionPath(name, raw string) string {
 	}
 	return p
 }
+
+var toolMentionRevisionMemo struct {
+	mu      sync.Mutex
+	entries []toolMentionRevisionEntry
+}
+
+type toolMentionRevisionEntry struct {
+	key session.ProjectionKey
+	rev uint64
+}
+
+func fnv1aString(h uint64, s string) uint64 {
+	const prime64 = 1099511628211
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= prime64
+	}
+	h ^= 0xff
+	h *= prime64
+	return h
+}
+
+func fileMentionToolRevision(messages []session.Message) uint64 {
+	h := uint64(14695981039346656037)
+	for _, msg := range messages {
+		if msg.Kind != session.MessageKindTool {
+			continue
+		}
+		h = fnv1aString(h, msg.ID)
+		h = fnv1aString(h, msg.Body)
+		h = fnv1aString(h, string(msg.Raw))
+	}
+	return h
+}
+
+func combineFileMentionRevision(toolRev uint64, closing session.Message) uint64 {
+	h := toolRev
+	h = fnv1aString(h, closing.ID)
+	h = fnv1aString(h, closing.Role)
+	h = fnv1aString(h, string(closing.Raw))
+	if h == 0 {
+		return 1
+	}
+	return h
+}
+
+func fileMentionRevision(messages []session.Message, closing session.Message) uint64 {
+	return combineFileMentionRevision(fileMentionToolRevision(messages), closing)
+}
+
+func projectedFileMentionRevision(snap session.ViewState, closing session.Message) uint64 {
+	key := snap.HistoryProjectionKey()
+	if !key.Valid() {
+		return fileMentionRevision(snap.Messages, closing)
+	}
+	toolMentionRevisionMemo.mu.Lock()
+	for _, e := range toolMentionRevisionMemo.entries {
+		if e.key == key {
+			toolMentionRevisionMemo.mu.Unlock()
+			return combineFileMentionRevision(e.rev, closing)
+		}
+	}
+	toolMentionRevisionMemo.mu.Unlock()
+
+	toolRev := fileMentionToolRevision(snap.Messages)
+	toolMentionRevisionMemo.mu.Lock()
+	const maxEntries = 8
+	for i, e := range toolMentionRevisionMemo.entries {
+		if e.key == key {
+			toolMentionRevisionMemo.entries[i].rev = toolRev
+			toolMentionRevisionMemo.mu.Unlock()
+			return combineFileMentionRevision(toolRev, closing)
+		}
+	}
+	if len(toolMentionRevisionMemo.entries) >= maxEntries {
+		copy(toolMentionRevisionMemo.entries, toolMentionRevisionMemo.entries[1:])
+		toolMentionRevisionMemo.entries[len(toolMentionRevisionMemo.entries)-1] = toolMentionRevisionEntry{key: key, rev: toolRev}
+	} else {
+		toolMentionRevisionMemo.entries = append(toolMentionRevisionMemo.entries, toolMentionRevisionEntry{key: key, rev: toolRev})
+	}
+	toolMentionRevisionMemo.mu.Unlock()
+	return combineFileMentionRevision(toolRev, closing)
+}

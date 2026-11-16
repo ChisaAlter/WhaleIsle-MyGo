@@ -44,9 +44,14 @@ func (s *mainState) startWhaleBridgeAlerts(win *mygo.Window) {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
+		var prev *bridgeAlertPollSig
 		for {
 			run.monitor.Poll()
-			win.Update(func() { s.deliverWhaleBridgeAlerts(run) })
+			if next, changed := bridgeAlertPollChanged(run, prev); changed {
+				copySig := next
+				prev = &copySig
+				win.Update(func() { s.deliverWhaleBridgeAlerts(run) })
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -54,6 +59,56 @@ func (s *mainState) startWhaleBridgeAlerts(win *mygo.Window) {
 			}
 		}
 	}()
+}
+
+type bridgeAlertPollSig struct {
+	scope      string
+	generation uint64
+	manageSeq  int64
+	paused     bool
+	fallback   bool
+	status     string
+	dropped    int
+	alertCount int
+	lastTicket bridgealerts.Ticket
+}
+
+func bridgeAlertPollChanged(run *bridgeAlertUI, prev *bridgeAlertPollSig) (bridgeAlertPollSig, bool) {
+	snap := run.monitor.Snapshot()
+	sig := bridgeAlertPollSig{
+		scope:      snap.Manage.Scope,
+		generation: snap.Manage.Generation,
+		manageSeq:  snap.Manage.Sequence,
+		paused:     snap.Paused,
+		fallback:   snap.Fallback,
+		status:     snap.Status,
+		dropped:    snap.Dropped,
+		alertCount: len(snap.Alerts),
+	}
+	if n := len(snap.Alerts); n > 0 {
+		sig.lastTicket = snap.Alerts[n-1].Ticket
+	}
+	hasStale := false
+	run.noticesMu.Lock()
+	for ticket := range run.notices {
+		if !run.monitor.Current(ticket) {
+			hasStale = true
+			break
+		}
+	}
+	if !hasStale {
+		for ticket := range run.attempted {
+			if !run.monitor.Current(ticket) {
+				hasStale = true
+				break
+			}
+		}
+	}
+	run.noticesMu.Unlock()
+	if prev == nil || sig != *prev || hasStale {
+		return sig, true
+	}
+	return sig, false
 }
 func (s *mainState) closeWhaleBridgeAlerts() {
 	s.mu.Lock()
@@ -95,7 +150,13 @@ func (s *mainState) observeWhaleBridgeAlerts() {
 	if run == nil {
 		return
 	}
-	go func() { run.monitor.Observe(); run.window.Update(func() { s.deliverWhaleBridgeAlerts(run) }) }()
+	go func() {
+		prev, _ := bridgeAlertPollChanged(run, nil)
+		run.monitor.Observe()
+		if _, changed := bridgeAlertPollChanged(run, &prev); changed {
+			run.window.Update(func() { s.deliverWhaleBridgeAlerts(run) })
+		}
+	}()
 }
 func (s *mainState) deliverWhaleBridgeAlerts(run *bridgeAlertUI) {
 	if !s.bridgeAlertUICurrent(run) {

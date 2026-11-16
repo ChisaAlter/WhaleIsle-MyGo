@@ -5,6 +5,7 @@ package windows
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -14,7 +15,11 @@ import (
 // AUMID; a temp profile's lookalike Programs path is not a registration.
 func registerToastFixture(t *testing.T, appID string) {
 	t.Helper()
-	programs := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs")
+	appData := strings.TrimSpace(os.Getenv("APPDATA"))
+	if appData == "" || !filepath.IsAbs(appData) {
+		t.Skip("APPDATA unset or non-absolute; skipping toast fixture registration")
+	}
+	programs := filepath.Join(appData, "Microsoft", "Windows", "Start Menu", "Programs")
 	dir := filepath.Join(programs, appID)
 	if _, err := os.Lstat(dir); !os.IsNotExist(err) {
 		t.Fatalf("fixture path must not exist: %s", dir)

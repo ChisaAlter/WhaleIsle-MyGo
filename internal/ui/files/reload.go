@@ -89,6 +89,22 @@ func reloadSelectedFile(m Model) {
 		tab.Truncated = truncated
 	}
 	if dirty {
+		tab := selectedTab(m)
+		if errMsg == "" && !truncated && tab != nil {
+			if text != *m.Preview {
+				tab.hasConflict = true
+				tab.conflictContent = text
+				tab.conflictTruncated = false
+				tab.externalChanged = true
+				tab.readBlocked = true
+			} else {
+				tab.hasConflict = false
+				tab.conflictContent = ""
+				tab.conflictTruncated = false
+				tab.externalChanged = false
+				tab.readBlocked = false
+			}
+		}
 		if m.EditStatus != nil {
 			switch {
 			case errMsg != "":
@@ -96,7 +112,7 @@ func reloadSelectedFile(m Model) {
 			case truncated:
 				*m.EditStatus = label("磁盘文件已超出完整预览上限，草稿保留且停止保存。请复制草稿并在外部编辑器核对。", "File now exceeds the complete preview limit. Draft kept and saving stopped. Copy it and reconcile in an external editor.")
 			case text != *m.Preview:
-				*m.EditStatus = label("磁盘文件已变化，草稿保留。请复制草稿后关闭并重新打开文件核对。", "File changed on disk; draft kept. Copy the draft, then close and reopen to reconcile.")
+				*m.EditStatus = label("磁盘文件已变化且与当前草稿冲突；请复制草稿或解决冲突。", "File changed on disk and conflicts with your draft. Copy the draft or resolve the conflict.")
 			default:
 				*m.EditStatus = label("文件未变化，未保存草稿已保留", "File unchanged; unsaved draft kept")
 			}

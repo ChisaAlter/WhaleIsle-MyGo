@@ -10,8 +10,8 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os/exec"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,7 +22,6 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/git"
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
@@ -298,9 +297,11 @@ func runComposerFlowQA() error {
 		c.Host = "127.0.0.1"
 		c.Port = 32197
 		c.NodeBin = os.Getenv("WHALEISLE_NODE")
+		c.AutoDownloadUpdates = false
 	}); err != nil {
 		return err
 	}
+	defer func() { _ = os.RemoveAll(filepath.Join(data, "updates")) }()
 	type step struct {
 		Name   string `json:"name"`
 		Pass   bool   `json:"pass"`
@@ -1091,38 +1092,7 @@ func runComposerFlowQA() error {
 				state.filesPaneOpen = false
 				state.mu.Unlock()
 			})
-			// Batch-4 left extension space contract: the panel-list More menu
-			// exists only while sidebar.panellist.actions has registrations,
-			// launchers unpin into it, and the bundled create entry only seeds
-			// a draft. Old-contract runtimes have no registrations, which the
-			// adapter must render as no More affordance, not an error.
 			{
-				var regs []pluginui.PublicSlotEntry
-				if err := waitStore(time.Now().Add(45*time.Second), "panel actions registrations", func() (bool, error) {
-					if owner := state.pluginNavigationOwner(); owner != nil {
-						regs = owner.PublicSlotRegistrations("sidebar.panellist.actions")
-						return len(regs) > 0, nil
-					}
-					return false, nil
-				}); err != nil {
-					mark("extension-panel-more", true, "no sidebar.panellist.actions registrations (old-contract runtime: correctly no More)")
-				} else {
-					bundled := false
-					for _, reg := range regs {
-						if reg.Native {
-							bundled = true
-						}
-					}
-					mark("extension-panel-more", bundled, fmt.Sprintf("registrations=%d bundledNative=%v", len(regs), bundled))
-				}
-				// Panel pins are region memory: unpin hides a launcher, pin
-				// restores it, and the plugin manager stays pinned by contract.
-				state.setPluginPanelPinned("schedules", false)
-				unpinned := state.pluginPanelUnpinned("schedules")
-				state.setPluginPanelPinned("schedules", true)
-				repinned := !state.pluginPanelUnpinned("schedules")
-				state.setPluginPanelPinned("plugins", false)
-				mark("extension-panel-pins", unpinned && repinned && !state.pluginPanelUnpinned("plugins"), fmt.Sprintf("unpin=%v repin=%v pluginsPinned=%v", unpinned, repinned, !state.pluginPanelUnpinned("plugins")))
 				// "Create your plugin" seeds the draft and the cordis preset
 				// without sending: identical to the source whenDraftExists
 				// append semantics.
@@ -1142,88 +1112,6 @@ func runComposerFlowQA() error {
 					time.Sleep(500 * time.Millisecond)
 					mark("extension-panel-creator", model.requests.Load() == before, fmt.Sprintf("draft seeded; sent requests unchanged=%v", model.requests.Load() == before))
 				}
-			}
-			// A real third-party client plugin (WHALEISLE_EXTRA_OVERLAY stages
-			// testdata/qa-panel into the profile) must surface through the
-			// ordinary loader: a foreign panellist entry, a real main view,
-			// and pin memory that treats it like any other launcher.
-			if os.Getenv(harness.EnvExtraOverlay) == "" {
-				mark("extension-plugin-panel", true, "overlay env unset; fixture plugin not staged")
-			} else {
-				var qaReg *pluginui.PublicSlotEntry
-				if err := waitStore(time.Now().Add(60*time.Second), "qa-panel registration", func() (bool, error) {
-					owner := state.pluginNavigationOwner()
-					if owner == nil {
-						return false, nil
-					}
-					for _, reg := range owner.PublicSlotRegistrations("sidebar.panellist") {
-						if reg.ID == "qa-panel" {
-							r := reg
-							qaReg = &r
-							return true, nil
-						}
-					}
-					return false, nil
-				}); err != nil {
-					mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
-				} else if qaReg.Native || !strings.Contains(qaReg.Registrant, "qa-panel") {
-					var dump []string
-					if owner := state.pluginNavigationOwner(); owner != nil {
-						for _, r := range owner.PublicSlotRegistrations("sidebar.panellist") {
-							dump = append(dump, fmt.Sprintf("%s=%s/%s(n=%v)", r.ID, r.Registrant, r.RawRegistrant, r.Native))
-						}
-					}
-					mark("extension-plugin-panel", false, fmt.Sprintf("fixture misclassified: native=%v registrant=%q raw=%q all=[%s]", qaReg.Native, qaReg.Registrant, qaReg.RawRegistrant, strings.Join(dump, " ")))
-				} else {
-					// Its main view is elected through the same live-owner
-					// contract as the bundled panels; opening it must select
-					// the real handle, and unpinning must move it to More.
-					var viewHandle string
-					if err := waitStore(time.Now().Add(20*time.Second), "qa-panel main view", func() (bool, error) {
-						for _, view := range state.pluginNativeViews() {
-							if view.ID == "qa-panel" {
-								viewHandle = view.Handle
-								return true, nil
-							}
-						}
-						return false, nil
-					}); err != nil {
-						mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
-					} else {
-						win.Update(func() { state.openPluginNativeView(viewHandle) })
-						if err := waitStore(time.Now().Add(20*time.Second), "qa-panel view selected", func() (bool, error) {
-							state.mu.Lock()
-							defer state.mu.Unlock()
-							p := state.nativePlugins.navigation
-							return p != nil && p.selected == viewHandle, nil
-						}); err != nil {
-							mark("extension-plugin-panel", false, fmt.Sprintf("%v", err))
-						} else {
-							win.Update(func() { state.closePluginNativeView() })
-							// Pin memory treats a third-party launcher like
-							// the bundled ones: unpinned into More, pinned
-							// back out.
-							state.setPluginPanelPinned("qa-panel", false)
-							pUnpinned := state.pluginPanelUnpinned("qa-panel")
-							state.setPluginPanelPinned("qa-panel", true)
-							pRepinned := !state.pluginPanelUnpinned("qa-panel")
-							mark("extension-plugin-panel", pUnpinned && pRepinned, fmt.Sprintf("foreign registrant=%q view=%s opened and closed unpin=%v repin=%v", qaReg.Registrant, viewHandle, pUnpinned, pRepinned))
-						}
-					}
-				}
-			}
-			// "Browse plugins" routes to the plugin manager surface. The menu
-			// item's OnOpenMarket callback is bound to selectMainPanel in
-			// main_navigation.go; the reachable assertion is the same call.
-			if owner := state.pluginNavigationOwner(); owner != nil && len(owner.PublicSlotRegistrations("sidebar.panellist.actions")) > 0 {
-				state.selectMainPanel("plugins")
-				state.mu.Lock()
-				mOpen, mManager := state.marketOpen, state.marketManager
-				state.mu.Unlock()
-				mark("extension-panel-browse", mOpen && mManager, fmt.Sprintf("marketOpen=%v marketManager=%v", mOpen, mManager))
-				win.Update(func() { state.selectMainPanel("") })
-			} else {
-				mark("extension-panel-browse", true, "no actions registrations; Browse not offered on this runtime")
 			}
 			// Real input path: set the composer text through UI Automation's
 			// ValuePattern, the channel assistive technology uses. Restore a

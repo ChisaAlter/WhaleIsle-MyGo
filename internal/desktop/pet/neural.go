@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"whaleisle/internal/store/storelocale"
 )
@@ -62,6 +63,7 @@ func loadRenderAssets(dir string) (map[string][]byte, error) {
 // atomic so configuring it cannot race a resource request.
 var petRenderRoot = defaultRenderRoot
 var configuredRenderRoot atomic.Pointer[string]
+var explicitDevRenderRoot atomic.Bool
 
 // ConfigureRenderAssets is a startup-only source selection. Packaged builds
 // ignore explicitRoot; development builds accept one absolute directory. An
@@ -70,8 +72,45 @@ var configuredRenderRoot atomic.Pointer[string]
 func ConfigureRenderAssets(development bool, explicitRoot string) string {
 	exe, _ := os.Executable()
 	selected := selectRenderRoot(development, explicitRoot, exe)
+	explicitDevRenderRoot.Store(development && strings.TrimSpace(explicitRoot) != "")
 	configuredRenderRoot.Store(&selected)
 	return selected
+}
+
+func (p *Companion) userDataDir() string {
+	if p != nil && p.Store != nil {
+		if path := strings.TrimSpace(p.Store.Path()); path != "" {
+			return filepath.Dir(path)
+		}
+	}
+	return anime4KUserDataDir()
+}
+
+func (p *Companion) userRenderRoot() string {
+	dir := p.userDataDir()
+	if dir == "" || !filepath.IsAbs(dir) {
+		return ""
+	}
+	return filepath.Join(filepath.Clean(dir), "pet-render-assets")
+}
+
+// resolveActiveRenderRoot keeps adjacent <exeDir>/pet-render-assets and any
+// explicit dev/test override authoritative, falling back to <UserDataDir>/pet-render-assets
+// only when the adjacent packaged directory does not exist (Decision 3A on-demand download).
+func (p *Companion) resolveActiveRenderRoot() string {
+	primary := petRenderRoot()
+	if primary == "" || explicitDevRenderRoot.Load() || primary != defaultRenderRoot() {
+		return primary
+	}
+	if _, err := os.Lstat(primary); err == nil || !errors.Is(err, os.ErrNotExist) {
+		return primary
+	}
+	if userRoot := p.userRenderRoot(); userRoot != "" {
+		if st, err := os.Lstat(userRoot); err == nil && st.IsDir() && st.Mode()&os.ModeSymlink == 0 {
+			return userRoot
+		}
+	}
+	return primary
 }
 
 func selectRenderRoot(development bool, explicitRoot, exe string) string {

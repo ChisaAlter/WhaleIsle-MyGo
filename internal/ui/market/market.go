@@ -24,21 +24,20 @@ type Model struct {
 	SVGImages *svgimage.Owner
 	Store     *marketstore.Store
 	// Embedded is used by the Settings market section, whose shell owns its header and insets.
-	Embedded             bool
-	categoriesExpanded   *bool
-	ThemeID              string
-	SystemDark           bool
-	HarnessReady         bool
-	MuxConnected         bool
-	HarnessMarketOverlay bool
-	PluginDisabled       bool
-	InstallReady         bool
-	InstallSpec          *string
-	InstallBusy          bool
-	InstallMessage       string
-	Activation           marketstore.Activation
-	CanRestart           bool
-	OnRestart            func()
+	Embedded           bool
+	categoriesExpanded *bool
+	ThemeID            string
+	SystemDark         bool
+	HarnessReady       bool
+	MuxConnected       bool
+	PluginDisabled     bool
+	InstallReady       bool
+	InstallSpec        *string
+	InstallBusy        bool
+	InstallMessage     string
+	Activation         marketstore.Activation
+	CanRestart         bool
+	OnRestart          func()
 	// InstallLog is the trailing installctrl.Result.Log (phase output).
 	InstallLog       string
 	NeedsAllowBuilds bool
@@ -63,8 +62,6 @@ type Model struct {
 	OnOpenManager func()
 	// OnOpenURL activates an authored documentation link after an explicit click.
 	OnOpenURL func(string)
-	// OnOpenHarnessMarket opens the Electron ui-settings-market WebView when overlay is on.
-	OnOpenHarnessMarket func()
 }
 
 // View is a native discovery and installed-plugin surface.
@@ -336,6 +333,32 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 				}
 			}
 		})
+		compatLabel := marketText("仅原生可用", "Native compatible only")
+		allLabel := marketText("全部插件", "All plugins")
+		compatTooltip := marketText("默认隐藏仅支持 Web UI 的插件；切换到“全部插件”可查看全部条目。", "Hide Web UI-only plugins by default; switch to All plugins to browse every entry.")
+		activeBg := ui.RGBA(accent.R, accent.G, accent.B, 0.12)
+		nativePill := ui.Button(c, compatLabel).Height(32).Padding(0, 12).Radius(8).
+			FontSize(theme.InterfaceSize(12)).Selected(d.NativeCompatibleOnly).
+			Tooltip(compatTooltip)
+		if d.NativeCompatibleOnly {
+			nativePill.Border(.5, accent).Background(activeBg).TextColor(accent)
+		} else {
+			nativePill.Border(.5, border).Background(field).TextColor(muted)
+		}
+		if nativePill.Clicked() && !d.NativeCompatibleOnly {
+			m.Store.SetNativeCompatibleOnly(true)
+		}
+		allPill := ui.Button(c, allLabel).Height(32).Padding(0, 12).Radius(8).
+			FontSize(theme.InterfaceSize(12)).Selected(!d.NativeCompatibleOnly).
+			Tooltip(compatTooltip)
+		if !d.NativeCompatibleOnly {
+			allPill.Border(.5, accent).Background(activeBg).TextColor(accent)
+		} else {
+			allPill.Border(.5, border).Background(field).TextColor(muted)
+		}
+		if allPill.Clicked() && d.NativeCompatibleOnly {
+			m.Store.SetNativeCompatibleOnly(false)
+		}
 	})
 	ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)

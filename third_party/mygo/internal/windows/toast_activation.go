@@ -306,6 +306,15 @@ func (s *toastService) activationSeen(id string) bool {
 		return true
 	}
 	s.activated[id] = true
+	s.activatedOrder = append(s.activatedOrder, id)
+	for len(s.activated) > maxToastHistory && len(s.activatedOrder) > 0 {
+		oldID := s.activatedOrder[0]
+		s.activatedOrder = s.activatedOrder[1:]
+		if oldID == id {
+			continue
+		}
+		delete(s.activated, oldID)
+	}
 	return false
 }
 func (s *toastService) dispatchActivation(m platform.NotificationActivationMessage) {

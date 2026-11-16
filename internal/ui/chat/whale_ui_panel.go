@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -16,25 +17,65 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+const whalePanelDefaultDebounce = 25 * time.Millisecond
+
 type whalePanelOp struct {
 	Source string          `json:"source"`
 	Order  [3]float64      `json:"order"`
 	Append bool            `json:"append"`
 	Spec   json.RawMessage `json:"spec"`
 }
+
+type whalePanelDurable struct {
+	Snapshot   json.RawMessage
+	Base       json.RawMessage
+	Barrier    *[3]float64
+	Operations []whalePanelOp
+	Collapsed  bool
+	Generation uint64
+}
+
+type whalePanelDisk struct {
+	Snapshot  json.RawMessage `json:"snapshot"`
+	Barrier   *[3]float64     `json:"barrier"`
+	Collapsed bool            `json:"collapsed"`
+	Version   int             `json:"version"`
+}
+
+type whalePersistWaiter struct {
+	seq  uint64
+	done chan error
+}
+
 type whalePanelState struct {
-	mu         sync.Mutex
-	Path       string          `json:"-"`
-	Snapshot   json.RawMessage `json:"snapshot"`
-	Base       json.RawMessage `json:"-"`
-	Barrier    *[3]float64     `json:"barrier"`
-	Operations []whalePanelOp  `json:"-"`
-	Collapsed  bool            `json:"collapsed"`
-	Version    int             `json:"version"`
-	Err        string          `json:"-"`
-	Generation uint64          `json:"-"`
-	LastUsed   time.Time       `json:"-"`
-	Retired    bool            `json:"-"`
+	mu                   sync.Mutex
+	Path                 string          `json:"-"`
+	Snapshot             json.RawMessage `json:"snapshot"`
+	Base                 json.RawMessage `json:"-"`
+	Barrier              *[3]float64     `json:"barrier"`
+	Operations           []whalePanelOp  `json:"-"`
+	Collapsed            bool            `json:"collapsed"`
+	Version              int             `json:"version"`
+	Err                  string          `json:"-"`
+	Generation           uint64          `json:"-"`
+	LastUsed             time.Time       `json:"-"`
+	Retired              bool            `json:"-"`
+	loading              bool
+	loadDone             chan struct{}
+	durable              whalePanelDurable
+	persistSeq           uint64
+	persistedSeq         uint64
+	lastMarshaled        []byte
+	lastWriteSucceeded   bool
+	persistWorkerStarted bool
+	persistWake          chan struct{}
+	flushWake            chan struct{}
+	persistWaiters       []whalePersistWaiter
+	debounce             time.Duration
+	onInvalidate         func()
+	persistWrites        uint64
+	writeFile            func(path string, raw []byte) error
+	readFile             func(path string) ([]byte, error)
 }
 
 var whalePanels = struct {
@@ -43,6 +84,10 @@ var whalePanels = struct {
 }{values: map[string]*whalePanelState{}}
 
 func whalePanelFor(m Model) *whalePanelState {
+	return whalePanelForUI(m, nil)
+}
+
+func whalePanelForUI(m Model, invalidate func()) *whalePanelState {
 	if m.Snapshot.SelectedID == "" {
 		return nil
 	}
@@ -54,11 +99,14 @@ func whalePanelFor(m Model) *whalePanelState {
 	id := openui.Identity(scope, m.Snapshot.SelectedID, "panel", 0)
 	key := filepath.Join(root, "whale-ui-panels-v2", id+".json")
 	whalePanels.Lock()
-	defer whalePanels.Unlock()
 	if p := whalePanels.values[key]; p != nil {
 		p.mu.Lock()
 		p.LastUsed = time.Now()
+		if invalidate != nil {
+			p.onInvalidate = invalidate
+		}
 		p.mu.Unlock()
+		whalePanels.Unlock()
 		return p
 	}
 	// Cache only idle state; persisted panels are never removed from disk.
@@ -81,19 +129,116 @@ func whalePanelFor(m Model) *whalePanelState {
 		stale.mu.Unlock()
 		delete(whalePanels.values, oldest)
 	}
-	p := &whalePanelState{Version: 2, Generation: 1, Path: key, LastUsed: time.Now()}
-	if raw, err := os.ReadFile(p.Path); err == nil {
-		if len(raw) > openui.MaxProgramBytes*2 || json.Unmarshal(raw, p) != nil || p.Version != 2 || (len(p.Snapshot) > 0 && string(p.Snapshot) != "null" && !validWhalePanelSpec(p.Snapshot)) {
-			p.Snapshot = nil
-			p.Barrier = nil
-			p.Err = "Saved Whale UI panel is invalid"
-		}
-		p.Base = append(json.RawMessage(nil), p.Snapshot...)
-	} else if !os.IsNotExist(err) {
-		p.Err = err.Error()
+	p := &whalePanelState{
+		Version:      2,
+		Generation:   1,
+		Path:         key,
+		LastUsed:     time.Now(),
+		loading:      true,
+		loadDone:     make(chan struct{}),
+		persistWake:  make(chan struct{}, 1),
+		flushWake:    make(chan struct{}, 1),
+		debounce:     whalePanelDefaultDebounce,
+		onInvalidate: invalidate,
+		durable:      whalePanelDurable{Generation: 1},
 	}
 	whalePanels.values[key] = p
+	whalePanels.Unlock()
+
+	go p.runInitialLoad()
 	return p
+}
+
+func cloneRawJSON(src json.RawMessage) json.RawMessage {
+	if src == nil {
+		return nil
+	}
+	return append(json.RawMessage(nil), src...)
+}
+
+func cloneBarrier(b *[3]float64) *[3]float64 {
+	if b == nil {
+		return nil
+	}
+	v := *b
+	return &v
+}
+
+func clonePanelOps(ops []whalePanelOp) []whalePanelOp {
+	if len(ops) == 0 {
+		return nil
+	}
+	out := make([]whalePanelOp, len(ops))
+	for i, op := range ops {
+		out[i] = whalePanelOp{
+			Source: op.Source,
+			Order:  op.Order,
+			Append: op.Append,
+			Spec:   cloneRawJSON(op.Spec),
+		}
+	}
+	return out
+}
+
+func (p *whalePanelState) WaitLoaded() {
+	if p != nil && p.loadDone != nil {
+		<-p.loadDone
+	}
+}
+
+var (
+	whalePanelReadFileFn  = os.ReadFile
+	whalePanelWriteFileFn = writeWhalePanelFile
+)
+
+func (p *whalePanelState) runInitialLoad() {
+	p.mu.Lock()
+	path := p.Path
+	readFn := p.readFile
+	p.mu.Unlock()
+	if readFn == nil {
+		readFn = whalePanelReadFileFn
+	}
+
+	raw, err := readFn(path)
+
+	p.mu.Lock()
+	var inv func()
+	// Apply initial disk state only if no newer in-memory mutation arrived while loading.
+	if p.persistSeq == 0 && !p.Retired {
+		if err == nil {
+			var loaded whalePanelDisk
+			if len(raw) > openui.MaxProgramBytes*2 || json.Unmarshal(raw, &loaded) != nil || loaded.Version != 2 || (len(loaded.Snapshot) > 0 && string(loaded.Snapshot) != "null" && !validWhalePanelSpec(loaded.Snapshot)) {
+				p.Snapshot = nil
+				p.Barrier = nil
+				p.Err = "Saved Whale UI panel is invalid"
+			} else {
+				p.Snapshot = cloneRawJSON(loaded.Snapshot)
+				p.Barrier = cloneBarrier(loaded.Barrier)
+				p.Collapsed = loaded.Collapsed
+				p.lastMarshaled, _ = json.Marshal(loaded)
+				p.lastWriteSucceeded = true
+			}
+			p.Base = cloneRawJSON(p.Snapshot)
+		} else if !os.IsNotExist(err) {
+			p.Err = err.Error()
+		}
+		p.durable = whalePanelDurable{
+			Snapshot:   cloneRawJSON(p.Snapshot),
+			Base:       cloneRawJSON(p.Base),
+			Barrier:    cloneBarrier(p.Barrier),
+			Collapsed:  p.Collapsed,
+			Generation: p.Generation,
+		}
+	}
+	p.loading = false
+	close(p.loadDone)
+	inv = p.onInvalidate
+	p.mu.Unlock()
+
+	if inv != nil {
+		inv()
+	}
 }
 func orderCmp(a, b [3]float64) int {
 	for i := range a {
@@ -158,18 +303,29 @@ func mergeWhalePanel(a, b json.RawMessage) (json.RawMessage, error) {
 	}
 	return json.Marshal(left)
 }
-func (p *whalePanelState) persistLocked() error {
-	if p.Path == "" {
+func (p *whalePanelState) marshalDiskLocked() ([]byte, error) {
+	diskBarrier := p.Barrier
+	if len(p.Operations) > 0 {
+		v := p.Operations[len(p.Operations)-1].Order
+		diskBarrier = &v
+	}
+	disk := whalePanelDisk{
+		Snapshot:  p.Snapshot,
+		Barrier:   diskBarrier,
+		Collapsed: p.Collapsed,
+		Version:   p.Version,
+	}
+	return json.Marshal(disk)
+}
+
+func writeWhalePanelFile(path string, raw []byte) error {
+	if path == "" {
 		return errors.New("panel storage unavailable")
 	}
-	if err := os.MkdirAll(filepath.Dir(p.Path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
-	raw, err := json.Marshal(p)
-	if err != nil {
-		return err
-	}
-	file, err := os.CreateTemp(filepath.Dir(p.Path), ".panel-*")
+	file, err := os.CreateTemp(filepath.Dir(path), ".panel-*")
 	if err != nil {
 		return err
 	}
@@ -190,8 +346,216 @@ func (p *whalePanelState) persistLocked() error {
 	if err = file.Close(); err != nil {
 		return err
 	}
-	return os.Rename(name, p.Path)
+	return os.Rename(name, path)
 }
+
+func (p *whalePanelState) ensureChannelsLocked() {
+	if p.persistWake == nil {
+		p.persistWake = make(chan struct{}, 1)
+	}
+	if p.flushWake == nil {
+		p.flushWake = make(chan struct{}, 1)
+	}
+}
+
+func notifyNonBlocking(ch chan struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
+}
+
+func (p *whalePanelState) schedulePersistLocked() {
+	p.ensureChannelsLocked()
+	p.persistSeq++
+	if !p.persistWorkerStarted {
+		p.persistWorkerStarted = true
+		go p.runPersistWorker()
+	}
+	notifyNonBlocking(p.persistWake)
+}
+
+func (p *whalePanelState) resolveWaitersLocked(upTo uint64, err error) {
+	kept := p.persistWaiters[:0]
+	for _, w := range p.persistWaiters {
+		if w.seq <= upTo {
+			w.done <- err
+		} else {
+			kept = append(kept, w)
+		}
+	}
+	p.persistWaiters = kept
+}
+
+func (p *whalePanelState) snapshotDurableLocked() whalePanelDurable {
+	return whalePanelDurable{
+		Snapshot:   cloneRawJSON(p.Snapshot),
+		Base:       cloneRawJSON(p.Base),
+		Barrier:    cloneBarrier(p.Barrier),
+		Operations: clonePanelOps(p.Operations),
+		Collapsed:  p.Collapsed,
+		Generation: p.Generation,
+	}
+}
+
+func (p *whalePanelState) restoreDurableLocked() {
+	p.Snapshot = cloneRawJSON(p.durable.Snapshot)
+	p.Base = cloneRawJSON(p.durable.Base)
+	p.Barrier = cloneBarrier(p.durable.Barrier)
+	p.Operations = clonePanelOps(p.durable.Operations)
+	p.Collapsed = p.durable.Collapsed
+	if !p.Retired {
+		p.Generation = p.durable.Generation
+	}
+}
+
+func (p *whalePanelState) runPersistWorker() {
+	for {
+		p.mu.Lock()
+		if p.persistSeq == p.persistedSeq && len(p.persistWaiters) == 0 {
+			p.persistWorkerStarted = false
+			p.mu.Unlock()
+			return
+		}
+		debounce := p.debounce
+		flushing := len(p.persistWaiters) > 0
+		p.ensureChannelsLocked()
+		wakeCh := p.persistWake
+		flushCh := p.flushWake
+		p.mu.Unlock()
+
+		if debounce > 0 && !flushing {
+			deadline := time.Now().Add(debounce * 4)
+			timer := time.NewTimer(debounce)
+		debounceWait:
+			for {
+				select {
+				case <-timer.C:
+					break debounceWait
+				case <-flushCh:
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+					break debounceWait
+				case <-wakeCh:
+					rem := time.Until(deadline)
+					if rem <= 0 {
+						if !timer.Stop() {
+							select {
+							case <-timer.C:
+							default:
+							}
+						}
+						break debounceWait
+					}
+					wait := debounce
+					if rem < wait {
+						wait = rem
+					}
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+					timer.Reset(wait)
+				}
+			}
+		}
+
+		// Drain any coalesced wake signals before reading the latest state.
+	drainWake:
+		for {
+			select {
+			case <-wakeCh:
+			case <-flushCh:
+			default:
+				break drainWake
+			}
+		}
+
+		p.mu.Lock()
+		if p.persistSeq == p.persistedSeq {
+			p.resolveWaitersLocked(p.persistedSeq, nil)
+			p.mu.Unlock()
+			continue
+		}
+		targetSeq := p.persistSeq
+		path := p.Path
+		writeFn := p.writeFile
+		if writeFn == nil {
+			writeFn = whalePanelWriteFileFn
+		}
+		raw, err := p.marshalDiskLocked()
+		candidate := p.snapshotDurableLocked()
+		if err == nil && p.lastWriteSucceeded && bytes.Equal(raw, p.lastMarshaled) {
+			p.persistedSeq = targetSeq
+			p.durable = candidate
+			p.Err = ""
+			p.resolveWaitersLocked(targetSeq, nil)
+			p.mu.Unlock()
+			continue
+		}
+		p.mu.Unlock()
+
+		if err == nil {
+			err = writeFn(path, raw)
+		}
+
+		p.mu.Lock()
+		p.persistWrites++
+		p.persistedSeq = targetSeq
+		var inv func()
+		if err == nil {
+			p.lastMarshaled = raw
+			p.lastWriteSucceeded = true
+			p.durable = candidate
+			if p.persistSeq == targetSeq {
+				p.Err = ""
+			}
+		} else {
+			if p.persistSeq == targetSeq {
+				p.restoreDurableLocked()
+				p.Err = err.Error()
+				inv = p.onInvalidate
+			}
+		}
+		p.resolveWaitersLocked(targetSeq, err)
+		p.mu.Unlock()
+
+		if inv != nil {
+			inv()
+		}
+	}
+}
+
+// Flush immediately runs pending debounced writes and returns the persist result.
+func (p *whalePanelState) Flush() error {
+	if p == nil {
+		return nil
+	}
+	p.WaitLoaded()
+	p.mu.Lock()
+	if p.persistSeq == p.persistedSeq {
+		p.mu.Unlock()
+		return nil
+	}
+	p.ensureChannelsLocked()
+	ch := make(chan error, 1)
+	p.persistWaiters = append(p.persistWaiters, whalePersistWaiter{seq: p.persistSeq, done: ch})
+	if !p.persistWorkerStarted {
+		p.persistWorkerStarted = true
+		go p.runPersistWorker()
+	}
+	notifyNonBlocking(p.flushWake)
+	notifyNonBlocking(p.persistWake)
+	p.mu.Unlock()
+	return <-ch
+}
+
 func (p *whalePanelState) Publish(source string, order [3]float64, raw json.RawMessage) error {
 	op, err := openui.ValidatePanelOperation(raw)
 	if err != nil {
@@ -200,6 +564,7 @@ func (p *whalePanelState) Publish(source string, order [3]float64, raw json.RawM
 	if source == "" || order[0] < 0 || order[1] < 0 || order[2] < 0 {
 		return errors.New("panel source has no conversation position")
 	}
+	p.WaitLoaded()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.Retired {
@@ -238,37 +603,24 @@ func (p *whalePanelState) Publish(source string, order [3]float64, raw json.RawM
 	if !validWhalePanelSpec(snapshot) || len("root = Col([Genui("+string(snapshot)+")])") > openui.MaxProgramBytes {
 		return errors.New("merged Whale UI panel exceeds source budget")
 	}
-	old, oldOps := p.Snapshot, p.Operations
 	p.Snapshot = snapshot
 	p.Operations = ops
-	// Persist folded state with replay barrier; live operations remain replayable
-	// in memory so a source update replaces its old contribution.
-	savedBarrier := p.Barrier
-	if len(ops) > 0 {
-		v := ops[len(ops)-1].Order
-		p.Barrier = &v
-	}
-	err = p.persistLocked()
-	p.Barrier = savedBarrier
-	if err != nil {
-		p.Snapshot = old
-		p.Operations = oldOps
-		p.Err = err.Error()
-		return err
-	}
 	p.Generation++
 	p.Err = ""
+	p.schedulePersistLocked()
 	return nil
 }
+
 func (p *whalePanelState) Current() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return !p.Retired && !p.Collapsed && len(p.Snapshot) > 0 && string(p.Snapshot) != "null"
 }
+
 func (p *whalePanelState) Clear() error {
+	p.WaitLoaded()
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	old, base, ops, barrier := p.Snapshot, p.Base, p.Operations, p.Barrier
 	if len(p.Operations) > 0 {
 		v := p.Operations[len(p.Operations)-1].Order
 		p.Barrier = &v
@@ -276,17 +628,23 @@ func (p *whalePanelState) Clear() error {
 	p.Snapshot = nil
 	p.Base = nil
 	p.Operations = nil
-	if err := p.persistLocked(); err != nil {
-		p.Snapshot, p.Base, p.Operations, p.Barrier = old, base, ops, barrier
-		p.Err = err.Error()
-		return err
-	}
 	p.Generation++
 	p.Err = ""
+	p.schedulePersistLocked()
 	return nil
 }
+
+func (p *whalePanelState) toggleCollapsed() {
+	p.mu.Lock()
+	p.Collapsed = !p.Collapsed
+	p.Generation++
+	p.Err = ""
+	p.schedulePersistLocked()
+	p.mu.Unlock()
+}
+
 func whaleUIPanelView(c *ui.Context, m Model) {
-	p := whalePanelFor(m)
+	p := whalePanelForUI(m, c.Services().Invalidate)
 	if p == nil {
 		return
 	}
@@ -305,22 +663,10 @@ func whaleUIPanelView(c *ui.Context, m Model) {
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
 		ui.Text(c, whaleLabel("会话面板", "Conversation panel")).FontSize(13)
 		if stdButton(c, palette, whaleLabel("折叠 / 展开", "Collapse / expand"), buttonGhost, false).Clicked() {
-			p.mu.Lock()
-			p.Collapsed = !p.Collapsed
-			if err := p.persistLocked(); err != nil {
-				p.Collapsed = !p.Collapsed
-				p.Err = err.Error()
-			} else {
-				p.Generation++
-			}
-			p.mu.Unlock()
+			p.toggleCollapsed()
 		}
 		if stdButton(c, palette, whaleLabel("清空面板", "Clear panel"), buttonGhost, false).Clicked() {
-			if err := p.Clear(); err != nil {
-				p.mu.Lock()
-				p.Err = err.Error()
-				p.mu.Unlock()
-			}
+			_ = p.Clear()
 		}
 	})
 	if errText != "" {

@@ -92,9 +92,6 @@ func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, controls func()) ui.Element {
 	gear := takeRowGear()
 	help := takeRowHelp()
-	if !settingsItemBefore(c, key) {
-		return ui.Element{}
-	}
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	settingsSearchTarget(c, key, title, row)
 	width := row.Bounds().W
@@ -324,11 +321,6 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 	field, value, found := bodyHostValue(a, namespace, key)
 	if !found {
 		return false
-	}
-	if !settingsItemBefore(c, namespace+"."+key) {
-		takeRowGear()
-		takeRowHelp()
-		return true
 	}
 	clearFailure := bodyPreferenceFieldError(c, a, namespace, key, title)
 	if hint == "" {

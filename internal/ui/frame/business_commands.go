@@ -101,16 +101,6 @@ func conversationActionItem(m Model, id string) (session.Item, bool) {
 // A Project whose catalog is still loading must not fall through to Session.
 func routeProjectConversationAction(m Model, item session.Item, action string) bool {
 	if p := item.Presentation; p != nil && p.Owner != "" && p.Owner != "project" && p.Owner != "whaleisle" {
-		for _, entry := range m.WorkspaceNavigation {
-			if entry.SessionID != item.SessionID || entry.Owner != p.Owner || entry.WorkingDirectory != p.WorkingDirectory {
-				continue
-			}
-			allowed := action == "open" || action == "rename" && entry.CanRename || action == "archive" && entry.CanArchive || action == "restore" && entry.CanRestore
-			if allowed && m.OnWorkspaceSessionAction != nil {
-				m.OnWorkspaceSessionAction(item.SessionID, entry.Owner, action)
-			}
-			return true
-		}
 		// Withdrawing a source revokes its actions, not its ownership.
 		return true
 	}

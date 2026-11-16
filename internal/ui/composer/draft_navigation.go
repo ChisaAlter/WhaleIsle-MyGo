@@ -10,7 +10,7 @@ import (
 
 // Navigation runs after suggestion arbitration and yields to native IME.
 func (c *DraftClient) navigate(ev ui.InputEvent) bool {
-	if c.marked != nil {
+	if c.composing() {
 		return false
 	}
 	switch ev.Key {

@@ -307,8 +307,7 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 					ui.Text(c, workspaceText("已复制", "Copied")).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
 					return
 				}
-				publicSidebarRowContext(m, a.item.SessionID, false, true)
-				drawSessionHoverBodyWithPublic(c, m, a, s.sampledAt)
+				drawSessionHoverBody(c, a, s.sampledAt)
 			})
 		})
 		if panel.OverlayShortcut(0, ui.KeyEscape) || panel.PressedOutside() {
@@ -402,10 +401,6 @@ func sessionHoverStatuses(m Model, item session.Item, archived bool) []sessionHo
 var sessionHoverTaskClockArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke-width="1" xmlns="http://www.w3.org/2000/svg"><path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor"/><path d="M8 4.31V8.46L11 10.08" stroke="currentColor"/></svg>`))
 
 func drawSessionHoverBody(c *ui.Context, a sessionHoverAnchor, sampledAt time.Time) {
-	drawSessionHoverBodyWithPublic(c, Model{}, a, sampledAt)
-}
-
-func drawSessionHoverBodyWithPublic(c *ui.Context, m Model, a sessionHoverAnchor, sampledAt time.Time) {
 	white := ui.RGB(255, 255, 255)
 	secondary := ui.RGBA(255, 255, 255, .65)
 	ui.Text(c, a.displayTitle).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(white)
@@ -414,9 +409,8 @@ func drawSessionHoverBodyWithPublic(c *ui.Context, m Model, a sessionHoverAnchor
 			ui.Text(c, ago).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(secondary)
 		}
 	}
-	keepSchedule := publicSidebarBefore(c, m, "sidebar.session.row.hover", a.item.SessionID, "schedule-tasks")
 	ordered := orderSchedulePreview(a.tasks, sampledAt)
-	if keepSchedule && len(ordered) > 0 {
+	if len(ordered) > 0 {
 		timingInk, relativeInk := ui.RGB(207, 211, 214), ui.RGB(173, 178, 184)
 		ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			for _, task := range ordered[:min(2, len(ordered))] {
@@ -437,7 +431,6 @@ func drawSessionHoverBodyWithPublic(c *ui.Context, m Model, a sessionHoverAnchor
 			}
 		})
 	}
-	publicSidebarBefore(c, m, "sidebar.session.row.hover", a.item.SessionID, "")
 	for _, status := range a.statuses {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
 			widgets.StateDot(c, status.state)

@@ -20,10 +20,9 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 		return
 	}
 	s.mu.Lock()
-	s.launcherStartErr = i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept) + err.Error()
-	s.launcherStartFailed = true
 	s.launcherOpen = true
 	s.mu.Unlock()
+	s.launcherController().SetStartError(false, true, i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept)+err.Error())
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -145,9 +144,8 @@ func (s *mainState) localTaskRunningCount() int {
 	count := s.sessionRunningCount()
 	s.mu.Lock()
 	count += s.terminalSessions.RunningCount()
-	runner := s.proactivePanel.runner
 	s.mu.Unlock()
-	if runner != nil && runner.DeliveryRunning() {
+	if s.assistantService().ProactiveDeliveryRunning() {
 		count++
 	}
 	return count
@@ -186,12 +184,7 @@ func (s *mainState) closeTaskProtectedResources() error {
 // Imports already own the import slot. Reuse the same task inspection, drain
 // and confirmation without rejecting that owner as a competing operation.
 func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) (bool, error) {
-	s.mu.Lock()
-	proactiveRunner := s.proactivePanel.runner
-	s.mu.Unlock()
-	if proactiveRunner != nil {
-		defer proactiveRunner.FreezeAdmissions()()
-	}
+	defer s.assistantService().FreezeProactiveAdmissions()()
 	var did bool
 	var err error
 	if sup != nil {
@@ -279,11 +272,7 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 				return err
 			}
 			sup.Stop()
-			s.mu.Lock()
-			s.launcherStartBusy = false
-			s.launcherStartFailed = false
-			s.launcherStartErr = ""
-			s.mu.Unlock()
+			s.launcherController().SetStartError(false, false, "")
 			return nil
 		})
 	}()

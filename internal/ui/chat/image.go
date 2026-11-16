@@ -46,10 +46,34 @@ type chatImageEntry struct {
 	bytes int
 }
 
+type bitmapLoadFlight struct {
+	done        chan struct{}
+	invalidates []func()
+}
+
 var chatImageCache struct {
-	mu      sync.Mutex
-	entries []chatImageEntry // most recently used first
-	bytes   int
+	mu       sync.Mutex
+	entries  []chatImageEntry // most recently used first
+	bytes    int
+	inFlight map[string]*bitmapLoadFlight
+}
+
+const localImagePathCacheEntries = 256
+
+type localPathEntry struct {
+	raw      string
+	resolved string // empty records missing, directory, or non-local path
+}
+
+type pathLoadFlight struct {
+	done        chan struct{}
+	invalidates []func()
+}
+
+var localImagePathCache struct {
+	mu       sync.Mutex
+	entries  []localPathEntry
+	inFlight map[string]*pathLoadFlight
 }
 
 var remoteImageCache struct {
@@ -95,6 +119,33 @@ func DisplayImagePath(ref string) string {
 	return ""
 }
 
+// cachedDisplayImagePath resolves ref for UI rendering without blocking on os.Stat.
+func cachedDisplayImagePath(ref string, invalidate func()) (string, bool) {
+	ref = strings.TrimSpace(ref)
+	if id, ok := strings.CutPrefix(ref, "attachment:"); ok && id != "" {
+		return attachmentImageRead().Cached(id), false
+	}
+	if imgcache.IsHTTPURL(ref) {
+		cache := remoteCache()
+		if cache == nil {
+			return "", false
+		}
+		st, local, _ := cache.State(ref)
+		if st == imgcache.StatusReady && local != "" {
+			return local, false
+		}
+		return "", st == imgcache.StatusFetching
+	}
+	return cachedLocalImagePath(ref, invalidate)
+}
+
+func paintImageLoading(c *ui.Context, muted ui.Color) {
+	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
+	frame.Children(func() {
+		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
+	})
+}
+
 // ImageInlineView paints a local raster when path is a readable file.
 // http(s) URLs use imgcache when configured; otherwise (and for data:) a muted label.
 // When onOpen is set and a bitmap is shown, clicking opens the lightbox path.
@@ -107,13 +158,20 @@ func ImageInlineView(c *ui.Context, path string, fg, muted ui.Color, onOpen func
 		paintAttachmentImage(c, id, fg, muted, onOpen)
 		return
 	}
-	if local := localImagePath(path); local != "" {
-		paintInlineImage(c, local, muted, onOpen)
-		return
-	}
 	if imgcache.IsHTTPURL(path) {
 		paintRemoteImage(c, path, fg, muted, onOpen)
 		return
+	}
+	if _, _, ok := parseLocalImageCandidate(path); ok {
+		local, pending := cachedLocalImagePath(path, c.Services().Invalidate)
+		if pending {
+			paintImageLoading(c, muted)
+			return
+		}
+		if local != "" {
+			paintInlineImage(c, local, muted, onOpen)
+			return
+		}
 	}
 	if looksLikeImagePath(path) {
 		// A missing or unreadable local file is a broken attachment, not raw
@@ -135,16 +193,23 @@ func looksLikeImagePath(path string) bool {
 
 func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen func(string)) {
 	read := attachmentImageRead()
-	if local := attachmentImageRead().Cached(id); local != "" && loadChatBitmap(local) != nil {
-		paintInlineImage(c, local, muted, onOpen)
-		return
+	svc := c.Services()
+	if local := attachmentImageRead().Cached(id); local != "" {
+		bmp, pending := cachedChatBitmap(local, svc.Invalidate)
+		if bmp != nil {
+			paintInlineImageBitmap(c, local, bmp, muted, onOpen)
+			return
+		}
+		if pending {
+			paintImageLoading(c, muted)
+			return
+		}
 	}
 	fn := read.Fetch
 	if fn == nil {
 		ui.Text(c, "[image] attachment:"+id).FontSize(12).TextColor(fg)
 		return
 	}
-	svc := c.Services()
 	key := read.Identity(id)
 	state := attachmentLoads.ensure(key, func(ctx context.Context, _ string) (string, error) {
 		path, err := fn(ctx, id)
@@ -162,17 +227,19 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 		return
 	}
 	if state.path != "" {
-		if loadChatBitmap(state.path) == nil {
+		bmp, pending := cachedChatBitmap(state.path, svc.Invalidate)
+		if pending {
+			paintImageLoading(c, muted)
+			return
+		}
+		if bmp == nil {
 			paintImageFailure(c, i18n.T(i18n.KeyChatImageInvalid), nil)
 			return
 		}
-		paintInlineImage(c, state.path, muted, onOpen)
+		paintInlineImageBitmap(c, state.path, bmp, muted, onOpen)
 		return
 	}
-	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
-	frame.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
-	})
+	paintImageLoading(c, muted)
 }
 
 func paintRemoteImage(c *ui.Context, rawURL string, fg, muted ui.Color, onOpen func(string)) {
@@ -193,10 +260,7 @@ func paintRemoteImage(c *ui.Context, rawURL string, fg, muted ui.Color, onOpen f
 			return
 		}
 	case imgcache.StatusFetching:
-		frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
-		frame.Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
-		})
+		paintImageLoading(c, muted)
 		return
 	case imgcache.StatusError:
 		paintImageFailure(c, i18n.T(i18n.KeyChatImageFailed)+": "+rawURL, nil)
@@ -204,18 +268,23 @@ func paintRemoteImage(c *ui.Context, rawURL string, fg, muted ui.Color, onOpen f
 	}
 	svc := c.Services()
 	cache.Ensure(rawURL, func() { svc.Invalidate() })
-	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
-	frame.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
-	})
+	paintImageLoading(c, muted)
 }
 
 func paintInlineImage(c *ui.Context, local string, muted ui.Color, onOpen func(string)) {
-	bmp := loadChatBitmap(local)
+	bmp, pending := cachedChatBitmap(local, c.Services().Invalidate)
+	if pending {
+		paintImageLoading(c, muted)
+		return
+	}
 	if bmp == nil {
 		ui.Text(c, "[image] "+local).FontSize(12).TextColor(muted)
 		return
 	}
+	paintInlineImageBitmap(c, local, bmp, muted, onOpen)
+}
+
+func paintInlineImageBitmap(c *ui.Context, local string, bmp *ui.Bitmap, muted ui.Color, onOpen func(string)) {
 	w, h := inlineImageBounds(bmp)
 	ratio := w / h
 	card := ui.Column(c).Width(w).MaxWidthPercent(100).AspectRatio(ratio).Radius(16).
@@ -266,28 +335,29 @@ func inlineImageBounds(bmp *ui.Bitmap) (w, h float32) {
 // message carries more than one picture.
 func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(string)) {
 	const size = float32(64)
-	local := DisplayImagePath(path)
+	svc := c.Services()
+	local, pathPending := cachedDisplayImagePath(path, svc.Invalidate)
 	read := attachmentImageRead()
 	id, isAttachment := strings.CutPrefix(path, "attachment:")
 	state := attachmentLoad{}
-	if local == "" && isAttachment && read.Fetch != nil {
+	if local == "" && !pathPending && isAttachment && read.Fetch != nil {
 		state = attachmentLoads.ensure(read.Identity(id), func(ctx context.Context, _ string) (string, error) {
 			local, err := read.Fetch(ctx, id)
 			if err == nil && loadFetchedChatBitmap(local) == nil {
 				return "", fmt.Errorf("invalid or unreadable image")
 			}
 			return local, err
-		}, c.Services().Invalidate)
+		}, svc.Invalidate)
 		local = state.path
 	}
 	if local == "" && imgcache.IsHTTPURL(path) {
 		if cache := remoteCache(); cache != nil {
-			cache.Ensure(path, c.Services().Invalidate)
+			cache.Ensure(path, svc.Invalidate)
 		}
 	}
 	bmp := (*ui.Bitmap)(nil)
 	if local != "" {
-		bmp = loadChatBitmap(local)
+		bmp, _ = cachedChatBitmap(local, svc.Invalidate)
 	}
 	tile := ui.Column(c).Width(size).Height(size).Radius(12).Border(0.5, muted.Alpha(0.28)).Clip()
 	tile.Children(func() {
@@ -337,7 +407,7 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	if displayPath == "" || onClose == nil {
 		return
 	}
-	bmp := loadChatBitmap(displayPath)
+	bmp, _ := cachedChatBitmap(displayPath, c.Services().Invalidate)
 	if bmp == nil {
 		return
 	}
@@ -392,19 +462,19 @@ func imageLightboxSize(bitmap *ui.Bitmap, width, height float32) (float32, float
 	return float32(bw) * scale, float32(bh) * scale
 }
 
-func localImagePath(raw string) string {
+func parseLocalImageCandidate(raw string) (candidate string, hasPercent bool, ok bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return ""
+		return "", false, false
 	}
 	lower := strings.ToLower(raw)
 	if strings.HasPrefix(lower, "data:image/") || strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
-		return ""
+		return "", false, false
 	}
 	if strings.HasPrefix(lower, "file:") {
 		u, err := url.Parse(raw)
 		if err != nil || u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
-			return ""
+			return "", false, false
 		}
 		p := u.Path
 		if strings.HasPrefix(p, "/") && len(p) >= 3 && p[2] == ':' {
@@ -413,19 +483,146 @@ func localImagePath(raw string) string {
 		}
 		raw = filepath.FromSlash(p)
 	}
-	st, err := os.Stat(raw)
-	if err != nil && strings.Contains(raw, "%") {
+	return raw, strings.Contains(raw, "%"), true
+}
+
+var (
+	localImageStatFn    = os.Stat
+	chatImageReadFileFn = os.ReadFile
+)
+
+func statLocalImagePath(raw string) string {
+	candidate, hasPercent, ok := parseLocalImageCandidate(raw)
+	if !ok {
+		return ""
+	}
+	st, err := localImageStatFn(candidate)
+	if err != nil && hasPercent {
 		// Markdown percent escapes are decoded only after trying the literal
 		// local filename, so an actual '%20' in a file name keeps its identity.
-		if decoded, decodeErr := url.PathUnescape(raw); decodeErr == nil && decoded != raw {
-			raw = decoded
-			st, err = os.Stat(raw)
+		if decoded, decodeErr := url.PathUnescape(candidate); decodeErr == nil && decoded != candidate {
+			candidate = decoded
+			st, err = localImageStatFn(candidate)
 		}
 	}
 	if err != nil || st.IsDir() {
 		return ""
 	}
-	return raw
+	return candidate
+}
+
+func storeLocalPathLocked(raw, resolved string) {
+	c := &localImagePathCache
+	for i, e := range c.entries {
+		if e.raw == raw {
+			c.entries[i].resolved = resolved
+			if i > 0 {
+				entry := c.entries[i]
+				copy(c.entries[1:i+1], c.entries[:i])
+				c.entries[0] = entry
+			}
+			return
+		}
+	}
+	c.entries = append(c.entries, localPathEntry{})
+	copy(c.entries[1:], c.entries)
+	c.entries[0] = localPathEntry{raw: raw, resolved: resolved}
+	for len(c.entries) > localImagePathCacheEntries {
+		last := len(c.entries) - 1
+		c.entries[last] = localPathEntry{}
+		c.entries = c.entries[:last]
+	}
+}
+
+func runLocalPathFlight(raw string, flight *pathLoadFlight) string {
+	resolved := statLocalImagePath(raw)
+	localImagePathCache.mu.Lock()
+	storeLocalPathLocked(raw, resolved)
+	if localImagePathCache.inFlight[raw] == flight {
+		delete(localImagePathCache.inFlight, raw)
+	}
+	close(flight.done)
+	invalidates := flight.invalidates
+	flight.invalidates = nil
+	localImagePathCache.mu.Unlock()
+
+	for _, fn := range invalidates {
+		if fn != nil {
+			fn()
+		}
+	}
+	return resolved
+}
+
+// cachedLocalImagePath checks the bounded LRU + negative cache and starts a
+// background singleflight os.Stat on misses, calling invalidate upon completion.
+func cachedLocalImagePath(raw string, invalidate func()) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if _, _, ok := parseLocalImageCandidate(raw); !ok {
+		return "", false
+	}
+	localImagePathCache.mu.Lock()
+	for i, entry := range localImagePathCache.entries {
+		if entry.raw != raw {
+			continue
+		}
+		copy(localImagePathCache.entries[1:i+1], localImagePathCache.entries[:i])
+		localImagePathCache.entries[0] = entry
+		localImagePathCache.mu.Unlock()
+		return entry.resolved, false
+	}
+	if flight := localImagePathCache.inFlight[raw]; flight != nil {
+		if invalidate != nil && len(flight.invalidates) < 16 {
+			flight.invalidates = append(flight.invalidates, invalidate)
+		}
+		localImagePathCache.mu.Unlock()
+		return "", true
+	}
+	if localImagePathCache.inFlight == nil {
+		localImagePathCache.inFlight = make(map[string]*pathLoadFlight)
+	}
+	flight := &pathLoadFlight{done: make(chan struct{})}
+	if invalidate != nil {
+		flight.invalidates = []func(){invalidate}
+	}
+	localImagePathCache.inFlight[raw] = flight
+	localImagePathCache.mu.Unlock()
+
+	go runLocalPathFlight(raw, flight)
+	return "", true
+}
+
+func localImagePath(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if _, _, ok := parseLocalImageCandidate(raw); !ok {
+		return ""
+	}
+	for {
+		localImagePathCache.mu.Lock()
+		for i, entry := range localImagePathCache.entries {
+			if entry.raw != raw {
+				continue
+			}
+			copy(localImagePathCache.entries[1:i+1], localImagePathCache.entries[:i])
+			localImagePathCache.entries[0] = entry
+			localImagePathCache.mu.Unlock()
+			return entry.resolved
+		}
+		if flight := localImagePathCache.inFlight[raw]; flight != nil {
+			done := flight.done
+			localImagePathCache.mu.Unlock()
+			<-done
+			continue
+		}
+		if localImagePathCache.inFlight == nil {
+			localImagePathCache.inFlight = make(map[string]*pathLoadFlight)
+		}
+		flight := &pathLoadFlight{done: make(chan struct{})}
+		localImagePathCache.inFlight[raw] = flight
+		localImagePathCache.mu.Unlock()
+
+		return runLocalPathFlight(raw, flight)
+	}
 }
 
 // A successful canonical read may replace a corrupt file at the same cache
@@ -443,9 +640,47 @@ func loadFetchedChatBitmap(path string) *ui.Bitmap {
 	return loadChatBitmap(path)
 }
 
-func loadChatBitmap(path string) *ui.Bitmap {
+func decodeChatBitmapFile(path string) (*ui.Bitmap, int) {
+	data, err := chatImageReadFileFn(path)
+	if err != nil {
+		return nil, 0
+	}
+	decoded, err := ui.DecodeBitmap(data)
+	if err != nil {
+		return nil, 0
+	}
+	w, h := decoded.Size()
+	return decoded, 4 * w * h
+}
+
+func runBitmapLoadFlight(path string, flight *bitmapLoadFlight) *ui.Bitmap {
+	bmp, size := decodeChatBitmapFile(path)
 	chatImageCache.mu.Lock()
-	defer chatImageCache.mu.Unlock()
+	storeChatBitmapLocked(chatImageEntry{path: path, bmp: bmp, bytes: size})
+	if chatImageCache.inFlight[path] == flight {
+		delete(chatImageCache.inFlight, path)
+	}
+	close(flight.done)
+	invalidates := flight.invalidates
+	flight.invalidates = nil
+	chatImageCache.mu.Unlock()
+
+	for _, fn := range invalidates {
+		if fn != nil {
+			fn()
+		}
+	}
+	return bmp
+}
+
+// cachedChatBitmap returns the cached bitmap (or nil on negative cache) without
+// performing disk I/O on the UI thread. On cache miss it spawns a singleflight
+// background decode and invokes invalidate when ready.
+func cachedChatBitmap(path string, invalidate func()) (*ui.Bitmap, bool) {
+	if path == "" {
+		return nil, false
+	}
+	chatImageCache.mu.Lock()
 	for i, entry := range chatImageCache.entries {
 		if entry.path != path {
 			continue
@@ -454,19 +689,62 @@ func loadChatBitmap(path string) *ui.Bitmap {
 		// and opened again every frame; it is retried once it ages out.
 		copy(chatImageCache.entries[1:i+1], chatImageCache.entries[:i])
 		chatImageCache.entries[0] = entry
-		return entry.bmp
+		chatImageCache.mu.Unlock()
+		return entry.bmp, false
 	}
-	var bmp *ui.Bitmap
-	size := 0
-	if data, err := os.ReadFile(path); err == nil {
-		if decoded, err := ui.DecodeBitmap(data); err == nil {
-			bmp = decoded
-			w, h := decoded.Size()
-			size = 4 * w * h
+	if flight := chatImageCache.inFlight[path]; flight != nil {
+		if invalidate != nil && len(flight.invalidates) < 16 {
+			flight.invalidates = append(flight.invalidates, invalidate)
 		}
+		chatImageCache.mu.Unlock()
+		return nil, true
 	}
-	storeChatBitmapLocked(chatImageEntry{path: path, bmp: bmp, bytes: size})
-	return bmp
+	if chatImageCache.inFlight == nil {
+		chatImageCache.inFlight = make(map[string]*bitmapLoadFlight)
+	}
+	flight := &bitmapLoadFlight{done: make(chan struct{})}
+	if invalidate != nil {
+		flight.invalidates = []func(){invalidate}
+	}
+	chatImageCache.inFlight[path] = flight
+	chatImageCache.mu.Unlock()
+
+	go runBitmapLoadFlight(path, flight)
+	return nil, true
+}
+
+func loadChatBitmap(path string) *ui.Bitmap {
+	if path == "" {
+		return nil
+	}
+	for {
+		chatImageCache.mu.Lock()
+		for i, entry := range chatImageCache.entries {
+			if entry.path != path {
+				continue
+			}
+			// A failed read keeps its slot too, so a missing file is not statted
+			// and opened again every frame; it is retried once it ages out.
+			copy(chatImageCache.entries[1:i+1], chatImageCache.entries[:i])
+			chatImageCache.entries[0] = entry
+			chatImageCache.mu.Unlock()
+			return entry.bmp
+		}
+		if flight := chatImageCache.inFlight[path]; flight != nil {
+			done := flight.done
+			chatImageCache.mu.Unlock()
+			<-done
+			continue
+		}
+		if chatImageCache.inFlight == nil {
+			chatImageCache.inFlight = make(map[string]*bitmapLoadFlight)
+		}
+		flight := &bitmapLoadFlight{done: make(chan struct{})}
+		chatImageCache.inFlight[path] = flight
+		chatImageCache.mu.Unlock()
+
+		return runBitmapLoadFlight(path, flight)
+	}
 }
 
 // storeChatBitmapLocked inserts entry at the front and evicts from the back
@@ -474,6 +752,22 @@ func loadChatBitmap(path string) *ui.Bitmap {
 // it alone exceeds the byte bound.
 func storeChatBitmapLocked(entry chatImageEntry) {
 	c := &chatImageCache
+	for i, existing := range c.entries {
+		if existing.path != entry.path {
+			continue
+		}
+		c.bytes -= existing.bytes
+		copy(c.entries[1:i+1], c.entries[:i])
+		c.entries[0] = entry
+		c.bytes += entry.bytes
+		for len(c.entries) > 1 && (len(c.entries) > chatImageCacheEntries || c.bytes > chatImageCacheBytes) {
+			last := len(c.entries) - 1
+			c.bytes -= c.entries[last].bytes
+			c.entries[last] = chatImageEntry{}
+			c.entries = c.entries[:last]
+		}
+		return
+	}
 	c.entries = append(c.entries, chatImageEntry{})
 	copy(c.entries[1:], c.entries)
 	c.entries[0] = entry
