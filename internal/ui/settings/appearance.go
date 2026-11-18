@@ -17,6 +17,7 @@ var appearanceSchemeIcons = map[string]*ui.SVG{
 // AppearanceAccess is the dedicated Appearance settings page (theme + wallpaper).
 type AppearanceAccess struct {
 	Host              *BodySettingsAccess
+	Minimal           *MinimalModeAccess
 	Background        *WallpaperEditor
 	Preferences       *theme.Editor
 	Theme             *string
@@ -36,6 +37,8 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.Appearance
 	bodyHostState(c, a.Host, muted)
+	// Minimal mode leads the page: it pauses the effects the rest of it edits.
+	minimalModePane(c, a.Minimal, fg, muted)
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	settingsSearchTarget(c, "appearance-scheme", providerCopy("颜色模式", "Color scheme"), scheme)
 	schemeError := ui.Local(scheme, "error", func() string { return "" })

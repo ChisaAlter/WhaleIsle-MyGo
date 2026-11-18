@@ -28,7 +28,7 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 			if enabled && g.hasEffectiveWallpaper(g.currentPreferences()) {
 				hint = providerCopy("已启用；当前壁纸优先显示。", "Enabled; the current wallpaper takes precedence.")
 			}
-			bodyLocalToggle(c, "background-effect-mode", providerCopy("背景特效", "Background effect"), hint, &enabled, g.Save == nil, fg, muted, func(value bool) {
+			bodyLocalToggle(c, "background-effect-mode", providerCopy("背景特效", "Background effect"), minimalOverrideHint(hint), &enabled, g.Save == nil, fg, muted, func(value bool) {
 				wallpaperChange(c, g, func(p *wallpapers.Preferences) {
 					p.Effect = "none"
 					if value {
@@ -70,8 +70,8 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 			}
 		})
 		beforeSpeed, beforeCount := draft.Speed, draft.Count
-		wallpaperSliderStep(c, "background-speed", providerCopy("速度", "Speed"), &draft.Speed, 20, 300, 10, g.Save == nil || busy, fg, muted)
-		wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), &draft.Count, 1, 5, g.Save == nil || busy, fg, muted)
+		wallpaperSliderStep(c, "background-speed", providerCopy("速度", "Speed"), minimalOverrideHint(""), &draft.Speed, 20, 300, 10, g.Save == nil || busy, fg, muted)
+		wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), minimalOverrideHint(""), &draft.Count, 1, 5, g.Save == nil || busy, fg, muted)
 		if draft.Speed != beforeSpeed || draft.Count != beforeCount {
 			draft.Preset = "custom"
 		}

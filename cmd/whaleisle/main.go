@@ -58,8 +58,10 @@ import (
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
+	"whaleisle/internal/startupsuggest"
 	"whaleisle/internal/startuptrace"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
@@ -201,11 +203,16 @@ type mainState struct {
 	welcomeWin           *welcomeWindow
 	// whaleBridgeWin is the single embedded WhaleBridge management window
 	// (port of reference/electron/src/main/whalebridge-window.js).
-	whaleBridgeWin         *whaleBridgeWindow
-	credsMissing           bool
-	welcomeDone            bool
-	bridgeAlerts           *bridgeAlertUI
-	cfgStore               *config.Store
+	whaleBridgeWin *whaleBridgeWindow
+	credsMissing   bool
+	welcomeDone    bool
+	bridgeAlerts   *bridgeAlertUI
+	cfgStore       *config.Store
+	// minimalSuggestion observes startup responsiveness once per launch; its
+	// one answer opens the startup offer, and minimalOfferOpen holds that offer
+	// on screen until it is answered or dismissed.
+	minimalSuggestion      *startupsuggest.Observer
+	minimalOfferOpen       bool
 	viewPreferences        *workspaceViewPreferences
 	desktopPet             *pet.Companion
 	settingsLaunchHandled  bool
@@ -2027,6 +2034,12 @@ func main() {
 			state.mu.Unlock()
 		}
 		startuptrace.Mark("config.loaded")
+		// The stored policy is in force before the first frame, so a profile
+		// that runs minimal mode never paints the effects it pauses. The
+		// startup observation starts here too: it decides nothing until the
+		// window has been usable in the foreground for a while.
+		applyMinimalMode(cfg.MinimalMode)
+		state.minimalSuggestion = startupsuggest.New()
 
 		if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 			log.Println("openAtLogin:", err)
@@ -3002,6 +3015,8 @@ func mainView(c *ui.Context) {
 	// window it covers.
 	var closingColors theme.Colors
 	defer func() { state.paintClosingOverlayLayer(c, closingColors) }()
+	// The startup offer paints over the workbench and under the closing layer.
+	defer state.syncMinimalModeOffer(c)
 	// Registered before deferred native overlays: their rich seats must collect
 	// DrawOver geometry before the final exact-Host placement is flushed.
 	// The first-run 预览版说明 layer is intentionally not part of this build:
@@ -3452,8 +3467,14 @@ func mainView(c *ui.Context) {
 	flatCanvas := state.wallpaperCanvasFlatFor(wallpaperPath)
 	if darkCanvas && flatCanvas {
 		// Native glass model: the window stays transparent and the desktop shows
-		// through the panels; the canvas itself is not painted opaque.
-		canvasFill = ui.Transparent
+		// through the panels; the canvas itself is not painted opaque. Minimal
+		// mode paints no blur material to see through, so the masked canvas it
+		// used to inherit from the desktop is painted here instead.
+		if renderpolicy.Minimal() {
+			canvasFill = chrome.FlatBackdropFill(chrome.Color(colors.BG), true)
+		} else {
+			canvasFill = ui.Transparent
+		}
 	}
 	appendBackdropLog("view: scheme=%q systemDark=%v darkCanvas=%v path=%q flat=%v bg=%q fill=%v", th.Scheme, systemDark, darkCanvas, state.resolvedWallpaperPath(wallpaperPath), flatCanvas, colors.BG, canvasFill)
 	ui.Column(c).Fill().Background(canvasFill).Draw(func(p *ui.Painter, r ui.Rect) {
@@ -4079,6 +4100,7 @@ func mainView(c *ui.Context) {
 				appearanceSection := &settings.AppearanceAccess{}
 				if appearanceActive && !embeddedActive {
 					appearanceSection = &settings.AppearanceAccess{
+						Minimal:          state.minimalModeAccess(),
 						OnSetTheme:       state.setAppearanceTheme,
 						Background:       state.wallpaperSettings(true),
 						Preferences:      state.themeFontEditor(true),

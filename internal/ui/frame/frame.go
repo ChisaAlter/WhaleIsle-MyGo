@@ -15,6 +15,7 @@ import (
 
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/store/interaction"
@@ -887,13 +888,16 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
-						SVGImages:            m.SVGImages,
-						GroupMembers:         m.GroupMembers,
-						NextPrompt:           nextPrompt,
-						OnAcceptNextPrompt:   func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
-						ComposerBeam:         m.ConversationPreferences.ComposerBeam,
+						SVGImages:          m.SVGImages,
+						GroupMembers:       m.GroupMembers,
+						NextPrompt:         nextPrompt,
+						OnAcceptNextPrompt: func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
+						// The composer beam and the typing echo are two of the
+						// effects minimal mode pauses; the stored host preference
+						// is what runs again once it is off.
+						ComposerBeam:         m.ConversationPreferences.ComposerBeam && !renderpolicy.Minimal(),
 						ComposerBeamStyle:    m.ConversationPreferences.ComposerBeamStyle,
-						TypingFx:             m.ConversationPreferences.TypingFx,
+						TypingFx:             m.ConversationPreferences.TypingFx && !renderpolicy.Minimal(),
 						TypingFxStyle:        m.ConversationPreferences.TypingFxStyle,
 						ResizeEnabled:        m.ConversationPreferences.ComposerResize,
 						Resize:               m.ComposerResize,

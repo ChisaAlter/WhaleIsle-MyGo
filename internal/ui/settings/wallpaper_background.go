@@ -495,7 +495,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 			ui.Text(c, providerCopy("玻璃透明度", "Glass opacity")).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 			ui.Text(c, fmt.Sprintf("%.0f%%", prefs.Glass)).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).FontFeatures("tnum").TextColor(muted)
 		})
-		ui.Text(c, providerCopy("控制界面表层的实心程度：菜单、对话框、输入框，以及设置背景图后的侧栏和聊天区域。数值越低越通透。有背景图时画布不会完全实心，图始终能透出一层。", "Controls how solid UI surfaces are: menus, dialogs, the composer, and — with a wallpaper set — the sidebar and chat area. Lower values are more see-through. With a wallpaper, the canvas never goes fully opaque, so the image always shows through a little.")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		ui.Text(c, minimalOverrideHint(providerCopy("控制界面表层的实心程度：菜单、对话框、输入框，以及设置背景图后的侧栏和聊天区域。数值越低越通透。有背景图时画布不会完全实心，图始终能透出一层。", "Controls how solid UI surfaces are: menus, dialogs, the composer, and — with a wallpaper set — the sidebar and chat area. Lower values are more see-through. With a wallpaper, the canvas never goes fully opaque, so the image always shows through a little."))).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		opacity := prefs.Glass
 		if ui.StepSlider(c, &opacity, 40, 100, 5).FillWidth().Label(providerCopy("玻璃透明度", "Glass opacity")).Disabled(g.Save == nil || prefs.Transparent && hasWallpaper).Changed() {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Glass = opacity })
@@ -510,7 +510,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		} else if prefs.Terminal < 75 {
 			terminalHint = providerCopy("低于 75% 时，只用加粗和颜色标选中行的终端程序可能看不清选中了哪一行。", "Below 75%, terminal apps that mark the selected row with only bold text and a color may make it hard to tell which row is selected.")
 		}
-		ui.Text(c, terminalHint).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		ui.Text(c, minimalOverrideHint(terminalHint)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		transparent := prefs.Transparent
 		wallpaperBlockSwitch(c, "transparent-theme", providerCopy("透明主题", "Transparent theme"), &transparent, g.Save == nil, fg, func(value bool) {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Transparent = value })
@@ -521,7 +521,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		} else if transparent && prefs.Blur < 20 {
 			transparentHint = providerCopy("毛玻璃程度低于 20%，文字会直接贴在清晰壁纸上，可能难以阅读。建议把「毛玻璃程度」调高。", "Frosted glass is below 20%, so text sits directly on the sharp wallpaper and may be hard to read. Raise the frosted-glass slider.")
 		}
-		ui.Text(c, transparentHint).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		ui.Text(c, minimalOverrideHint(transparentHint)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		mask := prefs.HideSidebarMask
 		wallpaperBlockSwitch(c, "sidebar-mask", providerCopy("隐藏侧栏遮罩", "Hide sidebar mask"), &mask, g.Save == nil, fg, func(value bool) {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.HideSidebarMask = value })
@@ -543,12 +543,12 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		g.downloadItem = nil
 	}
 }
-func wallpaperSlider(c *ui.Context, key, label string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) {
-	wallpaperSliderStep(c, key, label, value, lo, hi, 1, disabled, fg, muted)
+func wallpaperSlider(c *ui.Context, key, label, hint string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) {
+	wallpaperSliderStep(c, key, label, hint, value, lo, hi, 1, disabled, fg, muted)
 }
 
-func wallpaperSliderStep(c *ui.Context, key, label string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) {
-	bodyPreferenceRow(c, key, label, "", fg, muted, func() {
+func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) {
+	bodyPreferenceRow(c, key, label, hint, fg, muted, func() {
 		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.StepSlider(c, value, lo, hi, step).FillWidth().Label(label).Disabled(disabled)
 	})

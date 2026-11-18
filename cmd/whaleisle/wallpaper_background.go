@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
@@ -204,6 +205,18 @@ func wallpaperCanvasFill(base ui.Color, dark bool, path string, prefs wallpapers
 }
 
 func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ...bool) func(*ui.Painter, ui.Rect) {
+	// Minimal mode paints no backdrop at all — no wallpaper, no ambient
+	// gradient, solid materials — for every skin, and without touching the
+	// stored preferences it is pausing.
+	if renderpolicy.Minimal() {
+		prefs := wallpapers.Defaults()
+		if g := s.wallpaperEditor(); g != nil {
+			prefs = g.EffectivePreferences()
+		}
+		prefs = renderpolicy.Background(prefs)
+		chrome.ConfigureBackdrop("", prefs)
+		return s.desktopGlassPainter("", prefs, func(*ui.Painter, ui.Rect) {})
+	}
 	if s.activeSkin() == theme.SkinCodex {
 		prefs := wallpapers.Defaults()
 		if g := s.wallpaperEditor(); g != nil {
