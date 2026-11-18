@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -18,7 +19,7 @@ func displayFailure(raw json.RawMessage) (message, code string) {
 		Code    string `json:"code"`
 	}
 	if json.Unmarshal(raw, &failure) != nil {
-		return string(raw), ""
+		return errcopy.SentenceText(string(raw)), ""
 	}
 	message, code = failure.Message, failure.Code
 	switch code {
@@ -32,12 +33,15 @@ func displayFailure(raw json.RawMessage) (message, code string) {
 		message = i18n.T(i18n.KeyChatRetryQuota)
 	case "SESSION_IN_USE", "session_in_use":
 		message = sessionInUseNotice()
+	default:
+		// The reason a turn failed is the Host's transport text, written per
+		// provider route and often naming an environment variable. The code
+		// names the cause; the classifier owns the sentence and the next step,
+		// and the raw text stays in the retained event the inspector shows.
+		message = errcopy.SentenceFor(code, message)
 	}
 	if normalized := normalizeConversationNotice(message); normalized != "" && normalized != message {
 		message = normalized
-	}
-	if message == "" && len(raw) > 0 {
-		message = string(raw)
 	}
 	return message, code
 }

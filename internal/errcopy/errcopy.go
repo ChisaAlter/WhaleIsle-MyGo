@@ -33,6 +33,7 @@ const (
 	CauseKilled
 	CausePageStopped
 	CauseRevertConflict
+	CauseMissingCredential
 )
 
 const (
@@ -54,6 +55,7 @@ const (
 	keyPortInUse       = "errcopy.port_in_use"
 	keyPageStopped     = "errcopy.page_stopped"
 	keyRevertConflict  = "errcopy.revert_conflict"
+	keyNoCredential    = "errcopy.no_credential"
 )
 
 // causes is ordered: an earlier family claims a message that a later pattern
@@ -74,6 +76,12 @@ var causes = []struct {
 }{
 	{CauseRuntimeMissing, regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT`)},
 	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use`)},
+	// A provider route without a credential is the one failure a person fixes in
+	// Settings, so it claims its own family ahead of the generic ones: the Host
+	// names it after the route ("no API key for provider route \"deepseek-official\"")
+	// and the route, the provider and the environment variable are all noise to
+	// the reader. The stable code carries the same cause without the wording.
+	{CauseMissingCredential, regexp.MustCompile(`(?i)no api key|missing api key|api key is not (?:set|configured)|no api credential|credentials? (?:are )?not configured|missing_credential|missing_api_key|no_api_key|未配置\s*api\s*key|api\s*key\s*未配置`)},
 	{CauseCancelled, regexp.MustCompile(`(?i)context canceled|operation was canceled|cancelled by the caller`)},
 	{CauseTimeout, regexp.MustCompile(`(?i)deadline exceeded|timed out|timeout`)},
 	{CauseNetwork, regexp.MustCompile(`(?i)connection refused|connection reset|no such host|network is unreachable|network is down|dial tcp|broken pipe|tls handshake|unexpected eof`)},
@@ -148,6 +156,39 @@ func init() {
 	i18n.Register(keyPortInUse,
 		"启动所需端口被其他程序占用，请关闭占用程序后重试。",
 		"Another program holds the port this start needs; close it and retry.")
+	i18n.Register(keyNoCredential,
+		"未配置模型凭据。请在 设置 → 模型 里填写 API Key 后重试。",
+		"No model credentials are set. Add an API key in Settings → Models, then try again.")
+}
+
+// codeCauses maps the Host's stable failure codes onto causes, so one cause does
+// not depend on which provider route happens to be configured: the code is the
+// Host's own classification, and the message beside it is written per route.
+var codeCauses = map[string]Cause{
+	"MISSING_CREDENTIAL": CauseMissingCredential,
+	"MISSING_API_KEY":    CauseMissingCredential,
+	"NO_API_KEY":         CauseMissingCredential,
+	"NO_CREDENTIAL":      CauseMissingCredential,
+}
+
+// ClassifyCode reports which family a failure belongs to, preferring the Host's
+// stable code and falling back to the message for carriers that keep only text.
+func ClassifyCode(code, raw string) Cause {
+	if cause, ok := codeCauses[strings.ToUpper(strings.TrimSpace(code))]; ok {
+		return cause
+	}
+	return classifyText(raw)
+}
+
+// providerEnvelope is the shape of a provider route's own failure text, the
+// string the Host builds for its logs: `llm-<route>: …`. It is never copy, so a
+// surface that paints a string it did not compose can ask before showing it.
+var providerEnvelope = regexp.MustCompile(`(?i)^\s*llm-[a-z0-9._-]+\s*:`)
+
+// ProviderEnvelope reports whether raw is a provider route's failure text
+// rather than something written for a person.
+func ProviderEnvelope(raw string) bool {
+	return providerEnvelope.MatchString(raw)
 }
 
 // Classify reports which family err belongs to.
@@ -187,7 +228,23 @@ func SentenceText(raw string) string {
 	if strings.TrimSpace(raw) == "" {
 		return ""
 	}
-	cause := classifyText(raw)
+	return sentenceFor(classifyText(raw), raw)
+}
+
+// SentenceFor is SentenceText for a carrier that also kept the Host's stable
+// code, which names the cause even when the message is written per route or left
+// out entirely.
+func SentenceFor(code, raw string) string {
+	if cause, ok := codeCauses[strings.ToUpper(strings.TrimSpace(code))]; ok {
+		return sentenceFor(cause, raw)
+	}
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	return sentenceFor(classifyText(raw), raw)
+}
+
+func sentenceFor(cause Cause, raw string) string {
 	if cause == CauseRuntimeExited {
 		if match := exitCode.FindStringSubmatch(raw); match != nil {
 			return fmt.Sprintf(i18n.T(keyRuntimeExitCode), match[1])
@@ -243,6 +300,8 @@ func keyFor(cause Cause) string {
 		return keyPageStopped
 	case CauseRevertConflict:
 		return keyRevertConflict
+	case CauseMissingCredential:
+		return keyNoCredential
 	default:
 		return keyUnknown
 	}

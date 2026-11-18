@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -226,11 +227,11 @@ func TestTranscriptGalleryToolKinds(t *testing.T) {
 				Web: &session.WebResult{Kind: "search", Truncated: false, Sources: []session.WebSource{
 					{URL: "https://www.example.com/go/gofmt", Title: "gofmt rewrites files in place", Snippet: "gofmt -w rewrites every file, which turns CRLF into LF and shows up as a whole-file diff.", PublishedAt: "2026-02-11"},
 					{URL: "https://docs.example.org/text", Title: "Text normalization", Snippet: "Normalize line endings before comparing generated files."},
-					}}}}}
+				}}}}}
 	todo := session.Message{ID: "k3", Role: "assistant", Kind: session.MessageKindTool, Seq: 15, EventTime: 1700000220000,
 		Tool: &session.ToolCallView{CallID: "call-todo", Name: "todo", State: "ok",
 			Arguments: `{"todos":[]}`,
-			Result: result(16, "- [x] 修好表格列宽\n- [~] 复核工具行画廊\n- [ ] 补 terminalBlock 深色截图\n- 收尾更新 README")}}
+			Result:    result(16, "- [x] 修好表格列宽\n- [~] 复核工具行画廊\n- [ ] 补 terminalBlock 深色截图\n- 收尾更新 README")}}
 	expanded := map[string]bool{"k1|tool:call-grep": true, "k2|tool:call-web": true, "k3|tool:call-todo": true}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(12).Children(func() {
@@ -242,20 +243,23 @@ func TestTranscriptGalleryToolKinds(t *testing.T) {
 	writeGallery(t, dir, "transcript-tool-kinds.png", tt)
 }
 
-// transcript-turn-failure.png — inline terminal error notices: the missing-key
-// reason stays visible, while coded authentication errors use localized copy.
+// transcript-turn-failure.png — inline terminal error notices: a missing
+// credential reads as the classifier's sentence and the next step, beside the
+// coded authentication notice that has copy of its own.
 func TestTranscriptGalleryTurnFailure(t *testing.T) {
 	dir := galleryDir(t)
 	colors, _, _ := galleryTheme()
-	raw := "llm-deepseek: no API key for provider route deepseek/deepseek-chat"
+	reason, _ := json.Marshal(map[string]any{"message": `llm-deepseek: no API key for provider route "deepseek-chat"`, "code": "MISSING_CREDENTIAL"})
+	message, code := displayFailure(reason)
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(18).Children(func() {
-			paintTurnFailure(c, turnFailure{Message: raw}, colors)
+			paintTurnFailure(c, turnFailure{Message: message, Code: code}, colors)
 			paintTurnFailure(c, turnFailure{Message: i18n.T(i18n.KeyChatRetryAuthFailed), Code: "AUTH"}, colors)
 		})
 	}, 1200, 320)
 	writeGallery(t, dir, "transcript-turn-failure.png", tt)
 }
+
 // transcript-queue-dock.png — the composer queue dock with two rows, previews
 // and the icon-only edit/steer/remove actions.
 func TestTranscriptGalleryQueueDock(t *testing.T) {

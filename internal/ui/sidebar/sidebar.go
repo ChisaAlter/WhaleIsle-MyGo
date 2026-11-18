@@ -568,12 +568,6 @@ func View(c *ui.Context, m Model) {
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
-	if batchSessionRow(c, m, it, depth, it.Title, fg, muted) {
-		return
-	}
-	selected := it.SessionID == displayedSessionID(m)
-	renaming := m.RenameSessionID == it.SessionID && m.RenameDraft != nil
-	status := sessionStatus(m, it)
 	label := it.Title
 	if it.Blank {
 		label = i18n.T(i18n.KeySidebarNewSessionFallback)
@@ -581,6 +575,13 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if strings.TrimSpace(label) == "" {
 		label = workspaceText("未命名会话", "Untitled session")
 	}
+	label = sessionRowLabel(label)
+	if batchSessionRow(c, m, it, depth, label, fg, muted) {
+		return
+	}
+	selected := it.SessionID == displayedSessionID(m)
+	renaming := m.RenameSessionID == it.SessionID && m.RenameDraft != nil
+	status := sessionStatus(m, it)
 	hint := label
 	if it.Cwd != "" {
 		hint += "\n" + it.Cwd
@@ -648,7 +649,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 					actions.Absolute().Right(4).Opacity(0)
 				}
 				actions.Children(func() {
-					more := ui.Button(c.Key("session-menu-"+it.SessionID), "").Label(sessionActionsLabel(it.SessionID, it.Title)).
+					more := ui.Button(c.Key("session-menu-"+it.SessionID), "").Label(sessionActionsLabel(it.SessionID, label)).
 						Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(16).Padding(0).
 						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })

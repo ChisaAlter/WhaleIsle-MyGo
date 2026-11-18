@@ -38,13 +38,18 @@ var carrierScan = []struct {
 	// and hands over a category. Text put on an item here has no reader but
 	// the screen, so it must not come from a failure.
 	{"../../desktop/importer", regexp.MustCompile(`Label:|Group:|Reason:|Detail:|Message:`)},
+	// The chat speaks a turn's failure and the sidebar speaks a Session's title,
+	// and both take strings the Host wrote: the same walk keeps a new surface
+	// from painting the transport's own text.
+	{"../chat", regexp.MustCompile(`ui\.Text\(c, |ui\.Span\{Text:|Label\(`)},
+	{"../sidebar", regexp.MustCompile(`ui\.Text\(c, |Label\(|Description\(`)},
 }
 
 // rawFailure is every field or call that carries a failure's own words. A
 // painted line may match it only when the words never reach the screen: .Error()
 // is the transport's, and the two import-catalog fields are the shape this scan
 // was added for, where a scanner's message became a checkbox's second half.
-var rawFailure = regexp.MustCompile(`\.Error\(\)|UnsupportedReason|UnsupportedDetail`)
+var rawFailure = regexp.MustCompile(`\.Error\(\)|UnsupportedReason|UnsupportedDetail|\bllm-[a-z0-9._-]+\s*:`)
 
 // verbatimDiagnostics marks the one carrier whose job is to show the failure
 // word for word: the progress panel that offers "copy full error". A person
