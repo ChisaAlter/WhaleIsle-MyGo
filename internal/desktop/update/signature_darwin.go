@@ -5,8 +5,9 @@ package update
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
+
+	"whaleisle/internal/processutil"
 )
 
 // The shared signature options also apply to native macOS packages. A probe is
@@ -16,14 +17,14 @@ func probeAuthenticode(ctx context.Context, path string) (SignatureInfo, error) 
 	if err := ctx.Err(); err != nil {
 		return SignatureInfo{}, err
 	}
-	output, err := exec.CommandContext(ctx, "/usr/bin/codesign", "--verify", "--strict", path).CombinedOutput()
+	output, err := processutil.CommandContext(ctx, "/usr/bin/codesign", "--verify", "--strict", path).CombinedOutput()
 	if ctx.Err() != nil {
 		return SignatureInfo{}, ctx.Err()
 	}
 	if err != nil {
 		return SignatureInfo{Status: SignatureInvalid, Detail: strings.TrimSpace(string(output))}, fmt.Errorf("macOS code signature: %w", err)
 	}
-	output, err = exec.CommandContext(ctx, "/usr/bin/codesign", "--display", "--verbose=4", path).CombinedOutput()
+	output, err = processutil.CommandContext(ctx, "/usr/bin/codesign", "--display", "--verbose=4", path).CombinedOutput()
 	if ctx.Err() != nil {
 		return SignatureInfo{}, ctx.Err()
 	}

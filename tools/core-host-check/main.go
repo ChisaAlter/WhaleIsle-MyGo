@@ -24,6 +24,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/session"
 )
 
@@ -172,11 +173,11 @@ func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error
 		}
 		gitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		init := exec.CommandContext(gitCtx, "git", "init", "--quiet", "--template=", ownedWorkspace)
+		init := processutil.CommandContext(gitCtx, "git", "init", "--quiet", "--template=", ownedWorkspace)
 		if output, err := init.CombinedOutput(); err != nil {
 			return fmt.Errorf("initialize owned workspace repository: %w: %s", err, strings.TrimSpace(string(output)))
 		}
-		verify := exec.CommandContext(gitCtx, "git", "-C", ownedWorkspace, "rev-parse", "--show-toplevel")
+		verify := processutil.CommandContext(gitCtx, "git", "-C", ownedWorkspace, "rev-parse", "--show-toplevel")
 		output, err := verify.Output()
 		if err != nil {
 			return fmt.Errorf("verify owned workspace repository: %w", err)

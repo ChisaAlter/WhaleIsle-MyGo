@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,7 +24,7 @@ func exercisePhone(ctx context.Context, stage, root, userData string, endpoint h
 		return errors.New("phone check requires explicit tooling and headless Chrome paths")
 	}
 	_, source, _, _ := runtime.Caller(0)
-	cmd := exec.CommandContext(ctx, filepath.Join(stage, "node/node.exe"), filepath.Join(filepath.Dir(source), "phone-relay-browser.cjs"), root, filepath.Join(stage, "vendor/dshd-remote"), tools, chrome)
+	cmd := processutil.CommandContext(ctx, filepath.Join(stage, "node/node.exe"), filepath.Join(filepath.Dir(source), "phone-relay-browser.cjs"), root, filepath.Join(stage, "vendor/dshd-remote"), tools, chrome)
 	processutil.Background(cmd)
 	in, err := cmd.StdinPipe()
 	if err != nil {

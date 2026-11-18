@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -40,7 +39,7 @@ func (r GitHubReader) Read(ctx context.Context, source Source) ([]SourceItem, er
 	}
 	// GitHub redirects old repository names after a rename. Resolve the selected
 	// repository's metadata before accepting item links from its canonical name.
-	metadata := exec.CommandContext(ctx, cli, "api", "--hostname", "github.com", "--method", "GET", "repos/"+repo)
+	metadata := processutil.CommandContext(ctx, cli, "api", "--hostname", "github.com", "--method", "GET", "repos/"+repo)
 	processutil.Background(metadata)
 	metadata.Env = githubEnvironment()
 	raw, err := metadata.Output()
@@ -58,7 +57,7 @@ func (r GitHubReader) Read(ctx context.Context, source Source) ([]SourceItem, er
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, cli, "api", "--hostname", "github.com", "--method", "GET", "--paginate", "repos/"+repo+"/issues?"+query.Encode())
+	cmd := processutil.CommandContext(ctx, cli, "api", "--hostname", "github.com", "--method", "GET", "--paginate", "repos/"+repo+"/issues?"+query.Encode())
 	processutil.Background(cmd)
 	// Disable CLI prompts/pagers. The existing CLI credential provider remains
 	// responsible for authentication, including private repository access.

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -17,6 +16,7 @@ import (
 	"whaleisle/internal/desktop/proactive"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/session"
 )
 
@@ -36,7 +36,7 @@ func prepareACPFixture(root, home, vendor, node string) (*acpFixtureState, error
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, node, script, "configure", home, vendor, node)
+	command := processutil.CommandContext(ctx, node, script, "configure", home, vendor, node)
 	if output, err := command.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("configure isolated ACP: %w: %s", err, output)
 	}

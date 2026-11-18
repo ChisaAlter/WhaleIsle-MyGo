@@ -10,7 +10,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -289,7 +288,7 @@ func (b *Bridge) call(parent context.Context, envelope map[string]any) map[strin
 	script, _ := bundled.ReadFile("runner.js")
 	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, b.opts.NodeBin, "-e", string(script))
+	cmd := processutil.CommandContext(ctx, b.opts.NodeBin, "-e", string(script))
 	processutil.BackgroundTree(cmd)
 	cmd.Stdin = bytes.NewReader(input)
 	// Prevent ambient Node injection and inherited control-plane credentials.

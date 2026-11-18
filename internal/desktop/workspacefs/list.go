@@ -91,7 +91,7 @@ func gitIgnoredPaths(ctx context.Context, root string, paths []string) (map[stri
 	if len(paths) == 0 {
 		return ignored, nil
 	}
-	command := exec.CommandContext(ctx, "git", "-C", root, "check-ignore", "--no-index", "--stdin", "-z")
+	command := processutil.CommandContext(ctx, "git", "-C", root, "check-ignore", "--no-index", "--stdin", "-z")
 	processutil.Background(command)
 	command.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
 	output, err := command.Output()

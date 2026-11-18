@@ -12,13 +12,13 @@ import (
 	"io"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"whaleisle/internal/paths"
+	"whaleisle/internal/processutil"
 )
 
 //go:embed renderer.cjs
@@ -81,7 +81,7 @@ func Render(ctx context.Context, node string, formula Formula) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	cmd := exec.CommandContext(ctx, node, "--max-old-space-size=256", "--input-type=commonjs", "-")
+	cmd := processutil.CommandContext(ctx, node, "--max-old-space-size=256", "--input-type=commonjs", "-")
 	hideWindow(cmd)
 	// No NODE_OPTIONS/NODE_PATH, account tokens, shell startup or user scripts.
 	cmd.Env = []string{}

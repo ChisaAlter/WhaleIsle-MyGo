@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -303,7 +302,7 @@ func bridgeOfflineCommand(ctx context.Context, exe, data, dshHome, command strin
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, exe, command)
+	cmd := processutil.CommandContext(ctx, exe, command)
 	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	cmd.Env = sanitizeComponentEnv(os.Environ(),

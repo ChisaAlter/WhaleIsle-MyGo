@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 // ErrNotRepo means workspaceRoot is empty or not inside a Git work tree.
@@ -21,19 +23,11 @@ var ErrEmptyCommitMessage = errors.New("git: empty commit message")
 // DefaultCommandTimeout bounds fetch/pull/push when no deadline is passed.
 const DefaultCommandTimeout = 2 * time.Minute
 
-// commandPipeGrace bounds how long Wait drains the output pipes once the
-// child has exited or its context is done. Git finishes writing before it
-// exits, so only a descendant that inherited the pipe needs the grace.
-const commandPipeGrace = 2 * time.Second
-
-// gitCommand is the single place a git child is constructed. Killing the
-// process on the context is not enough by itself: a descendant that inherited
-// the output pipe keeps CombinedOutput blocked after the deadline, which the
-// user sees as an operation that never times out. WaitDelay closes those pipes
-// so the wait cannot outlive the context.
+// gitCommand is the single place a git child is constructed: every git call
+// must carry the shared pipe grace, or a descendant that inherited the output
+// pipe keeps CombinedOutput blocked long after the deadline killed the child.
 func gitCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.WaitDelay = commandPipeGrace
+	cmd := processutil.CommandContext(ctx, name, args...)
 	configureGitProcess(cmd)
 	return cmd
 }

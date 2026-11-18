@@ -18,7 +18,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -983,7 +982,7 @@ func disconnectWhalebridge(ctx context.Context, root, version string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := exec.CommandContext(ctx, exe, "whalebridge-disconnect")
+	cmd := processutil.CommandContext(ctx, exe, "whalebridge-disconnect")
 	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
 	cmd.Env = sanitizeComponentEnv(os.Environ(),

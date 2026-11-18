@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"time"
 
 	"whaleisle/internal/harness"
@@ -48,7 +47,7 @@ func readCompressedSessionMetaWithNode(parent context.Context, node, path string
 func runCompressedMetadataScript(parent context.Context, node, path string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, node, "-e", compressedMetadataScript, path)
+	cmd := processutil.CommandContext(ctx, node, "-e", compressedMetadataScript, path)
 	processutil.Background(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
