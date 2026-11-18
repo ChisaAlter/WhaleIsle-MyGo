@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
@@ -81,7 +82,7 @@ func (m *Manager) OrdinaryTeamModel(win any) projects.OrdinaryTeamModel {
 		SessionID: sid,
 		Team:      t.team,
 		Loading:   t.loading,
-		Error:     t.err,
+		Error:     viewError(t.err),
 		State:     &t.view,
 	}
 	if !t.lastRead.IsZero() {
@@ -214,7 +215,7 @@ func (m *Manager) TeamModel(win any, client *dsh.Client, id string) projects.Pro
 		State:         &t.view,
 		Overview:      t.overview,
 		Loading:       t.loading || readDue,
-		Error:         t.err,
+		Error:         viewError(t.err),
 		ActivityStale: t.overview == nil || t.err != "" || t.loading || readDue || !f.loaded,
 		NextRefresh:   t.lastRead.Add(5 * time.Second),
 	}
@@ -467,7 +468,7 @@ func (c *Controller) runStop(win any, id string) {
 			}
 			f.lifecycleNote = note
 			if refreshErr != nil {
-				f.refreshNote = "Stop accepted; refresh failed: " + refreshErr.Error()
+				f.refreshNote = errcopy.Under(localizedText("已停止；刷新失败", "Stopped; refresh failed"), refreshErr)
 				return
 			}
 			f.listing = listing
@@ -585,7 +586,7 @@ func (c *Controller) runLifecycle(win any, id, action string) {
 							f.listing.Projects[i] = result.Project
 						}
 					}
-					f.err = i18n.T(i18n.KeyCmdProjectStateUpdatedButListRefreshFaile) + refreshErr.Error()
+					f.err = errcopy.Under(i18n.T(i18n.KeyCmdProjectStateUpdatedButListRefreshFaile), refreshErr)
 				}
 				// Clear stale snapshots whose controls depend on Project lifecycle.
 				if f.teamID == id {

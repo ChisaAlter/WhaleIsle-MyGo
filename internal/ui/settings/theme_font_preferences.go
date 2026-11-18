@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -42,7 +43,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				if !importDisabled && importButton.Clicked() {
 					raw, err := e.OnImport()
 					if err != nil {
-						e.Status = err.Error()
+						e.Status = errcopy.Sentence(err)
 					} else if raw != "" {
 						e.ImportLibraryFamily(raw)
 					}

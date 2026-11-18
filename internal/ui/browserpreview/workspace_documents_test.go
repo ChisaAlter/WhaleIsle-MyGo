@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pdfpreview"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -132,7 +133,11 @@ func TestDocumentLocalDeliveryLoadingAndFinalFailureHaveOwnedTab(t *testing.T) {
 			t.Error("nil final failure")
 		}
 	}})
-	if len(b.Tabs) != 1 || b.current() != tab || tab.Error != "exact local source failed" || tab.ActionMessage != "" || tab.sourceRead != nil || completion != 1 || tab.Host != nil {
+	wantErr := errcopy.Sentence(errors.New("exact local source failed"))
+	if strings.Contains(tab.Error, "exact local source failed") {
+		t.Errorf("final failure tab carries the raw error: %+v", tab)
+	}
+	if len(b.Tabs) != 1 || b.current() != tab || tab.Error != wantErr || tab.ActionMessage != "" || tab.sourceRead != nil || completion != 1 || tab.Host != nil {
 		t.Fatalf("final failure tab=%+v completion=%d", tab, completion)
 	}
 }

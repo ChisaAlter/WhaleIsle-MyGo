@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	whaleislecomponents "whaleisle/internal/desktop/components"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -59,7 +61,6 @@ func hostNotReadyToast() string {
 	return i18n.T(i18n.KeyCmdNotConnectedToTheHostYetTryAgainShor)
 }
 
-// saveFailedToast names the action that failed and keeps the Host's reason.
 // revealInFileManager reports a failed reveal instead of leaving the menu click
 // silent. The path is in the message because it is what the user can act on.
 func (s *mainState) revealInFileManager(win *mygo.Window, path string) {
@@ -68,15 +69,13 @@ func (s *mainState) revealInFileManager(win *mygo.Window, path string) {
 	}
 }
 
+// saveFailedToast names the action that failed and the cause a person can act
+// on. The Host's own wording goes to the log, never into the toast.
 func saveFailedToast(action string, err error) string {
-	reason := ""
 	if err != nil {
-		reason = strings.TrimSpace(err.Error())
+		log.Printf("%s: %v", action, err)
 	}
-	if reason == "" {
-		return action + i18n.T(i18n.KeyCmdFailed)
-	}
-	return action + i18n.T(i18n.KeyCmdFailed) + reason
+	return errcopy.Under(action+i18n.T(i18n.KeyCmdFailed), err)
 }
 
 // consumePendingToast paints the queued message once, before anything else in

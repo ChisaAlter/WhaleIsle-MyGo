@@ -81,7 +81,7 @@ func (c *Controller) Model(win any) projects.Model {
 		Busy:              f.busy,
 		Loaded:            f.loaded,
 		Listing:           listing,
-		Error:             f.err,
+		Error:             viewError(f.err),
 		Workspace:         workspace,
 		RenameID:          f.renameID,
 		RenameDraft:       &f.renameDraft,

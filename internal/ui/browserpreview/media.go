@@ -22,7 +22,7 @@ func (b *Controller) OpenMedia(doc *mediapreview.Document, floating bool) error 
 	h, err := desktop.NewHost(desktop.HostOptions{Parent: b.parent, URL: doc.URL(), LocalMediaURL: doc.URL(), Title: doc.Name, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFailure: b.pageFailure(t), OnClosed: doc.Close})
 	if err != nil {
 		doc.Close()
-		t.Error = browserChromeLabel("音视频预览不可用：", "Media preview unavailable: ") + err.Error()
+		t.fail(browserChromeLabel("音视频预览不可用", "Media preview unavailable"), err)
 	} else {
 		t.Host = h
 		b.showHost(h)

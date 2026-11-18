@@ -2,9 +2,12 @@ package browserpreview
 
 import (
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
+
 	"time"
+	"whaleisle/internal/errcopy"
 
 	desktop "whaleisle/internal/desktop/webview"
 )
@@ -186,7 +189,7 @@ func TestControllerResumeFailureClearsReclaimedAndRestoredTabStaysLazy(t *testin
 	if attempts.Load() != 1 {
 		t.Fatalf("expected single recreate attempt on failure, got %d", attempts.Load())
 	}
-	if failed.Error != "webview unavailable" || failed.reclaimed {
+	if strings.Contains(failed.Error, "webview unavailable") || failed.Error != errcopy.Sentence(errors.New("webview unavailable")) || failed.reclaimed {
 		t.Fatalf("unexpected failed state: Error=%q reclaimed=%v", failed.Error, failed.reclaimed)
 	}
 	if failed.resumeURL != "https://example.com/a" {

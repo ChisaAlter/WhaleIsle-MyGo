@@ -20,7 +20,7 @@ func (b *Controller) openBrowserDevTools(t *Tab) {
 	}
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
-			t.Error = err.Error()
+			t.fail("", err)
 		}
 	} else {
 		t.Error = ""

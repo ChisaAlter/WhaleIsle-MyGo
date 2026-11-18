@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -131,7 +132,7 @@ func (g *WallpaperEditor) commit() bool {
 		return false
 	}
 	if err := g.Save(g.Prefs); err != nil {
-		g.Status = err.Error()
+		g.Status = errcopy.Sentence(err)
 		g.failure = g.Status
 		return false
 	}
@@ -327,7 +328,7 @@ func (g *WallpaperEditor) importImage(read func(context.Context) ([]byte, error)
 			}
 			g.Busy = false
 			if err != nil {
-				g.Status = err.Error()
+				g.Status = errcopy.Sentence(err)
 				g.failure = g.Status
 				return
 			}
@@ -384,7 +385,7 @@ func (g *WallpaperEditor) ClearImage() {
 		return
 	}
 	if err := g.Apply(""); err != nil {
-		g.Status = err.Error()
+		g.Status = errcopy.Sentence(err)
 		g.failure = g.Status
 		return
 	}
@@ -420,7 +421,7 @@ func (g *WallpaperEditor) applyCrop() {
 				err = g.Apply(path)
 			}
 			if err != nil {
-				g.Status = err.Error()
+				g.Status = errcopy.Sentence(err)
 				g.failure = g.Status
 				return
 			}

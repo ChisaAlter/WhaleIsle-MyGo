@@ -188,7 +188,7 @@ func View(c *ui.Context, m Model) {
 	if (m.AllowPageShortcuts == nil || m.AllowPageShortcuts()) && m.SelectedFile != nil && *m.SelectedFile != "" {
 		if c.PageShortcut(ui.Cmd, ui.KeyS) {
 			if err := requestSaveDraft(m); err != nil {
-				setFileStatus(m, err.Error())
+				setFileError(m, err)
 			}
 		}
 		if c.PageShortcut(ui.Cmd, ui.KeyF) {

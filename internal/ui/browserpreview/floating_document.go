@@ -85,7 +85,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	}
 	opts, err := floatingDocumentOptions(t)
 	if err != nil {
-		t.Error = err.Error()
+		t.fail("", err)
 		b.update()
 		return
 	}
@@ -155,7 +155,7 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 	h, err := desktop.NewHost(opts)
 	if err != nil {
 		b.stopFloatingDocument()
-		t.Error = browserChromeLabel("浮动预览不可用：", "Floating preview unavailable: ") + err.Error()
+		t.fail(browserChromeLabel("浮动预览不可用", "Floating preview unavailable"), err)
 		b.update()
 		return
 	}

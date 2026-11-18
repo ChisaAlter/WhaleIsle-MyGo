@@ -1,7 +1,9 @@
 package browserpreview
 
 import (
+	"strings"
 	"testing"
+
 	desktop "whaleisle/internal/desktop/webview"
 )
 
@@ -13,8 +15,11 @@ func TestPageFailureBelongsToExistingTabAndNavigation(t *testing.T) {
 	b.SetPageFailureHandler(func(desktop.PageFailure) { called++ })
 	failure := desktop.PageFailure{Kind: "render-process-gone", Message: "Renderer stopped", Current: func() bool { return current }}
 	b.pageFailure(tab)(failure)
-	if called != 1 || tab.Error != "Renderer stopped" {
-		t.Fatal(called, tab.Error)
+	if called != 1 || !strings.Contains(tab.Error, "重新载入") {
+		t.Fatalf("page failure line does not name the next step: called=%d error=%q", called, tab.Error)
+	}
+	if strings.Contains(tab.Error, "Renderer stopped") {
+		t.Fatalf("page failure tab carries the runtime's raw text: %q", tab.Error)
 	}
 	current = false
 	b.pageFailure(tab)(failure)

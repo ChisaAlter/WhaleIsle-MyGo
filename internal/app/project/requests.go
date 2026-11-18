@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
@@ -356,7 +357,7 @@ func (c *Controller) bindRequestReverts(win any, m *projects.Model) {
 		card, known := c.revertCardLocked(state, key, snap.Client)
 		view := projects.RequestRevertState{Known: known, Allowed: known && c.revertAllowedLocked(card)}
 		if state != nil && c.flow.requestReverts == state {
-			view.Error = state.errors[key]
+			view.Error = viewError(state.errors[key])
 		}
 		c.mgr.mu.Unlock()
 		if known && win != nil {
@@ -496,7 +497,7 @@ func (c *Controller) revertRequestOwned(win any, state *requestRevertState, key 
 				return
 			}
 			if err != nil {
-				f.requestRevertError = err.Error()
+				f.requestRevertError = errcopy.Sentence(err)
 				state.errors[key] = err.Error()
 				if !f.visible() {
 					f.err = err.Error()
@@ -506,7 +507,7 @@ func (c *Controller) revertRequestOwned(win any, state *requestRevertState, key 
 					if f.requestCard != nil && f.requestCard.ID == requestID {
 						f.requestCard = nil
 					}
-					f.err = i18n.T(i18n.KeyCmdChangesWereRevertedButRefreshingFailed) + " " + err.Error()
+					f.err = i18n.T(i18n.KeyCmdChangesWereRevertedButRefreshingFailed) + errcopy.Sentence(err)
 				}
 				return
 			}

@@ -5,6 +5,7 @@ import (
 	"whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/config"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
 )
@@ -92,7 +93,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					accepted, err := d.OnSetLocale(*d.Fields.Locale)
 					*d.Fields.Locale = accepted
 					if err != nil {
-						c.AddToast(ui.Toast{ID: "settings-locale", Title: err.Error(), Type: "error"})
+						c.AddToast(ui.Toast{ID: "settings-locale", Title: errcopy.Sentence(err), Type: "error"})
 					}
 				}
 			}
@@ -219,7 +220,7 @@ func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice
 			*value = accepted
 			*failure = ""
 			if err != nil {
-				*failure = err.Error()
+				*failure = errcopy.Sentence(err)
 			} else if accepted != next {
 				*failure = providerCopy("设置未能保存，请重试。", "The setting was not saved; retry.")
 			}

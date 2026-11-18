@@ -333,7 +333,7 @@ func (b *Controller) finishDocumentRead(tab *Tab, request *documentRead, ctx con
 		result.close()
 	}
 	if err != nil {
-		tab.Error = err.Error()
+		tab.fail("", err)
 	}
 	if err == nil && source.LocalDelivery && !source.LocalDeliveryValid() {
 		b.denyLocalDocument(tab)
@@ -360,7 +360,7 @@ func (b *Controller) openSourceMediaTab(tab *Tab, doc *mediapreview.Document) er
 	if err != nil {
 		doc.Close()
 		tab.Media = nil
-		tab.Error = err.Error()
+		tab.fail("", err)
 		return err
 	}
 	tab.Host = h

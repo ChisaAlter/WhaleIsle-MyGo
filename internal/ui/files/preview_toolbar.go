@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -123,7 +124,7 @@ func activateFloatingPreview(m Model, path string) {
 	} else if (isPreviewImage(path) || kind == workspacefs.DocPDF || kind == workspacefs.DocHTML) && m.OnOpenFloatingDoc != nil {
 		m.OnOpenFloatingDoc(path)
 	} else if err := openFloatingPreview(m); err != nil {
-		setFileStatus(m, err.Error())
+		setFileError(m, err)
 	}
 }
 
@@ -210,7 +211,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 				if previewTextTool(c, caption).Width(86).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
 					Disabled(busy || explicitSaveDisabled(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
-						setFileStatus(m, err.Error())
+						setFileError(m, err)
 					}
 				}
 			}
@@ -247,6 +248,19 @@ func previewSaveCaption(m Model) (string, bool) {
 
 // Feedback belongs to the fixed toolbar or overlay, never an inserted editor
 // row. The resource owner keys the receipt so another file cannot consume it.
+// feedbackEntry is the line the preview toolbar reports: the edit status, or
+// the save queue's failure in copy a person can act on.
+func feedbackEntry(editStatus string, state workspacefs.SaveSnapshot) (text, kind string) {
+	text, kind = editStatus, "info"
+	if state.Error != "" {
+		text, kind = errcopy.SentenceText(state.Error), "error"
+	}
+	if state.Running || state.Pending {
+		text = ""
+	}
+	return text, kind
+}
+
 func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element) {
 	last := ui.Local(owner, "preview-feedback", func() string { return "" })
 	status, kind := "", "info"
@@ -254,13 +268,7 @@ func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element)
 		status = *m.EditStatus
 	}
 	if tab := selectedTab(m); tab != nil && tab.save != nil {
-		state := tab.save.Snapshot()
-		if state.Error != "" {
-			status, kind = state.Error, "error"
-		}
-		if state.Running || state.Pending {
-			status = ""
-		}
+		status, kind = feedbackEntry(status, tab.save.Snapshot())
 	}
 	if status == i18n.T(i18n.KeyFilesSaved) || status == label("正在保存…", "Saving…") {
 		status = ""
@@ -414,7 +422,7 @@ func paintPreviewSelectionActions(c *ui.Context, m Model, path string) {
 	if fragment, ok := previewSelection(m, path); ok {
 		if previewTextTool(c, label("添加到对话", "Add to chat")).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
 			if err := m.OnAddToChat(fragment); err != nil {
-				setFileStatus(m, err.Error())
+				setFileError(m, err)
 			} else {
 				setFileStatus(m, label("所选行已添加到对话草稿", "Selected lines added to the chat draft"))
 			}
@@ -488,7 +496,7 @@ func previewContextActions(menu *ui.Menu, m Model, path string) {
 	}
 	if !desktopFileToolbar(m, path) && editing && m.OnSaveEdit != nil && m.EditDraft != nil && menu.Item(i18n.T(i18n.KeyFilesSave)).Disabled(explicitSaveDisabled(m)).Chosen() {
 		if err := requestSaveDraft(m); err != nil {
-			setFileStatus(m, err.Error())
+			setFileError(m, err)
 		}
 	}
 	if editing && menu.Item(label("保留草稿并预览", "Keep draft and preview")).Chosen() {
@@ -507,7 +515,7 @@ func previewContextActions(menu *ui.Menu, m Model, path string) {
 		}
 		if menu.Item(label("添加到对话", "Add to chat")).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Chosen() {
 			if err := m.OnAddToChat(fragment); err != nil {
-				setFileStatus(m, err.Error())
+				setFileError(m, err)
 			} else {
 				setFileStatus(m, label("所选行已添加到对话草稿", "Selected lines added to the chat draft"))
 			}
@@ -549,7 +557,7 @@ func previewViewerChoices(menu *ui.Menu, m Model, tab *FileTab) {
 		if tab.document.surface == nil || !tab.document.surface.Alive() {
 			surface, err := m.OpenDocumentViewer(tab.Path)
 			if err != nil {
-				setFileStatus(m, err.Error())
+				setFileError(m, err)
 				return
 			}
 			tab.document.surface = surface

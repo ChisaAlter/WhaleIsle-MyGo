@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/egoist/mygo/ui"
+	"log"
 	"path/filepath"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -487,11 +489,12 @@ func paintPendingClose(c *ui.Context, m Model, w *WorkspaceTabs, muted ui.Color)
 				selectFile(m, path)
 			}
 			if err := requestSaveDraft(m); err != nil {
+				log.Printf("files save draft: %v", err)
 				if m.EditStatus != nil {
-					*m.EditStatus = err.Error()
+					*m.EditStatus = errcopy.Sentence(err)
 				}
 				if tab := findTab(w, path); tab != nil {
-					tab.Error = err.Error()
+					tab.Error = errcopy.Sentence(err)
 				}
 			} else if tab := selectedTab(m); tab != nil {
 				tab.closeWhenSaved = true

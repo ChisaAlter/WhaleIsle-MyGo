@@ -171,7 +171,7 @@ func (b *Controller) startAction(t *Tab, kind string) {
 				if errors.Is(err, context.Canceled) {
 					return
 				}
-				t.Error = err.Error()
+				t.fail("", err)
 				return
 			}
 			if kind == "pick" {

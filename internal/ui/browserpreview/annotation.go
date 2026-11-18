@@ -47,7 +47,7 @@ func (b *Controller) startAnnotation(t *Tab) {
 				cancel()
 				t.ActionMessage = ""
 				if !errors.Is(err, context.Canceled) {
-					t.Error = err.Error()
+					t.fail("", err)
 				}
 				return
 			}

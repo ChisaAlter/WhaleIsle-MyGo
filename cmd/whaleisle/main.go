@@ -53,6 +53,7 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
@@ -2713,15 +2714,15 @@ func applyAppearance(id string) {
 const gitRefreshInterval = 3 * time.Second
 const prRefreshInterval = 30 * time.Second
 
+// gitStatusLine is the git status strip's one line. A failure names the cause
+// and the next step; git's own wording goes to the log with the exit status.
 func gitStatusLine(actionOK, actionFail string, out string, err error) string {
 	if err != nil {
-		msg := actionFail
-		if out != "" {
-			msg = firstLine(out)
-		} else if err != nil {
-			msg = err.Error()
+		log.Printf("git: %s: %v", actionFail, err)
+		if line := firstLine(out); line != "" {
+			log.Printf("git: %s output: %s", actionFail, line)
 		}
-		return msg
+		return errcopy.Under(actionFail, err)
 	}
 	if out != "" {
 		return firstLine(out)

@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"time"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
@@ -132,7 +133,7 @@ func (b *Controller) pictureInPictureFrames(p *browserPictureInPicture) {
 			}
 			if err != nil {
 				p.bitmap = nil
-				p.status = browserChromeLabel("画中画已停止：", "Picture-in-picture stopped: ") + err.Error()
+				p.status = errcopy.Under(browserChromeLabel("画中画已停止", "Picture-in-picture stopped"), err)
 				p.cancel()
 				if errors.Is(err, context.Canceled) {
 					b.stopPictureInPicture()

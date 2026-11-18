@@ -183,7 +183,7 @@ func (b *Controller) browserNavigation(c *ui.Context, t *Tab, state desktop.Stat
 	}
 	if clicked, err := externalOpenButton(c, currentURL, desktop.OpenExternal); clicked {
 		if err != nil {
-			t.Error = err.Error()
+			t.fail("", err)
 		} else {
 			t.Error, t.ActionMessage = "", browserChromeLabel("已在系统浏览器打开", "Opened in the system browser")
 		}
@@ -235,13 +235,13 @@ func (b *Controller) documentHeader(c *ui.Context, t *Tab, name string, external
 					err = mygo.Shell.OpenPath(path)
 				}
 				if err != nil {
-					t.Error = err.Error()
+					t.fail("", err)
 				}
 			}
 			if menu.Item(browserChromeLabel("复制文件路径", "Copy file path")).Chosen() {
 				path, err := externalPath()
 				if err != nil {
-					t.Error = err.Error()
+					t.fail("", err)
 				} else {
 					mygo.Clipboard.WriteText(path)
 				}
