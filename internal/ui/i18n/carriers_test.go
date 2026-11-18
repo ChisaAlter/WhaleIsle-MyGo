@@ -29,6 +29,7 @@ var carrierScan = []struct {
 	{"../schedule", regexp.MustCompile(`\.status = `)},
 	{"../assistant", regexp.MustCompile(`return err\.Error|ReviewText`)},
 	{"../widgets/markdown", regexp.MustCompile(`label = `)},
+	{"../svgimage", regexp.MustCompile(`message = |p[.]Text[(]`)},
 }
 
 // verbatimDiagnostics marks the one carrier whose job is to show the failure

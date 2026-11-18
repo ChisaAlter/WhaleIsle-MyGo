@@ -152,13 +152,15 @@ func TestFailureDetailDock(t *testing.T) {
 			if dock.W != 640 || dock.X+dock.W/2 != 720 {
 				t.Fatalf("dock not the 640 DIP centred pane: %+v", dock)
 			}
-			if !tt.HasText("桌面端没能正常启动，可重试；原因见下方日志。") {
+			if !tt.HasText("找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。") {
 				t.Fatal("dock does not carry the localized failure copy")
 			}
 			if tt.HasText(boom.Error()) {
 				t.Fatal("raw error reached the page copy")
 			}
-			r, g, b, _ := tt.Image().At(int(dock.X+dock.W/2), int(dock.Y+dock.H/2)).RGBA()
+			// Sample the left padding: the copy wraps, and a centred sample can land
+			// on a glyph rather than the surface this checks.
+			r, g, b, _ := tt.Image().At(int(dock.X+8), int(dock.Y+dock.H/2)).RGBA()
 			if got := [3]uint32{r >> 8, g >> 8, b >> 8}; got != tc.want {
 				t.Fatalf("dock surface %v, want %v", got, tc.want)
 			}
@@ -197,8 +199,9 @@ func TestFailureTextCopy(t *testing.T) {
 		{"dsh web exited: exit status 137", "桌面运行时已退出（退出码 137），可重试或到日志里查看原因。"},
 		{"dsh web exited: signal: killed", "桌面运行时被系统结束，可重试或到日志里查看原因。"},
 		{"dsh web exited", "桌面运行时已退出，可重试或到日志里查看原因。"},
-		{"Error: Cannot find module 'dsh-web'", "桌面端没能正常启动，可重试；原因见下方日志。"},
-		{"spawn dsh ENOENT", "桌面运行时文件缺失，请重新安装桌面端。（详情见下方日志）"},
+		{"Error: Cannot find module 'dsh-web'", "找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。"},
+		{"EACCES: permission denied", "没有权限访问所需资源，请检查安全软件拦截或系统权限后重试；详情见日志。"},
+		{"spawn dsh ENOENT", "桌面运行时文件缺失，请重新安装桌面端。"},
 	} {
 		if got := failureText(errors.New(tc.raw)); got != tc.want {
 			t.Errorf("failureText(%q) = %q, want %q", tc.raw, got, tc.want)

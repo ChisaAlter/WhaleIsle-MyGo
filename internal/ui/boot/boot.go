@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -228,20 +229,6 @@ func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
 	})
 }
 
-// failureCauses maps the raw failure to the cause and next step .failure
-// shows, keeping the message itself for the drawer (boot.js FAILURE_TEXT_PATTERNS).
-var failureCauses = []struct {
-	pattern *regexp.Regexp
-	zh, en  string
-}{
-	{regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT|ENOENT`),
-		"桌面运行时文件缺失，请重新安装桌面端。", "A desktop runtime file is missing; reinstall the desktop app."},
-	{regexp.MustCompile(`(?i)EADDRINUSE|address already in use`),
-		"启动所需端口被其他程序占用，请关闭占用程序后重试。", "Another program holds the port this start needs; close it and retry."},
-	{regexp.MustCompile(`(?i)EACCES|permission denied|EPERM`),
-		"没有权限访问所需资源，请检查安全软件拦截或重新安装。", "Access to a required resource was denied; check security software, or reinstall."},
-}
-
 // exitStatus is the code dsh reported when its process exited, named in the
 // copy instead of repeating the English "exit status 1" line.
 var exitStatus = regexp.MustCompile(`(?i)exit status\s+(\d+)`)
@@ -276,13 +263,10 @@ func failureText(err error) string {
 		return bootText("桌面运行时已退出，可重试或到日志里查看原因。",
 			"The desktop runtime exited; retry, or check the log for the cause.")
 	}
-	for _, cause := range failureCauses {
-		if cause.pattern.MatchString(raw) {
-			return bootText(cause.zh, cause.en) + bootText("（详情见下方日志）", " (see the log below)")
-		}
-	}
-	return bootText("桌面端没能正常启动，可重试；原因见下方日志。",
-		"The desktop app could not start. Retry, or check the log for the cause.")
+	// Everything else is a cause internal/errcopy already names. It owns the
+	// cause table and its sentences, so the startup screen cannot drift from the
+	// rest of the shell; the drawer below still carries the raw message.
+	return errcopy.Sentence(err)
 }
 
 // bootDrawerLines is the log the drawer lists: the failure message joins it
