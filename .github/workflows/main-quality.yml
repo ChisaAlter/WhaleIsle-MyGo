@@ -229,9 +229,10 @@ jobs:
         # that the program still compiles and its behaviour still holds.
         # TestDirectoryPickerNativeModeAndWorkspacePersistMergeExternalConfigEdit
         # needs a native picker backend that only exists on Windows and macOS, so
-        # on this runner it fails before the merge behaviour it also covers. Its
-        # config-merge half is still exercised on developer machines; moving it to
-        # the Windows job is the future fix, not a reason to drop the package.
+        # here it fails before the merge behaviour it also covers. It is not
+        # uncovered: the "UI packages (Windows)" job above runs it by name, which
+        # is where its config-merge half is verified. The exclusion below is that
+        # placement, not neglect.
         run: |
           go test -count=1 \
             -skip '^TestDirectoryPickerNativeModeAndWorkspacePersistMergeExternalConfigEdit$' \
