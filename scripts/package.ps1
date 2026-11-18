@@ -121,6 +121,8 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & node (Join-Path $PSScriptRoot 'session-runtime.mjs') inspect (Join-Path $VendorSrc 'deepseek-harness')
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host cannot read the shared desktop session schema.' }
     }
+    & node (Join-Path $PSScriptRoot 'session-runtime-composition.mjs') verify (Split-Path -Parent $VendorSrc)
+    if ($LASTEXITCODE -ne 0) { throw 'Staged Host composition does not match scripts/runtime-composition/contract.json. Restage from the 本体 source that contract names.' }
     $VendorDst = Join-Path $Stage 'runtime\vendor'
     $SessionInput = Test-Path -LiteralPath (Join-Path $VendorSrc 'host-session-runtime.json') -PathType Leaf
     if ($SessionInput) {

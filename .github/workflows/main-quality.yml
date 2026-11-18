@@ -254,4 +254,4 @@ jobs:
         run: |
           node scripts/installer-branding-fixture.mjs
           node scripts/package-release-inputs-fixture.mjs
-          node --test scripts/session-runtime-slim.test.mjs internal/harness/proactive-tools.test.mjs
+          node --test scripts/session-runtime-slim.test.mjs scripts/session-runtime-composition.test.mjs internal/harness/proactive-tools.test.mjs
