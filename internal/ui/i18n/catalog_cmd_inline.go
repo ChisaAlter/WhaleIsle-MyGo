@@ -306,7 +306,6 @@ const (
 	KeyCmdWorkspaceDeleteIDMissing        = "cmd.inline.workspace_delete_i_d_missing"
 	KeyCmdRemoteConfigUnavailable         = "cmd.inline.remote_config_unavailable"
 	KeyCmdTaskConfirmationWindowMissing   = "cmd.inline.task_confirmation_window_missing"
-	KeyCmdTaskCoverageUnknown             = "cmd.inline.task_coverage_unknown"
 	KeyCmdImportBeforeQuit                = "cmd.inline.import_before_quit"
 	KeyCmdRuntimeChangedRetryQuit         = "cmd.inline.runtime_changed_retry_quit"
 	KeyCmdRuntimeChangedRetryStop         = "cmd.inline.runtime_changed_retry_stop"
@@ -351,7 +350,6 @@ func init() {
 	Register(KeyCmdWorkspaceDeleteIDMissing, "无法删除工作区：缺少工作区 ID", "workspace delete: no workspace id")
 	Register(KeyCmdRemoteConfigUnavailable, "远程配置不可用", "remote configuration unavailable")
 	Register(KeyCmdTaskConfirmationWindowMissing, "没有可用于任务确认的桌面窗口", "no desktop window for the task confirmation")
-	Register(KeyCmdTaskCoverageUnknown, "：未知", ": unknown")
 	Register(KeyCmdImportBeforeQuit, "导入仍在进行，请完成或取消后再退出", "import is still running; finish or cancel it before quitting")
 	Register(KeyCmdRuntimeChangedRetryQuit, "运行时或导入状态已改变，请重新退出", "runtime or import state changed; retry quit")
 	Register(KeyCmdRuntimeChangedRetryStop, "运行时或导入状态已改变，请重新停止", "runtime or import state changed; retry stop")

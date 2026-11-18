@@ -53,13 +53,6 @@ func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, oper
 			missing = append(missing, key+": "+value)
 		}
 	}
-	if i.Unknown == "" && i.HostGeneration != "" {
-		for _, key := range []string{"agents", "jobs", "schedule", "bots"} {
-			if _, ok := i.Coverage[key]; !ok {
-				missing = append(missing, key+i18n.T(i18n.KeyCmdTaskCoverageUnknown))
-			}
-		}
-	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		lines = append(lines, i18n.T(i18n.KeyCmdTheseChecksAreUnknown)+strings.Join(missing, ", "))

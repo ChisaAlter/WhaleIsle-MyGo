@@ -22,7 +22,7 @@ func TestStopProtectionContract(t *testing.T) {
 }
 
 func testProtectionContract(t *testing.T, operation string) {
-	for _, mode := range []string{"clean", "active-cancel", "late-work-cancel", "unknown-approved", "unknown-cancel", "drain-failure", "commit-failure", "generation-change", "expired", "renew-failure", "missing-coverage"} {
+	for _, mode := range []string{"clean", "active-cancel", "late-work-cancel", "unknown-approved", "unknown-cancel", "drain-failure", "commit-failure", "generation-change", "expired", "renew-failure", "partial-coverage", "unavailable-coverage", "unknown-incomplete"} {
 		t.Run(mode, func(t *testing.T) {
 			calls := []string{}
 			inspections := 0
@@ -40,17 +40,23 @@ func testProtectionContract(t *testing.T, operation string) {
 				switch op {
 				case "inspect":
 					inspections++
-					if strings.HasPrefix(mode, "unknown") {
+					if strings.HasPrefix(mode, "unknown") && mode != "unknown-incomplete" {
 						w.WriteHeader(404)
 						result["ok"] = false
 						break
 					}
 					result["hostGeneration"] = "g1"
-					result["coverage"] = map[string]string{"agents": "ok", "jobs": "ok", "schedule": "intentional-disabled", "bots": "intentional-disabled"}
+					result["coverage"] = map[string]string{"agents": "ok", "jobs": "ok", "schedule": "intentional-disabled"}
 					result["activeWork"] = []any{}
 					result["scheduledWork"] = []any{}
-					if mode == "missing-coverage" {
+					if mode == "partial-coverage" {
 						result["coverage"] = map[string]string{"agents": "ok"}
+					}
+					if mode == "unavailable-coverage" {
+						result["coverage"] = map[string]string{"agents": "ok", "jobs": "unavailable"}
+					}
+					if mode == "unknown-incomplete" {
+						delete(result, "coverage")
 					}
 					if mode == "active-cancel" || mode == "late-work-cancel" && inspections == 2 {
 						result["activeWork"] = []any{map[string]string{"kind": "job", "id": "work1"}}
@@ -101,11 +107,11 @@ func testProtectionContract(t *testing.T, operation string) {
 				}
 				return nil
 			})
-			wantCommit := mode == "clean" || mode == "unknown-approved" || mode == "commit-failure"
+			wantCommit := mode == "clean" || mode == "partial-coverage" || mode == "unknown-approved" || mode == "commit-failure"
 			if (commits == 1) != wantCommit {
 				t.Fatalf("commits=%d calls=%v err=%v", commits, calls, err)
 			}
-			if did != (mode == "clean" || mode == "unknown-approved") {
+			if did != (mode == "clean" || mode == "partial-coverage" || mode == "unknown-approved") {
 				t.Fatalf("proceeded=%v err=%v", did, err)
 			}
 			if err != nil && strings.Contains(err.Error(), "fixture-token") {
@@ -120,8 +126,14 @@ func testProtectionContract(t *testing.T, operation string) {
 					t.Fatalf("lock not released: %v", calls)
 				}
 			}
-			if mode == "clean" && joined != "inspect,acquire,inspect,renew" {
+			if (mode == "clean" || mode == "partial-coverage") && joined != "inspect,acquire,inspect,renew" {
 				t.Fatal(calls)
+			}
+			if (mode == "clean" || mode == "partial-coverage") && prompts != 0 {
+				t.Fatal(prompts)
+			}
+			if mode == "unavailable-coverage" && prompts != 1 {
+				t.Fatal(prompts)
 			}
 			if strings.HasPrefix(mode, "unknown") && prompts != 1 {
 				t.Fatal(prompts)
