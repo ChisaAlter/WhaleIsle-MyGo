@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "file": "packages/bundle/base/cordis.patch.yml",
+  "note": "The Host composition a staged runtime must carry, per harness version. src/shared/harness-desktop-forks.js in the 本体 desktop is the authority for these rows, and every supported staging path copies an installed 本体 graph verbatim, so each sha256 below is 本体's file rather than a value MyGo chooses. Update an entry only together with the restage that produced it.",
+  "versions": {
+    "0.2.1-rc.2": {
+      "harnessPin": {
+        "ref": "dsh-v0.2.1-rc.2",
+        "sha": "687f282e8625c6b8d11ff58211a90524be2e4317"
+      },
+      "upstream": {
+        "file": "upstream/dsh-v0.2.1-rc.2.cordis.patch.yml",
+        "sha256": "a2cc57868a4d016609801e28781262515483dde29b41c2742d9a3b27a6f52f77"
+      },
+      "desktop": {
+        "reference": "本体 64f539aedaf (vendored dsh-v0.2.1-rc.2)",
+        "rows": ["mcp-servers-file", "llm-vision-fallback"],
+        "configs": [],
+        "renamedRows": {}
+      },
+      "sha256": "6d88240453c4b0350f8b0823c4560bace2573368c4238f9507a40cf4e98f29b5",
+      "alternates": []
+    },
+    "0.2.1-rc.4": {
+      "harnessPin": {
+        "ref": "dsh-v0.2.1-rc.4",
+        "sha": "504a01a9578abc2c6f1fb896b1dc322c9fe24f66"
+      },
+      "upstream": {
+        "file": "upstream/dsh-v0.2.1-rc.2.cordis.patch.yml",
+        "sha256": "a2cc57868a4d016609801e28781262515483dde29b41c2742d9a3b27a6f52f77"
+      },
+      "desktop": {
+        "reference": "本体 f7163ec73c5 (vendored dsh-v0.2.1-rc.4)",
+        "rows": ["mcp-servers-file", "llm-vision-fallback"],
+        "configs": ["preparedSessionCacheSize: 1"],
+        "renamedRows": {}
+      },
+      "sha256": "a8a40fbc7beac44409c0766e2d26edf1084fd34dacad38be8c3698e3d4013c22",
+      "alternates": [
+        {
+          "sha256": "6775d2f98e2f0c3b3fdd308c22e9fa0ce792a0d2359dd9d2550733e4b8e9899b",
+          "why": "本体 67c982980f0 also mounts its optional dsh-deepseek-tools plugin, which MyGo does not ship"
+        }
+      ]
+    },
+    "0.2.2-rc.2": {
+      "harnessPin": {
+        "ref": "dsh-v0.2.2-rc.2",
+        "sha": "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c"
+      },
+      "upstream": {
+        "file": "upstream/dsh-v0.2.2-rc.2.cordis.patch.yml",
+        "sha256": "026fa70d7746609549ea7607f5b60c76fd19476e13549729dc1171f0a1d96cc8"
+      },
+      "desktop": {
+        "reference": "本体 334a3db3de6 (vendored dsh-v0.2.2-rc.2)",
+        "rows": ["mcp-servers-file", "llm-vision-fallback", "dsh-deepseek-tools"],
+        "configs": ["preparedSessionCacheSize: 1"],
+        "renamedRows": {"agent-team": "native-agent-team"}
+      },
+      "sha256": "965b4a4a7f437ed38eeed6b70eb00b7832dfde6b5b45b3fb4773eaa170ccb4b1",
+      "alternates": [
+        {
+          "sha256": "c6373a3f48b57c817369c74ac64e116a0a393fb6b0007e3c74e13967b07f18b7",
+          "why": "本体 4b837c75f96 vendored this harness before its dsh-deepseek-tools plugin existed, so that source omits the row"
+        }
+      ]
+    }
+  }
+}

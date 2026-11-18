@@ -10,6 +10,12 @@
 # managers (node_modules writes) and build scripts (lib/ and dist/ outputs).
 # Re-running is safe: every step is idempotent (package managers converge,
 # build scripts overwrite their own outputs).
+#
+# The composition a stage carries is the desktop app's, not upstream's: it
+# vendors extra rows (mcp-servers-file, llm-vision-fallback, its tools plugin)
+# on top of the pin, so every stage is verified against
+# scripts/runtime-composition/contract.json and refused when it came from any
+# other source.
 
 param(
     [string]$RuntimeSourceResources,
@@ -28,6 +34,16 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'env.ps1')
+
+# Every staging path below copies a source graph verbatim, so the mounted rows a
+# Host ends up with depend on which source it came from. The composition that
+# desktop app vendors for a harness version is the contract; refuse anything
+# else instead of shipping a Host whose rows silently differ.
+function Assert-HostComposition([string]$RuntimeRoot, [string]$NodeExe = 'node') {
+    & $NodeExe (Join-Path $PSScriptRoot 'session-runtime-composition.mjs') verify $RuntimeRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Staged Host composition does not match scripts/runtime-composition/contract.json. Restage from the desktop source that contract names; never edit the composed file inside a stage.' }
+}
+
 if ($RuntimeSourceResources) {
     if ($SourceMode -ne 'custom') { throw 'RuntimeSourceResources and current source build are separate inputs.' }
     $StageNode = Join-Path $RuntimeSourceResources 'runtime\primary-runtime\dependencies\node\bin\node.exe'
@@ -48,6 +64,7 @@ if ($RuntimeSourceResources) {
         & $StageNode (Join-Path $PSScriptRoot 'session-runtime.mjs') stage $RuntimeSourceResources $RuntimeDestination
     }
     if ($LASTEXITCODE -ne 0) { throw 'Compatible Host staging failed; the original runtime and session files were not changed.' }
+    Assert-HostComposition $RuntimeDestination $StageNode
     if ($AcpSource) {
         & $StageNode (Join-Path $PSScriptRoot 'session-runtime-acp.mjs') $AcpSource $RuntimeDestination
         if ($LASTEXITCODE -ne 0) { throw 'ACP package snapshot failed; staged files retained.' }

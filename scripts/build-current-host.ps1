@@ -49,6 +49,8 @@ try {
         if (-not (Test-Path $baseVendor)) { $baseVendor = Join-Path $ProjectRoot 'runtime\vendor' }
         & node $Helper stage $WorkRoot $baseVendor $VendorTarget
         if ($LASTEXITCODE -ne 0) { throw 'Current Host staging failed' }
+        & node (Join-Path $PSScriptRoot 'session-runtime-composition.mjs') verify $VendorTarget
+        if ($LASTEXITCODE -ne 0) { throw 'Staged Host composition does not match scripts/runtime-composition/contract.json.' }
         Write-Host "Staged $VendorTarget. Select explicitly with WHALEISLE_VENDOR; desktop bridges and overlay readiness are still required."
     } else {
         Write-Host "BuildOnly current Host output retained at $WorkRoot"
