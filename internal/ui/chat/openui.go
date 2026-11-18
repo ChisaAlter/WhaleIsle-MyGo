@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/openui"
 	"whaleisle/internal/desktop/previewprocess"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
@@ -123,6 +125,18 @@ type openUIBlock struct {
 	parent                       *mygo.Window
 	revision                     uint64
 	media                        *openUIMedia
+}
+
+// fail records why an embedded UI stopped and reports whether the painted line
+// changed, so a caller holding the lock can skip a repaint. The transcript
+// paints the cause and the next step; the raw error goes to the log.
+func (b *openUIBlock) fail(err error) bool {
+	previous := b.err
+	if err != nil {
+		log.Printf("openui panel: %v", err)
+	}
+	b.err = errcopy.Sentence(err)
+	return b.err != previous
 }
 
 func (b *openUIBlock) effectiveOffscreenTTL() time.Duration {
@@ -261,7 +275,7 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 		}
 		if err != nil {
 			b.mu.Lock()
-			b.err = err.Error()
+			b.fail(err)
 			b.mu.Unlock()
 			invalidate()
 			return
@@ -360,7 +374,7 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 							}
 							if err := handle.PresentSurface(m.OpenUIParent, int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H)); err != nil {
 								b.mu.Lock()
-								b.err = err.Error()
+								b.fail(err)
 								b.mu.Unlock()
 							}
 						})
@@ -387,7 +401,7 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 						}
 						if err != nil {
 							b.mu.Lock()
-							b.err = err.Error()
+							b.fail(err)
 							b.mu.Unlock()
 						}
 						invalidate()
@@ -445,7 +459,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 		b.handle = nil
 		b.media = nil
 		if err != nil {
-			b.err = err.Error()
+			b.fail(err)
 		}
 		b.mu.Unlock()
 	}
@@ -724,7 +738,7 @@ func runOpenUILoop(
 				if ps != nil {
 					if e := ps.Publish(source, order, event.Operation); e != nil {
 						b.mu.Lock()
-						b.err = e.Error()
+						b.fail(e)
 						b.mu.Unlock()
 					}
 				}
@@ -739,7 +753,7 @@ func runOpenUILoop(
 				if (valid == nil || valid()) && ctx.Err() == nil {
 					if replyErr := handle.ReplyOpenUIAPI(response); replyErr != nil {
 						b.mu.Lock()
-						b.err = replyErr.Error()
+						b.fail(replyErr)
 						b.mu.Unlock()
 					}
 				}
@@ -756,7 +770,7 @@ func runOpenUILoop(
 					if (valid == nil || valid()) && ctx.Err() == nil {
 						if replyErr := handle.ReplyOpenUIAPI(response); replyErr != nil {
 							b.mu.Lock()
-							b.err = replyErr.Error()
+							b.fail(replyErr)
 							b.mu.Unlock()
 						}
 					}
@@ -781,7 +795,7 @@ func runOpenUILoop(
 					}
 					if replyErr != nil && ctx.Err() == nil {
 						b.mu.Lock()
-						b.err = replyErr.Error()
+						b.fail(replyErr)
 						b.mu.Unlock()
 						invalidate()
 					}
@@ -789,7 +803,7 @@ func runOpenUILoop(
 			case "state":
 				if e = openui.SaveState(root, storageID, event.State); e != nil {
 					b.mu.Lock()
-					b.err = e.Error()
+					b.fail(e)
 					b.mu.Unlock()
 				}
 			case "assistant":
@@ -811,7 +825,7 @@ func runOpenUILoop(
 						if (valid == nil || valid()) && ctx.Err() == nil {
 							if e := handle.ReplyOpenUIAPI(whaleActionResponse(action, err)); e != nil {
 								b.mu.Lock()
-								b.err = e.Error()
+								b.fail(e)
 								b.mu.Unlock()
 							}
 						}

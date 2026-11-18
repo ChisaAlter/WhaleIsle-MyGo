@@ -1,5 +1,7 @@
 package files
 
+import "whaleisle/internal/errcopy"
+
 // ReloadSelectedFile is the page command's explicit refresh, sharing all draft,
 // save, delivery-source and document checks with the visible toolbar action.
 func ReloadSelectedFile(m Model) { reloadSelectedFile(m) }
@@ -68,7 +70,7 @@ func reloadSelectedFile(m Model) {
 	text, errMsg, truncated := "", "", false
 	if tab := selectedTab(m); tab != nil && tab.deliverySource != nil {
 		if _, err := previewPathResolver(m, tab)(); err != nil {
-			errMsg = err.Error()
+			errMsg = errcopy.Sentence(err)
 		} else {
 			text, errMsg, truncated = loadPreview(m.WorkspaceRoot, rel)
 		}

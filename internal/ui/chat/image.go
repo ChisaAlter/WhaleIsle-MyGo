@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/imgcache"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -219,7 +220,7 @@ func paintAttachmentImage(c *ui.Context, id string, fg, muted ui.Color, onOpen f
 		return path, err
 	}, svc.Invalidate)
 	if state.err != nil {
-		paintImageFailure(c, i18n.T(i18n.KeyChatImageFailed)+": "+state.err.Error(), func() {
+		paintImageFailure(c, errcopy.Under(i18n.T(i18n.KeyChatImageFailed), state.err), func() {
 			read.Forget(id)
 			attachmentLoads.retry(key)
 			svc.Invalidate()
@@ -373,7 +374,7 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 		}
 	})
 	if state.err != nil {
-		tile.Label(i18n.T(i18n.KeyChatImageRetry)).Tooltip(state.err.Error()).Focusable().Role(ui.RoleButton)
+		tile.Label(i18n.T(i18n.KeyChatImageRetry)).Tooltip(errcopy.Sentence(state.err)).Focusable().Role(ui.RoleButton)
 		if tile.Clicked() {
 			read.Forget(id)
 			attachmentLoads.retry(read.Identity(id))

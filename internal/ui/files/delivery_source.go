@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 	"unicode/utf8"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/workspacefs"
 )
@@ -243,7 +244,7 @@ func rejectDeliveryRead(m Model, tab *FileTab, err error) {
 	if !tab.Dirty() {
 		tab.Preview, tab.Draft = "", ""
 	}
-	tab.Error = err.Error()
+	tab.Error = errcopy.Sentence(err)
 	tab.readLoading, tab.readResume, tab.readBlocked = false, false, true
 	tab.Editing = false
 	tab.image = nil

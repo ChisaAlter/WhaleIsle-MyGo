@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -90,7 +91,7 @@ func openTreeFile(m Model, path string) {
 	problem := label("文件资源入口未连接", "File resource opener is unavailable")
 	if m.OnOpenResource != nil {
 		if err := m.OnOpenResource(path); err != nil {
-			problem = err.Error()
+			problem = errcopy.Sentence(err)
 		} else {
 			problem = ""
 		}

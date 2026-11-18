@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -65,7 +66,7 @@ func (s *referenceQueryState) query(m Model, q string, quoted bool) []session.Re
 			s.cancel = nil
 			s.rows = append([]session.ReferenceCandidate(nil), rows...)
 			if err != nil {
-				s.err = err.Error()
+				s.err = errcopy.Sentence(err)
 			}
 			s.mu.Unlock()
 			if m.referenceInvalidate != nil {

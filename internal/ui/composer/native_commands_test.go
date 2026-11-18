@@ -17,6 +17,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -271,7 +272,7 @@ func TestNativePopupLoadRetryAndSelectionReceipt(t *testing.T) {
 		}
 	}
 	openNativePopup(t, d, m, tt, changed)
-	if !tt.HasText("catalog read failed") || d.Text != "/model" {
+	if !tt.HasText(errcopy.Sentence(errors.New("catalog read failed"))) || tt.HasText("catalog read failed") || d.Text != "/model" {
 		t.Fatal("load failure hid retry or consumed command")
 	}
 	if err := tt.Click(composerText("重试", "Retry")); err != nil {
@@ -300,7 +301,7 @@ func TestNativePopupLoadRetryAndSelectionReceipt(t *testing.T) {
 	release <- errors.New("writer held")
 	nativeChanged(t, changed)
 	tt.Frame()
-	if d.Text != "/model" || !tt.HasText("writer held") || !tt.HasText("Beta") || tt.HasText("Alpha") {
+	if d.Text != "/model" || !tt.HasText(errcopy.Sentence(errors.New("writer held"))) || tt.HasText("writer held") || !tt.HasText("Beta") || tt.HasText("Alpha") {
 		t.Fatal("failed selection lost query, token or retryable popup")
 	}
 	if err := tt.Click("Beta"); err != nil {

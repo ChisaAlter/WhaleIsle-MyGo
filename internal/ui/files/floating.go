@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -98,7 +99,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 		f.loading = false
 		f.snapshot.Problem = ""
 		if result.err != nil {
-			f.snapshot.Problem = result.err.Error()
+			f.snapshot.Problem = errcopy.Sentence(result.err)
 		} else {
 			f.snapshot.Text = result.text
 			f.tab.Preview, f.tab.Draft = result.text, result.text

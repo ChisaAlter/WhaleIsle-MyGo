@@ -14,6 +14,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imgcache"
+	"whaleisle/internal/errcopy"
 )
 
 var markdownImageCache struct {
@@ -157,7 +158,7 @@ func paintMarkdownImage(c *ui.Context, m Model, ref, alt string, muted ui.Color)
 		return true
 	}
 	if preview.err != nil {
-		ui.Text(c, alt+" · "+preview.err.Error()).TextColor(muted).Tooltip(ref)
+		ui.Text(c, alt+" · "+errcopy.Sentence(preview.err)).TextColor(muted).Tooltip(ref)
 		return true
 	}
 	if preview.svg != nil {

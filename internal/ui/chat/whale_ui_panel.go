@@ -13,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/openui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/theme"
 )
@@ -221,7 +222,7 @@ func (p *whalePanelState) runInitialLoad() {
 			}
 			p.Base = cloneRawJSON(p.Snapshot)
 		} else if !os.IsNotExist(err) {
-			p.Err = err.Error()
+			p.Err = errcopy.Sentence(err)
 		}
 		p.durable = whalePanelDurable{
 			Snapshot:   cloneRawJSON(p.Snapshot),
@@ -519,7 +520,7 @@ func (p *whalePanelState) runPersistWorker() {
 		} else {
 			if p.persistSeq == targetSeq {
 				p.restoreDurableLocked()
-				p.Err = err.Error()
+				p.Err = errcopy.Sentence(err)
 				inv = p.onInvalidate
 			}
 		}

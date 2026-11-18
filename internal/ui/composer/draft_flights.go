@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -58,7 +59,9 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 		if f.Exclusive {
 			d.Sending = true
 		}
-		f.Error = err.Error()
+		// The sentinel's own sentence tells a person not to resend; it is copy,
+		// not a transport error, so it is stored verbatim.
+		f.Error = session.ErrSubmissionUnconfirmed.Error()
 		f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
 		d.flights[id] = f
 		d.Error = f.Error
@@ -85,7 +88,7 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 	}
 	if f.Exclusive {
 		if d.Text == f.Text {
-			d.Error = err.Error()
+			d.Error = errcopy.Sentence(err)
 			d.Attachments = append([]session.ComposerAttachment(nil), attachments...)
 			return
 		}
@@ -95,7 +98,7 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 	}
 	restoredUnchanged := d.failedRestoredMatches()
 	restoreText := restoredUnchanged || d.Text == "" && len(d.Attachments) == 0
-	f.Error = err.Error()
+	f.Error = errcopy.Sentence(err)
 	f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
 	if d.failedSends == nil {
 		d.failedSends = make(map[uint64]DraftFlight)

@@ -2,7 +2,9 @@ package composer
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -14,7 +16,7 @@ func TestAttachmentPreparationRetainsIndividualFailureAndRetries(t *testing.T) {
 		t.Fatal("upload did not begin")
 	}
 	d.CompleteAttachmentPreparation(0, a, a, errors.New("offline"))
-	if d.Attachments[0].PrepareError != "offline" || d.Attachments[1].PrepareError != "" {
+	if d.Attachments[0].PrepareError != errcopy.Sentence(errors.New("offline")) || strings.Contains(d.Attachments[0].PrepareError, "offline") || d.Attachments[1].PrepareError != "" {
 		t.Fatal("failure not file-scoped")
 	}
 	if _, ok = d.BeginAttachmentPreparation(1, true); ok {

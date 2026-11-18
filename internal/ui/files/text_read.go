@@ -7,6 +7,7 @@ import (
 
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -215,7 +216,7 @@ func applyTextRead(m Model, result textReadResult) {
 	}
 	problem := ""
 	if result.err != nil {
-		problem = result.err.Error()
+		problem = errcopy.Sentence(result.err)
 		if errors.Is(result.err, workspacefs.ErrBinary) {
 			problem = i18n.T(i18n.KeyFilesBinary)
 		}
