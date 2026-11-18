@@ -40,6 +40,14 @@ func dirtyTabsForClose(m Model) ([]*FileTab, error) {
 	return dirty, nil
 }
 
+// closeTabSettling reports a save that has not been reported to the tab yet. A
+// receipt the tab has not applied is outstanding work, not a newer draft: a
+// write landing between the receipt read and the dirty decision would otherwise
+// leave a stale Preview that refuses the close for an edit nobody made.
+func closeTabSettling(running, pending bool, queueRevision, appliedRevision uint64) bool {
+	return running || pending || queueRevision != appliedRevision
+}
+
 // PreflightDirtyForClose captures committed input and checks every local draft
 // without creating queues or scheduling writes. Mixed panes call all preflights
 // before starting either local or remote saves.
@@ -87,7 +95,12 @@ func CheckDirtyForClose(m Model) (pending bool, err error) {
 			applySaveResult(m, tab)
 			if tab.save != nil {
 				save := tab.save.Snapshot()
-				pending = pending || save.Running || save.Pending
+				// A receipt the tab has not applied yet means this save has not
+				// been reported, not that the user typed something newer. A
+				// write that lands between applySaveResult's read and this one
+				// otherwise leaves a stale Preview that reads as a newer draft
+				// and refuses the close for an edit nobody made.
+				pending = pending || closeTabSettling(save.Running, save.Pending, save.Revision, tab.saveRevision)
 				if save.Error != "" && tab.Dirty() && err == nil {
 					err = errors.New(tab.Path + ": " + save.Error)
 				}
